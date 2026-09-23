@@ -39,10 +39,13 @@ interface PairingState {
   devices?: PairedDevice[];
   delivery_pending?: boolean;
   door_port?: number | null;
-  // The desk's own loopback port — the preferred 8132 or the fallback it
-  // took. The Tailscale note needs it, and a constant would be wrong
-  // whenever the fallback fired.
+  // The desk's own loopback port and whether it is the preferred one. A
+  // constant would be wrong whenever the fallback fired, and a fallback
+  // means the owner's standing serve rule points at the wrong port.
+  // Absent reads as the preferred port, the state every DTO before this
+  // field implied.
   desk_port?: number | null;
+  desk_port_preferred?: boolean;
   failure?: "could-not-save" | "could-not-read" | "service-unavailable" | null;
 }
 
@@ -110,15 +113,30 @@ function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
 
 // Both roads a phone needs, side by side: the door at the tailnet name and
 // the desk behind :8443. Each command runs under --bg, because two serve
-// rules cannot both hold the foreground.
+// rules cannot both hold the foreground, and whichever port is known is
+// said — a missing piece is left out, never glossed. A desk on a fallback
+// port is said too: a serve rule persists across reboots, so the standing
+// rule keeps pointing at the preferred port, which now leads somewhere
+// else or nowhere.
 function tailscaleNote(
   doorPort: number | null | undefined,
   deskPort: number | null | undefined,
+  deskOnPreferred: boolean,
 ): string | null {
-  const isPort = (port: number | null | undefined): boolean =>
+  const isPort = (port: number | null | undefined): port is number =>
     typeof port === "number" && Number.isInteger(port) && port > 0;
-  if (!isPort(doorPort) || !isPort(deskPort)) return null;
-  return `Run for Tailscale: tailscale serve --bg ${doorPort} · tailscale serve --bg --https=8443 ${deskPort}`;
+  if (!isPort(doorPort) && !isPort(deskPort)) return null;
+  const commands = [
+    isPort(doorPort) ? `tailscale serve --bg ${doorPort}` : null,
+    isPort(deskPort) ? `tailscale serve --bg --https=8443 ${deskPort}` : null,
+  ]
+    .filter((command) => command !== null)
+    .join(" · ");
+  const moved =
+    isPort(deskPort) && !deskOnPreferred
+      ? ` The pairing desk is on ${deskPort} this time — run its command again with this number.`
+      : "";
+  return `Run for Tailscale: ${commands}. The phone chats at this computer's tailnet name and pairs at that name with :8443.${moved}`;
 }
 
 interface DevicesSurfaceProps {
@@ -185,6 +203,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   let qrSvg: string | null = null;
   let fresh: string | null = null;
   let note: string | null = null;
+  let tailscale: string | null = null;
   let button: string | null = null;
   let alt: string | null = null;
   let onAction: () => void = () => {};
@@ -212,6 +231,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         qrSvg = state.qr_svg;
         fresh = state.refreshed ?? null;
         note = AWARENESS;
+        tailscale = tailscaleNote(
+          state.door_port,
+          state.desk_port,
+          state.desk_port_preferred !== false,
+        );
         break;
       case "claiming":
         onAction = retry;
@@ -223,7 +247,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         headline = everyPhoneWaiting(state.devices) ? "Waiting for your OK" : "Paired";
         sentence = pairedSentence(state);
         button = "Pair another phone";
-        note = tailscaleNote(state.door_port, state.desk_port);
+        tailscale = tailscaleNote(
+          state.door_port,
+          state.desk_port,
+          state.desk_port_preferred !== false,
+        );
         devices = Array.isArray(state.devices) ? state.devices : [];
         break;
       case "failed":
@@ -265,6 +293,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       {qrSvg ? <div className="surface-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : null}
       {fresh && FRESH_LINES[fresh] ? <p className="surface-quiet">{FRESH_LINES[fresh]}</p> : null}
       {note ? <p className="surface-quiet">{note}</p> : null}
+      {tailscale ? <p className="surface-quiet">{tailscale}</p> : null}
       {button || alt ? (
         <div className="surface-actions">
           {button ? (

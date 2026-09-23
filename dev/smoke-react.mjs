@@ -630,7 +630,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, doorPort, deskPort, deskPreferred } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -683,12 +683,26 @@ try {
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
-    // The Tailscale note names BOTH roads, because a phone reaches the door
-    // and the desk through serve rules that must run side by side — which
-    // is why each command carries --bg.
+    // The Tailscale note's numbers must be the card's own ports: a swapped
+    // or wrong-numbered command is a phone pointed at the wrong road, and
+    // shape alone would not catch a swap. Whichever port the card knows
+    // gets its command; a desk on a fallback port must say the move.
     if (all.includes("Run for Tailscale")) {
-      if (!/tailscale serve --bg \d+/.test(all) || !/tailscale serve --bg --https=8443 \d+/.test(all)) {
-        problems.push(`the Tailscale note must give both serve commands, each with --bg: ${heading}`);
+      const doorCommand = all.match(/tailscale serve --bg (\d+)/);
+      const deskCommand = all.match(/tailscale serve --bg --https=8443 (\d+)/);
+      if (doorPort !== null && Number(doorCommand?.[1]) !== doorPort) {
+        problems.push(`the note's door command must name the card's own door number ${doorPort}: ${heading}`);
+      }
+      if (deskPort !== null && Number(deskCommand?.[1]) !== deskPort) {
+        problems.push(`the note's desk command must name the card's own desk number ${deskPort}: ${heading}`);
+      }
+      const movedExpected = deskPort !== null && !deskPreferred;
+      if (all.includes("this time — run its command again") !== movedExpected) {
+        problems.push(
+          movedExpected
+            ? `a desk on a fallback number must say the pairing command moved: ${heading}`
+            : `a desk on its preferred number must not claim a move: ${heading}`,
+        );
       }
     }
   }

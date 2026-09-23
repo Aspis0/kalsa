@@ -36,8 +36,11 @@ export interface AdvancedDto {
   gpu_layers: string | null;
   threads: number | null;
   door_port: number | null;
-  // The pairing desk's own port, the second serve command's target.
+  // The pairing desk's own port and whether it is the preferred one, the
+  // second serve command's target. Absent desk facts are left out of the
+  // note, never glossed over.
   desk_port: number | null;
+  desk_port_preferred: boolean;
   iroh_sentence: string;
   internet_road: boolean;
   running: boolean;
@@ -360,8 +363,22 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
               : "The values in force will appear here when the app is open."}
           </p>
           <p className="advanced-help">
-            {dto && dto.door_port && dto.desk_port
-              ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve --bg ${dto.door_port} · tailscale serve --bg --https=8443 ${dto.desk_port}`
+            {dto && (dto.door_port || dto.desk_port)
+              ? [
+                  `Local door: ${dto.door_port ?? "not up yet"}.`,
+                  `Run for Tailscale: ${[
+                    dto.door_port ? `tailscale serve --bg ${dto.door_port}` : null,
+                    dto.desk_port ? `tailscale serve --bg --https=8443 ${dto.desk_port}` : null,
+                  ]
+                    .filter((command) => command !== null)
+                    .join(" · ")}.`,
+                  "The phone chats at this computer's tailnet name and pairs at that name with :8443.",
+                  dto.desk_port && dto.desk_port_preferred === false
+                    ? `The pairing desk is on ${dto.desk_port} this time — run its command again with this number.`
+                    : null,
+                ]
+                  .filter((part) => part !== null)
+                  .join(" ")
               : "The local door is waiting for the server to run."}
           </p>
           {dto ? (
