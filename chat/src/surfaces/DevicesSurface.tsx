@@ -24,6 +24,10 @@ interface PairedDevice {
   // The store's kind. "host" is this computer's own record; a phone is a
   // pairing result. Absent reads as a phone, the reading this page always had.
   kind?: "phone" | "host";
+  // The owner has not allowed this phone yet: its credential answers the
+  // door's 401 until Allow. Absent reads as allowed, the state every
+  // stored device had before approval existed.
+  waiting?: boolean;
 }
 
 /** What `brain_pairing` answers: one read, polled; two decisions and a retry. */
@@ -42,26 +46,35 @@ interface PairingState {
 // is named — naming it IS naming the house — while several are counted,
 // because naming one of many reads as if the others were not real. This
 // computer's own row is not a phone and is never part of the count: "now
-// works with This computer" is not a sentence about a pairing.
+// works with This computer" is not a sentence about a pairing. A phone
+// still waiting for Allow is not one this computer works with yet, so it
+// is never counted and never named as paired - when ONLY waiting phones
+// remain, the sentence says the wait instead of the success.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
     (device) => device.kind !== "host",
   );
+  const waiting = phones.filter((device) => device.waiting === true);
+  const approved = phones.filter((device) => device.waiting !== true);
   const pending = dto.delivery_pending === true;
-  if (phones.length === 0) {
+  if (approved.length === 0 && waiting.length > 0) {
+    const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
+    return `This computer is waiting for your OK to work with ${name}.`;
+  }
+  if (approved.length === 0) {
     return pending
       ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
       : `This computer now works with ${dto.phone ?? "your phone"}.`;
   }
-  if (phones.length === 1) {
-    const name = phones[0].phone ?? phones[0].label ?? dto.phone ?? "your phone";
+  if (approved.length === 1) {
+    const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? "your phone";
     return pending
       ? `This computer saved the connection for ${name}; the phone still needs to receive it.`
       : `This computer now works with ${name}.`;
   }
   return pending
-    ? `This computer now works with ${phones.length} paired phones; the newest is still waiting to receive its connection.`
-    : `This computer now works with ${phones.length} paired phones.`;
+    ? `This computer now works with ${approved.length} paired phones; the newest is still waiting to receive its connection.`
+    : `This computer now works with ${approved.length} paired phones.`;
 }
 
 function doorNote(port: number | null | undefined): string | null {
@@ -105,6 +118,12 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
 
   function forgetDevice(id: number): void {
     void invoke("brain_pairing_forget_device", { id }).catch(() => {});
+  }
+
+  function allowDevice(id: number): void {
+    // The poll (POLL_MS) picks the door's new set up, the same way a
+    // Forget lands - no refresh, no restart.
+    void invoke("brain_pairing_allow_device", { id }).catch(() => {});
   }
 
   function forgetAndRefresh(): void {
@@ -236,8 +255,19 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 <span className="surface-device-name">
                   {device.label ?? (host ? "This computer" : `device ${device.id}`)}
                 </span>
-                <span className="surface-device-detail">{device.phone ?? ""}</span>
-                {host ? null : (
+                <span className="surface-device-detail">
+                  {device.waiting ? "Waiting for your OK." : (device.phone ?? "")}
+                </span>
+                {host ? null : device.waiting ? (
+                  <>
+                    <button type="button" className="btn-quiet" onClick={() => allowDevice(device.id)}>
+                      Allow
+                    </button>
+                    <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
+                      Refuse
+                    </button>
+                  </>
+                ) : (
                   <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
                     Forget
                   </button>

@@ -648,6 +648,13 @@ try {
       problems.push(`a several-phone house must be described as a house, not by one of its phones: ${heading}`);
     }
     if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
+    // The approval gate: a waiting phone's row says so and offers the two
+    // owner decisions, and the success sentence must not cover it.
+    if (heading.includes("waits for the owner's OK")) {
+      if (!all.includes("Waiting for your OK.")) problems.push(`a waiting phone's row must say it is waiting: ${heading}`);
+      if (!buttons.includes("Allow") || !buttons.includes("Refuse")) problems.push(`a waiting phone must offer Allow and Refuse: ${heading}`);
+      if (sentence.includes("now works with")) problems.push(`the success sentence must not cover a waiting phone: ${heading}`);
+    }
   }
 
   const hostile = [
