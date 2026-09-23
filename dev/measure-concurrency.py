@@ -1142,37 +1142,44 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         # elsewhere, and every harness main runs here.
         old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
         try:
-            # stdout=PIPE is read to the listening line and THEN drained to EOF and discarded (F2: an unread pipe stalls the child); stderr=DEVNULL - the output is WITHHELD anyway (A#1)
+            # stdout=PIPE: read as BYTES - one bounded line, then chunk-drained to EOF and discarded (F2/P1/P2); stderr=DEVNULL - WITHHELD anyway (A#1)
             proc = subprocess.Popen(
                 [door_bin, "--engine-port", str(engine_port),
                  "--capacity", str(capacity)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL, text=True)
+                stderr=subprocess.DEVNULL)
         finally:
             signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
         for cred in credentials:
-            proc.stdin.write(cred + "\n")
+            proc.stdin.write((cred + "\n").encode("ascii"))
         proc.stdin.flush()
         box = {}
         line_ready = threading.Event()
 
         def read_listening():
-            # K1: PARSED ONLY - the bounded port token below is protocol;
-            # this text never enters a message, a print or the artifact.
-            # F2: after the line this thread drains stdout to EOF and
-            # DISCARDS it - never stored, never printed - so a future
-            # println (B flooded 1 MiB) cannot stall on an unread pipe.
-            box["line"] = proc.stdout.readline()
+            # K1: PARSED ONLY - the announcement is protocol, never quoted.
+            # P1/P2: BINARY pipes - readline(64) bounds the line (the
+            # longest valid announcement is 26 bytes), the strict decode
+            # turns a bad byte into an invalid announcement (refused
+            # below), and the drain reads FIXED-SIZE chunks to EOF,
+            # discarding: a 0xff byte cannot kill it and a newline-free
+            # flood cannot buffer - never stored, never printed.
+            raw = proc.stdout.readline(64)
+            try:
+                box["line"] = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                box["line"] = None
             line_ready.set()
-            for _ in proc.stdout:
+            while proc.stdout.read(65536):
                 pass
 
         reader = threading.Thread(target=read_listening, daemon=True)
         reader.start()
         if not line_ready.wait(timeout_s):
             raise RuntimeError(f"no `listening` line within {timeout_s}s")
-        line = box.get("line", "")
-        m = re.fullmatch(r"listening 127\.0\.0\.1:(\d{1,5})\n?", line)
+        line = box.get("line")
+        m = (re.fullmatch(r"listening 127\.0\.0\.1:(\d{1,5})\n?", line)
+             if isinstance(line, str) else None)
         if not m or not 1 <= int(m.group(1)) <= 65535:
             # K1: the line is child output - it is NEVER quoted, however
             # wrong it is; only a validated port token would be kept

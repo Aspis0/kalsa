@@ -42,7 +42,8 @@ Both findings are Reviewer A's, proven live against the previous code.
       and the sleep must be dead afterwards; even a RED run's cleanup
       kills the child it lost track of.
   (5) A#1/B-F2 floods: fakes print the listening line, then flood 1 MiB
-      to STDERR (A#1) and to STDOUT-without-a-newline (B F2), then wait
+      to STDERR (A#1) and to STDOUT in BOTH shapes - newline-free and
+      200 x 8 KiB newline-terminated lines (B round-8) - then wait
       for stdin EOF - the harness must start AND stop each within an
       8 s bound (a daemon worker joined with a timeout, so a regression
       FAILS instead of hanging the suite) with the child exiting cleanly
@@ -61,6 +62,15 @@ Both findings are Reviewer A's, proven live against the previous code.
       subprocess's captured stdout+stderr, and its OK marker must (a
       crashed harness must not pass green). Mutating DEVNULL -> None
       (inherit) turns this red; -> PIPE stays red via case (5).
+  (8) P1: a 0xff byte AFTER the listening line, followed by a flood:
+      the announcement is read as BYTES (bounded readline(64), strict
+      decode) and the drain reads fixed-size chunks, so the invalid byte
+      cannot kill the drain - text mode would raise UnicodeDecodeError
+      there and the stall returns. start+stop must stay within the same
+      8 s bound with a clean exit.
+  (9) P1/P2: an announcement that is not valid UTF-8, or longer than
+      the 64-byte bound, is refused with the withheld refusal text and
+      nothing of the announcement itself quoted.
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -273,6 +283,41 @@ sys.stdout.flush()
 next(sys.stdin, None)                   # then wait for stdin EOF
 """
 
+FLOOD_MULTILINE_RUNNER = """#!/usr/bin/env python3
+import sys
+print("listening 127.0.0.1:58229")
+sys.stdout.flush()
+line = "y" * 8191 + chr(10)             # 200 newline-terminated 8 KiB lines
+for _ in range(200):
+    sys.stdout.write(line)
+sys.stdout.flush()
+next(sys.stdin, None)                   # then wait for stdin EOF
+"""
+
+UTF8_FLOOD_RUNNER = """#!/usr/bin/env python3
+import sys
+out = sys.stdout.buffer
+out.write(b"listening 127.0.0.1:58229" + bytes([10]))
+out.flush()
+out.write(bytes([255]) + (b"z" * 8191 + bytes([10])) * 200)   # 0xff then a flood
+out.flush()
+sys.stdin.read()                        # wait for stdin EOF
+"""
+
+BAD_UTF8_ANNOUNCE = """#!/usr/bin/env python3
+import sys
+sys.stdout.buffer.write(bytes([255, 255]) + b"FFANNOUNCEMENT-INVALID" + bytes([10]))
+sys.stdout.flush()
+sys.stdin.read()
+"""
+
+LONG_ANNOUNCE = """#!/usr/bin/env python3
+import sys
+sys.stdout.buffer.write(b"listening 127.0.0.1:58229" + b"X" * 200 + bytes([10]))
+sys.stdout.flush()
+sys.stdin.read()
+"""
+
 FAKE_FD2_RUNNER = """#!/usr/bin/env python3
 import hashlib, sys
 cred = next(sys.stdin, "").rstrip(chr(10))
@@ -300,42 +345,85 @@ mc.stop_door_runner(proc)
 print(f"OK started-and-stopped port={port} rc={proc.returncode}")
 """
 
+def drive_bounded(script_src):
+    """start+stop in a DAEMON worker with the 8 s bound: a regression
+    FAILS the check instead of hanging the suite. Returns (alive, ok)."""
+    work, script = write_script(script_src)
+    result = {}
+
+    def run():
+        t0 = time.perf_counter()
+        try:
+            proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                     timeout_s=30.0)
+            mc.stop_door_runner(proc)
+            result["ok"] = ("stopped", port, proc.returncode,
+                            round(time.perf_counter() - t0, 2))
+        except BaseException as e:
+            result["ok"] = ("error", f"{type(e).__name__}: {e}")
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(timeout=8)
+    alive = worker.is_alive()
+    ok = result.get("ok")
+    shutil.rmtree(work, ignore_errors=True)
+    return alive, ok
+
+
+def check_bounded(tag, alive, ok):
+    check(f"({tag}) started AND stopped within the 8 s bound",
+          not alive and ok is not None and ok[0] == "stopped",
+          f"alive={alive} ok={ok!r}"[:170])
+    if ok is not None and ok[0] == "stopped":
+        check(f"({tag}) ...child exited CLEANLY (rc 0, not SIGKILLed "
+              "after stop's 10 s wait)",
+              ok[3] < 5 and ok[2] == 0,
+              f"port={ok[1]} rc={ok[2]} took={ok[3]}s")
+
+
 def case_flood():
-    for channel, src in (("stderr", FLOOD_RUNNER),
-                         ("stdout", FLOOD_STDOUT_RUNNER)):
-        print(f"(5) A#1/B-F2: a child flooding {channel} starts and stops "
-              "within the bound", file=sys.stderr)
+    floods = (("5/stderr", FLOOD_RUNNER),
+              ("5/stdout-nolf", FLOOD_STDOUT_RUNNER),
+              ("5/stdout-lines", FLOOD_MULTILINE_RUNNER))
+    for tag, src in floods:
+        print(f"(5) A#1/B: a child flooding {tag} starts and stops within "
+              "the bound", file=sys.stderr)
+        check_bounded(tag, *drive_bounded(src))
+
+
+def case_utf8_flood():
+    print("(8) P1: a 0xff byte after the listening line, then a flood",
+          file=sys.stderr)
+    check_bounded("8", *drive_bounded(UTF8_FLOOD_RUNNER))
+
+
+def case_bad_announce():
+    print("(9) P1/P2: an announcement over the bound or not valid UTF-8 "
+          "is refused, nothing quoted", file=sys.stderr)
+    for name, src, marker in (
+            ("invalid UTF-8", BAD_UTF8_ANNOUNCE, "FFANNOUNCEMENT-INVALID"),
+            ("longer than the 64-byte bound", LONG_ANNOUNCE,
+             "listening 127.0.0.1:58229" + "X" * 10)):
         work, script = write_script(src)
-        result = {}
-
-        def run():
-            t0 = time.perf_counter()
-            try:
-                proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
-                                                         timeout_s=30.0)
+        proc = None
+        msg = ""
+        try:
+            proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                     timeout_s=30.0)
+        except SystemExit as e:
+            msg = str(e)          # the withheld refusal
+        finally:
+            if proc is not None:
                 mc.stop_door_runner(proc)
-                result["ok"] = ("stopped", port, proc.returncode,
-                                round(time.perf_counter() - t0, 2))
-            except BaseException as e:
-                result["ok"] = ("error", f"{type(e).__name__}: {e}")
-
-        # daemon + a bounded join: a regression must FAIL the check, never
-        # hang the suite - an abandoned worker's own stop() kills its child.
-        worker = threading.Thread(target=run, daemon=True)
-        worker.start()
-        worker.join(timeout=8)
-        ok = result.get("ok")
-        check(f"(5/{channel}) started AND stopped within the 8 s bound "
-              f"despite 1 MiB on the child's {channel}",
-              not worker.is_alive() and ok is not None and ok[0] == "stopped",
-              f"alive={worker.is_alive()} ok={ok!r}"[:170])
-        if ok is not None and ok[0] == "stopped":
-            check(f"(5/{channel}) ...within a few seconds and the child "
-                  "exited CLEANLY (rc 0, not SIGKILLed after stop's 10 s "
-                  "wait)",
-                  ok[3] < 5 and ok[2] == 0,
-                  f"port={ok[1]} rc={ok[2]} took={ok[3]}s")
-        shutil.rmtree(work, ignore_errors=True)
+            shutil.rmtree(work, ignore_errors=True)
+        check(f"(9) {name} announcement is REFUSED",
+              bool(msg) and "did not announce a valid" in msg,
+              msg[:140] or "start ACCEPTED it")
+        check(f"(9) ...with the withheld refusal text", "WITHHELD" in msg,
+              msg[-140:])
+        check(f"(9) ...and the announcement itself is never quoted",
+              marker not in msg, msg[:140])
 
 
 def case_fd2_inherit():
@@ -521,6 +609,8 @@ def main():
     case_flood()
     case_fd2_inherit()
     case_port_range()
+    case_utf8_flood()
+    case_bad_announce()
     print(f"door runner: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)
