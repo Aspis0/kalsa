@@ -189,6 +189,29 @@ itself in the interface.
 (`src-tauri/src/transport.rs:128-131`); the only tunnel is off by default and forwards to the door, not to
 the desk. The road to the desk is the next desktop work item and needs the owner's go-ahead.
 
+## Pushed, and two refinements (2026-09-24)
+
+The desktop's approval gate is **pushed** on `brain` at `06029e1`, with both reviewers passing it FIT,
+and the contract above is unchanged. Two refinements arrived with the final review rounds, and both land
+in our copy:
+
+1. **After the owner refuses the only phone, the desktop returns to unpaired and shows a fresh square**
+   again, provided the model is running. So a refusal is not a dead end on the other screen: the person
+   goes back to the computer, a square is waiting, and the phone can be paired again in one scan. Our
+   refusal copy must not claim which failure happened — the empty 401 cannot tell us, by design — but it
+   can point at the place where the answer is: the devices list on the computer, and a new square if the
+   phone was refused.
+2. **The numbered label stays, and no copy of ours may lean on it.** The first phone is still shown as
+   "Paired phone 2" because the computer holds seat one, and the owner has decided the person will choose a
+   nickname later. So the number is a placeholder rather than a name: our screens must not call a phone
+   "phone 1" or "phone 2" anywhere, and when the nickname exists the phone's own screen should show it —
+   that field is not in the protocol yet (fact 5), so until then the phone is simply "questo telefono".
+
+**And the thing this document was waiting for**: the road to the pairing desk is now being built, with the
+owner's go-ahead. The desktop will say when a real phone can scan and complete. Until that message, the
+scanning state stays unbuilt on this side — the design is ready, the road is not, and building a camera
+onto a wall is still the mistake this document exists to avoid.
+
 ## Open, and not mine to close
 
 1. **A photograph is no longer enough** (owner, 2026-09-24): the computer asks **"Allow this phone?"** and
