@@ -93,8 +93,7 @@ touch box** (the painted control may be smaller: 44 px send, 36 px ghost action,
 
 A rule the v2 pass was written against, because the first version of it read as a toy:
 
-- **No metaphors.** The thought "cloud" is not a cloud: it is a status row with a dot. Nothing in the
-  interface is shaped like an object it does not literally represent.
+- **No metaphors** — with one exception the owner set explicitly: **the thinking cloud**, the desktop's own element, which appears while the model is thinking and nowhere else. Everything else in the interface is shaped like what it is.
 - **No pill soup.** A container is a hairline, not a shadow, unless the thing floats over content. A
   row of metadata (sources, tools) is text with separators and mono indices, not a row of pills.
 - **Type carries the hierarchy, not ornament.** When a screen needs emphasis, the size or the weight
@@ -140,7 +139,7 @@ Each entry is the anatomy a coder implements; states are named because a missing
 | **Answer** | no container: `surface` is the page; `reading` text, 0 left padding beyond the gutter | streaming (caret), stopped (see below), error |
 | **Source chip** | 32 dp, radius 10, `surface`, 1 px `line`, 12 px label, a `mono` index in `accent` | live (tappable), unavailable (dashed `line2`, `ink3`) |
 | **Tool row** | `tint` pill, 28 dp, 12 px label, 14 px icon in `accent`, grouped into one wrapping row per turn | running, done |
-| **Thinking card** | **a status row, not a bubble**: a 7 px `accent` dot, a 13.5 px Source Serif italic fragment of the current thought with a right fade, and a `Mostra` text button in `accent`; no container, no shadow, no tail | live (the dot pulses), expanded (the full thought in a `surface` card) |
+| **Thinking — the cloud** | **the owner's own element, and the only metaphor the interface is allowed**: a `surface` card, radius 22, `e1`, carrying a ticker line — the current thought in 13 px Source Serif italic with a right fade — and a `Mostra ▾` text button; two small attached bubbles on its top edge and a **trail of three shrinking circles below-left** (12, 9, 6 px), the first one pulsing | live (the ticker advances, the first trail circle pulses), collapsed, expanded (the whole thought in a card) |
 | **Stop marker** | a row in `wait` colours with a 20 px icon and 13 px text, placed where the answer stopped | stopped by the user, stopped by the engine |
 | **Attachment chip** | 36 dp, radius 10, `surface`, 1 px `line`, 16 px file icon, filename in `headline`, trailing `×` | uploading, ready, failed |
 | **Progress** | 4 px track radius 999, `tint` ground, `brand` fill, no shadow; the percentage always appears as text beside it | determinate, indeterminate |

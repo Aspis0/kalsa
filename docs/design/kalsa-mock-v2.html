@@ -741,14 +741,12 @@ body{background:var(--page);font-size:15px}
 .stream{gap:32px}
 .me{background:#cfe3d6;border-radius:var(--r-bub);padding:12px 16px;font-size:15.5px;line-height:1.5;box-shadow:none}
 .ai .txt{font-size:17px;line-height:1.68}
-/* la nuvoletta non e' piu' un fumetto: e' una riga di stato con un punto vivo */
-.cloud{margin:2px 0}
-.cloud .bub{background:transparent;box-shadow:none;border-radius:0;padding:0;gap:12px;align-items:center}
-.cloud .bub::before,.cloud .bub::after{display:none}
-.cloud .tail{display:none}
-.face{font-family:var(--read);font-style:italic;font-size:13.5px;color:var(--ink3);max-width:230px}
-.face::before{content:"";display:inline-block;width:7px;height:7px;border-radius:99px;background:var(--accent);margin-right:9px;vertical-align:middle}
-.tg{font-size:12.5px;font-weight:600;color:var(--accent)}
+/* the thinking cloud stays, and lives only here: the owner's one metaphor */
+.cloud{margin-top:4px}
+.cloud .bub{border-radius:22px;box-shadow:var(--e1);padding:10px 16px 11px}
+.face{font-size:13px}
+.tg{font-size:12px;font-weight:600;color:var(--accent)}
+.tail span{box-shadow:var(--e1)}
 /* i tool: una riga quieta, non pastiglie */
 .tools{gap:0;align-items:baseline}
 .tt{background:transparent;border:0;padding:0;font-size:12.5px;font-weight:500;color:var(--ink3);gap:7px}
