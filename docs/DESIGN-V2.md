@@ -106,6 +106,11 @@ A rule the v2 pass was written against, because the first version of it read as 
   row of metadata (sources, tools) is text with separators and mono indices, not a row of pills.
 - **Type carries the hierarchy, not ornament.** When a screen needs emphasis, the size or the weight
   moves; it is never a tint, an emoji, a dashed border or a gradient.
+- **No boxed icons.** A glyph never sits inside a container of its own: the strip's menu button, the
+  actions under an answer, the icons in a Settings row and the badges in a sheet are **bare glyphs**
+  inside a 48 dp touch box. A container is reserved for exactly two things: the logo's mark inside the
+  model pill, and the one filled primary action (the send circle). Boxed icons were the second thing
+  the owner named after the composer's shape (`pair-icons-2ways.png`).
 - **One filled green per screen.** It marks the single primary action.
 
 ### 1.7 Motion

@@ -814,6 +814,23 @@ body{background:var(--page);font-size:15px}
 .cav{border-radius:12px;background:var(--tint)}
 .preview{font-size:16px}
 .rm{background:var(--surface)}
+/* v2.1: an icon is never boxed. The container is reserved for the logo's mark and
+   for the one filled primary action (the send circle). */
+.iconbtn{background:transparent;box-shadow:none;border:0;color:var(--ink2)}
+.dclose{background:transparent;box-shadow:none;color:var(--ink2)}
+.srow .si{background:transparent;width:20px;height:20px;border-radius:0;color:var(--accent)}
+.srow .si svg{width:18px;height:18px}
+.srow{gap:12px}
+.opt .badge{background:transparent;box-shadow:none;width:22px;height:22px;border-radius:0;color:var(--accent)}
+.opt .badge svg{width:19px;height:19px}
+.opt{gap:9px}
+.app .ah .badge{background:transparent;width:20px;height:20px;border-radius:0;color:var(--accent)}
+.app .ah .badge svg{width:18px;height:18px}
+.act.solid{background:transparent;box-shadow:none;border:0}
+.btn2{background:transparent;padding:0;color:var(--accent)}
+.hold .ib{background:transparent;color:var(--accent)}
+.cav svg{color:var(--accent)}
+.drow .ic2{color:var(--accent)}
 </style>
 
 <script>
