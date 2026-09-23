@@ -887,7 +887,7 @@ def extract(lines):
 
 
 def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
-            split_log=True, send=None):
+            split_log=True, send=None, stamps=None):
     """One completion, both roads. Direct (credential None): id_slot in the
     body, the run's salt on the header, salt_label the salt's first 16 hex
     (run-internal, never a device secret). Door: no id_slot, the device's
@@ -899,17 +899,26 @@ def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
     was computed and immediately thrown away - the arm's split happens
     once, after the join. `send` is the transport seam: None = the real
     HTTP dispatch; a test injects a recorder and sees (port, path, payload,
-    headers) for exactly this request.
+    headers) for exactly this request. `stamps` (optional dict) receives
+    perf_counter() at two instants - immediately before the request leaves
+    and immediately after the response lands - which is where the door
+    probe's per-stream timestamps come from (G4: stamped at the events,
+    never reconstructed from a rounded duration).
     """
     payload, headers = completion_request(prompt, n_predict, slot, salt_hex,
                                           credential)
     before = len(server.lines()) if split_log else None
     t0 = time.perf_counter()
+    if stamps is not None:
+        stamps["sent"] = t0
     if send is None:
         status, r = http_json_extra(port, "/completion", payload, headers)
     else:
         status, r = send(port, "/completion", payload, headers)
-    wall_ms = round((time.perf_counter() - t0) * 1000, 1)
+    t1 = time.perf_counter()
+    if stamps is not None:
+        stamps["done"] = t1
+    wall_ms = round((t1 - t0) * 1000, 1)
     new = extract(server.lines()[before:]) if split_log else []
     tim = (r or {}).get("timings") or {}
     return {
@@ -1142,11 +1151,15 @@ def door_health(door_port, credential, timeout=60):
     probe. What comes back is RECORDED, never asserted: with N streams on
     the door's 4 workers the prediction is that it waits for a worker, and
     the artifact says what actually happened. Returns (status_or_None,
-    wall_ms)."""
+    wall_ms, t_sent, t_answered): the two instants are perf_counter()
+    stamps taken immediately before the request and immediately after the
+    response - the wall is the rounded reading of them, the instants are
+    what the probe dict records (G4: the answer is never rebuilt from the
+    rounded wall)."""
     req = urllib.request.Request(
         f"http://127.0.0.1:{door_port}/health",
         headers={"Authorization": f"Bearer {credential}"})
-    t0 = time.perf_counter()
+    t_sent = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             r.read()
@@ -1155,7 +1168,18 @@ def door_health(door_port, credential, timeout=60):
         status = e.code
     except Exception:
         status = None
-    return status, round((time.perf_counter() - t0) * 1000, 1)
+    t_answered = time.perf_counter()
+    return status, round((t_answered - t_sent) * 1000, 1), t_sent, t_answered
+
+
+def count_done_before(streams_done_ms, probe_answered_ms):
+    """Pure (G4): how many streams finished at or before the probe's
+    answer, computed FROM THE RECORDED, rounded values the artifact
+    stores - so any reader (and dev/test-door-harness.py (10)) can
+    recompute `streams_done_before_probe_answered` from the artifact's own
+    fields. A stream with no stamp (None) never counts."""
+    return sum(1 for d in streams_done_ms
+               if d is not None and d <= probe_answered_ms)
 
 
 def require_arms_cold(recs):
@@ -1226,33 +1250,40 @@ def run_streams_door(door_port, prompts, n_predict, credentials, server,
     through the door, sent probe_after_s after the LAST of the N
     completions left, timed.
 
-    Every timestamp is recorded at its event - each sender's `sent` just
-    before its request, each runner's `done` as its answer lands, the
-    probe's send and answer from the same clock - and
-    `streams_done_before_probe_answered` COMPARES them; nothing is inferred
-    from durations. What waits is recorded, not asserted: with WORKERS = 4
-    (source-derived into provenance) and N streams the prediction is that
-    the probe waits for a worker; the field says what happened. Returns
+    Timestamps (G4): each stream stamps perf_counter() INSIDE run_one -
+    immediately before its request leaves and immediately after its
+    response lands - and the probe stamps its own send and answer the same
+    way. All four series are recorded RELATIVE TO THE BARRIER RELEASE:
+    this thread waits on the same n+1 barrier, so t_release is the instant
+    every stream was let go. `streams_done_before_probe_answered` is
+    computed AFTER the join from exactly the recorded values
+    (count_done_before) - never from a rounded duration, never while a
+    thread may still write.
+
+    The probe is an ACTIVE fifth request through the door's worker path
+    (crates/kalsa-door/src/proxy.rs:51 forwards /health through the same
+    workers the streams hold), not a passive observation; what waits is
+    recorded, not asserted (with WORKERS = 4, source-derived into
+    provenance, and N streams the prediction is that it waits). Returns
     (arm, probe), the arm shaped exactly as run_streams()'s. The engine
-    port is NOT a parameter: every completion here goes to the door (the
-    only engine traffic this function's requests produce arrives at the
-    door port and is relayed).
+    port is NOT a parameter: every completion here goes to the door.
     """
     out = {}
     errors = {}
     n = len(prompts)
-    barrier = threading.Barrier(n)
-    sent, done = {}, {}
+    barrier = threading.Barrier(n + 1)   # the N streams + THIS thread,
+    # so t_release below is the instant every stream was released
+    marks = {}                           # k -> {"sent": ..., "done": ...}
     before = len(server.lines())
 
     def one(k):
         try:
             barrier.wait(timeout=90)
-            sent[k] = time.perf_counter()
-            rec = run_one(door_port, prompts[k], n_predict, None, k, server,
-                          credentials[k], split_log=False, send=send)
-            done[k] = time.perf_counter()
-            out[f"slot{k}"] = rec
+            st = {}
+            marks[k] = st                # published before the request
+            out[f"slot{k}"] = run_one(door_port, prompts[k], n_predict, None,
+                                      k, server, credentials[k],
+                                      split_log=False, send=send, stamps=st)
         except Exception as e:
             errors[k] = f"{type(e).__name__}: {e}"
 
@@ -1261,39 +1292,61 @@ def run_streams_door(door_port, prompts, n_predict, credentials, server,
                for k in range(n)]
     for t in threads:
         t.start()
+    try:
+        barrier.wait(timeout=90)
+    except threading.BrokenBarrierError:
+        k = min(errors) if errors else 0
+        raise SystemExit(
+            f"stream slot{k} died: {errors.get(k, 'the barrier broke')}; "
+            "refusing to measure")
+    t_release = time.perf_counter()
     deadline = time.perf_counter() + 60
-    while len(sent) < n and not errors:
+    while not all(k in marks and "sent" in marks[k] for k in range(n)):
+        if errors:
+            # a thread died before its request left: no probe, no arm -
+            # the refusal names the slot instead of a later KeyError.
+            k = min(errors)
+            raise SystemExit(
+                f"stream slot{k} died: {errors[k]}; refusing to measure")
         if time.perf_counter() > deadline:
             raise SystemExit(
                 "door arm B: a stream never reported its send within 60s - "
                 "refusing to probe (and to measure) a run that did not start")
         time.sleep(0.005)
-    if errors:
-        # a thread died before its send was recorded: no probe, no arm -
-        # the refusal names the slot instead of a later KeyError.
-        k = min(errors)
-        raise SystemExit(
-            f"stream slot{k} died: {errors[k]}; refusing to measure")
-    all_sent = max(sent.values())
+    all_sent = max(marks[k]["sent"] for k in range(n))
     wait = probe_after_s - (time.perf_counter() - all_sent)
     if wait > 0:
         time.sleep(wait)
-    t_probe_sent = time.perf_counter()
-    probe_status, probe_wall = door_health(door_port, credentials[0])
-    t_probe_answer = t_probe_sent + probe_wall / 1000
-    probe = {
-        "sent_after_ms": round((t_probe_sent - all_sent) * 1000, 1),
-        "wall_ms": probe_wall,
-        "status": probe_status,
-        "streams_done_before_probe_answered": sum(
-            1 for t_end in done.values() if t_end <= t_probe_answer),
-    }
+    probe_status, probe_wall, t_probe_sent, t_probe_answered = door_health(
+        door_port, credentials[0])
     for t in threads:
         t.join()
     if errors:
         k = min(errors)
         raise SystemExit(
             f"stream slot{k} died: {errors[k]}; refusing to measure")
+    # G4: everything below is computed AFTER the join, from the recorded
+    # stamps only - the count is reproducible from the artifact's fields.
+    streams_sent_ms = [round(marks[k]["sent"] - t_release, 1)
+                       for k in range(n)]
+    streams_done_ms = [round(marks[k]["done"] - t_release, 1)
+                       for k in range(n)]
+    probe_sent_ms = round(t_probe_sent - t_release, 1)
+    probe_answered_ms = round(t_probe_answered - t_release, 1)
+    probe = {
+        "sent_after_ms": round(probe_sent_ms - max(streams_sent_ms), 1),
+        "wall_ms": probe_wall,
+        "status": probe_status,
+        "probe_sent_ms": probe_sent_ms,
+        "probe_answered_ms": probe_answered_ms,
+        "streams_sent_ms": streams_sent_ms,
+        "streams_done_ms": streams_done_ms,
+        "streams_done_before_probe_answered": count_done_before(streams_done_ms, probe_answered_ms),
+        "note": ("the probe is an ACTIVE fifth request through the door's "
+                 "worker path (crates/kalsa-door/src/proxy.rs:51 forwards "
+                 "/health through the same workers the streams hold), not a "
+                 "passive observation"),
+    }
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:])
     out["engine_lines"] = new

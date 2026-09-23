@@ -332,14 +332,20 @@ def case_5():
 def case_6():
     print("(6) build_result: door vs direct", file=sys.stderr)
     probe = {"sent_after_ms": 1000.2, "wall_ms": 12.3, "status": 200,
-             "streams_done_before_probe_answered": 1}
+             "probe_sent_ms": 1100.0, "probe_answered_ms": 1112.3,
+             "streams_sent_ms": [99.8, 100.0],
+             "streams_done_ms": [1000.5, 1050.0],
+             "streams_done_before_probe_answered": 2,
+             "note": "the probe is an ACTIVE fifth request ..."}
     door = build(fake_args(str(HARNESS)), door_probe=probe)
     check("(6) provenance.via == door", door["provenance"]["via"] == "door")
-    check("(6) door_queue_probe rides through with its four fields",
+    check("(6) door_queue_probe rides through with the real probe's "
+          "field set (G4: the recorded series included)",
           door.get("door_queue_probe") == probe
           and set(door["door_queue_probe"]) == {
-              "sent_after_ms", "wall_ms", "status",
-              "streams_done_before_probe_answered"},
+              "sent_after_ms", "wall_ms", "status", "probe_sent_ms",
+              "probe_answered_ms", "streams_sent_ms", "streams_done_ms",
+              "streams_done_before_probe_answered", "note"},
           json.dumps(door.get("door_queue_probe")))
     for key in ("door_bin", "door_bin_sha256", "door_source",
                 "door_pool_from_source"):
@@ -515,6 +521,49 @@ def case_9():
           (msg or "")[:160])
 
 
+def case_10():
+    print("(10) G4: the probe count recomputes from the artifact's own "
+          "fields", file=sys.stderr)
+    n = 4
+    fake, arm_a, arm_b, arm_a2, probe, creds, salts = drive_attempt(True, n)
+    for key in ("probe_sent_ms", "probe_answered_ms", "streams_sent_ms",
+                "streams_done_ms", "streams_done_before_probe_answered",
+                "note"):
+        check(f"(10) the probe records {key}", key in probe,
+              str(sorted(probe)))
+    check("(10) per-stream stamps: sent <= done for every stream, N each",
+          len(probe["streams_sent_ms"]) == n
+          and len(probe["streams_done_ms"]) == n
+          and all(s <= d for s, d in zip(probe["streams_sent_ms"],
+                                         probe["streams_done_ms"])),
+          json.dumps([probe["streams_sent_ms"], probe["streams_done_ms"]]))
+    recomputed = mc.count_done_before(probe["streams_done_ms"],
+                                      probe["probe_answered_ms"])
+    check("(10) streams_done_before_probe_answered == a recomputation from "
+          "streams_done_ms and probe_answered_ms ALONE",
+          recomputed == probe["streams_done_before_probe_answered"],
+          f"{recomputed} vs {probe['streams_done_before_probe_answered']}")
+    check("(10) sent_after_ms recomputes from the recorded series",
+          probe["sent_after_ms"]
+          == round(probe["probe_sent_ms"] - max(probe["streams_sent_ms"]), 1),
+          json.dumps(probe["sent_after_ms"]))
+    drift = abs(probe["wall_ms"] - (probe["probe_answered_ms"]
+                                    - probe["probe_sent_ms"]))
+    check("(10) wall_ms agrees with the recorded instants within the "
+          "three-rounding bound (<= 0.25 ms: wall, sent and answered are "
+          "each rounded to 0.1 independently)", drift <= 0.25,
+          f"{drift} ms")
+    check("(10) the note declares the probe an ACTIVE fifth request "
+          "through the door's worker path (proxy.rs:51)",
+          "ACTIVE fifth request" in probe["note"]
+          and "proxy.rs:51" in probe["note"], probe["note"][:90])
+    check("(10) the count formula: streams finishing at 10/20/30/40 vs an "
+          "answer at 25 -> exactly 2",
+          mc.count_done_before([10.0, 20.0, 30.0, 40.0], 25.0) == 2)
+    check("(10) a stream with no stamp (None) never counts",
+          mc.count_done_before([10.0, None, 40.0], 25.0) == 1)
+
+
 def main():
     case_1()
     case_2()
@@ -525,6 +574,7 @@ def main():
     case_7()
     case_8()
     case_9()
+    case_10()
     print(f"door harness: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)
