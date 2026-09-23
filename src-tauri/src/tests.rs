@@ -1420,6 +1420,78 @@ fn enrolled_devices_counts_this_computer_and_every_phone() {
 }
 
 #[test]
+fn a_waiting_device_is_refused_until_the_owner_allows_it() {
+    // The approval gate where the set is built and swapped: a completed
+    // ceremony's phone is stored WAITING, so the door's set excludes it
+    // and its credential answers the door's ordinary 401. Allow flips one
+    // record on disk, and the SAME door - same listener, no restart -
+    // picks the set up through start_door_if_paired, the once-a-second
+    // path a forget rides. A waiting device keeps its reserved seat
+    // throughout (enrolled_devices counts it).
+    let (_dir, file) = scratch_pairing("waiting-allow");
+    let host_cred = "aa".repeat(32);
+    let phone_cred = "bb".repeat(32);
+    let fields = r#"{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}"#;
+    std::fs::write(
+        &file,
+        format!(
+            r#"{{"v":2,"devices":[
+                {{"id":0,"label":"This computer","kind":"Host","credential_hex":"{host_cred}"}},
+                {{"id":1,"label":"Waiting phone","credential_hex":"{phone_cred}","phone":{fields},"approval":"Waiting"}}]}}"#
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        enrolled_devices(&file),
+        2,
+        "a waiting device keeps its reserved seat"
+    );
+
+    let (_upstream, engine_port) = TestUpstream::slow_start();
+    let brain = Brain::new();
+    brain.start_door_if_paired(engine_port, &file, false).unwrap();
+    let door_port = brain.door_port().unwrap();
+
+    // Before Allow: the credential is refused with the door's own 401 -
+    // the ordinary answer for a credential the set does not hold.
+    let refused = door_response(door_port, &phone_cred);
+    assert!(
+        refused.starts_with(b"HTTP/1.1 401"),
+        "a waiting device must get the door's ordinary 401: {}",
+        String::from_utf8_lossy(&refused)
+    );
+
+    // The owner presses Allow: one record flips on disk ...
+    kalsa_pairing::store::allow_device(&file, 1).unwrap();
+    // ... and the SAME door learns it through the path the once-a-second
+    // poll (and every forget) already uses: start_door_if_paired rebuilds
+    // the set and swaps it into the running listener.
+    brain.start_door_if_paired(engine_port, &file, false).unwrap();
+    assert_eq!(
+        brain.door_port().unwrap(),
+        door_port,
+        "Allow must reach the RUNNING door, not a new one"
+    );
+
+    // After Allow: the same credential is served (its first authenticated
+    // request leases the free seat and reaches the upstream's body); what
+    // must be gone is the 401. The host, asked afterwards on a one-seat
+    // door, may meet the no-slot 503 - it must not meet the 401.
+    let allowed = door_response(door_port, &phone_cred);
+    assert!(
+        allowed.starts_with(b"HTTP/1.1 200"),
+        "after Allow the credential must be served: {}",
+        String::from_utf8_lossy(&allowed)
+    );
+    let still_host = door_response(door_port, &host_cred);
+    assert!(
+        !still_host.starts_with(b"HTTP/1.1 401"),
+        "the host keeps its credential through the swap: {}",
+        String::from_utf8_lossy(&still_host)
+    );
+}
+
+#[test]
 fn taking_our_own_seat_writes_exactly_one_host_record() {
     // The flagship wiring, driven directly: the setup hook's step, called on a
     // store that does not exist yet. Exactly one record appears — id 0, kind

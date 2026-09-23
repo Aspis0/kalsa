@@ -120,6 +120,9 @@ fn a_phone_completes_over_real_http_and_the_post_route_is_required() {
     assert!(response.starts_with("HTTP/1.1 200"));
     let seal: kalsa_pairing::PairingSeal = serde_json::from_str(body(&response)).unwrap();
     assert_eq!(seal.open(&code, &nonce).unwrap().len(), 64);
+    // Completion stores the phone waiting; this test's subject - the
+    // protocol and the seal - is unchanged, so Allow, then the read.
+    desk.allow_device(0).expect("the owner allows the phone");
     assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
     let dto = serde_json::to_value(desk.read(true, &address, None, SystemTime::now())).unwrap();
     assert_eq!(dto["delivery_pending"], false);

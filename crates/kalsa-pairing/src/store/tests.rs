@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use kalsa_catalog::{Parameters, PhoneModel};
 
 use super::{
-    add_device, clear_delivery, enrol_host, forget, forget_device, load, load_devices,
-    load_with_delivery, persist, persist_with_delivery, replace, temp_path, Delivery, DeviceKind,
-    StoreError, HOST_LABEL,
+    add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
+    forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
+    replace, temp_path, Delivery, DeviceKind, StoreError, HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -672,5 +672,140 @@ fn a_kind_that_disagrees_with_its_fields_is_corrupt() {
         assert!(matches!(load_devices(&path), Err(StoreError::Corrupt(_))));
         fs::remove_file(&path).unwrap();
     }
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The approval migration, the same shape as `kind`: a record written
+/// before approval existed has no `approval` key and reads back ALLOWED,
+/// and a read never rewrites the bytes.
+#[test]
+fn a_record_written_before_approval_existed_reads_back_allowed() {
+    let dir = scratch("approval-default");
+    let credential = "56".repeat(32);
+    let path = dir.join("v2.json");
+    fs::write(
+        &path,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"Paired phone","credential_hex":"{credential}","phone":{{"weights_bytes":2200000000,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+    let before = fs::read(&path).unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert!(!devices[0].waiting, "no approval key: read back ALLOWED");
+    load_devices(&path).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), before, "a read rewrites nothing");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A phone added by a completed ceremony is stored WAITING; the host this
+/// computer enrols for itself never is.
+#[test]
+fn a_ceremony_added_phone_is_stored_waiting_and_the_host_is_not() {
+    let dir = scratch("approval-ceremony");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+    assert!(!host.waiting, "the host record is never waiting");
+
+    let handshake = sample_handshake();
+    let code = "11".repeat(16);
+    let nonce = "22".repeat(32);
+    let mut key = [0u8; 16];
+    let mut nonce_bytes = [0u8; 32];
+    hex::decode_to_slice(&code, &mut key).unwrap();
+    hex::decode_to_slice(&nonce, &mut nonce_bytes).unwrap();
+    let seal = seal_computer(
+        &key,
+        &nonce_bytes,
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    let delivery =
+        Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
+
+    let phone = add_device_with_delivery(&path, "New phone", &handshake, delivery).unwrap();
+    assert!(phone.waiting, "a completed ceremony stores the phone WAITING");
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "waiting is stored, not absent");
+    assert!(!devices.iter().find(|d| d.id == host.id).unwrap().waiting);
+    assert!(devices.iter().find(|d| d.id == phone.id).unwrap().waiting);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Allow flips exactly ONE device: the waiting phone becomes allowed, the
+/// host and an already-allowed phone keep their records and credentials
+/// byte for byte.
+#[test]
+fn allow_flips_exactly_one_device_and_leaves_the_others_intact() {
+    let dir = scratch("approval-allow");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+
+    let waiting_handshake = sample_handshake();
+    let waiting_cred = waiting_handshake.credential_hex();
+    let code = "11".repeat(16);
+    let nonce = "22".repeat(32);
+    let mut key = [0u8; 16];
+    let mut nonce_bytes = [0u8; 32];
+    hex::decode_to_slice(&code, &mut key).unwrap();
+    hex::decode_to_slice(&nonce, &mut nonce_bytes).unwrap();
+    let seal = seal_computer(
+        &key,
+        &nonce_bytes,
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    let delivery =
+        Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
+    let waiting =
+        add_device_with_delivery(&path, "Waiting phone", &waiting_handshake, delivery).unwrap();
+
+    let other_handshake = sample_handshake();
+    let other_cred = other_handshake.credential_hex();
+    let other = add_device(&path, "Other phone", &other_handshake).unwrap();
+    let host_cred = host.handshake.credential_hex();
+    assert!(waiting.waiting && !other.waiting && !host.waiting);
+
+    allow_device(&path, waiting.id).unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 3, "Allow forgets nobody");
+    let by_id = |id: u32| devices.iter().find(|d| d.id == id).unwrap();
+    assert!(!by_id(waiting.id).waiting, "Allow flipped the waiting phone");
+    assert_eq!(
+        by_id(waiting.id).handshake.credential_hex(),
+        waiting_cred,
+        "the flipped device keeps its credential"
+    );
+    assert!(!by_id(other.id).waiting, "the other phone is untouched");
+    assert_eq!(by_id(other.id).handshake.credential_hex(), other_cred);
+    assert!(!by_id(host.id).waiting, "the host is untouched");
+    assert_eq!(by_id(host.id).handshake.credential_hex(), host_cred);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The host record is never waiting - on the write side (self-enrolment)
+/// and on the read side: a hand edit that marks the host waiting refuses
+/// the whole set, like every other record that disagrees with itself.
+#[test]
+fn the_host_record_is_never_waiting() {
+    let dir = scratch("approval-host");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+    assert!(!host.waiting, "enrol_host writes an ALLOWED host");
+    let devices = load_devices(&path).unwrap();
+    assert!(!devices[0].waiting, "...and it reads back allowed");
+
+    let credential = "78".repeat(32);
+    fs::write(
+        &path,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"This computer","kind":"Host","credential_hex":"{credential}","approval":"Waiting"}}]}}"#
+        ),
+    )
+    .unwrap();
+    assert!(matches!(
+        load_devices(&path),
+        Err(StoreError::Corrupt(_))
+    ));
     fs::remove_dir_all(&dir).unwrap();
 }

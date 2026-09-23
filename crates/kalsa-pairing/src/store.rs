@@ -190,6 +190,18 @@ struct StoredV2 {
     devices: Vec<StoredDeviceRecord>,
 }
 
+/// Whether the owner has let this device use its credential at the door.
+/// Absent in every file written before approval existed; serde's `Default`
+/// reads those records as allowed - the same migration shape as `kind`
+/// (no version branch, the reader stays at version 2). A phone added by a
+/// completed ceremony is written `Waiting`; the host record never is.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+enum Approval {
+    #[default]
+    Allowed,
+    Waiting,
+}
+
 /// One device's record inside the v2 file.
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredDeviceRecord {
@@ -200,6 +212,8 @@ struct StoredDeviceRecord {
     /// version branch, because the reader stays at version 2.
     #[serde(default)]
     kind: DeviceKind,
+    #[serde(default)]
+    approval: Approval,
     credential_hex: String,
     /// The phone's fields. A host has none, and the field is then absent
     /// from the file rather than a placeholder; a phone record always
@@ -232,6 +246,9 @@ pub struct StoredDevice {
     pub handshake: Handshake,
     /// The sealed response still awaiting this device's confirmation, if any.
     pub delivery: Option<Delivery>,
+    /// The owner has not allowed this device yet. False for every record
+    /// written before approval existed, and never true for the host.
+    pub waiting: bool,
 }
 
 /// Write the handshake result as the store's first device. The parent
@@ -323,6 +340,7 @@ fn record_from(
         id,
         label,
         kind: kind_of(handshake),
+        approval: Approval::Allowed,
         credential_hex: handshake.credential_hex(),
         phone: handshake.phone.map(PhoneFields::of),
         delivery,
@@ -357,21 +375,22 @@ pub fn add_device(
     label: &str,
     handshake: &Handshake,
 ) -> Result<StoredDevice, StoreError> {
-    add_device_record(path, label, handshake, None)
+    add_device_record(path, label, handshake, None, false)
 }
 
 /// [`add_device`], retaining a sealed response for the phone's retry — the
 /// same durability [`persist_with_delivery`] gives the first device: the
 /// record carries the delivery, so a crash between saving the device and
 /// handing it its seal is answered by the retry path instead of a fresh
-/// square.
+/// square. A device added this way completed a ceremony, so it is stored
+/// WAITING for the owner's Allow; [`allow_device`] flips it.
 pub fn add_device_with_delivery(
     path: &Path,
     label: &str,
     handshake: &Handshake,
     delivery: Delivery,
 ) -> Result<StoredDevice, StoreError> {
-    add_device_record(path, label, handshake, Some(delivery))
+    add_device_record(path, label, handshake, Some(delivery), true)
 }
 
 fn add_device_record(
@@ -379,6 +398,7 @@ fn add_device_record(
     label: &str,
     handshake: &Handshake,
     delivery: Option<Delivery>,
+    waiting: bool,
 ) -> Result<StoredDevice, StoreError> {
     let credential_hex = handshake.credential_hex();
     let mut records = read_records_or_empty(path)?;
@@ -389,12 +409,13 @@ fn add_device_record(
         return Err(StoreError::CredentialAlreadyStored);
     }
     let id = next_id(&records)?;
-    records.push(record_from(
-        handshake,
-        id,
-        label.to_owned(),
-        delivery.clone(),
-    ));
+    let mut record = record_from(handshake, id, label.to_owned(), delivery.clone());
+    record.approval = if waiting {
+        Approval::Waiting
+    } else {
+        Approval::Allowed
+    };
+    records.push(record);
     write_records(&records, path)?;
     Ok(StoredDevice {
         id,
@@ -402,6 +423,7 @@ fn add_device_record(
         kind: kind_of(handshake),
         handshake: handshake.clone(),
         delivery,
+        waiting,
     })
 }
 
@@ -451,6 +473,10 @@ pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
         kind: DeviceKind::Host,
         handshake,
         delivery: None,
+        // The host record is never waiting: self-enrolment mints it
+        // allowed, on every launch, and realize() refuses a hand edit
+        // that says otherwise.
+        waiting: false,
     })
 }
 
@@ -467,6 +493,26 @@ pub fn forget_device(path: &Path, id: u32) -> Result<(), StoreError> {
         return forget(path);
     }
     if records.len() == before {
+        return Ok(());
+    }
+    write_records(&records, path)
+}
+
+/// The owner pressed Allow: one waiting record flips to allowed and
+/// everyone else keeps its record byte for byte - the same atomic,
+/// temp-then-rename publication every store write uses. A device that was
+/// not waiting (or an id nobody holds) changes nothing and writes nothing,
+/// the way forgetting an unknown id answers Ok.
+pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let mut changed = false;
+    for record in &mut records {
+        if record.id == id && record.approval == Approval::Waiting {
+            record.approval = Approval::Allowed;
+            changed = true;
+        }
+    }
+    if !changed {
         return Ok(());
     }
     write_records(&records, path)
@@ -749,6 +795,14 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
             return Err(StoreError::Corrupt("a host record carries phone fields"))
         }
     };
+    // The host's record is never waiting: self-enrolment writes it
+    // allowed, so a waiting host can only be a hand edit - and a hand
+    // edit that would leave the door without its own credential refuses
+    // the whole set, exactly like every other record that disagrees with
+    // itself (kind vs fields, delivery shape).
+    if record.kind == DeviceKind::Host && record.approval == Approval::Waiting {
+        return Err(StoreError::Corrupt("a host record waits for approval"));
+    }
     if record
         .delivery
         .as_ref()
@@ -769,6 +823,7 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
             kind: record.kind,
             handshake,
             delivery: record.delivery.clone(),
+            waiting: matches!(record.approval, Approval::Waiting),
         },
         record.delivery,
     ))
@@ -794,6 +849,9 @@ fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
                 id: 0,
                 label: DEFAULT_LABEL.to_owned(),
                 kind: DeviceKind::Phone,
+                // A v1 record predates approval: it reads back allowed,
+                // exactly as its missing key would default.
+                approval: Approval::Allowed,
                 credential_hex: stored.credential_hex,
                 phone: Some(stored.phone),
                 delivery: stored.delivery,

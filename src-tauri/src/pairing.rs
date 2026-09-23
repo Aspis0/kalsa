@@ -155,6 +155,10 @@ pub(crate) struct PairedDeviceDto {
     label: String,
     kind: &'static str,
     phone: String,
+    /// The owner has not allowed this device yet: its credential answers
+    /// the door's 401 until Allow, and the page draws Allow/Refuse with
+    /// no success sentence for it.
+    waiting: bool,
 }
 
 impl PairingDto {
@@ -203,8 +207,9 @@ impl Desk {
     }
 
     /// The phone this computer works with, for the catalog. `None` until a
-    /// ceremony has been completed and its credential written: an unpaired
-    /// computer must not be handed a phone it invented.
+    /// ceremony has been completed AND the owner has allowed the phone: a
+    /// completed ceremony stores the phone waiting, and an unpaired or
+    /// not-yet-allowed computer must not be handed a phone it invented.
     pub(crate) fn phone(&self) -> Result<Option<kalsa_catalog::PhoneModel>, StoreError> {
         // Serialise the read with replacement. The file is atomically
         // published, but this lock also keeps the in-memory state and the
@@ -216,6 +221,10 @@ impl Desk {
         // do. The host has no phone fields to return.
         let devices = kalsa_pairing::store::load_devices(&self.file)?;
         Ok(devices.into_iter().find_map(|device| match device.kind {
+            // A waiting phone is skipped, not converted: find_map keeps
+            // scanning, so an allowed phone behind it still reaches the
+            // catalog.
+            DeviceKind::Phone if device.waiting => None,
             DeviceKind::Phone => device.handshake.phone,
             DeviceKind::Host => None,
         }))
@@ -303,6 +312,7 @@ impl Desk {
                 // The capability sentence is a phone's; a host has none to
                 // give, and the row's rendering is a later commit's decision.
                 phone: device.handshake.phone.map_or_else(String::new, phone_label),
+                waiting: device.waiting,
             })
             .collect()
     }
@@ -339,6 +349,16 @@ impl Desk {
             *state = State::Idle;
         }
         Ok(())
+    }
+
+    /// The owner pressed Allow. The store flips one record; the door's set
+    /// picks it up through the same once-a-second reconcile a forget rides
+    /// (`start_door_if_paired`) - no new loop. The state lock is the one
+    /// forget_device takes for the same reason: the catalog's observation
+    /// must not cross the owner's decision.
+    pub(crate) fn allow_device(&self, id: u32) -> Result<(), StoreError> {
+        let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        kalsa_pairing::store::allow_device(&self.file, id)
     }
 
     /// The owner asked for another square. Anything in flight is abandoned:
@@ -664,7 +684,9 @@ mod tests {
     /// A phone walks the whole ceremony: it scans, claims, proves, and only
     /// then does this computer know what it is serving. Before that the
     /// catalog is handed nothing — which is the state the product shipped in
-    /// until this transport existed.
+    /// until this transport existed. Completion alone now stores the phone
+    /// waiting: the catalog is also handed nothing until the owner presses
+    /// Allow, and both halves are this test's.
     #[test]
     fn the_catalog_learns_the_phone_only_after_a_completed_ceremony() {
         let desk = Desk::new(scratch("completes"));
@@ -683,10 +705,20 @@ mod tests {
             .expect("the phone can sign what it scanned");
         assert!(desk.complete(declaration, now).is_some(), "sealed");
 
+        // Completion stores the phone WAITING: the ceremony alone no longer
+        // teaches the catalog (the behaviour this change made) - the
+        // owner's Allow does. The test's name still states the half the
+        // catalog needed before, and the body now pins both.
+        assert!(
+            desk.phone().unwrap().is_none(),
+            "a completed ceremony alone must not teach the catalog: the phone waits for Allow"
+        );
+        desk.allow_device(0).expect("the owner presses Allow");
+
         let phone = desk
             .phone()
             .unwrap()
-            .expect("the phone reached the catalog");
+            .expect("the phone reached the catalog after Allow");
         assert_eq!(phone.weights_bytes, 2_000_000_000);
         let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
         assert_eq!(dto["phone"], "phone with 2 GB of model weights");
@@ -925,6 +957,9 @@ mod tests {
         // The first response may have been written to a dead socket. The
         // same phone's idempotent retry gets the same sealed credential.
         assert!(desk.complete(retry, now).is_some());
+        // The catalog needs Allow now; this test's subject - the
+        // idempotent retry - is unchanged, so Allow, then the same read.
+        desk.allow_device(0).expect("the owner allows the phone");
         assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
     }
 
@@ -980,6 +1015,9 @@ mod tests {
         assert!(desk
             .complete(retry, now + WINDOW + Duration::from_secs(1))
             .is_none());
+        // The catalog needs Allow now; this test's subject - the seal's
+        // expiry - is unchanged, so Allow, then the same read.
+        desk.allow_device(0).expect("the owner allows the phone");
         assert!(desk.phone().unwrap().is_some());
     }
 
@@ -1170,9 +1208,13 @@ mod tests {
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("the phone pairs beside the host");
 
-        // A fresh desk reads the store back: Paired, with the phone's model.
+        // A fresh desk reads the store back: Paired - a waiting phone is
+        // still a stored phone, so the STATE half of the old behaviour is
+        // unchanged. The catalog half needs Allow: the host took id 0, so
+        // the phone holds id 1.
         let desk = Desk::new(file.clone());
         assert!(matches!(*desk.state.lock().unwrap(), State::Paired { .. }));
+        desk.allow_device(1).expect("the owner allows the phone");
         let phone = desk.phone().unwrap().expect("the phone is still the phone");
         assert_eq!(phone.weights_bytes, 2_000_000_000);
 

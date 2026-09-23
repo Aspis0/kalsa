@@ -497,8 +497,12 @@ impl Brain {
             .iter()
             .find(|device| device.kind == DeviceKind::Host)
             .map(|device| kalsa_door::DeviceId::new(device.id));
+        // A waiting phone has no door until the owner allows it: its
+        // credential answers the door's ordinary 401, and Allow reaches
+        // this same set on the next pass - the path a forget rides.
         let entries = stored_devices
             .into_iter()
+            .filter(|device| !device.waiting)
             .map(|device| {
                 kalsa_door::DeviceEntry::new(
                     kalsa_door::DeviceId::new(device.id),
@@ -1270,6 +1274,18 @@ fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String>
     })
 }
 
+/// The owner pressed Allow: the phone that completed its ceremony may now
+/// use its credential at the door. Refuse remains the existing forget -
+/// this command only flips the record, and the running door learns the new
+/// set through the same once-a-second reconcile a forget rides.
+#[tauri::command]
+fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), String> {
+    desk.desk.allow_device(id).map_err(|_| {
+        "This device could not be allowed. Fixing permissions and trying again may help."
+            .to_string()
+    })
+}
+
 /// This computer's own credential, for the page's own chat to present at the
 /// door. The value is a secret and stays one: it is the command's own answer,
 /// never a field of an object some log might render, and it comes from the
@@ -1348,6 +1364,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing,
             brain_pairing_retry,
             brain_pairing_forget_device,
+            brain_pairing_allow_device,
             brain_pairing_forget,
             brain_host_credential,
             web::brain_web_search,
