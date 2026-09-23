@@ -649,7 +649,7 @@ fn a_road_turned_off_by_its_switch_stays_closed_while_the_door_serves() {
     assert!(matches!(brain.road.snapshot(), road::RoadState::Closed));
     // What the owner is told is the switch's own words, not the road's.
     let state_file = dir.0.join("server.state");
-    let panel = brain.advanced(&state_file);
+    let panel = brain.advanced(&state_file, None);
     assert!(!panel.internet_road);
     assert_eq!(
         panel.iroh_sentence,
@@ -959,7 +959,7 @@ fn setting_advanced_values_writes_the_file_used_by_startup() {
     let brain = Brain::new();
     let pairing = root.join("pairing.json");
     let dto = brain
-        .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None)
+        .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None, None)
         .unwrap();
     let stored = options::load(&state_file);
     assert_eq!(stored.context_tokens, Some(2048));
@@ -1010,6 +1010,7 @@ fn saving_the_idle_clock_keeps_every_other_launch_value() {
             Some(1024),
             Some(256),
             Some(kalsa_launch::KvCache::F16),
+            None,
         )
         .unwrap();
 
@@ -1071,7 +1072,7 @@ fn a_stopped_panel_reports_the_saved_launch_values_as_next_start() {
     )
     .expect("save the owner's choice");
     let brain = Brain::new();
-    let panel = brain.advanced(&state_file);
+    let panel = brain.advanced(&state_file, None);
     assert!(!panel.running);
     assert_eq!(panel.ubatch_size, 1024);
     assert_eq!(panel.kv_cache_type, "f16");
@@ -2312,4 +2313,24 @@ fn the_panel_numbers_are_read_from_the_door_not_from_traffic() {
     let _ = engine_thread.join();
     drop(door);
     let _ = std::fs::remove_dir_all(&slot_dir);
+}
+
+/// The desk's port can be the fallback, so the DTO the Devices page polls
+/// must carry the listener's ACTUAL port — assembled the way the command
+/// assembles it, through the real serve().
+#[test]
+fn the_pairing_dto_carries_the_desks_actual_port() {
+    let root = std::env::temp_dir().join(format!("kalsa-brain-desk-port-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let holder = pairing_desk_with(root.join("pairing.json"), transport::serve).unwrap();
+    let brain = Brain::new();
+    let dto = serde_json::to_value(pairing_dto(&brain, &holder)).unwrap();
+    assert_eq!(
+        dto["desk_port"].as_u64(),
+        Some(u64::from(holder.listener.port())),
+        "the DTO must carry the listener's actual port"
+    );
+    holder.listener.shutdown();
+    let _ = std::fs::remove_dir_all(root);
 }

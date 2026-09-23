@@ -32,8 +32,15 @@ const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const POLL_INTERVAL: Duration = Duration::from_millis(5);
 const LOG_INTERVAL: Duration = Duration::from_secs(1);
 
+/// The port the desk prefers: a fixed loopback port a Tailscale Serve
+/// rule can be pointed at across launches. A port another process holds
+/// falls back to a random one, which the pairing DTO reports so the owner
+/// can point a road at the desk anyway.
+const PREFERRED_PORT: u16 = 8132;
+
 pub(crate) struct Listener {
     address: String,
+    port: u16,
     stop: Arc<AtomicBool>,
     #[cfg(test)]
     accepted: Arc<AtomicUsize>,
@@ -64,6 +71,13 @@ struct LogState {
 impl Listener {
     pub(crate) fn address(&self) -> &str {
         &self.address
+    }
+
+    /// The loopback port the listener actually holds — the preferred one
+    /// when it was free, the fallback otherwise. The square's `reachable`
+    /// already carries it; this is the number the owner is shown.
+    pub(crate) fn port(&self) -> u16 {
+        self.port
     }
 
     pub(crate) fn shutdown(&self) {
@@ -125,7 +139,16 @@ impl WriteErrorLog {
 /// Starts the listener and returns the address the square should advertise.
 /// The acceptor remains bound so a fresh square does not need a new address.
 pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
-    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    // Preferred, then random: the door's own rule (door.rs). A developer's
+    // running app can hold the preferred port, and a desk that died for it
+    // would be worse than a desk on a port the DTO reports.
+    let listener = match TcpListener::bind((Ipv4Addr::LOCALHOST, PREFERRED_PORT)) {
+        Ok(listener) => listener,
+        Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
+            TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?
+        }
+        Err(error) => return Err(error),
+    };
     listener.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
     let address = format!("http://127.0.0.1:{port}");
@@ -173,6 +196,7 @@ pub(crate) fn serve(desk: SharedDesk) -> io::Result<Listener> {
     }
     Ok(Listener {
         address,
+        port,
         stop,
         #[cfg(test)]
         accepted,

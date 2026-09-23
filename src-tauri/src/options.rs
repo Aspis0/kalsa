@@ -234,6 +234,10 @@ pub(crate) struct AdvancedDto {
     pub(crate) threads: Option<usize>,
     pub(crate) threads_batch: Option<usize>,
     pub(crate) door_port: Option<u16>,
+    /// The pairing desk's own loopback port, for the second Tailscale
+    /// Serve command the panel gives beside the door's. `None` only when
+    /// the desk listener does not exist at all.
+    pub(crate) desk_port: Option<u16>,
     /// The second road to the door, in words for being human. Absent
     /// secrets: the node id is public, failures are the road's own.
     pub(crate) iroh_sentence: String,
@@ -245,6 +249,7 @@ pub(crate) fn dto(
     overrides: LaunchOverrides,
     active: Option<&LaunchInfo>,
     door_port: Option<u16>,
+    desk_port: Option<u16>,
     iroh_sentence: String,
 ) -> AdvancedDto {
     let idle = overrides
@@ -303,6 +308,7 @@ pub(crate) fn dto(
         threads: settings.threads,
         threads_batch: settings.threads_batch,
         door_port,
+        desk_port,
         iroh_sentence,
         internet_road: overrides.internet_road,
         running,
@@ -619,6 +625,7 @@ mod tests {
                 model_sha256: None,
             }),
             Some(8130),
+            Some(8132),
             "The internet road is open.".to_string(),
         );
         let json = serde_json::to_value(&sample).expect("serialise the advanced dto");

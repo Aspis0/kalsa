@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, Mutex};
@@ -384,4 +384,59 @@ fn transfer_encoding_is_not_silently_interpreted() {
         parser::parse(b"POST / HTTP/1.1\nTransfer-Encoding: chunked\n\n"),
         parser::ParseResult::Refuse
     ));
+}
+
+/// The door's trap, verbatim: on a developer's machine the preferred port
+/// may belong to the running app, so a test must never assume it is free.
+/// The preference is asserted only where this test can take the port
+/// first; when another process holds it, the fallback test below is the
+/// half this machine can observe.
+#[test]
+fn binds_the_preferred_port_when_it_is_free() {
+    for _ in 0..3 {
+        let scout = match TcpListener::bind((Ipv4Addr::LOCALHOST, super::PREFERRED_PORT)) {
+            Ok(scout) => scout,
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                eprintln!(
+                    "kalsa-brain transport: the preferred port is held by another process; \
+                     the preference is not observable on this machine"
+                );
+                return;
+            }
+            Err(error) => panic!("the preferred port could not even be probed: {error}"),
+        };
+        drop(scout);
+        let desk = Arc::new(Desk::new(scratch("prefer")));
+        let listener = serve(desk).expect("listener");
+        let port = listener.port();
+        let address = listener.address().to_string();
+        listener.shutdown();
+        if port == super::PREFERRED_PORT {
+            assert_eq!(address, format!("http://127.0.0.1:{port}"));
+            return;
+        }
+    }
+    panic!("the preferred port was taken between being released and asked for, three times");
+}
+
+#[test]
+fn falls_back_to_a_random_port_when_the_preferred_one_is_taken() {
+    // The occupied case is arranged, not assumed: this test holds the
+    // preferred port itself when nothing else does — including the
+    // running app, whose holding it is exactly the case under test.
+    let held = match TcpListener::bind((Ipv4Addr::LOCALHOST, super::PREFERRED_PORT)) {
+        Ok(guard) => Some(guard),
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => None,
+        Err(error) => panic!("the preferred port could not even be probed: {error}"),
+    };
+    let desk = Arc::new(Desk::new(scratch("fallback")));
+    let listener = serve(desk).expect("listener");
+    let port = listener.port();
+    listener.shutdown();
+    drop(held);
+    assert_ne!(
+        port, super::PREFERRED_PORT,
+        "a taken preferred port must not be answered"
+    );
+    assert_ne!(port, 0, "the fallback is a real port, not port 0");
 }
