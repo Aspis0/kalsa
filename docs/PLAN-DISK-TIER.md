@@ -164,8 +164,10 @@ All three components already exist, and none of them costs work at save time:
 - **Landed**: `833cde99b` on the engine's `main`, and **released in `kalsa-server-v1.1.1`**
   (`a7d2cec79`; `git merge-base --is-ancestor` confirms it in the fork, read-only). It was not in
   `kalsa-server-v1.1.0`. Red first, green verified independently, review FIT; the state is in the
-  session handoff. **The app still installs v1.1.0** (§5), so the tier's warmth is released and not
-  yet delivered — the pin is the kernel release line's call.
+  session handoff. **The app now installs v1.1.1** (`e3f47a7` + `d540934`, §5 and §9): the pin was
+  the kernel release line's call, it was made, and the warmth is delivered. The remaining debt is the
+  MEASUREMENT on the delivered object — the warmth proof ran a fork build — and that is a follow-up,
+  not a promise (§5).
 - **Two traps the review found, both environmental and both real.** (a) **Do not run this suite in
   parallel while Kalsa Brain is running.** `conftest.py:7-13` sets each xdist worker's port to
   `8080 + worker*10`, so worker 5 wants **8130** — the port the app's own engine holds (verified
@@ -501,11 +503,14 @@ Consequences, all of them recorded above:
   without the flag carries one context checkpoint.
 - The disk footprint at the 4 096-token floor is therefore ≈ 125 MB or ≈ 218 MB per chat.
 - T1 is closed and **`kalsa-server-v1.1.1` carries it** (commit `a7d2cec79`; verified in the fork,
-  read-only, with `git merge-base --is-ancestor 833cde99b a7d2cec79`). The app's engine asset does
-  not: `crates/kalsa-runtime/src/assets.rs:28` still pins `kalsa-server-v1.1.0`, and the same
-  command against `2a290390d` answers NOT an ancestor. **So the warmth this tier exists for is not
-  in the engine the app installs today** — a pin decision on the kernel's release line, declared
-  here so nobody reads the tier as shipped.
+  read-only, with `git merge-base --is-ancestor 833cde99b a7d2cec79`). The app's engine asset used
+  to pin `kalsa-server-v1.1.0`, which does **not** contain it (the same command against `2a290390d`
+  answers NOT an ancestor) — so for a day the warmth this tier exists for was released and not
+  delivered. **That half-move is closed**: the pin moved to v1.1.1 in `e3f47a7` + `d540934` (§9), and
+  the delivered object is now the one the panel's number was measured on. What is still owed is the
+  measurement on THAT object: the warmth proof below (`dev/results/unload-restore/`) ran a **fork
+  build** (build 11193, `833cde99b`), and the release is build 11195, `a7d2cec79`. A measurement that
+  makes «delivered» and «measured» the same object is the follow-up, not a promise.
 
 **The two-device concurrency figure, measured three times; the third run is the one the panel
 carries.** `dev/results/concurrency-two-devices/` answers it on the **release artifact**: one device
