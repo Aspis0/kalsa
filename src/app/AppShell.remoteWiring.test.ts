@@ -147,10 +147,23 @@ describe("AppShell remote wiring (source pins)", () => {
     expect(rebuildBranch![0]).not.toContain("switchWhileStreamingTitle");
   });
 
-  test("boot does not overwrite a switch or a rebuild in flight (N1 + R2 boot)", () => {
-    // Compound guard: tap-in-flight AND rebuild/delete all shield boot.
+  test("boot: a live switch skips everything; a busy rebuild only defers the remote flip", () => {
+    // N1 stays: the user's live switch wins outright.
+    expect(shell).toContain("if (modelSwitchInFlightRef.current) return;");
+    // The blanket compound guard is gone — it skipped pickStartModel for a
+    // LOCAL decision too (luna re-audit 3 BLOCKER: saved non-default model
+    // silently replaced by the default for the whole launch).
+    expect(shell).not.toMatch(
+      /modelSwitchInFlightRef\.current \|[\s\S]{0,80}?semanticRebuildBusyRef\.current/,
+    );
+    // Rebuild busy is evaluated INSIDE the remote decision only…
     expect(shell).toMatch(
-      /decideRemoteBoot\(\{[\s\S]{0,1100}?modelSwitchInFlightRef\.current \|[\s\S]{0,80}?semanticRebuildBusyRef\.current \|\|[\s\S]{0,40}?isDeleteActive\(\)/,
+      /if \(decision\.kind === "remote"\) \{[\s\S]{0,400}?const rebuildBusy =\s*semanticRebuildBusyRef\.current \|\| isDeleteActive\(\);/,
+    );
+    // …and the shared local restore covers BOTH outcomes: restoreId falls
+    // back from the persisted local id to the raw saved id, then pickStartModel.
+    expect(shell).toMatch(
+      /const restoreId =\s*decision\.kind === "local"\s*\? decision\.persistModelId\s*: \(saved \?\? getDefaultModel\(\)\.id\);[\s\S]{0,400}?savedId: restoreId,/,
     );
   });
 

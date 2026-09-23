@@ -3039,53 +3039,62 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           defaultLocalModelId: getDefaultModel().id,
           remoteModelId: REMOTE_COMPUTER_MODEL_ID,
         });
-        // Guards: a tap during hydration owns the intent and the model index;
-        // a rebuild owns the delete/embed arc. Boot overwrites neither — with
-        // a rebuild running it stays local for this launch and persists
-        // nothing new (the live backend cache is the fresh-process default
-        // "local"; hydrate never writes it), so the next launch retries the
-        // stored choice.
-        if (
-          modelSwitchInFlightRef.current ||
-          semanticRebuildBusyRef.current ||
-          isDeleteActive()
-        ) {
-          return;
-        }
+        // A tap during hydration owns the intent and the model index: boot
+        // must not overwrite a switch that is in flight (N1 — its probe-skip
+        // and epoch bump take over from here).
+        if (modelSwitchInFlightRef.current) return;
         if (decision.kind === "remote") {
-          engineIntentRef.current = {
-            modelId: REMOTE_COMPUTER_MODEL_ID,
-            remote: true,
-          };
-          setRemoteActive(true);
-          await setEngineBackendMode("remote");
-          return;
-        }
-        await recoverLocalBackend();
-        // Boot is read-only for the model choice: only a stored REMOTE id is
-        // rewritten (the demotion decideRemoteBoot just decided). A hydration
-        // failure returns the default too — persisting THAT would overwrite a
-        // saved local choice on a transient error.
-        if (decision.reason === "orphan" && saved === REMOTE_COMPUTER_MODEL_ID) {
-          await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+          // A rebuild/delete owns the document arc and may block ONLY the
+          // remote flip (its embed pass would hit the remote entry gate).
+          // Falling through keeps the local restore below intact for this
+          // launch and writes nothing — the stored remote choice survives
+          // untouched for the next launch.
+          const rebuildBusy =
+            semanticRebuildBusyRef.current || isDeleteActive();
+          if (!rebuildBusy) {
+            engineIntentRef.current = {
+              modelId: REMOTE_COMPUTER_MODEL_ID,
+              remote: true,
+            };
+            setRemoteActive(true);
+            await setEngineBackendMode("remote");
+            return;
+          }
+        } else {
+          await recoverLocalBackend();
+          // Boot is read-only for the model choice: only a stored REMOTE id is
+          // rewritten (the demotion decideRemoteBoot just decided). A hydration
+          // failure returns the default too — persisting THAT would overwrite a
+          // saved local choice on a transient error.
+          if (decision.reason === "orphan" && saved === REMOTE_COMPUTER_MODEL_ID) {
+            await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+          }
         }
         if (!bootStillCurrent()) return;
         setRemoteActive(false);
-        // Death-marker defence (above) runs on the local id only —
-        // decideRemoteBoot already demoted any remote id to a local one.
+        // Death-marker defence runs on the id this launch restores: a local
+        // decision passes its persisted id (decideRemoteBoot already demoted
+        // any remote id); a deferred remote decision passes the raw saved id —
+        // main's boot did the same, and an id outside the registry leaves the
+        // default standing, silently.
+        const restoreId =
+          decision.kind === "local"
+            ? decision.persistModelId
+            : (saved ?? getDefaultModel().id);
         const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
         if (!bootStillCurrent()) return;
         const startId = await pickStartModel({
-          savedId: decision.persistModelId,
+          savedId: restoreId,
           lastGoodId,
           defaultId: getDefaultModel().id,
           isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
         });
         if (!bootStillCurrent()) return;
         if (
-          decision.reason === "orphan" ||
-          decision.reason === "hydration-failed" ||
-          decision.reason === "stale-hydration"
+          decision.kind === "local" &&
+          (decision.reason === "orphan" ||
+            decision.reason === "hydration-failed" ||
+            decision.reason === "stale-hydration")
         ) {
           setModelState("error");
           setModelErrorKind("engine");
@@ -3096,7 +3105,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (startId === null) return;
         const startIndex = MODEL_REGISTRY.findIndex((model) => model.id === startId);
         if (startIndex < 0 || startIndex === modelIndexRef.current) return;
-        if (startId !== decision.persistModelId) {
+        if (startId !== restoreId) {
           loadFallbackTargetRef.current = startId;
           setModelState("error");
           setModelErrorKind("engine");
