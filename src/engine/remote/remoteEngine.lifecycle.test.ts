@@ -17,6 +17,10 @@ jest.mock("@react-native-async-storage/async-storage", () => {
     setItem: async (key: string, value: string) => {
       store[key] = value;
     },
+    /** Full reset: cases must not share residual settings. */
+    __reset: () => {
+      for (const key of Object.keys(store)) delete store[key];
+    },
   };
 });
 
@@ -36,7 +40,18 @@ jest.mock("../thinkStream", () => ({
 }));
 
 const fetchMock = jest.fn();
+const hadFetch = "fetch" in globalThis;
+const originalFetch = (globalThis as { fetch: typeof fetch }).fetch;
 (globalThis as { fetch: typeof fetch }).fetch = fetchMock as unknown as typeof fetch;
+
+afterAll(() => {
+  // Leave globalThis exactly as this file found it — present or absent.
+  if (hadFetch) {
+    (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
+  } else {
+    delete (globalThis as { fetch?: typeof fetch }).fetch;
+  }
+});
 
 function completeStreamMock(requestId: string) {
   const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
@@ -81,8 +96,59 @@ function errorStreamMock(requestId: string, message: string) {
   });
 }
 
+type StreamFinish = {
+  kind: string;
+  finishReason: string | null;
+  error?: Error;
+};
+
+/** One partial delta, then the given terminal finish. */
+function partialStreamMock(requestId: string, finish: StreamFinish) {
+  const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+    streamOpenAiChat: jest.Mock;
+  };
+  streamOpenAiChat.mockImplementation((
+    _req: unknown,
+    handlers: {
+      onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+      onFinish: (f: StreamFinish) => void;
+    },
+  ) => {
+    queueMicrotask(() => {
+      handlers.onDelta({
+        kind: "delta",
+        content: "partial answer",
+        reasoning: "",
+        finishReason: null,
+      });
+      handlers.onFinish(finish);
+    });
+    return { requestId, abort: jest.fn(), xhr: {}, isClosed: () => false };
+  });
+}
+
+/** Collects EmissionSource values in fire order. */
+function emissionRecorder() {
+  const sources: string[] = [];
+  return {
+    sources,
+    callbacks: {
+      onDelta: () => undefined,
+      onDone: () => undefined,
+      onError: () => undefined,
+      onModelEmittedText: (_text: string, source: "parsed" | "raw") => {
+        sources.push(source);
+      },
+    },
+  };
+}
+
 describe("RemoteEngine lifecycle", () => {
   beforeEach(async () => {
+    const asyncStorage = jest.requireMock("@react-native-async-storage/async-storage") as {
+      __reset: () => void;
+    };
+    asyncStorage.__reset();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({
       ok: true,
@@ -640,6 +706,79 @@ describe("RemoteEngine lifecycle", () => {
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("a completed turn reports emission source parsed", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    partialStreamMock("emission-complete", {
+      kind: "complete",
+      finishReason: "stop",
+    });
+    const { sources, callbacks } = emissionRecorder();
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    expect(sources).toEqual(["parsed"]);
+  });
+
+  test("an interrupted partial reports emission source raw", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    partialStreamMock("emission-interrupted", {
+      kind: "interrupted",
+      finishReason: null,
+    });
+    const { sources, callbacks } = emissionRecorder();
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    expect(sources).toEqual(["raw"]);
+  });
+
+  test("a truncated partial reports emission source raw", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    partialStreamMock("emission-truncated", {
+      kind: "truncated",
+      finishReason: "length",
+    });
+    const { sources, callbacks } = emissionRecorder();
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    expect(sources).toEqual(["raw"]);
+  });
+
+  test("a failed stream with partial output reports emission source raw", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    partialStreamMock("emission-error", {
+      kind: "error",
+      finishReason: null,
+      error: new Error("remote_brain_network"),
+    });
+    const { sources, callbacks } = emissionRecorder();
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      callbacks,
+      undefined,
+      { locale: "en" },
+    );
+    expect(sources).toEqual(["raw"]);
   });
 
   test("onDone throw still settles", async () => {

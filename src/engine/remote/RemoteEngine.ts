@@ -318,9 +318,13 @@ export async function streamRemoteAssistantTurn(
         // finalize must not suppress terminal dispatch
       }
       try {
-        // "parsed": `emitted` is the model's text after think-tag stripping,
-        // the same provenance local turns report for model-emitted text.
-        if (emitted.length > 0) callbacks.onModelEmittedText?.(emitted, "parsed");
+        // EmissionSource by outcome, mirroring the local paths: only a
+        // completed turn is "parsed"; interrupted / truncated / error
+        // partials are raw accumulation. `emitted` is raw delta.content —
+        // think tags are stripped only for display (onDelta), never here.
+        if (emitted.length > 0) {
+          callbacks.onModelEmittedText?.(emitted, err ? "raw" : "parsed");
+        }
       } catch {
         // ignore
       }
