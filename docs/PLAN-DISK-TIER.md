@@ -693,15 +693,45 @@ not implemented**, so a decision is never read as a delivery.
   panic path — a worker that dies mid-drain leaves `Stopping` standing, since the guard refuses
   every later write — is **declared** in `drain.rs` rather than left tacit (it wedged as `Running`
   before this state, so it is not a regression, and nothing reachable panics there today).
-- **The `Stopped` invariant — decided, this plan's to implement, not implemented.** `Stopped` means
-  the door does not answer **and** the process is not there; when either half is unknowable, the
-  state says so. An engine adopted blind gets `Stopped` only after a probe on the port fails, plus a
-  suspected-orphan record the next start recovers or replaces. A known pid whose grace expires is
-  settled by pid **and** port rather than by the wait, the grace expiry is recorded instead of
-  swallowed, and a survivor gets a failed-to-stop state **with its measurements**. The reason it is
-  worth the work: a stop that declares success while the engine is alive is how a ghost survives a
-  restart cycle — it holds the port, holds RAM, and makes the next start's failure look like a bug
-  somewhere else.
+- **The `Stopped` invariant — decided; implemented in `f1df191`, `ae78761`, `f9d8861`; closed in
+  `f7ac758`.** `Stopped`
+  means the door does not answer **and** the process is not there; when either half is unknowable,
+  the state says so. The witnesses are not interchangeable, and that distinction is the whole
+  design (`crates/kalsa-supervisor/src/presence.rs`): a **reaped child** is the kernel's own proof
+  about OUR process, so the port is **not a veto** — if something answers it afterwards, `Stopped`
+  is still true of our engine and what answers is a **suspicion to record**; a **known pid** alive
+  after both signals is a survivor whatever the port says; a known pid now dead is corroborated by
+  the port (§9's "pid AND port" — a held port does not prove it is not our engine); and an
+  **adopted-blind** engine gets `Stopped` only after the probe FAILS, plus the suspicion record,
+  because the port is then the only witness there is. Nothing else closes a drain: the alternative
+  end is `StopUnconfirmed` with the measures of what could not be proved (pid, port, what was
+  tried, what the port answered), and the drain's write policy admits exactly those two ends —
+  neither of which is a lie about a process that may still hold the port. The old swallow is gone:
+  `child::Termination` reports whether the walk needed a grace, needed SIGKILL, or never saw the
+  process leave, and a kill that fails is a datum rather than a `let _ =`. **Escalation is not
+  failure** — a wedged child killed after its grace ends correctly — and the grace expiry is
+  logged, not punished.
+  **Declared, not hidden**, and each is a price not an oversight: the `Survived` arm of
+  `terminate_pid` needs a process our SIGKILL does not take (EPERM — somebody else's), so it is
+  unreachable in a test and the reachable survivor is the adopted-pid case; `Watch::state` has no
+  worker handle and can therefore still read a stale `Stopping`; and the integration test of the
+  record's recovery still binds a real socket (a port this test never drops, so no race) while the
+  RULE is asserted against a scripted probe — scripting that last one needs the seam exported at
+  the worker level, which is the declared next step.
+  **One flake, chased down rather than declared away** (`f7ac758`): a src-tauri test failed once in
+  a combined verification of twenty-one runs and the `awk`-summed pipe ate its name. The reviewer
+  reproduced the class — a suite that fails 5 times in 16 under load — and named it: a test that
+  does `bind → drop(listener) → connect` and **demands REFUSED** is a test whose fixture lies. At
+  rest the kernel refuses every time (2000 of 2000 in the reviewer's probe); under socket churn the
+  window opens and the connect lands on a dying or reassigned state, so the probe answers
+  `There{Silent}` and the test sees a ghost. It was never a production defect — when the port
+  really answers, refusing `Stopped` is exactly right — and it is closed by making the probe an
+  **argument**: `stop()` and the next start's recovery take a `presence::Probe`, production passes
+  the real one, the policy tests pass a scripted one, and the refusal's classification is tested as
+  a pure function of an `io::Error`. Twelve suite runs under the same eight-thread churn that broke
+  it before are green, and so are sixteen more run by the orchestrator on the same harness. **A
+  test that fails once in twenty-two is a test we cannot read until someone makes it fail on
+  purpose.**
 - **The measurement's floor is declared, not denied.** The concurrency run was taken on a machine
   with the agent harness on it (`loadavg` ~4–6), because nobody runs two devices on an idle Mac. A
   constant floor weighs on every arm and cancels in the comparison — the bracket is what proves it
@@ -730,4 +760,12 @@ not implemented**, so a decision is never read as a delivery.
   match leaves case (a) red, and the count in `fe14e78`'s message said 8 where the code killed 5
   (8 was the number of checks that PASSED); `34de14f` carries the correction. **A field that lives
   in prose is a field the next reader has to trust** — that sentence stands, and now there is no
-  such field in this artifact.
+  such field in this artifact. **One more blindness, found next door and closed (`17e016b`):** the
+  panel's own check compared the constant to the artifact at the precision it DISPLAYS (two
+  decimals), so any drift under 0.005 on any of the three ratios stayed green — the historical red
+  arrived only because the aggregate happened to move 0.0068. The comparison is now exact at the
+  constant's four decimals, with the displayed rounding as a separate check. Declared rather than
+  fixed: a manifest digest padded with whitespace is accepted after `strip()` while a `0x`-prefixed
+  one is not — an inconsistency that can only push toward `unverified`, never toward the fork
+  accusation, and changing it would drift the artifact's `script_sha256` and buy a fourth
+  measurement for nothing.
