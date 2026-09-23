@@ -116,10 +116,11 @@ So an ambiguous claim failure is an **add a new square** state, not a retry: the
 spent the code.
 
 **Backgrounded or killed between claim and complete.** The desktop keeps the claimed ceremony until its
-120 s deadline, so the phone has two honest options and must pick one: hold the payload's fields and the
-delivery token in **short-lived protected state** to resume, or accept that the square is spent and say so.
-This document takes the second as the default, with the first as the goal once the payload's lifetime is
-pinned down.
+120 s deadline, so the phone has two honest options and must pick one. This document takes **"the square is
+spent"** as the default, and the Brain session endorsed it with the reason I had not found: resuming would
+keep a **bearer secret — the one-time code — on the phone's disk** beyond the moment the camera saw it, to
+win at most 120 s. Resume stays a later goal, and if it is ever built the stored state must be protected
+storage, deleted on completion, on failure and on expiry.
 
 **Single flight per ceremony.** One claim in flight at a time, with a latch: a double tap must not send the
 claim twice, and a **late 403 arriving after the other request succeeded is not a failure** and must not be
