@@ -41,6 +41,18 @@ Both findings are Reviewer A's, proven live against the previous code.
       have been assigned before delivery (so main's finally can stop it),
       and the sleep must be dead afterwards; even a RED run's cleanup
       kills the child it lost track of.
+  (5) A#1 child-stderr flood: a fake prints the listening line, writes
+      1 MiB to stderr (far past any pipe buffer), then waits for stdin
+      EOF - the harness must start AND stop it within an 8 s bound (a
+      worker thread joined with a timeout, so a regression FAILS the
+      check instead of hanging the suite) with the child exiting cleanly
+      (0, not SIGKILLed after stop's 10 s wait). The fix is
+      stderr=subprocess.DEVNULL: the output is WITHHELD anyway, and an
+      unread pipe blocks the writer.
+  (6) R5-1 the port RANGE: `listening 127.0.0.1:0` and
+      `listening 127.0.0.1:65536` are both refused, with the withheld
+      refusal text, and the line itself is never quoted into the
+      message. Dropping the range clause turns this red.
 Exit 0 green, 1 red, 2 cannot run (measure-concurrency.py missing).
 Run: python3 dev/test-door-runner.py
 """
@@ -54,6 +66,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -224,6 +237,81 @@ sys.stdout.flush()
 next(sys.stdin, None)     # then block until the harness closes stdin
 """
 
+FLOOD_RUNNER = """#!/usr/bin/env python3
+import sys
+print("listening 127.0.0.1:58229")
+sys.stdout.flush()
+sys.stderr.write("x" * (1024 * 1024))   # far past any pipe buffer
+sys.stderr.flush()
+next(sys.stdin, None)                   # then wait for stdin EOF
+"""
+
+def case_flood_stderr():
+    print("(5) A#1: a child flooding stderr starts and stops within the "
+          "bound", file=sys.stderr)
+    work, script = write_script(FLOOD_RUNNER)
+    result = {}
+
+    def run():
+        t0 = time.perf_counter()
+        try:
+            proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                     timeout_s=30.0)
+            mc.stop_door_runner(proc)
+            result["ok"] = ("stopped", port, proc.returncode,
+                            round(time.perf_counter() - t0, 2))
+        except BaseException as e:
+            result["ok"] = ("error", f"{type(e).__name__}: {e}")
+
+    # daemon + a bounded join: a regression must FAIL the check, never
+    # hang the suite - an abandoned worker's own stop() kills its child.
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(timeout=8)
+    ok = result.get("ok")
+    check("(5) started AND stopped within the 8 s bound despite 1 MiB "
+          "on the child's stderr",
+          not worker.is_alive() and ok is not None and ok[0] == "stopped",
+          f"alive={worker.is_alive()} ok={ok!r}"[:170])
+    if ok is not None and ok[0] == "stopped":
+        check("(5) ...within a few seconds and the child exited CLEANLY "
+              "(rc 0, not SIGKILLed after stop's 10 s wait)",
+              ok[3] < 5 and ok[2] == 0,
+              f"port={ok[1]} rc={ok[2]} took={ok[3]}s")
+    shutil.rmtree(work, ignore_errors=True)
+
+
+def case_port_range():
+    print("(6) R5-1: the port RANGE clause - :0 and :65536 refuse",
+          file=sys.stderr)
+    for line in ("listening 127.0.0.1:0", "listening 127.0.0.1:65536"):
+        src = ("#!/usr/bin/env python3\n"
+               "import sys\n"
+               "next(sys.stdin, None)\n"
+               f"print({line!r})\n"
+               "sys.stdout.flush()\n"
+               "next(sys.stdin, None)\n")
+        work, script = write_script(src)
+        proc = None
+        msg = ""
+        try:
+            proc, port, creds = mc.start_door_runner(str(script), 19311, 1,
+                                                     timeout_s=30.0)
+        except SystemExit as e:
+            msg = str(e)          # the withheld refusal
+        finally:
+            if proc is not None:
+                mc.stop_door_runner(proc)  # only a REGRESSION gets here
+            shutil.rmtree(work, ignore_errors=True)
+        check(f"(6) {line!r} is REFUSED",
+              bool(msg) and "did not announce a valid" in msg,
+              msg[:150] or "start ACCEPTED the port")
+        check(f"(6) ...with the withheld refusal text", "WITHHELD" in msg,
+              msg[-140:])
+        check(f"(6) ...and the line itself is never quoted",
+              line not in msg, msg[:150])
+
+
 def case_success_path():
     print("(2b) K1: the SUCCESS path still parses a valid listening line",
           file=sys.stderr)
@@ -343,6 +431,8 @@ def main():
     case_success_path()
     case_spawn_window_runner()
     case_spawn_window_engine()
+    case_flood_stderr()
+    case_port_range()
     print(f"door runner: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

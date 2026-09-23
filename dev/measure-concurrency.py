@@ -1142,11 +1142,12 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
         # elsewhere, and every harness main runs here.
         old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
         try:
+            # stdout=PIPE for the listening line (no println exists upstream; measure_door prints only that one line); stderr=DEVNULL - the output is WITHHELD anyway, and an unread pipe blocks the child (A#1)
             proc = subprocess.Popen(
                 [door_bin, "--engine-port", str(engine_port),
                  "--capacity", str(capacity)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, text=True)
+                stderr=subprocess.DEVNULL, text=True)
         finally:
             signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
         for cred in credentials:
@@ -1239,7 +1240,11 @@ def count_done_before(streams_done_ms, probe_answered_ms):
     answer, computed FROM THE RECORDED, rounded values the artifact
     stores - so any reader (and dev/test-door-harness.py (10)) can
     recompute `streams_done_before_probe_answered` from the artifact's own
-    fields. A stream with no stamp (None) never counts."""
+    fields. A stream with no stamp (None) never counts. The recorded
+    values are 3-decimal ms, so two events closer than ~1 microsecond
+    record as equal and a tie counts as done-before (<=) - the deliberate
+    price of the count being reproducible from the artifact's own fields
+    (A #4)."""
     return sum(1 for d in streams_done_ms
                if d is not None and d <= probe_answered_ms)
 
