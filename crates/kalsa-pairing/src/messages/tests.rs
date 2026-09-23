@@ -93,6 +93,28 @@ const FROZEN_PHONE_MAC_NO_NODE: &str =
     "51e82d91c365352b430a40533ec8ea76966762ac1413557712e110889b44905e";
 const FROZEN_PHONE_MAC_WITH_NODE: &str =
     "0503754d7ad8a465ffcf82506231bf961da877ff802087c8f8c5756da0de0d83";
+// The delivery-bearing claim's freeze: the same recipe with the token
+// MAC'd in ahead of the phone's fields. Sent to the phone team with the
+// reachable below - a vector's strings are opaque, so the reachable keeps
+// the port it was frozen with even though this computer's desk has since
+// moved off it.
+const FROZEN_PHONE_MAC_WITH_DELIVERY_TOKEN: &str =
+    "ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132";
+
+#[test]
+fn the_delivery_bearing_claim_is_a_frozen_known_answer() {
+    let key = [0x31u8; super::CODE_BYTES];
+    let nonce = [0x32u8; NONCE_BYTES];
+    let mac = super::phone_mac_with_token(
+        &key,
+        &nonce,
+        "http://127.0.0.1:8132",
+        "",
+        "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        &sample_phone(),
+    );
+    assert_eq!(hex::encode(mac), FROZEN_PHONE_MAC_WITH_DELIVERY_TOKEN);
+}
 
 #[test]
 fn the_computer_seal_is_a_frozen_known_answer() {
@@ -103,6 +125,12 @@ fn the_computer_seal_is_a_frozen_known_answer() {
     assert_eq!(
         seal.mac,
         "6d86a29391e258de9bb13dae9ceb3612143c4448050562a36ad2e6ac8dd4a849"
+    );
+    // The credential's ciphertext beside its tag: the phone team's second
+    // vector, frozen from the same run their first one came from.
+    assert_eq!(
+        seal.credential_ciphertext,
+        "19d0b3455e311a70ba202aea83ea569e8127f2f1936f67bdc557439a82222ba7"
     );
 }
 
