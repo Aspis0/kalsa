@@ -14,6 +14,8 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   remote_brain_token_required: "settings.remoteBrainTokenRequired",
   remote_brain_network: "settings.remoteBrainFailNetwork",
   remote_brain_send: "settings.remoteBrainFailNetwork",
+  // The SSE channel died mid-stream: the computer was reachable, then was not.
+  remote_brain_sse_error: "settings.remoteBrainFailNetwork",
   remote_brain_stale_init: "settings.remoteBrainFailStaleInit",
   remote_brain_model_required: "settings.remoteBrainFailModelRequired",
   remote_brain_model_missing: "settings.remoteBrainFailModelMissing",

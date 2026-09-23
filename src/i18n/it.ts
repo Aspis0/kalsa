@@ -129,9 +129,9 @@ export const it: typeof en = {
       "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
     remoteBrain: "Cervello remoto",
     remoteBrainHint:
-      "Usa il tuo computer come modello. Imposta qui sotto il suo indirizzo. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
+      "Usa il tuo computer come modello. Imposta qui sotto il suo indirizzo. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings.",
     remoteBrainDisclosure:
-      "Per rispondere, il tuo computer riceve la conversazione: messaggi, memoria, riassunti e nomi dei documenti.",
+      "Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti.",
     remoteBrainUrl: "Indirizzo del tuo computer",
     remoteBrainUrlHint: "https://il-tuo-computer.example",
     remoteBrainUrlMissing:

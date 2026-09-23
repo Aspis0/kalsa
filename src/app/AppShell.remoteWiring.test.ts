@@ -11,6 +11,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const shell = readFileSync(join(__dirname, "AppShell.tsx"), "utf8");
+const chat = readFileSync(join(__dirname, "../screens/AiChatPage.tsx"), "utf8");
 
 describe("AppShell remote wiring (source pins)", () => {
   test("engine calls are imported through the facade, not LlamaService", () => {
@@ -89,5 +90,80 @@ describe("AppShell remote wiring (source pins)", () => {
     expect(shell).toMatch(
       /if \(isRemoteEngineBackend\(\)\) \{\s*\n\s*return \{ ok: false, reason: "unavailable" \};/,
     );
+  });
+
+  test("rebuild re-checks the backend with no await before the delete (race fix)", () => {
+    // The preflights await twice; the only sync run into the delete must pass
+    // through a fresh remote check.
+    expect(shell).toMatch(
+      /if \(isRemoteEngineBackend\(\)\) \{\s*\n\s*return \{ ok: false, reason: "unavailable" \};\s*\n\s*\}\s*\n\s*bumpEmbedJobGeneration\(\);\s*\n\s*await deleteVectorIndexFile\(id\);/,
+    );
+  });
+
+  test("composer attach is gated in remote mode with the gated note", () => {
+    const attach = chat.match(
+      /const onComposerAttach = useCallback\(\(\) => \{([\s\S]*?)\}, \[/,
+    );
+    expect(attach).not.toBeNull();
+    expect(attach![1]).toContain("isRemoteEngineBackend()");
+    expect(attach![1]).toContain('showVoiceNote(t("settings.remoteGated"))');
+  });
+
+  test("stream errors humanize remote codes and leave everything else alone", () => {
+    expect(shell).toContain('startsWith("remote_brain_")');
+    expect(shell).toContain("humanRemoteBrainError(error.message, t)");
+    expect(shell).toContain("⚠️ ${shown}");
+    expect(shell).not.toContain("⚠️ ${error.message}");
+  });
+
+  test("selectRemoteComputer humanizes its catch", () => {
+    expect(shell).toContain("raw.startsWith(\"remote_brain_\") ? humanRemoteBrainError(raw, t) : raw");
+  });
+
+  test("remote ensure short-circuits when ready, before the loading flash", () => {
+    const remoteBranch = shell.indexOf("if (captured.remote) {");
+    expect(remoteBranch).toBeGreaterThan(-1);
+    const shortCircuit = shell.indexOf(
+      "isEngineReady() && getActiveModelId() === REMOTE_COMPUTER_MODEL_ID",
+      remoteBranch,
+    );
+    const loading = shell.indexOf('setModelState("loading")', remoteBranch);
+    expect(shortCircuit).toBeGreaterThan(remoteBranch);
+    expect(shortCircuit).toBeLessThan(loading);
+  });
+
+  test("boot catch keeps main's read-only contract: no persistent write", () => {
+    expect(shell).toContain("Preference read failure → keep the default boot model");
+    // The regression shape: forcing the default back into storage on error.
+    expect(shell).not.toContain("AsyncStorage.setItem(MODEL_STORAGE_KEY, getDefaultModel().id)");
+    // Boot only persists the one real demotion (a stored remote id, no URL).
+    expect(shell).toContain(
+      'decision.reason === "orphan" && saved === REMOTE_COMPUTER_MODEL_ID',
+    );
+  });
+
+  test("failure paths agree intent with the backend cache", () => {
+    // Pre-IIFE throw ends the backend switch it began (the IIFE finally never runs).
+    const preIife = shell.match(
+      /\/\/ Also end the backend switch this path began[\s\S]{0,400}?endBackendSwitch\(\);[\s\S]{0,600}?throw error;/,
+    );
+    expect(preIife).not.toBeNull();
+    // Remote→local flip that never landed: re-align to the remote cache and re-probe.
+    const flipCatch = shell.match(
+      /The flip to local never landed[\s\S]{0,900}?setPresenceProbeEpoch\(\(n\) => n \+ 1\);/,
+    );
+    expect(flipCatch).not.toBeNull();
+    expect(flipCatch![0]).toContain("remote: true");
+    expect(flipCatch![0]).toContain("setRemoteActive(true)");
+    // Boot catch with a failing recovery aligns to the cache, not the default.
+    const bootCatch = shell.match(
+      /Preference read failure → keep the default boot model[\s\S]{0,900}?const cacheRemote = isRemoteEngineBackend\(\);[\s\S]{0,400}?setModelError\(t\("settings\.remoteBrainSaveFailed"\)\);/,
+    );
+    expect(bootCatch).not.toBeNull();
+    // The model-id write surfaces a lost write instead of staying silent.
+    const idWrite = shell.match(
+      /AsyncStorage\.setItem\(MODEL_STORAGE_KEY, MODEL_REGISTRY\[nextIndex\]\.id\)\.catch\(\(\) => \{[\s\S]{0,300}?showNotice\(t\("settings\.remoteBrainSaveFailed"\)\);/,
+    );
+    expect(idWrite).not.toBeNull();
   });
 });

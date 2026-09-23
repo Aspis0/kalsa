@@ -58,7 +58,6 @@ jest.mock("./remote/remoteSettings", () => {
     getRemoteServerModelId: jest.fn(() => ""),
     hydrateRemoteBrainSettings: jest.fn(),
     isHydrationCurrent: jest.fn(() => true),
-    isOrphanRemoteWithoutUrl: jest.fn(() => false),
     isRemoteEngineBackend: jest.fn(() => mode === "remote"),
     recoverLocalBackend: jest.fn(async () => {
       mode = "local";

@@ -3629,11 +3629,17 @@ export function AiChatPage({
   );
 
   const onComposerAttach = useCallback(() => {
+    if (isRemoteEngineBackend()) {
+      // Attachments cannot travel this backend — say so instead of opening a
+      // sheet whose choices would be silently dropped.
+      showVoiceNote(t("settings.remoteGated"));
+      return;
+    }
     if (voiceBusyRef.current || voiceUiRef.current !== "idle" || pdfToRenderRef.current) {
       return;
     }
     setAttachSheetOpen(true);
-  }, []);
+  }, [showVoiceNote, t]);
 
   // Prefill the composer with the chosen miniapp template's prompt, then focus.
   const handleChooseTemplate = useCallback(

@@ -46,38 +46,27 @@ export function shouldReprobeAfterSwitch(disposeOk: boolean): boolean {
   return disposeOk === true;
 }
 
-/** Timeout, rejection, or any failed dispose: error UI, no reprobe, remoteActive off. */
+/**
+ * Timeout, rejection, or any failed dispose: error UI, remoteActive off.
+ * Whether a reprobe follows is shouldReprobeAfterSwitch's answer, not ours.
+ */
 export function switchDisposeUi(disposeOk: boolean): {
-  reprobe: boolean;
   remoteActive: false;
   surfaceError: boolean;
 } {
   return {
-    reprobe: disposeOk === true,
     remoteActive: false,
     surfaceError: disposeOk !== true,
   };
 }
 
-/** selectRemoteComputer dispose: failures take the K3 error path; in-flight always released. */
+/** selectRemoteComputer dispose: failures take the K3 error path. */
 export function afterRemoteSwitchDispose(ok: boolean): {
   surfaceError: boolean;
   remoteActive: boolean;
-  reprobe: false;
-  inFlightReleased: true;
 } {
   if (ok) {
-    return {
-      surfaceError: false,
-      remoteActive: true,
-      reprobe: false,
-      inFlightReleased: true,
-    };
+    return { surfaceError: false, remoteActive: true };
   }
-  return {
-    surfaceError: true,
-    remoteActive: false,
-    reprobe: false,
-    inFlightReleased: true,
-  };
+  return { surfaceError: true, remoteActive: false };
 }

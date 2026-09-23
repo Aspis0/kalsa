@@ -209,14 +209,6 @@ export function isHydrationCurrent(snapshot: { hydrationSeq: number }): boolean 
   return snapshot.hydrationSeq === hydrationSeq;
 }
 
-/** Persisted remote with no URL key: upgrade trap. Do not revive loopback. */
-export function isOrphanRemoteWithoutUrl(snap: {
-  backend: EngineBackendMode;
-  urlNeverSet: boolean;
-}): boolean {
-  return snap.backend === "remote" && snap.urlNeverSet;
-}
-
 /**
  * Read-only snapshot. Does not write backendCache — only setEngineBackendMode
  * may change the live backend (boot applies the snapshot through that setter).

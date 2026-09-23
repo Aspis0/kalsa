@@ -28,7 +28,6 @@ import {
   hydrateRemoteBrainSettings,
   isHydrationCurrent,
   setRemoteBrainUrl,
-  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
   REMOTE_BRAIN_MODEL_KEY,
@@ -150,17 +149,8 @@ describe("backend cache writes", () => {
     const snap = await hydrateRemoteBrainSettings();
     expect(snap.urlNeverSet).toBe(true);
     expect(snap.backend).toBe("remote");
-    expect(isOrphanRemoteWithoutUrl(snap)).toBe(true);
     await recoverLocalBackend();
     expect(isRemoteEngineBackend()).toBe(false);
-  });
-
-  test("empty URL string is not an orphan (user set it empty)", async () => {
-    store[ENGINE_BACKEND_KEY] = "remote";
-    store[REMOTE_BRAIN_URL_KEY] = "";
-    const snap = await hydrateRemoteBrainSettings();
-    expect(snap.urlNeverSet).toBe(false);
-    expect(isOrphanRemoteWithoutUrl(snap)).toBe(false);
   });
 
   test("getItem rejects -> recoverLocalBackend -> not remote", async () => {

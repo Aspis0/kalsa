@@ -90,6 +90,7 @@ import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 
 import { en } from "../i18n/en";
+import { it as itLocale } from "../i18n/it";
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 
 const previousActEnvironment = (
@@ -142,8 +143,25 @@ beforeEach(() => {
   (secretMock.getRemoteBrainToken as jest.Mock).mockResolvedValue(null);
 });
 
-const DISCLOSURE = en.settings.remoteBrainDisclosure;
+// Owner wording (Marco, fix round 1) — pinned as literals so a copy regression
+// fails here, not in review.
+const DISCLOSURE =
+  "To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names.";
 const SELECT_LABEL = en.settings.remoteSelect;
+
+test("the shipped disclosure and its Italian mirror are the owner's exact texts", () => {
+  expect(en.settings.remoteBrainDisclosure).toBe(DISCLOSURE);
+  expect(itLocale.settings.remoteBrainDisclosure).toBe(
+    "Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti.",
+  );
+});
+
+test("the hint no longer claims voice is off in remote mode", () => {
+  // Dictation runs on local whisper and needs no local chat LLM (traced in
+  // STEP2.md fix round 1), so the promise would be false.
+  expect(en.settings.remoteBrainHint).not.toMatch(/voice/);
+  expect(itLocale.settings.remoteBrainHint).not.toMatch(/voce/);
+});
 
 it("shows what is sent, above the Use my computer button", async () => {
   let renderer!: ReactTestRenderer;

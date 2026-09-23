@@ -77,20 +77,17 @@ describe("shouldReprobeAfterSwitch", () => {
 });
 
 describe("switchDisposeUi", () => {
-  test("dispose rejects -> error surfaced, no reprobe, remoteActive cleared", () => {
+  test("dispose rejects -> error surfaced, remoteActive cleared", () => {
     const ui = switchDisposeUi(false);
     expect(ui.surfaceError).toBe(true);
-    expect(ui.reprobe).toBe(false);
     expect(ui.remoteActive).toBe(false);
   });
 });
 
 describe("afterRemoteSwitchDispose", () => {
-  test("hanging native dispose on remote switch -> error, in-flight released", () => {
+  test("hanging native dispose on remote switch -> error surfaced, remote kept off", () => {
     const ui = afterRemoteSwitchDispose(false);
     expect(ui.surfaceError).toBe(true);
     expect(ui.remoteActive).toBe(false);
-    expect(ui.reprobe).toBe(false);
-    expect(ui.inFlightReleased).toBe(true);
   });
 });

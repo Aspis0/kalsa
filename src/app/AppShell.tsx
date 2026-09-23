@@ -2130,6 +2130,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return { ok: false, reason: "no_embedder" };
         }
 
+        // Re-check the backend with NO await in between: a switch to remote
+        // during the preflights above must not delete an index the entry gate
+        // will then refuse to rebuild.
+        if (isRemoteEngineBackend()) {
+          return { ok: false, reason: "unavailable" };
+        }
         bumpEmbedJobGeneration();
         await deleteVectorIndexFile(id);
         docSemanticByIdRef.current.delete(id);
@@ -3033,7 +3039,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return;
         }
         await recoverLocalBackend();
-        await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+        // Boot is read-only for the model choice: only a stored REMOTE id is
+        // rewritten (the demotion decideRemoteBoot just decided). A hydration
+        // failure returns the default too — persisting THAT would overwrite a
+        // saved local choice on a transient error.
+        if (decision.reason === "orphan" && saved === REMOTE_COMPUTER_MODEL_ID) {
+          await AsyncStorage.setItem(MODEL_STORAGE_KEY, decision.persistModelId);
+        }
         if (!bootStillCurrent()) return;
         setRemoteActive(false);
         // Death-marker defence (above) runs on the local id only —
@@ -3074,18 +3086,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         modelIndexRef.current = startIndex;
         setModelIndex(startIndex);
       } catch {
+        // Preference read failure → keep the default boot model (main's
+        // contract): this launch only, nothing persisted — a transient read
+        // error must never overwrite the user's saved local choice.
         try {
           await recoverLocalBackend();
+          engineIntentRef.current = { modelId: getDefaultModel().id, remote: false };
+          setRemoteActive(false);
         } catch {
-          // storage write failed; cache still forced local by the setter
+          // The setter rolled the cache back to whatever it was. Intent must
+          // AGREE with that cache or the probe skips forever with no ensure —
+          // a local model on a remote backend would wedge every send. Align to
+          // the cache, surface the failure; the probe (prefsReady, below) then
+          // ensures whichever side we landed on.
+          const cacheRemote = isRemoteEngineBackend();
+          engineIntentRef.current = cacheRemote
+            ? { modelId: REMOTE_COMPUTER_MODEL_ID, remote: true }
+            : { modelId: getDefaultModel().id, remote: false };
+          setRemoteActive(cacheRemote);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("settings.remoteBrainSaveFailed"));
         }
-        engineIntentRef.current = { modelId: getDefaultModel().id, remote: false };
-        setRemoteActive(false);
-        // Persisted id and forced-local backend must agree (remoteBoot's rule);
-        // this session boots the default either way.
-        AsyncStorage.setItem(MODEL_STORAGE_KEY, getDefaultModel().id).catch(
-          () => undefined,
-        );
       } finally {
         if (mounted) setPrefsReady(true);
       }
@@ -4182,6 +4204,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     if (thermalHardGateRef.current) return false;
     if (!stillCurrent()) return false;
     if (captured.remote) {
+      // Ready for this intent: skip the /props + /v1/models re-probe and the
+      // loading flash — mirrors the local short-circuit below. stillCurrent()
+      // above already rejected a changed configuration (the intent key carries
+      // url|serverModel), and the stream reads url/model fresh each time.
+      if (isEngineReady() && getActiveModelId() === REMOTE_COMPUTER_MODEL_ID) {
+        return true;
+      }
       setModelState("loading");
       remoteInitErrorRef.current = null;
       try {
@@ -4751,7 +4780,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelErrorDetail(null);
         setModelErrorKind(null);
         // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
-        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => {
+          // A lost write can resurrect the previous id at boot (a stored remote
+          // id still wins): say so instead of failing silently.
+          showNotice(t("settings.remoteBrainSaveFailed"));
+        });
 
         // Extraction holds the engine: wait briefly so dispose does not race it.
         // Epoch checks discard any delayed writes after the engine is gone.
@@ -4831,12 +4864,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               disposeOk = true;
             }
           } catch {
-            const ui = switchDisposeUi(false);
-            setRemoteActive(ui.remoteActive);
+            // The flip to local never landed (the setter rolls the cache back
+            // to remote on write failure, or the throw preceded it): the cache
+            // still says remote. Agree with it — local intent over a remote
+            // backend makes the probe skip forever with no ensure — and
+            // re-probe so the disposed remote engine is re-armed behind the
+            // surfaced error.
+            engineIntentRef.current = { modelId: REMOTE_COMPUTER_MODEL_ID, remote: true };
+            setRemoteActive(true);
             setModelState("error");
             setModelErrorKind("engine");
-            setModelError(t("errors.engineDisposeTimeout"));
+            setModelError(t("settings.remoteBrainSaveFailed"));
             setModelErrorDetail(null);
+            setPresenceProbeEpoch((n) => n + 1);
           } finally {
             // FIX B / FIX 1: dispose → free only the gen captured at switch time.
             if (releasedGen !== null) markChatReleased(releasedGen);
@@ -4855,6 +4895,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // statements preceding the launch — so there is no double release.
         if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
+        // Also end the backend switch this path began: the IIFE's finally never
+        // runs here, and a stale intent would silently refuse boot's direct
+        // remote setter (setEngineBackendMode refuses conflicting intents).
+        endBackendSwitch();
         // The rethrow below reaches no handler — this app has no global
         // rejection handler and all callers discard the returned promise — so
         // without this line a failed switch is invisible on a release build.
@@ -4865,7 +4909,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         throw error;
       }
     },
-    [modelIndex, modelState, remoteActive, t],
+    [modelIndex, modelState, remoteActive, showNotice, t],
   );
 
   /**
@@ -4930,7 +4974,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setRemoteActive(failUi.remoteActive);
         setModelState("error");
         setModelErrorKind("engine");
-        setModelError(error instanceof Error ? error.message : String(error));
+        const raw = error instanceof Error ? error.message : String(error);
+        setModelError(
+          raw.startsWith("remote_brain_") ? humanRemoteBrainError(raw, t) : raw,
+        );
         setModelErrorDetail(null);
       } finally {
         modelSwitchInFlightRef.current = false;
@@ -7038,7 +7085,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  // Remote transport failures arrive as internal codes and must
+                  // be human copy; every other error keeps its own text.
+                  const shown = error.message.startsWith("remote_brain_")
+                    ? humanRemoteBrainError(error.message, t)
+                    : error.message;
+                  callbacks.onDelta?.(`⚠️ ${shown}`, `⚠️ ${shown}`);
                   try {
                     callbacks.onFailed?.("chat.serviceUnreachable");
                   } catch {

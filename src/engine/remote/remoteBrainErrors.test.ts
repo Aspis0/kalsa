@@ -38,6 +38,9 @@ describe("humanRemoteBrainError", () => {
     expect(humanRemoteBrainError("remote_brain_send", t)).toBe(
       "settings.remoteBrainFailNetwork",
     );
+    expect(humanRemoteBrainError("remote_brain_sse_error", t)).toBe(
+      "settings.remoteBrainFailNetwork",
+    );
     expect(humanRemoteBrainError("remote_brain_timeout", t)).toBe(
       "settings.remoteBrainFailTimeout",
     );

@@ -77,7 +77,6 @@ export {
   getRemoteServerModelId,
   hydrateRemoteBrainSettings,
   isHydrationCurrent,
-  isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
   setEngineBackendMode,
