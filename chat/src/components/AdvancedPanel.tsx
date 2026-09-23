@@ -36,6 +36,8 @@ export interface AdvancedDto {
   gpu_layers: string | null;
   threads: number | null;
   door_port: number | null;
+  // The pairing desk's own port, the second serve command's target.
+  desk_port: number | null;
   iroh_sentence: string;
   internet_road: boolean;
   running: boolean;
@@ -358,8 +360,8 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
               : "The values in force will appear here when the app is open."}
           </p>
           <p className="advanced-help">
-            {dto && dto.door_port
-              ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve ${dto.door_port}`
+            {dto && dto.door_port && dto.desk_port
+              ? `Local door: ${dto.door_port}. Run for Tailscale: tailscale serve --bg ${dto.door_port} · tailscale serve --bg --https=8443 ${dto.desk_port}`
               : "The local door is waiting for the server to run."}
           </p>
           {dto ? (

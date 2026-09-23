@@ -39,6 +39,10 @@ interface PairingState {
   devices?: PairedDevice[];
   delivery_pending?: boolean;
   door_port?: number | null;
+  // The desk's own loopback port — the preferred 8132 or the fallback it
+  // took. The Tailscale note needs it, and a constant would be wrong
+  // whenever the fallback fired.
+  desk_port?: number | null;
   failure?: "could-not-save" | "could-not-read" | "service-unavailable" | null;
 }
 
@@ -104,10 +108,17 @@ function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
   return phones.length > 0 && phones.every((device) => device.waiting === true);
 }
 
-function doorNote(port: number | null | undefined): string | null {
-  return typeof port === "number" && Number.isInteger(port) && port > 0
-    ? `Run for Tailscale: tailscale serve ${port}`
-    : null;
+// Both roads a phone needs, side by side: the door at the tailnet name and
+// the desk behind :8443. Each command runs under --bg, because two serve
+// rules cannot both hold the foreground.
+function tailscaleNote(
+  doorPort: number | null | undefined,
+  deskPort: number | null | undefined,
+): string | null {
+  const isPort = (port: number | null | undefined): boolean =>
+    typeof port === "number" && Number.isInteger(port) && port > 0;
+  if (!isPort(doorPort) || !isPort(deskPort)) return null;
+  return `Run for Tailscale: tailscale serve --bg ${doorPort} · tailscale serve --bg --https=8443 ${deskPort}`;
 }
 
 interface DevicesSurfaceProps {
@@ -212,7 +223,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         headline = everyPhoneWaiting(state.devices) ? "Waiting for your OK" : "Paired";
         sentence = pairedSentence(state);
         button = "Pair another phone";
-        note = doorNote(state.door_port);
+        note = tailscaleNote(state.door_port, state.desk_port);
         devices = Array.isArray(state.devices) ? state.devices : [];
         break;
       case "failed":

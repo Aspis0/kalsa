@@ -683,6 +683,14 @@ try {
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
+    // The Tailscale note names BOTH roads, because a phone reaches the door
+    // and the desk through serve rules that must run side by side — which
+    // is why each command carries --bg.
+    if (all.includes("Run for Tailscale")) {
+      if (!/tailscale serve --bg \d+/.test(all) || !/tailscale serve --bg --https=8443 \d+/.test(all)) {
+        problems.push(`the Tailscale note must give both serve commands, each with --bg: ${heading}`);
+      }
+    }
   }
 
   const hostile = [
