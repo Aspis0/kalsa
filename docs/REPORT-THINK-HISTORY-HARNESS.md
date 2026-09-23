@@ -27,3 +27,11 @@ None of the six is a duplicate writer in one execution path. The engine request 
 - `git diff --check` — exit 0.
 - During the repair, the first harness run exited 1 because its pairing matcher did not recognize a shorthand source field after a comma. The captured field was written explicitly as `emissionSource: emissionSource`; the final run passes.
 - No build, Gradle, device operation, or commit was run.
+
+## Follow-up: behavioral history-load provenance
+
+- `src/host/messageMapper.test.ts:179-215` now exercises `sanitizeHistoryMessages` with adjacent persisted `raw`, `parsed`, and source-less emission records. It asserts the restored message carries each valid source and that the final record has no `emissionSource`, preventing inheritance from either neighbor.
+- `npx jest src/host/messageMapper.test.ts --silent` — exit 0; 1 suite / 21 tests.
+- `node scripts/thinkHistoryHarness.mjs` — exit 0; the 12-writer provenance audit passes unchanged.
+- `npx jest --silent` — exit 0; 212 suites / 2,372 tests passed.
+- No harness changes, build, Gradle, device operation, or commit were made in this follow-up.

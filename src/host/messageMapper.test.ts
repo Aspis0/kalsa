@@ -176,6 +176,44 @@ describe("toTranscriptMessage", () => {
 });
 
 describe("sanitize → mapper round trip", () => {
+  test("restores emission provenance per record without inheriting a neighbor's source", () => {
+    const restored = sanitizeHistoryMessages(
+      [
+        {
+          id: "raw-emission",
+          role: "assistant",
+          text: "raw answer",
+          modelEmittedText: "raw answer",
+          emissionSource: "raw",
+          createdAt: 1,
+        },
+        {
+          id: "parsed-emission",
+          role: "assistant",
+          text: "parsed answer",
+          modelEmittedText: "parsed answer",
+          emissionSource: "parsed",
+          createdAt: 2,
+        },
+        {
+          id: "unknown-emission",
+          role: "assistant",
+          text: "unknown answer",
+          modelEmittedText: "unknown answer",
+          createdAt: 3,
+        },
+      ],
+      "en",
+    );
+
+    expect(restored[0].modelEmittedText).toBe("raw answer");
+    expect(restored[0].emissionSource).toBe("raw");
+    expect(restored[1].modelEmittedText).toBe("parsed answer");
+    expect(restored[1].emissionSource).toBe("parsed");
+    expect(restored[2].modelEmittedText).toBe("unknown answer");
+    expect(restored[2]).not.toHaveProperty("emissionSource");
+  });
+
   test("sources persist, status is volatile, interrupted partial comes back marked", () => {
     const raw = [
       {
