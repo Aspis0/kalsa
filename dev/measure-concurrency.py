@@ -84,10 +84,11 @@ The launcher alone cannot identify the release: `kalsa-server` is
 byte-identical across v1.1.0 and v1.1.1, so an `exe_sha256` match alone
 passes for a v1.1.0 tree too. `release_block` therefore vetoes a `matched`
 the tree cannot back - the commit `--version` prints and the module beside
-the binary are compared with the manifest's, and disagreement downgrades the
-status to `not-the-release` under `engine-commit-mismatch` /
-`engine-module-missing` while the launcher-only verdict stays visible in
-`status_by_exe_sha256`.
+the binary are compared with the manifest's, and disagreement downgrades
+the status to `not-the-release` under its own reason_code -
+`engine-module-missing`, `engine-manifest-commit-missing`,
+`engine-version-commit-missing` or `engine-commit-mismatch` - while the
+launcher-only verdict stays visible in `status_by_exe_sha256`.
 """
 
 import argparse
@@ -515,8 +516,9 @@ def engine_identity(bin_path, version_text, block):
 
     `ok` is True only when the manifest matched AND the version commit agrees
     with the manifest's commit AND the module file is there; False when the
-    manifest matched and any of those fails; None when there is no manifest
-    commit to compare against (status not `matched`).
+    manifest matched and any of those fails (including a missing commit on
+    either side - the reason code names WHICH side is missing); None when
+    the status is not `matched` - there is no launcher verdict to veto.
     """
     module = Path(bin_path).parent / ENGINE_MODULE_FILE
     hit = re.search(r"\bcommit ([0-9a-f]{7,40})", version_text or "")
@@ -562,16 +564,30 @@ def release_block(bin_path, version_text, manifest_url, fetch=None):
     ident = engine_identity(bin_path, version_text, block)
     block["identity"] = ident
     if block["status"] == "matched" and ident["ok"] is not True:
+        # Exhaustive over `ok is False` (= no module, or no agreement):
+        # each missing side gets ITS OWN honest code - a manifest without a
+        # commit is missing evidence, not a mismatched tree - and the final
+        # branch is reachable only when both commits are present and differ
+        # (the old `engine-identity-incomplete` branch was unreachable and
+        # is gone).
         if ident["module_sha256"] is None:
             code = "engine-module-missing"
             why = f"no {ENGINE_MODULE_FILE} beside the binary"
-        elif ident["commit_agrees"] is not True:
+        elif ident["manifest_commit"] is None:
+            code = "engine-manifest-commit-missing"
+            why = ("the manifest matched the launcher hash but publishes no "
+                   "commit: there is nothing to compare --version's commit "
+                   "against, so this tree cannot be CONFIRMED as the release "
+                   "- missing evidence, and not a mismatch")
+        elif ident["version_commit"] is None:
+            code = "engine-version-commit-missing"
+            why = ("--version printed no commit while the manifest says "
+                   f"{ident['manifest_commit']!r}: nothing to compare, so the "
+                   "tree cannot be CONFIRMED as the release")
+        else:
             code = "engine-commit-mismatch"
             why = (f"--version says commit {ident['version_commit']!r}, the "
                    f"manifest says {ident['manifest_commit']!r}")
-        else:
-            code = "engine-identity-incomplete"
-            why = "the identity could not be completed"
         block["status"] = "not-the-release"
         block["label"] = FORK_LABEL
         block["reason_code"] = code
@@ -607,12 +623,13 @@ def engine_argv(bin_path, model, port, ctx_size, slots_dir, streams,
     `--parallel` is `streams` verbatim - at 2 the argv is byte-identical to
     the committed artifact's (pinned by dev/test-concurrency-shape.py).
     The two optional flags render only when given (default None -> nothing
-    in the argv, so the argv at defaults is the committed one) and exactly
-    as the app renders them: `--flash-attn <value>` immediately before the
-    cache types (crates/kalsa-launch/src/argv.rs:56-57),
-    `--ctx-checkpoints <k>` immediately after --slot-save-path
-    (argv.rs:105-108). The value rides as its own element - a bare
-    substring of the joined argv would let `1` pass for `12`.
+    in the argv, so the argv at defaults is the committed one) and as the
+    same flag/value PAIR the app ships (`--flash-attn on`,
+    `--ctx-checkpoints 1`). Their POSITION in this argv is the harness's
+    own: the engine does not care about order, and the app's overall
+    ordering differs anyway (argv.rs renders the tier pair last). The value
+    rides as its own element - a bare substring of the joined argv would
+    let `1` pass for `12`.
     `--slot-save-path` is not decoration: without it the slot actions answer
     501 and every erase in this run fails silently. The directory is created
     by the caller, because the engine refuses a path that is not a directory.
@@ -649,42 +666,137 @@ def require_engine_lines(where, lines):
 
 
 def require_rates(recs):
-    """Every arm of the accepted attempt must carry a real decode rate.
+    """Every arm of the accepted attempt must carry a real POSITIVE decode
+    rate.
 
     A dead arm used to enter the aggregate as a zero (`or 0`) and a missing
     rate used to surface later as `None` in a min() after the engine was
-    already up; both are failed runs, not data.
+    already up; both are failed runs, not data. A rate of 0.0 or below is
+    the same species of non-number: `ratio()` would turn it into `None`
+    while tokens_per_second printed 0.0 - two artifacts of one broken arm -
+    so <= 0 is refused here, with the dead arm.
     """
     bad = [name for name, rec in recs.items()
            if rec.get("status") != 200
-           or rec.get("predicted_per_second") is None]
+           or not isinstance(rec.get("predicted_per_second"), (int, float))
+           or rec.get("predicted_per_second") <= 0]
     if bad:
         raise SystemExit(
             f"no usable decode rate for {bad}: a dead arm is a failed run, "
             "not a zero - refusing to measure")
 
 
+def require_rate_agreement(where, rec, lines):
+    """Corroboration BY VALUE, not by presence: the HTTP decode rate must
+    AGREE with the engine's own `eval time ... tokens per second` for the
+    same slot. The engine prints 2 decimals, so agreement is
+    abs diff <= 0.011; an empty corroboration or a disagreeing one both
+    stop the run - a log that carries a different number than the HTTP
+    answer is two measurements, and neither may be printed."""
+    http = rec.get("predicted_per_second")
+    evals = [x["tokens_per_second"] for x in lines
+             if x.get("kind") == "eval"
+             and x.get("tokens_per_second") is not None]
+    if not evals:
+        raise SystemExit(
+            f"{where}: no engine eval line to corroborate the HTTP rate "
+            f"{http} - refusing to measure")
+    best = min(abs(http - e) for e in evals)
+    if best > 0.011:
+        raise SystemExit(
+            f"{where}: HTTP predicted_per_second {http} disagrees with the "
+            f"engine's eval line(s) {evals} by {round(best, 4)} (> 0.011, "
+            "the engine's print precision): the corroborating channel "
+            "contradicts the number - refusing to measure")
+
+
+def require_accepted_corroboration(accepted, arm_key, n):
+    """Every slot of the ACCEPTED attempt, checked value against value:
+    HTTP rate against that slot's engine eval line (A, all N B slots, A2)."""
+    arm_a = accepted["A_solo_slot0"]
+    arm_b = accepted[arm_key]
+    arm_a2 = accepted["A2_solo_repeat"]
+    require_rate_agreement("attempt arm A", arm_a, arm_a["engine_lines"])
+    for k in range(n):
+        require_rate_agreement(f"attempt arm B slot {k}", arm_b[f"slot{k}"],
+                               arm_b[f"engine_lines_slot{k}"])
+    require_rate_agreement("attempt arm A2", arm_a2, arm_a2["engine_lines"])
+
+
 def require_n_ctx_slot(init_lines, per_slot):
-    """The engine's boot line must CONFIRM the per-slot ctx the run computed:
-    `--ctx-size` is a total the engine divides by `--parallel`, and
-    `provenance.context_size_per_slot` stays a derived claim until the engine
-    itself says `n_ctx_slot` the same number. Disagreement (or a boot line
-    that no longer carries the value) stops the run instead of recording a
-    context the engine does not have."""
-    for line in init_lines:
-        m = re.search(r"n_ctx_slot\s*=\s*(\d+)", line)
+    """The engine's boot lines must CONFIRM the per-slot ctx the run
+    computed - EVERY n_ctx_slot value found, not the first: `--ctx-size` is
+    a total the engine divides by `--parallel`, and
+    `provenance.context_size_per_slot` stays a derived claim until the
+    engine says the same number everywhere. One disagreeing value (or a
+    boot line that no longer carries the value at all) stops the run.
+    A guard, not a builder: it returns nothing."""
+    found = [int(m.group(1)) for line in init_lines
+             for m in re.finditer(r"n_ctx_slot\s*=\s*(\d+)", line)]
+    if not found:
+        raise SystemExit(
+            "the boot lines carry no n_ctx_slot value: the log format drifted "
+            "and the corroborating channel is dead - refusing to measure")
+    if any(v != per_slot for v in found):
+        raise SystemExit(
+            f"the engine booted n_ctx_slot values {sorted(set(found))}, the "
+            f"run computed context_size_per_slot={per_slot} (ctx_size // "
+            "streams): the artifact would record a per-slot context the "
+            "engine does not have - refusing to measure")
+
+
+def require_checkpoint_line(ctx_check_lines, requested):
+    """When `--ctx-checkpoints K` was RENDERED, the engine's own boot line
+    must report it: `context checkpoints enabled, max = K`. The line is
+    captured either way (`checkpoint_line`); without this comparison the
+    flag could ride the argv and never reach the engine's parser, and the
+    artifact would record a value the engine never used. Absent line or a
+    different `max` stops the run."""
+    found = []
+    for line in ctx_check_lines:
+        m = re.search(r"context checkpoints.*max\s*=\s*(\d+)", line)
         if m:
-            got = int(m.group(1))
-            if got != per_slot:
-                raise SystemExit(
-                    f"the engine booted n_ctx_slot={got}, the run computed "
-                    f"context_size_per_slot={per_slot} (ctx_size // streams): "
-                    "the artifact would record a per-slot context the engine "
-                    "does not have - refusing to measure")
-            return got
-    raise SystemExit(
-        "the boot lines carry no n_ctx_slot value: the log format drifted "
-        "and the corroborating channel is dead - refusing to measure")
+            found.append(int(m.group(1)))
+    if not found:
+        raise SystemExit(
+            f"--ctx-checkpoints {requested} was rendered but no boot line "
+            "reports `context checkpoints ... max = ...`: the flag did not "
+            "reach the engine (or the log format drifted) - refusing to "
+            "measure")
+    if any(v != requested for v in found):
+        raise SystemExit(
+            f"--ctx-checkpoints {requested} was rendered but the engine "
+            f"booted with max values {sorted(set(found))} - the artifact "
+            "would record a checkpoint count the engine does not have - "
+            "refusing to measure")
+
+
+def require_divisible_ctx(ctx_size, streams):
+    """`--ctx-size` is a TOTAL the engine splits evenly across the slots; a
+    remainder would make `context_size_per_slot = ctx_size // N` a lie with
+    tokens nobody accounts for. Refused before anything starts."""
+    if ctx_size % streams != 0:
+        raise SystemExit(
+            f"refusing to measure: --ctx-size {ctx_size} is not divisible "
+            f"by --streams {streams}: the context is a TOTAL the engine "
+            f"splits evenly, and a remainder would make "
+            f"context_size_per_slot a lie")
+
+
+def require_outside_repo(path, flag_name):
+    """Run outputs must not land inside the repository: the artifact's
+    `raw_log_committed: false` (and a git tree nobody litters with engine
+    logs and slot files) is true BY CONSTRUCTION only when the log and the
+    slots directory resolve outside it. `--out` is deliberately exempt:
+    the artifact itself is committed on purpose, from dev/results/."""
+    resolved = Path(path).resolve()
+    repo = HERE.parent.resolve()
+    if resolved == repo or repo in resolved.parents:
+        raise SystemExit(
+            f"--{flag_name} {resolved} resolves INSIDE the repository "
+            f"{repo}: raw_log_committed: false and a clean tree are true by "
+            "construction only if run outputs never land in the repo - "
+            "refusing")
 
 
 def ratio(x, y):
@@ -758,21 +870,28 @@ def extract(lines):
     return out
 
 
-def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None):
+def run_one(port, prompt, n_predict, salt_hex, slot, server, credential=None,
+            split_log=True):
     """One completion, both roads. Direct (credential None): id_slot in the
     body, the run's salt on the header, salt_label the salt's first 16 hex
     (run-internal, never a device secret). Door: no id_slot, the device's
     Bearer instead, salt_label the device's LABEL - a device salt or a
-    credential must never enter the artifact."""
+    credential must never enter the artifact.
+
+    `split_log=False` (the barriered B threads) skips the per-region
+    extract: that region belongs to the WHOLE arm, so a per-thread extract
+    was computed and immediately thrown away - the arm's split happens
+    once, after the join.
+    """
     payload, headers = completion_request(prompt, n_predict, slot, credential)
-    before = len(server.lines())
+    before = len(server.lines()) if split_log else None
     t0 = time.perf_counter()
     if headers is None:
         status, r = http_json_salted(port, "/completion", payload, salt_hex)
     else:
         status, r = http_json_extra(port, "/completion", payload, headers)
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
-    new = extract(server.lines()[before:])
+    new = extract(server.lines()[before:]) if split_log else []
     tim = (r or {}).get("timings") or {}
     return {
         "slot": slot,
@@ -799,26 +918,37 @@ def run_streams(port, prompts, n_predict, salts, server):
 
     The new log region belongs to the arm, not to any single thread, so it
     is collected once after every request finishes and split by slot id -
-    `engine_lines_slot{k}` for each stream k.
+    `engine_lines_slot{k}` for each stream k. A thread that RAISES is
+    captured, not swallowed: after the join the run ends through the
+    harness's own refusal path naming the slot, instead of a traceback on
+    stderr and a KeyError on the missing record.
     """
     out = {}
+    errors = {}
     n = len(prompts)
     barrier = threading.Barrier(n)
     before = len(server.lines())
 
     def one(k, prompt, salt):
-        barrier.wait()
-        rec = run_one(port, prompt, n_predict, salt, k, server)
-        rec["engine_lines"] = []
-        out[f"slot{k}"] = rec
+        try:
+            barrier.wait(timeout=90)
+            out[f"slot{k}"] = run_one(port, prompt, n_predict, salt, k, server,
+                                      split_log=False)
+        except Exception as e:
+            errors[k] = f"{type(e).__name__}: {e}"
 
     t0 = time.perf_counter()
-    threads = [threading.Thread(target=one, args=(k, prompts[k], salts[k]))
+    threads = [threading.Thread(target=one, args=(k, prompts[k], salts[k]),
+                                daemon=True)
                for k in range(n)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+    if errors:
+        k = min(errors)
+        raise SystemExit(
+            f"stream slot{k} died: {errors[k]}; refusing to measure")
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:])
     out["engine_lines"] = new
@@ -1036,19 +1166,22 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
     (arm, probe), the arm shaped exactly as run_streams()'s.
     """
     out = {}
+    errors = {}
     n = len(prompts)
     barrier = threading.Barrier(n)
     sent, done = {}, {}
     before = len(server.lines())
 
     def one(k):
-        barrier.wait(timeout=90)
-        sent[k] = time.perf_counter()
-        rec = run_one(door_port, prompts[k], n_predict, None, k, server,
-                      credentials[k])
-        rec["engine_lines"] = []
-        done[k] = time.perf_counter()
-        out[f"slot{k}"] = rec
+        try:
+            barrier.wait(timeout=90)
+            sent[k] = time.perf_counter()
+            rec = run_one(door_port, prompts[k], n_predict, None, k, server,
+                          credentials[k], split_log=False)
+            done[k] = time.perf_counter()
+            out[f"slot{k}"] = rec
+        except Exception as e:
+            errors[k] = f"{type(e).__name__}: {e}"
 
     t0 = time.perf_counter()
     threads = [threading.Thread(target=one, args=(k,), daemon=True)
@@ -1056,12 +1189,18 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
     for t in threads:
         t.start()
     deadline = time.perf_counter() + 60
-    while len(sent) < n:
+    while len(sent) < n and not errors:
         if time.perf_counter() > deadline:
             raise SystemExit(
                 "door arm B: a stream never reported its send within 60s - "
                 "refusing to probe (and to measure) a run that did not start")
         time.sleep(0.005)
+    if errors:
+        # a thread died before its send was recorded: no probe, no arm -
+        # the refusal names the slot instead of a later KeyError.
+        k = min(errors)
+        raise SystemExit(
+            f"stream slot{k} died: {errors[k]}; refusing to measure")
     all_sent = max(sent.values())
     wait = probe_after_s - (time.perf_counter() - all_sent)
     if wait > 0:
@@ -1078,6 +1217,10 @@ def run_streams_door(port, door_port, prompts, n_predict, credentials, server,
     }
     for t in threads:
         t.join()
+    if errors:
+        k = min(errors)
+        raise SystemExit(
+            f"stream slot{k} died: {errors[k]}; refusing to measure")
     wall_ms = round((time.perf_counter() - t0) * 1000, 1)
     new = extract(server.lines()[before:])
     out["engine_lines"] = new
@@ -1206,6 +1349,8 @@ def build_result(args, release, version, engine_sha256, argv, slots_dir,
             "ignore_eos": True,
             "prompt_tokens": n_verify[0],
             "prompt_tokens_arm_b_slot1": n_verify[1],
+            "prompt_tokens_per_slot": list(n_verify),
+            "prompt_seeds": list(PROMPT_SEEDS[:n]),
             "prompt_sentinel_checked": True,
             "prompt_sentinel_found_in_log": False,
             "prompt_sentinel_note": ("the harness fixture word the leak check "
@@ -1308,17 +1453,23 @@ def main():
                          "artifact records the field as 0.0 - a reader sees the "
                          "gate was disabled, not that the run passed a limit")
     ap.add_argument("--ctx-checkpoints", type=int, default=None,
-                    help="render `--ctx-checkpoints K` exactly as the app "
-                         "does (argv.rs:105-108 ships 1); default None "
-                         "renders NOTHING (the argv at defaults stays the "
-                         "committed one); the value used is recorded as "
-                         "provenance.ctx_checkpoints, null when not rendered")
-    ap.add_argument("--flash-attn", choices=("on", "off", "auto"),
+                    help="render `--ctx-checkpoints K` as the same pair the "
+                         "app ships (argv.rs renders `--ctx-checkpoints 1`); "
+                         "default None renders NOTHING (the argv at defaults "
+                         "stays the committed one); the value used is "
+                         "recorded as provenance.ctx_checkpoints (null when "
+                         "not rendered), and the engine's boot line must "
+                         "report `context checkpoints ... max = K` or the "
+                         "run is refused")
+    ap.add_argument("--flash-attn", choices=("on",),
                     default=None,
-                    help="render `--flash-attn <value>` exactly as the app "
-                         "does (argv.rs:56-57, the value as given); default "
-                         "None renders NOTHING; the value used is recorded "
-                         "as provenance.flash_attn, null when not rendered")
+                    help="render `--flash-attn on` - the only value the app "
+                         "renders (argv.rs FLASH_ATTN). `off` and `auto` are "
+                         "not choices: this run's q8_0 V cache cannot boot "
+                         "without flash attention (the engine refuses a "
+                         "quantized V cache without it). Default None "
+                         "renders NOTHING; recorded as provenance.flash_attn "
+                         "(null when not rendered)")
     ap.add_argument("--release-manifest-url", default=None,
                     help="override the release manifest URL; by default it is "
                          "derived from a kalsa-server-vX.Y.Z binary directory")
@@ -1332,12 +1483,9 @@ def main():
                          "device would collapse into one slot")
     args = ap.parse_args()
 
-    if args.ctx_size % args.streams != 0:
-        raise SystemExit(
-            f"refusing to measure: --ctx-size {args.ctx_size} is not divisible "
-            f"by --streams {args.streams}: the context is a TOTAL the engine "
-            f"splits evenly, and a remainder would make "
-            f"context_size_per_slot a lie")
+    require_outside_repo(args.log, "log")
+    require_outside_repo(args.slots_dir, "slots-dir")
+    require_divisible_ctx(args.ctx_size, args.streams)
 
     # Hashed and URL-derived before anything is measured, so a later failure
     # to read the manifest is recorded as unverified instead of quietly
@@ -1398,6 +1546,8 @@ def main():
                 "the boot log carries no n_slots line: the log format drifted "
                 "and the corroborating channel is dead - refusing to measure")
         require_n_ctx_slot(init_lines, args.ctx_size // args.streams)
+        if args.ctx_checkpoints is not None:
+            require_checkpoint_line(ctx_check, args.ctx_checkpoints)
 
         prompts = [make_prompt(args.port, seed, args.prompt_tokens)[0]
                    for seed in PROMPT_SEEDS[:args.streams]]
@@ -1535,11 +1685,20 @@ def main():
                 "while the host drifted is not a number the panel may print - "
                 "no artifact written")
 
+        require_accepted_corroboration(accepted, arm_key, args.streams)
+
         full_log = server.lines()
         leak = [l for l in full_log if SENTINEL in l]
         if leak:
+            # The refusal must not leave the leak behind for the next
+            # reader: the log carried prompt text, so the log goes too.
+            try:
+                Path(args.log).unlink(missing_ok=True)
+            except OSError:
+                pass
             raise SystemExit(
-                f"REFUSING TO WRITE: the engine log carries prompt text ({len(leak)} lines)")
+                f"REFUSING TO WRITE: the engine log carries prompt text "
+                f"({len(leak)} lines); the log was deleted")
 
         result = build_result(
             args, release, version, engine_sha256, argv, slots_dir,

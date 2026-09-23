@@ -27,9 +27,30 @@ committed provenance.argv element for element.
       ctx_size // 4, and a question that says 4 devices.
   (4) the launch flags: at defaults NEITHER is in the argv (and the argv is
       still the committed one); given a value it lands as the exact PAIR,
-      exactly once, in the app's position - and `--ctx-checkpoints 1` does
+      exactly once - and `--ctx-checkpoints 1` does
       NOT pass for `12` (the substring trap, pinned: joining the argv would
       yield "--ctx-checkpoints 12", which contains "--ctx-checkpoints 1").
+  (5) N=2 VALUES (not just names): build_result fed the committed
+      artifact's own per-arm records reproduces the committed `ratios`
+      (all five) and `tokens_per_second` EXACTLY; provenance.parallel is
+      exactly 2; the N=2 question is the committed string; prompt_seeds
+      are [11, 22].
+  (6) N=4 VALUES against hand-computed literals (A=100, A2=98, slots
+      50/40/30/20 -> 0.5/0.4/0.3/0.2, aggregate 1.4, slot0/A2 0.5102,
+      A2/A 0.98, B_aggregate 140.0), plus the rounding-last
+      discriminator: A=3 with four slots at 1.0 must give aggregate
+      1.3333 (raw sum, rounded once) - summing the rounded per-slot
+      ratios would give 1.3332.
+  (7) the guards themselves, on synthetic inputs: require_n_ctx_slot
+      (match / mismatch / absent / TWO disagreeing values),
+      require_divisible_ctx, require_rates (missing / 0.0 / negative / /
+      dead arm), per-slot log attribution for `id 0..3 |` lines,
+      require_rate_agreement (agrees / disagrees / no eval line), and
+      require_outside_repo (in-repo refuses, /tmp passes).
+
+Both hostile reviews of 24d2ff1..39d1182 found the same hole: cases
+(1)-(4) checked NAMES and never NUMBERS, so a build whose arithmetic
+drifted stayed green. Cases (5)-(7) are the fix: values, not shapes.
 
 The synthetic arm records mirror run_one()/run_streams() key for key (the
 engine lines are produced by mc.extract() itself, from lines in the
@@ -66,6 +87,8 @@ COMMITTED = json.loads(ARTIFACT.read_text())
 EXPECTED_EXTRA = {
     "provenance.via",
     "provenance.context_size_per_slot",
+    "provenance.prompt_tokens_per_slot",
+    "provenance.prompt_seeds",
     "provenance.ctx_checkpoints",
     "provenance.flash_attn",
     "provenance.release.status_by_exe_sha256",
@@ -75,6 +98,14 @@ EXPECTED_EXTRA = {
     "version_commit", "manifest_commit", "commit_agrees", "ok")}
 
 FAILED = 0
+
+
+def raised(fn, *a, **kw):
+    try:
+        fn(*a, **kw)
+    except SystemExit as e:
+        return str(e)
+    return None
 
 
 def check(name, ok, detail=""):
@@ -189,10 +220,12 @@ def fake_args(**over):
     return argparse.Namespace(**base)
 
 
-def build(args):
-    """build_result exactly as main() feeds it, with synthetic arms."""
+def build(args, attempt=None):
+    """build_result exactly as main() feeds it; `attempt` defaults to the
+    synthetic arms, cases (5)/(6) pass their own."""
     n = args.streams
-    attempt = synthetic_attempt(n)
+    if attempt is None:
+        attempt = synthetic_attempt(n)
     release = dict(COMMITTED["provenance"]["release"])
     release["status_by_exe_sha256"] = release["status"]
     release["identity"] = mc.engine_identity(
@@ -321,15 +354,181 @@ def case_4():
           and pairs12.count(("--ctx-checkpoints", "12")) == 1,
           str(pairs12[pairs12.index(("--ctx-checkpoints", "12"))]
               if ("--ctx-checkpoints", "12") in pairs12 else "pair missing"))
-    check("(4) placement follows the app: flash-attn immediately before the "
-          "cache types (argv.rs:56-57)",
-          one[one.index("--flash-attn") + 1] == "on"
-          and one[one.index("--flash-attn") + 2] == "--cache-type-k",
-          str(one[one.index("--flash-attn"):one.index("--flash-attn") + 3]))
-    check("(4) placement follows the app: ctx-checkpoints immediately after "
-          "--slot-save-path (argv.rs:105-108)",
-          one[one.index("--slot-save-path") + 2] == "--ctx-checkpoints",
-          str(one[one.index("--slot-save-path"):one.index("--slot-save-path") + 4]))
+
+
+def rate_attempt(n, a, slots, a2):
+    """An attempt record with explicit rates - the fields build_result
+    reads, no server, no network."""
+    def rec(slot, pps):
+        return {"slot": slot, "cache_n": 0, "predicted_n": 256,
+                "predicted_per_second": pps}
+    b = {f"slot{k}": rec(k, slots[k]) for k in range(n)}
+    return {"index": 0, "A_solo_slot0": rec(0, a), mc.ARM_KEYS[n]: b,
+            "A2_solo_repeat": rec(0, a2), "A2_over_A": 1.0,
+            "bracket_ok": True}
+
+
+def case_5():
+    print("(5) N=2 VALUES: the committed numbers, reproduced",
+          file=sys.stderr)
+    committed_attempt = COMMITTED["attempts"][COMMITTED["accepted_attempt"]]
+    built = build(fake_args(), attempt=committed_attempt)
+    check("(5) ratios reproduce the committed five EXACTLY",
+          built["ratios"] == COMMITTED["ratios"],
+          json.dumps(built["ratios"]))
+    check("(5) tokens_per_second reproduces the committed EXACTLY",
+          built["tokens_per_second"] == COMMITTED["tokens_per_second"],
+          json.dumps(built["tokens_per_second"]))
+    check("(5) provenance.parallel is exactly 2 (== N)",
+          built["provenance"]["parallel"] == 2,
+          repr(built["provenance"]["parallel"]))
+    check("(5) the N=2 question is the committed string",
+          built["question"] == COMMITTED["question"],
+          repr(built["question"]))
+    check("(5) prompt_seeds at N=2 are [11, 22]",
+          built["provenance"]["prompt_seeds"] == [11, 22],
+          repr(built["provenance"]["prompt_seeds"]))
+    check("(5) prompt_tokens_per_slot records BOTH slots' counts",
+          built["provenance"]["prompt_tokens_per_slot"]
+          == [COMMITTED["provenance"]["prompt_tokens"]] * 2,
+          repr(built["provenance"]["prompt_tokens_per_slot"]))
+
+
+def case_6():
+    print("(6) N=4 VALUES: hand-computed literals, rounding last",
+          file=sys.stderr)
+    args4 = fake_args(streams=4, ctx_size=16384)
+    built = build(args4, attempt=rate_attempt(4, 100, [50, 40, 30, 20], 98))
+    want_ratios = {
+        "per_stream_slot0_over_A": 0.5,
+        "per_stream_slot1_over_A": 0.4,
+        "per_stream_slot2_over_A": 0.3,
+        "per_stream_slot3_over_A": 0.2,
+        "aggregate_over_A": 1.4,
+        "per_stream_slot0_over_A2": 0.5102,
+        "A2_over_A": 0.98,
+    }
+    want_tps = {"A": 100, "B_slot0": 50, "B_slot1": 40, "B_slot2": 30,
+                "B_slot3": 20, "A2": 98, "B_aggregate": 140.0}
+    check("(6) N=4 ratios are the hand-computed literals",
+          built["ratios"] == want_ratios, json.dumps(built["ratios"]))
+    check("(6) N=4 tokens_per_second are the hand-computed literals",
+          built["tokens_per_second"] == want_tps,
+          json.dumps(built["tokens_per_second"]))
+    check("(6) provenance.parallel is exactly 4 (== N)",
+          built["provenance"]["parallel"] == 4,
+          repr(built["provenance"]["parallel"]))
+    check("(6) prompt_seeds at N=4 are [11, 22, 33, 44]",
+          built["provenance"]["prompt_seeds"] == [11, 22, 33, 44],
+          repr(built["provenance"]["prompt_seeds"]))
+
+    # The rounding discriminator: raw sum 4/3 -> 1.3333; summing the
+    # rounded per-slot ratios (0.3333 x 4) would give 1.3332.
+    rounded = build(args4, attempt=rate_attempt(4, 3, [1.0] * 4, 3))
+    check("(6) aggregate is the RAW sum over A rounded ONCE: 1.3333, "
+          "not 1.3332 from rounded parts",
+          rounded["ratios"]["aggregate_over_A"] == 1.3333,
+          repr(rounded["ratios"]["aggregate_over_A"]))
+    check("(6) each per-slot ratio at A=3 rounds to 0.3333",
+          all(rounded["ratios"][f"per_stream_slot{k}_over_A"] == 0.3333
+              for k in range(4)),
+          json.dumps(rounded["ratios"]))
+
+
+def case_7():
+    print("(7) the guards, on synthetic inputs", file=sys.stderr)
+    boot_line = ("0.02.036.992 I srv    load_model: initializing, "
+                 "n_slots = 2, n_ctx_slot = 4096, kv_unified = 'false'")
+
+    check("(7) require_n_ctx_slot: a matching boot line passes",
+          mc.require_n_ctx_slot([boot_line], 4096) is None)
+    msg = raised(mc.require_n_ctx_slot, [boot_line], 8192)
+    check("(7) require_n_ctx_slot: a mismatch refuses",
+          msg is not None and "refusing to measure" in msg
+          and "8192" in msg, (msg or "")[:120])
+    msg = raised(mc.require_n_ctx_slot, ["no numbers here"], 4096)
+    check("(7) require_n_ctx_slot: an absent value refuses",
+          msg is not None and "no n_ctx_slot" in msg, (msg or "")[:120])
+    two = [boot_line, boot_line.replace("4096", "8192")]
+    msg = raised(mc.require_n_ctx_slot, two, 4096)
+    check("(7) require_n_ctx_slot: TWO disagreeing values refuse - the old "
+          "first-match guard would have passed on line 1",
+          msg is not None and "[4096, 8192]" in msg, (msg or "")[:160])
+
+    check("(7) require_divisible_ctx: 16384 over 4 passes",
+          mc.require_divisible_ctx(16384, 4) is None)
+    msg = raised(mc.require_divisible_ctx, 16384, 3)
+    check("(7) require_divisible_ctx: an indivisible total refuses",
+          msg is not None and "not divisible" in msg, (msg or "")[:120])
+    msg = raised(mc.require_divisible_ctx, 8191, 2)
+    check("(7) require_divisible_ctx: a remainder of 1 refuses too",
+          msg is not None and "not divisible" in msg, (msg or "")[:120])
+
+    good = {"A": {"status": 200, "predicted_per_second": 70.5}}
+    check("(7) require_rates: a real positive rate passes",
+          mc.require_rates(good) is None)
+    for what, rec in (("missing", {"status": 200,
+                                   "predicted_per_second": None}),
+                      ("zero", {"status": 200,
+                                "predicted_per_second": 0.0}),
+                      ("negative", {"status": 200,
+                                    "predicted_per_second": -1.0}),
+                      ("dead arm", {"status": 500,
+                                    "predicted_per_second": 70.0})):
+        msg = raised(mc.require_rates, {"x": rec})
+        check(f"(7) require_rates: a {what} rate refuses",
+              msg is not None and "refusing to measure" in msg,
+              (msg or "")[:120])
+
+    raw = [ln.format(k=k) for k in range(4) for ln in ENGINE_LINES]
+    extracted = mc.extract(raw)
+    for k in range(4):
+        mine = [x for x in extracted if x["slot"] == k]
+        check(f"(7) slot {k} is attributed exactly its own "
+              f"{len(ENGINE_LINES)} lines",
+              len(mine) == len(ENGINE_LINES)
+              and all(x["slot"] == k for x in mine),
+              f"{len(mine)} line(s)")
+    check("(7) every sampled line is attributed to a slot (12 of 12)",
+          sum(1 for x in extracted if x["slot"] is not None) == len(raw),
+          f"{sum(1 for x in extracted if x['slot'] is not None)}")
+
+    eval_only = mc.extract([
+        "0.00.000.002 I slot print_timing: id  0 | task 1 |        eval "
+        "time =    3612.09 ms /   256 tokens (   14.17 ms per token,    "
+        "70.00 tokens per second)"])
+    check("(7) require_rate_agreement: 70.004 vs the engine's 70.00 "
+          "(diff 0.004) agrees",
+          mc.require_rate_agreement("A", {"predicted_per_second": 70.004},
+                                    eval_only) is None)
+    msg = raised(mc.require_rate_agreement, "A",
+                 {"predicted_per_second": 70.5}, eval_only)
+    check("(7) require_rate_agreement: 70.5 vs the engine's 70.00 "
+          "disagrees and refuses",
+          msg is not None and "disagrees" in msg
+          and "refusing to measure" in msg, (msg or "")[:160])
+    ngen_only = mc.extract([
+        "0.00.000.000 I slot print_timing: id  0 | task 1 | n_gen =    15, "
+        "tg =  70.00 t/s, tg_3s =  70.00 t/s"])
+    msg = raised(mc.require_rate_agreement, "A",
+                 {"predicted_per_second": 70.0}, ngen_only)
+    check("(7) require_rate_agreement: no eval line refuses (corroboration "
+          "absent, not assumed)",
+          msg is not None and "no engine eval line" in msg,
+          (msg or "")[:160])
+
+    repo = HERE.parent
+    msg = raised(mc.require_outside_repo,
+                 str(repo / "dev" / "results" / "x" / "server.log"), "log")
+    check("(7) require_outside_repo: a log INSIDE the repo refuses",
+          msg is not None and "INSIDE the repository" in msg,
+          (msg or "")[:160])
+    msg = raised(mc.require_outside_repo, str(repo), "slots-dir")
+    check("(7) require_outside_repo: the repo root itself refuses",
+          msg is not None and "INSIDE the repository" in msg,
+          (msg or "")[:160])
+    check("(7) require_outside_repo: a /tmp path passes",
+          mc.require_outside_repo("/tmp/x/server.log", "log") is None)
 
 
 def main():
@@ -337,6 +536,9 @@ def main():
     case_2()
     case_3()
     case_4()
+    case_5()
+    case_6()
+    case_7()
     print(f"concurrency shape: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)

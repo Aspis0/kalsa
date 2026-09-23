@@ -23,6 +23,11 @@ The manifest body is read from /tmp/k111/manifest.json and injected through
       silent)
   (c) a COPY of v1.1.1 with libllama-server-impl.dylib removed ->
       reason_code `engine-module-missing`
+  (d) a COPY of the manifest with the `commit` header REMOVED, injected
+      under the real v1.1.1 tree (the launcher hash still matches) ->
+      reason_code `engine-manifest-commit-missing`, never
+      `engine-commit-mismatch`: a manifest that publishes no commit is
+      missing evidence, not a mismatched tree.
 
 Whole directories are copied, because `--version` loads its own dylibs from
 beside the launcher. Case (c) is the declared exception: without the module
@@ -38,6 +43,7 @@ Run: python3 dev/test-engine-identity.py
 """
 
 import importlib.util
+import json
 import shutil
 import subprocess
 import sys
@@ -169,10 +175,52 @@ def case_c():
           repr(block["identity"]["module_sha256"]))
 
 
+def case_d():
+    print("(d) a matched manifest with NO commit -> its own honest code",
+          file=sys.stderr)
+    manifest = json.loads(MANIFEST_BODY.decode("utf-8"))
+    if "commit" not in manifest:
+        cannot_run(f"{MANIFEST} carries no `commit` field to remove - the "
+                   "case cannot run")
+    del manifest["commit"]
+    body = json.dumps(manifest).encode()
+    vp = subprocess.run([str(V111_BIN), "--version"],
+                        capture_output=True, text=True)
+    if vp.returncode != 0:
+        cannot_run(f"--version failed (rc {vp.returncode}) on {V111_BIN}: "
+                   + (vp.stderr or vp.stdout).strip()[:200])
+    version = (vp.stdout + vp.stderr).strip()
+    url = mc.derive_manifest_url(str(V111_BIN))
+    block = mc.release_block(str(V111_BIN), version, url,
+                             fetch=lambda u: body)
+    check("(d) status is not-the-release (the veto still fires)",
+          block["status"] == "not-the-release", repr(block["status"]))
+    check("(d) reason_code is engine-manifest-commit-missing",
+          block.get("reason_code") == "engine-manifest-commit-missing",
+          repr(block.get("reason_code")))
+    check("(d) NOT misreported as engine-commit-mismatch",
+          block.get("reason_code") != "engine-commit-mismatch",
+          repr(block.get("reason_code")))
+    check("(d) status_by_exe_sha256 stays matched (the veto is visible)",
+          block.get("status_by_exe_sha256") == "matched",
+          repr(block.get("status_by_exe_sha256")))
+    check("(d) identity: manifest_commit and commit_agrees both None",
+          block["identity"]["manifest_commit"] is None
+          and block["identity"]["commit_agrees"] is None,
+          repr((block["identity"]["manifest_commit"],
+                block["identity"]["commit_agrees"])))
+    reason = block.get("reason") or ""
+    check("(d) the reason says the manifest publishes no commit and never "
+          "prints 'the manifest says None'",
+          "publishes no commit" in reason and "says None" not in reason,
+          reason[:160])
+
+
 def main():
     case_a()
     case_b()
     case_c()
+    case_d()
     print(f"engine identity: {'GREEN' if FAILED == 0 else 'RED'} "
           f"({FAILED} failing check(s))", file=sys.stderr)
     sys.exit(0 if FAILED == 0 else 1)
