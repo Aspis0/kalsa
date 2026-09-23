@@ -9,7 +9,17 @@
  */
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
-import { getActiveEngineNCtx, getActiveModelId, isEngineReady, type EngineTurnOptions } from "../engine/LlamaService";
+import {
+  disposeEngine,
+  disposeRemoteEngine,
+  getActiveEngineNCtx,
+  getActiveModelId,
+  isEngineReady,
+  isRemoteEngineBackend,
+  type EngineTurnOptions,
+} from "../engine/engineBackend";
+import { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
+import { markChatReleased, runNativeOpBounded } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   mergeDeviceBandwidthCalibrations,
@@ -34,7 +44,12 @@ import {
   createModelSwitchers,
   type ModelSwitchDeps,
 } from "./modelSwitch";
+import { downloadInFlightRef } from "./useModelDownload";
 import { usePipelineScans, type PipelineScanResult } from "./usePipelineScans";
+import { ensureRemoteHostModel } from "./remoteHostEnsure";
+import { createRemoteModelHostActions } from "./remoteModelHostActions";
+import { getRemoteContextSize } from "../engine/remote/remoteSettings";
+import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 
 export interface ModelHostParams {
   t: TranslateFn;
@@ -56,8 +71,12 @@ export function useModelHost(params: ModelHostParams) {
   const [modelIndex, setModelIndex] = useState(() =>
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
+  const [remoteActive, setRemoteActive] = useState(false);
+  const remoteErrorRef = useRef<string | null>(null);
+  const remoteActiveRef = useRef(false);
+  remoteActiveRef.current = remoteActive;
   const [modelState, setModelState] = useState<ModelPipelineState>("checking");
-  const currentModel = MODEL_REGISTRY[modelIndex];
+  const currentModel = remoteActive ? REMOTE_COMPUTER_MODEL : MODEL_REGISTRY[modelIndex];
   const modelStateRef = useRef<ModelPipelineState>("checking");
   // Keep modelStateRef in lockstep for sync residency checks (reads without
   // waiting for a re-render). Assigned on every render below.
@@ -147,13 +166,15 @@ export function useModelHost(params: ModelHostParams) {
   }, [refreshContextSize]);
   const catalogEngineCtx = useMemo(
     () =>
-      resolveContextProfile({
-        hybrid: currentModel.hybrid,
-        kvCache: currentModel.kvCache,
-        catalogCtx: currentModel.engineCtx,
-        explicitNCtx: benchNCtxOverride ?? userContextSize ?? undefined,
-      }).nCtx,
-    [currentModel, benchNCtxOverride, userContextSize],
+      remoteActive
+        ? getRemoteContextSize()
+        : resolveContextProfile({
+            hybrid: currentModel.hybrid,
+            kvCache: currentModel.kvCache,
+            catalogCtx: currentModel.engineCtx,
+            explicitNCtx: benchNCtxOverride ?? userContextSize ?? undefined,
+          }).nCtx,
+    [currentModel, remoteActive, benchNCtxOverride, userContextSize],
   );
   const [chatEngineCtx, setChatEngineCtx] = useState<number>(catalogEngineCtx);
   // Keep state in sync when the selected model changes (pre-init estimate).
@@ -194,10 +215,65 @@ export function useModelHost(params: ModelHostParams) {
     conversationsRef,
   };
   ensureEngineForModelRef.current = (model: ModelInfo) =>
-    ensureEngineForModel(loadDeps, model);
+    model.id === REMOTE_COMPUTER_MODEL_ID
+      ? ensureRemoteHostModel({
+          locale,
+          t,
+          generationRef: engineGenerationRef,
+          modelStateRef,
+          setModelState: (state) => {
+            modelStateRef.current = state;
+            setModelState(state);
+          },
+          setModelError,
+          setModelErrorKind,
+          setModelErrorDetail,
+          setChatEngineCtx,
+          chatEngineCtxRef,
+          remoteErrorRef,
+        })
+      : ensureEngineForModel(loadDeps, model);
+  const remoteActions = createRemoteModelHostActions({
+    t,
+    engineGenerationRef,
+    chatGateGenRef,
+    markChatReleased,
+    remoteActiveRef,
+    setRemoteActive,
+    modelStateRef,
+    streamInFlightRef,
+    setModelState: (state) => {
+      modelStateRef.current = state;
+      setModelState(state);
+    },
+    setModelError,
+    setModelErrorKind,
+    setModelErrorDetail,
+    disposeCurrent: async () => {
+      try {
+        if (isRemoteEngineBackend()) {
+          await disposeRemoteEngine();
+          return true;
+        }
+        if (!isEngineReady()) return true;
+        return (
+          await runNativeOpBounded(
+            () => disposeEngine(),
+            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+          )
+        ).ok;
+      } catch {
+        return false;
+      }
+    },
+    ensureRemote: () => ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL),
+  });
   const switchers = createModelSwitchers({
     ...loadDeps,
     memoryExtractRef,
+    remoteActiveRef,
+    setRemoteActive,
+    routeModelById: remoteActions.routeModelById,
   } satisfies ModelSwitchDeps);
 
   // The download acquisition (`AppShell.tsx:4657-5154`): transfer state,
@@ -234,17 +310,21 @@ export function useModelHost(params: ModelHostParams) {
     })();
   };
 
-  const scanRefs = { modelIndexRef, loadFallbackTargetRef, embedderDownloadedRef, engineGenerationRef, chatGateGenRef, ensureEngineForModelRef };
-  const scanSetters = { setModelIndex, setModelState, setModelError, setModelErrorKind, setModelErrorDetail };
+  const scanRefs = { modelIndexRef, loadFallbackTargetRef, embedderDownloadedRef, engineGenerationRef, chatGateGenRef, ensureEngineForModelRef, remoteActiveRef };
+  const scanSetters = { setModelIndex, setModelState, setModelError, setModelErrorKind, setModelErrorDetail, setRemoteActive };
   const scans: PipelineScanResult = usePipelineScans({
     t,
     currentModel,
+    remoteActive,
     refs: scanRefs,
     setters: scanSetters,
   });
 
   return {
     modelIndex,
+    remoteActive,
+    remoteActiveRef,
+    remoteErrorRef,
     currentModel,
     modelState,
     modelError,

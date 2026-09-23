@@ -16,7 +16,7 @@ import {
   getActiveModelId,
   invalidateEngineSession,
   saveEngineSession,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { buildPersistableMessages } from "./historyMessages";
 import type { HistoryWriter } from "./historyWrite";
 import type { Message } from "./hostMessage";

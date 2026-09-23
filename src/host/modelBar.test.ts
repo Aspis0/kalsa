@@ -8,6 +8,8 @@
  * battery line's four gates (ready, API, percent, 50 %).
  */
 import { makeT, en, it as italian } from "../i18n";
+import { readFileSync } from "fs";
+import { join } from "path";
 import type { ModelInfo } from "../engine/ModelRegistry";
 import type { BatteryEtaUiState } from "../hooks/useBatteryEta";
 import {
@@ -19,6 +21,7 @@ import {
 
 const t = makeT("en");
 const tIt = makeT("it");
+const MODEL_BAR_HOOK = readFileSync(join(__dirname, "useModelBar.ts"), "utf8");
 
 const MODEL = {
   sizeBytes: 1_700_000_000,
@@ -127,6 +130,16 @@ describe("the status label, one case per bar kind", () => {
       label: en.chat.lazyReload,
       tone: "accent",
     });
+  });
+
+  it("announces the remote ready state through the backend-specific label", () => {
+    expect(status({ modelState: "ready", jsReady: true, activeMatches: true, remoteActive: true })).toEqual({
+      label: en.download.readyRemote,
+      tone: "good",
+    });
+    expect(MODEL_BAR_HOOK).toContain("remoteActive: modelHost.remoteActive");
+    expect(status({ modelState: "ready", jsReady: true, activeMatches: true, remoteActive: false }).label)
+      .toBe(en.download.readyLocal);
   });
 
   it("draws the same words from the Italian catalogue", () => {

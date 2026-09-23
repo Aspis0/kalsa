@@ -19,7 +19,7 @@ import {
   getActiveEngineNCtx,
   getActiveModelId,
   invalidateEngineSession,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { getStrings } from "../i18n";
 import { getToolChoiceMode } from "../bench/benchConfig";
 import {
@@ -46,6 +46,7 @@ import { createMemoryExtract } from "./engineTurnMemory";
 import { prepareEngineWindow } from "./engineTurnWindow";
 import { loadCompactorWindow } from "./engineTurnCompactor";
 import { advanceCompactorWindow } from "./engineTurnSlide";
+import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { streamEngineTurn } from "./engineTurnStream";
 import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
 import type { LocalAttachment } from "./hostMessage";
@@ -171,16 +172,12 @@ export function handleSendStream(
               // missing without setting modelErrorKind, so re-check disk
               // rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
-              if (downloaded) {
-                fail(
-                  t("chat.modelLoadFailed", { name: currentModel.name }),
-                  "chat.modelLoadFailed",
-                );
+              if (currentModel.id === REMOTE_COMPUTER_MODEL_ID) {
+                fail(deps.remoteErrorRef.current ?? t("settings.remoteBrainFailGeneric"), "chat.serviceUnreachable");
+              } else if (downloaded) {
+                fail(t("chat.modelLoadFailed", { name: currentModel.name }), "chat.modelLoadFailed");
               } else {
-                fail(
-                  t("chat.modelNotDownloaded", { name: currentModel.name }),
-                  "chat.modelNotDownloaded",
-                );
+                fail(t("chat.modelNotDownloaded", { name: currentModel.name }), "chat.modelNotDownloaded");
               }
               return;
             }

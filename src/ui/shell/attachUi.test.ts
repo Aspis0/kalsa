@@ -13,6 +13,7 @@ import { it as italian } from "../../i18n/it";
 import { e2, e3 } from "../../theme/design";
 import { COMPOSER_ATTACHMENTS_HEIGHT, MIN_TOUCH_TARGET } from "./shellGeometry";
 import { singleLineSheetTitle } from "./sheetTitleProps";
+import { runHostAttachment } from "../../host/remoteAttachmentGate";
 
 const SHELL_DIR = __dirname;
 const HOST_DIR = join(__dirname, "..", "..", "host");
@@ -146,7 +147,14 @@ describe("the attach control carries the controller's disabled rule (Chat:4810)"
     expect(SURFACE).toContain(
       "attachDisabled={view.composer.face !== \"send\" || attachments.converting !== null}",
     );
-    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+    const open = jest.fn();
+    const refuse = jest.fn();
+    runHostAttachment(false, refuse, open);
+    expect(open).toHaveBeenCalledTimes(1);
+    runHostAttachment(true, refuse, open);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(refuse).toHaveBeenCalledTimes(1);
     expect(SURFACE).not.toContain("shell.notice.attach");
   });
 

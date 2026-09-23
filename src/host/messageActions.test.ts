@@ -299,11 +299,10 @@ describe("the wiring: root composes through the layout, surface mounts, both kee
   });
 
   it("the attach button OPENS the sheet — the stub notice retired with the flow", () => {
-    // BEFORE this slice the button answered a press with
-    // `showNoticeKey("shell.notice.attach")` (a §2.7 stub), pinned here.
-    // The attach flow landed: the press now opens the attach sheet, and the
-    // stub key was deleted from both catalogues with its last user.
-    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+    const open = jest.fn();
+    expect(require("./remoteAttachmentGate").runHostAttachment(false, jest.fn(), open)).toBeUndefined();
+    expect(open).toHaveBeenCalledTimes(1);
     expect(SURFACE).not.toContain("shell.notice.attach");
     expect(SURFACE).not.toContain("onDocumentPress");
   });

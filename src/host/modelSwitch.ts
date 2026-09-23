@@ -24,11 +24,16 @@ import {
   readBootMessages,
 } from "../engine/sessionPersistence";
 import {
+  beginBackendSwitch,
   disposeEngine,
+  disposeRemoteEngine,
+  endBackendSwitch,
   getActiveModelId,
   isEngineReady,
+  isRemoteEngineBackend,
   saveEngineSession,
-} from "../engine/LlamaService";
+  setEngineBackendMode,
+} from "../engine/engineBackend";
 import {
   markChatReleased,
   nativeOpBusy,
@@ -39,17 +44,23 @@ import { clearLoadMarker } from "../engine/loadMarker";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 import { loadMarkerStore, type EngineLoadDeps } from "./engineLoad";
 import { downloadInFlightRef } from "./useModelDownload";
-
-export const MODEL_STORAGE_KEY = "kalsa.model.id";
+import {
+  MODEL_STORAGE_KEY,
+  modelSwitchInFlightRef,
+  notifyModelSwitchSettled,
+} from "./modelSwitchState";
+export { MODEL_STORAGE_KEY, modelSwitchInFlightRef } from "./modelSwitchState";
 
 export interface ModelSwitchDeps extends EngineLoadDeps {
   memoryExtractRef: { current: Promise<void> | null };
+  remoteActiveRef?: { current: boolean };
+  setRemoteActive?: (active: boolean) => void;
+  routeModelById?: (modelId: string) => boolean;
 }
 
 /** Single-flight guard across a switch's dispose window (was a component
  *  ref). Exported for the idle governor's in-flight read — the controller's
  *  `engineWorkInFlight` counted it (`App:3267`). */
-export const modelSwitchInFlightRef = { current: false };
 /** Single-flight waiter that drains the pending switch queue after sendClaim. */
 const modelSwitchDrainInFlightRef = { current: false };
 
@@ -68,6 +79,9 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
     setModelErrorKind,
     setModelErrorDetail,
     memoryExtractRef,
+    remoteActiveRef,
+    setRemoteActive,
+    routeModelById,
   } = deps;
   async function selectModel(nextIndex: number): Promise<void> {
       if (thermalHardGateRef.current) return;
@@ -80,7 +94,8 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         return;
       }
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
-      if (nextIndex === modelIndexRef.current) return;
+      const wasRemote = Boolean(remoteActiveRef?.current || isRemoteEngineBackend());
+      if (nextIndex === modelIndexRef.current && !wasRemote) return;
 
       // Pool: keep the previous model's session on disk so switch-back can restore.
 
@@ -92,6 +107,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
       // stays after the clear (the kick it triggers reads the marker through
       // the load gate, and a fire-and-forget clear could lose that race).
       modelSwitchInFlightRef.current = true;
+      beginBackendSwitch("local");
       engineGenerationRef.current += 1;
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
@@ -124,6 +140,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         // Extraction holds the engine: wait briefly so dispose does not race it.
         // Epoch checks discard any delayed writes after the engine is gone.
         void (async () => {
+          let disposed = false;
           // The outer try arms at the TOP of the body, so the memory-extract
           // block below runs inside it: the body can no longer end without
           // releasing what the switch captured (gen + lock). Nothing in here is
@@ -146,7 +163,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
               }
               memoryExtractRef.current = null;
             }
-            if (isEngineReady() && !sendingInFlightRef.current) {
+            if (!wasRemote && isEngineReady() && !sendingInFlightRef.current) {
               const modelId = getActiveModelId();
               if (modelId) {
                 try {
@@ -166,10 +183,12 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
             // native completion must not hold the FIFO forever and leave the
             // UI stuck on "checking"; on timeout we refuse WITHOUT enqueueing
             // behind the possibly-hung op.
-            const disposeResult = await runNativeOpBounded(
-              () => disposeEngine(),
-              MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-            );
+            const disposeResult = wasRemote
+              ? await disposeRemoteEngine().then(() => ({ ok: true as const }), () => ({ ok: false as const }))
+              : await runNativeOpBounded(
+                  () => disposeEngine(),
+                  MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+                );
             if (!disposeResult.ok) {
               console.warn(
                 `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
@@ -178,13 +197,27 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
               setModelErrorKind("engine");
               setModelError(t("errors.engineDisposeTimeout"));
               setModelErrorDetail(null);
+              return;
+            }
+            disposed = true;
+            if (wasRemote) {
+              await setEngineBackendMode("local");
+              if (remoteActiveRef) remoteActiveRef.current = false;
+              setRemoteActive?.(false);
             }
           } catch {
-            // ignore
+            if (wasRemote) {
+              setModelState("error");
+              setModelErrorKind("engine");
+              setModelError(t("settings.remoteBrainSaveFailed"));
+              setModelErrorDetail(null);
+            }
           } finally {
             // Dispose → free only the gen captured at switch time.
             if (releasedGen !== null) markChatReleased(releasedGen);
             modelSwitchInFlightRef.current = false;
+            endBackendSwitch();
+            if (disposed) notifyModelSwitchSettled();
           }
         })();
       } catch (error) {
@@ -195,6 +228,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         // statements preceding the launch — so there is no double release.
         if (releasedGen !== null) markChatReleased(releasedGen);
         modelSwitchInFlightRef.current = false;
+        endBackendSwitch();
         // The rethrow below reaches no handler — this app has no global
         // rejection handler and callers discard the promise — so without this
         // line a failed switch is invisible on a release build. Name and
@@ -241,6 +275,7 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
         }
         return;
       }
+      if (routeModelById?.(modelId)) return;
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
       if (nextIndex < 0) return;
       // Refuse model switch while edit/regenerate owns the turn.

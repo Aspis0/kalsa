@@ -10,6 +10,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { armsSendOptions, armsShouldClearOnDraft } from "./composerArms";
+import { runHostAttachment } from "./remoteAttachmentGate";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
@@ -146,7 +147,10 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     // (`HostAttachSheet.tsx` — the row cannot hold a third chip,
     // `composerToolbarWidth.test.ts`); the attach BUTTON opens that sheet:
     expect(SURFACE).not.toMatch(/onDocumentPress/);
-    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+    const open = jest.fn();
+    expect(runHostAttachment(false, jest.fn(), open)).toBeUndefined();
+    expect(open).toHaveBeenCalledTimes(1);
     // the stub key was deleted with its last user:
     expect(SURFACE).not.toContain("shell.notice.attach");
   });

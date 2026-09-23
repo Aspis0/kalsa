@@ -30,6 +30,7 @@ import { mergeSharePrefill, type ShareInPayload } from "../app/shareIntent";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
 import type { TranslationKey } from "../i18n";
 import { applyShareFile } from "./shareImport";
+import { runHostAttachment } from "./remoteAttachmentGate";
 import {
   claimShare,
   createShareGate,
@@ -49,10 +50,11 @@ export interface ShareInParams {
   /** The composer row a successfully imported shared PDF joins (the
    *  controller's attach effect, `Chat:3717-3722`). */
   attachDocument: (doc: { id: string; name: string }) => boolean;
+  remoteActiveRef: { current: boolean };
 }
 
 export function useShareIn(params: ShareInParams): void {
-  const { conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument, attachDocument } = params;
+  const { conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument, attachDocument, remoteActiveRef } = params;
   const [gate] = useState(createShareGate);
   const importingRef = useRef(false);
   const [prefill, setPrefill] = useState<SharePrefill | null>(null);
@@ -70,6 +72,12 @@ export function useShareIn(params: ShareInParams): void {
         setPrefill((previous) => recordSharePrefill(previous, payload.text));
         return;
       }
+      const accepted = runHostAttachment(
+        remoteActiveRef.current,
+        () => showNoticeKey("settings.remoteGated"),
+        () => true,
+      );
+      if (!accepted) return;
       await applyShareFile(payload.uri, {
         getInfo: (uri) => FileSystem.getInfoAsync(uri),
         readText: (uri) => FileSystem.readAsStringAsync(uri),
@@ -84,7 +92,7 @@ export function useShareIn(params: ShareInParams): void {
         prefill: (text) => setPrefill((previous) => recordSharePrefill(previous, text)),
       });
     },
-    [addDocument, attachDocument, setDrawerOpen, showNoticeKey],
+    [addDocument, attachDocument, remoteActiveRef, setDrawerOpen, showNoticeKey],
   );
 
   useEffect(() => {

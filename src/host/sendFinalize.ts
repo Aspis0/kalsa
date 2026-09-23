@@ -15,7 +15,7 @@
 import {
   miniappStripMakesKvNonReproducible,
 } from "../engine/kvReproducibility";
-import { markKvNonReproducible, saveEngineSession, getActiveModelId } from "../engine/LlamaService";
+import { markKvNonReproducible, saveEngineSession, getActiveModelId } from "../engine/engineBackend";
 import {
   normalizeModelEmittedTextForSave,
   normalizeThinkingTextForSave,

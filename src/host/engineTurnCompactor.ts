@@ -8,7 +8,8 @@
  * than hidden in it.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { buildSystemPrompt, getActiveEngineNCtx, getLoadedAssembleBoundary, resolvedStaticPrefixTokens } from "../engine/LlamaService";
+import { getActiveEngineNCtx, getLoadedAssembleBoundary } from "../engine/engineBackend";
+import { buildSystemPrompt, resolvedStaticPrefixTokens } from "../engine/LlamaService";
 import {
   compactorStorageKey, countUserTurns, emptyCompactorState, parseCompactorState,
   resolveBoundaryIndex, serializeCompactorState, shouldRebuild, shouldRebuildAnchored,

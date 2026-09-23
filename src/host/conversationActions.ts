@@ -38,7 +38,7 @@ import {
   isEngineReady,
   restoreEngineSession,
   saveEngineSession,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { deleteConversationHistory } from "../chat/historyQuarantine";
 import { resetCompactorChat } from "./turnCorpus";
 import type { TranslateFn } from "../i18n";

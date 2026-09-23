@@ -63,6 +63,7 @@ export type {
   EngineInitOptions,
   EngineInitResult,
   EngineMessage,
+  EngineTool,
   EngineToolResult,
   EngineTurnOptions,
   MemoryExtractResult,

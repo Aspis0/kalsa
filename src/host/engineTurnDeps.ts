@@ -56,6 +56,7 @@ export interface EngineTurnDeps {
   setMemoryFacts: (facts: MemoryStore.MemoryFact[]) => void;
   refreshMemoryFacts: () => Promise<void>;
   ensureEngineForModel: (model: ModelInfo) => Promise<boolean>;
+  remoteErrorRef: { current: string | null };
   currentModel: ModelInfo;
   documentLibraryRef: { current: LibraryState };
   agentOptionsRef: { current: EngineTurnOptions };

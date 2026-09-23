@@ -17,7 +17,7 @@ jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
 jest.mock("../util/filterByTokens", () => ({ tokensFromQuery: () => null }));
 jest.mock("../conversations/ConversationsStore", () => ({}));
 jest.mock("../engine/sessionPersistence", () => ({}));
-jest.mock("../engine/LlamaService", () => ({}));
+jest.mock("../engine/engineBackend", () => ({ getActiveModelId: () => null, isEngineReady: () => false }));
 jest.mock("../chat/historyQuarantine", () => ({}));
 jest.mock("./turnCorpus", () => ({}));
 jest.mock("./conversationRowActions", () => ({ buildDrawerConversationItems: () => [] }));

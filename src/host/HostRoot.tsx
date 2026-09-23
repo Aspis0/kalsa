@@ -13,7 +13,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendingInFlightRef } from "../engine/regenState";
-import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/LlamaService";
+import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/engineBackend";
 import { useLocale } from "../i18n";
 import { useHostTurnRefs, type TouchedRef } from "./turnRefs";
 import { useComposerArms } from "./composerArms";
@@ -124,7 +124,7 @@ export function HostRoot() {
 
   // Share-in (D1 row 41): listener, pending flush, nonce merge — one hook,
   // ports only, now including the attach row a shared PDF lands in.
-  useShareIn({ conversationsReady: conv.conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument: library.addDocument, attachDocument: attachments.addLibraryDocumentRow });
+  useShareIn({ conversationsReady: conv.conversationsReady, setDraft, setDrawerOpen, showNoticeKey, addDocument: library.addDocument, attachDocument: attachments.addLibraryDocumentRow, remoteActiveRef: modelHost.remoteActiveRef });
   const sendHost = useSendHost({
     t,
     fence,

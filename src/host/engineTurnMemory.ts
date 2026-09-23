@@ -19,7 +19,7 @@ import {
   extractMemory,
   type MemoryExtractResult,
   type MemoryExtractStopReason,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { EXTRACT_MEMORY_MIN_TIMEOUT_MS } from "../engine/extractBudget";
 import { createExtractAbort } from "../memory/extractAbort";
 import { formatMemoryLine } from "../memory/memoryTelemetry";

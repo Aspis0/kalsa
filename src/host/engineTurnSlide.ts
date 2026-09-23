@@ -8,7 +8,7 @@
  * singleton the old block wrote.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { discardChatKvForWindowSlide, getActiveModelId } from "../engine/LlamaService";
+import { discardChatKvForWindowSlide, getActiveModelId } from "../engine/engineBackend";
 import {
   advanceAnchoredBoundary, advanceCompactionBoundary, anchoredHistoryDropReason,
   compactorStorageKey, lastCompleteExchangeStart, refreshQueryDigest,

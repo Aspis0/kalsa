@@ -11,7 +11,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { htmlToText } from "../util/htmlToText";
 import { embedQuery as embedQueryVec, isEmbedderHung } from "../engine/EmbeddingService";
-import { getActiveModelId, type EngineToolResult, type EngineTurnOptions } from "../engine/LlamaService";
+import { getActiveModelId, type EngineToolResult, type EngineTurnOptions } from "../engine/engineBackend";
 import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import type { DocRetrieverIndex } from "../context/retrievalLoop";
 import type { LibraryDoc, LibraryState } from "../documents/DocumentLibrary";

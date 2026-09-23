@@ -11,6 +11,7 @@ import { join } from "path";
 import type { ModelPipelineState } from "../app/AppShell";
 import { makeT, en, it as italian } from "../i18n";
 import { modelBarStatus, pillWhereLabel } from "./modelBar";
+import { hostModelLocation } from "./hostModelLocation";
 import { decideModelPress } from "./modelBarPress";
 
 const t = makeT("en");
@@ -84,7 +85,9 @@ describe("the pill's where-line stays true when the device refuses the model", (
     const key = label("error", en.models.blockedRam);
     expect(key).toBe("shell.where.notRunning");
     expect(t(key)).not.toBe("Locale");
-    expect(HOST_SURFACE).toContain("pillWhereLabel({ modelState: modelHost.modelState, modelError: modelHost.modelError, t }");
+    const where = hostModelLocation({ remote: false, modelState: "error", modelError: en.models.blockedRam, t });
+    expect(where).toEqual({ location: "phone", label: en.shell.where.notRunning });
+    expect(HOST_SURFACE).toContain("hostModelLocation({");
     expect(HOST_SURFACE).toContain("whereLabel={whereLabel}");
     expect(HOST_SURFACE).not.toContain('location="phone"');
     expect(SHELL).toContain("whereLabel={whereLabel}");
@@ -95,15 +98,19 @@ describe("the pill's where-line stays true when the device refuses the model", (
     expect(STRIP).toContain("refused ? colors.ink3 : colors.accent");
   });
 
-  it("pins the phone-only boundary until remote backend state exists", () => {
-    // Replace this boundary when `src/engine/remote/` arrives from `remote-brain`; that dependency supplies backend location state.
+  it("uses backend state for remote location; the catalog itself has no location field", () => {
     for (const modelState of Object.keys(ALL_MODEL_STATES) as ModelPipelineState[]) {
       for (const modelError of [null, en.models.blockedRam, en.models.blockedTier, en.model.tooLarge, en.errors.connectionLost]) {
-        const key = pillWhereLabel({ modelState, modelError, t });
-        expect(["shell.where.thisPhone", "shell.where.notRunning"]).toContain(key);
-        expect(key).not.toMatch(/remote|server/i);
+        const location = hostModelLocation({ remote: false, modelState, modelError, t });
+        expect(["phone", "server"]).toContain(location.location);
+        expect([en.shell.where.thisPhone, en.shell.where.notRunning]).toContain(location.label);
       }
     }
+    expect(hostModelLocation({ remote: true, modelState: "ready", modelError: null, t })).toEqual({
+      location: "server",
+      label: en.shell.where.pillComputer,
+    });
+    expect(HOST_SURFACE).toContain("remote: modelHost.remoteActive");
     const modelInfo = MODEL_REGISTRY.match(/export type ModelInfo = \{([\s\S]*?)^\};/m)?.[1];
     expect(modelInfo).toBeDefined();
     expect(modelInfo).not.toMatch(/^\s*(?:backend|location)\??:/m);

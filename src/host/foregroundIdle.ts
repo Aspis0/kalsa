@@ -34,10 +34,10 @@ import {
   disposeEngine,
   getActiveModelId,
   isEngineReady,
-  lastNativeTokenAtMs,
   nativeEngineWorkInFlight,
   saveEngineSession,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
+import { lastNativeTokenAtMs } from "../engine/LlamaService";
 import {
   computeHistoryHashFromMessages,
   readBootMessages,

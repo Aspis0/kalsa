@@ -81,9 +81,10 @@ export function modelBarStatus(args: {
   errorKind: "download" | "engine" | null;
   percent: number;
   model: ModelInfo;
+  remoteActive?: boolean;
   t: TranslateFn;
 }): ModelBarStatus {
-  const { modelState, jsReady, activeMatches, hung, errorKind, percent, model, t } = args;
+  const { modelState, jsReady, activeMatches, hung, errorKind, percent, model, remoteActive = false, t } = args;
   const kind = decideEngineBarKind({ modelState, jsReady, activeMatches });
   switch (kind) {
     case "checking":
@@ -113,7 +114,10 @@ export function modelBarStatus(args: {
         ...(hung ? null : { retryLabel: t("shell.action.retry") }),
       };
     case "ready":
-      return { label: t("download.readyLocal"), tone: "good" };
+      return {
+        label: t(remoteActive ? "download.readyRemote" : "download.readyLocal"),
+        tone: "good",
+      };
     case "reload":
       return { label: t("chat.lazyReload"), tone: "accent" };
   }

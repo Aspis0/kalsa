@@ -10,7 +10,7 @@
  * disabled/inert affordance, which by construction updates with the render.
  */
 import { isEmbedderHung } from "../engine/EmbeddingService";
-import { getActiveModelId, isEngineReady } from "../engine/LlamaService";
+import { getActiveModelId, isEngineReady } from "../engine/engineBackend";
 import { useBatteryEta } from "../hooks/useBatteryEta";
 import { useLocale } from "../i18n";
 import type { ModelBarView } from "../ui/shell/ModelBar";
@@ -58,6 +58,7 @@ export function useModelBar(modelHost: ModelHost): {
       errorKind: modelHost.modelErrorKind,
       percent: percent ?? 0,
       model: currentModel,
+      remoteActive: modelHost.remoteActive,
       t,
     }),
     percent,

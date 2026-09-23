@@ -12,7 +12,7 @@ import {
   sendClaimRef,
   sendingInFlightRef,
 } from "../engine/regenState";
-import { notifyStaticPrefixInputs, type EngineTool } from "../engine/LlamaService";
+import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBackend";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
 import { idleDiscardAbortRef } from "./foregroundIdle";
 import type { TurnFence } from "./turnGuards";

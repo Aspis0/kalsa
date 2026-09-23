@@ -156,6 +156,7 @@ export function useHostEngine(params: HostEngineParams) {
       deviceToolsEnabledRef: flags.flagRefs.deviceToolsEnabledRef,
       calendarToolsEnabledRef: flags.flagRefs.calendarToolsEnabledRef,
       currentModel: modelHost.currentModel,
+      remoteErrorRef: modelHost.remoteErrorRef,
       chatEngineCtxRef,
       recordDecodeSample: modelHost.recordDecodeSample,
       agentOptions,

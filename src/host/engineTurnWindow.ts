@@ -5,13 +5,15 @@
  */
 import {
   chatKvIsHeld,
-  chatKvLastSaveTokens,
-  chatKvNPast,
   discardChatKvForWindowSlide,
   getActiveEngineNCtx,
   getActiveModelId,
-  getAttemptedAssembleStart,
   getLoadedAssembleBoundary,
+} from "../engine/engineBackend";
+import {
+  chatKvLastSaveTokens,
+  chatKvNPast,
+  getAttemptedAssembleStart,
 } from "../engine/LlamaService";
 import { getBenchLegacyWindow } from "../bench/benchConfig";
 import {

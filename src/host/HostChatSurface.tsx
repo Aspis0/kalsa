@@ -43,9 +43,10 @@ import { useHostEngine } from "./useHostEngine";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
-import { pillWhereLabel } from "./modelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeGate";
+import { runHostAttachment } from "./remoteAttachmentGate";
+import { hostModelLocation } from "./hostModelLocation";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
 /** The message menu's bundle, created by the root beside the send/history it
@@ -108,9 +109,13 @@ export function HostChatSurface({
   onMiniappOpen,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
-  const whereLabel = t(
-    pillWhereLabel({ modelState: modelHost.modelState, modelError: modelHost.modelError, t }),
-  );
+  const location = hostModelLocation({
+    remote: modelHost.remoteActive,
+    modelState: modelHost.modelState,
+    modelError: modelHost.modelError,
+    t,
+  });
+  const whereLabel = location.label;
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const keyboardHeight = useKeyboardHeight();
   const [quickSheetVisible, setQuickSheetVisible] = useState(false);
@@ -169,6 +174,7 @@ export function HostChatSurface({
 
   // One row of the attach sheet: each press runs the hook's flow and closes
   // only when the controller did (cancel and refusals keep the sheet up).
+  const refuseRemoteAttachment = () => showNoticeKey("settings.remoteGated");
   const handleAttachAction = (action: AttachAction) => {
     if (action === "templates") {
       setAttachSheetOpen(false);
@@ -184,14 +190,18 @@ export function HostChatSurface({
       return;
     }
     if (action === "library" || action === "camera") {
-      void attachments.beginImagePick(action).then((close) => {
-        if (close) setAttachSheetOpen(false);
+      runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => {
+        void attachments.beginImagePick(action).then((close) => {
+          if (close) setAttachSheetOpen(false);
+        });
       });
       return;
     }
     if (action === "document") {
-      void attachments.beginDocumentPick().then((close) => {
-        if (close) setAttachSheetOpen(false);
+      runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => {
+        void attachments.beginDocumentPick().then((close) => {
+          if (close) setAttachSheetOpen(false);
+        });
       });
       return;
     }
@@ -211,7 +221,8 @@ export function HostChatSurface({
     <>
     <Shell
       insets={insets}
-      modelName={modelHost.currentModel.name}
+      modelName={modelHost.remoteActive ? t("settings.remoteComputer") : modelHost.currentModel.name}
+      location={location.location}
       whereLabel={whereLabel}
       keyboardHeight={keyboardHeight}
       mode={mode}
@@ -227,7 +238,7 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={modelBar.onPress}
       modelBar={modelBar.view}
-      onAttachPress={() => setAttachSheetOpen(true)}
+      onAttachPress={() => runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       fieldRef={fieldRef}
@@ -292,11 +303,11 @@ export function HostChatSurface({
       notesActive={arms.notes}
       actionsDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onAttachAction={handleAttachAction}
-      onDocumentPick={(doc) => {
+      onDocumentPick={(doc) => runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => {
         attachments.addLibraryDocumentRow(doc);
         setDocPickOpen(false);
         setAttachSheetOpen(false);
-      }}
+      })}
       onAttachClose={() => {
         setAttachSheetOpen(false);
         setDocPickOpen(false);

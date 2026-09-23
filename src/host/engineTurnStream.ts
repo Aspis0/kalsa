@@ -11,10 +11,12 @@
 import { assembleEngineHistory } from "../context/compactor";
 import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
 import {
+  isRemoteEngineBackend,
   queueStaticPrefixPrewarm,
-  streamAssistantTurn,
   type EngineMessage,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
+import { streamHostTurn } from "./engineBackendStream";
+import { hostEngineErrorText } from "./remoteEngineError";
 import { applyPersonaTail } from "../engine/personaTail";
 import { boundMemoryFacts } from "../memory/dnaBounding";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
@@ -219,7 +221,7 @@ export async function streamEngineTurn(
               injectedFactsRef.current = [];
             }
 
-            await streamAssistantTurn(
+            await streamHostTurn(
               engineMessages,
               bridgeEngineCallbacks(callbacks, {
                 onDeltaFull: (full) => {
@@ -262,11 +264,15 @@ export async function streamEngineTurn(
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  const shownError = hostEngineErrorText(
+                    error.message,
+                    isRemoteEngineBackend(),
+                    deps.t,
+                  );
+                  callbacks.onDelta?.(`⚠️ ${shownError}`, `⚠️ ${shownError}`);
                   try {
-                    // The engine's own sentence, verbatim (§2.8): the failed
-                    // row shows this reason, never a generic apology.
-                    callbacks.onFailedReason?.(error.message);
+                    // The engine's own sentence, or humanized remote reason.
+                    callbacks.onFailedReason?.(shownError);
                     callbacks.onFailed?.("chat.serviceUnreachable");
                   } catch {
                     // ignore

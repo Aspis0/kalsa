@@ -58,6 +58,7 @@ export interface HostDepsInput {
   deviceToolsEnabledRef: { current: boolean };
   calendarToolsEnabledRef: { current: boolean };
   currentModel: ModelInfo;
+  remoteErrorRef: { current: string | null };
   chatEngineCtxRef: { current: number };
   recordDecodeSample: (model: ModelInfo, sample: DecodeMeasurement) => void;
   agentOptions: EngineTurnOptions;
@@ -141,6 +142,7 @@ export function buildTurnDeps(
     refreshMemoryFacts: input.refreshMemoryFacts,
     ensureEngineForModel: (model) => ensureEngineForModel(load, model),
     currentModel: input.currentModel,
+    remoteErrorRef: input.remoteErrorRef,
     documentLibraryRef: input.documentLibraryRef,
     agentOptionsRef: input.agentOptionsRef,
     agentOptions: input.agentOptions,

@@ -24,7 +24,8 @@
  *    no longer exists.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { translateText, type TranslateResult } from "../engine/LlamaService";
+import { translateText } from "../engine/engineBackend";
+import type { TranslateResult } from "../engine/LlamaService";
 import type { Locale } from "../i18n";
 import type { TranscriptTranslation } from "../ui/shell/transcriptTypes";
 import type { Message } from "./hostMessage";

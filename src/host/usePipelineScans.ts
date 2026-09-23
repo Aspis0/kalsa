@@ -15,7 +15,13 @@ import {
   readLastGoodModelId,
   readLoadMarker,
 } from "../engine/loadMarker";
-import { disposeEngine, getActiveModelId } from "../engine/LlamaService";
+import { disposeEngine, getActiveModelId, isEngineReady, isRemoteEngineBackend, recoverLocalBackend, setEngineBackendMode } from "../engine/engineBackend";
+import { isDeleteActive } from "../documents/docOpGate";
+import {
+  hydrateRemoteBrainSettings,
+  isHydrationCurrent,
+} from "../engine/remote/remoteSettings";
+import { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import {
@@ -31,7 +37,13 @@ import type {
 } from "../app/AppShell";
 import type { TranslateFn } from "../i18n";
 import { loadMarkerStore } from "./engineLoad";
-import { MODEL_STORAGE_KEY } from "./modelSwitch";
+import {
+  MODEL_STORAGE_KEY,
+  modelSwitchInFlightRef,
+  subscribeModelSwitchSettled,
+} from "./modelSwitchState";
+import { pickHostBootModel, planRemoteHostBoot } from "./remoteHostBoot";
+import { decideRemoteHostProbe } from "./remoteHostProbe";
 
 export interface ScanRefs {
   modelIndexRef: { current: number };
@@ -40,6 +52,7 @@ export interface ScanRefs {
   engineGenerationRef: { current: number };
   chatGateGenRef: { current: number | null };
   ensureEngineForModelRef: { current: (model: ModelInfo) => Promise<boolean> };
+  remoteActiveRef: { current: boolean };
 }
 
 export interface ScanSetters {
@@ -48,6 +61,7 @@ export interface ScanSetters {
   setModelError: (message: string | null) => void;
   setModelErrorKind: (kind: "download" | "engine" | null) => void;
   setModelErrorDetail: (detail: string | null) => void;
+  setRemoteActive: (active: boolean) => void;
 }
 
 export interface PipelineScanResult {
@@ -60,10 +74,11 @@ export interface PipelineScanResult {
 export function usePipelineScans(params: {
   t: TranslateFn;
   currentModel: ModelInfo;
+  remoteActive: boolean;
   refs: ScanRefs;
   setters: ScanSetters;
 }): PipelineScanResult {
-  const { t, currentModel, refs, setters } = params;
+  const { t, currentModel, remoteActive, refs, setters } = params;
   const { modelIndexRef, loadFallbackTargetRef, embedderDownloadedRef, engineGenerationRef, chatGateGenRef, ensureEngineForModelRef } = refs;
   const {
     setModelIndex,
@@ -71,7 +86,16 @@ export function usePipelineScans(params: {
     setModelError,
     setModelErrorKind,
     setModelErrorDetail,
+    setRemoteActive,
   } = setters;
+
+  const [prefsReady, setPrefsReady] = useState(false);
+  const [switchRevision, setSwitchRevision] = useState(0);
+
+  useEffect(
+    () => subscribeModelSwitchSettled(() => setSwitchRevision((revision) => revision + 1)),
+    [],
+  );
 
   const [voiceState, setVoiceState] = useState<VoicePipelineState>("checking");
   const [ttsEnabled, setTtsEnabledState] = useState(true);
@@ -82,31 +106,67 @@ export function usePipelineScans(params: {
     void setTtsEnabled(next).catch(() => undefined);
   };
 
-  // Restore the last model the app used (the persisted selection), not
-  // always the registry default. Boot-loop defence: a persisted selection
-  // carrying a death marker never starts; pickStartModel starts on the last
-  // good model, else the registry default.
+  // Hydrate the backend before the model scan can eagerly start a local model.
   useEffect(() => {
     let mounted = true;
+    const generation = engineGenerationRef.current;
+    const bootStillCurrent = () => mounted && generation === engineGenerationRef.current;
     void (async () => {
       try {
-        const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
-        if (!mounted || !saved) return;
-        const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
-        if (!mounted) return;
-        const startId = await pickStartModel({
-          savedId: saved,
-          lastGoodId,
-          defaultId: getDefaultModel().id,
-          isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
+        const snapshot = await hydrateRemoteBrainSettings();
+        if (!bootStillCurrent()) return;
+        const saved = snapshot.hydrationOk
+          ? await AsyncStorage.getItem(MODEL_STORAGE_KEY)
+          : null;
+        if (!bootStillCurrent()) return;
+        const plan = planRemoteHostBoot({
+          snapshot,
+          hydrationStale: !isHydrationCurrent(snapshot),
+          savedModelId: saved,
+          defaultLocalModelId: getDefaultModel().id,
+          remoteModelId: REMOTE_COMPUTER_MODEL_ID,
+          modelSwitchInFlight: modelSwitchInFlightRef.current,
+          // The host has no semantic rebuild job; delete is the live document lock.
+          semanticRebuildBusy: false,
+          documentDeleteBusy: isDeleteActive(),
         });
-        if (!mounted) return;
-        // Every candidate is marked: start where the selection points and let
-        // the load gate refuse it with the message — no load, no silent flip.
-        if (startId === null) return;
+        if (plan.kind === "switch-in-flight") return;
+        if (plan.kind === "remote") {
+          refs.remoteActiveRef.current = true;
+          setRemoteActive(true);
+          await setEngineBackendMode("remote");
+          if (!bootStillCurrent()) return;
+          await ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
+          return;
+        }
+        if (plan.kind === "local") {
+          await recoverLocalBackend();
+          if (plan.persistRemoteDemotion) {
+            await AsyncStorage.setItem(MODEL_STORAGE_KEY, plan.restoreModelId);
+          }
+        }
+        refs.remoteActiveRef.current = false;
+        setRemoteActive(false);
+        if (!bootStillCurrent()) return;
+        if (plan.kind === "local" && ["orphan", "hydration-failed", "stale-hydration"].includes(plan.decision.reason)) {
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("settings.remoteBrainMigratedToLocal"));
+        }
+        const startId = await pickHostBootModel(plan, async (restoreId) => {
+          const lastGoodId = await readLastGoodModelId(loadMarkerStore).catch(() => null);
+          if (!bootStillCurrent()) return null;
+          return pickStartModel({
+            savedId: restoreId,
+            lastGoodId,
+            defaultId: getDefaultModel().id,
+            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
+          });
+        });
+        if (!bootStillCurrent() || startId === null) return;
         const startIndex = MODEL_REGISTRY.findIndex((model) => model.id === startId);
         if (startIndex < 0 || startIndex === modelIndexRef.current) return;
-        if (startId !== saved) {
+        if (startId !== plan.restoreModelId) {
           loadFallbackTargetRef.current = startId;
           setModelState("error");
           setModelErrorKind("engine");
@@ -117,7 +177,12 @@ export function usePipelineScans(params: {
         modelIndexRef.current = startIndex;
         setModelIndex(startIndex);
       } catch {
-        // Preference read failure → keep the default boot model.
+        // Remote hydration fails closed; the local default remains selected.
+        refs.remoteActiveRef.current = false;
+        setRemoteActive(false);
+        await recoverLocalBackend().catch(() => undefined);
+      } finally {
+        if (mounted) setPrefsReady(true);
       }
     })();
     // Detect orphaned model folders left by a catalog prune (no UI delete
@@ -207,6 +272,19 @@ export function usePipelineScans(params: {
   // stay [currentModel] only — ensureEngineForModel is read from a ref, not
   // listed, so a new bound function never re-fires the kick.
   useEffect(() => {
+    const probeAction = decideRemoteHostProbe({
+      prefsReady,
+      switchInFlight: modelSwitchInFlightRef.current,
+      backendRemote: isRemoteEngineBackend(),
+      remoteActive: refs.remoteActiveRef.current,
+      remoteReady:
+        isEngineReady() && getActiveModelId() === REMOTE_COMPUTER_MODEL_ID,
+    });
+    if (probeAction === "skip") return;
+    if (probeAction === "ensure-remote") {
+      void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
+      return;
+    }
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
@@ -236,7 +314,7 @@ export function usePipelineScans(params: {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentModel]);
+  }, [currentModel, prefsReady, remoteActive, switchRevision]);
   return {
     voiceState,
     ttsEnabled,
