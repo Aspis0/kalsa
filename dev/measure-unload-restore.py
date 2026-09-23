@@ -195,6 +195,34 @@ def action_figures(action):
             "restore_ms": tim.get("restore_ms")}
 
 
+def erase_blocker(figures, consequence):
+    """The guard for a refused erase, extracted so it can be failed on
+    purpose (501 injected -> this returns the blocker; 200 -> None).
+
+    WHAT IT CATCHES: a REFUSED erase (non-2xx - e.g. 501 from an engine
+    started without `--slot-save-path`). Without a landed erase the restore
+    would read whatever the slot held and the warmth would be credited to
+    the file, which is why save and restore are asserted and erase is what
+    makes their assertion mean something. The refusal enters `blockers`, the
+    arm becomes `measured: false`, and the conclusion starts "no verdict:"
+    (`provenance.refusal_semantics` declares why that lives in the artifact
+    rather than in the exit code).
+
+    WHAT IT CANNOT CATCH, declared rather than implied: a 200 whose erase
+    had no effect. Each arm boots its OWN engine into a fresh slot directory,
+    so the slot is EMPTY at erase time and `n_erased = 0` is the normal
+    answer, not a symptom - there is nothing for an ineffective erase to
+    fail to erase, and a `200-but-ineffective` erase is therefore
+    indistinguishable from `200` here by construction. Residue would only
+    exist if a slot carried content before the erase, which this sequence
+    never does; the belt-and-braces for warmth anyway is the CONTROL arm's
+    cold flag (`cold_without_the_file`), which the verdict refuses on.
+    """
+    if figures.get("status") != 200:
+        return f"erase refused ({figures.get('status')}): {consequence}"
+    return None
+
+
 def is_warm(cache_n, chat_tokens):
     if cache_n is None or not chat_tokens:
         return None
@@ -206,13 +234,11 @@ def arm_saved(server, port, chat, chat_tokens, tag, slots_dir, n_predict, blocke
     out = {"arm": "saved", "chat_tokens": chat_tokens,
            "save_filename": f"{tag}.bin"}
     out["erase"] = action_figures(msr.slot_action(port, 0, "erase", None, msr.SALT_HEX))
-    if out["erase"]["status"] != 200:
-        # An erase that did not land means the restore below reads whatever
-        # the slot still held: the warmth would be credited to the file and
-        # measured from residue. save and restore are asserted already; erase
-        # is what makes their assertion mean something.
-        blockers.append(f"erase refused ({out['erase']['status']}): the slot was not "
-                        "emptied, so the restore measures residue, not the file")
+    blocker = erase_blocker(
+        out["erase"],
+        "the slot was not emptied, so the restore measures residue, not the file")
+    if blocker:
+        blockers.append(blocker)
     out["cold_send"] = msr.send(port, chat, msr.SALT_HEX, n_predict, 0, server)
 
     save_act = msr.slot_action(port, 0, "save", f"{tag}.bin", msr.SALT_HEX)
@@ -309,11 +335,11 @@ def derive_saved(out, chat_tokens, blockers):
 def arm_control(server, port, chat, chat_tokens, n_predict, blockers):
     out = {"arm": "control", "chat_tokens": chat_tokens, "file_saved": False}
     out["erase"] = action_figures(msr.slot_action(port, 0, "erase", None, msr.SALT_HEX))
-    if out["erase"]["status"] != 200:
-        # Same as the saved arm: without a landed erase the control's second
-        # send could read residue and come back "warm" with nothing saved.
-        blockers.append(f"erase refused ({out['erase']['status']}): the control's slot "
-                        "was not emptied, so a warm answer would be residue")
+    blocker = erase_blocker(
+        out["erase"],
+        "the control's slot was not emptied, so a warm answer would be residue")
+    if blocker:
+        blockers.append(blocker)
     out["cold_send"] = msr.send(port, chat, msr.SALT_HEX, n_predict, 0, server)
 
     rel = wait_for_release(server, len(server.lines()), RELEASE_DEADLINE_S)
@@ -411,13 +437,29 @@ def arm_extra(slots_dir):
 def flags_from_argv(argv):
     """The provenance facts, read out of the argv the arms really receive.
 
-    `parallel`, `cache_ram`, `ctx_checkpoints`, `swa_full`, `engine_nice` and
-    `ctx_size` used to be hand-written in the provenance block and hand-built
-    into the argv: two copies of one truth that can drift apart silently.
-    Here they are read back from the argv (and main refuses to run if what it
-    reads is not what it meant to record).
+    `parallel`, `cache_ram`, `ctx_checkpoints`, `swa_full`, `engine_nice`,
+    `ctx_size` AND `cache_type_k`/`cache_type_v` used to be (or risked being)
+    hand-written in the provenance block and hand-built into the argv: two
+    copies of one truth that can drift apart silently. The cache types are
+    the ones the byte law rests on (`disk_law()` is q8_0 arithmetic, 34 B per
+    32 elements): an argv carrying f16 KV would make every predicted byte in
+    the artifact wrong while the row still looked filled in.
+
+    A REPEATED flag is refused, not read at the first occurrence: the old
+    `argv.index(flag)` read occurrence #1 while the engine's parser assigns
+    each occurrence as it walks (last one wins), so `--parallel 1
+    --parallel 2` made the guard certify `1` while the engine ran `2` - a
+    repeated argument was a way around the guard. Refusing is the only
+    honest answer when the guard and the engine could read differently.
     """
     def val(flag):
+        count = argv.count(flag)
+        if count > 1:
+            raise SystemExit(
+                f"{flag} appears {count} times in the argv: this guard would read "
+                "the first occurrence and the engine the last, so a repeated "
+                "argument can hide a divergence from the recorded provenance - "
+                "refusing instead of certifying a value nobody can check")
         return argv[argv.index(flag) + 1]
     return {
         "engine_nice": int(argv[2]) if argv[:2] == ["nice", "-n"] else None,
@@ -425,9 +467,24 @@ def flags_from_argv(argv):
         "cache_ram": int(val("--cache-ram")),
         "ctx_checkpoints": int(val("--ctx-checkpoints")),
         "swa_full": "--swa-full" in argv,
+        "cache_type_k": val("--cache-type-k"),
+        "cache_type_v": val("--cache-type-v"),
         "sleep_idle_seconds": int(val("--sleep-idle-seconds")),
         "ctx_size": int(val("--ctx-size")),
     }
+
+
+def check_argv_facts(got, intended, where=""):
+    """Refuse when what the argv says is not what the run means to record.
+
+    Extracted as a function so the GUARD itself can be failed on purpose: a
+    `--cache-type-k` that diverges from the intended value must make this
+    raise, instead of the assert being a shape nobody can exercise.
+    """
+    if got != intended:
+        raise SystemExit(
+            f"{where}the argv disagrees with the provenance it intends to "
+            f"record: {got} != {intended} - refusing to measure")
 
 
 def engine_identity(bin_path, version_text, block):
@@ -1107,6 +1164,24 @@ def owner_clause(law, rows, app_ctx, offers):
             "here and the law could not be evaluated")
 
 
+def require_headroom(ctx_size, largest_size, n_predict):
+    """Refuse a size that does not fit its slot ctx, instead of truncating.
+
+    Extracted as a function so the refusal has an automatic regression: a
+    size whose headroom would be negative must RAISE (no artifact, non-zero
+    exit) rather than be quietly cut - a truncated chat is not the size it
+    claims to be, which is the same promise `make_chat_at` makes about the
+    token count.
+    """
+    headroom = ctx_size - largest_size - n_predict
+    if headroom < 0:
+        raise SystemExit(
+            f"refusing to measure: size {largest_size} + n_predict {n_predict} "
+            f"does not fit the {ctx_size}-token slot ctx - the run would "
+            "truncate, not measure")
+    return headroom
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -1148,11 +1223,7 @@ def main():
     arch = model_facts.get("general.architecture")
     model_ctx = model_facts.get(f"{arch}.context_length") if arch else None
     largest = max(sizes)
-    headroom = args.ctx_size - largest - args.n_predict
-    if headroom < 0:
-        raise SystemExit(
-            f"refusing to measure: size {largest} + n_predict {args.n_predict} does not fit "
-            f"the {args.ctx_size}-token slot ctx - the run would truncate, not measure")
+    headroom = require_headroom(args.ctx_size, largest, args.n_predict)
     ceiling = {
         "largest_size": largest,
         "sizes": sizes,
@@ -1187,10 +1258,9 @@ def main():
     argv_flags = flags_from_argv(template_argv)
     intended = {"engine_nice": NICE, "parallel": 1, "cache_ram": 0,
                 "ctx_checkpoints": 1, "swa_full": False,
+                "cache_type_k": "q8_0", "cache_type_v": "q8_0",
                 "sleep_idle_seconds": SLEEP_IDLE_S, "ctx_size": args.ctx_size}
-    if argv_flags != intended:
-        raise SystemExit(f"the argv this run would pass disagrees with the provenance "
-                         f"it intends to record: {argv_flags} != {intended}")
+    check_argv_facts(argv_flags, intended, "the argv this run would pass: ")
 
     app_ctx = read_app_context_default()
     app_default = app_ctx.get("value")
@@ -1247,6 +1317,13 @@ def main():
             "cache_ram": argv_flags["cache_ram"],
             "ctx_checkpoints": argv_flags["ctx_checkpoints"],
             "swa_full": argv_flags["swa_full"],
+            "cache_type_k": argv_flags["cache_type_k"],
+            "cache_type_v": argv_flags["cache_type_v"],
+            "cache_type_note": ("the byte law in verdict.disk_law is q8_0 "
+                                "arithmetic (34 B per 32 elements = 1.0625 "
+                                "B/element); a different cache type would "
+                                "change every predicted byte, so both flags "
+                                "are read back from the argv and asserted"),
             "argv_facts_source": ("parsed back out of the argv every arm receives "
                                   "(flags_from_argv), asserted equal per arm and "
                                   "against the intended flags before the first engine"),
@@ -1315,10 +1392,7 @@ def main():
             argv = ["nice", "-n", str(NICE)] + msr.engine_argv(
                 args.bin, args.model, args.port, args.ctx_size, extra)
             got = flags_from_argv(argv)
-            if got != argv_flags:
-                raise SystemExit(
-                    f"[{arm} {size}] this arm's argv disagrees with the recorded "
-                    f"provenance: {got} != {argv_flags} - refusing to measure")
+            check_argv_facts(got, argv_flags, f"[{arm} {size}] this arm's ")
             server = msr.Server(argv, arm_dir / "engine.log")
             print(f"[{arm} {size}] starting on {args.port}", flush=True)
             try:
