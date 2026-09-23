@@ -6,6 +6,7 @@ import { modes, type ThemeMode } from "../theme/design";
 import { Drawer } from "../theme/components";
 import { useLabTheme } from "../ui/labTheme";
 import type { createConversationActions } from "./conversationActions";
+import { runConversationRowAction } from "./conversationRowActions";
 import type { useConversationHost } from "./useConversationHost";
 
 type ConversationHost = ReturnType<typeof useConversationHost>;
@@ -40,11 +41,11 @@ export function HostDrawer({ open, setOpen, conv, actions, onExportPress }: Host
   const selectedConversation = conversationItems.find((item) => item.id === selectedConversationId);
   const rows = selectedConversation?.actions?.map((action) => ({
     ...action,
-    onPress: () => {
-      setSelectedConversationId(null);
-      if (action.id === "export") closeDrawer();
-      action.onPress();
-    },
+    onPress: () => runConversationRowAction(
+      action,
+      () => setSelectedConversationId(null),
+      closeDrawer,
+    ),
   }));
 
   return (
@@ -61,7 +62,12 @@ export function HostDrawer({ open, setOpen, conv, actions, onExportPress }: Host
         onNewChat={() => actions.handleNewConversation()}
       />
       {selectedConversation && rows ? (
-        <AttachSheet rows={rows} colors={colors} onClose={() => setSelectedConversationId(null)} />
+        <AttachSheet
+          title={selectedConversation.title}
+          rows={rows}
+          colors={colors}
+          onClose={() => setSelectedConversationId(null)}
+        />
       ) : null}
     </>
   );

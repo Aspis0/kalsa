@@ -52,6 +52,7 @@ export interface AttachSheetProps {
   rows: readonly AttachSheetRowData[];
   colors: DesignColors;
   onClose: () => void;
+  title?: string;
   /** The document list may scroll (`maxHeight` clips); the action list never does. */
   scroll?: boolean;
 }
@@ -115,7 +116,7 @@ function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColo
   );
 }
 
-export function AttachSheet({ rows, colors, onClose, scroll = false }: AttachSheetProps) {
+export function AttachSheet({ rows, colors, onClose, title, scroll = false }: AttachSheetProps) {
   const body = rows.map((row) => <SheetRow key={row.testID} row={row} colors={colors} />);
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -138,6 +139,15 @@ export function AttachSheet({ rows, colors, onClose, scroll = false }: AttachShe
               ...(scroll ? { maxHeight: 360 } : null),
             }}
           >
+            {title ? (
+              <Text
+                accessibilityRole="header"
+                numberOfLines={1}
+                style={[type.title, { color: colors.ink, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs }]}
+              >
+                {title}
+              </Text>
+            ) : null}
             {scroll ? <ScrollView>{body}</ScrollView> : body}
           </View>
         </Pressable>

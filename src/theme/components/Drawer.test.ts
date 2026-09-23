@@ -41,6 +41,12 @@ describe("the full-height v2 menu", () => {
     expect(CONTENT).toContain("onLongPress={item.onLongPress}");
   });
 
+  it("offers the row action sheet through an accessible custom action", () => {
+    expect(CONTENT).toContain('accessibilityActions={item.onLongPress ? [{ name: "conversationActions", label: t("drawer.conversationActions") }] : undefined}');
+    expect(CONTENT).toContain('accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}');
+    expect(CONTENT).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
+  });
+
   it("shows the four unboxed global footer destinations in the specified order", () => {
     const code = CODE(CONTENT);
     expect(code).toContain('["documents", "notes", "settings", "account"]');

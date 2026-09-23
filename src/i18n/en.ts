@@ -45,6 +45,8 @@ export const en = {
     deleteChat: "Delete chat",
     exportAction: "Export",
     deleteAction: "Delete",
+    conversationActions: "Chat actions",
+    conversationActionsHint: "Opens actions for this conversation.",
     deleteChatConfirm: "Delete this conversation?",
     notes: "Notes",
     personas: "Persona",

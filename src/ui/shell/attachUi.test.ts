@@ -54,6 +54,13 @@ describe("the sheet is a stack of real boxes (project rule: ≥48 dp, no hitSlop
     expect(SHEET).toContain("onRequestClose={onClose}");
     expect(SHEET).toContain("onPress={onClose}");
   });
+
+  it("supports a titled sheet heading for conversation actions", () => {
+    expect(SHEET).toContain("title?: string;");
+    expect(SHEET).toContain('accessibilityRole="header"');
+    expect(SHEET).toContain("{title}");
+    expect(SHEET).toContain("numberOfLines={1}");
+  });
 });
 
 describe("the chips are §2.7: the name INSIDE the label, a 48 dp remove box", () => {

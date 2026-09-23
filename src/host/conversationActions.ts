@@ -20,7 +20,6 @@ import {
 import {
   conversationHasPersistedMessages,
   createEmptyConversationMeta,
-  filterConversations,
   getDefaultConversationsStorage,
   messagesKey,
   removeConversation,
@@ -44,7 +43,7 @@ import { resetCompactorChat } from "./turnCorpus";
 import type { TranslateFn } from "../i18n";
 import type { DrawerConversationItem, DrawerItem } from "../theme/components/Drawer";
 import type { HostOverlay } from "./hostOverlay";
-import { createConversationRowActions } from "./conversationRowActions";
+import { buildDrawerConversationItems } from "./conversationRowActions";
 
 export interface ConversationActionCtx {
   t: TranslateFn;
@@ -251,15 +250,16 @@ const newChatInFlightRef = { current: false };
     onActionSheetOpen: (id: string) => void,
     onExportPress: (id: string) => void,
   ): DrawerConversationItem[] {
-    return filterConversations(conversations.items, chatSearchQuery).map((item) => ({
-        id: item.id,
-        title: item.title.trim() ? item.title : t("drawer.untitled"),
-        preview: item.preview,
-        active: item.id === conversations.activeId,
-        onPress: () => handleSwitchConversation(item.id),
-        onLongPress: () => onActionSheetOpen(item.id),
-        actions: createConversationRowActions(item.id, t, onExportPress, confirmDeleteConversation),
-    }));
+    return buildDrawerConversationItems(
+      conversations,
+      chatSearchQuery,
+      t("drawer.untitled"),
+      t,
+      handleSwitchConversation,
+      onActionSheetOpen,
+      onExportPress,
+      confirmDeleteConversation,
+    );
   }
 
   function drawerItems(): DrawerItem[] {

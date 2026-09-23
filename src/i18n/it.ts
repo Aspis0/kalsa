@@ -44,6 +44,8 @@ export const it: typeof en = {
     deleteChat: "Elimina chat",
     exportAction: "Esporta",
     deleteAction: "Elimina",
+    conversationActions: "Azioni chat",
+    conversationActionsHint: "Apre le azioni di questa conversazione.",
     deleteChatConfirm: "Eliminare questa conversazione?",
     notes: "Note",
     personas: "Persona",

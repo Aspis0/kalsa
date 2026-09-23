@@ -164,6 +164,11 @@ export function DrawerContent({
                   delayLongPress={380}
                   accessibilityRole="button"
                   accessibilityLabel={item.title}
+                  accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}
+                  accessibilityActions={item.onLongPress ? [{ name: "conversationActions", label: t("drawer.conversationActions") }] : undefined}
+                  onAccessibilityAction={({ nativeEvent }) => {
+                    if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();
+                  }}
                   accessibilityState={{ selected: Boolean(item.active) }}
                   style={({ pressed }) => ({
                     minHeight: 56,
