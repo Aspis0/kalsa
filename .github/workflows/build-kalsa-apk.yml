@@ -3,7 +3,12 @@ name: Build Kalsa APK
 on:
   workflow_dispatch:
   push:
-    branches: [engine-pin-kalsallama, bench-dev-models]
+    branches: [main]
+    # A ~2 h APK build is pointless for docs-only commits.
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - docs/**
 
 permissions:
   contents: read
@@ -33,7 +38,9 @@ jobs:
           java-version: 17
 
       - name: Set up Android toolchain
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
       - name: Install Android native build packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.1.12297006"
