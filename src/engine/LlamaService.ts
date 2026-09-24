@@ -527,8 +527,9 @@ let turnRoutePush: RoutePushRecord | null = null;
 
 /**
  * Mint the id every line of one send joins on. The phase that logs the
- * first line (KALSA_WINDOW) calls it; streamAssistantTurn reuses it through
- * StreamTurnOptions.turnId and mints only when no earlier line exists.
+ * first line (KALSA_WINDOW) calls it and hands it in — StreamTurnOptions
+ * .turnId is required, so a turn (and its runtime-fallback retry) never
+ * mints and the id cannot split across attempts.
  */
 export function mintTurnId(): string {
   return String(++turnSeq);
@@ -1500,7 +1501,7 @@ export async function queueStaticPrefixPrewarm(
         // 301 MB demanded for a 12.6 MB file — and since a rate is only
         // learned from a write that SUCCEEDED, that device never corrects it.
         if (saved.ok && saved.fileBytes != null) {
-    try {
+          try {
             const diskCalibration = await loadSessionDiskCalibration();
             const next = recordSessionDiskSample(diskCalibration, {
               ok: true,
@@ -4149,10 +4150,11 @@ export type StreamTurnOptions = EngineTurnOptions & {
   ciswireFlags?: number;
   /**
    * The id minted before this send's first line (KALSA_WINDOW): every
-   * KALSA_* line of the turn joins on it. Absent → minted here (turns with
-   * no earlier line).
+   * KALSA_* line of every attempt of the turn joins on it. REQUIRED —
+   * supplied by the first-line phase (mintTurnId), never minted by the
+   * turn, so the runtime-fallback retry cannot split the id.
    */
-  turnId?: string;
+  turnId: string;
   /**
    * 1-based attempt of this send under the same id: the runtime-governor
    * fallback retry passes 2 so its lines separate from the first attempt's.
@@ -4277,8 +4279,10 @@ export async function streamAssistantTurn(
     // must still refuse save. Clears per-turn turnInjected only.
     kvReproState = nextKvReproState(kvReproState, "turn_start");
 
-    // One monotonic id for all rounds of this turn (incl. tool rounds).
-    const turnId = options.turnId ?? mintTurnId();
+    // One monotonic id for all rounds of this send (incl. tool rounds):
+    // REQUIRED through the options — every caller supplies it (the send's
+    // first-line phase mints it), so both attempts share one id.
+    const turnId = options.turnId;
     // 1-based attempt of this send: the runtime-governor retry passes 2 with
     // the SAME id, so its lines are separable without a fresh mint.
     const turnAttempt = options.turnAttempt ?? 1;
@@ -5836,14 +5840,13 @@ export async function streamAssistantTurn(
     // already fence this message's text. A model change on this current turn
     // ends it (below) and skips the reload — reloading would arm the CPU-only
     // state against the wrong model.
-    // The retry reuses this send's id (never a fresh mint) and bumps the
-    // attempt counter, so the marker and every line the retry emits share
-    // one key an analyst can follow.
-    const retryTurnId = options.turnId ?? mintTurnId();
+    // The retry reuses this send's id (never a fresh mint — the required
+    // options.turnId rides the spread) and bumps the attempt counter, so
+    // the marker and every line the retry emits share one key an analyst
+    // can follow.
     const retryAttempt = (options.turnAttempt ?? 1) + 1;
     const retryOptions: StreamTurnOptions = {
       ...options,
-      turnId: retryTurnId,
       turnAttempt: retryAttempt,
     };
     const preVerdict = gate(false);
@@ -5856,7 +5859,7 @@ export async function streamAssistantTurn(
       await reloadGovernorRuntimeFallback(
         attempt.reason,
         retryOptions.locale,
-        retryTurnId,
+        options.turnId,
         retryAttempt,
       );
     } catch (error) {

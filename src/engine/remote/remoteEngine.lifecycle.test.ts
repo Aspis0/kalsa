@@ -221,7 +221,8 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "hello" }],
       { onDelta: () => undefined, onDone: () => undefined, onError: (error) => { throw error; } },
       undefined,
-      { locale: "en" },
+      // Every caller supplies the turn's join id — StreamTurnOptions requires it.
+      { locale: "en", turnId: "t-lifecycle" },
     );
     const request = streamOpenAiChat.mock.calls[0][0] as {
       completionsUrl: string;
@@ -299,7 +300,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(errors).toContain("remote_brain_url_missing");
   });
@@ -328,7 +329,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     const errors: string[] = [];
     await streamRemoteAssistantTurn(
@@ -341,7 +342,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(errors).toContain("remote_brain_busy");
     await disposeRemoteEngine();
@@ -376,7 +377,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (!finishA) await Promise.resolve();
     expect(remoteNativeWorkInFlight()).toBe(true);
@@ -403,7 +404,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (bOpened === 0) await Promise.resolve();
     expect(bOpened).toBe(1);
@@ -481,7 +482,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: (e) => errors.push(e),
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (!failA) await Promise.resolve();
     await disposeRemoteEngine();
@@ -518,7 +519,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (!completeA) await Promise.resolve();
     await disposeRemoteEngine();
@@ -541,7 +542,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: (e) => errors.push(e),
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(errors).toHaveLength(1);
     expect(isSupersededRemoteOp(errors[0])).toBe(false);
@@ -567,7 +568,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (!releaseA) await Promise.resolve();
     expect(remoteNativeWorkInFlight()).toBe(true);
@@ -598,7 +599,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (bOpened === 0) await Promise.resolve();
     expect(bOpened).toBe(1);
@@ -649,7 +650,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
@@ -692,7 +693,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(errors).toContain("open_boom");
     expect(remoteNativeWorkInFlight()).toBe(false);
@@ -725,7 +726,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
@@ -750,7 +751,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
@@ -769,7 +770,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "x" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(sources).toEqual(["parsed"]);
   });
@@ -787,7 +788,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "x" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(sources).toEqual(["raw"]);
   });
@@ -805,7 +806,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "x" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(sources).toEqual(["raw"]);
   });
@@ -824,7 +825,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "x" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(sources).toEqual(["raw"]);
   });
@@ -868,6 +869,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       {
         locale: "en",
+        turnId: "t-lifecycle",
         memoryFacts: [
           { id: "f1", text: "The cat is named Needle", createdAt: 1_700_000_000_000 },
         ],
@@ -919,7 +921,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: (e) => errors.push(e.message),
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(errors).toHaveLength(1);
     expect(errors[0].startsWith("remote_brain_")).toBe(true);
@@ -1003,7 +1005,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     while (!releaseToken) await Promise.resolve();
     await setRemoteServerModelId("new-model");
@@ -1033,7 +1035,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "a" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect((errors[0] as Error).message).toBe("remote_brain_internal");
     expect((errors[0] as Error).message).not.toContain("not_found");
@@ -1048,7 +1050,7 @@ describe("RemoteEngine lifecycle", () => {
       [{ role: "user", content: "b" }],
       callbacks,
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     const interrupted = errors[1] as Error & { code?: string };
     expect(interrupted.message).toBe("Generation was interrupted.");
@@ -1070,7 +1072,7 @@ describe("RemoteEngine lifecycle", () => {
         onError: () => undefined,
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(remoteNativeWorkInFlight()).toBe(false);
   });
@@ -1090,7 +1092,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(remoteNativeWorkInFlight()).toBe(false);
   });
@@ -1114,7 +1116,7 @@ describe("RemoteEngine lifecycle", () => {
         },
       },
       undefined,
-      { locale: "en" },
+      { locale: "en", turnId: "t-lifecycle" },
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);

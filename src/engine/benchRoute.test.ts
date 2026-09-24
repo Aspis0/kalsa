@@ -42,6 +42,10 @@ describe("pushPrefillOverride — feature-detected, bounded, outcome-typed", () 
     });
   });
 
+  test("the shipped bound is 2 s — the product decision, pinned", () => {
+    expect(BENCH_ROUTE_PUSH_TIMEOUT_MS).toBe(2_000);
+  });
+
   test("a supporting engine receives the mode as a method call (this-bound)", async () => {
     const setPrefillOverride = jest.fn(async () => undefined);
     const engine = { setPrefillOverride };
@@ -77,8 +81,10 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       }),
     ).toEqual({
       turnId: "12",
+      route_requested: "gpu",
       route_mode: "gpu",
       route_push: "applied",
+      route_mismatch: null,
       route_chunks: null,
       route_chunks_dropped: null,
     });
@@ -91,8 +97,12 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
         }),
       ).toEqual({
         turnId: "12",
+        // The nit: even a failed/timeout push reports WHAT was asked…
+        route_requested: "gpu",
+        // …while route_mode stays honest about what landed.
         route_mode: null,
         route_push: outcome,
+        route_mismatch: null,
         route_chunks: null,
         route_chunks_dropped: null,
       });
@@ -104,11 +114,63 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       governorRouteLogFields({ turnId: "12", routePush: null, completionResult: undefined }),
     ).toEqual({
       turnId: "12",
+      route_requested: null,
       route_mode: null,
       route_push: "skipped",
+      route_mismatch: null,
       route_chunks: null,
       route_chunks_dropped: null,
     });
+  });
+
+  test("route_mismatch compares the applied FORCED arm against every chunk", () => {
+    const chunk = (actual: string) => ({
+      index: 0,
+      requested: "gpu",
+      actual,
+      tokens: 128,
+      prefill_ms: 41,
+      forced: true,
+    });
+    const build = (outcome: "applied" | "failed", mode: "cpu" | "gpu" | "auto", chunks: unknown) =>
+      governorRouteLogFields({
+        turnId: "5",
+        routePush: { mode, outcome },
+        completionResult: { route_chunks: chunks },
+      });
+    expect(build("applied", "gpu", [chunk("gpu")]).route_mismatch).toBe(false);
+    expect(build("applied", "gpu", [chunk("gpu"), chunk("cpu")]).route_mismatch).toBe(true);
+    // not forced, or nothing applied, or no chunks to compare → null
+    expect(build("applied", "auto", [chunk("cpu")]).route_mismatch).toBeNull();
+    expect(build("failed", "gpu", [chunk("cpu")]).route_mismatch).toBeNull();
+    expect(build("applied", "gpu", []).route_mismatch).toBeNull();
+  });
+
+  test("non-finite or negative chunk facts are malformed, not valid", () => {
+    const base = {
+      index: 0,
+      requested: "cpu",
+      actual: "cpu",
+      tokens: 128,
+      prefill_ms: 41,
+      forced: true,
+    };
+    const malformed: unknown[] = [
+      { ...base, index: Number.NaN },
+      { ...base, index: 1.5 },
+      { ...base, index: -1 },
+      { ...base, tokens: Number.NaN },
+      { ...base, tokens: -3 },
+      { ...base, prefill_ms: Number.POSITIVE_INFINITY },
+      { ...base, prefill_ms: -0.5 },
+    ];
+    const result = governorRouteLogFields({
+      turnId: "9",
+      routePush: null,
+      completionResult: { route_chunks: [base, ...malformed] },
+    });
+    expect(result.route_chunks).toHaveLength(1);
+    expect(result.route_chunks_dropped).toBe(malformed.length);
   });
 
   test("route_chunks is projected to the six spec fields; malformed entries drop and count", () => {
@@ -160,9 +222,12 @@ describe("the join keys reach every line an analyst stitches", () => {
     readFileSync(join(__dirname, "turnTelemetry.ts"), "utf8"),
   );
 
-  test("the send mints exactly one id and hands it to the turn", () => {
+  test("the send mints exactly one id and the turn consumes it — no fallback mint", () => {
     expect(windowSource.match(/mintTurnId\(/g)).toHaveLength(1);
-    expect(serviceSource).toContain("options.turnId ?? mintTurnId()");
+    expect(serviceSource).toContain("const turnId = options.turnId;");
+    // The fallback both sites once had is gone: minting inside the turn (or
+    // the retry) is exactly what would split one send across two ids.
+    expect(serviceSource).not.toContain("?? mintTurnId()");
   });
 
   test("KALSA_WINDOW carries the id, and the turn options carry it too", () => {
@@ -188,7 +253,9 @@ describe("the join keys reach every line an analyst stitches", () => {
     // telemetry line carries it.
     expect(serviceSource).toContain("JSON.stringify({ reason, turnId, attempt })");
     expect(serviceSource).toContain("(options.turnAttempt ?? 1) + 1");
-    expect(serviceSource).toContain("retryTurnId = options.turnId ?? mintTurnId()");
+    expect(serviceSource).toMatch(
+      /reloadGovernorRuntimeFallback\(\s*attempt\.reason,\s*retryOptions\.locale,\s*options\.turnId,\s*retryAttempt,/,
+    );
     expect(serviceSource).toContain(
       "streamAssistantTurn(messages, callbacks, signal, retryOptions)",
     );

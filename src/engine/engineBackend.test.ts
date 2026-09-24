@@ -91,7 +91,8 @@ const callbacks = {
 
 it("streams through the local engine when the backend is local", async () => {
   const messages = [{ role: "user" as const, content: "hi" }];
-  const options = { locale: "en" as const };
+  // Every caller supplies the turn's join id — StreamTurnOptions requires it.
+  const options = { locale: "en" as const, turnId: "t-backend" };
   await streamAssistantTurn(messages, callbacks, undefined, options);
   expect(llama.streamAssistantTurn).toHaveBeenCalledWith(
     messages,
@@ -108,7 +109,7 @@ it("streams through the remote client when the backend is remote, memoryFacts in
   const memoryFacts = [
     { id: "f1", text: "The cat is named Nino", createdAt: 1_700_000_000_000 },
   ];
-  const options = { locale: "en" as const, memoryFacts };
+  const options = { locale: "en" as const, turnId: "t-backend", memoryFacts };
   await streamAssistantTurn(messages, callbacks, undefined, options);
   expect(llama.streamAssistantTurn).not.toHaveBeenCalled();
   expect(remote.streamRemoteAssistantTurn).toHaveBeenCalledTimes(1);

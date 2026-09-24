@@ -99,12 +99,18 @@ function asRouteChunk(value: unknown): RouteChunk | null {
   const chunk = value as Record<string, unknown>;
   if (
     typeof chunk.index !== "number" ||
+    !Number.isInteger(chunk.index) ||
+    chunk.index < 0 ||
     typeof chunk.requested !== "string" ||
     !CHUNK_REQUESTED.has(chunk.requested) ||
     typeof chunk.actual !== "string" ||
     !CHUNK_ACTUAL.has(chunk.actual) ||
     typeof chunk.tokens !== "number" ||
+    !Number.isInteger(chunk.tokens) ||
+    chunk.tokens < 0 ||
     typeof chunk.prefill_ms !== "number" ||
+    !Number.isFinite(chunk.prefill_ms) ||
+    chunk.prefill_ms < 0 ||
     typeof chunk.forced !== "boolean"
   ) {
     return null;
@@ -120,11 +126,16 @@ function asRouteChunk(value: unknown): RouteChunk | null {
 }
 
 /**
- * The route-evidence fields of KALSA_GOVERNOR. `route_mode` names a mode
- * ONLY when this turn's push was applied — anything else left the engine
- * holding whatever it had, and `route_push` says why (null record →
- * "skipped": no push this turn). `route_chunks` is projected onto the six
- * spec fields (extras dropped) with the malformed-entry count alongside.
+ * The route-evidence fields of KALSA_GOVERNOR. `route_requested` is the
+ * mode THIS turn asked for (any push attempt, even failed/timeout —
+ * null only when no push happened); `route_mode` names a mode ONLY when
+ * the push was applied, so `route_push` says why they can disagree.
+ * `route_mismatch` is the spec's rejection flag for a forced arm — true
+ * when any executed chunk's actual differs from the applied forced mode,
+ * false when they all match, null when there is nothing forced (or no
+ * chunks) to compare: the app records the verdict, it never blocks the
+ * turn (routing stays the engine's). `route_chunks` is projected onto the
+ * six spec fields (extras dropped) with the malformed-entry count alongside.
  */
 export function governorRouteLogFields(input: {
   turnId: string;
@@ -132,8 +143,10 @@ export function governorRouteLogFields(input: {
   completionResult: unknown;
 }): {
   turnId: string;
+  route_requested: BenchRouteMode | null;
   route_mode: BenchRouteMode | null;
   route_push: RoutePushOutcome;
+  route_mismatch: boolean | null;
   route_chunks: RouteChunk[] | null;
   route_chunks_dropped: number | null;
 } {
@@ -143,15 +156,25 @@ export function governorRouteLogFields(input: {
   const projected = Array.isArray(raw) ? raw.map(asRouteChunk) : null;
   const dropped =
     projected === null ? null : projected.filter((chunk) => chunk === null).length;
+  const chunks =
+    projected === null
+      ? null
+      : projected.filter((chunk): chunk is RouteChunk => chunk !== null);
+  const appliedMode =
+    input.routePush?.outcome === "applied" ? input.routePush.mode : null;
+  const routeMismatch =
+    // No forced arm applied, or no chunks to compare → null: an unverified
+    // claim must not serialize as a clean false.
+    appliedMode !== null && appliedMode !== "auto" && chunks !== null && chunks.length > 0
+      ? chunks.some((chunk) => chunk.actual !== appliedMode)
+      : null;
   return {
     turnId: input.turnId,
-    route_mode:
-      input.routePush?.outcome === "applied" ? input.routePush.mode : null,
+    route_requested: input.routePush?.mode ?? null,
+    route_mode: appliedMode,
     route_push: input.routePush?.outcome ?? "skipped",
-    route_chunks:
-      projected === null
-        ? null
-        : projected.filter((chunk): chunk is RouteChunk => chunk !== null),
+    route_mismatch: routeMismatch,
+    route_chunks: chunks,
     route_chunks_dropped: dropped,
   };
 }
