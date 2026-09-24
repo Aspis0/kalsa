@@ -1,7 +1,8 @@
 //! Weights that are already on this machine — and belong to another program.
 //!
-//! ollama, LM Studio and the huggingface cache each keep copies of popular
-//! GGUFs, and a digest-verified copy already on disk beats a six-gigabyte
+//! ollama, LM Studio and the huggingface cache (which Unsloth Desktop and
+//! every Hub client downloads through) each keep copies of popular GGUFs,
+//! and a digest-verified copy already on disk beats a six-gigabyte
 //! download on the flaky connection this crate exists for. So callers look
 //! here first.
 //!
@@ -11,6 +12,7 @@
 //! can point anywhere on the disk, and anything else (a FIFO, a device) is
 //! not a model file and could hang the scan on open.
 
+use std::ffi::OsString;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -27,14 +29,38 @@ pub fn default_roots() -> Vec<PathBuf> {
     let Some(home) = home() else {
         return Vec::new();
     };
+    roots_under(&home, |name| std::env::var_os(name))
+}
+
+/// The roots under `home`, with the environment consulted through `env` so
+/// the tests can drive the cache-relocation precedence without touching the
+/// process environment (an env-mutating test races every other test).
+fn roots_under(home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathBuf> {
+    // The hub cache sits wherever its owner put it — huggingface_hub's
+    // documented rule: HF_HUB_CACHE wins, then $HF_HOME/hub, then the
+    // default. An empty value counts as unset, the way the Python
+    // `getenv(...) or default` it comes from reads it. Wherever the cache
+    // moved, it keeps the hub's FIRST place: the ordering ranks programs,
+    // and a relocated cache is the same program's cache.
+    let hub = env("HF_HUB_CACHE")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| {
+            env("HF_HOME")
+                .filter(|value| !value.is_empty())
+                .map(|base| PathBuf::from(base).join("hub"))
+        })
+        .unwrap_or_else(|| home.join(".cache/huggingface/hub"));
     [
-        ".cache/huggingface/hub",
-        ".ollama/models/blobs",
-        ".lmstudio/models",
+        hub,
+        home.join(".ollama/models/blobs"),
+        home.join(".lmstudio/models"),
+        // LM Studio's older layout, still cited beside the current one in
+        // Unsloth's install docs. After the current one: a live install
+        // keeps its fresher copies there.
+        home.join(".cache/lm-studio/models"),
     ]
-    .iter()
-    .map(|rest| home.join(rest))
-    .collect()
+    .to_vec()
 }
 
 /// Finds a regular file of `size` bytes whose sha256 is `sha256` under one of
@@ -175,6 +201,57 @@ mod tests {
         let roots = default_roots();
         assert!(!roots.is_empty());
         assert!(roots.iter().all(|root| root.is_absolute()));
+    }
+
+    fn lookup<'a>(values: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<OsString> + 'a {
+        move |name| {
+            values
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| OsString::from(value))
+        }
+    }
+
+    /// huggingface_hub's documented precedence, driven through the lookup
+    /// seam: HF_HUB_CACHE wins, then $HF_HOME/hub, then the default. An
+    /// empty HF_HUB_CACHE counts as unset, the way the Python
+    /// `getenv(...) or default` it comes from reads it.
+    #[test]
+    fn a_relocated_hub_cache_is_found_through_the_environment() {
+        let home = PathBuf::from("/the/home");
+        let default = home.join(".cache/huggingface/hub");
+
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "/moved/hub")]));
+        assert_eq!(roots[0], PathBuf::from("/moved/hub"));
+        assert!(!roots.contains(&default), "the moved cache replaces the default, not joins it");
+
+        let roots = roots_under(&home, lookup(&[("HF_HOME", "/hf/home")]));
+        assert_eq!(roots[0], PathBuf::from("/hf/home/hub"));
+
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", ""), ("HF_HOME", "/hf/home")]));
+        assert_eq!(
+            roots[0],
+            PathBuf::from("/hf/home/hub"),
+            "an empty HF_HUB_CACHE is unset, not a path"
+        );
+
+        let roots = roots_under(&home, lookup(&[]));
+        assert_eq!(roots[0], default);
+    }
+
+    /// LM Studio's older model folder rides beside the current one, after
+    /// it, so a live install's fresher copies are scanned first.
+    #[test]
+    fn the_lm_studio_legacy_root_sits_after_the_current_one() {
+        let home = PathBuf::from("/the/home");
+        let roots = roots_under(&home, lookup(&[]));
+        let current = home.join(".lmstudio/models");
+        let legacy = home.join(".cache/lm-studio/models");
+        assert_eq!(
+            roots.iter().position(|root| *root == legacy),
+            Some(roots.iter().position(|root| *root == current).unwrap() + 1),
+            "the legacy folder belongs right after the current one"
+        );
     }
 
     #[cfg(unix)]
