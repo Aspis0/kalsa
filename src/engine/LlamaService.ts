@@ -138,7 +138,7 @@ import {
   createStallWatchdog,
   GENERATION_STALL_GAP_MS,
 } from "./stallWatchdog";
-import { pauseReasonOf, resumeWhileCooling } from "./thermalResume";
+import { governorPauseEnding, pauseReasonOf, resumeWhileCooling } from "./thermalResume";
 import {
   createBackgroundTimer,
   createRepeatingTimer,
@@ -3110,6 +3110,48 @@ function emitEngineError(
   finishOnce(() => callbacks.onError(errObj));
 }
 
+/**
+ * A governor pause the turn cannot resume ends here — never as an ordinary
+ * empty completion. `thermal` ended its cooling wait at the bound (the tool
+ * fallback has no loop and ends on the same give-up line); every other
+ * reason (profile, reload, unexplained) is the engine refusing without a
+ * resume path. Both reuse existing copy, and the reason lands in the
+ * KALSA_GOVERNOR_PAUSE evidence line (numbers and literals only). Returns
+ * whether the turn ended here.
+ */
+function endOnGovernorPause(
+  result: unknown,
+  turnId: string,
+  round: number,
+  callbacks: EngineCallbacks,
+  finishOnce: (fn: () => void) => void,
+  strings: ReturnType<typeof getStrings>,
+): boolean {
+  const ending = governorPauseEnding(result);
+  if (ending === null) return false;
+  try {
+    console.log(
+      `KALSA_GOVERNOR_PAUSE ${JSON.stringify({
+        turnId,
+        round,
+        reason: pauseReasonOf(result),
+      })}`,
+    );
+  } catch {
+    // telemetry must never throw
+  }
+  emitEngineError(
+    callbacks,
+    finishOnce,
+    new Error(
+      ending === "coolingTimedOut"
+        ? strings.errors.coolingTimedOut
+        : strings.chat.serviceUnreachable,
+    ),
+  );
+  return true;
+}
+
 /** Telemetry-safe error tag (name/enum only — never message/path/user data). */
 function sessionErrorReason(error: unknown): string {
   const native = sessionNativeErrorReason(error);
@@ -5060,6 +5102,7 @@ export async function streamAssistantTurn(
                     round,
                     phase: phase === "start" ? "enter" : "exit",
                     waitedMs: detail.elapsedMs,
+                    generationMs: detail.generationMs,
                     batt_temp_tenths_c: detail.battTempTenthsC,
                     outcome: detail.endReason,
                   })}`,
@@ -5098,19 +5141,11 @@ export async function streamAssistantTurn(
         }
         // A stop, a finish, or an invalidation (model switch / dispose —
         // neither aborts this controller) ends the turn the way it always
-        // has; only a turn still alive can reach the bound-expiry failure.
+        // has; only a turn still alive can reach the pause failure.
         if (bailIfStopped()) return;
-        if (pauseReasonOf(result) === "thermal") {
-          // Reaching here means the cooling bound expired on a LIVE turn
-          // whose reading never allowed a resume: a VISIBLE failure, never
-          // the silent empty turn a pause used to resolve as. Nothing was
-          // streamed this round, so nothing but the failure row can reach
-          // history.
-          emitEngineError(
-            callbacks,
-            finishOnce,
-            new Error(strings.errors.coolingTimedOut),
-          );
+        if (
+          endOnGovernorPause(result, turnId, round, callbacks, finishOnce, strings)
+        ) {
           return;
         }
         recordBenchCompletion(result);
@@ -5509,7 +5544,21 @@ export async function streamAssistantTurn(
             ) {
               promptAdopted = true;
             }
-            if (aborted) return;
+            if (bailIfStopped()) return;
+            // Any governor pause ends the fallback visibly too — it cannot
+            // wait one out, and "rounds exhausted" would name the wrong cause.
+            if (
+              endOnGovernorPause(
+                fallbackResult,
+                turnId,
+                MAX_TOOL_ROUNDS,
+                callbacks,
+                finishOnce,
+                strings,
+              )
+            ) {
+              return;
+            }
             recordBenchCompletion(fallbackResult);
             emitTurnTelemetry(
               turnId,

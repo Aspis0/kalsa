@@ -13,6 +13,7 @@ import {
   GOVERNOR_COOLING_MAX_MS,
   GOVERNOR_COOLING_POLL_MS,
   GOVERNOR_PAUSE_RESUME_TEMP_TENTHS_C,
+  governorPauseEnding,
   pauseReasonOf,
   resumeWhileCooling,
   type CoolingDetail,
@@ -55,9 +56,12 @@ async function episode(over: Partial<CoolingLoopOptions<Res>> = {}) {
 }
 
 describe("pauseReasonOf — the binding's typed outcome, read structurally", () => {
-  it.each(["thermal", "profile", "reload"] as const)("accepts %s", (reason) => {
-    expect(pauseReasonOf({ pause_reason: reason })).toBe(reason);
-  });
+  it.each(["thermal", "profile", "reload", "unexplained"] as const)(
+    "accepts %s",
+    (reason) => {
+      expect(pauseReasonOf({ pause_reason: reason })).toBe(reason);
+    },
+  );
 
   it("never mistakes an unknown or absent reason for a pause", () => {
     expect(pauseReasonOf({ pause_reason: "overheat" })).toBeNull();
@@ -65,6 +69,25 @@ describe("pauseReasonOf — the binding's typed outcome, read structurally", () 
     expect(pauseReasonOf({})).toBeNull();
     expect(pauseReasonOf(null)).toBeNull();
     expect(pauseReasonOf("thermal")).toBeNull();
+  });
+});
+
+describe("governorPauseEnding — a paused result never finalises as an empty reply", () => {
+  it("thermal ends on the cooling give-up line", () => {
+    expect(governorPauseEnding({ pause_reason: "thermal" })).toBe("coolingTimedOut");
+  });
+
+  it.each(["profile", "reload", "unexplained"] as const)(
+    "%s ends on the generic service line — there is no resume path",
+    (reason) => {
+      expect(governorPauseEnding({ pause_reason: reason })).toBe("serviceUnreachable");
+    },
+  );
+
+  it("a non-paused result ends nothing", () => {
+    expect(governorPauseEnding({ text: "answer" })).toBeNull();
+    expect(governorPauseEnding({ pause_reason: "something-new" })).toBeNull();
+    expect(governorPauseEnding(null)).toBeNull();
   });
 });
 
@@ -257,5 +280,71 @@ describe("resumeWhileCooling", () => {
     expect(refreshThermo).toHaveBeenCalledTimes(2);
     expect(attempt).toHaveBeenCalledTimes(2);
     expect(phases).toEqual(["start", "wait", "wait", "resume", "end"]);
+  });
+
+  it("a retry that throws ends the episode as failed, with the error unchanged", async () => {
+    const boom = new Error("completion threw");
+    const phases: CoolingPhase[] = [];
+    const details: CoolingDetail[] = [];
+    const attempt = jest
+      .fn()
+      .mockResolvedValueOnce(paused)
+      .mockRejectedValueOnce(boom);
+
+    await expect(
+      resumeWhileCooling(
+        base({
+          attempt,
+          onCooling: (phase, detail) => {
+            phases.push(phase);
+            details.push(detail);
+          },
+        }),
+      ),
+    ).rejects.toBe(boom);
+
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(phases.at(-1)).toBe("end");
+    expect(details.at(-1)?.endReason).toBe("failed");
+  });
+
+  it("waitedMs counts only waiting: the retry's generation is generationMs", async () => {
+    let clock = 0;
+    let calls = 0;
+    const attempt = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) return paused;
+      clock += 60_000; // generation time inside the retry
+      return ok;
+    });
+    const { details, result } = await episode({
+      attempt,
+      now: () => clock,
+      wait: async () => {
+        clock += 100_000; // one wait cycle
+      },
+    });
+
+    expect(result).toBe(ok);
+    const end = details.at(-1);
+    expect(end?.elapsedMs).toBe(100_000); // the wait — not the 160_000 wall
+    expect(end?.generationMs).toBe(60_000);
+    expect(end?.endReason).toBe("resumed");
+  });
+
+  it("the APPLIED budget is the shipped 10 minutes, not a multiple of it", async () => {
+    let clock = 0;
+    const attempt = jest.fn().mockResolvedValue(paused);
+    const { details } = await episode({
+      attempt,
+      now: () => clock,
+      wait: async () => {
+        clock += 300_000;
+      },
+    });
+
+    // The default maxCoolingMs: initial attempt + exactly two retries.
+    expect(attempt).toHaveBeenCalledTimes(3);
+    expect(details.at(-1)?.endReason).toBe("timeout");
   });
 });

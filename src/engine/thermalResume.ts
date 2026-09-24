@@ -20,20 +20,39 @@
  */
 
 /** The binding's typed pause outcome (llama.rn `pause_reason`). */
-export type GovernorPauseReason = "thermal" | "profile" | "reload";
+export type GovernorPauseReason = "thermal" | "profile" | "reload" | "unexplained";
 
 /**
  * Read the pause reason structurally: the app's pinned llama.rn may predate
  * the field, and a future reason string must not be mistaken for a pause —
- * only the three known literals count, everything else is "not paused" (the
+ * only the four known literals count, everything else is "not paused" (the
  * caller's pre-field behavior).
  */
 export function pauseReasonOf(result: unknown): GovernorPauseReason | null {
   if (typeof result !== "object" || result === null) return null;
   const reason = (result as { pause_reason?: unknown }).pause_reason;
-  return reason === "thermal" || reason === "profile" || reason === "reload"
+  return reason === "thermal" ||
+    reason === "profile" ||
+    reason === "reload" ||
+    reason === "unexplained"
     ? reason
     : null;
+}
+
+/**
+ * How a paused result must end its turn, or null while it is not paused:
+ * `thermal` waits in the cooling loop and ends on the bound (the tool
+ * fallback has no loop and ends on the same give-up line — both are the
+ * existing coolingTimedOut copy); every other reason has no resume path and
+ * ends on the existing generic service line. The catalogue tails ARE the
+ * return values so the one caller cannot re-derive the mapping.
+ */
+export function governorPauseEnding(
+  result: unknown,
+): "coolingTimedOut" | "serviceUnreachable" | null {
+  const pause = pauseReasonOf(result);
+  if (pause === null) return null;
+  return pause === "thermal" ? "coolingTimedOut" : "serviceUnreachable";
 }
 
 /**
@@ -68,13 +87,21 @@ export type CoolingEndReason =
   /** The turn was stopped, finished, or invalidated (switch/dispose). */
   | "stopped"
   /** The wall-clock bound expired with the reading never allowing a resume. */
-  | "timeout";
+  | "timeout"
+  /** The retry threw; the error propagates to the caller unchanged. */
+  | "failed";
 
 export interface CoolingDetail {
-  /** Ms since the episode began (0 when it begins). */
+  /**
+   * Waiting ms since the episode began: wall time minus every retry's
+   * generation, so a slow resume never inflates it (the wait ends where a
+   * retry starts).
+   */
   elapsedMs: number;
   /** Freshest reading any refresh returned; null before the first refresh. */
   battTempTenthsC: number | null;
+  /** Total generation ms spent on retries (0 while none has run). */
+  generationMs: number;
   /** Present only with the "end" phase. */
   endReason?: CoolingEndReason;
 }
@@ -152,13 +179,19 @@ export async function resumeWhileCooling<T>(
   let result = await attempt();
   let coolingSince: number | null = null;
   let lastTemp: number | null = null;
+  let retryGenerationMs = 0;
   let boundExpired = false;
+  let retryFailed = false;
   const stopped = () => isStopped() || signal?.aborted === true;
-  const detail = (endReason?: CoolingEndReason): CoolingDetail => ({
-    elapsedMs: coolingSince === null ? 0 : now() - coolingSince,
-    battTempTenthsC: lastTemp,
-    ...(endReason !== undefined ? { endReason } : {}),
-  });
+  const detail = (endReason?: CoolingEndReason): CoolingDetail => {
+    const wallMs = coolingSince === null ? 0 : now() - coolingSince;
+    return {
+      elapsedMs: wallMs - retryGenerationMs,
+      battTempTenthsC: lastTemp,
+      generationMs: retryGenerationMs,
+      ...(endReason !== undefined ? { endReason } : {}),
+    };
+  };
   try {
     while (pauseReasonOf(result) === "thermal" && !stopped()) {
       if (coolingSince === null) {
@@ -186,13 +219,31 @@ export async function resumeWhileCooling<T>(
         continue; // still hot: stay in the cooling state, do not attempt
       }
       onCooling("resume", detail());
-      result = await attempt();
+      const retryAt = now();
+      try {
+        result = await attempt();
+      } catch (error) {
+        // A throwing retry is not a cooling outcome: record it as one and
+        // let the error reach the caller unchanged.
+        retryFailed = true;
+        throw error;
+      } finally {
+        retryGenerationMs += now() - retryAt;
+      }
     }
   } finally {
     if (coolingSince !== null) {
       onCooling(
         "end",
-        detail(boundExpired ? "timeout" : stopped() ? "stopped" : "resumed"),
+        detail(
+          boundExpired
+            ? "timeout"
+            : stopped()
+              ? "stopped"
+              : retryFailed
+                ? "failed"
+                : "resumed",
+        ),
       );
     }
   }
