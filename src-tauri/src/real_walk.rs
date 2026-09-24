@@ -10,16 +10,21 @@
 //! end to end, for the one row `KALSA_BRAIN_REAL_WALK` names (by the repo
 //! the row's file is pinned to).
 //!
-//! It downloads into the app's real models dir and KEEPS what it fetched —
-//! that file is the product's now; only the temp state and slot dirs are
-//! swept.
+//! A FIRST run downloads the row's file into the app's own models dir and
+//! keeps it — that file is the product's now. A RERUN proves placement
+//! without the network: the walk's digest check, or another program's cache
+//! the reuse pass trusts, answers first, and the test prints which one did
+//! and, for a reuse from another cache, the directory it came from. Only
+//! the temp state and slot dirs are swept. Reading the real runtime root —
+//! its engine build, its caches — is the point of the walk, not a side
+//! effect to apologise for.
 //!
 //! ```text
 //! KALSA_BRAIN_REAL_WALK=<repo> cargo test -p kalsa-brain real_walk -- --ignored --nocapture
 //! ```
 
-use std::io::{Read, Write};
-use std::net::TcpStream;
+mod http;
+
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -30,6 +35,7 @@ use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
 
 use crate::capability::CHOSEN_REASON;
 use crate::startup::{self, Machine, Progress};
+use self::http::chat_completion;
 
 /// The env var that names the row to walk, by the repo its file is pinned to.
 const ENV_VAR: &str = "KALSA_BRAIN_REAL_WALK";
@@ -51,14 +57,14 @@ const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
 #[test]
 #[ignore = "moves gigabytes over the network and starts the real engine; set KALSA_BRAIN_REAL_WALK=<repo>"]
 fn the_app_walks_a_chosen_catalog_row_for_real() {
-    let repo = match std::env::var(ENV_VAR) {
-        Ok(value) => value,
-        Err(std::env::VarError::NotPresent) => {
-            eprintln!("skip: set {ENV_VAR}=<repo> to walk one catalog row for real");
-            return;
-        }
-        Err(error) => panic!("{ENV_VAR} is not readable: {error}"),
-    };
+    // This body only runs under --ignored, so reaching it at all was a
+    // deliberate ask; an unset var is a mistake, not a skip.
+    let repo = std::env::var(ENV_VAR).unwrap_or_else(|error| {
+        panic!(
+            "set {ENV_VAR}=<repo> to walk one catalog row for real, e.g. \
+             {ENV_VAR}=unsloth/gemma-4-E4B-it-GGUF ({error})"
+        )
+    });
     let repo = repo.trim();
     if repo.is_empty() {
         panic!("{ENV_VAR} is set but empty; name a repo, e.g. {ENV_VAR}=unsloth/gemma-4-E4B-it-GGUF");
@@ -96,6 +102,10 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         std::env::temp_dir().join(format!("kalsa-brain-real-walk-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);
     std::fs::create_dir_all(&scratch).expect("the temp directory is made");
+    // Born the moment the scratch exists: a panic anywhere below — the
+    // choice save, the walk, an assert — must leave nothing behind. The
+    // engine gets its own guard later, once a supervisor exists.
+    let scratch_guard = Scratch(scratch.clone());
     let state_file = scratch.join("server.state");
     let slot_save_path = scratch.join("slots");
 
@@ -128,13 +138,22 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     );
 
     // ── 4. the walk, exactly the product's order ───────────────────────────
-    let mut last_mark = 0u64;
+    // One mark per transfer kind: runtime and model bytes are different
+    // transfers, and a shared mark would mute the model's first lines after
+    // the runtime's.
+    let (mut runtime_mark, mut model_mark) = (0u64, 0u64);
+    let mut transfer = ModelTransfer::default();
     let mut progress = |step: Progress| match step {
         Progress::Measuring => eprintln!("walk: measuring"),
         Progress::Deciding => eprintln!("walk: deciding the engine build"),
         Progress::Choosing => eprintln!("walk: the catalog is choosing"),
-        Progress::RuntimeBytes { done, total } => bytes_mark("runtime", done, total, &mut last_mark),
-        Progress::ModelBytes { done, total } => bytes_mark("model", done, total, &mut last_mark),
+        Progress::RuntimeBytes { done, total } => {
+            bytes_mark("runtime", done, total, &mut runtime_mark)
+        }
+        Progress::ModelBytes { done, total } => {
+            transfer.observe(done);
+            bytes_mark("model", done, total, &mut model_mark);
+        }
     };
     let prepared = startup::run(
         None,
@@ -187,14 +206,31 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         entry.weights_bytes,
         "the file on disk is not the row's exact size: {model_path:?}"
     );
+    // Which arm of the model step answered. A download lands in the
+    // product's own models dir by construction, so anything else with no
+    // bytes moved is a reuse from another program's cache, named here.
+    let models_dir = kalsa_runtime::runtime_root().join("models");
+    let parent = model_path.parent().expect("a file path has a parent");
+    if transfer.reported {
+        assert_eq!(
+            parent, models_dir,
+            "a download landed outside the product's models dir"
+        );
+        eprintln!("placed by: download ({} bytes this run)", transfer.moved());
+    } else if parent == models_dir {
+        eprintln!("placed by: the file already on disk (no bytes moved)");
+    } else {
+        eprintln!(
+            "placed by: the file already on disk (no bytes moved), reused from {}",
+            parent.display()
+        );
+    }
 
     // ── 7. the server, through the supervisor, the way the app starts it ───
     let port = prepared.server.port;
     let ready_timeout = prepared.server.ready_timeout;
     let supervisor = Supervisor::new();
-    // Stands down on every exit path: Drop runs while a failed assert is
-    // still unwinding, and the engine must not outlive this test.
-    let mut guard = WalkGuard { supervisor: &supervisor, scratch: scratch.clone(), stood_down: false };
+    let mut engine_guard = EngineGuard { supervisor: &supervisor, stood_down: false };
     assert_eq!(
         supervisor.start(prepared.server).outcome(),
         StartOutcome::Accepted,
@@ -222,6 +258,15 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     eprintln!("the server is up on 127.0.0.1:{port} after {:.1?}", started.elapsed());
 
     let answer = chat_completion(port, PROMPT, MAX_TOKENS);
+    // This is what ties the answer to OUR engine: the completion names the
+    // model file the server loaded, so a stranger that won the port race
+    // and answered instead would name some other file here.
+    let served = answer.pointer("/model").and_then(Value::as_str).unwrap_or("<absent>");
+    assert_eq!(
+        served,
+        model_path.to_str().expect("the prepared path is UTF-8"),
+        "the server that answered is not the one the walk started"
+    );
     let content = answer
         .pointer("/choices/0/message/content")
         .and_then(Value::as_str)
@@ -268,25 +313,63 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         ServerState::Stopped,
         "the server did not report itself stopped"
     );
-    guard.stood_down = true;
+    engine_guard.stood_down = true;
     std::fs::remove_dir_all(&scratch).expect("the temp directories are removed");
     eprintln!("=== the walk is complete; the model stays in the app's models dir ===");
 }
 
-/// Stops the server and sweeps the temp directories on every exit path,
-/// including a failed assert.
-struct WalkGuard<'a> {
+/// Sweeps the temp directories on every exit path, from the moment they
+/// exist. The engine has its own guard, later, because no supervisor exists
+/// yet when the scratch is made.
+struct Scratch(PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Stops the engine on every exit path once the supervisor exists, a failed
+/// assert included. Owns only the engine: the temp directories have their
+/// own guard, born with the scratch.
+struct EngineGuard<'a> {
     supervisor: &'a Supervisor,
-    scratch: PathBuf,
     stood_down: bool,
 }
 
-impl Drop for WalkGuard<'_> {
+impl Drop for EngineGuard<'_> {
     fn drop(&mut self) {
         if !self.stood_down {
             self.supervisor.shutdown();
         }
-        let _ = std::fs::remove_dir_all(&self.scratch);
+    }
+}
+
+/// What the model step's progress stream said, read to tell a download from
+/// a placement that moved no bytes. The first `ModelBytes` reading is the
+/// walk's own zero-fire; the SECOND is the downloader's starting count —
+/// its resume offset, or zero — so `moved` is exact for a fresh download
+/// and a resumed one alike.
+#[derive(Default)]
+struct ModelTransfer {
+    reported: bool,
+    readings: u32,
+    start: u64,
+    last: u64,
+}
+
+impl ModelTransfer {
+    fn observe(&mut self, done: u64) {
+        self.reported = true;
+        self.readings += 1;
+        if self.readings == 2 {
+            self.start = done;
+        }
+        self.last = done;
+    }
+
+    fn moved(&self) -> u64 {
+        self.last - self.start
     }
 }
 
@@ -300,77 +383,6 @@ fn bytes_mark(what: &str, done: u64, total: u64, last_mark: &mut u64) {
 
 fn repos_on_the_menu() -> String {
     kalsa_catalog::usable().map(|row| row.source().repo).collect::<Vec<_>>().join(", ")
-}
-
-/// One OpenAI-style chat completion against the engine's own loopback port,
-/// straight to the server the walk started — the request the door forwards
-/// upstream, without the door.
-fn chat_completion(port: u16, prompt: &str, max_tokens: u32) -> Value {
-    let body = serde_json::json!({
-        "messages": [{ "role": "user", "content": prompt }],
-        "max_tokens": max_tokens,
-    })
-    .to_string();
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("the server answers its port");
-    // A cold model compiles kernels on the first token; give it room.
-    stream
-        .set_read_timeout(Some(Duration::from_secs(300)))
-        .expect("a read timeout is set");
-    let request = format!(
-        "POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\
-         Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    );
-    stream.write_all(request.as_bytes()).expect("the request is sent");
-    let mut response = Vec::new();
-    stream.read_to_end(&mut response).expect("the response is read to the close");
-    let header_end = response
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .expect("an HTTP response carries a header block");
-    let head = String::from_utf8_lossy(&response[..header_end]).to_lowercase();
-    let body = if head.contains("transfer-encoding: chunked") {
-        dechunk(&response[header_end + 4..])
-    } else {
-        response[header_end + 4..].to_vec()
-    };
-    let status = head.lines().next().unwrap_or_default().to_string();
-    let parsed = serde_json::from_slice(&body)
-        .unwrap_or_else(|error| panic!("the body is not the JSON completion ({error}): {status}"));
-    assert!(
-        status.contains(" 200 "),
-        "the server answered {status}: {}",
-        String::from_utf8_lossy(&body)
-    );
-    parsed
-}
-
-/// Undoes `Transfer-Encoding: chunked` framing, which the engine may use
-/// for a body with no length decided in advance.
-fn dechunk(mut rest: &[u8]) -> Vec<u8> {
-    let mut body = Vec::new();
-    loop {
-        let line_end = rest
-            .windows(2)
-            .position(|window| window == b"\r\n")
-            .expect("a chunk size line ends");
-        let size = usize::from_str_radix(
-            std::str::from_utf8(&rest[..line_end])
-                .expect("the chunk size is text")
-                .split(';')
-                .next()
-                .expect("a chunk size line")
-                .trim(),
-            16,
-        )
-        .expect("a hex chunk size");
-        rest = &rest[line_end + 2..];
-        if size == 0 {
-            return body;
-        }
-        body.extend_from_slice(&rest[..size]);
-        rest = &rest[size + 2..];
-    }
 }
 
 /// One timing figure out of the server's own answer, or the failure to find
