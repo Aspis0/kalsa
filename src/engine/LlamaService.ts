@@ -5038,20 +5038,38 @@ export async function streamAssistantTurn(
         noteCompletionPromptEnv();
         armPrefillDeadline();
         // Governor thermal pause → visible cooling → auto-resume (owner
-        // decision 2026-09-24 "A"). Every phase hook is guarded: a turn that
-        // ends while cooling must not repaint its status or re-arm a timer.
-        // The prefill deadline covers each attempt only — cleared across the
-        // waits (native work is not running then) and re-armed per retry.
-        let coolingWaitedFrom: number | null = null;
+        // decision 2026-09-24 "A"). The KALSA_THERMAL_COOLING log fires
+        // before the turn-state guard: enter and exit must both land in
+        // logcat even when the turn was stopped or invalidated mid-episode —
+        // it is the only device evidence of a thermal pause. The UI/deadline
+        // actions stay guarded: a turn that ends while cooling must not
+        // repaint its status or re-arm a timer. The prefill deadline covers
+        // each attempt only — cleared across the waits (native work is not
+        // running then) and re-armed per retry.
         const result = await resumeWhileCooling({
           attempt: runCompletionRound,
           signal,
           isStopped: () => finished || aborted || disposing || engine !== context,
           refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
-          onCooling: (phase) => {
+          onCooling: (phase, detail) => {
+            if (phase === "start" || phase === "end") {
+              try {
+                console.log(
+                  `KALSA_THERMAL_COOLING ${JSON.stringify({
+                    turnId,
+                    round,
+                    phase: phase === "start" ? "enter" : "exit",
+                    waitedMs: detail.elapsedMs,
+                    batt_temp_tenths_c: detail.battTempTenthsC,
+                    outcome: detail.endReason,
+                  })}`,
+                );
+              } catch {
+                // telemetry must never throw
+              }
+            }
             if (finished || aborted) return;
             if (phase === "start") {
-              coolingWaitedFrom = Date.now();
               clearPrefillDeadline();
               callbacks.onStatus?.({ label: strings.chat.coolingStatus });
             } else if (phase === "wait") {
@@ -5060,19 +5078,6 @@ export async function streamAssistantTurn(
             } else if (phase === "resume") {
               armPrefillDeadline();
               callbacks.onStatus?.({ label: statusLabel });
-            } else {
-              try {
-                console.log(
-                  `KALSA_THERMAL_COOLING ${JSON.stringify({
-                    turnId,
-                    round,
-                    waitedMs:
-                      coolingWaitedFrom === null ? null : Date.now() - coolingWaitedFrom,
-                  })}`,
-                );
-              } catch {
-                // telemetry must never throw
-              }
             }
           },
         });
@@ -5091,12 +5096,16 @@ export async function streamAssistantTurn(
         ) {
           promptAdopted = true;
         }
-        if (aborted) return;
+        // A stop, a finish, or an invalidation (model switch / dispose —
+        // neither aborts this controller) ends the turn the way it always
+        // has; only a turn still alive can reach the bound-expiry failure.
+        if (bailIfStopped()) return;
         if (pauseReasonOf(result) === "thermal") {
-          // The cooling bound expired while the reading never allowed a
-          // resume: a VISIBLE failure, never the silent empty turn a pause
-          // used to resolve as. Nothing was streamed this round, so nothing
-          // but the failure row can reach history.
+          // Reaching here means the cooling bound expired on a LIVE turn
+          // whose reading never allowed a resume: a VISIBLE failure, never
+          // the silent empty turn a pause used to resolve as. Nothing was
+          // streamed this round, so nothing but the failure row can reach
+          // history.
           emitEngineError(
             callbacks,
             finishOnce,

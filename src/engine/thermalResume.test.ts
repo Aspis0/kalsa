@@ -1,16 +1,21 @@
 /**
  * The pause→cool→resume state machine, proved on its edges: a resume
- * brackets the episode with the listener's phases, a still-hot reading stays
- * cooling without an attempt, non-thermal pauses and stopped turns never
- * enter cooling at all, an abort mid-wait ends the episode cleanly, the
- * wall-clock bound gives up returning the paused result, and no path —
+ * brackets the episode with the listener's phases and its end reason, a
+ * still-hot reading stays cooling without an attempt (399 resumes, 400
+ * waits), a stop landing inside the refresh never reaches the retry, the
+ * shipped cap/poll numbers are pinned, non-thermal pauses and stopped turns
+ * never enter cooling at all, an abort mid-wait ends the episode cleanly,
+ * the wall-clock bound gives up returning the paused result, and no path —
  * including a throwing refresh — ever throws into the caller (this module has
  * no error channel: persisting anything is the caller's decision).
  */
 import {
+  GOVERNOR_COOLING_MAX_MS,
+  GOVERNOR_COOLING_POLL_MS,
   GOVERNOR_PAUSE_RESUME_TEMP_TENTHS_C,
   pauseReasonOf,
   resumeWhileCooling,
+  type CoolingDetail,
   type CoolingLoopOptions,
   type CoolingPhase,
 } from "./thermalResume";
@@ -36,10 +41,17 @@ function base(over: Partial<CoolingLoopOptions<Res>> = {}): CoolingLoopOptions<R
 
 async function episode(over: Partial<CoolingLoopOptions<Res>> = {}) {
   const phases: CoolingPhase[] = [];
+  const details: CoolingDetail[] = [];
   const result = await resumeWhileCooling(
-    base({ ...over, onCooling: (phase) => phases.push(phase) }),
+    base({
+      ...over,
+      onCooling: (phase, detail) => {
+        phases.push(phase);
+        details.push(detail);
+      },
+    }),
   );
-  return { phases, result };
+  return { phases, details, result };
 }
 
 describe("pauseReasonOf — the binding's typed outcome, read structurally", () => {
@@ -63,12 +75,13 @@ describe("resumeWhileCooling", () => {
       .mockResolvedValueOnce(paused)
       .mockResolvedValueOnce(ok);
     const refreshThermo = jest.fn().mockResolvedValue(coolReading);
-    const { phases, result } = await episode({ attempt, refreshThermo });
+    const { phases, details, result } = await episode({ attempt, refreshThermo });
 
     expect(result).toBe(ok);
     expect(attempt).toHaveBeenCalledTimes(2);
     expect(refreshThermo).toHaveBeenCalledTimes(1);
     expect(phases).toEqual(["start", "wait", "resume", "end"]);
+    expect(details.at(-1)?.endReason).toBe("resumed");
   });
 
   it("stays in cooling without attempting while the reading is still hot", async () => {
@@ -114,7 +127,7 @@ describe("resumeWhileCooling", () => {
     const controller = new AbortController();
     const attempt = jest.fn().mockResolvedValue(paused);
     const refreshThermo = jest.fn().mockResolvedValue(coolReading);
-    const { phases, result } = await episode({
+    const { phases, details, result } = await episode({
       attempt,
       refreshThermo,
       signal: controller.signal,
@@ -128,6 +141,26 @@ describe("resumeWhileCooling", () => {
     expect(attempt).toHaveBeenCalledTimes(1);
     expect(refreshThermo).not.toHaveBeenCalled();
     expect(phases).toEqual(["start", "wait", "end"]);
+    expect(details.at(-1)?.endReason).toBe("stopped");
+  });
+
+  it("a stop landing inside the thermo refresh never reaches the retry (the last gate)", async () => {
+    let stopped = false;
+    const attempt = jest.fn().mockResolvedValue(paused);
+    const refreshThermo = jest.fn().mockImplementation(async () => {
+      stopped = true; // the turn ended while the reading was in flight
+      return coolReading;
+    });
+    const { phases, details, result } = await episode({
+      attempt,
+      refreshThermo,
+      isStopped: () => stopped,
+    });
+
+    expect(result).toBe(paused);
+    expect(attempt).toHaveBeenCalledTimes(1);
+    expect(phases).toEqual(["start", "wait", "end"]);
+    expect(details.at(-1)?.endReason).toBe("stopped");
   });
 
   it("the default wait resolves early when the signal aborts (no armed timer left)", async () => {
@@ -155,11 +188,12 @@ describe("resumeWhileCooling", () => {
       return t;
     };
     const attempt = jest.fn().mockResolvedValue(paused);
-    const { phases, result } = await episode({ attempt, now });
+    const { phases, details, result } = await episode({ attempt, now });
 
     expect(result).toBe(paused);
     expect(attempt).toHaveBeenCalledTimes(2); // first attempt + one retry
     expect(phases).toEqual(["start", "wait", "resume", "end"]);
+    expect(details.at(-1)?.endReason).toBe("timeout");
   });
 
   it("a throwing thermo refresh is not a turn failure: the next cycle still resumes", async () => {
@@ -180,5 +214,48 @@ describe("resumeWhileCooling", () => {
 
   it("the resume gate is the engine's warn line, in tenths", () => {
     expect(GOVERNOR_PAUSE_RESUME_TEMP_TENTHS_C).toBe(400);
+  });
+
+  it("the shipped numbers: the 10-minute cap, and every wait polls at 10 s", async () => {
+    expect(GOVERNOR_COOLING_MAX_MS).toBe(600_000);
+    expect(GOVERNOR_COOLING_POLL_MS).toBe(10_000);
+    const wait = jest.fn(async (_ms: number, _signal?: AbortSignal) => undefined);
+    await episode({
+      attempt: jest.fn().mockResolvedValueOnce(paused).mockResolvedValueOnce(ok),
+      wait,
+    });
+    // The loop hands the default interval to the wait, not a hidden literal.
+    expect(wait.mock.calls[0]?.[0]).toBe(GOVERNOR_COOLING_POLL_MS);
+  });
+
+  it("399 tenths is under the warn line: the retry runs", async () => {
+    const attempt = jest
+      .fn()
+      .mockResolvedValueOnce(paused)
+      .mockResolvedValueOnce(ok);
+    const refreshThermo = jest.fn().mockResolvedValue({ batt_temp_tenths_c: 399 });
+    const { result } = await episode({ attempt, refreshThermo });
+
+    expect(result).toBe(ok);
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(refreshThermo).toHaveBeenCalledTimes(1);
+  });
+
+  it("exactly 400 tenths is AT the warn line: it waits instead of retrying", async () => {
+    const attempt = jest
+      .fn()
+      .mockResolvedValueOnce(paused)
+      .mockResolvedValueOnce(ok);
+    const refreshThermo = jest
+      .fn()
+      .mockResolvedValueOnce({ batt_temp_tenths_c: 400 })
+      .mockResolvedValueOnce({ batt_temp_tenths_c: 399 });
+    const { phases, result } = await episode({ attempt, refreshThermo });
+
+    expect(result).toBe(ok);
+    // The 400 reading waited: only the 399 reading attempted.
+    expect(refreshThermo).toHaveBeenCalledTimes(2);
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(phases).toEqual(["start", "wait", "wait", "resume", "end"]);
   });
 });

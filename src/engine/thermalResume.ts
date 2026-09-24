@@ -4,9 +4,11 @@
  *
  * One responsibility: decide when a paused completion may be attempted again,
  * and tell a single listener when cooling starts, when a retry runs, and when
- * the loop ends. It never renders, never fails the turn, and never persists
- * anything — the caller owns all three. The give-up path deliberately RETURNS
- * the still-paused result instead of throwing, so the caller can distinguish
+ * the loop ends — with why it ended, how long the episode ran, and the
+ * freshest thermo reading, so the listener's log is complete device evidence.
+ * It never renders, never fails the turn, and never persists anything — the
+ * caller owns all three. The give-up path deliberately RETURNS the
+ * still-paused result instead of throwing, so the caller can distinguish
  * "resumed" from "bound expired" by reading `pause_reason` again.
  *
  * Background honesty: the wait is a plain RN timer, which Android suspends
@@ -56,8 +58,26 @@ export type CoolingPhase =
   | "wait"
   /** About to attempt again (the reading allowed it). */
   | "resume"
-  /** Loop over: resumed, stopped, or bound expired. */
+  /** Loop over: see `CoolingDetail.endReason`. */
   | "end";
+
+/** Why the loop is over — delivered only with the "end" phase. */
+export type CoolingEndReason =
+  /** The last attempt resolved without a thermal pause. */
+  | "resumed"
+  /** The turn was stopped, finished, or invalidated (switch/dispose). */
+  | "stopped"
+  /** The wall-clock bound expired with the reading never allowing a resume. */
+  | "timeout";
+
+export interface CoolingDetail {
+  /** Ms since the episode began (0 when it begins). */
+  elapsedMs: number;
+  /** Freshest reading any refresh returned; null before the first refresh. */
+  battTempTenthsC: number | null;
+  /** Present only with the "end" phase. */
+  endReason?: CoolingEndReason;
+}
 
 export interface CoolingLoopOptions<T> {
   /** One completion attempt; called again for each allowed retry. */
@@ -66,7 +86,7 @@ export interface CoolingLoopOptions<T> {
    *  re-reads, and a refresh failure is never a turn failure). */
   refreshThermo: () => Promise<{ batt_temp_tenths_c: number }>;
   /** The ONLY output channel of this module — no error callback exists. */
-  onCooling: (phase: CoolingPhase) => void;
+  onCooling: (phase: CoolingPhase, detail: CoolingDetail) => void;
   /** Turn liveness: finished/aborted/disposed, as the caller defines it. */
   isStopped: () => boolean;
   signal?: AbortSignal;
@@ -131,32 +151,50 @@ export async function resumeWhileCooling<T>(
 
   let result = await attempt();
   let coolingSince: number | null = null;
+  let lastTemp: number | null = null;
+  let boundExpired = false;
+  const stopped = () => isStopped() || signal?.aborted === true;
+  const detail = (endReason?: CoolingEndReason): CoolingDetail => ({
+    elapsedMs: coolingSince === null ? 0 : now() - coolingSince,
+    battTempTenthsC: lastTemp,
+    ...(endReason !== undefined ? { endReason } : {}),
+  });
   try {
-    while (pauseReasonOf(result) === "thermal" && !isStopped()) {
+    while (pauseReasonOf(result) === "thermal" && !stopped()) {
       if (coolingSince === null) {
         coolingSince = now();
-        onCooling("start");
+        onCooling("start", detail());
       } else if (now() - coolingSince >= maxCoolingMs) {
+        boundExpired = true;
         break;
       }
-      onCooling("wait");
+      onCooling("wait", detail());
       await wait(pollIntervalMs, signal);
-      if (isStopped()) break;
+      if (stopped()) break;
       let snapshot: { batt_temp_tenths_c: number } | null = null;
       try {
         snapshot = await refreshThermo();
       } catch {
         // Not a turn failure: retry with whatever profile the engine holds.
       }
-      if (isStopped()) break;
+      if (snapshot !== null) lastTemp = snapshot.batt_temp_tenths_c;
+      // The last gate before a retry: a stop (or a dispose) landing inside
+      // the refresh must not fall through to a fresh completion on a context
+      // that may already be released.
+      if (stopped()) break;
       if (snapshot !== null && !readingAllowsResume(snapshot)) {
         continue; // still hot: stay in the cooling state, do not attempt
       }
-      onCooling("resume");
+      onCooling("resume", detail());
       result = await attempt();
     }
   } finally {
-    if (coolingSince !== null) onCooling("end");
+    if (coolingSince !== null) {
+      onCooling(
+        "end",
+        detail(boundExpired ? "timeout" : stopped() ? "stopped" : "resumed"),
+      );
+    }
   }
   return result;
 }
