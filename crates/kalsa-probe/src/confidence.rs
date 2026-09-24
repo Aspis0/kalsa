@@ -50,7 +50,8 @@ pub struct Reliability {
 pub struct Evidence {
     /// Threads the ramp settled on.
     pub plateau_threads: usize,
-    /// Threads the ramp tried, for the parallelism check.
+    /// Threads the parallelism window ran — the plateau count, supplied
+    /// beside `plateau_threads`; the floor is taken as a share of it.
     pub tried_threads: usize,
     pub effective_parallelism: Option<f64>,
     pub spread: f64,
