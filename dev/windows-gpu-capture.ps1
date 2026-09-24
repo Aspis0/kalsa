@@ -8,7 +8,8 @@
 #   crates/kalsa-runtime/src/verdict.rs:66   POWERSHELL_DRIVERS script
 # Nothing outside the output folder is written; no admin rights, no network.
 # Each step is independent and try/caught on its own; the script exits 0
-# whatever the steps reported. Windows PowerShell 5.1 and pwsh 7 both run it.
+# whatever the steps reported. Written for Windows PowerShell 5.1 and pwsh
+# 7 alike; not yet run or parsed on either.
 # ASCII throughout: a BOM-less .ps1 is read as ANSI by Windows PowerShell
 # 5.1, so one non-ASCII byte in a string would reach the child wrong.
 
@@ -49,10 +50,13 @@ function ConvertTo-WindowsArgument {
 # Spawns one producer the way crates/kalsa-probe/src/run.rs does: stdout
 # redirected and read as BYTES (BaseStream, never decoded - decoding here
 # would destroy the encoding evidence this capture exists for), stderr
-# swallowed to mirror Rust's Stdio::null(). stderr is drained after stdout:
-# these answers are a few hundred bytes, far under a pipe buffer, so the
-# child cannot stall on stderr before closing stdout - the same size bound
-# run.rs relies on. Writes <Name>.bin and returns the record SUMMARY prints.
+# swallowed to mirror Rust's Stdio::null(), and the same 10 s deadline
+# with kill-and-reap on expiry. stdout and stderr drain CONCURRENTLY: a
+# child that fills the stderr pipe before closing its stdout would stall a
+# sequential drain until the deadline. stdin is redirected and closed
+# right after the spawn: the shipped app is a GUI process with no console
+# stdin, and over SSH an inherited live channel would leave wmic waiting
+# on it. Writes <Name>.bin and returns the record SUMMARY prints.
 function Invoke-RawCapture {
     param([string]$Name, [string]$Exe, [string[]]$ArgumentList, [string]$OutFolder)
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -61,19 +65,34 @@ function Invoke-RawCapture {
     $startInfo.UseShellExecute = $false
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
+    $startInfo.RedirectStandardInput = $true
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     $process = [System.Diagnostics.Process]::Start($startInfo)
+    $process.StandardInput.Close()
     $buffer = New-Object System.IO.MemoryStream
-    $process.StandardOutput.BaseStream.CopyTo($buffer)
-    $null = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
+    $stdoutTask = $process.StandardOutput.BaseStream.CopyToAsync($buffer)
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $timedOut = $false
+    if (-not $process.WaitForExit(10000)) {
+        $timedOut = $true
+        # Kill() is the API .NET Framework has; Kill($true) is .NET Core only.
+        try { $process.Kill() } catch { }
+        [void]$process.WaitForExit(2000)
+    }
+    # Every wait is bounded, and a drain faulted by the kill must not abort
+    # the capture: whatever arrived is kept.
+    try { [void]$stdoutTask.Wait(2000) } catch { }
+    try { [void]$stderrTask.Wait(2000) } catch { }
     $watch.Stop()
+    $exitCode = $null
+    if ($process.HasExited) { $exitCode = $process.ExitCode }
     $bytes = $buffer.ToArray()
     [System.IO.File]::WriteAllBytes((Join-Path $OutFolder ($Name + '.bin')), $bytes)
     return [pscustomobject]@{
         Name = $Name
         CommandLine = "$Exe $($startInfo.Arguments)"
-        ExitCode = $process.ExitCode
+        ExitCode = $exitCode
+        TimedOut = $timedOut
         Bytes = $bytes
         ElapsedMs = $watch.ElapsedMilliseconds
     }
@@ -232,10 +251,21 @@ try {
             $report += "  DriverVersion: $($props.DriverVersion)"
             $qw = $props.PSObject.Properties['HardwareInformation.qwMemorySize']
             if ($qw) {
-                try {
-                    $report += "  HardwareInformation.qwMemorySize: $([System.Convert]::ToUInt64($qw.Value))"
-                } catch {
-                    $report += "  HardwareInformation.qwMemorySize: unreadable value ($($qw.Value))"
+                # REG_BINARY can arrive here as byte[]: hex first, and the
+                # decimal the summary needs when it is exactly 8 bytes.
+                $qwRaw = $qw.Value
+                if ($qwRaw -is [byte[]]) {
+                    $qwText = '0x' + [System.BitConverter]::ToString($qwRaw)
+                    if ($qwRaw.Length -eq 8) {
+                        $qwText += ' (' + [System.BitConverter]::ToUInt64($qwRaw, 0) + ' decimal)'
+                    }
+                    $report += "  HardwareInformation.qwMemorySize: $qwText"
+                } else {
+                    try {
+                        $report += "  HardwareInformation.qwMemorySize: $([System.Convert]::ToUInt64($qwRaw))"
+                    } catch {
+                        $report += "  HardwareInformation.qwMemorySize: unreadable value ($qwRaw)"
+                    }
                 }
             } else {
                 $report += '  HardwareInformation.qwMemorySize: (absent)'
@@ -268,7 +298,13 @@ foreach ($capture in $captures) {
     $summaryLines += ''
     $summaryLines += $capture.Name
     $summaryLines += '  command: ' + $capture.CommandLine
-    $summaryLines += '  exit code: ' + $capture.ExitCode
+    $exitText = if ($null -eq $capture.ExitCode) {
+        'unavailable (never exited)'
+    } else {
+        "$($capture.ExitCode)"
+    }
+    $summaryLines += '  exit code: ' + $exitText
+    $summaryLines += '  timed out: ' + $(if ($capture.TimedOut) { 'yes' } else { 'no' })
     $summaryLines += '  stdout bytes: ' + $capture.Bytes.Length
     $summaryLines += '  elapsed ms: ' + $capture.ElapsedMs
     $summaryLines += '  first 64 bytes (hex): ' + (Get-HexHead -Bytes $capture.Bytes)
@@ -277,6 +313,17 @@ foreach ($capture in $captures) {
 $summaryLines += ''
 $summaryLines += 'steps:'
 foreach ($step in $steps) { $summaryLines += '  ' + $step }
+# The facts themselves, so SUMMARY.txt alone carries the run: one missing
+# file is one line, never an abort.
+foreach ($fact in @('os.txt', 'cim.txt', 'registry.txt')) {
+    $summaryLines += ''
+    $summaryLines += '--- ' + $fact + ' ---'
+    try {
+        $summaryLines += @(Get-Content -Path (Join-Path $OutDir $fact) -ErrorAction Stop)
+    } catch {
+        $summaryLines += "(not available: $(Get-Reason $_))"
+    }
+}
 $summaryLines += 'output folder: ' + $OutDir
 
 try {
