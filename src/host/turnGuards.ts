@@ -58,6 +58,21 @@ export interface TurnFence {
   apply<T>(token: TurnToken, state: T, update: (state: T) => T): T;
 }
 
+/** Gate a stream callback before it changes shared turn state. */
+export function handleOwnedSendToken(
+  fence: TurnFence,
+  token: TurnToken,
+  full: string,
+  hasTokensRef: { current: boolean },
+  push: (full: string) => void,
+): void {
+  if (!fence.owns(token)) return;
+  // A CPU retry clears its failed partial with an owned empty delta; that is
+  // still prefill, because no answer text has been emitted by the retry yet.
+  if (full.length > 0) hasTokensRef.current = true;
+  push(full);
+}
+
 export function createTurnFence(): TurnFence {
   let generation = 0;
   let runId = 0;

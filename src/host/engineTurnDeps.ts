@@ -71,6 +71,11 @@ export interface EngineTurnDeps {
   toolhelpRef: { current: boolean };
 }
 
+/** Per-send ownership, attached by sendHost when it creates the engine adapter. */
+export interface OwnedEngineTurnDeps extends EngineTurnDeps {
+  isTurnOwner: () => boolean;
+}
+
 /** Everything one send closes over that a later phase still needs. */
 export interface TurnInputs {
   text: string;

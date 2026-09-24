@@ -168,12 +168,11 @@ describe("the attach control carries the controller's disabled rule (Chat:4810)"
 });
 
 describe("the send snapshots and clears the rows (sendHost as source — its import graph reaches the engine)", () => {
-  it("BOTH append paths stamp the frozen snapshot on the user message and hand it to the engine half", () => {
+  it("BOTH append paths stamp the send-time rows on the user message", () => {
     const stamps = SEND.split("\n").filter((line) => line.includes("attachments: stamped"));
     expect(stamps).toHaveLength(2); // the content-gate append and the live append
     expect(SEND).toContain("const snapshot = staged.slice();");
-    // the adapter receives the same snapshot, not the live rows
-    expect(SEND).toContain("createSendEngine({ engineDeps, rich, attachments: snapshot })");
+    // The actual adapter handoff and its stable copy are exercised in sendHostOwnership.test.ts.
   });
 
   it("rows clear ONLY where this send consumed them — a foreign send keeps staged rows (the sendDraft doctrine applied to rows)", () => {

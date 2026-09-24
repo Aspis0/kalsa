@@ -17,6 +17,8 @@ import type { LocalAttachment } from "./hostMessage";
 
 export interface SendEngineAdapter {
   engineDeps: EngineTurnDeps;
+  /** Bound to the fence token for this send, including same-token retries. */
+  isTurnOwner: () => boolean;
   rich: RichCallbacks;
   /** The frozen snapshot as the engine half's fifth argument: images and
    *  PDF pages for vision, the library document for `document_chat`
@@ -25,10 +27,11 @@ export interface SendEngineAdapter {
 }
 
 export function createSendEngine(adapter: SendEngineAdapter): SendEngine {
-  const { engineDeps, rich, attachments } = adapter;
+  const { engineDeps, rich, attachments, isTurnOwner } = adapter;
+  const ownedEngineDeps = { ...engineDeps, isTurnOwner };
   return (request, emit, signal) =>
     handleSendStream(
-      engineDeps,
+      ownedEngineDeps,
       request.text,
       {
         ...rich.callbacks,

@@ -48,11 +48,12 @@ import { advanceCompactorWindow } from "./engineTurnSlide";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { streamEngineTurn } from "./engineTurnStream";
 import { runEngineResearchTurn } from "./engineTurnResearch";
-import type { EngineTurnCallbacks, EngineTurnDeps } from "./engineTurnDeps";
+import type { EngineTurnCallbacks, OwnedEngineTurnDeps } from "./engineTurnDeps";
 import type { LocalAttachment } from "./hostMessage";
+import { createEngineTurnFinish } from "./engineTurnFinish";
 
 export function handleSendStream(
-  deps: EngineTurnDeps,
+  deps: OwnedEngineTurnDeps,
   text: string,
   callbacks: EngineTurnCallbacks,
   signal: AbortSignal,
@@ -92,7 +93,6 @@ export function handleSendStream(
     toolhelpRef,
   } = deps;
   return new Promise<{ afterSessionSave?: () => void }>((resolve) => {
-        let settled = false;
         /** Deferred extract hook — set once scheduleMemoryExtract is defined. */
         let afterSessionSave: (() => void) | undefined;
         /** Live onMiniapp hook for the create_miniapp executor (set once per send). */
@@ -102,17 +102,14 @@ export function handleSendStream(
         activeDocumentAttachmentRef.current =
           attachments?.find((attachment) => attachment.kind === "document") ?? null;
         if (liveMiniapp) onMiniappRef.current = liveMiniapp;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          activeDocumentAttachmentRef.current = null;
-          streamInFlightRef.current = false;
-          setStreaming(false);
-          // Clear the create_miniapp hook so a stale turn can never route into
-          // a newer turn's onMiniapp (sends are serial anyway).
-          onMiniappRef.current = () => {};
-          resolve(afterSessionSave ? { afterSessionSave } : {});
-        };
+        const finish = createEngineTurnFinish({
+          isTurnOwner: deps.isTurnOwner,
+          activeDocumentAttachmentRef,
+          streamInFlightRef,
+          setStreaming,
+          onMiniappRef,
+          onFinished: () => resolve(afterSessionSave ? { afterSessionSave } : {}),
+        });
         const fail = (message: string, reasonKey?: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
           try {

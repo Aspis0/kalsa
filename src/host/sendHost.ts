@@ -44,7 +44,7 @@ import { runBenchTurn } from "./benchTurn";
 import { nextMsgId, type LocalAttachment, type Message } from "./hostMessage";
 import { translationInFlightRef } from "./translateState";
 import type { TranslateFn, TranslationKey } from "../i18n";
-import type { TurnFence, TurnToken } from "./turnGuards";
+import { handleOwnedSendToken, type TurnFence, type TurnToken } from "./turnGuards";
 
 export interface SendHostParams {
   t: TranslateFn;
@@ -271,12 +271,12 @@ export function useSendHost(params: SendHostParams): SendHost {
       // sent turn is appended by the engine half itself and must not be
       // double-counted here. The adapter is `sendEngineAdapter.ts` — the
       // seam this file cut to take the attachments under its ratchet.
-      const engine = createSendEngine({ engineDeps, rich, attachments: snapshot });
+      const engine = createSendEngine({ engineDeps, rich, attachments: snapshot, isTurnOwner: () => fence.owns(token) });
       const ui: SendUiHandlers = {
         onToken: (_delta, full) => {
-          hasTokensRef.current = true;
-          if (!fence.owns(token)) return;
-          streamCoalescer.push(full);
+          handleOwnedSendToken(fence, token, full, hasTokensRef, (ownedFull) =>
+            streamCoalescer.push(ownedFull),
+          );
         },
         onSources: (sources) => rich.callbacks.onSources?.(sources as any[]),
       };

@@ -81,7 +81,12 @@ describe("remote send ensure uses the real host dependency builder", () => {
     const deps = buildTurnDeps(input);
     const callbacks = { onDelta: jest.fn(), onFailed: jest.fn() };
 
-    await handleSendStream(deps, "hello", callbacks, new AbortController().signal);
+    await handleSendStream(
+      { ...deps, isTurnOwner: () => true },
+      "hello",
+      callbacks,
+      new AbortController().signal,
+    );
 
     expect(remoteEnsure).toHaveBeenCalledTimes(1);
     expect(localLoader).not.toHaveBeenCalled();
