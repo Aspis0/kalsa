@@ -202,7 +202,8 @@ describe("governor inputs", () => {
     // (llama.rn-kalsa cpp/rn-llama.cpp load_governor_models), so the lane
     // never allocates the CPU repack copy: its budget is
     // 800 + 1.05·W + 2×compute@256 + 2×KV = 2998.06 MiB for LFM 2.6B at
-    // ctx 8192. Pricing the repack back in (4358.70 MiB) flips Fit to NoFit.
+    // ctx 8192. Pricing the repack copy back in at 1.0×W (4518.12 MiB)
+    // flips Fit to NoFit.
     expect(buildGovernorParams(lfm!, s23, laneAt(2999 * 1024 ** 2)).gpu_fit).toBe("Fit");
     // One MiB below the requirement flips — the pin is the exact number.
     expect(buildGovernorParams(lfm!, s23, laneAt(2997 * 1024 ** 2)).gpu_fit).toBe("NoFit");
@@ -217,14 +218,15 @@ describe("governor inputs", () => {
       mmap: true,
       availableMemoryBytes: availableMiB * 1024 ** 2,
     });
-    // Repack-priced requirement 4358.70 MiB: at/above it the lane keeps the
-    // repack copy (decode_repack true — upstream default, full decode speed
-    // and KLD). One MiB below, repack is dropped only to keep the lane alive.
-    expect(buildGovernorParams(lfm, s23, laneAt(4359))).toMatchObject({
+    // Repack-priced requirement 4518.12 MiB (2998.06 repack-free + 1520.06
+    // for a conservative 1.0×W copy): at/above it the lane keeps the repack
+    // copy (decode_repack true — upstream default, full decode speed and
+    // KLD). One MiB below, repack is dropped only to keep the lane alive.
+    expect(buildGovernorParams(lfm, s23, laneAt(4519))).toMatchObject({
       gpu_fit: "Fit",
       decode_repack: true,
     });
-    expect(buildGovernorParams(lfm, s23, laneAt(4358))).toMatchObject({
+    expect(buildGovernorParams(lfm, s23, laneAt(4518))).toMatchObject({
       gpu_fit: "Fit",
       decode_repack: false,
     });
@@ -250,15 +252,15 @@ describe("governor inputs", () => {
     // "1" (no-repack arm): the with-repack attempt is skipped entirely —
     // the arm measures no-repack even where repack would fit.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(4359), false, true),
+      buildGovernorParams(lfm, s23, laneAt(4519), false, true),
     ).toMatchObject({ gpu_fit: "Fit", decode_repack: false });
     // "0" (repack-on arm): no P1 fallback — where repack does not fit the
     // lane is refused instead of silently measuring the other configuration.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(4359), false, false),
+      buildGovernorParams(lfm, s23, laneAt(4519), false, false),
     ).toMatchObject({ gpu_fit: "Fit", decode_repack: true });
     expect(
-      buildGovernorParams(lfm, s23, laneAt(2999), false, false).gpu_fit,
+      buildGovernorParams(lfm, s23, laneAt(4359), false, false).gpu_fit,
     ).toBe("NoFit");
   });
 

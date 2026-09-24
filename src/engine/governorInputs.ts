@@ -89,16 +89,30 @@ function laneFit(
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
   if (generationFor(profile) === "Unknown") return "NoFit" as const;
 
+  // The generic REPACK_FRACTION (0.8951, memoryEstimate.ts) is anchored on
+  // other models — on the S23 the ship model's CPU_REPACK buffer was
+  // ~1511 MiB for its 1520 MiB Q4_0 file, i.e. for Q4_0 almost every weight
+  // is repackable. Price the LANE's repack copy at 1.0 × weight bytes so the
+  // boundary errs safe (an optimistic price picks repack, OOMs, and falls
+  // back); the generic fraction stays untouched for its other callers.
   const estimate = estimateMemory({
     fileBytes: model.sizeBytes,
     contextTokens: memory.contextTokens,
     kvBytesPerToken: kv,
     ubatch: memory.ubatch ?? 256,
     mmap: memory.mmap,
-    repack,
+    repack: false,
   });
+  const priced = repack
+    ? {
+        ...estimate,
+        repackMiB: estimate.weightsMiB,
+        nonEvictableMiB: estimate.nonEvictableMiB + estimate.weightsMiB,
+        totalMiB: estimate.totalMiB + estimate.weightsMiB,
+      }
+    : estimate;
   const verdict = fitMemoryEstimate(
-    estimate,
+    priced,
     typeof memory.availableMemoryBytes === "number"
       ? memory.availableMemoryBytes / MIB
       : null,
@@ -109,10 +123,10 @@ function laneFit(
   const gpuReserveMiB = 800 + (1.05 * offloadedBytes) / MIB;
   // Plan §4 bounds the two-context resident budget at 3.46–3.94 GiB.
   const requiredMiB =
-    estimate.nonEvictableMiB +
+    priced.nonEvictableMiB +
     gpuReserveMiB +
-    estimate.computeMiB +
-    estimate.kvMiB;
+    priced.computeMiB +
+    priced.kvMiB;
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
   return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
 }
