@@ -47,7 +47,7 @@
     "expo-sharing": "~57.0.8",
     "expo-speech": "~57.0.1",
     "fflate": "^0.8.3",
-    "llama.rn": "github:Aspis0/kalsa.rn#e1b98a8cf7252f94fa0b4fe06afe11b6fbbb78d4",
+    "llama.rn": "github:Aspis0/kalsa.rn#463f11f9f47ff0b235267e3bb29136ad8cbbbb13",
     "lucide-react-native": "^1.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
