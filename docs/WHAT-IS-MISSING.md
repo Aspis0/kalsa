@@ -436,19 +436,52 @@ file. It does not prove what the first screen offers on a machine where one of t
 the automatic answer, a smaller machine than this one. No run of that is recorded. That open
 half still outranks every item above it that is not already closed.
 
-## 15. The measurement lives only in memory
+## 15. The measurement is now a record on disk — the live launch is still unchecked
 
-`src-tauri/src/main.rs:61` — `measurement: Mutex<Option<Measurement>>`. Nothing writes it
-down, so every launch re-measures a machine that has not changed, for about ten seconds,
-before the first screen can say anything. It also means the probe's own verdict — the
-notes about a busy or unoptimised machine — cannot be compared across runs, which is
-exactly what would have revealed the debug-build defect in a day instead of a week.
-The type is not even serialisable today: `Measurement` derives `Clone` and `Debug`
-and nothing else (`crates/kalsa-probe/src/lib.rs:87`), so the record needs the
-derives before it needs a file.
+*As it stood on 2026-09-20 (first written on 2026-09-18):* the measurement lived only in memory
+(`measurement: Mutex<Option<Measurement>>` in `src-tauri/src/main.rs`), so every launch re-measured a machine that had not changed. (Corrected on 2026-09-24: the
+measuring ran at the first turn-on of each launch, inside `brain_start`, not at the launch
+itself. Until then the capability read `Unmeasured`. The "about ten seconds" this section used
+to give is not backed by any recorded measurement.) `Measurement` derived only `Clone` and `Debug`. What it needed was "not a
+cache but a record: the figures, the build's optimisation level, the backend, and the date, so
+a stale one can be recognised rather than trusted."
 
-What it needs is not a cache but a record: the figures, the build's optimisation level,
-the backend, and the date, so a stale one can be recognised rather than trusted.
+**Built on 2026-09-24 (`3749b18`, `2fbe72f`, `c721e14`, `a7b9cd2`).** `src-tauri/src/measurement.rs`
+writes `measurement.json` beside `pairing.json`. It is written atomically, as a temp file in the
+same directory followed by a rename. It holds the whole `Measurement` (kalsa-probe now derives
+serde on it), the time the probe FINISHED, the probe's `OPT_LEVEL`, the app version, the RAM,
+and the chip's brand string (`sysctl machdep.cpu.brand_string` on macOS, `None` elsewhere). At
+startup the record seeds the in-memory slot only when every clause of `describes_this_machine`
+holds:
+- the probe called the reading reliable;
+- the optimisation level and the app version are the same;
+- the RAM, the detected backend and the chip name are the same;
+- the reading is at most 30 days old;
+- it is not dated more than an hour in the future.
+
+The machine's facts are read only after a record parses. A failing record is ignored at startup, never deleted; the next reliable measurement
+overwrites it. The 30-day window is a constant in the source (`MAX_AGE_SECS`), chosen by the
+orchestrator on 2026-09-24 and not a setting; changing it is the owner's call. The Models
+page no longer promises a measurement at every turn-on (`chat/src/surfaces/ModelsSurface.tsx`).
+gpt-6-luna reviewed `3749b18`, `2fbe72f` and `c721e14` (NOT FIT, NOT FIT, then FIT WITH CORRECTIONS). `a7b9cd2`
+changes only comments, copy and one test, and the orchestrator checked it against those corrections.
+The mutations are in the commit messages.
+
+Declared, not fixed:
+- Off macOS there is no chip name. A CPU swap with the same RAM and backend reuses the record.
+- On macOS the brand string names a chip family, not its GPU-core configuration.
+- The record is consulted only at startup, so a hardware change made with the app open waits
+  for the next launch.
+- Two racing saves: the last rename wins.
+- A crash between write and rename leaves a temp file that nothing sweeps.
+- No test proves that the rename is atomic.
+- Only the latest record is kept, so readings still cannot be compared across runs.
+- An OS update that changes the brand string re-measures until a reliable reading is saved,
+  which is safe.
+
+**Not yet verified:** the real launch. The record must appear after the first turn-on, and a
+relaunch must skip the measurement. The one attempt, on 2026-09-24, could not press the button,
+because a screen capture came back black.
 
 ## 16. The second option played by weaker rules than the first — CLOSED
 
@@ -694,6 +727,40 @@ things go if it does*. The reason sentence is the only place the choice explains
 itself after the fact; the overrides are the only place the launch argv is anybody's
 to change. Deleting the page without an answer takes both with it, and nothing else
 on this list would notice.
+
+## 22. Windows GPU detection runs a tool Windows 11 24H2 and 25H2 no longer ship — it may refuse every model there
+
+`crates/kalsa-probe/src/detect.rs:46` detects the Windows GPU by running
+`wmic path win32_VideoController get name,AdapterRAM`. When the command fails, it answers
+`Backend::Unknown` (`:49-54`). Microsoft's WMIC page (learn.microsoft.com, "Last updated on
+2026-08-20") says: "Starting in August 2026, Windows 11, versions 24H2 and 25H2 no longer
+include the Windows Management Instrumentation Command-line (WMIC) utility and it can’t be added
+back as a Feature on Demand (FoD)." It adds that WMI itself remains supported. On those versions
+the command cannot run, and every machine is detected as `Unknown`. Older supported versions that
+still ship WMIC are classified as before.
+
+What `Unknown` leads to, read in the code:
+- The runtime tries the Vulkan build, then the CPU build
+  (`crates/kalsa-runtime/src/candidates.rs:53`).
+- If Vulkan wins, the budget becomes a card whose memory could not be read
+  (`src-tauri/src/startup.rs:410-420`). The catalog then REFUSES the machine rather than
+  guess: "This computer has a graphics card whose memory could not be read, …"
+  (`crates/kalsa-catalog/src/choice.rs:602-612`).
+- If the CPU build wins, the CPU budget stands. The CPU build wins only when the Vulkan build
+  cannot be fetched or fails its probe (`crates/kalsa-runtime/src/decide.rs:136-156`). A
+  Vulkan build that probes well is kept, and the refusal does not retry on the CPU.
+- The Vulkan build carries a CPU backend, so a PC with no usable GPU can take the Vulkan path
+  too. It is then refused with words about a graphics card it may not have. The refusal's
+  advice to run on the CPU only has no control on the normal screen.
+
+So on a current Windows 11 PC where the Vulkan build runs, the first turn-on may refuse to
+pick any model at all. This was found by reading, on 2026-09-24, and has not been run on a
+Windows machine. It is the first thing to check in the Surface and Lenovo measurements that are
+still owed. The WMI API behind the command is still there, so the repair is to read the same class
+without the removed tool. There are two call sites: this one, and the engine verdict's
+fingerprint, which reads `DriverVersion` through `wmic` too
+(`crates/kalsa-runtime/src/verdict.rs:52-66`). Without WMIC that reads `"unknown"`, so a
+driver change no longer invalidates a saved verdict.
 
 ## Not missing, deliberately
 
