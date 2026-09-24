@@ -167,7 +167,8 @@ impl ChildHandle {
             // No inherited lock on Windows: the job object already kills the
             // child with us, so there is no orphan for it to identify.
             let _ = inherit;
-            child.raw_handle().and_then(job::confine)
+            use std::os::windows::io::AsRawHandle;
+            job::confine(child.as_raw_handle())
         };
         let stdin = child.stdin.take();
         let tail = drain_stderr(child.stderr.take(), releases, residency);
@@ -682,6 +683,48 @@ mod tests {
             residency.asleep(),
             None,
             "a server whose stderr we do not hold must be unknown, not assumed loaded"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn dropping_the_job_ends_the_child_it_confined() {
+        // The backstop itself, on the only OS that has it: a force-quit runs
+        // no destructors, so the thing that kills the server then is the OS
+        // closing the job's last handle with this process. The stand-in pings
+        // for ~29 seconds; the job must end it within five. The child is
+        // spawned directly, not through `ChildHandle`, so the only mechanism
+        // in play is the job — `ChildHandle`'s own Drop would confound it.
+        use std::os::windows::io::AsRawHandle;
+        let mut child = std::process::Command::new("cmd")
+            .args(["/c", "ping", "-n", "30", "127.0.0.1"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn the stand-in");
+        let job = job::confine(child.as_raw_handle()).expect("confine the stand-in to the job");
+        assert!(
+            matches!(child.try_wait(), Ok(None)),
+            "confining must not kill the child"
+        );
+        drop(job);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut ended = false;
+        while Instant::now() < deadline {
+            if !matches!(child.try_wait(), Ok(None)) {
+                ended = true;
+                break;
+            }
+            std::thread::sleep(WAIT_POLL);
+        }
+        if !ended {
+            let _ = child.kill();
+        }
+        let _ = child.wait();
+        assert!(
+            ended,
+            "closing the job's last handle must end the confined child"
         );
     }
 }

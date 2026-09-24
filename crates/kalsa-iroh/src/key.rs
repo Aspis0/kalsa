@@ -153,9 +153,10 @@ fn restrict_to_owner(_temp: &Path) -> Result<(), BridgeError> {
 fn restrict_to_owner(temp: &Path) -> Result<(), BridgeError> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::
+        ConvertStringSecurityDescriptorToSecurityDescriptorW;
     use windows_sys::Win32::Security::{
-        ConvertStringSecurityDescriptorToSecurityDescriptorW, SetFileSecurityW,
-        DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+        SetFileSecurityW, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
     };
 
     const SDDL_REVISION_1: u32 = 1;

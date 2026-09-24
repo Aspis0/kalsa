@@ -45,6 +45,11 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    # `CreateMutexW` takes a `*const SECURITY_ATTRIBUTES` and is itself
+    # gated on this feature, like `CreateJobObjectW` in the supervisor.
+    "Win32_Security",
     "Win32_Storage_FileSystem",
     "Win32_System_Memory",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
 ] }

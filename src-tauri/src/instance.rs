@@ -26,8 +26,16 @@
 //! holding the lock's descriptor would keep the flock alive after the
 //! app's own death, locking the owner out of their own app with nothing
 //! stale to delete. The descriptor is opened close-on-exec, pinned by
-//! test. The authority is unix-only today; the claims above were measured
-//! on macOS.
+//! test. The flock claims above were measured on macOS, and that paragraph
+//! is macOS's mechanism. Windows has none of it — `CreateFileW` refuses a
+//! plain directory open, and `LockFileEx` refuses a directory handle
+//! outright with `ERROR_INVALID_PARAMETER`, measured on the first Windows
+//! build — so the authority there is a named kernel mutex whose name
+//! carries this same directory: created atomically, so the second creator
+//! finds the object already there and is refused; held by one open handle
+//! for the app's life; destroyed by the kernel the moment the process
+//! dies; created nowhere on disk, least of all inside the directory. The
+//! same `instance::tests` run against both mechanisms.
 //!
 //! The fixed loopback port is no longer the authority. The first launch
 //! to bind it watches it; a later launch fails to bind, knocks — a bare
@@ -40,6 +48,7 @@
 //! to be knocked, and the directory lock alone decides whether it may run
 //! at all.
 
+#[cfg(unix)]
 use std::fs::File;
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
@@ -138,18 +147,18 @@ fn knock_addr(port: u16) -> SocketAddr {
     SocketAddr::from((Ipv4Addr::LOCALHOST, port))
 }
 
-/// Takes the authority: an exclusive, non-blocking lock on `dir` itself —
-/// the app data directory's own descriptor, not a file inside it, so
-/// there is nothing in the directory that deleting can turn into a second
-/// lock. The caller must keep the returned lock for the app's whole life;
-/// managed app state does that. Dropping it, or the death of the process
-/// in any way at all, gives it back.
+/// Takes the authority: an exclusive, non-blocking lock on `dir` itself,
+/// never a file inside it, so there is nothing in the directory that
+/// deleting can turn into a second lock. The caller must keep the returned
+/// lock for the app's whole life; managed app state does that. Dropping
+/// it, or the death of the process in any way at all, gives it back. The
+/// two mechanisms are the module doc's two paragraphs.
+#[cfg(unix)]
 pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
-    let opened =
-        File::open(dir).map_err(|source| LockFailure::Io {
-            path: dir.to_path_buf(),
-            source,
-        })?;
+    let opened = File::open(dir).map_err(|source| LockFailure::Io {
+        path: dir.to_path_buf(),
+        source,
+    })?;
     match try_lock_exclusive(&opened) {
         Ok(()) => Ok(DirLock { _dir: opened }),
         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -175,12 +184,93 @@ fn try_lock_exclusive(opened: &File) -> io::Result<()> {
     }
 }
 
-/// The held authority. No `Drop` is needed: the lock lives on the open
-/// file description — the open directory — so closing it, by drop or by
-/// the death of the process in any way at all, releases it. Nothing was
-/// created on disk to carry it.
+/// The Windows authority: a named mutex whose name carries `dir`. Created
+/// atomically — the second creator finds the object already there and is
+/// refused — the handle holds it for the app's life, and the kernel
+/// destroys it the moment the process dies: the flock's contract, without
+/// a file. `LockFileEx` cannot provide it: a directory handle is refused
+/// outright (`ERROR_INVALID_PARAMETER`, measured), and `CreateFileW`
+/// refuses a directory opened plainly in the first place.
+#[cfg(windows)]
+pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
+    use windows_sys::Win32::Foundation::{
+        CloseHandle, GetLastError, SetLastError, ERROR_ALREADY_EXISTS,
+    };
+    use windows_sys::Win32::System::Threading::CreateMutexW;
+    let name = authority_name(dir);
+    let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    // A stale last-error would read as "already there" on a fresh
+    // creation, so it is cleared before the call that must be believed.
+    unsafe { SetLastError(0) };
+    let handle = unsafe { CreateMutexW(std::ptr::null(), 0, wide.as_ptr()) };
+    if handle.is_null() {
+        return Err(LockFailure::Io {
+            path: dir.to_path_buf(),
+            source: io::Error::last_os_error(),
+        });
+    }
+    if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+        unsafe { CloseHandle(handle) };
+        return Err(LockFailure::AlreadyRunning);
+    }
+    Ok(DirLock { _authority: handle })
+}
+
+/// The mutex's name from the directory's spelling: backslash is the object
+/// namespace's only separator and everything else is folded away, so the
+/// fold is disambiguated by a hash of the full spelling — two directories
+/// that sanitize alike must not share an authority. FNV-1a: stable across
+/// processes and builds, which a name two launches must agree on has to
+/// be; not cryptographic, which it does not need to be.
+#[cfg(windows)]
+fn authority_name(dir: &Path) -> String {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    let spelling = dir.to_string_lossy();
+    let mut hash = FNV_OFFSET_BASIS;
+    for byte in spelling.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    let folded: String = spelling
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("Global\\kalsa-brain-dirlock-{folded}-{hash:016x}")
+}
+
+/// The held authority. On unix no `Drop` is needed: the lock lives on the
+/// open file description — the open directory — so closing it, by drop or
+/// by the death of the process in any way at all, releases it, and nothing
+/// was created on disk to carry it. On Windows `Drop` closes the mutex
+/// handle; process death closes it regardless, and the kernel object was
+/// never on disk either way.
 pub(crate) struct DirLock {
+    #[cfg(unix)]
     _dir: File,
+    /// The mutex handle the Windows authority is held by.
+    #[cfg(windows)]
+    _authority: windows_sys::Win32::Foundation::HANDLE,
+}
+
+// SAFETY: a kernel HANDLE is a plain reference valid in any thread of this
+// process; `DirLock` only ever closes it.
+#[cfg(windows)]
+unsafe impl Send for DirLock {}
+#[cfg(windows)]
+unsafe impl Sync for DirLock {}
+
+#[cfg(windows)]
+impl Drop for DirLock {
+    fn drop(&mut self) {
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(self._authority) };
+    }
 }
 
 /// The held knock port, if this process won it. A `listener` of `None`

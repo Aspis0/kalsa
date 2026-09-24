@@ -17,7 +17,7 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
-    "Win32_Storage",
+    "Win32_Storage_FileSystem",
 ] }
 
 # The real-world test downloads into the directory the product actually uses.

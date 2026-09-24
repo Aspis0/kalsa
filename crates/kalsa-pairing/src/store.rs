@@ -638,9 +638,11 @@ fn restrict_to_owner(_temp: &Path) -> Result<(), StoreError> {
 fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::
+        ConvertStringSecurityDescriptorToSecurityDescriptorW;
     use windows_sys::Win32::Security::{
-        ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityDescriptorDacl,
-        SetFileSecurityW, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+        GetSecurityDescriptorDacl, SetFileSecurityW, DACL_SECURITY_INFORMATION,
+        PROTECTED_DACL_SECURITY_INFORMATION,
     };
 
     const SDDL_REVISION_1: u32 = 1;

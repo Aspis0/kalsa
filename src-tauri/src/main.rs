@@ -1466,7 +1466,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(failure) => return Err(Box::new(failure)),
             };
             // A duplicate manage returns false and drops the value — the
-            // flock would be released under a running app. That is a
+            // lock would be released under a running app. That is a
             // programming error, and it fails loudly.
             if !app.manage(lock) {
                 return Err(io::Error::other("the instance lock was already managed").into());
