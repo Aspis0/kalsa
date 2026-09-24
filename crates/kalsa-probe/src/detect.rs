@@ -81,8 +81,8 @@ fn controllers_text(
 /// column header whenever it prints rows, so an answer with a header and
 /// nothing under it — or a zero-exit "No Instance(s) Available." with no
 /// header at all — answered nothing, and the fallback must be asked.
-/// Residual, declared: a header plus any second line counts as a row,
-/// whatever that line says.
+/// Residual, declared: a header plus any second NON-EMPTY line counts as
+/// a row, whatever that line says.
 #[cfg(any(target_os = "windows", test))]
 fn has_a_controller_row(text: &str) -> bool {
     let non_empty: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
@@ -93,8 +93,10 @@ fn has_a_controller_row(text: &str) -> bool {
 /// Whether the PowerShell answer holds at least one controller LINE. Its
 /// shape has no header, so the wmic check above cannot judge it: a line is
 /// a controller when a NAME follows the optional leading memory figure.
-/// An answer with no controller line — empty, whitespace-only,
-/// number-only — is absent, not `Backend::Cpu`, and not cached. A prose
+/// An answer with no controller line — empty, whitespace-only, a lone
+/// number — is absent, not `Backend::Cpu`, and not cached; a number with
+/// any second token after it ("3221225472 6600") is a controller line.
+/// A prose
 /// line cannot be told from a controller name here, so a successful
 /// PowerShell run that prints prose on stdout is read as a controller,
 /// parsed, and cached for the process — declared, not guarded, because
