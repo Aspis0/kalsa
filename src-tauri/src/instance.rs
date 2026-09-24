@@ -30,12 +30,24 @@
 //! is macOS's mechanism. Windows has none of it — `CreateFileW` refuses a
 //! plain directory open, and `LockFileEx` refuses a directory handle
 //! outright with `ERROR_INVALID_PARAMETER`, measured on the first Windows
-//! build — so the authority there is a named kernel mutex whose name
-//! carries this same directory: created atomically, so the second creator
-//! finds the object already there and is refused; held by one open handle
-//! for the app's life; destroyed by the kernel the moment the process
-//! dies; created nowhere on disk, least of all inside the directory. The
-//! same `instance::tests` run against both mechanisms.
+//! build — so the authority there is a lock file inside this same
+//! directory, opened with `share_mode(0)`: while the handle is held no
+//! other process may open it, delete it, or rename it. A second open fails
+//! with `ERROR_SHARING_VIOLATION` and reads as `AlreadyRunning`; the
+//! kernel closes the handle when the process dies, whatever killed it, so
+//! the next launch opens the same file again — the empty file itself stays
+//! behind, and it is not the lock. The old objection to file locks does
+//! not carry: the file that was once deleted out from under the lock
+//! cannot be deleted or renamed while this handle is open — measured by
+//! test — and what cannot be deleted cannot be defeated. One residual, said
+//! plainly: another process of this account can open the file first in the
+//! same exclusive mode and hold it, making this app refuse to start — the
+//! same power this account already has over the store itself, which it can
+//! delete; a scanner passing through holds it only for the moment. The
+//! handle is not inheritable (std opens non-inheritable on Windows),
+//! pinned by test, so the llama-server this app spawns cannot carry the
+//! lock past this app's death. The same `instance::tests` run against
+//! both mechanisms.
 //!
 //! The fixed loopback port is no longer the authority. The first launch
 //! to bind it watches it; a later launch fails to bind, knocks — a bare
@@ -48,7 +60,6 @@
 //! to be knocked, and the directory lock alone decides whether it may run
 //! at all.
 
-#[cfg(unix)]
 use std::fs::File;
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
@@ -71,12 +82,14 @@ const KNOCK_TIMEOUT: Duration = Duration::from_millis(300);
 /// Why the directory lock could not be taken.
 #[derive(Debug)]
 pub(crate) enum LockFailure {
-    /// A live instance of this app holds the lock. The one refusal, and
-    /// not a malfunction.
+    /// A live instance of this app holds the lock — or, on Windows, any
+    /// other process holding the lock file, which the module doc declares
+    /// as the residual it is. The one refusal, and not a malfunction.
     AlreadyRunning,
-    /// The directory could not be opened, or the lock could not be taken
-    /// for any other reason: the machine failing under the app. Carries
-    /// the directory, because the owner is told this text and deserves to
+    /// The lock could not be taken — the directory (unix) or the lock file
+    /// inside it (Windows) could not be opened — or it failed for any
+    /// other reason: the machine failing under the app. Carries the
+    /// directory, because the owner is told this text and deserves to
     /// know where the app was reaching.
     Io {
         path: PathBuf,
@@ -184,93 +197,59 @@ fn try_lock_exclusive(opened: &File) -> io::Result<()> {
     }
 }
 
-/// The Windows authority: a named mutex whose name carries `dir`. Created
-/// atomically — the second creator finds the object already there and is
-/// refused — the handle holds it for the app's life, and the kernel
-/// destroys it the moment the process dies: the flock's contract, without
-/// a file. `LockFileEx` cannot provide it: a directory handle is refused
-/// outright (`ERROR_INVALID_PARAMETER`, measured), and `CreateFileW`
-/// refuses a directory opened plainly in the first place.
+/// The Windows authority: a lock file inside `dir`, opened with
+/// `share_mode(0)` — while the handle is held no other process may open,
+/// delete, or rename it, which is the answer to the unix side's reason
+/// for locking the directory (a file lock once defeated by deleting the
+/// file). A second open fails with `ERROR_SHARING_VIOLATION` and is the
+/// same refusal as the flock's `EAGAIN`. `CreateFileW` refuses a plain
+/// directory open and `LockFileEx` refuses a directory handle outright
+/// (`ERROR_INVALID_PARAMETER`, both measured); the sharing mode needs
+/// neither.
 #[cfg(windows)]
 pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
-    use windows_sys::Win32::Foundation::{
-        CloseHandle, GetLastError, SetLastError, ERROR_ALREADY_EXISTS,
-    };
-    use windows_sys::Win32::System::Threading::CreateMutexW;
-    let name = authority_name(dir);
-    let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
-    // A stale last-error would read as "already there" on a fresh
-    // creation, so it is cleared before the call that must be believed.
-    unsafe { SetLastError(0) };
-    let handle = unsafe { CreateMutexW(std::ptr::null(), 0, wide.as_ptr()) };
-    if handle.is_null() {
-        return Err(LockFailure::Io {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Foundation::ERROR_SHARING_VIOLATION;
+    let path = dir.join(LOCK_FILE_NAME);
+    // Create if missing, never truncate: the body is not the lock, and a
+    // leftover empty file from a crash opens as cleanly as no file.
+    match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .share_mode(0)
+        .open(&path)
+    {
+        Ok(file) => Ok(DirLock { _lock: file }),
+        Err(error) if error.raw_os_error() == Some(ERROR_SHARING_VIOLATION as i32) => {
+            Err(LockFailure::AlreadyRunning)
+        }
+        Err(source) => Err(LockFailure::Io {
             path: dir.to_path_buf(),
-            source: io::Error::last_os_error(),
-        });
+            source,
+        }),
     }
-    if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-        unsafe { CloseHandle(handle) };
-        return Err(LockFailure::AlreadyRunning);
-    }
-    Ok(DirLock { _authority: handle })
 }
 
-/// The mutex's name from the directory's spelling: backslash is the object
-/// namespace's only separator and everything else is folded away, so the
-/// fold is disambiguated by a hash of the full spelling — two directories
-/// that sanitize alike must not share an authority. FNV-1a: stable across
-/// processes and builds, which a name two launches must agree on has to
-/// be; not cryptographic, which it does not need to be.
+/// The lock file the Windows authority holds. Its name is ours and lives
+/// in a directory that is ours; nothing else may open it while it is
+/// held, which is the whole mechanism.
 #[cfg(windows)]
-fn authority_name(dir: &Path) -> String {
-    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-    let spelling = dir.to_string_lossy();
-    let mut hash = FNV_OFFSET_BASIS;
-    for byte in spelling.bytes() {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-    let folded: String = spelling
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    format!("Global\\kalsa-brain-dirlock-{folded}-{hash:016x}")
-}
+const LOCK_FILE_NAME: &str = "kalsa-instance.lock";
 
 /// The held authority. On unix no `Drop` is needed: the lock lives on the
 /// open file description — the open directory — so closing it, by drop or
 /// by the death of the process in any way at all, releases it, and nothing
-/// was created on disk to carry it. On Windows `Drop` closes the mutex
-/// handle; process death closes it regardless, and the kernel object was
-/// never on disk either way.
+/// was created on disk to carry it. On Windows the authority IS the lock
+/// file's handle: closing it, by drop or by process death, lifts the
+/// sharing mode that was the lock; the empty file left behind is not the
+/// lock and opens cleanly next time.
 pub(crate) struct DirLock {
     #[cfg(unix)]
     _dir: File,
-    /// The mutex handle the Windows authority is held by.
+    /// The lock file, held open with `share_mode(0)`.
     #[cfg(windows)]
-    _authority: windows_sys::Win32::Foundation::HANDLE,
-}
-
-// SAFETY: a kernel HANDLE is a plain reference valid in any thread of this
-// process; `DirLock` only ever closes it.
-#[cfg(windows)]
-unsafe impl Send for DirLock {}
-#[cfg(windows)]
-unsafe impl Sync for DirLock {}
-
-#[cfg(windows)]
-impl Drop for DirLock {
-    fn drop(&mut self) {
-        unsafe { windows_sys::Win32::Foundation::CloseHandle(self._authority) };
-    }
+    _lock: File,
 }
 
 /// The held knock port, if this process won it. A `listener` of `None`
@@ -502,8 +481,8 @@ mod tests {
     }
 
     /// The authority refuses a second taker and gives the first back on
-    /// drop — in one process, where the two locks are two open file
-    /// descriptions and so two contenders.
+    /// drop — in one process, where the two locks are two opens of one
+    /// target and so two contenders.
     #[test]
     fn a_second_lock_on_the_same_directory_is_refused_until_the_first_is_dropped() {
         let _lock = test_lock();
@@ -515,15 +494,99 @@ mod tests {
         );
         drop(first);
 
-        // The guard left nothing behind inside the directory: the lock
-        // hangs on the directory's own descriptor, so there is no file
-        // whose deletion can turn into a second lock.
-        let left_behind = std::fs::read_dir(&dir)
-            .expect("the locked directory reads")
-            .count();
-        assert_eq!(left_behind, 0, "the guard created nothing in the directory");
+        // On unix the guard left nothing behind inside the directory: the
+        // lock hangs on the directory's own descriptor, so there is no file
+        // whose deletion can turn into a second lock. Windows' authority IS
+        // a file in the directory, so this claim is scoped to unix; Windows
+        // gets the stronger one instead — its lock file cannot be deleted
+        // or renamed while held (the test beside this one).
+        #[cfg(unix)]
+        {
+            let left_behind = std::fs::read_dir(&dir)
+                .expect("the locked directory reads")
+                .count();
+            assert_eq!(left_behind, 0, "the guard created nothing in the directory");
+        }
         let second = acquire_dir_lock(&dir).expect("the dropped lock leaves the way open");
         drop(second);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The Windows answer to the unix side's reason for locking the
+    /// directory instead of a file: a file lock was once defeated by
+    /// deleting the file while the app ran. A file opened with
+    /// `share_mode(0)` cannot be deleted or renamed while the handle is
+    /// open — both fail here — so deleting it buys nothing, and once the
+    /// holder is gone the same path opens again.
+    #[cfg(windows)]
+    #[test]
+    fn the_lock_file_cannot_be_deleted_or_renamed_while_held() {
+        let _lock = test_lock();
+        let dir = lock_dir("heldfile");
+        let held = acquire_dir_lock(&dir).expect("the lock is taken");
+        let path = dir.join(LOCK_FILE_NAME);
+        assert!(path.exists(), "the lock file is where the authority lives");
+        let deleted = std::fs::remove_file(&path);
+        assert!(
+            deleted.is_err(),
+            "the lock file was deleted out from under the holder: {deleted:?}"
+        );
+        let renamed = std::fs::rename(&path, dir.join("stolen"));
+        assert!(
+            renamed.is_err(),
+            "the lock file was renamed out from under the holder: {renamed:?}"
+        );
+        drop(held);
+        let again = acquire_dir_lock(&dir).expect("once the holder is gone the lock opens again");
+        drop(again);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The Windows twin of the close-on-exec pin: the lock file's handle
+    /// must not ride along into a spawned child. The app is not a leaf —
+    /// the llama-server it spawns can outlive a crash, and an inherited
+    /// handle would keep the file exclusively open, locking the owner out
+    /// of their own app with nothing stale to delete. std opens
+    /// non-inheritable; this pins it: hold the lock, spawn a child that
+    /// lives, drop the app-side handle, and the same path must open again.
+    #[cfg(windows)]
+    #[test]
+    fn the_lock_handle_is_not_inherited_by_spawned_children() {
+        let _lock = test_lock();
+        let dir = lock_dir("inherit");
+        let held = acquire_dir_lock(&dir).expect("the lock is taken");
+        let exe = std::env::current_exe().expect("this test binary");
+        let mut child = std::process::Command::new(exe)
+            .args(["instance::tests::the_child_holds_the_guard_until_it_is_killed", "--exact"])
+            .env(CHILD_ENV, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("a child spawns while the lock is held");
+
+        // The child must be up and holding its port before the app-side
+        // handle goes: an inherited handle only outlives us in a living
+        // child, and a child that never started would prove nothing.
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        loop {
+            if TcpStream::connect_timeout(&knock_addr(TEST_PORT), KNOCK_TIMEOUT).is_ok() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the child never came up to prove inheritance"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+
+        drop(held);
+        // If the handle had ridden along, the child's copy would still
+        // hold the file exclusively open and this could not be taken.
+        let reacquired = acquire_dir_lock(&dir)
+            .expect("the spawned child must not be holding the lock handle");
+        drop(reacquired);
+        let _ = child.kill();
+        let _ = child.wait();
         let _ = std::fs::remove_dir_all(&dir);
     }
 

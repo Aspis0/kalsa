@@ -691,40 +691,65 @@ mod tests {
     fn dropping_the_job_ends_the_child_it_confined() {
         // The backstop itself, on the only OS that has it: a force-quit runs
         // no destructors, so the thing that kills the server then is the OS
-        // closing the job's last handle with this process. The stand-in pings
-        // for ~29 seconds; the job must end it within five. The child is
-        // spawned directly, not through `ChildHandle`, so the only mechanism
-        // in play is the job — `ChildHandle`'s own Drop would confound it.
+        // closing the job's last handle with this process. The stand-in is
+        // ping itself — the process watched IS the process confined, so an
+        // escaped grandchild cannot fake a pass — pinging for ~29 seconds;
+        // the job must end it within five. Spawned directly, not through
+        // `ChildHandle`, so the only mechanism in play is the job —
+        // `ChildHandle`'s own Drop would confound it.
         use std::os::windows::io::AsRawHandle;
-        let mut child = std::process::Command::new("cmd")
-            .args(["/c", "ping", "-n", "30", "127.0.0.1"])
+        let mut child = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .expect("spawn the stand-in");
-        let job = job::confine(child.as_raw_handle()).expect("confine the stand-in to the job");
+        // A confine that fails must kill the stand-in before failing this
+        // test, not leak it behind an unwinding expect.
+        let job = match job::confine(child.as_raw_handle()) {
+            Some(job) => job,
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("the job would not take the stand-in");
+            }
+        };
         assert!(
             matches!(child.try_wait(), Ok(None)),
             "confining must not kill the child"
         );
         drop(job);
+        // Only an exit — `Ok(Some(_))` — is the proof the job did this; a
+        // try_wait error is a failure of the watch, never a death.
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut ended = false;
+        let mut watch_error = None;
         while Instant::now() < deadline {
-            if !matches!(child.try_wait(), Ok(None)) {
-                ended = true;
-                break;
+            match child.try_wait() {
+                Ok(None) => std::thread::sleep(WAIT_POLL),
+                Ok(Some(_)) => {
+                    ended = true;
+                    break;
+                }
+                Err(error) => {
+                    watch_error = Some(error);
+                    break;
+                }
             }
-            std::thread::sleep(WAIT_POLL);
+        }
+        if let Some(error) = watch_error {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("polling the confined stand-in failed: {error}");
         }
         if !ended {
             let _ = child.kill();
         }
-        let _ = child.wait();
+        let reaped = child.wait().expect("reaping the confined stand-in failed");
         assert!(
             ended,
-            "closing the job's last handle must end the confined child"
+            "closing the job's last handle must end the confined child (reaped: {reaped:?})"
         );
     }
 }
