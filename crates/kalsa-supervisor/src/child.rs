@@ -739,17 +739,42 @@ mod tests {
             }
         }
         if let Some(error) = watch_error {
-            let _ = child.kill();
-            let _ = child.wait();
+            // The verdict is the watch failure; the cleanup behind it is
+            // bounded all the same — this path must fail on `error`, never
+            // hang on the stand-in's natural 29 seconds.
+            let _ = kill_and_reap(&mut child, Duration::from_secs(5));
             panic!("polling the confined stand-in failed: {error}");
         }
         if !ended {
-            let _ = child.kill();
+            match kill_and_reap(&mut child, Duration::from_secs(5)) {
+                Ok(Some(_)) => {}
+                Ok(None) => panic!("the killed stand-in never exited within five seconds"),
+                Err(error) => panic!("cleaning up the confined stand-in failed: {error}"),
+            }
         }
         let reaped = child.wait().expect("reaping the confined stand-in failed");
         assert!(
             ended,
             "closing the job's last handle must end the confined child (reaped: {reaped:?})"
         );
+    }
+
+    /// Kill the stand-in and reap it, bounded: cleanup may neither swallow
+    /// a failed kill nor wait out the stand-in's natural 29 seconds.
+    /// `Ok(None)` means the bound passed with the child still running.
+    #[cfg(windows)]
+    fn kill_and_reap(
+        child: &mut std::process::Child,
+        bound: Duration,
+    ) -> io::Result<Option<ExitStatus>> {
+        child.kill()?;
+        let deadline = Instant::now() + bound;
+        loop {
+            match child.try_wait()? {
+                Some(status) => return Ok(Some(status)),
+                None if Instant::now() >= deadline => return Ok(None),
+                None => std::thread::sleep(WAIT_POLL),
+            }
+        }
     }
 }

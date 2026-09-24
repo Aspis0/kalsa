@@ -32,18 +32,24 @@
 //! outright with `ERROR_INVALID_PARAMETER`, measured on the first Windows
 //! build — so the authority there is a lock file inside this same
 //! directory, opened with `share_mode(0)`: while the handle is held no
-//! other process may open it, delete it, or rename it. A second open fails
-//! with `ERROR_SHARING_VIOLATION` and reads as `AlreadyRunning`; the
+//! other process can open it for read, write, or delete access, nor delete
+//! or rename it. A second open fails with `ERROR_SHARING_VIOLATION` and —
+//! once a bounded retry (~1 s in 50 ms steps) has ridden over a scanner
+//! that was holding the file for a moment — reads as `AlreadyRunning`; the
 //! kernel closes the handle when the process dies, whatever killed it, so
 //! the next launch opens the same file again — the empty file itself stays
 //! behind, and it is not the lock. The old objection to file locks does
 //! not carry: the file that was once deleted out from under the lock
 //! cannot be deleted or renamed while this handle is open — measured by
-//! test — and what cannot be deleted cannot be defeated. One residual, said
-//! plainly: another process of this account can open the file first in the
-//! same exclusive mode and hold it, making this app refuse to start — the
-//! same power this account already has over the store itself, which it can
-//! delete; a scanner passing through holds it only for the moment. The
+//! test — and what cannot be deleted cannot be defeated. The code leans on
+//! one assumption: the directory is the per-user app data directory,
+//! writable by its owner and not by other accounts. Within it, one
+//! residual stays, said plainly: any process with write access to the
+//! directory can open the file first in the same exclusive mode and hold
+//! it, making this app refuse to start — the same power that access
+//! already has over the store itself, which it can delete; a scanner
+//! passing through holds it only for a moment, and the retry above rides
+//! that moment over. The
 //! handle is not inheritable (std opens non-inheritable on Windows),
 //! pinned by test, so the llama-server this app spawns cannot carry the
 //! lock past this app's death. The same `instance::tests` run against
@@ -198,12 +204,14 @@ fn try_lock_exclusive(opened: &File) -> io::Result<()> {
 }
 
 /// The Windows authority: a lock file inside `dir`, opened with
-/// `share_mode(0)` — while the handle is held no other process may open,
-/// delete, or rename it, which is the answer to the unix side's reason
-/// for locking the directory (a file lock once defeated by deleting the
-/// file). A second open fails with `ERROR_SHARING_VIOLATION` and is the
-/// same refusal as the flock's `EAGAIN`. `CreateFileW` refuses a plain
-/// directory open and `LockFileEx` refuses a directory handle outright
+/// `share_mode(0)` — while the handle is held, no other process can open
+/// the file for read, write, or delete access, nor delete or rename it,
+/// which is the answer to the unix side's reason for locking the
+/// directory (a file lock once defeated by deleting the file). A second
+/// open fails with `ERROR_SHARING_VIOLATION` — the same refusal as the
+/// flock's `EAGAIN` once the bounded retry below has ridden over a
+/// transient holder. `CreateFileW` refuses a plain directory open and
+/// `LockFileEx` refuses a directory handle outright
 /// (`ERROR_INVALID_PARAMETER`, both measured); the sharing mode needs
 /// neither.
 #[cfg(windows)]
@@ -213,27 +221,49 @@ pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
     let path = dir.join(LOCK_FILE_NAME);
     // Create if missing, never truncate: the body is not the lock, and a
     // leftover empty file from a crash opens as cleanly as no file.
-    match std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .share_mode(0)
-        .open(&path)
-    {
-        Ok(file) => Ok(DirLock { _lock: file }),
-        Err(error) if error.raw_os_error() == Some(ERROR_SHARING_VIOLATION as i32) => {
-            Err(LockFailure::AlreadyRunning)
+    //
+    // WHY the retry, and why these numbers: the lock file persists between
+    // launches, so a scanner/indexer/backup can be holding it for a moment
+    // exactly when Kalsa launches — one sharing violation then would have
+    // main tell the owner "already running" about a process that is not
+    // Kalsa at all. Fifty milliseconds is one scheduling quantum and amply
+    // longer than a transient open/close pair; twenty steps bound the wait
+    // at one second, so a real second launch still hears "already running"
+    // before a pause would be noticeable. A live Kalsa holds the file for
+    // its whole life and rejects all twenty-one attempts — the guarantee is
+    // unchanged, only the momentary holder is ridden over.
+    const RETRY_STEP: Duration = Duration::from_millis(50);
+    const RETRY_STEPS: u32 = 20;
+    let mut retries = 0u32;
+    loop {
+        match std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .share_mode(0)
+            .open(&path)
+        {
+            Ok(file) => return Ok(DirLock { _lock: file }),
+            Err(error) if error.raw_os_error() == Some(ERROR_SHARING_VIOLATION as i32) => {
+                if retries >= RETRY_STEPS {
+                    return Err(LockFailure::AlreadyRunning);
+                }
+                retries += 1;
+                std::thread::sleep(RETRY_STEP);
+            }
+            Err(source) => {
+                return Err(LockFailure::Io {
+                    path: dir.to_path_buf(),
+                    source,
+                })
+            }
         }
-        Err(source) => Err(LockFailure::Io {
-            path: dir.to_path_buf(),
-            source,
-        }),
     }
 }
 
 /// The lock file the Windows authority holds. Its name is ours and lives
-/// in a directory that is ours; nothing else may open it while it is
-/// held, which is the whole mechanism.
+/// in a directory that is ours; nothing else can open it for read, write,
+/// or delete while it is held, which is the whole mechanism.
 #[cfg(windows)]
 const LOCK_FILE_NAME: &str = "kalsa-instance.lock";
 
@@ -244,6 +274,7 @@ const LOCK_FILE_NAME: &str = "kalsa-instance.lock";
 /// file's handle: closing it, by drop or by process death, lifts the
 /// sharing mode that was the lock; the empty file left behind is not the
 /// lock and opens cleanly next time.
+#[derive(Debug)]
 pub(crate) struct DirLock {
     #[cfg(unix)]
     _dir: File,
@@ -542,6 +573,75 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// The empty lock file persists between launches, so a scanner can be
+    /// holding it for a moment exactly when Kalsa launches. That moment must
+    /// not read as a second Kalsa: a holder that lets go within the retry's
+    /// bound is passed, and the launch is taken.
+    #[cfg(windows)]
+    #[test]
+    fn a_transient_holder_is_ridden_over_by_the_retry() {
+        let _lock = test_lock();
+        let dir = lock_dir("transient");
+        drop(acquire_dir_lock(&dir).expect("the first launch takes it"));
+        let path = dir.join(LOCK_FILE_NAME);
+        let (open_tx, open_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let held = std::fs::File::open(&path).expect("the transient open");
+            open_tx.send(()).expect("the signal reaches the launch");
+            std::thread::sleep(Duration::from_millis(200));
+            drop(held);
+        });
+        open_rx.recv().expect("the transient holder has the file");
+        let acquired = acquire_dir_lock(&dir)
+            .expect("a holder that lets go within the bound is not a second Kalsa");
+        drop(acquired);
+        holder.join().expect("the transient holder finishes");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The bound, the other side: a holder that never lets go — a live
+    /// Kalsa, or a squatter — is still `AlreadyRunning`, and only after the
+    /// one second the retry is allowed. The refusal is unchanged; only its
+    /// timing moved.
+    #[cfg(windows)]
+    #[test]
+    fn a_holder_that_never_lets_go_is_still_already_running() {
+        let _lock = test_lock();
+        let dir = lock_dir("squat");
+        drop(acquire_dir_lock(&dir).expect("the first launch takes it"));
+        let path = dir.join(LOCK_FILE_NAME);
+        let held = std::fs::File::open(&path).expect("the permanent open");
+        let started = std::time::Instant::now();
+        let result = acquire_dir_lock(&dir);
+        let waited = started.elapsed();
+        assert!(
+            matches!(&result, Err(LockFailure::AlreadyRunning)),
+            "a permanent holder is not passed: {result:?}"
+        );
+        assert!(
+            waited >= Duration::from_millis(900),
+            "the refusal must spend the retry bound first: {waited:?}"
+        );
+        drop(held);
+        let again = acquire_dir_lock(&dir).expect("the holder is gone");
+        drop(again);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A spawned child this test must not outlive: kill and reap on every
+    /// exit path, so a panicking assertion cannot leave a 120-second sleeper
+    /// behind on the machine.
+    #[cfg(windows)]
+    struct SpawnedChild(std::process::Child);
+
+    #[cfg(windows)]
+    impl Drop for SpawnedChild {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
     /// The Windows twin of the close-on-exec pin: the lock file's handle
     /// must not ride along into a spawned child. The app is not a leaf —
     /// the llama-server it spawns can outlive a crash, and an inherited
@@ -556,13 +656,15 @@ mod tests {
         let dir = lock_dir("inherit");
         let held = acquire_dir_lock(&dir).expect("the lock is taken");
         let exe = std::env::current_exe().expect("this test binary");
-        let mut child = std::process::Command::new(exe)
-            .args(["instance::tests::the_child_holds_the_guard_until_it_is_killed", "--exact"])
-            .env(CHILD_ENV, "1")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .expect("a child spawns while the lock is held");
+        let child = SpawnedChild(
+            std::process::Command::new(exe)
+                .args(["instance::tests::the_child_holds_the_guard_until_it_is_killed", "--exact"])
+                .env(CHILD_ENV, "1")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .expect("a child spawns while the lock is held"),
+        );
 
         // The child must be up and holding its port before the app-side
         // handle goes: an inherited handle only outlives us in a living
@@ -585,8 +687,7 @@ mod tests {
         let reacquired = acquire_dir_lock(&dir)
             .expect("the spawned child must not be holding the lock handle");
         drop(reacquired);
-        let _ = child.kill();
-        let _ = child.wait();
+        drop(child);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -606,9 +707,12 @@ mod tests {
 
     /// The property the module doc claims, in the case that matters — two
     /// processes, not two claims in one: a live rival is refused, and the
-    /// hard kill gives the lock back at once, with nothing left behind to
-    /// clean up. The child is this same test binary, re-invoked on the one
-    /// test that holds the lock and waits.
+    /// hard kill gives the lock back at once, with no lock state left to
+    /// clean up — on unix nothing was ever created, and on Windows the
+    /// empty lock file stays behind and is not the lock (this test removes
+    /// its own directory, marker and all, at the end). The child is this
+    /// same test binary, re-invoked on the one test that holds the lock and
+    /// waits.
     #[test]
     fn a_killed_process_releases_the_directory_lock() {
         let _lock = test_lock();
