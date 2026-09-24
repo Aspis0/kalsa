@@ -213,6 +213,28 @@ jobs:
           echo "added 'debuggable true' to the release build type (idempotent re-run prints the no-op line above)"
           echo "---- buildTypes block (after edit) ----"
           sed -n '/buildTypes {/,/^    }[[:space:]]*$/p' "$GRADLE"
+          # The binding compiles content-bearing native logs (prompt text,
+          # token ids, stop words) in only when this Gradle property is set;
+          # the bench instrument needs them, the plain release must not carry
+          # them — hence this edit lives only in the debuggable step.
+          PROPS=android/gradle.properties
+          if [ ! -f "$PROPS" ]; then
+            echo "FATAL: $PROPS not found — did expo prebuild run?"; exit 1
+          fi
+          if ! grep -qx 'rnllamaLogContent=true' "$PROPS"; then
+            # printf leads with \n: the generated properties file may lack a
+            # trailing newline, and echo would glue the property onto its
+            # last line (CI run 35958095874). The blank line is harmless.
+            printf '\n%s\n' 'rnllamaLogContent=true' >> "$PROPS"
+          fi
+          # Fail loudly if the line is still absent (whole-line match, no
+          # pipe: `| grep -q` under pipefail can die on SIGPIPE).
+          if ! grep -qx 'rnllamaLogContent=true' "$PROPS"; then
+            echo "FATAL: rnllamaLogContent=true not in $PROPS"
+            exit 1
+          fi
+          echo "---- rnllamaLogContent line (after edit) ----"
+          grep -xn 'rnllamaLogContent=true' "$PROPS"
 
       - name: Build APK (${{ inputs.abi }})
         run: |

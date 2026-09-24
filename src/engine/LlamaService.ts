@@ -51,6 +51,7 @@ import {
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
+  buildGovernorPlanLog,
   buildGovernorParams,
   readBenchGovernorForce,
   readGovernorThermo,
@@ -65,9 +66,13 @@ import {
   readBenchSampling,
 } from "./benchSampling";
 import {
+  governorRuntimeFallbackReason,
   initWithGovernorFallback,
+  mayRetryRuntimeGovernorFallback,
   readGovernorEnabled,
+  shouldRuntimeGovernorFallback,
 } from "./governorRuntime";
+import { isRemoteEngineBackend } from "./remote/remoteSettings";
 import {
   decideBoundedReleaseOutcome,
   decideContactProbe,
@@ -338,6 +343,25 @@ let activeMtpNMax: number | undefined;
 /** "draft-mtp" | "draft-dflash" | "none" | undefined (production MTP path). */
 let activeSpecType: string | undefined;
 /**
+ * Args of the most recent completed initEngine: the runtime governor fallback
+ * reloads the loaded model through this same path, and the turn driver holds
+ * neither the model path nor the init options.
+ */
+let lastLoadArgs: {
+  modelPath: string;
+  modelId: string;
+  options: EngineInitOptions;
+} | null = null;
+/**
+ * One runtime governor fallback per loaded model. "fresh": none yet, the next
+ * load may take the governor. "fallback-reload": the fallback is calling
+ * initEngine right now — that one call takes the CPU-only cpuParams path.
+ * "fallback-consumed": the CPU reload ran; the governor stays off until the
+ * next explicit load moves the state back to "fresh".
+ */
+let runtimeGovernorState: "fresh" | "fallback-reload" | "fallback-consumed" =
+  "fresh";
+/**
  * True only when the native KV still holds chat-turn state (post streamAssistantTurn
  * or successful loadSession). Utility jobs (translate/summarize, and extract when
  * EXTRACT_MEMORY_PRESERVE_CHAT_KV is off) call clearCache and leave a non-chat
@@ -470,6 +494,12 @@ let engineLostRecoveryState: EngineLostRecoveryState =
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
+/**
+ * Counts chat turns only — util telemetry keeps using turnSeq. The runtime
+ * governor fallback captures this at its catch and retries only while it is
+ * still the latest: a newer send must not be raced by an old retry.
+ */
+let turnTokenSeq = 0;
 
 // ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
 const NATIVE_LOG_CAP = 50;
@@ -2204,6 +2234,14 @@ export function initEngine(
 ): Promise<EngineInitResult> {
   let loadOk = false;
   return withLifecycleLock(async () => {
+    // A runtime governor fallback announces its own reload; every other load
+    // is explicit and re-arms the governor.
+    if (runtimeGovernorState === "fallback-reload") {
+      runtimeGovernorState = "fallback-consumed";
+    } else {
+      runtimeGovernorState = "fresh";
+    }
+    const governorRuntimeOff = runtimeGovernorState === "fallback-consumed";
     if (contextHung) {
       throw new Error(
         "Engine context hung after dispose timeout with active native work; restart the app",
@@ -2319,9 +2357,8 @@ export function initEngine(
             contextTokens: effectiveNCtx,
             ubatch: tuning.n_ubatch,
             mmap: load.useMmap,
-            repack: !load.noExtraBufts,
             offloadedBytes: modelInfo.sizeBytes,
-          }, benchGovernorForce)
+          }, benchGovernorForce, benchNoRepack)
         : null;
     const governorLoad =
       governorBase != null &&
@@ -2351,11 +2388,33 @@ export function initEngine(
       activeNoExtraBufts === load.noExtraBufts &&
       activeUseMmap === load.useMmap &&
       activeStreamExperts === streamExperts &&
-      activeGovernorKey === governorKey
+      activeGovernorKey === governorKey &&
+      // A runtime fallback's reload must never take this idempotent skip:
+      // what is loaded is the failed governor context it exists to replace.
+      !governorRuntimeOff
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
       return { effectiveNCtx };
+    }
+    if (governorBase != null && pricedModel != null && !governorRuntimeOff) {
+      console.log(
+        `KALSA_GOVERNOR_PLAN ${JSON.stringify(
+          buildGovernorPlanLog(
+            pricedModel,
+            {
+              availableMemoryBytes: deviceProfile.availableMemoryBytes,
+              totalMemoryBytes: deviceProfile.totalMemoryBytes,
+              contextTokens: effectiveNCtx,
+              ubatch: tuning.n_ubatch,
+              mmap: load.useMmap,
+              offloadedBytes: modelInfo.sizeBytes,
+            },
+            governorBase,
+            benchNoRepack,
+          ),
+        )}`,
+      );
     }
     if (governorBase != null && !governorBase.enabled) {
       console.log(
@@ -2530,7 +2589,11 @@ export function initEngine(
     let governorUsed = false;
     activeGovernorFallbackReason = "";
     try {
-      if (governorLoad) {
+      // A runtime-fallback reload must be CPU-only whatever governorLoad, the
+      // governor setting or eligibility say at this moment: it takes the
+      // cpuParams path (enabled:false → init with cpuParams directly) and can
+      // never fall through to initLlama(params) with GPU layers.
+      if (governorLoad || governorRuntimeOff) {
         const cpuParams: ContextParams = { ...params };
         delete cpuParams.governor;
         delete cpuParams.speculative;
@@ -2539,7 +2602,9 @@ export function initEngine(
         const governorParams: ContextParams = { ...params };
         delete governorParams.speculative;
         const result = await initWithGovernorFallback({
-          enabled: true,
+          // false → init with cpuParams directly: the runtime fallback's
+          // CPU-only reload (n_gpu_layers 0, n_parallel 1, no governor).
+          enabled: !governorRuntimeOff,
           governorParams,
           cpuParams,
           init: initLlama,
@@ -2547,7 +2612,7 @@ export function initEngine(
           nativeLogStart: () => nativeLogForEpoch(governorLoadEpoch),
         });
         context = result.value;
-        governorUsed = !result.retried;
+        governorUsed = !governorRuntimeOff && !result.retried;
         if (result.retried) {
           activeGovernorFallbackReason = result.fallbackReason ?? "native governor fallback";
         }
@@ -2564,9 +2629,13 @@ export function initEngine(
       console.log(
         `KALSA_NATIVE_VARIANT ${JSON.stringify({
           androidLib: context.androidLib ?? null,
+          // A runtime-fallback reload runs cpuParams (n_gpu_layers = 0) even
+          // though params still carries the governor's requested layers.
           nGpuLayers: governorUsed
             ? { prefill: 99, decode: 0 }
-            : params.n_gpu_layers ?? 0,
+            : governorRuntimeOff
+              ? 0
+              : params.n_gpu_layers ?? 0,
         })}`,
       );
     } catch (error) {
@@ -2596,7 +2665,9 @@ export function initEngine(
       } catch {
         /* telemetry never throws into engine path */
       }
-      if (governorLoad) {
+      // A runtime-fallback reload already runs CPU-only: the GPU retry below
+      // would re-introduce the very layers this reload exists to avoid.
+      if (governorLoad || governorRuntimeOff) {
         rethrowWithNativeTail(error);
       }
       // Android offload can kill init — the recorded case is HTP0/Hexagon with
@@ -2729,6 +2800,7 @@ export function initEngine(
     // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
     // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
     // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
+    lastLoadArgs = { modelPath, modelId, options };
     void noteEngineRssAfterInit();
     loadOk = true;
     return {
@@ -2746,6 +2818,41 @@ export function initEngine(
         loadOk ? { type: "load_ok" } : { type: "load_fail" },
       );
     });
+}
+
+/**
+ * The runtime governor fallback: emit the one log line, arm the state that
+ * makes this initEngine call take the CPU-only cpuParams path (and keeps the
+ * governor off until the next explicit load), then reload the same model the
+ * turn was driving. Throws on reload failure — the caller surfaces it through
+ * the turn's error channel.
+ */
+async function reloadGovernorRuntimeFallback(
+  reason: string,
+  locale: Locale,
+): Promise<void> {
+  try {
+    console.log(`KALSA_GOVERNOR_RUNTIME_FALLBACK ${JSON.stringify({ reason })}`);
+  } catch {
+    // telemetry never throws
+  }
+  const args = lastLoadArgs;
+  if (!args) {
+    // Unreachable while a context is loaded: every initEngine that actually
+    // LOADS writes lastLoadArgs; the idempotent-skip path leaves it untouched
+    // by design, and a skip only fires when the loaded context already
+    // matches the request — so the stored args still mirror what is loaded,
+    // and a runtime fallback implies a loaded context.
+    throw new Error(getStrings(locale).errors.modelNotLoaded);
+  }
+  runtimeGovernorState = "fallback-reload";
+  await initEngine(args.modelPath, args.modelId, {
+    ...args.options,
+    // Governor mode wrote no .kvs this session: a stale file from an earlier
+    // epoch must not seed the retry. The turn re-prefills cold from JS
+    // history — accepted.
+    sessionRestore: undefined,
+  });
 }
 
 async function noteEngineRssAfterInit(): Promise<void> {
@@ -3992,6 +4099,14 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
+  // Every local send invalidates a pending governor-fallback retry before
+  // anything else — even a send that finds no context and returns, so a send
+  // arriving during the reload always makes the old retry stale.
+  turnTokenSeq += 1;
+  // Captured HERE, not read live at the catch: a send entering mid-job would
+  // bump turnTokenSeq, and a catch-time read would adopt the NEWER token —
+  // hiding this turn's own staleness from the retry gate.
+  const turnToken = turnTokenSeq;
   // The boundary is installed only by native evidence (see the finally). Do
   // not claim it here (that was the a21746e root), and do not erase the prior
   // same-chat fact either: the absolute start survives appends and
@@ -5369,6 +5484,18 @@ export async function streamAssistantTurn(
           } catch (fallbackError) {
             stopStallWatchdog();
             if (aborted) return;
+            // A governor rejection must reach the outer catch for the runtime
+            // fallback decision; every other failure keeps the canned message.
+            if (
+              shouldRuntimeGovernorFallback({
+                error: fallbackError,
+                isLocalTurn: !isRemoteEngineBackend(),
+                aborted: Boolean(aborted || signal?.aborted),
+                fallbackUsedForModel: runtimeGovernorState !== "fresh",
+              })
+            ) {
+              throw fallbackError;
+            }
             // Fallback completion failed (engine error, abort, etc.) — fall
             // through to the canned message. emitEngineError will fire below
             // only if we have no text at all; for now just log and continue.
@@ -5409,13 +5536,32 @@ export async function streamAssistantTurn(
       }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
-      if (aborted || signal?.aborted) {
+      const stopped = Boolean(aborted || signal?.aborted);
+      if (stopped) {
         finishOnce(() => callbacks.onDone());
         return;
       }
-      {
-        emitEngineError(callbacks, finishOnce, error);
+      const runtimeFallbackReason = governorRuntimeFallbackReason(error);
+      if (
+        runtimeFallbackReason !== null &&
+        shouldRuntimeGovernorFallback({
+          error,
+          isLocalTurn: !isRemoteEngineBackend(),
+          aborted: stopped,
+          fallbackUsedForModel: runtimeGovernorState !== "fresh",
+        })
+      ) {
+        // Hand the attempt to the continuation below instead of surfacing it:
+        // disposeEngineLocked waits for THIS job chain to drain, so the CPU
+        // reload cannot run from inside the job — it would wait on itself.
+        // The turn/model snapshot is taken now, before anything async.
+        return {
+          reason: runtimeFallbackReason,
+          turnToken,
+          modelId: activeModelId,
+        };
       }
+      emitEngineError(callbacks, finishOnce, error);
     } finally {
       if (energyTraceOn) await stopGovernorBatteryTrace();
       stopStallWatchdog();
@@ -5451,6 +5597,67 @@ export async function streamAssistantTurn(
         if (turnPrefixHash) prewarmPrefixHash = turnPrefixHash;
       }
     }
+  }).then(async (fallbackAttempt) => {
+    if (!fallbackAttempt) return;
+    const attempt = fallbackAttempt;
+    const gate = (signalAborted: boolean) =>
+      mayRetryRuntimeGovernorFallback({
+        signalAborted,
+        turnStillCurrent: turnTokenSeq === attempt.turnToken,
+        modelStillLoaded:
+          activeModelId != null && activeModelId === attempt.modelId,
+      });
+    // The turn is still current but cannot continue (signal aborted, or the
+    // model changed under it): clear this attempt's partial through the
+    // stream's own channel and end the way an abort ends today — onDone, no
+    // error bubble. Nothing else would ever end a current turn here.
+    const endCurrentTurn = () => {
+      callbacks.onDelta("", "");
+      callbacks.onDone();
+    };
+    // Abort does NOT gate the reload: after a governor failure the context is
+    // dead, so the CPU reload is recovery, not part of the turn — abort
+    // cancels only the retry, at the post-reload gate (so an early abort and
+    // an abort during reload behave the same). A superseded TURN calls no
+    // callbacks: the newer turn owns the UI and the shells' run/owner checks
+    // already fence this message's text. A model change on this current turn
+    // ends it (below) and skips the reload — reloading would arm the CPU-only
+    // state against the wrong model.
+    const preVerdict = gate(false);
+    if (preVerdict === "stale") return;
+    if (preVerdict === "ended") {
+      endCurrentTurn();
+      return;
+    }
+    try {
+      await reloadGovernorRuntimeFallback(attempt.reason, options.locale);
+    } catch (error) {
+      // The reload itself failed: surface it through the turn's error channel.
+      emitEngineError(callbacks, (finish) => finish(), error);
+      return;
+    }
+    // The world can move during the reload; the gate picks the ending by cause.
+    const verdict = gate(Boolean(signal?.aborted));
+    if (verdict === "stale") {
+      // A newer turn owns the UI: call NO callbacks at all — the shells' own
+      // run/owner checks already fence this message's text, and a stale
+      // onDone would mutate shared streaming state.
+      return;
+    }
+    if (verdict === "ended") {
+      endCurrentTurn();
+      return;
+    }
+    // Discard the failed attempt's partial through the stream's own channel
+    // before anything can stream: a retry that ends with no visible text
+    // would otherwise leave the governor attempt's partial in the bubble and
+    // in history.
+    callbacks.onDelta("", "");
+    // Retry the same turn once: history lives in JS and travels by value, so
+    // the user message is not appended a second time. The reload moved
+    // runtimeGovernorState off "fresh", so the catch can never hand back
+    // another attempt — no second retry.
+    await streamAssistantTurn(messages, callbacks, signal, options);
   });
 }
 

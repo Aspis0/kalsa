@@ -49,7 +49,6 @@ type MemorySnapshot = {
   contextTokens: number;
   ubatch?: number;
   mmap?: boolean;
-  repack?: boolean;
   offloadedBytes?: number | null;
 };
 
@@ -80,41 +79,105 @@ function modelKind(model: GovernorModel) {
   return "Dense" as const;
 }
 
-function gpuFit(
-  model: GovernorModel,
-  profile: DeviceProfile,
-  memory: MemorySnapshot,
-) {
+function lanePrice(model: GovernorModel, memory: MemorySnapshot, repack: boolean) {
   const kv = model.kvBytesPerToken;
-  if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
-  if (generationFor(profile) === "Unknown") return "NoFit" as const;
+  if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return null;
 
+  // The generic REPACK_FRACTION (0.8951, memoryEstimate.ts) is anchored on
+  // other models — on the S23 the ship model's CPU_REPACK buffer was
+  // ~1511 MiB for its 1520 MiB Q4_0 file, i.e. for Q4_0 almost every weight
+  // is repackable. Price the LANE's repack copy at 1.0 × weight bytes so the
+  // boundary errs safe (an optimistic price picks repack, OOMs, and falls
+  // back); the generic fraction stays untouched for its other callers.
   const estimate = estimateMemory({
     fileBytes: model.sizeBytes,
     contextTokens: memory.contextTokens,
     kvBytesPerToken: kv,
     ubatch: memory.ubatch ?? 256,
     mmap: memory.mmap,
-    repack: memory.repack,
+    repack: false,
   });
+  const priced = repack
+    ? {
+        ...estimate,
+        repackMiB: estimate.weightsMiB,
+        nonEvictableMiB: estimate.nonEvictableMiB + estimate.weightsMiB,
+        totalMiB: estimate.totalMiB + estimate.weightsMiB,
+      }
+    : estimate;
+  const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
+  const requiredMiB =
+    priced.nonEvictableMiB +
+    800 +
+    (1.05 * offloadedBytes) / MIB +
+    priced.computeMiB +
+    priced.kvMiB;
+  return { priced, requiredMiB };
+}
+
+function laneFit(
+  model: GovernorModel,
+  profile: DeviceProfile,
+  memory: MemorySnapshot,
+  repack: boolean,
+) {
+  if (generationFor(profile) === "Unknown") return "NoFit" as const;
+  const lane = lanePrice(model, memory, repack);
+  if (!lane) return "NoFit" as const;
   const verdict = fitMemoryEstimate(
-    estimate,
+    lane.priced,
     typeof memory.availableMemoryBytes === "number"
       ? memory.availableMemoryBytes / MIB
       : null,
   );
   if (verdict.status === "unknown" || verdict.status === "does_not_fit") return "NoFit" as const;
 
-  const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
-  const gpuReserveMiB = 800 + (1.05 * offloadedBytes) / MIB;
-  // Plan §4 bounds the two-context resident budget at 3.46–3.94 GiB.
-  const requiredMiB =
-    estimate.nonEvictableMiB +
-    gpuReserveMiB +
-    estimate.computeMiB +
-    estimate.kvMiB;
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
-  return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+  return lane.requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+}
+
+export function buildGovernorPlanLog(
+  model: GovernorModel,
+  memory: MemorySnapshot,
+  governor: { gpu_fit: "Fit" | "NoFit"; decode_repack: boolean },
+  benchNoRepack: boolean | undefined,
+) {
+  const withRepack = lanePrice(model, memory, true);
+  const withoutRepack = lanePrice(model, memory, false);
+  const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
+  const roundMiB = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+  return {
+    gpu_fit: governor.gpu_fit,
+    decode_repack: governor.decode_repack,
+    required_mib_with_repack: roundMiB(withRepack?.requiredMiB ?? 0),
+    required_mib_without_repack: roundMiB(withoutRepack?.requiredMiB ?? 0),
+    available_mib: roundMiB(availableMiB),
+    bench_norepack_forced: benchNoRepack ?? null,
+  };
+}
+
+function gpuFit(
+  model: GovernorModel,
+  profile: DeviceProfile,
+  memory: MemorySnapshot,
+  benchNoRepack: boolean | undefined,
+) {
+  // Price the lane WITH repack first: P1 (decode_repack false) drops the CPU
+  // repack copy and costs ~1.41x lane decode plus KLD p99 0.034 -> 0.042, so
+  // it is only taken where the repack-priced lane does not fit (8 GB S23:
+  // 4358.70 MiB required with repack vs 2998.06 without). kalsa.bench.norepack
+  // outranks this fit decision so one arm measures one configuration: "1"
+  // skips the with-repack attempt (no-repack arm), "0" skips the P1 fallback
+  // (repack-on arm, refused rather than silently re-priced); absent lets the
+  // production order above decide.
+  if (benchNoRepack !== true && laneFit(model, profile, memory, true) === "Fit") {
+    return { fit: "Fit" as const, decodeRepack: true };
+  }
+  if (benchNoRepack !== false && laneFit(model, profile, memory, false) === "Fit") {
+    return { fit: "Fit" as const, decodeRepack: false };
+  }
+  return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
 }
 
 export function buildGovernorParams(
@@ -122,15 +185,20 @@ export function buildGovernorParams(
   deviceProfile: DeviceProfile,
   memory: MemorySnapshot,
   force = false,
+  benchNoRepack: boolean | undefined = undefined,
 ) {
   const generation = generationFor(deviceProfile);
   const enabled = force || GPU_PREFILL_CORRECT[generation];
+  const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,
     generation,
     model_kind: modelKind(modelEntry),
-    gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
+    gpu_fit: lane.fit,
+    // Binding param governor.decode_repack (default true): false makes
+    // load_governor_models drop the decode model's CPU repack copy (P1).
+    decode_repack: lane.decodeRepack,
     // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:

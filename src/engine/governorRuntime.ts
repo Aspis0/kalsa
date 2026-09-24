@@ -44,6 +44,69 @@ export function isGovernorFallback(
   );
 }
 
+/**
+ * Prefix of the JSI completion rejection thrown when the native governor
+ * decode fails (RNLlamaJSI.cpp: "Governor decode failed: " + failure reason).
+ */
+const GOVERNOR_DECODE_FAILED_PREFIX = "Governor decode failed: ";
+/** Length cap for the reason suffix — it lands in logcat, one line. */
+const GOVERNOR_REASON_MAX_LEN = 120;
+/**
+ * Everything outside this class is stripped and the suffix is length-capped:
+ * the reason reaching logcat is charset-bounded — not semantically filtered,
+ * so prose or paths made of allowed characters still pass through.
+ */
+const GOVERNOR_REASON_UNSAFE = /[^A-Za-z0-9 _.,:+=\/-]/g;
+
+/**
+ * The failure reason after the prefix, or null for any other error. The
+ * suffix is sanitized (safe charset, length cap) before it can be logged.
+ */
+export function governorRuntimeFallbackReason(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (!message.startsWith(GOVERNOR_DECODE_FAILED_PREFIX)) return null;
+  return message
+    .slice(GOVERNOR_DECODE_FAILED_PREFIX.length)
+    .trim()
+    .replace(GOVERNOR_REASON_UNSAFE, "")
+    .slice(0, GOVERNOR_REASON_MAX_LEN);
+}
+
+/**
+ * May this failed turn trigger the one runtime governor fallback allowed per
+ * loaded model? Local turns only (a Brain turn has no governor context), never
+ * after an abort — the user stopped the turn — and never a second time for
+ * the model load that already fell back.
+ */
+export function shouldRuntimeGovernorFallback(args: {
+  error: unknown;
+  isLocalTurn: boolean;
+  aborted: boolean;
+  fallbackUsedForModel: boolean;
+}): boolean {
+  if (!args.isLocalTurn || args.aborted || args.fallbackUsedForModel) {
+    return false;
+  }
+  return governorRuntimeFallbackReason(args.error) !== null;
+}
+
+/**
+ * How a turn ends around the runtime governor reload: "retry" proceeds;
+ * "stale" — a NEWER turn owns the UI — ends with no callbacks at all;
+ * "ended" — the turn is still current but cannot continue (the signal
+ * aborted, or the model changed under it) — clears the partial and ends via
+ * onDone, because nothing else will ever end it. Stale outranks ended.
+ */
+export function mayRetryRuntimeGovernorFallback(args: {
+  signalAborted: boolean;
+  turnStillCurrent: boolean;
+  modelStillLoaded: boolean;
+}): "retry" | "stale" | "ended" {
+  if (!args.turnStillCurrent) return "stale";
+  if (!args.modelStillLoaded || args.signalAborted) return "ended";
+  return "retry";
+}
+
 function nativeLogDelta(start: string, current: string): string {
   if (!start) return current;
   if (start === current) return "";
