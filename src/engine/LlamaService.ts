@@ -2397,7 +2397,7 @@ export function initEngine(
       loadOk = true;
       return { effectiveNCtx };
     }
-    if (governorLoad != null && pricedModel != null) {
+    if (governorBase != null && pricedModel != null && !governorRuntimeOff) {
       console.log(
         `KALSA_GOVERNOR_PLAN ${JSON.stringify(
           buildGovernorPlanLog(
@@ -2410,7 +2410,7 @@ export function initEngine(
               mmap: load.useMmap,
               offloadedBytes: modelInfo.sizeBytes,
             },
-            governorLoad,
+            governorBase,
             benchNoRepack,
           ),
         )}`,

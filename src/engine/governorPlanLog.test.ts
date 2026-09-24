@@ -57,4 +57,23 @@ describe("governor plan log", () => {
       ).bench_norepack_forced,
     ).toBe(false);
   });
+
+  test("records a computed NoFit plan even when GPU prefill is forced", () => {
+    const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const memory = {
+      availableMemoryBytes: 2997 * 1024 ** 2,
+      totalMemoryBytes: 8 * 1024 ** 3,
+      contextTokens: 8192,
+      ubatch: 256,
+      mmap: true,
+      offloadedBytes: model.sizeBytes,
+    };
+    const governor = buildGovernorParams(model, s23, memory, true);
+
+    expect(governor).toMatchObject({ enabled: true, gpu_fit: "NoFit" });
+    expect(buildGovernorPlanLog(model, memory, governor, undefined)).toMatchObject({
+      gpu_fit: "NoFit",
+      available_mib: 2997,
+    });
+  });
 });
