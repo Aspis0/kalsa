@@ -150,7 +150,11 @@ import {
   thermalCoolingLogLine,
   utilityGovernorPause,
 } from "./governorPauseLog";
-import { governorRouteLogFields, pushPrefillOverride } from "./benchRoute";
+import {
+  governorRouteLogFields,
+  pushPrefillOverride,
+  type RoutePushRecord,
+} from "./benchRoute";
 import {
   createBackgroundTimer,
   createRepeatingTimer,
@@ -513,6 +517,13 @@ let turnSeq = 0;
  * still the latest: a newer send must not be raced by an old retry.
  */
 let turnTokenSeq = 0;
+
+/**
+ * What THIS turn pushed for the prefill route: set where the push runs,
+ * reset at turn start, read only by the governor line — so a null here is
+ * evidence (no push this turn), never a re-read of the stored key.
+ */
+let turnRoutePush: RoutePushRecord | null = null;
 
 /**
  * Mint the id every line of one send joins on. The phase that logs the
@@ -1489,7 +1500,7 @@ export async function queueStaticPrefixPrewarm(
         // 301 MB demanded for a 12.6 MB file — and since a rate is only
         // learned from a write that SUCCEEDED, that device never corrects it.
         if (saved.ok && saved.fileBytes != null) {
-          try {
+    try {
             const diskCalibration = await loadSessionDiskCalibration();
             const next = recordSessionDiskSample(diskCalibration, {
               ok: true,
@@ -1680,6 +1691,7 @@ function emitTurnTelemetry(
   model?: ModelInfo | null,
   onDecodeSample?: StreamTurnOptions["onDecodeSample"],
   ciswireFlags?: number,
+  attempt: number = 1,
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
@@ -1688,7 +1700,7 @@ function emitTurnTelemetry(
     if (attribution?.tool != null) r.tool = attribution.tool;
     if (attribution?.strategy != null) r.strategy = attribution.strategy;
     if (ciswireFlags !== undefined) r.ciswireFlags = ciswireFlags;
-    console.log(formatTelemetryLine(turnId, r));
+    console.log(formatTelemetryLine(turnId, r, attempt));
     // Native stopped at the context ceiling and refused the K-shift, so the
     // answer is cut; the turn still returns what it produced. One extra line
     // so the campaign can count it — visibility only, no control flow.
@@ -1811,21 +1823,15 @@ async function refreshGovernorBeforeCompletion(
         );
       }
     }
-    // /bench route: request this turn's prefill route — a request only, the
-    // engine's safety gates keep deciding — pushed every turn so the stored
-    // value survives until `auto` clears it. Feature-detected: the pinned
-    // binding may predate setPrefillOverride.
-    try {
-      await withNativeCallTimeout(
-        pushPrefillOverride(engine, await readBenchRoute()),
-        ENGINE_AUX_CALL_TIMEOUT_MS,
-        "setPrefillOverride",
-      );
-    } catch {
-      // Never a turn dependency: a busy or released context keeps the
-      // engine's own route for this turn (the unsupported case already
-      // logged its one KALSA_BENCH_ROUTE line inside the helper).
-    }
+    // /bench route: a request only — the engine's safety gates keep
+    // deciding. Captured HERE, at the push: the governor line reports this
+    // record, never a re-read of the stored key. The bounded push never
+    // throws (its own timeout/unsupported/failed outcomes).
+    const routeMode = await readBenchRoute();
+    turnRoutePush = {
+      mode: routeMode,
+      outcome: await pushPrefillOverride(engine, routeMode),
+    };
   }
   return snapshot;
 }
@@ -1834,6 +1840,7 @@ async function emitGovernorTelemetry(
   engine: LlamaContext,
   thermoSource: GovernorThermoSnapshot["thermo_source"],
   turnId: string,
+  turnAttempt: number,
   completionResult: unknown,
 ): Promise<void> {
   if (!activeGovernorAttempted) return;
@@ -1864,11 +1871,13 @@ async function emitGovernorTelemetry(
         // completion error the binding raises.
         failed: Boolean(stats.failure_reason),
         failure_reason: stats.failure_reason,
-        // Route evidence: join id, the requested mode, and the per-chunk
-        // facts (null until the binding emits route_chunks).
+        // Route evidence: this send's attempt, the join id, the mode THIS
+        // turn actually pushed (null + route_push when it did not apply),
+        // and the validated per-chunk facts (dropped counts malformed ones).
+        attempt: turnAttempt,
         ...governorRouteLogFields({
           turnId,
-          routeMode: await readBenchRoute(),
+          routePush: turnRoutePush,
           completionResult,
         }),
       })}`,
@@ -2890,9 +2899,15 @@ export function initEngine(
 async function reloadGovernorRuntimeFallback(
   reason: string,
   locale: Locale,
+  turnId: string,
+  attempt: number,
 ): Promise<void> {
   try {
-    console.log(`KALSA_GOVERNOR_RUNTIME_FALLBACK ${JSON.stringify({ reason })}`);
+    // attempt is the retry that follows: its lines carry the same id + this
+    // number, so a reloaded attempt separates from the one that failed.
+    console.log(
+      `KALSA_GOVERNOR_RUNTIME_FALLBACK ${JSON.stringify({ reason, turnId, attempt })}`,
+    );
   } catch {
     // telemetry never throws
   }
@@ -4138,6 +4153,12 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * no earlier line).
    */
   turnId?: string;
+  /**
+   * 1-based attempt of this send under the same id: the runtime-governor
+   * fallback retry passes 2 so its lines separate from the first attempt's.
+   * Absent → 1.
+   */
+  turnAttempt?: number;
 };
 
 /**
@@ -4258,6 +4279,10 @@ export async function streamAssistantTurn(
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
     const turnId = options.turnId ?? mintTurnId();
+    // 1-based attempt of this send: the runtime-governor retry passes 2 with
+    // the SAME id, so its lines are separable without a fresh mint.
+    const turnAttempt = options.turnAttempt ?? 1;
+    turnRoutePush = null;
     // The completion whose facts the end-of-turn KALSA_GOVERNOR line
     // reports (the engine's per-completion stats are turn-last the same way).
     let lastCompletionResult: unknown = null;
@@ -5218,6 +5243,7 @@ export async function streamAssistantTurn(
           activeModel,
           options.onDecodeSample,
           options.ciswireFlags,
+          turnAttempt,
         );
         if (bailIfStopped()) return;
 
@@ -5278,7 +5304,7 @@ export async function streamAssistantTurn(
         if (!toolCallingEnabled || !toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
-          await emitGovernorTelemetry(engine, governorThermoSource, turnId, lastCompletionResult);
+          await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult);
           if (benchSampling === "greedy") {
             console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
           }
@@ -5627,6 +5653,7 @@ export async function streamAssistantTurn(
               activeModel,
               options.onDecodeSample,
               options.ciswireFlags,
+              turnAttempt,
             );
             // Same ceiling rule as the main loop: a fallback that hit
             // context_full did not leave a boundary the native adopted.
@@ -5716,7 +5743,7 @@ export async function streamAssistantTurn(
       ) {
         assembleOutcome = markAssembleOutcome(assembleOutcome, "completed");
       }
-      await emitGovernorTelemetry(engine, governorThermoSource, turnId, lastCompletionResult);
+      await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult);
       if (benchSampling === "greedy") {
         console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
       }
@@ -5809,6 +5836,16 @@ export async function streamAssistantTurn(
     // already fence this message's text. A model change on this current turn
     // ends it (below) and skips the reload — reloading would arm the CPU-only
     // state against the wrong model.
+    // The retry reuses this send's id (never a fresh mint) and bumps the
+    // attempt counter, so the marker and every line the retry emits share
+    // one key an analyst can follow.
+    const retryTurnId = options.turnId ?? mintTurnId();
+    const retryAttempt = (options.turnAttempt ?? 1) + 1;
+    const retryOptions: StreamTurnOptions = {
+      ...options,
+      turnId: retryTurnId,
+      turnAttempt: retryAttempt,
+    };
     const preVerdict = gate(false);
     if (preVerdict === "stale") return;
     if (preVerdict === "ended") {
@@ -5816,7 +5853,12 @@ export async function streamAssistantTurn(
       return;
     }
     try {
-      await reloadGovernorRuntimeFallback(attempt.reason, options.locale);
+      await reloadGovernorRuntimeFallback(
+        attempt.reason,
+        retryOptions.locale,
+        retryTurnId,
+        retryAttempt,
+      );
     } catch (error) {
       // The reload itself failed: surface it through the turn's error channel.
       emitEngineError(callbacks, (finish) => finish(), error);
@@ -5843,7 +5885,7 @@ export async function streamAssistantTurn(
     // the user message is not appended a second time. The reload moved
     // runtimeGovernorState off "fresh", so the catch can never hand back
     // another attempt — no second retry.
-    await streamAssistantTurn(messages, callbacks, signal, options);
+    await streamAssistantTurn(messages, callbacks, signal, retryOptions);
   });
 }
 

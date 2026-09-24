@@ -217,10 +217,17 @@ export function roundTelemetryFromResult(
  * is spread, so a new free-text field would leak the same way — keep this line
  * to counters, timings and clamped enums.
  */
-export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
+export function formatTelemetryLine(
+  turnId: string,
+  r: RoundTelemetry,
+  attempt = 1,
+): string {
   const { ciswireFlags, promptN, ...telemetry } = r;
   return `KALSA_TELEMETRY ${JSON.stringify({
     turnId,
+    // 1-based attempt of this send: the runtime-governor retry reuses the
+    // turnId, so attempt 2 separates its lines from the first attempt's.
+    attempt,
     ...telemetry,
     ...(telemetry.tool != null ? { tool: clampToolName(telemetry.tool) } : {}),
     prompt_n: promptN,

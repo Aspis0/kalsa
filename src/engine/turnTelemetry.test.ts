@@ -89,3 +89,10 @@ describe("KALSA_TELEMETRY cannot carry a model-invented tool name", () => {
     );
   });
 });
+
+describe("the attempt key joins the runtime-fallback retry", () => {
+  test("defaults to 1 and carries an explicit 2 for the retry", () => {
+    expect(payloadOf(formatTelemetryLine("t1", baseRound))).toHaveProperty("attempt", 1);
+    expect(payloadOf(formatTelemetryLine("t1", baseRound, 2))).toHaveProperty("attempt", 2);
+  });
+});
