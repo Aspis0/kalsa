@@ -1435,8 +1435,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &app.state::<Brain>().measurement,
                 parent,
                 SystemTime::now(),
-                startup::ram_bytes(),
-                kalsa_probe::backend(),
+                // Read lazily, inside the seed: a machine with no record
+                // pays for none of these.
+                || measurement::Facts {
+                    ram_bytes: startup::ram_bytes(),
+                    backend: kalsa_probe::backend(),
+                    chip: kalsa_probe::brand_string(),
+                },
             );
             // The authority, before anything below can read or write the
             // store: one exclusive lock on this account's own data

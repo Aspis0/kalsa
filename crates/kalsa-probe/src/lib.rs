@@ -35,7 +35,7 @@ pub use predict::{
     FIXED_SECONDS_PRIOR, SUSTAINED_BANDWIDTH_SHARE,
 };
 pub use series::Series;
-pub use soc::{published_bandwidth, DECODE_SHARE_OF_PUBLISHED};
+pub use soc::{brand_string, published_bandwidth, DECODE_SHARE_OF_PUBLISHED};
 
 use std::time::{Duration, Instant};
 

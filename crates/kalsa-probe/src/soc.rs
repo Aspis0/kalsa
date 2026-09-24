@@ -92,9 +92,11 @@ pub fn decode_bandwidth() -> Option<f64> {
     published_bandwidth(&brand_string()?).map(|published| published * DECODE_SHARE_OF_PUBLISHED)
 }
 
-/// The CPU's marketing name, as the kernel reports it.
+/// The CPU's marketing name, as the kernel reports it. The record the app
+/// keeps of a measurement carries this as the chip's identity: it is the
+/// same string the decode estimate below is keyed on, and it is cheap.
 #[cfg(target_os = "macos")]
-fn brand_string() -> Option<String> {
+pub fn brand_string() -> Option<String> {
     let out = std::process::Command::new("/usr/sbin/sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
         .output()
@@ -105,7 +107,7 @@ fn brand_string() -> Option<String> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn brand_string() -> Option<String> {
+pub fn brand_string() -> Option<String> {
     None
 }
 

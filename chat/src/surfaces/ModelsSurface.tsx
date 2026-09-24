@@ -65,7 +65,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         // sentence standing on screen for the whole teardown.
         headline = "Stopping";
         sentence =
-          "This computer is putting the model away. When you turn it on again it will pick a model it can run, measuring itself again only if something has changed.";
+          "This computer is putting the model away. When you turn it on again it will pick a model it can run; it measures itself again only when it must: after an update, a hardware change, a month-old measurement, or one it did not trust.";
         break;
       case "starting":
         headline = "Chosen and starting";
@@ -77,7 +77,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         break;
       case "stopped":
         sentence =
-          "When you turn on, this computer measures itself the first time (and again after an update or a hardware change), picks a model it can run, and starts it. You never have to pick anything.";
+          "When you turn on, this computer picks a model it can run and starts it. It measures itself the first time, and again when it must: after an update, a hardware change, a month-old measurement, or one it did not trust. You never have to pick anything.";
         button = "Go to Server";
         break;
       default: {
