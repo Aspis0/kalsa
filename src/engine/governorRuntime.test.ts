@@ -12,6 +12,7 @@ import {
   governorRuntimeFallbackReason,
   initWithGovernorFallback,
   isGovernorFallback,
+  mayRetryRuntimeGovernorFallback,
   readGovernorEnabled,
   shouldRuntimeGovernorFallback,
   writeGovernorEnabled,
@@ -133,6 +134,22 @@ describe("shouldRuntimeGovernorFallback", () => {
     ).toBe("rc=-2");
   });
 
+  test("sanitizes the reason before it can reach the log line", () => {
+    const noisy = `governor is failed ${"x".repeat(400)}\n\t"quoted" C:\\models\\x.gguf`;
+    const reason = governorRuntimeFallbackReason(
+      new Error(`Governor decode failed: ${noisy}`),
+    );
+    expect(reason).not.toBeNull();
+    // Safe charset, length cap: a future binding must not be able to put
+    // free text or paths into logcat behind the prefix.
+    expect(reason).toMatch(/^[A-Za-z0-9 _.,:+=\/-]{0,120}$/);
+    expect(
+      governorRuntimeFallbackReason(
+        new Error("Governor decode failed: bad\treason\nnow"),
+      ),
+    ).toBe("badreasonnow");
+  });
+
   test("ignores errors that are not the governor rejection", () => {
     const others = [
       new Error("Generation was interrupted."),
@@ -175,6 +192,36 @@ describe("shouldRuntimeGovernorFallback", () => {
         ...freshLocalTurn,
         fallbackUsedForModel: true,
       }),
+    ).toBe(false);
+  });
+});
+
+describe("mayRetryRuntimeGovernorFallback", () => {
+  const intact = {
+    signalAborted: false,
+    turnStillCurrent: true,
+    modelStillLoaded: true,
+  };
+
+  test("allows the retry while turn, model and signal are intact", () => {
+    expect(mayRetryRuntimeGovernorFallback(intact)).toBe(true);
+  });
+
+  test("refuses once the signal aborted after the catch", () => {
+    expect(
+      mayRetryRuntimeGovernorFallback({ ...intact, signalAborted: true }),
+    ).toBe(false);
+  });
+
+  test("refuses once a newer turn became current", () => {
+    expect(
+      mayRetryRuntimeGovernorFallback({ ...intact, turnStillCurrent: false }),
+    ).toBe(false);
+  });
+
+  test("refuses once the loaded model changed", () => {
+    expect(
+      mayRetryRuntimeGovernorFallback({ ...intact, modelStillLoaded: false }),
     ).toBe(false);
   });
 });

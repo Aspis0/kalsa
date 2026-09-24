@@ -49,12 +49,23 @@ export function isGovernorFallback(
  * decode fails (RNLlamaJSI.cpp: "Governor decode failed: " + failure reason).
  */
 const GOVERNOR_DECODE_FAILED_PREFIX = "Governor decode failed: ";
+/** Length cap for the reason suffix — it lands in logcat, one line. */
+const GOVERNOR_REASON_MAX_LEN = 120;
+/** Everything outside this class is stripped: no free text into logcat. */
+const GOVERNOR_REASON_UNSAFE = /[^A-Za-z0-9 _.,:+=\/-]/g;
 
-/** The failure reason after the prefix, or null for any other error. */
+/**
+ * The failure reason after the prefix, or null for any other error. The
+ * suffix is sanitized (safe charset, length cap) before it can be logged.
+ */
 export function governorRuntimeFallbackReason(error: unknown): string | null {
   const message = error instanceof Error ? error.message : String(error ?? "");
   if (!message.startsWith(GOVERNOR_DECODE_FAILED_PREFIX)) return null;
-  return message.slice(GOVERNOR_DECODE_FAILED_PREFIX.length).trim();
+  return message
+    .slice(GOVERNOR_DECODE_FAILED_PREFIX.length)
+    .trim()
+    .replace(GOVERNOR_REASON_UNSAFE, "")
+    .slice(0, GOVERNOR_REASON_MAX_LEN);
 }
 
 /**
@@ -73,6 +84,21 @@ export function shouldRuntimeGovernorFallback(args: {
     return false;
   }
   return governorRuntimeFallbackReason(args.error) !== null;
+}
+
+/**
+ * May the turn driver still retry after the runtime governor reload? Refuses
+ * once the signal aborted (re-checked right before the reload starts), once
+ * a newer chat turn became current, and once the loaded model is no longer
+ * the one that failed — a stale retry must stop quietly, without an error
+ * bubble.
+ */
+export function mayRetryRuntimeGovernorFallback(args: {
+  signalAborted: boolean;
+  turnStillCurrent: boolean;
+  modelStillLoaded: boolean;
+}): boolean {
+  return !args.signalAborted && args.turnStillCurrent && args.modelStillLoaded;
 }
 
 function nativeLogDelta(start: string, current: string): string {

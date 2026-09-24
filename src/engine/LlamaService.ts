@@ -67,6 +67,7 @@ import {
 import {
   governorRuntimeFallbackReason,
   initWithGovernorFallback,
+  mayRetryRuntimeGovernorFallback,
   readGovernorEnabled,
   shouldRuntimeGovernorFallback,
 } from "./governorRuntime";
@@ -492,6 +493,12 @@ let engineLostRecoveryState: EngineLostRecoveryState =
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
+/**
+ * Counts chat turns only — util telemetry keeps using turnSeq. The runtime
+ * governor fallback captures this at its catch and retries only while it is
+ * still the latest: a newer send must not be raced by an old retry.
+ */
+let turnTokenSeq = 0;
 
 // ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
 const NATIVE_LOG_CAP = 50;
@@ -2562,7 +2569,11 @@ export function initEngine(
     let governorUsed = false;
     activeGovernorFallbackReason = "";
     try {
-      if (governorLoad) {
+      // A runtime-fallback reload must be CPU-only whatever governorLoad, the
+      // governor setting or eligibility say at this moment: it takes the
+      // cpuParams path (enabled:false → init with cpuParams directly) and can
+      // never fall through to initLlama(params) with GPU layers.
+      if (governorLoad || governorRuntimeOff) {
         const cpuParams: ContextParams = { ...params };
         delete cpuParams.governor;
         delete cpuParams.speculative;
@@ -2634,7 +2645,9 @@ export function initEngine(
       } catch {
         /* telemetry never throws into engine path */
       }
-      if (governorLoad) {
+      // A runtime-fallback reload already runs CPU-only: the GPU retry below
+      // would re-introduce the very layers this reload exists to avoid.
+      if (governorLoad || governorRuntimeOff) {
         rethrowWithNativeTail(error);
       }
       // Android offload can kill init — the recorded case is HTP0/Hexagon with
@@ -4111,6 +4124,7 @@ export async function streamAssistantTurn(
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
     const turnId = String(++turnSeq);
+    turnTokenSeq += 1;
 
     let finished = false;
     let aborted = false;
@@ -5440,6 +5454,18 @@ export async function streamAssistantTurn(
           } catch (fallbackError) {
             stopStallWatchdog();
             if (aborted) return;
+            // A governor rejection must reach the outer catch for the runtime
+            // fallback decision; every other failure keeps the canned message.
+            if (
+              shouldRuntimeGovernorFallback({
+                error: fallbackError,
+                isLocalTurn: !isRemoteEngineBackend(),
+                aborted: Boolean(aborted || signal?.aborted),
+                fallbackUsedForModel: runtimeGovernorState !== "fresh",
+              })
+            ) {
+              throw fallbackError;
+            }
             // Fallback completion failed (engine error, abort, etc.) — fall
             // through to the canned message. emitEngineError will fire below
             // only if we have no text at all; for now just log and continue.
@@ -5485,7 +5511,9 @@ export async function streamAssistantTurn(
         finishOnce(() => callbacks.onDone());
         return;
       }
+      const runtimeFallbackReason = governorRuntimeFallbackReason(error);
       if (
+        runtimeFallbackReason !== null &&
         shouldRuntimeGovernorFallback({
           error,
           isLocalTurn: !isRemoteEngineBackend(),
@@ -5493,10 +5521,15 @@ export async function streamAssistantTurn(
           fallbackUsedForModel: runtimeGovernorState !== "fresh",
         })
       ) {
-        // Hand the reason to the continuation below instead of surfacing it:
+        // Hand the attempt to the continuation below instead of surfacing it:
         // disposeEngineLocked waits for THIS job chain to drain, so the CPU
         // reload cannot run from inside the job — it would wait on itself.
-        return governorRuntimeFallbackReason(error);
+        // The turn/model snapshot is taken now, before anything async.
+        return {
+          reason: runtimeFallbackReason,
+          turnToken: turnTokenSeq,
+          modelId: activeModelId,
+        };
       }
       emitEngineError(callbacks, finishOnce, error);
     } finally {
@@ -5534,22 +5567,39 @@ export async function streamAssistantTurn(
         if (turnPrefixHash) prewarmPrefixHash = turnPrefixHash;
       }
     }
-  }).then(async (runtimeFallbackReason) => {
-    // undefined ends the turn exactly as before; a string is the runtime
-    // governor fallback reason handed over by the catch above.
-    if (typeof runtimeFallbackReason !== "string") return;
+  }).then(async (fallbackAttempt) => {
+    if (!fallbackAttempt) return;
+    const attempt = fallbackAttempt;
+    const mayRetry = () =>
+      mayRetryRuntimeGovernorFallback({
+        signalAborted: Boolean(signal?.aborted),
+        turnStillCurrent: turnTokenSeq === attempt.turnToken,
+        modelStillLoaded:
+          activeModelId != null && activeModelId === attempt.modelId,
+      });
+    // Abort already set (or turn/model already stale) when the reload would
+    // start → do not reload at all; stop quietly.
+    if (!mayRetry()) return;
     try {
-      await reloadGovernorRuntimeFallback(runtimeFallbackReason, options.locale);
+      await reloadGovernorRuntimeFallback(attempt.reason, options.locale);
     } catch (error) {
       // The reload itself failed: surface it through the turn's error channel.
       emitEngineError(callbacks, (finish) => finish(), error);
       return;
     }
+    // The world can move during the reload: retry only while the same turn is
+    // current, the same model is still loaded and the signal is clean —
+    // otherwise stop quietly: no retry, no error bubble.
+    if (!mayRetry()) return;
+    // Discard the failed attempt's partial through the stream's own channel
+    // before anything can stream: a retry that ends with no visible text
+    // would otherwise leave the governor attempt's partial in the bubble and
+    // in history.
+    callbacks.onDelta("", "");
     // Retry the same turn once: history lives in JS and travels by value, so
-    // the user message is not appended a second time; the re-entered turn
-    // discards the failed partial (fresh accumulators, full-replace deltas)
-    // and re-prefills cold. The reload moved runtimeGovernorState off "fresh",
-    // so the catch can never hand back another reason — no second retry.
+    // the user message is not appended a second time. The reload moved
+    // runtimeGovernorState off "fresh", so the catch can never hand back
+    // another attempt — no second retry.
     await streamAssistantTurn(messages, callbacks, signal, options);
   });
 }
