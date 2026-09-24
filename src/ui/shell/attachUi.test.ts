@@ -31,6 +31,7 @@ const FIELD = stripComments(readFileSync(join(SHELL_DIR, "ShellComposer.tsx"), "
 const MENU = stripComments(readFileSync(join(HOST_DIR, "HostAttachSheet.tsx"), "utf8"));
 const SURFACE = stripComments(readFileSync(join(HOST_DIR, "HostChatSurface.tsx"), "utf8"));
 const SEND = stripComments(readFileSync(join(HOST_DIR, "sendHost.ts"), "utf8"));
+const GUARDS = stripComments(readFileSync(join(HOST_DIR, "sendEntryGuards.ts"), "utf8"));
 
 const flatten = (catalog: object, prefix = ""): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -186,7 +187,10 @@ describe("the send snapshots and clears the rows (sendHost as source — its imp
   });
 
   it("an attachment-only send is not refused at the gate (controller Chat:3676)", () => {
-    expect(SEND).toContain("(!trimmed && staged.length === 0)");
+    // The entry gates live in `sendEntryGuards`; the attachment-only rule is
+    // the `hasSomethingToSend` argument the send passes in.
+    expect(GUARDS).toContain("!input.hasSomethingToSend ||");
+    expect(SEND).toContain("hasSomethingToSend: trimmed.length > 0 || staged.length > 0");
     // …and an empty foreign send over nothing still refuses
     expect(SEND).toContain("const staged = attachments ?? params.attachments.itemsRef.current;");
   });

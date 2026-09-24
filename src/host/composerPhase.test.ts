@@ -1,4 +1,9 @@
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { hostComposerPhase, type ComposerPhaseInput } from "./composerPhase";
+
+const MODULE_SOURCE = readFileSync(join(__dirname, "composerPhase.ts"), "utf8");
 
 const base: ComposerPhaseInput = {
   historyLoaded: true,
@@ -69,5 +74,15 @@ describe("hostComposerPhase", () => {
 
   test("sending outranks a not-yet-resident model (the run holds the engine)", () => {
     expect(phase({ sending: true, hasTokens: true, engineResident: false, modelState: "loading" })).not.toBe("unloaded");
+  });
+});
+
+describe("the comments tell the truth about what holds", () => {
+  test("the residency comment never claims only missing/dead bundles hold — error holds too", () => {
+    // The behavior below the comment maps EVERY error to `unloaded`; a
+    // comment promising a narrower hold sends the next reader to remove it.
+    expect(MODULE_SOURCE).not.toContain("Only a genuinely missing or");
+    expect(MODULE_SOURCE).toContain("A missing bundle or ANY");
+    expect(phase({ modelState: "error" })).toBe("unloaded");
   });
 });

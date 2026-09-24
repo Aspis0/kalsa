@@ -51,6 +51,7 @@ import { runEngineResearchTurn } from "./engineTurnResearch";
 import type { EngineTurnCallbacks, OwnedEngineTurnDeps } from "./engineTurnDeps";
 import type { LocalAttachment } from "./hostMessage";
 import { createEngineTurnFinish } from "./engineTurnFinish";
+import { waitForInFlightChatLoad } from "./loadSettle";
 
 export function handleSendStream(
   deps: OwnedEngineTurnDeps,
@@ -164,13 +165,35 @@ export function handleSendStream(
               }
               memoryExtractRef.current = null;
             }
-            if (!(await ensureEngineForModel(currentModel))) {
+            // A false ensure can be the double-load backstop talking rather
+            // than a model failure: another owner's load is mid-flight and
+            // succeeding (gate `chat_loading`). Wait it out and retry once;
+            // "none" keeps a real refusal on the exact path it had.
+            const ensureForTurn = async (): Promise<boolean> => {
+              if (await ensureEngineForModel(currentModel)) return true;
+              const inFlight = await waitForInFlightChatLoad(signal);
+              if (inFlight === "settled") return ensureEngineForModel(currentModel);
+              return false;
+            };
+            if (!(await ensureForTurn())) {
+              // Stopped while waiting: end like a pre-aborted stream — release
+              // the turn, no verdict, no error row for the user's own stop.
+              if (signal.aborted) {
+                finish();
+                return;
+              }
               // ensureEngineForModel early-returns false when the bundle is
               // missing without setting modelErrorKind, so re-check disk
               // rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
               if (currentModel.id === REMOTE_COMPUTER_MODEL_ID) {
                 fail(deps.remoteErrorRef.current ?? t("settings.remoteBrainFailGeneric"), "chat.serviceUnreachable");
+              } else if (thermalHardGateRef.current || thermalHardGated) {
+                // The OS CRITICAL gate refused the load mid-ensure — the same
+                // refusal the pre-send backstop reports, not a load failure.
+                // The cooling state does not cover this one: it waits out
+                // governor pauses of a running completion, never a load.
+                fail(t("chat.thermalHardGateBody"), "chat.thermalHardGateBody");
               } else if (downloaded) {
                 fail(t("chat.modelLoadFailed", { name: currentModel.name }), "chat.modelLoadFailed");
               } else {

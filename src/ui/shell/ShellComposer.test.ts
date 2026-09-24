@@ -117,11 +117,14 @@ describe("the keyboard's Send key obeys the button's gate", () => {
     await act(async () => renderer.unmount());
   });
 
-  test("the stop face submits through the same onSendPress (the stop wiring)", async () => {
-    const onSendPress = jest.fn();
-    const renderer = await mount({ onSendPress, face: "stop", sendEnabled: false });
-    submit(renderer);
-    expect(onSendPress).toHaveBeenCalledTimes(1);
-    await act(async () => renderer.unmount());
-  });
+  test.each(["stop", "stopping"] as const)(
+    "the %s face never submits: Enter only ever sends, whatever holds the turn",
+    async (face) => {
+      const onSendPress = jest.fn();
+      const renderer = await mount({ onSendPress, face, sendEnabled: false });
+      submit(renderer);
+      expect(onSendPress).not.toHaveBeenCalled();
+      await act(async () => renderer.unmount());
+    },
+  );
 });

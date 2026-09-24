@@ -121,19 +121,22 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
       // launches; the IIFE's finally covers everything from launch on and is
       // the only release on the normal path.
       try {
+        // Transition FIRST: the marker clear below is a storage await, and
+        // the composer must show the switch as held (its `loading` phase,
+        // from `checking`) from THIS tap on — sends are refused while the
+        // switch is in flight (`sendHost`), so an idle composer across the
+        // await would refuse them with no visible reason.
+        setModelState("checking");
+        setModelError(null);
+        setModelErrorDetail(null);
+        setModelErrorKind(null);
         // Awaited BEFORE the selection flips: they share one continuation with
         // no await in between, re-entry is locked above, and modelIndex is
         // still unchanged, so no kick exists yet.
         await clearLoadMarker(loadMarkerStore, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
         // Re-asserting a selection clears that model's death marker so the user
         // can retry a model whose load killed a previous launch.
-
-        // Transition: show checking before dispose awaits.
         setModelIndex(nextIndex);
-        setModelState("checking");
-        setModelError(null);
-        setModelErrorDetail(null);
-        setModelErrorKind(null);
         // Persist the selection: restored at next boot (same as Atomic Chat).
         AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
@@ -190,8 +193,14 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
                   MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
                 );
             if (!disposeResult.ok) {
+              // The timeout refused WITHOUT enqueueing, so the engine still
+              // holds the previous model while the selection already points
+              // at the new one. Re-selecting cannot retry this (same index
+              // short-circuits at selectModel's entry guard) — the way out is
+              // the load path: loading the picked model disposes the resident
+              // one first, which is exactly what timed out here.
               console.warn(
-                `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
+                `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); the engine still holds the previous model — load the picked model to retry (it disposes the resident one first)`,
               );
               setModelState("error");
               setModelErrorKind("engine");

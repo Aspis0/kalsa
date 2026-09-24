@@ -110,10 +110,12 @@ export function ShellComposer({
             style={styles.input}
             returnKeyType="send"
             onSubmitEditing={() => {
-              // The IME's Send key goes through the button's own gate and its
-              // own wiring, never a parallel send: the old composer's
-              // `onSubmitEditing` sent the same draft (`AiChatPage.tsx:4370-4375`).
-              if (canActivate) onSendPress?.();
+              // Enter is SEND, never stop: the control's gate alone
+              // (`canActivate`) is also true on the stop face, where Enter
+              // would end a live turn — generation or cooling alike. The old
+              // composer's onSubmitEditing only ever sent
+              // (`AiChatPage.tsx:4370-4375`).
+              if (face === "send" && canActivate) onSendPress?.();
             }}
           />
         </Pressable>

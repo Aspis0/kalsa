@@ -42,7 +42,7 @@ import { applySendOutcome } from "./sendOutcomes";
 import { createStopHandler } from "./sendStop";
 import { runBenchTurn } from "./benchTurn";
 import { nextMsgId, type LocalAttachment, type Message } from "./hostMessage";
-import { translationInFlightRef } from "./translateState";
+import { sendEntryRefused } from "./sendEntryGuards";
 import type { TranslateFn, TranslationKey } from "../i18n";
 import { handleOwnedSendToken, type TurnFence, type TurnToken } from "./turnGuards";
 
@@ -132,18 +132,16 @@ export function useSendHost(params: SendHostParams): SendHost {
     attachments?: readonly LocalAttachment[],
   ): Promise<void> => {
     const trimmed = text.trim();
-    // The claim check (old controller minus the voice/PDF busy flags this
-    // host does not have; the translate flag it DOES have): nothing to send
-    // means no text AND nothing attached — an attachment-only send IS a send
-    // (controller `Chat:3676`). Foreign callers (edit/regenerate) hand their
-    // own attachments; the face, a card or the welcome block consume rows.
+    // The entry guards live in `sendEntryGuards` (one decision: may this
+    // send dispatch?) — the composer holds the visible ones, that module
+    // covers the paths that never consult the composer.
     const staged = attachments ?? params.attachments.itemsRef.current;
     if (
-      (!trimmed && staged.length === 0) ||
-      sendClaimRef.current ||
-      sendingRef.current ||
-      translationInFlightRef.current ||
-      !params.historyLoadedRef.current
+      sendEntryRefused({
+        hasSomethingToSend: trimmed.length > 0 || staged.length > 0,
+        sending: sendingRef.current,
+        historyLoaded: params.historyLoadedRef.current,
+      })
     ) {
       return;
     }

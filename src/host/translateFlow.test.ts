@@ -22,6 +22,7 @@ const readShell = (file: string): string =>
 
 const HOOK = read("useTranslateMessage.ts");
 const SEND = read("sendHost.ts");
+const SEND_GUARDS = read("sendEntryGuards.ts");
 const ACTIONS = read("messageActions.ts");
 const STATE = read("translateState.ts");
 const HOST_MESSAGE = read("hostMessage.ts");
@@ -34,6 +35,7 @@ function stripComments(source: string): string {
 }
 const HOOK_CODE = stripComments(HOOK);
 const SEND_CODE = stripComments(SEND);
+const GUARDS_CODE = stripComments(SEND_GUARDS);
 const ACTIONS_CODE = stripComments(ACTIONS);
 
 /** The slice of the hook from a marker to the next one. */
@@ -140,13 +142,16 @@ describe("abort and cleanup: a translation can never outlive its message", () =>
 
 describe("the gates: nothing else takes the engine while a translate holds it", () => {
   it("the send path refuses synchronously, through the one shared ref", () => {
-    expect(SEND_CODE).toContain("translationInFlightRef.current");
-    expect(SEND_CODE).toContain('from "./translateState"');
+    // The entry gates moved as one unit into `sendEntryGuards`; the invariant
+    // is that the send consults them BEFORE it claims, not which file holds
+    // the condition.
+    expect(GUARDS_CODE).toContain("translationInFlightRef.current");
+    expect(GUARDS_CODE).toContain('from "./translateState"');
     expect(HOOK_CODE).toContain('from "./translateState"');
     expect(STATE).toContain("export const translationInFlightRef");
-    // The refusal sits inside the pre-claim check, before the claim itself.
-    expect(SEND_CODE).toContain("translationInFlightRef.current ||");
-    expect(SEND_CODE.indexOf("translationInFlightRef.current ||")).toBeLessThan(
+    expect(GUARDS_CODE).toContain("translationInFlightRef.current ||");
+    expect(SEND_CODE).toContain("sendEntryRefused({");
+    expect(SEND_CODE.indexOf("sendEntryRefused({")).toBeLessThan(
       SEND_CODE.indexOf("sendClaimRef.current = true"),
     );
   });
