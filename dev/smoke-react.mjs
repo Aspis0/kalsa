@@ -630,7 +630,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, doorPort, deskPort, deskPreferred } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -683,15 +683,21 @@ try {
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
-    // The note is built from whichever port the card knows (DevicesSurface's
-    // tailscaleNote, AdvancedPanel's help line), so a card that knows either
-    // port MUST carry it: a vanished note on a fallback card is a phone with
-    // no road, and checking only cards that happen to show one let exactly
-    // that pass. The numbers must be the card's own ports too - a swapped or
-    // wrong-numbered command is a phone pointed at the wrong road - and a
-    // desk on a fallback port must say the move, with its own number.
-    if ((doorPort !== null || deskPort !== null) && !all.includes("Run for Tailscale")) {
-      problems.push(`a card that knows a port must carry the Tailscale note: ${heading}`);
+    // The note is demanded exactly where the components render it, because
+    // the DTO always carries both ports (main.rs sets them on every read)
+    // while the pages do not: DevicesSurface draws the note in paired and
+    // beside a square - never in idle, claiming or failed - and
+    // AdvancedPanel draws its line whenever its dto has either port. A
+    // vanished note where one belongs is a phone with no road; a demanded
+    // note where the page draws none is a rule fighting the page.
+    const devicesNoteExpected =
+      (doorPort !== null || deskPort !== null) &&
+      (pairingState === "paired" || (pairingState === "waiting" && qr));
+    const noteExpected = hasAdvanced
+      ? doorPort !== null || deskPort !== null
+      : devicesNoteExpected;
+    if (noteExpected && !all.includes("Run for Tailscale")) {
+      problems.push(`a card that must carry the Tailscale note does not: ${heading}`);
     }
     if (all.includes("Run for Tailscale")) {
       const doorCommand = all.match(/tailscale serve --bg (\d+)/);

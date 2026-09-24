@@ -198,6 +198,12 @@ const scenarios = [
   }],
 
   ["Pairing", "nothing to pair to yet", "devices", { pairing: pairingDto("idle") }],
+  // The DTO always carries both ports (main.rs sets them on every read),
+  // so these two are the production shapes: idle and failed KNOW the
+  // ports and still draw no Tailscale note - the note belongs to a square
+  // or a paired house, not to a page with nothing to point a road at.
+  ["Pairing", "idle with both ports known", "devices", { pairing: pairingDto("idle", { door_port: 8131, desk_port: 8134 }) }],
+  ["Pairing", "failed with both ports known", "devices", { pairing: pairingDto("failed", { failure: "could-not-save", door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a square is waiting", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a fresh square after the old one expired", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "expired" }) }],
   ["Pairing", "a fresh square after one did not match", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "wrong-code" }) }],
@@ -382,6 +388,8 @@ async function renderScenario(descriptor) {
   result.doorPort = dto?.door_port ?? null;
   result.deskPort = dto?.desk_port ?? null;
   result.deskPreferred = dto?.desk_port_preferred !== false;
+  result.pairingState = data.pairing?.state ?? null;
+  result.hasAdvanced = Boolean(data.advanced);
   root.unmount();
   await settle();
   return result;
