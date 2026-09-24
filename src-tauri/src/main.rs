@@ -1093,12 +1093,16 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             None => {
                 progress(startup::Progress::Measuring);
                 let measurement = kalsa_probe::measure_reliable(&ProbeConfig::default());
+                // Stamped at the probe's finish, on the walk's own clock:
+                // the record's age must count from the measurement, not
+                // from the save that may follow minutes of download.
+                let taken_unix = measurement::now_unix(SystemTime::now());
                 (
                     startup::Machine {
                         measurement: measurement.clone(),
                         ram_bytes,
                     },
-                    Some(measurement),
+                    Some((measurement, taken_unix, ram_bytes)),
                 )
             }
         };
@@ -1132,12 +1136,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     }
 }
 
-/// What the blocking walk hands back: the verdict for the screen, and the
-/// measurement it may have made on the way. The measurement rides both arms,
-/// because a walk that failed — a phone not paired, nothing that fits, a
-/// download lost — still measured a real machine, and measuring is seconds of
-/// the owner's time that must not be spent twice for the same refusal.
-type Walk = (Result<startup::PreparedStart, String>, Option<Measurement>);
+/// What the blocking walk hands back: the verdict for the screen, and —
+/// when it measured — the reading beside the facts that make it a record:
+/// the instant the probe finished (stamped where the probe returned, not
+/// where the record is written minutes of download later) and the RAM the
+/// measured `Machine` was built with.
+type Walk = (Result<startup::PreparedStart, String>, Option<(Measurement, u64, u64)>);
 
 /// Settles the walk: keeps the machine's fact, then answers the walk's. A
 /// measurement is a fact about the machine; the verdict is a fact about the
@@ -1149,12 +1153,14 @@ type Walk = (Result<startup::PreparedStart, String>, Option<Measurement>);
 /// verdict, not the wish: only a start the supervisor took may replace what
 /// the panel describes.
 fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result<(), String> {
-    if let Some(measured) = walked.1.filter(|m| m.is_reliable()) {
+    if let Some((measured, taken_unix, ram_bytes)) =
+        walked.1.filter(|(measured, _, _)| measured.is_reliable())
+    {
         // Written down beside the kept copy, under the same rule: only what
         // the probe itself believes. A record the disk refuses costs the
         // next launch one re-measurement — it is logged, never fatal.
         if let Some(dir) = record_dir {
-            measurement::save(&measured, dir);
+            measurement::save(&measured, dir, taken_unix, ram_bytes);
         }
         if let Ok(mut stored) = brain.measurement.lock() {
             *stored = Some(measured);
@@ -1430,6 +1436,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 parent,
                 SystemTime::now(),
                 startup::ram_bytes(),
+                kalsa_probe::backend(),
             );
             // The authority, before anything below can read or write the
             // store: one exclusive lock on this account's own data

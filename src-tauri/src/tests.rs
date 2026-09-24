@@ -65,7 +65,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
             Err("No model that fits this computer is available yet. \
                  An app update may add one."
                 .into()),
-            Some(measured(80.0e9)),
+            Some((measured(80.0e9), 0, 0)),
         ),
         None,
     );
@@ -79,7 +79,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     // an unreliable one never replaces the reliable one already kept.
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
-    let second = settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)), None);
+    let second = settle_walk(&brain, (Err("still refused".into()), Some((unbelieved, 0, 0))), None);
     assert!(
         second.is_err(),
         "an unreliable reading does not turn the refusal into a success"

@@ -1,8 +1,8 @@
 //! The machine's measurement, written down: the figures, when they were
-//! taken, by which build and optimisation level, on how much RAM — so a
-//! launch of a machine that has not changed does not measure again, and a
-//! record that no longer describes this machine is recognised rather than
-//! trusted.
+//! taken, by which build and optimisation level, on how much RAM and which
+//! backend — so a launch of a machine that has not changed does not measure
+//! again, and a record that no longer describes this machine is recognised
+//! rather than trusted.
 //!
 //! The in-memory `Mutex<Option<Measurement>>` in `main` stays the one
 //! source the walk reads; this module only seeds that slot at startup and
@@ -17,9 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use kalsa_probe::Measurement;
-
-use crate::startup;
+use kalsa_probe::{Backend, Measurement};
 
 /// The record's file, beside the app's other state files.
 const FILE: &str = "measurement.json";
@@ -34,7 +32,9 @@ const MAX_AGE_SECS: u64 = 30 * 24 * 60 * 60;
 const CLOCK_SKEW_SECS: u64 = 60 * 60;
 
 /// What [`seed`] accepts and [`save`] writes. Everything a later launch
-/// needs to decide whether these figures are still THIS machine's.
+/// needs BESIDE the machine's current facts — read fresh at seed time, so
+/// they are arguments, not fields — to decide whether these figures are
+/// still THIS machine's.
 #[derive(Serialize, Deserialize)]
 struct Record {
     measurement: Measurement,
@@ -46,18 +46,20 @@ struct Record {
 
 /// Fills the empty kept-measurement slot from the record, before any
 /// turn-on can run. A record that fails the reuse rule leaves the slot
-/// empty, and the existing path measures as today; `now` and `ram_bytes`
-/// arrive as facts from the caller so the rule is testable.
+/// empty, and the existing path measures as today; the clock, the RAM and
+/// the freshly detected backend arrive as facts from the caller so the
+/// rule is testable.
 pub(crate) fn seed(
     kept: &Mutex<Option<Measurement>>,
     dir: &Path,
     now: SystemTime,
     ram_bytes: u64,
+    detected: Backend,
 ) {
     let Some(record) = load(dir) else {
         return;
     };
-    if !describes_this_machine(&record, now_unix(now), ram_bytes) {
+    if !describes_this_machine(&record, now_unix(now), ram_bytes, detected) {
         return;
     }
     if let Ok(mut stored) = kept.lock() {
@@ -67,16 +69,20 @@ pub(crate) fn seed(
     }
 }
 
-/// Writes the record for the measurement a walk just kept. A failure is
-/// logged in words and swallowed: the walk already answered, and the cost
-/// of a missing record is one re-measurement at the next launch, not data.
-pub(crate) fn save(measurement: &Measurement, dir: &Path) {
+/// Writes the record for a measurement a walk just kept. The stamp and the
+/// RAM arrive from the walk — the instant the probe finished and the RAM
+/// the measured `Machine` was built with — because the save can land
+/// minutes of download after the measurement, and the record's age must
+/// count from the measurement. A failure is logged in words and swallowed:
+/// the walk already answered, and the cost of a missing record is one
+/// re-measurement at the next launch, not data.
+pub(crate) fn save(measurement: &Measurement, dir: &Path, taken_unix: u64, ram_bytes: u64) {
     let record = Record {
         measurement: measurement.clone(),
-        taken_unix: now_unix(SystemTime::now()),
+        taken_unix,
         opt_level: kalsa_probe::OPT_LEVEL.to_string(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
-        ram_bytes: startup::ram_bytes(),
+        ram_bytes,
     };
     let bytes = match serde_json::to_vec_pretty(&record) {
         Ok(bytes) => bytes,
@@ -88,7 +94,8 @@ pub(crate) fn save(measurement: &Measurement, dir: &Path) {
     let path = dir.join(FILE);
     // Distinct temporary names, one per save: two saves sharing a temporary
     // could interleave their writes and publish a torn record — the same
-    // trap `options` guards against for the settings file.
+    // trap `options` guards against for the settings file. Two turn-ons
+    // racing this save both measured a real machine; the last rename wins.
     let temporary = dir.join(format!(
         "{FILE}.tmp.{}.{}",
         std::process::id(),
@@ -96,6 +103,10 @@ pub(crate) fn save(measurement: &Measurement, dir: &Path) {
     ));
     // A temp file in the SAME directory, then a rename: the rename never
     // crosses a filesystem, and no reader ever sees a half-written record.
+    // Declared, not proven: no test exercises the rename's atomicity, and a
+    // crash between the write and the rename leaves the temp behind —
+    // nothing sweeps it, because a sweep before the instance lock could
+    // delete a live instance's temp.
     let written = (|| -> std::io::Result<()> {
         std::fs::write(&temporary, bytes)?;
         std::fs::rename(&temporary, &path)
@@ -119,7 +130,12 @@ fn load(dir: &Path) -> Option<Record> {
 
 /// The reuse rule, one line of why per clause: every term here is a way a
 /// record can stop describing this machine, and each is refused on its own.
-fn describes_this_machine(record: &Record, now_unix: u64, ram_bytes: u64) -> bool {
+fn describes_this_machine(
+    record: &Record,
+    now_unix: u64,
+    ram_bytes: u64,
+    detected: Backend,
+) -> bool {
     // The probe's own verdict: a reading it distrusts never seeds a walk.
     record.measurement.is_reliable()
         // The optimisation level changes the reading itself — by nineteen
@@ -129,6 +145,11 @@ fn describes_this_machine(record: &Record, now_unix: u64, ram_bytes: u64) -> boo
         && record.app_version == env!("CARGO_PKG_VERSION")
         // The RAM is half the budget: different memory is a different machine.
         && record.ram_bytes == ram_bytes
+        // The backend is the other half of the decision — the budget path
+        // and the decode estimate both follow it — and detection is cheap,
+        // so a GPU change (or data copied to a same-RAM machine) re-measures
+        // instead of reusing the old machine's answer.
+        && record.measurement.will_run_on == detected
         // Older than thirty days is a machine we no longer know.
         && now_unix.saturating_sub(record.taken_unix) <= MAX_AGE_SECS
         // Dated beyond the skew allowance is a clock mistake, not a record.
@@ -137,7 +158,9 @@ fn describes_this_machine(record: &Record, now_unix: u64, ram_bytes: u64) -> boo
 
 static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-fn now_unix(now: SystemTime) -> u64 {
+/// Seconds since the epoch, 0 before it (an absurd clock): the record's
+/// one time format, shared with the walk that stamps the probe's finish.
+pub(crate) fn now_unix(now: SystemTime) -> u64 {
     now.duration_since(UNIX_EPOCH)
         .map(|since| since.as_secs())
         .unwrap_or(0)
@@ -207,14 +230,14 @@ mod tests {
 
     #[test]
     fn a_fresh_matching_record_describes_this_machine() {
-        assert!(describes_this_machine(&a_record(), NOW, RAM));
+        assert!(describes_this_machine(&a_record(), NOW, RAM, Backend::Cpu));
     }
 
     #[test]
     fn an_unreliable_reading_is_not_reused() {
         let mut record = a_record();
         record.measurement.reliability.reliable = false;
-        assert!(!describes_this_machine(&record, NOW, RAM));
+        assert!(!describes_this_machine(&record, NOW, RAM, Backend::Cpu));
     }
 
     #[test]
@@ -222,30 +245,30 @@ mod tests {
         let mut record = a_record();
         record.opt_level.push_str("-other");
         assert_ne!(record.opt_level, kalsa_probe::OPT_LEVEL);
-        assert!(!describes_this_machine(&record, NOW, RAM));
+        assert!(!describes_this_machine(&record, NOW, RAM, Backend::Cpu));
     }
 
     #[test]
     fn a_record_from_another_app_version_is_not_reused() {
         let mut record = a_record();
         record.app_version = "0.0.0-other".to_string();
-        assert!(!describes_this_machine(&record, NOW, RAM));
+        assert!(!describes_this_machine(&record, NOW, RAM, Backend::Cpu));
     }
 
     #[test]
     fn a_record_of_another_machine_s_ram_is_not_reused() {
-        assert!(!describes_this_machine(&a_record(), NOW, RAM + 1));
+        assert!(!describes_this_machine(&a_record(), NOW, RAM + 1, Backend::Cpu));
     }
 
     #[test]
     fn a_record_older_than_thirty_days_is_not_reused() {
         let record = a_record();
         assert!(
-            describes_this_machine(&record, NOW + THIRTY_DAYS, RAM),
+            describes_this_machine(&record, NOW + THIRTY_DAYS, RAM, Backend::Cpu),
             "the thirtieth day itself is still this machine"
         );
         assert!(
-            !describes_this_machine(&record, NOW + THIRTY_DAYS + 1, RAM),
+            !describes_this_machine(&record, NOW + THIRTY_DAYS + 1, RAM, Backend::Cpu),
             "one second past thirty days is not"
         );
     }
@@ -255,12 +278,12 @@ mod tests {
         let mut record = a_record();
         record.taken_unix = NOW + CLOCK_SKEW_SECS;
         assert!(
-            describes_this_machine(&record, NOW, RAM),
+            describes_this_machine(&record, NOW, RAM, Backend::Cpu),
             "an hour of skew is the allowance"
         );
         record.taken_unix += 1;
         assert!(
-            !describes_this_machine(&record, NOW, RAM),
+            !describes_this_machine(&record, NOW, RAM, Backend::Cpu),
             "more than an hour into the future is a clock mistake, not a record"
         );
     }
@@ -279,12 +302,13 @@ mod tests {
     #[test]
     fn a_record_round_trips_and_leaves_no_temporary_behind() {
         let dir = scratch("round-trip");
-        save(&measured(80.0e9), &dir);
+        save(&measured(80.0e9), &dir, NOW, RAM);
         let loaded = load(&dir).expect("the record was just written");
         assert_eq!(loaded.measurement, measured(80.0e9));
+        assert_eq!(loaded.taken_unix, NOW);
         assert_eq!(loaded.opt_level, kalsa_probe::OPT_LEVEL);
         assert_eq!(loaded.app_version, env!("CARGO_PKG_VERSION"));
-        assert_eq!(loaded.ram_bytes, startup::ram_bytes());
+        assert_eq!(loaded.ram_bytes, RAM);
         let names: Vec<std::ffi::OsString> = std::fs::read_dir(&dir)
             .expect("the directory is readable")
             .map(|entry| entry.expect("each entry").file_name())
@@ -299,8 +323,45 @@ mod tests {
 
     #[test]
     fn a_save_that_cannot_write_is_logged_not_fatal() {
-        // Not panicking is the whole assertion; the reason goes to the log.
-        save(&measured(80.0e9), Path::new("/nonexistent-kalsa/record"));
+        // The destination's parent is a regular FILE, so the write cannot
+        // succeed on any machine. Asserted: no panic, and no record appears
+        // in the one directory that does exist here.
+        let dir = scratch("unwritable");
+        let blocker = dir.join("not-a-directory");
+        std::fs::write(&blocker, b"a regular file").expect("write the blocker");
+        save(&measured(80.0e9), &blocker, NOW, RAM);
+        let names: Vec<std::ffi::OsString> = std::fs::read_dir(&dir)
+            .expect("the directory is readable")
+            .map(|entry| entry.expect("each entry").file_name())
+            .collect();
+        assert_eq!(
+            names,
+            [std::ffi::OsString::from("not-a-directory")],
+            "a record appeared despite the unwritable destination"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_record_of_another_backend_is_not_reused() {
+        let mut record = a_record();
+        record.measurement.will_run_on = Backend::Metal;
+        assert!(!describes_this_machine(&record, NOW, RAM, Backend::Cpu));
+    }
+
+    #[test]
+    fn the_record_is_stamped_where_the_probe_finished_not_where_it_was_saved() {
+        let dir = scratch("stamp");
+        // A taken time far in the real past: if save stamped its own now
+        // instead of carrying the walk's instant, the record would read fresh.
+        let measured_at = 1_700_000_000;
+        save(&measured(80.0e9), &dir, measured_at, RAM);
+        let loaded = load(&dir).expect("the record was just written");
+        assert_eq!(
+            loaded.taken_unix, measured_at,
+            "the stamp must be the probe's finish, not the save's moment"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -308,7 +369,7 @@ mod tests {
         let dir = scratch("seed");
         planted(&dir, &a_record());
         let kept = Mutex::new(None);
-        seed(&kept, &dir, time_of(NOW), RAM);
+        seed(&kept, &dir, time_of(NOW), RAM, Backend::Cpu);
         assert_eq!(
             kept.lock().expect("lock").as_ref(),
             Some(&a_record().measurement),
@@ -320,7 +381,7 @@ mod tests {
         other_ram.ram_bytes += 1;
         planted(&dir, &other_ram);
         let unstated = Mutex::new(None);
-        seed(&unstated, &dir, time_of(NOW), RAM);
+        seed(&unstated, &dir, time_of(NOW), RAM, Backend::Cpu);
         assert!(
             unstated.lock().expect("lock").is_none(),
             "a stale record leaves the slot to the walk"
@@ -331,7 +392,7 @@ mod tests {
         mine.measurement = measured(1.0e9);
         planted(&dir, &mine);
         let held = Mutex::new(Some(measured(2.0e9)));
-        seed(&held, &dir, time_of(NOW), RAM);
+        seed(&held, &dir, time_of(NOW), RAM, Backend::Cpu);
         assert_eq!(
             held.lock().expect("lock").as_ref().map(|m| m.ceiling_bytes_per_second),
             Some(2.0e9),
