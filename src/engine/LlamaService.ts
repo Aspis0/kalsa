@@ -2818,8 +2818,11 @@ async function reloadGovernorRuntimeFallback(
   }
   const args = lastLoadArgs;
   if (!args) {
-    // Unreachable while a context is loaded: lastLoadArgs is written by every
-    // completed initEngine, and a runtime fallback implies one completed.
+    // Unreachable while a context is loaded: every initEngine that actually
+    // LOADS writes lastLoadArgs; the idempotent-skip path leaves it untouched
+    // by design, and a skip only fires when the loaded context already
+    // matches the request — so the stored args still mirror what is loaded,
+    // and a runtime fallback implies a loaded context.
     throw new Error(getStrings(locale).errors.modelNotLoaded);
   }
   runtimeGovernorState = "fallback-reload";
@@ -4080,6 +4083,10 @@ export async function streamAssistantTurn(
   // anything else — even a send that finds no context and returns, so a send
   // arriving during the reload always makes the old retry stale.
   turnTokenSeq += 1;
+  // Captured HERE, not read live at the catch: a send entering mid-job would
+  // bump turnTokenSeq, and a catch-time read would adopt the NEWER token —
+  // hiding this turn's own staleness from the retry gate.
+  const turnToken = turnTokenSeq;
   // The boundary is installed only by native evidence (see the finally). Do
   // not claim it here (that was the a21746e root), and do not erase the prior
   // same-chat fact either: the absolute start survives appends and
@@ -5530,7 +5537,7 @@ export async function streamAssistantTurn(
         // The turn/model snapshot is taken now, before anything async.
         return {
           reason: runtimeFallbackReason,
-          turnToken: turnTokenSeq,
+          turnToken,
           modelId: activeModelId,
         };
       }

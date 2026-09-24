@@ -19,7 +19,7 @@ describe("runtime governor fallback wiring in LlamaService", () => {
   test("the turn catch defers to the decision and hands the attempt over", () => {
     expect(source).toContain("shouldRuntimeGovernorFallback({");
     expect(source).toContain("reason: runtimeFallbackReason,");
-    expect(source).toContain("turnToken: turnTokenSeq,");
+    expect(source).toContain("turnToken,");
   });
 
   test("the tool-exhausted catch hands governor rejections to the decision", () => {
@@ -59,5 +59,17 @@ describe("runtime governor fallback wiring in LlamaService", () => {
     expect(bump).toBeGreaterThan(entry);
     expect(bump).toBeLessThan(job);
     expect((source.match(/turnTokenSeq \+= 1;/g) ?? [])).toHaveLength(1);
+  });
+
+  // Shape only, same limit as above: pins that the attempt carries the
+  // ENTRY-captured token; a catch-time read of turnTokenSeq would let a send
+  // entering mid-job hand this turn the newer token.
+  test("the attempt carries the entry-captured token, not a catch-time read", () => {
+    const entry = source.indexOf("export async function streamAssistantTurn(");
+    const bump = source.indexOf("turnTokenSeq += 1;", entry);
+    const capture = source.indexOf("const turnToken = turnTokenSeq;", entry);
+    expect(capture).toBeGreaterThan(bump);
+    expect(source).not.toContain("turnToken: turnTokenSeq,");
+    expect(source).toContain("turnToken,");
   });
 });
