@@ -49,21 +49,56 @@ pub(crate) fn fingerprint(platform: Platform, backend: ServerBackend, detected: 
     )
 }
 
+/// wmic's query, exactly as it has always run.
+#[cfg(any(target_os = "windows", test))]
+const WMIC_DRIVERS: [&str; 4] = ["path", "win32_VideoController", "get", "DriverVersion"];
+
+/// The PowerShell fallback for the same class and field, one version per
+/// line — the shape `parse_driver_versions` already reads.
+#[cfg(any(target_os = "windows", test))]
+const POWERSHELL_DRIVERS: [&str; 4] = [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "Get-CimInstance Win32_VideoController | ForEach-Object { $_.DriverVersion }",
+];
+
+/// The driver text from whichever producer answered. wmic runs first, as
+/// before; PowerShell is the fallback because Windows 11 24H2/25H2 no
+/// longer ship wmic — its latency on a real machine is not measured. The
+/// fallback is consulted only when wmic could not run or did not succeed,
+/// so a machine with wmic pays nothing for it.
+#[cfg(any(target_os = "windows", test))]
+fn driver_text(
+    wmic: impl FnOnce() -> Option<String>,
+    powershell: impl FnOnce() -> Option<String>,
+) -> Option<String> {
+    wmic().or_else(powershell)
+}
+
 #[cfg(target_os = "windows")]
 fn driver_version() -> String {
-    let output = std::process::Command::new("wmic")
-        .args(["path", "win32_VideoController", "get", "DriverVersion"])
-        .output();
-    match output {
-        Ok(output) if output.status.success() => {
-            parse_driver_versions(&String::from_utf8_lossy(&output.stdout))
-                .unwrap_or_else(|| "unknown".to_string())
-        }
-        // A verdict that survives without a driver reading is weaker, not
-        // wrong: the probe proved this build here, and only a proven change
-        // of machine should unprove it.
-        _ => "unknown".to_string(),
+    driver_text(
+        || command_text("wmic", &WMIC_DRIVERS),
+        || command_text("powershell", &POWERSHELL_DRIVERS),
+    )
+    .and_then(|text| parse_driver_versions(&text))
+    // A verdict that survives without a driver reading is weaker, not
+    // wrong: the probe proved this build here, and only a proven change
+    // of machine should unprove it.
+    .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Runs `program`, answering its stdout as text only when it ran and
+/// succeeded; anything else is "no answer". Duplicated beside kalsa-probe's
+/// on purpose: a runner shared across crates would be an API for five lines.
+#[cfg(target_os = "windows")]
+fn command_text(program: &str, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new(program).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
     }
+    String::from_utf8(output.stdout).ok()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -243,5 +278,53 @@ mod tests {
             Some("31.0.15.3623,32.0.15.6109".to_string())
         );
         assert_eq!(parse_driver_versions("DriverVersion\n"), None);
+    }
+
+    #[test]
+    fn the_powershell_fallback_answers_only_when_wmic_cannot() {
+        let calls = std::cell::Cell::new(0);
+        let fallback = || {
+            calls.set(calls.get() + 1);
+            Some("31.0.15.5222".to_string())
+        };
+        assert_eq!(
+            driver_text(|| Some("DriverVersion\n32.0.15.6109".to_string()), fallback).as_deref(),
+            Some("DriverVersion\n32.0.15.6109"),
+            "wmic answered: the fallback must not even run"
+        );
+        assert_eq!(calls.get(), 0);
+        assert_eq!(
+            driver_text(|| None, fallback).as_deref(),
+            Some("31.0.15.5222"),
+            "wmic gone (24H2/25H2): the fallback answers"
+        );
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn both_producers_ask_the_video_controller_class_for_its_driver_versions() {
+        assert_eq!(
+            WMIC_DRIVERS,
+            ["path", "win32_VideoController", "get", "DriverVersion"]
+        );
+        assert_eq!(
+            POWERSHELL_DRIVERS,
+            [
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Get-CimInstance Win32_VideoController | ForEach-Object { $_.DriverVersion }"
+            ]
+        );
+    }
+
+    #[test]
+    fn powershell_driver_lines_parse_like_wmic_lines() {
+        // One version per line, no header, and a null DriverVersion arriving
+        // as an empty line the parser already drops.
+        assert_eq!(
+            parse_driver_versions("\n31.0.15.3623\n\n32.0.15.6109\n"),
+            Some("31.0.15.3623,32.0.15.6109".to_string())
+        );
     }
 }

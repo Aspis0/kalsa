@@ -39,20 +39,57 @@ pub fn backend() -> Backend {
     }
 }
 
+/// wmic's query, exactly as it has always run: the class and fields the
+/// parser below reads, the memory value leading each row.
+#[cfg(any(target_os = "windows", test))]
+const WMIC_CONTROLLERS: [&str; 4] = ["path", "win32_VideoController", "get", "name,AdapterRAM"];
+
+/// The PowerShell fallback, asking the SAME class for the SAME fields as
+/// deterministic line text — no Format-Table, whose widths and locale are
+/// not a contract: one `<AdapterRAM> <Name>` line per controller, where a
+/// null AdapterRAM leaves the line without its leading number.
+#[cfg(any(target_os = "windows", test))]
+const POWERSHELL_CONTROLLERS: [&str; 4] = [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "Get-CimInstance Win32_VideoController | ForEach-Object { \"$($_.AdapterRAM) $($_.Name)\" }",
+];
+
+/// The controllers' text from whichever producer answered. wmic runs first,
+/// exactly as before; PowerShell is the fallback because Windows 11 24H2/25H2
+/// no longer ship wmic — its latency on a real machine is not measured. The
+/// fallback is consulted only when wmic could not run or did not succeed, so
+/// a machine with wmic pays nothing for it.
+#[cfg(any(target_os = "windows", test))]
+fn controllers_text(
+    wmic: impl FnOnce() -> Option<String>,
+    powershell: impl FnOnce() -> Option<String>,
+) -> Option<String> {
+    wmic().or_else(powershell)
+}
+
 #[cfg(target_os = "windows")]
 fn windows_backend() -> Backend {
-    // wmic is present on Windows 10 and still on many 11 installs; where it is
-    // gone we say Unknown rather than reaching for PowerShell (slow) or a crate.
-    let output = std::process::Command::new("wmic")
-        .args(["path", "win32_VideoController", "get", "name,AdapterRAM"])
-        .output();
-    match output {
-        Ok(output) if output.status.success() => {
-            let text = String::from_utf8_lossy(&output.stdout);
-            backend_from_video_controllers(&text)
-        }
-        _ => Backend::Unknown,
+    controllers_text(
+        || command_text("wmic", &WMIC_CONTROLLERS),
+        || command_text("powershell", &POWERSHELL_CONTROLLERS),
+    )
+    .map(|text| backend_from_video_controllers(&text))
+    .unwrap_or(Backend::Unknown)
+}
+
+/// Runs `program`, answering its stdout as text only when it ran and
+/// succeeded; anything else is "no answer", which every caller here treats
+/// as absent, never as data. Private on purpose: a runner shared with
+/// kalsa-runtime would be a cross-crate API for five lines nobody owes it.
+#[cfg(target_os = "windows")]
+fn command_text(program: &str, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new(program).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
     }
+    String::from_utf8(output.stdout).ok()
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -131,7 +168,8 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
     }
 }
 
-/// Reads `wmic path win32_VideoController get name,AdapterRAM` output.
+/// Reads the video controllers' text — wmic's, or the PowerShell fallback's
+/// with the same shape: the memory, when there is one, leading each row.
 ///
 /// The name decides whether it is discrete; the memory is only reported when it
 /// is not sitting on the 32-bit saturation point WMI is famous for.
@@ -140,18 +178,14 @@ pub fn backend_from_video_controllers(text: &str) -> Backend {
     let mut best: Option<u64> = None;
     let mut discrete = false;
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-        // WMI prints the memory column first and the name second, but the order
-        // is not worth trusting: the first number in the row is the memory, and
-        // everything else is the name.
-        let mut memory: Option<u64> = None;
+        // The memory, when present, is the row's FIRST token — both
+        // producers shape it that way — and a number further into the row is
+        // part of a name ("RX 6600" is not 6600 bytes), never a size. A null
+        // AdapterRAM leaves the row numberless, and the name alone answers.
+        let mut tokens = line.split_whitespace();
+        let memory = tokens.next().and_then(|first| first.parse::<u64>().ok());
         let mut name = String::new();
-        for token in line.split_whitespace() {
-            if memory.is_none() {
-                if let Ok(bytes) = token.parse::<u64>() {
-                    memory = Some(bytes);
-                    continue;
-                }
-            }
+        for token in tokens {
             name.push_str(token);
             name.push(' ');
         }
@@ -233,6 +267,68 @@ mod tests {
         );
         assert_eq!(parse_nvidia_video_memory("Model: something\n"), None);
         assert_eq!(parse_nvidia_video_memory("Video Memory: a lot\n"), None);
+    }
+
+    #[test]
+    fn the_powershell_fallback_answers_only_when_wmic_cannot() {
+        let calls = std::cell::Cell::new(0);
+        let fallback = || {
+            calls.set(calls.get() + 1);
+            Some("3221225472  NVIDIA GeForce RTX 4060".to_string())
+        };
+        assert_eq!(
+            controllers_text(|| Some("  Intel only".to_string()), fallback).as_deref(),
+            Some("  Intel only"),
+            "wmic answered: the fallback must not even run"
+        );
+        assert_eq!(calls.get(), 0);
+        assert_eq!(
+            controllers_text(|| None, fallback).as_deref(),
+            Some("3221225472  NVIDIA GeForce RTX 4060"),
+            "wmic gone (24H2/25H2): the fallback answers"
+        );
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn both_producers_ask_the_video_controller_class_for_the_same_fields() {
+        assert_eq!(
+            WMIC_CONTROLLERS,
+            ["path", "win32_VideoController", "get", "name,AdapterRAM"]
+        );
+        assert_eq!(POWERSHELL_CONTROLLERS[..3], ["-NoProfile", "-NonInteractive", "-Command"]);
+        assert_eq!(
+            POWERSHELL_CONTROLLERS[3],
+            "Get-CimInstance Win32_VideoController | ForEach-Object { \"$($_.AdapterRAM) $($_.Name)\" }"
+        );
+    }
+
+    #[test]
+    fn powershell_text_with_a_null_adapter_ram_parses_without_inventing_a_size() {
+        // The fallback's exact shape for a null AdapterRAM: the interpolation
+        // yields nothing, so the row arrives numberless with a leading space —
+        // and a number inside a name is never that card's memory.
+        assert_eq!(
+            backend_from_video_controllers(" NVIDIA GeForce RTX 4090"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(
+            backend_from_video_controllers(" AMD Radeon RX 6600"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(backend_from_video_controllers("  Intel(R) UHD Graphics 770"), Backend::Cpu);
+    }
+
+    #[test]
+    fn powershell_text_with_two_controllers_picks_the_discrete_one() {
+        assert_eq!(
+            backend_from_video_controllers(
+                "  Intel(R) UHD Graphics 770\n3221225472  NVIDIA GeForce RTX 4060\n"
+            ),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(3221225472)
+            }
+        );
     }
 
     #[test]
