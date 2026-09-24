@@ -17,7 +17,9 @@ list can become false by omission while every sentence in it still sounds plausi
 
 **Read §14 first.** A first screen that offers a model the app has never fetched is
 wrong at the exact moment the owner first trusts it, and nothing else on this list
-is wrong at a moment that matters that much.
+is wrong at a moment that matters that much. (2026-09-24: both rows it named are now
+fetched and run by the app's own walk; what the first screen offers on a smaller machine
+is still unwalked.)
 
 **Then read §4 and the unbuilt half of §12 as one item.** The phone join is the
 product's whole premise, and its two halves have never met: the desktop side is
@@ -380,21 +382,59 @@ second machine reads these numbers, because that is the point at which a figure 
 conditions becomes a promise the product cannot keep. `fa498bf` is the last time a number
 outlived its baseline here, and it had to be retired from three documents.
 
-## 14. The first screen is honest about a journey nobody has taken
+## 14. The two Gemma rows added on 2026-09-18 are fetched and run by the app's own walk — what the first screen offers is still open
 
-An afternoon went into what the screen *says*. Nothing went into whether what it says
-can be done. Two rows were added to the catalog — Gemma 4 E4B and Gemma 4 26B-A4B, the
-second a 14.4 GB QAT download — and both were verified the only way a desk can verify
-them: the pinned commit, the byte count and the sha256 answer 200 from the live API, and
-the architecture is present in llama.cpp b10950. **Neither has ever been downloaded or
-launched.** The models directory holds Qwen3.6-35B-A3B, Trinity-Nano, gemma-4-12B-it
-and stories260K, and nothing else. A first screen that offers a model the app cannot
-actually fetch is worse than one that offers nothing, because it is wrong at the
-moment the owner trusts it.
+*As written between 2026-09-18 and 2026-09-20, before the walk below:* an afternoon went into what the screen
+*says*. Nothing went into whether what it says can be done. Two rows were added to the
+catalog — Gemma 4 E4B and Gemma 4 26B-A4B, the second a 14.4 GB QAT download — and both were
+verified the only way a desk can verify them: the pinned commit, the byte count and the
+sha256 answer 200 from the live API, and the architecture is present in llama.cpp b10950.
+Neither had ever been downloaded or launched, and the models directory held Qwen3.6-35B-A3B,
+Trinity-Nano, gemma-4-12B-it and stories260K. A first screen that offers a model the app
+cannot actually fetch is worse than one that offers nothing, because it is wrong at the
+moment the owner trusts it. The walk existed and was phone-free (`startup.rs:choose_model`
+calls `largest_that_runs_well` when `phone` is `None`), but it had not been run end to end
+against the catalog.
 
-This outranks every item above it that is not already closed. The walk exists, it is
-phone-free (`startup.rs:choose_model` calls `largest_that_runs_well` when `phone` is
-`None`), and it has not been run end to end against today's catalog.
+**Walked for real on 2026-09-24, for both rows: the fetch half is closed.**
+`src-tauri/src/real_walk.rs` (`71d528f` … `4d5fab1`) is an `#[ignore]`d test that walks the
+app's own order for one row, named by the repo the row's FILE is pinned to (for the 26B that
+is `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, not the row's `google/gemma-4-26B-A4B-it`). It
+stores the row as the owner's choice through `options::save` and measures the machine with the
+real probe. It calls `startup::run` on the real runtime root, starts `PreparedStart.server`
+through the supervisor, and asks one chat question. Three asserts tell an honoured choice from
+a fallback: the reason is `CHOSEN_REASON`, and the launch record carries the row's display name
+and pinned digest. A `placed by` line says whether the file was downloaded or reused. The command:
+
+```text
+KALSA_BRAIN_REAL_WALK=<file repo> cargo test -p kalsa-brain real_walk -- --ignored --nocapture
+```
+
+- Gemma 4 E4B: first downloaded by the app on `71d528f`, before the `placed by` line existed.
+  On `d181140`, with the file moved aside by the orchestrator first, the walk printed
+  `placed by: download (4977171584 bytes this run)`.
+- Gemma 4 26B-A4B: downloaded by the app on `71d528f`, 14 439 363 584 bytes. That run went red
+  at the chat step (the trap below), after the file was placed.
+- The last real runs, the 26B on the tip `4d5fab1` and the E4B on the tree committed as
+  `3cfc7a2` (`4d5fab1` changed comments only), each found its file already on disk and answered
+  one question.
+- The orchestrator's own checks, which are not on disk: `shasum -a 256` of both files matches
+  the catalog pins (`85a896a0…1fab87` and `3eca3b8f…eca51d`), and the E4B re-download was
+  `cmp`-identical to the held copy.
+- A trap it found: the 26B is a thinking model. With a 16-token cap it spent every token in
+  `reasoning_content` and returned an empty `content` with `finish_reason: "length"`. The test's
+  question now gets room to finish and asserts `finish_reason == "stop"` with a non-empty
+  `content`. By default the desktop chat sends no `max_tokens`: it is a knob, unset unless the
+  owner sets it (`chat/src/lib/knobs/sampling.ts:347`). It picks the reasoning out of the
+  answer (`chat/src/lib/streamRound.ts:49-58`) and hands it on to be shown (`:193`).
+- The mutations, as recorded in the commit messages: a `choose_model` that ignores the stored
+  choice goes red on the honoured-choice assert (`71d528f`), and a cap of 16 tokens goes red on
+  the finish assert (`52d2377`).
+
+What stays open: the walk proves the planner for one device, no phone and a temporary options
+file. It does not prove what the first screen offers on a machine where one of these rows IS
+the automatic answer, a smaller machine than this one. No run of that is recorded. That open
+half still outranks every item above it that is not already closed.
 
 ## 15. The measurement lives only in memory
 
