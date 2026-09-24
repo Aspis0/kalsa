@@ -216,9 +216,12 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     let parent = model_path.parent().expect("a file path has a parent");
     if parent == models_dir {
         // In the product's own dir the file carries the row's name, because
-        // the walk names its destination from the plan. Elsewhere the blobs
-        // are digest-named; the size check above and the record's pinned
-        // digest carry the identity, and the placed-by line names the place.
+        // the walk names its destination from the plan. Outside it a reused
+        // copy may carry another program's name — a digest-named blob, or
+        // that program's own file name (find_local, startup.rs:479) — so
+        // the catalog name is not asserted there; the size check above and
+        // the record's pinned digest carry the identity, and the placed-by
+        // line names the place.
         assert_eq!(
             model_path.file_name().and_then(|name| name.to_str()),
             Some(source.file),
@@ -275,10 +278,9 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     let answer = chat_completion(port, PROMPT, MAX_TOKENS);
     // The "model" field is the answering server's self-report, not a
     // process identity: what it proves is that the server behind this port
-    // loaded the row's file. The bind race stays open in principle — the
+    // names the path we prepared. The bind race stays a residual — the
     // supervisor's preflight drops its probe bind before the child binds
-    // (supervisor.rs:757) — but a stranger winning it would report some
-    // other path and fail here.
+    // (supervisor.rs:757) — and a field this self-reported cannot close it.
     let served = answer.pointer("/model").and_then(Value::as_str).unwrap_or("<absent>");
     assert_eq!(
         served,
