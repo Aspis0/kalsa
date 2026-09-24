@@ -1526,4 +1526,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(test)]
+mod real_walk;
+#[cfg(test)]
 mod tests;
