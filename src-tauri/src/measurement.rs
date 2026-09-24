@@ -43,9 +43,11 @@ struct Record {
     app_version: String,
     ram_bytes: u64,
     /// The chip's marketing name where the platform names it — the same
-    /// string the probe's own decode estimate is keyed on. No serde
-    /// default: a record from before this field existed does not parse, and
-    /// one re-measurement is the honest price of the tighter identity.
+    /// string the probe's own decode estimate is keyed on. A record from
+    /// before this field existed reads as `chip: None` (serde reads a
+    /// missing `Option` as `None`): on a platform that names its chip that
+    /// fails the comparison below and re-measures once; where no platform
+    /// name exists it can still match, by the stated rule.
     chip: Option<String>,
 }
 
@@ -160,7 +162,12 @@ fn describes_this_machine(record: &Record, now_unix: u64, facts: &Facts) -> bool
         // every Apple Silicon Mac is `Backend::Metal`, so RAM and backend
         // alone would let a copied home directory run another Mac's figures
         // for a month. Where the platform cannot name its chip, None equals
-        // None and RAM + backend is all the identity there is.
+        // None and RAM + backend is all the identity there is. Declared: the
+        // brand string names a chip FAMILY, not its configuration (soc.rs:
+        // the Max and Ultra parts ship at two GPU-core figures the string
+        // cannot tell apart), so two same-name Macs with the same RAM share
+        // a record — and an OS update that changes the string re-measures
+        // once, which is safe.
         && record.measurement.will_run_on == facts.backend
         && record.chip == facts.chip
         // Older than thirty days is a machine we no longer know.

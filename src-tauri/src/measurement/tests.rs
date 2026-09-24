@@ -214,6 +214,17 @@ fn a_chip_no_platform_can_name_matches_on_both_sides() {
     );
 }
 
+/// The field's own comment depends on this: serde reads a missing `Option`
+/// as `None`, so a record written before the chip field existed still parses.
+#[test]
+fn a_record_from_before_the_chip_field_reads_as_none() {
+    let mut value = serde_json::to_value(a_record()).expect("serialise the record");
+    let object = value.as_object_mut().expect("the record is a JSON object");
+    assert!(object.remove("chip").is_some(), "the fixture carried a chip");
+    let parsed: Record = serde_json::from_value(value).expect("an old record still parses");
+    assert_eq!(parsed.chip, None);
+}
+
 #[test]
 fn the_machine_s_facts_are_read_only_when_a_record_exists() {
     let dir = scratch("lazy-facts");
