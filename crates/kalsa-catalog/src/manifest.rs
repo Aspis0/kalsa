@@ -222,9 +222,10 @@ impl ModelEntry {
         }
         if self.kv_bytes_per_token.is_none() && self.kv_assumption_undercounts {
             return Standing::Excluded {
-                reason: "its per-token cache has not been measured, and the shared 96 KiB \
-                         assumption is known to under-count it: the context would be sized \
-                         against roughly half the truth. Measure the cache — the pinned \
+                reason: "its per-token cache has not been measured, and research knows it \
+                         exceeds the shared 96 KiB assumption: a context sized on the \
+                         assumption would be sized on a figure known to be too small for \
+                         the cache the server will allocate. Measure the cache — the pinned \
                          file's GGUF header or the published config — and it is offerable \
                          again.",
             };
