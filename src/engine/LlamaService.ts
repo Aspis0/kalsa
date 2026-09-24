@@ -4076,6 +4076,10 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
+  // Every local send invalidates a pending governor-fallback retry before
+  // anything else — even a send that finds no context and returns, so a send
+  // arriving during the reload always makes the old retry stale.
+  turnTokenSeq += 1;
   // The boundary is installed only by native evidence (see the finally). Do
   // not claim it here (that was the a21746e root), and do not erase the prior
   // same-chat fact either: the absolute start survives appends and
@@ -4124,7 +4128,6 @@ export async function streamAssistantTurn(
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
     const turnId = String(++turnSeq);
-    turnTokenSeq += 1;
 
     let finished = false;
     let aborted = false;
@@ -5570,16 +5573,31 @@ export async function streamAssistantTurn(
   }).then(async (fallbackAttempt) => {
     if (!fallbackAttempt) return;
     const attempt = fallbackAttempt;
-    const mayRetry = () =>
+    const gate = (signalAborted: boolean) =>
       mayRetryRuntimeGovernorFallback({
-        signalAborted: Boolean(signal?.aborted),
+        signalAborted,
         turnStillCurrent: turnTokenSeq === attempt.turnToken,
         modelStillLoaded:
           activeModelId != null && activeModelId === attempt.modelId,
       });
-    // Abort already set (or turn/model already stale) when the reload would
-    // start → do not reload at all; stop quietly.
-    if (!mayRetry()) return;
+    // A refused retry ends quietly: clear the failed attempt's partial through
+    // the same replacement the stream uses (nothing stale in bubble or
+    // history), then end the turn the way an abort ends today — onDone, no
+    // error bubble.
+    const stopQuietly = () => {
+      callbacks.onDelta("", "");
+      callbacks.onDone();
+    };
+    // Abort does NOT gate the reload: after a governor failure the context is
+    // dead, so the CPU reload is recovery, not part of the turn — abort
+    // cancels only the retry, at the post-reload gate (so an early abort and
+    // an abort during reload behave the same). Turn/model staleness does gate
+    // it: reloading after a model switch already happened would arm the
+    // CPU-only state against the wrong model.
+    if (!gate(false)) {
+      stopQuietly();
+      return;
+    }
     try {
       await reloadGovernorRuntimeFallback(attempt.reason, options.locale);
     } catch (error) {
@@ -5590,7 +5608,10 @@ export async function streamAssistantTurn(
     // The world can move during the reload: retry only while the same turn is
     // current, the same model is still loaded and the signal is clean —
     // otherwise stop quietly: no retry, no error bubble.
-    if (!mayRetry()) return;
+    if (!gate(Boolean(signal?.aborted))) {
+      stopQuietly();
+      return;
+    }
     // Discard the failed attempt's partial through the stream's own channel
     // before anything can stream: a retry that ends with no visible text
     // would otherwise leave the governor attempt's partial in the bubble and

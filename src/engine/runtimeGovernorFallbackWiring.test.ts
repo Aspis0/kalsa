@@ -47,4 +47,16 @@ describe("runtime governor fallback wiring in LlamaService", () => {
       source.match(/if \(governorLoad \|\| governorRuntimeOff\) \{/g) ?? [],
     ).toHaveLength(2);
   });
+
+  // Shape only: this pins ORDER of substrings, not that the increment really
+  // runs before any context/null check — no Jest test can execute it.
+  test("the turn token advances at send entry, before the engine job", () => {
+    const entry = source.indexOf("export async function streamAssistantTurn(");
+    const bump = source.indexOf("turnTokenSeq += 1;", entry);
+    const job = source.indexOf("withEngineJob(", entry);
+    expect(entry).toBeGreaterThan(-1);
+    expect(bump).toBeGreaterThan(entry);
+    expect(bump).toBeLessThan(job);
+    expect((source.match(/turnTokenSeq \+= 1;/g) ?? [])).toHaveLength(1);
+  });
 });

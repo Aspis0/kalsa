@@ -51,7 +51,11 @@ export function isGovernorFallback(
 const GOVERNOR_DECODE_FAILED_PREFIX = "Governor decode failed: ";
 /** Length cap for the reason suffix — it lands in logcat, one line. */
 const GOVERNOR_REASON_MAX_LEN = 120;
-/** Everything outside this class is stripped: no free text into logcat. */
+/**
+ * Everything outside this class is stripped and the suffix is length-capped:
+ * the reason reaching logcat is charset-bounded — not semantically filtered,
+ * so prose or paths made of allowed characters still pass through.
+ */
 const GOVERNOR_REASON_UNSAFE = /[^A-Za-z0-9 _.,:+=\/-]/g;
 
 /**
