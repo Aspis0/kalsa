@@ -379,7 +379,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
                       : "The phone pairs at this computer's tailnet name with :8443.",
                   // True for a first-time owner too: the panel cannot know
                   // whether a serve rule exists, only where the desk is and
-                  // what the second command must say.
+                  // what the desk command must say.
                   dto.desk_port && dto.desk_port_preferred === false
                     ? `The pairing desk is on ${dto.desk_port} this time — point the desk command at this number.`
                     : null,

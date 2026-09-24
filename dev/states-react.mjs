@@ -181,6 +181,12 @@ const scenarios = [
   ["Advanced", "sampling with no server and nothing typed in Settings", "advanced", {
     state: { kind: "stopped" },
   }],
+  // The Advanced panel's own moved sentence: only the Devices fallback
+  // card exercised it before, and the panel builds its line separately.
+  ["Advanced", "the desk on a fallback port", "advanced", {
+    state: { kind: "stopped" },
+    advanced: advancedDto({ desk_port: 51990, desk_port_preferred: false }),
+  }],
   // The server is up but still loading its model: the first read finds nothing
   // listening and only a later one answers. One ask is not enough, and silence
   // in the meantime is not a failure to report.

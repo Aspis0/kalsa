@@ -134,7 +134,7 @@ function tailscaleNote(
     .join(" · ");
   // True for a first-time owner too: the DTO cannot know whether a serve
   // rule exists, so the sentence only states where the desk is and what
-  // the second command must say.
+  // the desk command must say.
   const moved =
     isPort(deskPort) && !deskOnPreferred
       ? ` The pairing desk is on ${deskPort} this time — point the desk command at this number.`

@@ -683,10 +683,16 @@ try {
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
-    // The Tailscale note's numbers must be the card's own ports: a swapped
-    // or wrong-numbered command is a phone pointed at the wrong road, and
-    // shape alone would not catch a swap. Whichever port the card knows
-    // gets its command; a desk on a fallback port must say the move.
+    // The note is built from whichever port the card knows (DevicesSurface's
+    // tailscaleNote, AdvancedPanel's help line), so a card that knows either
+    // port MUST carry it: a vanished note on a fallback card is a phone with
+    // no road, and checking only cards that happen to show one let exactly
+    // that pass. The numbers must be the card's own ports too - a swapped or
+    // wrong-numbered command is a phone pointed at the wrong road - and a
+    // desk on a fallback port must say the move, with its own number.
+    if ((doorPort !== null || deskPort !== null) && !all.includes("Run for Tailscale")) {
+      problems.push(`a card that knows a port must carry the Tailscale note: ${heading}`);
+    }
     if (all.includes("Run for Tailscale")) {
       const doorCommand = all.match(/tailscale serve --bg (\d+)/);
       const deskCommand = all.match(/tailscale serve --bg --https=8443 (\d+)/);
@@ -696,14 +702,14 @@ try {
       if (deskPort !== null && Number(deskCommand?.[1]) !== deskPort) {
         problems.push(`the note's desk command must name the card's own desk number ${deskPort}: ${heading}`);
       }
-      const movedExpected = deskPort !== null && !deskPreferred;
-      const movedLine = all.match(/on (\d+) this time — point the desk command at this number/);
-      if (movedExpected && Number(movedLine?.[1]) !== deskPort) {
-        problems.push(`a desk on a fallback number must say it is on the card's own desk number ${deskPort}: ${heading}`);
-      }
-      if (!movedExpected && movedLine) {
-        problems.push(`a desk on its preferred number must not claim a move: ${heading}`);
-      }
+    }
+    const movedExpected = deskPort !== null && !deskPreferred;
+    const movedLine = all.match(/on (\d+) this time — point the desk command at this number/);
+    if (movedExpected && Number(movedLine?.[1]) !== deskPort) {
+      problems.push(`a desk on a fallback number must say it is on the card's own desk number ${deskPort}: ${heading}`);
+    }
+    if (!movedExpected && movedLine) {
+      problems.push(`a desk on its preferred number must not claim a move: ${heading}`);
     }
   }
 
