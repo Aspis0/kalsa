@@ -204,24 +204,34 @@ describe("mayRetryRuntimeGovernorFallback", () => {
   };
 
   test("allows the retry while turn, model and signal are intact", () => {
-    expect(mayRetryRuntimeGovernorFallback(intact)).toBe(true);
+    expect(mayRetryRuntimeGovernorFallback(intact)).toBe("retry");
   });
 
-  test("refuses once the signal aborted after the catch", () => {
+  test("reports aborted when only the signal aborted", () => {
     expect(
       mayRetryRuntimeGovernorFallback({ ...intact, signalAborted: true }),
-    ).toBe(false);
+    ).toBe("aborted");
   });
 
-  test("refuses once a newer turn became current", () => {
+  test("reports stale once a newer turn became current", () => {
     expect(
       mayRetryRuntimeGovernorFallback({ ...intact, turnStillCurrent: false }),
-    ).toBe(false);
+    ).toBe("stale");
   });
 
-  test("refuses once the loaded model changed", () => {
+  test("reports stale once the loaded model changed", () => {
     expect(
       mayRetryRuntimeGovernorFallback({ ...intact, modelStillLoaded: false }),
-    ).toBe(false);
+    ).toBe("stale");
+  });
+
+  test("stale outranks aborted", () => {
+    expect(
+      mayRetryRuntimeGovernorFallback({
+        signalAborted: true,
+        turnStillCurrent: false,
+        modelStillLoaded: true,
+      }),
+    ).toBe("stale");
   });
 });

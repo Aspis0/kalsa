@@ -48,8 +48,9 @@ describe("runtime governor fallback wiring in LlamaService", () => {
     ).toHaveLength(2);
   });
 
-  // Shape only: this pins ORDER of substrings, not that the increment really
-  // runs before any context/null check — no Jest test can execute it.
+  // Shape only: pins the ORDER of substrings, not execution. A behavioural
+  // test would need a mocked context; without one, this guard can only
+  // check shape.
   test("the turn token advances at send entry, before the engine job", () => {
     const entry = source.indexOf("export async function streamAssistantTurn(");
     const bump = source.indexOf("turnTokenSeq += 1;", entry);

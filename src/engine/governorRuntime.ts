@@ -91,18 +91,20 @@ export function shouldRuntimeGovernorFallback(args: {
 }
 
 /**
- * May the turn driver still retry after the runtime governor reload? Refuses
- * once the signal aborted (re-checked right before the reload starts), once
- * a newer chat turn became current, and once the loaded model is no longer
- * the one that failed — a stale retry must stop quietly, without an error
- * bubble.
+ * How a turn ends around the runtime governor reload: "retry" proceeds;
+ * "stale" — a newer chat turn or a different model owns the UI — must end
+ * with no callbacks at all; "aborted" — the signal aborted while this turn
+ * is still current — clears the partial and ends via onDone. Stale outranks
+ * aborted: a newer owner beats everything.
  */
 export function mayRetryRuntimeGovernorFallback(args: {
   signalAborted: boolean;
   turnStillCurrent: boolean;
   modelStillLoaded: boolean;
-}): boolean {
-  return !args.signalAborted && args.turnStillCurrent && args.modelStillLoaded;
+}): "retry" | "stale" | "aborted" {
+  if (!args.turnStillCurrent || !args.modelStillLoaded) return "stale";
+  if (args.signalAborted) return "aborted";
+  return "retry";
 }
 
 function nativeLogDelta(start: string, current: string): string {
