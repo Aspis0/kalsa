@@ -80,8 +80,13 @@ function Invoke-RawCapture {
         [void]$process.WaitForExit(2000)
     }
     # Every wait is bounded, and a drain faulted by the kill must not abort
-    # the capture: whatever arrived is kept.
-    try { [void]$stdoutTask.Wait(2000) } catch { }
+    # the capture: whatever arrived is kept. Only stdout's outcome is a
+    # field - a partial buffer is what SUMMARY would be reading.
+    try {
+        $stdoutDrain = if ($stdoutTask.Wait(2000)) { 'complete' } else { 'unfinished' }
+    } catch {
+        $stdoutDrain = "faulted: $(Get-Reason $_)"
+    }
     try { [void]$stderrTask.Wait(2000) } catch { }
     $watch.Stop()
     $exitCode = $null
@@ -93,6 +98,7 @@ function Invoke-RawCapture {
         CommandLine = "$Exe $($startInfo.Arguments)"
         ExitCode = $exitCode
         TimedOut = $timedOut
+        StdoutDrain = $stdoutDrain
         Bytes = $bytes
         ElapsedMs = $watch.ElapsedMilliseconds
     }
@@ -151,7 +157,7 @@ $captures = @()
 $wmicPresence = 'not checked'
 
 try {
-    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $os = Get-CimInstance Win32_OperatingSystem -OperationTimeoutSec 10 -ErrorAction Stop
     $osLines = @(
         "Caption: $($os.Caption)"
         "Version: $($os.Version)"
@@ -225,7 +231,7 @@ try {
 }
 
 try {
-    Get-CimInstance Win32_VideoController -ErrorAction Stop |
+    Get-CimInstance Win32_VideoController -OperationTimeoutSec 10 -ErrorAction Stop |
         Select-Object Name, AdapterRAM, DriverVersion, VideoProcessor, PNPDeviceID |
         Format-List |
         Out-File -FilePath (Join-Path $OutDir 'cim.txt') -Encoding UTF8 -ErrorAction Stop
@@ -299,12 +305,13 @@ foreach ($capture in $captures) {
     $summaryLines += $capture.Name
     $summaryLines += '  command: ' + $capture.CommandLine
     $exitText = if ($null -eq $capture.ExitCode) {
-        'unavailable (never exited)'
+        'unavailable (still running when the capture stopped waiting)'
     } else {
         "$($capture.ExitCode)"
     }
     $summaryLines += '  exit code: ' + $exitText
     $summaryLines += '  timed out: ' + $(if ($capture.TimedOut) { 'yes' } else { 'no' })
+    $summaryLines += '  stdout drain: ' + $capture.StdoutDrain
     $summaryLines += '  stdout bytes: ' + $capture.Bytes.Length
     $summaryLines += '  elapsed ms: ' + $capture.ElapsedMs
     $summaryLines += '  first 64 bytes (hex): ' + (Get-HexHead -Bytes $capture.Bytes)
