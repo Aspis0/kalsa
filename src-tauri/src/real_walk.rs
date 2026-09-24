@@ -33,9 +33,16 @@ use crate::startup::{self, Machine, Progress};
 
 /// The env var that names the row to walk, by the repo its file is pinned to.
 const ENV_VAR: &str = "KALSA_BRAIN_REAL_WALK";
-/// The one conversation the running server is asked for, and how short it is.
+/// The one conversation the running server is asked for, and the room it
+/// gets to finish it.
 const PROMPT: &str = "Say OK";
-const MAX_TOKENS: u32 = 16;
+/// Why one word gets this much room: a thinking model (the 26B row is one)
+/// spends its first tokens in `reasoning_content` and answers only after, so
+/// a 16-token cap made the first 26B run spend every token reasoning and
+/// come back `content: ""` with `finish_reason: "length"` — a test defect,
+/// not an app one. Still a cap rather than none: the walk must end if a
+/// model rambles.
+const MAX_TOKENS: u32 = 1024;
 /// Progress lines print at this granularity, not per callback: a silent
 /// four-minute download reads as a broken test, a line per chunk is a log.
 const MARK_BYTES: u64 = 512 * 1024 * 1024;
@@ -218,8 +225,22 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     let content = answer
         .pointer("/choices/0/message/content")
         .and_then(Value::as_str)
-        .expect("the completion carries a message content");
-    assert!(!content.trim().is_empty(), "the model answered nothing: {answer}");
+        .unwrap_or_default();
+    let reasoning = answer
+        .pointer("/choices/0/message/reasoning_content")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let finish = answer
+        .pointer("/choices/0/finish_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("<absent>");
+    assert!(
+        finish == "stop" && !content.trim().is_empty(),
+        "the answer did not finish: finish_reason {finish:?}, content {} chars, \
+         reasoning_content {} chars",
+        content.chars().count(),
+        reasoning.chars().count(),
+    );
     eprintln!("answer: {content:?}");
     let timings = &answer["timings"];
     eprintln!(
@@ -231,6 +252,14 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         timing(timings, "predicted_ms"),
         timing(timings, "predicted_per_second")
     );
+    if reasoning.is_empty() {
+        eprintln!("reasoning: none");
+    } else {
+        eprintln!(
+            "reasoning: {} chars before the answer",
+            reasoning.chars().count()
+        );
+    }
 
     // ── 8. down again, proved down; the temp dirs go, the model stays ──────
     supervisor.shutdown();
