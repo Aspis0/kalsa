@@ -222,7 +222,10 @@ jobs:
             echo "FATAL: $PROPS not found — did expo prebuild run?"; exit 1
           fi
           if ! grep -qx 'rnllamaLogContent=true' "$PROPS"; then
-            echo 'rnllamaLogContent=true' >> "$PROPS"
+            # printf leads with \n: the generated properties file may lack a
+            # trailing newline, and echo would glue the property onto its
+            # last line (CI run 35958095874). The blank line is harmless.
+            printf '\n%s\n' 'rnllamaLogContent=true' >> "$PROPS"
           fi
           # Fail loudly if the line is still absent (whole-line match, no
           # pipe: `| grep -q` under pipefail can die on SIGPIPE).
