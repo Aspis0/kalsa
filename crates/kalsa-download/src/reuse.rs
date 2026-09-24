@@ -10,7 +10,11 @@
 //! program. We read regular files, and that is all — no create, no move, no
 //! rename, no delete — and we do not follow links: a file that is a symlink
 //! can point anywhere on the disk, and anything else (a FIFO, a device) is
-//! not a model file and could hang the scan on open.
+//! not a model file and could hang the scan on open. A root's own
+//! ancestors are not resolved either: a root beneath a symlinked parent is
+//! scanned where it resolves — a cache on an external drive behind a linked
+//! parent is the user's own configuration, and the no-follow rule governs
+//! what the scan steps into, not where the user pointed the roots.
 
 use std::ffi::OsString;
 use std::fs::File;
@@ -37,30 +41,50 @@ pub fn default_roots() -> Vec<PathBuf> {
 /// process environment (an env-mutating test races every other test).
 fn roots_under(home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathBuf> {
     // The hub cache sits wherever its owner put it — huggingface_hub's
-    // documented rule: HF_HUB_CACHE wins, then $HF_HOME/hub, then the
-    // default. An empty value counts as unset, the way the Python
-    // `getenv(...) or default` it comes from reads it. Wherever the cache
+    // constants.py fallback order: HF_HUB_CACHE, then $HF_HOME/hub, then
+    // $XDG_CACHE_HOME/huggingface/hub, then the default. Wherever the cache
     // moved, it keeps the hub's FIRST place: the ordering ranks programs,
     // and a relocated cache is the same program's cache.
-    let hub = env("HF_HUB_CACHE")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
+    let hub = env_path(env("HF_HUB_CACHE"), home)
+        .or_else(|| env_path(env("HF_HOME"), home).map(|base| base.join("hub")))
         .or_else(|| {
-            env("HF_HOME")
-                .filter(|value| !value.is_empty())
-                .map(|base| PathBuf::from(base).join("hub"))
+            env_path(env("XDG_CACHE_HOME"), home).map(|base| base.join("huggingface/hub"))
         })
         .unwrap_or_else(|| home.join(".cache/huggingface/hub"));
     [
         hub,
         home.join(".ollama/models/blobs"),
         home.join(".lmstudio/models"),
-        // LM Studio's older layout, still cited beside the current one in
-        // Unsloth's install docs. After the current one: a live install
-        // keeps its fresher copies there.
+        // LM Studio's older model folder, named "Legacy cache location" in
+        // Unsloth Studio's own source (studio/backend/utils/paths/
+        // storage_roots.py). The current layout goes first.
         home.join(".cache/lm-studio/models"),
     ]
     .to_vec()
+}
+
+/// One env value as an absolute root, or None to fall through to the next
+/// arm. A leading `~` (exactly, or `~/…`) expands against `home`, the way
+/// huggingface_hub's expanduser treats these values; $VARS are not
+/// expanded. A value that is empty or still relative after that counts as
+/// unset — OUR rule, not Python's: os.getenv keeps an empty value and
+/// Python resolves a relative path against its working directory, and a
+/// GUI app's working directory is not the user's shell's. Falling through
+/// keeps the roots absolute whatever the environment holds.
+fn env_path(value: Option<OsString>, home: &Path) -> Option<PathBuf> {
+    let value = value?;
+    if value.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(&value);
+    let path = if path == Path::new("~") {
+        home.to_path_buf()
+    } else if let Ok(rest) = path.strip_prefix("~/") {
+        home.join(rest)
+    } else {
+        path
+    };
+    path.is_absolute().then_some(path)
 }
 
 /// Finds a regular file of `size` bytes whose sha256 is `sha256` under one of
@@ -212,10 +236,12 @@ mod tests {
         }
     }
 
-    /// huggingface_hub's documented precedence, driven through the lookup
-    /// seam: HF_HUB_CACHE wins, then $HF_HOME/hub, then the default. An
-    /// empty HF_HUB_CACHE counts as unset, the way the Python
-    /// `getenv(...) or default` it comes from reads it.
+    /// huggingface_hub's precedence, driven through the lookup seam:
+    /// HF_HUB_CACHE, then $HF_HOME/hub, then $XDG_CACHE_HOME's arm, then
+    /// the default. A value that is empty or still relative counts as
+    /// unset and falls through - OUR rule, not Python's: a GUI app's
+    /// working directory is not the user's shell's, so a relative cache
+    /// path resolves against nothing meaningful here.
     #[test]
     fn a_relocated_hub_cache_is_found_through_the_environment() {
         let home = PathBuf::from("/the/home");
@@ -228,6 +254,34 @@ mod tests {
         let roots = roots_under(&home, lookup(&[("HF_HOME", "/hf/home")]));
         assert_eq!(roots[0], PathBuf::from("/hf/home/hub"));
 
+        // constants.py falls back to XDG_CACHE_HOME when HF_HOME is unset.
+        let roots = roots_under(&home, lookup(&[("XDG_CACHE_HOME", "/xdg/cache")]));
+        assert_eq!(roots[0], PathBuf::from("/xdg/cache/huggingface/hub"));
+
+        let roots = roots_under(&home, lookup(&[]));
+        assert_eq!(roots[0], default);
+    }
+
+    /// huggingface_hub runs expanduser over these values, so a leading
+    /// tilde is a home path; $VARS are not expanded (none of these
+    /// variables carry them in practice, and a shell is not running).
+    #[test]
+    fn a_leading_tilde_expands_against_home() {
+        let home = PathBuf::from("/the/home");
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "~/moved/hub")]));
+        assert_eq!(roots[0], home.join("moved/hub"));
+
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "~")]));
+        assert_eq!(roots[0], home);
+    }
+
+    /// Empty and relative values fall through to the next arm, so the
+    /// roots are absolute whatever the environment holds - the
+    /// absolute-roots test does not depend on the ambient environment.
+    #[test]
+    fn a_value_that_is_empty_or_relative_counts_as_unset() {
+        let home = PathBuf::from("/the/home");
+
         let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", ""), ("HF_HOME", "/hf/home")]));
         assert_eq!(
             roots[0],
@@ -235,8 +289,19 @@ mod tests {
             "an empty HF_HUB_CACHE is unset, not a path"
         );
 
-        let roots = roots_under(&home, lookup(&[]));
-        assert_eq!(roots[0], default);
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "rel/hub"), ("HF_HOME", "/hf/home")]));
+        assert_eq!(
+            roots[0],
+            PathBuf::from("/hf/home/hub"),
+            "a relative HF_HUB_CACHE resolves against nothing meaningful; it is unset"
+        );
+
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "~/rel")]));
+        assert_eq!(
+            roots[0],
+            home.join("rel"),
+            "a tilde is expanded first, and the result is absolute"
+        );
     }
 
     /// LM Studio's older model folder rides beside the current one, after
