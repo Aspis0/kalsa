@@ -21,3 +21,28 @@ I did not add a `PairingSession` square-mismatch guard. The current screen clear
 ## Limits
 
 I verified the client-side token lifecycle and diagnostic callback with automated tests. I did not verify tomorrow's real Tailscale pairing or inspect desktop logs from that run.
+
+## Correction (2026-09-24, measured after the commit)
+
+The commit message for this work says: *"forcing a fresh token on retry fails 3 tests"*. **That is false**, and
+the way it became false is worth keeping.
+
+What actually happened, in order:
+
+1. My first mutation of the retry path produced `Tests: 0 total` — the suite **failed to run** because my edit
+   left `existing` unused and TypeScript refused to compile it. I read the non-zero exit code as a passing
+   verification.
+2. A second attempt, type-safe at the call site but still leaving the variable unused, gave the same
+   `0 total`.
+3. The third attempt — `const retryingCompletion = existing?.needsCompletionRetry() === true && false;`, which
+   keeps the variable used — ran the suite properly: **EXIT=0, 10 tests passed.** The mutation **survives**.
+
+So the half of the rule that says *a lost completion response is retried with the same token* is **not
+protected by a test that bites**, while the other half (a new square mints a fresh token) is: changing the
+field handler fails 3 tests. The mirror test is being written, and this note stays until it lands, because
+the difference between "the tests cover the rule" and "the tests cover one end of the rule" is exactly the
+kind of thing a green run hides.
+
+**The rule this leaves behind, and it is not about pairing**: a mutation is evidence only after reading what
+it actually ran. `Tests: N total` of zero, or a suite that failed to load, is not a failing test — it is no
+test, and it looks the same in the exit code.
