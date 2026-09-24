@@ -41,10 +41,10 @@ export function pauseReasonOf(result: unknown): GovernorPauseReason | null {
 
 /**
  * How a paused result must end its turn, or null while it is not paused:
- * `thermal` waits in the cooling loop and ends on the bound (the tool
- * fallback has no loop and ends on the same give-up line — both are the
- * existing coolingTimedOut copy); every other reason has no resume path and
- * ends on the existing generic service line. The catalogue tails ARE the
+ * `thermal` waits in the cooling loop and ends on the bound — every turn
+ * completion site runs that loop first, so thermal always means the bound's
+ * give-up line; every other reason has no resume path and ends on the
+ * existing generic service line. The catalogue tails ARE the
  * return values so the one caller cannot re-derive the mapping.
  */
 export function governorPauseEnding(

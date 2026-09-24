@@ -52,7 +52,7 @@ export interface MemoryTelemetry {
   /** Timeout selected for the settled extraction. */
   timeoutMs?: number;
   /** Settled extraction lifecycle outcome. */
-  stopReason?: "done" | "timeout" | "aborted_by_send" | "skipped_no_snapshot";
+  stopReason?: "done" | "timeout" | "aborted_by_send" | "skipped_no_snapshot" | "governor_paused";
 }
 
 /**

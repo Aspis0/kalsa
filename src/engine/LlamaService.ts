@@ -138,7 +138,12 @@ import {
   createStallWatchdog,
   GENERATION_STALL_GAP_MS,
 } from "./stallWatchdog";
-import { governorPauseEnding, pauseReasonOf, resumeWhileCooling } from "./thermalResume";
+import {
+  governorPauseEnding,
+  pauseReasonOf,
+  resumeWhileCooling,
+  type CoolingLoopOptions,
+} from "./thermalResume";
 import {
   createBackgroundTimer,
   createRepeatingTimer,
@@ -3112,8 +3117,8 @@ function emitEngineError(
 
 /**
  * A governor pause the turn cannot resume ends here — never as an ordinary
- * empty completion. `thermal` ended its cooling wait at the bound (the tool
- * fallback has no loop and ends on the same give-up line); every other
+ * empty completion. `thermal` means the cooling loop ended at its bound —
+ * both turn completion sites run that loop before this helper; every other
  * reason (profile, reload, unexplained) is the engine refusing without a
  * resume path. Both reuse existing copy, and the reason lands in the
  * KALSA_GOVERNOR_PAUSE evidence line (numbers and literals only). Returns
@@ -3149,6 +3154,27 @@ function endOnGovernorPause(
         : strings.chat.serviceUnreachable,
     ),
   );
+  return true;
+}
+
+/**
+ * A utility completion (memory extract, translation, planner) treats any
+ * governor pause as a failure of that call: the site returns its own
+ * no-result shape instead of consuming the paused output, and the shared
+ * KALSA_GOVERNOR_PAUSE line records site + reason (literals only). No
+ * cooling wait runs on these paths. Returns whether the result is paused.
+ */
+function utilityGovernorPause(
+  result: unknown,
+  site: "extractMemory" | "translate" | "completeOnce",
+): boolean {
+  const reason = pauseReasonOf(result);
+  if (reason === null) return false;
+  try {
+    console.log(`KALSA_GOVERNOR_PAUSE ${JSON.stringify({ site, reason })}`);
+  } catch {
+    // telemetry must never throw
+  }
   return true;
 }
 
@@ -4920,6 +4946,48 @@ export async function streamAssistantTurn(
         hasTools && toolCallingEnabled
           ? JSON.stringify(options?.tools ?? []).length
           : 0;
+      // One cooling configuration for BOTH completion sites (the round and
+      // the tool fallback): same stop predicate, same thermo refresh, same
+      // listener — only the logged round differs.
+      const coolingRound = <T,>(
+        roundForLog: number,
+        attempt: () => Promise<T>,
+      ): CoolingLoopOptions<T> => ({
+        attempt,
+        signal,
+        isStopped: () => finished || aborted || disposing || engine !== context,
+        refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
+        onCooling: (phase, detail) => {
+          if (phase === "start" || phase === "end") {
+            try {
+              console.log(
+                `KALSA_THERMAL_COOLING ${JSON.stringify({
+                  turnId,
+                  round: roundForLog,
+                  phase: phase === "start" ? "enter" : "exit",
+                  waitedMs: detail.elapsedMs,
+                  generationMs: detail.generationMs,
+                  batt_temp_tenths_c: detail.battTempTenthsC,
+                  outcome: detail.endReason,
+                })}`,
+              );
+            } catch {
+              // telemetry must never throw
+            }
+          }
+          if (finished || aborted) return;
+          if (phase === "start") {
+            clearPrefillDeadline();
+            callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+          } else if (phase === "wait") {
+            clearPrefillDeadline();
+            callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+          } else if (phase === "resume") {
+            armPrefillDeadline();
+            callbacks.onStatus?.({ label: statusLabel });
+          }
+        },
+      });
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
         if (round > 0) {
@@ -5088,42 +5156,7 @@ export async function streamAssistantTurn(
         // repaint its status or re-arm a timer. The prefill deadline covers
         // each attempt only — cleared across the waits (native work is not
         // running then) and re-armed per retry.
-        const result = await resumeWhileCooling({
-          attempt: runCompletionRound,
-          signal,
-          isStopped: () => finished || aborted || disposing || engine !== context,
-          refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
-          onCooling: (phase, detail) => {
-            if (phase === "start" || phase === "end") {
-              try {
-                console.log(
-                  `KALSA_THERMAL_COOLING ${JSON.stringify({
-                    turnId,
-                    round,
-                    phase: phase === "start" ? "enter" : "exit",
-                    waitedMs: detail.elapsedMs,
-                    generationMs: detail.generationMs,
-                    batt_temp_tenths_c: detail.battTempTenthsC,
-                    outcome: detail.endReason,
-                  })}`,
-                );
-              } catch {
-                // telemetry must never throw
-              }
-            }
-            if (finished || aborted) return;
-            if (phase === "start") {
-              clearPrefillDeadline();
-              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
-            } else if (phase === "wait") {
-              clearPrefillDeadline();
-              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
-            } else if (phase === "resume") {
-              armPrefillDeadline();
-              callbacks.onStatus?.({ label: statusLabel });
-            }
-          },
-        });
+        const result = await resumeWhileCooling(coolingRound(round, runCompletionRound));
         stopStallWatchdog();
         // Capture adoption evidence before the abort early-return: a stopped
         // completion still returned n_past (tokens_cached), which proves the
@@ -5492,7 +5525,7 @@ export async function streamAssistantTurn(
             stopStallWatchdog();
             noteCompletionPromptEnv();
             armPrefillDeadline();
-            const fallbackResult = await trackCompletion(
+            const runFallbackRound = () => trackCompletion(
               engine.completion(
                 applyBenchSampling(
                   {
@@ -5534,6 +5567,9 @@ export async function streamAssistantTurn(
                 },
               ),
             );
+            const fallbackResult = await resumeWhileCooling(
+              coolingRound(MAX_TOOL_ROUNDS, runFallbackRound),
+            );
             stopStallWatchdog();
             if (
               completionAdoptedAssembleStart({
@@ -5545,8 +5581,9 @@ export async function streamAssistantTurn(
               promptAdopted = true;
             }
             if (bailIfStopped()) return;
-            // Any governor pause ends the fallback visibly too — it cannot
-            // wait one out, and "rounds exhausted" would name the wrong cause.
+            // The loop above waited out any thermal pause; anything it could
+            // not resume ends here visibly — never as the false
+            // "rounds exhausted".
             if (
               endOnGovernorPause(
                 fallbackResult,
@@ -6143,6 +6180,8 @@ export async function extractMemory(
               stopReason = "aborted_by_send";
             } else if (timedOut) {
               stopReason = "timeout";
+            } else if (utilityGovernorPause(result, "extractMemory")) {
+              stopReason = "governor_paused";
             } else {
               const raw =
                 typeof result.content === "string" && result.content.length > 0
@@ -6203,7 +6242,8 @@ export type MemoryExtractStopReason =
   | "done"
   | "timeout"
   | "aborted_by_send"
-  | "skipped_no_snapshot";
+  | "skipped_no_snapshot"
+  | "governor_paused";
 
 export type MemoryExtractResult = {
   add: string[];
@@ -6370,6 +6410,8 @@ export async function translateText(
       emitTurnTelemetry(`util-translateText-${++turnSeq}`, 0, result);
 
       if (timedOut || aborted || signal?.aborted) return { text: "", truncated };
+      // A pause is this call's failure — never partial output.
+      if (utilityGovernorPause(result, "translate")) return { text: "", truncated };
 
       const raw =
         typeof result.content === "string" && result.content.length > 0
@@ -6502,6 +6544,12 @@ export async function completeOnce(
       emitTurnTelemetry(`util-completeOnce-${++turnSeq}`, 0, result);
 
       chatPrefixGone = true;
+
+      // A pause is this call's failure — never partial output (the flags
+      // mirror the catch below: nothing user-aborted, nothing swapped).
+      if (utilityGovernorPause(result, "completeOnce")) {
+        return { text: "", aborted: false, engineSwapped: engine !== context };
+      }
 
       const raw =
         typeof result.content === "string" && result.content.length > 0
