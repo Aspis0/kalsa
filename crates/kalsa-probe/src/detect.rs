@@ -73,7 +73,7 @@ fn controllers_text(
 ) -> Option<String> {
     match wmic().filter(|text| has_a_controller_row(text)) {
         Some(text) => Some(text),
-        None => powershell(),
+        None => powershell().filter(|text| has_a_controller_line(text)),
     }
 }
 
@@ -86,6 +86,25 @@ fn has_a_controller_row(text: &str) -> bool {
     let non_empty: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
     let header = non_empty.iter().any(|l| l.to_ascii_lowercase().contains("adapterram"));
     header && non_empty.len() > 1
+}
+
+/// Whether the PowerShell answer holds at least one controller LINE. Its
+/// shape has no header, so the wmic check above cannot judge it: a line is
+/// a controller when a NAME follows the optional leading memory figure. An
+/// empty, whitespace-only or number-only answer said nothing — and nothing
+/// is absent, not `Backend::Cpu`, so a garbage fallback answer cannot be
+/// cached for the process as this machine's backend.
+#[cfg(any(target_os = "windows", test))]
+fn has_a_controller_line(text: &str) -> bool {
+    text.lines().any(|line| {
+        let mut tokens = line.trim().split_whitespace();
+        match tokens.next() {
+            // A memory figure is a controller only with a name after it.
+            Some(first) if first.parse::<u64>().is_ok() => tokens.next().is_some(),
+            Some(_) => true,
+            None => false,
+        }
+    })
 }
 
 /// How long a producer gets to answer. Ten seconds: far above wmic's or
@@ -341,6 +360,35 @@ mod tests {
             "a bare header is not a controller row either"
         );
         assert_eq!(calls.get(), 2);
+    }
+
+    #[test]
+    fn an_empty_or_garbage_powershell_answer_is_absent_not_cpu() {
+        // The fallback's own door into the failure-caching bug: a
+        // successful PowerShell run with nothing in it would parse to
+        // `Backend::Cpu` and be cached for the process. Nothing said is
+        // absent — Unknown for this ask, asked again next time.
+        let wmic_gone = || None;
+        for said_nothing in ["", "   \n\t \n", "3221225472\n"] {
+            assert_eq!(
+                controllers_text(wmic_gone, || Some(said_nothing.to_string())),
+                None,
+                "{said_nothing:?} counted as a controller answer"
+            );
+        }
+        assert_eq!(
+            controllers_text(wmic_gone, || Some(" NVIDIA T400".to_string())).as_deref(),
+            Some(" NVIDIA T400"),
+            "a name-only line is a controller"
+        );
+        assert_eq!(
+            controllers_text(wmic_gone, || {
+                Some("3221225472  NVIDIA GeForce RTX 4060".to_string())
+            })
+            .as_deref(),
+            Some("3221225472  NVIDIA GeForce RTX 4060"),
+            "a memory figure with a name after it is a controller"
+        );
     }
 
     #[test]
