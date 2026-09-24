@@ -643,23 +643,24 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     regenFailed: "Regenerate failed",
     editEmpty: "Add a caption or keep an attachment.",
     sendAborted: "Generation stopped before a reply started.",
-    deepResearch: "Deep research",
-    deepResearchActive: "Deep research on — tap to disable",
-    deepResearchPlanning: "Planning research…",
-    deepResearchQuery: "Query {n}/{total}…",
+    // Keep the internal deepResearch key: this feature writes a report from local documents, not web research.
+    deepResearch: "Report from documents",
+    deepResearchActive: "Report from documents on — tap to disable",
+    deepResearchPlanning: "Planning the report…",
+    deepResearchQuery: "Searching documents {n}/{total}…",
     deepResearchWriting: "Writing report…",
     deepResearchNoResults:
-      "The library returned no relevant passages for this question.",
-    deepResearchPartial: " (partial — some sources were unavailable)",
-    deepResearchNeedsQuestion: "Ask a question to research your library.",
+      "No relevant passages were found in the documents for this question.",
+    deepResearchPartial: " (partial — some documents were unavailable)",
+    deepResearchNeedsQuestion: "Write a question to search your documents.",
     deepResearchIgnoringImages:
-      "Deep research works on text documents — images on this message won't be used.",
+      "The report uses text documents — images in this message won't be used.",
     notesContextTruncated:
       "Some notes were trimmed to fit the context limit.",
     deepResearchWriterFailed:
-      "The report could not be finished on this device — retrieved passages below.",
+      "The document report could not be completed — the passages found are below.",
     deepResearchInterrupted:
-      "Research was interrupted because the model engine changed. Send again to retry.",
+      "The report was interrupted because the model engine changed. Send again to retry.",
   },
 
   notify: {
@@ -1402,7 +1403,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       notRunning: "Not running here",
     },
     composer: {
-      placeholder: "Ask anything",
       typingAllowed: "You can write the next question while it answers",
       /** The one face of the send control that is text instead of an icon:
        *  §2.8 requires Stopping… to be visible until the engine releases. */

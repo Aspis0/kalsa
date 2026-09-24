@@ -1,9 +1,8 @@
 /**
  * The composer's decision layer, proved against DESIGN.md §2.7 (two answers,
  * one reason line, the chip) and §2.8 (three faces, four outcomes). The
- * proofs are the refusals, not the happy paths: a refusing field that still
- * shows the invite (the old `Fai una domanda…` over `editable={false}`), a
- * held state with no reason or with a reason the catalogues do not hold,
+ * proofs include the refusal paths: a field that omits its editability state,
+ * a held state with no reason or with a reason the catalogues do not hold,
  * `stopping` falling back to `send`, and a key added to the module but not to
  * `en.ts`/`it.ts`. Every guard is run against a sample that must make it fail
  * — a guard that cannot fail is worse than none.
@@ -53,11 +52,10 @@ function assertKeyInBoth(key: string): void {
  * line, or a reason the catalogues do not hold. The samples prove it can fail.
  */
 function assertHonest(state: ComposerState): void {
-  const refusing = (state.field as { editable: boolean }).editable === false;
-  if (refusing !== (state.field.placeholder === null)) {
-    throw new Error("a refusing field with an invite");
+  if (typeof (state.field as { editable?: unknown } | null)?.editable !== "boolean") {
+    throw new Error("field editability is missing");
   }
-  if ((refusing || !state.canSend) && state.hold === null) {
+  if ((!state.field.editable || !state.canSend) && state.hold === null) {
     throw new Error("a refusal with no reason line");
   }
   if (state.hold !== null) assertKeyInBoth(state.hold);
@@ -97,7 +95,7 @@ function state(phase: ComposerPhase, attachment?: string | null): ComposerState 
 describe("§2.7 — the field and the send are two different answers", () => {
   it("grants both when idle", () => {
     const s = state("idle");
-    expect(s.field).toEqual({ editable: true, placeholder: "shell.composer.placeholder" });
+    expect(s.field).toEqual({ editable: true });
     expect(s.canSend).toBe(true);
     expect(s.hold).toBeNull();
     expect(s.face).toBe("send");
@@ -108,7 +106,7 @@ describe("§2.7 — the field and the send are two different answers", () => {
     const s = state(phase);
     // The two answers, disagreeing on purpose: this is §2.7's whole point.
     expect(s.field.editable).toBe(true);
-    expect(s.field.placeholder).not.toBeNull();
+    expect(s.field.editable).toBe(true);
     expect(s.canSend).toBe(false);
     expect(s.face).toBe("stop");
     expect(s.faceEnabled).toBe(true);
@@ -116,7 +114,7 @@ describe("§2.7 — the field and the send are two different answers", () => {
 
   it.each(NOT_READY_HELD)("takes typing while it holds sending in %s", (phase) => {
     const s = state(phase);
-    expect(s.field).toEqual({ editable: true, placeholder: "shell.composer.placeholder" });
+    expect(s.field).toEqual({ editable: true });
     expect(s.canSend).toBe(false);
     expect(s.hold).not.toBeNull();
     expect(s.face).toBe("send");
@@ -127,16 +125,16 @@ describe("§2.7 — the field and the send are two different answers", () => {
     // The ratchet: a future row cannot smuggle the old single `disabled` back
     // in — refusal is `UNKNOWN_PHASE_RULE`'s alone.
     for (const phase of COMPOSER_PHASES) expect(state(phase).field.editable).toBe(true);
-    expect(composerState({ phase: "repairing" as ComposerPhase }).field).toEqual({ editable: false, placeholder: null });
+    expect(composerState({ phase: "repairing" as ComposerPhase }).field).toEqual({ editable: false });
   });
 
-  it("returns no phase whose refusing field still carries the placeholder", () => {
-    // The old composer's exact bug, checked over every reachable state.
+  it("returns a typed editability decision for every known phase", () => {
     for (const phase of COMPOSER_PHASES) {
       const s = state(phase);
-      expect(s.field.editable).toBe(s.field.placeholder !== null);
+      expect(s.field).toEqual({ editable: true });
       assertHonest(s);
     }
+    expect(composerState({ phase: "repairing" as ComposerPhase }).field).toEqual({ editable: false });
   });
 
   it("returns no refusal without a reason, and no reason without a refusal", () => {
@@ -168,9 +166,9 @@ describe("one test per held state: the reason line", () => {
     expect(() => assertHonest({ ...good, hold: "shell.held.repairing" as never })).toThrow();
     // A holding state added with no reason at all:
     expect(() => assertHonest({ ...good, hold: null, canSend: false })).toThrow();
-    // The old bug, doctored in past the union — the runtime guard's job:
+    // Missing field state, doctored in past the union — the runtime guard's job:
     expect(() =>
-      assertHonest({ ...good, field: { editable: false, placeholder: "shell.composer.placeholder" } as never }),
+      assertHonest({ ...good, field: { editable: "maybe" } as never }),
     ).toThrow();
     // And the honest shapes must pass, or the guards fail everything:
     expect(() => assertHonest(good)).not.toThrow();
@@ -184,7 +182,7 @@ describe("one test per held state: the reason line", () => {
     expect(s.hold).toBe("shell.held.unknown");
     expect(s.canSend).toBe(false);
     expect(s.faceEnabled).toBe(false);
-    expect(s.field).toEqual({ editable: false, placeholder: null });
+    expect(s.field).toEqual({ editable: false });
     assertHonest(s);
   });
 });
@@ -249,7 +247,6 @@ describe("the module itself: every key, and no clock, no engine, no React", () =
       for (const attachment of [undefined, "fisica.pdf"]) {
         const s = composerState({ phase, attachment });
         if (s.hold !== null) keys.add(s.hold);
-        if (s.field.placeholder !== null) keys.add(s.field.placeholder);
         keys.add(s.faceLabel);
         keys.add(s.fieldLabel);
         if (s.attachment) keys.add(s.attachment.key);
@@ -262,7 +259,9 @@ describe("the module itself: every key, and no clock, no engine, no React", () =
     }
     // The collector itself: a guard that silently collected nothing would
     // pass every key check while proving nothing.
-    expect(keys.size).toBeGreaterThanOrEqual(22);
+    // This is the exact live-key set after removing placeholder copy; the
+    // rendered input and its accessible name are asserted separately.
+    expect(keys.size).toBe(21);
     for (const key of keys) assertKeyInBoth(key);
   });
 

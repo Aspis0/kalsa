@@ -1,7 +1,7 @@
 /**
  * The exclusive overlay union, mounted exactly as the old shell mounted
  * them: Settings (NOT keyed — it owns its draft), Account, Pro, Documents,
- * Notes, Personas, Help (keyed on fontScaleId with the drawer), and the same
+ * Conversations, Notes, Personas, Help (keyed on fontScaleId with the drawer), and the same
  * back wiring (Help returns to Settings; Settings' back refreshes memory
  * facts, tool flags and the context-size preview).
  *
@@ -48,6 +48,9 @@ import { useLocale, type TranslationKey } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import type { HostOverlay } from "./hostOverlay";
 import { HostMiniappSheet } from "./HostMiniappSheet";
+import { HostConversations } from "./HostConversations";
+import type { HostDrawerProps } from "./HostDrawer";
+import type { createConversationActions } from "./conversationActions";
 
 export interface OverlaysProps {
   overlay: HostOverlay;
@@ -92,6 +95,9 @@ export interface OverlaysProps {
   isDocumentDeleteInFlight: () => boolean;
   setActivePersonaId: (id: string) => void;
   refreshPersonas: () => Promise<void>;
+  conv: HostDrawerProps["conv"];
+  conversationActions: ReturnType<typeof createConversationActions>;
+  onExportPress: (conversationId: string) => void;
 }
 
 export function HostOverlays(props: OverlaysProps) {
@@ -132,6 +138,9 @@ export function HostOverlays(props: OverlaysProps) {
     isDocumentDeleteInFlight,
     setActivePersonaId,
     refreshPersonas,
+    conv,
+    conversationActions,
+    onExportPress,
   } = props;
   const { t } = useLocale();
   const { fontScaleId } = useLabTheme<{ fontScaleId: string }>();
@@ -256,6 +265,16 @@ export function HostOverlays(props: OverlaysProps) {
         onUpdateDocumentPreview={updateDocumentPreview}
         isDocumentDeleteInFlight={isDocumentDeleteInFlight}
         onBack={() => setOverlay(null)}
+      />
+    );
+  }
+  if (overlay?.kind === "conversations") {
+    return (
+      <HostConversations
+        conv={conv}
+        actions={conversationActions}
+        setOverlay={setOverlay}
+        onExportPress={onExportPress}
       />
     );
   }

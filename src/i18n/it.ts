@@ -637,23 +637,24 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
     sendAborted: "Generazione interrotta prima della risposta.",
-    deepResearch: "Ricerca approfondita",
-    deepResearchActive: "Ricerca approfondita attiva — tocca per disattivare",
-    deepResearchPlanning: "Pianifico la ricerca…",
-    deepResearchQuery: "Ricerca {n}/{total}…",
+    // Keep the internal deepResearch key: this feature writes a report from local documents, not web research.
+    deepResearch: "Report dai documenti",
+    deepResearchActive: "Report dai documenti attivo — tocca per disattivare",
+    deepResearchPlanning: "Pianifico il report…",
+    deepResearchQuery: "Cerco nei documenti {n}/{total}…",
     deepResearchWriting: "Scrivo il report…",
     deepResearchNoResults:
-      "La libreria non ha trovato passaggi rilevanti per questa domanda.",
-    deepResearchPartial: " (parziale — alcune fonti non erano disponibili)",
-    deepResearchNeedsQuestion: "Scrivi una domanda per ricercare nella libreria.",
+      "Non ho trovato passaggi rilevanti nei documenti per questa domanda.",
+    deepResearchPartial: " (parziale — alcuni documenti non erano disponibili)",
+    deepResearchNeedsQuestion: "Scrivi una domanda per cercare nei tuoi documenti.",
     deepResearchIgnoringImages:
-      "La ricerca approfondita lavora sui documenti di testo — le immagini di questo messaggio non verranno usate.",
+      "Il report usa i documenti di testo — le immagini di questo messaggio non verranno usate.",
     notesContextTruncated:
       "Alcune note sono state accorciate per rientrare nel limite del contesto.",
     deepResearchWriterFailed:
-      "Il report non è stato completato su questo dispositivo — passaggi trovati qui sotto.",
+      "Il report dai documenti non è stato completato — i passaggi trovati sono qui sotto.",
     deepResearchInterrupted:
-      "Ricerca interrotta perché il motore del modello è cambiato. Invia di nuovo per riprovare.",
+      "Report interrotto perché il motore del modello è cambiato. Invia di nuovo per riprovare.",
   },
 
   notify: {
@@ -1348,7 +1349,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       notRunning: "Non gira qui",
     },
     composer: {
-      placeholder: "Chiedi qualcosa",
       typingAllowed: "Puoi scrivere la prossima domanda mentre risponde",
       /** The one face of the send control that is text instead of an icon:
        *  §2.8 requires Stopping… to be visible until the engine releases. */

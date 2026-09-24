@@ -20,6 +20,7 @@ export type HostOverlay =
   | { kind: "pro"; returnTo?: "account" | "settings" }
   | { kind: "help" }
   | { kind: "documents" }
+  | { kind: "conversations" }
   | { kind: "notes"; focusId?: string }
   | { kind: "personas" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }

@@ -39,10 +39,9 @@ type Props = {
   brand?: string;
   subtitle?: string;
   items: DrawerItem[];
-  conversationItems?: DrawerConversationItem[];
   searchValue?: string;
-  searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  onConversationsPress?: () => void;
   onNewChat?: () => void;
   personaLabel?: string;
   onPersonaPress?: () => void;
@@ -56,10 +55,9 @@ export function Drawer({
   onClose,
   brand = "Kalsa",
   items,
-  conversationItems,
   searchValue,
-  searchQuery,
   onSearchChange,
+  onConversationsPress,
   onNewChat,
 }: Props) {
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
@@ -87,10 +85,9 @@ export function Drawer({
           <DrawerContent
             brand={brand}
             items={items}
-            conversationItems={conversationItems}
             searchValue={searchValue}
-            searchQuery={searchQuery}
             onSearchChange={onSearchChange}
+            onConversationsPress={onConversationsPress}
             onNewChat={onNewChat}
             onClose={onClose}
           />

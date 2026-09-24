@@ -236,7 +236,6 @@ export function HostChatSurface({
       draft={draft}
       onDraftChange={bumpDraftOnType}
       editable={view.composer.field.editable}
-      placeholderKey={view.composer.field.placeholder ?? undefined}
       holdReason={view.composer.hold === null ? null : t(view.composer.hold)}
       face={view.composer.face}
       faceLabel={t(view.composer.faceLabel)}

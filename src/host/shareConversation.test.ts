@@ -208,9 +208,9 @@ describe("the conversation row action sheet", () => {
   });
 
   it("wires HostDrawer's sheet and drawer closers to their named behaviors", () => {
-    const drawer = stripComments(read("HostDrawer.tsx"));
-    expect(drawer).toMatch(
-      /bindConversationRowActions\(selectedConversation\.actions,\s*\{\s*closeSheet: \(\) => setSelectedConversationId\(null\),\s*closeDrawer,\s*\}\s*\)/,
+    const listHost = stripComments(read("HostConversations.tsx"));
+    expect(listHost).toMatch(
+      /bindConversationRowActions\(selectedConversation\.actions,\s*\{\s*closeSheet: \(\) => setSelectedConversationId\(null\),\s*closeDrawer: \(\) => setOverlay\(null\),\s*\}\s*\)/,
     );
 
     const events: string[] = [];
@@ -250,16 +250,16 @@ describe("the conversation row action sheet", () => {
   });
 
   it("routes long press through the shell sheet to the id-aware root handler", () => {
-    const content = stripComments(read("../theme/components/DrawerContent.tsx"));
-    const drawer = stripComments(read("HostDrawer.tsx"));
+    const list = stripComments(read("../screens/ConversationListScreen.tsx"));
+    const listHost = stripComments(read("HostConversations.tsx"));
     const layout = stripComments(read("HostLayout.tsx"));
     const root = stripComments(read("HostRoot.tsx"));
-    expect(content).toContain("onLongPress={item.onLongPress}");
-    expect(drawer).toContain("title={selectedConversation.title}");
-    expect(drawer).toContain("bindConversationRowActions(");
-    expect(drawer).toContain("<AttachSheet");
-    expect(drawer).toContain("actions.drawerConversationItems(");
-    expect(drawer).toContain("    onExportPress,\n  );");
+    expect(list).toContain("onLongPress={item.onLongPress}");
+    expect(listHost).toContain("title={selectedConversation.title}");
+    expect(listHost).toContain("bindConversationRowActions(");
+    expect(listHost).toContain("<AttachSheet");
+    expect(listHost).toContain("actions.drawerConversationItems(");
+    expect(listHost).toMatch(/actions\.drawerConversationItems\([\s\S]*?setSelectedConversationId,\s*onExportPress,/);
     expect(layout).toContain("onExportPress={onExportPress}");
     expect(root).toContain(
       "onExportPress={(id) => void shareConversationById(id, conv.conversations.activeId, history.messagesRef.current, locale, t)}",

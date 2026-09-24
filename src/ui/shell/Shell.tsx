@@ -17,7 +17,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Text, View, useWindowDimensions, type TextInput } from "react-native";
 
-import { useLocale, type TranslationKey } from "../../i18n";
+import { useLocale } from "../../i18n";
 import { modes, type ThemeMode } from "../../theme/design";
 import { ComposerAttachments, type ComposerAttachmentsProps } from "./ComposerAttachments";
 import { ShellComposer } from "./ShellComposer";
@@ -56,10 +56,8 @@ export type ShellProps = {
    */
   draft?: string;
   onDraftChange?: (text: string) => void;
-  /** False while the machine refuses input — the field then shows no invite. */
+  /** False while the machine refuses input. */
   editable?: boolean;
-  /** The invite's catalogue key; only drawn while `editable`. */
-  placeholderKey?: TranslationKey;
   /** One translated line of reason between transcript and composer (§2.7). */
   holdReason?: string | null;
   face?: "send" | "stop" | "stopping";
@@ -104,7 +102,6 @@ export function Shell({
   draft: draftProp,
   onDraftChange: onDraftChangeProp,
   editable = true,
-  placeholderKey,
   holdReason = null,
   face = "send",
   faceLabel,
@@ -191,7 +188,6 @@ export function Shell({
         draft={draft}
         onDraftChange={changeDraft}
         editable={editable}
-        placeholderKey={placeholderKey}
         face={face}
         faceLabel={faceLabel}
         faceEnabled={faceEnabled}

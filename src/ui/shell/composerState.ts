@@ -9,10 +9,10 @@
  * returns two booleans and the test pins them disagreeing wherever the machine
  * is merely not ready.
  *
- * Refusals: a place that refuses input never shows the input placeholder and
- * carries exactly one line of reason. `FieldView` makes "refusing and
- * inviting" unrepresentable, and `hold` is never null while anything refuses
- * (re-checked at runtime by the test, for the JavaScript types never see).
+ * Refusals: a place that refuses input is not editable and carries exactly
+ * one line of reason. `FieldView` records whether typing is accepted, and
+ * `hold` is never null while anything refuses (re-checked at runtime by the
+ * test, for the JavaScript types never see).
  *
  * §2.8's invariant: `stopping` lasts until the engine confirms release — the
  * interface never claims the machine stopped before it has. Release is an INPUT
@@ -42,13 +42,10 @@ export type ComposerPhase =
   | "converting";
 
 /**
- * What the field offers. The invite exists exactly where typing is accepted:
- * a refusing field carries `placeholder: null` by construction, so the old
- * bug ("Fai una domanda…" over an `editable={false}` field) is unrepresentable.
+ * Whether the field accepts typing in this phase. The component keeps the
+ * input named for assistive technology without drawing placeholder copy.
  */
-export type FieldView =
-  | { editable: true; placeholder: TranslationKey }
-  | { editable: false; placeholder: null };
+export type FieldView = { editable: boolean };
 
 /** §2.8's one control: `send` when idle, `stop` while generating, and the
  *  visible `stopping` that ends only on the engine's confirmation. */
@@ -134,7 +131,6 @@ export const COMPOSER_PHASES: readonly ComposerPhase[] = Object.freeze(
   Object.keys(PHASE_RULES) as ComposerPhase[],
 );
 
-const PLACEHOLDER_KEY: TranslationKey = "shell.composer.placeholder";
 const FIELD_LABEL_KEY: TranslationKey = "shell.a11y.field";
 
 const FACE_LABELS: Readonly<Record<ComposerFace, TranslationKey>> = Object.freeze({
@@ -152,9 +148,7 @@ export function composerState(input: ComposerInput): ComposerState {
     : UNKNOWN_PHASE_RULE;
   const name = typeof input.attachment === "string" ? input.attachment.trim() : "";
   return {
-    field: rule.editable
-      ? { editable: true, placeholder: PLACEHOLDER_KEY }
-      : { editable: false, placeholder: null },
+    field: { editable: rule.editable },
     hold: rule.hold,
     canSend: rule.hold === null,
     face: rule.face,

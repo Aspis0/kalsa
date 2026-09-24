@@ -1,12 +1,7 @@
-/** The v2 conversation menu, wired to the host's actions and conversation state. */
-import { useState } from "react";
+/** The v2 menu: global destinations, search and a compact route to conversations. */
 import { Keyboard } from "react-native";
-import { AttachSheet } from "../ui/shell/AttachSheet";
-import { modes, type ThemeMode } from "../theme/design";
-import { Drawer } from "../theme/components";
-import { useLabTheme } from "../ui/labTheme";
+import { Drawer } from "../theme/components/Drawer";
 import type { createConversationActions } from "./conversationActions";
-import { bindConversationRowActions } from "./conversationRowActions";
 import type { useConversationHost } from "./useConversationHost";
 
 type ConversationHost = ReturnType<typeof useConversationHost>;
@@ -17,56 +12,42 @@ export interface HostDrawerProps {
   setOpen: (open: boolean) => void;
   conv: ConversationHost;
   actions: ConversationActions;
-  onExportPress: (conversationId: string) => void;
+  onOpenConversations: () => void;
 }
 
-export function HostDrawer({ open, setOpen, conv, actions, onExportPress }: HostDrawerProps) {
-  const { mode } = useLabTheme<{ mode: ThemeMode }>();
-  const colors = modes[mode];
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+/** Keep the search query while moving from the menu into the full-screen list. */
+export function openConversationListFromDrawer(
+  dismissKeyboard: () => void,
+  closeDrawer: () => void,
+  openList: () => void,
+): void {
+  dismissKeyboard();
+  closeDrawer();
+  openList();
+}
+
+export function HostDrawer({ open, setOpen, conv, actions, onOpenConversations }: HostDrawerProps) {
   const closeDrawer = () => {
     Keyboard.dismiss();
     setOpen(false);
     conv.clearChatSearch();
   };
-  const conversationItems = actions.drawerConversationItems(
-    conv.conversations,
-    conv.chatSearchQuery,
-    (id) => {
-      Keyboard.dismiss();
-      setSelectedConversationId(id);
-    },
-    onExportPress,
+  const openConversations = () => openConversationListFromDrawer(
+    Keyboard.dismiss,
+    () => setOpen(false),
+    onOpenConversations,
   );
-  const selectedConversation = conversationItems.find((item) => item.id === selectedConversationId);
-  const rows = selectedConversation?.actions
-    ? bindConversationRowActions(selectedConversation.actions, {
-        closeSheet: () => setSelectedConversationId(null),
-        closeDrawer,
-      })
-    : undefined;
 
   return (
-    <>
-      <Drawer
-        open={open}
-        onClose={closeDrawer}
-        brand="Kalsa"
-        items={actions.drawerItems()}
-        conversationItems={conversationItems}
-        searchValue={conv.chatSearch}
-        searchQuery={conv.chatSearchQuery}
-        onSearchChange={conv.handleChatSearchChange}
-        onNewChat={() => actions.handleNewConversation()}
-      />
-      {selectedConversation && rows ? (
-        <AttachSheet
-          title={selectedConversation.title}
-          rows={rows}
-          colors={colors}
-          onClose={() => setSelectedConversationId(null)}
-        />
-      ) : null}
-    </>
+    <Drawer
+      open={open}
+      onClose={closeDrawer}
+      brand="Kalsa"
+      items={actions.drawerItems()}
+      searchValue={conv.chatSearch}
+      onSearchChange={conv.handleChatSearchChange}
+      onConversationsPress={openConversations}
+      onNewChat={() => actions.handleNewConversation()}
+    />
   );
 }

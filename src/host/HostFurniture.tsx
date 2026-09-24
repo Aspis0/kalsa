@@ -17,6 +17,8 @@ import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
 import { progressPercent } from "./modelBar";
 import { HostNotice } from "./HostNotice";
 import { HostOverlays } from "./HostOverlays";
+import type { HostDrawerProps } from "./HostDrawer";
+import type { createConversationActions } from "./conversationActions";
 import type { HostOverlay } from "./hostOverlay";
 import type { useLibraryHost } from "./libraryHost";
 import type { useMemoryHost } from "./memoryHost";
@@ -30,6 +32,7 @@ type ToolFlags = ReturnType<typeof useToolFlags>;
 type LibraryHost = ReturnType<typeof useLibraryHost>;
 type PersonasHost = ReturnType<typeof usePersonasHost>;
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
+type ConversationActions = ReturnType<typeof createConversationActions>;
 
 export interface HostFurnitureProps {
   overlay: HostOverlay;
@@ -44,6 +47,9 @@ export interface HostFurnitureProps {
   flags: ToolFlags;
   library: LibraryHost;
   personas: PersonasHost;
+  conv: HostDrawerProps["conv"];
+  conversationActions: ConversationActions;
+  onExportPress: (conversationId: string) => void;
   modelHost: ModelHost;
   streaming: boolean;
 }
@@ -58,6 +64,9 @@ export function HostFurniture({
   flags,
   library,
   personas,
+  conv,
+  conversationActions,
+  onExportPress,
   modelHost,
   streaming,
 }: HostFurnitureProps) {
@@ -104,6 +113,9 @@ export function HostFurniture({
         isDocumentDeleteInFlight={library.isDocumentDeleteInFlight}
         setActivePersonaId={personas.setActivePersonaId}
         refreshPersonas={personas.refreshPersonas}
+        conv={conv}
+        conversationActions={conversationActions}
+        onExportPress={onExportPress}
       />
       <HostNotice text={notice} />
       {/* Unkeyed: must survive a font-scale change. */}

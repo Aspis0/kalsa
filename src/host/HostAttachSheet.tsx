@@ -9,7 +9,7 @@
  * templates, research and notes. Research and notes are switches, so they can
  * be checked and changed without dismissing the sheet.
  */
-import { useLocale, type TranslationKey } from "../i18n";
+import { useLocale, type TranslateFn, type TranslationKey } from "../i18n";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
 import type { DesignColors } from "../theme/design";
 import {
@@ -66,21 +66,28 @@ const ACTIONS: ReadonlyArray<{
   { action: "notes", testID: "shell.attach.notes", icon: "notes", labelKey: "notes.title", role: "switch" },
 ];
 
+export function buildHostAttachActionRows(
+  props: Pick<HostAttachSheetProps, "researchActive" | "notesActive" | "actionsDisabled" | "onAction">,
+  t: TranslateFn,
+): AttachSheetRowData[] {
+  return ACTIONS.map((row) => ({
+    testID: row.testID,
+    icon: row.icon,
+    label: t(row.action === "research" && props.researchActive ? "chat.deepResearchActive" : row.labelKey),
+    role: row.role,
+    selected: row.action === "research" ? props.researchActive : row.action === "notes" ? props.notesActive : undefined,
+    disabled: props.actionsDisabled,
+    onPress: () => props.onAction(row.action),
+  }));
+}
+
 export function HostAttachSheet(props: HostAttachSheetProps) {
   const { t } = useLocale();
   const { open, colors, docs } = props;
   if (open === null) return null;
   const rows: AttachSheetRowData[] =
     open === "actions"
-      ? ACTIONS.map((row) => ({
-          testID: row.testID,
-          icon: row.icon,
-          label: t(row.labelKey),
-          role: row.role,
-          selected: row.action === "research" ? props.researchActive : row.action === "notes" ? props.notesActive : undefined,
-          disabled: props.actionsDisabled,
-          onPress: () => props.onAction(row.action),
-        }))
+      ? buildHostAttachActionRows(props, t)
       : [
           // The controller's document rows: the doc NAME is the label (data,
           // not a catalogue string) and Cancel closes the nested picker.

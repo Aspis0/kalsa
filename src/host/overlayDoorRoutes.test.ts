@@ -11,6 +11,7 @@ jest.mock("../screens/NotesScreen", () => ({ NotesScreen: "NotesScreen" }));
 jest.mock("../screens/PersonasScreen", () => ({ PersonasScreen: "PersonasScreen" }));
 jest.mock("../screens/HelpScreen", () => ({ HelpScreen: "HelpScreen" }));
 jest.mock("./HostMiniappSheet", () => ({ HostMiniappSheet: "HostMiniappSheet" }));
+jest.mock("./HostConversations", () => ({ HostConversations: "HostConversations" }));
 jest.mock("../engine/ModelRegistry", () => ({
   EMBEDDING_MODEL: { name: "Embedding", sizeBytes: 1 },
   MODEL_REGISTRY: [],
@@ -61,10 +62,35 @@ function renderOverlay(overlay: HostOverlay, setOverlay: jest.Mock): Element | n
     isDocumentDeleteInFlight: jest.fn(() => false),
     setActivePersonaId: jest.fn(),
     refreshPersonas: jest.fn(),
+    conv: { conversations: { activeId: "active", items: [] } },
+    conversationActions: { drawerConversationItems: jest.fn() },
+    onExportPress: jest.fn(),
   } as any) as Element | null;
 }
 
 describe("Settings and Account overlay doors", () => {
+  it("mounts the full-screen conversation destination with its row-action dependencies", () => {
+    const setOverlay = jest.fn();
+    const exportRow = jest.fn();
+    const actions = { drawerConversationItems: jest.fn() };
+    const conversations = { conversations: { activeId: "active", items: [] } };
+    const screen = HostOverlays({
+      ...({} as any),
+      overlay: { kind: "conversations" },
+      setOverlay,
+      conv: conversations,
+      conversationActions: actions,
+      onExportPress: exportRow,
+    }) as Element;
+    expect(screen?.type).toBe("HostConversations");
+    expect(screen?.props).toMatchObject({
+      conv: conversations,
+      actions,
+      setOverlay,
+      onExportPress: exportRow,
+    });
+  });
+
   it("routes both Settings Kalsa actions to their exclusive overlays", () => {
     const setOverlay = jest.fn();
     const settings = renderOverlay({ kind: "settings" }, setOverlay);

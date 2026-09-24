@@ -13,7 +13,7 @@ import { useMemo, useRef } from "react";
 import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 
-import { useLocale, type TranslationKey } from "../../i18n";
+import { useLocale } from "../../i18n";
 import { families, space, type DesignColors } from "../../theme/design";
 import { createShellStyles } from "./shellStyles";
 import type { ComposerFace } from "./composerState";
@@ -26,7 +26,6 @@ export interface ShellComposerProps {
   draft: string;
   onDraftChange?: (text: string) => void;
   editable: boolean;
-  placeholderKey?: TranslationKey;
   face: ComposerFace;
   faceLabel?: string;
   faceEnabled: boolean;
@@ -50,7 +49,6 @@ export function ShellComposer({
   draft,
   onDraftChange,
   editable,
-  placeholderKey,
   face,
   faceLabel,
   faceEnabled,
@@ -105,7 +103,6 @@ export function ShellComposer({
             }}
             testID="shell.composer.field"
             accessibilityLabel={t("shell.a11y.field")}
-            placeholder={editable ? t(placeholderKey ?? "shell.composer.placeholder") : undefined}
             placeholderTextColor={colors.ink3}
             value={draft}
             onChangeText={onDraftChange}

@@ -6,6 +6,7 @@ import { applyTemplateSelection } from "./templateSelection";
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const DRAWER = read("HostDrawer.tsx");
 const DRAWER_CONTENT = read("../theme/components/DrawerContent.tsx");
+const CONVERSATION_LIST = read("../screens/ConversationListScreen.tsx");
 const MENU = read("../theme/components/Drawer.tsx");
 const SURFACE = read("HostChatSurface.tsx");
 const SHELL = read("../ui/shell/Shell.tsx");
@@ -34,6 +35,21 @@ describe("the v2 menu dismiss path", () => {
     expect(DRAWER_CONTENT).toContain('accessibilityLabel={t("common.close")}');
     expect(stripComments(MENU)).toContain("onRequestClose={onClose}");
     expect(stripComments(DRAWER_CONTENT)).not.toContain("onPersonaPress");
+  });
+
+  it("routes the compact entry to a full-screen conversation destination without clearing its search", () => {
+    const host = stripComments(DRAWER);
+    expect(host).toContain("openConversationListFromDrawer(");
+    expect(host).toContain("onConversationsPress={openConversations}");
+    expect(host.slice(host.indexOf("const openConversations"))).not.toContain("clearChatSearch()");
+    expect(stripComments(DRAWER_CONTENT)).toContain('testID="drawer.conversations.open"');
+    expect(stripComments(CONVERSATION_LIST)).toContain('testID="conversationList.rows"');
+  });
+
+  it("keeps the row action accessible without a touch long press", () => {
+    const list = stripComments(CONVERSATION_LIST);
+    expect(list).toMatch(/accessibilityActions=\{\s*item\.onLongPress\s*\?/);
+    expect(list).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
   });
 });
 

@@ -107,7 +107,7 @@ export function HostLayout({
         setOpen={setDrawerOpen}
         conv={conv}
         actions={conversationActions}
-        onExportPress={onExportPress}
+        onOpenConversations={() => setActiveOverlay({ kind: "conversations" })}
       />
 
       <HostFurniture
@@ -120,6 +120,9 @@ export function HostLayout({
         flags={flags}
         library={library}
         personas={personas}
+        conv={conv}
+        conversationActions={conversationActions}
+        onExportPress={onExportPress}
         modelHost={modelHost}
         streaming={streaming}
       />

@@ -33,18 +33,27 @@ describe("the full-height v2 menu", () => {
     expect(CONTENT).toContain("drawer.yourChats");
   });
 
-  it("scrolls 56 dp conversation rows with title, preview and active state", () => {
-    expect(CONTENT).toContain('testID="drawer.conversations"');
-    expect(CONTENT).toContain("minHeight: 56");
-    expect(CONTENT).toContain("accessibilityState={{ selected: Boolean(item.active) }}");
-    expect(CONTENT).toContain("item.preview");
-    expect(CONTENT).toContain("onLongPress={item.onLongPress}");
+  it("keeps only a compact entry in the menu and opens the full-screen list", () => {
+    const code = CODE(CONTENT);
+    expect(code).toContain('testID="drawer.conversations.open"');
+    expect(code).toContain('accessibilityLabel={t("drawer.yourChats")}');
+    expect(code).toContain("onPress={onConversationsPress}");
+    expect(code).not.toContain("drawer.conversations\"");
+    expect(code).not.toContain("conversationItems.map");
+
+    const list = CODE(readFileSync(join(__dirname, "../../screens/ConversationListScreen.tsx"), "utf8"));
+    expect(list).toContain('testID="conversationList.rows"');
+    expect(list).toContain("style={{ flex: 1 }}");
+    expect(list).toContain("minHeight: 64");
+    expect(list).toContain("accessibilityState={{ selected: Boolean(item.active) }}");
+    expect(list).toContain("item.preview");
   });
 
-  it("offers the row action sheet through an accessible custom action", () => {
-    expect(CONTENT).toContain('accessibilityActions={item.onLongPress ? [{ name: "conversationActions", label: t("drawer.conversationActions") }] : undefined}');
-    expect(CONTENT).toContain('accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}');
-    expect(CONTENT).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
+  it("offers row actions through an accessible action on the full-screen list", () => {
+    const list = CODE(readFileSync(join(__dirname, "../../screens/ConversationListScreen.tsx"), "utf8"));
+    expect(list).toMatch(/accessibilityActions=\{\s*item\.onLongPress\s*\?/);
+    expect(list).toContain('accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}');
+    expect(list).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
   });
 
   it("shows the five unboxed global footer destinations in the specified order", () => {

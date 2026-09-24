@@ -1,55 +1,40 @@
-/** The v2 menu contents: brand, new chat, search, conversations and five destinations. */
-import { useMemo } from "react";
-import { Image, Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+/** The v2 menu contents: brand, new chat, search, a chat-list entry and five destinations. */
+import { Image, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { ChevronLeft, ChevronRight, MessageSquare, Plus, Search, X } from "lucide-react-native";
 import { useLocale } from "../../i18n";
-import { modes, families, measure, radius, space, type, type ThemeMode } from "../design";
+import { modes, measure, radius, space, type, type ThemeMode } from "../design";
 import { useLabTheme } from "../../ui/labTheme";
-import { tokensFromQuery } from "../../util/filterByTokens";
-import { highlightMatches } from "./highlightMatches";
-import type { DrawerConversationItem, DrawerItem } from "./Drawer";
+import type { DrawerItem } from "./Drawer";
 
 type Props = {
   brand: string;
   items: DrawerItem[];
-  conversationItems?: DrawerConversationItem[];
   searchValue?: string;
-  searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  onConversationsPress?: () => void;
   onNewChat?: () => void;
   onClose: () => void;
 };
 
-function MatchedText({ text, query, color }: { text: string; query: string; color: string }) {
-  const parts = useMemo(() => highlightMatches(text, tokensFromQuery(query) ?? []), [text, query]);
-  return parts.map((part, index) => (
-    <Text key={`${index}-${part.text}`} style={part.highlighted ? { color, fontFamily: families.sansSemi } : undefined}>
-      {part.text}
-    </Text>
-  ));
-}
-
 export function DrawerContent({
   brand,
   items,
-  conversationItems,
   searchValue = "",
-  searchQuery = "",
   onSearchChange,
+  onConversationsPress,
   onNewChat,
   onClose,
 }: Props) {
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const { t } = useLocale();
   const colors = modes[mode];
-  const emptySearch = Boolean(searchQuery.trim()) && (conversationItems?.length ?? 0) === 0;
   const itemById = new Map(items.map((item) => [item.id, item]));
   const destinations = ["documents", "notes", "settings", "account", "personas"]
     .map((id) => itemById.get(id))
     .filter((item): item is DrawerItem => item !== undefined);
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: measure.gutter, gap: space.md }}>
+    <View style={{ flex: 1, paddingHorizontal: measure.gutter, gap: space.sm }}>
       <View style={{ height: 48, flexDirection: "row", alignItems: "center", gap: space.xs }}>
         <Image
           source={require("../../../assets/icon.png")}
@@ -122,7 +107,7 @@ export function DrawerContent({
             autoCapitalize="none"
             returnKeyType="search"
             accessibilityLabel={t("drawer.searchChats")}
-            onSubmitEditing={() => Keyboard.dismiss()}
+            onSubmitEditing={() => onConversationsPress ? onConversationsPress() : Keyboard.dismiss()}
             style={[type.body, { flex: 1, color: colors.ink, padding: 0 }]}
           />
           {searchValue.length > 0 ? (
@@ -139,63 +124,26 @@ export function DrawerContent({
         </View>
       ) : null}
 
-      {conversationItems ? (
-        <View style={{ flex: 1, minHeight: 0 }}>
-          <Text style={[type.label, { color: colors.ink3, marginBottom: space.xs }]}>
-            {t("drawer.yourChats").toLocaleUpperCase()}
-          </Text>
-          <ScrollView
-            testID="drawer.conversations"
-            style={{ flex: 1 }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-          >
-            {emptySearch ? (
-              <Text style={[type.secondary, { color: colors.ink3, paddingVertical: space.md }]}>
-                {t("drawer.noMatches")}
-              </Text>
-            ) : (
-              conversationItems.map((item) => (
-                <Pressable
-                  key={item.id}
-                  testID={`drawer-conversation-${item.id}`}
-                  onPress={item.onPress}
-                  onLongPress={item.onLongPress}
-                  delayLongPress={380}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.title}
-                  accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}
-                  accessibilityActions={item.onLongPress ? [{ name: "conversationActions", label: t("drawer.conversationActions") }] : undefined}
-                  onAccessibilityAction={({ nativeEvent }) => {
-                    if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();
-                  }}
-                  accessibilityState={{ selected: Boolean(item.active) }}
-                  style={({ pressed }) => ({
-                    minHeight: 56,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: space.xs,
-                    paddingHorizontal: space.xs,
-                    borderRadius: radius.row,
-                    backgroundColor: item.active || pressed ? colors.tint : "transparent",
-                  })}
-                >
-                  <MessageSquare size={20} color={colors.accent} strokeWidth={1.75} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={[type.headline, { color: colors.ink, fontFamily: item.active ? families.sansSemi : families.sans }]}>
-                      <MatchedText text={item.title} query={searchQuery} color={colors.accent} />
-                    </Text>
-                    {item.preview ? (
-                      <Text numberOfLines={1} style={[type.secondary, { color: colors.ink3, marginTop: 1 }]}>
-                        <MatchedText text={item.preview} query={searchQuery} color={colors.accent} />
-                      </Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-              ))
-            )}
-          </ScrollView>
-        </View>
+      {onConversationsPress ? (
+        <Pressable
+          testID="drawer.conversations.open"
+          accessibilityRole="button"
+          accessibilityLabel={t("drawer.yourChats")}
+          onPress={onConversationsPress}
+          style={({ pressed }) => ({
+            minHeight: 48,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space.sm,
+            paddingHorizontal: space.xs,
+            borderRadius: radius.row,
+            backgroundColor: pressed ? colors.tint : "transparent",
+          })}
+        >
+          <MessageSquare size={20} color={colors.accent} strokeWidth={1.75} />
+          <Text style={[type.headline, { color: colors.ink, flex: 1 }]}>{t("drawer.yourChats")}</Text>
+          <ChevronRight size={16} color={colors.ink3} strokeWidth={1.75} />
+        </Pressable>
       ) : null}
 
       <View style={{ borderTopWidth: 1, borderTopColor: colors.line, paddingTop: space.xs }}>
