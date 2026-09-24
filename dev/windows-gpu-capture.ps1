@@ -8,8 +8,9 @@
 #   crates/kalsa-runtime/src/verdict.rs:66   POWERSHELL_DRIVERS script
 # Nothing outside the output folder is written; no admin rights, no network.
 # Each step is independent and try/caught on its own; the script exits 0
-# whatever the steps reported. Written for Windows PowerShell 5.1 and pwsh
-# 7 alike; not yet run or parsed on either.
+# whatever the steps reported. Written for Windows PowerShell 5.1 and pwsh 7 alike; it
+# ran under 5.1.26100 on a Surface Laptop 3 (Windows 11 26200) on 2026-09-24 with wmic
+# absent, so the wmic and timeout paths never executed; pwsh 7 has not run it.
 # ASCII throughout: a BOM-less .ps1 is read as ANSI by Windows PowerShell
 # 5.1, so one non-ASCII byte in a string would reach the child wrong.
 
@@ -50,9 +51,9 @@ function ConvertTo-WindowsArgument {
 # Spawns one producer the way crates/kalsa-probe/src/run.rs does: stdout
 # redirected and read as BYTES (BaseStream, never decoded - decoding here
 # would destroy the encoding evidence this capture exists for), stderr
-# swallowed to mirror Rust's Stdio::null(), and the same 10 s deadline:
-# expiry is a best-effort kill (its failure is swallowed, the reap wait is
-# bounded), never a guaranteed reap. stdout and stderr drain CONCURRENTLY: a
+# read through a pipe and discarded - NOT Rust's Stdio::null()'s NUL;
+# same 10 s deadline, expiry a best-effort kill (failure swallowed, reap
+# wait bounded), never a guaranteed reap. stdout and stderr drain CONCURRENTLY: a
 # child that fills the stderr pipe before closing its stdout would stall a
 # sequential drain until the deadline. stdin is redirected and closed
 # right after the spawn: the shipped app is a GUI process with no console
@@ -249,9 +250,10 @@ try {
     $report = @()
     # Properties under this key is SYSTEM-only: a denied subkey must not
     # abort the enumeration; each numeric subkey is read in its own try.
-    $subkeys = Get-ChildItem -LiteralPath $classKey -ErrorAction SilentlyContinue |
+    $subkeys = Get-ChildItem -LiteralPath $classKey -ErrorAction SilentlyContinue -ErrorVariable enumErrors |
         Where-Object { $_.PSChildName -match '^\d{4}$' } |
         Sort-Object -Property PSChildName
+    foreach ($enumError in $enumErrors) { $report += "enumeration error: $(Get-Reason $enumError)" }
     foreach ($subkey in $subkeys) {
         try {
             $props = Get-ItemProperty -LiteralPath $subkey.PSPath -ErrorAction Stop
@@ -294,7 +296,8 @@ try {
     }
     if ($report.Count -eq 0) { $report += '(no 0000-style subkeys found)' }
     Set-Content -Path (Join-Path $OutDir 'registry.txt') -Value $report -Encoding UTF8 -ErrorAction Stop
-    $steps += 'registry.txt: ok'
+    $enumNote = if ($enumErrors.Count -gt 0) { " ($($enumErrors.Count) enumeration errors)" } else { '' }
+    $steps += "registry.txt: ok$enumNote"
 } catch {
     $steps += "registry.txt: failed ($(Get-Reason $_))"
 }
@@ -302,7 +305,7 @@ try {
 $summaryLines = @()
 $summaryLines += 'kalsa GPU capture - ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 $summaryLines += 'wmic.exe: ' + $wmicPresence
-$summaryLines += 'elapsed ms is spawn-to-exit of each command (spawn-to-stopped-waiting when it timed out): the fallback latency on real hardware'
+$summaryLines += 'elapsed ms is spawn-to-drained-output of each command, spawn-to-stopped-waiting when it timed out: the fallback latency on real hardware'
 foreach ($capture in $captures) {
     $summaryLines += ''
     $summaryLines += $capture.Name
