@@ -14,6 +14,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  BENCH_ROUTE_KEY,
   BENCH_THINKING_KEY,
   formatBenchStatus,
   getEngineOverride,
@@ -22,6 +23,7 @@ import {
   getToolGateEnabled,
   isDevBuild,
   parseEngineArg,
+  readBenchRoute,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
   shouldUseToolCalling,
@@ -361,5 +363,50 @@ describe("engine override persistence", () => {
       JSON.stringify({ moeStream: { cache_mb: 1499 } }),
     );
     await expect(getEngineOverride()).resolves.toBeUndefined();
+  });
+});
+
+describe("/bench route round-trip — the next turn's prefill request", () => {
+  const store = new Map<string, string>();
+
+  beforeEach(() => {
+    store.clear();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      async (key: string) => store.get(key) ?? null,
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation(
+      async (key: string, value: string) => {
+        store.set(key, value);
+      },
+    );
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation(
+      async (key: string) => {
+        store.delete(key);
+      },
+    );
+  });
+
+  test("cpu persists and reads back; /bench show echoes it", async () => {
+    const reply = await tryHandleBenchCommand("/bench route cpu");
+    expect(reply).toContain("bench: route=cpu");
+    await expect(readBenchRoute()).resolves.toBe("cpu");
+    expect(store.get(BENCH_ROUTE_KEY)).toBe("cpu");
+    await expect(formatBenchStatus()).resolves.toContain("route=cpu");
+  });
+
+  test("auto clears the stored request and reads as the engine-decides default", async () => {
+    await tryHandleBenchCommand("bench:route gpu");
+    await expect(readBenchRoute()).resolves.toBe("gpu");
+    const reply = await tryHandleBenchCommand("/bench route auto");
+    expect(reply).toContain("bench: route=auto");
+    expect(store.has(BENCH_ROUTE_KEY)).toBe(false);
+    await expect(readBenchRoute()).resolves.toBe("auto");
+  });
+
+  test("an unknown mode is refused and writes nothing", async () => {
+    const reply = await tryHandleBenchCommand("/bench route turbo");
+    expect(reply).toContain('bench: invalid route mode "turbo"');
+    expect(store.size).toBe(0);
+    await expect(readBenchRoute()).resolves.toBe("auto");
   });
 });

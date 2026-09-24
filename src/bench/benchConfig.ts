@@ -8,18 +8,23 @@
  *   /bench speculative <none|mtp|clear>
  *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|moe=on,...|clear>
  *   /bench devmodels <on|off>
+ *   /bench route <cpu|gpu|auto>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking default
  *   bench:format user-note
  *   bench:speculative none
  *   bench:engine moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon
+ *   bench:route cpu|gpu|auto
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
  * new value to take effect (chat write alone is not enough mid-session).
  *
  * Engine applies at ENGINE INIT — force-stop + relaunch (same as speculative).
+ *
+ * Route applies from the NEXT turn — pushed at runtime before every
+ * completion, no relaunch and no reload; `auto` clears the stored request.
  *
  * Keys:
  * - kalsa.bench.thinking: "default" | "budget256" | "budget512"
@@ -30,6 +35,7 @@
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
  * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
+ * - kalsa.bench.route: "cpu" | "gpu" (next-turn prefill-route request; absent/"auto" → engine decides)
  *
  * The app boot reads this once. Read failures reject so the boot path can
  * explicitly choose the production catalog and still render the app.
@@ -63,6 +69,8 @@ export const BENCH_DIGESTCADENCE_KEY = "kalsa.bench.digestcadence";
 /** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
 export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
 export const BENCH_DEVMODELS_KEY = "kalsa.bench.devmodels";
+/** Next turn's prefill-route request: "cpu" | "gpu" (absent/auto → engine decides). */
+export const BENCH_ROUTE_KEY = "kalsa.bench.route";
 
 export type ThinkingMode = "default" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -86,6 +94,35 @@ export async function setDevModelsEnabled(mode: string): Promise<boolean> {
   if (mode !== "on" && mode !== "off") return false;
   try {
     await AsyncStorage.setItem(BENCH_DEVMODELS_KEY, mode === "on" ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type BenchRouteMode = "cpu" | "gpu" | "auto";
+const ROUTE_MODES: ReadonlySet<string> = new Set(["cpu", "gpu", "auto"]);
+
+/**
+ * The next turn's prefill-route request. Absent, invalid, or "auto" all mean
+ * the same thing to the reader: no request — the engine keeps deciding.
+ */
+export async function readBenchRoute(): Promise<BenchRouteMode> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_ROUTE_KEY);
+    if (raw === "cpu" || raw === "gpu") return raw;
+  } catch {
+    // best-effort, like every other knob here
+  }
+  return "auto";
+}
+
+/** Persist the request; `auto` clears the key (the push happens every turn anyway). */
+export async function setBenchRoute(mode: BenchRouteMode): Promise<boolean> {
+  if (!ROUTE_MODES.has(mode)) return false;
+  try {
+    if (mode === "auto") await AsyncStorage.removeItem(BENCH_ROUTE_KEY);
+    else await AsyncStorage.setItem(BENCH_ROUTE_KEY, mode);
     return true;
   } catch {
     return false;
@@ -814,11 +851,12 @@ export async function formatBenchStatus(): Promise<string> {
   // threads_src: how detectThreadCount resolved (capacity vs fallback:*).
   // "unset" until the engine has probed; no log noise on the normal path.
   const threadsSrc = getThreadCountSource();
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, threads_src=${threadsSrc}`;
+  const route = await readBenchRoute();
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, route=${route}, threads_src=${threadsSrc}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench route <cpu|gpu|auto> | bench:route <cpu|gpu|auto> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -886,6 +924,13 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     const ok = await setDevModelsEnabled(arg);
     if (!ok) return "bench: failed to write devmodels mode";
     return `bench: devmodels=${arg} (force-stop + relaunch to apply)`;
+  }
+
+  if (sub === "route") {
+    if (!ROUTE_MODES.has(arg)) return `bench: invalid route mode "${arg}". ${BENCH_USAGE}`;
+    const ok = await setBenchRoute(arg as BenchRouteMode);
+    if (!ok) return "bench: failed to write route";
+    return `bench: route=${arg} (next turn, no reload)`;
   }
 
   if (sub === "speculative") {

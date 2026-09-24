@@ -18,6 +18,7 @@ import {
   getThinkingMode,
   getToolChoiceMode,
   getToolGateEnabled,
+  readBenchRoute,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
   shouldUseToolCalling,
@@ -149,6 +150,7 @@ import {
   thermalCoolingLogLine,
   utilityGovernorPause,
 } from "./governorPauseLog";
+import { governorRouteLogFields, pushPrefillOverride } from "./benchRoute";
 import {
   createBackgroundTimer,
   createRepeatingTimer,
@@ -511,6 +513,15 @@ let turnSeq = 0;
  * still the latest: a newer send must not be raced by an old retry.
  */
 let turnTokenSeq = 0;
+
+/**
+ * Mint the id every line of one send joins on. The phase that logs the
+ * first line (KALSA_WINDOW) calls it; streamAssistantTurn reuses it through
+ * StreamTurnOptions.turnId and mints only when no earlier line exists.
+ */
+export function mintTurnId(): string {
+  return String(++turnSeq);
+}
 
 // ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
 const NATIVE_LOG_CAP = 50;
@@ -1800,6 +1811,21 @@ async function refreshGovernorBeforeCompletion(
         );
       }
     }
+    // /bench route: request this turn's prefill route — a request only, the
+    // engine's safety gates keep deciding — pushed every turn so the stored
+    // value survives until `auto` clears it. Feature-detected: the pinned
+    // binding may predate setPrefillOverride.
+    try {
+      await withNativeCallTimeout(
+        pushPrefillOverride(engine, await readBenchRoute()),
+        ENGINE_AUX_CALL_TIMEOUT_MS,
+        "setPrefillOverride",
+      );
+    } catch {
+      // Never a turn dependency: a busy or released context keeps the
+      // engine's own route for this turn (the unsupported case already
+      // logged its one KALSA_BENCH_ROUTE line inside the helper).
+    }
   }
   return snapshot;
 }
@@ -1807,6 +1833,8 @@ async function refreshGovernorBeforeCompletion(
 async function emitGovernorTelemetry(
   engine: LlamaContext,
   thermoSource: GovernorThermoSnapshot["thermo_source"],
+  turnId: string,
+  completionResult: unknown,
 ): Promise<void> {
   if (!activeGovernorAttempted) return;
   try {
@@ -1836,6 +1864,13 @@ async function emitGovernorTelemetry(
         // completion error the binding raises.
         failed: Boolean(stats.failure_reason),
         failure_reason: stats.failure_reason,
+        // Route evidence: join id, the requested mode, and the per-chunk
+        // facts (null until the binding emits route_chunks).
+        ...governorRouteLogFields({
+          turnId,
+          routeMode: await readBenchRoute(),
+          completionResult,
+        }),
       })}`,
     );
     if (stats.failure_reason) {
@@ -4097,6 +4132,12 @@ export type StreamTurnOptions = EngineTurnOptions & {
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
   ciswireFlags?: number;
+  /**
+   * The id minted before this send's first line (KALSA_WINDOW): every
+   * KALSA_* line of the turn joins on it. Absent → minted here (turns with
+   * no earlier line).
+   */
+  turnId?: string;
 };
 
 /**
@@ -4216,7 +4257,10 @@ export async function streamAssistantTurn(
     kvReproState = nextKvReproState(kvReproState, "turn_start");
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
-    const turnId = String(++turnSeq);
+    const turnId = options.turnId ?? mintTurnId();
+    // The completion whose facts the end-of-turn KALSA_GOVERNOR line
+    // reports (the engine's per-completion stats are turn-last the same way).
+    let lastCompletionResult: unknown = null;
 
     let finished = false;
     let aborted = false;
@@ -5133,6 +5177,7 @@ export async function streamAssistantTurn(
         // each attempt only — cleared across the waits (native work is not
         // running then) and re-armed per retry.
         const result = await resumeWhileCooling(coolingRound(round, runCompletionRound));
+        lastCompletionResult = result;
         stopStallWatchdog();
         // Capture adoption evidence before the abort early-return: a stopped
         // completion still returned n_past (tokens_cached), which proves the
@@ -5233,7 +5278,7 @@ export async function streamAssistantTurn(
         if (!toolCallingEnabled || !toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
-          await emitGovernorTelemetry(engine, governorThermoSource);
+          await emitGovernorTelemetry(engine, governorThermoSource, turnId, lastCompletionResult);
           if (benchSampling === "greedy") {
             console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
           }
@@ -5546,6 +5591,7 @@ export async function streamAssistantTurn(
             const fallbackResult = await resumeWhileCooling(
               coolingRound(MAX_TOOL_ROUNDS, runFallbackRound),
             );
+            lastCompletionResult = fallbackResult;
             stopStallWatchdog();
             if (
               completionAdoptedAssembleStart({
@@ -5670,7 +5716,7 @@ export async function streamAssistantTurn(
       ) {
         assembleOutcome = markAssembleOutcome(assembleOutcome, "completed");
       }
-      await emitGovernorTelemetry(engine, governorThermoSource);
+      await emitGovernorTelemetry(engine, governorThermoSource, turnId, lastCompletionResult);
       if (benchSampling === "greedy") {
         console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
       }

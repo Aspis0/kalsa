@@ -11,6 +11,7 @@
 import { assembleEngineHistory } from "../context/compactor";
 import { WINDOW_CHARS_PER_TOKEN } from "../context/windowProfile";
 import {
+  mintTurnId,
   queueStaticPrefixPrewarm,
   type EngineMessage,
 } from "../engine/engineBackend";
@@ -108,6 +109,10 @@ export async function streamEngineTurn(
               }
             }
 
+            // One id for every line of THIS send: minted here because the
+            // window logs first; streamAssistantTurn consumes it through
+            // StreamTurnOptions.turnId, so window/telemetry/governor join.
+            const turnId = mintTurnId();
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
             // (anchored — append-only growth between rebuilds, preserves KV prefix).
             // boundaryForAssemble is anchored-only; no non-anchored store of it
@@ -120,6 +125,7 @@ export async function streamEngineTurn(
                   .reduce((sum, n) => sum + n, 0) + currentTurnChars;
               console.log(
                 `KALSA_WINDOW ${JSON.stringify({
+                  turnId,
                   kvHeld,
                   nPast: nPast ?? null,
                   lastSaveTokens: lastSaveTokens ?? null,
@@ -278,6 +284,7 @@ export async function streamEngineTurn(
               signal,
               {
                 ...agentOptions,
+                turnId,
                 locale,
                 memoryFacts: promptFacts,
                 operativeContext,
