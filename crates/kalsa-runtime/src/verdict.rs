@@ -12,6 +12,9 @@ use std::path::{Path, PathBuf};
 
 use kalsa_probe::Backend;
 
+#[cfg(target_os = "windows")]
+use kalsa_probe::{command_text, once_present};
+
 use crate::assets::{self, Platform, ServerBackend};
 
 const MAGIC: &str = "kalsa-runtime v1";
@@ -81,67 +84,28 @@ fn driver_text(
     }
 }
 
-#[cfg(target_os = "windows")]
-fn driver_version() -> String {
-    driver_text(
-        || command_text("wmic", &WMIC_DRIVERS),
-        || command_text("powershell", &POWERSHELL_DRIVERS),
-    )
-    .and_then(|text| parse_driver_versions(&text))
-    // A verdict that survives without a driver reading is weaker, not
-    // wrong: the probe proved this build here, and only a proven change
-    // of machine should unprove it.
-    .unwrap_or_else(|| "unknown".to_string())
-}
-
 /// How long a producer gets to answer. Ten seconds: far above wmic's or
 /// PowerShell's honest work, short enough that a stuck one costs one
 /// attempt, not the fingerprint.
 #[cfg(target_os = "windows")]
 const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
-/// How often a waiting producer is checked; nothing rides on the exact figure.
-#[cfg(target_os = "windows")]
-const ANSWER_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 
-/// The producer's stdout as text, lossily: the version digits are ASCII,
-/// and one non-ASCII byte anywhere (the OEM code page) must not void the
-/// whole answer.
-#[cfg(any(target_os = "windows", test))]
-fn stdout_text(bytes: Vec<u8>) -> String {
-    String::from_utf8_lossy(&bytes).into_owned()
-}
-
-/// Runs `program`, answering its stdout as text only when it ran, succeeded,
-/// and finished inside [`ANSWER_DEADLINE`]; anything else is "no answer",
-/// which the caller treats as absent, never as data. Duplicated beside
-/// kalsa-probe's on purpose: a runner shared across crates would be an API
-/// for a few lines. The output here is a few hundred bytes, far under any
-/// pipe buffer, so a stuck producer is what the deadline is for, not
-/// backpressure.
+/// The driver version, asked once per process once a version PARSES
+/// (`once_present`, for the same reason as the detection): `decide` may
+/// compute the fingerprint twice, and a failed read must not freeze
+/// "unknown" in place. A verdict that survives without a driver reading is
+/// weaker, not wrong: the probe proved this build here, and only a proven
+/// change of machine should unprove it.
 #[cfg(target_os = "windows")]
-fn command_text(program: &str, args: &[&str]) -> Option<String> {
-    use std::io::Read;
-    let mut child = std::process::Command::new(program)
-        .args(args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .ok()?;
-    let mut stdout = child.stdout.take()?;
-    let deadline = std::time::Instant::now() + ANSWER_DEADLINE;
-    loop {
-        if let Ok(Some(status)) = child.try_wait() {
-            let mut bytes = Vec::new();
-            stdout.read_to_end(&mut bytes).ok()?;
-            return status.success().then(|| stdout_text(bytes));
-        }
-        if std::time::Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-        std::thread::sleep(ANSWER_POLL);
-    }
+fn driver_version() -> String {
+    static DRIVERS: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    once_present(&DRIVERS, "unknown".to_string(), || {
+        driver_text(
+            || command_text("wmic", &WMIC_DRIVERS, ANSWER_DEADLINE),
+            || command_text("powershell", &POWERSHELL_DRIVERS, ANSWER_DEADLINE),
+        )
+        .and_then(|text| parse_driver_versions(&text))
+    })
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -364,16 +328,6 @@ mod tests {
         assert_eq!(calls.get(), 2);
     }
 
-    #[test]
-    fn a_non_ascii_byte_does_not_void_the_driver_answer() {
-        // The OEM code page: one non-UTF-8 byte must not lose the versions
-        // beside it — the digits are ASCII.
-        let text = stdout_text(b"31.0.15.3623\n\xFF\n32.0.15.6109\n".to_vec());
-        assert_eq!(
-            parse_driver_versions(&text),
-            Some("31.0.15.3623,32.0.15.6109".to_string())
-        );
-    }
 
     #[test]
     fn both_producers_ask_the_video_controller_class_for_its_driver_versions() {

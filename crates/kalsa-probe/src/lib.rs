@@ -21,6 +21,7 @@ mod detect;
 mod path;
 mod plateau;
 mod predict;
+mod run;
 mod series;
 mod soc;
 
@@ -30,6 +31,7 @@ pub use detect::backend;
 pub use confidence::{Reliability, SPREAD_LIMIT};
 pub use path::{Backend, ExecutionPath};
 pub use plateau::{plateau, still_rising, PLATEAU_TOLERANCE};
+pub use run::{command_text, once_present};
 pub use predict::{
     decode_band, decode_tokens_per_second, prefill_tokens_per_second, DecodeCost,
     FIXED_SECONDS_PRIOR, SUSTAINED_BANDWIDTH_SHARE,

@@ -11,6 +11,9 @@
 
 use crate::path::Backend;
 
+#[cfg(target_os = "windows")]
+use crate::{command_text, once_present};
+
 /// Windows reports VRAM in a 32-bit field: it cannot represent 8 GiB at all, and
 /// the maximum value means "saturated", not "4294967295 bytes". Anything at or
 /// above this is refused rather than reported as a size.
@@ -85,70 +88,27 @@ fn has_a_controller_row(text: &str) -> bool {
     header && non_empty.len() > 1
 }
 
-#[cfg(target_os = "windows")]
-fn windows_backend() -> Backend {
-    // Once per process: the detection is asked twice per measurement and
-    // once more by the app's startup seed, and every ask spawns wmic — and
-    // on 24H2/25H2, PowerShell. One spawn is the whole cost.
-    static DETECTED: std::sync::OnceLock<Backend> = std::sync::OnceLock::new();
-    *DETECTED.get_or_init(|| {
-        controllers_text(
-            || command_text("wmic", &WMIC_CONTROLLERS),
-            || command_text("powershell", &POWERSHELL_CONTROLLERS),
-        )
-        .map(|text| backend_from_video_controllers(&text))
-        .unwrap_or(Backend::Unknown)
-    })
-}
-
 /// How long a producer gets to answer. Ten seconds: far above wmic's or
 /// PowerShell's honest work, short enough that a stuck one costs one
 /// attempt, not the app.
 #[cfg(target_os = "windows")]
 const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
-/// How often a waiting producer is checked; nothing rides on the exact figure.
-#[cfg(target_os = "windows")]
-const ANSWER_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 
-/// The producer's stdout as text, lossily: the numbers are ASCII, and one
-/// non-ASCII byte in a marketing name (the OEM code page) must not void the
-/// whole answer.
-#[cfg(any(target_os = "windows", test))]
-fn stdout_text(bytes: Vec<u8>) -> String {
-    String::from_utf8_lossy(&bytes).into_owned()
-}
-
-/// Runs `program`, answering its stdout as text only when it ran, succeeded,
-/// and finished inside [`ANSWER_DEADLINE`]; anything else is "no answer",
-/// which every caller here treats as absent, never as data. Private on
-/// purpose: a runner shared with kalsa-runtime would be a cross-crate API
-/// for a few lines nobody owes it. The output here is a few hundred bytes,
-/// far under any pipe buffer, so a stuck producer is what the deadline is
-/// for, not backpressure.
+/// The detection, asked once per process once it ANSWERS (`once_present`):
+/// it is asked twice per measurement and once more by the app's startup
+/// seed, and every ask spawns wmic — and on 24H2/25H2, PowerShell. Only a
+/// present answer is cached, so one timeout, or a WMI service not yet up
+/// at boot, cannot freeze `Unknown` into the record for thirty days.
 #[cfg(target_os = "windows")]
-fn command_text(program: &str, args: &[&str]) -> Option<String> {
-    use std::io::Read;
-    let mut child = std::process::Command::new(program)
-        .args(args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .ok()?;
-    let mut stdout = child.stdout.take()?;
-    let deadline = std::time::Instant::now() + ANSWER_DEADLINE;
-    loop {
-        if let Ok(Some(status)) = child.try_wait() {
-            let mut bytes = Vec::new();
-            stdout.read_to_end(&mut bytes).ok()?;
-            return status.success().then(|| stdout_text(bytes));
-        }
-        if std::time::Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-        std::thread::sleep(ANSWER_POLL);
-    }
+fn windows_backend() -> Backend {
+    static DETECTED: std::sync::OnceLock<Option<Backend>> = std::sync::OnceLock::new();
+    once_present(&DETECTED, Backend::Unknown, || {
+        controllers_text(
+            || command_text("wmic", &WMIC_CONTROLLERS, ANSWER_DEADLINE),
+            || command_text("powershell", &POWERSHELL_CONTROLLERS, ANSWER_DEADLINE),
+        )
+        .map(|text| backend_from_video_controllers(&text))
+    })
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -464,18 +424,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_non_ascii_byte_in_a_name_does_not_void_the_answer() {
-        // The OEM code page: one non-UTF-8 byte in a marketing name must
-        // not lose the whole text — the numbers are ASCII.
-        let text = stdout_text(b"3221225472  NVIDIA GeForce RTX 4060 \xF0\n".to_vec());
-        assert_eq!(
-            backend_from_video_controllers(&text),
-            Backend::DiscreteGpu {
-                vram_bytes: Some(3221225472)
-            }
-        );
-    }
 
     #[test]
     fn this_machine_reports_what_it_really_has() {
