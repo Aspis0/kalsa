@@ -2357,7 +2357,7 @@ export function initEngine(
             ubatch: tuning.n_ubatch,
             mmap: load.useMmap,
             offloadedBytes: modelInfo.sizeBytes,
-          }, benchGovernorForce)
+          }, benchGovernorForce, benchNoRepack)
         : null;
     const governorLoad =
       governorBase != null &&

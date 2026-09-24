@@ -75,6 +75,7 @@ describe("governor inputs", () => {
       generation: "V75",
       model_kind: "Hybrid",
       gpu_fit: "Fit",
+      decode_repack: true,
       gpu_prefill_measured: true,
       bench_force_gpu_prefill: false,
       npu_lane_enabled: false,
@@ -205,6 +206,60 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(lfm!, s23, laneAt(2999 * 1024 ** 2)).gpu_fit).toBe("Fit");
     // One MiB below the requirement flips — the pin is the exact number.
     expect(buildGovernorParams(lfm!, s23, laneAt(2997 * 1024 ** 2)).gpu_fit).toBe("NoFit");
+  });
+
+  test("prices the lane with repack first and drops repack only when that is what fits", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    // Repack-priced requirement 4358.70 MiB: at/above it the lane keeps the
+    // repack copy (decode_repack true — upstream default, full decode speed
+    // and KLD). One MiB below, repack is dropped only to keep the lane alive.
+    expect(buildGovernorParams(lfm, s23, laneAt(4359))).toMatchObject({
+      gpu_fit: "Fit",
+      decode_repack: true,
+    });
+    expect(buildGovernorParams(lfm, s23, laneAt(4358))).toMatchObject({
+      gpu_fit: "Fit",
+      decode_repack: false,
+    });
+    expect(buildGovernorParams(lfm, s23, laneAt(2999))).toMatchObject({
+      gpu_fit: "Fit",
+      decode_repack: false,
+    });
+    // Repack-free requirement is 2998.06 MiB: one MiB below, neither price
+    // fits — NoFit, the lane is refused rather than shrunk silently.
+    expect(buildGovernorParams(lfm, s23, laneAt(2998)).gpu_fit).toBe("NoFit");
+    expect(buildGovernorParams(lfm, s23, laneAt(2997)).gpu_fit).toBe("NoFit");
+  });
+
+  test("kalsa.bench.norepack outranks the fit decision", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    // "1" (no-repack arm): the with-repack attempt is skipped entirely —
+    // the arm measures no-repack even where repack would fit.
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(4359), false, true),
+    ).toMatchObject({ gpu_fit: "Fit", decode_repack: false });
+    // "0" (repack-on arm): no P1 fallback — where repack does not fit the
+    // lane is refused instead of silently measuring the other configuration.
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(4359), false, false),
+    ).toMatchObject({ gpu_fit: "Fit", decode_repack: true });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2999), false, false).gpu_fit,
+    ).toBe("NoFit");
   });
 
   test("bench thermo wins over BatteryManager", async () => {

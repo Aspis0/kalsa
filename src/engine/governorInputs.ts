@@ -79,10 +79,11 @@ function modelKind(model: GovernorModel) {
   return "Dense" as const;
 }
 
-function gpuFit(
+function laneFit(
   model: GovernorModel,
   profile: DeviceProfile,
   memory: MemorySnapshot,
+  repack: boolean,
 ) {
   const kv = model.kvBytesPerToken;
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
@@ -94,10 +95,7 @@ function gpuFit(
     kvBytesPerToken: kv,
     ubatch: memory.ubatch ?? 256,
     mmap: memory.mmap,
-    // The lane's decode model loads with no_extra_bufts=true (binding:
-    // rn-llama.cpp load_governor_models), so no CPU repack copy exists here;
-    // pricing one demanded ~W of memory the lane never allocates.
-    repack: false,
+    repack,
   });
   const verdict = fitMemoryEstimate(
     estimate,
@@ -119,20 +117,48 @@ function gpuFit(
   return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
 }
 
+function gpuFit(
+  model: GovernorModel,
+  profile: DeviceProfile,
+  memory: MemorySnapshot,
+  benchNoRepack: boolean | undefined,
+) {
+  // Price the lane WITH repack first: P1 (decode_repack false) drops the CPU
+  // repack copy and costs ~1.41x lane decode plus KLD p99 0.034 -> 0.042, so
+  // it is only taken where the repack-priced lane does not fit (8 GB S23:
+  // 4358.70 MiB required with repack vs 2998.06 without). kalsa.bench.norepack
+  // outranks this fit decision so one arm measures one configuration: "1"
+  // skips the with-repack attempt (no-repack arm), "0" skips the P1 fallback
+  // (repack-on arm, refused rather than silently re-priced); absent lets the
+  // production order above decide.
+  if (benchNoRepack !== true && laneFit(model, profile, memory, true) === "Fit") {
+    return { fit: "Fit" as const, decodeRepack: true };
+  }
+  if (benchNoRepack !== false && laneFit(model, profile, memory, false) === "Fit") {
+    return { fit: "Fit" as const, decodeRepack: false };
+  }
+  return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
+}
+
 export function buildGovernorParams(
   modelEntry: GovernorModel,
   deviceProfile: DeviceProfile,
   memory: MemorySnapshot,
   force = false,
+  benchNoRepack: boolean | undefined = undefined,
 ) {
   const generation = generationFor(deviceProfile);
   const enabled = force || GPU_PREFILL_CORRECT[generation];
+  const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,
     generation,
     model_kind: modelKind(modelEntry),
-    gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
+    gpu_fit: lane.fit,
+    // Binding param governor.decode_repack (default true): false makes
+    // load_governor_models drop the decode model's CPU repack copy (P1).
+    decode_repack: lane.decodeRepack,
     // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
