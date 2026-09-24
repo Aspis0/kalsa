@@ -79,15 +79,9 @@ function modelKind(model: GovernorModel) {
   return "Dense" as const;
 }
 
-function laneFit(
-  model: GovernorModel,
-  profile: DeviceProfile,
-  memory: MemorySnapshot,
-  repack: boolean,
-) {
+function lanePrice(model: GovernorModel, memory: MemorySnapshot, repack: boolean) {
   const kv = model.kvBytesPerToken;
-  if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
-  if (generationFor(profile) === "Unknown") return "NoFit" as const;
+  if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return null;
 
   // The generic REPACK_FRACTION (0.8951, memoryEstimate.ts) is anchored on
   // other models — on the S23 the ship model's CPU_REPACK buffer was
@@ -111,24 +105,56 @@ function laneFit(
         totalMiB: estimate.totalMiB + estimate.weightsMiB,
       }
     : estimate;
+  const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
+  const requiredMiB =
+    priced.nonEvictableMiB +
+    800 +
+    (1.05 * offloadedBytes) / MIB +
+    priced.computeMiB +
+    priced.kvMiB;
+  return { priced, requiredMiB };
+}
+
+function laneFit(
+  model: GovernorModel,
+  profile: DeviceProfile,
+  memory: MemorySnapshot,
+  repack: boolean,
+) {
+  if (generationFor(profile) === "Unknown") return "NoFit" as const;
+  const lane = lanePrice(model, memory, repack);
+  if (!lane) return "NoFit" as const;
   const verdict = fitMemoryEstimate(
-    priced,
+    lane.priced,
     typeof memory.availableMemoryBytes === "number"
       ? memory.availableMemoryBytes / MIB
       : null,
   );
   if (verdict.status === "unknown" || verdict.status === "does_not_fit") return "NoFit" as const;
 
-  const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
-  const gpuReserveMiB = 800 + (1.05 * offloadedBytes) / MIB;
-  // Plan §4 bounds the two-context resident budget at 3.46–3.94 GiB.
-  const requiredMiB =
-    priced.nonEvictableMiB +
-    gpuReserveMiB +
-    priced.computeMiB +
-    priced.kvMiB;
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
-  return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+  return lane.requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+}
+
+export function buildGovernorPlanLog(
+  model: GovernorModel,
+  memory: MemorySnapshot,
+  governor: { gpu_fit: "Fit" | "NoFit"; decode_repack: boolean },
+  benchNoRepack: boolean | undefined,
+) {
+  const withRepack = lanePrice(model, memory, true);
+  const withoutRepack = lanePrice(model, memory, false);
+  const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
+  const roundMiB = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+  return {
+    gpu_fit: governor.gpu_fit,
+    decode_repack: governor.decode_repack,
+    required_mib_with_repack: roundMiB(withRepack?.requiredMiB ?? 0),
+    required_mib_without_repack: roundMiB(withoutRepack?.requiredMiB ?? 0),
+    available_mib: roundMiB(availableMiB),
+    bench_norepack_forced: benchNoRepack ?? null,
+  };
 }
 
 function gpuFit(

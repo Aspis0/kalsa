@@ -51,6 +51,7 @@ import {
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
+  buildGovernorPlanLog,
   buildGovernorParams,
   readBenchGovernorForce,
   readGovernorThermo,
@@ -2395,6 +2396,25 @@ export function initEngine(
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
       return { effectiveNCtx };
+    }
+    if (governorLoad != null && pricedModel != null) {
+      console.log(
+        `KALSA_GOVERNOR_PLAN ${JSON.stringify(
+          buildGovernorPlanLog(
+            pricedModel,
+            {
+              availableMemoryBytes: deviceProfile.availableMemoryBytes,
+              totalMemoryBytes: deviceProfile.totalMemoryBytes,
+              contextTokens: effectiveNCtx,
+              ubatch: tuning.n_ubatch,
+              mmap: load.useMmap,
+              offloadedBytes: modelInfo.sizeBytes,
+            },
+            governorLoad,
+            benchNoRepack,
+          ),
+        )}`,
+      );
     }
     if (governorBase != null && !governorBase.enabled) {
       console.log(
