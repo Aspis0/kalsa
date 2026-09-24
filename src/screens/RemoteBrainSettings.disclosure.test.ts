@@ -1,7 +1,7 @@
 /**
  * Privacy disclosure: choosing an address here is also the act that uploads
  * conversation content to it, so the panel must say WHAT is sent before the
- * "Use my computer" button can be pressed.
+ * "Use your computer" button can be pressed.
  *
  * Renders the real component (RN primitives mocked as host tags; `t` resolves
  * the real English strings) and asserts the owner-approved line is on screen
@@ -147,6 +147,7 @@ beforeEach(() => {
 // fails here, not in review.
 const DISCLOSURE =
   "To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names.";
+const COMPUTER_LABEL = "Your computer";
 const SELECT_LABEL = en.settings.remoteSelect;
 
 test("the shipped disclosure and its Italian mirror are the owner's exact texts", () => {
@@ -167,7 +168,7 @@ test("the hint no longer claims voice is off in remote mode", () => {
   expect(itLocale.settings.remoteBrainHint).not.toMatch(/voce/);
 });
 
-it("shows what is sent, above the Use my computer button", async () => {
+it("shows what is sent, above the Use your computer button", async () => {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
@@ -185,11 +186,14 @@ it("shows what is sent, above the Use my computer button", async () => {
     (node) => (node.type as unknown as string) === "Text",
   );
   const labels = textNodes.map((node) => node.props.children);
+  const computerIndex = labels.indexOf(COMPUTER_LABEL);
   const disclosureIndex = labels.indexOf(DISCLOSURE);
   const buttonIndex = labels.indexOf(SELECT_LABEL);
 
+  expect(computerIndex).toBeGreaterThanOrEqual(0);
   expect(disclosureIndex).toBeGreaterThanOrEqual(0);
   expect(buttonIndex).toBeGreaterThanOrEqual(0);
+  expect(computerIndex).toBeLessThan(buttonIndex);
   expect(disclosureIndex).toBeLessThan(buttonIndex);
 });
 

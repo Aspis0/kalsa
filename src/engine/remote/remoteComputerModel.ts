@@ -14,8 +14,8 @@ export const REMOTE_COMPUTER_MODEL_ID = "kalsa-remote-mac";
 /** Virtual catalog row for the user's computer. Not in MODEL_REGISTRY. */
 export const REMOTE_COMPUTER_MODEL: ModelInfo = {
   id: REMOTE_COMPUTER_MODEL_ID,
-  // English fallback only: the UI renders nameKey, which is localized.
-  name: "My computer",
+  // Fallback display name; the machine label is localized separately.
+  name: "Kalsa desktop",
   nameKey: "settings.remoteComputer",
   vendor: "Kalsa",
   quant: "remote",

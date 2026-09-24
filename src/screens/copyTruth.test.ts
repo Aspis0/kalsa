@@ -1,6 +1,7 @@
 import React from "react";
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";
+import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { HelpScreen } from "./HelpScreen";
 import { ProScreen } from "./ProScreen";
 import { SettingsHomeScreen } from "./SettingsHomeScreen";
@@ -73,7 +74,7 @@ function useCatalog(catalog: Catalog) {
   mockHookCursor = 0;
 }
 
-function homeText(catalog: Catalog, modelId: string) {
+function homeElements(catalog: Catalog, modelId: string): Element[] {
   useCatalog(catalog);
   const tree = SettingsHomeScreen({
     onBack: jest.fn(),
@@ -96,7 +97,11 @@ function homeText(catalog: Catalog, modelId: string) {
     onToggleCalendarTools: jest.fn(),
     appVersion: "1.0",
   });
-  return elements(tree)
+  return elements(tree);
+}
+
+function homeText(catalog: Catalog, modelId: string) {
+  return homeElements(catalog, modelId)
     .filter((node) => node.type === "Text")
     .map((node) => node.props.children)
     .filter((value): value is string => typeof value === "string");
@@ -163,6 +168,30 @@ beforeEach(() => {
 });
 
 describe("copy that remains truthful across local and computer modes", () => {
+  it.each([["English", en], ["Italian", italian]] as const)("renders concise settings labels in %s", (_name, catalog) => {
+    const nodes = homeElements(catalog, REMOTE_COMPUTER_MODEL_ID);
+    const rowText = (testID: string) => {
+      const row = nodes.find((node) => node.props.testID === testID);
+      expect(row).toBeDefined();
+      return elements(row)
+        .filter((node) => node.type === "Text")
+        .map((node) => node.props.children);
+    };
+
+    expect(rowText("settings.home.where")).toEqual([
+      catalog.settings.whereRuns,
+      catalog.settings.thisPhone,
+    ]);
+    expect(rowText("settings.home.model")).toEqual([
+      catalog.settings.modelPicker,
+      catalog.settings.remoteModelName,
+    ]);
+    expect(nodes.filter((node) => node.type === "Text").map((node) => node.props.children))
+      .not.toContain(REMOTE_COMPUTER_MODEL_ID);
+    expect(catalog.settings.remoteComputer).toBe(_name === "English" ? "Your computer" : "Il tuo computer");
+    expect(catalog.settings.remoteSelect).toBe(_name === "English" ? "Use your computer" : "Usa il tuo computer");
+  });
+
   it.each([["English", en], ["Italian", italian]] as const)("renders the six Help sections and guards the location disclosure in %s", (_name, catalog) => {
     useCatalog(catalog);
     const help = elements(HelpScreen({ onBack: jest.fn() }));
@@ -230,14 +259,12 @@ describe("copy that remains truthful across local and computer modes", () => {
     expect(text.join(" ")).not.toMatch(/\$|€|\/month|\/mese|subscribe|abbonati|upgrade to pro|passa a pro/i);
   });
 
-  it.each([["English", en], ["Italian", italian]] as const)("keeps the Settings location and model guidance tied to their rendered rows in %s", (_name, catalog) => {
+  it.each([["English", en], ["Italian", italian]] as const)("keeps model guidance tied to its rendered row in %s", (_name, catalog) => {
     expect(homeText(catalog, "lfm2.5-2.6b")).toEqual(expect.arrayContaining([
-      catalog.settings.whereRunsHint,
       catalog.settings.modelSmallFast,
       "LFM2.5 2.6B · QAD-Q4_0",
     ]));
     expect(homeText(catalog, "qwen3.5-4b")).toEqual(expect.arrayContaining([
-      catalog.settings.whereRunsHint,
       catalog.settings.modelCapableSlow,
       "Qwen 3.5 4B · Q4_K_M",
     ]));

@@ -68,9 +68,9 @@ export const en = {
     groupPrivacy: "Privacy and data",
     groupEngine: "Engine",
     whereRuns: "Where it responds",
-    whereRunsHint: "Local on this phone; your computer later.",
     thisPhone: "This phone",
     modelPicker: "Model",
+    remoteModelName: "Kalsa desktop",
     modelSmallFast: "Smaller and faster",
     modelCapableSlow: "More capable, slower",
     theme: "Theme",
@@ -205,10 +205,10 @@ export const en = {
       "Plain HTTP only works for this phone itself. Use https:// for your computer.",
     remoteBrainTokenRequired:
       "A token is required when the address is not on this phone.",
-    remoteComputer: "My computer",
+    remoteComputer: "Your computer",
     remoteComputerHint: "Runs on your computer. No download on this phone.",
     remoteGated: "Not available with the remote brain",
-    remoteSelect: "Use my computer",
+    remoteSelect: "Use your computer",
     governor: "Thermal governor (experimental)",
     governorBody:
       "Adapts CPU/GPU per inference phase to temperature and battery. Takes effect on the next model load.",

@@ -67,9 +67,9 @@ export const it: typeof en = {
     groupPrivacy: "Privacy e dati",
     groupEngine: "Motore",
     whereRuns: "Dove risponde",
-    whereRunsHint: "Locale sul telefono; in futuro, il tuo computer.",
     thisPhone: "Questo telefono",
     modelPicker: "Modello",
+    remoteModelName: "Kalsa desktop",
     modelSmallFast: "Più piccolo e veloce",
     modelCapableSlow: "Più capace, più lento",
     theme: "Tema",
@@ -204,10 +204,10 @@ export const it: typeof en = {
       "HTTP in chiaro funziona solo per questo telefono. Per il tuo computer usa https://.",
     remoteBrainTokenRequired:
       "Serve un token quando l'indirizzo non è su questo telefono.",
-    remoteComputer: "Il mio computer",
+    remoteComputer: "Il tuo computer",
     remoteComputerHint: "Gira sul tuo computer. Nessun download sul telefono.",
     remoteGated: "Non disponibile con il cervello remoto",
-    remoteSelect: "Usa il mio computer",
+    remoteSelect: "Usa il tuo computer",
     governor: "Governor termico (sperimentale)",
     governorBody:
       "Adatta CPU/GPU per fase di inferenza in base a temperatura e batteria. Ha effetto al prossimo caricamento del modello.",
