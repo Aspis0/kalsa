@@ -163,9 +163,15 @@ export function governorRouteLogFields(input: {
   const appliedMode =
     input.routePush?.outcome === "applied" ? input.routePush.mode : null;
   const routeMismatch =
-    // No forced arm applied, or no chunks to compare → null: an unverified
-    // claim must not serialize as a clean false.
-    appliedMode !== null && appliedMode !== "auto" && chunks !== null && chunks.length > 0
+    // No forced arm applied, dropped entries (a dropped chunk could hide
+    // the mismatch — its actual is unknown, so the verdict is), or nothing
+    // to compare → null: an unverified claim must not serialize as a clean
+    // false.
+    appliedMode !== null &&
+    appliedMode !== "auto" &&
+    chunks !== null &&
+    chunks.length > 0 &&
+    dropped === 0
       ? chunks.some((chunk) => chunk.actual !== appliedMode)
       : null;
   return {

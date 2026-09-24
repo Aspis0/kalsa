@@ -144,6 +144,14 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
     expect(build("applied", "auto", [chunk("cpu")]).route_mismatch).toBeNull();
     expect(build("failed", "gpu", [chunk("cpu")]).route_mismatch).toBeNull();
     expect(build("applied", "gpu", []).route_mismatch).toBeNull();
+    // A dropped chunk could hide the mismatch: its actual is unknown, so the
+    // verdict is unknown — never a clean false.
+    const hiding = build("applied", "gpu", [
+      chunk("gpu"),
+      { ...chunk("gpu"), index: Number.NaN },
+    ]);
+    expect(hiding.route_chunks_dropped).toBe(1);
+    expect(hiding.route_mismatch).toBeNull();
   });
 
   test("non-finite or negative chunk facts are malformed, not valid", () => {
