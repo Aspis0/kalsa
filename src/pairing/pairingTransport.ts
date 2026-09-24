@@ -36,6 +36,11 @@ export type PairingDiagnostic =
       event: "pairing.sealed_response";
       ciphertext_hex: string;
       credential_sha256_hex: string;
+    }
+  | {
+      event: "pairing.retry_refused_after_timeout";
+      diagnosis: "desk_may_have_spent_delivery_after_lost_response";
+      recovery: "request_fresh_square";
     };
 
 export type PairingSquare = {
@@ -169,6 +174,7 @@ export class PairingSession {
   }
 
   private async complete(): Promise<Uint8Array | null> {
+    const retryingAfterTimeout = this.completeRetryPending;
     let url: string;
     let body: string;
     try {
@@ -202,7 +208,16 @@ export class PairingSession {
       // Any response ends this ceremony. A received 200 must never be replayed.
       this.finished = true;
       this.completeRetryPending = false;
-      if (response.status !== 200) return null;
+      if (response.status !== 200) {
+        if (retryingAfterTimeout && response.status === 403) {
+          this.logDiagnostic({
+            event: "pairing.retry_refused_after_timeout",
+            diagnosis: "desk_may_have_spent_delivery_after_lost_response",
+            recovery: "request_fresh_square",
+          });
+        }
+        return null;
+      }
       const seal = await response.json();
       if (!isSeal(seal)) return null;
       const credential = openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);

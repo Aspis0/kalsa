@@ -71,6 +71,35 @@ describe("PairingSession delivery-token lifecycle", () => {
     );
   });
 
+  test("a refused retry after a lost response records the fresh-square recovery", async () => {
+    let completeCount = 0;
+    const diagnostics: unknown[] = [];
+    const fetcher: PairingFetch = async (url) => {
+      if (url.endsWith("/pair/claim")) return response(200);
+      completeCount += 1;
+      if (completeCount === 1) throw new Error("response lost");
+      return response(403, "");
+    };
+    const session = new PairingSession({
+      deskUrl: "https://computer.example:8443",
+      square,
+      phone,
+      fetcher,
+      randomBytes: random(0xc0),
+      onDiagnostic: (record) => diagnostics.push(record),
+    });
+
+    await expect(session.begin()).resolves.toBeNull();
+    expect(session.needsCompletionRetry()).toBe(true);
+    await expect(session.retryComplete()).resolves.toBeNull();
+    expect(diagnostics[diagnostics.length - 1]).toEqual({
+      event: "pairing.retry_refused_after_timeout",
+      diagnosis: "desk_may_have_spent_delivery_after_lost_response",
+      recovery: "request_fresh_square",
+    });
+    expect(session.needsCompletionRetry()).toBe(false);
+  });
+
   test("a received 200 ends the ceremony and a fresh refusal starts with a new token", async () => {
     const requestBodies: string[] = [];
     let completeCount = 0;

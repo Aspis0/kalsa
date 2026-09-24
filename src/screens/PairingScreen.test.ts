@@ -226,4 +226,64 @@ describe("PairingScreen", () => {
     log.mockRestore();
     await act(async () => renderer.unmount());
   });
+
+  test.each([
+    ["code", "43".repeat(16)],
+    ["nonce", "44".repeat(32)],
+    ["reachable", "http://127.0.0.1:8133"],
+  ])("a fresh square after changing %s gets a fresh delivery token", async (field, nextValue) => {
+    const completeBodies: string[] = [];
+    const claimBodies: string[] = [];
+    let completeCount = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = String(init?.body ?? "");
+      if (url.endsWith("/pair/claim")) {
+        claimBodies.push(body);
+        return { status: 200, json: async () => ({}) } as Response;
+      }
+      completeBodies.push(body);
+      completeCount += 1;
+      if (completeCount === 1) throw new Error("response lost");
+      return { status: 403, json: async () => "" } as Response;
+    }) as typeof fetch;
+    let randomCalls = 0;
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: {
+        getRandomValues: (bytes: Uint8Array) => {
+          bytes.fill(randomCalls++ === 0 ? 0xc0 : 0x01);
+          return bytes;
+        },
+      },
+    });
+    const renderer = await render();
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const first = JSON.parse(completeBodies[0]) as { mac: string; delivery_token: string };
+    expect(first.delivery_token).toBe("c0".repeat(16));
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: `pairing.${field}` }).props.onChangeText(nextValue);
+    });
+    expect(renderer.root.findByProps({ testID: `pairing.${field}` }).props.value).toBe(nextValue);
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const second = JSON.parse(completeBodies[1]) as { mac: string; delivery_token: string };
+    expect(claimBodies).toHaveLength(2);
+    expect(completeBodies).toHaveLength(2);
+    expect(second.delivery_token).toBe("01".repeat(16));
+    expect(second.delivery_token).not.toBe(first.delivery_token);
+    expect(second.mac).not.toBe(first.mac);
+    if (field === "code") {
+      expect(claimBodies[1]).toBe(`{"code":"${nextValue}"}`);
+    }
+    await act(async () => renderer.unmount());
+  });
 });
