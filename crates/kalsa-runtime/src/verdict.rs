@@ -98,14 +98,15 @@ const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
 /// change of machine should unprove it.
 #[cfg(target_os = "windows")]
 fn driver_version() -> String {
-    static DRIVERS: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    once_present(&DRIVERS, "unknown".to_string(), || {
+    static DRIVERS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    once_present(&DRIVERS, || {
         driver_text(
             || command_text("wmic", &WMIC_DRIVERS, ANSWER_DEADLINE),
             || command_text("powershell", &POWERSHELL_DRIVERS, ANSWER_DEADLINE),
         )
         .and_then(|text| parse_driver_versions(&text))
     })
+    .unwrap_or_else(|| "unknown".to_string())
 }
 
 #[cfg(not(target_os = "windows"))]

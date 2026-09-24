@@ -71,29 +71,27 @@ where
     }
 }
 
-/// An answer computed once per process, through a cache the CALLER owns
-/// (a static cannot name a generic type, so the caller's concrete one
-/// stands in) — but only a PRESENT answer is kept: caching a failure would
-/// freeze one timeout, or a WMI service not yet up at boot, into every
-/// later ask (and the app's measurement record would carry it for thirty
-/// days). An absent answer is not cached, so the next ask tries again.
-pub fn once_present<T>(
-    cache: &OnceLock<Option<T>>,
-    absent: T,
-    ask: impl Fn() -> Option<T>,
-) -> T
+/// An answer computed once per process — modulo a benign race: two threads
+/// may both ask before either caches, and the cache keeps one answer — but
+/// only a PRESENT one is kept: caching a failure would freeze one timeout,
+/// or a WMI service not yet up at boot, into every later ask (and the app's
+/// measurement record would carry it for thirty days). An absent answer is
+/// returned uncached, so the next ask tries again — at full deadline cost
+/// each time, both producers, up to ~2×10 s per call site: the deliberate
+/// price of never caching a failure.
+pub fn once_present<T>(cache: &OnceLock<T>, ask: impl Fn() -> Option<T>) -> Option<T>
 where
     T: Clone,
 {
-    if let Some(Some(answer)) = cache.get() {
-        return answer.clone();
+    if let Some(answer) = cache.get() {
+        return Some(answer.clone());
     }
     match ask() {
         Some(answer) => {
-            let _ = cache.set(Some(answer.clone()));
-            answer
+            let _ = cache.set(answer.clone());
+            Some(answer)
         }
-        None => absent,
+        None => None,
     }
 }
 
@@ -103,6 +101,7 @@ mod tests {
     use std::cell::Cell;
 
     #[test]
+    #[cfg(unix)]
     fn a_quick_success_answers_its_stdout() {
         assert_eq!(
             command_text("/bin/echo", &["hello"], Duration::from_secs(5)),
@@ -111,6 +110,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn a_non_success_exit_and_a_missing_program_answer_absent() {
         assert_eq!(command_text("/usr/bin/false", &[] as &[&str], Duration::from_secs(5)), None);
         assert_eq!(
@@ -120,15 +120,31 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn a_child_that_outlives_the_deadline_is_killed_and_answered_absent() {
+        // The child publishes its own pid, then becomes the sleeper the
+        // runner must kill: `exec` hands the pid to sleep, so the pid file
+        // names the very process the deadline is enforced on.
+        let pid_file = std::env::temp_dir().join(format!("kalsa-run-pid-{}", std::process::id()));
+        let script = format!("echo $$ > {}; exec sleep 5", pid_file.display());
         let started = Instant::now();
-        let answer = command_text("/bin/sleep", &["5"], Duration::from_millis(200));
-        let elapsed = started.elapsed();
+        let answer = command_text("/bin/sh", &["-c", &script], Duration::from_millis(200));
         assert!(answer.is_none(), "a stuck producer answered something");
         assert!(
-            elapsed < Duration::from_secs(2),
-            "the deadline was not enforced: returned after {elapsed:?}"
+            started.elapsed() < Duration::from_secs(2),
+            "the deadline was not enforced: returned after {:?}",
+            started.elapsed()
         );
+        let pid: i32 = std::fs::read_to_string(&pid_file)
+            .expect("the child published its pid")
+            .trim()
+            .parse()
+            .expect("a pid");
+        let _ = std::fs::remove_file(&pid_file);
+        // kill with signal 0 asks only "does it exist": the runner both
+        // killed and REAPED the child, so the pid names nothing.
+        let gone = unsafe { libc::kill(pid, 0) } == -1;
+        assert!(gone, "the child (pid {pid}) survived its deadline");
     }
 
     #[test]
@@ -148,14 +164,14 @@ mod tests {
     fn only_a_present_answer_is_cached() {
         // Fresh caches per half: the caller owns the cache, so no two asks
         // share one by accident.
-        let absent_cache = OnceLock::new();
+        let absent_cache: OnceLock<u8> = OnceLock::new();
         let absent_asks = Cell::new(0);
         let absent = || {
             absent_asks.set(absent_asks.get() + 1);
             None::<u8>
         };
-        assert_eq!(once_present(&absent_cache, 0, absent), 0);
-        assert_eq!(once_present(&absent_cache, 0, absent), 0);
+        assert_eq!(once_present(&absent_cache, absent), None);
+        assert_eq!(once_present(&absent_cache, absent), None);
         assert_eq!(
             absent_asks.get(),
             2,
@@ -168,8 +184,8 @@ mod tests {
             present_asks.set(present_asks.get() + 1);
             Some(7u8)
         };
-        assert_eq!(once_present(&present_cache, 0, present), 7);
-        assert_eq!(once_present(&present_cache, 0, present), 7);
+        assert_eq!(once_present(&present_cache, present), Some(7));
+        assert_eq!(once_present(&present_cache, present), Some(7));
         assert_eq!(present_asks.get(), 1, "a present answer is asked for once");
     }
 }

@@ -101,14 +101,15 @@ const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
 /// at boot, cannot freeze `Unknown` into the record for thirty days.
 #[cfg(target_os = "windows")]
 fn windows_backend() -> Backend {
-    static DETECTED: std::sync::OnceLock<Option<Backend>> = std::sync::OnceLock::new();
-    once_present(&DETECTED, Backend::Unknown, || {
+    static DETECTED: std::sync::OnceLock<Backend> = std::sync::OnceLock::new();
+    once_present(&DETECTED, || {
         controllers_text(
             || command_text("wmic", &WMIC_CONTROLLERS, ANSWER_DEADLINE),
             || command_text("powershell", &POWERSHELL_CONTROLLERS, ANSWER_DEADLINE),
         )
         .map(|text| backend_from_video_controllers(&text))
     })
+    .unwrap_or(Backend::Unknown)
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
