@@ -220,6 +220,7 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
         spread: ceiling.relative_spread(),
         best_rate: ceiling_rate,
         still_rising: still_rising(&ramp),
+        ramp_ceiling: config.threads,
         cache_rate: Some(cache.max()).filter(|rate| *rate > 0.0),
         optimised: OPT_LEVEL != "0",
     });

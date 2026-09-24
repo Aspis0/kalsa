@@ -51,6 +51,11 @@ pub struct Evidence {
     pub best_rate: f64,
     /// The ramp never flattened: the last step was still the fastest.
     pub still_rising: bool,
+    /// Threads the ramp was asked to reach — its ceiling. `still_rising`
+    /// counts against reliability only below this: a ramp that ran to every
+    /// thread it was asked for has left no parallelism behind, and the busy
+    /// half of that flag's sentence is the parallelism check's own.
+    pub ramp_ceiling: usize,
     pub cache_rate: Option<f64>,
     /// Whether the probe itself was compiled with optimisations. It is not a
     /// fact about the machine, which is why it is the one note that does not
@@ -71,13 +76,18 @@ pub fn judge(evidence: &Evidence) -> Reliability {
             evidence.spread * 100.0
         ));
     }
-    if evidence.still_rising {
-        notes.push(
-            "the throughput was still climbing at the last thread count tried: the machine \
+    // A rising ramp condemns only a ramp that stopped short: at the ceiling
+    // "more parallelism than the ramp reached" is impossible by
+    // construction, and whatever was taking cores is what the parallelism
+    // check below is for.
+    if evidence.still_rising && evidence.plateau_threads < evidence.ramp_ceiling {
+        notes.push(format!(
+            "the throughput was still climbing at the last thread count tried, and the \
+             ramp stopped short of the {} threads it was asked to reach: the machine \
              has more parallelism than the ramp reached, or something was taking cores \
-             during the run"
-                .to_string(),
-        );
+             during the run",
+            evidence.ramp_ceiling
+        ));
     }
     if let Some(parallelism) = evidence.effective_parallelism {
         let wanted = evidence.tried_threads as f64 * PARALLELISM_FLOOR;
@@ -143,6 +153,7 @@ pub fn cpu_seconds() -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::plateau::{plateau, still_rising};
 
     fn evidence() -> Evidence {
         Evidence {
@@ -152,6 +163,7 @@ mod tests {
             spread: 0.02,
             best_rate: 110.0e9,
             still_rising: false,
+            ramp_ceiling: 16,
             cache_rate: Some(300.0e9),
             optimised: true,
         }
@@ -231,5 +243,84 @@ mod tests {
             .notes
             .iter()
             .any(|note| note.contains("still climbing")));
+    }
+
+    /// The Surface Laptop 3's first refused run (i7-1065G7, 4 cores / 8
+    /// logical): 1/2/4/8 threads at 20.0/29.0/47.4/53.2 GB/s. The
+    /// hyperthreaded tail beats four threads by 12%, past the 5%
+    /// tolerance, so the plateau IS the last step — the exact shape that
+    /// was refused.
+    const SURFACE_RUN_1: [(usize, f64); 4] = [
+        (1, 20.0e9),
+        (2, 29.0e9),
+        (4, 47.4e9),
+        (8, 53.2e9),
+    ];
+
+    /// Evidence the way `measure` builds it: the plateau and the raw flag
+    /// from the same ramp, the ceiling from what the ramp was asked to reach.
+    fn evidence_of(ramp: &[(usize, f64)], ramp_ceiling: usize) -> Evidence {
+        let (plateau_threads, _) = plateau(ramp).expect("a plateau");
+        Evidence {
+            plateau_threads,
+            tried_threads: plateau_threads,
+            effective_parallelism: Some(plateau_threads as f64),
+            spread: 0.02,
+            best_rate: ramp
+                .iter()
+                .map(|(_, rate)| *rate)
+                .fold(0.0_f64, f64::max),
+            still_rising: still_rising(ramp),
+            ramp_ceiling,
+            cache_rate: Some(300.0e9),
+            optimised: true,
+        }
+    }
+
+    #[test]
+    fn a_ramp_that_reached_every_thread_it_was_asked_for_is_reliable() {
+        let input = evidence_of(&SURFACE_RUN_1, 8);
+        assert_eq!(
+            input.plateau_threads, 8,
+            "the tail is past the tolerance: the plateau is the last step"
+        );
+        assert!(input.still_rising, "the raw flag fires on this shape");
+        let verdict = judge(&input);
+        assert!(verdict.reliable, "{:?}", verdict.notes);
+        assert!(!verdict
+            .notes
+            .iter()
+            .any(|note| note.contains("still climbing")));
+    }
+
+    #[test]
+    fn a_ramp_that_stopped_short_of_its_ceiling_is_still_flagged() {
+        // The same shape, but the ramp stopped at eight of the sixteen
+        // threads it was asked to reach: "more parallelism than the ramp
+        // reached" is possible again, and is worth a retry.
+        let input = evidence_of(&SURFACE_RUN_1, 16);
+        assert!(input.still_rising);
+        let verdict = judge(&input);
+        assert!(!verdict.reliable, "{:?}", verdict.notes);
+        assert!(verdict
+            .notes
+            .iter()
+            .any(|note| note.contains("still climbing")));
+    }
+
+    #[test]
+    fn a_ramp_at_its_ceiling_still_refuses_when_the_cores_were_taken() {
+        // The handoff the flag's sentence promises: with the climbing note
+        // suppressed at the ceiling, the busy half must come from the
+        // parallelism check — and it does.
+        let mut input = evidence_of(&SURFACE_RUN_1, 8);
+        input.effective_parallelism = Some(2.0);
+        let verdict = judge(&input);
+        assert!(!verdict.reliable);
+        assert!(!verdict
+            .notes
+            .iter()
+            .any(|note| note.contains("still climbing")));
+        assert!(verdict.notes.iter().any(|note| note.contains("busy")));
     }
 }
