@@ -7,6 +7,7 @@ const base: ComposerPhaseInput = {
   stopping: false,
   hasTokens: false,
   thinkingStatus: "Thinking",
+  coolingStatus: "Cooling down",
   modelState: "ready",
   engineResident: true,
 };
@@ -28,6 +29,12 @@ describe("hostComposerPhase", () => {
 
   test("prefill: sending before the first token", () => {
     expect(phase({ sending: true })).toBe("prefill");
+  });
+
+  test("cooling: a governor thermal pause mid-turn, label and all", () => {
+    expect(phase({ sending: true, statusLabel: "Cooling down" })).toBe("cooling");
+    // The label is live-turn state: without a run it can never claim cooling.
+    expect(phase({ statusLabel: "Cooling down" })).toBe("idle");
   });
 
   test("thinking: sending while the engine reports the thinking status", () => {

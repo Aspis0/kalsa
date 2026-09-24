@@ -542,6 +542,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thinking: "Sto pensando…",
     thinkingStatus: "Sto pensando",
     writingStatus: "Sto scrivendo",
+    coolingStatus: "In raffreddamento",
     reasoningLabel: "Ragionamento",
     interrupted: "Generazione interrotta.",
     truncated: "Risposta fermata al limite di token.",
@@ -774,6 +775,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "La risposta non è iniziata entro {seconds} s. Il dispositivo potrebbe avere poca memoria o essere troppo caldo; riprova o scarica il modello.",
     contextFull:
       "Contesto pieno: la conversazione è troppo lunga per questo modello. Riprova con messaggi più brevi.",
+    coolingTimedOut:
+      "Il telefono è rimasto troppo caldo: il messaggio non può continuare. Lascia raffreddare e riprova.",
     visionInitFailed: "Vision non disponibile: initMultimodal non riuscito per questo modello.",
     visionNotSupported: "Vision non disponibile: il modello non supporta le immagini.",
     pdfTooLarge: "PDF troppo grande (max 5 MB).",
@@ -1260,6 +1263,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       writing: "In attesa mentre scrive",
       stopping: "In attesa che la macchina confermi di essersi fermata",
       tooHot: "In attesa: il telefono è troppo caldo",
+      cooling: "In raffreddamento: il tuo messaggio riprenderà da solo",
       unloaded: "In attesa: il modello va caricato di nuovo",
       converting: "In attesa: sto ancora leggendo il documento",
       /** A phase the composer does not know: held with this line, never

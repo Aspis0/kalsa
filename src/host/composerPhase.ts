@@ -26,6 +26,9 @@ export interface ComposerPhaseInput {
   statusLabel?: string;
   /** `t("chat.thinkingStatus")`, captured already-translated. */
   thinkingStatus: string;
+  /** `t("chat.coolingStatus")`, captured already-translated: the engine
+   *  turn's label while a governor thermal pause holds the message. */
+  coolingStatus: string;
   modelState: ModelPipelineState;
   /** The engine holds this very model (isEngineReady + active match). */
   engineResident: boolean;
@@ -39,6 +42,10 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   if (input.thermalGated) return "tooHot";
   if (input.sending) {
     if (input.stopping) return "stopping";
+    if (input.statusLabel === input.coolingStatus) return "cooling";
+    // Cooling outranks prefill: a thermally paused prefill has produced no
+    // tokens, and the label is the only fact separating "waiting for the
+    // device" from "waiting for the engine".
     if (!input.hasTokens) return "prefill";
     return input.statusLabel === input.thinkingStatus ? "thinking" : "writing";
   }

@@ -33,13 +33,16 @@ export type AssembledStaticPrefix = {
 export type PrewarmCompletionResult = {
   error?: unknown;
   interrupted?: boolean;
+  /** Governor flow-control pause of this completion (absent = none): the
+   *  prewarm resolved paused — retryable, never a verdict on the model. */
+  pause_reason?: string;
   tokens_predicted?: number;
   tokens_evaluated?: number;
   tokens_cached?: number;
   timings?: { prompt_ms?: number; prompt_n?: number };
 };
 
-export type PrewarmResultClass = "failed" | "skip" | "generated" | "success";
+export type PrewarmResultClass = "failed" | "skip" | "generated" | "paused" | "success";
 
 /** Same djb2 as sessionPersistence.historyHash (UTF-16 code units). */
 export function djb2(text: string): string {
@@ -387,6 +390,12 @@ export function classifyPrewarmResult(
   const nativeError = result?.error;
   if (nativeError != null && nativeError !== "") return "failed";
   if (result?.interrupted) return "skip";
+  // A thermal pause would otherwise read as "failed" (evaluated > cached):
+  // it says nothing durable about the model, so it gets its own class and
+  // never reaches the failure budget (prewarmFailureIsPersistent).
+  if (typeof result?.pause_reason === "string" && result.pause_reason !== "") {
+    return "paused";
+  }
   if ((result?.tokens_predicted ?? 0) > 0) return "generated";
 
   const tokensEvaluated = result?.tokens_evaluated ?? 0;

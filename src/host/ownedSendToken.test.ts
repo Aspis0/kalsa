@@ -9,6 +9,7 @@ const phaseFor = (hasTokens: boolean) =>
     stopping: false,
     hasTokens,
     thinkingStatus: "Thinking",
+    coolingStatus: "Cooling down",
     modelState: "ready",
     engineResident: true,
   } satisfies ComposerPhaseInput);

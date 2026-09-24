@@ -25,7 +25,7 @@
 import type { TranslationKey } from "../../i18n";
 
 /**
- * The states the composer reasons about. Eight are machine or composer
+ * The states the composer reasons about. Nine are machine or composer
  * conditions the catalogue has a `shell.held.*` reason for; `converting` is
  * the composer's own (a document still being read into the message) — the band
  * shows the machine, this row shows whether your message can go.
@@ -37,6 +37,7 @@ export type ComposerPhase =
   | "thinking"
   | "writing"
   | "stopping"
+  | "cooling"
   | "tooHot"
   | "unloaded"
   | "converting";
@@ -101,6 +102,9 @@ type PhaseRule = {
  * one place. The design's two invariants are properties of this table and are
  * asserted over it by the test: `hold: null` only at `idle` (nothing else may
  * refuse without a reason), and `face: "stop"` only where the machine generates.
+ * `cooling` is a generating state: the governor paused the turn, so the face
+ * stays `stop` (the user can always end the wait) and the hold line says the
+ * message continues by itself.
  */
 const PHASE_RULES: Readonly<Record<ComposerPhase, PhaseRule>> = Object.freeze({
   idle: { hold: null, editable: true, face: "send" },
@@ -109,6 +113,7 @@ const PHASE_RULES: Readonly<Record<ComposerPhase, PhaseRule>> = Object.freeze({
   thinking: { hold: "shell.held.thinking", editable: true, face: "stop" },
   writing: { hold: "shell.held.writing", editable: true, face: "stop" },
   stopping: { hold: "shell.held.stopping", editable: true, face: "stopping" },
+  cooling: { hold: "shell.held.cooling", editable: true, face: "stop" },
   tooHot: { hold: "shell.held.tooHot", editable: true, face: "send" },
   unloaded: { hold: "shell.held.unloaded", editable: true, face: "send" },
   converting: { hold: "shell.held.converting", editable: true, face: "send" },

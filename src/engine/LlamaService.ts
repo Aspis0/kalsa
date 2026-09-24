@@ -138,6 +138,7 @@ import {
   createStallWatchdog,
   GENERATION_STALL_GAP_MS,
 } from "./stallWatchdog";
+import { pauseReasonOf, resumeWhileCooling } from "./thermalResume";
 import {
   createBackgroundTimer,
   createRepeatingTimer,
@@ -1356,6 +1357,20 @@ export async function queueStaticPrefixPrewarm(
       }
       if (resultClass === "generated") {
         logPrewarm({ op: "skip", reason: "generated", promptMs, promptN });
+        return;
+      }
+      if (resultClass === "paused") {
+        // A governor pause is not a prewarm verdict: console-only (no UI),
+        // no failure strike, no cached hash — and the dedupe key is released
+        // in the finally, so the next send prefills (or prewarms) cleanly.
+        logPrewarm({
+          op: "skip",
+          reason: "paused",
+          pause: pauseReasonOf(nativeResult),
+          hash: prefix.hash,
+          promptMs,
+          promptN,
+        });
         return;
       }
       if (resultClass === "failed") {
@@ -4951,9 +4966,10 @@ export async function streamAssistantTurn(
           // writing.
           callbacks.onStatus?.({ label: statusLabel });
         }
-        noteCompletionPromptEnv();
-        armPrefillDeadline();
-        const result = await trackCompletion(
+        // The completion is called through `runCompletionRound` so the
+        // governor cooling loop can re-attempt the SAME round (same messages,
+        // same think-cleaner state) after a thermal pause.
+        const runCompletionRound = () => trackCompletion(
           engine.completion(
             applyBenchSampling(
               {
@@ -5019,6 +5035,47 @@ export async function streamAssistantTurn(
             },
           ),
         );
+        noteCompletionPromptEnv();
+        armPrefillDeadline();
+        // Governor thermal pause → visible cooling → auto-resume (owner
+        // decision 2026-09-24 "A"). Every phase hook is guarded: a turn that
+        // ends while cooling must not repaint its status or re-arm a timer.
+        // The prefill deadline covers each attempt only — cleared across the
+        // waits (native work is not running then) and re-armed per retry.
+        let coolingWaitedFrom: number | null = null;
+        const result = await resumeWhileCooling({
+          attempt: runCompletionRound,
+          signal,
+          isStopped: () => finished || aborted || disposing || engine !== context,
+          refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
+          onCooling: (phase) => {
+            if (finished || aborted) return;
+            if (phase === "start") {
+              coolingWaitedFrom = Date.now();
+              clearPrefillDeadline();
+              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+            } else if (phase === "wait") {
+              clearPrefillDeadline();
+              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+            } else if (phase === "resume") {
+              armPrefillDeadline();
+              callbacks.onStatus?.({ label: statusLabel });
+            } else {
+              try {
+                console.log(
+                  `KALSA_THERMAL_COOLING ${JSON.stringify({
+                    turnId,
+                    round,
+                    waitedMs:
+                      coolingWaitedFrom === null ? null : Date.now() - coolingWaitedFrom,
+                  })}`,
+                );
+              } catch {
+                // telemetry must never throw
+              }
+            }
+          },
+        });
         stopStallWatchdog();
         // Capture adoption evidence before the abort early-return: a stopped
         // completion still returned n_past (tokens_cached), which proves the
@@ -5035,6 +5092,18 @@ export async function streamAssistantTurn(
           promptAdopted = true;
         }
         if (aborted) return;
+        if (pauseReasonOf(result) === "thermal") {
+          // The cooling bound expired while the reading never allowed a
+          // resume: a VISIBLE failure, never the silent empty turn a pause
+          // used to resolve as. Nothing was streamed this round, so nothing
+          // but the failure row can reach history.
+          emitEngineError(
+            callbacks,
+            finishOnce,
+            new Error(strings.errors.coolingTimedOut),
+          );
+          return;
+        }
         recordBenchCompletion(result);
         // tokens_cached is n_past in llama.rn — used-token disk gate.
         noteChatNPast(result?.tokens_cached);

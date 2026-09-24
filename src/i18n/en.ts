@@ -546,6 +546,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thinking: "Thinking…",
     thinkingStatus: "Thinking",
     writingStatus: "Writing",
+    coolingStatus: "Cooling down",
     reasoningLabel: "Reasoning",
     interrupted: "Generation was interrupted.",
     truncated: "Reply stopped at the token limit.",
@@ -780,6 +781,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "The reply did not start within {seconds} s. The device may be out of memory or too hot; try again or unload the model.",
     contextFull:
       "Context full: this conversation is too long for the model. Retry with shorter messages.",
+    coolingTimedOut:
+      "The phone stayed too hot to continue your message. Let it cool down, then send it again.",
     visionInitFailed: "Vision unavailable: multimodal init failed for this model.",
     visionNotSupported: "Vision unavailable: this model does not support images.",
     pdfTooLarge: "PDF too large (max 5 MB).",
@@ -1305,6 +1308,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       writing: "Held while it writes",
       stopping: "Held until the machine confirms it has stopped",
       tooHot: "Held: the phone is too hot",
+      cooling: "Cooling down — your message will continue by itself",
       unloaded: "Held: the model has to be loaded again",
       converting: "Held: still reading your document",
       /** A phase the composer does not know: held with this line, never

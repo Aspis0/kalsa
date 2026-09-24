@@ -10,6 +10,7 @@ import {
   isSystemOnlyTemplateFailure,
   makeStaticPrefixMeasurement,
   parseStaticPrefixMeasurements,
+  prewarmFailureIsPersistent,
   serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
@@ -42,6 +43,22 @@ describe("classifyPrewarmResult", () => {
     expect(
       classifyPrewarmResult({ tokens_predicted: 1, tokens_evaluated: 10, tokens_cached: 10 }),
     ).toBe("generated");
+  });
+
+  it("classifies a governor pause as paused — not the eval failure it would mimic", () => {
+    // The paused shape IS the would-be failure shape (evaluated > cached):
+    // without pause_reason this reads "failed" and spends a failure strike.
+    expect(
+      classifyPrewarmResult({
+        pause_reason: "thermal",
+        tokens_evaluated: 2112,
+        tokens_cached: 0,
+      }),
+    ).toBe("paused");
+    // A pause says nothing durable about the model: never a persistent
+    // failure, so the prewarm budget cannot be poisoned by a hot device.
+    expect(prewarmFailureIsPersistent("paused")).toBe(false);
+    expect(prewarmFailureIsPersistent("failed")).toBe(true);
   });
 
   it("accepts dense prewarm with unsynchronized prompt timings", () => {

@@ -104,6 +104,7 @@ describe("sendHost binds engine ownership to the token it issued", () => {
         stopping: false,
         hasTokens: host.hasTokensRef.current,
         thinkingStatus: "Thinking",
+    coolingStatus: "Cooling down",
         modelState: "ready",
         engineResident: true,
       }),

@@ -189,6 +189,7 @@ export function HostRoot() {
     toolsById,
     draft,
     thinkingStatus: t("chat.thinkingStatus"),
+    coolingStatus: t("chat.coolingStatus"),
     historyLoaded: history.historyLoaded,
     thermalGated: thermalHardGated,
     sending,

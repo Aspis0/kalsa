@@ -69,6 +69,7 @@ const EXPECTED_HOLD: Readonly<Record<string, string | null>> = {
   thinking: "shell.held.thinking",
   writing: "shell.held.writing",
   stopping: "shell.held.stopping",
+  cooling: "shell.held.cooling",
   tooHot: "shell.held.tooHot",
   unloaded: "shell.held.unloaded",
   converting: "shell.held.converting",
@@ -102,7 +103,7 @@ describe("§2.7 — the field and the send are two different answers", () => {
     expect(s.faceEnabled).toBe(true);
   });
 
-  it.each(GENERATING)("keeps typing and holds sending while the model is %s", (phase) => {
+  it.each([...GENERATING, "cooling"] as ComposerPhase[])("keeps typing and holds sending while the model is %s", (phase) => {
     const s = state(phase);
     // The two answers, disagreeing on purpose: this is §2.7's whole point.
     expect(s.field.editable).toBe(true);
@@ -188,7 +189,7 @@ describe("one test per held state: the reason line", () => {
 });
 
 describe("§2.8 — one control, three faces", () => {
-  it.each([...GENERATING, "stopping"] as ComposerPhase[])("shows %s as its own face, never as send", (phase) => {
+  it.each([...GENERATING, "cooling", "stopping"] as ComposerPhase[])("shows %s as its own face, never as send", (phase) => {
     const s = state(phase);
     expect(s.face).not.toBe("send");
     expect(s.face).toBe(phase === "stopping" ? "stopping" : "stop");
@@ -207,7 +208,7 @@ describe("§2.8 — one control, three faces", () => {
 
   it("enables the control exactly where a tap does something (§2.11)", () => {
     for (const phase of COMPOSER_PHASES) {
-      const acts = phase === "idle" || GENERATING.includes(phase);
+      const acts = phase === "idle" || GENERATING.includes(phase) || phase === "cooling";
       expect(state(phase).faceEnabled).toBe(acts);
     }
   });
@@ -261,7 +262,7 @@ describe("the module itself: every key, and no clock, no engine, no React", () =
     // pass every key check while proving nothing.
     // This is the exact live-key set after removing placeholder copy; the
     // rendered input and its accessible name are asserted separately.
-    expect(keys.size).toBe(21);
+    expect(keys.size).toBe(22);
     for (const key of keys) assertKeyInBoth(key);
   });
 

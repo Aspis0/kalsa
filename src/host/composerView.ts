@@ -23,6 +23,8 @@ export interface ComposerViewInput {
   draft: string;
   /** `t("chat.thinkingStatus")`, captured already-translated. */
   thinkingStatus: string;
+  /** `t("chat.coolingStatus")`, captured already-translated. */
+  coolingStatus: string;
   historyLoaded: boolean;
   thermalGated: boolean;
   sending: boolean;
@@ -72,6 +74,7 @@ export function composerView(input: ComposerViewInput): ComposerView {
     hasTokens: input.hasTokens,
     statusLabel,
     thinkingStatus: input.thinkingStatus,
+    coolingStatus: input.coolingStatus,
     modelState: input.modelState,
     engineResident: input.engineResident,
     converting: input.converting,

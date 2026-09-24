@@ -23,6 +23,7 @@ function input(over: Partial<ComposerViewInput> = {}): ComposerViewInput {
     toolsById: new Map(),
     draft: "",
     thinkingStatus: "thinking…",
+    coolingStatus: "Cooling down",
     historyLoaded: true,
     thermalGated: false,
     sending: false,
@@ -36,6 +37,31 @@ function input(over: Partial<ComposerViewInput> = {}): ComposerViewInput {
     ...over,
   };
 }
+
+describe("a live cooling status label is the governor's pause, not writing", () => {
+  it("holds with the cooling line while the face stays an enabled stop", () => {
+    const view = composerView(
+      input({
+        sending: true,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            text: "",
+            streaming: true,
+            statusLabel: "Cooling down",
+            createdAt: 0,
+          } as Message,
+        ],
+      }),
+    );
+    expect(view.composer.hold).toBe("shell.held.cooling");
+    expect(view.composer.face).toBe("stop");
+    expect(view.composer.faceEnabled).toBe(true);
+    expect(view.sendEnabled).toBe(false);
+    expect(view.composer.field.editable).toBe(true);
+  });
+});
 
 describe("the send face counts rows as something to send (controller Chat:3603)", () => {
   it("attachment-only, machine idle → the face is enabled", () => {
