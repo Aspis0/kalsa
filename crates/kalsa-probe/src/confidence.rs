@@ -23,7 +23,9 @@ pub const SPREAD_LIMIT: f64 = 0.20;
 /// synchronized processes on an M1 Max add up to the same ~110 GB/s as one).
 pub const PARALLELISM_FLOOR: f64 = 0.5;
 
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Reliability {
     pub reliable: bool,
     /// CPU seconds received by the probe's threads over the wall time. On an idle

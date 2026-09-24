@@ -16,6 +16,7 @@ mod door;
 mod failure;
 mod files;
 mod instance;
+mod measurement;
 mod metrics;
 mod options;
 mod pairing;
@@ -1005,7 +1006,8 @@ struct ModelDto {
 /// measurement. Answers `Unmeasured` rather than measuring: measuring takes
 /// seconds and belongs to the turn-on walk, which keeps a reliable reading
 /// on the way through (`settle_walk`, on the success and the failure arm
-/// alike), so this answers `Unmeasured` until the first turn-on, by design.
+/// alike), so this answers `Unmeasured` only until the first turn-on or
+/// until startup seeds a record this machine still matches, by design.
 #[tauri::command]
 fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::CapabilityDto {
     let measurement = brain
@@ -1121,8 +1123,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     // The walk is over either way; the next press may start again.
     brain.turning_on.store(false, Ordering::SeqCst);
 
+    let record_dir = app.path().app_data_dir().ok();
     match outcome {
-        Ok(walked) => settle_walk(&brain, walked),
+        Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref()),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
         Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
@@ -1145,8 +1148,14 @@ type Walk = (Result<startup::PreparedStart, String>, Option<Measurement>);
 /// running and its own failures through brain_state; the record follows the
 /// verdict, not the wish: only a start the supervisor took may replace what
 /// the panel describes.
-fn settle_walk(brain: &Brain, walked: Walk) -> Result<(), String> {
+fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result<(), String> {
     if let Some(measured) = walked.1.filter(|m| m.is_reliable()) {
+        // Written down beside the kept copy, under the same rule: only what
+        // the probe itself believes. A record the disk refuses costs the
+        // next launch one re-measurement — it is logged, never fatal.
+        if let Some(dir) = record_dir {
+            measurement::save(&measured, dir);
+        }
         if let Ok(mut stored) = brain.measurement.lock() {
             *stored = Some(measured);
         }
@@ -1412,6 +1421,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .parent()
                 .expect("a path built by join always has a parent");
             std::fs::create_dir_all(parent)?;
+            // A machine that has not changed does not measure again: seed
+            // the kept measurement from the record, before any turn-on can
+            // run. A record this machine no longer matches is ignored
+            // inside, and the first turn-on measures as it always did.
+            measurement::seed(
+                &app.state::<Brain>().measurement,
+                parent,
+                SystemTime::now(),
+                startup::ram_bytes(),
+            );
             // The authority, before anything below can read or write the
             // store: one exclusive lock on this account's own data
             // directory, held for the app's whole life. A refusal is the

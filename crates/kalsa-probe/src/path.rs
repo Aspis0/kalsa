@@ -14,7 +14,7 @@
 //!   machine with a usable GPU, and the caller can branch on that.
 
 /// The path a measurement was taken on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionPath {
     /// Streaming reads issued by this process's CPU threads, on a buffer larger
     /// than any cache.
@@ -38,7 +38,9 @@ impl ExecutionPath {
 ///
 /// Detection only: no GPU code lives here yet, and the variants are the ones the
 /// detection can construct today.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Backend {
     /// No discrete GPU found: the CPU is the answer here, not a consolation
     /// prize. Old integrated GPUs read the same system memory at the same speed,

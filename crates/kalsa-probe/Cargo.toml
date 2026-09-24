@@ -6,8 +6,11 @@ edition.workspace = true
 license.workspace = true
 
 # No measurement dependency at all: the probes are plain loops over plain
-# buffers, so the numbers are the machine's, not a library's.
+# buffers, so the numbers are the machine's, not a library's. Serde is the
+# one exception: the app writes the measurement down as a record, and the
+# types carry the derives so no second, drifting shape of them ever exists.
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 
 # Only for the CPU-time diagnostic behind the reliability verdict.
 [target.'cfg(unix)'.dependencies]

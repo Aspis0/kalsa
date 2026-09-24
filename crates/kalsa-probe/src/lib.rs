@@ -38,6 +38,8 @@ pub use soc::{published_bandwidth, DECODE_SHARE_OF_PUBLISHED};
 
 use std::time::{Duration, Instant};
 
+use serde::{Deserialize, Serialize};
+
 /// Buffer for the memory measurement: larger than any cache this class of
 /// machine has, so the number is memory and not L2.
 pub const DRAM_BUFFER_BYTES: usize = 256 * 1024 * 1024;
@@ -84,7 +86,7 @@ impl Default for ProbeConfig {
 }
 
 /// Everything the probe learned, and whether it believes it.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Measurement {
     /// Throughput at each thread count tried, in order. Printed, not just used:
     /// the shape of the ramp is how a reader checks the plateau for themselves.

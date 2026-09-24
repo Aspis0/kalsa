@@ -4,7 +4,9 @@
 //! repetitions is not a baseline, and whoever reads the numbers has to see that
 //! instead of trusting a mean that hides it.
 
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Series {
     samples: Vec<f64>,
 }

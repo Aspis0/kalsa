@@ -67,6 +67,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
                 .into()),
             Some(measured(80.0e9)),
         ),
+        None,
     );
     assert!(verdict.is_err(), "the walk's refusal still answers");
     assert!(
@@ -78,7 +79,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     // an unreliable one never replaces the reliable one already kept.
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
-    let second = settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)));
+    let second = settle_walk(&brain, (Err("still refused".into()), Some(unbelieved)), None);
     assert!(
         second.is_err(),
         "an unreliable reading does not turn the refusal into a success"
