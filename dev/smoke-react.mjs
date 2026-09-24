@@ -683,13 +683,15 @@ try {
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
-    // The note is demanded exactly where the components render it, because
-    // the DTO always carries both ports (main.rs sets them on every read)
-    // while the pages do not: DevicesSurface draws the note in paired and
-    // beside a square - never in idle, claiming or failed - and
-    // AdvancedPanel draws its line whenever its dto has either port. A
-    // vanished note where one belongs is a phone with no road; a demanded
-    // note where the page draws none is a rule fighting the page.
+    // The note is demanded exactly where the components render it. Only the
+    // desk port is on every pairing read; the door's is there only while
+    // the door is up (a stopped brain stands the door down), so the cards
+    // below carry both ports because their brains are running. DevicesSurface
+    // draws the note in paired and beside a square - never in idle,
+    // claiming or failed - and AdvancedPanel draws its line whenever its
+    // dto has either port. A vanished note where one belongs is a phone
+    // with no road; a demanded note where the page draws none is a rule
+    // fighting the page.
     const devicesNoteExpected =
       (doorPort !== null || deskPort !== null) &&
       (pairingState === "paired" || (pairingState === "waiting" && qr));

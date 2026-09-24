@@ -46,7 +46,9 @@ fn roots_under(home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathB
     // HUGGINGFACE_HUB_CACHE, then $HF_HOME/hub, then
     // $XDG_CACHE_HOME/huggingface/hub, then the default. Wherever the cache
     // moved, it keeps the hub's FIRST place: the ordering ranks programs,
-    // and a relocated cache is the same program's cache.
+    // and a relocated cache is the same program's cache. An env value equal
+    // to another root yields a duplicate entry — the scan is read-only, so
+    // it only costs the time of a second pass.
     let hub = env_path(env("HF_HUB_CACHE"), home)
         .or_else(|| env_path(env("HUGGINGFACE_HUB_CACHE"), home))
         .or_else(|| env_path(env("HF_HOME"), home).map(|base| base.join("hub")))
@@ -68,8 +70,8 @@ fn roots_under(home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathB
 
 /// One env value as an absolute root, or None to fall through to the next
 /// arm. A leading `~` (exactly, or `~/…`) expands against `home`, the way
-/// huggingface_hub's expanduser treats these values; $VARS are not
-/// expanded. A value that is empty or still relative after that counts as
+/// huggingface_hub's expanduser treats these values; `~user` is NOT
+/// expanded, and nor are $VARS. A value that is empty or still relative after that counts as
 /// unset — OUR rule, not Python's: os.getenv keeps an empty value and
 /// Python resolves a relative path against its working directory, and a
 /// GUI app's working directory is not the user's shell's. Falling through
@@ -152,7 +154,8 @@ fn home() -> Option<PathBuf> {
     let name = "USERPROFILE";
     // Absolute-only: an empty or relative home counts as absent, so no
     // root can come back relative whatever the environment holds. Python
-    // would fall back to the passwd database here; we do not.
+    // would fall back further on a missing home - the passwd database on
+    // Unix, HOMEDRIVE+HOMEPATH on Windows; we do neither.
     let path = PathBuf::from(std::env::var_os(name)?);
     path.is_absolute().then_some(path)
 }
@@ -241,8 +244,9 @@ mod tests {
     }
 
     /// huggingface_hub's precedence, driven through the lookup seam:
-    /// HF_HUB_CACHE, then $HF_HOME/hub, then $XDG_CACHE_HOME's arm, then
-    /// the default. A value that is empty or still relative counts as
+    /// HF_HUB_CACHE, then the legacy HUGGINGFACE_HUB_CACHE, then
+    /// $HF_HOME/hub, then $XDG_CACHE_HOME's arm, then the default. A value
+    /// that is empty or still relative counts as
     /// unset and falls through - OUR rule, not Python's: a GUI app's
     /// working directory is not the user's shell's, so a relative cache
     /// path resolves against nothing meaningful here.
@@ -268,6 +272,17 @@ mod tests {
             lookup(&[("HF_HUB_CACHE", "/moved/hub"), ("HUGGINGFACE_HUB_CACHE", "/legacy/hub")]),
         );
         assert_eq!(roots[0], PathBuf::from("/moved/hub"));
+        // The order, not just membership: the legacy variable also beats
+        // HF_HOME, so it cannot be silently moved further down the chain.
+        let roots = roots_under(
+            &home,
+            lookup(&[("HUGGINGFACE_HUB_CACHE", "/legacy/hub"), ("HF_HOME", "/hf/home")]),
+        );
+        assert_eq!(
+            roots[0],
+            PathBuf::from("/legacy/hub"),
+            "the legacy variable outranks HF_HOME"
+        );
 
         // constants.py falls back to XDG_CACHE_HOME when HF_HOME is unset.
         let roots = roots_under(&home, lookup(&[("XDG_CACHE_HOME", "/xdg/cache")]));

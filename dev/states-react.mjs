@@ -198,10 +198,11 @@ const scenarios = [
   }],
 
   ["Pairing", "nothing to pair to yet", "devices", { pairing: pairingDto("idle") }],
-  // The DTO always carries both ports (main.rs sets them on every read),
-  // so these two are the production shapes: idle and failed KNOW the
-  // ports and still draw no Tailscale note - the note belongs to a square
-  // or a paired house, not to a page with nothing to point a road at.
+  // Only the desk port is on every pairing read; the door's is there only
+  // while the door is up. These two are the production shapes of a running
+  // brain: idle and failed KNOW both ports and still draw no Tailscale
+  // note - the note belongs to a square or a paired house, not to a page
+  // with nothing to point a road at.
   ["Pairing", "idle with both ports known", "devices", { pairing: pairingDto("idle", { door_port: 8131, desk_port: 8134 }) }],
   // The production shape of a fallback nobody is told about: idle draws no
   // note, so a moved desk on this card has no sentence to demand.
