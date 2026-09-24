@@ -381,7 +381,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
                   // whether a serve rule exists, only where the desk is and
                   // what the second command must say.
                   dto.desk_port && dto.desk_port_preferred === false
-                    ? `The pairing desk is on ${dto.desk_port} this time instead of its usual one — the second command must point at this number.`
+                    ? `The pairing desk is on ${dto.desk_port} this time — point the desk command at this number.`
                     : null,
                 ]
                   .filter((part) => part !== null)

@@ -137,7 +137,7 @@ function tailscaleNote(
   // the second command must say.
   const moved =
     isPort(deskPort) && !deskOnPreferred
-      ? ` The pairing desk is on ${deskPort} this time instead of its usual one — the second command must point at this number.`
+      ? ` The pairing desk is on ${deskPort} this time — point the desk command at this number.`
       : "";
   // Each road is named only when its command is: a sentence about a road
   // with no command would be a promise the note does not keep.
