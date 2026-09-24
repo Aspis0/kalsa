@@ -64,16 +64,36 @@ Limits: body at most 8 KiB measured by `Content-Length`, head at most 8 KiB. `Tr
 duplicate `Content-Length`, or bytes beyond `Content-Length` are refused with the same 403. **Always send a
 `Content-Length`.**
 
-## What the declaration means on the desktop, corrected (2026-09-24)
+## What the declaration means on the desktop (corrected twice, 2026-09-24, now from the code)
 
-The desktop's upgrade judgement reads **`weights_bytes` alone**: a model on the computer must weigh at
-least 1.4× the phone's GGUF. So a **real** file size makes that judgement real, and **`0` is the value that
-breaks it** — zero would make every model on the computer count as an upgrade.
+This paragraph has been wrong once and corrected once more. What follows is read out of
+`crates/kalsa-catalog/src/choice.rs` on `origin/brain`, not from memory.
 
-`parameters` and `measured_tokens_per_second` being null does **not** cause that: nulls mean the desktop makes
-no capability claim and states no speed comparison. If an upgrade list ever looks wrong, the cause is a wrong
-`weights_bytes`, not the nulls — a sentence worth keeping because I wrote the opposite once, and the difference
-between a declaration and a comparison is exactly the kind of thing a hurried session flattens.
+A candidate model on the computer is offered only when `justification()` (:227-243) finds one of three, tried
+in order:
+
+1. **Capability** (:228-233) — needs the **phone's `parameters`**: same shape, parameter bar cleared.
+2. **ExpectedButUnmeasured** (:166-176) — needs the **phone's `parameters`** and a **dense** phone; the
+   candidate must be a large MoE with total ≥ 1.4 × the phone's total (`IMPROVEMENT_RATIO`, :68-77 — its own
+   docs say the byte version of this bar *pretended*).
+3. **Relief** (:237-242) — needs **`battery_powered == true`** and a candidate whose `weights_bytes` is at
+   least 0.85 × the phone's (`SAME_CLASS_BAND`, :85-91). **This is the only place `weights_bytes` enters**, and
+   it is a floor that stops "relief" from being a downgrade.
+
+Consequences, and the second one matters for tomorrow's run:
+
+- **A capability claim needs `parameters`.** With tomorrow's declaration — parameters null, throughput null,
+  battery true, a real `weights_bytes` — justifications 1 and 2 are **impossible**, so the desktop can only
+  offer **relief**: a model in the phone's own class or above, pitched as *saving the phone's battery* and
+  never as being stronger. That is honest for a phone that cannot state its own parameters, and it is what
+  tomorrow will show.
+- **`battery_powered: true` is load-bearing, not decorative.** If it were null or false, with parameters null
+  nothing is justified at all and the answer is `NothingBetter` (:252-262) — the phone would be offered
+  nothing. We send `true` because it is a phone, and it now turns out to be the only door that opens.
+- **`weights_bytes` must be real**: zero would make every fitting model clear the 0.85 floor (0.85 × 0 = 0).
+- And reading `parameters` from a dense GGUF's own metadata (`general.parameter_count`, with total == active)
+  is **data, not invention** — a capability claim becomes possible the day we read it. That is a decision for
+  later, not for tomorrow.
 
 ## The seal (the phone opens it)
 
