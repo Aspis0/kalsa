@@ -342,7 +342,7 @@ Two rows carry one today, and their conditions do not match:
 Decode slows as the cache grows, and the chooser's context rule has changed since
 this paragraph was written. It no longer claims that the chooser funds at least
 4096: the Gemma row's own comment says that the old explanation was wrong because
-"the chooser funds none of them" (`crates/kalsa-catalog/src/manifest.rs:856-861`).
+"the chooser funds none of them" (`crates/kalsa-catalog/src/manifest.rs:843-844`).
 The choice prices at its one-token context, while the page uses the funded context
 capped at 8192 and at the model's trained length
 (`src-tauri/src/capability.rs:68-78`; `crates/kalsa-launch/src/policy.rs:87-95`).

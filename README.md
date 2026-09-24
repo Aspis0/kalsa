@@ -224,9 +224,10 @@ The rules are pure and tested without hardware:
   is a compile error rather than a wrong recommendation.
 * **licence is a door, not a column.** The chooser only accepts a
   `UsableEntry`, and only `manifest::usable()` produces those, for rows whose
-  licence allows what this product needs. The refused rows stay in the catalog
-  with their reason: `amd/Instella-MoE-16B-A3B-Think` is research-only, and the
-  2025 rows are superseded.
+  licence allows what this product needs. A refused row stays in the catalog
+  with its reason: `amd/Instella-MoE-16B-A3B-Think` is research-only. The six
+  rows the owner judged superseded were deleted on 2026-09-24; the `stale`
+  field still keeps a row off the menu, and no row carries it today.
 * **the PC must beat the phone.** A candidate needs at least 1.4× the phone
   model's weight, and has to decode at 3 tokens per second or more at the *low*
   end of its predicted range. If nothing clears both bars, the answer is "this
