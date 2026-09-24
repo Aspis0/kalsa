@@ -556,32 +556,71 @@ narrower than the audit made it look.
   second overwrites `offProgress`, and the first unsubscribe is dropped. One dangling
   `brain_progress` listener per hot reload. Dev builds only.
 
-## 18. Turning the server off can say "Off" while the server is still running
+## 18. Turning the server off can say "Off" while the server is still running — narrowed on 2026-09-22, not closed
 
-`crates/kalsa-supervisor/src/supervisor.rs:382` sets `ServerState::Stopped` on every
-path out of `stop`. Two of those paths have signalled nothing. An adopted server
-whose recorded pid the state file no longer vouches for is left alone: the
-`if current == pid` body is simply skipped (`supervisor.rs:365-371`). And an
-adopted-blind server — no pid was ever recorded — has nothing to signal at all; its
-own comment says it: "Left running by necessity … Only a stop that stays stopped
-leaks it, until reboot" (`supervisor.rs:374-378`). A spawned child and an adopted
-pid the lock still covers ARE properly terminated and reaped; it is the two
-in-between shapes that leak.
+*As written on 2026-09-20, against the code of that day (`1aa02a5`; its line numbers are
+dropped here, because none of them still points at what it named):* `supervisor.rs` set `ServerState::Stopped` on
+every path out of `stop`. Two of those paths signalled nothing. An adopted server whose
+recorded pid the state file no longer vouched for was left alone, because the
+`if current == pid` body was simply skipped. An adopted-blind server, where no pid was ever
+recorded, had nothing to signal at all. Its own comment said it: "Left running by necessity …
+Only a stop that stays stopped leaks it, until reboot". A spawned child and an adopted pid the
+lock still covered were said to be properly terminated and reaped. That was not true either:
+`f1df191`'s message records a `let _ =` that swallowed the second wait, so a stop could
+declare success while the engine was alive. The two in-between shapes leaked. So
+"Off" was a claim about the app's state, not the machine's: the weights could stay resident,
+holding the port, while every surface said the server was off. There were two honest
+repairs. One: stop claiming Off when nothing was signalled, and say what happened. Two: find
+the server by port, verify its identity, and end it.
 
-So "Off" is a claim about the app's state, not the machine's. The weights can stay
-resident, holding the port, until reboot, while every surface in the app says the
-server is off. Nothing even breaks afterwards — the next start re-adopts the same
-server by port and health, per the comment — so the app keeps working while being
-wrong, which is why nobody has felt this yet. What is lost is quieter: ten
-gigabytes of resident weights the owner believes he dismissed, and no honest word
-anywhere about a server the app no longer owns.
+**Re-read on 2026-09-24: the first repair was built on 2026-09-22 (`f1df191`, `ae78761`,
+`f9d8861`), and this section did not notice.** What `stop` does now, read at `4d5fab1`:
 
-There are two honest repairs, and the owner has not chosen between them. Stop
-claiming Off when nothing was signalled, and say what actually happened — truthful,
-but it leaves weights resident. Or find the server by port, verify its identity,
-and end it — what the owner means by Off, and harder to do without risking
-somebody else's process, which is exactly the risk the `if current == pid` check
-was written to avoid.
+- With nothing of ours owned, it ends `Stopped` with nothing to prove
+  (`crates/kalsa-supervisor/src/supervisor.rs:484`: "nothing of ours owned: nothing to prove
+  gone"). That is the path a second stop takes.
+- With a server owned, it collects one witness for the process and probes the port.
+  `presence::settle` (`crates/kalsa-supervisor/src/presence.rs:101-106`) then ends it
+  `Stopped` in exactly three cases: our own child was reaped; a known pid is now dead and the
+  port refuses; or no pid was ever recorded and the port refuses. In every other case it ends
+  `Failed { reason: StopUnconfirmed }`, carrying what was measured (`supervisor.rs:598-603`).
+- For the two in-between shapes, that means:
+  - An adopted pid the state file no longer vouches for is not signalled (`:530-546`).
+    - If that pid is still alive, the stop ends `StopUnconfirmed`, and "Off" is not claimed.
+    - If it is dead and the port refuses, the stop ends `Stopped`, which the screen shows as "Off"; no line
+      is printed (the print at `:589` is guarded by `:588`) and no record is written (it counts as proven).
+  - An adopted-blind server is never signalled.
+    - If its port refuses, the stop ends `Stopped`, without any proof about the process.
+      When no start failure is held, the screen then shows "Off" and "This computer is not
+      running anything right now." (`chat/src/surfaces/useBrain.ts:348-349`).
+    - If its port answers, or the probe cannot tell (a timeout, or a network error short of
+      a refusal: `Presence::Unknown`, `presence.rs:28-37`), the stop ends `StopUnconfirmed`.
+- A stop that reaches `settle` without being proven on both halves tries to write a suspicion
+  record, `<state file>.orphan`, beside the state file (`ae78761`, `supervisor.rs:591-597`).
+  Proven on both halves means the process was reaped or a known pid is dead, and the port
+  refuses. The write is best effort (`let _ =`). The next start recovers the record, replaces
+  it, or keeps it when something else still holds the port (`crates/kalsa-supervisor/src/suspect.rs:19-20`).
+- `f9d8861` answers a dead worker's drain in `Supervisor::state()` instead of leaving it
+  `Stopping`. By its own commit message, `Watch::state()` still reads `Stopping` for such a
+  drain.
+
+What stays open:
+- **A second stop would claim "Off" with nothing checked.** The first stop takes what was
+  owned (`owned.take()`, `supervisor.rs:485`), whatever it ends in, so a second stop command
+  after a `StopUnconfirmed` would take the `:484` path and end `Stopped` without probing
+  anything. The normal screen does not offer it: a failed state's button is "Try again",
+  which starts (`chat/src/surfaces/useBrain.ts:386-387`, `:449-456`). It is a trap for any
+  future caller, not a path the owner can take today.
+- **"Off" can also be claimed without proof** for an adopted-blind server whose port refuses.
+- **The stop does not signal either in-between shape's process**, so a server that is still
+  alive keeps its weights resident, whatever the screen says. A later start may adopt a live
+  pid again (`take_over`, `supervisor.rs:700-705`), and a stop after that can signal it.
+- **The second repair is still the owner's choice:** end the server by port once its identity
+  is verified.
+- **The screen's words for `StopUnconfirmed` disagree with each other.** The sentence says the
+  server "could not be confirmed gone … so the app has not reported it as off"
+  (`src-tauri/src/failure.rs:236-238`), while the headline of every failed state is "Stopped"
+  (`chat/src/surfaces/useBrain.ts:387`).
 
 ## 19. What the outgoing gate does not cover
 
