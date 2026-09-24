@@ -50,8 +50,9 @@ function ConvertTo-WindowsArgument {
 # Spawns one producer the way crates/kalsa-probe/src/run.rs does: stdout
 # redirected and read as BYTES (BaseStream, never decoded - decoding here
 # would destroy the encoding evidence this capture exists for), stderr
-# swallowed to mirror Rust's Stdio::null(), and the same 10 s deadline
-# with kill-and-reap on expiry. stdout and stderr drain CONCURRENTLY: a
+# swallowed to mirror Rust's Stdio::null(), and the same 10 s deadline:
+# expiry is a best-effort kill (its failure is swallowed, the reap wait is
+# bounded), never a guaranteed reap. stdout and stderr drain CONCURRENTLY: a
 # child that fills the stderr pipe before closing its stdout would stall a
 # sequential drain until the deadline. stdin is redirected and closed
 # right after the spawn: the shipped app is a GUI process with no console
@@ -246,7 +247,9 @@ try {
 $classKey = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}'
 try {
     $report = @()
-    $subkeys = Get-ChildItem -LiteralPath $classKey -ErrorAction Stop |
+    # Properties under this key is SYSTEM-only: a denied subkey must not
+    # abort the enumeration; each numeric subkey is read in its own try.
+    $subkeys = Get-ChildItem -LiteralPath $classKey -ErrorAction SilentlyContinue |
         Where-Object { $_.PSChildName -match '^\d{4}$' } |
         Sort-Object -Property PSChildName
     foreach ($subkey in $subkeys) {
@@ -299,7 +302,7 @@ try {
 $summaryLines = @()
 $summaryLines += 'kalsa GPU capture - ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 $summaryLines += 'wmic.exe: ' + $wmicPresence
-$summaryLines += 'elapsed ms is spawn-to-exit of each command: the fallback latency on real hardware'
+$summaryLines += 'elapsed ms is spawn-to-exit of each command (spawn-to-stopped-waiting when it timed out): the fallback latency on real hardware'
 foreach ($capture in $captures) {
     $summaryLines += ''
     $summaryLines += $capture.Name
@@ -320,8 +323,9 @@ foreach ($capture in $captures) {
 $summaryLines += ''
 $summaryLines += 'steps:'
 foreach ($step in $steps) { $summaryLines += '  ' + $step }
-# The facts themselves, so SUMMARY.txt alone carries the run: one missing
-# file is one line, never an abort.
+# The facts themselves under their headers: SUMMARY.txt is not the whole
+# run - its hex heads stop at 64 bytes and the .bin files hold the full
+# output. One missing file is one line, never an abort.
 foreach ($fact in @('os.txt', 'cim.txt', 'registry.txt')) {
     $summaryLines += ''
     $summaryLines += '--- ' + $fact + ' ---'
