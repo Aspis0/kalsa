@@ -458,8 +458,9 @@ impl Desk {
                 return None;
             };
             if now >= delivery.expires_at {
+                let token = delivery.delivery_token.clone();
                 *pending = None;
-                let _ = kalsa_pairing::store::clear_delivery(&self.file);
+                let _ = kalsa_pairing::store::clear_delivery(&self.file, &token);
                 return None;
             }
             return declaration
@@ -545,7 +546,7 @@ impl Desk {
         if !saved.token_matches(delivery_token) {
             return;
         }
-        if kalsa_pairing::store::clear_delivery(&self.file).is_ok() {
+        if kalsa_pairing::store::clear_delivery(&self.file, &saved.delivery_token).is_ok() {
             *pending = None;
         }
     }
@@ -885,6 +886,41 @@ mod tests {
         assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
     }
 
+    /// The production shape end to end: the host is enrolled FIRST, a phone
+    /// pairs and acknowledges, and the acknowledgement truly lands in the
+    /// store — a fresh desk rebuilds no pending delivery, and the same
+    /// token cannot collect the seal again inside the window.
+    #[test]
+    fn an_acknowledged_delivery_stays_cleared_after_a_restart() {
+        let file = scratch("ack-restart");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
+        assert!(desk.claim(&code, now));
+        let declaration =
+            PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
+        let token = declaration.delivery_token().to_string();
+        let replay = declaration
+            .sign_again(&code, &nonce, &reachable, None, a_phone())
+            .unwrap();
+        assert!(desk.complete(declaration, now).is_some(), "the pairing seals");
+        desk.acknowledge(&token);
+
+        let fresh = Desk::new(file.clone());
+        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert_eq!(
+            dto["delivery_pending"], false,
+            "a restart must not rebuild an acknowledged delivery"
+        );
+        assert!(
+            fresh.complete(replay, now).is_none(),
+            "the acknowledged seal must not replay inside the window"
+        );
+    }
+
     /// Refusing the last phone must leave an UNPAIRED desk: the host's own
     /// record is always in the store, so emptiness is never what happens —
     /// `new`'s rule is, and a desk that stayed Paired would keep drawing the
@@ -959,14 +995,13 @@ mod tests {
     /// behind must rebuild it from the store: after the owner refuses the
     /// newest phone, the page names the phone that remains and awaits only
     /// its delivery — never the refused phone's name or its pending
-    /// response. The host takes its seat AFTER the first phone here, so
-    /// the first record is a phone and acknowledge's clear_delivery (which
-    /// clears the first record) actually reaches it; with a host first the
-    /// acknowledged delivery lingers until its window closes — a declared
-    /// limit, not this test's subject.
+    /// response. The host is seated FIRST, the production shape:
+    /// clear_delivery keys on the delivery token, so A's acknowledgement
+    /// reaches A's record even behind the host's.
     #[test]
     fn refusing_a_phone_rebuilds_the_paired_snapshot_from_the_store() {
         let file = scratch("forget-snapshot");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
@@ -974,7 +1009,6 @@ mod tests {
         let first = declaration_for(&desk, a_phone(), now);
         let first_token = first.delivery_token().to_string();
         assert!(desk.complete(first, now).is_some(), "phone A pairs");
-        kalsa_pairing::store::enrol_host(&file).unwrap();
         desk.acknowledge(&first_token);
 
         desk.retry(true, "http://127.0.0.1:1", None, now);

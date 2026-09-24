@@ -445,8 +445,55 @@ fn a_delivery_is_atomic_and_can_be_cleared_after_success() {
     persist_with_delivery(&handshake, &path, delivery).unwrap();
     let (_, loaded) = load_with_delivery(&path).unwrap();
     assert_eq!(loaded.unwrap().token(), &"44".repeat(16));
-    clear_delivery(&path).unwrap();
+    clear_delivery(&path, &"44".repeat(16)).unwrap();
     assert!(load_with_delivery(&path).unwrap().1.is_none());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// clear_delivery clears the record that HOLDS the token, not the first
+/// record: production stores hold the host first, and the phone's retained
+/// response sits further down. A token matching nothing is Ok and leaves
+/// the bytes alone.
+#[test]
+fn clear_delivery_matches_the_record_holding_the_token() {
+    let dir = scratch("clear-token");
+    let path = dir.join("credential.json");
+    let host = enrol_host(&path).unwrap();
+    let host_cred = host.handshake.credential_hex();
+
+    let handshake = sample_handshake();
+    let code = "11".repeat(16);
+    let nonce = "22".repeat(32);
+    let mut key = [0u8; 16];
+    let mut nonce_bytes = [0u8; 32];
+    hex::decode_to_slice(&code, &mut key).unwrap();
+    hex::decode_to_slice(&nonce, &mut nonce_bytes).unwrap();
+    let seal = seal_computer(
+        &key,
+        &nonce_bytes,
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    let delivery =
+        Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
+    add_device_with_delivery(&path, "Phone", &handshake, delivery).unwrap();
+
+    clear_delivery(&path, &"44".repeat(16)).unwrap();
+    let devices = load_devices(&path).unwrap();
+    let stored_host = devices.iter().find(|d| d.kind == DeviceKind::Host).unwrap();
+    let stored_phone = devices.iter().find(|d| d.kind == DeviceKind::Phone).unwrap();
+    assert!(stored_phone.delivery.is_none(), "the token-holder's delivery is cleared");
+    assert!(
+        stored_host.delivery.is_none() && stored_host.handshake.credential_hex() == host_cred,
+        "the host's record is untouched"
+    );
+
+    let bytes = fs::read(&path).unwrap();
+    clear_delivery(&path, &"ff".repeat(16)).unwrap();
+    assert_eq!(
+        fs::read(&path).unwrap(),
+        bytes,
+        "a token matching nothing changes nothing"
+    );
     fs::remove_dir_all(&dir).unwrap();
 }
 

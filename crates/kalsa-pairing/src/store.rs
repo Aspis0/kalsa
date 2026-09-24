@@ -899,10 +899,28 @@ struct VersionProbe {
     v: u8,
 }
 
-/// Remove only the retained response while preserving the paired handshake.
-pub fn clear_delivery(path: &Path) -> Result<(), StoreError> {
-    let (handshake, _) = load_with_delivery(path)?;
-    replace_record(&handshake, path, None)
+/// Clear the retained response of the record whose delivery matches
+/// `token`, preserving every handshake. The first record is not assumed:
+/// production stores hold the host at record 0, and the phone's retained
+/// response sits further down. A token that matches no record is Ok and
+/// changes nothing - the delivery may already be gone.
+pub fn clear_delivery(path: &Path, token: &str) -> Result<(), StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let mut changed = false;
+    for record in &mut records {
+        if record
+            .delivery
+            .as_ref()
+            .is_some_and(|delivery| delivery.token_matches(token))
+        {
+            record.delivery = None;
+            changed = true;
+        }
+    }
+    if !changed {
+        return Ok(());
+    }
+    write_records(&records, path)
 }
 
 #[cfg(test)]
