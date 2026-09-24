@@ -92,18 +92,18 @@ export function shouldRuntimeGovernorFallback(args: {
 
 /**
  * How a turn ends around the runtime governor reload: "retry" proceeds;
- * "stale" — a newer chat turn or a different model owns the UI — must end
- * with no callbacks at all; "aborted" — the signal aborted while this turn
- * is still current — clears the partial and ends via onDone. Stale outranks
- * aborted: a newer owner beats everything.
+ * "stale" — a NEWER turn owns the UI — ends with no callbacks at all;
+ * "ended" — the turn is still current but cannot continue (the signal
+ * aborted, or the model changed under it) — clears the partial and ends via
+ * onDone, because nothing else will ever end it. Stale outranks ended.
  */
 export function mayRetryRuntimeGovernorFallback(args: {
   signalAborted: boolean;
   turnStillCurrent: boolean;
   modelStillLoaded: boolean;
-}): "retry" | "stale" | "aborted" {
-  if (!args.turnStillCurrent || !args.modelStillLoaded) return "stale";
-  if (args.signalAborted) return "aborted";
+}): "retry" | "stale" | "ended" {
+  if (!args.turnStillCurrent) return "stale";
+  if (!args.modelStillLoaded || args.signalAborted) return "ended";
   return "retry";
 }
 

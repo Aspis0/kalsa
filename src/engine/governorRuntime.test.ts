@@ -207,10 +207,10 @@ describe("mayRetryRuntimeGovernorFallback", () => {
     expect(mayRetryRuntimeGovernorFallback(intact)).toBe("retry");
   });
 
-  test("reports aborted when only the signal aborted", () => {
+  test("ends a current turn when the signal aborted", () => {
     expect(
       mayRetryRuntimeGovernorFallback({ ...intact, signalAborted: true }),
-    ).toBe("aborted");
+    ).toBe("ended");
   });
 
   test("reports stale once a newer turn became current", () => {
@@ -219,18 +219,18 @@ describe("mayRetryRuntimeGovernorFallback", () => {
     ).toBe("stale");
   });
 
-  test("reports stale once the loaded model changed", () => {
+  test("a model change on the current turn ends it, not stale", () => {
     expect(
       mayRetryRuntimeGovernorFallback({ ...intact, modelStillLoaded: false }),
-    ).toBe("stale");
+    ).toBe("ended");
   });
 
-  test("stale outranks aborted", () => {
+  test("stale outranks ended", () => {
     expect(
       mayRetryRuntimeGovernorFallback({
         signalAborted: true,
         turnStillCurrent: false,
-        modelStillLoaded: true,
+        modelStillLoaded: false,
       }),
     ).toBe("stale");
   });

@@ -5580,15 +5580,28 @@ export async function streamAssistantTurn(
         modelStillLoaded:
           activeModelId != null && activeModelId === attempt.modelId,
       });
+    // The turn is still current but cannot continue (signal aborted, or the
+    // model changed under it): clear this attempt's partial through the
+    // stream's own channel and end the way an abort ends today — onDone, no
+    // error bubble. Nothing else would ever end a current turn here.
+    const endCurrentTurn = () => {
+      callbacks.onDelta("", "");
+      callbacks.onDone();
+    };
     // Abort does NOT gate the reload: after a governor failure the context is
     // dead, so the CPU reload is recovery, not part of the turn — abort
     // cancels only the retry, at the post-reload gate (so an early abort and
-    // an abort during reload behave the same). Only staleness refuses here,
-    // and a stale attempt calls NO callbacks: the newer turn owns the UI and
-    // the shells' run/owner checks already fence this message's text.
-    // Reloading after a model switch that already happened would arm the
-    // CPU-only state against the wrong model, so staleness gates the reload.
-    if (gate(false) === "stale") return;
+    // an abort during reload behave the same). A superseded TURN calls no
+    // callbacks: the newer turn owns the UI and the shells' run/owner checks
+    // already fence this message's text. A model change on this current turn
+    // ends it (below) and skips the reload — reloading would arm the CPU-only
+    // state against the wrong model.
+    const preVerdict = gate(false);
+    if (preVerdict === "stale") return;
+    if (preVerdict === "ended") {
+      endCurrentTurn();
+      return;
+    }
     try {
       await reloadGovernorRuntimeFallback(attempt.reason, options.locale);
     } catch (error) {
@@ -5599,17 +5612,13 @@ export async function streamAssistantTurn(
     // The world can move during the reload; the gate picks the ending by cause.
     const verdict = gate(Boolean(signal?.aborted));
     if (verdict === "stale") {
-      // A newer turn or model owns the UI: call NO callbacks at all — the
-      // shells' own run/owner checks already fence this message's text, and
-      // a stale onDone would mutate shared streaming state.
+      // A newer turn owns the UI: call NO callbacks at all — the shells' own
+      // run/owner checks already fence this message's text, and a stale
+      // onDone would mutate shared streaming state.
       return;
     }
-    if (verdict === "aborted") {
-      // Abort on a turn that is still current: clear this attempt's partial
-      // through the stream's own channel, then end the way an abort ends
-      // today — onDone, no error bubble.
-      callbacks.onDelta("", "");
-      callbacks.onDone();
+    if (verdict === "ended") {
+      endCurrentTurn();
       return;
     }
     // Discard the failed attempt's partial through the stream's own channel
