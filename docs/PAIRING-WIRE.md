@@ -64,6 +64,17 @@ Limits: body at most 8 KiB measured by `Content-Length`, head at most 8 KiB. `Tr
 duplicate `Content-Length`, or bytes beyond `Content-Length` are refused with the same 403. **Always send a
 `Content-Length`.**
 
+## What the declaration means on the desktop, corrected (2026-09-24)
+
+The desktop's upgrade judgement reads **`weights_bytes` alone**: a model on the computer must weigh at
+least 1.4× the phone's GGUF. So a **real** file size makes that judgement real, and **`0` is the value that
+breaks it** — zero would make every model on the computer count as an upgrade.
+
+`parameters` and `measured_tokens_per_second` being null does **not** cause that: nulls mean the desktop makes
+no capability claim and states no speed comparison. If an upgrade list ever looks wrong, the cause is a wrong
+`weights_bytes`, not the nulls — a sentence worth keeping because I wrote the opposite once, and the difference
+between a declaration and a comparison is exactly the kind of thing a hurried session flattens.
+
 ## The seal (the phone opens it)
 
 ```
