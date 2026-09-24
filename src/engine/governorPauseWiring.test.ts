@@ -6,17 +6,29 @@
  * and each UTILITY completion must detect a pause through the shared helper
  * and consume its return. Every evidence LINE is built by
  * governorPauseLog.ts: this file pins that the turn file holds no raw
- * emitter, so a duplicate line cannot hide here. Source pins on purpose:
- * LlamaService has no runtime harness; payload and per-event cardinality
- * are pinned in governorPauseLog.test.ts, the emitEngineError → onError
- * path stays the declared F5 gap.
+ * emitter, that each EMISSION SITE logs exactly once per event (a built
+ * line logged twice is the audit's green mutation), and that the builders
+ * themselves only build. Source pins on purpose: LlamaService has no
+ * runtime harness; payload and per-event cardinality are pinned in
+ * governorPauseLog.test.ts, the emitEngineError → onError path stays the
+ * declared F5 gap.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const noComments = readFileSync(join(__dirname, "LlamaService.ts"), "utf8")
-  .replace(/\/\*[\S\s]*?\*\//g, "")
-  .replace(/^[ \t]*\/\/.*$/gm, "");
+const stripComments = (text: string) =>
+  text.replace(/\/\*[\S\s]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+
+const noComments = stripComments(readFileSync(join(__dirname, "LlamaService.ts"), "utf8"));
+
+/** Comment-stripped region between two stable markers (end exclusive). */
+function region(source: string, start: string, end: string): string {
+  const from = source.indexOf(start);
+  expect(from).toBeGreaterThan(-1);
+  const to = source.indexOf(end, from + start.length);
+  expect(to).toBeGreaterThan(from);
+  return source.slice(from, to);
+}
 
 test("both turn completion sites wait through the cooling loop", () => {
   // The round and the tool fallback — a utility path must not grow one.
@@ -34,15 +46,43 @@ test("both turn completion sites END a pause through the guarded helper", () => 
   expect(guarded).toHaveLength(2);
 });
 
-test("the turn helper owns both copy keys and emits through the one line builder", () => {
-  const start = noComments.indexOf("function endOnGovernorPause");
-  expect(start).toBeGreaterThan(0);
-  const helper = noComments.slice(start, noComments.indexOf("function sessionErrorReason", start));
-  expect(helper).toContain("governorPauseLogLine(");
+test("the turn helper owns both copy keys and emits its line exactly once", () => {
+  const helper = region(noComments, "function endOnGovernorPause", "function sessionErrorReason");
   expect(helper).toContain("strings.errors.coolingTimedOut");
   expect(helper).toContain("strings.chat.serviceUnreachable");
   // The give-up copy appears exactly once in the file: inside that helper.
   expect(noComments.match(/strings\.errors\.coolingTimedOut/g)).toHaveLength(1);
+  // Exactly one emission per pause: one console and one builder call — a
+  // built line logged twice (or a second builder call) fails here.
+  expect(helper.match(/console\./g)).toHaveLength(1);
+  expect(helper.match(/governorPauseLogLine\(/g)).toHaveLength(1);
+});
+
+test("the cooling listener emits exactly one built line per event", () => {
+  // Slice the whole onCooling listener of coolingRound (up to the round loop
+  // that follows the factory): logging the same built line twice — the
+  // audit's green mutation — doubles the console count here.
+  const listener = region(
+    noComments,
+    "onCooling: (phase, detail) => {",
+    "for (let round = 0; round <",
+  );
+  expect(listener.match(/console\./g)).toHaveLength(1);
+  expect(listener.match(/thermalCoolingLogLine\(/g)).toHaveLength(1);
+});
+
+test("the line builders only build — no console side effect inside them", () => {
+  const module = stripComments(
+    readFileSync(join(__dirname, "governorPauseLog.ts"), "utf8"),
+  );
+  const pauseBuilder = region(
+    module,
+    "export function governorPauseLogLine",
+    "export function utilityGovernorPause",
+  );
+  const coolingBuilder = module.slice(module.indexOf("export function thermalCoolingLogLine"));
+  expect(pauseBuilder).not.toContain("console.");
+  expect(coolingBuilder).not.toContain("console.");
 });
 
 test("every evidence line comes from the one module — no raw emitter in the turn file", () => {
