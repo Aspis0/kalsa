@@ -970,15 +970,55 @@ mod tests {
             deliveries.iter().any(|&(id, held)| id == 1 && !held),
             "A's delivery is cleared by the late ack"
         );
-        assert!(
-            deliveries.iter().any(|&(id, held)| id == 2 && held),
-            "B's delivery must survive A's ack"
-        );
+        // B completes AFTER the ack here, so B's delivery cannot speak to
+        // the ack's selectivity - that is the next test's subject. What this
+        // half shows is the restart: nothing is rebuilt for A.
         let fresh = Desk::new(file.clone());
         let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, now)).unwrap();
         assert_eq!(
             dto["delivery_pending"], false,
             "a restart must not rebuild A's acknowledged delivery"
+        );
+    }
+
+    /// The reproduced ordering: the ack lands AFTER phone B has completed,
+    /// so the in-memory state is Paired around B and holds nothing of A's -
+    /// the exact state whose token-mismatch return used to drop A's ack.
+    /// The clear must still reach A's record by token, and only A's.
+    #[test]
+    fn an_ack_landing_after_another_phone_completes_clears_only_its_own_delivery() {
+        let file = scratch("ack-after-b");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let first = declaration_for(&desk, a_phone(), now);
+        let first_token = first.delivery_token().to_string();
+        assert!(desk.complete(first, now).is_some(), "phone A pairs");
+
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        let second = declaration_for(
+            &desk,
+            PhoneModel {
+                weights_bytes: 3_000_000_000,
+                ..a_phone()
+            },
+            now,
+        );
+        assert!(desk.complete(second, now).is_some(), "phone B pairs");
+
+        desk.acknowledge(&first_token);
+
+        let devices = kalsa_pairing::store::load_devices(&file).unwrap();
+        let by_id = |id: u32| devices.iter().find(|d| d.id == id).unwrap();
+        assert!(
+            by_id(1).delivery.is_none(),
+            "A's delivery is cleared by an ack that arrives after B completed"
+        );
+        assert!(
+            by_id(2).delivery.is_some(),
+            "B's delivery must survive A's ack - the clear is keyed by token"
         );
     }
 
@@ -1004,12 +1044,19 @@ mod tests {
             .unwrap();
         assert!(desk.complete(declaration, now).is_some(), "the pairing seals");
 
-        // A malformed later record: every store read now fails, the way a
-        // torn hand edit would leave them.
-        let raw = std::fs::read_to_string(&file).unwrap();
-        let trimmed = raw.trim_end();
-        let malformed = format!("{},{{\"id\":99}}]", &trimmed[..trimmed.len() - 1]);
-        std::fs::write(&file, malformed).unwrap();
+        // A later record the PARSER refuses: a valid JSON document whose
+        // record is missing required fields, so every store read fails.
+        // (A record that merely fails to realize no longer stops the clear:
+        // clear_delivery matches raw records by token and never realizes,
+        // so the parse-refusing record is the unreadable case that
+        // remains.)
+        let mut doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        doc["devices"]
+            .as_array_mut()
+            .expect("the store document holds a device array")
+            .push(serde_json::json!({"id": 99, "label": "broken"}));
+        std::fs::write(&file, doc.to_string()).unwrap();
 
         desk.acknowledge(&token);
         assert!(
