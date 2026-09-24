@@ -531,9 +531,6 @@ mod tests {
     /// The row most of these tests ride on: small enough to be fundable on
     /// every budget in the suite, shipped and usable.
     const GRANITE: &str = "IBM Granite 4 Tiny";
-    /// The row the 96 KiB assumption under-counted, now carrying its
-    /// measured 160 KiB-per-token figure.
-    const APERTUS: &str = "Swiss AI Apertus 1.5";
 
     /// A real, usable catalog row, so the compiler — not this file — notices
     /// when the row's shape changes, and the tests exercise something the
@@ -562,6 +559,32 @@ mod tests {
             kv_bytes_per_token: Some(0),
             slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
+            measured_decode: None,
+            // The fixture's limit is the memory's, so the trained cap never binds.
+            trained_context_tokens: None,
+            dense_equivalent: None,
+            stale: None,
+        }
+    }
+
+    /// A row research flagged as under-counted by the shared 96 KiB
+    /// assumption, carrying its measured 163 840 bytes-per-token in the
+    /// q8_0 this crate pins. Hand-built because no shipped row carries the
+    /// flag or a figure above the assumption any more — the same reason
+    /// `broken_row` exists.
+    fn undercounted_row(weights_bytes: u64) -> ModelEntry {
+        ModelEntry {
+            repo: "test/undercounted",
+            display_name: "Undercounted Fixture",
+            last_modified: "2026-01-01",
+            licence: kalsa_catalog::Licence::Open("apache-2.0"),
+            parameters: kalsa_catalog::Parameters::dense(70_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes,
+            mmproj_bytes: None,
+            kv_bytes_per_token: Some(163_840),
+            slot_cache: SlotCache::None,
+            kv_assumption_undercounts: true,
             measured_decode: None,
             // The fixture's limit is the memory's, so the trained cap never binds.
             trained_context_tokens: None,
@@ -768,19 +791,39 @@ mod tests {
 
     #[test]
     fn the_memory_report_is_the_cost_of_the_arguments_actually_produced() {
-        // Apertus carries a measured cache figure, so the report is checked
-        // against the row's own number rather than the assumption.
-        let model = shipped_row(APERTUS);
+        // The row on disk carries a measured cache figure, so the report is
+        // checked against the row's own number rather than the assumption.
+        let model = shipped_row("Alibaba Qwen 3.6");
         let budget = memory_budget(Backend::Metal, 64 * GIB);
         let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
 
         // The report is the footprint of exactly the context the arguments
         // carry — recomputed here from the catalog, not copied from the plan.
+        // The row is recurrent: beside the per-token half (the catalog's
+        // measurement × the context) the plan charges the F32 state the
+        // engine allocates per slot, so the report carries both terms.
         let footprint = footprint_bytes(model, launched.args.context_tokens);
+        let slots = u64::from(launched.args.parallel);
+        let state = slot_cache_bytes(
+            model,
+            launched.args.context_tokens / slots,
+            KvCache::Q8_0,
+            u64::from(crate::args::UBATCH),
+        );
         assert_eq!(launched.memory.context_tokens, launched.args.context_tokens);
-        assert_eq!(launched.memory.kv_cache_bytes, footprint.kv_bytes);
-        assert_eq!(launched.memory.total_bytes, footprint.total_bytes());
+        assert_eq!(
+            launched.memory.kv_cache_bytes,
+            footprint.kv_bytes + state * slots
+        );
+        assert_eq!(
+            launched.memory.total_bytes,
+            footprint
+                .weights_bytes
+                .saturating_add(footprint.mmproj_bytes)
+                .saturating_add(footprint.buffer_bytes)
+                .saturating_add(launched.memory.kv_cache_bytes)
+        );
         assert_eq!(launched.memory.budget_bytes, budget.usable_bytes);
         assert!(!launched.memory.kv_per_token_assumed);
         assert!(launched.memory.total_bytes <= budget.usable_bytes);
@@ -873,23 +916,30 @@ mod tests {
 
     #[test]
     fn the_measured_cache_figure_sizes_the_context_where_the_assumption_undercounted() {
-        // Apertus 70B is the row the 96 KiB assumption under-counted; its
-        // measured cache is 163_840 bytes per token at the q8_0 this crate
-        // pins. On 64 GiB (48 GiB usable), 43_721_600_512 bytes of weights
-        // (the pinned file's exact size) and 512 MiB of buffers leave
-        // 7_281_136_128 bytes; the sleeping-chat reserve takes a quarter,
-        // and the context funds the rest.
-        let model = shipped_row(APERTUS);
+        // A row research flagged as under-counted by the 96 KiB assumption,
+        // carrying its measured 163_840 bytes per token at the q8_0 this
+        // crate pins — hand-built, because no shipped row carries the flag
+        // or a figure above the assumption any more. On 64 GiB (48 GiB
+        // usable = 51_539_607_552 bytes), 40 GiB of weights and 512 MiB of
+        // buffers leave 8_053_063_680 bytes; the sleeping-chat reserve takes
+        // a quarter — 2_013_265_920 — and the context funds the rest:
+        // 6_039_797_760 / 163_840 = 36_864 whole tokens. The assumption
+        // would have funded 61_440 tokens against a cache the server sizes
+        // 1.7x dearer — oversubscribing the machine unannounced, which is
+        // exactly what the flag exists to stop. The flag's own door is
+        // `standing()` in the catalog; this test holds the sizing
+        // arithmetic.
+        let model = undercounted_row(40 * GIB);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
-        let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Cpu, budget, &model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 33_330);
-        assert!(fits(model, launched.args.context_tokens, &budget));
+        assert_eq!(launched.args.context_tokens, 36_864);
+        assert!(fits(&model, launched.args.context_tokens, &budget));
         // The machine would pay for another token: the sleeping-chat
         // reserve is what stops it, which is the whole point of carving
         // the roof before the context rather than after.
-        assert!(fits(model, launched.args.context_tokens + 1, &budget));
-        assert_eq!(launched.memory.kv_cache_bytes, 33_330 * 163_840);
+        assert!(fits(&model, launched.args.context_tokens + 1, &budget));
+        assert_eq!(launched.memory.kv_cache_bytes, 36_864 * 163_840);
         assert!(
             !launched.memory.kv_per_token_assumed,
             "this row carries a measurement, not the assumption"
@@ -898,7 +948,7 @@ mod tests {
         // alone exceed the budget, so the answer is no context, not a
         // context that does not fit.
         let small = memory_budget(Backend::Cpu, 8 * GIB);
-        assert!(plan(&input(ServerBackend::Cpu, small, model, M1_MAX_RAMP)).is_none());
+        assert!(plan(&input(ServerBackend::Cpu, small, &model, M1_MAX_RAMP)).is_none());
     }
 
     /// The two knobs interact: f16 costs two bytes per element where the

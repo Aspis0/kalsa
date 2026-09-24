@@ -187,13 +187,14 @@ pub struct ModelEntry {
     /// None on every row to which it does not apply.
     pub dense_equivalent: Option<DenseEquivalent>,
     /// Set by research where the shared 96 KiB cache assumption is known to
-    /// under-count this row — Apertus 70B is deeper than the forty-eight
-    /// layers the constant models, so a context sized from the assumption is
-    /// roughly half the allocation the server will make. Such a row is not
-    /// offered on the assumption: the measured figure goes into
-    /// `kv_bytes_per_token` and the door reopens. The flag stays true as the
-    /// record of why the measurement was needed — and so that removing the
-    /// measurement closes the door again.
+    /// under-count this row — a row deeper than the forty-eight layers the
+    /// constant models, so a context sized from the assumption is roughly
+    /// half the allocation the server will make. Such a row is not offered
+    /// on the assumption: the measured figure goes into `kv_bytes_per_token`
+    /// and the door reopens. The flag stays true as the record of why the
+    /// measurement was needed — and so that removing the measurement closes
+    /// the door again. No row in either table carries it today; the gate in
+    /// [`ModelEntry::standing`] still reads it.
     pub kv_assumption_undercounts: bool,
     /// A decode rate measured on the real path, where one exists. When it
     /// does, it is what the row's speed sentence says — a measurement beats
@@ -298,7 +299,7 @@ static TEST_ONLY_SOURCE: GgufSource = GgufSource {
     sha256: "0000000000000000000000000000000000000000000000000000000000000000",
 };
 
-/// The research record: rows sized on paper, three of them refused, none of
+/// The research record: rows sized on paper, one of them refused, none of
 /// them with an identified file. This table is why the audit page can say
 /// what was evaluated and turned down — and it is structurally NOT the
 /// chooser's menu; nothing here can produce a [`DownloadPlan`](crate::DownloadPlan).
@@ -389,9 +390,6 @@ pub const CATALOG: &[ModelEntry] = &[
         trained_context_tokens: None,
         stale: None,
     },
-    // Apertus-v1.5-70B moved to DOWNLOADABLE (2026-09-16): its pinned file
-    // was identified, its measured cache re-read from that file's header.
-    // See the download table.
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
@@ -412,40 +410,6 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         trained_context_tokens: None,
         stale: None,
-    },
-    ModelEntry {
-        repo: "openai/gpt-oss-20b",
-        display_name: "OpenAI GPT-OSS",
-        last_modified: "2025-08-26",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(21_000_000_000, 3_600_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(11, 60),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        slot_cache: SlotCache::None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        trained_context_tokens: None,
-        stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
-    },
-    ModelEntry {
-        repo: "Qwen/Qwen3-30B-A3B",
-        display_name: "Alibaba Qwen 3",
-        last_modified: "2025-07-26",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(30_500_000_000, 3_300_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(17, 30),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        slot_cache: SlotCache::None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        trained_context_tokens: None,
-        stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
 ];
 
@@ -653,74 +617,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             sha256: "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
         },
     },
-    // ── verified against Hugging Face on 2026-09-16: `curl -sI` on the
-    // resolve URLs returned exactly these `x-linked-size` and
-    // `x-linked-etag` values, and the base repos answered `lastModified`
-    // and `license: mit` from the API. The first MoE rows that fit a
-    // 12 GiB budget, both architectures confirmed in llama-arch.cpp at
-    // b10950 (see the header above).
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "inclusionAI/Ling-mini-2.0",
-            display_name: "InclusionAI Ling Mini 2.0",
-            last_modified: "2026-04-13T11:40:51.000Z",
-            licence: Licence::Open("mit"),
-            parameters: Parameters::mixture(16_260_000_000, 1_430_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 9_911_575_904,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            slot_cache: SlotCache::None,
-            // Nothing published settles this row against a same-recipe dense
-            // model: None is the honest value, and the chooser treats it as
-            // expected-but-unmeasured, never as claimed capability.
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(32_768),
-            stale: Some(
-                "thin for its tier: at ~9.9 GB on disk it competes with Google Gemma 4 12B, \
-                       which is smaller, and with Qwen3.6-35B-A3B one tier up. Kept for \
-                       the record, off the menu since 2026-09-18.",
-            ),
-        },
-        source: GgufSource {
-            repo: "mradermacher/Ling-mini-2.0-GGUF",
-            commit: "76f2da561c6519b8f70ceb868e6be78526c69b79",
-            file: "Ling-mini-2.0.Q4_K_M.gguf",
-            bytes: 9_911_575_904,
-            sha256: "bbb4ef25c6aa7842a93fa999cc6638ba5a8330fb0bd46dc5d7bd85a0db80d74f",
-        },
-    },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "moonshotai/Moonlight-16B-A3B-Instruct",
-            display_name: "Moonshot Moonlight 16B",
-            last_modified: "2026-01-30T04:52:43.000Z",
-            licence: Licence::Open("mit"),
-            parameters: Parameters::mixture(15_290_000_000, 2_240_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 10_537_205_632,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            slot_cache: SlotCache::None,
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(4_096),
-            stale: Some(
-                "thin for its tier: ~10.5 GB on disk buys less than Google Gemma 4 12B at \
-                       7.7 GB. Kept for the record, off the menu since 2026-09-18.",
-            ),
-        },
-        source: GgufSource {
-            repo: "mmnga/Moonlight-16B-A3B-Instruct-gguf",
-            commit: "eb4728b376af0f3e168dc96d23cd21818c5738f6",
-            file: "Moonlight-16B-A3B-Instruct-Q4_K_M.gguf",
-            bytes: 10_537_205_632,
-            sha256: "42f6e4d55765811b5710dcb1b30e79b8315735f956363da4965e0471d5b7e2b7",
-        },
-    },
     // ── Google Gemma 4 26B-A4B, verified 2026-09-18 ────────────────────────
     // Google's own quantisation-aware training build, not a post-training
     // quantisation of it: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, apache-2.0
@@ -853,12 +749,11 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
         },
     },
-    // ── verified on 2026-09-16, filling the upper tiers ─────────────────────
-    // For each row: the architecture string was read from the pinned file's
-    // own GGUF header (`general.architecture`) and found in llama-arch.cpp
-    // at b10950 (quote from that file): `qwen35moe` line 42, `qwen3next`
-    // line 38, `apertus` line 135. `curl -sI` on the resolve URL returned
-    // exactly the `x-linked-size` / `x-linked-etag` recorded below.
+    // ── Alibaba Qwen 3.6, verified against Hugging Face on 2026-09-16 ───────
+    // The architecture string was read from this pinned file's own GGUF
+    // header (`general.architecture`) and found in llama-arch.cpp at b10950
+    // (quote from that file): `qwen35moe` line 42. `curl -sI` on the resolve
+    // URL returned exactly the `x-linked-size` / `x-linked-etag` below.
     DownloadableEntry {
         model: ModelEntry {
             repo: "Qwen/Qwen3.6-35B-A3B",
@@ -916,80 +811,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
             bytes: 22_134_528_992,
             sha256: "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
-        },
-    },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "Qwen/Qwen3-Next-80B-A3B-Instruct",
-            display_name: "Alibaba Qwen 3 Next 80B",
-            last_modified: "2025-09-17T06:57:40.000Z",
-            licence: Licence::Open("apache-2.0"),
-            parameters: Parameters::mixture(80_000_000_000, 3_000_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 48_410_988_384,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            slot_cache: SlotCache::None,
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(262_144),
-            stale: Some(
-                "2025 base. Qwen3.6-35B-A3B, in this same table, is less than half the \
-                       bytes for the same 3B active and is the better model on this \
-                       project's own comparison, so the 48 GB buys nothing.",
-            ),
-        },
-        source: GgufSource {
-            repo: "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
-            commit: "4c8630cf7af926a9c5095cb4bbbbc65d36e20f77",
-            file: "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
-            bytes: 48_410_988_384,
-            sha256: "d103b2733ec1012a52d01edda66b7e5c24ae50508c9f99f5297ea459ef3c061a",
-        },
-    },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "swiss-ai/Apertus-v1.5-70B",
-            display_name: "Swiss AI Apertus 1.5",
-            last_modified: "2026-09-17T21:37:50.000Z",
-            // The API reports `apache-2.0` and `gated: "auto"`; the card
-            // itself answers 401 without a token, so the `+AUP` here could
-            // not be re-checked on 2026-09-18 and is kept as the researcher
-            // recorded it. The base repo being gated costs nothing — the
-            // pinned GGUF comes from an ungated mirror — but a future row
-            // that fetched from the base would stall on it.
-            licence: Licence::Open("apache-2.0+AUP"),
-            parameters: Parameters::dense(70_000_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 43_721_600_512,
-            mmproj_bytes: None,
-            // Re-measured 2026-09-16 from THIS pinned file's GGUF header, by
-            // range-requesting its first kilobytes: `apertus.block_count 80`,
-            // `apertus.attention.head_count_kv 8`,
-            // `apertus.rope.dimension_count 128` — 80 × 8 × 128 × 2 tensors =
-            // 163,840 elements per token, one byte each at the q8_0 cache
-            // the launcher pins. The under-count flag stays true as the
-            // record of why a measurement was required.
-            kv_bytes_per_token: Some(163_840),
-            slot_cache: SlotCache::None,
-            dense_equivalent: None,
-            kv_assumption_undercounts: true,
-            measured_decode: None,
-            trained_context_tokens: Some(262_144),
-            stale: Some(
-                "dense 70B: every token reads all 43.7 GB, which even on the fastest \
-                       machine that could hold it is about 3 to 4 tokens a second — not a \
-                       usable speed. The MoE rows reach the same memory for a tenth of \
-                       the traffic.",
-            ),
-        },
-        source: GgufSource {
-            repo: "katya228/Apertus-v1.5-70B-text-GGUF",
-            commit: "602f2f01c1e3ed4f8e3da4c56fb52c7b593f43ab",
-            file: "apertus-70b-Q4_K_M.gguf",
-            bytes: 43_721_600_512,
-            sha256: "8507a6c4ef21a41848db84cdc8cd687b10a90fb9e7edbe94d08e05b228265de2",
         },
     },
     // Google Gemma 4 12B (2026-09-17): the table's only dense-parameter row

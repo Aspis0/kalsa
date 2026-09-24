@@ -3,7 +3,7 @@
 //! The licence is not a column to look at, it is a door: a row that cannot be
 //! used commercially must be **unable** to reach the chooser. So the only thing
 //! the chooser accepts is a `UsableEntry`, and the manifest only hands those out
-//! for rows whose standing is `Usable`. Rows refused for licence or age stay in
+//! for rows whose standing is `Usable`. Rows refused for a licence stay in
 //! the manifest — with the reason — so nobody redoes the research.
 
 /// Verbatim `cardData.license` from the Hugging Face API, plus what it means for

@@ -42,12 +42,11 @@ pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
 /// pessimistic end of a quantised grouped-query cache: two tensors, eight KV
 /// heads of 128 dimensions, one byte each — the q8_0 cache the launcher
 /// pins, which a measured row's figure also assumes — forty-eight layers —
-/// 96 KiB per
-/// token, which is above every dense model in this catalog and only below the
-/// largest. That one row is not offered on the assumption (see
-/// `ModelEntry::kv_assumption_undercounts`): the constant errs safe for every
-/// other row, and inflating it to cover the largest would halve their
-/// contexts to buy insurance they do not need.
+/// 96 KiB per token. No row in the tables today carries a measured figure
+/// above it; a row research finds this constant under-counts is not offered
+/// on the assumption at all (see `ModelEntry::kv_assumption_undercounts`),
+/// and inflating the constant to cover such a row would halve every other
+/// row's context to buy insurance it does not need.
 pub const ASSUMED_KV_BYTES_PER_TOKEN: u64 = 96 * KIB;
 
 /// What the machine can give a model.
@@ -212,16 +211,16 @@ mod tests {
 
     #[test]
     fn the_measured_figure_reaches_the_footprint() {
-        // The largest row's cache is measured from its pinned file's header
-        // (80 layers × 8 KV heads × 256 elements, one byte at q8_0), so its
-        // footprint at a realistic context is sized from the measurement, not
-        // from the constant that under-counts it by 1.7×.
-        let apertus = rows()
-            .find(|entry| entry.repo.starts_with("swiss-ai/"))
-            .expect("apertus is in the catalog");
-        assert_eq!(apertus.kv_bytes_per_token, Some(163_840));
-        let footprint = footprint_bytes(apertus, 8192);
-        assert_eq!(footprint.kv_bytes, 163_840 * 8192);
+        // The row's cache is measured from its pinned file's header
+        // (40 blocks × 2 KV heads × (256 + 256) elements, one byte at q8_0),
+        // so its footprint at a realistic context is sized from the
+        // measurement, not from the shared constant.
+        let qwen = rows()
+            .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
+            .expect("qwen 3.6 is in the catalog");
+        assert_eq!(qwen.kv_bytes_per_token, Some(40_960));
+        let footprint = footprint_bytes(qwen, 8192);
+        assert_eq!(footprint.kv_bytes, 40_960 * 8192);
     }
 
     #[test]

@@ -3,13 +3,7 @@
 //! The menu is `kalsa_catalog::manifest::usable()`: every downloadable row
 //! that passed the licence, cache and staleness gates. Driving this file from
 //! that iterator rather than a hand-written list means a row added to the menu
-//! is covered by the invariant loop the moment it ships. Four rows an earlier
-//! list named are deliberately absent because `standing()` keeps them off the
-//! menu: Swiss AI Apertus 1.5 (stale; its cache IS measured, at 163 840, so
-//! staleness is its only live gate), Moonshot Moonlight 16B (stale), Alibaba
-//! Qwen 3 Next 80B (stale), InclusionAI Ling Mini 2.0 (stale). Apertus was
-//! the second measured-KV row; with it excluded, Qwen 3.6 is the only
-//! measured-KV row on the menu.
+//! is covered by the invariant loop the moment it ships.
 //!
 //! The offer table is per DEVICE (what one phone gets), q8_0, on a 64 GiB Mac.
 //! It is the real answer, not the 4096 floor: on this machine a row usually
@@ -288,21 +282,7 @@ fn every_offered_row_keeps_the_invariants_at_every_slot_count() {
             assert_eq!(planned.memory.context_tokens, planned.args.context_tokens);
         }
     }
-    // The four rows an earlier list named are off the menu by `standing()`;
-    // this pins that they stay out of scope rather than reappearing as if
-    // they shipped.
     let names: Vec<&str> = rows.iter().map(|(name, _)| *name).collect();
-    for excluded in [
-        "Swiss AI Apertus 1.5",
-        "Moonshot Moonlight 16B",
-        "Alibaba Qwen 3 Next 80B",
-        "InclusionAI Ling Mini 2.0",
-    ] {
-        assert!(
-            !names.contains(&excluded),
-            "{excluded} is on the menu again: re-derive its expectations before offering it"
-        );
-    }
     assert!(names.len() >= OFFERS.len(), "the menu shrank: {names:?}");
 }
 

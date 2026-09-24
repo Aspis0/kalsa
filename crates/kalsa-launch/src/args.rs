@@ -195,8 +195,8 @@ pub fn idle_save_seconds(idle_unload_seconds: u32) -> u32 {
 /// memory arithmetic follows the owner's choice instead of ignoring it.
 ///
 /// **Load-bearing across a crate boundary.** The catalog stores its measured
-/// rows at this same precision — Apertus 70B's `kv_bytes_per_token` is its
-/// header geometry in q8_0 bytes, not f16 — so choosing f16 doubles what
+/// rows at this same precision — Alibaba Qwen 3.6's `kv_bytes_per_token` is
+/// its header geometry in q8_0 bytes, not f16 — so choosing f16 doubles what
 /// every measured cache will cost and halves every measured context. q8_0 is
 /// the default for that reason, and it is the thermal trade too: half the
 /// cache means half the memory traffic streamed per token, and streaming

@@ -1,4 +1,4 @@
-use super::{excluded, rows, usable, CATALOG, DOWNLOADABLE};
+use super::{excluded, rows, usable, CATALOG, DOWNLOADABLE, Standing};
 
 #[test]
 fn the_research_only_row_cannot_reach_the_chooser() {
@@ -34,34 +34,47 @@ fn the_chooser_menu_is_the_download_table_and_nothing_else() {
 }
 
 #[test]
-fn the_apertus_row_is_offerable_only_through_its_measured_cache() {
-    // Apertus 70B is deeper than the shared 96 KiB constant models: it
-    // entered the download table only because its per-token cache was
-    // measured from the pinned file's GGUF header (80 layers × 8 KV heads ×
-    // 256 elements, one byte each at q8_0). Removing the measurement closes
-    // the door again, because the flag records that the constant lies.
-    let apertus = DOWNLOADABLE
-        .iter()
-        .find(|row| row.model.repo.starts_with("swiss-ai/"))
-        .expect("apertus is in the download table");
-    assert_eq!(apertus.model.kv_bytes_per_token, Some(163_840));
+fn a_row_the_assumption_undercounts_is_offerable_only_through_its_measured_cache() {
+    // No shipped row carries the flag today, so the gate runs on a row this
+    // test builds from the menu's first entry: with the flag set and no
+    // measurement, `standing()` refuses the row — the shared 96 KiB
+    // assumption is known wrong for it; the measured figure opens the door;
+    // removing the measurement closes it again.
+    let mut row = DOWNLOADABLE[0].model;
+    assert!(row.is_usable(), "the row starts on the menu");
+    row.kv_assumption_undercounts = true;
+    assert!(!row.is_usable());
+    match row.standing() {
+        Standing::Excluded { reason } => assert!(
+            reason.contains("96 KiB") && reason.contains("Measure the cache"),
+            "{reason}"
+        ),
+        Standing::Usable => panic!("the flag must keep the row off the assumption"),
+    }
+    row.kv_bytes_per_token = Some(163_840);
+    assert!(row.is_usable(), "the measurement reopens the door");
+    row.kv_bytes_per_token = None;
     assert!(
-        apertus.model.kv_assumption_undercounts,
-        "the record stays: the shared constant under-counts this row"
+        !row.is_usable(),
+        "removing the measurement closes the door again"
     );
-    // The row is now off the menu for its speed as well (see its `stale`
-    // reason), so usability alone no longer isolates the cache gate. What
-    // this test holds is the gate itself: with the measurement it opens,
-    // without it it shuts.
-    let mut measured = apertus.model;
-    measured.stale = None;
-    assert!(measured.is_usable());
-    let mut unmeasured = measured;
-    unmeasured.kv_bytes_per_token = None;
-    assert!(
-        !unmeasured.is_usable(),
-        "without the measurement, the assumption is known wrong for this row"
-    );
+}
+
+#[test]
+fn a_stale_row_is_off_the_menu_with_its_reason() {
+    // No shipped row is stale today, so the gate runs on a row this test
+    // builds from the menu's first entry: `stale` alone takes it off the
+    // menu, and `standing()` says why in the row's own words.
+    let mut row = DOWNLOADABLE[0].model;
+    assert!(row.is_usable(), "the row starts on the menu");
+    row.stale = Some("superseded in its tier, for the test");
+    assert!(!row.is_usable());
+    match row.standing() {
+        Standing::Excluded { reason } => {
+            assert_eq!(reason, "superseded in its tier, for the test")
+        }
+        Standing::Usable => panic!("stale must keep the row off the menu"),
+    }
 }
 
 #[test]
@@ -120,29 +133,14 @@ fn every_measured_decode_names_its_machine_and_date() {
 #[test]
 fn refused_rows_keep_their_reason() {
     let refused: Vec<_> = excluded().collect();
-    assert_eq!(refused.len(), 7, "seven rows were evaluated and refused");
+    assert_eq!(
+        refused.len(),
+        1,
+        "one row is refused: the research-only licence"
+    );
     assert!(refused.iter().any(|(entry, reason)| {
         entry.repo.starts_with("amd/") && reason.contains("research only")
     }));
-    assert!(refused
-        .iter()
-        .any(|(entry, reason)| entry.repo.contains("gpt-oss") && reason.contains("2025")));
-    // The four taken off the menu on 2026-09-18 keep their file and their
-    // numbers; what they lose is the chooser. Each says why in its own
-    // terms, because "superseded" without a reason is not a reason.
-    for (repo, word) in [
-        ("inclusionAI/Ling-mini-2.0", "thin for its tier"),
-        ("moonshotai/Moonlight-16B-A3B-Instruct", "thin for its tier"),
-        ("Qwen/Qwen3-Next-80B-A3B-Instruct", "2025 base"),
-        ("swiss-ai/Apertus-v1.5-70B", "3 to 4 tokens a second"),
-    ] {
-        assert!(
-            refused
-                .iter()
-                .any(|(entry, reason)| entry.repo == repo && reason.contains(word)),
-            "{repo} is not refused with its reason"
-        );
-    }
 }
 
 #[test]
@@ -174,13 +172,9 @@ fn every_row_has_a_name_a_person_can_say() {
             ("microsoft/Phi-mini-MoE-instruct", "Microsoft Phi Mini"),
             ("ibm-granite/granite-4.0-h-tiny", "IBM Granite 4 Tiny"),
             ("arcee-ai/Trinity-Nano-Preview", "Arcee Trinity Nano"),
-            ("inclusionAI/Ling-mini-2.0", "InclusionAI Ling Mini 2.0"),
-            ("moonshotai/Moonlight-16B-A3B-Instruct", "Moonshot Moonlight 16B"),
             ("google/gemma-4-26B-A4B-it", "Google Gemma 4 26B"),
             ("google/gemma-4-E4B-it", "Google Gemma 4 E4B"),
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
-            ("Qwen/Qwen3-Next-80B-A3B-Instruct", "Alibaba Qwen 3 Next 80B"),
-            ("swiss-ai/Apertus-v1.5-70B", "Swiss AI Apertus 1.5"),
             ("google/gemma-4-12B-it", "Google Gemma 4 12B"),
         ]
     );
@@ -218,13 +212,9 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "smarttasks/Phi-mini-MoE-instruct-GGUF",
             "ibm-granite/granite-4.0-h-tiny-GGUF",
             "arcee-ai/Trinity-Nano-Preview-GGUF",
-            "mradermacher/Ling-mini-2.0-GGUF",
-            "mmnga/Moonlight-16B-A3B-Instruct-gguf",
             "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
             "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
-            "Qwen/Qwen3-Next-80B-A3B-Instruct-GGUF",
-            "katya228/Apertus-v1.5-70B-text-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
         ]
     );
@@ -310,13 +300,9 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("microsoft/Phi-mini-MoE-instruct", 4_616_170_016),
             ("ibm-granite/granite-4.0-h-tiny", 4_230_976_352),
             ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
-            ("inclusionAI/Ling-mini-2.0", 9_911_575_904),
-            ("moonshotai/Moonlight-16B-A3B-Instruct", 10_537_205_632),
             ("google/gemma-4-26B-A4B-it", 14_439_363_584),
             ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
-            ("Qwen/Qwen3-Next-80B-A3B-Instruct", 48_410_988_384),
-            ("swiss-ai/Apertus-v1.5-70B", 43_721_600_512),
             ("google/gemma-4-12B-it", 7_662_533_088),
         ]
     );
@@ -344,17 +330,13 @@ fn dense_equivalents_carry_only_published_comparisons() {
         assert!(source.contains("accessed 2026-09-14"), "{source}");
     }
     // LFM publishes vendor-to-vendor tables, not a same-recipe dense LFM
-    // comparison, and Trinity, Ling, Moonlight, Qwen 3.6, Qwen 3 Next and
-    // Apertus publish nothing: None is the honest value, and it means
-    // nothing was published — not that the model is weak.
+    // comparison, and Trinity and Qwen 3.6 publish nothing: None is the
+    // honest value, and it means nothing was published — not that the
+    // model is weak.
     for repo in [
         "LiquidAI/LFM2.5-8B-A1B",
         "arcee-ai/Trinity-Nano-Preview",
-        "inclusionAI/Ling-mini-2.0",
-        "moonshotai/Moonlight-16B-A3B-Instruct",
         "Qwen/Qwen3.6-35B-A3B",
-        "Qwen/Qwen3-Next-80B-A3B-Instruct",
-        "swiss-ai/Apertus-v1.5-70B",
     ] {
         let row = DOWNLOADABLE
             .iter()
@@ -389,11 +371,7 @@ fn the_mixture_rows_are_the_ones_with_a_gap() {
         .map(|entry| entry.repo)
         .collect();
     assert!(mixtures.contains(&"Qwen/Qwen3.6-35B-A3B"));
-    assert!(mixtures.contains(&"Qwen/Qwen3-Next-80B-A3B-Instruct"));
-    assert!(mixtures.contains(&"inclusionAI/Ling-mini-2.0"));
-    assert!(mixtures.contains(&"moonshotai/Moonlight-16B-A3B-Instruct"));
     assert!(!mixtures.contains(&"google/gemma-4-12B-it"));
-    assert!(!mixtures.contains(&"swiss-ai/Apertus-v1.5-70B"));
 }
 
 #[test]

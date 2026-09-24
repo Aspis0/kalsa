@@ -652,10 +652,10 @@ fn the_plain_reason_speaks_the_readers_language() {
 
 #[test]
 fn sixteen_gigabytes_takes_the_biggest_downloadable_row_that_fits() {
-    // The MoEs this tier used to pick are owner-rejected (`stale`), so the
-    // biggest fitting downloadable row is now the dense Gemma 12B. What the
-    // tier must never do is hand the tier back to a research-only row —
-    // pinned by the research test below.
+    // The MoEs this tier used to pick were removed from the manifest as
+    // stale, so the biggest fitting downloadable row is the dense Gemma
+    // 12B. What the tier must never do is hand the tier back to a
+    // research-only row — pinned by the research test below.
     assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
     assert!(kalsa_catalog::usable()
         .any(|entry| entry.entry().repo == "google/gemma-4-12B-it"));
@@ -707,11 +707,11 @@ fn thirty_two_gigabytes_takes_the_twenty_gigabyte_moe_and_its_pinned_plan() {
 
 #[test]
 fn sixty_four_gigabytes_takes_the_biggest_downloadable_moe_and_its_pinned_plan() {
-    // The 80B MoE this tier used to take is owner-rejected (`stale`), so the
-    // biggest fitting downloadable row is the 20.6 GiB Qwen3.6-35B-A3B MoE,
-    // and nothing bigger fits the 48 GiB budget. The plan is the file at the
-    // pinned commit of the vendor's own GGUF repo, with the digest the
-    // download is held to.
+    // The 80B MoE this tier used to take was removed from the manifest as
+    // stale, so the biggest downloadable row is the 20.6 GiB
+    // Qwen3.6-35B-A3B MoE, and it fits the 48 GiB budget. The plan is the
+    // file at the pinned commit of the vendor's own GGUF repo, with the
+    // digest the download is held to.
     let input = input(64, true);
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
