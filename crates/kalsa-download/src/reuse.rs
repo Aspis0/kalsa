@@ -10,11 +10,12 @@
 //! program. We read regular files, and that is all — no create, no move, no
 //! rename, no delete — and we do not follow links: a file that is a symlink
 //! can point anywhere on the disk, and anything else (a FIFO, a device) is
-//! not a model file and could hang the scan on open. A root's own
-//! ancestors are not resolved either: a root beneath a symlinked parent is
-//! scanned where it resolves — a cache on an external drive behind a linked
-//! parent is the user's own configuration, and the no-follow rule governs
-//! what the scan steps into, not where the user pointed the roots.
+//! not a model file and could hang the scan on open. The no-follow rule
+//! covers what the scan steps into; a root's own path is used as
+//! configured, so if one of its parent folders is a link the operating
+//! system follows it when we open files below — deliberate, because a
+//! cache on an external drive behind a linked parent is the user's own
+//! configuration.
 
 use std::ffi::OsString;
 use std::fs::File;
@@ -41,11 +42,13 @@ pub fn default_roots() -> Vec<PathBuf> {
 /// process environment (an env-mutating test races every other test).
 fn roots_under(home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathBuf> {
     // The hub cache sits wherever its owner put it — huggingface_hub's
-    // constants.py fallback order: HF_HUB_CACHE, then $HF_HOME/hub, then
+    // constants.py fallback order: HF_HUB_CACHE, then the legacy
+    // HUGGINGFACE_HUB_CACHE, then $HF_HOME/hub, then
     // $XDG_CACHE_HOME/huggingface/hub, then the default. Wherever the cache
     // moved, it keeps the hub's FIRST place: the ordering ranks programs,
     // and a relocated cache is the same program's cache.
     let hub = env_path(env("HF_HUB_CACHE"), home)
+        .or_else(|| env_path(env("HUGGINGFACE_HUB_CACHE"), home))
         .or_else(|| env_path(env("HF_HOME"), home).map(|base| base.join("hub")))
         .or_else(|| {
             env_path(env("XDG_CACHE_HOME"), home).map(|base| base.join("huggingface/hub"))
@@ -144,13 +147,14 @@ fn scan(dir: &Path, size: u64, sha256: &str, depth: usize) -> Option<PathBuf> {
 
 fn home() -> Option<PathBuf> {
     #[cfg(unix)]
-    {
-        std::env::var_os("HOME").map(PathBuf::from)
-    }
+    let name = "HOME";
     #[cfg(windows)]
-    {
-        std::env::var_os("USERPROFILE").map(PathBuf::from)
-    }
+    let name = "USERPROFILE";
+    // Absolute-only: an empty or relative home counts as absent, so no
+    // root can come back relative whatever the environment holds. Python
+    // would fall back to the passwd database here; we do not.
+    let path = PathBuf::from(std::env::var_os(name)?);
+    path.is_absolute().then_some(path)
 }
 
 #[cfg(test)]
@@ -253,6 +257,17 @@ mod tests {
 
         let roots = roots_under(&home, lookup(&[("HF_HOME", "/hf/home")]));
         assert_eq!(roots[0], PathBuf::from("/hf/home/hub"));
+
+        // constants.py falls back from HF_HUB_CACHE to the legacy
+        // HUGGINGFACE_HUB_CACHE before anything else - and HF_HUB_CACHE
+        // still wins over it.
+        let roots = roots_under(&home, lookup(&[("HUGGINGFACE_HUB_CACHE", "/legacy/hub")]));
+        assert_eq!(roots[0], PathBuf::from("/legacy/hub"));
+        let roots = roots_under(
+            &home,
+            lookup(&[("HF_HUB_CACHE", "/moved/hub"), ("HUGGINGFACE_HUB_CACHE", "/legacy/hub")]),
+        );
+        assert_eq!(roots[0], PathBuf::from("/moved/hub"));
 
         // constants.py falls back to XDG_CACHE_HOME when HF_HOME is unset.
         let roots = roots_under(&home, lookup(&[("XDG_CACHE_HOME", "/xdg/cache")]));
