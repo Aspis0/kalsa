@@ -46,10 +46,12 @@ describe("the v2 menu dismiss path", () => {
     expect(stripComments(CONVERSATION_LIST)).toContain('testID="conversationList.rows"');
   });
 
-  it("keeps the row action accessible without a touch long press", () => {
+  it("keeps row actions visible and accessible without a touch long press", () => {
     const list = stripComments(CONVERSATION_LIST);
-    expect(list).toMatch(/accessibilityActions=\{\s*item\.onLongPress\s*\?/);
-    expect(list).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
+    expect(list).toContain('testID={`conversationList.actions.${item.id}`}');
+    expect(list).toContain('accessibilityLabel={t("drawer.conversationActionsFor", { title: item.title })}');
+    expect(list).toContain("onPress={item.onActionsPress}");
+    expect(list).not.toContain("onLongPress");
   });
 });
 

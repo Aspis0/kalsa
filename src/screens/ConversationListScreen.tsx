@@ -1,7 +1,7 @@
 /** Full-screen, searchable conversation destination opened from the menu. */
 import { BackHandler, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useCallback, useEffect } from "react";
-import { ChevronRight, MessageSquare, Search, X } from "lucide-react-native";
+import { ChevronRight, EllipsisVertical, MessageSquare, Search, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
 import { families, modes, radius, space, type, type ThemeMode } from "../theme/design";
@@ -98,54 +98,66 @@ export function ConversationListScreen({ items, query, onQueryChange, onBack }: 
           </Text>
         ) : (
           items.map((item) => (
-            <Pressable
+            <View
               key={item.id}
-              testID={`conversationList.row.${item.id}`}
-              onPress={item.onPress}
-              onLongPress={item.onLongPress}
-              delayLongPress={380}
-              accessibilityRole="button"
-              accessibilityLabel={item.title}
-              accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}
-              accessibilityActions={
-                item.onLongPress
-                  ? [{ name: "conversationActions", label: t("drawer.conversationActions") }]
-                  : undefined
-              }
-              onAccessibilityAction={({ nativeEvent }) => {
-                if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();
-              }}
-              accessibilityState={{ selected: Boolean(item.active) }}
-              style={({ pressed }) => ({
-                flex: 0,
-                minHeight: 64,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: space.sm,
-                paddingHorizontal: space.xs,
-                borderRadius: radius.row,
-                backgroundColor: item.active || pressed ? colors.tint : "transparent",
-              })}
+              style={{ flexDirection: "row", alignItems: "center", minHeight: 64, gap: space.xs }}
             >
-              <MessageSquare size={20} color={colors.accent} strokeWidth={1.75} />
-              <View style={{ flex: 1, minWidth: 0, paddingVertical: space.xs }}>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    type.headline,
-                    { color: colors.ink, fontFamily: item.active ? families.sansSemi : families.sans },
-                  ]}
-                >
-                  {item.title}
-                </Text>
-                {item.preview ? (
-                  <Text numberOfLines={1} style={[type.secondary, { color: colors.ink3, marginTop: 1 }]}>
-                    {item.preview}
+              <Pressable
+                testID={`conversationList.row.${item.id}`}
+                onPress={item.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={item.title}
+                accessibilityState={{ selected: Boolean(item.active) }}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 64,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: space.sm,
+                  paddingHorizontal: space.xs,
+                  borderRadius: radius.row,
+                  backgroundColor: item.active || pressed ? colors.tint : "transparent",
+                })}
+              >
+                <MessageSquare size={20} color={colors.accent} strokeWidth={1.75} />
+                <View style={{ flex: 1, minWidth: 0, paddingVertical: space.xs }}>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      type.headline,
+                      { color: colors.ink, fontFamily: item.active ? families.sansSemi : families.sans },
+                    ]}
+                  >
+                    {item.title}
                   </Text>
-                ) : null}
-              </View>
-              <ChevronRight size={16} color={colors.ink3} strokeWidth={1.75} />
-            </Pressable>
+                  {item.preview ? (
+                    <Text numberOfLines={1} style={[type.secondary, { color: colors.ink3, marginTop: 1 }]}>
+                      {item.preview}
+                    </Text>
+                  ) : null}
+                </View>
+                <ChevronRight size={16} color={colors.ink3} strokeWidth={1.75} />
+              </Pressable>
+              {item.onActionsPress ? (
+                <Pressable
+                  testID={`conversationList.actions.${item.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("drawer.conversationActionsFor", { title: item.title })}
+                  onPress={item.onActionsPress}
+                  style={({ pressed }) => ({
+                    width: 48,
+                    height: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: radius.button,
+                    backgroundColor: pressed ? colors.tint : "transparent",
+                  })}
+                >
+                  <EllipsisVertical size={20} color={colors.ink2} strokeWidth={1.75} />
+                </Pressable>
+              ) : null}
+            </View>
           ))
         )}
       </ScrollView>

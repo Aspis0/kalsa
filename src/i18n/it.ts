@@ -47,8 +47,7 @@ export const it: typeof en = {
     deleteAction: "Elimina chat",
     exportConversationA11y: "Esporta la chat {title}",
     deleteConversationA11y: "Elimina la chat {title}",
-    conversationActions: "Azioni chat",
-    conversationActionsHint: "Apre le azioni di questa conversazione.",
+    conversationActionsFor: "Azioni per {title}",
     deleteChatConfirm: "Eliminare questa conversazione?",
     notes: "Note",
     personas: "Persona",
@@ -478,7 +477,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     modelLocation: {
       title: "Dove gira il modello",
       body:
-        "In modalità locale, il modello gira su questo telefono; la conversazione non viene inviata a un altro computer per rispondere. Più avanti potrà girare sul tuo computer con Kalsa desktop, e la pill in alto indica dove gira. In modalità computer restano disattivati strumenti, estrazione della memoria, traduzione ed embedding. Quando la modalità computer sarà disponibile: Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti.",
+        "In modalità locale, il modello gira su questo telefono; la conversazione non viene inviata a un altro computer per rispondere. La modalità computer è disponibile: il modello gira sul tuo computer con Kalsa desktop, e la pill in alto indica da dove arrivano le risposte. Quando usi la modalità computer, si applica questa informativa. Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti. In questa modalità restano disattivati strumenti, estrazione della memoria, traduzione ed embedding.",
     },
     deviceData: {
       title: "Cosa resta sul dispositivo",
@@ -488,7 +487,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     computer: {
       title: "Usare il tuo computer (Kalsa desktop)",
       body:
-        "Quando la modalità computer sarà disponibile, potrai usare la tua rete privata (Tailscale) oppure Pro, che predisporrà il collegamento per te.",
+        "La modalità computer è disponibile con Kalsa desktop. Nelle Impostazioni scegli dove gira il modello; la pill in alto mostra la scelta attuale.",
     },
     models: {
       title: "I modelli",

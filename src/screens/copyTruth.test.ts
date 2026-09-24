@@ -223,7 +223,12 @@ describe("copy that remains truthful across local and computer modes", () => {
       ? /files themselves are not sent/i
       : /file non vengono inviati/i);
 
-    expect(catalog.help.computer.body).toMatch(catalog === en ? /when computer mode is available/i : /quando la modalità computer sarà disponibile/i);
+    expect(location).toMatch(catalog === en ? /computer mode is available/i : /modalità computer è disponibile/i);
+    expect(location).toMatch(catalog === en ? /pill at the top/i : /pill in alto/i);
+    expect(location).toMatch(catalog === en ? /when you use computer mode, this disclosure applies/i : /quando usi la modalità computer, si applica questa informativa/i);
+    expect(catalog.help.computer.body).toMatch(catalog === en ? /computer mode is available/i : /modalità computer è disponibile/i);
+    expect(catalog.help.computer.body).toMatch(catalog === en ? /pill at the top/i : /pill in alto/i);
+    expect(location).not.toMatch(catalog === en ? /later|when computer mode is available/i : /più avanti|quando la modalità computer sarà disponibile/i);
     expect(rendered.join(" ")).not.toMatch(/QR|camera|scan(?:ning)?|fotocamera|scansion/i);
     expect(rendered.join(" ")).not.toMatch(/Remote brain|Cervello remoto/i);
   });

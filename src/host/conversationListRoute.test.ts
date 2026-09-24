@@ -25,12 +25,18 @@ jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({
 jest.mock("lucide-react-native", () => ({
   ChevronLeft: "ChevronLeft",
   ChevronRight: "ChevronRight",
+  EllipsisVertical: "EllipsisVertical",
   MessageSquare: "MessageSquare",
   Plus: "Plus",
   Search: "Search",
   X: "X",
 }));
-jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key }) }));
+jest.mock("../i18n", () => ({
+  useLocale: () => ({
+    t: (key: string, params?: Record<string, string>) =>
+      params ? `${key}:${params.title}` : key,
+  }),
+}));
 jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
 jest.mock("../screens/SettingsHeader", () => ({ SettingsHeader: "SettingsHeader" }));
 jest.mock("../../assets/icon.png", () => "brand-icon");
@@ -124,12 +130,12 @@ describe("conversation list destination", () => {
     expect(setOverlay).toHaveBeenCalledWith({ kind: "conversations" });
   });
 
-  it("keeps the list on a full-height scroll surface and routes selection and accessible actions", () => {
+  it("keeps the list scrollable and routes row selection and visible accessible actions", () => {
     const onPress = jest.fn();
-    const onLongPress = jest.fn();
+    const onActionsPress = jest.fn();
     const onQueryChange = jest.fn();
     const screen = ConversationListScreen({
-      items: [{ id: "chat-1", title: "Planning", preview: "Next steps", active: true, onPress, onLongPress }],
+      items: [{ id: "chat-1", title: "Planning", preview: "Next steps", active: true, onPress, onActionsPress }],
       query: "plan",
       onQueryChange,
       onBack: jest.fn(),
@@ -140,14 +146,17 @@ describe("conversation list destination", () => {
 
     const row = pressableTree(screen, "conversationList.row.chat-1");
     expect(row.props.accessibilityState).toEqual({ selected: true });
-    expect(row.props.style({ pressed: false })).toMatchObject({ flex: 0, minHeight: 64 });
-    expect(row.props.accessibilityActions).toEqual([
-      { name: "conversationActions", label: "drawer.conversationActions" },
-    ]);
+    expect(row.props.style({ pressed: false })).toMatchObject({ flex: 1, minHeight: 64 });
+    expect(row.props).not.toHaveProperty("onLongPress");
     row.props.onPress();
-    row.props.onAccessibilityAction({ nativeEvent: { actionName: "conversationActions" } });
+
+    const actions = pressableTree(screen, "conversationList.actions.chat-1");
+    expect(actions.props.accessibilityRole).toBe("button");
+    expect(actions.props.accessibilityLabel).toBe("drawer.conversationActionsFor:Planning");
+    expect(actions.props.style({ pressed: false })).toMatchObject({ width: 48, height: 48 });
+    actions.props.onPress();
     expect(onPress).toHaveBeenCalledTimes(1);
-    expect(onLongPress).toHaveBeenCalledTimes(1);
+    expect(onActionsPress).toHaveBeenCalledTimes(1);
 
     pressableTree(screen, "conversationList.search").props.onChangeText("plan revised");
     expect(onQueryChange).toHaveBeenCalledWith("plan revised");
@@ -158,8 +167,14 @@ describe("conversation list destination", () => {
     const setOverlay = jest.fn();
     const onExportPress = jest.fn();
     const conversations = { activeId: "active", items: [] };
-    const drawerConversationItems = jest.fn((_state, _query, _onActionSheetOpen, onExport) => {
-      return [{ id: "row-chat", title: "Older chat", onPress: switchConversation, export: onExport }];
+    const drawerConversationItems = jest.fn((_state, _query, onActionSheetOpen, onExport) => {
+      return [{
+        id: "row-chat",
+        title: "Older chat",
+        onPress: switchConversation,
+        onActionsPress: () => onActionSheetOpen("row-chat"),
+        export: onExport,
+      }];
     });
     const actions = {
       drawerConversationItems,
@@ -179,9 +194,11 @@ describe("conversation list destination", () => {
     if (!list) throw new Error("HostConversations did not mount the list screen");
     const screen = ConversationListScreen(list.props as any) as Element;
     pressableTree(screen, "conversationList.row.row-chat").props.onPress();
+    pressableTree(screen, "conversationList.actions.row-chat").props.onPress();
     expect(setOverlay).toHaveBeenCalledWith(null);
     expect(switchConversation).toHaveBeenCalledTimes(1);
     expect(drawerConversationItems).toHaveBeenCalledWith(conversations, "older", expect.any(Function), onExportPress);
+    expect(drawerConversationItems.mock.calls[0][2]).toHaveBeenCalledWith("row-chat");
     drawerConversationItems.mock.calls[0][3]("row-chat");
     expect(onExportPress).toHaveBeenCalledWith("row-chat");
   });

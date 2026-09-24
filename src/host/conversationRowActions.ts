@@ -27,7 +27,7 @@ export function buildDrawerConversationItems(
       preview: item.preview,
       active: item.id === conversations.activeId,
       onPress: () => onSwitch(item.id),
-      onLongPress: () => onActionSheetOpen(item.id),
+      onActionsPress: () => onActionSheetOpen(item.id),
       actions: createConversationRowActions(item.id, title, t, onExport, onDelete),
     };
   });

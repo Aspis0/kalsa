@@ -48,8 +48,7 @@ export const en = {
     deleteAction: "Delete chat",
     exportConversationA11y: "Export chat {title}",
     deleteConversationA11y: "Delete chat {title}",
-    conversationActions: "Chat actions",
-    conversationActionsHint: "Opens actions for this conversation.",
+    conversationActionsFor: "Actions for {title}",
     deleteChatConfirm: "Delete this conversation?",
     notes: "Notes",
     personas: "Persona",
@@ -483,7 +482,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     modelLocation: {
       title: "Where the model runs",
       body:
-        "In local mode, the model runs on this phone; the conversation is not sent to another computer to answer. Later, it can run on your computer with Kalsa desktop, and the pill at the top shows where it runs. In computer mode, tools, memory extraction, translation and embeddings stay off. When computer mode is available: To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names.",
+        "In local mode, the model runs on this phone; the conversation is not sent to another computer to answer. Computer mode is available: the model runs on your computer with Kalsa desktop, and the pill at the top shows where answers come from. When you use computer mode, this disclosure applies. To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names. Tools, memory extraction, translation and embeddings stay off in this mode.",
     },
     deviceData: {
       title: "What stays on this device",
@@ -493,7 +492,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     computer: {
       title: "Using your computer (Kalsa desktop)",
       body:
-        "When computer mode is available, you can use your private network (Tailscale) or Pro, which will set up the connection for you.",
+        "Computer mode is available with Kalsa desktop. In Settings, choose where the model runs; the pill at the top shows the current choice.",
     },
     models: {
       title: "Models",

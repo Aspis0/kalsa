@@ -107,7 +107,7 @@ describe("shareConversation — one sheet, or none", () => {
   });
 });
 
-/** Chat-level actions stay attached to the long-pressed conversation row. */
+/** Chat-level actions stay attached to their conversation row. */
 describe("the conversation row action sheet", () => {
   const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
   const stripComments = (source: string): string =>
@@ -204,7 +204,7 @@ describe("the conversation row action sheet", () => {
     const rowsBuilder = stripComments(read("conversationRowActions.ts"));
     expect(rowsBuilder).toContain("filterConversations(conversations.items, query).map((item)");
     expect(rowsBuilder).toContain("createConversationRowActions(item.id, title, t, onExport, onDelete)");
-    expect(rowsBuilder).toContain("onLongPress: () => onActionSheetOpen(item.id)");
+    expect(rowsBuilder).toContain("onActionsPress: () => onActionSheetOpen(item.id)");
   });
 
   it("wires HostDrawer's sheet and drawer closers to their named behaviors", () => {
@@ -249,12 +249,13 @@ describe("the conversation row action sheet", () => {
     expect(events).toEqual(["close-sheet", "delete:row-id"]);
   });
 
-  it("routes long press through the shell sheet to the id-aware root handler", () => {
+  it("routes the visible row action control through the shell sheet to the id-aware root handler", () => {
     const list = stripComments(read("../screens/ConversationListScreen.tsx"));
     const listHost = stripComments(read("HostConversations.tsx"));
     const layout = stripComments(read("HostLayout.tsx"));
     const root = stripComments(read("HostRoot.tsx"));
-    expect(list).toContain("onLongPress={item.onLongPress}");
+    expect(list).toContain("onPress={item.onActionsPress}");
+    expect(list).not.toContain("onLongPress");
     expect(listHost).toContain("title={selectedConversation.title}");
     expect(listHost).toContain("bindConversationRowActions(");
     expect(listHost).toContain("<AttachSheet");

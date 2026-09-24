@@ -49,11 +49,14 @@ describe("the full-height v2 menu", () => {
     expect(list).toContain("item.preview");
   });
 
-  it("offers row actions through an accessible action on the full-screen list", () => {
+  it("offers row actions as a visible, named control with no gesture dependency", () => {
     const list = CODE(readFileSync(join(__dirname, "../../screens/ConversationListScreen.tsx"), "utf8"));
-    expect(list).toMatch(/accessibilityActions=\{\s*item\.onLongPress\s*\?/);
-    expect(list).toContain('accessibilityHint={item.onLongPress ? t("drawer.conversationActionsHint") : undefined}');
-    expect(list).toContain('if (nativeEvent.actionName === "conversationActions") item.onLongPress?.();');
+    expect(list).toContain('testID={`conversationList.actions.${item.id}`}');
+    expect(list).toContain('accessibilityLabel={t("drawer.conversationActionsFor", { title: item.title })}');
+    expect(list).toContain("onPress={item.onActionsPress}");
+    expect(list).toContain("<EllipsisVertical");
+    expect(list).not.toContain("onLongPress");
+    expect(list).not.toContain("delayLongPress");
   });
 
   it("shows the five unboxed global footer destinations in the specified order", () => {

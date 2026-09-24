@@ -29,7 +29,7 @@ export type DrawerConversationItem = {
   preview?: string;
   active?: boolean;
   onPress: () => void;
-  onLongPress?: () => void;
+  onActionsPress?: () => void;
   actions?: readonly DrawerConversationAction[];
 };
 
