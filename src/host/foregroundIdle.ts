@@ -14,10 +14,10 @@
  * (`App:3124-3125` — row 35's strip hint was never lifted and D1:38 dropped
  * the banner). The download-start bump (`App:4676`) and `downloadInFlight`
  * in the in-flight read are WITH the download system now
- * (`useModelDownload.ts`). Residency truth after a dispose is carried by one
- * re-render:
- * the composer already maps `ready && !engineResident` to its `unloaded`
- * hold line (`composerPhase.ts:44`).
+ * (`useModelDownload.ts`). Residency after a dispose arrives as one
+ * re-render, and it holds nothing: `ready && !engineResident` is not a hold
+ * (`composerPhase.ts`) — a disposed engine stays sendable and the next send
+ * reloads it through the ensure path, so a dispose paints no hold line.
  */
 import { useEffect, useState } from "react";
 import { AppState, Keyboard, type AppStateStatus } from "react-native";

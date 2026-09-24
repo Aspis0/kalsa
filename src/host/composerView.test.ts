@@ -59,6 +59,29 @@ describe("the send face counts rows as something to send (controller Chat:3603)"
   });
 });
 
+describe("a ready model the engine does not hold (the idle unload) still sends", () => {
+  it("keeps the face enabled over a typed draft — the send reloads through ensure", () => {
+    const view = composerView(input({ engineResident: false, draft: "ciao" }));
+    expect(view.sendEnabled).toBe(true);
+    expect(view.composer.hold).toBeNull();
+    expect(view.composer.faceEnabled).toBe(true);
+  });
+
+  it("a missing or error model still holds with the unloaded line", () => {
+    for (const modelState of ["missing", "error"] as const) {
+      const view = composerView(input({ modelState, draft: "ciao" }));
+      expect(view.sendEnabled).toBe(false);
+      expect(view.composer.hold).toBe("shell.held.unloaded");
+    }
+  });
+
+  it("once the send's reload is running, the prefill line holds (truthful while it reloads)", () => {
+    const view = composerView(input({ engineResident: false, draft: "ciao", sending: true }));
+    expect(view.sendEnabled).toBe(false);
+    expect(view.composer.hold).toBe("shell.held.prefill");
+  });
+});
+
 describe("a converting PDF is the composer's own phase (controller Chat:3620)", () => {
   it("holds with `converting` and refuses the send", () => {
     const view = composerView(input({ converting: true }));

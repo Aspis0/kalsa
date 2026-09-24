@@ -37,7 +37,7 @@ jest.mock("./shellStyles", () => ({
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import type { DesignColors } from "../../theme/design";
-import { ShellComposer } from "./ShellComposer";
+import { ShellComposer, type ShellComposerProps } from "./ShellComposer";
 
 const colors = {
   surface: "#fff",
@@ -70,6 +70,58 @@ describe("ShellComposer field naming", () => {
     expect(input.props.accessibilityLabel).toBe("Message input");
     expect(input.props.accessibilityLabel.trim()).not.toBe("");
 
+    await act(async () => renderer.unmount());
+  });
+});
+
+describe("the keyboard's Send key obeys the button's gate", () => {
+  const defaults: ShellComposerProps = {
+    height: 60,
+    bottomOffset: 0,
+    colors,
+    draft: "ciao",
+    editable: true,
+    face: "send",
+    faceEnabled: true,
+    sendEnabled: true,
+  };
+
+  async function mount(over: Partial<ShellComposerProps>) {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(React.createElement(ShellComposer, { ...defaults, ...over }));
+    });
+    return renderer;
+  }
+
+  function submit(renderer: ReactTestRenderer): void {
+    renderer.root.findByProps({ testID: "shell.composer.field" }).props.onSubmitEditing();
+  }
+
+  test("enabled control → submit fires the button's own onSendPress", async () => {
+    const onSendPress = jest.fn();
+    const renderer = await mount({ onSendPress });
+    submit(renderer);
+    expect(onSendPress).toHaveBeenCalledTimes(1);
+    await act(async () => renderer.unmount());
+  });
+
+  test.each([
+    ["a held send face", { sendEnabled: false } satisfies Partial<ShellComposerProps>],
+    ["a disabled control", { faceEnabled: false } satisfies Partial<ShellComposerProps>],
+  ])("%s → submit does nothing", async (_name, over) => {
+    const onSendPress = jest.fn();
+    const renderer = await mount({ onSendPress, ...over });
+    submit(renderer);
+    expect(onSendPress).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  test("the stop face submits through the same onSendPress (the stop wiring)", async () => {
+    const onSendPress = jest.fn();
+    const renderer = await mount({ onSendPress, face: "stop", sendEnabled: false });
+    submit(renderer);
+    expect(onSendPress).toHaveBeenCalledTimes(1);
     await act(async () => renderer.unmount());
   });
 });

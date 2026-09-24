@@ -46,8 +46,8 @@ describe("hostComposerPhase", () => {
     );
   });
 
-  test("bundle on disk but engine not resident → unloaded (the pill's tap loads it)", () => {
-    expect(phase({ engineResident: false })).toBe("unloaded");
+  test("ready but not resident after an idle unload → idle: the send reloads, so nothing holds", () => {
+    expect(phase({ engineResident: false })).toBe("idle");
   });
 
   test("missing and error are both 'not loaded' for the composer", () => {

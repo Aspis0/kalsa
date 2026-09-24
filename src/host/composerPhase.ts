@@ -53,7 +53,12 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   if (!input.historyLoaded) return "loading";
   if (input.modelState === "checking" || input.modelState === "loading") return "loading";
   if (input.modelState === "downloading") return "loading";
-  if (input.modelState === "ready" && !input.engineResident) return "unloaded";
+  // Ready but not resident (idle unload) is NOT a hold: the send reloads
+  // the model through the ensure path (`engineTurn.ts`), as the old flow did
+  // — while the reload runs the composer is already `sending`, so the user
+  // sees the prefill line, not a dead control. Only a genuinely missing or
+  // dead bundle keeps the hold.
+  if (input.modelState === "ready" && !input.engineResident) return "idle";
   if (input.modelState === "missing" || input.modelState === "error") return "unloaded";
   return "idle";
 }

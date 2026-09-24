@@ -109,6 +109,12 @@ export function ShellComposer({
             editable={editable}
             style={styles.input}
             returnKeyType="send"
+            onSubmitEditing={() => {
+              // The IME's Send key goes through the button's own gate and its
+              // own wiring, never a parallel send: the old composer's
+              // `onSubmitEditing` sent the same draft (`AiChatPage.tsx:4370-4375`).
+              if (canActivate) onSendPress?.();
+            }}
           />
         </Pressable>
 
