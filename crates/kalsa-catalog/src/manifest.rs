@@ -226,8 +226,8 @@ impl ModelEntry {
                          exceeds the shared 96 KiB assumption: a context sized on the \
                          assumption would be sized on a figure known to be too small for \
                          the cache the server will allocate. Measure the cache — the pinned \
-                         file's GGUF header or the published config — and it is offerable \
-                         again.",
+                         file's GGUF header or the published config — and this gate no \
+                         longer refuses it.",
             };
         }
         match self.stale {
