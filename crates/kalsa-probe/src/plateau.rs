@@ -27,10 +27,10 @@ pub fn plateau(ramp: &[(usize, f64)]) -> Option<(usize, f64)> {
 }
 
 /// True when the last step was still the best one: the ramp never flattened.
-/// The shape alone convicts nothing: a ramp that ran to every thread it was
-/// asked for has left no parallelism behind, and a busy machine is what
-/// `confidence`'s parallelism check catches. `judge` counts this flag only
-/// below the ramp's ceiling.
+/// The shape alone convicts nothing — `judge` counts it only while the ramp
+/// sits below the machine's parallelism (there an unflattened tail means
+/// untried parallelism), and leaves the busy half to `confidence`'s
+/// parallelism check.
 pub fn still_rising(ramp: &[(usize, f64)]) -> bool {
     match (plateau(ramp), ramp.last()) {
         (Some((plateau_threads, _)), Some((last_threads, _))) => plateau_threads == *last_threads,

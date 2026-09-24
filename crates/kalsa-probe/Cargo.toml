@@ -16,6 +16,14 @@ serde = { version = "1", features = ["derive"] }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Same diagnostic on Windows: `GetProcessTimes` (this process's kernel and
+# user time) behind `cpu_seconds`, so the parallelism check runs there too.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+] }
+
 [[bin]]
 name = "kalsa-probe"
 path = "src/bin/kalsa-probe.rs"

@@ -51,11 +51,12 @@ pub struct Evidence {
     pub best_rate: f64,
     /// The ramp never flattened: the last step was still the fastest.
     pub still_rising: bool,
-    /// Threads the ramp was asked to reach — its ceiling. `still_rising`
-    /// counts against reliability only below this: a ramp that ran to every
-    /// thread it was asked for has left no parallelism behind, and the busy
+    /// Every logical core the OS says this process may use. The claim
+    /// `still_rising` makes is about the machine — "more parallelism than
+    /// the ramp reached" — so the note counts only below this: a ramp that
+    /// reached every core cannot have left parallelism behind, and the busy
     /// half of that flag's sentence is the parallelism check's own.
-    pub ramp_ceiling: usize,
+    pub machine_parallelism: usize,
     pub cache_rate: Option<f64>,
     /// Whether the probe itself was compiled with optimisations. It is not a
     /// fact about the machine, which is why it is the one note that does not
@@ -76,17 +77,18 @@ pub fn judge(evidence: &Evidence) -> Reliability {
             evidence.spread * 100.0
         ));
     }
-    // A rising ramp condemns only a ramp that stopped short: at the ceiling
-    // "more parallelism than the ramp reached" is impossible by
-    // construction, and whatever was taking cores is what the parallelism
-    // check below is for.
-    if evidence.still_rising && evidence.plateau_threads < evidence.ramp_ceiling {
+    // A rising ramp condemns only a ramp that stopped below what the machine
+    // has: at the machine's full parallelism "more parallelism than the ramp
+    // reached" is impossible by construction, and whatever was taking cores
+    // is what the parallelism check below is for. The requested thread count
+    // would be the wrong line — a caller may cap the ramp below the machine,
+    // and there a rising tail really does mean untried parallelism.
+    if evidence.still_rising && evidence.plateau_threads < evidence.machine_parallelism {
         notes.push(format!(
-            "the throughput was still climbing at the last thread count tried, and the \
-             ramp stopped short of the {} threads it was asked to reach: the machine \
-             has more parallelism than the ramp reached, or something was taking cores \
-             during the run",
-            evidence.ramp_ceiling
+            "the throughput was still climbing at the last thread count tried: the ramp \
+             settled at {} of the machine's {} logical threads, so the machine has more \
+             parallelism than the ramp reached, or something was taking cores during the run",
+            evidence.plateau_threads, evidence.machine_parallelism
         ));
     }
     if let Some(parallelism) = evidence.effective_parallelism {
@@ -131,8 +133,11 @@ pub fn judge(evidence: &Evidence) -> Reliability {
 
 /// CPU time this process has used (user + system), when the platform says.
 ///
-/// Unix only: Windows would need another dependency for one diagnostic, and the
-/// parallelism check simply does not run there.
+/// Unix reads `getrusage(RUSAGE_SELF)`; Windows reads `GetProcessTimes` —
+/// this process's kernel and user time, FILETIME's 100 ns ticks divided to
+/// seconds. The same sum in different units, so the parallelism check runs
+/// on either; a platform that answers neither gets `None` and the check
+/// simply does not run there.
 pub fn cpu_seconds() -> Option<f64> {
     #[cfg(unix)]
     {
@@ -144,7 +149,43 @@ pub fn cpu_seconds() -> Option<f64> {
         let sys = usage.ru_stime.tv_sec as f64 + usage.ru_stime.tv_usec as f64 / 1e6;
         Some(user + sys)
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::FILETIME;
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
+        let ticks = |time: &FILETIME| -> f64 {
+            ((u64::from(time.dwHighDateTime) << 32) | u64::from(time.dwLowDateTime)) as f64
+                / 10_000_000.0
+        };
+        let mut creation = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
+        let mut exit = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
+        let mut kernel = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
+        let mut user = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
+        // GetCurrentProcess is a pseudo-handle: nothing to close after.
+        let ok = unsafe {
+            GetProcessTimes(
+                GetCurrentProcess(),
+                &mut creation,
+                &mut exit,
+                &mut kernel,
+                &mut user,
+            )
+        };
+        (ok != 0).then(|| ticks(&kernel) + ticks(&user))
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         None
     }
@@ -163,7 +204,7 @@ mod tests {
             spread: 0.02,
             best_rate: 110.0e9,
             still_rising: false,
-            ramp_ceiling: 16,
+            machine_parallelism: 16,
             cache_rate: Some(300.0e9),
             optimised: true,
         }
@@ -257,9 +298,9 @@ mod tests {
         (8, 53.2e9),
     ];
 
-    /// Evidence the way `measure` builds it: the plateau and the raw flag
-    /// from the same ramp, the ceiling from what the ramp was asked to reach.
-    fn evidence_of(ramp: &[(usize, f64)], ramp_ceiling: usize) -> Evidence {
+    /// Evidence the way `measure` builds it: plateau and raw flag from the
+    /// same ramp, machine parallelism whatever the machine reports.
+    fn evidence_of(ramp: &[(usize, f64)], machine_parallelism: usize) -> Evidence {
         let (plateau_threads, _) = plateau(ramp).expect("a plateau");
         Evidence {
             plateau_threads,
@@ -271,14 +312,18 @@ mod tests {
                 .map(|(_, rate)| *rate)
                 .fold(0.0_f64, f64::max),
             still_rising: still_rising(ramp),
-            ramp_ceiling,
+            machine_parallelism,
             cache_rate: Some(300.0e9),
             optimised: true,
         }
     }
 
     #[test]
-    fn a_ramp_that_reached_every_thread_it_was_asked_for_is_reliable() {
+    fn a_ramp_that_reached_every_logical_thread_is_reliable() {
+        // The Surface's default config: config.threads = available_parallelism
+        // = 8, and the tail still climbs past the tolerance — but the ramp
+        // reached every thread the machine has, so there is no untried
+        // parallelism to claim.
         let input = evidence_of(&SURFACE_RUN_1, 8);
         assert_eq!(
             input.plateau_threads, 8,
@@ -294,12 +339,15 @@ mod tests {
     }
 
     #[test]
-    fn a_ramp_that_stopped_short_of_its_ceiling_is_still_flagged() {
-        // The same shape, but the ramp stopped at eight of the sixteen
-        // threads it was asked to reach: "more parallelism than the ramp
-        // reached" is possible again, and is worth a retry.
-        let input = evidence_of(&SURFACE_RUN_1, 16);
-        assert!(input.still_rising);
+    fn a_ramp_stopped_short_of_the_machine_is_still_flagged() {
+        // A shape `measure` really produces: a caller caps the ramp at four
+        // threads on this eight-logical machine (`thread_ramp(4)` = 1, 2, 4)
+        // and the tail is still climbing at the cap. "More parallelism than
+        // the ramp reached" is exactly true there — worth a retry.
+        let capped = &SURFACE_RUN_1[..3];
+        let input = evidence_of(capped, 8);
+        assert_eq!(input.plateau_threads, 4, "the plateau is the last step");
+        assert!(input.still_rising, "the raw flag fires on this shape");
         let verdict = judge(&input);
         assert!(!verdict.reliable, "{:?}", verdict.notes);
         assert!(verdict
@@ -311,8 +359,8 @@ mod tests {
     #[test]
     fn a_ramp_at_its_ceiling_still_refuses_when_the_cores_were_taken() {
         // The handoff the flag's sentence promises: with the climbing note
-        // suppressed at the ceiling, the busy half must come from the
-        // parallelism check — and it does.
+        // suppressed at the top of the machine, the busy half must come from
+        // the parallelism check — and it does.
         let mut input = evidence_of(&SURFACE_RUN_1, 8);
         input.effective_parallelism = Some(2.0);
         let verdict = judge(&input);
@@ -322,5 +370,25 @@ mod tests {
             .iter()
             .any(|note| note.contains("still climbing")));
         assert!(verdict.notes.iter().any(|note| note.contains("busy")));
+    }
+
+    /// Windows reports this process's CPU time too — without it a steadily
+    /// contended Windows machine would pass the parallelism check by never
+    /// having one, and be saved as a baseline.
+    #[cfg(windows)]
+    #[test]
+    fn cpu_seconds_on_windows_reports_and_grows_with_work() {
+        let before = cpu_seconds().expect("Windows reports this process's CPU time");
+        let started = std::time::Instant::now();
+        let mut sink = 0u64;
+        while started.elapsed() < std::time::Duration::from_millis(200) {
+            sink = sink.wrapping_mul(3).wrapping_add(1);
+        }
+        std::hint::black_box(sink);
+        let after = cpu_seconds().expect("Windows reports this process's CPU time");
+        assert!(
+            after > before,
+            "CPU seconds must grow with work: {before} -> {after}"
+        );
     }
 }

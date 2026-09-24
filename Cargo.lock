@@ -2678,6 +2678,7 @@ version = "0.0.1"
 dependencies = [
  "libc",
  "serde",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

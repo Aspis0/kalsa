@@ -213,6 +213,16 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
     std::hint::black_box(started.elapsed());
     std::hint::black_box(cpu_before);
 
+    // The rising flag's first clause is a claim about the machine — "more
+    // parallelism than the ramp reached" — so the judge compares against
+    // every logical core the OS allows this process, not against the thread
+    // count we happened to request: a caller may cap the ramp below the
+    // machine, and there a rising tail really does mean untried
+    // parallelism. Where the OS will not say, fall back to what was asked —
+    // equal values suppress the flag rather than claim the unprovable.
+    let machine_parallelism = std::thread::available_parallelism()
+        .map(|cores| cores.get())
+        .unwrap_or(config.threads);
     let reliability = confidence::judge(&confidence::Evidence {
         plateau_threads,
         tried_threads: plateau_threads,
@@ -220,7 +230,7 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
         spread: ceiling.relative_spread(),
         best_rate: ceiling_rate,
         still_rising: still_rising(&ramp),
-        ramp_ceiling: config.threads,
+        machine_parallelism,
         cache_rate: Some(cache.max()).filter(|rate| *rate > 0.0),
         optimised: OPT_LEVEL != "0",
     });
