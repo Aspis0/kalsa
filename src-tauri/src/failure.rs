@@ -382,7 +382,7 @@ mod tests {
             "the repetitions disagreed by 35%: something else was using this machine \
              while it was measured"
                 .to_string(),
-            "the probe's threads received 0.5 cores of the 10 it asked for: the machine \
+            "this process received 0.5 cores while the probe ran 10 threads: the machine \
              is busy"
                 .to_string(),
         ]));
@@ -391,7 +391,7 @@ mod tests {
             "This computer could not be measured just now — it may be busy. \
              The repetitions disagreed by 35%: something else was using this machine \
              while it was measured. \
-             The probe's threads received 0.5 cores of the 10 it asked for: the machine \
+             This process received 0.5 cores while the probe ran 10 threads: the machine \
              is busy. \
              Waiting a moment and turning on again usually works."
         );

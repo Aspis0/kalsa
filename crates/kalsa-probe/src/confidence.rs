@@ -17,9 +17,11 @@
 /// Repetitions that disagree by more than this were measured under a load that
 /// changed during the run. A quiet machine lands at 1–4%.
 pub const SPREAD_LIMIT: f64 = 0.20;
-/// Share of the requested threads that must actually receive CPU time. Loose on
-/// purpose: the memory system saturates with a handful of threads, so a machine
-/// that lost half of them to something else still measures the same number (four
+/// Floor on the measured parallelism — this process's CPU seconds per wall
+/// second over the probe window — as a share of the threads the probe ran:
+/// below half of them, the machine is busy. Loose on purpose: the memory
+/// system saturates with a handful of threads, so a machine that lost half
+/// of them to something else still measures the same number (four
 /// synchronized processes on an M1 Max add up to the same ~110 GB/s as one).
 pub const PARALLELISM_FLOOR: f64 = 0.5;
 
@@ -99,7 +101,7 @@ pub fn judge(evidence: &Evidence) -> Reliability {
         let wanted = evidence.tried_threads as f64 * PARALLELISM_FLOOR;
         if parallelism < wanted {
             notes.push(format!(
-                "the probe's threads received {:.1} cores of the {} it asked for: the machine \
+                "this process received {:.1} cores while the probe ran {} threads: the machine \
                  is busy",
                 parallelism, evidence.tried_threads
             ));

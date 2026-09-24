@@ -50,10 +50,13 @@ pub const DRAM_BUFFER_BYTES: usize = 256 * 1024 * 1024;
 /// whole ramp stays inside the "few seconds" the product promises.
 pub const RAMP_REPETITIONS: u32 = 3;
 /// Repetitions inside the parallelism window. Each pass runs the workers for
-/// `SAMPLE_TARGET` (60 ms), so ten passes are ~600 ms of worker time: long
-/// enough that Windows' ~10-15 ms CPU-accounting ticks average into a ratio
-/// instead of quantising a floor comparison, and — against a probe that
-/// already costs seconds — the half second is the cheap half.
+/// `SAMPLE_TARGET` (60 ms), so ten sequential passes put ~600 ms of wall time
+/// inside the window: long enough that Windows' ~10-15 ms CPU-accounting
+/// ticks average into a ratio instead of quantising a floor comparison, and —
+/// against a probe that already costs seconds — the half second is the cheap
+/// half. Spawn, join and the result pushes stay inside the window too; their
+/// serial time pulls the ratio a hair toward one, harmless against a floor
+/// set at half the thread count.
 const PARALLELISM_REPETITIONS: u32 = 10;
 /// Buffer for the cache reference: small enough to be served from L2, and large
 /// enough that it is not one core's own loop overhead.

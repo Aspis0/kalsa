@@ -226,12 +226,13 @@ pub(crate) fn acquire_dir_lock(dir: &Path) -> Result<DirLock, LockFailure> {
     // launches, so a scanner/indexer/backup can be holding it for a moment
     // exactly when Kalsa launches — one sharing violation then would have
     // main tell the owner "already running" about a process that is not
-    // Kalsa at all. Fifty milliseconds is one scheduling quantum and amply
-    // longer than a transient open/close pair; twenty steps bound the wait
-    // at one second, so a real second launch still hears "already running"
-    // before a pause would be noticeable. A live Kalsa holds the file for
-    // its whole life and rejects all twenty-one attempts — the guarantee is
-    // unchanged, only the momentary holder is ridden over.
+    // Kalsa at all. Fifty milliseconds is the chosen retry step, amply
+    // longer than a transient open/close pair; twenty steps budget one
+    // second of sleeps, to which the opens and the scheduling around them
+    // add, so a real second launch still hears "already running" without a
+    // noticeable pause. A live Kalsa holds the file for its whole life and
+    // rejects all twenty-one attempts — the guarantee is unchanged, only
+    // the momentary holder is ridden over.
     const RETRY_STEP: Duration = Duration::from_millis(50);
     const RETRY_STEPS: u32 = 20;
     let mut retries = 0u32;
