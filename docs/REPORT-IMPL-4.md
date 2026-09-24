@@ -63,3 +63,10 @@ No screen is DEAD and none is safe to remove now. After full replacements and lo
 - All 59 script paths in `/tmp/pairing-harness-list.txt` were run individually with `node "$script"` — **EXIT=0**, 59/59 passed; per-script results are in `/tmp/kalsa-gesture-harness-status.log`.
 - `git diff --check > /tmp/kalsa-gesture-diff-check.log 2>&1` — **EXIT=0**.
 - Starting HEAD was `dc392594`. No commit, build, install or device swipe was run. The slow-swipe result is the remaining verification required from the owner.
+
+## Follow-up — behavioral row-sheet coverage
+
+- `src/host/conversationListRoute.test.ts:180-245` now drives the list button through its actual `onActionsPress` callback, updates the host's selected-row state, rerenders `HostConversations`, and asserts the mounted `AttachSheet` title and export/delete rows belong to `older-chat` while `active-chat` is also present. It invokes export and checks the root handler receives `older-chat`.
+- Mutation check: changing `ConversationListScreen.tsx:147` to `onPress={() => {}}` makes the focused route suite **EXIT=1** (3 tests run, 2 failed). Both the direct control callback assertion and the host sheet-opening assertion fail. The production handler was restored before final verification.
+- `npx jest --runInBand --silent src/host/conversationListRoute.test.ts` — **EXIT=0**, 1 suite / 3 tests after restore. `npx tsc --noEmit` — **EXIT=0**. `npx jest --silent` — **EXIT=0**, 228 suites / 2,426 tests. `git diff --check` — **EXIT=0**.
+- Starting HEAD was `a08acec6`; only the behavioral test and this report are uncommitted. No build, install or phone verification was run.

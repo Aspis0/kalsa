@@ -1,12 +1,22 @@
 import React from "react";
 
 const mockRouteEvents: string[] = [];
+const mockHookStates: unknown[] = [];
+let mockHookCursor = 0;
 
 jest.mock("react", () => ({
   ...jest.requireActual("react"),
   useCallback: (callback: unknown) => callback,
   useEffect: () => undefined,
-  useState: (initial: unknown) => [initial, jest.fn()],
+  useState: (initial: unknown) => {
+    const index = mockHookCursor++;
+    if (!(index in mockHookStates)) mockHookStates[index] = initial;
+    return [mockHookStates[index], (next: unknown) => {
+      mockHookStates[index] = typeof next === "function"
+        ? (next as (current: unknown) => unknown)(mockHookStates[index])
+        : next;
+    }];
+  },
 }));
 jest.mock("react-native", () => ({
   BackHandler: { addEventListener: () => ({ remove: jest.fn() }) },
@@ -48,6 +58,8 @@ import { ConversationListScreen } from "../screens/ConversationListScreen";
 import { HostDrawer } from "./HostDrawer";
 import { HostConversations } from "./HostConversations";
 import { HostLayout } from "./HostLayout";
+import { AttachSheet } from "../ui/shell/AttachSheet";
+import { buildDrawerConversationItems } from "./conversationRowActions";
 
 type Element = React.ReactElement<Record<string, any>>;
 
@@ -74,6 +86,8 @@ function pressableTree(node: Element, testID: string): Element {
 describe("conversation list destination", () => {
   beforeEach(() => {
     mockRouteEvents.length = 0;
+    mockHookStates.length = 0;
+    mockHookCursor = 0;
   });
 
   it("opens from the real drawer entry, closes the drawer, and preserves the search", () => {
@@ -162,44 +176,72 @@ describe("conversation list destination", () => {
     expect(onQueryChange).toHaveBeenCalledWith("plan revised");
   });
 
-  it("closes the destination and switches the selected conversation", () => {
+  it("opens the selected row's action sheet with only that conversation's actions", () => {
     const switchConversation = jest.fn();
     const setOverlay = jest.fn();
     const onExportPress = jest.fn();
-    const conversations = { activeId: "active", items: [] };
-    const drawerConversationItems = jest.fn((_state, _query, onActionSheetOpen, onExport) => {
-      return [{
-        id: "row-chat",
-        title: "Older chat",
-        onPress: switchConversation,
-        onActionsPress: () => onActionSheetOpen("row-chat"),
-        export: onExport,
-      }];
-    });
+    const onDelete = jest.fn();
+    const conversations = {
+      activeId: "active-chat",
+      items: [
+        { id: "active-chat", title: "Current chat", updatedAt: 2, preview: "Current", searchBlob: "current chat" },
+        { id: "older-chat", title: "Older chat", updatedAt: 1, preview: "Older", searchBlob: "older chat" },
+      ],
+    };
+    const t = ((key: string, params?: Record<string, string | number>) =>
+      params ? `${key}:${params.title}` : key) as any;
+    const drawerConversationItems = (
+      state: typeof conversations,
+      query: string,
+      onActionSheetOpen: (id: string) => void,
+      onExport: (id: string) => void,
+    ) => buildDrawerConversationItems(
+      state as any,
+      query,
+      "Untitled",
+      t,
+      switchConversation,
+      onActionSheetOpen,
+      onExport,
+      onDelete,
+    );
     const actions = {
       drawerConversationItems,
     };
-    const host = HostConversations({
+    const props = {
       conv: {
         conversations,
-        chatSearch: "older",
-        chatSearchQuery: "older",
+        chatSearch: "",
+        chatSearchQuery: "",
         handleChatSearchChange: jest.fn(),
       } as any,
       actions: actions as any,
       setOverlay,
       onExportPress,
+    };
+    const host = HostConversations({
+      ...props,
     }) as Element;
     const list = findElement(host, (element) => element.type === ConversationListScreen);
     if (!list) throw new Error("HostConversations did not mount the list screen");
     const screen = ConversationListScreen(list.props as any) as Element;
-    pressableTree(screen, "conversationList.row.row-chat").props.onPress();
-    pressableTree(screen, "conversationList.actions.row-chat").props.onPress();
+    pressableTree(screen, "conversationList.actions.older-chat").props.onPress();
+    expect(setOverlay).not.toHaveBeenCalled();
+    expect(switchConversation).not.toHaveBeenCalled();
+
+    mockHookCursor = 0;
+    const openedHost = HostConversations(props) as Element;
+    const sheet = findElement(openedHost, (element) => element.type === AttachSheet);
+    if (!sheet) throw new Error("Pressing the row action control did not open its sheet");
+    expect(sheet.props.title).toBe("Older chat");
+    expect(sheet.props.rows.map(({ testID, label, accessibilityLabel }: any) => [testID, label, accessibilityLabel])).toEqual([
+      ["drawer.conversation.older-chat.export", "drawer.exportAction", "drawer.exportConversationA11y:Older chat"],
+      ["drawer.conversation.older-chat.delete", "drawer.deleteAction", "drawer.deleteConversationA11y:Older chat"],
+    ]);
+    expect(sheet.props.rows.map(({ testID }: any) => testID)).not.toContain("drawer.conversation.active-chat.export");
+
+    sheet.props.rows[0].onPress();
+    expect(onExportPress).toHaveBeenCalledWith("older-chat");
     expect(setOverlay).toHaveBeenCalledWith(null);
-    expect(switchConversation).toHaveBeenCalledTimes(1);
-    expect(drawerConversationItems).toHaveBeenCalledWith(conversations, "older", expect.any(Function), onExportPress);
-    expect(drawerConversationItems.mock.calls[0][2]).toHaveBeenCalledWith("row-chat");
-    drawerConversationItems.mock.calls[0][3]("row-chat");
-    expect(onExportPress).toHaveBeenCalledWith("row-chat");
   });
 });
