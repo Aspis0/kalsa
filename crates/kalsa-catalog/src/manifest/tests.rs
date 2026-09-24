@@ -68,6 +68,10 @@ fn a_stale_row_is_off_the_menu_with_its_reason() {
     // row marked stale never reaches the menu and comes back out of the
     // refusal pass with its own words.
     let clean = DOWNLOADABLE[0];
+    assert!(
+        clean.model.is_usable(),
+        "the template row itself must be usable, or this test diagnoses the wrong row"
+    );
     let mut stale = DOWNLOADABLE[0];
     stale.model.repo = "test/stale";
     stale.model.stale = Some("superseded in its tier, for the test");
@@ -91,19 +95,23 @@ fn a_stale_row_is_off_the_menu_with_its_reason() {
 }
 
 #[test]
-fn the_undercount_flag_travels_with_a_measurement_above_the_assumption() {
-    // Flag iff the row's own measured figure sits above the shared
-    // constant: above the constant is what "the assumption under-counts"
-    // means, and below it there is nothing to flag. Holds trivially today
-    // — the only measured row sits below the constant with the flag false
-    // — and the next row added is what this pins.
+fn the_undercount_flag_agrees_with_a_carried_measurement() {
+    // Measured rows only: a measurement above the constant is what "the
+    // assumption under-counts" means, so the flag must be set; below it,
+    // there is nothing to flag. Rows carrying no measurement are
+    // unconstrained — flagged and unmeasured is the gate's own
+    // excluded-until-measured state (`standing()`, exercised by the gate
+    // test above). Holds trivially today — the only measurement sits below
+    // the constant with the flag false — and the next measured row added
+    // is what this pins.
     for entry in rows() {
-        let measured_above_assumption = entry
-            .kv_bytes_per_token
-            .is_some_and(|bytes| bytes > ASSUMED_KV_BYTES_PER_TOKEN);
+        let Some(bytes) = entry.kv_bytes_per_token else {
+            continue;
+        };
         assert_eq!(
-            entry.kv_assumption_undercounts, measured_above_assumption,
-            "{}: kv_assumption_undercounts must be set exactly when the measured figure exceeds the assumption",
+            entry.kv_assumption_undercounts,
+            bytes > ASSUMED_KV_BYTES_PER_TOKEN,
+            "{}: kv_assumption_undercounts must be set exactly when the carried measurement exceeds the assumption",
             entry.repo
         );
     }
