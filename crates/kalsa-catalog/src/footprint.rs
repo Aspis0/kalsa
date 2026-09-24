@@ -44,9 +44,10 @@ pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
 /// pins, which a measured row's figure also assumes — forty-eight layers —
 /// 96 KiB per token. No row in the tables today carries a measured figure
 /// above it; a row research finds this constant under-counts is not offered
-/// on the assumption at all (see `ModelEntry::kv_assumption_undercounts`),
-/// and inflating the constant to cover such a row would halve every other
-/// row's context to buy insurance it does not need.
+/// on the assumption at all (see `ModelEntry::kv_assumption_undercounts`).
+/// Raising the constant to cover the largest measured figure would shrink
+/// the context funded for every row still priced on it — insurance those
+/// rows do not need.
 pub const ASSUMED_KV_BYTES_PER_TOKEN: u64 = 96 * KIB;
 
 /// What the machine can give a model.

@@ -187,14 +187,15 @@ pub struct ModelEntry {
     /// None on every row to which it does not apply.
     pub dense_equivalent: Option<DenseEquivalent>,
     /// Set by research where the shared 96 KiB cache assumption is known to
-    /// under-count this row — a row deeper than the forty-eight layers the
-    /// constant models, so a context sized from the assumption is roughly
-    /// half the allocation the server will make. Such a row is not offered
-    /// on the assumption: the measured figure goes into `kv_bytes_per_token`
-    /// and the door reopens. The flag stays true as the record of why the
-    /// measurement was needed — and so that removing the measurement closes
-    /// the door again. No row in either table carries it today; the gate in
-    /// [`ModelEntry::standing`] still reads it.
+    /// under-count this row: the row's real per-token cache is above the
+    /// constant, so a context sized from the assumption would understate
+    /// what the server will allocate. Such a row is not offered on the
+    /// assumption: the measured figure goes into `kv_bytes_per_token` and
+    /// the door reopens — and it is that measured figure, not the
+    /// constant, that funds the context. The flag stays true as the record
+    /// of why the measurement was needed — and so that removing the
+    /// measurement closes the door again. No row in either table carries
+    /// it today; the gate in [`ModelEntry::standing`] still reads it.
     pub kv_assumption_undercounts: bool,
     /// A decode rate measured on the real path, where one exists. When it
     /// does, it is what the row's speed sentence says — a measurement beats
@@ -881,8 +882,13 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
 /// licence and cache gates. Nothing else can build a `UsableEntry` — and a
 /// `UsableEntry` cannot exist without its pinned file.
 pub fn usable() -> impl Iterator<Item = UsableEntry<'static>> {
-    DOWNLOADABLE
-        .iter()
+    usable_in(DOWNLOADABLE)
+}
+
+/// The gate itself, over any table, so a test can run the menu's exact
+/// filter over rows the test wrote: [`usable`] is this fed the real table.
+fn usable_in(rows: &[DownloadableEntry]) -> impl Iterator<Item = UsableEntry<'_>> {
+    rows.iter()
         .filter(|row| row.model.is_usable())
         .map(|row| UsableEntry {
             entry: &row.model,
@@ -891,16 +897,22 @@ pub fn usable() -> impl Iterator<Item = UsableEntry<'static>> {
 }
 
 /// Everything refused, with the reason, for the page that explains the
-/// catalog — both tables: research rows without a file, and download rows
-/// a gate turned down.
+/// catalog — every row of either table whose [`ModelEntry::standing`] is
+/// [`Standing::Excluded`] (a licence, the unmeasured-cache gate,
+/// staleness), and only those.
 pub fn excluded() -> impl Iterator<Item = (&'static ModelEntry, &'static str)> {
-    CATALOG
-        .iter()
-        .chain(DOWNLOADABLE.iter().map(|row| &row.model))
-        .filter_map(|entry| match entry.standing() {
-            Standing::Usable => None,
-            Standing::Excluded { reason } => Some((entry, reason)),
-        })
+    excluded_in(rows())
+}
+
+/// The refusal pass over any rows, so a test can run it over rows the test
+/// wrote: [`excluded`] is this fed both real tables.
+fn excluded_in<'a>(
+    rows: impl Iterator<Item = &'a ModelEntry>,
+) -> impl Iterator<Item = (&'a ModelEntry, &'static str)> {
+    rows.filter_map(|entry| match entry.standing() {
+        Standing::Usable => None,
+        Standing::Excluded { reason } => Some((entry, reason)),
+    })
 }
 
 /// Every row in both tables — the research record and the download menu.

@@ -1,4 +1,5 @@
-use super::{excluded, rows, usable, CATALOG, DOWNLOADABLE, Standing};
+use super::{excluded, excluded_in, rows, usable, usable_in, Standing, CATALOG, DOWNLOADABLE};
+use crate::footprint::ASSUMED_KV_BYTES_PER_TOKEN;
 
 #[test]
 fn the_research_only_row_cannot_reach_the_chooser() {
@@ -62,18 +63,49 @@ fn a_row_the_assumption_undercounts_is_offerable_only_through_its_measured_cache
 
 #[test]
 fn a_stale_row_is_off_the_menu_with_its_reason() {
-    // No shipped row is stale today, so the gate runs on a row this test
-    // builds from the menu's first entry: `stale` alone takes it off the
-    // menu, and `standing()` says why in the row's own words.
-    let mut row = DOWNLOADABLE[0].model;
-    assert!(row.is_usable(), "the row starts on the menu");
-    row.stale = Some("superseded in its tier, for the test");
-    assert!(!row.is_usable());
-    match row.standing() {
-        Standing::Excluded { reason } => {
-            assert_eq!(reason, "superseded in its tier, for the test")
-        }
-        Standing::Usable => panic!("stale must keep the row off the menu"),
+    // No shipped row is stale today, so the gates run over a table this
+    // test writes: the clean row is offered and never refused, the same
+    // row marked stale never reaches the menu and comes back out of the
+    // refusal pass with its own words.
+    let clean = DOWNLOADABLE[0];
+    let mut stale = DOWNLOADABLE[0];
+    stale.model.repo = "test/stale";
+    stale.model.stale = Some("superseded in its tier, for the test");
+    let table = [clean, stale];
+
+    let menu: Vec<&str> = usable_in(&table).map(|row| row.entry().repo).collect();
+    assert_eq!(
+        menu,
+        vec![clean.model.repo],
+        "the stale row reached the menu"
+    );
+
+    let refused: Vec<(&str, &str)> = excluded_in(table.iter().map(|row| &row.model))
+        .map(|(entry, reason)| (entry.repo, reason))
+        .collect();
+    assert_eq!(
+        refused,
+        vec![("test/stale", "superseded in its tier, for the test")],
+        "the refusal pass must surface the stale row with its reason"
+    );
+}
+
+#[test]
+fn the_undercount_flag_travels_with_a_measurement_above_the_assumption() {
+    // Flag iff the row's own measured figure sits above the shared
+    // constant: above the constant is what "the assumption under-counts"
+    // means, and below it there is nothing to flag. Holds trivially today
+    // — the only measured row sits below the constant with the flag false
+    // — and the next row added is what this pins.
+    for entry in rows() {
+        let measured_above_assumption = entry
+            .kv_bytes_per_token
+            .is_some_and(|bytes| bytes > ASSUMED_KV_BYTES_PER_TOKEN);
+        assert_eq!(
+            entry.kv_assumption_undercounts, measured_above_assumption,
+            "{}: kv_assumption_undercounts must be set exactly when the measured figure exceeds the assumption",
+            entry.repo
+        );
     }
 }
 
