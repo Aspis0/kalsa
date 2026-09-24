@@ -121,6 +121,8 @@ import { SettingsHomeScreen } from "./SettingsHomeScreen";
 
 export type SettingsModelProps = {
   currentModelId: string;
+  remoteActive: boolean;
+  onSelectLocation: (location: "local" | "remote") => boolean;
   modelState: ModelPipelineState;
   /** 0–100 while downloading; null otherwise. */
   downloadPercent: number | null;
@@ -1429,8 +1431,10 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           disabled: selectDisabled,
         }))}
         currentModelId={model.currentModelId}
+        remoteActive={model.remoteActive}
         modelBusy={modelBusy}
         onSelectModel={model.onSelectModel}
+        onSelectLocation={model.onSelectLocation}
         webEnabled={webToolsEnabled ?? false}
         onToggleWeb={onToggleWebTools}
         telemetryEnabled={telemetryEnabled}

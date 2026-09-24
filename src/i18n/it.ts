@@ -229,6 +229,9 @@ export const it: typeof en = {
     switchWhileRebuildingTitle: "Ricostruzione indice in corso",
     switchWhileRebuildingBody:
       "Passa al computer quando l'indice dei documenti ha finito di ricostruirsi.",
+    whereSwitchBusy: "Attendi che l'operazione sul modello finisca prima di cambiare dove risponde.",
+    whereSwitchTurnBusy: "Attendi la fine della risposta prima di cambiare dove risponde.",
+    whereSwitchDocumentsBusy: "Attendi che l'operazione sui documenti finisca prima di cambiare dove risponde.",
     privacy: "Privacy",
     privacyBody:
       "In modalità locale, il modello gira su questo dispositivo. Quando la modalità computer sarà disponibile: Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti. I file dei documenti non vengono inviati. Le chiamate di rete comprendono download dei modelli da Hugging Face, ricerca web tramite il provider che scegli, fetch di pagine opzionali (web_fetch) e telemetria attiva solo se la abiliti. Le chiavi API sono salvate in modo sicuro su questo dispositivo. Kalsa non richiede un account e non sincronizza le chat sul cloud. La telemetria è disattivata di default.",

@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Cpu,
   Languages,
+  Laptop,
   Moon,
   Search,
   ShieldCheck,
@@ -33,7 +34,7 @@ import { SettingsHeader } from "./SettingsHeader";
 import { settingsWebToggleProps } from "./settingsWebToggle";
 
 type ModelOption = { id: string; label: string; detail: string; sizeClass?: "2B" | "4B" | "8B" | "other"; disabled: boolean };
-type SheetName = "model" | "theme" | "size" | "language" | "permissions";
+type SheetName = "where" | "model" | "theme" | "size" | "language" | "permissions";
 type Props = {
   onBack: () => void;
   onOpenAdvanced: () => void;
@@ -41,8 +42,10 @@ type Props = {
   onOpenPro?: () => void;
   modelOptions: readonly ModelOption[];
   currentModelId: string;
+  remoteActive: boolean;
   modelBusy: boolean;
   onSelectModel: (id: string) => void;
+  onSelectLocation: (location: "local" | "remote") => boolean;
   webEnabled?: boolean;
   onToggleWeb?: () => void;
   telemetryEnabled: boolean;
@@ -161,8 +164,10 @@ export function SettingsHomeScreen({
   onOpenPro,
   modelOptions,
   currentModelId,
+  remoteActive,
   modelBusy,
   onSelectModel,
+  onSelectLocation,
   webEnabled,
   onToggleWeb,
   telemetryEnabled,
@@ -210,7 +215,15 @@ export function SettingsHomeScreen({
   let sheetSubtitle: string | undefined;
   let rows: AttachSheetRowData[] = [];
   let scroll = false;
-  if (sheet === "model") {
+  if (sheet === "where") {
+    sheetTitle = t("settings.whereRuns");
+    rows = choiceRows<"local" | "remote">("where", [
+      { id: "local", label: t("settings.thisPhone") },
+      { id: "remote", label: t("shell.where.pillComputer") },
+    ], remoteActive ? "remote" : "local", (location) => {
+      if (onSelectLocation(location)) setSheet(null);
+    });
+  } else if (sheet === "model") {
     sheetTitle = t("settings.modelPicker");
     rows = choiceRows("model", modelOptions.map(({ id, label, detail, disabled }) => ({ id, label: `${label} · ${detail}`, disabled })), currentModelId, onSelectModel);
     scroll = true;
@@ -247,7 +260,14 @@ export function SettingsHomeScreen({
         keyboardShouldPersistTaps="handled"
       >
         <Group title={t("settings.groupAssistant")} colors={colors}>
-          <Row testID="settings.home.where" title={t("settings.whereRuns")} value={t("settings.thisPhone")} icon={<Smartphone size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
+          <Row
+            testID="settings.home.where"
+            title={t("settings.whereRuns")}
+            value={t(remoteActive ? "shell.where.pillComputer" : "settings.thisPhone")}
+            icon={remoteActive ? <Laptop size={20} color={colors.accent} strokeWidth={1.75} /> : <Smartphone size={20} color={colors.accent} strokeWidth={1.75} />}
+            onPress={() => setSheet("where")}
+            colors={colors}
+          />
           <Divider colors={colors} />
           <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.sizeClass === "2B" ? t("settings.modelSmallFast") : model?.sizeClass === "4B" ? t("settings.modelCapableSlow") : undefined} value={modelValue} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => setSheet("model")} disabled={modelBusy} colors={colors} />
         </Group>

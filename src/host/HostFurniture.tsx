@@ -74,6 +74,8 @@ export function HostFurniture({
         toggleWebTools={flags.toggleWebTools}
         refreshContextSize={modelHost.refreshContextSize}
         currentModel={modelHost.currentModel}
+        remoteActive={modelHost.remoteActive}
+        selectLocation={modelHost.selectLocation}
         modelState={modelHost.modelState}
         modelError={modelHost.modelError}
         modelErrorDetail={modelHost.modelErrorDetail}

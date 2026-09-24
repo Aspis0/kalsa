@@ -86,8 +86,10 @@ function homeElements(catalog: Catalog, modelId: string): Element[] {
       { id: "qwen3.5-4b", label: "Qwen 3.5 4B", detail: "Q4_K_M", sizeClass: "4B", disabled: false },
     ],
     currentModelId: modelId,
+    remoteActive: modelId === REMOTE_COMPUTER_MODEL_ID,
     modelBusy: false,
     onSelectModel: jest.fn(),
+    onSelectLocation: jest.fn(() => true),
     telemetryEnabled: false,
     telemetryBusy: false,
     onToggleTelemetry: jest.fn(),
@@ -180,7 +182,7 @@ describe("copy that remains truthful across local and computer modes", () => {
 
     expect(rowText("settings.home.where")).toEqual([
       catalog.settings.whereRuns,
-      catalog.settings.thisPhone,
+      catalog.shell.where.pillComputer,
     ]);
     expect(rowText("settings.home.model")).toEqual([
       catalog.settings.modelPicker,
@@ -188,7 +190,8 @@ describe("copy that remains truthful across local and computer modes", () => {
     ]);
     expect(nodes.filter((node) => node.type === "Text").map((node) => node.props.children))
       .not.toContain(REMOTE_COMPUTER_MODEL_ID);
-    expect(catalog.settings.remoteComputer).toBe(_name === "English" ? "Your computer" : "Il tuo computer");
+    expect(catalog.shell.where.pillComputer).toBe(_name === "English" ? "Your computer" : "Il tuo computer");
+    expect(catalog.settings.remoteComputer).toBe(catalog.shell.where.pillComputer);
     expect(catalog.settings.remoteSelect).toBe(_name === "English" ? "Use your computer" : "Usa il tuo computer");
   });
 

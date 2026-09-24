@@ -32,7 +32,7 @@ export function trySelectRemoteComputer(
 ): boolean {
   const refusal = remoteModelSelectionRefusal(input);
   if (refusal) {
-    if (refusal !== "busy") onRefusal(refusal);
+    onRefusal(refusal);
     return false;
   }
   dispatch();

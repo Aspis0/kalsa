@@ -29,8 +29,7 @@ describe("remote selection respects the main-shell refusals", () => {
 
     expect(accepted).toBe(false);
     expect(dispatch).not.toHaveBeenCalled();
-    if (refusal === "busy") expect(onRefusal).not.toHaveBeenCalled();
-    else expect(onRefusal).toHaveBeenCalledWith(refusal);
+    expect(onRefusal).toHaveBeenCalledWith(refusal);
     expect(HOST).toContain("trySelectRemoteComputer(");
   });
 

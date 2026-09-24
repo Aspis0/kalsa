@@ -10,8 +10,6 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
 import {
-  disposeEngine,
-  disposeRemoteEngine,
   getActiveEngineNCtx,
   getActiveModelId,
   isEngineReady,
@@ -19,7 +17,7 @@ import {
   type EngineTurnOptions,
 } from "../engine/engineBackend";
 import { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
-import { markChatReleased, runNativeOpBounded } from "../engine/llamaContextGate";
+import { markChatReleased } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   mergeDeviceBandwidthCalibrations,
@@ -49,8 +47,8 @@ import { usePipelineScans, type PipelineScanResult } from "./usePipelineScans";
 import { ensureRemoteHostModel } from "./remoteHostEnsure";
 import { createRemoteModelHostActions } from "./remoteModelHostActions";
 import { getRemoteContextSize } from "../engine/remote/remoteSettings";
-import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 import { createModelEnsureDispatch } from "./modelEnsureDispatch";
+import { disposeHostModelEngine } from "./hostModelDisposal";
 
 export interface ModelHostParams {
   t: TranslateFn;
@@ -235,6 +233,7 @@ export function useModelHost(params: ModelHostParams) {
         }),
     (model) => ensureEngineForModel(loadDeps, model),
   );
+  let selectLocalModelById: (modelId: string) => void = () => undefined;
   const remoteActions = createRemoteModelHostActions({
     t,
     engineGenerationRef,
@@ -251,24 +250,9 @@ export function useModelHost(params: ModelHostParams) {
     setModelError,
     setModelErrorKind,
     setModelErrorDetail,
-    disposeCurrent: async () => {
-      try {
-        if (isRemoteEngineBackend()) {
-          await disposeRemoteEngine();
-          return true;
-        }
-        if (!isEngineReady()) return true;
-        return (
-          await runNativeOpBounded(
-            () => disposeEngine(),
-            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
-          )
-        ).ok;
-      } catch {
-        return false;
-      }
-    },
+    disposeCurrent: disposeHostModelEngine,
     ensureRemote: () => ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL),
+    selectLocalModel: (modelId) => selectLocalModelById(modelId),
   });
   const switchers = createModelSwitchers({
     ...loadDeps,
@@ -296,6 +280,10 @@ export function useModelHost(params: ModelHostParams) {
     setModelErrorKind,
     setModelErrorDetail,
   });
+  selectLocalModelById = (modelId) => {
+    const nextIndex = MODEL_REGISTRY.findIndex((model) => model.id === modelId);
+    if (nextIndex >= 0) void switchers.selectModel(nextIndex);
+  };
 
   /**
    * Explicit user reload (model-bar chip / Settings retry). The recovery from
@@ -321,7 +309,6 @@ export function useModelHost(params: ModelHostParams) {
     refs: scanRefs,
     setters: scanSetters,
   });
-
   return {
     modelIndex,
     remoteActive,
@@ -342,6 +329,7 @@ export function useModelHost(params: ModelHostParams) {
     scanSetters,
     scans,
     ...switchers,
+    selectLocation: (location: "local" | "remote") => remoteActions.selectLocation(location, MODEL_REGISTRY[modelIndexRef.current].id),
     ...modelDownload,
     userReloadModel,
     refreshContextSize,

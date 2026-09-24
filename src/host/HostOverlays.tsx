@@ -63,6 +63,8 @@ export interface OverlaysProps {
   toggleWebTools: () => void;
   refreshContextSize: () => Promise<void>;
   currentModel: ModelInfo;
+  remoteActive: boolean;
+  selectLocation: (location: "local" | "remote") => boolean;
   modelState: ModelPipelineState;
   modelError: string | null;
   modelErrorDetail: string | null;
@@ -104,6 +106,8 @@ export function HostOverlays(props: OverlaysProps) {
     toggleWebTools,
     refreshContextSize,
     currentModel,
+    remoteActive,
+    selectLocation,
     modelState,
     modelError,
     modelErrorDetail,
@@ -181,6 +185,8 @@ export function HostOverlays(props: OverlaysProps) {
         onOpenPro={() => setOverlay({ kind: "pro", returnTo: "settings" })}
         model={{
           currentModelId: currentModel.id,
+          remoteActive,
+          onSelectLocation: selectLocation,
           modelState,
           downloadPercent,
           modelError,

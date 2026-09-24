@@ -230,6 +230,9 @@ export const en = {
     switchWhileRebuildingTitle: "Index rebuild in progress",
     switchWhileRebuildingBody:
       "Switch to your computer after the document index finishes rebuilding.",
+    whereSwitchBusy: "Wait for the model operation to finish before changing where it responds.",
+    whereSwitchTurnBusy: "Wait for the current response to finish before changing where it responds.",
+    whereSwitchDocumentsBusy: "Wait for the document operation to finish before changing where it responds.",
     privacy: "Privacy",
     privacyBody:
       "In local mode, the model runs on this device. When computer mode is available: To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names. Document files are not sent. Network calls include model downloads from Hugging Face, web search through your chosen provider, optional page fetches (web_fetch), and opt-in telemetry. API keys are stored securely on this device. There is no account or cloud sync. Telemetry is off by default.",
