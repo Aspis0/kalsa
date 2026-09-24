@@ -1,6 +1,7 @@
 /** Keyboard dismissal and focus through the v2 menu and its composer actions. */
 import { readFileSync } from "fs";
 import { join } from "path";
+import { applyTemplateSelection } from "./templateSelection";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const DRAWER = read("HostDrawer.tsx");
@@ -11,7 +12,6 @@ const SHELL = read("../ui/shell/Shell.tsx");
 const COMPOSER = read("../ui/shell/ShellComposer.tsx");
 const ATTACH_SHEET = read("HostAttachSheet.tsx");
 const OVERLAYS = read("HostChatSurfaceOverlays.tsx");
-const CHAT = read("../screens/AiChatPage.tsx");
 
 /** Comments removed, so a comment mentioning a call cannot satisfy a check. */
 const stripComments = (source: string): string =>
@@ -37,7 +37,7 @@ describe("the v2 menu dismiss path", () => {
   });
 });
 
-describe("the controller's two focus paths — and no phantom third", () => {
+describe("the new host's template and composer focus paths", () => {
   it("the attach sheet opens templates; choosing one fills the draft then focuses the field", () => {
     expect(ATTACH_SHEET).toContain('action: "templates"');
     expect(SURFACE).toContain('if (action === "templates")');
@@ -47,10 +47,10 @@ describe("the controller's two focus paths — and no phantom third", () => {
     const start = code.indexOf("onChooseTemplate={(template)");
     expect(start).toBeGreaterThan(0);
     const block = code.slice(start, code.indexOf("/>", start));
-    const fill = block.indexOf("onDraftChange(t(template.promptKey))");
-    const focus = block.indexOf("fieldRef.current?.focus()");
-    expect(fill).toBeGreaterThanOrEqual(0);
-    expect(focus).toBeGreaterThan(fill);
+    expect(block).toContain("applyTemplateSelection(");
+    const events: string[] = [];
+    applyTemplateSelection("prompt text", (value) => events.push(`draft:${value}`), () => events.push("focus"));
+    expect(events).toEqual(["draft:prompt text", "focus"]);
   });
 
   it("the focus handle reaches the field through the shell, node and all", () => {
@@ -69,8 +69,8 @@ describe("the controller's two focus paths — and no phantom third", () => {
     expect(stripComments(COMPOSER)).not.toContain("hitSlop");
   });
 
-  it("the controller has exactly these two focus sites — this build's scope", () => {
-    const sites = CHAT.match(/inputRef\.current\?\.focus\(\)/g) ?? [];
-    expect(sites).toHaveLength(2);
+  it("the shell field and template selection both reach the host-owned focus handle", () => {
+    expect(stripComments(SURFACE)).toContain("() => fieldRef.current?.focus()");
+    expect(stripComments(COMPOSER)).toContain("fieldRef.current = node");
   });
 });

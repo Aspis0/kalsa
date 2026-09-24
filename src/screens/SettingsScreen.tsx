@@ -22,7 +22,7 @@ import type {
   EmbeddingPipelineState,
   ModelPipelineState,
   VoicePipelineState,
-} from "../app/AppShell";
+} from "../host/hostPipelineState";
 import { useLocale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,

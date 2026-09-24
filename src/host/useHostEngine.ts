@@ -5,13 +5,21 @@
  * options; the turn binds its load path through the model host's deps).
  * Split out of `HostRoot` purely for the file-size rule.
  */
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { AppState } from "react-native";
+import {
+  getActiveModelId,
+  isEngineReady,
+  isRemoteEngineBackend,
+} from "../engine/engineBackend";
+import { queueStaticPrefixPrewarm } from "../engine/LlamaService";
 import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { Locale, TranslateFn } from "../i18n";
 import { buildAgentDeps, buildTurnDeps } from "./hostDeps";
 import { buildAgentOptions } from "./agentTurnOptions";
 import { useModelHost } from "./useModelHost";
 import { useForegroundIdleDispose } from "./foregroundIdle";
+import { subscribeForegroundPrewarm } from "./foregroundPrewarm";
 import type { useMemoryHost } from "./memoryHost";
 import type { usePersonasHost } from "./personasHost";
 import type { useLibraryHost } from "./libraryHost";
@@ -112,6 +120,29 @@ export function useHostEngine(params: HostEngineParams) {
     embedderDownloadedRef,
     chatEngineCtxRef,
   });
+
+  const currentModelRef = useRef(modelHost.currentModel);
+  currentModelRef.current = modelHost.currentModel;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+  useEffect(
+    () =>
+      subscribeForegroundPrewarm({
+        subscribe: (listener) => AppState.addEventListener("change", listener),
+        read: () => ({
+          thermalBlocked: thermalHardGateRef.current,
+          remote: isRemoteEngineBackend(),
+          model: currentModelRef.current,
+          locale: localeRef.current,
+          tools: agentOptionsRef.current.tools,
+          engineReady: isEngineReady(),
+          activeModelId: getActiveModelId(),
+        }),
+        queue: queueStaticPrefixPrewarm,
+        logSkip: (reason) => console.info("KALSA_PREWARM", JSON.stringify({ op: "skip", reason })),
+      }),
+    [],
+  );
 
   // The 180 s foreground-idle governor (PARITY-STATUS gap 8): mounted here
   // because this chain holds the turn refs the token-silence gate reads and

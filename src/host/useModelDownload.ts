@@ -32,7 +32,7 @@ import { Alert } from "react-native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import { getCachedDeviceProfile, getFreeDiskBytes } from "../engine/deviceProfile";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import {

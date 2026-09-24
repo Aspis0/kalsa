@@ -4,7 +4,7 @@
  * a parallel shape instead of `composerState`'s, or a converting PDF that
  * fails to hold the composer.
  */
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import { composerView, type ComposerViewInput } from "./composerView";
 import type { LocalAttachment, Message } from "./hostMessage";
 

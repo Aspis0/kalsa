@@ -34,7 +34,7 @@ import {
 import { getBenchNCtx } from "../bench/benchConfig";
 import { readUserContextSize } from "../engine/contextSizePref";
 import type { ConversationsState } from "../conversations/ConversationsStore";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import type { Locale, TranslateFn } from "../i18n";
 import { ensureEngineForModel } from "./engineEnsure";
 import { useModelDownload } from "./useModelDownload";

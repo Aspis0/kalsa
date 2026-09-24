@@ -18,6 +18,7 @@ import {
 } from "./composerArms";
 import { runHostAttachment } from "./remoteAttachmentGate";
 import { hasDeepResearchTrigger } from "../research/plan";
+import { applyTemplateSelection } from "./templateSelection";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 
@@ -163,19 +164,17 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
   });
 
   it("choosing a template replaces the draft AND focuses the field (Chat:3633-3641)", () => {
-    // BEFORE this slice this pin was the one-liner
-    // `onChooseTemplate={(template) => onDraftChange(...)}` — the fill half
-    // only. The controller's move is TWO statements (setDraft then
-    // `inputRef.current?.focus()`, Chat:3636-3637), and the focus half landed
-    // with `fieldRef`; the pattern now demands both, in order. Strengthened,
-    // never relaxed: a handler that fills without focusing still fails here.
     const handler =
       SURFACE.match(/onChooseTemplate=\{\(template\) => \{[\s\S]*?\}\}/)?.[0] ?? "";
     expect(handler.length).toBeGreaterThan(0);
-    const fill = handler.indexOf("onDraftChange(t(template.promptKey))");
-    const focus = handler.indexOf("fieldRef.current?.focus()");
-    expect(fill).toBeGreaterThanOrEqual(0);
-    expect(focus).toBeGreaterThan(fill);
+    expect(handler).toContain("applyTemplateSelection(");
+    const events: string[] = [];
+    applyTemplateSelection(
+      "translated prompt",
+      (value) => events.push(`draft:${value}`),
+      () => events.push("focus"),
+    );
+    expect(events).toEqual(["draft:translated prompt", "focus"]);
   });
 
   it("the composer attach control follows the machine while stopped or converting", () => {

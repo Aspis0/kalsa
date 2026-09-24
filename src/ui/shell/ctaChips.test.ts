@@ -1,18 +1,17 @@
 /**
  * D1 row 26: the CTA chips are drawn, and they are TEXT, not buttons. Three
  * silent failures this pins: the chip becoming a pressable with no action
- * behind it (the dead control the owner forbade), the field never reaching
- * the band, and the controller's stub disappearing from the record that
- * justifies "not a button".
+ * behind it, the field never reaching the band, or its label being lost by
+ * the host-to-transcript projection.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
+import { toTranscriptMessage } from "../../host/messageMapper";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const TURNS = read("TranscriptTurns.tsx");
 const TRANSCRIPT = read("Transcript.tsx");
 const TYPES = read("transcriptTypes.ts");
-const APP = readFileSync(join(__dirname, "..", "..", "app", "AppShell.tsx"), "utf8");
 
 /** Comments removed, so the prose saying "not a button" cannot pass the check. */
 const stripComments = (source: string): string =>
@@ -49,7 +48,15 @@ describe("the CTA renderer under the answer", () => {
     expect(TYPES).toContain("ctas?: readonly TranscriptCta[]");
   });
 
-  it("the controller's own press was a stub — the record behind 'text, not button'", () => {
-    expect(APP).toContain("onCtaPress={(_cta: ChatCta) => undefined}");
+  it("a mapped CTA keeps its spoken label while the new renderer exposes no action", () => {
+    const mapped = toTranscriptMessage(
+      { id: "a1", role: "assistant", text: "Ready", createdAt: 1, ctas: [
+        { kind: "output", label: "Open report", id: "output-1" },
+      ] },
+      { thinkingStatus: "Thinking" },
+    );
+    expect(mapped.ctas).toEqual([{ label: "Open report", kind: "output", id: "output-1" }]);
+    expect(block).not.toContain("Pressable");
+    expect(block).not.toContain("onPress");
   });
 });

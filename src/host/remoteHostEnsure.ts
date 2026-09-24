@@ -6,7 +6,7 @@ import {
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { hostEngineErrorText } from "./remoteEngineError";
 import type { Locale, TranslateFn } from "../i18n";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 
 export async function ensureRemoteHostModel(input: {
   locale: Locale;

@@ -13,7 +13,7 @@
  * ready/reload split (resident vs downloaded-but-unloaded) is the load
  * lifecycle's truth, not the UI's.
  */
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import type { BatteryEtaUiState } from "../hooks/useBatteryEta";

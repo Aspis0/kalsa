@@ -6,7 +6,7 @@ import { modelSwitchInFlightRef } from "./modelSwitchState";
 import { trySelectRemoteComputer } from "./remoteModelSelection";
 import { switchHostToRemoteComputer } from "./remoteModelTransition";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
 
 export interface RemoteModelHostActionPorts {

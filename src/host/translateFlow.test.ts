@@ -3,7 +3,7 @@
  * what is pinned is what a screenshot could not see — the three ways a stale
  * translation could attach itself to the wrong message and the fence that
  * stops each, the send/menu gates that keep the engine free, and the promise
- * that a translation is never part of a persisted message (in EITHER app).
+ * that a translation is never part of a persisted message.
  *
  * Every ordering predicate is exercised against a sample that must fail it.
  */
@@ -12,6 +12,9 @@ import { join } from "path";
 
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";
+import { buildPersistableMessages, sanitizeHistoryMessages } from "./historyMessages";
+import { toTranscriptMessage } from "./messageMapper";
+import type { Message } from "./hostMessage";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const readShell = (file: string): string =>
@@ -23,7 +26,6 @@ const ACTIONS = read("messageActions.ts");
 const STATE = read("translateState.ts");
 const HOST_MESSAGE = read("hostMessage.ts");
 const HISTORY = read("historyMessages.ts");
-const CHAT = readFileSync(join(__dirname, "..", "screens", "AiChatPage.tsx"), "utf8");
 const BAND = readShell("transcriptTypes.ts");
 
 /** Comments stripped: the prose about a rule must never satisfy the rule. */
@@ -163,22 +165,27 @@ describe("the gates: nothing else takes the engine while a translate holds it", 
 });
 
 describe("a translation is volatile: it never enters a persisted message", () => {
-  it("the controller kept it out of `Message` — the type that round-trips the hash contract", () => {
-    const start = CHAT.indexOf("type Message = {");
-    const end = CHAT.indexOf("\n};", start);
-    expect(start).toBeGreaterThan(0);
-    expect(end).toBeGreaterThan(start);
-    const messageType = CHAT.slice(start, end);
-    expect(messageType.length).toBeGreaterThan(100); // the slice is real
-    expect(messageType).not.toMatch(/translat/i);
-  });
-
-  it("the host keeps it out too: no field, no write, no persist path", () => {
-    expect(HOST_MESSAGE).not.toMatch(/translat/i);
-    expect(HISTORY).not.toMatch(/translat/i);
+  it("the saved message stays separate and transcript projection drops a stray result", () => {
+    const source: Message = {
+      id: "a1",
+      role: "assistant" as const,
+      text: "answer",
+      createdAt: 1,
+    };
+    const saved = buildPersistableMessages([source]);
+    expect(saved[0]).not.toHaveProperty("translationResult");
+    const restored = sanitizeHistoryMessages(saved, "en");
+    expect(restored[0]).not.toHaveProperty("translationResult");
+    const mapped = toTranscriptMessage(
+      { ...source, translationResult: { text: "traduzione", language: "it" } } as Message,
+      { thinkingStatus: "Thinking" },
+    );
+    expect(mapped).not.toHaveProperty("translationResult");
+    expect(HOST_MESSAGE).not.toMatch(/translationResult\??:/);
+    expect(HISTORY).not.toMatch(/translationResult/);
     expect(HOOK_CODE).not.toContain("setMessages");
     expect(HOOK_CODE).not.toContain("persist");
-    // The band's own comment says the same out loud — state, not a field.
+    // The band's contract says the same out loud — state, not a message field.
     expect(BAND).toContain("NEVER a field of a message");
   });
 });

@@ -19,6 +19,7 @@ import {
   WEB_TOOLS_ENABLED_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
+import { persistWebToolsEnabled } from "./toolTogglePersistence";
 
 export interface ToolFlagRefs {
   webToolsEnabledRef: { current: boolean };
@@ -89,9 +90,7 @@ export function useToolFlags(): {
     setWebToolsEnabled((prev) => {
       const next = !prev;
       webToolsEnabledRef.current = next;
-      void AsyncStorage.setItem(WEB_TOOLS_ENABLED_KEY, next ? "1" : "0").catch(
-        () => undefined,
-      );
+      void persistWebToolsEnabled(next, (key, value) => AsyncStorage.setItem(key, value));
       return next;
     });
   }, []);

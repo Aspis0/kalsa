@@ -1,9 +1,8 @@
 /**
  * The new root: the honest essential loop — real conversations behind the
  * owner's shell, a real send through the lifted engine half, the drawer,
- * the overlay union, the notice toast. `App.tsx` renders this behind
- * `NEW_SHELL`; the old branch is TEMPORARY, so `AppShell` still boots as the
- * controller until `docs/PARITY.md` says the rest is reproduced.
+ * the overlay union, the notice toast. `App.tsx` renders this as the chat
+ * application root.
  *
  * The root may only COMPOSE: state it owns, hooks it calls, one layout it
  * renders (fileSize.test pins the line budget). The three children and their

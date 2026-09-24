@@ -8,7 +8,7 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import { makeT, en, it as italian } from "../i18n";
 import { modelBarStatus, pillWhereLabel } from "./modelBar";
 import { hostModelLocation } from "./hostModelLocation";

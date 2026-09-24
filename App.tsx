@@ -31,7 +31,6 @@ import {
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { ShellPreview } from "./src/ui/shell/ShellPreview";
-import { AppShell } from "./src/app/AppShell";
 import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
@@ -46,14 +45,6 @@ import { LocaleProvider, useLocale } from "./src/i18n";
 // string with no user content -- the opposite of the logcat leaks closed in
 // 4553062, which removed the user's words while keeping the counters.
 console.info(FOREGROUND_IDLE_PROTOCOL_MARKER);
-
-// TEMPORARY (interface rebuild): boots the NEW host root (`src/host`) with
-// the real conversation and a real send behind the owner's shell. The flag
-// AND the old branch exist only so `AppShell` can still boot as the
-// CONTROLLER — both files stay runnable and untouched while
-// `docs/PARITY.md` tracks what the rewrite still has to reproduce. Remove
-// the flag and the AppShell branch only when the parity document says so.
-const NEW_SHELL = true;
 
 // TEMPORARY (step 2 of the interface rebuild): when true, the app renders the
 // bare shell preview instead of the root, so it can be screenshotted alone.
@@ -193,13 +184,7 @@ function ModelCatalogBoot() {
     };
   }, []);
 
-  return ready ? (
-    NEW_SHELL ? (
-      <HostRoot />
-    ) : (
-      <AppShell />
-    )
-  ) : null;
+  return ready ? <HostRoot /> : null;
 }
 
 export default function App() {

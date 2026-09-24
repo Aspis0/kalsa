@@ -7,7 +7,7 @@
  * behind a hung native op even the download button must not pretend.
  */
 import { decideModelPress } from "./modelBarPress";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 
 function press(overrides: Partial<Parameters<typeof decideModelPress>[0]> = {}) {
   return decideModelPress({

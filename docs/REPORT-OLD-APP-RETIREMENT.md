@@ -1,65 +1,50 @@
-# Old app retirement preparation
+# Old App Retirement
 
-## Status
+Branch `ux-2026-09-21`, HEAD `f6689b6e` at final validation. The owner confirmed the Jelly Star build before this deletion.
 
-Read-only audit and retirement plan. No source or test files were changed, no route was collapsed, and neither controller was deleted. The requested starting commit was `4251527`; the checked-out branch is `ux-2026-09-21` at `e11c4dc`, one docs-only commit ahead (`docs/DESIGN-PAIRING.md`). The worktree was clean before this report.
+## Removed and rewired
 
-**Stop: the `docs/PARITY.md` gate is not satisfied.** `App.tsx:50-56` says the branch stays until parity says it can go. The checklist has stale statuses, but it still records behavior that is absent from the new shell and has only an old implementation. That is a parity defect, not a deletion decision.
+- Deleted `src/app/AppShell.tsx` and `src/screens/AiChatPage.tsx`; no copy, archive, renamed file, or sibling directory was created.
+- Deleted `src/app/AppShell.remoteWiring.test.ts`, a 17-test source-text suite tied to the removed controllers. Its runtime contracts are covered by the host suites listed below.
+- `App.tsx:34,187` imports and mounts `HostRoot` directly. `NEW_SHELL` and its AppShell branch are gone; the separate screenshot-only `SHELL_PREVIEW` remains.
+- No commit was made. The worktree also retains the preceding uncommitted remote-port changes that were present when this retirement turn began.
+- Moved `ModelPipelineState`, `VoicePipelineState`, and `EmbeddingPipelineState` to `src/host/hostPipelineState.ts:1-24`. The host hooks, model helpers, tests, `HostOverlays.tsx:42-46`, and the still-mounted legacy `SettingsScreen.tsx:21-25` now import from this host-owned module. No shim points back to AppShell.
+- Moved the chat payload types (`MessageSource`, `ResultImage`, `ResultDownload`, `ChatCta`, `LocalAttachment`) into `src/host/hostMessage.ts:7-39`; `Message` is host-owned there as well. `hostMessage.ts` has no AiChatPage import.
+- `HostRoot.tsx` remains within its 241-line ratchet; all new files are below 350 lines. No ratchet changed.
 
-## Type extraction plan
+## The 15 source-reading test files
 
-1. Add `src/host/pipelineState.ts` for `ModelPipelineState`, `VoicePipelineState`, and `EmbeddingPipelineState`. Repoint `HostOverlays.tsx:42-46`, `SettingsScreen.tsx:21-25`, and every host/test importer currently reaching into `AppShell.tsx`; the full current set includes `usePipelineScans`, `modelBar`, `modelBarPress`, `composerView`, `useModelHost`, `useModelDownload`, `engineLoad`, `composerPhase`, `remoteHostEnsure`, `remoteModelSelection`, `remoteModelHostActions`, `hostModelLocation`, and the three named tests. These are type-only changes; they do not alter remote behavior or `src/engine/remote/`.
-2. Make the message schema in `src/host/hostMessage.ts` own `ChatCta`, `LocalAttachment`, `MessageSource`, `ResultDownload`, and `ResultImage`, alongside `Message`. Repoint `AppShell.tsx` and `AiChatPage.tsx` to those host-owned declarations and remove `hostMessage.ts`'s type import from `AiChatPage.tsx:17`. No shim may point back to either controller.
-3. Keep `AppShellProps`, the private `ModelState` alias, and the old overlay union local to `AppShell` until the later route-removal step; they are not shared host types. `HostOverlay` already owns the new shell's overlay union.
-
-## Fifteen test-file verdicts
-
-The supplied list is not fifteen raw reads of the controllers at this HEAD. Seven files read controller text, one imports a controller type, and the rest test current host modules or read a separate storage module. Keep each suite and its behavior; only replace obsolete controller comparisons with the current owner.
-
-| Test file | Behavior pinned | Current status / owner after controller removal |
+| Test | Behavior retained and current owner | Verdict |
 |---|---|---|
-| `src/ui/shell/ctaChips.test.ts` | CTA payload reaches transcript; CTA is labelled text, not a dead button. | Still exists in `TranscriptTurns.tsx` / `Transcript.tsx`. Replace its `AppShell` no-op source assertion with the host renderer's non-pressable behavior; the old controller stub is historical. |
-| `src/ui/shell/caretSpec.test.ts` | Caret predicate, animation, accessibility, and mapper use. | Already tests `caretSpec.ts`, `StreamCaret.tsx`, and `messageMapper.ts`; it does not read controller text. Keep; update the stale `AiChatPage.tsx` comment reference. |
-| `src/host/notesNotice.test.ts` | Notes-context truncation speaks once through the one-slot notice. | Still in `engineTurn.ts` → `sendHost.ts` → `useNotice.ts` / `HostNotice.tsx`; replace the `AiChatPage` copy/source pin with a behavior assertion on the host notice event and catalog keys. |
-| `src/host/modelBarPress.test.ts` | Download/retry/reload/inert decision table, including hung precedence. | Behavior remains in `modelBarPress.ts`; only its type import points to `AppShell`. Repoint to `pipelineState.ts`. |
-| `src/host/keyboardFocus.test.ts` | Drawer keyboard dismissal, template selection focus, composer focus target. | Host routes are in `HostDrawer.tsx`, `HostChatSurface.tsx`, and `ShellComposer.tsx`. Replace the old `AiChatPage` count with assertions against those owners. The separate transcript-tap focus behavior is still missing; see parity stop below. |
-| `src/host/attachments.test.ts` | Five-item cap, distinct refusal keys, document dedupe, vision predicate, document hints, picker routing, PDF error mapping. | These behaviors live in `attachments.ts`, `attachFlow.ts`, and `useAttachments.ts`. Retarget old-controller constant comparisons to the host contract while preserving each behavioral case. |
-| `src/host/shareImport.test.ts` | Text/PDF share import outcomes, attachment, busy/cap/failure notices, and bilingual keys. | Already exercises `shareImport.ts`; it does not read a controller. Keep; update historical line references only. |
-| `src/host/hostOverlay.test.ts` | Miniapp normalization, exclusive-overlay precedence, replacement, invalid-payload refusal. | Already exercises `hostOverlay.ts`; it does not read a controller. Keep; update historical line references only. |
-| `src/host/downloadNotifications.test.ts` | Progress throttle, permission denial, channel setup, ready/failure notification, best-effort dismissal. | Already exercises `downloadNotifications.ts`; it does not read a controller. Keep; update historical line references only. |
-| `src/host/docxAttach.test.ts` | Import order, caps, extraction/storage errors, cleanup, commit-before-attach. | Already exercises `docxAttach.ts`. Its one text read is `documents/documentStorage.ts`'s mirrored byte cap, not either controller; keep that drift guard. |
-| `src/host/shareIn.test.ts` | Consume-once, pending-until-ready, invalid URL, nonce merge, draft preservation and cap. | Already exercises `shareIntent.ts` / `useShareIn.ts`; no controller source is read. Keep; update historical line references only. |
-| `src/host/sendDraft.test.ts` | Composer sends clear only their own text; suggestion sends preserve an unrelated draft. | The new behavior lives in `sendHost.ts` and its `HostRoot` call site. Replace the two `AiChatPage` historical comparisons with a behavioral call-site assertion; retain the old/new distinction as context, not as an executable dependency. |
-| `src/host/modelBar.test.ts` | Model status, remote-ready copy, failure hints, and battery ETA decisions. | Tests current `modelBar.ts` / `useModelBar.ts`; no controller text is read. Keep; update comments that cite old line numbers. |
-| `src/host/toolFlags.test.ts` | Persisted Web key/encoding, state+ref mirror, default, and notify-on-change behavior. | Current owner is `toolFlags.ts` / `staticPrefixNotify.ts`. Replace the `AppShell` string comparison with a behavioral assertion against the host storage/ref path; preserve all persistence and notification cases. |
-| `src/host/translateFlow.test.ts` | Translation run ownership, abort/cleanup, engine exclusion, and non-persistence. | Current owner is `useTranslateMessage.ts`, `translateState.ts`, `hostMessage.ts`, and `historyMessages.ts`. Replace the old `AiChatPage` type comparison with the host message/history contract; retain the existing host assertions. |
+| `src/ui/shell/ctaChips.test.ts:20-62` | CTA is labelled, static text; `TranscriptTurns.tsx`, `transcriptTypes.ts`, `messageMapper.ts:103`. The test now maps a CTA and checks its label plus the non-action renderer. | Repointed; removed the old AppShell no-op callback pin. |
+| `src/ui/shell/caretSpec.test.ts:17-100` | Caret predicate, motion, accessibility, and routing; `caretSpec.ts:40`, `StreamCaret.tsx`, `messageMapper.ts`. | Retained against current owners; old AiChatPage references are comments only. |
+| `src/host/notesNotice.test.ts:26-72` | Note truncation notice and one-slot behavior; `engineTurn.ts`, `sendHost.ts`, `HostNotice.tsx`. | Replaced the old voice-toast source pin with a rendered HostNotice assertion. The old voice-specific path is not mounted; mic/Whisper remains in PARITY. |
+| `src/host/modelBarPress.test.ts:31-94` | Model-state tap decisions, including hung refusal; `modelBarPress.ts`, with states from `hostPipelineState.ts`. | Repointed to host-owned state types and pure action policy. |
+| `src/host/keyboardFocus.test.ts:20-77` | Drawer dismissal, template fill/focus, and field focus; `HostDrawer.tsx`, `templateSelection.ts:2`, `HostChatSurface.tsx`, `ShellComposer.tsx`. | Repointed; template behavior is exercised through the extracted helper. The absent transcript-tap focus remains PARITY row 46. |
+| `src/host/attachments.test.ts:25-150` | Cap, dedupe, vision, routing, and error mapping; `attachments.ts:36`, `useAttachments.ts`. | Replaced controller literals with boundary behavior assertions. |
+| `src/host/shareImport.test.ts:61-178` | Text/PDF shared import, failures, and attachment; `shareImport.ts:38+`, `useShareIn.ts`. | Retained against the host implementation. |
+| `src/host/hostOverlay.test.ts:24-54` | Miniapp overlay open/replace/refusal policy; `hostOverlay.ts:39`, `HostOverlays.tsx`. | Retained against the host policy. |
+| `src/host/downloadNotifications.test.ts:72-175` | Notification permission, throttle, outcomes, and dismissal; `downloadNotifications.ts`. | Retained against the host notification adapter. |
+| `src/host/docxAttach.test.ts:49-190` | DOCX caps, failure mapping, cleanup, and commit; `docxAttach.ts:57`, `documentStorage.ts`, `useAttachments.ts`. | Retained against the host import path. |
+| `src/host/shareIn.test.ts:28-122` | Consume-once, hold/flush, nonce merge; `shareIn.ts`, `useShareIn.ts`. | Retained against the host share path. |
+| `src/host/sendDraft.test.ts:14-53` | Only the submitted draft text clears; `sendDraft.ts:16`, `sendHost.ts`. | Kept the host rule and both clear sites. Removed the two old-only tests “the controller cleared the field on EVERY send, card or not” and “the card reached that send with the CARD's text, never the draft”: the v2 welcome surface is an image and has no suggestion-card send path. |
+| `src/host/modelBar.test.ts:45-329` | Status, errors, remote-ready label, and battery lines; `modelBar.ts:76`, `useModelBar.ts`. | Retained against host derivations. |
+| `src/host/toolFlags.test.ts:33-84` | Shared storage key/encoding, ref mirror, and notify-on-change; `toolFlags.ts`, `toolTogglePersistence.ts`, `staticPrefixNotify.ts`. | Repointed storage behavior to the extracted persistence helper and exercised both values. |
+| `src/host/translateFlow.test.ts:60-213` | Translate ownership, abort/orphan cleanup, engine gates, and volatility; `useTranslateMessage.ts`, `translateState.ts`, `historyMessages.ts`, `messageMapper.ts`. | Replaced the old Message-type text pin with a persisted/restore/projection behavior check. |
 
-## PARITY walk and stop condition
+The removed 17 source-only remote-wiring tests are superseded by host behavior suites: facade/tools/research (`engineBackendStream.test.ts`, `engineTurnResearch.test.ts`); boot and read-failure recovery (`remoteHostBoot.test.ts`, `remoteBootFallback.ts`); selection and refusal (`remoteModelSelection.test.ts`, `remoteModelHostActions.test.ts`, `remoteModelTransition.test.ts`, `modelSwitchRemote.test.ts`); local-only actions/attachments (`remoteLocalAction.test.ts`, `remoteAttachmentGate.test.ts`); errors (`remoteEngineError.test.ts`); readiness (`modelBar.test.ts`, `remoteHostEnsure.test.ts`); and configuration invalidation (`remoteEngine.lifecycle.test.ts`). The old background embed/rebuild guards had no host operation to guard: the host overlay reports rebuild as unavailable, and no background semantic embed job is mounted.
 
-`PARITY.md` D1 is not a current inventory: rows 9 and 11 still call the caret/send path absent, while `messageMapper.ts`, `StreamCaret.tsx`, `HostRoot.tsx`, `sendHost.ts`, and `engineTurn.ts` implement them. Rows 12-14, 22-28, 33-37, 41, and 43-45 also contain stale `✗`/`◐` claims for surfaces now present in `welcomeBlock.tsx`, `Transcript*`, `messageActions.ts`, `HostOverlays.tsx`, `useModelBar.ts`, `useShareIn.ts`, `useAttachments.ts`, and `HostDrawer.tsx`. Those statuses should be reconciled before the gate is relied on.
+## Harness owners and parity ledger
 
-The following entries remain material:
+- Repointed CI source checks from AppShell to the host owners: `thinkHistoryHarness.mjs:75,264,732` checks `historyMessages.ts`, the host emission writers, and the three turn-window phases; `memoryFactsTailHarness.mjs:618` checks `engineTurnCompactor.ts`; `memoryTelemetryHarness.mjs:447` checks `engineTurnMemory.ts` / `engineTurnStream.ts`; `embeddingServiceHarness.mjs:420` checks the shared `engineEnsureLoad.ts` path and host gates. The old two AppShell init sites are one shared host `performEngineLoad` site, so the harness now checks the single bounded init and its callers.
+- The deleted controller also owned a foreground static-prefix re-kick. Added `foregroundPrewarm.ts:27` and mounted it from `useHostEngine.ts:124-145`; `foregroundPrewarm.test.ts:31-91` drives active/background events, matching-model dispatch, thermal/remote refusals, and the skip reasons. `prefixPrewarmHarness.mjs:323,2315` now pins that host seam. This preserves the old local prewarm behavior without dispatching local prewarm in remote mode.
+- `docs/PARITY.md` was not edited (`git diff -- docs/PARITY.md` is empty). The mic/Whisper rows 29 and 31 (`docs/PARITY.md:51,53`) and transcript-tap focus row 46 (`:70`) remain visible for the later slice. Their old source files are recoverable only from Git history.
 
-- **D1 rows 29-32 and 40; D2 row 15 (voice):** `AiChatPage.tsx:1354-1426,1515-1611` contains the listen/stop/transcribe/prefill flow and cleanup. In the new shell, `HostChatSurface.tsx:249` maps the mic press to `shell.notice.mic`; there is no host `VoiceCapture` flow, voice-state row, or voice-note toast. `HostOverlays.tsx:205` maps Whisper download to an unavailable notice. TTS read-aloud itself has moved to `useReadAloud.ts`, and the TTS preference is wired; those parts are not blockers. The new device path therefore does not reproduce mic/Whisper behavior, and the only implementation source to reproduce it is the old chat/controller. **This is an unresolved parity obligation: do not delete the controllers.**
-- **D1 row 46 (focus):** template choice focuses via `HostChatSurface.tsx:299`, and the composer has a field-area focus handler in `ShellComposer.tsx:98`. `Transcript.tsx` receives no focus callback, so the old behavior of tapping the transcript to focus the field is not represented. The old source is the only documented implementation. Add/reconcile this row before retirement.
-- **D1 row 50 (keyboard-debug badge):** `AiChatPage.tsx:866-915,4668-4691` is the only implementation; the new shell has none. PARITY itself says “decide keep/drop.” It is dev-only and not counted as a settled user-facing obligation, but its disposition remains open.
-- **D1 row 2:** export exists as a per-conversation action in `conversationActions.ts` / `HostDrawer.tsx`; the old header placement is not the new design. Mark this as moved rather than missing.
-- **D1 row 38 and D2 row 18:** the old memory banner has setters but no reader in the old code; the new code need not preserve an invisible row.
-- **D1 rows 48-49:** PARITY records haptics and chat-surface swipe-to-delete as nonexistent; neither is an old-only behavior to preserve.
+## Validation
 
-## Retirement boundary
-
-When parity is accepted and the Jelly Star build is confirmed, the only source files in this requested deletion are:
-
-1. `src/app/AppShell.tsx`
-2. `src/screens/AiChatPage.tsx`
-
-`App.tsx` will be edited to remove `NEW_SHELL` and its old branch; it will not disappear. No renamed copies, archives, or sibling directories are planned. None of these deletions or the route edit was made in this preparation.
-
-## Commands and verification
-
-- `git branch --show-current` — exit 0 (`ux-2026-09-21`).
-- `git rev-parse --short HEAD` — exit 0 (`e11c4dc`; expected `4251527` is its parent).
-- `git status --short` — exit 0 (clean before this report).
-- `rg` / `nl -ba` reads of `docs/PARITY.md`, the fifteen named tests, current host owners, and the controller imports — exit 0.
-- TypeScript, Jest, device, APK, and Gradle were not run. No source/test changes were made to verify; no device build was requested or performed.
+- `npx tsc --noEmit` — EXIT=0.
+- `npx jest --silent` — EXIT=0; 219 suites / 2,387 tests passed.
+- CI workflow's 59 `node scripts/...` logic harnesses (`.github/workflows/apk.yml:87-157`) — EXIT=0; 59/59 passed.
+- `git diff --check` — EXIT=0.
+- An initial post-delete Jest run exited 1 on two stale source assertions (storage inline in `toolFlags.ts`, template fill inline in `HostChatSurface.tsx`); both tests now exercise their extracted helpers and the full rerun passes. The first harness batch exited 1 because its history budget audit expected six monolithic occurrences; it now checks the same five consumers across the three host phases, and the complete rerun passes.
+- No build, APK install, device action, or commit was run. Device confirmation is the owner's report; this turn could not independently verify the phone.

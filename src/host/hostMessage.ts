@@ -1,23 +1,42 @@
 /**
- * The chat message, lifted verbatim from the old screen.
- *
- * The old screen keeps its own copy (it must stay runnable as the
- * controller); this is the same shape so `sanitizeHistoryMessages`,
- * `buildPersistableMessages` and `historyPersistable.ts` round-trip the
- * identical field set — the hash contract of D2 row 2 depends on it.
- * Supporting types are imported type-only from the controller: no runtime
- * edge, no edit.
+ * Host-owned chat message and stream payload types. History serialization
+ * preserves the field contract defined by `historyPersistable.ts`.
  */
-import type {
-  ChatCta,
-  LocalAttachment,
-  MessageSource,
-  ResultDownload,
-  ResultImage,
-} from "../screens/AiChatPage";
 import type { EmissionSource } from "../engine/modelEmittedText";
 
-export type { ChatCta, LocalAttachment, MessageSource, ResultDownload, ResultImage };
+export type MessageSource = {
+  title: string;
+  /** Landing URL from web_search (optional for older history). */
+  url?: string;
+  authors?: string;
+  doi?: string;
+  /** Search provider id that produced this source. */
+  provider?: string;
+};
+
+export type ResultImage = { id: string; label: string; url: string; artifactType?: string };
+export type ResultDownload = { id: string; label: string; url: string; artifactType?: string };
+export type ChatCta = {
+  artifactType?: string | null;
+  contrastId?: string | null;
+  id?: string;
+  kind: "output" | "output_picker" | "run_monitor_recovery";
+  label: string;
+  outputId?: string | null;
+  target?: string | null;
+};
+
+/** Attachment data staged by the composer and carried with the send. */
+export type LocalAttachment = {
+  id: string;
+  kind: "image" | "pdf" | "document";
+  name: string;
+  uri: string;
+  pages?: string[];
+  pageCount?: number;
+  /** Library document id when kind === "document". */
+  libraryDocId?: string;
+};
 
 export type Message = {
   id: string;

@@ -34,7 +34,7 @@ import type {
   EmbeddingPipelineState,
   ModelPipelineState,
   VoicePipelineState,
-} from "../app/AppShell";
+} from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
 import { loadMarkerStore } from "./engineLoad";
 import {
@@ -43,6 +43,7 @@ import {
   subscribeModelSwitchSettled,
 } from "./modelSwitchState";
 import { pickHostBootModel, planRemoteHostBoot } from "./remoteHostBoot";
+import { recoverLocalAfterRemoteBootFailure } from "./remoteBootFallback";
 import { decideRemoteHostProbe } from "./remoteHostProbe";
 
 export interface ScanRefs {
@@ -178,9 +179,11 @@ export function usePipelineScans(params: {
         setModelIndex(startIndex);
       } catch {
         // Remote hydration fails closed; the local default remains selected.
-        refs.remoteActiveRef.current = false;
-        setRemoteActive(false);
-        await recoverLocalBackend().catch(() => undefined);
+        await recoverLocalAfterRemoteBootFailure({
+          remoteActiveRef: refs.remoteActiveRef,
+          setRemoteActive,
+          recoverLocalBackend,
+        });
       } finally {
         if (mounted) setPrefsReady(true);
       }

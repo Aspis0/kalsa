@@ -321,26 +321,16 @@ async function main() {
   );
 
   // ── Foreground re-kick contract (source assertions) ──────────────────────
-  // queueStaticPrefixPrewarm refuses to run while the app is backgrounded, and
-  // the only thing that made that safe was a foreground re-kick from AppShell
-  // — which for one release did not exist. None of its other callers fires on
-  // a foreground transition, so a slide that landed while backgrounded left
-  // the prefix cold until the next slide or engine cycle.
-  //
-  // AppShell's AppState handler cannot be reached without rendering the shell,
-  // so this pins the contract to a call site. Text presence alone was not
-  // enough — `void` instead of `await`, an `if (false)` wrapper, a block
-  // comment and a guard inserted ahead of the call all left it dead with the
-  // gate green — so the rule here is stricter: comments are stripped and the
-  // awaited call must be the FIRST statement of the branch. Honest limit:
-  // the pin only sees INSIDE the branch — its search starts at the branch's
-  // `if`, so a guard placed AHEAD of the branch stays invisible to it (the
-  // thermal hard gate, thermalHardGateRef, really does return before the
-  // re-kick when armed, with this pin green). What none of this can prove is
-  // that the prefix ends up warm; that is a device run,
-  // scripts/device-restore-protocol.sh (PREFIX_PREWARM restore_ok).
-  const appShellSrc = readFileSync(
-    path.join(projectRoot, "src/app/AppShell.tsx"),
+  // The new host owns the foreground listener and the re-kick. The Jest
+  // listener test drives an active event and proves a matching local engine
+  // reaches the queue; this source check pins that the real host mounts that
+  // tested subscription and reads live refs.
+  const hostHookSrc = readFileSync(
+    path.join(projectRoot, "src/host/useHostEngine.ts"),
+    "utf8",
+  );
+  const foregroundSrc = readFileSync(
+    path.join(projectRoot, "src/host/foregroundPrewarm.ts"),
     "utf8",
   );
   const llamaSrc = readFileSync(
@@ -364,45 +354,12 @@ async function main() {
   // one), so bound the search by the foreground handler instead of trusting
   // the first hit: an anchor that drifts outside it must fail naming that,
   // not send the reader to the wrong function.
-  const activeAt = appShellSrc.indexOf('if (state === "active")');
-  assert(activeAt >= 0, 'AppShell has an AppState "active" branch');
-  const handlerEnd = appShellSrc.indexOf("getAvailableMemoryBytesUncached()", activeAt);
-  assert(handlerEnd > activeAt, "foreground handler end marker found");
-  const branchAt = appShellSrc.indexOf(
-    "if (isEngineReady() && getActiveModelId() === model.id) {",
-    activeAt,
-  );
-  assert(
-    branchAt > activeAt && branchAt < handlerEnd,
-    "the engine-ready short-circuit is still inside the foreground handler",
-  );
-  const branch = appShellSrc
-    .slice(branchAt, handlerEnd)
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^[ \t]*\/\/.*$/gm, "");
-  const statements = branch
-    .slice(branch.indexOf("{") + 1)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  assert(
-    /^await queueStaticPrefixPrewarm\(/.test(statements[0] ?? ""),
-    `the awaited prewarm must be the FIRST statement of the foreground branch — found: ${statements[0] ?? "<empty branch>"}`,
-  );
-  assert(
-    statements.some((line) => line === "return;"),
-    "the foreground branch still short-circuits with a return",
-  );
-  // The AppState effect mounts with [] deps: a captured `locale` would prewarm
-  // the mount-time prefix and every later send would hash-miss it.
-  assert(
-    statements.some((line) => line.includes("localeRef.current")),
-    "the re-kick reads the live locale, not the one captured at mount",
-  );
-  assert(
-    appShellSrc.includes("localeRef.current = locale;"),
-    "AppShell keeps localeRef fresh on every render",
-  );
+  assert(hostHookSrc.includes("subscribeForegroundPrewarm({"), "host mounts the tested foreground subscription");
+  assert(hostHookSrc.includes("currentModelRef.current = modelHost.currentModel;"), "host refreshes the current model ref");
+  assert(hostHookSrc.includes("localeRef.current = locale;"), "host refreshes the locale ref");
+  assert(foregroundSrc.includes('if (state !== "active") return;'), "listener ignores non-foreground events");
+  assert(foregroundSrc.includes("await ports.queue(current.locale, current.tools);"), "foreground branch awaits the prewarm queue");
+  assert(foregroundSrc.includes("if (current.remote) return;"), "remote mode never queues local prefix work");
 
   // ── The prewarm job's stop policy ────────────────────────────────────────
   // Behaviour first: pinning the guard's text let a maintainer flip every
@@ -2356,49 +2313,29 @@ async function main() {
   );
 
   // ── The re-kick's mutes must speak ───────────────────────────────────────
-  // Every exit ahead of the re-kick, and the fall-through past it, used to be
-  // a bare `return`: a muted branch and a re-kick that never fired produce
-  // identical evidence, and the verdict's only honest word for that window
-  // was "silent" — which pointed at AppShell when the cause was the model
-  // lifecycle. The mutes now name their cause via logPrewarmSkip:
-  // thermal_gate / no_model ahead of the branch, not_ready / model_changed
-  // in the fall-through (evicted model vs user switch — opposite ends).
-  // Anchors checked against the whole file before trusting them: the branch
-  // condition occurs twice in AppShell and thermalHardGateRef 26 times, so
-  // the region is cut from the unique `state === "active"` branch to the
-  // unique init-path memory query, and the mutes must sit in handler order.
-  const fgHandlerAt = appShellSrc.indexOf('if (state === "active")');
-  assert(fgHandlerAt >= 0, 'AppShell still has the AppState "active" branch');
-  const fgHandlerEnd = appShellSrc.indexOf(
-    "getAvailableMemoryBytesUncached()",
-    fgHandlerAt,
-  );
-  assert(
-    fgHandlerEnd > fgHandlerAt,
-    "the foreground handler still reaches the init path's memory query",
-  );
-  const fgHandler = shapeOf(appShellSrc.slice(fgHandlerAt, fgHandlerEnd));
+  // The host subscription's behavioral Jest suite drives every refusal and
+  // queue outcome; this harness keeps the owner module and ordering pinned.
+  const fgHandler = shapeOf(foregroundSrc);
   assert(
     fgHandler.includes(
-      'if (thermalHardGateRef.current) { logPrewarmSkip("thermal_gate"); return; }',
+      'if (current.thermalBlocked) { ports.logSkip("thermal_gate"); return; }',
     ),
     "the thermal gate must log thermal_gate before it returns",
   );
   assert(
-    fgHandler.includes('if (!model) { logPrewarmSkip("no_model"); return; }'),
+    fgHandler.includes('if (!current.model) { ports.logSkip("no_model"); return; }'),
     "the no-model return must log no_model before it returns",
   );
   assert(
     fgHandler.includes(
-      'if (!isEngineReady()) { logPrewarmSkip("not_ready"); } ' +
-        'else { logPrewarmSkip("model_changed"); }',
+      'ports.logSkip(current.engineReady ? "model_changed" : "not_ready");',
     ),
     "the fall-through must say which of not_ready / model_changed it is",
   );
-  const thermalSkipAt = fgHandler.indexOf('logPrewarmSkip("thermal_gate")');
-  const noModelSkipAt = fgHandler.indexOf('logPrewarmSkip("no_model")');
-  const fgRekickAt = fgHandler.indexOf("await queueStaticPrefixPrewarm(");
-  const fallthroughSkipAt = fgHandler.indexOf('logPrewarmSkip("not_ready")');
+  const thermalSkipAt = fgHandler.indexOf('ports.logSkip("thermal_gate")');
+  const noModelSkipAt = fgHandler.indexOf('ports.logSkip("no_model")');
+  const fgRekickAt = fgHandler.indexOf("await ports.queue(current.locale, current.tools);");
+  const fallthroughSkipAt = fgHandler.indexOf("ports.logSkip(current.engineReady ?");
   assert(
     thermalSkipAt >= 0 &&
       thermalSkipAt < noModelSkipAt &&

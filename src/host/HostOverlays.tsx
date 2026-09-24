@@ -43,7 +43,7 @@ import type {
   EmbeddingPipelineState,
   ModelPipelineState,
   VoicePipelineState,
-} from "../app/AppShell";
+} from "./hostPipelineState";
 import { useLocale, type TranslationKey } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import type { HostOverlay } from "./hostOverlay";

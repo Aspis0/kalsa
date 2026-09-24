@@ -444,11 +444,11 @@ async function test7_settledLineIsAuthoritative() {
     assert(parsed.extractStopReason === reason, `Settled stop reason ${reason} must survive`);
   }
 
-  const appShell = readFileSync(path.join(projectRoot, "src/app/AppShell.tsx"), "utf8");
-  const settledHelper = appShell.slice(
-    appShell.indexOf("const emitSettledMemoryTelemetry"),
-    appShell.indexOf("const armMemoryExtract"),
-  );
+  const memoryHost = readFileSync(path.join(projectRoot, "src/host/engineTurnMemory.ts"), "utf8");
+  const turnStream = readFileSync(path.join(projectRoot, "src/host/engineTurnStream.ts"), "utf8");
+  const settledStart = memoryHost.indexOf("const emitSettledMemoryTelemetry");
+  const settledEnd = memoryHost.indexOf("const armMemoryExtract", settledStart);
+  const settledHelper = memoryHost.slice(settledStart, settledEnd);
   assert(
     settledHelper.includes("MemoryStore.trackMemoryEnabled(settledMemoryEnabled)"),
     "Extract job must re-track memoryEnabled before settled snapshot",
@@ -458,23 +458,23 @@ async function test7_settledLineIsAuthoritative() {
     "Extract job must re-track totalFactsInStore before settled snapshot",
   );
   assert(
-    /catch \{\s*MemoryStore\.trackMemoryParseOutcome\(3\);/.test(appShell),
-    "AppShell catch must record extractParseOutcome 3",
+    /trackMemoryParseOutcome\(3\)/.test(memoryHost),
+    "host extraction failure must record extractParseOutcome 3",
   );
   for (const reason of [0, 1, 2, 3, 4]) {
     assert(
-      appShell.includes(`MemoryStore.trackMemoryExtractStopReason(${reason});`),
-      `AppShell must record extractStopReason ${reason}`,
+      memoryHost.includes(`MemoryStore.trackMemoryExtractStopReason(${reason});`),
+      `host must record extractStopReason ${reason}`,
     );
   }
-  const resetIndex = appShell.indexOf("const turnTelemetry = MemoryStore.getAndResetMemoryTelemetry();");
-  const turnBlock = appShell.slice(resetIndex, appShell.indexOf("console.log(formatMemoryLine(memTelemetry));", resetIndex));
+  const resetIndex = turnStream.indexOf("const turnTelemetry = MemoryStore.getAndResetMemoryTelemetry();");
+  const turnBlock = turnStream.slice(resetIndex, turnStream.indexOf("console.log(formatMemoryLine(memTelemetry));", resetIndex));
   assert(
     (turnBlock.match(/extractParseOutcome: MemoryStore\.MEMORY_TELEMETRY_NOT_APPLICABLE/g) ?? []).length === 1,
     "Turn-end parse outcome must use the N/A sentinel",
   );
 
-  console.log("✓ Settled line is authoritative; both memory states and N/A turn fields are covered");
+  console.log("✓ Host settled line is authoritative; both memory states and N/A turn fields are covered");
 }
 
 /**

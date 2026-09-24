@@ -10,10 +10,11 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { WEB_TOOLS_ENABLED_KEY, parseToolToggle } from "../agent/toolToggles";
+import { createStaticPrefixNotifier } from "./staticPrefixNotify";
+import { persistWebToolsEnabled } from "./toolTogglePersistence";
 
 const read = (path: string): string => readFileSync(path, "utf8");
 const TOOL_FLAGS = read(join(__dirname, "toolFlags.ts"));
-const CONTROLLER = read(join(__dirname, "..", "app", "AppShell.tsx"));
 const PREFIX = read(join(__dirname, "staticPrefixNotify.ts"));
 
 /** The module each file takes `WEB_TOOLS_ENABLED_KEY` from, by walking its
@@ -29,20 +30,21 @@ function keyImportModule(source: string): string[] {
   return modules;
 }
 
-describe("the persisted key is the controller's own (AppShell:866, 882)", () => {
-  it("is kalsa.web.enabled — the value the old app booted from", () => {
+describe("the persisted Web flag", () => {
+  it("uses the shared key", () => {
     expect(WEB_TOOLS_ENABLED_KEY).toBe("kalsa.web.enabled");
   });
 
-  it("both the controller and the new host import it from the same module", () => {
+  it("the host hook imports the shared key and persists the real on/off values", async () => {
     expect(keyImportModule(TOOL_FLAGS)).toEqual(["../agent/toolToggles"]);
-    expect(keyImportModule(CONTROLLER)).toEqual(["../agent/toolToggles"]);
-  });
-
-  it("the toggle persists with the controller's `1`/`0` encoding (AppShell:882)", () => {
-    expect(TOOL_FLAGS).toMatch(
-      /AsyncStorage\.setItem\(\s*WEB_TOOLS_ENABLED_KEY,\s*next \? "1" : "0"\s*\)/,
-    );
+    expect(TOOL_FLAGS).toContain("persistWebToolsEnabled(next");
+    const setItem = jest.fn(async (_key: typeof WEB_TOOLS_ENABLED_KEY, _value: "1" | "0") => undefined);
+    await persistWebToolsEnabled(true, setItem);
+    await persistWebToolsEnabled(false, setItem);
+    expect(setItem.mock.calls).toEqual([
+      [WEB_TOOLS_ENABLED_KEY, "1"],
+      [WEB_TOOLS_ENABLED_KEY, "0"],
+    ]);
   });
 
   it("flips state AND ref together — the engine reads the ref mid-run (D2 row 14)", () => {
@@ -68,11 +70,16 @@ describe("the load defaults stay the controller's (default ON)", () => {
   });
 });
 
-describe("notify on change, never on mount (old AppShell:2357-2366)", () => {
-  it("the skip-first-run flag still exists and starts true", () => {
+describe("notify on change, never on mount", () => {
+  it("the skip-first-run flag starts true and a changed input notifies", () => {
     // The wiring itself: `useHostEffects` runs this factory with the three
     // flags as deps, so a real toggle announces and mount does not.
     expect(PREFIX).toMatch(/skipNext\s*=\s*true/);
     expect(PREFIX).toContain("skipNext");
+    const calls: string[] = [];
+    const notify = createStaticPrefixNotifier<string, string>((locale) => calls.push(locale));
+    notify("en", []);
+    notify("it", []);
+    expect(calls).toEqual(["it"]);
   });
 });

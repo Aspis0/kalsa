@@ -50,6 +50,7 @@ import { hostModelLocation } from "./hostModelLocation";
 import { researchChipVisible } from "./composerArms";
 import { runHostLocalAction } from "./remoteLocalAction";
 import { remoteAttachmentChips } from "./remoteAttachmentChips";
+import { applyTemplateSelection } from "./templateSelection";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
 /** The message menu's bundle, created by the root beside the send/history it
@@ -295,8 +296,11 @@ export function HostChatSurface({
       quickSheetVisible={quickSheetVisible}
       onQuickSheetClose={() => setQuickSheetVisible(false)}
       onChooseTemplate={(template) => {
-        onDraftChange(t(template.promptKey));
-        fieldRef.current?.focus();
+        applyTemplateSelection(
+          t(template.promptKey),
+          onDraftChange,
+          () => fieldRef.current?.focus(),
+        );
       }}
       editDraft={actions.edit?.draft ?? ""}
       onEditDraftChange={actions.onEditDraftChange}

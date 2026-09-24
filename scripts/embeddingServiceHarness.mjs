@@ -414,69 +414,43 @@ async function main() {
     );
   });
 
-  // 16. Round 7 BLOCK: AppShell wraps disposeEngine in runNativeOp;
-  // timeout marks hung and REFUSES chat (no abandon / no force handoff).
-  // Round 9: atomic runNativeOpBounded at both initEngine sites (replaces
-  // observe-then-submit acquireNativeOpBounded + runNativeOp race).
-  check("AppShell: runNativeOpBounded(initEngine) + block-on-timeout (no abandon)", () => {
-    const src = readFileSync(
-      path.join(projectRoot, "src/app/AppShell.tsx"),
-      "utf8",
-    );
-    assert(/runNativeOp/.test(src), "imports/uses runNativeOp");
-    assert(/runNativeOpBounded/.test(src), "imports/uses runNativeOpBounded");
-    assert(/markEmbedderHung/.test(src), "imports markEmbedderHung");
-    // Round 9: acquireNativeOpBounded removed (atomic check-and-submit).
-    assert(!/acquireNativeOpBounded/.test(src), "must NOT import/use acquireNativeOpBounded");
-    // Round 7: abandon + force handoff removed (block-not-proceed).
-    assert(!/abandonNativeOpChain/.test(src), "must NOT import/use abandonNativeOpChain");
-    assert(!/forceChatAcquireAfterEmbedTimeout/.test(src), "must NOT use force handoff");
-    // Both chat-init call sites use atomic runNativeOpBounded(initEngine).
-    const wraps = src.match(/runNativeOpBounded\(\s*\(\)\s*=>\s*[\s\S]*?initEngine\(/g);
-    assert(
-      wraps && wraps.length >= 2,
-      `expected ≥2 runNativeOpBounded(initEngine) sites, got ${wraps ? wraps.length : 0}`,
-    );
-    // Both dispose call sites wrap disposeEngine in runNativeOp.
-    const disposeWraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*disposeEngine\(\)\s*\)/g);
-    assert(
-      disposeWraps && disposeWraps.length >= 2,
-      `expected ≥2 runNativeOp(() => disposeEngine()) sites, got ${disposeWraps ? disposeWraps.length : 0}`,
-    );
-    // releaseEmbedderBounded BLOCK policy: mark hung, no chain clear, no proceed.
-    const bounded = src.slice(src.indexOf("async function releaseEmbedderBounded"));
-    const boundedEnd = bounded.indexOf("\nfunction ");
-    const body = boundedEnd > 0 ? bounded.slice(0, boundedEnd) : bounded.slice(0, 2000);
-    assert(/markEmbedderHung\(\)/.test(body), "timeout → markEmbedderHung");
-    assert(!/abandonNativeOpChain\(\)/.test(body), "timeout must NOT abandon chain");
-    // Busy UI string on timeout paths.
-    assert(/embedding\.busy/.test(src), "timeout surfaces embedding.busy");
-    // Round 9: ≥2 runNativeOpBounded(..., EMBEDDER_RELEASE_TIMEOUT_MS) submissions.
-    // Calls are multi-line: runNativeOpBounded(\n () => initEngine(...),\n TIMEOUT,\n).
-    const acq = src.match(/runNativeOpBounded\([\s\S]*?EMBEDDER_RELEASE_TIMEOUT_MS\s*,?\s*\)/g);
-    assert(
-      acq && acq.length >= 2,
-      `expected ≥2 runNativeOpBounded(..., EMBEDDER_RELEASE_TIMEOUT_MS), got ${acq ? acq.length : 0}`,
-    );
-    // Round 8 FIX 2: isEmbedderHung() top-guard on both init paths (refuse before submit).
-    const hungGuards = src.match(/if\s*\(\s*isEmbedderHung\(\)\s*\)/g);
-    assert(
-      hungGuards && hungGuards.length >= 2,
-      `expected ≥2 isEmbedderHung() guards, got ${hungGuards ? hungGuards.length : 0}`,
-    );
-    // Round 8 FIX 2: restart guidance on model bar when hung.
-    assert(/embedding\.restartHint/.test(src), "model bar uses embedding.restartHint when hung");
-    // Round 9 nit: hung bar disabled (pointerEvents none or disabled when hung).
-    assert(
-      /pointerEvents=\{isEmbedderHung\(\)\s*\?\s*["']none["']/.test(src) ||
-        /disabled=\{[\s\S]*?isEmbedderHung\(\)/.test(src),
-      "hung model bar must be disabled / pointerEvents none",
-    );
-    // Zero-vector capped sidecar records reason before early return.
-    assert(
-      /chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(src),
-      "zero-vector capped sidecar must record 'capped' before early return",
-    );
+  // 16. The host has one shared, bounded init seam instead of AppShell's two
+  // duplicated call sites. Keep the barrier, refusal, and hung UI guarantees
+  // pinned to their current owners.
+  check("host bounded init + block-on-timeout (no abandon)", () => {
+    const load = readFileSync(path.join(projectRoot, "src/host/engineEnsureLoad.ts"), "utf8");
+    const engineLoad = readFileSync(path.join(projectRoot, "src/host/engineLoad.ts"), "utf8");
+    const gate = readFileSync(path.join(projectRoot, "src/host/engineGateHelpers.ts"), "utf8");
+    const ensure = readFileSync(path.join(projectRoot, "src/host/engineEnsure.ts"), "utf8");
+    const pipeline = readFileSync(path.join(projectRoot, "src/host/usePipelineScans.ts"), "utf8");
+    const idle = readFileSync(path.join(projectRoot, "src/host/foregroundIdle.ts"), "utf8");
+    const bar = readFileSync(path.join(projectRoot, "src/host/modelBar.ts"), "utf8");
+    const press = readFileSync(path.join(projectRoot, "src/host/modelBarPress.ts"), "utf8");
+    const view = readFileSync(path.join(projectRoot, "src/ui/shell/ModelBar.tsx"), "utf8");
+    const indexes = readFileSync(path.join(projectRoot, "src/host/docIndexes.ts"), "utf8");
+    const allHost = [load, engineLoad, gate, ensure, pipeline, idle].join("\n");
+    assert(/runNativeOpBounded/.test(load), "host imports/uses runNativeOpBounded");
+    assert(/markEmbedderHung/.test(load) && /isEmbedderHung/.test(load), "host marks and checks hung state");
+    assert(!/acquireNativeOpBounded/.test(allHost), "must NOT use observe-then-submit acquisition");
+    assert(!/abandonNativeOpChain|forceChatAcquireAfterEmbedTimeout/.test(allHost), "must NOT abandon or force handoff");
+    const initWraps = load.match(/runNativeOpBounded\([\s\S]*?initEngine\(/g);
+    assert(initWraps && initWraps.length === 1, `shared host load seam must guard one init site, got ${initWraps?.length ?? 0}`);
+    assert(/performEngineLoad\(/.test(ensure), "all ensure paths delegate to the shared load seam");
+    const disposeWraps = allHost.match(/runNativeOp\(\(\) => disposeEngine\(\)\)/g);
+    assert(disposeWraps && disposeWraps.length >= 2, `dispose sites must use the native FIFO, got ${disposeWraps?.length ?? 0}`);
+    const bounded = gate.slice(gate.indexOf("export async function releaseEmbedderBounded"));
+    const boundedEnd = bounded.indexOf("\n}");
+    const boundedBody = bounded.slice(0, boundedEnd);
+    assert(/markEmbedderHung\(\)/.test(boundedBody), "release timeout marks the embedder hung");
+    assert(!/abandonNativeOpChain\(\)/.test(boundedBody), "release timeout must NOT abandon the chain");
+    assert(/embedding\.busy/.test(load), "timeout surfaces embedding.busy and refuses init");
+    assert(/EMBEDDER_RELEASE_TIMEOUT_MS/.test(load) && /runNativeOpBounded/.test(load), "bounded init uses the embedder timeout");
+    assert(/isEmbedderHung\(\)/.test(load), "the shared init site refuses an already-hung embedder");
+    assert(/embedding\.restartHint/.test(bar), "model bar gives restart guidance for a hung embedder");
+    assert(/hung/.test(press) && /control: "inert"/.test(press), "a hung model action is inert");
+    assert(/view\.status\.retryLabel !== undefined/.test(view), "model bar only renders a retry action when the host supplies its label");
+    assert(/\.\.\.\(hung \? null : \{ retryLabel: t\("shell\.action\.retry"\) \}\)/.test(bar), "hung status removes the retry promise from its accessible row");
+    assert(/chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(indexes), "zero-vector capped sidecar records capped before returning");
   });
 
   // 16b. Round 7: releaseEmbedder absorbs native_op_abandoned (no throw).

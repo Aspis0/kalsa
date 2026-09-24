@@ -1,4 +1,4 @@
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 
 export type RemoteModelSelectionRefusal = "busy" | "turn-active" | "documents-busy";
 

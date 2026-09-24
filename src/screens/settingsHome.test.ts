@@ -3,6 +3,8 @@ import { join } from "path";
 import { en } from "../i18n/en";
 import { it as italian } from "../i18n/it";
 import { settingsWebToggleProps } from "./settingsWebToggle";
+import { WEB_TOOLS_ENABLED_KEY } from "../agent/toolToggles";
+import { persistWebToolsEnabled } from "../host/toolTogglePersistence";
 
 const read = (name: string) => readFileSync(join(__dirname, name), "utf8");
 const readSource = (path: string) => readFileSync(path, "utf8");
@@ -84,7 +86,7 @@ describe("Settings v2 home and advanced pages", () => {
     expect(SETTINGS).toContain("onPress={handleReportProblem}");
   });
 
-  it("carries Web from the real host flag handler to the Privacy switch", () => {
+  it("carries Web from the host handler to the switch and persists both states", async () => {
     expect(FURNITURE).toContain("webToolsEnabled={flags.webToolsEnabled}");
     expect(FURNITURE).toContain("toggleWebTools={flags.toggleWebTools}");
     expect(OVERLAYS).toContain("webToolsEnabled={webToolsEnabled}");
@@ -94,7 +96,7 @@ describe("Settings v2 home and advanced pages", () => {
     expect(HOME).toContain("{...webToggleProps}");
     expect(HOME).toContain("{webToggleProps ? (");
     expect(FLAGS).toContain("const toggleWebTools = useCallback(() => {");
-    expect(FLAGS).toContain("AsyncStorage.setItem(WEB_TOOLS_ENABLED_KEY");
+    expect(FLAGS).toContain("persistWebToolsEnabled(next");
 
     const toggled = jest.fn();
     const disabled = settingsWebToggleProps(false, toggled);
@@ -107,6 +109,14 @@ describe("Settings v2 home and advanced pages", () => {
     enabled?.onPress();
     expect(toggled).toHaveBeenCalledTimes(2);
     expect(settingsWebToggleProps(true, undefined)).toBeNull();
+
+    const writes: Array<[string, "1" | "0"]> = [];
+    await persistWebToolsEnabled(true, async (key, value) => { writes.push([key, value]); });
+    await persistWebToolsEnabled(false, async (key, value) => { writes.push([key, value]); });
+    expect(writes).toEqual([
+      [WEB_TOOLS_ENABLED_KEY, "1"],
+      [WEB_TOOLS_ENABLED_KEY, "0"],
+    ]);
   });
 
   it("gives settings choice sheets a title and a localized Done action", () => {

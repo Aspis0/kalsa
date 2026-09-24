@@ -3,8 +3,6 @@
  * would catch if the rule drifted: the cap, the dedupe, the vision predicate
  * and the PDF-error mapping, all against the controller's own keys.
  */
-import { readFileSync } from "fs";
-import { join } from "path";
 import {
   ATTACHMENT_CAP_NOTICE,
   MAX_ATTACHMENT_ITEMS,
@@ -20,16 +18,15 @@ import {
 } from "./attachments";
 import type { LocalAttachment } from "./hostMessage";
 
-const CHAT = readFileSync(join(__dirname, "..", "screens", "AiChatPage.tsx"), "utf8");
-
 function item(over: Partial<LocalAttachment> = {}): LocalAttachment {
   return { id: "img-1", kind: "image", name: "a.jpg", uri: "file:///a.jpg", ...over };
 }
 
-describe("the cap: five rows, the controller's own number and lines", () => {
-  it("is the controller's MAX_IMAGE_ATTACHMENTS, not a fresh guess", () => {
+describe("the host attachment cap", () => {
+  it("uses its exported five-row limit at the boundary", () => {
     expect(MAX_ATTACHMENT_ITEMS).toBe(5);
-    expect(CHAT).toContain("const MAX_IMAGE_ATTACHMENTS = 5;");
+    expect(atAttachmentCap(Array.from({ length: 4 }, (_, i) => item({ id: `i${i}` })))).toBe(false);
+    expect(atAttachmentCap(Array.from({ length: 5 }, (_, i) => item({ id: `i${i}` })))).toBe(true);
   });
 
   it("an add at the cap refuses with the generic line and keeps the rows", () => {
@@ -52,7 +49,11 @@ describe("the cap: five rows, the controller's own number and lines", () => {
 
   it("the PDF-path cap keeps the PDF-worded line the controller used there", () => {
     expect(PDF_CAP_NOTICE).toBe("errors.attachmentLimitReached");
-    expect(CHAT).toContain('t("errors.attachmentLimitReached"');
+    expect(addAttachment(
+      Array.from({ length: MAX_ATTACHMENT_ITEMS }, (_, i) => item({ id: `i${i}` })),
+      item({ id: "pdf-extra", kind: "pdf" }),
+      PDF_CAP_NOTICE,
+    )).toEqual({ ok: false, notice: PDF_CAP_NOTICE });
   });
 });
 

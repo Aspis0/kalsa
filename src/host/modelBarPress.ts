@@ -9,7 +9,7 @@
  *
  * Pure over inputs so the tap-state table is a test and not a device probe.
  */
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 
 export type ModelPressAction = "download" | "reload" | "none";
 export type ModelPressDecision = {

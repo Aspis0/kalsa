@@ -37,7 +37,7 @@ import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { getCachedDeviceProfile } from "../engine/deviceProfile";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import type { ConversationsState } from "../conversations/ConversationsStore";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import type { Locale, TranslateFn } from "../i18n";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 

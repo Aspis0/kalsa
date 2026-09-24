@@ -615,12 +615,12 @@ async function main() {
     );
   });
 
-  test("AppShell's systemText is exactly one buildSystemPrompt call, nothing appended", () => {
+  test("the host systemText is exactly one buildSystemPrompt call, nothing appended", () => {
     const shellSrc = readFileSync(
-      path.join(projectRoot, "src/app/AppShell.tsx"),
+      path.join(projectRoot, "src/host/engineTurnCompactor.ts"),
       "utf8",
     );
-    // "systemText" occurs once in the file today; the count assert keeps the
+    // "systemText" occurs once in the host turn module today; the count keeps the
     // anchor honest if a second site ever appears.
     const anchor = "systemText: buildSystemPrompt(";
     const hits = shellSrc.split(anchor).length - 1;

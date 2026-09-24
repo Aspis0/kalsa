@@ -1,4 +1,4 @@
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
 import { pillWhereLabel } from "./modelBar";
 

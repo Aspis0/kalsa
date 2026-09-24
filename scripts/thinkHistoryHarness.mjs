@@ -72,30 +72,29 @@ function shapeOf(text) {
  * re-saved the trimmed value, so the bytes eroded one boot at a time. Any
  * reappearance of the inline trim must fail here by name.
  */
-function assertAppShellLoadPreservesBytes() {
-  const appShellPath = path.join(projectRoot, "src/app/AppShell.tsx");
-  const src = readFileSync(appShellPath, "utf8");
-  const fnAt = src.indexOf("function validateHistoryMessages(");
-  if (fnAt < 0) throw new Error("AppShell: validateHistoryMessages disappeared");
+function assertHostLoadPreservesBytes() {
+  const src = readFileSync(path.join(projectRoot, "src/host/historyMessages.ts"), "utf8");
+  const fnAt = src.indexOf("export function sanitizeHistoryMessages(");
+  if (fnAt < 0) throw new Error("Host history: sanitizeHistoryMessages disappeared");
   const fnEnd = src.indexOf("\n}", fnAt);
-  if (fnEnd < 0) throw new Error("AppShell: validateHistoryMessages never closes");
+  if (fnEnd < 0) throw new Error("Host history: sanitizeHistoryMessages never closes");
   const fn = src.slice(fnAt, fnEnd);
-  if (!fn.includes("readModelEmittedText(role, rawEmitted)")) {
+  if (!fn.includes("readModelEmittedText(record.role, record.modelEmittedText)")) {
     throw new Error(
-      "AppShell validateHistoryMessages must restore modelEmittedText via " +
-        "readModelEmittedText(role, rawEmitted) — the save path's own policy. " +
+      "Host sanitizeHistoryMessages must restore modelEmittedText via " +
+        "readModelEmittedText(record.role, record.modelEmittedText) — the save path's own policy. " +
         "The load path drifted from the save path again.",
     );
   }
-  if (/rawEmitted\.trim\(\)/.test(shapeOf(fn))) {
+  if (/record\.modelEmittedText\.trim\(\)/.test(shapeOf(fn))) {
     throw new Error(
-      "AppShell validateHistoryMessages TRIMS the emission on load again " +
-        "(rawEmitted.trim()) — load destroys what save preserves and every " +
+      "Host sanitizeHistoryMessages TRIMS the emission on load again " +
+        "(record.modelEmittedText.trim()) — load destroys what save preserves and every " +
         "boot re-saves the trimmed value; the KV replay diverges at the " +
         "first token of any emission with edge whitespace.",
     );
   }
-  console.log("PASS AppShell load path preserves emission bytes");
+  console.log("PASS host history load path preserves emission bytes");
 }
 
 /**
@@ -254,20 +253,15 @@ function assertEmissionSourceWriters() {
 
   // Per-file expectation, in writeShapesFor order:
   // [dotWrite, bracketWrite, keyColon, keyShorthand, deleteDot, deleteBracket].
-  // 1. screens/AiChatPage.tsx — hydration restore + finalize spread (capture
-  //    producer writes the pair through the finalize literal).
-  // 2. app/AppShell.tsx — validateHistoryMessages + engine-message copy.
-  // 3. context/compactor.ts — toEngineHistoryMessage assembly.
-  // 4. engine/historyPersistable.ts — persistence normaliser, which drops
+  // 1. context/compactor.ts — toEngineHistoryMessage assembly.
+  // 2. engine/historyPersistable.ts — persistence normaliser, which drops
   //    the string AND the flag together.
-  // 5. host/engineTurnStream.ts — history-to-engine message copy.
-  // 6. host/historyMessages.ts — persisted-message hydration.
-  // 7. host/sendCallbacks.ts — callback capture handed to finalization.
-  // 8. host/sendFinalize.ts — terminal message write.
-  // 9. host/turnCorpus.ts — persisted corpus-message hydration.
+  // 3. host/engineTurnStream.ts — history-to-engine message copy.
+  // 4. host/historyMessages.ts — persisted-message hydration.
+  // 5. host/sendCallbacks.ts — callback capture handed to finalization.
+  // 6. host/sendFinalize.ts — terminal message write.
+  // 7. host/turnCorpus.ts — persisted corpus-message hydration.
   const expected = {
-    "screens/AiChatPage.tsx": [1, 0, 1, 0, 0, 0],
-    "app/AppShell.tsx": [2, 0, 0, 0, 0, 0],
     "context/compactor.ts": [1, 0, 0, 0, 0, 0],
     "engine/historyPersistable.ts": [1, 0, 0, 0, 1, 0],
     "host/engineTurnStream.ts": [1, 0, 0, 0, 0, 0],
@@ -334,13 +328,13 @@ function assertEmissionSourceWriters() {
         `audit: ${unregistered.join(", ")}`,
     );
   }
-  if (total !== 12) {
+  if (total !== 8) {
     throw new Error(
-      `expected 12 writers/removers of modelEmittedText across src, found ${total} — ` +
+      `expected 8 writers/removers of modelEmittedText across src, found ${total} — ` +
         `the writer list changed; update the audit on purpose`,
     );
   }
-  console.log("PASS emissionSource writer audit (12 writers, writes and removals paired)");
+  console.log("PASS emissionSource writer audit (8 writers, writes and removals paired)");
 }
 
 function main() {
@@ -556,7 +550,7 @@ function main() {
     );
     console.log("PASS load twin of the save normalizer");
 
-    assertAppShellLoadPreservesBytes();
+    assertHostLoadPreservesBytes();
 
     // ── emissionSource: provenance decides the seed ─────────────────────────
     // "parsed" (completed turn, reasoning_format "none") keeps the seeded tag
@@ -731,16 +725,17 @@ function main() {
     );
     console.log("PASS history budget charge matches assembly");
 
-    // The AppShell wiring: the map must use historyBudgetCharge (the capped
-    // form under-counted by emission.length - cap) and every budget consumer
-    // must pass the no-cap marker, or messageCost re-shaves a long emission
-    // back off behind the budget's back.
+    // The host splits the former AppShell window code into three phases. Keep
+    // the no-cap marker pinned through the window calculation, compaction
+    // decision, and both boundary-advance consumers.
     {
-      const appShellPath = path.join(projectRoot, "src/app/AppShell.tsx");
-      const src = readFileSync(appShellPath, "utf8");
+      const windowSrc = readFileSync(path.join(projectRoot, "src/host/engineTurnWindow.ts"), "utf8");
+      const compactorSrc = readFileSync(path.join(projectRoot, "src/host/engineTurnCompactor.ts"), "utf8");
+      const slideSrc = readFileSync(path.join(projectRoot, "src/host/engineTurnSlide.ts"), "utf8");
+      const src = [windowSrc, compactorSrc, slideSrc].join("\n");
       if (src.includes("Math.min(historyReplayCharLength")) {
         throw new Error(
-          "AppShell caps the window-budget charge with baseMessageCap again " +
+          "Host engine-turn phases cap the window-budget charge with baseMessageCap again " +
             "(Math.min(historyReplayCharLength…)) — for any emission longer " +
             "than the cap the prompt carries more chars than the budget " +
             "believes, and the ceiling guard clears a window it thought was " +
@@ -749,20 +744,31 @@ function main() {
       }
       if (!src.includes("historyBudgetCharge(m, { historyThink, baseMessageCap, userTailChars })")) {
         throw new Error(
-          "AppShell's historyLengths walk must price each message with " +
+          "Host historyLengths walk must price each message with " +
             "historyBudgetCharge — the per-message budget charge lives there",
         );
       }
-      const noCapCount = (src.match(/noPerMessageCap/g) ?? []).length;
-      if (noCapCount !== 6) {
+      const counts = [windowSrc, compactorSrc, slideSrc].map(
+        (part) => (part.match(/noPerMessageCap/g) ?? []).length,
+      );
+      if (counts[0] !== 3 || counts[1] !== 3 || counts[2] !== 3) {
         throw new Error(
-          `AppShell must declare noPerMessageCap once and pass it to all five ` +
+          `Host phases must carry noPerMessageCap through the window seam and all five ` +
             `budget consumers (windowStartIndex, anchoredWindowChars, ` +
             `shouldRebuildAnchored, advanceAnchoredBoundary, ` +
-            `advanceCompactionBoundary) — found ${noCapCount} of 6 occurrences`,
+            `advanceCompactionBoundary) — per-file counts ${counts.join(", ")}`,
         );
       }
-      console.log("PASS AppShell budget consumers do not re-cap the replay field");
+      for (const consumer of [
+        "windowStartIndex(",
+        "anchoredWindowChars(",
+        "shouldRebuildAnchored(",
+        "advanceAnchoredBoundary(",
+        "advanceCompactionBoundary(",
+      ]) {
+        if (!src.includes(consumer)) throw new Error(`Host budget consumer ${consumer} disappeared`);
+      }
+      console.log("PASS host budget consumers do not re-cap the replay field");
     }
   } catch (error) {
     console.error(error instanceof Error ? error.stack : error);

@@ -8,7 +8,7 @@
  * `thinkingStatus` until the first visible token, anything else after (the
  * same flip LlamaService owns for the old chip).
  */
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import type { ComposerPhase } from "../ui/shell/composerState";
 
 export interface ComposerPhaseInput {

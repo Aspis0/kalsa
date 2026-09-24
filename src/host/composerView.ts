@@ -12,7 +12,7 @@ import {
   type ComposerState,
 } from "../ui/shell/composerState";
 import type { TranscriptMessage } from "../ui/shell/transcriptTypes";
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState } from "./hostPipelineState";
 import { hostComposerPhase } from "./composerPhase";
 import { toTranscriptMessages } from "./messageMapper";
 import type { LocalAttachment, Message } from "./hostMessage";

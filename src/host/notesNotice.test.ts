@@ -15,7 +15,13 @@ import { it as italian } from "../i18n/it";
 const SEND = readFileSync(join(__dirname, "sendHost.ts"), "utf8");
 const ROOT = readFileSync(join(__dirname, "HostRoot.tsx"), "utf8");
 const TURN = readFileSync(join(__dirname, "engineTurn.ts"), "utf8");
-const CHAT = readFileSync(join(__dirname, "..", "screens", "AiChatPage.tsx"), "utf8");
+
+jest.mock("react-native", () => ({ Text: "Text", View: "View" }));
+jest.mock("../theme/typography", () => ({ useTypography: () => ({ bodyXs: {} }) }));
+jest.mock("../ui/labTheme", () => ({
+  useLabTheme: () => ({ colors: { panelSolid: "panel", line: "line", ink: "ink" } }),
+}));
+import { HostNotice } from "./HostNotice";
 
 describe("the wire: engine half → send options → the one-slot notice", () => {
   test("the send hands the engine the notice, on the controller's key", () => {
@@ -49,7 +55,7 @@ describe("the wire: engine half → send options → the one-slot notice", () =>
   });
 });
 
-describe("the string: the controller's own, in both catalogues", () => {
+describe("the notice text in both catalogues and the host surface", () => {
   test("the key exists and is a non-empty string in en and it", () => {
     expect(typeof en.chat.notesContextTruncated).toBe("string");
     expect(en.chat.notesContextTruncated.length).toBeGreaterThan(0);
@@ -57,9 +63,16 @@ describe("the string: the controller's own, in both catalogues", () => {
     expect(italian.chat.notesContextTruncated.length).toBeGreaterThan(0);
   });
 
-  test("the controller ships this exact line to its voice-note toast", () => {
-    expect(CHAT).toContain(
-      'onNotice: () => showVoiceNote(t("chat.notesContextTruncated"))',
-    );
+  test("the host notice renders the translated truncation line accessibly", () => {
+    const message = en.chat.notesContextTruncated;
+    const notice = HostNotice({ text: message });
+    expect(notice).not.toBeNull();
+    expect(notice?.props).toMatchObject({
+      testID: "host.notice",
+      accessibilityRole: "text",
+      accessibilityLabel: message,
+    });
+    expect(notice?.props.children.props.children).toBe(message);
+    expect(HostNotice({ text: null })).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ import {
 } from "./remoteHostBoot";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import { MODEL_REGISTRY, getDefaultModel } from "../engine/ModelRegistry";
+import { recoverLocalAfterRemoteBootFailure } from "./remoteBootFallback";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -81,5 +82,25 @@ describe("host boot preserves the remote boot contract", () => {
 
     expect(await pickHostBootModel(decision, pick)).toBeNull();
     expect(pick).not.toHaveBeenCalled();
+  });
+
+  test("remote preference failure returns to local state without persisting a replacement id", async () => {
+    const catchStart = BOOT_HOOK.indexOf("// Remote hydration fails closed; the local default remains selected.");
+    const catchEnd = BOOT_HOOK.indexOf("} finally", catchStart);
+    const catchBody = BOOT_HOOK.slice(catchStart, catchEnd);
+    expect(catchBody).toContain("recoverLocalAfterRemoteBootFailure({");
+    expect(catchBody).not.toContain("AsyncStorage.setItem");
+
+    const remoteActiveRef = { current: true };
+    const setRemoteActive = jest.fn();
+    const recoverLocalBackend = jest.fn(async () => undefined);
+    await recoverLocalAfterRemoteBootFailure({
+      remoteActiveRef,
+      setRemoteActive,
+      recoverLocalBackend,
+    });
+    expect(remoteActiveRef.current).toBe(false);
+    expect(setRemoteActive).toHaveBeenCalledWith(false);
+    expect(recoverLocalBackend).toHaveBeenCalledTimes(1);
   });
 });
