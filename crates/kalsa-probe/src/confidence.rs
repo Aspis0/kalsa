@@ -28,8 +28,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Reliability {
     pub reliable: bool,
-    /// CPU seconds received by the probe's threads over the wall time. On an idle
-    /// machine this is the thread count; under contention it is less.
+    /// CPU time this process received per wall second over the probe window —
+    /// every thread of the process, because both `getrusage(RUSAGE_SELF)` and
+    /// `GetProcessTimes` count process-wide, not just the probe's: the
+    /// standalone binary runs alone, while in the app the probe runs inside
+    /// the Tauri process and the app's own threads count too. On an idle
+    /// machine it is about the plateau thread count; under contention less.
     pub effective_parallelism: Option<f64>,
     pub threads: usize,
     /// Spread of the repetitions at the plateau, relative to their mean.

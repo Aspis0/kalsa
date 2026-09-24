@@ -77,14 +77,30 @@ pub fn thread_ramp(parallelism: usize) -> Vec<usize> {
     counts
 }
 
+/// The buffer the bandwidth passes read: larger than any cache this class of
+/// machine has, so the number is memory and not L2 — every word odd, so no
+/// pass can be optimised into nothing.
+///
+/// Built apart from the passes on purpose: a caller that accounts CPU
+/// against wall time must open its window after this call, or the serial
+/// allocation and fill of 256 MiB drags the ratio toward one.
+pub(crate) fn dram_buffer(bytes: usize) -> Vec<u64> {
+    let words = (bytes / 8).max(2);
+    (0..words).map(|index| index as u64 | 1).collect()
+}
+
 /// Reads `bytes` with `threads` threads, `repetitions` times, and answers with
 /// the rates. Each sample keeps passing over the buffer until it is long enough
 /// to mean something: a 4 ms sample on a machine somebody is using reports the
 /// scheduler.
 pub fn measure_at_threads(bytes: usize, threads: usize, repetitions: u32) -> Series {
-    let words = (bytes / 8).max(2);
-    let buffer: Vec<u64> = (0..words).map(|index| index as u64 | 1).collect();
-    let band = words.div_ceil(threads.max(1));
+    measure_prepared(&dram_buffer(bytes), threads, repetitions)
+}
+
+/// The timed passes themselves, over a buffer built before the caller's
+/// window opens — see [`dram_buffer`] for why the two are separate.
+pub(crate) fn measure_prepared(buffer: &[u64], threads: usize, repetitions: u32) -> Series {
+    let band = buffer.len().div_ceil(threads.max(1));
 
     let mut samples = Vec::with_capacity(repetitions as usize);
     for _ in 0..repetitions {

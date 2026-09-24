@@ -49,6 +49,12 @@ pub const DRAM_BUFFER_BYTES: usize = 256 * 1024 * 1024;
 /// Repetitions per ramp step: enough to see disagreement, short enough that the
 /// whole ramp stays inside the "few seconds" the product promises.
 pub const RAMP_REPETITIONS: u32 = 3;
+/// Repetitions inside the parallelism window. Each pass runs the workers for
+/// `SAMPLE_TARGET` (60 ms), so ten passes are ~600 ms of worker time: long
+/// enough that Windows' ~10-15 ms CPU-accounting ticks average into a ratio
+/// instead of quantising a floor comparison, and — against a probe that
+/// already costs seconds — the half second is the cheap half.
+const PARALLELISM_REPETITIONS: u32 = 10;
 /// Buffer for the cache reference: small enough to be served from L2, and large
 /// enough that it is not one core's own loop overhead.
 pub const CACHE_BUFFER_BYTES: usize = 4 * 1024 * 1024;
@@ -195,10 +201,14 @@ pub fn measure(config: &ProbeConfig) -> Measurement {
 
     // Parallelism at the plateau, not averaged over the ramp: the early
     // single-thread steps would drag any average down and say nothing about the
-    // configuration the number comes from.
+    // configuration the number comes from. Both clocks span the timed passes
+    // only: the 256 MiB buffer is built before they open, because its serial
+    // allocation and fill inside the window drags the CPU/wall ratio down
+    // toward one and can push a quiet machine under its own floor.
+    let buffer = bandwidth::dram_buffer(DRAM_BUFFER_BYTES);
     let cpu_before_probe = confidence::cpu_seconds();
     let probe_started = Instant::now();
-    let probe = measure_at_threads(DRAM_BUFFER_BYTES, plateau_threads, 1);
+    let probe = bandwidth::measure_prepared(&buffer, plateau_threads, PARALLELISM_REPETITIONS);
     let probe_wall = probe_started.elapsed().as_secs_f64();
     let cpu_after_probe = confidence::cpu_seconds();
     let effective_parallelism = match (cpu_before_probe, cpu_after_probe) {
