@@ -15,7 +15,7 @@ import {
 import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
-import { getRemoteBrainToken } from "./remoteSecret";
+import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
 import {
   canSendAuthorization,
   isNonLoopback,
@@ -23,7 +23,6 @@ import {
   remoteUrlGateError,
 } from "./remoteUrl";
 import {
-  getRemoteBrainUrl,
   getRemoteContextSize,
   getRemoteMaxTokens,
   getRemoteServerModelId,
@@ -83,11 +82,12 @@ function authHeaders(url: string, token: string | null): Record<string, string> 
 const PROBE_TIMEOUT_MS = 10_000;
 
 async function jsonGet(
+  base: string,
   path: string,
   token: string | null,
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const url = joinRemoteApiUrl(getRemoteBrainUrl(), path);
+  const url = joinRemoteApiUrl(base, path);
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json", ...authHeaders(url, token) },
@@ -112,7 +112,8 @@ export async function testRemoteConnection(): Promise<{
   const probe = new AbortController();
   const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
-    const base = getRemoteBrainUrl();
+    const door = await getRemoteDoorConfig();
+    const base = door.url;
     const urlGate = remoteUrlGateError(base);
     if (urlGate) {
       return {
@@ -121,7 +122,7 @@ export async function testRemoteConnection(): Promise<{
         error: urlGate,
       };
     }
-    const token = await getRemoteBrainToken();
+    const token = await getRemoteDoorToken(door);
     if (isNonLoopback(base) && !token) {
       return {
         ok: false,
@@ -133,13 +134,13 @@ export async function testRemoteConnection(): Promise<{
     // length, so its setting decides, and sizing prompts beyond it fails with
     // something the user cannot act on. Best effort and backend-agnostic: a
     // server that does not expose /props keeps our conservative default.
-    const props = await jsonGet("/props", token, probe.signal);
+    const props = await jsonGet(base, "/props", token, probe.signal);
     const serverContext = props.ok ? parseServerContext(props.body) : null;
     if (serverContext !== null && serverContext !== getRemoteContextSize()) {
       await setRemoteContextSize(serverContext);
     }
 
-    const models = await jsonGet("/v1/models", token, probe.signal);
+    const models = await jsonGet(base, "/v1/models", token, probe.signal);
     let ids: string[] = [];
     if (models.ok) {
       const data = (models.body as { data?: Array<{ id?: string }> } | null)?.data;
@@ -147,7 +148,7 @@ export async function testRemoteConnection(): Promise<{
         ? data.map((row) => row?.id).filter((id): id is string => typeof id === "string" && id.length > 0)
         : [];
     } else {
-      const health = await jsonGet("/health", token, probe.signal);
+      const health = await jsonGet(base, "/health", token, probe.signal);
       if (!health.ok) {
         return {
           ok: false,
@@ -245,24 +246,9 @@ export async function streamRemoteAssistantTurn(
 ): Promise<void> {
   const locale: Locale = options.locale;
   const strings = getStrings(locale);
-  // Config gate first: a cleared or invalid address is the actionable cause,
-  // and a URL/model edit drops readiness (setRemoteConfigChangedHook above),
-  // so this must win over the not-ready message behind it.
-  const base = getRemoteBrainUrl();
-  // URL and model are ONE server identity for the whole turn: capture both
-  // here, before the token await, so a mid-turn edit cannot mix the old URL
-  // with the new model (or vice versa). The edit belongs to the NEXT turn —
-  // the config hook only drops readiness; it never aborts a running stream.
+  // A pairing is the active door credential/address pair when present; a
+  // manual URL and token remain the fallback for users who have not paired.
   const serverModel = getRemoteServerModelId();
-  const urlGate = remoteUrlGateError(base);
-  if (urlGate) {
-    callbacks.onError(new Error(urlGate));
-    return;
-  }
-  if (!ready) {
-    callbacks.onError(new Error(strings.errors.modelNotLoaded));
-    return;
-  }
   if (inFlight) {
     callbacks.onError(new Error("remote_brain_busy"));
     return;
@@ -270,6 +256,48 @@ export async function streamRemoteAssistantTurn(
   const myGen = ++streamGeneration;
   const stillMine = () => myGen === streamGeneration;
   inFlight = true;
+  const reportPreStreamError = (err: unknown) => {
+    if (!stillMine()) return;
+    inFlight = false;
+    const failure = err instanceof Error ? err : new Error(String(err));
+    const control = failure as { code?: string; superseded?: boolean };
+    const ours =
+      failure.message.startsWith("remote_brain_") ||
+      control.code === "interrupted" ||
+      control.superseded === true;
+    callbacks.onError(ours ? failure : new Error("remote_brain_internal"));
+  };
+  let door: Awaited<ReturnType<typeof getRemoteDoorConfig>>;
+  try {
+    door = await getRemoteDoorConfig();
+  } catch (error) {
+    reportPreStreamError(error);
+    return;
+  }
+  if (!stillMine()) return;
+  const base = door.url;
+  const urlGate = remoteUrlGateError(base);
+  if (urlGate) {
+    reportPreStreamError(new Error(urlGate));
+    return;
+  }
+  if (!ready) {
+    reportPreStreamError(new Error(strings.errors.modelNotLoaded));
+    return;
+  }
+  // URL, credential and model identify one door for the whole turn.
+  let token: string | null;
+  try {
+    token = await getRemoteDoorToken(door);
+  } catch (error) {
+    reportPreStreamError(error);
+    return;
+  }
+  if (!stillMine()) return;
+  if (isNonLoopback(base) && !token) {
+    reportPreStreamError(new Error("remote_brain_token_required"));
+    return;
+  }
   let visible = "";
   let emitted = "";
   let thinking = false;
@@ -376,12 +404,7 @@ export async function streamRemoteAssistantTurn(
 
   let streamStarted = false;
   try {
-  const token = await getRemoteBrainToken();
   if (!stillMine()) return;
-  if (isNonLoopback(base) && !token) {
-    finishOnce(new Error("remote_brain_token_required"));
-    return;
-  }
   if (signal?.aborted) {
     const err = new Error(strings.chat.interrupted);
     (err as { code?: string; preservePartial?: boolean }).code = "interrupted";

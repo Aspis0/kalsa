@@ -81,19 +81,23 @@ export function phoneMacBytes(
   input: PairingPhoneMacInput,
 ): Uint8Array {
   assertKeyAndNonce(key, nonce);
+  return hmacSha256(
+    key,
+    concatBytes(utf8Bytes(PHONE_MAC_DOMAIN), nonce, phoneMacPayload(input)),
+  );
+}
+
+/** The framed bytes covered by the phone MAC, exposed for safe diagnostics. */
+export function phoneMacPayload(input: PairingPhoneMacInput): Uint8Array {
   if (input.deliveryToken !== "" && !/^[0-9a-f]{32}$/.test(input.deliveryToken)) {
     throw new Error("invalid delivery token");
   }
   const canonical = canonicalPhoneJson(input.phone);
-  const payload = concatBytes(
+  return concatBytes(
     frame(utf8Bytes(input.reachable)),
     frame(utf8Bytes(input.node)),
     frame(utf8Bytes(input.deliveryToken)),
     frame(utf8Bytes(canonical)),
-  );
-  return hmacSha256(
-    key,
-    concatBytes(utf8Bytes(PHONE_MAC_DOMAIN), nonce, payload),
   );
 }
 

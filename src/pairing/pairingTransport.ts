@@ -1,7 +1,8 @@
-import { bytesToHex, hexToBytes, utf8Bytes } from "./sha256";
+import { bytesToHex, hexToBytes, sha256, utf8Bytes } from "./sha256";
 import {
   canonicalPhoneJson,
   openCredentialSeal,
+  phoneMacPayload,
   phoneMacHex,
   type PairingPhoneDeclaration,
 } from "./pairingWire";
@@ -24,6 +25,19 @@ export type PairingRequestInit = {
 export type PairingFetch = (url: string, init: PairingRequestInit) => Promise<PairingResponse>;
 export type RandomBytes = (length: number) => Uint8Array;
 
+export type PairingDiagnostic =
+  | {
+      event: "pairing.signed_request";
+      payload_hex: string;
+      mac_hex: string;
+      delivery_token_hex: string;
+    }
+  | {
+      event: "pairing.sealed_response";
+      ciphertext_hex: string;
+      credential_sha256_hex: string;
+    };
+
 export type PairingSquare = {
   reachable: string;
   code: string;
@@ -37,6 +51,7 @@ export type PairingSessionOptions = {
   phone: PairingPhoneDeclaration;
   fetcher?: PairingFetch;
   randomBytes?: RandomBytes;
+  onDiagnostic?: (record: PairingDiagnostic) => void;
 };
 
 function secureRandomBytes(length: number): Uint8Array {
@@ -105,6 +120,14 @@ export class PairingSession {
     this.fetcher = options.fetcher ?? (globalThis.fetch as PairingFetch);
   }
 
+  private logDiagnostic(record: PairingDiagnostic): void {
+    try {
+      this.options.onDiagnostic?.(record);
+    } catch {
+      // Diagnostics must never change the pairing outcome.
+    }
+  }
+
   needsCompletionRetry(): boolean {
     return this.completeRetryPending && !this.finished;
   }
@@ -158,6 +181,17 @@ export class PairingSession {
         deliveryToken: this.deliveryToken,
         phone,
       });
+      this.logDiagnostic({
+        event: "pairing.signed_request",
+        payload_hex: bytesToHex(phoneMacPayload({
+          reachable: square.reachable,
+          node: square.node,
+          deliveryToken: this.deliveryToken,
+          phone,
+        })),
+        mac_hex: mac,
+        delivery_token_hex: this.deliveryToken,
+      });
       url = pairUrl(this.options.deskUrl, "complete");
       body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
       const response = await postPairingJson(url, body, this.fetcher);
@@ -171,7 +205,13 @@ export class PairingSession {
       if (response.status !== 200) return null;
       const seal = await response.json();
       if (!isSeal(seal)) return null;
-      return openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);
+      const credential = openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);
+      this.logDiagnostic({
+        event: "pairing.sealed_response",
+        ciphertext_hex: seal.credential_ciphertext,
+        credential_sha256_hex: bytesToHex(sha256(credential)),
+      });
+      return credential;
     } catch {
       // A thrown fetch is the sole ambiguous complete outcome. Failures after
       // a response were marked finished above and therefore cannot be replayed.

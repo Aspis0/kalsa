@@ -34,7 +34,7 @@ jest.mock("./SettingsHeader", () => ({
     require("react").createElement("SettingsHeader", props),
 }));
 jest.mock("../engine/ModelRegistry", () => ({
-  MODEL_REGISTRY: [{ id: "local-model", sizeBytes: 1234 }],
+  MODEL_REGISTRY: [{ id: "local-model", file: "local.gguf", sizeBytes: 1234 }],
 }));
 jest.mock("../pairing/pairingCredentialStore", () => ({
   savePairingCredential: jest.fn(),
@@ -67,17 +67,18 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.restoreAllMocks();
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: originalCrypto });
   globalThis.fetch = originalFetch;
 });
 
-async function render(): Promise<ReactTestRenderer> {
+async function render(currentModelId = "local-model"): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
       React.createElement(PairingScreen, {
         initialDoorUrl: "https://desktop.tailnet.ts.net",
-        currentModelId: "local-model",
+        currentModelId,
         onBack: jest.fn(),
       }),
     );
@@ -96,9 +97,11 @@ async function render(): Promise<ReactTestRenderer> {
 
 function installFetch(completeStatus: number) {
   const urls: string[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+  const bodies: string[] = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     urls.push(url);
+    if (typeof init?.body === "string") bodies.push(init.body);
     return {
       status: url.endsWith("/pair/claim") ? 200 : completeStatus,
       json: async () => ({
@@ -107,7 +110,7 @@ function installFetch(completeStatus: number) {
       }),
     } as Response;
   }) as typeof fetch;
-  return urls;
+  return { urls, bodies };
 }
 
 describe("PairingScreen", () => {
@@ -142,7 +145,7 @@ describe("PairingScreen", () => {
   });
 
   test("a sealed credential is saved and the UI waits for confirmation without probing the door", async () => {
-    const urls = installFetch(200);
+    const { urls, bodies } = installFetch(200);
     const renderer = await render();
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
@@ -157,12 +160,15 @@ describe("PairingScreen", () => {
       new Uint8Array(32).fill(0xab),
       "https://desktop.tailnet.ts.net",
     );
+    expect(bodies[1]).toContain('"weights_bytes":1234');
+    expect(bodies[1]).toContain('"battery_powered":true');
+    expect(bodies[1]).not.toContain('"weights_bytes":0');
     expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children).toBe("pairing.waiting");
     await act(async () => renderer.unmount());
   });
 
   test.each([401, 403, 503])("HTTP %s refusal has the same copy and preserves an existing credential", async (status) => {
-    const urls = installFetch(status);
+    const { urls } = installFetch(status);
     const renderer = await render();
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
@@ -173,6 +179,51 @@ describe("PairingScreen", () => {
     expect(renderer.root.findByProps({ testID: "pairing.refused" }).props.children).toBe("pairing.refused");
     expect(saveCredentialMock).not.toHaveBeenCalled();
     expect(storedCredential).toEqual(preexistingCredential);
+    await act(async () => renderer.unmount());
+  });
+
+  test("refuses before the desk request when there is no concrete local GGUF", async () => {
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const renderer = await render("kalsa-remote-mac");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
+      .toBe("pairing.modelRequired");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(saveCredentialMock).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  test("the visible diagnostics switch logs wire hex and a credential hash, never the credential", async () => {
+    const { urls } = installFetch(200);
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const renderer = await render();
+    const diagnostics = renderer.root.findByProps({ testID: "pairing.diagnostics" });
+    expect(diagnostics.props.accessibilityState.checked).toBe(false);
+    await act(async () => diagnostics.props.onPress());
+    expect(renderer.root.findByProps({ testID: "pairing.diagnostics" }).props.accessibilityState.checked)
+      .toBe(true);
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(urls).toHaveLength(2);
+    const records = log.mock.calls.map((call) => JSON.parse(String(call[1])) as Record<string, unknown>);
+    expect(records.map((record) => record.event)).toEqual([
+      "pairing.signed_request",
+      "pairing.sealed_response",
+    ]);
+    expect(records[0]).toHaveProperty("payload_hex");
+    expect(records[0]).toHaveProperty("mac_hex");
+    expect(records[0]).toHaveProperty("delivery_token_hex", "c0".repeat(16));
+    expect(records[1]).toHaveProperty("ciphertext_hex");
+    expect(records[1]).toHaveProperty("credential_sha256_hex");
+    expect(JSON.stringify(records)).not.toContain("ab".repeat(32));
+    log.mockRestore();
     await act(async () => renderer.unmount());
   });
 });

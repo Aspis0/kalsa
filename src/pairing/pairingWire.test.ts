@@ -2,6 +2,7 @@ import { bytesToHex, hexToBytes, hmacSha256, utf8Bytes } from "./sha256";
 import {
   canonicalPhoneJson,
   openCredentialSeal,
+  phoneMacPayload,
   phoneMacHex,
   type PairingPhoneDeclaration,
 } from "./pairingWire";
@@ -49,12 +50,20 @@ describe("pairing wire vectors", () => {
   });
 
   test("D: Python real-shape vector signs the minted token as ASCII", () => {
-    expect(phoneMacHex(code, nonce, {
+    const input = {
       reachable: "http://127.0.0.1:8132",
       node: "",
       deliveryToken: "c0".repeat(16),
       phone,
-    })).toBe("ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132");
+    };
+    expect(phoneMacHex(code, nonce, input)).toBe(
+      "ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132",
+    );
+    expect(bytesToHex(phoneMacPayload(input))).toBe(
+      "0000000000000015687474703a2f2f3132372e302e302e313a38313332" +
+      "00000000000000000000000000000020" + "6330".repeat(16) +
+      "000000000000008a7b22776569676874735f6279746573223a323230303030303030302c22706172616d6574657273223a7b22746f74616c223a373630303030303030302c22616374697665223a323430303030303030307d2c226d656173757265645f746f6b656e735f7065725f7365636f6e64223a392e352c22626174746572795f706f7765726564223a747275657d",
+    );
   });
 
   test("C: authenticate the ciphertext before opening the 32-byte credential", () => {

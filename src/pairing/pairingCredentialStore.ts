@@ -4,7 +4,7 @@ const STORAGE_KEY = "kalsa.pairing.credential.v3";
 
 export type SavedPairingCredential = { credential: string; doorUrl: string };
 
-/** Pairing credentials are kept separate until the live door path is integrated. */
+/** Stores the paired door and lowercase bearer credential for live remote requests. */
 export async function savePairingCredential(
   credential: Uint8Array,
   doorUrl: string,

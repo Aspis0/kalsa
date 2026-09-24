@@ -20,15 +20,21 @@ type Props = {
 
 type PairingFields = PairingSquare & { doorUrl: string; deskUrl: string };
 
-function declarationForModel(modelId: string): PairingPhoneDeclaration {
+function declarationForModel(modelId: string): PairingPhoneDeclaration | null {
   const model = MODEL_REGISTRY.find((entry) => entry.id === modelId);
+  if (
+    !model ||
+    !model.file ||
+    !Number.isSafeInteger(model.sizeBytes) ||
+    model.sizeBytes <= 0
+  ) return null;
   return {
-    weights_bytes: model?.sizeBytes ?? 0,
-    // The catalog has no parameter, throughput, or current battery facts;
-    // those fields stay null instead of being inferred from a model name.
+    weights_bytes: model.sizeBytes,
+    // The catalog has no parameter or throughput metadata; do not infer them
+    // from a model name.
     parameters: null,
     measured_tokens_per_second: null,
-    battery_powered: null,
+    battery_powered: true,
   };
 }
 
@@ -46,7 +52,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     node: "",
   });
   const [busy, setBusy] = useState(false);
-  const [state, setState] = useState<"ready" | "refused" | "waiting">("ready");
+  const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required">("ready");
+  const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const sessionRef = useRef<PairingSession | null>(null);
 
   const update = (key: keyof PairingFields, value: string) => {
@@ -57,6 +64,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
 
   const run = async () => {
     if (busy || state === "waiting") return;
+    const phone = declarationForModel(currentModelId);
+    if (!phone) {
+      setState("model-required");
+      return;
+    }
     if (
       !isAllowedPairingUrl(fields.doorUrl) ||
       !isAllowedPairingUrl(fields.deskUrl)
@@ -78,7 +90,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
               nonce: fields.nonce,
               node: fields.node,
             },
-            phone: declarationForModel(currentModelId),
+            phone,
+            onDiagnostic: diagnosticsEnabled
+              ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
+              : undefined,
           });
       sessionRef.current = session;
       const credential = retryingCompletion
@@ -88,8 +103,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         setState("refused");
         return;
       }
-      // Save for a later remote-mode integration; this screen does not probe
-      // or stream to the door after the pairing desk returns the seal.
+      // The paired URL and credential are the active door configuration.
       await savePairingCredential(credential, fields.doorUrl.trim());
       setState("waiting");
     } catch {
@@ -151,6 +165,21 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
           {field("code", t("pairing.code"), "default", true)}
           {field("nonce", t("pairing.nonce"), "default", true)}
           {field("node", t("pairing.node"))}
+          <Pressable
+            testID="pairing.diagnostics"
+            accessibilityRole="switch"
+            accessibilityLabel={t("pairing.diagnostics")}
+            accessibilityState={{ checked: diagnosticsEnabled, disabled: busy }}
+            disabled={busy}
+            onPress={() => setDiagnosticsEnabled((value) => !value)}
+          >
+            <Text style={[type.secondary, { color: colors.ink2 }]}>{t("pairing.diagnostics")}</Text>
+          </Pressable>
+          {state === "model-required" ? (
+            <Text testID="pairing.model-required" style={[type.secondary, { color: colors.danger }]}>
+              {t("pairing.modelRequired")}
+            </Text>
+          ) : null}
           {state === "refused" ? (
             <Text testID="pairing.refused" style={[type.secondary, { color: colors.danger }]}>
               {t("pairing.refused")}

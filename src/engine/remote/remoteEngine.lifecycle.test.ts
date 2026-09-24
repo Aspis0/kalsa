@@ -10,6 +10,7 @@ import {
 import { humanRemoteBrainError } from "./remoteBrainErrors";
 import { setRemoteBrainUrl } from "./remoteSettings";
 import { getRemoteBrainToken } from "./remoteSecret";
+import { getPairingCredential } from "../../pairing/pairingCredentialStore";
 
 jest.mock("@react-native-async-storage/async-storage", () => {
   const store: Record<string, string> = {};
@@ -27,6 +28,10 @@ jest.mock("@react-native-async-storage/async-storage", () => {
 
 jest.mock("./remoteSecret", () => ({
   getRemoteBrainToken: jest.fn(async () => null),
+}));
+
+jest.mock("../../pairing/pairingCredentialStore", () => ({
+  getPairingCredential: jest.fn(async () => null),
 }));
 
 jest.mock("./openaiTransport", () => ({
@@ -151,6 +156,7 @@ describe("RemoteEngine lifecycle", () => {
     };
     asyncStorage.__reset();
     fetchMock.mockReset();
+    (getPairingCredential as jest.Mock).mockReset().mockResolvedValue(null);
     const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
       streamOpenAiChat: jest.Mock;
     };
@@ -180,6 +186,49 @@ describe("RemoteEngine lifecycle", () => {
     const probe = await testRemoteConnection();
     expect(probe.ok).toBe(false);
     expect(probe.error).toBe("remote_brain_url_missing");
+  });
+
+  test("remote probe and stream use the paired door and paired bearer credential", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    const pairedDoorUrl = "https://desktop.tailnet.ts.net:9443";
+    const pairedCredential = "ab".repeat(32);
+    (getPairingCredential as jest.Mock).mockResolvedValue({
+      doorUrl: pairedDoorUrl,
+      credential: pairedCredential,
+    });
+    await setRemoteServerModelId("ornith");
+    fetchMock.mockImplementation(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: "ornith" }] }),
+    }));
+
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      `${pairedDoorUrl}/props`,
+      `${pairedDoorUrl}/v1/models`,
+    ]);
+    expect(fetchMock.mock.calls.every((call) =>
+      (call[1] as RequestInit).headers &&
+      ((call[1] as RequestInit).headers as Record<string, string>).Authorization === `Bearer ${pairedCredential}`,
+    )).toBe(true);
+
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    completeStreamMock("paired-door-turn");
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "hello" }],
+      { onDelta: () => undefined, onDone: () => undefined, onError: (error) => { throw error; } },
+      undefined,
+      { locale: "en" },
+    );
+    const request = streamOpenAiChat.mock.calls[0][0] as {
+      completionsUrl: string;
+      token: string;
+    };
+    expect(request.completionsUrl).toBe(`${pairedDoorUrl}/v1/chat/completions`);
+    expect(request.token).toBe(pairedCredential);
   });
 
   test("the server's own context window replaces our default", async () => {
@@ -329,8 +378,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (!finishA) await Promise.resolve();
     expect(remoteNativeWorkInFlight()).toBe(true);
     await disposeRemoteEngine();
     await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
@@ -357,8 +405,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (bOpened === 0) await Promise.resolve();
     expect(bOpened).toBe(1);
     expect(remoteNativeWorkInFlight()).toBe(true);
     finishA?.();
@@ -436,8 +483,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (!failA) await Promise.resolve();
     await disposeRemoteEngine();
     failA?.(new Error("remote_brain_network"));
     await pA;
@@ -474,8 +520,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (!completeA) await Promise.resolve();
     await disposeRemoteEngine();
     completeA?.();
     await pA;
@@ -524,8 +569,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (!releaseA) await Promise.resolve();
     expect(remoteNativeWorkInFlight()).toBe(true);
     await disposeRemoteEngine();
     await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
@@ -556,8 +600,7 @@ describe("RemoteEngine lifecycle", () => {
       undefined,
       { locale: "en" },
     );
-    await Promise.resolve();
-    await Promise.resolve();
+    while (bOpened === 0) await Promise.resolve();
     expect(bOpened).toBe(1);
     expect(remoteNativeWorkInFlight()).toBe(true);
     releaseA?.(null);
