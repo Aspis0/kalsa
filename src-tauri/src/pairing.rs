@@ -533,21 +533,27 @@ impl Desk {
         }
     }
 
-    /// A response was written successfully. Remove its durable retry record;
-    /// if the write failed the record stays, so the phone can ask again.
+    /// A response was written successfully, so its retry record is spent.
+    /// The transport calls this only AFTER the write succeeded, and the
+    /// token is the one that response went to, so the store copy is cleared
+    /// in EVERY desk state: a late ack - the owner retried and another phone
+    /// completed between the write and this call - must not be dropped for
+    /// arriving after the state moved on. The in-memory pending goes
+    /// whenever it matches the token, whether or not the store clear
+    /// succeeded: an unreadable store must not put the seal back in reach.
+    /// The write-FAILED case never gets here (the transport does not
+    /// acknowledge a response it did not write), so the phone's retry path
+    /// is untouched.
     pub(crate) fn acknowledge(&self, delivery_token: &str) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let State::Paired { pending, .. } = &mut *state else {
-            return;
-        };
-        let Some(saved) = pending.as_ref() else {
-            return;
-        };
-        if !saved.token_matches(delivery_token) {
-            return;
-        }
-        if kalsa_pairing::store::clear_delivery(&self.file, &saved.delivery_token).is_ok() {
-            *pending = None;
+        let _ = kalsa_pairing::store::clear_delivery(&self.file, delivery_token);
+        if let State::Paired { pending, .. } = &mut *state {
+            if pending
+                .as_ref()
+                .is_some_and(|saved| saved.token_matches(delivery_token))
+            {
+                *pending = None;
+            }
         }
     }
 
@@ -918,6 +924,97 @@ mod tests {
         assert!(
             fresh.complete(replay, now).is_none(),
             "the acknowledged seal must not replay inside the window"
+        );
+    }
+
+    /// A LATE ack: between writing A's response and acknowledging it, the
+    /// owner retries and phone B completes, so the desk's state no longer
+    /// holds A's pending. The ack must still clear A's store record - and
+    /// only A's: B's delivery survives, and a fresh desk rebuilds no pending
+    /// for A.
+    #[test]
+    fn a_late_acknowledgement_still_clears_its_own_delivery() {
+        let file = scratch("late-ack");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let first = declaration_for(&desk, a_phone(), now);
+        let first_token = first.delivery_token().to_string();
+        assert!(desk.complete(first, now).is_some(), "phone A pairs");
+
+        // The ack lands in the gap: the owner has retried (the desk is
+        // Live again) and phone B has not completed yet, so the in-memory
+        // state holds nothing of A's.
+        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.acknowledge(&first_token);
+
+        let second = declaration_for(
+            &desk,
+            PhoneModel {
+                weights_bytes: 3_000_000_000,
+                ..a_phone()
+            },
+            now,
+        );
+        assert!(desk.complete(second, now).is_some(), "phone B pairs behind A");
+
+        let devices = kalsa_pairing::store::load_devices(&file).unwrap();
+        let deliveries: Vec<(u32, bool)> = devices
+            .iter()
+            .filter(|device| device.kind == DeviceKind::Phone)
+            .map(|device| (device.id, device.delivery.is_some()))
+            .collect();
+        assert!(
+            deliveries.iter().any(|&(id, held)| id == 1 && !held),
+            "A's delivery is cleared by the late ack"
+        );
+        assert!(
+            deliveries.iter().any(|&(id, held)| id == 2 && held),
+            "B's delivery must survive A's ack"
+        );
+        let fresh = Desk::new(file.clone());
+        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert_eq!(
+            dto["delivery_pending"], false,
+            "a restart must not rebuild A's acknowledged delivery"
+        );
+    }
+
+    /// An ack against an UNREADABLE store: the response was written, which
+    /// is what an ack means, so the in-memory pending must go even though
+    /// the store copy could not be cleared - and complete must not serve
+    /// that seal again to a matching token.
+    #[test]
+    fn an_acknowledgement_spends_the_pending_even_when_the_store_cannot_be_read() {
+        let file = scratch("ack-unreadable");
+        kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
+        assert!(desk.claim(&code, now));
+        let declaration =
+            PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
+        let token = declaration.delivery_token().to_string();
+        let replay = declaration
+            .sign_again(&code, &nonce, &reachable, None, a_phone())
+            .unwrap();
+        assert!(desk.complete(declaration, now).is_some(), "the pairing seals");
+
+        // A malformed later record: every store read now fails, the way a
+        // torn hand edit would leave them.
+        let raw = std::fs::read_to_string(&file).unwrap();
+        let trimmed = raw.trim_end();
+        let malformed = format!("{},{{\"id\":99}}]", &trimmed[..trimmed.len() - 1]);
+        std::fs::write(&file, malformed).unwrap();
+
+        desk.acknowledge(&token);
+        assert!(
+            desk.complete(replay, now).is_none(),
+            "the in-memory pending must be spent even though the store clear failed"
         );
     }
 
