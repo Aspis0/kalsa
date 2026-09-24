@@ -10,14 +10,18 @@
 //! end to end, for the one row `KALSA_BRAIN_REAL_WALK` names (by the repo
 //! the row's file is pinned to).
 //!
-//! A FIRST run downloads the row's file into the app's own models dir and
-//! keeps it — that file is the product's now. A RERUN proves placement
-//! without the network: the walk's digest check, or another program's cache
-//! the reuse pass trusts, answers first, and the test prints which one did
-//! and, for a reuse from another cache, the directory it came from. Only
-//! the temp state and slot dirs are swept. Reading the real runtime root —
-//! its engine build, its caches — is the point of the walk, not a side
-//! effect to apologise for.
+//! A run downloads only when no verified copy of the row's file is found:
+//! the walk's own digest check, or another program's cache the reuse pass
+//! trusts, answers first, and the "placed by" line says which happened —
+//! and, for another cache, the directory it came from. What a download
+//! writes is kept: that file is the product's now. Only the temp state and
+//! slot dirs are swept. Reading the real runtime root — its engine build,
+//! its caches — is the point of the walk, not a side effect to apologise
+//! for.
+//!
+//! What it proves is the planner for exactly the inputs it gives itself —
+//! one device, no phone, a temporary options file — not the owner's
+//! configured app.
 //!
 //! ```text
 //! KALSA_BRAIN_REAL_WALK=<repo> cargo test -p kalsa-brain real_walk -- --ignored --nocapture
@@ -104,8 +108,10 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     std::fs::create_dir_all(&scratch).expect("the temp directory is made");
     // Born the moment the scratch exists: a panic anywhere below — the
     // choice save, the walk, an assert — must leave nothing behind. The
-    // engine gets its own guard later, once a supervisor exists.
-    let scratch_guard = Scratch(scratch.clone());
+    // engine gets its own guard later, once a supervisor exists. Named
+    // `_scratch`, never a bare `_`: that would drop the guard on the spot,
+    // which is the very thing it exists to prevent.
+    let _scratch = Scratch(scratch.clone());
     let state_file = scratch.join("server.state");
     let slot_save_path = scratch.join("slots");
 
@@ -190,16 +196,13 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         "the launch record does not carry the row's pinned digest"
     );
     let model_path = &prepared.info.args.model_path;
-    assert_eq!(
-        model_path.file_name().and_then(|name| name.to_str()),
-        Some(source.file),
-        "the prepared start does not name the row's file: {}",
-        model_path.display()
-    );
 
     // ── 6. the file on disk is the row's, byte for byte ────────────────────
-    // The downloader already held these bytes to the row's sha256; hashing
-    // gigabytes again here would only re-buy that answer.
+    // Whoever placed the file already held its bytes to the row's sha256 —
+    // the downloader for a fetch, the walk's digest check for our own disk
+    // copy (startup.rs:495), the reuse pass for another program's cache
+    // (claim.rs:82) — so hashing gigabytes again here would only re-buy
+    // that answer.
     let on_disk = std::fs::metadata(model_path).expect("the model file exists on disk");
     assert_eq!(
         on_disk.len(),
@@ -211,6 +214,18 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // bytes moved is a reuse from another program's cache, named here.
     let models_dir = kalsa_runtime::runtime_root().join("models");
     let parent = model_path.parent().expect("a file path has a parent");
+    if parent == models_dir {
+        // In the product's own dir the file carries the row's name, because
+        // the walk names its destination from the plan. Elsewhere the blobs
+        // are digest-named; the size check above and the record's pinned
+        // digest carry the identity, and the placed-by line names the place.
+        assert_eq!(
+            model_path.file_name().and_then(|name| name.to_str()),
+            Some(source.file),
+            "the prepared start does not name the row's file: {}",
+            model_path.display()
+        );
+    }
     if transfer.reported {
         assert_eq!(
             parent, models_dir,
@@ -258,9 +273,12 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     eprintln!("the server is up on 127.0.0.1:{port} after {:.1?}", started.elapsed());
 
     let answer = chat_completion(port, PROMPT, MAX_TOKENS);
-    // This is what ties the answer to OUR engine: the completion names the
-    // model file the server loaded, so a stranger that won the port race
-    // and answered instead would name some other file here.
+    // The "model" field is the answering server's self-report, not a
+    // process identity: what it proves is that the server behind this port
+    // loaded the row's file. The bind race stays open in principle — the
+    // supervisor's preflight drops its probe bind before the child binds
+    // (supervisor.rs:757) — but a stranger winning it would report some
+    // other path and fail here.
     let served = answer.pointer("/model").and_then(Value::as_str).unwrap_or("<absent>");
     assert_eq!(
         served,
@@ -347,9 +365,12 @@ impl Drop for EngineGuard<'_> {
 
 /// What the model step's progress stream said, read to tell a download from
 /// a placement that moved no bytes. The first `ModelBytes` reading is the
-/// walk's own zero-fire; the SECOND is the downloader's starting count —
-/// its resume offset, or zero — so `moved` is exact for a fresh download
-/// and a resumed one alike.
+/// walk's own zero-fire; when the downloader reports at all, its first
+/// report is its starting count — the resume offset, or zero — so `moved`
+/// is exact for a fresh download and a resumed one alike. A complete
+/// `.part` makes the downloader return before any report (fetch.rs:52),
+/// leaving the zero-fire alone: `moved` is then 0, which is also exact —
+/// no byte moved.
 #[derive(Default)]
 struct ModelTransfer {
     reported: bool,

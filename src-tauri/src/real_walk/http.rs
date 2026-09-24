@@ -38,12 +38,15 @@ pub(super) fn chat_completion(port: u16, prompt: &str, max_tokens: u32) -> Value
         .expect("an HTTP response carries a header block");
     let head = String::from_utf8_lossy(&response[..header_end]).to_lowercase();
     let rest = &response[header_end + 4..];
-    let status = head.lines().next().unwrap_or_default().to_string();
+    let status_line = head.lines().next().unwrap_or_default().to_string();
+    // The code is the status line's second token, compared exactly: a
+    // substring "200" would also accept "1200" and "2000".
+    let code = status_line.split_whitespace().nth(1).unwrap_or_default();
     // The status is decided before the body is parsed: an error body is
     // rarely JSON, and the panic must carry the server's own words, capped.
-    assert!(
-        status.contains(" 200 "),
-        "the server answered {status}: {}",
+    assert_eq!(
+        code, "200",
+        "the server answered {status_line}: {}",
         String::from_utf8_lossy(&rest[..rest.len().min(BODY_SHOWN)])
     );
     let body = if head.contains("transfer-encoding: chunked") {
@@ -72,14 +75,21 @@ fn dechunk(mut rest: &[u8]) -> Vec<u8> {
             usize::from_str_radix(size_text(&rest[..line_end]), 16).expect("a hex chunk size");
         rest = &rest[line_end + 2..];
         if size == 0 {
+            assert!(
+                rest.starts_with(b"\r\n"),
+                "truncated chunked body: no terminating CRLF after the last chunk"
+            );
             return body;
         }
-        let frame = size + 2; // the chunk and the CRLF after it
+        let Some(frame) = size.checked_add(2) else {
+            panic!("truncated chunked body: chunk size {size} overflows the frame");
+        };
         assert!(
             rest.len() >= frame,
             "truncated chunked body: {} of {frame} bytes arrived",
             rest.len()
         );
+        assert_eq!(&rest[size..size + 2], b"\r\n", "a chunk is not CRLF-delimited");
         body.extend_from_slice(&rest[..size]);
         rest = &rest[frame..];
     }
