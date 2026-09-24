@@ -203,6 +203,9 @@ const scenarios = [
   // ports and still draw no Tailscale note - the note belongs to a square
   // or a paired house, not to a page with nothing to point a road at.
   ["Pairing", "idle with both ports known", "devices", { pairing: pairingDto("idle", { door_port: 8131, desk_port: 8134 }) }],
+  // The production shape of a fallback nobody is told about: idle draws no
+  // note, so a moved desk on this card has no sentence to demand.
+  ["Pairing", "idle with the desk on a fallback number", "devices", { pairing: pairingDto("idle", { door_port: 8131, desk_port: 51990, desk_port_preferred: false }) }],
   ["Pairing", "failed with both ports known", "devices", { pairing: pairingDto("failed", { failure: "could-not-save", door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a square is waiting", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a fresh square after the old one expired", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "expired" }) }],

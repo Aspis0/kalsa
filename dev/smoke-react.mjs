@@ -709,7 +709,11 @@ try {
         problems.push(`the note's desk command must name the card's own desk number ${deskPort}: ${heading}`);
       }
     }
-    const movedExpected = deskPort !== null && !deskPreferred;
+    // The moved sentence lives inside the note, so it is demanded only
+    // where the note is: an idle, claiming or failed card whose desk fell
+    // back draws no note at all, and must not be asked for a sentence the
+    // page never renders.
+    const movedExpected = noteExpected && deskPort !== null && !deskPreferred;
     const movedLine = all.match(/on (\d+) this time — point the desk command at this number/);
     if (movedExpected && Number(movedLine?.[1]) !== deskPort) {
       problems.push(`a desk on a fallback number must say it is on the card's own desk number ${deskPort}: ${heading}`);
