@@ -979,6 +979,7 @@ mod tests {
             dto["delivery_pending"], false,
             "a restart must not rebuild A's acknowledged delivery"
         );
+        let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
 
     /// The reproduced ordering: the ack lands AFTER phone B has completed,
@@ -1020,6 +1021,7 @@ mod tests {
             by_id(2).delivery.is_some(),
             "B's delivery must survive A's ack - the clear is keyed by token"
         );
+        let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
 
     /// An ack against an UNREADABLE store: the response was written, which
@@ -1063,6 +1065,7 @@ mod tests {
             desk.complete(replay, now).is_none(),
             "the in-memory pending must be spent even though the store clear failed"
         );
+        let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
 
     /// Refusing the last phone must leave an UNPAIRED desk: the host's own

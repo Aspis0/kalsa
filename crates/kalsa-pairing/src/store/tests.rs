@@ -477,6 +477,17 @@ fn clear_delivery_matches_the_record_holding_the_token() {
         Delivery::new(&"44".repeat(16), seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap();
     add_device_with_delivery(&path, "Phone", &handshake, delivery).unwrap();
 
+    // The unknown token goes FIRST, while the phone's delivery still
+    // exists: after the real clear there is nothing left to protect, and
+    // the byte-identity half would pass under any token logic at all.
+    let bytes = fs::read(&path).unwrap();
+    clear_delivery(&path, &"ff".repeat(16)).unwrap();
+    assert_eq!(
+        fs::read(&path).unwrap(),
+        bytes,
+        "a token matching nothing changes nothing"
+    );
+
     clear_delivery(&path, &"44".repeat(16)).unwrap();
     let devices = load_devices(&path).unwrap();
     let stored_host = devices.iter().find(|d| d.kind == DeviceKind::Host).unwrap();
@@ -485,14 +496,6 @@ fn clear_delivery_matches_the_record_holding_the_token() {
     assert!(
         stored_host.delivery.is_none() && stored_host.handshake.credential_hex() == host_cred,
         "the host's record is untouched"
-    );
-
-    let bytes = fs::read(&path).unwrap();
-    clear_delivery(&path, &"ff".repeat(16)).unwrap();
-    assert_eq!(
-        fs::read(&path).unwrap(),
-        bytes,
-        "a token matching nothing changes nothing"
     );
     fs::remove_dir_all(&dir).unwrap();
 }
