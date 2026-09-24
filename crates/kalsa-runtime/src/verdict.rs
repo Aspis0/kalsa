@@ -66,14 +66,19 @@ const POWERSHELL_DRIVERS: [&str; 4] = [
 /// The driver text from whichever producer answered. wmic runs first, as
 /// before; PowerShell is the fallback because Windows 11 24H2/25H2 no
 /// longer ship wmic — its latency on a real machine is not measured. The
-/// fallback is consulted only when wmic could not run or did not succeed,
-/// so a machine with wmic pays nothing for it.
+/// fallback is consulted only when wmic did not answer, which is three
+/// things: it could not run, it did not succeed, or a zero-exit run printed
+/// no version line at all — so a machine with a working wmic pays nothing
+/// for the fallback.
 #[cfg(any(target_os = "windows", test))]
 fn driver_text(
     wmic: impl FnOnce() -> Option<String>,
     powershell: impl FnOnce() -> Option<String>,
 ) -> Option<String> {
-    wmic().or_else(powershell)
+    match wmic().filter(|text| parse_driver_versions(text).is_some()) {
+        Some(text) => Some(text),
+        None => powershell(),
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -89,16 +94,54 @@ fn driver_version() -> String {
     .unwrap_or_else(|| "unknown".to_string())
 }
 
-/// Runs `program`, answering its stdout as text only when it ran and
-/// succeeded; anything else is "no answer". Duplicated beside kalsa-probe's
-/// on purpose: a runner shared across crates would be an API for five lines.
+/// How long a producer gets to answer. Ten seconds: far above wmic's or
+/// PowerShell's honest work, short enough that a stuck one costs one
+/// attempt, not the fingerprint.
+#[cfg(target_os = "windows")]
+const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+/// How often a waiting producer is checked; nothing rides on the exact figure.
+#[cfg(target_os = "windows")]
+const ANSWER_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// The producer's stdout as text, lossily: the version digits are ASCII,
+/// and one non-ASCII byte anywhere (the OEM code page) must not void the
+/// whole answer.
+#[cfg(any(target_os = "windows", test))]
+fn stdout_text(bytes: Vec<u8>) -> String {
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// Runs `program`, answering its stdout as text only when it ran, succeeded,
+/// and finished inside [`ANSWER_DEADLINE`]; anything else is "no answer",
+/// which the caller treats as absent, never as data. Duplicated beside
+/// kalsa-probe's on purpose: a runner shared across crates would be an API
+/// for a few lines. The output here is a few hundred bytes, far under any
+/// pipe buffer, so a stuck producer is what the deadline is for, not
+/// backpressure.
 #[cfg(target_os = "windows")]
 fn command_text(program: &str, args: &[&str]) -> Option<String> {
-    let output = std::process::Command::new(program).args(args).output().ok()?;
-    if !output.status.success() {
-        return None;
+    use std::io::Read;
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdout = child.stdout.take()?;
+    let deadline = std::time::Instant::now() + ANSWER_DEADLINE;
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            let mut bytes = Vec::new();
+            stdout.read_to_end(&mut bytes).ok()?;
+            return status.success().then(|| stdout_text(bytes));
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+        std::thread::sleep(ANSWER_POLL);
     }
-    String::from_utf8(output.stdout).ok()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -299,6 +342,37 @@ mod tests {
             "wmic gone (24H2/25H2): the fallback answers"
         );
         assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn a_zero_exit_wmic_with_no_version_line_makes_the_fallback_answer() {
+        let calls = std::cell::Cell::new(0);
+        let fallback = || {
+            calls.set(calls.get() + 1);
+            Some("31.0.15.5222".to_string())
+        };
+        assert_eq!(
+            driver_text(|| Some("No Instance(s) Available.\r\n".to_string()), fallback).as_deref(),
+            Some("31.0.15.5222"),
+            "a wmic that says nothing answered nothing"
+        );
+        assert_eq!(
+            driver_text(|| Some("DriverVersion\r\n".to_string()), fallback).as_deref(),
+            Some("31.0.15.5222"),
+            "a bare header is not a version line either"
+        );
+        assert_eq!(calls.get(), 2);
+    }
+
+    #[test]
+    fn a_non_ascii_byte_does_not_void_the_driver_answer() {
+        // The OEM code page: one non-UTF-8 byte must not lose the versions
+        // beside it — the digits are ASCII.
+        let text = stdout_text(b"31.0.15.3623\n\xFF\n32.0.15.6109\n".to_vec());
+        assert_eq!(
+            parse_driver_versions(&text),
+            Some("31.0.15.3623,32.0.15.6109".to_string())
+        );
     }
 
     #[test]

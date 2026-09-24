@@ -59,37 +59,96 @@ const POWERSHELL_CONTROLLERS: [&str; 4] = [
 /// The controllers' text from whichever producer answered. wmic runs first,
 /// exactly as before; PowerShell is the fallback because Windows 11 24H2/25H2
 /// no longer ship wmic — its latency on a real machine is not measured. The
-/// fallback is consulted only when wmic could not run or did not succeed, so
-/// a machine with wmic pays nothing for it.
+/// fallback is consulted only when wmic did not answer, which is three
+/// things: it could not run, it did not succeed, or a zero-exit run printed
+/// no controller row ("No Instance(s) Available.", or a bare header) — so a
+/// machine with a working wmic pays nothing for the fallback.
 #[cfg(any(target_os = "windows", test))]
 fn controllers_text(
     wmic: impl FnOnce() -> Option<String>,
     powershell: impl FnOnce() -> Option<String>,
 ) -> Option<String> {
-    wmic().or_else(powershell)
+    match wmic().filter(|text| has_a_controller_row(text)) {
+        Some(text) => Some(text),
+        None => powershell(),
+    }
+}
+
+/// Whether the text holds at least one controller row: wmic prints its
+/// column header whenever it prints rows, so an answer with a header and
+/// nothing under it — or a zero-exit "No Instance(s) Available." with no
+/// header at all — answered nothing, and the fallback must be asked.
+#[cfg(any(target_os = "windows", test))]
+fn has_a_controller_row(text: &str) -> bool {
+    let non_empty: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let header = non_empty.iter().any(|l| l.to_ascii_lowercase().contains("adapterram"));
+    header && non_empty.len() > 1
 }
 
 #[cfg(target_os = "windows")]
 fn windows_backend() -> Backend {
-    controllers_text(
-        || command_text("wmic", &WMIC_CONTROLLERS),
-        || command_text("powershell", &POWERSHELL_CONTROLLERS),
-    )
-    .map(|text| backend_from_video_controllers(&text))
-    .unwrap_or(Backend::Unknown)
+    // Once per process: the detection is asked twice per measurement and
+    // once more by the app's startup seed, and every ask spawns wmic — and
+    // on 24H2/25H2, PowerShell. One spawn is the whole cost.
+    static DETECTED: std::sync::OnceLock<Backend> = std::sync::OnceLock::new();
+    *DETECTED.get_or_init(|| {
+        controllers_text(
+            || command_text("wmic", &WMIC_CONTROLLERS),
+            || command_text("powershell", &POWERSHELL_CONTROLLERS),
+        )
+        .map(|text| backend_from_video_controllers(&text))
+        .unwrap_or(Backend::Unknown)
+    })
 }
 
-/// Runs `program`, answering its stdout as text only when it ran and
-/// succeeded; anything else is "no answer", which every caller here treats
-/// as absent, never as data. Private on purpose: a runner shared with
-/// kalsa-runtime would be a cross-crate API for five lines nobody owes it.
+/// How long a producer gets to answer. Ten seconds: far above wmic's or
+/// PowerShell's honest work, short enough that a stuck one costs one
+/// attempt, not the app.
+#[cfg(target_os = "windows")]
+const ANSWER_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+/// How often a waiting producer is checked; nothing rides on the exact figure.
+#[cfg(target_os = "windows")]
+const ANSWER_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// The producer's stdout as text, lossily: the numbers are ASCII, and one
+/// non-ASCII byte in a marketing name (the OEM code page) must not void the
+/// whole answer.
+#[cfg(any(target_os = "windows", test))]
+fn stdout_text(bytes: Vec<u8>) -> String {
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+/// Runs `program`, answering its stdout as text only when it ran, succeeded,
+/// and finished inside [`ANSWER_DEADLINE`]; anything else is "no answer",
+/// which every caller here treats as absent, never as data. Private on
+/// purpose: a runner shared with kalsa-runtime would be a cross-crate API
+/// for a few lines nobody owes it. The output here is a few hundred bytes,
+/// far under any pipe buffer, so a stuck producer is what the deadline is
+/// for, not backpressure.
 #[cfg(target_os = "windows")]
 fn command_text(program: &str, args: &[&str]) -> Option<String> {
-    let output = std::process::Command::new(program).args(args).output().ok()?;
-    if !output.status.success() {
-        return None;
+    use std::io::Read;
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdout = child.stdout.take()?;
+    let deadline = std::time::Instant::now() + ANSWER_DEADLINE;
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            let mut bytes = Vec::new();
+            stdout.read_to_end(&mut bytes).ok()?;
+            return status.success().then(|| stdout_text(bytes));
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+        std::thread::sleep(ANSWER_POLL);
     }
-    String::from_utf8(output.stdout).ok()
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -179,11 +238,16 @@ pub fn backend_from_video_controllers(text: &str) -> Backend {
     let mut discrete = false;
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
         // The memory, when present, is the row's FIRST token — both
-        // producers shape it that way — and a number further into the row is
-        // part of a name ("RX 6600" is not 6600 bytes), never a size. A null
-        // AdapterRAM leaves the row numberless, and the name alone answers.
-        let mut tokens = line.split_whitespace();
-        let memory = tokens.next().and_then(|first| first.parse::<u64>().ok());
+        // producers shape it that way — and it is consumed only when it
+        // parses as a size: a numberless row keeps its whole name ("NVIDIA
+        // T400" stays discrete), and a number further into a name ("RX
+        // 6600") is never a size.
+        let mut tokens = line.split_whitespace().peekable();
+        let mut memory: Option<u64> = None;
+        if let Some(bytes) = tokens.peek().and_then(|token| token.parse::<u64>().ok()) {
+            memory = Some(bytes);
+            tokens.next();
+        }
         let mut name = String::new();
         for token in tokens {
             name.push_str(token);
@@ -202,8 +266,10 @@ pub fn backend_from_video_controllers(text: &str) -> Backend {
             && !lowered.contains("intel");
         if looks_discrete {
             discrete = true;
-            // A saturated 32-bit reading is "at least this much", not a size.
-            if let Some(bytes) = memory.filter(|bytes| *bytes < WMI_SATURATION_BYTES) {
+            // A saturated 32-bit reading is "at least this much", not a
+            // size — and a zero AdapterRAM is the same non-answer: no card
+            // has zero bytes, so both read as an unknown size.
+            if let Some(bytes) = memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES) {
                 best = Some(best.map_or(bytes, |current| current.max(bytes)));
             }
         }
@@ -276,9 +342,11 @@ mod tests {
             calls.set(calls.get() + 1);
             Some("3221225472  NVIDIA GeForce RTX 4060".to_string())
         };
+        let answered =
+            || Some("AdapterRAM  Name\n  Intel(R) UHD Graphics\n".to_string());
         assert_eq!(
-            controllers_text(|| Some("  Intel only".to_string()), fallback).as_deref(),
-            Some("  Intel only"),
+            controllers_text(answered, fallback).as_deref(),
+            Some("AdapterRAM  Name\n  Intel(R) UHD Graphics\n"),
             "wmic answered: the fallback must not even run"
         );
         assert_eq!(calls.get(), 0);
@@ -288,6 +356,30 @@ mod tests {
             "wmic gone (24H2/25H2): the fallback answers"
         );
         assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn a_zero_exit_wmic_with_no_controller_row_makes_the_fallback_answer() {
+        let calls = std::cell::Cell::new(0);
+        let fallback = || {
+            calls.set(calls.get() + 1);
+            Some("  Intel(R) UHD Graphics".to_string())
+        };
+        assert_eq!(
+            controllers_text(
+                || Some("No Instance(s) Available.\r\n".to_string()),
+                fallback
+            )
+            .as_deref(),
+            Some("  Intel(R) UHD Graphics"),
+            "a wmic that says nothing answered nothing"
+        );
+        assert_eq!(
+            controllers_text(|| Some("AdapterRAM  Name\r\n".to_string()), fallback).as_deref(),
+            Some("  Intel(R) UHD Graphics"),
+            "a bare header is not a controller row either"
+        );
+        assert_eq!(calls.get(), 2);
     }
 
     #[test]
@@ -325,6 +417,60 @@ mod tests {
             backend_from_video_controllers(
                 "  Intel(R) UHD Graphics 770\n3221225472  NVIDIA GeForce RTX 4060\n"
             ),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(3221225472)
+            }
+        );
+    }
+
+    #[test]
+    fn a_numberless_row_keeps_whole_its_name() {
+        // The regression the first-token rule introduced: consuming the
+        // first token unconditionally ate the marker itself ("NVIDIA"),
+        // and these cards read as CPU.
+        assert_eq!(
+            backend_from_video_controllers(" NVIDIA T400"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(
+            backend_from_video_controllers(" NVIDIA RTX A2000"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(
+            backend_from_video_controllers(" AMD Radeon Pro W2100"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        // The header row is skipped, and a header alone is no controller.
+        assert_eq!(
+            backend_from_video_controllers("AdapterRAM  Name\n NVIDIA T400\n"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(backend_from_video_controllers("AdapterRAM  Name\n"), Backend::Cpu);
+    }
+
+    #[test]
+    fn a_zero_adapter_ram_is_an_unknown_size_not_a_zero_byte_card() {
+        assert_eq!(
+            backend_from_video_controllers("0  NVIDIA GeForce RTX 4060"),
+            Backend::DiscreteGpu { vram_bytes: None }
+        );
+        assert_eq!(
+            backend_from_video_controllers(
+                "0  NVIDIA GeForce RTX 4060\n3221225472  AMD Radeon RX 6600\n"
+            ),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(3221225472)
+            }
+        );
+    }
+
+    #[test]
+    fn a_non_ascii_byte_in_a_name_does_not_void_the_answer() {
+        // The OEM code page: one non-UTF-8 byte in a marketing name must
+        // not lose the whole text — the numbers are ASCII.
+        let text = stdout_text(b"3221225472  NVIDIA GeForce RTX 4060 \xF0\n".to_vec());
+        assert_eq!(
+            backend_from_video_controllers(&text),
             Backend::DiscreteGpu {
                 vram_bytes: Some(3221225472)
             }
