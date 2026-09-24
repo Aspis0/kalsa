@@ -145,6 +145,11 @@ import {
   type CoolingLoopOptions,
 } from "./thermalResume";
 import {
+  governorPauseLogLine,
+  thermalCoolingLogLine,
+  utilityGovernorPause,
+} from "./governorPauseLog";
+import {
   createBackgroundTimer,
   createRepeatingTimer,
   type TimerHandle,
@@ -3132,16 +3137,10 @@ function endOnGovernorPause(
   finishOnce: (fn: () => void) => void,
   strings: ReturnType<typeof getStrings>,
 ): boolean {
-  const ending = governorPauseEnding(result);
-  if (ending === null) return false;
+  const reason = pauseReasonOf(result);
+  if (reason === null) return false;
   try {
-    console.log(
-      `KALSA_GOVERNOR_PAUSE ${JSON.stringify({
-        turnId,
-        round,
-        reason: pauseReasonOf(result),
-      })}`,
-    );
+    console.log(governorPauseLogLine({ turnId, round, reason }));
   } catch {
     // telemetry must never throw
   }
@@ -3149,32 +3148,12 @@ function endOnGovernorPause(
     callbacks,
     finishOnce,
     new Error(
-      ending === "coolingTimedOut"
+      // reason non-null pins the ending non-null (both read pause_reason).
+      governorPauseEnding(result) === "coolingTimedOut"
         ? strings.errors.coolingTimedOut
         : strings.chat.serviceUnreachable,
     ),
   );
-  return true;
-}
-
-/**
- * A utility completion (memory extract, translation, planner) treats any
- * governor pause as a failure of that call: the site returns its own
- * no-result shape instead of consuming the paused output, and the shared
- * KALSA_GOVERNOR_PAUSE line records site + reason (literals only). No
- * cooling wait runs on these paths. Returns whether the result is paused.
- */
-function utilityGovernorPause(
-  result: unknown,
-  site: "extractMemory" | "translate" | "completeOnce",
-): boolean {
-  const reason = pauseReasonOf(result);
-  if (reason === null) return false;
-  try {
-    console.log(`KALSA_GOVERNOR_PAUSE ${JSON.stringify({ site, reason })}`);
-  } catch {
-    // telemetry must never throw
-  }
   return true;
 }
 
@@ -4961,15 +4940,12 @@ export async function streamAssistantTurn(
           if (phase === "start" || phase === "end") {
             try {
               console.log(
-                `KALSA_THERMAL_COOLING ${JSON.stringify({
+                thermalCoolingLogLine({
                   turnId,
                   round: roundForLog,
                   phase: phase === "start" ? "enter" : "exit",
-                  waitedMs: detail.elapsedMs,
-                  generationMs: detail.generationMs,
-                  batt_temp_tenths_c: detail.battTempTenthsC,
-                  outcome: detail.endReason,
-                })}`,
+                  detail,
+                }),
               );
             } catch {
               // telemetry must never throw
