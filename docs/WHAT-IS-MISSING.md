@@ -735,9 +735,9 @@ on this list would notice.
 `Backend::Unknown` (`:49-54`). Microsoft's WMIC page (learn.microsoft.com, "Last updated on
 2026-08-20") says: "Starting in August 2026, Windows 11, versions 24H2 and 25H2 no longer
 include the Windows Management Instrumentation Command-line (WMIC) utility and it can’t be added
-back as a Feature on Demand (FoD)." It adds that WMI itself remains supported. On those versions
-the command cannot run, and every machine is detected as `Unknown`. Older supported versions that
-still ship WMIC are classified as before.
+back as a Feature on Demand (FoD)." It adds that WMI itself remains supported. On those versions the command cannot run, and until the fallback below every machine was
+detected as `Unknown`. Older supported versions that still ship WMIC keep running it first; the parser change
+below applies to them too.
 
 What `Unknown` leads to, read in the code:
 - The runtime tries the Vulkan build, then the CPU build
@@ -759,8 +759,58 @@ Windows machine. It is the first thing to check in the Surface and Lenovo measur
 still owed. The WMI API behind the command is still there, so the repair is to read the same class
 without the removed tool. There are two call sites: this one, and the engine verdict's
 fingerprint, which reads `DriverVersion` through `wmic` too
-(`crates/kalsa-runtime/src/verdict.rs:52-66`). Without WMIC that reads `"unknown"`, so a
-driver change no longer invalidates a saved verdict.
+(`crates/kalsa-runtime/src/verdict.rs:52-66`). Without WMIC, and before the fallback below, that read `"unknown"`, so a driver change no
+longer invalidated a saved verdict.
+
+**A fallback was built on 2026-09-24 (`0e22de3`, `889df3f`, `03cca32`, `b451c45`, `fb19101`,
+`41d39ee`, `740d9d2`); none of it has run on Windows.** In both call sites, `wmic` still runs first, exactly as before. Only when it cannot run, does not succeed, overruns its 10 s deadline, or prints no row the check recognises (a header plus a second non-empty line; or no version
+line), the same WMI class is asked through `powershell -NoProfile -NonInteractive -Command
+"Get-CimInstance Win32_VideoController | ForEach-Object { … }"`. That command prints one line
+of text per controller, with no `Format-Table`. What else changed:
+- One runner, `crates/kalsa-probe/src/run.rs`, spawns each producer and bounds it to a 10 s deadline, checked every 50 ms after the spawn; a child found already
+exited is taken even if the check comes after the deadline, and reading its stdout is outside
+the bound. A producer still running at the check is killed and reaped, and decodes lossily, on the working assumption that Windows consoles write in the OEM
+code page (unverified: see below). It is tested on macOS with real child processes, including a
+  sleeper that is killed at a 200 ms deadline, and a check that its pid is gone.
+- The detection and the driver versions are cached per process, but only when they answered.
+  An absent answer is asked again, at up to about 2×10 s per call site each time. The PowerShell
+  answer is validated too (`fb19101`). An empty, whitespace-only or lone-number answer is absent, not the CPU. A number followed by
+any second token ("3221225472 6600") still counts as a controller line. A line of prose cannot be told from a controller name, though. So a successful run
+  that prints prose on stdout is read as a controller, parsed, and cached. The same holds for `wmic`'s header plus any second non-empty line. This is declared in the code (`41d39ee`), not guarded.
+- The parser now takes the memory only from a row's first token, and only when that token is
+  a number. It keeps the whole name otherwise, so "NVIDIA T400" with no memory value is still
+  a discrete card. A zero `AdapterRAM` reads as an unknown size. The old parser read a
+  numberless "AMD Radeon RX 6600" row as a 6600-byte card.
+- deepseek reviewed `0e22de3`, `889df3f` and `03cca32`: NOT FIT, then FIT WITH CORRECTIONS
+  twice. `b451c45` applied those corrections and only the orchestrator checked it. gpt-6-luna then
+  found the unvalidated PowerShell answer while reviewing this section. deepseek reviewed its fix `fb19101` in the session (FIT WITH CORRECTIONS, with the prose
+  residual as its one finding; no commit message records it). `41d39ee` changes comments and
+  one test name, and `740d9d2` makes two of those comments exact; the orchestrator checked
+  both.
+
+Still open, all of it Windows-only:
+- **No run on a real Windows machine.** Neither the PowerShell line nor the `wmic` path has
+  run on one.
+- **`kalsa-runtime`'s Windows code was never compiled.** Its cross-check from this Mac stops
+  in `ring`'s C build script. `kalsa-probe`'s Windows code does compile
+  (`cargo check -p kalsa-probe --target x86_64-pc-windows-msvc`).
+- **The encoding of `wmic`'s piped output is unverified.** No real capture exists in the repo.
+  If it is UTF-16LE, the detection's header check fails and PowerShell answers even where
+`wmic` works: slower, but not wrong. The driver-version check accepts any line that starts with
+a digit, so UTF-16 version rows might count as an answer and stop the fallback. That is
+conditional on the same unverified encoding.
+- **`AdapterRAM` is a 32-bit field, so VRAM above 4 GiB is never read.** A saturated or zero reading becomes an unknown size. When no other discrete row gives a
+valid size, the machine is `DiscreteGpu` of unknown memory, and with a Vulkan winner that is
+still the refusal above.
+  A reading just under the 32-bit limit, such as 4293918720, is taken as a real size, although
+it may be a larger card reported short: the parser cannot tell the two apart. A card of 4 GiB
+or more can only be sized truly from another source, such as the registry's
+  `HardwareInformation.qwMemorySize`, which was not verified here.
+- **No engine build exists for Windows on ARM.** `crates/kalsa-runtime/src/assets.rs` knows only
+  `MacArm64`, `MacX64` and `WindowsX64`, so a native ARM64 build on a Snapdragon X Elite PC gets no candidate at all. (An x64 build
+running under emulation reports `WindowsX64` and gets the x64 candidates; that path was not
+examined.)
+  Whether to publish one is the owner's call.
 
 ## Not missing, deliberately
 
