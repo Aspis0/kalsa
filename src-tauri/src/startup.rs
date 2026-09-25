@@ -219,11 +219,25 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let (plan, row, reason) =
-                choose_model(backend, &machine, phone, overrides.model.as_deref())?;
+            let (build, exe, plan, row, reason) = choose_with_processor_fallback(
+                (backend, exe),
+                &machine,
+                phone,
+                overrides.model.as_deref(),
+                || {
+                    progress(Progress::Deciding);
+                    kalsa_runtime::decide_cpu(
+                        machine.measurement.will_run_on,
+                        &mut |p| progress(Progress::RuntimeBytes {
+                            done: p.bytes_done,
+                            total: p.bytes_total,
+                        }),
+                    )
+                },
+            )?;
             let path = place_model(&plan, root, progress)?;
             return planned_config_with_overrides(
-                backend,
+                build,
                 exe,
                 path,
                 row,
@@ -333,6 +347,52 @@ fn automatic_choice(
             )?;
             Ok((selection.download, row, selection.plain_reason))
         }
+    }
+}
+
+/// Why the walk starts the processor build after the graphics build's
+/// catalog answer refused: the card's memory holds no row this app ships —
+/// the owner's ruling after the Lenovo walk (RTX 4050 6 GiB, 32 GiB RAM,
+/// E4B ran on the processor at ~11.8 tok/s that night).
+const PROCESSOR_FALLBACK_REASON: &str =
+    "No model fits this computer's graphics card's memory, so this model runs on the processor.";
+
+/// The graphics build's catalog answer, with the processor fallback the
+/// owner ruled in. `decide_processor` is lazy — a choice that fits the card
+/// never pays for it — and only the builds whose budget IS the card's memory
+/// (Vulkan, CUDA) fall back: a processor refusal is a real refusal, and
+/// Metal budgets RAM already.
+fn choose_with_processor_fallback(
+    build: (ServerBackend, PathBuf),
+    machine: &Machine,
+    phone: Option<PhoneModel>,
+    chosen: Option<&str>,
+    decide_processor: impl FnOnce() -> Result<kalsa_runtime::Decision, kalsa_runtime::DecideError>,
+) -> Result<(ServerBackend, PathBuf, DownloadPlan, &'static ModelEntry, String), StartupFailure> {
+    let (winner, exe) = build;
+    let budgets_the_card = matches!(
+        winner,
+        ServerBackend::Vulkan | ServerBackend::Cuda12 | ServerBackend::Cuda13
+    );
+    match choose_model(winner, machine, phone, chosen) {
+        Ok((plan, row, reason)) => Ok((winner, exe, plan, row, reason)),
+        Err(_graphics_refusal) if budgets_the_card => {
+            // The ruling: a GPU build that probes well but whose card holds
+            // no row is not a reason to refuse the machine (Lenovo walk:
+            // 6.4 GB of VRAM minus the margin leaves ~3.0 GiB — under the
+            // smallest row — while 32 GiB of RAM funds one). The processor
+            // answer carries the sentence that says which memory decided.
+            let decision = decide_processor()?;
+            let (plan, row, reason) = choose_model(decision.backend, machine, phone, chosen)?;
+            Ok((
+                decision.backend,
+                decision.exe,
+                plan,
+                row,
+                format!("{PROCESSOR_FALLBACK_REASON} {reason}"),
+            ))
+        }
+        Err(graphics_refusal) => Err(graphics_refusal),
     }
 }
 
@@ -1291,6 +1351,59 @@ mod tests {
         let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
         assert_eq!(row.display_name, automatic.entry.display_name);
         assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
+    }
+
+    /// The owner's ruling, on the machine that asked for it: the Lenovo's
+    /// RTX 4050 6 GiB against 32 GiB of RAM. Budgeted on the card the
+    /// catalog leaves ~3.0 GiB after the margin and every row weighs more;
+    /// budgeted on RAM the processor build picks — and the reason says which
+    /// memory decided.
+    #[test]
+    fn the_graphics_refusal_falls_back_to_the_processor_and_says_why() {
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(6_439_305_216),
+                },
+            ),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        // The refusal that started this: budgeted on the card, nothing fits.
+        assert!(
+            choose_model(ServerBackend::Vulkan, &machine, None, None).is_err(),
+            "6.4 GB of VRAM minus the margin must hold no row"
+        );
+
+        // The walk's fallback ends on the processor, with its own answer and
+        // the sentence that says why the processor.
+        let expected = choose_model(ServerBackend::Cpu, &machine, None, None)
+            .expect("the processor budget is 32 GiB of RAM");
+        let (build, exe, plan, row, reason) = choose_with_processor_fallback(
+            (ServerBackend::Vulkan, PathBuf::from("/builds/vulkan-server.exe")),
+            &machine,
+            None,
+            None,
+            || {
+                Ok(kalsa_runtime::Decision {
+                    backend: ServerBackend::Cpu,
+                    exe: PathBuf::from("/builds/cpu-server.exe"),
+                })
+            },
+        )
+        .expect("the fallback picks");
+        assert_eq!(build, ServerBackend::Cpu, "the processor build decides");
+        assert_eq!(exe, PathBuf::from("/builds/cpu-server.exe"));
+        assert_eq!(row.repo, expected.1.repo, "the processor build's own choice");
+        assert_eq!(plan.sha256, expected.0.sha256, "its own pinned file");
+        assert!(
+            reason.contains(PROCESSOR_FALLBACK_REASON),
+            "the reason must say why the processor: {reason}"
+        );
+        assert!(
+            reason.contains(&expected.2),
+            "the choice's own words follow: {reason}"
+        );
     }
 
     #[test]

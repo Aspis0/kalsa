@@ -46,5 +46,5 @@ pub fn runtime_root() -> std::path::PathBuf {
 
 pub use assets::{Platform, ServerBackend};
 pub use candidates::candidates_for;
-pub use decide::{decide, DecideError, Decision};
+pub use decide::{decide, decide_cpu, DecideError, Decision};
 pub use inlet::{engine_consumes_private_headers, ENGINE_MODULE_FILE};

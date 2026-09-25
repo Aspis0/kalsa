@@ -82,6 +82,34 @@ pub fn decide(
         &store::root(),
         Platform::current(),
         detected,
+        None,
+        &OsLaunch,
+        progress,
+    )
+}
+
+/// Decides for this machine among the CPU builds only — the walk's fallback
+/// when the graphics build wins [`decide`] but the catalog, budgeted on the
+/// card's memory, has no row that fits (the Lenovo walk: an RTX 4050 with
+/// 6 GiB against 32 GiB of RAM, nothing on the menu).
+///
+/// Restricted this way a saved GPU verdict is no answer and is skipped; a
+/// saved CPU verdict short-circuits as usual — and this path saves one, on
+/// purpose overwriting the GPU verdict. The next start then lands on the
+/// same CPU choice with no probe at all, and the verdict's fingerprint
+/// (build digests, the detected backend, the OS, and on Windows the driver
+/// version) discards it when a bigger card or a driver update changes the
+/// machine: the whole decide runs again, and `candidates_for` puts the GPU
+/// build first, so the GPU gets its chance back.
+pub fn decide_cpu(
+    detected: Backend,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Decision, DecideError> {
+    decide_in(
+        &store::root(),
+        Platform::current(),
+        detected,
+        Some(ServerBackend::Cpu),
         &OsLaunch,
         progress,
     )
@@ -92,6 +120,7 @@ pub(crate) fn decide_in(
     root: &Path,
     platform: Option<Platform>,
     detected: Backend,
+    only: Option<ServerBackend>,
     launch: &dyn Launch,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Decision, DecideError> {
@@ -104,7 +133,12 @@ pub(crate) fn decide_in(
     // attempted. Without this the walk reaches the store with an empty asset
     // set and reports "no build works" for a build that was never offered,
     // after downloading the probe model to say it.
-    let candidates = candidates_for(Some(platform), detected);
+    let mut candidates = candidates_for(Some(platform), detected);
+    // A CPU-only ask narrows the list — and rules the saved verdict below in
+    // or out the same way.
+    if let Some(only) = only {
+        candidates.retain(|candidate| *candidate == only);
+    }
     if candidates.is_empty() {
         return Err(DecideError::NoBuildForThisMachine);
     }
@@ -116,7 +150,9 @@ pub(crate) fn decide_in(
     // The machine's standing answer, while it still describes what was
     // proven: this build's bytes, on this machine.
     if let Some(verdict) = verdict::load(root) {
-        if verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected) {
+        if only.is_none_or(|backend| verdict.backend == backend)
+            && verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected)
+        {
             if let Ok(exe) = store::ensure_backend(root, platform, verdict.backend, progress) {
                 return Ok(Decision {
                     backend: verdict.backend,
@@ -188,7 +224,7 @@ mod tests {
     #[test]
     fn a_platform_with_no_build_is_reported_not_improvised() {
         let root = scratch("no-platform");
-        let err = decide_in(&root, None, Backend::Cpu, &OsLaunch, &mut |_| {})
+        let err = decide_in(&root, None, Backend::Cpu, None, &OsLaunch, &mut |_| {})
             .expect_err("nothing is published for it");
         assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
         assert_eq!(
@@ -226,7 +262,7 @@ mod tests {
         // failed, it is a machine we publish nothing for, and the difference
         // is the sentence the user reads.
         let root = scratch("intel-mac");
-        let err = decide_in(&root, Some(Platform::MacX64), Backend::Metal, &OsLaunch, &mut |_| {})
+        let err = decide_in(&root, Some(Platform::MacX64), Backend::Metal, None, &OsLaunch, &mut |_| {})
             .expect_err("no engine is published for an Intel Mac");
         assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
         assert_eq!(
@@ -302,7 +338,7 @@ mod tests {
         )
         .expect("save verdict");
 
-        let decision = decide_in(&root, Some(platform), detected, &NeverProbe, &mut |_| {})
+        let decision = decide_in(&root, Some(platform), detected, None, &NeverProbe, &mut |_| {})
             .expect("a standing verdict answers without probing");
         assert_eq!(decision.backend, backend);
         assert_eq!(decision.exe, exe, "the on-disk build is the answer");
