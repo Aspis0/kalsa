@@ -32,7 +32,7 @@ fn plant_blind_instance(port: u16) -> std::fs::File {
     let path = common::state_file(port);
     std::fs::write(&path, format!("kalsa-brain v1\nport={port}\n")).expect("write the state file");
     let lock = std::fs::File::open(&path).expect("open the state file");
-    lock.try_lock().expect("hold the lock as the heir would");
+    kalsa_supervisor::hold_state_lock(&lock).expect("hold the lock as the heir would");
     lock
 }
 

@@ -19,5 +19,5 @@ mod suspect;
 
 pub use child::{pid_alive, terminate_pid, Step, Termination};
 pub use config::{ServerConfig, DEFAULT_STOP_GRACE};
-pub use instance::{Existing, InstanceFile};
+pub use instance::{hold_state_lock, Existing, InstanceFile};
 pub use supervisor::{Failure, ServerState, StartOutcome, StartWaiter, Supervisor, Watch};

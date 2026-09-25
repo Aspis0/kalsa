@@ -22,12 +22,86 @@
 //! else is somebody else's — but port and command are known, the lock proves
 //! an heir of ours is alive, and the port answers when it is serving. That
 //! is enough to reuse, and deliberately not enough to signal.
+//!
+//! On Windows the lock is one byte past every record (`STATE_LOCK_OFFSET`):
+//! std's whole-file lock is mandatory there, so a claim's own lock made
+//! `inspect`'s read fail with os error 33 and the app could not read its own
+//! live record. A byte at a fixed far offset keeps the content readable and
+//! the lock just as real.
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 const MAGIC: &str = "kalsa-brain v1";
+
+/// The byte Windows locks: half the u64 space, past any record a state file
+/// will ever hold — `LockFileEx` locks bytes that do not exist yet. WHY the
+/// offset exists: std's whole-file lock is mandatory on Windows, so while a
+/// claim held it `inspect`'s `read_to_string` failed with os error 33 and the
+/// app could not read its own live record. Content bytes stay readable while
+/// this byte is held; std's whole-file lock (offset 0, length u64::MAX) still
+/// overlaps it, so a holder the old way still conflicts with the probe.
+#[cfg(windows)]
+const STATE_LOCK_OFFSET: u64 = 1 << 63;
+
+/// Takes the state lock without waiting: std's flock on unix, the byte at
+/// `STATE_LOCK_OFFSET` on Windows. `WouldBlock` means somebody else holds it;
+/// anything else is an I/O failure of its own.
+fn try_lock_state(file: &File) -> Result<(), std::fs::TryLockError> {
+    #[cfg(unix)]
+    {
+        file.try_lock()
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Foundation::ERROR_LOCK_VIOLATION;
+        use windows_sys::Win32::Storage::FileSystem::{
+            LockFileEx, LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY,
+        };
+        use windows_sys::Win32::System::IO::OVERLAPPED;
+        let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
+        // windows-sys wraps Offset two anonymous layers deep.
+        overlapped.Anonymous.Anonymous.Offset = STATE_LOCK_OFFSET as u32;
+        overlapped.Anonymous.Anonymous.OffsetHigh = (STATE_LOCK_OFFSET >> 32) as u32;
+        // The offset lives in OVERLAPPED; the length is the two u32s: one
+        // byte, exclusive, no waiting.
+        let ok = unsafe {
+            LockFileEx(
+                file.as_raw_handle(),
+                LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY,
+                0,
+                1,
+                0,
+                &mut overlapped,
+            )
+        };
+        if ok != 0 {
+            return Ok(());
+        }
+        let error = io::Error::last_os_error();
+        if error.raw_os_error() == Some(ERROR_LOCK_VIOLATION as i32) {
+            Err(std::fs::TryLockError::WouldBlock)
+        } else {
+            Err(std::fs::TryLockError::Error(error))
+        }
+    }
+}
+
+/// Takes the state lock on an open handle the way this module does — for the
+/// integration tests, which must hold a planted record exactly as an earlier
+/// run would: a whole-file std lock on Windows is mandatory and would make
+/// that record unreadable (the bug `STATE_LOCK_OFFSET` was introduced for).
+pub fn hold_state_lock(file: &File) -> io::Result<()> {
+    try_lock_state(file).map_err(|error| match error {
+        std::fs::TryLockError::WouldBlock => io::Error::new(
+            io::ErrorKind::WouldBlock,
+            "another instance already holds the state file",
+        ),
+        std::fs::TryLockError::Error(e) => e,
+    })
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Existing {
@@ -75,7 +149,7 @@ impl InstanceFile {
             .write(true)
             .truncate(false)
             .open(path)?;
-        file.try_lock().map_err(|_| {
+        try_lock_state(&file).map_err(|_| {
             io::Error::new(
                 io::ErrorKind::WouldBlock,
                 "another instance already holds the state file",
@@ -137,7 +211,7 @@ impl InstanceFile {
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Existing::None),
             Err(e) => return Err(e),
         };
-        match file.try_lock() {
+        match try_lock_state(&file) {
             // We got the lock, so the writer is gone: stale, whatever it says.
             Ok(()) => return Ok(Existing::Stale),
             Err(std::fs::TryLockError::WouldBlock) => {}
@@ -181,6 +255,10 @@ impl InstanceFile {
     /// having to reason about a stale file.
     pub fn release(self) {
         let _ = std::fs::remove_file(&self.path);
+        // Unix unlocks before the handle closes; on Windows the byte lock
+        // dies with the handle this function drops on the way out — that is
+        // the unlock, and there is nothing else to do by hand.
+        #[cfg(unix)]
         let _ = self.file.unlock();
     }
 }
@@ -278,5 +356,36 @@ mod tests {
         let holder = File::open(&path).expect("open");
         holder.try_lock().expect("lock");
         assert!(InstanceFile::inspect(&path).is_err());
+    }
+
+    /// The lock lives with the file object, not with the handle that took it
+    /// — the property a duplicated (inherited) handle relies on: while a
+    /// duplicate lives, closing the original must keep the byte locked, and
+    /// the duplicate's close must release it. `try_clone` is
+    /// DuplicateHandle — the same kernel operation an inherited handle is —
+    /// so this is that proof without spawning anything.
+    #[cfg(windows)]
+    #[test]
+    fn the_lock_outlives_the_handle_that_took_it_while_a_duplicate_lives() {
+        let path = temp_path("dup-lock");
+        let _ = std::fs::remove_file(&path);
+        let instance = InstanceFile::claim(&path).expect("claim");
+        let duplicate = instance.file.try_clone().expect("duplicate the handle");
+        drop(instance);
+        let probe = File::open(&path).expect("open");
+        assert!(
+            matches!(
+                try_lock_state(&probe),
+                Err(std::fs::TryLockError::WouldBlock)
+            ),
+            "a duplicate must keep the byte locked after the original closes"
+        );
+        drop(duplicate);
+        assert!(
+            try_lock_state(&probe).is_ok(),
+            "the duplicate's close must release the byte lock"
+        );
+        drop(probe);
+        let _ = std::fs::remove_file(&path);
     }
 }

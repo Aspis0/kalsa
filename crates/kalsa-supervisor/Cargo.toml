@@ -18,6 +18,10 @@ windows-sys = { version = "0.59", features = [
     # `CreateJobObjectW` takes a `*const SECURITY_ATTRIBUTES`; without this
     # feature the symbol does not exist and the job module fails to import.
     "Win32_Security",
+    # `LockFileEx` takes an OVERLAPPED: windows-sys gates the function on
+    # this feature, and the struct lives in this module.
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
     "Win32_System_JobObjects",
     "Win32_System_Threading",
 ] }

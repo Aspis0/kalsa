@@ -917,7 +917,7 @@ mod tests {
         )
         .expect("write the earlier run's state file");
         let lock = std::fs::File::open(&config.state_file).expect("open the state file");
-        lock.try_lock().expect("hold the lock as an earlier run would");
+        crate::hold_state_lock(&lock).expect("hold the lock as an earlier run would");
 
         let residency = Residency::new();
         let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone());
