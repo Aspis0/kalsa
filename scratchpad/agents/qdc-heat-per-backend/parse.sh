@@ -98,6 +98,9 @@ model_setup() {
 # unless it is present at the exact registry size. Cost session 844629 and the
 # first attempt of sa849155.
 mmproj_setup() {
+  # Optional bundle part: the catalog only demands an mmproj it declares, so an
+  # empty MMPROJ (mmproj-less entry, e.g. lfm2.5-2.6b) skips every copy/size check.
+  [ -n "${MMPROJ:-}" ] || { log "MMPROJ_SKIP (MMPROJ empty)"; return 0; }
   local size stat_out run_rc remote="$DEVICE_TMP/$MMPROJ_FILE" out="$RAW/mmproj_stat.runas"
   size=$(wc -c < "$MMPROJ" | tr -d '[:space:]')
   [ "$size" = "$MMPROJ_SIZE" ] || { log "LOCAL_MMPROJ_SIZE_FAIL size=$size"; return 1; }

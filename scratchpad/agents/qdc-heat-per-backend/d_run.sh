@@ -37,6 +37,16 @@ load_prompt() {
   PROMPT_EXPECTED_CHARS=$(printf '%s' "$text" | wc -m | tr -d '[:space:]')
   [ -n "$PROMPT_TEXT" ] && [ "$PROMPT_EXPECTED_CHARS" -eq "$PROMPT_BYTES" ]
 }
+# prompt-<n>.txt names carry token counts measured with the Qwen tokenizer;
+# counting the same text against $MODEL keeps the nearest-to-1024 choice honest
+# for any tokenizer (LFM2.5 reads this filler ~70 tokens longer). Falls back to
+# the label when llama-tokenize is absent on the driver host.
+variant_tokens() {
+  local count
+  command -v llama-tokenize >/dev/null 2>&1 || return 1
+  count=$(tr '\n' ' ' < "$1" | llama-tokenize -m "$MODEL" --stdin --show-count 2>/dev/null | sed -n 's/.*tokens: \([0-9][0-9]*\).*/\1/p')
+  [ -n "$count" ] && printf '%s' "$count"
+}
 load_prompt || { echo "PROMPT_IDENTITY_FAIL" >&2; exit 6; }
 
 OUT="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend"
@@ -45,12 +55,25 @@ ADB_LOG="$RAW/adb-exit.log"; DRIVER_LOG="$RAW/driver.log"; RESULTS="$RAW/results
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'pair\tarm\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\tsettle_s\tskin_before\tskin_after\tbatt_before\tbatt_after\tprefill_ms\tengine_prefill\tengine_decode\troute_requested\troute_push\troute_mismatch\tchunks_sum\tchunks_str\tprompt_n\ttokens_predicted\tdecode_tps\tthermal_state\tfailed\tfallback_count\ttool_calls\tlmkd_count\n' > "$RESULTS"
 PKG=com.kalsa.app
-# The shipped model the app offers on this board (QRD8650, high RAM tier -> qwen3.5-4b).
-MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/Qwen3.5-4B-Q4_K_M.gguf}"
-MODEL_SIZE="${MODEL_SIZE:-2834975040}"
-MODEL_SHA="${MODEL_SHA:-3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630}"
-MODEL_DIR="qwen3.5-4b"; MODEL_FILE="Qwen3.5-4B-Q4_K_M.gguf"
-MMPROJ="${MMPROJ:-/Users/marco/kalsa-qdc/models/mmproj-F16.gguf}"; MMPROJ_FILE="mmproj-F16.gguf"; MMPROJ_SIZE=672423616
+# Shipping default: LFM2.5-2.6B (owner decision 2026-09-25; the catalog entry
+# declares no mmproj, so the governor stays eligible on this build).
+# Qwen3.5-4B stays reachable via env (MODEL/MODEL_DIR/MODEL_FILE/MMPROJ); its
+# identity constants key off MODEL_FILE, so this is enough:
+#   MODEL_DIR=qwen3.5-4b MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf MMPROJ=/Users/marco/kalsa-qdc/models/mmproj-F16.gguf
+MODEL_DIR="${MODEL_DIR:-lfm2.5-2.6b}"
+MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-Q4_K_M.gguf}"
+MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/$MODEL_FILE}"
+case "$MODEL_FILE" in
+  Qwen3.5-4B-Q4_K_M.gguf)
+    MODEL_SIZE="${MODEL_SIZE:-2834975040}"
+    MODEL_SHA="${MODEL_SHA:-3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630}"
+    MMPROJ="${MMPROJ-/Users/marco/kalsa-qdc/models/mmproj-F16.gguf}" ;;
+  *)
+    MODEL_SIZE="${MODEL_SIZE:-1674455040}"
+    MODEL_SHA="${MODEL_SHA:-02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed}" ;;
+esac
+# Empty MMPROJ (the LFM default) skips every mmproj copy/size check in mmproj_setup.
+MMPROJ="${MMPROJ:-}"; MMPROJ_FILE="${MMPROJ_FILE:-mmproj-F16.gguf}"; MMPROJ_SIZE="${MMPROJ_SIZE:-672423616}"
 DEVICE_TMP=/data/local/tmp/kalsa-heat; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 HEAT_TMP="$DEVICE_TMP/heat"
 TYPE_LADDER="${TYPE_LADDER:-"200 100"}"
@@ -245,21 +268,23 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   if [ -n "$CAL_TOOLS" ] && [ "$CAL_TOOLS" -gt 0 ] 2>/dev/null; then
     log "TOOLS_NOT_OFF tool_calls=$CAL_TOOLS"; write_end "tools_not_off"; exit 3
   fi
-  BEST=""; BEST_D=99999
-  for v in 727 786 841; do
+  PROMPT_VARIANTS="${PROMPT_VARIANTS:-727 786 841}"
+  BEST=""; BEST_TOK=0; BEST_D=99999
+  for v in $PROMPT_VARIANTS; do
     vf="$OUT/prompt-$v.txt"
     [ -f "$vf" ] || continue
-    d=$(awk -v a="$v" -v n="$N0" 'BEGIN{d=a+n-1024; if(d<0)d=-d; print d}')
-    if awk -v d="$BEST_D" -v x="$d" 'BEGIN{exit !(x<d)}'; then BEST_D=$d; BEST=$v; fi
+    tok=$(variant_tokens "$vf"); tok=${tok:-$v}
+    d=$(awk -v a="$tok" -v n="$N0" 'BEGIN{d=a+n-1024; if(d<0)d=-d; print d}')
+    if awk -v d="$BEST_D" -v x="$d" 'BEGIN{exit !(x<d)}'; then BEST_D=$d; BEST=$v; BEST_TOK=$tok; fi
   done
   [ -n "$BEST" ] || { log "CALIB_VARIANT_FAIL N0=$N0"; write_end "calib_variant"; exit 3; }
-  CAL_TOTAL=$((BEST + N0))
+  CAL_TOTAL=$((BEST_TOK + N0))
   cp "$OUT/prompt-$BEST.txt" "$PROMPT_FILE.cp" 2>/dev/null || true
   PROMPT_TEXT=$(tr '\n' ' ' < "$OUT/prompt-$BEST.txt")
   PROMPT_TEXT=${PROMPT_TEXT% }
   PROMPT_EXPECTED_CHARS=$(printf '%s' "$PROMPT_TEXT" | wc -m | tr -d '[:space:]')
   rm -f "$PROMPT_FILE.cp"
-  log "CALIB_DONE N0=$N0 variant=$BEST total_estimate=$CAL_TOTAL chars=$PROMPT_EXPECTED_CHARS tools=$CAL_TOOLS"
+  log "CALIB_DONE N0=$N0 variant=$BEST tokens=$BEST_TOK total_estimate=$CAL_TOTAL chars=$PROMPT_EXPECTED_CHARS tools=$CAL_TOOLS"
 else
   holder_loop & HOLDER_PID=$!; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }

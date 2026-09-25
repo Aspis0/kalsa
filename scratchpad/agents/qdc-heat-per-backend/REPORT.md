@@ -436,3 +436,55 @@ UNTESTED. Per-arm table and pair deltas: empty.
 
 Start temperatures recorded (skin HAL, per setup): 30.675 (attempt 1),
 35.518 (attempt 2), 38.405 °C (attempt 3).
+
+---
+
+## LFM retarget (2026-09-25)
+
+Owner decision: heat arms move to the shipping LFM2.5-2.6B (its catalog entry
+declares no mmproj, so `governorLoad`'s `!options.mmprojPath` — LlamaService.ts:2433
+at 0509f8c8 — stays true and `route_push` can finally be `applied`).
+
+**What changed (cell `d_run.sh` / `parse.sh`, this session):**
+
+- Defaults now LFM: `MODEL=/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-Q4_K_M.gguf`,
+  `MODEL_SIZE=1674455040`, `MODEL_SHA=02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed`
+  (computed here), `MODEL_DIR=lfm2.5-2.6b` = the app catalog id
+  (`src/engine/ModelRegistry.ts:272  id: "lfm2.5-2.6b",`). Qwen stays reachable
+  via env: `MODEL_DIR=qwen3.5-4b MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf MMPROJ=/Users/marco/kalsa-qdc/models/mmproj-F16.gguf`
+  (size/sha/mmproj defaults key off MODEL_FILE).
+- `MMPROJ` is empty by default; `mmproj_setup` returns 0 before any copy/size
+  check and logs `MMPROJ_SKIP` (parse.sh). Qwen runs still do the full mmproj
+  push + run-as copy + exact-size check.
+- Calibration is board- and tokenizer-side as before: `calibrate_turn` recomputes
+  N0 per run from the READY turn's `KALSA_GOVERNOR` chunks_sum — no Qwen number
+  is reused. The Qwen-frozen part was the `prompt-<n>.txt` labels (token counts
+  under the Qwen tokenizer); the driver now counts each variant against `$MODEL`
+  with `llama-tokenize` (`variant_tokens`, label fallback, `PROMPT_VARIANTS`
+  env). Validated: labels reproduce 727/786/841 on Qwen3.5-4B, read
+  **799/863/922 on LFM2.5** — stale labels would have overshot the 1024 window.
+
+**App-side check (quoted):** directory matches — `ModelDownloader.ts:19
+MODELS_DIR = \`${FileSystem.documentDirectory ?? ""}models/\`` + `:82 return
+${MODELS_DIR}${model.id}/${file}` = `files/models/lfm2.5-2.6b/`, the same target
+`model_setup` run-as copies to (parse.sh:85), and the engine loads
+`initEngine(modelLocalPath(model, model.file), ...)` (engineEnsureLoad.ts:219).
+**BLOCKER, owner decision needed before any session:** the catalog names the
+*file* `ModelRegistry.ts:278 file: "LFM2.5-2.6B-QAD-Q4_0.gguf"` at `:279
+sizeBytes: 1_593_894_944`, and `isModelBundleDownloaded` (ModelDownloader.ts:163)
+→ `verifyFileForPresence` (:204) demands exact name+size (`isFileComplete`, :111).
+The ordered Q4_K_M file (1,674,455,040 B) fails that gate on APK 0509f8c8 → the
+same "Held" composer deadlock as the mmproj; `MODEL_LOAD_PATTERN` (from
+MODEL_FILE) would miss the loader line too. The catalog file exists locally:
+`/Users/marco/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf` (1,593,894,944 B,
+sha256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`).
+Either point MODEL/MODEL_FILE there (three env vars) or ship an APK whose
+catalog carries the Q4_K_M file. Not verified on a device: no device, no QDC
+session, no browser in this retarget.
+
+**Dry-run (fake adb, Mac only): exit 0.** `raw/dryrun-lfm-driver.log` —
+`MMPROJ_SKIP`, `CALIB_DONE N0=250 variant=727 tokens=799 total_estimate=1049`,
+both arms OK, device-side copy stat 1674455040, `END reason=exit_0`.
+Qwen-via-env regression dry-run also **exit 0** (`raw/dryrun-qwen-driver.log`:
+variant=786 tokens=786 total=1036 chars=3266 — byte-identical to the
+pre-retarget Qwen dry-run, with the mmproj checks exercised).
