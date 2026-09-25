@@ -624,6 +624,7 @@ fn planned_config_with_overrides(
         model: row,
         budget,
         thread_ramp: &machine.measurement.ramp,
+        physical_cores: kalsa_probe::physical_cores(),
         model_path: model.clone(),
         port: PORT,
         context_limit,
@@ -768,6 +769,15 @@ fn dev_config_with_overrides(
     }
     let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
     let kv_cache = overrides.kv_cache.unwrap_or_default();
+    let plateau_threads =
+        kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads);
+    // The same rule as the plan: never more threads than the machine's
+    // physical cores; an unknown count is the plateau alone (the evidence
+    // lives on `LaunchInput::thread_ramp`).
+    let threads = match (plateau_threads, kalsa_probe::physical_cores()) {
+        (Some(plateau), Some(physical)) => Some(plateau.min(physical)),
+        (plateau, _) => plateau,
+    };
     let mut args = ServerArgs {
         model_path: model,
         port: PORT,
@@ -780,7 +790,7 @@ fn dev_config_with_overrides(
             .saturating_mul(kv_cache.bytes_per_element())
             .saturating_mul(maximum)
             / kalsa_catalog::footprint::MIB,
-        threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
+        threads,
         offload: offload_of_build(&dev_backend()),
         idle_unload_seconds: kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS,
         batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
@@ -1779,6 +1789,7 @@ mod tests {
             model: row,
             budget,
             thread_ramp: ramp,
+            physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
             port: PORT,
             context_limit: None,

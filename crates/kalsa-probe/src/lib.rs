@@ -17,6 +17,7 @@
 mod bandwidth;
 mod compute;
 mod confidence;
+mod cores;
 mod detect;
 mod path;
 mod plateau;
@@ -31,6 +32,7 @@ mod vram_registry;
 
 pub use bandwidth::{measure_at_threads, thread_ramp, SAMPLE_TARGET};
 pub use compute::measure_compute;
+pub use cores::physical_cores;
 pub use detect::backend;
 pub use confidence::{Reliability, SPREAD_LIMIT};
 pub use path::{Backend, ExecutionPath};

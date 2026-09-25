@@ -18,9 +18,9 @@ impl ServerArgs {
             self.model_path.display().to_string(),
         ];
         if let Some(threads) = self.threads {
-            // The same measured count for prefill: past the plateau extra
-            // threads buy no throughput, so a bigger prefill burst is heat
-            // for nothing.
+            // The same count as `--threads` for prefill: past the plateau
+            // extra threads buy no throughput, so a bigger prefill burst is
+            // heat for nothing.
             argv.extend([
                 "--threads".to_string(),
                 threads.to_string(),

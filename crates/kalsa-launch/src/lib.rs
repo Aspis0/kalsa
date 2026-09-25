@@ -12,11 +12,16 @@
 //!   left after the weights. A context that does not fit is not a slow app —
 //!   it is a crash or an OOM kill on a machine the owner was using for
 //!   something else.
-//! * **The thread count is the measured plateau.** The plan again: the first
-//!   probe reported 83–86 GB/s "only because it used `cores / 2` = 5
-//!   threads", and past the plateau more threads is *worse*. No fraction of
-//!   `available_parallelism()` is hardcoded here; the ramp the probe measured
-//!   decides (`kalsa_probe::plateau`).
+//! * **The thread count is the measured plateau, capped by the physical
+//!   cores.** The plan again: the first probe reported 83–86 GB/s "only
+//!   because it used `cores / 2` = 5 threads", and past the plateau more
+//!   threads is *worse*. No fraction of `available_parallelism()` is
+//!   hardcoded here: the ramp the probe measured decides
+//!   (`kalsa_probe::plateau`), and where the machine can say its physical
+//!   core count the plan caps at it — hyperthreading carried the Lenovo's
+//!   plateau to 22 (16 physical / 22 logical) once in three runs, and at
+//!   22 decode was 26.5% slower than at 16, with complete separation. An
+//!   unknown physical count leaves the plateau alone.
 //! * **Offload is all or nothing.** Measured upstream: 18.49 tok/s fully on
 //!   the GPU, 12.19 on CPU, 5.68 split across both — the split is 2.15×
 //!   slower than not using the GPU at all. So a GPU that cannot hold the

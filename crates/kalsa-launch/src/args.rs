@@ -334,7 +334,9 @@ pub struct ServerArgs {
     /// is carved out of the budget before the context, so it travels here
     /// instead of being re-derived from a context that already excludes it.
     pub cache_ram_mib: u64,
-    /// The measured plateau of the probe's thread ramp. None when nothing
+    /// The measured plateau of the probe's thread ramp, capped to the
+    /// machine's physical core count when that count is known (the rule and
+    /// its evidence: [`crate::LaunchInput::thread_ramp`]). None when nothing
     /// measurable came back: the flag is then omitted and the server picks
     /// its own default, which is stated in the assumption rather than
     /// disguised as our number.

@@ -21,8 +21,18 @@ pub struct LaunchInput<'a> {
     pub model: &'a ModelEntry,
     pub budget: MemoryBudget,
     /// (threads, bytes per second) pairs, as measured. The plateau of this
-    /// ramp is the thread count; nothing here is derived from core counts.
+    /// ramp is the thread count, capped to `physical_cores` when the
+    /// machine's physical count is known: hyperthreading's extra logical
+    /// threads can raise the plateau past the throughput peak — on the
+    /// Lenovo (Core Ultra 9 185H, 16 physical / 22 logical) the plateau
+    /// read 22 once in three runs, and at 22 decode was 26.5% slower than
+    /// at 16, with complete separation. The Surface (4 physical, plateau 4)
+    /// and the M1 Max (10 physical, plateau 8) are unaffected.
     pub thread_ramp: &'a [(usize, f64)],
+    /// The machine's physical core count — `kalsa_probe::physical_cores()`'s
+    /// answer — the ceiling under the thread count. `None` (unknown) leaves
+    /// the plateau alone, the behavior before the cap existed.
+    pub physical_cores: Option<usize>,
     pub model_path: PathBuf,
     pub port: u16,
     /// A user-selected lower context. `None` keeps the largest context the
@@ -94,12 +104,20 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     };
     let per_slot = slot_context(requested, slots)?;
     let context_tokens = per_slot * slots;
+    let plateau_threads = plateau(input.thread_ramp).map(|(threads, _rate)| threads);
+    // The rule: never more threads than the machine's physical cores — the
+    // evidence sits on `thread_ramp`; an unknown physical count is the
+    // plateau alone.
+    let threads = match (plateau_threads, input.physical_cores) {
+        (Some(plateau), Some(physical)) => Some(plateau.min(physical)),
+        (plateau, _) => plateau,
+    };
     let args = ServerArgs {
         model_path: input.model_path.clone(),
         port: input.port,
         context_tokens,
         cache_ram_mib: prompt_cache_roof / MIB,
-        threads: plateau(input.thread_ramp).map(|(threads, _rate)| threads),
+        threads,
         offload: offload(input),
         idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
         batch_size: input.batch_size,
@@ -615,6 +633,7 @@ mod tests {
             model,
             budget,
             thread_ramp: ramp,
+            physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
             port: 8123,
             context_limit: None,
@@ -632,6 +651,11 @@ mod tests {
         &[(1, 55.8), (4, 88.0), (8, 112.2), (12, 105.1)];
     /// A four-core machine whose plateau is two threads.
     const QUAD_CORE_RAMP: &[(usize, f64)] = &[(1, 20.0), (2, 35.0), (4, 36.0)];
+    /// A ramp whose plateau is 22 — the Lenovo's overshoot shape (fixture
+    /// numbers, not measurements): the tail climbs onto logical threads the
+    /// machine's 16 physical cores cannot feed.
+    const LENOVO_RAMP: &[(usize, f64)] =
+        &[(1, 10.0), (2, 20.0), (4, 40.0), (8, 80.0), (16, 160.0), (22, 170.0)];
 
     #[test]
     fn the_context_fits_after_the_chat_reserve_and_never_one_token_into_it() {
@@ -787,6 +811,36 @@ mod tests {
         assert_eq!(launched.args.threads, None);
         let line = launched.args.argv().join(" ");
         assert!(!line.contains("--threads"), "{line}");
+    }
+
+    /// The thread rule: min(plateau, physical cores), and the plateau alone
+    /// when the physical count is unknown.
+    #[test]
+    fn the_thread_count_is_capped_by_the_physical_cores() {
+        let model = shipped_row(GRANITE);
+        let budget = memory_budget(Backend::Cpu, 16 * GIB);
+
+        // The Lenovo (16 physical / 22 logical): the plateau read 22, and
+        // at 22 decode was 26.5% slower than at 16 — the cap wins.
+        let mut lenovo = input(ServerBackend::Cpu, budget, model, LENOVO_RAMP);
+        lenovo.physical_cores = Some(16);
+        let launched = plan(&lenovo).expect("the model is fundable");
+        assert_eq!(launched.args.threads, Some(16));
+        let line = launched.args.argv().join(" ");
+        assert!(line.contains("--threads 16"), "{line}");
+        assert!(line.contains("--threads-batch 16"), "{line}");
+
+        // The M1 Max: plateau 8, physical 10 — the cap does not bite.
+        let mut m1_known = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
+        m1_known.physical_cores = Some(10);
+        let launched = plan(&m1_known).expect("the model is fundable");
+        assert_eq!(launched.args.threads, Some(8));
+
+        // Unknown physical count: the plateau alone decides, as before.
+        let mut m1_unknown = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
+        m1_unknown.physical_cores = None;
+        let launched = plan(&m1_unknown).expect("the model is fundable");
+        assert_eq!(launched.args.threads, Some(8));
     }
 
     #[test]
