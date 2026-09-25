@@ -2720,6 +2720,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-tune"
+version = "0.0.1"
+dependencies = [
+ "kalsa-launch",
+ "kalsa-runtime",
+]
+
+[[package]]
 name = "kalsa-web"
 version = "0.0.1"
 dependencies = [

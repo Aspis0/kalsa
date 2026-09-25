@@ -56,6 +56,11 @@ crates/kalsa-sentinel/     the sustainability guard: it reads throughput decay
                            because temperature needs a driver it cannot sign
                            or license, and answers decay with a ladder of
                            gentler settings, each announced, each reversible
+crates/kalsa-tune/         which launch settings run fastest on this machine
+                           with this model: measured, never assumed — the
+                           candidates worth trying, the winner inside a 5%
+                           band by lightness, and the record keyed to the
+                           machine, the model and the engine
 crates/kalsa-web/          the assistant's search and page fetch: text bounded
                            and truncated for a model to read, and no address
                            opened that the webview's CSP exists to keep out

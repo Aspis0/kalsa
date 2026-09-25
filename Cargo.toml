@@ -13,6 +13,7 @@ members = [
     "crates/kalsa-runtime",
     "crates/kalsa-sentinel",
     "crates/kalsa-supervisor",
+    "crates/kalsa-tune",
     "crates/kalsa-web",
     "src-tauri",
 ]

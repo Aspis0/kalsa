@@ -96,7 +96,7 @@ pub enum ServerBackend {
 
 impl ServerBackend {
     /// Stable name for file names and the verdict file.
-    pub(crate) fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
             ServerBackend::Metal => "metal",
             ServerBackend::Cpu => "cpu",
@@ -106,7 +106,9 @@ impl ServerBackend {
         }
     }
 
-    pub(crate) fn from_name(name: &str) -> Option<ServerBackend> {
+    /// The name a file may carry for this build, or `None` when it names
+    /// no build of ours — a record written by something else.
+    pub fn from_name(name: &str) -> Option<ServerBackend> {
         match name {
             "metal" => Some(ServerBackend::Metal),
             "cpu" => Some(ServerBackend::Cpu),
