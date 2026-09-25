@@ -19,9 +19,18 @@ use std::io::{self, ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
-/// One probe's budget. A refusal on loopback answers instantly; a port that
-/// neither accepts nor refuses is exactly the case `Unknown` exists for.
+/// One probe's budget. On unix a refusal on loopback answers instantly, so
+/// 500 ms is generous; a port that neither accepts nor refuses is exactly the
+/// case `Unknown` exists for. Windows takes about two seconds to report a
+/// refused loopback connect — measured on the Surface: 20 for 20
+/// `ConnectionRefused`, min 2041 / median 2060 / max 2076 ms, every sample
+/// past 500 ms, which turned every refusal into `Unknown` and a Reaped stop
+/// into a suspicion record. Three seconds clears the measured maximum with
+/// room for scheduling jitter; a silent port still costs at most that.
+#[cfg(not(windows))]
 pub(crate) const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+#[cfg(windows)]
+pub(crate) const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// What the PORT said. Three values, never a guess.
 #[derive(Clone, Debug, PartialEq, Eq)]
