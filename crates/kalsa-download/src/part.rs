@@ -96,10 +96,11 @@ impl PartFile {
         Ok(())
     }
 
-    /// Best-effort removal: after a mismatch or an early refusal the part
-    /// file is a kept failure, and a kept failure only fails again.
-    pub fn discard(self) {
-        let _ = std::fs::remove_file(&self.path);
+    /// Removes the part file, reporting a refusal: after a mismatch the
+    /// failure's sentence says "thrown away", and only a delete that
+    /// succeeded may carry those words.
+    pub fn discard(self) -> io::Result<()> {
+        std::fs::remove_file(&self.path)
     }
 }
 

@@ -57,7 +57,10 @@ pub fn publish(
 ) -> Result<(), DownloadError> {
     let actual = part.len()?;
     if actual != expected_size {
-        part.discard();
+        // A failed delete leaves the mismatched bytes behind, and the
+        // "thrown away" sentence would be false: the local refusal travels
+        // instead, so only a successful delete may say it.
+        part.discard().map_err(DownloadError::Io)?;
         return Err(DownloadError::SizeMismatch {
             expected: expected_size,
             actual,
@@ -65,7 +68,7 @@ pub fn publish(
     }
     let actual = sha256_hex(part.handle())?;
     if !actual.eq_ignore_ascii_case(expected_sha256) {
-        part.discard();
+        part.discard().map_err(DownloadError::Io)?;
         return Err(DownloadError::DigestMismatch {
             expected: expected_sha256.to_string(),
             actual,

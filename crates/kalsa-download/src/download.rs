@@ -54,9 +54,11 @@ pub fn download(
     let needed = remaining.saturating_add(SPACE_MARGIN);
     if free < needed {
         // A part we created empty is ours to take back; a resumed one is the
-        // user's progress and stays.
+        // user's progress and stays. Best-effort on purpose: an empty part
+        // left behind is clutter, and the full-disk sentence promises
+        // nothing about it.
         if part.is_fresh() {
-            part.discard();
+            let _ = part.discard();
         }
         return Err(DownloadError::NotEnoughSpace { free, needed });
     }
@@ -66,9 +68,12 @@ pub fn download(
         // `verify` would have caught at the end, caught earlier. The part
         // cannot resume into anything — a server that overruns once fails
         // the size gate on every retry — so it goes now, keeping the
-        // enum's "the part is gone after a mismatch" contract true.
+        // enum's "the part is gone after a mismatch" contract true. A
+        // delete that fails leaves the part behind, and "thrown away"
+        // would then be false: the local refusal is the error that
+        // travels instead.
         Err(error @ DownloadError::SizeMismatch { .. }) => {
-            part.discard();
+            part.discard().map_err(DownloadError::Io)?;
             Err(error)
         }
         fetched => {
@@ -128,6 +133,28 @@ mod tests {
              that can only fail the size gate again"
         );
         assert!(!dest.exists(), "nothing may land under the final name");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Only the delete failing can make "thrown away" false on this path,
+    /// so the refusal that causes it is the one that must travel.
+    #[cfg(unix)]
+    #[test]
+    fn a_part_that_cannot_be_deleted_says_the_local_refusal_not_thrown_away() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("dl-overrun-undeletable");
+        let data = payload(1024 * 1024);
+        let server = httptest::serve(data, RangeMode::Overrun);
+        let dest = dir.join("model.gguf");
+        // The part exists before the lock: a read-only directory refuses
+        // only its deletion, so the walk reaches the overrun's cleanup
+        // instead of failing at the claim.
+        fs::write(dest.with_file_name("model.gguf.part"), b"").expect("part");
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).expect("lock dir");
+        let err = download(&server.url, &dest, 1024 * 1024, &"0".repeat(64), &mut |_| {})
+            .expect_err("the overrun must still be refused");
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).expect("unlock dir");
+        assert!(matches!(err, DownloadError::Io(_)), "{err:?}");
         let _ = fs::remove_dir_all(&dir);
     }
 

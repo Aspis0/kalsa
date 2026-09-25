@@ -68,7 +68,11 @@ fn fetch_with_read_timeout(
         .and_then(|value| value.parse().ok());
     if let Some(declared) = declared {
         if declared > expected_size - start {
-            return Err(overrun(expected_size, start + declared));
+            // checked on purpose: a lying length past u64's ceiling is a
+            // mismatch, never a panic or a wrap that could read as a small
+            // total.
+            let actual = start.checked_add(declared).unwrap_or(u64::MAX);
+            return Err(overrun(expected_size, actual));
         }
     }
     let file = part.handle();
@@ -103,8 +107,9 @@ fn fetch_with_read_timeout(
         if take < read {
             // The overrun is not a guess: those bytes were received. The
             // error is returned unconditionally — no further read can turn
-            // it into a reset or an EOF.
-            return Err(overrun(expected_size, done + read as u64));
+            // it into a reset or an EOF. `done` already counts `take`, so
+            // the true total adds only what arrived past the promise.
+            return Err(overrun(expected_size, done + (read - take) as u64));
         }
     }
 }
@@ -217,6 +222,54 @@ mod tests {
         assert!(
             matches!(&err, DownloadError::SizeMismatch { expected: e, actual } if *e == expected
                 && *actual == expected + 64 * 1024),
+            "{err:?}"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_body_that_overruns_its_own_declaration_reports_the_true_count() {
+        let dir = scratch("fetch-oversend");
+        let data = payload(1024 * 1024);
+        let server = httptest::serve(data.clone(), RangeMode::Oversend);
+        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
+        // The promise sits one byte past the content, the body is framed
+        // by the connection's close, and the extra bytes ride the same
+        // body: only the received count can betray the overrun — and the
+        // figure it reports is what arrived, never the promise plus the
+        // whole final read.
+        let promised = data.len() as u64 + 1;
+        let err = fetch(&server.url, &mut part, promised, &mut |_| {})
+            .expect_err("the oversend must be refused");
+        let DownloadError::SizeMismatch { expected, actual } = err else {
+            panic!("the oversend must read as a size mismatch, not {err:?}")
+        };
+        assert_eq!(expected, promised);
+        // How much of the extra one crossing read carries is the socket's
+        // choice, so the deterministic facts are the bounds: everything
+        // counted arrived, and nothing that never arrived is counted. The
+        // old formula — the promise plus the whole final read — could
+        // report past what the server sent.
+        assert!(actual > promised, "{actual} must sit past the promise");
+        assert!(
+            actual <= data.len() as u64 + 64 * 1024,
+            "{actual} must not count bytes that never arrived"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_length_past_the_u64_ceiling_is_a_mismatch_not_a_wrap() {
+        let dir = scratch("fetch-absurd");
+        let server = httptest::serve(payload(64), RangeMode::AbsurdLength);
+        fs::write(dir.join("model.gguf.part"), b"prefix").expect("prefix");
+        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
+        // A resumed prefix plus a declared u64::MAX would overflow the
+        // count; the answer is the ceiling, never a wrapped small total.
+        let err = fetch(&server.url, &mut part, 1024, &mut |_| {})
+            .expect_err("the absurd length must be refused");
+        assert!(
+            matches!(&err, DownloadError::SizeMismatch { actual, .. } if *actual == u64::MAX),
             "{err:?}"
         );
         let _ = fs::remove_dir_all(&dir);

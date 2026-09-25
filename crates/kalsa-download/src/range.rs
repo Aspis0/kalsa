@@ -43,6 +43,7 @@ pub(crate) fn connect_with_read_timeout(
                 // continue our file.
                 _ => {}
             },
+            code if (200..300).contains(&code) => return Err(unexpected_success(code)),
             code => return Err(http_error(code)),
         }
     }
@@ -56,6 +57,7 @@ pub(crate) fn connect_with_read_timeout(
             .and_then(content_range_start)
             .filter(|at| *at == 0)
             .ok_or_else(|| http_error(206))?,
+        code if (200..300).contains(&code) => return Err(unexpected_success(code)),
         code => return Err(http_error(code)),
     };
     Ok((response, start))
@@ -79,9 +81,15 @@ fn send(
         // changed underneath our prefix.
         request = request.set("Range", &format!("bytes={at}-"));
     }
-    request
-        .call()
-        .map_err(|e| DownloadError::Network(io::Error::new(io::ErrorKind::Other, e.to_string())))
+    request.call().map_err(|e| match e {
+        // ureq hands a 4xx/5xx back as an error, not a response: a real
+        // 403 or 429 must not wear the connection's sentence, which is
+        // what a blanket map_err here once did.
+        ureq::Error::Status(code, _) => DownloadError::Refused { status: code },
+        ureq::Error::Transport(t) => {
+            DownloadError::Network(io::Error::new(io::ErrorKind::Other, t.to_string()))
+        }
+    })
 }
 
 /// Start offset of a `Content-Range: bytes N-M/T` header value, or None when
@@ -98,6 +106,16 @@ fn content_range_start(value: &str) -> Option<u64> {
 /// for.
 fn http_error(code: u16) -> DownloadError {
     DownloadError::Refused { status: code }
+}
+
+/// A 2xx that is neither 200 nor 206: the origin ALLOWED the request and
+/// still served nothing this code can place — a broken exchange, not a
+/// refusal, so it rides `Network`, whose sentence's retry can work.
+fn unexpected_success(code: u16) -> DownloadError {
+    DownloadError::Network(io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("unexpected successful status {code}"),
+    ))
 }
 
 #[cfg(test)]
@@ -140,6 +158,22 @@ mod tests {
             http_error(503).to_string(),
             "the server refused the download: HTTP 503"
         );
+    }
+
+    #[test]
+    fn a_real_403_over_the_wire_is_a_refusal_not_a_dropped_connection() {
+        // ureq hands a 4xx back as an Err, so the old blanket map_err —
+        // every error to `Network` — turned a live 403 into "the
+        // connection dropped", and only this path through the real
+        // request can catch that.
+        let dir = scratch("range-wire-refused");
+        let server = httptest::serve(payload(64), RangeMode::Refused);
+        let err = connect(&server.url, 0).expect_err("a 403 is an error");
+        assert!(
+            matches!(err, DownloadError::Refused { status: 403 }),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

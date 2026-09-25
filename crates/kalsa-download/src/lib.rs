@@ -59,8 +59,9 @@ pub enum DownloadError {
     /// are on the wire, never by the blanket conversion.
     Network(io::Error),
     /// The publisher answered but did not allow the download: an HTTP
-    /// status is a refusal, not a dropped connection, so retrying later —
-    /// not resuming — is the advice.
+    /// status is a refusal, not a dropped connection. The part stays as
+    /// for every resumable error — usually nothing arrived to keep — so
+    /// what changes is the sentence, not the retention.
     Refused { status: u16 },
     DiskFull,
     NotEnoughSpace { free: u64, needed: u64 },

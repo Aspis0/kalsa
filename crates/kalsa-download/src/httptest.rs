@@ -26,6 +26,15 @@ pub enum RangeMode {
     Lie,
     /// Declares — and sends — more bytes than the caller was promised.
     Overrun,
+    /// Answers 403 and nothing else: the publisher refusing.
+    Refused,
+    /// Serves with no Content-Length, framed by the connection's close,
+    /// and sends past the content's end: only the received bytes can
+    /// reveal the overrun.
+    Oversend,
+    /// Declares u64::MAX bytes — honoring a Range with a 206 when one was
+    /// asked, so a resumed prefix plus the declaration overflows the count.
+    AbsurdLength,
     /// Sends a response head and a short prefix, then stays connected and
     /// silent until the client gives up.
     Stall,
@@ -82,6 +91,39 @@ fn answer(
         stream.write_all(head.as_bytes())?;
         stream.write_all(content)?;
         return stream.write_all(&content[..OVERRUN]);
+    }
+    if matches!(mode, RangeMode::Refused) {
+        let head = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        return stream.write_all(head.as_bytes());
+    }
+    if matches!(mode, RangeMode::Oversend) {
+        // The request is drained so the close is clean: an undrained socket
+        // closes with a reset, and the reset would answer before the extra
+        // bytes could. No declaration: a Content-Length would cap ureq's
+        // reader at the declared count and the extra could never be seen.
+        let _ = read_range(&mut stream, seen)?;
+        let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+        stream.write_all(head.as_bytes())?;
+        stream.write_all(content)?;
+        return stream.write_all(&content[..OVERRUN]);
+    }
+    if matches!(mode, RangeMode::AbsurdLength) {
+        let range = read_range(&mut stream, seen)?;
+        let head = if let Some(start) = range {
+            format!(
+                "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+                 Content-Range: bytes {start}-{}/{}\r\nConnection: close\r\n\r\n",
+                u64::MAX,
+                u64::MAX - 1,
+                u64::MAX
+            )
+        } else {
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                u64::MAX
+            )
+        };
+        return stream.write_all(head.as_bytes());
     }
     let range = read_range(&mut stream, seen)?;
     match range.filter(|_| matches!(mode, RangeMode::Honor | RangeMode::Lie)) {
