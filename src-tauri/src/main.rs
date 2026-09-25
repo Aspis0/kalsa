@@ -1237,9 +1237,9 @@ fn settle_walk(
                 prepared.info.tune = None;
                 prepared.server = config;
             }
-            // The per-start speed check, still inside the walk: the door
-            // raises only once `turning_on` is released, so the check's slot
-            // is its own.
+            // The per-start speed check, still inside the walk: while the
+            // walk holds `turning_on` no NEW door raise happens — one
+            // already open stays open.
             if matches!(settled, Some(StartSettled::Up)) {
                 let restart =
                     |config: ServerConfig| restart_after_check(brain, stops_seen, config);
@@ -1270,9 +1270,6 @@ fn settle_walk(
     }
 }
 
-/// The retry's question: did the tuned start fail the way the rule's
-/// launch could fix — not ready, exited while loading, or the exe vanished
-/// — and did the tune change the launch at all? No answer counts as "no".
 /// Releases the single-walk claim when dropped — the fallible calls
 /// between the claim and the settlement all return through `?`, and the
 /// door raises only once `turning_on` is false.
@@ -1291,6 +1288,9 @@ fn door_may_raise(walk_in_progress: bool) -> bool {
     !walk_in_progress
 }
 
+/// The retry's question: did the tuned start fail the way the rule's
+/// launch could fix — not ready, exited while loading, or the exe vanished
+/// — and did the tune change the launch at all? No answer counts as "no".
 fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
     tuned_changed
         && matches!(

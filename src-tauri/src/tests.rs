@@ -2788,7 +2788,7 @@ fn a_check_timeout_reads_as_slow() {
             .info
             .checked
             .as_deref()
-            .is_some_and(|line| line.contains("no rate in 15 s")),
+            .is_some_and(|line| line.contains("no rate in 30 s")),
         "{:?}",
         prepared.info.checked
     );
@@ -2885,7 +2885,9 @@ fn a_card_at_its_recorded_speed_keeps_the_slot() {
 }
 
 /// The processor start fails and the graphics fallback fails with it: the
-/// line must not claim either launch stands, and the walk records nothing.
+/// line must not claim either launch stands, and the check returns Down —
+/// the answer `settle_walk` acts on to record nothing (that one-line
+/// match is the walk's side; this test pins the check's).
 #[test]
 fn a_processor_and_graphics_failure_leaves_nothing_running() {
     let mut prepared = graphics_prepared("bothdown", 8186, 8185);

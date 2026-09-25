@@ -29,17 +29,20 @@ pub(crate) fn rate_from(body: &str, min_n: u64) -> Option<f64> {
     (rate.is_finite() && rate > 0.0).then_some(rate)
 }
 
-/// The per-start check's ask: 16 tokens after the tune's own discarded
-/// 8-token warm-up (a first-request cost — pipelines compiling — must
-/// never read as a slow card), each leg bounded by CHECK_TIMEOUT: the
-/// check can never take longer than two of them.
+/// The per-start check's ask: a discarded 8-token warm-up (the tune's own
+/// shape, so a first-request cost lands there), then 16 tokens — each
+/// request bounded by CHECK_TIMEOUT on the connect too, because ureq's
+/// connect timeout defaults to 30 s and the request timeout does not cover
+/// it. The whole check is therefore two legs of at most 2×CHECK_TIMEOUT.
 pub const CHECK_N_PREDICT: u64 = 16;
 pub const CHECK_WARMUP_N_PREDICT: u64 = 8;
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// What one check answered: the decode rate; a timeout, which reads as
-/// slow (under ~1 tok/s); or a failure that says nothing about speed —
-/// any HTTP error, an unusable body, a rejected timing.
+/// What one check answered: the decode rate; a timeout — no answer within
+/// the bound, which the check reads as slow (it cannot tell a starved
+/// card from a waiting server, only from a fast one); or a failure that
+/// says nothing about speed: an HTTP error, an unusable body, a rejected
+/// timing.
 pub enum Answer {
     Rate(f64),
     Timeout,
@@ -67,11 +70,23 @@ enum SendFailed {
 /// One POST to `/completion`, shared by the tune's samples and the check.
 fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
     let body = completion_body(n_predict);
-    match ureq::post(&format!("http://{addr}/completion"))
+    // Explicit: the request timeout does not cover the connect, whose
+    // default is 30 s — without this the bounded claims above are false.
+    let agent = ureq::AgentBuilder::new().timeout_connect(timeout).build();
+    match agent
+        .post(&format!("http://{addr}/completion"))
         .timeout(timeout)
         .send_string(&body)
     {
-        Ok(response) => response.into_string().map_err(|_| SendFailed::Failed),
+        // The body has its own deadline; running out of time while reading
+        // it is the same timeout as anywhere else.
+        Ok(response) => response.into_string().map_err(|io| {
+            if io.kind() == std::io::ErrorKind::TimedOut {
+                SendFailed::Timeout
+            } else {
+                SendFailed::Failed
+            }
+        }),
         Err(ureq::Error::Transport(transport)) => {
             // ureq has no timeout kind of its own: a request that ran out
             // of time arrives as an io error with TimedOut underneath.
@@ -307,6 +322,40 @@ mod check_tests {
                 Answer::Failed
             ),
             "a refused connection is a failure, not a slow card"
+        );
+    }
+
+    /// A body that stalls after its headers is a timeout too: the deadline
+    /// covers reading the answer, not only receiving it.
+    #[test]
+    fn a_body_that_stalls_is_a_timeout() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let _writer = std::thread::spawn(move || {
+            // The warm-up's request and the measured one: both get their
+            // headers at once (each connection stalls on its own thread),
+            // then a body that never finishes — so the measured request's
+            // deadline runs out while reading, not while waiting.
+            for _ in 0..2 {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                std::thread::spawn(move || {
+                    use std::io::Write;
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 200 OK\r\ncontent-length: 1000\r\n\r\nshort",
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(400));
+                });
+            }
+        });
+        let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
+        assert!(
+            matches!(
+                checked_rate(addr, Duration::from_millis(100)),
+                Answer::Timeout
+            ),
+            "a stalled body is the same timeout as a stalled header"
         );
     }
 }
