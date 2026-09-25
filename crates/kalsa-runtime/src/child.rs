@@ -147,7 +147,15 @@ impl Running for Child {
             let _ = self.inner.kill();
         }
         #[cfg(not(unix))]
-        let _ = grace; // std's kill is TerminateProcess; there is no kinder step
+        {
+            // TerminateProcess is the only stop Windows has, and it must be
+            // called: without it `wait()` waits for a child that has no reason
+            // to exit — the walk's hang, proven on the Surface. A child that
+            // already exited makes `kill` error; that error is dropped,
+            // because `wait` below is what decides the stop.
+            let _ = grace;
+            let _ = self.inner.kill();
+        }
         self.inner.wait()
     }
 
@@ -212,4 +220,42 @@ fn drain_stderr(stderr: Option<std::process::ChildStderr>) -> Arc<Mutex<VecDeque
         }
     });
     tail
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `stop` must return promptly on a healthy child that has no reason to
+    /// exit — the walk's hang was the Windows branch never killing. The stop
+    /// runs on a thread behind a bounded receive, so a regression fails the
+    /// suite by timeout instead of hanging it.
+    #[test]
+    fn stop_returns_promptly_on_a_healthy_long_running_child() {
+        #[cfg(unix)]
+        let (exe, args) = ("/bin/sleep", vec!["300".to_string()]);
+        #[cfg(windows)]
+        let (exe, args) = (
+            "ping",
+            vec!["-n".to_string(), "300".to_string(), "127.0.0.1".to_string()],
+        );
+        let mut child = Child::start(Path::new(exe), &args, None).expect("spawn the stand-in");
+        assert!(
+            matches!(child.try_exit(), Ok(None)),
+            "the stand-in must be healthy and running"
+        );
+        let grace = Duration::from_secs(2);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(child.stop(grace));
+        });
+        match rx.recv_timeout(Duration::from_secs(15)) {
+            Ok(Ok(status)) => assert!(
+                !status.success(),
+                "the kill stopped it, not a natural exit ({status})"
+            ),
+            Ok(Err(error)) => panic!("stop failed: {error}"),
+            Err(_) => panic!("stop did not return within 15s — it never killed the child"),
+        }
+    }
 }
