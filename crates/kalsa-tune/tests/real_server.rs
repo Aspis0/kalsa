@@ -8,12 +8,40 @@
 //!   cargo test -p kalsa-tune --test real_server -- --ignored --nocapture
 //! ```
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
 use kalsa_tune::{measure_candidates, Candidate};
+
+/// The scratch state root, removed on the way out even when the test
+/// panics: a leftover temp dir is not a failure anyone can see.
+struct Scratch(PathBuf);
+
+impl Scratch {
+    fn new() -> Self {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-tune-real-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        Self(dir)
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+impl std::ops::Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
 
 /// One build, two offloads: what the owner's rule asks the measure to
 /// decide — full offload against the same build forced onto the CPU.
@@ -24,7 +52,9 @@ fn the_metal_build_measures_full_and_forced_off() {
         std::env::var("KALSA_TUNE_REAL_SERVER"),
         std::env::var("KALSA_TUNE_REAL_MODEL"),
     ) else {
-        eprintln!("skipping: KALSA_TUNE_REAL_SERVER / KALSA_TUNE_REAL_MODEL are not both set");
+        eprintln!(
+            "SKIPPED: set KALSA_TUNE_REAL_SERVER and KALSA_TUNE_REAL_MODEL to run this test"
+        );
         return;
     };
     let candidates = [
@@ -39,8 +69,7 @@ fn the_metal_build_measures_full_and_forced_off() {
             offload: Offload::ForcedOff,
         },
     ];
-    let root = std::env::temp_dir().join(format!("kalsa-tune-real-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
+    let root = Scratch::new();
     let build = |candidate: &Candidate, port: u16| {
         let mut argv = vec![
             "--host".to_string(),
@@ -59,7 +88,6 @@ fn the_metal_build_measures_full_and_forced_off() {
         (PathBuf::from(&server), argv)
     };
     let results = measure_candidates(&candidates, &root, build, &mut |_, _| {});
-    let _ = std::fs::remove_dir_all(&root);
 
     let mut lines = Vec::new();
     for (candidate, outcome) in &results {

@@ -22,13 +22,15 @@ use crate::probe::health_ok;
 /// Why a disposable server never became usable. The two ways, named so
 /// they map 1:1 onto the tune's `Refusal::{DidNotStart, NotReady}` — the
 /// third refusal, "no usable answer", belongs to the measurer and not to
-/// the server.
+/// the server. The engine's own words are deliberately not carried: the
+/// only reader maps this to a closed cause, and a field nobody reads is
+/// a field that only invites leaking a path into a record.
 #[derive(Debug)]
 pub enum ServeError {
-    /// The state file could not be claimed, the exe did not spawn, or the
-    /// child stopped before `/health` answered — with its own last stderr
-    /// line when it had one to say.
-    DidNotStart(String),
+    /// The state file could not be claimed, the exe did not spawn, the
+    /// child stopped before `/health` answered, or it was not alive (or
+    /// not nameable) when it did.
+    DidNotStart,
     /// Alive at the ready deadline without answering: it never became
     /// usable in time.
     NotReady { seconds: u64 },
@@ -48,6 +50,16 @@ pub fn free_loopback_port() -> std::io::Result<u16> {
 /// would use. Ok hands back the running server; every Err path has
 /// already stopped and reaped it, and dropping the handle stops and
 /// reaps it on every other one.
+///
+/// Two things this function does not promise, stated as the probe states
+/// its own: callers are sequential by construction (the walk tunes one
+/// thing at a time), so overlapping serves are unsupported — the second
+/// one fails its claim and reports `DidNotStart`; and a force-quit in the
+/// window between the spawn and the record's describe leaves a locked,
+/// pid-less file the reaper cannot name — the next serve fails to claim
+/// it and the caller falls back to the rule. A describe that fails while
+/// the child lives is refused outright (below): a child we cannot name
+/// after a force-quit must not run.
 pub fn serve(
     root: &Path,
     port: u16,
@@ -60,9 +72,7 @@ pub fn serve(
     // the port: reap it first, the decide walk's own rule — this child
     // rides the same file, so the next start's reap covers it too.
     child::reap_orphan(&state, DEFAULT_STOP_GRACE);
-    let mut instance = InstanceFile::claim(&state).map_err(|error| {
-        ServeError::DidNotStart(format!("could not claim the disposable server's state: {error}"))
-    })?;
+    let mut instance = InstanceFile::claim(&state).map_err(|_| ServeError::DidNotStart)?;
     match run(port, exe, args, ready_timeout, &mut instance) {
         Ok((running, addr)) => Ok(Disposable { running, instance: Some(instance), addr }),
         Err(error) => {
@@ -81,19 +91,22 @@ fn run(
 ) -> Result<(Box<dyn child::Running>, SocketAddr), ServeError> {
     let mut running = OsLaunch
         .spawn(exe, args, Some(instance.handle()))
-        .map_err(|error| ServeError::DidNotStart(format!("the server would not start: {error}")))?;
-    let _ = instance.describe(running.pid(), port);
+        .map_err(|_| ServeError::DidNotStart)?;
+    if instance.describe(running.pid(), port).is_err() {
+        // A child we cannot name after a force-quit cannot be reaped: the
+        // record would be locked and pid-less. Do not let it run.
+        let _ = running.stop(DEFAULT_STOP_GRACE);
+        return Err(ServeError::DidNotStart);
+    }
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let deadline = Instant::now() + ready_timeout;
     loop {
-        // A crash and a hang end here differently: one as an early exit
-        // with the child's own stderr as the reason, the other as this
-        // deadline. Both stop the child before returning — a server that
-        // cannot be waited for must not outlive the wait.
-        if let Ok(Some(status)) = running.try_exit() {
-            let detail = crate::probe::exit_reason(running.as_ref(), status);
-            let _ = running.stop(DEFAULT_STOP_GRACE);
-            return Err(ServeError::DidNotStart(detail));
+        // A crash ends here on its own: `try_exit` has already reaped the
+        // child, so nothing is signalled — a pid that is gone is not ours
+        // to signal again. A hang ends at the deadline, and that child is
+        // still alive: it stops.
+        if let Ok(Some(_status)) = running.try_exit() {
+            return Err(ServeError::DidNotStart);
         }
         if Instant::now() >= deadline {
             let _ = running.stop(DEFAULT_STOP_GRACE);
@@ -102,7 +115,19 @@ fn run(
             });
         }
         if health_ok(addr, "/health", crate::probe::PROBE_TIMEOUT) {
-            return Ok((running, addr));
+            // A 200 on a port that was free before the spawn is not proof
+            // it was OURS — somebody else may have taken the port. The
+            // child must be alive too: if llama-server lost the bind it
+            // exits, and its own exit is the honest answer.
+            match running.try_exit() {
+                Ok(None) => return Ok((running, addr)),
+                Ok(Some(_)) => return Err(ServeError::DidNotStart),
+                Err(_) => {
+                    // Unknown state: stop the child rather than leave it.
+                    let _ = running.stop(DEFAULT_STOP_GRACE);
+                    return Err(ServeError::DidNotStart);
+                }
+            }
         }
         std::thread::sleep(child::TICK);
     }
@@ -122,6 +147,14 @@ impl Disposable {
     /// caller put in its own argv.
     pub fn address(&self) -> SocketAddr {
         self.addr
+    }
+
+    /// True while our child is still the one on the port: `try_exit`
+    /// answers None. The port was free before the spawn — the documented
+    /// race — so a child that died after answering means the answers may
+    /// have been somebody else's, and no sample of them counts.
+    pub fn alive(&mut self) -> bool {
+        matches!(self.running.try_exit(), Ok(None))
     }
 }
 
@@ -167,7 +200,7 @@ mod tests {
             Ok(_) => panic!("nothing to run"),
         };
         assert!(
-            matches!(error, ServeError::DidNotStart(_)),
+            matches!(error, ServeError::DidNotStart),
             "{error:?}"
         );
         assert!(
@@ -238,10 +271,10 @@ mod tests {
             Err(error) => error,
             Ok(_) => panic!("nothing to answer"),
         };
-        match error {
-            ServeError::DidNotStart(detail) => assert!(detail.contains("exit status"), "{detail}"),
-            other => panic!("an early exit is a DidNotStart, not {other:?}"),
-        }
+        assert!(
+            matches!(error, ServeError::DidNotStart),
+            "an early exit is a DidNotStart, not {error:?}"
+        );
         assert!(!crate::decide::state_file(&root).exists(), "released");
         let _ = std::fs::remove_dir_all(&root);
     }

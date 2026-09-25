@@ -7,7 +7,7 @@
 //! are re-exported), so this crate cannot hold one. What is genuinely
 //! shared is reused: the orphan story runs on the supervisor's
 //! `InstanceFile`. On unix the child inherits the exclusive lock, so "the
-//! lock is held" keeps meaning "our probe child is alive" even after a
+//! lock is held" keeps meaning "our disposable child is alive" even after a
 //! force-quit, and the next start can name and kill it with
 //! `terminate_pid`. On Windows the state file's lock handle alone is not
 //! handed to the child — the child's stderr pipe end is — so the app's lock
@@ -15,15 +15,16 @@
 //! job instead: a force-quit closes the job, the job reaps the child, and
 //! the record reads `Stale` with no pid left to signal. The accepted
 //! residual: a force-quit in the window between `spawn` and `confine`, or a
-//! failed confine (reported at the spawn), leaves the probe child outside
-//! the job, and a `Stale` record cannot name it — accepted for a probe that
-//! lives seconds on a tiny model.
+//! failed confine (reported at the spawn), leaves the disposable child
+//! outside the job, and a `Stale` record cannot name it — accepted for a
+//! child that lives seconds on a tiny model.
 //!
-//! Two divergences are deliberate: no process group (the long-lived server
-//! gets one to reach helpers it spawns; a probe child spawns nothing), and
-//! on Windows the supervisor's own kill-on-close job, shared rather than
-//! reinvented: a force-quit must not leave a probe llama-server running on
-//! a port with the record already deleted.
+//! Two things are deliberate: the child leads its own unix process group
+//! when it inherits the state handle (spawn sets `process_group(0)` — the
+//! supervisor's own spawn does the same, "one signal reaches the server and
+//! anything it spawned"), and on Windows the supervisor's kill-on-close
+//! job, shared rather than reinvented: a force-quit must not leave a
+//! llama-server running on a port with the record already deleted.
 
 use std::collections::VecDeque;
 use std::fs::File;
@@ -125,7 +126,7 @@ impl Child {
         let mut inner = cmd.spawn()?;
         // Windows: the lock dies with the app (handles are not inherited),
         // so the job is what reaps this child when a force-quit takes us —
-        // without it a probe llama-server would outlive its own record. A
+        // without it a disposable llama-server would outlive its own record. A
         // failed confine is said out loud, the supervisor's way.
         #[cfg(windows)]
         let job = {
@@ -133,7 +134,7 @@ impl Child {
             let job = confine(inner.as_raw_handle());
             if job.is_none() {
                 eprintln!(
-                    "kalsa-brain: the probe child could not be confined to a kill-on-close \
+                    "kalsa-brain: the disposable child could not be confined to a kill-on-close \
                      job: a force-quit will not reap it"
                 );
             }
@@ -213,8 +214,8 @@ impl Running for Child {
 }
 
 impl Drop for Child {
-    // A probe child must never outlive the probe by accident; the state file
-    // is the on-purpose path for when we are killed outright.
+    // A disposable child must never outlive its question by accident; the
+    // state file is the on-purpose path for when we are killed outright.
     fn drop(&mut self) {
         if matches!(self.inner.try_wait(), Ok(None)) {
             #[cfg(unix)]
@@ -231,7 +232,7 @@ impl Drop for Child {
     }
 }
 
-/// Kills a probe child left behind by a force-quit, and clears its state
+/// Kills a disposable child left behind by a force-quit, and clears its state
 /// file. Ownership is proven the supervisor's way: a lock held on our own
 /// state file counts as ours — the child's inherited handle on unix, the
 /// live instance's own handle on Windows — so a recycled pid is never

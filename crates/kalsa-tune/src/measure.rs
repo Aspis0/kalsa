@@ -11,8 +11,11 @@ use crate::sample::request;
 use crate::winner::{Outcome, Refusal};
 
 /// The owner's budget for the whole tune: one to two minutes extra on a
-/// first start was the target, and 180 s is the cap that lets a slow
-/// machine finish round one and still attempt a close round two.
+/// first start was the target. 180 s stops STARTS, not work: it is
+/// checked before each lifetime, never during one — a lifetime that has
+/// begun still gets its full run, worst case ready (READY_TIMEOUT) plus
+/// three requests at the per-request bound plus the stop, a little over
+/// five minutes. The budget's job is that few lifetimes begin at all.
 const TOTAL_BUDGET: Duration = Duration::from_secs(180);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
@@ -23,9 +26,12 @@ const TOTAL_BUDGET: Duration = Duration::from_secs(180);
 /// cost at most plus its requests.
 const READY_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// One request's bound: 64 tokens at the slowest rate that still counts
-/// takes seconds, so a minute means a hung server rather than a slow one.
-/// Bounded so one wedged candidate cannot spend the whole budget.
+/// One request's bound: 60 s refuses anything slower than about 1 tok/s
+/// (64 tokens in a minute). That is deliberately below the catalog's own
+/// floor — `MINIMUM_TOKENS_PER_SECOND = 3.0` (`kalsa-catalog/src/choice.rs`)
+/// is the slowest model the product would even offer — so the only things
+/// this bound rejects are hangs, and one wedged candidate cannot spend
+/// the whole budget.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Round two re-runs only what round one could not separate: a candidate
@@ -101,7 +107,9 @@ fn rounds(
             .filter(|&index| best(index).is_some_and(|rate| rate >= top * (1.0 - ROUND2_BAND)))
             .collect::<Vec<_>>();
         if near.len() >= 2 {
-            planned = done + near.len();
+            // Monotonic: the caller may never see the plan shrink; only
+            // the final call may lower it to what really ran.
+            planned = (done + near.len()).max(planned);
             for index in near {
                 if since_start() >= budget {
                     break; // not started this round: its round-one answer stands
@@ -117,7 +125,10 @@ fn rounds(
             }
         }
     }
-    progress(done, planned);
+    // The final call may lower the plan to what really ran — when the
+    // budget cut the list, the earlier `planned` counted lifetimes that
+    // never began — and it must then equal `done`.
+    progress(done, done);
 
     (0..count)
         .filter(|&index| ran[index])
@@ -143,8 +154,8 @@ fn run_lifetime(
 ) -> Result<Vec<f64>, Refusal> {
     let port = free_loopback_port().map_err(|_| Refusal::DidNotStart)?;
     let (exe, argv) = build(candidate, port);
-    let server = serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
-        ServeError::DidNotStart(_) => Refusal::DidNotStart,
+    let mut server = serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
+        ServeError::DidNotStart => Refusal::DidNotStart,
         ServeError::NotReady { .. } => Refusal::NotReady,
     })?;
     let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
@@ -155,6 +166,18 @@ fn run_lifetime(
                 rates.push(rate);
             }
         }
+    }
+    conclude(rates, server.alive())
+}
+
+/// The lifetime's answer once the liveness gate has spoken: samples count
+/// only while OUR child is the one on the port. The port was free before
+/// the spawn — the documented race — so a child that died after
+/// answering means the answers may have been somebody else's, and none of
+/// them counts however good they look.
+fn conclude(rates: Vec<f64>, child_is_alive: bool) -> Result<Vec<f64>, Refusal> {
+    if !child_is_alive {
+        return Err(Refusal::DidNotStart);
     }
     if rates.is_empty() {
         Err(Refusal::NoUsableAnswer)
@@ -227,6 +250,7 @@ mod tests {
     fn the_surface_shape_gets_a_second_round_pooled() {
         let candidates = vec![cpu(4), cpu(8)];
         let ran = RefCell::new(Vec::new());
+        let progress_seen = RefCell::new(Vec::new());
         let results = rounds(
             &candidates,
             TOTAL_BUDGET,
@@ -245,7 +269,12 @@ mod tests {
                     _ => measured(7.9),
                 }
             },
-            &mut |_, _| {},
+            &mut |done, planned| progress_seen.borrow_mut().push((done, planned)),
+        );
+        assert_eq!(
+            *progress_seen.borrow(),
+            vec![(0, 2), (1, 2), (2, 4), (3, 4), (4, 4)],
+            "the plan grows for round two and the final call equals what ran"
         );
         assert_eq!(*ran.borrow(), vec![0, 1, 0, 1], "both candidates, both rounds");
         for (candidate, outcome) in &results {
@@ -286,6 +315,16 @@ mod tests {
         assert_eq!(results[0].1.best(), Some(10.0));
     }
 
+    /// The samples of a dead child count for nothing: the port was free
+    /// before the spawn, so a child that died means the answers may have
+    /// been somebody else's — however good they look.
+    #[test]
+    fn the_answers_of_a_dead_child_count_for_nothing() {
+        assert_eq!(conclude(vec![9.9], false), Err(Refusal::DidNotStart));
+        assert_eq!(conclude(vec![], true), Err(Refusal::NoUsableAnswer));
+        assert_eq!(conclude(vec![7.5], true), Ok(vec![7.5]));
+    }
+
     /// The budget is checked before each lifetime, never inside one: the
     /// candidate that started ran to completion, and the ones behind it
     /// are simply absent — nothing is killed mid-measure.
@@ -293,6 +332,7 @@ mod tests {
     fn an_exhausted_budget_leaves_later_candidates_absent() {
         let candidates = vec![cpu(4), cpu(8), cpu(16)];
         let ran = RefCell::new(Vec::new());
+        let progress_seen = RefCell::new(Vec::new());
         let clock = RefCell::new(0u32);
         let results = rounds(
             &candidates,
@@ -317,10 +357,15 @@ mod tests {
                 ran.borrow_mut().push(at);
                 measured(9.0 + at as f64)
             },
-            &mut |_, _| {},
+            &mut |done, planned| progress_seen.borrow_mut().push((done, planned)),
         );
         assert_eq!(*ran.borrow(), vec![0], "only the lifetime that fit the budget ran");
         assert_eq!(results.len(), 1, "the later candidates are absent, not failed");
         assert_eq!(results[0].1, Outcome::Measured(vec![9.0]), "the started lifetime completed");
+        // (done, planned) is monotonic until the last call, and the last
+        // call lowers the plan to what really ran — and equals it.
+        let seen = progress_seen.borrow();
+        assert_eq!(*seen, vec![(0, 3), (1, 1)], "the plan may only shrink at the end");
+        assert_eq!(seen.last(), Some(&(1, 1)), "the final plan is what ran");
     }
 }

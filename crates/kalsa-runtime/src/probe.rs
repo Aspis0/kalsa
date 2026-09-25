@@ -120,7 +120,7 @@ fn run(
     outcome
 }
 
-pub(crate) fn exit_reason(running: &dyn Running, status: ExitStatus) -> String {
+fn exit_reason(running: &dyn Running, status: ExitStatus) -> String {
     match running.tail().last() {
         Some(line) => format!("the candidate stopped before answering: {line}"),
         None => format!("the candidate stopped before answering ({status})"),
