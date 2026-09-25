@@ -8,7 +8,10 @@
 //! and where it does not, that is said plainly:
 //!
 //! * Windows: `SetFileInformationByHandle(FileRenameInfo)` renames the
-//!   handle's file onto `dest` — by descriptor, atomic, replacing.
+//!   handle's file onto `dest` — by descriptor, atomic, replacing. The
+//!   replacement fails with an OS error and the old `dest` stays in place
+//!   when another process holds it open without delete sharing — a running
+//!   llama-server with the model loaded, for instance.
 //! * Linux: `linkat` through `/proc/self/fd/N` makes `dest` another name for
 //!   the verified inode — by descriptor; the now-redundant part name goes.
 //! * macOS: there is no rename by descriptor (`linkat` has no
@@ -142,21 +145,30 @@ fn windows(part: &mut PartFile, dest: &Path) -> io::Result<()> {
     let laid_out = offset_of!(FILE_RENAME_INFO, FileName) + name.len() * 2;
     let bytes = size_of::<FILE_RENAME_INFO>().max(laid_out);
     let mut buffer = vec![0u64; bytes.div_ceil(8)];
-    let info = unsafe { &mut *buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>() };
-    info.Anonymous = FILE_RENAME_INFO_0 { ReplaceIfExists: 1 };
-    info.RootDirectory = std::ptr::null_mut();
-    info.FileNameLength = ((name.len() - 1) * 2) as u32;
-    // The documented NUL-terminated string, written through the array's own
-    // pointer and kept inside this allocation.
-    let file_name = unsafe { std::ptr::addr_of_mut!(info.FileName).cast::<u16>() };
-    for (i, unit) in name.iter().enumerate() {
-        unsafe { file_name.add(i).write(*unit) };
+    // Every pointer derives from the buffer: no reference to the struct ever
+    // exists, so nothing can name the one-element `FileName` as the whole
+    // object while the name is written past its end — inside this
+    // allocation, where `bytes` says it fits.
+    let base = buffer.as_mut_ptr();
+    unsafe {
+        let info = base.cast::<FILE_RENAME_INFO>();
+        std::ptr::addr_of_mut!((*info).Anonymous)
+            .write(FILE_RENAME_INFO_0 { ReplaceIfExists: 1 });
+        std::ptr::addr_of_mut!((*info).RootDirectory).write(std::ptr::null_mut());
+        std::ptr::addr_of_mut!((*info).FileNameLength).write(((name.len() - 1) * 2) as u32);
+        // The documented NUL-terminated string, starting where the struct
+        // says it starts.
+        let file_name = base
+            .cast::<u8>()
+            .add(offset_of!(FILE_RENAME_INFO, FileName))
+            .cast::<u16>();
+        std::ptr::copy_nonoverlapping(name.as_ptr(), file_name, name.len());
     }
     let ok = unsafe {
         SetFileInformationByHandle(
             part.handle().as_raw_handle(),
             FileRenameInfo,
-            info as *const FILE_RENAME_INFO as *const core::ffi::c_void,
+            base.cast::<FILE_RENAME_INFO>() as *const _,
             bytes as u32,
         )
     };
