@@ -27,11 +27,13 @@ const TOTAL_BUDGET: Duration = Duration::from_secs(180);
 const READY_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// One request's bound: 60 s refuses anything slower than about 1 tok/s
-/// (64 tokens in a minute). That is deliberately below the catalog's own
-/// floor — `MINIMUM_TOKENS_PER_SECOND = 3.0` (`kalsa-catalog/src/choice.rs`)
-/// is the slowest model the product would even offer — so the only things
-/// this bound rejects are hangs, and one wedged candidate cannot spend
-/// the whole budget.
+/// (64 tokens in a minute) — a real refusal, not only a hang: a processor
+/// or forced-off launch can decode below the catalog's floor. That is
+/// acceptable because such a candidate would never win against the launch
+/// the catalog itself chose (predicted at or above `MINIMUM_TOKENS_PER_SECOND
+/// = 3.0` at its low end, `kalsa-catalog/src/choice.rs`), and if it is the
+/// only candidate there is no tune anyway — the caller keeps the rule. One
+/// wedged candidate also cannot spend the whole budget.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Round two re-runs only what round one could not separate: a candidate

@@ -19,12 +19,14 @@
 //! outside the job, and a `Stale` record cannot name it — accepted for a
 //! child that lives seconds on a tiny model.
 //!
-//! Two things are deliberate: the child leads its own unix process group
-//! when it inherits the state handle (spawn sets `process_group(0)` — the
-//! supervisor's own spawn does the same, "one signal reaches the server and
-//! anything it spawned"), and on Windows the supervisor's kill-on-close
-//! job, shared rather than reinvented: a force-quit must not leave a
-//! llama-server running on a port with the record already deleted.
+//! Two things are deliberate: on unix the child leads its own process
+//! group when it inherits the state handle (spawn sets `process_group(0)`)
+//! — and this crate's stop signals the pid ALONE (`Child::stop` sends
+//! SIGTERM to `self.inner.id()`, never to a group), so that group is the
+//! child's own, not a channel this crate signals down — and on Windows the
+//! supervisor's kill-on-close job, shared rather than reinvented: a
+//! force-quit must not leave a llama-server running on a port with the
+//! record already deleted.
 
 use std::collections::VecDeque;
 use std::fs::File;
