@@ -115,11 +115,31 @@ let hostCredential: string | null = null;
     Devices page re-mints it), or not asked yet. */
 export type HostKeyState = "answered" | "missing" | "pending";
 
-// The credential read's own refusal — the COMMAND's sentence, kept whole so
-// the first page can read each case its true words ("…has not made its own
-// connection key yet." vs "…could not read its own connection key."). null
-// means not refused: not asked yet, or answered.
+// The credential read's own refusal — but only the COMMAND's own sentences
+// count: `brain_host_credential` can reject with exactly three (main.rs's
+// app-data failure, the unreadable store, the missing host record), mirrored
+// here because the value crosses IPC as text. Anything else — a framework
+// panic, "[object Object]" — must never reach the first page as this
+// computer's state: it becomes null and the page falls back to the
+// not-made-yet sentence. null also means "not refused".
+const HOST_CREDENTIAL_REFUSALS = [
+  "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.",
+  "This computer could not read its own connection key.",
+  "This computer has not made its own connection key yet.",
+];
+
 let credentialMessage: string | null = null;
+
+/// The rejection's text when it IS one of the command's own sentences, and
+/// null for everything else: a rejection this app never wrote is shown as
+/// nothing, never as this computer's words. A fourth sentence added there
+/// without one here degrades to the fallback sentence, never to a claim
+/// nobody made.
+export function credentialRefusalText(error: unknown): string | null {
+  const text =
+    typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+  return HOST_CREDENTIAL_REFUSALS.includes(text) ? text : null;
+}
 // What the shell is allowed to do with a slot, derived in `publish` from the
 // facts above. `unready` until the first answer: a window that has not heard
 // from its own brain does not know whether there is a door to diverge from.
@@ -211,11 +231,11 @@ async function poll(): Promise<void> {
       }
     } catch (error) {
       // No key yet: the page then has no local connection to offer, which is
-      // the honest state, and the next poll tries again. The refusal keeps
-      // the command's own sentence — whichever of its two it was — so the
-      // first page reads this case's true words, not one standing in for both.
-      credentialMessage =
-        typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+      // the honest state, and the next poll tries again. Only a sentence
+      // this app itself wrote passes — whichever of the command's three it
+      // was; anything else arrives as null and the page speaks its own
+      // not-made-yet words instead.
+      credentialMessage = credentialRefusalText(error);
     }
   }
   publish();

@@ -709,6 +709,7 @@ try {
       starting: ["Getting ready. On an older computer this can take a minute.", "Go to Server"],
       key: ["This computer has not made its own connection key yet.", "Devices"],
       "key-read": ["This computer could not read its own connection key.", "Devices"],
+      "key-junk": ["This computer has not made its own connection key yet.", "Devices"],
       settings: ["This computer has no model name yet.", "Open settings"],
       ready: ["Write your first message below to begin.", null],
     };

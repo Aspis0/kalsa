@@ -12,7 +12,7 @@ import { AdvancedSurface } from "../chat/src/surfaces/AdvancedSurface";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
-import { brainWords } from "../chat/src/surfaces/useBrain";
+import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
@@ -233,7 +233,8 @@ const scenarios = [
   ["firstpage/off", "the machine is off", "empty", { setup: setupArm("stopped", "answered", true, "x") }],
   ["firstpage/starting", "the start is walking", "empty", { setup: setupArm("starting", "pending", false, "") }],
   ["firstpage/key", "the door stood up but could not hand its key over", "empty", { setup: setupArm("running", "missing", true, "") }],
-  ["firstpage/key-read", "the store would not let the key be read", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: "This computer could not read its own connection key." }],
+  ["firstpage/key-read", "the store would not let the key be read", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: credentialRefusalText("This computer could not read its own connection key.") }],
+  ["firstpage/key-junk", "a rejection this app never wrote says nothing", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: credentialRefusalText("[object Object]") }],
   ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
   ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
   ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],

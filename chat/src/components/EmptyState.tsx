@@ -17,21 +17,30 @@ export type SetupArm = "server" | "service" | "starting" | "key" | "settings" | 
       other arm names a state that can last;
     - running with a door address but a credential the store would not
       give — the `brain_host_credential` command's OWN sentence, whichever
-      the rejection said (`credentialMessage`: "This computer has not made
-      its own connection key yet." or "This computer could not read its own
-      connection key.") — and the Devices page, whose hatch re-mints it
-      (that command's recovery path). The read runs only against a LIVE
-      door, so this is a door that stood up and could not hand its key over;
+      of its three the rejection was (`credentialMessage`, gated in
+      useBrain: main.rs's app-data failure, "This computer could not read
+      its own connection key.", "This computer has not made its own
+      connection key yet."; anything else falls back) — and the Devices
+      page, whose hatch re-mints it (that command's recovery path). The
+      read runs only against a LIVE door, so this is a door that stood up
+      and could not hand its key over;
     - running with no door in the state, whatever the credential says —
       the read is gated on the door's address (useBrain's poll at :204),
       so a fresh launch with the door stood down never even asks and the
       credential stays `pending`. LASTING: the engine runs while this
       computer's chat connection cannot — an empty store, an unreadable
       one, a record the door refuses, a poisoned door lock, a listener
-      that cannot bind, or a door that cannot be built — and the Devices
-      page carries each cause's own remedy. The wording is the owner's
-      (2026-09-25): "This computer's chat connection is not working right
-      now." with "Go to Devices";
+      that cannot bind, or a door that cannot be built. What the Devices
+      page then shows is the STORE's truth, not the door's: the
+      unreadable store gets its own sentence and the "Forget and pair
+      again" hatch (which wipes and re-seats), and the empty store is
+      re-seated at the next launch — the setup hook mints it every time.
+      The door-side four show no failure on that page at all (its
+      failures come from the desk's own state, pairing.rs:675-689), so
+      the way back for them is removing the offending record or
+      restarting the app. Wording is the owner's (2026-09-25): "This
+      computer's chat connection is not working right now." with "Go to
+      Devices";
     - running, door up, no model name → Settings.
     Each arm is pinned in `dev/smoke-react.mjs`. */
 export function setupArm(
@@ -68,9 +77,10 @@ export function setupArm(
 
 interface EmptyStateProps {
   setup: SetupArm;
-  /** The `brain_host_credential` command's own refusal, when the store
-      refused the read: the key arm shows it verbatim so each case reads
-      its true words; null falls back to the not-made-yet sentence. */
+  /** One of `brain_host_credential`'s own sentences when the store refused
+      the read — the gate in useBrain passes only those three; anything
+      else arrives as null, and the key arm then speaks the not-made-yet
+      sentence instead. */
   credentialMessage: string | null;
   onOpenSettings: () => void;
   onOpenServer: () => void;
