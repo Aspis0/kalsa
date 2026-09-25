@@ -77,3 +77,12 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
 - Lane LFM heat arms: driver retarget ffd088fb (mimo coder, lab cell `qdc-heat-per-backend`);
   predictions addendum `PREREG-LFM.md` by 47ba0758 (luna). QDC run only after both.
 - S23 still held by 263437c8 (DSP watch) - NPU Step 0 waits for its STOP-SOURCE.md.
+
+## 2026-09-25 late - owner steer and alpha phone half
+- Owner: governor on TEXT first; vision lane PARKED (design refuted by audit c8b25dba, see cell).
+- Alpha join (asked by kalsa-brain 23ac3537, owner decision: both roads): coordinator owns the phone half.
+  QR scanner = coder 35c52933 in worktree `/Users/marco/Projects/kalsa-wt-qr` (detached off origin/main);
+  iroh Android spike = 1e1eafb4 (GLM Flash, confirmed) -> `iroh-android-spike/REPORT.md`.
+  First Tailscale pairing run: the JELLY (owner, via brain: free, charging, Tailscale up to the Mac) with a
+  main-chain CI APK; check the double Content-Length / 403 risk. Charging is fine: not a benchmark.
+- Codex (luna) returns 401: second reviewer = GLM-5.3-Flash until the key is fixed.
