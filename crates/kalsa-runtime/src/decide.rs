@@ -235,7 +235,7 @@ fn map_store_error(e: StoreError) -> DecideError {
     }
 }
 
-fn state_file(root: &Path) -> PathBuf {
+pub(crate) fn state_file(root: &Path) -> PathBuf {
     root.join("probe.state")
 }
 

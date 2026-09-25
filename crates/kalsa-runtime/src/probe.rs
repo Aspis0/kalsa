@@ -30,7 +30,7 @@ use crate::child::{self, Launch, Running};
 /// the cold cache case, not the average one.
 const DEFAULT_READY_SECONDS: u64 = 60;
 /// Per-probe budget during the handshake, as in the supervisor.
-const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+pub(crate) const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
 
 pub(crate) struct ProbeParams {
     pub port: u16,
@@ -120,7 +120,7 @@ fn run(
     outcome
 }
 
-fn exit_reason(running: &dyn Running, status: ExitStatus) -> String {
+pub(crate) fn exit_reason(running: &dyn Running, status: ExitStatus) -> String {
     match running.tail().last() {
         Some(line) => format!("the candidate stopped before answering: {line}"),
         None => format!("the candidate stopped before answering ({status})"),
@@ -129,7 +129,7 @@ fn exit_reason(running: &dyn Running, status: ExitStatus) -> String {
 
 /// True when `addr` answers `path` with `200` within `timeout`. Copied from
 /// the supervisor's private `health_ok` (see module docs).
-fn health_ok(addr: SocketAddr, path: &str, timeout: Duration) -> bool {
+pub(crate) fn health_ok(addr: SocketAddr, path: &str, timeout: Duration) -> bool {
     let Ok(mut stream) = TcpStream::connect_timeout(&addr, timeout) else {
         return false;
     };

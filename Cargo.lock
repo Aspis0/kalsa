@@ -2725,6 +2725,8 @@ version = "0.0.1"
 dependencies = [
  "kalsa-launch",
  "kalsa-runtime",
+ "serde_json",
+ "ureq",
 ]
 
 [[package]]

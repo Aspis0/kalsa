@@ -10,8 +10,12 @@
 
 pub mod record;
 
+mod measure;
+mod sample;
+
 mod candidates;
 mod winner;
 
 pub use candidates::{candidates, needs_tuning, Candidate};
+pub use measure::measure_candidates;
 pub use winner::{winner, Outcome, Refusal, Winner, TIE_BAND};
