@@ -13,18 +13,18 @@
 // scripts and the pdf.js worker both come from bundled files on the page's
 // origin: `chat/src/lib/attachments.ts` sets `GlobalWorkerOptions.workerSrc`
 // to a `?url` asset — same-origin, so pdf.js passes that URL straight to
-// `new Worker` instead of wrapping it in a blob. `script-src` must admit it,
-// and so must `worker-src`, resolved through the spec's fallback
+// `new Worker` instead of wrapping it in a blob. So each policy's effective
+// `script-src` (`script-src` → `default-src`) and effective `worker-src`
 // (`worker-src` → `script-src` → `default-src` when a policy does not name
-// `worker-src` — neither does). A `worker-src` that admits neither, or that
-// one policy allows and the other does not, would break PDF extraction in a
-// built binary while a `connect-src`-only guard still passed.
+// `worker-src` — neither does) must allow `'self'`, and neither may carry a
+// scheme-wide or wildcard source: this code loads nothing but its own bundle.
 //
-// This reads both real files and fails when the two lists disagree, when
-// either policy would block the local server or the app's own same-origin
-// assets, or when either has been widened to admit any origin. It parses the
-// directives; apart from what this app provably loads — the local server and
-// its bundled files — it holds no copy of an expected list.
+// This reads both real files and fails when the two connect-src lists
+// disagree, when either policy would block the local server or the app's own
+// same-origin assets, or when either is widened to a scheme-wide or wildcard
+// source. It parses the directives; apart from what this app provably loads —
+// the local server and its bundled files — it holds no copy of an expected
+// list.
 // Run: `node scripts/csp-consistency.mjs`
 
 import { readFile } from "node:fs/promises";
@@ -66,6 +66,16 @@ function admitsSelf(sources) {
   return sources === null || sources.some((source) => source.toLowerCase() === "'self'");
 }
 
+/// Whether a source opens a whole class of URL: `http:`, `blob:`, `data:` …
+/// or `*`. Nothing in this app loads anything outside its own bundle, so one
+/// of these in an effective `script-src`/`worker-src` is a permission no
+/// line of code asks for — harmless only while the other policy keeps
+/// narrowing, and live the moment both drift the same way.
+function schemeWide(source) {
+  const value = source.toLowerCase();
+  return value === "*" || /^[a-z][a-z0-9+.-]*:$/.test(value);
+}
+
 /// Whether one source expression admits `target`. Only the shapes a
 /// `connect-src` carries are handled: `*`, a scheme source, and a host with an
 /// optional port where `*` stands for any port. `'self'` is the page's own
@@ -105,11 +115,17 @@ function show(sources) {
 
 /// The directives whose failure stops a BUILT binary from running its own
 /// code, each with the fallback chain the spec resolves it through when a
-/// policy does not name the directive. What such a binary loads is bundled
-/// files on the page's own origin — the module scripts `index.html` points
-/// at, the pdf.js worker `attachments.ts` sets — so the effective list for
-/// each must allow `'self'` in both policies, and the two lists must be
-/// identical, because the webview enforces their intersection.
+/// policy does not name the directive.
+///
+/// THE MODEL IS THE INTERSECTION, not list equality: the webview enforces
+/// both policies at once, so a source one policy names and the other omits
+/// is simply not allowed — a meta-only `'unsafe-inline'` changes nothing —
+/// and demanding identical lists would fail on differences the binary cannot
+/// feel. What it can feel is a load NEITHER policy admits, and a widening
+/// EITHER policy carries. So each entry below is checked for both: `'self'`
+/// must be present (the bundle's files are same-origin) and no scheme-wide
+/// source may be (a permission the code never asks for, inert only while the
+/// other policy still narrows it).
 const GATED = [
   {
     directive: "script-src",
@@ -191,27 +207,21 @@ for (const { label, effective } of connections) {
 }
 
 for (const { directive, chain, loads } of GATED) {
-  const effective = policies.map(({ label, found }) => ({
-    label,
-    sources: effectiveSources(found, chain),
-  }));
-
-  if (effective.length === 2 && !sameSources(effective[0].sources, effective[1].sources)) {
-    problems.push(
-      `the two effective ${directive} lists disagree (the chain read is ${chain.join(" → ")}), so the ` +
-        `webview enforces their intersection and the narrower one wins:\n` +
-        `      ${effective[0].label}: ${show(effective[0].sources)}\n` +
-        `      ${effective[1].label}: ${show(effective[1].sources)}\n` +
-        `    Make the two lists identical.`,
-    );
-  }
-
-  for (const { label, sources } of effective) {
+  for (const { label, found } of policies) {
+    const sources = effectiveSources(found, chain);
     if (!admitsSelf(sources)) {
       problems.push(
         `${label}: the effective ${directive} (${show(sources)}) does not allow 'self'; ${loads} must ` +
           `come from the page's own origin and would be blocked in a built binary`,
       );
+    }
+    for (const source of sources ?? []) {
+      if (schemeWide(source)) {
+        problems.push(
+          `${label}: the effective ${directive} allows "${source}" — a scheme-wide or wildcard source, ` +
+            `and nothing in this app loads outside its own bundle; narrow it`,
+        );
+      }
     }
   }
 }
@@ -223,7 +233,8 @@ if (problems.length > 0) {
 } else {
   const sources = connections[0]?.named?.join(" ") ?? "";
   console.log(
-    `ok: both policies agree on connect-src (${sources}), script-src and the effective worker source, ` +
-      `and each allows the local server and the app's own origin`,
+    `ok: both policies reach the local server (connect-src: ${sources}), admit this app's scripts and ` +
+      `the pdf.js worker through their effective script-src and worker-src, and neither widens those ` +
+      `beyond its own bundle`,
   );
 }
