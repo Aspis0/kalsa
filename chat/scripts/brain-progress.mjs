@@ -36,6 +36,10 @@ function check(name, ok, detail = "") {
 /// is exactly the count the defect got wrong.
 const calls = [];
 
+/// When true, `listen()` THROWS synchronously — the shape a shim whose
+/// `window.__TAURI__` has `core` but no `event` has in a real window.
+let syncThrow = false;
+
 globalThis.window = {
   __TAURI__: {
     // A command that never answers: the poll is not under test here, and a
@@ -43,6 +47,7 @@ globalThis.window = {
     core: { invoke: () => new Promise(() => {}) },
     event: {
       listen() {
+        if (syncThrow) throw new Error("window.__TAURI__.event is missing");
         const call = { settled: false, live: false };
         const promise = new Promise((resolve, reject) => {
           call.answer = () => {
@@ -160,6 +165,76 @@ try {
   leaveDown();
   await flush();
   check("the down-bus reader leaves none behind", liveCount() === 0, `live=${liveCount()}`);
+
+  // The budget is per GENERATION: an always-reject episode must not follow
+  // a reader that leaves and comes back — the next generation's ONE
+  // rejection still earns its retry, and the reader must end with one live
+  // subscription (no reset: this remount gets no retry and ends with 0).
+  calls.length = 0;
+  const leaveExhausted = subscribeBrainRead(reader);
+  for (let i = 0; calls[i] && !calls[i].settled; i += 1) {
+    calls[i].fail(new Error("down"));
+    await flush();
+  }
+  check(
+    "the first generation exhausts its budget",
+    calls.length === 4,
+    `listen() calls=${calls.length} (1 start + 3 retries)`,
+  );
+  leaveExhausted();
+  await flush();
+  calls.length = 0;
+  const leaveRenewed = subscribeBrainRead(reader);
+  calls[0]?.fail(new Error("one bad registration"));
+  await flush();
+  check(
+    "the next generation's single rejection still earns a retry",
+    calls.length === 2,
+    `listen() calls=${calls.length}`,
+  );
+  calls[1]?.answer();
+  await flush();
+  check(
+    "the remounted reader ends with one live subscription",
+    liveCount() === 1,
+    `live=${liveCount()}`,
+  );
+  leaveRenewed();
+  await flush();
+  check("and the remounted reader leaves none behind", liveCount() === 0, `live=${liveCount()}`);
+
+  // A synchronous throw from `listen()` must not escape into the reader
+  // (React would tear the mount down), and it must not strand the pending
+  // flag either: a bus that works afterwards still has to answer with one
+  // live subscription.
+  calls.length = 0;
+  syncThrow = true;
+  let leaveThrown;
+  let mountBroke = false;
+  try {
+    leaveThrown = subscribeBrainRead(reader);
+  } catch {
+    mountBroke = true;
+  }
+  check(
+    "a synchronous throw from listen() does not take the reader down",
+    !mountBroke,
+    mountBroke ? "subscribeBrainRead threw" : "",
+  );
+  leaveThrown?.();
+  await flush();
+  syncThrow = false;
+  const leaveWorking = subscribeBrainRead(reader);
+  calls[0]?.answer();
+  await flush();
+  check(
+    "a bus that works afterwards still gives one live subscription",
+    liveCount() === 1,
+    `live=${liveCount()} after ${calls.length} call(s)`,
+  );
+  leaveWorking?.();
+  await flush();
+  check("and the recovered bus leaves none behind", liveCount() === 0, `live=${liveCount()}`);
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

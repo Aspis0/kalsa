@@ -128,9 +128,10 @@ let progressPending = false;
 /// never ask again, so without it they stay mounted with no walk steps
 /// until a remount. The bound is what stops a bus that always rejects from
 /// spinning — and reaching it costs only the walk's live steps, because
-/// `pollTimer` keeps polling `brain_state` whatever the bus does. One
-/// success resets the budget; a fresh subscribe always gets a first
-/// attempt, so a bus that recovers is never locked out.
+/// `pollTimer` keeps polling `brain_state` whatever the bus does. The budget
+/// is per GENERATION: one success resets it, and so does a reader arriving
+/// on an empty `listeners` set (`subscribeBrainRead`) — an always-reject
+/// episode must never deny the next generation its retries.
 const PROGRESS_RETRIES = 3;
 let progressRetries = 0;
 
@@ -212,30 +213,44 @@ async function poll(): Promise<void> {
 function startProgress(): void {
   if (offProgress !== null || progressPending) return;
   progressPending = true;
-  void listen("brain_progress", (step: unknown) => {
-    currentStep = (step as ProgressStep) || null;
-    void poll();
-  }).then(
+  // Both ways a registration can fail — a rejected promise and a
+  // SYNCHRONOUS throw (a shim whose `window.__TAURI__` has `core` but no
+  // `event`) — take this one path. A throw that escaped instead would leave
+  // `progressPending` up forever, and every later reader would be refused
+  // at this function's own guard with no way back short of a reload.
+  const lost = () => {
+    // The readers who arrived while this registration was pending
+    // returned at the guard above and will never ask again: clear the
+    // flag and register once more while any of them remains — up to
+    // PROGRESS_RETRIES times, so a bus that always rejects is asked a
+    // fixed number of times and then left alone (the budget bounds even
+    // this synchronous chain). Exhausting it costs the walk's live steps
+    // only — the poll runs regardless — and the next generation gets a
+    // fresh budget.
+    progressPending = false;
+    if (listeners.size > 0 && progressRetries < PROGRESS_RETRIES) {
+      progressRetries += 1;
+      startProgress();
+    }
+  };
+  let registration: Promise<() => void>;
+  try {
+    registration = listen("brain_progress", (step: unknown) => {
+      currentStep = (step as ProgressStep) || null;
+      void poll();
+    });
+  } catch {
+    lost();
+    return;
+  }
+  void registration.then(
     (unsubscribe) => {
       progressPending = false;
       progressRetries = 0;
       if (listeners.size > 0 && offProgress === null) offProgress = unsubscribe;
       else unsubscribe();
     },
-    () => {
-      // The readers who arrived while this registration was pending
-      // returned at the guard above and will never ask again: clear the
-      // flag and register once more while any of them remains — up to
-      // PROGRESS_RETRIES times, so a bus that always rejects is asked a
-      // fixed number of times and then left alone. Exhausting the budget
-      // costs the walk's live steps only (the poll runs regardless) and is
-      // recovered by the next mount's own first attempt.
-      progressPending = false;
-      if (listeners.size > 0 && progressRetries < PROGRESS_RETRIES) {
-        progressRetries += 1;
-        startProgress();
-      }
-    },
+    lost,
   );
 }
 
@@ -247,6 +262,10 @@ function startProgress(): void {
 export function subscribeBrainRead(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
+    // A new generation: the retry budget spent against the old readers
+    // must not follow these ones — after one always-reject episode the
+    // first rejection this generation sees would otherwise get no retry.
+    progressRetries = 0;
     void poll();
     pollTimer = setInterval(() => void poll(), POLL_MS);
     startProgress();
