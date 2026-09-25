@@ -144,7 +144,9 @@ impl Running for Child {
             if let Some(status) = self.wait_within(grace)? {
                 return Ok(status);
             }
-            let _ = self.inner.kill();
+            // A failed kill must not feed the unbounded wait below: it
+            // propagates, as on the windows branch.
+            self.inner.kill()?;
         }
         #[cfg(not(unix))]
         {
@@ -180,8 +182,12 @@ impl Drop for Child {
             unsafe {
                 libc::kill(self.inner.id() as i32, libc::SIGKILL);
             }
-            let _ = self.inner.kill();
-            let _ = self.inner.wait();
+            // A destructor must not block forever: wait only after a kill
+            // that succeeded — a child that could not be killed is left,
+            // not waited on.
+            if self.inner.kill().is_ok() {
+                let _ = self.inner.wait();
+            }
         }
     }
 }
@@ -253,29 +259,31 @@ mod tests {
         let pid = child.inner.id();
         let grace = Duration::from_secs(2);
         let (tx, rx) = std::sync::mpsc::channel();
-        let started = Instant::now();
         std::thread::spawn(move || {
-            let _ = tx.send(child.stop(grace));
+            let started = Instant::now();
+            let result = child.stop(grace);
+            let _ = tx.send((result, started.elapsed()));
         });
         match rx.recv_timeout(Duration::from_secs(15)) {
-            Ok(Ok(_status)) => {
+            Ok((Ok(_status), elapsed)) => {
                 // What is proven: a stand-in with 300 s of life left is
-                // reaped in seconds — killed, not waited out.
-                let elapsed = started.elapsed();
+                // reaped in seconds — killed, not waited out. The clock is
+                // the thread's, so spawn scheduling is not counted against
+                // the stop.
                 assert!(
                     elapsed < Duration::from_secs(5),
                     "stop returned after {elapsed:?} — it must reap the \
                      300-second stand-in promptly, not wait out its life"
                 );
             }
-            Ok(Err(error)) => panic!("stop failed: {error}"),
+            Ok((Err(error), _)) => panic!("stop failed: {error}"),
             Err(_) => {
                 // The thread owns `child` and is blocked in `wait`: reclaim
                 // the stand-in by pid so this failure leaves nothing running.
-                let _ = terminate_pid(pid, Duration::from_secs(1));
+                let cleanup = terminate_pid(pid, Duration::from_secs(1));
                 panic!(
-                    "stop did not return within 15s — it never killed the child \
-                     (stand-in {pid} killed by pid)"
+                    "stop did not return within 15s — it never killed the child; \
+                     stand-in {pid} cleanup: {cleanup:?}"
                 );
             }
         }
