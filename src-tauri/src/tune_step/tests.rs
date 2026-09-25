@@ -603,16 +603,21 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     let mut prepared = prepared("/main-gpu");
     let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
+    // The shape a v1 build wrote: a graphics winner carrying `all`.
+    let winner_candidate = kalsa_tune::Candidate {
+        backend: ServerBackend::Vulkan,
+        threads: Some(8),
+        offload: Offload::All,
+    };
     let record = kalsa_tune::record::Record {
         fingerprint: fingerprint.clone(),
-        winner: None,
+        winner: Some(kalsa_tune::Winner {
+            candidate: winner_candidate,
+            best: 49.0,
+        }),
         trials: vec![(
-            kalsa_tune::Candidate {
-                backend: ServerBackend::Vulkan,
-                threads: Some(8),
-                offload: Offload::EngineFitted,
-            },
-            kalsa_tune::record::Kept::Refused(kalsa_tune::Refusal::NotReady),
+            winner_candidate,
+            kalsa_tune::record::Kept::Best(49.0),
         )],
     };
     kalsa_tune::record::save(&dir, &record).expect("save");

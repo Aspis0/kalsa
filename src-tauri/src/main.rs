@@ -1352,12 +1352,8 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
 
 #[tauri::command]
 fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
-    // The declaration first, and it is not a formality: `stop` is
-    // non-blocking and sets `Stopping` before it queues the command, so from
-    // this line on every poll enters the drain's arm and lowers the door
-    // itself. Lowering the door first — what this used to do — left the
-    // field reading `Running` while the door was already down, and a poll in
-    // that gap raised it again.
+    // `stop` is non-blocking and sets `Stopping` before it queues, so every
+    // poll from here reads the drain — never `Running` behind a lowered door.
     {
         let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
         brain.stops.fetch_add(1, Ordering::SeqCst);

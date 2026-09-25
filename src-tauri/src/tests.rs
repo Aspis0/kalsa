@@ -2534,11 +2534,10 @@ fn gone_config(tag: &str, port: u16) -> kalsa_supervisor::ServerConfig {
     }
 }
 
-/// The window the stop race was lost in: the walk's check has passed and its
-/// send has not run. The Turn off lands exactly there. The gate makes check
-/// and send one step, so the Stop either precedes the check (nothing is
-/// queued) or queues behind the Start it then cancels — the walk's Start
-/// went first here, and the queued Stop must still end with the state down.
+/// The window the stop race was lost in: the walk's check has passed and
+/// its send has not run. The Stop either precedes the check (nothing is
+/// queued) or queues behind the Start — the worker settles that start
+/// first, then stops it, so the state ends down either way.
 #[test]
 fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
     let brain = std::sync::Arc::new(Brain::new());
@@ -2559,16 +2558,20 @@ fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
     };
     entered_rx.recv().expect("the walk reached the window");
 
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
     let stopper = {
         let brain = std::sync::Arc::clone(&brain);
         std::thread::spawn(move || {
+            started_tx.send(()).expect("signal");
             let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
             brain.stops.fetch_add(1, Ordering::SeqCst);
             brain.supervisor.stop();
         })
     };
-    // The Stop's chance to run while the walk sits in the window: under the
-    // gate it cannot get past the lock; without it, it finishes here.
+    // The stopper has provably started before the window releases the walk.
+    started_rx.recv().expect("the stopper started");
+    // Its chance to run while the walk sits here: under the gate it cannot
+    // get past the lock; without the gate it finishes this loop.
     for _ in 0..20 {
         if stopper.is_finished() {
             break;
@@ -2619,14 +2622,17 @@ fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
     };
     entered_rx.recv().expect("the walk claimed and paused inside the gate");
 
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
     let stopper = {
         let brain = std::sync::Arc::clone(&brain);
         std::thread::spawn(move || {
+            started_tx.send(()).expect("signal");
             let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
             brain.stops.fetch_add(1, Ordering::SeqCst);
             brain.supervisor.stop();
         })
     };
+    started_rx.recv().expect("the stopper started");
     for _ in 0..20 {
         if stopper.is_finished() {
             break;
