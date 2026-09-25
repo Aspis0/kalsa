@@ -305,8 +305,9 @@ pub enum Offload {
     /// The whole model was budgeted against the memory it decodes from, so
     /// every layer goes to the GPU.
     All,
-    /// CPU decode, stated with `--n-gpu-layers 0` — the budget was not
-    /// sized for the card; an unsized full offload is how a card OOMs.
+    /// CPU decode, stated with `--n-gpu-layers 0`: either the budget was
+    /// not sized for the card (an unsized full offload is how a card OOMs),
+    /// or it is the processor baseline the tune measures against.
     ForcedOff,
     /// The CPU build: no GPU code in it, so no GPU flag is rendered at all.
     NoGpuBuild,

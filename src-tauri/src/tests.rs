@@ -2570,9 +2570,10 @@ fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
     };
     // The stopper has provably started before the window releases the walk.
     started_rx.recv().expect("the stopper started");
-    // Its chance to run while the walk sits here: under the gate it cannot
-    // get past the lock; without the gate it finishes this loop.
-    for _ in 0..20 {
+    // The stopper finishes, or the 2 s bound passes: under the gate it is
+    // blocked (the accepted cost); without it, it provably ran — whenever
+    // it was scheduled.
+    for _ in 0..200 {
         if stopper.is_finished() {
             break;
         }
@@ -2633,7 +2634,8 @@ fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
         })
     };
     started_rx.recv().expect("the stopper started");
-    for _ in 0..20 {
+    // The same wait: blocked on the gate in correct code, finished without.
+    for _ in 0..200 {
         if stopper.is_finished() {
             break;
         }
