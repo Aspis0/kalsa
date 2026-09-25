@@ -10,39 +10,47 @@
 //! the comment at the fork's row). What matters to the door is only whether
 //! the module we would load carries the inlet.
 
+use crate::assets::Platform;
 use std::io::Read;
 use std::path::Path;
 
 /// The file the fork's server implementation is shipped in, beside the
 /// launcher. The launcher is thin: the inlet lives here, so searching the
 /// launcher alone would always report the capability missing.
-pub const ENGINE_MODULE_FILE: &str = "libllama-server-impl.dylib";
+#[cfg(target_os = "windows")]
+pub const ENGINE_MODULE_FILE: &str = engine_module_file(Platform::WindowsX64);
+#[cfg(not(target_os = "windows"))]
+pub const ENGINE_MODULE_FILE: &str = engine_module_file(Platform::MacArm64);
+
+/// Which module the fork ships a platform's engine's inlet in: the Windows
+/// archives carry a DLL, the macOS archive a dylib.
+const fn engine_module_file(platform: Platform) -> &'static str {
+    match platform {
+        Platform::WindowsX64 => "llama-server-impl.dll",
+        Platform::MacArm64 | Platform::MacX64 => "libllama-server-impl.dylib",
+    }
+}
 
 /// The inlet as the engine spells it in its own bytes. Lowercase only: the
 /// engine lowercases the header name before it matches, so a correct build
 /// carries the lowercase literal and not the capitalised one.
 ///
 /// The source of that claim, as it stands in the release this app installs:
-/// in `kalsa-server-v1.1.1` (`a7d2cec79`),
-/// `tools/server/server-context.cpp:4556` is
+/// in `kalsa-server-v1.1.2`, `tools/server/server-context.cpp:4556` is
 /// `static const std::string key = "x-kalsa-slot";` and the comparison at
-/// `tools/server/server-context.cpp:4563` is
-/// `if (std::tolower((unsigned char) k[i]) != key[i]) {` — the incoming
-/// header name is folded to lowercase byte by byte against that lowercase
-/// key. So the CASE is irrelevant to the ENGINE (it lowercases the byte in
-/// flight before comparing) and decisive for THIS PROBE (which searches a
-/// literal in the binary): that is why `INLET` is spelled the way the
-/// engine's own key is, and not the capitalised spelling.
+/// `:4563` folds the incoming header name to lowercase byte by byte against
+/// that key. So the CASE is irrelevant to the ENGINE and decisive for THIS
+/// PROBE (which searches a literal in the binary): `INLET` is spelled the
+/// way the engine's own key is.
 ///
 /// The counts are a measurement over an artifact that is NOT in this repo,
-/// so they travel with their command: `strings -a <dylib> | grep -c` on the
-/// published archive's `libllama-server-impl.dylib` answers `x-kalsa-slot`
-/// = 1 and `X-Kalsa-Slot` = 0, on BOTH modules this app has pinned — the
-/// v1.1.0 module (archive fetched from the CDN on 2026-09-23 and checked
-/// against its published sha256 first) and the v1.1.1 module, the one the
-/// app pins today. Redo it the same way on the next release rather than
-/// trusting a version word here: searching for the capitalised form would
-/// report the inlet missing exactly where it is present.
+/// so they travel with their command: `strings -a <module> | grep -c` on
+/// the published module answers `x-kalsa-slot` = 1 and `X-Kalsa-Slot` = 0
+/// (v1.1.2's macOS dylib, from the release archive, checked against its
+/// published sha256 first, 2026-09-25). Redo it the same way on the next
+/// release rather than trusting a version word here: searching for the
+/// capitalised form would report the inlet missing exactly where it is
+/// present.
 const INLET: &[u8] = b"x-kalsa-slot";
 
 /// Whether the engine at `exe` consumes the door's private headers, read
@@ -124,6 +132,28 @@ mod tests {
         }
     }
 
+    /// The module's name is a fact about the platform's archive: the Windows
+    /// fork zips ship `llama-server-impl.dll`, the macOS archive a dylib —
+    /// and the running build's constant agrees with its own platform.
+    #[test]
+    fn each_platform_reads_the_module_the_fork_ships_for_it() {
+        assert_eq!(
+            engine_module_file(Platform::WindowsX64),
+            "llama-server-impl.dll"
+        );
+        assert_eq!(
+            engine_module_file(Platform::MacArm64),
+            "libllama-server-impl.dylib"
+        );
+        assert_eq!(
+            engine_module_file(Platform::MacX64),
+            "libllama-server-impl.dylib"
+        );
+        if let Some(platform) = Platform::current() {
+            assert_eq!(ENGINE_MODULE_FILE, engine_module_file(platform));
+        }
+    }
+
     #[test]
     fn the_lowercase_inlet_is_the_one_a_correct_engine_carries() {
         let exe = mounted("present", b"a module carrying x-kalsa-slot inside");
@@ -151,7 +181,7 @@ mod tests {
 
     #[test]
     fn a_missing_module_is_not_a_capability() {
-        // An upstream archive, a Windows archive, an Intel row: the launcher
+        // An upstream archive (the CUDA rows) or an Intel row: the launcher
         // exists and the module beside it does not. False, not an error the
         // door has to interpret.
         let dir = scratch("no-module");

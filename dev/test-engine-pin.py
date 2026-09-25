@@ -69,7 +69,7 @@ ASSETS_RS = REPO / "crates" / "kalsa-runtime" / "src" / "assets.rs"
 SELF = Path(__file__).resolve()
 
 # The anchor. Declared by this control, in this file, on purpose.
-RELEASE = "kalsa-server-v1.1.1"
+RELEASE = "kalsa-server-v1.1.2"
 RELEASE_HOME = ("https://dl.kalsa.io/kalsa-server/"
                 + RELEASE.removeprefix("kalsa-server-"))
 MANIFEST_URL = RELEASE_HOME + "/manifest.json"
@@ -89,26 +89,26 @@ WRONG_EXE = "ab" * 32
 #          already is about this field)
 MUTATIONS = {
     "home (FORK_BASE, as the reviewer mutated it)": (
-        'const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.1";',
+        'const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.2";',
         f'const FORK_BASE: &str = "{V110_HOME}";',
         "home:",
         "SILENT at runtime — the download verifies size/sha, not the host; "
         "the Rust test only asserts home == FORK_BASE (a stale pair passes "
         "together); the user meets the wrong host after install"),
     "file": (
-        '        file: "kalsa-server-v1.1.1-bin-macos-arm64.tar.gz",',
+        '        file: "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz",',
         f'        file: "{V110_FILE}",',
         "file:",
         "SILENT at runtime — the download verifies size/sha, not the name; "
         "the old name gets looked for inside the new archive"),
     "size_bytes": (
-        "        size_bytes: Some(11_207_195),",
+        "        size_bytes: Some(11_207_047),",
         f"        size_bytes: {V110_SIZE},",
         "size_bytes:",
         "NOISY — store.rs:269 verifies the download against it and would "
         "already scream"),
     "sha256": (
-        '        sha256: Some("a90d88a1650367c6821f70e625a4ff2d43744d5986580c206434381a732075a7"),',
+        '        sha256: Some("691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"),',
         f'        sha256: Some("{V110_SHA}"),',
         "sha256: row",
         "NOISY — store.rs:292 verifies the download against it and would "
@@ -321,7 +321,7 @@ def run_mutations(assets_text, recorded_manifest_path):
     # disagree and the control did not notice.
     control = tmp / "test-engine-pin--anchor-v1.1.0.py"
     own = SELF.read_text()
-    needle = '\nRELEASE = "kalsa-server-v1.1.1"\n'
+    needle = '\nRELEASE = "kalsa-server-v1.1.2"\n'
     if own.count(needle) != 1:
         print("  [FAIL] anchor mutation: RELEASE needle moved", file=sys.stderr)
         survived.add("anchor mutation: the RELEASE definition moved, unproven")
