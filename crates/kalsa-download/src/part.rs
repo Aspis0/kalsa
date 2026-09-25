@@ -131,14 +131,17 @@ fn open_existing(path: &Path) -> io::Result<File> {
 /// (`SetFileInformationByHandle(FileRenameInfo)`), which needs DELETE access
 /// on it — plain read+write fails with GetLastError=5, measured on the
 /// Surface as the walk's `ServerFetchFailed`. `access_mode` replaces the
-/// read/write-derived rights, so all three are named together. Every opener
-/// inside this process shares delete — std's default share is
-/// READ|WRITE|DELETE — so our own handles never block the rename. An outside
-/// holder can: an antivirus, an indexer, a user's tool that opened the file
-/// without FILE_SHARE_DELETE makes the rename fail with an OS error. The
-/// complete .part then stays (the publish error path never discards it) and
-/// the next attempt resumes it — at full size it verifies and publishes
-/// without moving a byte.
+/// read/write-derived rights, so all three are named together. The sharing
+/// runs both ways: an outside handle that already refuses delete sharing
+/// makes this open fail before any publish, and while this handle is open an
+/// outside opener without FILE_SHARE_DELETE cannot get in — an outside
+/// holder of the .part never reaches a rename to fail. What fails one is a
+/// restrictive handle on the destination (publish.rs's module doc). The
+/// complete .part is then left behind — the publish error path never
+/// discards it — and the next attempt resumes it, given the 256 MiB
+/// free-space margin still passes (download.rs charges it even at
+/// `remaining == 0`) and the promised digest is unchanged (verify discards
+/// on mismatch).
 #[cfg(windows)]
 fn with_delete_access(options: &mut OpenOptions) {
     use std::os::windows::fs::OpenOptionsExt;

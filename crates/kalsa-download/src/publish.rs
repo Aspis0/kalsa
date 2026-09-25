@@ -145,10 +145,11 @@ fn windows(part: &mut PartFile, dest: &Path) -> io::Result<()> {
     let laid_out = offset_of!(FILE_RENAME_INFO, FileName) + name.len() * 2;
     let bytes = size_of::<FILE_RENAME_INFO>().max(laid_out);
     let mut buffer = vec![0u64; bytes.div_ceil(8)];
-    // Every pointer derives from the buffer: no reference to the struct ever
-    // exists, so nothing can name the one-element `FileName` as the whole
-    // object while the name is written past its end — inside this
-    // allocation, where `bytes` says it fits.
+    // Every destination pointer derives from the buffer — only the copy's
+    // source is `name` — so no reference to the struct ever exists, and
+    // nothing can name the one-element `FileName` as the whole object while
+    // the name is written past its end: inside this allocation, where
+    // `bytes` says it fits.
     let base = buffer.as_mut_ptr();
     unsafe {
         let info = base.cast::<FILE_RENAME_INFO>();
