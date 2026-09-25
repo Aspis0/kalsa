@@ -150,11 +150,15 @@ impl Running for Child {
         {
             // TerminateProcess is the only stop Windows has, and it must be
             // called: without it `wait()` waits for a child that has no reason
-            // to exit — the walk's hang, proven on the Surface. A child that
-            // already exited makes `kill` error; that error is dropped,
-            // because `wait` below is what decides the stop.
+            // to exit — the walk's hang, proven on the Surface. Rust documents
+            // kill as "Forces the child process to exit. If the child has
+            // already exited, `Ok(())` is returned" (std::process::Child::kill,
+            // pinned toolchain source), so an Err is a real failure — access
+            // denied, an invalid handle — with the child possibly still
+            // running: it propagates, because waiting after a failed kill is
+            // the hang again.
             let _ = grace;
-            let _ = self.inner.kill();
+            self.inner.kill()?;
         }
         self.inner.wait()
     }
@@ -244,18 +248,36 @@ mod tests {
             matches!(child.try_exit(), Ok(None)),
             "the stand-in must be healthy and running"
         );
+        // The thread takes the child; the pid stays here so the timeout path
+        // can reclaim the stand-in it can no longer reach.
+        let pid = child.inner.id();
         let grace = Duration::from_secs(2);
         let (tx, rx) = std::sync::mpsc::channel();
+        let started = Instant::now();
         std::thread::spawn(move || {
             let _ = tx.send(child.stop(grace));
         });
         match rx.recv_timeout(Duration::from_secs(15)) {
-            Ok(Ok(status)) => assert!(
-                !status.success(),
-                "the kill stopped it, not a natural exit ({status})"
-            ),
+            Ok(Ok(_status)) => {
+                // What is proven: a stand-in with 300 s of life left is
+                // reaped in seconds — killed, not waited out.
+                let elapsed = started.elapsed();
+                assert!(
+                    elapsed < Duration::from_secs(5),
+                    "stop returned after {elapsed:?} — it must reap the \
+                     300-second stand-in promptly, not wait out its life"
+                );
+            }
             Ok(Err(error)) => panic!("stop failed: {error}"),
-            Err(_) => panic!("stop did not return within 15s — it never killed the child"),
+            Err(_) => {
+                // The thread owns `child` and is blocked in `wait`: reclaim
+                // the stand-in by pid so this failure leaves nothing running.
+                let _ = terminate_pid(pid, Duration::from_secs(1));
+                panic!(
+                    "stop did not return within 15s — it never killed the child \
+                     (stand-in {pid} killed by pid)"
+                );
+            }
         }
     }
 }
