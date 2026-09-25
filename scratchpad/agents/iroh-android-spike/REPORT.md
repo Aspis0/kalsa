@@ -78,3 +78,8 @@ throwaway Expo module or run `dsh-tether` — (a) prove `bind()` doesn't hang on
 If (a) fails or n0 ships the alignment patch + a 1.2-tracking release, revisit iroh-ffi.
 **Risks (own crate)**: we own uniffi/JNI scaffolding and iroh bumps; Doze forces a foreground
 service; Android DNS config; relay-keepalive battery on cellular unmeasured; ~13.4 MiB/arm64.
+## Decision (coordinator, 2026-09-25, on kalsa-brain's suggestion)
+The phone crate depends on brain's `crates/kalsa-iroh` as a git dependency pinned to a brain commit and
+wraps only `Bridge::connect` + `TunnelStream` with uniffi. One source for ALPN, key format and relay
+choice, so the two ends cannot skew. Android blockers found inside it (e.g. the key file path or its
+permissions in `key.rs`) go back to kalsa-brain to be fixed on the desktop side.
