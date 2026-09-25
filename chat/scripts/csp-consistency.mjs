@@ -3,15 +3,28 @@
 // `src-tauri/tauri.conf.json` — and the webview enforces their INTERSECTION.
 //
 // So a `connect-src` in one policy and not the other is not silence: the one
-// without it falls back to `default-src 'self'`, and `'self'` is the page's own
-// origin (`tauri://localhost`), not the local server. That is how every `fetch`
-// in `chat/src/lib/chat.ts` — the context size, the sampling defaults and the
-// chat completion itself — came to be blocked in a built binary, while every
-// test that talks to the server directly kept passing.
+// without it falls back to `default-src 'self'`, and `'self'` is the page's
+// own origin (`tauri://localhost`), not the local server. That is how every
+// `fetch` in `chat/src/lib/chat.ts` — the context size, the sampling defaults
+// and the chat completion itself — came to be blocked in a built binary, while
+// every test that talks to the server directly kept passing.
 //
-// This reads both real files and fails when the two lists disagree, when either
-// policy would block the local server, or when either has been widened to admit
-// any origin. It parses the directives; it holds no copy of the expected list.
+// The same reasoning gates the app's own code. The built page's module
+// scripts and the pdf.js worker both come from bundled files on the page's
+// origin: `chat/src/lib/attachments.ts` sets `GlobalWorkerOptions.workerSrc`
+// to a `?url` asset — same-origin, so pdf.js passes that URL straight to
+// `new Worker` instead of wrapping it in a blob. `script-src` must admit it,
+// and so must `worker-src`, resolved through the spec's fallback
+// (`worker-src` → `script-src` → `default-src` when a policy does not name
+// `worker-src` — neither does). A `worker-src` that admits neither, or that
+// one policy allows and the other does not, would break PDF extraction in a
+// built binary while a `connect-src`-only guard still passed.
+//
+// This reads both real files and fails when the two lists disagree, when
+// either policy would block the local server or the app's own same-origin
+// assets, or when either has been widened to admit any origin. It parses the
+// directives; apart from what this app provably loads — the local server and
+// its bundled files — it holds no copy of an expected list.
 // Run: `node scripts/csp-consistency.mjs`
 
 import { readFile } from "node:fs/promises";
@@ -35,12 +48,22 @@ function directives(policy) {
   return found;
 }
 
-/// The sources that govern `connect-src`, and whether the policy names them at
-/// all — the fallback to `default-src` is what blocked every frontend fetch.
-function connectSources(policy) {
-  const found = directives(policy);
-  const named = found.get("connect-src") ?? null;
-  return { named, effective: named ?? found.get("default-src") ?? [] };
+/// One directive's effective sources: its own list, or the first entry of the
+/// fallback chain that names it. `null` — nothing in the chain names it — is
+/// the spec's "no restriction", which admits everything below.
+function effectiveSources(found, chain) {
+  for (const name of chain) {
+    const sources = found.get(name);
+    if (sources) return sources;
+  }
+  return null;
+}
+
+/// Whether the effective list allows the page's own origin. `'self'` is the
+/// only source expression that names it — it is not a host a copy can drift
+/// with, it is wherever this page was served from.
+function admitsSelf(sources) {
+  return sources === null || sources.some((source) => source.toLowerCase() === "'self'");
 }
 
 /// Whether one source expression admits `target`. Only the shapes a
@@ -69,9 +92,36 @@ function anyHost(source) {
 }
 
 function sameSources(left, right) {
-  const normalized = (sources) => sources.map((source) => source.toLowerCase()).sort().join(" ");
+  const normalized = (sources) =>
+    sources === null
+      ? "<unnamed: no restriction>"
+      : [...sources].map((source) => source.toLowerCase()).sort().join(" ");
   return normalized(left) === normalized(right);
 }
+
+function show(sources) {
+  return sources === null ? "<unnamed: no restriction>" : sources.join(" ") || "(nothing allowed)";
+}
+
+/// The directives whose failure stops a BUILT binary from running its own
+/// code, each with the fallback chain the spec resolves it through when a
+/// policy does not name the directive. What such a binary loads is bundled
+/// files on the page's own origin — the module scripts `index.html` points
+/// at, the pdf.js worker `attachments.ts` sets — so the effective list for
+/// each must allow `'self'` in both policies, and the two lists must be
+/// identical, because the webview enforces their intersection.
+const GATED = [
+  {
+    directive: "script-src",
+    chain: ["script-src", "default-src"],
+    loads: "the bundle's module scripts",
+  },
+  {
+    directive: "worker-src",
+    chain: ["worker-src", "script-src", "default-src"],
+    loads: "the pdf.js worker (the `?url` asset of chat/src/lib/attachments.ts)",
+  },
+];
 
 const problems = [];
 
@@ -89,11 +139,18 @@ if (typeof tauriPolicy !== "string") {
 }
 
 const policies = [
-  ...(metaPolicy ? [{ label: INDEX_HTML, ...connectSources(metaPolicy) }] : []),
-  ...(typeof tauriPolicy === "string" ? [{ label: TAURI_CONF, ...connectSources(tauriPolicy) }] : []),
+  ...(metaPolicy ? [{ label: INDEX_HTML, found: directives(metaPolicy) }] : []),
+  ...(typeof tauriPolicy === "string" ? [{ label: TAURI_CONF, found: directives(tauriPolicy) }] : []),
 ];
 
-for (const { label, named } of policies) {
+/// `connect-src` as the two policies spell it: named or falling back, which
+/// is what blocked every frontend fetch before this script existed.
+const connections = policies.map(({ label, found }) => {
+  const named = found.get("connect-src") ?? null;
+  return { label, named, effective: named ?? found.get("default-src") ?? [] };
+});
+
+for (const { label, named } of connections) {
   if (named === null) {
     problems.push(
       `${label}: connect-src is missing, so default-src governs it and only the page's own origin is allowed; ` +
@@ -102,8 +159,8 @@ for (const { label, named } of policies) {
   }
 }
 
-if (policies.length === 2 && policies.every(({ named }) => named !== null)) {
-  const [first, second] = policies;
+if (connections.length === 2 && connections.every(({ named }) => named !== null)) {
+  const [first, second] = connections;
   if (!sameSources(first.named, second.named)) {
     problems.push(
       `the two connect-src lists disagree, so the webview enforces their intersection and the narrower one wins:\n` +
@@ -114,7 +171,7 @@ if (policies.length === 2 && policies.every(({ named }) => named !== null)) {
   }
 }
 
-for (const { label, effective } of policies) {
+for (const { label, effective } of connections) {
   for (const url of REACHABLE) {
     if (!effective.some((source) => admits(source, new URL(url)))) {
       problems.push(
@@ -133,11 +190,40 @@ for (const { label, effective } of policies) {
   }
 }
 
+for (const { directive, chain, loads } of GATED) {
+  const effective = policies.map(({ label, found }) => ({
+    label,
+    sources: effectiveSources(found, chain),
+  }));
+
+  if (effective.length === 2 && !sameSources(effective[0].sources, effective[1].sources)) {
+    problems.push(
+      `the two effective ${directive} lists disagree (the chain read is ${chain.join(" → ")}), so the ` +
+        `webview enforces their intersection and the narrower one wins:\n` +
+        `      ${effective[0].label}: ${show(effective[0].sources)}\n` +
+        `      ${effective[1].label}: ${show(effective[1].sources)}\n` +
+        `    Make the two lists identical.`,
+    );
+  }
+
+  for (const { label, sources } of effective) {
+    if (!admitsSelf(sources)) {
+      problems.push(
+        `${label}: the effective ${directive} (${show(sources)}) does not allow 'self'; ${loads} must ` +
+          `come from the page's own origin and would be blocked in a built binary`,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.log("CONTENT SECURITY POLICY FAILURES:");
   for (const problem of problems) console.log(`  - ${problem}`);
   process.exitCode = 1;
 } else {
-  const sources = policies[0]?.named?.join(" ") ?? "";
-  console.log(`ok: both policies allow the same local origins and reach the server — connect-src ${sources}`);
+  const sources = connections[0]?.named?.join(" ") ?? "";
+  console.log(
+    `ok: both policies agree on connect-src (${sources}), script-src and the effective worker source, ` +
+      `and each allows the local server and the app's own origin`,
+  );
 }
