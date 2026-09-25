@@ -70,9 +70,13 @@ enum SendFailed {
 /// One POST to `/completion`, shared by the tune's samples and the check.
 fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
     let body = completion_body(n_predict);
-    // Explicit: the request timeout does not cover the connect, whose
-    // default is 30 s — without this the bounded claims above are false.
-    let agent = ureq::AgentBuilder::new().timeout_connect(timeout).build();
+    // Explicit: the request timeout covers neither the connect (ureq's
+    // default is 30 s) nor a redirect's deadline-free DNS lookup — the
+    // only server we dial is our own on 127.0.0.1, which never redirects.
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(timeout)
+        .redirects(0)
+        .build();
     match agent
         .post(&format!("http://{addr}/completion"))
         .timeout(timeout)
@@ -80,13 +84,21 @@ fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, S
     {
         // The body has its own deadline; running out of time while reading
         // it is the same timeout as anywhere else.
-        Ok(response) => response.into_string().map_err(|io| {
-            if io.kind() == std::io::ErrorKind::TimedOut {
-                SendFailed::Timeout
-            } else {
-                SendFailed::Failed
+        Ok(response) => {
+            // A refused redirect arrives as an Ok: someone else's body is
+            // never a sample, and reading one that stalls must not come
+            // back as the Timeout that would blame our card.
+            if !(200..300).contains(&response.status()) {
+                return Err(SendFailed::Failed);
             }
-        }),
+            response.into_string().map_err(|io| {
+                if io.kind() == std::io::ErrorKind::TimedOut {
+                    SendFailed::Timeout
+                } else {
+                    SendFailed::Failed
+                }
+            })
+        }
         Err(ureq::Error::Transport(transport)) => {
             // ureq has no timeout kind of its own: a request that ran out
             // of time arrives as an io error with TimedOut underneath.
@@ -322,6 +334,79 @@ mod check_tests {
                 Answer::Failed
             ),
             "a refused connection is a failure, not a slow card"
+        );
+    }
+
+    /// A 3xx is not our server's answer: it must read as `Failed` — not
+    /// the `Timeout` that would blame the card, not a rate from somebody
+    /// else's body — and the check must be back inside its bound without
+    /// leaving this loopback, because the redirect's hostname is the one
+    /// thing that could outlast it.
+    #[test]
+    fn a_redirect_is_refused_and_the_check_stays_inside_its_bound() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let _responder = std::thread::spawn(move || {
+            // The warm-up's request and the measured one: each is answered
+            // with the same redirect.
+            for _ in 0..2 {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                std::thread::spawn(move || {
+                    use std::io::{Read, Write};
+                    // Drain before answering: bytes still unread at close
+                    // reset the connection and can eat the reply.
+                    let mut got = Vec::new();
+                    let mut chunk = [0u8; 512];
+                    let want = loop {
+                        match stream.read(&mut chunk) {
+                            Ok(0) | Err(_) => break 0,
+                            Ok(n) => got.extend_from_slice(&chunk[..n]),
+                        }
+                        if let Some(head_end) = got.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let head = String::from_utf8_lossy(&got[..head_end]).to_ascii_lowercase();
+                            let body = head
+                                .split_once("content-length:")
+                                .and_then(|(_, rest)| rest.split_whitespace().next())
+                                .and_then(|n| n.parse::<usize>().ok())
+                                .unwrap_or(0);
+                            break head_end + 4 + body;
+                        }
+                    };
+                    while got.len() < want {
+                        match stream.read(&mut chunk) {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => got.extend_from_slice(&chunk[..n]),
+                        }
+                    }
+                    // The body is a perfect rate on purpose: only the
+                    // status may refuse it.
+                    let fake = br#"{"timings":{"predicted_n":16,"predicted_per_second":99.9}}"#;
+                    let reply = format!(
+                        "HTTP/1.1 302 Found\r\nlocation: http://example.invalid/\r\ncontent-length: {}\r\n\r\n{}",
+                        fake.len(),
+                        String::from_utf8_lossy(fake)
+                    );
+                    let _ = stream.write_all(reply.as_bytes());
+                });
+            }
+        });
+        let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
+        let timeout = Duration::from_millis(100);
+        let started = std::time::Instant::now();
+        let answer = checked_rate(addr, timeout);
+        let elapsed = started.elapsed();
+        assert!(
+            matches!(answer, Answer::Failed),
+            "a redirect must be a failure, not a rate and not a slow card"
+        );
+        // Two loopback round trips take ~1 ms; following the redirect pays
+        // a resolver lookup with no deadline of its own on top, so a wall
+        // at a twentieth of the ask's bound is where the hop shows.
+        assert!(
+            elapsed < timeout / 20,
+            "the check must stay inside its own bound: {elapsed:?} for a {timeout:?} ask"
         );
     }
 
