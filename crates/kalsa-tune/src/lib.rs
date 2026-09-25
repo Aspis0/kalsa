@@ -14,4 +14,4 @@ mod candidates;
 mod winner;
 
 pub use candidates::{candidates, needs_tuning, Candidate};
-pub use winner::{winner, Outcome, Winner, TIE_BAND};
+pub use winner::{winner, Outcome, Refusal, Winner, TIE_BAND};

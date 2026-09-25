@@ -50,7 +50,7 @@
             winner: Some(Winner { candidate: gpu, best: 49.0 }),
             trials: vec![
                 (gpu, Kept::Best(49.0)),
-                (cpu16, Kept::Refused("it did not load".into())),
+                (cpu16, Kept::Refused(Refusal::DidNotStart)),
                 (mac, Kept::Best(21.0)),
             ],
         }
@@ -116,13 +116,15 @@
         assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
     }
 
-    /// A cut inside a refusal: the reason loads shorter and looks
-    /// complete — only the missing end says otherwise.
+    /// A cut right after a refusal line. The cause itself can no longer be
+    /// cut into something loadable — a closed name parses whole or not at
+    /// all — so the boundary that still matters is the one after it: the
+    /// file must not end before its `end`.
     #[test]
-    fn a_file_cut_inside_a_refusal_reads_as_no_record() {
+    fn a_file_cut_after_a_refusal_reads_as_no_record() {
         let dir = Scratch::new("cut-refusal");
         let text = sample_text(&dir);
-        let cut = text.find("it did not load").expect("the refusal") + 6;
+        let cut = text.find("candidate.2.backend").expect("the trial after the refusal");
         rewrite(&dir, &text[..cut]);
         assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
     }
@@ -186,3 +188,118 @@
         assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
     }
 
+    /// One temp name per save: the pid separates processes and the
+    /// counter separates saves inside one, so two saves can never truncate
+    /// or rename each other's half-written file.
+    #[test]
+    fn temp_names_never_collide() {
+        let dir = Scratch::new("temp-names");
+        let first = temp_path(&dir);
+        let second = temp_path(&dir);
+        assert_ne!(first, second, "one name per save");
+        let name = first.file_name().expect("a file name").to_string_lossy();
+        assert!(
+            name.contains(&std::process::id().to_string()),
+            "the pid is in the name so another process cannot share it: {name}"
+        );
+    }
+
+    /// A successful save leaves only the record: no temp of its own behind.
+    #[test]
+    fn every_save_leaves_no_temp_behind() {
+        let dir = Scratch::new("no-temp");
+        save(&dir, &sample()).expect("save");
+        let names = std::fs::read_dir(&*dir)
+            .expect("the dir")
+            .map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec![FILE_NAME.to_string()], "only the record remains");
+    }
+
+    /// When the rename cannot land (the target is a directory), the temp
+    /// this save wrote is removed by its exact name — the failed save
+    /// leaves nothing of itself behind.
+    #[test]
+    fn a_failed_rename_removes_the_temp_it_wrote() {
+        let dir = Scratch::new("failed-rename");
+        std::fs::create_dir_all(path(&dir)).expect("a directory where the file should go");
+        let _error = save(&dir, &sample()).expect_err("a directory cannot be renamed over");
+        let names = std::fs::read_dir(&*dir)
+            .expect("the dir")
+            .map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec![FILE_NAME.to_string()], "no temp outlives its save");
+    }
+
+    /// A candidate opened and never finished before the end marker: the
+    /// trials would parse as the shorter record — only the guard at `end`
+    /// says no.
+    #[test]
+    fn a_candidate_left_open_at_the_end_reads_as_no_record() {
+        let dir = Scratch::new("open-at-end");
+        let text = sample_text(&dir);
+        let cut = text.rfind("end\n").expect("the end marker");
+        let mut forged = String::with_capacity(text.len() + 24);
+        forged.push_str(&text[..cut]);
+        forged.push_str("candidate.3.backend=vulkan\n");
+        forged.push_str("end\n");
+        rewrite(&dir, forged);
+        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+    }
+
+    /// Every shape `load` would refuse is refused by `save` first, with
+    /// InvalidInput, and nothing is written — not even the directory.
+    #[test]
+    fn an_unloadable_record_is_refused_before_anything_is_written() {
+        let good = sample();
+        let trials = &good.trials;
+
+        let no_trials = Record { fingerprint: good.fingerprint.clone(), winner: None, trials: vec![] };
+        let zero_threads = Record {
+            trials: vec![(
+                Candidate { backend: ServerBackend::Cpu, threads: Some(0), offload: Offload::NoGpuBuild },
+                Kept::Best(9.0),
+            )],
+            ..good.clone()
+        };
+        let bad_best = Record {
+            trials: vec![(trials[0].0, Kept::Best(0.0))],
+            ..good.clone()
+        };
+        let stray_winner = Record {
+            winner: Some(Winner {
+                candidate: Candidate {
+                    backend: ServerBackend::Cpu,
+                    threads: Some(99),
+                    offload: Offload::NoGpuBuild,
+                },
+                best: 5.0,
+            }),
+            ..good.clone()
+        };
+
+        // Prefixed so no scratch name collides with another test's: two
+        // tests sharing a dir on one pid share their fate.
+        for (name, record) in [
+            ("save-no-trials", no_trials),
+            ("save-zero-threads", zero_threads),
+            ("save-bad-best", bad_best),
+            ("save-stray-winner", stray_winner),
+        ] {
+            let dir = Scratch::new(name);
+            let error = save(&dir, &record)
+                .expect_err("save must refuse what load would refuse");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}: {error}");
+            assert!(!dir.exists(), "{name}: nothing was written");
+        }
+    }
+
+    /// A refusal on disk is a closed cause, not a sentence: a path or any
+    /// other text a step-2 stderr line might carry is not our format.
+    #[test]
+    fn a_refusal_that_is_not_a_closed_cause_reads_as_no_record() {
+        let dir = Scratch::new("free-text-refusal");
+        let text = sample_text(&dir);
+        rewrite(&dir, text.replace("refused=did-not-start", "refused=/home/user/llama.log"));
+        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+    }

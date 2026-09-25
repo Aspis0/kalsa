@@ -12,14 +12,30 @@ use crate::candidates::Candidate;
 /// not the settings.
 pub const TIE_BAND: f64 = 0.05;
 
+/// Why a candidate produced no samples — a closed set of our own causes,
+/// never free text: this is written to disk (`tuning.txt`), and an
+/// arbitrary stderr line would carry paths or anything else the engine
+/// happened to print. Stable names, one per cause, in the record.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// The engine never came up: the spawn failed, or the process died
+    /// before it ever answered.
+    DidNotStart,
+    /// It was alive but never answered readiness inside the deadline.
+    NotReady,
+    /// It ran and answered, but no usable decode rate came out of it —
+    /// nothing finished, or the timings were unusable.
+    NoUsableAnswer,
+}
+
 /// One candidate's result: the tokens-per-second samples it produced, or
-/// why it produced none. A refused candidate never wins — there is no
-/// number to win with, and inventing one would rank a failure above a
-/// slow success.
+/// which closed cause kept it from producing any. A refused candidate
+/// never wins — there is no number to win with, and inventing one would
+/// rank a failure above a slow success.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Outcome {
     Measured(Vec<f64>),
-    Refused(String),
+    Refused(Refusal),
 }
 
 impl Outcome {
@@ -118,7 +134,7 @@ mod tests {
     }
 
     /// A candidate four times faster is not a tie: the graphics run wins
-    /// on its number, and it frees the processor besides.
+    /// on its number, and full offload is the lighter setting besides.
     #[test]
     fn the_graphics_candidate_wins_when_it_is_faster() {
         let trials = [
@@ -135,7 +151,7 @@ mod tests {
     #[test]
     fn a_refused_candidate_falls_to_the_best_processor() {
         let trials = [
-            (gpu(), Outcome::Refused("it did not load".into())),
+            (gpu(), Outcome::Refused(Refusal::DidNotStart)),
             (cpu(16), Outcome::Measured(vec![11.8])),
         ];
         assert_eq!(winner(&trials).map(|win| win.candidate), Some(cpu(16)));
@@ -146,8 +162,8 @@ mod tests {
     #[test]
     fn nothing_measured_means_no_winner() {
         let trials = [
-            (gpu(), Outcome::Refused("it timed out".into())),
-            (cpu(16), Outcome::Refused("it did not load".into())),
+            (gpu(), Outcome::Refused(Refusal::NotReady)),
+            (cpu(16), Outcome::Refused(Refusal::DidNotStart)),
         ];
         assert_eq!(winner(&trials), None);
         assert_eq!(winner(&[]), None);

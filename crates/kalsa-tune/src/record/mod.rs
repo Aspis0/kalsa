@@ -6,12 +6,13 @@
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
 use crate::candidates::Candidate;
-use crate::winner::{Outcome, Winner};
+use crate::winner::{Outcome, Refusal, Winner};
 
 const MAGIC: &str = "kalsa-tune v1";
 /// The winner as the file holds it, field by field until every line has
@@ -25,19 +26,18 @@ const FILE_NAME: &str = "tuning.txt";
 #[derive(Clone, Debug, PartialEq)]
 pub enum Kept {
     Best(f64),
-    Refused(String),
+    Refused(Refusal),
 }
 
 impl From<&Outcome> for Kept {
     fn from(outcome: &Outcome) -> Self {
         match outcome {
-            Outcome::Refused(reason) => Self::Refused(reason.clone()),
+            Outcome::Refused(refusal) => Self::Refused(*refusal),
             Outcome::Measured(_) => match outcome.best() {
                 Some(rate) => Self::Best(rate),
                 // A measurement with no usable sample proved nothing —
-                // recorded as the refusal it functionally is, in words
-                // that say which one it was.
-                None => Self::Refused("unmeasured".into()),
+                // kept as the closed cause it functionally is.
+                None => Self::Refused(Refusal::NoUsableAnswer),
             },
         }
     }
@@ -56,11 +56,49 @@ pub struct Record {
     pub trials: Vec<(Candidate, Kept)>,
 }
 
+/// The shape `load` accepts, checked before anything is written: a save
+/// that could only ever read back as "no record" is this side's bug, not
+/// the reader's to catch. A refusal is `InvalidInput` and touches nothing
+/// on disk — a failed save leaves the predecessor in place.
+fn validate(record: &Record) -> io::Result<()> {
+    fn reject(why: &str) -> io::Result<()> {
+        Err(io::Error::new(io::ErrorKind::InvalidInput, why))
+    }
+    if record.trials.is_empty() {
+        return reject("a record without trials reads as no record");
+    }
+    for (candidate, kept) in &record.trials {
+        if candidate.threads == Some(0) {
+            return reject("a thread count of zero is not a count anyone ran");
+        }
+        if let Kept::Best(rate) = kept {
+            if !rate.is_finite() || *rate <= 0.0 {
+                return reject("a best must be a positive, finite rate");
+            }
+        }
+    }
+    if let Some(winner) = &record.winner {
+        if !trial_holds(&record.trials, &winner.candidate, winner.best) {
+            return reject("the winner must be one of the record's own trials");
+        }
+    }
+    Ok(())
+}
+
+/// The winner is a trial of this record with the same number — the one
+/// rule, used by both sides, so `save` cannot write what `load` refuses.
+fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, best: f64) -> bool {
+    trials.iter().any(|(trial, kept)| {
+        *trial == *candidate && matches!(kept, Kept::Best(rate) if *rate == best)
+    })
+}
+
 /// Saves the record atomically: a temp file in the same directory, renamed
 /// over the old one. A crash mid-write therefore leaves the predecessor
 /// whole (or no record at all on the first save) — never a truncated file
 /// that could parse as a smaller truth.
 pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
+    validate(record)?;
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
     for (index, (candidate, kept)) in record.trials.iter().enumerate() {
@@ -74,11 +112,9 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
         ));
         match kept {
             Kept::Best(rate) => text.push_str(&format!("candidate.{index}.best={rate}\n")),
-            Kept::Refused(reason) => text.push_str(&format!(
-                // A refusal reason is a sentence someone else wrote: one
-                // line only, or it would desync the lines() parse.
+            Kept::Refused(refusal) => text.push_str(&format!(
                 "candidate.{index}.refused={}\n",
-                reason.replace(['\n', '\r'], " ")
+                refusal_name(*refusal)
             )),
         }
     }
@@ -97,13 +133,28 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
     // suffer lands before it, and a record without it is a record we do
     // not have.
     text.push_str("end\n");
-    let temp = dir.join(format!("{FILE_NAME}.tmp"));
-    {
+    let temp = temp_path(dir);
+    let written = {
         let mut file = fs::File::create(&temp)?;
         file.write_all(text.as_bytes())?;
-        file.flush()?;
+        file.flush()
+    };
+    if let Err(error) = written.and_then(|()| fs::rename(&temp, path(dir))) {
+        // Whatever failed, THIS save's temp is this save's to clean — by
+        // its own unique name, never another save's half-written file.
+        let _ = fs::remove_file(&temp);
+        return Err(error);
     }
-    fs::rename(&temp, path(dir))
+    Ok(())
+}
+
+/// One temp name per save: the pid separates processes, the counter
+/// separates saves inside one — two concurrent saves must never truncate
+/// or rename each other's half-written file.
+fn temp_path(dir: &Path) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let serial = COUNTER.fetch_add(1, Ordering::Relaxed);
+    dir.join(format!("{FILE_NAME}.{}.{}.tmp", std::process::id(), serial))
 }
 
 /// The saved record, if it is ours, whole, valid, and still this
@@ -131,6 +182,12 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
             return None; // nothing may follow `end`
         }
         if line == "end" {
+            // A candidate still open at the end never finished — only a
+            // hand writes that, and the record it would claim is shorter
+            // than the file pretends.
+            if open.is_some() {
+                return None;
+            }
             saw_end = true;
             continue;
         }
@@ -170,7 +227,7 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
                     kept = Some(if field == "best" {
                         Kept::Best(parse_rate(value)?)
                     } else {
-                        Kept::Refused(value.to_string())
+                        Kept::Refused(refusal_from_name(value)?)
                     });
                 }
                 _ => return None,
@@ -226,16 +283,11 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
             let offload = offload?;
             let best = best?;
             let candidate = Candidate { backend, threads, offload };
-            // The winner must be one of the loaded trials, with the same
-            // number: a file whose winner cannot be found among its own
-            // candidates is a file that lost its middle.
-            let same_trial = trials.iter().any(|(trial, kept)| {
-                *trial == candidate && matches!(kept, Kept::Best(rate) if *rate == best)
-            });
-            if !same_trial {
+            // A file whose winner cannot be found among its own candidates
+            // is a file that lost its middle.
+            if !trial_holds(&trials, &candidate, best) {
                 return None;
             }
-
             Some(Winner { candidate, best })
         }
     };
@@ -264,6 +316,25 @@ fn offload_name(offload: Offload) -> &'static str {
         Offload::All => "all",
         Offload::ForcedOff => "forced-off",
         Offload::NoGpuBuild => "no-gpu-build",
+    }
+}
+
+/// The record's name for each cause: an exhaustive match, so a new variant
+/// becomes a compile error here rather than a record nobody reads back.
+fn refusal_name(refusal: Refusal) -> &'static str {
+    match refusal {
+        Refusal::DidNotStart => "did-not-start",
+        Refusal::NotReady => "not-ready",
+        Refusal::NoUsableAnswer => "no-usable-answer",
+    }
+}
+
+fn refusal_from_name(name: &str) -> Option<Refusal> {
+    match name {
+        "did-not-start" => Some(Refusal::DidNotStart),
+        "not-ready" => Some(Refusal::NotReady),
+        "no-usable-answer" => Some(Refusal::NoUsableAnswer),
+        _ => None,
     }
 }
 
