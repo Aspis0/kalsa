@@ -30,14 +30,16 @@ mod web;
 use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
-use kalsa_supervisor::{Failure, StartOutcome, StartSettled, Supervisor, ServerState, Watch};
+use kalsa_supervisor::{
+    Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor, ServerState, Watch,
+};
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
 
@@ -83,6 +85,10 @@ struct Brain {
     /// One walk at a time: a second press while the first is still deciding,
     /// downloading or starting must not start a second of anything.
     turning_on: AtomicBool,
+    /// How many Turn offs the owner has asked for. A walk captures it at its
+    /// start and re-checks it before each start it makes: a stop taken
+    /// mid-walk is never undone by the launch that follows.
+    stops: AtomicU64,
 }
 
 struct ActiveDoor {
@@ -283,6 +289,7 @@ impl Brain {
             road: Arc::new(road::Road::new()),
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
+            stops: AtomicU64::new(0),
         }
     }
 
@@ -1056,6 +1063,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         return Err("The assistant is already starting.".into());
     }
     brain.metrics.reset();
+    // The stop generation this walk is racing: a Turn off from here on must
+    // not be undone by any start this walk reaches.
+    let stops_seen = brain.stops.load(Ordering::SeqCst);
     let kept = brain
         .measurement
         .lock()
@@ -1127,7 +1137,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 
     let record_dir = app.path().app_data_dir().ok();
     let result = match outcome {
-        Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref()),
+        Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref(), stops_seen),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
         Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
@@ -1155,7 +1165,12 @@ type Walk = (Result<startup::PreparedStart, String>, Option<(Measurement, u64, u
 /// running and its own failures through brain_state; the record follows the
 /// verdict, not the wish: only a start the supervisor took may replace what
 /// the panel describes.
-fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result<(), String> {
+fn settle_walk(
+    brain: &Brain,
+    walked: Walk,
+    record_dir: Option<&Path>,
+    stops_seen: u64,
+) -> Result<(), String> {
     if let Some((measured, taken_unix, ram_bytes)) =
         walked.1.filter(|(measured, _, _)| measured.is_reliable())
     {
@@ -1171,45 +1186,42 @@ fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result
     }
     match walked.0 {
         Ok(mut prepared) => {
-            // The plan's own launch, kept before the tuned one goes up: if
-            // the tuned launch cannot load, this is the config a single
-            // retry uses — and the tuning record goes with the failure, so
-            // the next start measures again.
+            // The plan's own launch, kept before the tuned one goes up: the
+            // config the single retry uses if the tuned one cannot load.
             let rule = prepared.rule_launch.clone();
             let tuned_changed = rule.as_ref().is_some_and(|(config, _)| {
                 config.argv != prepared.server.argv || config.exe != prepared.server.exe
             });
-            let waiter = brain.supervisor.start(prepared.server.clone());
+            let waiter = match queue_start(brain, stops_seen, prepared.server.clone()) {
+                // A Turn off landed while the tune ran: nothing starts here.
+                Some(waiter) => waiter,
+                None => return Ok(()),
+            };
             let mut outcome = waiter.outcome();
-            // The verdict (taken or not) is answered before the handshake by
-            // design; the settle is THIS start's own report after it, so no
-            // state transition can be missed and no stale Failed misread.
+            // The verdict answers before the handshake; the settle is THIS
+            // start's own report after it.
             let settled = (outcome == StartOutcome::Accepted)
                 .then(|| waiter.settle())
                 .flatten();
-            if retry_after(settled, tuned_changed) {
-                if let Some((config, args)) = rule {
-                    // The record goes away with the failure, best effort: a
-                    // delete that fails leaves the record to be read next
-                    // start, whose tuned launch fails once more and takes the
-                    // same single retry — the same outcome, never a loop.
-                    kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root());
-                    let retry = brain.supervisor.start(config.clone());
-                    let retry_outcome = retry.outcome();
-                    // The retry settles too before the guard lets go.
-                    if retry_outcome == StartOutcome::Accepted {
-                        let _ = retry.settle();
-                    }
-                    outcome = retry_outcome;
-                    // The record must describe what actually runs.
-                    prepared.info.args = args;
-                    prepared.info.tune = None;
-                    prepared.server = config;
+            if let Some((retry, config, args)) =
+                attempt_retry(brain, stops_seen, settled, tuned_changed, rule)
+            {
+                // Best effort: a delete that fails leaves the old record,
+                // which fails once more and takes the same retry.
+                kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root());
+                let retry_outcome = retry.outcome();
+                // The retry settles too before the guard lets go.
+                if retry_outcome == StartOutcome::Accepted {
+                    let _ = retry.settle();
                 }
+                outcome = retry_outcome;
+                // The record must describe what actually runs.
+                prepared.info.args = args;
+                prepared.info.tune = None;
+                prepared.server = config;
             }
-            // Read the mounted engine's own bytes after any retry: the
-            // door's declaration is a property of that binary, not of this
-            // build of the shell.
+            // The door declares the bytes of what actually launched — the
+            // rule's, after a retry.
             let engine = prepared.server.exe.clone();
             brain.record_launch(prepared.info, outcome);
             brain.record_engine(&engine, outcome);
@@ -1219,13 +1231,9 @@ fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result
     }
 }
 
-/// The one question the retry asks: did THIS tuned start fail in a way the
-/// rule's launch could fix — not ready, exited while loading, or the exe
-/// vanished (`ServerNotStarted`) — and only where the tune actually changed
-/// the launch (the identical config would fail identically). Everything
-/// else gets no retry: up, a different failure, an untouched launch, or no
-/// answer at all — a stop during the start drops the settle channel, and a
-/// dropped answer is not a failure.
+/// The retry's question: did the tuned start fail the way the rule's
+/// launch could fix — not ready, exited while loading, or the exe vanished
+/// — and did the tune change the launch at all? No answer counts as "no".
 fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
     tuned_changed
         && matches!(
@@ -1236,6 +1244,34 @@ fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
                     | Failure::ServerNotStarted { .. }
             ))
         )
+}
+
+/// Queues one start — never one the owner already turned off: `stops_seen`
+/// is the generation the walk captured at its beginning, and any Turn off
+/// since then must not be undone by a launch that follows it.
+fn queue_start(brain: &Brain, stops_seen: u64, config: ServerConfig) -> Option<StartWaiter> {
+    if brain.stops.load(Ordering::SeqCst) != stops_seen {
+        return None;
+    }
+    Some(brain.supervisor.start(config))
+}
+
+/// The retry decision and its gate in one place: a retryable failure of the
+/// tuned launch queues the rule's config, unless a Turn off arrived while
+/// that failure was being decided.
+fn attempt_retry(
+    brain: &Brain,
+    stops_seen: u64,
+    settled: Option<StartSettled>,
+    tuned_changed: bool,
+    rule: Option<(ServerConfig, kalsa_launch::ServerArgs)>,
+) -> Option<(StartWaiter, ServerConfig, kalsa_launch::ServerArgs)> {
+    if !retry_after(settled, tuned_changed) {
+        return None;
+    }
+    let (config, args) = rule?;
+    let waiter = queue_start(brain, stops_seen, config.clone())?;
+    Some((waiter, config, args))
 }
 
 /// Where this instance announces itself. It is locked while our server runs and
@@ -1301,6 +1337,7 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
     // itself. Lowering the door first — what this used to do — left the
     // field reading `Running` while the door was already down, and a poll in
     // that gap raised it again.
+    brain.stops.fetch_add(1, Ordering::SeqCst);
     brain.supervisor.stop();
     brain.stop_door();
     brain.clear_launch();

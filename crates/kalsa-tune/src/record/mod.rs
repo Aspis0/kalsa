@@ -14,7 +14,7 @@ use kalsa_runtime::ServerBackend;
 use crate::candidates::Candidate;
 use crate::winner::{Outcome, Refusal, Winner};
 
-const MAGIC: &str = "kalsa-tune v1";
+const MAGIC: &str = "kalsa-tune v2";
 
 /// The record's key: everything whose change must force a re-tune. Opaque —
 /// save and load only compare it — and one function, so the walk, the tune
@@ -208,8 +208,9 @@ fn temp_path(dir: &Path) -> PathBuf {
 pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
     let text = fs::read_to_string(path(dir)).ok()?;
     let mut lines = text.lines();
-    // The magic must be the WHOLE first line: `kalsa-tune v10` is not
-    // `kalsa-tune v1`, and a version we do not know is not ours.
+    // The magic must be the WHOLE first line: a version we do not know —
+    // `kalsa-tune v1` with its fit-disabling graphics winner, today — is not
+    // ours, and the walk tunes again.
     if lines.next()? != MAGIC {
         return None;
     }

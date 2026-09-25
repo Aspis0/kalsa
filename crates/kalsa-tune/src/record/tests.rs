@@ -174,6 +174,18 @@
         assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
     }
 
+    /// The v1 records pinned the graphics winner as `all`, whose flag makes
+    /// fit refuse to adapt the layers — the old magic reads as no record, so
+    /// the start measures again instead of launching it.
+    #[test]
+    fn a_v1_record_reads_as_no_record() {
+        let dir = Scratch::new("legacy-v1");
+        save(&dir, &sample()).expect("save");
+        let text = std::fs::read_to_string(path(&dir)).expect("read");
+        rewrite(&dir, text.replacen(MAGIC, "kalsa-tune v1", 1));
+        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+    }
+
     /// A rate the format must not hold: zero, negative and non-finite are
     /// not measurements, however the file spells them.
     #[test]

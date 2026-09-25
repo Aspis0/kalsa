@@ -1,38 +1,23 @@
-//! The walk's tune step: fingerprint the launch, look the winner up, and
-//! either keep it or measure it — between the plan and the first byte of
-//! argv the supervisor sees.
+//! The walk's tune step: fingerprint the launch, look the winner up, keep it
+//! or measure it — between the plan and the first byte of argv.
 //!
-//! Everything here is allowed to fail without failing the walk: an
-//! unmeasurable machine, an unresolvable build, or a panic inside this
-//! file leaves the launch exactly as the plan made it. An INCOMPLETE tune
-//! is the one exception that still shapes the launch — this start's
-//! measured winner is applied if one ran; what is withheld is the record,
-//! so the next start measures again. The panic itself is caught below;
-//! the runtime's panic hook has already printed its own message by then
-//! (a catch does not swallow the hook), and this file adds exactly one
-//! line after it — neither line names argv. The tune is an optimisation
-//! allowed to fail, and nothing in it can fail the walk.
+//! It may fail without failing the walk: an unmeasurable machine, an
+//! unresolvable build, or a panic (caught below — the runtime's hook prints
+//! its own line first, and neither line names argv) leaves the plan's launch
+//! standing. An incomplete tune is the one exception that still shapes this
+//! start: its measured winner runs and only the record is withheld, so the
+//! next start measures again.
 //!
-//! A quit mid-tune costs no orphan: on Windows the child dies with the
-//! app when `confine` attached it to the supervisor's kill-on-close job —
-//! the job rides the state handle the child inherits, and a failed
-//! confine is logged, not fatal — and on unix it keeps the claimed state
-//! file, which the next start's decide reaps; either way the record is
-//! written only at the end, so the next start tunes again. The
-//! development path never tunes at all: its pinned binary is not in the
-//! catalog, so there is no fingerprint to key a record by.
+//! The graphics candidate carries no GPU flag: `Offload::EngineFitted` holds
+//! the engine citations — `fit` decides the layers against the memory free
+//! at this start, and the tune's measurement is what licenses trying the
+//! card at all.
 //!
-//! GPU safety on a RAM-funded plan is the engine's own: the graphics
-//! candidate — and a graphics winner — launches WITHOUT `--n-gpu-layers`
-//! (`Offload::EngineFitted`, whose doc carries the pinned engines' source
-//! lines), so at every start `fit`, on by default, fits the layers to the
-//! memory actually free while keeping the plan's pinned `--ctx-size`.
-//! Measured on the Lenovo, that fit says `common_params_fit_impl:
-//! projected to use 3635 MiB of device memory vs. 5150 MiB of free device
-//! memory` and `will leave 1515 >= 1024 MiB of free device memory, no
-//! changes needed`. What licenses trying the card at all is the tune's own
-//! measurement, and nothing in this file passes a flag that disables fit.
-
+//! A quit mid-tune leaves no orphan: on Windows the child dies with the app
+//! when `confine` attached it to the kill-on-close job; on unix the next
+//! start's decide reaps the claimed state file. The record is written only
+//! at the end, so an interrupted tune runs again next start. The development
+//! path never tunes: a pinned binary has no catalog digest to key on.
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 

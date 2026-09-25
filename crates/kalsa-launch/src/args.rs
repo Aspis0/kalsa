@@ -296,14 +296,10 @@ pub(crate) const FLASH_ATTN: &str = "on";
 /// name the parser knows (the short form is `-ctxcp`) and is refused.
 pub(crate) const CTX_CHECKPOINTS: &str = "1";
 
-/// How many layers go to the GPU. Three states, because the rendered
-/// arguments differ in kind, not degree:
-///
-/// * on a build with GPU code, `--n-gpu-layers` defaults to `auto` — the
-///   server's own guess about how many layers the card will take — so
-///   leaving the flag out is a bet on someone else's default, and the wrong
-///   one whenever the card was never sized for the model;
-/// * on a CPU build the flag has no GPU code behind it at all.
+/// How many layers go to the GPU: stated when the budget decided it (`All`
+/// for a card sized for the model, `ForcedOff` for one that was not),
+/// deliberately not stated when the engine should decide (`EngineFitted`),
+/// and impossible where no GPU code exists (`NoGpuBuild`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Offload {
     /// The whole model was budgeted against the memory it decodes from, so
@@ -317,28 +313,19 @@ pub enum Offload {
     ForcedOff,
     /// The CPU build: no GPU code in it, so no GPU flag is rendered at all.
     NoGpuBuild,
-    /// The tune's graphics launch: NO `--n-gpu-layers` at all, so the
-    /// engine's own default stands and `fit` picks the layers against the
-    /// memory actually free at this start. Verified on both pinned engines
-    /// (tags `b10950` = ad6c66839 and `kalsa-server-v1.1.1` = 833cde99b,
-    /// identical lines): the default is `-1` = auto (`common/common.h:473`;
-    /// `common/arg.cpp:2790-2791` maps `all` to -2, `auto` to -1), and a
-    /// negative value means every layer (`include/llama.h:320`) — so with
-    /// fit turned off the launch still offloads everything, the old
-    /// behaviour. Fit is on by default (`bool fit_params = true`,
-    /// common.h:476) and its step 3 fills the layers the free device
-    /// memory holds (`common/fit.cpp:488`, `set_ngl_tensor_split_tbo`),
-    /// keeping a context the user pinned (`fit.cpp:455`, "context size
-    /// set by user … no change"). It refuses only when the layers were
-    /// user-set (`fit.cpp:463-464`, "n_gpu_layers already set by user") —
-    /// which is exactly why passing a flag reduced it to a no-op — and
-    /// that refusal is caught and the server loads anyway
-    /// (`fit.cpp:894-903`, `common/common.cpp:1320-1329`), so a flag
-    /// never broke a start, it only disabled the fitting. `LLAMA_ARG_FIT`
-    /// in the environment can turn fit off (`common/arg.cpp:2876`); then
-    /// the default flows through unchanged and offloads every layer.
-    /// Used only by the tune's graphics candidate: the plan's own budget
-    /// rule (policy.rs) still renders `All` or `ForcedOff` as before.
+    /// The tune's graphics launch, and the launch that wins a tune: NO
+    /// `--n-gpu-layers`, so the engine's default stands (`-1` = auto,
+    /// common.h:473; a negative value is every layer without fit,
+    /// llama.h:320) and `fit` — on by default — fills the layers this
+    /// start's free memory holds (fit.cpp:488, keeping a pinned context at
+    /// fit.cpp:455). Both pinned engines agree: tags `b10950` =
+    /// ad6c66839 and `kalsa-server-v1.1.1` = a7d2cec79. Fit refuses a
+    /// user-set layer count (fit.cpp:463-464) and the server then loads
+    /// anyway (fit.cpp:894-903; common.cpp:1322/1331 on v1.1.1,
+    /// 1320/1329 on b10950) — a flag disabled the fitting, it never broke
+    /// a start. `LLAMA_ARG_FIT` (arg.cpp:2876) can turn fit off; auto then
+    /// offloads every layer, the old behaviour. The plan's budget rule
+    /// still renders `All` or `ForcedOff` (policy.rs).
     EngineFitted,
 }
 

@@ -61,7 +61,7 @@ fn the_metal_build_measures_full_and_forced_off() {
         Candidate {
             backend: ServerBackend::Metal,
             threads: Some(8),
-            offload: Offload::All,
+            offload: Offload::EngineFitted,
         },
         Candidate {
             backend: ServerBackend::Metal,

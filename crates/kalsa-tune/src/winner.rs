@@ -137,12 +137,10 @@ mod tests {
         assert_eq!(winner(&trials).map(|win| win.candidate), Some(cpu(16)));
     }
 
-    /// A candidate four times faster is not a tie: the graphics run wins
-    /// on its number, and full offload is the lighter setting besides.
-    /// EngineFitted aims at the same place as All — every layer on the
-    /// card, with the engine confirming the count — so inside the band it
-    /// ranks as the fuller offload, never as the heavier one. The refused
-    /// side sits first in the list, so a broken rank would pick it.
+    /// Two equal samples: the tie-break alone decides, and EngineFitted
+    /// ranks as the fuller offload — every layer, the engine confirming the
+    /// count. The refused side sits first in the list, so a broken rank
+    /// would pick it.
     #[test]
     fn an_engine_fitted_tie_is_the_fullest_offload() {
         let off = Candidate {

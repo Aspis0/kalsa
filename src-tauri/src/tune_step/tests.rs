@@ -591,6 +591,68 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A legacy record — v1 magic, its graphics winner pinning `--n-gpu-layers
+/// all` — is refused, and the refusal is a fresh tune: the measure runs and
+/// the walk completes.
+#[test]
+fn a_legacy_record_is_refused_and_the_tune_runs_again() {
+    let dir = scratch("legacy");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared("/main-gpu");
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let record = kalsa_tune::record::Record {
+        fingerprint: fingerprint.clone(),
+        winner: None,
+        trials: vec![(
+            kalsa_tune::Candidate {
+                backend: ServerBackend::Vulkan,
+                threads: Some(8),
+                offload: Offload::EngineFitted,
+            },
+            kalsa_tune::record::Kept::Refused(kalsa_tune::Refusal::NotReady),
+        )],
+    };
+    kalsa_tune::record::save(&dir, &record).expect("save");
+    // The file as the pre-fit build wrote it:
+    let file = dir.join("tuning.txt");
+    let text = std::fs::read_to_string(&file).expect("read");
+    std::fs::write(&file, text.replacen("kalsa-tune v2", "kalsa-tune v1", 1)).expect("rewrite");
+
+    let mut measured = 0usize;
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            measured += 1;
+            counts(resolved.len(), resolved.len());
+            vec![]
+        },
+    );
+
+    assert_eq!(measured, 1, "the refused record leads to a fresh measure");
+    assert!(
+        matches!(
+            prepared.info.tune,
+            Some(Tune::NoWinner(_) | Tune::Measured(_))
+        ),
+        "and the walk completes with a line, not a failure: {:?}",
+        prepared.info.tune
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// A panic inside the step degrades to the plan: the rule's launch comes
 /// back exactly, and no claim about the tune survives.
 #[test]

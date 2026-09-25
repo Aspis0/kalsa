@@ -68,6 +68,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
             Some((measured(80.0e9), 0, 0)),
         ),
         None,
+        0,
     );
     assert!(verdict.is_err(), "the walk's refusal still answers");
     assert!(
@@ -79,7 +80,8 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     // an unreliable one never replaces the reliable one already kept.
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
-    let second = settle_walk(&brain, (Err("still refused".into()), Some((unbelieved, 0, 0))), None);
+    let second =
+        settle_walk(&brain, (Err("still refused".into()), Some((unbelieved, 0, 0))), None, 0);
     assert!(
         second.is_err(),
         "an unreliable reading does not turn the refusal into a success"
@@ -2371,8 +2373,8 @@ fn the_desks_preferred_port_is_none_of_this_apps_other_fixed_ports() {
 /// The retry's whole decision, from the waiter's own answer: this tuned
 /// start failed in a way the rule's launch could fix (not ready, exited
 /// while loading, or the exe vanished) — and only where the tune actually
-/// changed the launch. Everything else, including no answer at all (a stop
-/// during the start drops the settle channel), gets no retry.
+/// changed the launch. Everything else, including no answer at all (the
+/// worker died, or the app is going away), gets no retry.
 #[test]
 fn the_retry_comes_from_the_starts_own_settled_report() {
     let not_ready = Some(StartSettled::Failed(Failure::NotReady { seconds: 600 }));
@@ -2416,5 +2418,96 @@ fn the_retry_comes_from_the_starts_own_settled_report() {
     assert!(
         !retry_after(None, true),
         "no answer (the worker died, or a stop during the start) is not a failure"
+    );
+}
+
+/// A Turn off while the tune runs: the walk finishes, but the start that
+/// follows the tune must not happen and nothing may be recorded for it.
+#[test]
+fn a_stop_during_the_tune_prevents_the_start_after_it() {
+    let brain = Brain::new();
+    let stops_seen = brain.stops.load(Ordering::SeqCst);
+    // The Turn off, mid-tune:
+    brain.stops.fetch_add(1, Ordering::SeqCst);
+
+    let args = launch_args("/models/chosen.gguf", startup::PORT);
+    let prepared = startup::PreparedStart {
+        server: kalsa_supervisor::ServerConfig {
+            exe: PathBuf::from("/nonexistent/kalsa-server"),
+            argv: args.argv(),
+            state_file: std::env::temp_dir().join(format!(
+                "kalsa-stop-during-tune-{}.state",
+                std::process::id()
+            )),
+            port: 8199,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        },
+        info: startup::LaunchInfo {
+            args,
+            maximum_context: startup::ContextMaxima { q8_0: None, f16: None },
+            automatic_context: startup::ContextMaxima { q8_0: None, f16: None },
+            context_prices: Default::default(),
+            display_name: None,
+            reason: None,
+            model_sha256: None,
+            tune: None,
+        },
+        rule_launch: None,
+    };
+
+    let verdict = settle_walk(&brain, (Ok(prepared), None), None, stops_seen);
+
+    assert!(verdict.is_ok(), "a gated start is not an error");
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "no start may be queued after a Turn off"
+    );
+    assert!(
+        brain.launch.lock().expect("lock").is_none(),
+        "and nothing may be recorded for it"
+    );
+}
+
+/// A Turn off while the tuned start is failing with something the rule
+/// could fix: the retry must not queue it back up.
+#[test]
+fn a_stop_during_the_tuned_start_prevents_the_retry() {
+    let brain = Brain::new();
+    let stops_seen = brain.stops.load(Ordering::SeqCst);
+    let settled = Some(StartSettled::Failed(Failure::ServerNotStarted {
+        detail: "the tuned exe vanished".to_string(),
+    }));
+    assert!(
+        retry_after(settled.clone(), true),
+        "the failure is the retry's kind (the stop decides below, not this)"
+    );
+
+    // The Turn off, while that failure is being decided:
+    brain.stops.fetch_add(1, Ordering::SeqCst);
+
+    let args = launch_args("/models/chosen.gguf", startup::PORT);
+    let rule = Some((
+        kalsa_supervisor::ServerConfig {
+            exe: PathBuf::from("/nonexistent/kalsa-server"),
+            argv: args.argv(),
+            state_file: std::env::temp_dir().join(format!(
+                "kalsa-stop-during-retry-{}.state",
+                std::process::id()
+            )),
+            port: 8198,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        },
+        args,
+    ));
+
+    assert!(
+        attempt_retry(&brain, stops_seen, settled, true, rule).is_none(),
+        "a Turn off must not queue the rule's launch"
+    );
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "and nothing was queued"
     );
 }
