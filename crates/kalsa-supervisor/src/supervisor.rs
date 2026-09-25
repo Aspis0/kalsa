@@ -348,6 +348,9 @@ fn work(
     residency: Residency,
 ) {
     let mut owned: Option<Owned> = None;
+    // The last start's config, kept after `owned` goes: §18's second stop
+    // probes the address it remembers when nothing is owned anymore.
+    let mut last: Option<ServerConfig> = None;
     loop {
         match inbox.recv_timeout(TICK) {
             Ok(Command::Start(config, outcome)) => {
@@ -355,6 +358,7 @@ fn work(
                     let _ = outcome.send(StartOutcome::Refused);
                     continue; // already on: the switch is not a restart button
                 }
+                last = Some(config.as_ref().clone());
                 // The verdict comes before the work: a caller that records
                 // the launch on acceptance must not wait out a handshake
                 // whose answer decides whether the record exists at all.
@@ -402,9 +406,9 @@ fn work(
                     Err(reason) => set(&state, ServerState::Failed { reason }),
                 }
             }
-            Ok(Command::Stop) => stop(&mut owned, &state, presence::probe),
+            Ok(Command::Stop) => stop(&mut owned, last.as_ref(), &state, presence::probe),
             Ok(Command::Shutdown) => {
-                stop(&mut owned, &state, presence::probe);
+                stop(&mut owned, last.as_ref(), &state, presence::probe);
                 return;
             }
             Err(RecvTimeoutError::Timeout) => {
@@ -467,6 +471,10 @@ fn work(
 
 fn stop(
     owned: &mut Option<Owned>,
+    // The last start's config, kept by the worker after `owned` is gone:
+    // the only address a SECOND stop has to probe (§18). None where nothing
+    // was ever started.
+    config: Option<&ServerConfig>,
     state: &Arc<Mutex<ServerState>>,
     // The port probe arrives as an argument: production passes `presence::
     // probe`, and the tests that assert the POLICY below pass a script — a
@@ -474,6 +482,16 @@ fn stop(
     // rebind under its feet.
     probe: presence::Probe,
 ) {
+    // What the previous stop left, read before `Stopping` overwrites it:
+    // `StopUnconfirmed` says absence was never proved, and `owned` is gone
+    // already — this is all a second stop has to go on (§18).
+    let previous = state.lock().expect("the state lock").clone();
+    let unconfirmed = matches!(
+        previous,
+        ServerState::Failed {
+            reason: Failure::StopUnconfirmed { .. }
+        }
+    );
     // Every entry to a stop passes here and declares the drain — a caller
     // that already declared it is re-declared, not doubled (`drain` drops the
     // duplicate write). What the walk below writes is the drain's END, and
@@ -481,7 +499,10 @@ fn stop(
     // or the failed-to-stop state carrying the measures of what could not be
     // proved. `§9`: a stop must not declare success while the engine lives.
     set(state, ServerState::Stopping);
-    let mut end = ServerState::Stopped; // nothing of ours owned: nothing to prove gone
+    // Default for a stop with nothing owned from a quiet state: nothing of
+    // ours to prove gone. The §18 arm below overrides it only when the last
+    // stop said otherwise.
+    let mut end = ServerState::Stopped;
     if let Some(mut run) = owned.take() {
         // The PROCESS half's witness, from what the teardown reported — the
         // `let _ =` walk that used to swallow its own result is gone: a
@@ -608,6 +629,41 @@ fn stop(
                 reason: Failure::StopUnconfirmed { measures },
             }
         };
+    } else if unconfirmed {
+        // §18: the first stop took what was owned — whatever it ended in —
+        // and the state it left says absence was never proved. Writing
+        // `Stopped` here would claim a success with nothing checked. The
+        // port is the half that still speaks, and the last start's config
+        // still knows where it is: ask it the way the blind rule does —
+        // `Gone` proves it (and, as always when only one half spoke, leaves
+        // the suspicion record), anything else keeps `StopUnconfirmed` with
+        // fresh measures. Every other nothing-owned state keeps its old
+        // answer: from `Stopped` or `Idle` there is nothing to prove.
+        match config {
+            Some(config) => {
+                let addr = config.address();
+                let answer = probe(addr, presence::PROBE_TIMEOUT);
+                let settled = presence::settle(&presence::Witness::Unwatched, &answer);
+                let measures =
+                    format!("a second stop, nothing owned: port {addr} — {answer:?}");
+                if !settled.stopped {
+                    eprintln!("kalsa-brain: stop walk: {measures}");
+                }
+                if settled.record {
+                    let _ = Suspect::of(&config.state_file).write(&measures);
+                }
+                end = if settled.stopped {
+                    ServerState::Stopped
+                } else {
+                    ServerState::Failed {
+                        reason: Failure::StopUnconfirmed { measures },
+                    }
+                };
+            }
+            // Nothing to ask (nothing was ever started here): the old word
+            // stands — the trap this arm exists for is claiming `Stopped`.
+            None => end = previous,
+        }
     }
     set(state, end);
 }
@@ -1058,7 +1114,7 @@ mod tests {
             pid: stand_in_pid,
             port,
         }));
-        stop(&mut owned, &state, presence::probe);
+        stop(&mut owned, None, &state, presence::probe);
         assert!(
             stand_in.try_wait().expect("poll the stand-in").is_none(),
             "a recycled pid was signalled: we killed somebody else's program"
@@ -1118,7 +1174,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, &state, answering);
+        stop(&mut owned, None, &state, answering);
 
         let ended = state.lock().expect("the state lock").clone();
         let measures = match &ended {
@@ -1171,7 +1227,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, &state, silent);
+        stop(&mut owned, None, &state, silent);
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1254,7 +1310,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, &state, answering);
+        stop(&mut owned, None, &state, answering);
 
         match state.lock().expect("the state lock").clone() {
             ServerState::Failed {
@@ -1332,7 +1388,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 1, port }));
-        stop(&mut owned, &state, answering);
+        stop(&mut owned, None, &state, answering);
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1346,6 +1402,95 @@ mod tests {
             "the record does not carry the doubt: {recorded}"
         );
         let _ = std::fs::remove_file(&suspect_path);
+    }
+
+    /// §18's second stop: the first took what was owned, whatever it ended
+    /// in, so a second stop with nothing owned must not write `Stopped`
+    /// with nothing checked — the port still answers (scripted), and the
+    /// state stays `StopUnconfirmed` with fresh measures.
+    #[test]
+    fn a_second_stop_with_the_port_still_answering_stays_unconfirmed() {
+        let port = 8297;
+        let config = config(port);
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+
+        // First stop: adopted blind — no pid, so only the port can speak,
+        // and it speaks "there". `owned` is taken and never given back.
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: None,
+            instance: None,
+            config: config.clone(),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
+        stop(&mut owned, Some(&config), &state, answering);
+        assert!(owned.is_none(), "the first stop took what was owned");
+        let first = state.lock().expect("the state lock").clone();
+        assert!(
+            matches!(
+                first,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "the first stop may not prove absence while the port answers: {first:?}"
+        );
+
+        // Second stop, nothing owned: the port is asked (§18) and answers
+        // again — `Stopped` must not appear.
+        stop(&mut owned, Some(&config), &state, answering);
+        let second = state.lock().expect("the state lock").clone();
+        assert!(
+            matches!(
+                second,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "a second stop declared Stopped with nothing checked: {second:?}"
+        );
+    }
+
+    /// The other half of §18: with the port refusing, the second stop
+    /// proves absence the way the blind rule does and may say `Stopped`.
+    #[test]
+    fn a_second_stop_with_the_port_refusing_proves_gone() {
+        let port = 8299;
+        let config = config(port);
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: None,
+            instance: None,
+            config: config.clone(),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
+        stop(&mut owned, Some(&config), &state, answering);
+        assert!(
+            matches!(
+                state.lock().expect("the state lock").clone(),
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "the setup must be an unconfirmed stop"
+        );
+
+        let silent: presence::Probe = |_, _| presence::Presence::Gone;
+        stop(&mut owned, Some(&config), &state, silent);
+        assert_eq!(
+            state.lock().expect("the state lock").clone(),
+            ServerState::Stopped,
+            "a refusing port proves absence at a second stop"
+        );
     }
 
     #[test]
