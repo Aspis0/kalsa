@@ -122,6 +122,17 @@ let offProgress: (() => void) | null = null;
 // "nothing wanted" — starting again there would put two live
 // subscriptions on one bus with one stored unsubscribe between them.
 let progressPending = false;
+/// How many times a REJECTED registration may start over while readers
+/// remain. The retry is not optional: readers that arrived while the failed
+/// registration was pending returned at the guard in `startProgress` and
+/// never ask again, so without it they stay mounted with no walk steps
+/// until a remount. The bound is what stops a bus that always rejects from
+/// spinning — and reaching it costs only the walk's live steps, because
+/// `pollTimer` keeps polling `brain_state` whatever the bus does. One
+/// success resets the budget; a fresh subscribe always gets a first
+/// attempt, so a bus that recovers is never locked out.
+const PROGRESS_RETRIES = 3;
+let progressRetries = 0;
 
 function publish(): void {
   // A stable snapshot: identical facts keep their identity, so a poll
@@ -191,12 +202,13 @@ async function poll(): Promise<void> {
   publish();
 }
 
-/** Starts the bus subscription — the one `brain_progress` listener the whole
-    app holds. A resolution that finds no reader (the last one left while the
-    registration was in the air) or finds one already held releases its own
-    unsubscribe at once, so whichever order the promises resolve in, one
-    subscription lives while `listeners` is non-empty and none after it
-    empties. */
+/** Starts the bus registration — the one `brain_progress` listener the whole
+    app may hold. At MOST one: while a registration is pending the live count
+    is 0, never 1; a resolution that finds no reader (the last one left while
+    the registration was in the air) or finds one already held releases its
+    own unsubscribe at once. So whichever order the promises resolve in: at
+    most one subscription exists while `listeners` is non-empty, and none
+    after it empties. */
 function startProgress(): void {
   if (offProgress !== null || progressPending) return;
   progressPending = true;
@@ -206,14 +218,23 @@ function startProgress(): void {
   }).then(
     (unsubscribe) => {
       progressPending = false;
+      progressRetries = 0;
       if (listeners.size > 0 && offProgress === null) offProgress = unsubscribe;
       else unsubscribe();
     },
     () => {
-      // A registration that never landed must not leave `progressPending`
-      // up: every reader after it would find the guard closed and start
-      // nothing, and only a reload could take the flag back down.
+      // The readers who arrived while this registration was pending
+      // returned at the guard above and will never ask again: clear the
+      // flag and register once more while any of them remains — up to
+      // PROGRESS_RETRIES times, so a bus that always rejects is asked a
+      // fixed number of times and then left alone. Exhausting the budget
+      // costs the walk's live steps only (the poll runs regardless) and is
+      // recovered by the next mount's own first attempt.
       progressPending = false;
+      if (listeners.size > 0 && progressRetries < PROGRESS_RETRIES) {
+        progressRetries += 1;
+        startProgress();
+      }
     },
   );
 }

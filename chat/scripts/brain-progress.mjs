@@ -3,8 +3,12 @@
 // test answers by hand — in StrictMode's order: mount, unmount, mount, then
 // every promise resolving only after the second mount registered.
 //
-// What must hold, in whatever order those promises resolve: exactly one live
-// subscription while a reader is mounted, and none after the last one leaves.
+// What must hold, in whatever order those promises resolve: once any pending
+// registration has answered, exactly one live subscription while a reader is
+// mounted — none while one is still pending — and none after the last one
+// leaves. A registration that REJECTS must register again, bounded: the
+// readers that arrived while it was pending returned at the guard and never
+// ask on their own, so a rejection with no retry leaves them with 0.
 // The defect this pins (docs/WHAT-IS-MISSING.md §17): both promises resolved
 // with `listeners.size > 0`, the second overwrote `offProgress`, and the
 // first unsubscribe was dropped — one dangling `brain_progress` listener per
@@ -40,13 +44,17 @@ globalThis.window = {
     event: {
       listen() {
         const call = { settled: false, live: false };
-        const promise = new Promise((resolve) => {
+        const promise = new Promise((resolve, reject) => {
           call.answer = () => {
             call.settled = true;
             call.live = true;
             resolve(() => {
               call.live = false;
             });
+          };
+          call.fail = (error) => {
+            call.settled = true;
+            reject(error);
           };
         });
         calls.push(call);
@@ -113,6 +121,45 @@ try {
   leaveLate();
   await flush();
   check("and none after it leaves", liveCount() === 0, `live=${liveCount()}`);
+
+  // A registration that REJECTS: its reader was already mounted while it
+  // was pending, returned at the guard, and will never ask again — so the
+  // rejection itself must register once more, and this reader must end
+  // with one live subscription.
+  calls.length = 0;
+  const leaveFlaky = subscribeBrainRead(reader);
+  calls[0].fail(new Error("event bus not up yet"));
+  await flush();
+  check(
+    "a rejected registration registers again while its reader is mounted",
+    calls.length === 2,
+    `listen() calls=${calls.length}`,
+  );
+  calls[1]?.answer();
+  await flush();
+  check("the flaky reader ends with one live subscription", liveCount() === 1, `live=${liveCount()}`);
+  leaveFlaky();
+  await flush();
+  check("and the flaky reader leaves none behind", liveCount() === 0, `live=${liveCount()}`);
+
+  // The bound: a bus that ALWAYS rejects is asked a fixed number of times
+  // (one start plus PROGRESS_RETRIES) and then left alone — no spin, no
+  // subscription held.
+  calls.length = 0;
+  const leaveDown = subscribeBrainRead(reader);
+  for (let i = 0; calls[i] && !calls[i].settled; i += 1) {
+    calls[i].fail(new Error("always down"));
+    await flush();
+  }
+  check(
+    "a bus that always rejects stops after the bounded attempts",
+    calls.length === 4,
+    `listen() calls=${calls.length} (1 start + 3 retries)`,
+  );
+  check("and it holds no subscription", liveCount() === 0, `live=${liveCount()}`);
+  leaveDown();
+  await flush();
+  check("the down-bus reader leaves none behind", liveCount() === 0, `live=${liveCount()}`);
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
