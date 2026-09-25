@@ -21,9 +21,11 @@ use crate::{command_text, once_present};
 /// looser bound spent its whole budget 2 GiB short (docs/WHAT-IS-MISSING.md
 /// §22 predicted this in words: "a reading just under the 32-bit limit,
 /// such as 4293918720, is taken as a real size"). At or above this line the
-/// field is saying "at least this much": never a size, an unknown one. The
-/// true size on Windows comes from the driver's own registry values
-/// (`vram_registry`), never from here.
+/// field is saying "at least this much": never a size, an unknown one. On
+/// Windows the size then comes from the driver's own registry values
+/// (`vram_registry`) when they hold one; BELOW this line AdapterRAM itself
+/// still stands — it is the fallback the parser has always used, not the
+/// liar the cap makes it.
 #[cfg(any(target_os = "windows", test))]
 const WMI_SATURATION_BYTES: u64 = 0xFFF00000;
 

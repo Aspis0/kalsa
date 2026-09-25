@@ -24,32 +24,59 @@
 const REG_BINARY: u32 = 3;
 const REG_QWORD: u32 = 11;
 
+/// A figure no GPU has is not a size: the decode refuses anything outside
+/// `(0, 512 GiB]`. Zero would budget a zero-byte card — the same
+/// non-answer as a zero `AdapterRAM` — and a figure past 512 GiB cannot be
+/// video memory on any machine this product runs on (the largest shipping
+/// cards are under 200 GB), so only a garbage or truncated read can fail
+/// the ceiling, never a real card.
+const MAX_PLAUSIBLE_BYTES: u64 = 512 * 1024 * 1024 * 1024;
+
 /// One registry value's TYPE and BYTES → the size it names: `REG_QWORD`, or
 /// a `REG_BINARY` of exactly eight bytes (the same figure in binary form).
-/// A four-byte figure, a wrong-sized anything, an unrelated type — none is
-/// a size this code may report, and saying so (`None`) is the honest
-/// answer, never half a guess.
+/// A four-byte figure, a wrong-sized anything, an unrelated type, a zero,
+/// or a figure no GPU has — none is a size this code may report, and
+/// saying so (`None`) is the honest answer, never half a guess.
 pub(crate) fn size_from_value(kind: u32, bytes: &[u8]) -> Option<u64> {
     if kind != REG_QWORD && kind != REG_BINARY {
         return None;
     }
     let raw: [u8; 8] = bytes.try_into().ok()?;
-    Some(u64::from_le_bytes(raw))
+    let size = u64::from_le_bytes(raw);
+    if size == 0 || size > MAX_PLAUSIBLE_BYTES {
+        return None;
+    }
+    Some(size)
 }
 
 /// Which registry entry belongs to `controller`, the name WMI gave the row.
 /// The two strings come from different producers — WMI's `Name` and the
 /// driver INF's `DriverDesc` — and on the machine this was proven on they
 /// are word-for-word identical; only case and surrounding space are allowed
-/// to differ, because those are formatting, not identity. No match is an
-/// honest answer: the caller then falls back to AdapterRAM, and the
-/// saturated reading stays the non-answer it always was.
+/// to differ, because those are formatting, not identity. The class key can
+/// hold STALE entries and enumeration order is promised by nothing, so a
+/// name may match more than once: every match must agree on the size, or
+/// there is no answer — the first entry's word is not evidence. Two
+/// identical cards write the same figure and still agree. No match and an
+/// ambiguous one are both honest answers: the caller falls back to
+/// AdapterRAM below the cap, and the saturated reading stays the
+/// non-answer it always was.
 pub(crate) fn size_for(entries: &[(String, u64)], controller: &str) -> Option<u64> {
     let wanted = controller.trim();
-    entries
-        .iter()
-        .find(|(driver_desc, _)| driver_desc.trim().eq_ignore_ascii_case(wanted))
-        .map(|(_, size)| *size)
+    let mut agreed: Option<u64> = None;
+    for (driver_desc, size) in entries {
+        if !driver_desc.trim().eq_ignore_ascii_case(wanted) {
+            continue;
+        }
+        match agreed {
+            None => agreed = Some(*size),
+            // Two identical cards write one figure; two answers that do
+            // not match name no size this code can trust.
+            Some(seen) if seen == *size => {}
+            Some(_) => return None,
+        }
+    }
+    agreed
 }
 
 /// The display class's key: every adapter's numbered subkey lives under it,
@@ -64,7 +91,7 @@ const CLASS_KEY: &str =
 const MAX_VALUE_BYTES: u32 = 4096;
 
 #[cfg(target_os = "windows")]
-use windows_sys::Win32::Foundation::{ERROR_MORE_DATA, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS};
+use windows_sys::Win32::Foundation::{ERROR_MORE_DATA, ERROR_SUCCESS};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
@@ -145,11 +172,53 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// The names of every subkey under `key`. An error that is not the end ends
-/// the list too — the names are four digits in practice, so the only
-/// realistic stops are ERROR_NO_MORE_ITEMS and a buffer no name needs; a
-/// name longer than the buffer retries at the SAME index with more room
-/// rather than being skipped.
+/// The class key's subkeys are the numbered adapters plus a few odds and
+/// ends — a few dozen at most. A walk whose index reaches this has lost its
+/// way (a key that kept answering past every real name would otherwise
+/// never end), and stopping is the only honest answer.
+const MAX_SUBKEYS: u32 = 256;
+
+/// Two Win32 status codes, restated from winerror.h: the decision below is
+/// pure and must compile where `windows-sys` does not (its tests run on
+/// any machine), and these are OS ABI — they do not drift.
+const STATUS_SUCCESS: u32 = 0;
+const STATUS_MORE_DATA: u32 = 234;
+
+/// What one `RegEnumKeyExW` answer means for the walk.
+enum Enumeration {
+    /// The buffer was too small: grow it and ask at the SAME index.
+    Grow,
+    /// A real name at this index: take it and advance.
+    Take,
+    /// The walk is over — the normal end, an error, or the index bound.
+    Stop,
+}
+
+/// The whole loop condition, decided from one answer. `ERROR_NO_MORE_ITEMS`
+/// (259, the normal end) and EVERY other error stop the walk: a version of
+/// this loop that only knew the normal end skipped ahead past any other
+/// error and would keep asking a failing key at every index forever. The
+/// index bound is the belt for a key that keeps answering successfully past
+/// every name a display class can hold.
+fn enum_decision(status: u32, index: u32) -> Enumeration {
+    if index >= MAX_SUBKEYS {
+        return Enumeration::Stop;
+    }
+    if status == STATUS_MORE_DATA {
+        return Enumeration::Grow;
+    }
+    if status != STATUS_SUCCESS {
+        return Enumeration::Stop;
+    }
+    Enumeration::Take
+}
+
+/// The names of every subkey under `key`; how the walk ENDS is
+/// `enum_decision`'s call — any error, or `MAX_SUBKEYS` — so a failing key
+/// stops it instead of feeding it indices forever. `ERROR_MORE_DATA` grows
+/// the buffer and asks the SAME index again, so a name is never skipped
+/// for being long; 1024 UTF-16 units is where that patience ends, and no
+/// display-class subkey comes close.
 #[cfg(target_os = "windows")]
 fn subkeys(key: &Key) -> Vec<String> {
     let mut names = Vec::new();
@@ -169,24 +238,21 @@ fn subkeys(key: &Key) -> Vec<String> {
                 std::ptr::null_mut(),
             )
         };
-        if status == ERROR_MORE_DATA {
-            if buffer.len() >= 1024 {
-                break;
+        match enum_decision(status, index) {
+            Enumeration::Grow => {
+                if buffer.len() >= 1024 {
+                    break;
+                }
+                buffer.resize(buffer.len() * 2, 0);
             }
-            buffer.resize(buffer.len() * 2, 0);
-            continue;
-        }
-        if status == ERROR_NO_MORE_ITEMS {
-            break;
-        }
-        if status == ERROR_SUCCESS {
-            if let Ok(name) = String::from_utf16(&buffer[..len as usize]) {
-                names.push(name);
+            Enumeration::Take => {
+                if let Ok(name) = String::from_utf16(&buffer[..len as usize]) {
+                    names.push(name);
+                }
+                index += 1;
             }
+            Enumeration::Stop => break,
         }
-        // Any other error skips this index only; the index advances, so no
-        // error can spin the walk in place.
-        index += 1;
     }
     names
 }
@@ -309,6 +375,80 @@ mod tests {
         assert_eq!(size_for(&entries, "Intel(R) Arc(TM) Graphics"), None);
         assert_eq!(size_for(&entries, "NVIDIA T400"), None);
         assert_eq!(size_for(&[], "NVIDIA GeForce RTX 4050 Laptop GPU"), None);
+    }
+
+    #[test]
+    fn a_zero_or_impossible_figure_is_not_a_size() {
+        assert_eq!(size_from_value(REG_QWORD, &0u64.to_le_bytes()), None);
+        assert_eq!(
+            size_from_value(REG_QWORD, &(MAX_PLAUSIBLE_BYTES + 1).to_le_bytes()),
+            None
+        );
+        // The ceiling itself is a size a future card could have.
+        assert_eq!(
+            size_from_value(REG_QWORD, &MAX_PLAUSIBLE_BYTES.to_le_bytes()),
+            Some(MAX_PLAUSIBLE_BYTES)
+        );
+    }
+
+    #[test]
+    fn duplicate_matches_must_agree_to_be_a_size() {
+        // Two identical cards write one figure, so duplicates that agree
+        // are still the card's size.
+        let agree = vec![
+            ("NVIDIA GeForce RTX 4050 Laptop GPU".to_string(), 6439305216),
+            ("NVIDIA GeForce RTX 4050 Laptop GPU".to_string(), 6439305216),
+        ];
+        assert_eq!(
+            size_for(&agree, "NVIDIA GeForce RTX 4050 Laptop GPU"),
+            Some(6439305216)
+        );
+        // A stale entry beside a live one: they disagree, and enumeration
+        // order promises nothing — whichever comes first, the name answers
+        // no size and the caller falls back below the cap.
+        let live = ("NVIDIA GeForce RTX 4050 Laptop GPU".to_string(), 6439305216);
+        let stale = ("NVIDIA GeForce RTX 4050 Laptop GPU".to_string(), 4293918720);
+        assert_eq!(
+            size_for(
+                &[live.clone(), stale.clone()],
+                "NVIDIA GeForce RTX 4050 Laptop GPU"
+            ),
+            None
+        );
+        assert_eq!(
+            size_for(&[stale, live], "NVIDIA GeForce RTX 4050 Laptop GPU"),
+            None
+        );
+    }
+
+    #[test]
+    fn any_error_and_the_index_bound_end_the_walk() {
+        // 259 is ERROR_NO_MORE_ITEMS — the normal end — and any other
+        // non-zero status is an error: the pre-7fef63b loop knew only the
+        // normal end and advanced past every other error, so a key failing
+        // at each index never ended the walk.
+        assert!(matches!(enum_decision(259, 0), Enumeration::Stop));
+        assert!(matches!(enum_decision(5, 0), Enumeration::Stop));
+        // The belt: successful answers past every name a display class has
+        // stop too.
+        assert!(matches!(
+            enum_decision(STATUS_SUCCESS, MAX_SUBKEYS),
+            Enumeration::Stop
+        ));
+        assert!(matches!(
+            enum_decision(STATUS_SUCCESS, MAX_SUBKEYS + 1),
+            Enumeration::Stop
+        ));
+        // The working paths stay working: grow at the same index, take and
+        // advance.
+        assert!(matches!(
+            enum_decision(STATUS_MORE_DATA, 7),
+            Enumeration::Grow
+        ));
+        assert!(matches!(
+            enum_decision(STATUS_SUCCESS, 7),
+            Enumeration::Take
+        ));
     }
 
     /// The walk against this machine's own registry: it must answer without
