@@ -170,6 +170,18 @@ impl ChildHandle {
             use std::os::windows::io::AsRawHandle;
             job::confine(child.as_raw_handle())
         };
+        // No job means no kill-on-close: a force-quit of this app would
+        // leave the server running with nothing to reap it. The server
+        // still starts — the guarantee, not its life, is what was lost —
+        // but that is a guarantee the owner is told, this crate's way:
+        // one eprintln, no logging framework.
+        #[cfg(windows)]
+        if job.is_none() {
+            eprintln!(
+                "kalsa-brain: the server could not be confined to a kill-on-close job: a \
+                 force-quit will not reap it, and an orphan server may outlive the app"
+            );
+        }
         let stdin = child.stdin.take();
         let tail = drain_stderr(child.stderr.take(), releases, residency);
         Ok(Self {
@@ -526,7 +538,8 @@ mod job {
     }
 
     /// Best effort: an app already confined to a job that forbids nesting
-    /// should lose the reaping guarantee, not the server.
+    /// should lose the reaping guarantee, not the server. A `None` is
+    /// reported at the spawn site, not stored in silence.
     pub fn confine(child: RawHandle) -> Option<Job> {
         let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
         if handle.is_null() {
