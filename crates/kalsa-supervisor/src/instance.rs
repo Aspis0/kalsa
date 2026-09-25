@@ -17,13 +17,17 @@
 //!
 //! The record is written in the order the facts become known, and the
 //! knowable facts come first: port and exact command are recorded by
-//! `announce` *before* the child exists, because a writer that dies between
-//! the spawn and the pid write leaves a child this record still describes.
-//! A file whose writer died mid-sentence can never name a pid — nothing
-//! written anywhere else is provably that child's, so a pid found anywhere
-//! else is somebody else's — but port and command are known, the lock proves
-//! an heir of ours is alive, and the port answers when it is serving. That
-//! is enough to reuse, and deliberately not enough to signal.
+//! `announce` *before* the child exists. On unix the child inherits the
+//! locked descriptor, so a writer that dies between the spawn and the pid
+//! write leaves an heir holding the lock and running the server this
+//! record still describes; on Windows the child inherits nothing and the
+//! job reaps it with the writer, so there a held lock can only mean the
+//! writer itself is alive. Either way, a file whose writer died
+//! mid-sentence can never name a pid — nothing written anywhere else is
+//! provably that child's, so a pid found anywhere else is somebody else's —
+//! but port and command are known, the lock proves somebody of ours is
+//! alive, and the port answers when it is serving. That is enough to
+//! reuse, and deliberately not enough to signal.
 //!
 //! On Windows the lock is one byte past every record (`STATE_LOCK_OFFSET`):
 //! std's whole-file lock is mandatory there, so a claim's own lock made
@@ -134,10 +138,13 @@ pub enum Existing {
         port: u16,
         binding: Option<String>,
     },
-    /// Somebody holds the lock, but the writer died before recording the
-    /// pid: a crash between the spawn and the `describe`. The port and the
-    /// exact command are known — they were recorded before the child
-    /// existed — and the lock proves an heir of ours is alive, but no pid
+    /// Somebody holds the lock, but no pid is recorded. On unix that is a
+    /// writer that died between the spawn and the `describe`: the child
+    /// inherited the lock, so the heir is alive and the port answers. On
+    /// Windows the child inherits nothing and the job reaps it with the
+    /// writer, so a held lock there means the writer itself is alive, in
+    /// the window before its `describe`. The port and the exact command
+    /// are known — they were recorded before the child existed — and no pid
     /// may be trusted here, so this instance can be reused by port and
     /// health and never signalled.
     Unidentified { port: u16, binding: Option<String> },
@@ -283,7 +290,9 @@ impl InstanceFile {
         // Unix unlocks with std before the handle closes; Windows unlocks
         // the same byte explicitly — Microsoft: do not rely on release-on-
         // close, it can lag — and the handle this function then drops is
-        // the backstop.
+        // the backstop. UnlockFileEx's return is discarded on purpose: a
+        // failed unlock changes nothing here, because that drop releases
+        // the range either way.
         #[cfg(unix)]
         let _ = self.file.unlock();
         #[cfg(windows)]
