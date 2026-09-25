@@ -1187,6 +1187,14 @@ mod tests {
         let _ = std::fs::remove_file(&suspect_path);
     }
 
+    // The premise — a just-reaped pid names nothing — is the unix pid
+    // counter's. On Windows the freed pid was re-occupied within
+    // milliseconds and the walk met a protected owner (OpenProcess,
+    // os error 5), twice in isolation and once in the full suite; there
+    // is no portable "definitely dead pid" to plant there, so this row
+    // is proven on unix. The GONE-child half of the same §9 matrix runs
+    // on Windows in `a_reaped_child_with_a_still_answering_port…`.
+    #[cfg(unix)]
     #[test]
     fn a_dead_pid_whose_port_still_answers_is_a_failed_stop_with_its_measures() {
         // §9's "pid AND port" from the other side, through `stop()`: the
