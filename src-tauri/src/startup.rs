@@ -354,7 +354,7 @@ fn automatic_choice(
 /// catalog answer refused: the card's memory holds no row this app ships —
 /// the owner's ruling after the Lenovo walk (RTX 4050 6 GiB, 32 GiB RAM,
 /// E4B ran on the processor at ~11.8 tok/s that night).
-const PROCESSOR_FALLBACK_REASON: &str =
+pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
     "No model fits this computer's graphics card's memory, so this model runs on the processor.";
 
 /// The graphics build's catalog answer, with the processor fallback the

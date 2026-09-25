@@ -38,7 +38,7 @@ use kalsa_probe::ProbeConfig;
 use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
 
 use crate::capability::CHOSEN_REASON;
-use crate::startup::{self, Machine, Progress};
+use crate::startup::{self, Machine, Progress, PROCESSOR_FALLBACK_REASON};
 use self::http::chat_completion;
 
 /// The env var that names the row to walk, by the repo its file is pinned to.
@@ -178,10 +178,13 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // ── 5. the stored choice was honoured, not silently replaced ───────────
     // On a machine that already holds the automatic answer this is the only
     // thing that tells a fallback (with its stale note, or the automatic
-    // reason alone) from an honoured choice.
-    assert_eq!(
-        prepared.info.reason.as_deref(),
-        Some(CHOSEN_REASON),
+    // reason alone) from an honoured choice. Exactly two shapes: the stored
+    // choice's own reason, or that same reason behind the processor
+    // fallback's prefix — anything else means the walk replaced the choice.
+    let reason = prepared.info.reason.as_deref();
+    let prefixed = format!("{PROCESSOR_FALLBACK_REASON} {CHOSEN_REASON}");
+    assert!(
+        reason == Some(CHOSEN_REASON) || reason == Some(prefixed.as_str()),
         "the stored choice was replaced; the walk's own reason: {:?}",
         prepared.info.reason
     );
