@@ -132,10 +132,13 @@ function asRouteChunk(value: unknown): RouteChunk | null {
  * the push was applied, so `route_push` says why they can disagree.
  * `route_mismatch` is the spec's rejection flag for a forced arm — true
  * when any executed chunk's actual differs from the applied forced mode,
- * false when they all match, null when there is nothing forced (or no
- * chunks) to compare: the app records the verdict, it never blocks the
- * turn (routing stays the engine's). `route_chunks` is projected onto the
- * six spec fields (extras dropped) with the malformed-entry count alongside.
+ * false when they all match, null when there is nothing forced (no chunks,
+ * dropped entries, or a truncated chunk list — unseen chunks could hide
+ * the mismatch) to compare: the app records the verdict, it never blocks
+ * the turn (routing stays the engine's). `route_chunks` is projected onto
+ * the six spec fields (extras dropped) with the malformed-entry count
+ * alongside; `route_chunks_truncated` is read structurally (the binding
+ * that emits it may not be pinned yet) and null when absent.
  */
 export function governorRouteLogFields(input: {
   turnId: string;
@@ -149,10 +152,15 @@ export function governorRouteLogFields(input: {
   route_mismatch: boolean | null;
   route_chunks: RouteChunk[] | null;
   route_chunks_dropped: number | null;
+  route_chunks_truncated: boolean | null;
 } {
   const raw = (
     input.completionResult as { route_chunks?: unknown } | null | undefined
   )?.route_chunks;
+  const truncatedRaw = (
+    input.completionResult as { route_chunks_truncated?: unknown } | null | undefined
+  )?.route_chunks_truncated;
+  const truncated = typeof truncatedRaw === "boolean" ? truncatedRaw : null;
   const projected = Array.isArray(raw) ? raw.map(asRouteChunk) : null;
   const dropped =
     projected === null ? null : projected.filter((chunk) => chunk === null).length;
@@ -163,15 +171,16 @@ export function governorRouteLogFields(input: {
   const appliedMode =
     input.routePush?.outcome === "applied" ? input.routePush.mode : null;
   const routeMismatch =
-    // No forced arm applied, dropped entries (a dropped chunk could hide
-    // the mismatch — its actual is unknown, so the verdict is), or nothing
-    // to compare → null: an unverified claim must not serialize as a clean
-    // false.
+    // No forced arm applied, dropped entries, a truncated chunk list (an
+    // unseen chunk could hide the mismatch — its actual is unknown, so the
+    // verdict is), or nothing to compare → null: an unverified claim must
+    // not serialize as a clean false.
     appliedMode !== null &&
     appliedMode !== "auto" &&
     chunks !== null &&
     chunks.length > 0 &&
-    dropped === 0
+    dropped === 0 &&
+    truncated !== true
       ? chunks.some((chunk) => chunk.actual !== appliedMode)
       : null;
   return {
@@ -182,5 +191,6 @@ export function governorRouteLogFields(input: {
     route_mismatch: routeMismatch,
     route_chunks: chunks,
     route_chunks_dropped: dropped,
+    route_chunks_truncated: truncated,
   };
 }

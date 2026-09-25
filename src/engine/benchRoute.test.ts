@@ -87,6 +87,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       route_mismatch: null,
       route_chunks: null,
       route_chunks_dropped: null,
+      route_chunks_truncated: null,
     });
     for (const outcome of ["unsupported", "failed", "timeout"] as const) {
       expect(
@@ -105,6 +106,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
         route_mismatch: null,
         route_chunks: null,
         route_chunks_dropped: null,
+        route_chunks_truncated: null,
       });
     }
   });
@@ -120,6 +122,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       route_mismatch: null,
       route_chunks: null,
       route_chunks_dropped: null,
+      route_chunks_truncated: null,
     });
   });
 
@@ -179,6 +182,36 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
     });
     expect(result.route_chunks).toHaveLength(1);
     expect(result.route_chunks_dropped).toBe(malformed.length);
+  });
+
+  test("route_chunks_truncated is read structurally and makes the verdict unknown", () => {
+    const chunk = {
+      index: 0,
+      requested: "gpu",
+      actual: "gpu",
+      tokens: 128,
+      prefill_ms: 41,
+      forced: true,
+    };
+    const build = (truncated: unknown) =>
+      governorRouteLogFields({
+        turnId: "7",
+        routePush: { mode: "gpu", outcome: "applied" },
+        completionResult: { route_chunks: [chunk], route_chunks_truncated: truncated },
+      });
+    // Truncated: every VISIBLE chunk matches, but unseen chunks could hide
+    // the mismatch — the same rule as dropped chunks: null, never false.
+    const truncatedOn = build(true);
+    expect(truncatedOn.route_chunks_truncated).toBe(true);
+    expect(truncatedOn.route_mismatch).toBeNull();
+    const truncatedOff = build(false);
+    expect(truncatedOff.route_chunks_truncated).toBe(false);
+    expect(truncatedOff.route_mismatch).toBe(false);
+    // Absent (unpinned binding) or non-boolean reads as null; the verdict
+    // follows the chunks as before.
+    expect(build(undefined).route_chunks_truncated).toBeNull();
+    expect(build(undefined).route_mismatch).toBe(false);
+    expect(build("yes").route_chunks_truncated).toBeNull();
   });
 
   test("route_chunks is projected to the six spec fields; malformed entries drop and count", () => {
