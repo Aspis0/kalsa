@@ -1607,11 +1607,21 @@ mod tests {
     /// `brain_host_credential` answers with, asserted as the positive
     /// control below. Every other surface this page is handed must be free
     /// of it: the dd4a12d rule for prompts, applied to the PC's own key.
-    /// And whatever could PRINT it must not: the record that holds it
-    /// answers through `DebugText`, which reports what a `{:?}` would emit
-    /// (nothing at all when the type offers no Debug — the store's
-    /// deliberate "No Debug on purpose") — so a Debug that leaks the
-    /// credential reddens this test while a redacting Debug passes it.
+    /// Covered, exhaustively for shapes fed from the STORE the credential
+    /// lives in: the pairing DTO with its devices list, the whole state
+    /// answer (its metrics as production's `snapshot` builds them, its
+    /// failure arm as `failure::words` builds it), the failure sentences
+    /// themselves, and the `StoredDevice` probe. Every other `Serialize`
+    /// struct in src-tauri — capability's Machine/ModelChoice/Capability/
+    /// Speed, files' Roots/Listing/Search, measurement's Record, options'
+    /// Advanced, startup's Progress, main's ModelDto — is built from
+    /// machine, catalog, file or settings data that never reads the store,
+    /// so the credential has no road into them. And whatever could PRINT
+    /// it must not: the record that holds it answers through `DebugText`,
+    /// which reports what a `{:?}` would emit (nothing at all when the type
+    /// offers no Debug — the store's deliberate "No Debug on purpose") —
+    /// so a Debug that leaks the credential reddens this test while a
+    /// redacting Debug passes it.
     #[test]
     fn the_host_credential_leaves_only_by_its_own_command() {
         use crate::failure::StartupFailure;
@@ -1636,6 +1646,12 @@ mod tests {
                 String::new()
             }
         }
+        // What this probe does NOT cover: it is applied to StoredDevice
+        // alone. A hand-written `impl Debug` on Handshake, PairedDeviceDto
+        // or Desk would sit outside its reach — those shapes are seen only
+        // by the serialised-form patrol above, and only as serialised, never
+        // as a `{:?}`. The gap is stated rather than silently assumed; a
+        // probe per type is the day one of them grows a Debug worth fearing.
 
         let file = scratch("credential-patrol");
         let host = kalsa_pairing::store::enrol_host(&file).unwrap();
@@ -1668,30 +1684,63 @@ mod tests {
             "the pairing DTO carries the host credential"
         );
 
-        // The metrics read the state carries: who is busy (the host among
-        // them) and the tier beside it.
-        let metrics = serde_json::to_string(&crate::metrics::RuntimeMetricsDto {
-            decode_tokens_per_second: None,
-            active_devices: Some(vec![crate::metrics::ActiveDeviceDto {
-                id: host.id,
-                label: kalsa_pairing::store::HOST_LABEL.to_string(),
-                kind: "host",
-            }]),
-            tier: Some(crate::metrics::TierDto {
-                capacity: 1,
-                residents: 0,
-                disk: None,
+        // The state answer the page polls, carrying the metrics AS
+        // PRODUCTION BUILDS THEM: the real `RuntimeMetrics::snapshot` over
+        // the door's own shapes (the host among the busy), a tier with a
+        // disk scan beside it — the Running arm's whole nest in one
+        // serialised value: ActiveDeviceDto, TierDto, DiskScanDto and
+        // RuntimeMetricsDto together.
+        let runtime = crate::metrics::RuntimeMetrics::new(std::sync::Arc::new(
+            std::sync::atomic::AtomicU64::new(0),
+        ));
+        let metrics = runtime.snapshot(
+            Some(vec![
+                crate::metrics::ActiveDeviceDto {
+                    id: host.id,
+                    label: kalsa_pairing::store::HOST_LABEL.to_string(),
+                    kind: "host",
+                },
+                crate::metrics::ActiveDeviceDto {
+                    id: host.id + 1,
+                    label: "Pixel 9a (stub)".to_string(),
+                    kind: "phone",
+                },
+            ]),
+            Some(crate::metrics::TierDto {
+                capacity: 4,
+                residents: 1,
+                disk: Some(crate::metrics::DiskScanDto {
+                    bytes: 1,
+                    files: 1,
+                    unreadable: 0,
+                }),
             }),
-            throttled: None,
+        );
+        let state = crate::StateDto::Running {
+            port: 8131,
+            endpoint: Some("http://127.0.0.1:8131/v1".to_string()),
+            model: Some("a row".to_string()),
+            reason: Some("a reason".to_string()),
+            asleep: Some(false),
+            metrics,
+        };
+        let state_json = serde_json::to_string(&state).unwrap();
+        assert!(
+            state_json.contains("This computer"),
+            "the state DTO was built with the busy host in it"
+        );
+        assert!(
+            !state_json.contains(&credential),
+            "the state DTO carries the host credential"
+        );
+        // The other arm of the same enum, as the page reads a failure.
+        let failed = serde_json::to_string(&crate::StateDto::Failed {
+            reason: crate::failure::words(&StartupFailure::NothingFits),
         })
         .unwrap();
         assert!(
-            metrics.contains("This computer"),
-            "the metrics DTO was built"
-        );
-        assert!(
-            !metrics.contains(&credential),
-            "the metrics DTO carries the host credential"
+            !failed.contains(&credential),
+            "the failed state carries the host credential"
         );
 
         // Every failure sentence the walk can say, exhaustively over the
