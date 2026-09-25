@@ -18,9 +18,13 @@ libc = "0.2"
 
 # Same diagnostic on Windows: `GetProcessTimes` (this process's kernel and
 # user time) behind `cpu_seconds`, so the parallelism check runs there too.
+# `Win32_System_Registry` is the display class's own VRAM figure
+# (`HardwareInformation.qwMemorySize`, `vram_registry.rs`): WMI's 32-bit
+# AdapterRAM saturates below any card over 4 GiB.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    "Win32_System_Registry",
     "Win32_System_Threading",
 ] }
 

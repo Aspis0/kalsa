@@ -24,6 +24,10 @@ mod predict;
 mod run;
 mod series;
 mod soc;
+// Windows' display-class registry and its pure decode/match: built for
+// Windows, and for tests on any platform that runs them.
+#[cfg(any(target_os = "windows", test))]
+mod vram_registry;
 
 pub use bandwidth::{measure_at_threads, thread_ramp, SAMPLE_TARGET};
 pub use compute::measure_compute;

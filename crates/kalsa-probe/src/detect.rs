@@ -14,11 +14,18 @@ use crate::path::Backend;
 #[cfg(target_os = "windows")]
 use crate::{command_text, once_present};
 
-/// Windows reports VRAM in a 32-bit field: it cannot represent 8 GiB at all, and
-/// the maximum value means "saturated", not "4294967295 bytes". Anything at or
-/// above this is refused rather than reported as a size.
+/// Windows reports VRAM in a 32-bit field, and the cap it hands out is not
+/// u32::MAX: the owner's Lenovo — an RTX 4050 Laptop GPU of 6141 MiB per
+/// nvidia-smi (capture 2026-09-24) — answered `AdapterRAM` = 4293918720 =
+/// 0xFFF00000, u32::MAX rounded down to whole MiB, and a parser with a
+/// looser bound spent its whole budget 2 GiB short (docs/WHAT-IS-MISSING.md
+/// §22 predicted this in words: "a reading just under the 32-bit limit,
+/// such as 4293918720, is taken as a real size"). At or above this line the
+/// field is saying "at least this much": never a size, an unknown one. The
+/// true size on Windows comes from the driver's own registry values
+/// (`vram_registry`), never from here.
 #[cfg(any(target_os = "windows", test))]
-const WMI_SATURATION_BYTES: u64 = u32::MAX as u64;
+const WMI_SATURATION_BYTES: u64 = 0xFFF00000;
 
 pub fn backend() -> Backend {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -133,7 +140,16 @@ fn windows_backend() -> Backend {
             || command_text("wmic", &WMIC_CONTROLLERS, ANSWER_DEADLINE),
             || command_text("powershell", &POWERSHELL_CONTROLLERS, ANSWER_DEADLINE),
         )
-        .map(|text| backend_from_video_controllers(&text))
+        .map(|text| {
+            // The registry's own answers, asked beside the parse: the walk
+            // is thin and once-per-process (inside `once_present`), and the
+            // match happens per discrete row by name — so a machine whose
+            // WMI field saturated answers with the driver's real figure.
+            let sizes = crate::vram_registry::registry_vram_sizes();
+            backend_from_video_controllers_with(&text, |name| {
+                crate::vram_registry::size_for(&sizes, name)
+            })
+        })
     })
     .unwrap_or(Backend::Unknown)
 }
@@ -217,10 +233,20 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// Reads the video controllers' text — wmic's, or the PowerShell fallback's
 /// with the same shape: the memory, when there is one, leading each row.
 ///
-/// The name decides whether it is discrete; the memory is only reported when it
-/// is not sitting on the 32-bit saturation point WMI is famous for.
+/// The name decides whether it is discrete; the memory is reported only
+/// when it is not a non-answer: zero, or sitting on the 32-bit saturation
+/// line (`WMI_SATURATION_BYTES`). The size a discrete card really has may
+/// come from somewhere else entirely — `registry_size` is asked the
+/// controller's name and answers this machine's driver-written
+/// `qwMemorySize` when the registry holds one, which wins whenever present.
+/// Injected rather than called, so the whole decision is testable on a
+/// machine with no such registry; the real answer is `vram_registry`'s
+/// walk, behind `cfg(windows)`.
 #[cfg(any(target_os = "windows", test))]
-pub fn backend_from_video_controllers(text: &str) -> Backend {
+pub fn backend_from_video_controllers_with(
+    text: &str,
+    registry_size: impl Fn(&str) -> Option<u64>,
+) -> Backend {
     let mut best: Option<u64> = None;
     let mut discrete = false;
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
@@ -253,10 +279,14 @@ pub fn backend_from_video_controllers(text: &str) -> Backend {
             && !lowered.contains("intel");
         if looks_discrete {
             discrete = true;
-            // A saturated 32-bit reading is "at least this much", not a
-            // size — and a zero AdapterRAM is the same non-answer: no card
-            // has zero bytes, so both read as an unknown size.
-            if let Some(bytes) = memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES) {
+            // A discrete card's size, in order of authority: the driver's
+            // own registry figure when this machine's walk holds one, and
+            // otherwise AdapterRAM — which counts only below the saturation
+            // line. Zero and the cap are both non-answers (the Lenovo's
+            // 0xFFF00000 was a 6141 MiB card), never sizes.
+            let resolved = registry_size(name.trim())
+                .or_else(|| memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES));
+            if let Some(bytes) = resolved {
                 best = Some(best.map_or(bytes, |current| current.max(bytes)));
             }
         }
@@ -266,6 +296,15 @@ pub fn backend_from_video_controllers(text: &str) -> Backend {
     } else {
         Backend::Cpu
     }
+}
+
+/// The same parse with no registry in play: every test that pins the parse
+/// itself comes through this door, and the saturated reading it must never
+/// accept stays visible here — the registry's own answers belong to
+/// `backend_from_video_controllers_with`.
+#[cfg(test)]
+pub fn backend_from_video_controllers(text: &str) -> Backend {
+    backend_from_video_controllers_with(text, |_| None)
 }
 
 #[cfg(test)]
@@ -280,7 +319,7 @@ mod tests {
 
     #[test]
     fn a_discrete_card_is_recognised_with_its_memory() {
-        // What WMI can actually print: a 32-bit byte count.
+        // What WMI can actually print below the cap: a 32-bit byte count.
         let text = "AdapterRAM  Name\n3221225472  NVIDIA GeForce GTX 1650\n";
         assert_eq!(
             backend_from_video_controllers(text),
@@ -288,11 +327,11 @@ mod tests {
                 vram_bytes: Some(3221225472)
             }
         );
-        let amd = "AdapterRAM  Name\n4293918720  AMD Radeon RX 6600\n";
+        let amd = "AdapterRAM  Name\n4000000000  AMD Radeon RX 6600\n";
         assert_eq!(
             backend_from_video_controllers(amd),
             Backend::DiscreteGpu {
-                vram_bytes: Some(4293918720)
+                vram_bytes: Some(4000000000)
             }
         );
     }
@@ -305,6 +344,45 @@ mod tests {
             backend_from_video_controllers(text),
             Backend::DiscreteGpu { vram_bytes: None },
             "4090 has 24 GiB, and WMI cannot say so"
+        );
+        // THE CAP, not u32::MAX: the Lenovo's RTX 4050 Laptop GPU — 6141 MiB
+        // per nvidia-smi, 6439305216 bytes in the driver's qwMemorySize —
+        // answered exactly 4293918720 (0xFFF00000) through AdapterRAM, and
+        // the old bound took it as a size: a ~2 GiB budget on a 6 GiB card.
+        // The number must stay a non-answer (docs/WHAT-IS-MISSING.md §22
+        // predicted this in words); only the registry may turn it into a
+        // size, in `the_registry_size_wins…` below.
+        let lenovo = "AdapterRAM  Name\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        assert_eq!(
+            backend_from_video_controllers(lenovo),
+            Backend::DiscreteGpu { vram_bytes: None },
+            "0xFFF00000 is the cap saying 'at least this much', not the card"
+        );
+    }
+
+    #[test]
+    fn the_registry_size_wins_and_its_absence_leaves_the_cap_unread() {
+        // The Lenovo capture's two rows as the PowerShell fallback printed
+        // them: the Arc — Intel, never discrete, its own 32-bit-short
+        // 2147479552 — and the RTX 4050 whose AdapterRAM saturated.
+        let lenovo = "2147479552  Intel(R) Arc(TM) Graphics\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        let entries = vec![("NVIDIA GeForce RTX 4050 Laptop GPU".to_string(), 6439305216)];
+        assert_eq!(
+            backend_from_video_controllers_with(lenovo, |name| {
+                crate::vram_registry::size_for(&entries, name)
+            }),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6439305216)
+            },
+            "the driver's own figure: 6141 MiB, where WMI said 4293918720"
+        );
+        // The same machine with the registry read gone (empty walk, denied
+        // key, no match): the cap must NOT come back as a size — unknown is
+        // the only honest answer left.
+        assert_eq!(
+            backend_from_video_controllers_with(lenovo, |_| None),
+            Backend::DiscreteGpu { vram_bytes: None },
+            "with no registry answer the saturated AdapterRAM stays unread"
         );
     }
 
