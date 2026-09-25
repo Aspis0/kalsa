@@ -566,6 +566,12 @@ mod job {
     }
 }
 
+/// The kill-on-close job, for the one other user of it: the runtime's
+/// probe child rides in the same reaping (`kalsa-runtime` holds it for the
+/// child's lifetime) — used there, so exported, not preventive.
+#[cfg(windows)]
+pub use job::{confine, Job};
+
 #[cfg(test)]
 mod tests {
     use super::*;

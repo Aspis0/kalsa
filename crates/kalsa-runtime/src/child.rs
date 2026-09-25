@@ -3,16 +3,22 @@
 //!
 //! The shape deliberately mirrors `kalsa-supervisor`'s `ChildHandle`, and the
 //! mirror exists because that type is crate-private there (only `pid_alive`,
-//! `terminate_pid` and `InstanceFile` are re-exported), so this crate cannot
-//! hold one. What is genuinely shared is reused: the orphan story runs on the
-//! supervisor's `InstanceFile` — the child inherits the exclusive lock, so
-//! "the lock is held" keeps meaning "our probe child is alive" even after a
-//! force-quit, and the next start can name and kill it with `terminate_pid`.
+//! `terminate_pid`, `InstanceFile` — and on Windows `confine` and `Job` —
+//! are re-exported), so this crate cannot hold one. What is genuinely
+//! shared is reused: the orphan story runs on the supervisor's
+//! `InstanceFile`. On unix the child inherits the exclusive lock, so "the
+//! lock is held" keeps meaning "our probe child is alive" even after a
+//! force-quit, and the next start can name and kill it with
+//! `terminate_pid`. On Windows handles are not inherited — the app's lock
+//! dies with the app — so the child rides in the supervisor's kill-on-close
+//! job instead: a force-quit closes the job, the job reaps the child, and
+//! the record reads `Stale` with no pid left to signal.
 //!
 //! Two divergences are deliberate: no process group (the long-lived server
-//! gets one to reach helpers it spawns; a probe child spawns nothing), and no
-//! Windows job object (the supervisor needs one to protect gigabytes of VRAM
-//! for the server's whole life; a probe holds a few megabytes for seconds).
+//! gets one to reach helpers it spawns; a probe child spawns nothing), and
+//! on Windows the supervisor's own kill-on-close job, shared rather than
+//! reinvented: a force-quit must not leave a probe llama-server running on
+//! a port with the record already deleted.
 
 use std::collections::VecDeque;
 use std::fs::File;
@@ -22,7 +28,9 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use kalsa_supervisor::{terminate_pid, Existing, InstanceFile};
+use kalsa_supervisor::{terminate_pid, Existing, InstanceFile, Termination};
+#[cfg(windows)]
+use kalsa_supervisor::{confine, Job};
 
 /// How often the probe looks at the child.
 pub(crate) const TICK: Duration = Duration::from_millis(100);
@@ -70,6 +78,11 @@ impl Launch for OsLaunch {
 struct Child {
     inner: std::process::Child,
     tail: Arc<Mutex<VecDeque<String>>>,
+    /// Windows only: the kill-on-close job the child rides in — dropping it
+    /// (the app dying) takes the child with it. Unix keeps the lock story
+    /// instead (see the module doc).
+    #[cfg(windows)]
+    _job: Option<Job>,
 }
 
 impl Child {
@@ -105,8 +118,29 @@ impl Child {
         #[cfg(not(unix))]
         let _ = inherit;
         let mut inner = cmd.spawn()?;
+        // Windows: the lock dies with the app (handles are not inherited),
+        // so the job is what reaps this child when a force-quit takes us —
+        // without it a probe llama-server would outlive its own record. A
+        // failed confine is said out loud, the supervisor's way.
+        #[cfg(windows)]
+        let job = {
+            use std::os::windows::io::AsRawHandle;
+            let job = confine(inner.as_raw_handle());
+            if job.is_none() {
+                eprintln!(
+                    "kalsa-brain: the probe child could not be confined to a kill-on-close \
+                     job: a force-quit will not reap it"
+                );
+            }
+            job
+        };
         let tail = drain_stderr(inner.stderr.take());
-        Ok(Self { inner, tail })
+        Ok(Self {
+            inner,
+            tail,
+            #[cfg(windows)]
+            _job: job,
+        })
     }
 
     fn wait_within(&mut self, grace: Duration) -> io::Result<Option<ExitStatus>> {
@@ -193,16 +227,26 @@ impl Drop for Child {
 }
 
 /// Kills a probe child left behind by a force-quit, and clears its state
-/// file. Ownership is proven the supervisor's way: only a child holding the
-/// inherited lock counts as ours, so a recycled pid is never signalled. A
-/// probe running in another app instance at this exact moment would also read
-/// as live; the window is the probe's own seconds and the cost is a re-probe.
+/// file. Ownership is proven the supervisor's way: a lock held on our own
+/// state file counts as ours — the child's inherited handle on unix, the
+/// live instance's own handle on Windows — so a recycled pid is never
+/// signalled. A probe running in another app instance at this exact moment
+/// would also read as live; the window is the probe's own seconds and the
+/// cost is a re-probe.
 pub(crate) fn reap_orphan(state_file: &Path, grace: Duration) {
     match InstanceFile::inspect(state_file) {
-        Ok(Existing::Live { pid, .. }) => {
-            let _ = terminate_pid(pid, grace);
-            let _ = std::fs::remove_file(state_file);
-        }
+        Ok(Existing::Live { pid, .. }) => match terminate_pid(pid, grace) {
+            // The record goes only with proof the process is gone: a
+            // Survived or Unknown leaves it, so the next start tries
+            // again — deleting it would orphan a running pid forever.
+            Termination::Gone { .. } => {
+                let _ = std::fs::remove_file(state_file);
+            }
+            other => eprintln!(
+                "kalsa-brain: an orphan pid {pid} did not go away ({other:?}); the state \
+                 file stays so the next start can try again"
+            ),
+        },
         Ok(Existing::Stale) => {
             let _ = std::fs::remove_file(state_file);
         }
@@ -286,6 +330,59 @@ mod tests {
                      stand-in {pid} cleanup: {cleanup:?}"
                 );
             }
+        }
+    }
+
+    /// On Windows the probe child's reap rides on the supervisor's
+    /// kill-on-close job: the app's lock dies with the app there (handles
+    /// are not inherited), so this job is all a force-quit leaves behind.
+    /// Dropping it must take the child with it — the pattern the
+    /// supervisor's `dropping_the_job_ends_the_child_it_confined` proves
+    /// for its own children.
+    #[cfg(windows)]
+    #[test]
+    fn dropping_the_job_takes_the_probe_child() {
+        let mut child = Child::start(
+            Path::new("ping"),
+            &["-n".to_string(), "300".to_string(), "127.0.0.1".to_string()],
+            None,
+        )
+        .expect("spawn the stand-in");
+        assert!(
+            matches!(child.inner.try_wait(), Ok(None)),
+            "the stand-in must be healthy and running"
+        );
+        let pid = child.inner.id();
+        let job = child
+            ._job
+            .take()
+            .expect("the stand-in must be confined — no job means no reap");
+        drop(job);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut ended = false;
+        let mut watch_error = None;
+        while Instant::now() < deadline {
+            match child.inner.try_wait() {
+                Ok(None) => std::thread::sleep(TICK),
+                Ok(Some(_)) => {
+                    ended = true;
+                    break;
+                }
+                Err(error) => {
+                    watch_error = Some(error);
+                    break;
+                }
+            }
+        }
+        if !ended {
+            // Nothing may leak: reclaim the stand-in by pid, the way the
+            // stop tests do, before failing.
+            let cleanup = terminate_pid(pid, Duration::from_secs(1));
+            let why = match watch_error {
+                Some(error) => format!("polling the probe child failed: {error}"),
+                None => "dropping the job did not take the child within 5s".to_string(),
+            };
+            panic!("{why} (pid {pid}); cleanup: {cleanup:?}");
         }
     }
 }
