@@ -89,7 +89,7 @@ fn the_metal_build_measures_full_and_forced_off() {
         match candidate.offload {
             Offload::All => argv.extend(["--n-gpu-layers".to_string(), "all".to_string()]),
             Offload::ForcedOff => argv.extend(["--n-gpu-layers".to_string(), "0".to_string()]),
-            Offload::NoGpuBuild => {}
+            Offload::NoGpuBuild | Offload::EngineFitted => {}
         }
         (exe.clone(), argv)
     };
@@ -101,6 +101,7 @@ fn the_metal_build_measures_full_and_forced_off() {
             Offload::All => "full offload",
             Offload::ForcedOff => "forced off (--n-gpu-layers 0)",
             Offload::NoGpuBuild => "cpu build",
+            Offload::EngineFitted => "engine-fitted",
         };
         match outcome.best() {
             Some(rate) => lines.push(format!("{label}: {rate} tok/s (of {outcome:?})")),

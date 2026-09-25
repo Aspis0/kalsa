@@ -13,9 +13,9 @@ pub struct Candidate {
     pub offload: Offload,
 }
 
-/// The offload a graphics candidate gets: the budget was sized for the
-/// memory this model decodes from, so every layer goes to the GPU. Kept
-/// here because a candidate is decided here; the record stores the
+/// The offload a graphics candidate gets: no flag at all, so the engine
+/// fits its layers to the memory that is actually free at this start (the
+/// variant's own doc carries the engine sources). The record stores the
 /// offload rather than re-deriving it, because a processor run on the Mac
 /// is the Metal build with the offload forced off — not a function of the
 /// backend alone.
@@ -23,7 +23,7 @@ pub(crate) fn offload_for(backend: ServerBackend) -> Offload {
     if backend == ServerBackend::Cpu {
         Offload::NoGpuBuild
     } else {
-        Offload::All
+        Offload::EngineFitted
     }
 }
 
@@ -107,7 +107,7 @@ mod tests {
         Candidate {
             backend: ServerBackend::Vulkan,
             threads: Some(threads),
-            offload: Offload::All,
+            offload: Offload::EngineFitted,
         }
     }
 
@@ -138,11 +138,12 @@ mod tests {
         assert!(needs_tuning(&list), "two launches differ: measuring can decide");
     }
 
-    /// The Mac, measured rather than assumed: the Metal build at full
-    /// offload, then the same build with the offload forced off at each
-    /// known count — three launches, so the tune runs.
+    /// The Mac, measured rather than assumed: the Metal build with no
+    /// offload flag (the engine fits its layers), then the same build with
+    /// the offload forced off at each known count — three launches, so the
+    /// tune runs.
     #[test]
-    fn metal_measures_full_offload_and_forced_off() {
+    fn metal_measures_engine_fitted_and_forced_off() {
         let list = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10));
         assert_eq!(
             list,
@@ -150,7 +151,7 @@ mod tests {
                 Candidate {
                     backend: ServerBackend::Metal,
                     threads: Some(8),
-                    offload: Offload::All,
+                    offload: Offload::EngineFitted,
                 },
                 Candidate {
                     backend: ServerBackend::Metal,

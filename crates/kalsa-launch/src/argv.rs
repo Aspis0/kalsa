@@ -46,6 +46,9 @@ impl ServerArgs {
                 argv.extend(["--n-gpu-layers".to_string(), "0".to_string()]);
             }
             crate::args::Offload::NoGpuBuild => {}
+            // No flag: the engine's default (auto) plus `fit` decides the
+            // layers against free device memory — see the variant.
+            crate::args::Offload::EngineFitted => {}
         }
         // The cache the memory arithmetic counted: the owner's choice (q8_0
         // by default, one byte per element) under flash attention — a
@@ -116,6 +119,8 @@ impl ServerArgs {
             crate::args::Offload::All => Some(ALL_LAYERS),
             crate::args::Offload::ForcedOff => Some("0"),
             crate::args::Offload::NoGpuBuild => None,
+            // The engine decides the count; the panel says so as itself.
+            crate::args::Offload::EngineFitted => None,
         };
         ServerSettings {
             batch_size: self.batch_size,
@@ -165,6 +170,25 @@ mod tests {
             parallel: crate::args::DEFAULT_PARALLEL,
             slot_save_path: PathBuf::from("/slots"),
         }
+    }
+
+    /// EngineFitted renders NO `--n-gpu-layers`: the engine's default (auto)
+    /// stands, so `fit` picks the layers against the memory that is free at
+    /// this start — the variant's doc carries the engine sources. The
+    /// settings the panel reads say the same in their own word: no pinned
+    /// count. The plan's own `All` still states its flag: two rules.
+    #[test]
+    fn engine_fitted_renders_no_gpu_layers_flag() {
+        let mut fitted = some_args();
+        fitted.offload = crate::args::Offload::EngineFitted;
+        let argv = fitted.argv();
+        assert!(
+            !argv.contains(&"--n-gpu-layers".to_string()),
+            "the tune's graphics launch carries no flag: {argv:?}"
+        );
+        assert_eq!(fitted.settings().gpu_layers, None, "the panel says automatic");
+        let all = some_args();
+        assert!(all.argv().contains(&"--n-gpu-layers".to_string()));
     }
 
     /// What a person asks is the one thing that must never leave the

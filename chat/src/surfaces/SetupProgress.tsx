@@ -48,7 +48,7 @@ const COPY: Record<string, WalkCopy> = {
   tuning: {
     head: "Getting ready",
     sentence:
-      "Trying a few settings on this computer to find the one that runs best. The result is kept for next time.",
+      "Trying a few settings on this computer to find the one that runs best.",
   },
   model_bytes: {
     head: "Downloading",

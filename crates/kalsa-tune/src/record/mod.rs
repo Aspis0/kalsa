@@ -362,6 +362,7 @@ fn parse_count(value: &str) -> Option<usize> {
 fn offload_name(offload: Offload) -> &'static str {
     match offload {
         Offload::All => "all",
+        Offload::EngineFitted => "engine-fitted",
         Offload::ForcedOff => "forced-off",
         Offload::NoGpuBuild => "no-gpu-build",
     }
@@ -389,6 +390,8 @@ fn refusal_from_name(name: &str) -> Option<Refusal> {
 fn offload_from_name(name: &str) -> Option<Offload> {
     match name {
         "all" => Some(Offload::All),
+
+        "engine-fitted" => Some(Offload::EngineFitted),
         "forced-off" => Some(Offload::ForcedOff),
         "no-gpu-build" => Some(Offload::NoGpuBuild),
         _ => None,

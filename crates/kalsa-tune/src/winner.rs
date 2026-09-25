@@ -71,7 +71,11 @@ pub struct Winner {
 /// thread count ranks heaviest of all: the engine's own default may be
 /// every core the machine has.
 fn lightness(candidate: &Candidate) -> (u8, usize) {
-    let offload_rank = u8::from(candidate.offload != Offload::All);
+    // EngineFitted aims at the same place as All — every layer on the
+    // card — and lets the engine confirm the count, so it ranks as the
+    // fuller offload too.
+    let offload_rank =
+        u8::from(!matches!(candidate.offload, Offload::All | Offload::EngineFitted));
     let thread_rank = candidate.threads.unwrap_or(usize::MAX);
     (offload_rank, thread_rank)
 }
@@ -135,6 +139,33 @@ mod tests {
 
     /// A candidate four times faster is not a tie: the graphics run wins
     /// on its number, and full offload is the lighter setting besides.
+    /// EngineFitted aims at the same place as All — every layer on the
+    /// card, with the engine confirming the count — so inside the band it
+    /// ranks as the fuller offload, never as the heavier one. The refused
+    /// side sits first in the list, so a broken rank would pick it.
+    #[test]
+    fn an_engine_fitted_tie_is_the_fullest_offload() {
+        let off = Candidate {
+            backend: ServerBackend::Cpu,
+            threads: Some(16),
+            offload: Offload::NoGpuBuild,
+        };
+        let fitted = Candidate {
+            backend: ServerBackend::Vulkan,
+            threads: Some(16),
+            offload: Offload::EngineFitted,
+        };
+        let results = vec![
+            (off, Outcome::Measured(vec![40.0])),
+            (fitted, Outcome::Measured(vec![40.0])),
+        ];
+        assert_eq!(
+            winner(&results).map(|win| win.candidate),
+            Some(fitted),
+            "the fuller offload wins the tie"
+        );
+    }
+
     #[test]
     fn the_graphics_candidate_wins_when_it_is_faster() {
         let trials = [

@@ -317,6 +317,29 @@ pub enum Offload {
     ForcedOff,
     /// The CPU build: no GPU code in it, so no GPU flag is rendered at all.
     NoGpuBuild,
+    /// The tune's graphics launch: NO `--n-gpu-layers` at all, so the
+    /// engine's own default stands and `fit` picks the layers against the
+    /// memory actually free at this start. Verified on both pinned engines
+    /// (tags `b10950` = ad6c66839 and `kalsa-server-v1.1.1` = 833cde99b,
+    /// identical lines): the default is `-1` = auto (`common/common.h:473`;
+    /// `common/arg.cpp:2790-2791` maps `all` to -2, `auto` to -1), and a
+    /// negative value means every layer (`include/llama.h:320`) — so with
+    /// fit turned off the launch still offloads everything, the old
+    /// behaviour. Fit is on by default (`bool fit_params = true`,
+    /// common.h:476) and its step 3 fills the layers the free device
+    /// memory holds (`common/fit.cpp:488`, `set_ngl_tensor_split_tbo`),
+    /// keeping a context the user pinned (`fit.cpp:455`, "context size
+    /// set by user … no change"). It refuses only when the layers were
+    /// user-set (`fit.cpp:463-464`, "n_gpu_layers already set by user") —
+    /// which is exactly why passing a flag reduced it to a no-op — and
+    /// that refusal is caught and the server loads anyway
+    /// (`fit.cpp:894-903`, `common/common.cpp:1320-1329`), so a flag
+    /// never broke a start, it only disabled the fitting. `LLAMA_ARG_FIT`
+    /// in the environment can turn fit off (`common/arg.cpp:2876`); then
+    /// the default flows through unchanged and offloads every layer.
+    /// Used only by the tune's graphics candidate: the plan's own budget
+    /// rule (policy.rs) still renders `All` or `ForcedOff` as before.
+    EngineFitted,
 }
 
 /// The exact arguments the server is started with, as data: a test asserts

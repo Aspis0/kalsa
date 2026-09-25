@@ -77,6 +77,28 @@
         assert_eq!(load(&dir, &record.fingerprint), None);
     }
 
+    /// The tune's graphics winner is remembered as engine-fitted: the name
+    /// must round-trip, or the next start would launch a different rule
+    /// than the one that won.
+    #[test]
+    fn an_engine_fitted_winner_round_trips() {
+        let dir = Scratch::new("engine-fitted-roundtrip");
+        let mut record = sample();
+        let winner = record.winner.as_ref().expect("the sample has a winner").candidate;
+        record.winner.as_mut().unwrap().candidate.offload = Offload::EngineFitted;
+        for (candidate, _) in record.trials.iter_mut() {
+            if *candidate == winner {
+                candidate.offload = Offload::EngineFitted;
+            }
+        }
+        save(&dir, &record).expect("save");
+        let back = load(&dir, &record.fingerprint).expect("load");
+        assert_eq!(
+            back.winner.expect("kept").candidate.offload,
+            Offload::EngineFitted
+        );
+    }
+
     #[test]
     fn a_changed_machine_or_model_reads_as_no_record() {
         let dir = Scratch::new("fingerprint");

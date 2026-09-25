@@ -354,6 +354,24 @@ fn the_tune_line_is_the_owners_copy() {
         tune_line(&Tune::Measured(record.clone())),
         "graphics, 49.0 tokens/s (processor 16 threads: 11.8 tokens/s)"
     );
+    // EngineFitted is the graphics family in the owner's words too.
+    let fitted = kalsa_tune::Candidate {
+        backend: ServerBackend::Vulkan,
+        threads: Some(16),
+        offload: Offload::EngineFitted,
+    };
+    assert_eq!(
+        tune_line(&Tune::Measured(kalsa_tune::record::Record {
+            fingerprint: "fp".to_string(),
+            winner: Some(kalsa_tune::Winner {
+                candidate: fitted,
+                best: 49.0,
+            }),
+            trials: vec![(fitted, kalsa_tune::record::Kept::Best(49.0))],
+        })),
+        "graphics, 49.0 tokens/s"
+    );
+
     // A winner with no measured alternative stands alone on the line.
     let alone = kalsa_tune::record::Record {
         winner: record.winner,

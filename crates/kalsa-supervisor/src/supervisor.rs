@@ -92,7 +92,14 @@ pub enum Failure {
 }
 
 enum Command {
-    Start(Box<ServerConfig>, mpsc::Sender<StartOutcome>),
+    Start(
+        Box<ServerConfig>,
+        mpsc::Sender<StartOutcome>,
+        /// The worker's report after the handshake (or its failure): what
+        /// THIS start did, so a caller can settle without reading the
+        /// shared state.
+        mpsc::Sender<StartSettled>,
+    ),
     /// The state the drain was declared over (`drain::declare`'s return):
     /// by the time the worker reads the state it says `Stopping`, so this
     /// is the only record of what the FIRST stop left behind (§18).
@@ -123,15 +130,36 @@ pub enum StartOutcome {
 /// publishing an argv nobody runs.
 #[must_use = "a start whose verdict is ignored cannot tell a taken start from a refused one"]
 pub struct StartWaiter {
-    receiver: mpsc::Receiver<StartOutcome>,
+    verdict: mpsc::Receiver<StartOutcome>,
+    settled: mpsc::Receiver<StartSettled>,
+}
+
+/// What THIS start did once its handshake landed or failed — the worker's
+/// own report, so the answer cannot be a state transition somebody else
+/// observed late, and never a stale failure from a start before it.
+#[derive(Clone, Debug)]
+pub enum StartSettled {
+    /// Up: running, or adopted and running.
+    Up,
+    /// The start failed; the reason is the caller's to word.
+    Failed(Failure),
 }
 
 impl StartWaiter {
     /// Blocks until the worker decides. The wait is bounded by the command
     /// the worker is currently serving — a start request is answered before
     /// any handshake begins, so only another start's handshake can delay it.
-    pub fn outcome(self) -> StartOutcome {
-        self.receiver.recv().unwrap_or(StartOutcome::Refused)
+    pub fn outcome(&self) -> StartOutcome {
+        self.verdict.recv().unwrap_or(StartOutcome::Refused)
+    }
+
+    /// Blocks until THIS start has settled: running, or failed with the
+    /// reason. `None` when no answer will come — the worker died, the start
+    /// was never taken (the settle sender is dropped with the refused
+    /// command), or the app is going away. A dropped answer is not a
+    /// failure: callers treat `None` as "leave it alone".
+    pub fn settle(&self) -> Option<StartSettled> {
+        self.settled.recv().ok()
     }
 }
 
@@ -307,8 +335,16 @@ impl Supervisor {
     /// whether the request was taken blocks on the waiter's outcome.
     pub fn start(&self, config: ServerConfig) -> StartWaiter {
         let (sender, receiver) = mpsc::channel();
-        let _ = self.commands.send(Command::Start(Box::new(config), sender));
-        StartWaiter { receiver }
+        let (settled_sender, settled_receiver) = mpsc::channel();
+        let _ = self.commands.send(Command::Start(
+            Box::new(config),
+            sender,
+            settled_sender,
+        ));
+        StartWaiter {
+            verdict: receiver,
+            settled: settled_receiver,
+        }
     }
 
     /// Asks the worker to stop the server and reaps it there. NON-BLOCKING:
@@ -385,9 +421,11 @@ fn work(
     let mut last: Option<ServerConfig> = None;
     loop {
         match inbox.recv_timeout(TICK) {
-            Ok(Command::Start(config, outcome)) => {
+            Ok(Command::Start(config, outcome, settled)) => {
                 if owned.is_some() {
                     let _ = outcome.send(StartOutcome::Refused);
+                    // `settled` is dropped with the command: no answer for
+                    // a start nobody took, and a waiter that asks gets None.
                     continue; // already on: the switch is not a restart button
                 }
                 last = Some(config.as_ref().clone());
@@ -413,6 +451,7 @@ fn work(
                                 port: config.port,
                             },
                         );
+                        let _ = settled.send(StartSettled::Up);
                         owned = Some(Owned {
                             child: None,
                             adopted_pid: pid,
@@ -428,6 +467,7 @@ fn work(
                                 port: config.port,
                             },
                         );
+                        let _ = settled.send(StartSettled::Up);
                         owned = Some(Owned {
                             child: Some(child),
                             adopted_pid: None,
@@ -435,7 +475,15 @@ fn work(
                             config: *config,
                         });
                     }
-                    Err(reason) => set(&state, ServerState::Failed { reason }),
+                    Err(reason) => {
+                        set(
+                            &state,
+                            ServerState::Failed {
+                                reason: reason.clone(),
+                            },
+                        );
+                        let _ = settled.send(StartSettled::Failed(reason));
+                    }
                 }
             }
             Ok(Command::Stop { prior }) => {
@@ -1110,7 +1158,8 @@ mod tests {
         let state_file = config.state_file.clone();
         let _ = std::fs::remove_file(&state_file);
         let (outcome, _verdict) = mpsc::channel();
-        let _ = commands.send(Command::Start(Box::new(config), outcome));
+        let (settled, _settle) = mpsc::channel();
+        let _ = commands.send(Command::Start(Box::new(config), outcome, settled));
 
         let deadline = Instant::now() + Duration::from_secs(5);
         while residency.asleep().is_some() && Instant::now() < deadline {

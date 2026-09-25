@@ -37,7 +37,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
-use kalsa_supervisor::{Failure, ServerState, StartOutcome, Supervisor, Watch};
+use kalsa_supervisor::{Failure, StartOutcome, StartSettled, Supervisor, ServerState, Watch};
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
 
@@ -1125,16 +1125,18 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     })
     .await;
 
-    // The walk is over either way; the next press may start again.
-    brain.turning_on.store(false, Ordering::SeqCst);
-
     let record_dir = app.path().app_data_dir().ok();
-    match outcome {
+    let result = match outcome {
         Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref()),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
         Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
-    }
+    };
+    // The press owns the guard through settlement — the retry included:
+    // until this returns, no second Turn on may queue behind a start whose
+    // verdict is still open.
+    brain.turning_on.store(false, Ordering::SeqCst);
+    result
 }
 
 /// What the blocking walk hands back: the verdict for the screen, and —
@@ -1177,15 +1179,28 @@ fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result
             let tuned_changed = rule.as_ref().is_some_and(|(config, _)| {
                 config.argv != prepared.server.argv || config.exe != prepared.server.exe
             });
-            let prior = brain.supervisor.state();
-            let mut outcome = brain.supervisor.start(prepared.server.clone()).outcome();
-            if outcome == StartOutcome::Accepted
-                && tuned_changed
-                && start_settled_failed(brain, prior)
-            {
+            let waiter = brain.supervisor.start(prepared.server.clone());
+            let mut outcome = waiter.outcome();
+            // The verdict (taken or not) is answered before the handshake by
+            // design; the settle is THIS start's own report after it, so no
+            // state transition can be missed and no stale Failed misread.
+            let settled = (outcome == StartOutcome::Accepted)
+                .then(|| waiter.settle())
+                .flatten();
+            if retry_after(settled, tuned_changed) {
                 if let Some((config, args)) = rule {
+                    // The record goes away with the failure, best effort: a
+                    // delete that fails leaves the record to be read next
+                    // start, whose tuned launch fails once more and takes the
+                    // same single retry — the same outcome, never a loop.
                     kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root());
-                    outcome = brain.supervisor.start(config.clone()).outcome();
+                    let retry = brain.supervisor.start(config.clone());
+                    let retry_outcome = retry.outcome();
+                    // The retry settles too before the guard lets go.
+                    if retry_outcome == StartOutcome::Accepted {
+                        let _ = retry.settle();
+                    }
+                    outcome = retry_outcome;
                     // The record must describe what actually runs.
                     prepared.info.args = args;
                     prepared.info.tune = None;
@@ -1204,54 +1219,23 @@ fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result
     }
 }
 
-/// Waits for a queued start to land: `Running` (it is up), or a terminal
-/// failure. True only for the two failures a tuned launch can cause and a
-/// single retry could fix — not ready, or exited while loading — and only
-/// when this start, not a stale state from before it, produced them.
-/// Bounded by the walk's own ready deadline; a start that never reports
-/// is simply not retried.
-fn start_settled_failed(brain: &Brain, prior: ServerState) -> bool {
-    let prior_was_failed = matches!(prior, ServerState::Failed { .. });
-    let deadline = std::time::Instant::now()
-        + startup::READY_TIMEOUT
-        + std::time::Duration::from_secs(5);
-    let mut saw_starting = false;
-    loop {
-        if let Some(retry) =
-            retry_decision(prior_was_failed, &mut saw_starting, &brain.supervisor.state())
-        {
-            return retry;
-        }
-        if std::time::Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-}
-
-/// One observation of the state, answered: `None` keeps waiting, `Some`
-/// settles the start. A failure counts when we watched THIS start begin
-/// (`Starting` is set by the worker at command pickup, before any work),
-/// or when the state before ours was not already failed — a fast failure
-/// we could have missed the `Starting` of. Only the two failures a tuned
-/// launch can cause and a retry could fix settle to `true`.
-fn retry_decision(
-    prior_was_failed: bool,
-    saw_starting: &mut bool,
-    state: &ServerState,
-) -> Option<bool> {
-    match state {
-        ServerState::Running { .. } => Some(false),
-        ServerState::Starting => {
-            *saw_starting = true;
-            None
-        }
-        ServerState::Failed { reason } if *saw_starting || !prior_was_failed => Some(matches!(
-            reason,
-            Failure::NotReady { .. } | Failure::ServerExited { .. }
-        )),
-        _ => None,
-    }
+/// The one question the retry asks: did THIS tuned start fail in a way the
+/// rule's launch could fix — not ready, exited while loading, or the exe
+/// vanished (`ServerNotStarted`) — and only where the tune actually changed
+/// the launch (the identical config would fail identically). Everything
+/// else gets no retry: up, a different failure, an untouched launch, or no
+/// answer at all — a stop during the start drops the settle channel, and a
+/// dropped answer is not a failure.
+fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
+    tuned_changed
+        && matches!(
+            settled,
+            Some(StartSettled::Failed(
+                Failure::NotReady { .. }
+                    | Failure::ServerExited { .. }
+                    | Failure::ServerNotStarted { .. }
+            ))
+        )
 }
 
 /// Where this instance announces itself. It is locked while our server runs and
