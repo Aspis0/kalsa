@@ -165,6 +165,11 @@ mod tests {
             vec![Some(SPLIT)],
             "the server must be asked to skip the surviving prefix"
         );
+        // Unclaimed first: a held claim byte-locks the file on Windows and
+        // fs::read from the path gets os 33. The product reads through the
+        // handle (`verify::sha256_hex`); these assertions are about the
+        // disk, so they read it unclaimed.
+        drop(part);
         assert_eq!(
             fs::read(dir.join("model.gguf.part")).expect("read"),
             data,
@@ -188,6 +193,8 @@ mod tests {
         );
         // …and appending anyway would have produced the right length with the
         // wrong bytes, so exact equality is the assertion.
+        // Unclaimed first, for the same os-33 reason as above.
+        drop(part);
         assert_eq!(fs::read(dir.join("model.gguf.part")).expect("read"), data);
         let _ = fs::remove_dir_all(&dir);
     }
@@ -244,12 +251,13 @@ mod tests {
             part.len().expect("partial length"),
             httptest::STALL_BYTES as u64
         );
+        // Unclaimed first, for the same os-33 reason as above.
+        drop(part);
         assert_eq!(
             fs::read(dir.join("model.gguf.part")).expect("partial file"),
             data[..httptest::STALL_BYTES],
             "bytes received before the stall must survive it"
         );
-        drop(part);
 
         let resumed = httptest::serve(data.clone(), RangeMode::Honor);
         let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("reclaim");
@@ -259,6 +267,8 @@ mod tests {
             vec![Some(httptest::STALL_BYTES as u64)],
             "the next attempt must resume after the surviving prefix"
         );
+        // Unclaimed first, for the same os-33 reason as above.
+        drop(part);
         assert_eq!(
             fs::read(dir.join("model.gguf.part")).expect("resumed file"),
             data

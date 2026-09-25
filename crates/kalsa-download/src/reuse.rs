@@ -243,6 +243,26 @@ mod tests {
         }
     }
 
+    /// A platform-absolute root for these fixtures: `/the/home` reads as
+    /// absolute on unix but not on Windows (a leading `\` has no drive),
+    /// and `env_path`'s `is_absolute` — the rule these tests pin — rejects
+    /// it there. Only the SPELLING of the root varies by platform; every
+    /// expected value below is built from this same function, so the
+    /// assertions stay the assertions.
+    fn fixture(rest: &str) -> PathBuf {
+        let root = if cfg!(windows) {
+            r"C:/kalsa-fixture"
+        } else {
+            "/kalsa-fixture"
+        };
+        PathBuf::from(root).join(rest)
+    }
+
+    /// The same fixture as the `&str` an env lookup takes.
+    fn ascii(path: &PathBuf) -> &str {
+        path.to_str().expect("fixture is ascii")
+    }
+
     /// huggingface_hub's precedence, driven through the lookup seam:
     /// HF_HUB_CACHE, then the legacy HUGGINGFACE_HUB_CACHE, then
     /// $HF_HOME/hub, then $XDG_CACHE_HOME's arm, then the default. A value
@@ -252,41 +272,50 @@ mod tests {
     /// path resolves against nothing meaningful here.
     #[test]
     fn a_relocated_hub_cache_is_found_through_the_environment() {
-        let home = PathBuf::from("/the/home");
+        let home = fixture("the/home");
         let default = home.join(".cache/huggingface/hub");
+        let moved = fixture("moved/hub");
+        let hf_home = fixture("hf/home");
+        let legacy = fixture("legacy/hub");
+        let xdg = fixture("xdg/cache");
 
-        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "/moved/hub")]));
-        assert_eq!(roots[0], PathBuf::from("/moved/hub"));
-        assert!(!roots.contains(&default), "the moved cache replaces the default, not joins it");
+        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", ascii(&moved))]));
+        assert_eq!(roots[0], moved);
+        assert!(
+            !roots.contains(&default),
+            "the moved cache replaces the default, not joins it"
+        );
 
-        let roots = roots_under(&home, lookup(&[("HF_HOME", "/hf/home")]));
-        assert_eq!(roots[0], PathBuf::from("/hf/home/hub"));
+        let roots = roots_under(&home, lookup(&[("HF_HOME", ascii(&hf_home))]));
+        assert_eq!(roots[0], hf_home.join("hub"));
 
         // constants.py falls back from HF_HUB_CACHE to the legacy
         // HUGGINGFACE_HUB_CACHE before anything else - and HF_HUB_CACHE
         // still wins over it.
-        let roots = roots_under(&home, lookup(&[("HUGGINGFACE_HUB_CACHE", "/legacy/hub")]));
-        assert_eq!(roots[0], PathBuf::from("/legacy/hub"));
+        let roots = roots_under(&home, lookup(&[("HUGGINGFACE_HUB_CACHE", ascii(&legacy))]));
+        assert_eq!(roots[0], legacy);
         let roots = roots_under(
             &home,
-            lookup(&[("HF_HUB_CACHE", "/moved/hub"), ("HUGGINGFACE_HUB_CACHE", "/legacy/hub")]),
+            lookup(&[
+                ("HF_HUB_CACHE", ascii(&moved)),
+                ("HUGGINGFACE_HUB_CACHE", ascii(&legacy)),
+            ]),
         );
-        assert_eq!(roots[0], PathBuf::from("/moved/hub"));
+        assert_eq!(roots[0], moved);
         // The order, not just membership: the legacy variable also beats
         // HF_HOME, so it cannot be silently moved further down the chain.
         let roots = roots_under(
             &home,
-            lookup(&[("HUGGINGFACE_HUB_CACHE", "/legacy/hub"), ("HF_HOME", "/hf/home")]),
+            lookup(&[
+                ("HUGGINGFACE_HUB_CACHE", ascii(&legacy)),
+                ("HF_HOME", ascii(&hf_home)),
+            ]),
         );
-        assert_eq!(
-            roots[0],
-            PathBuf::from("/legacy/hub"),
-            "the legacy variable outranks HF_HOME"
-        );
+        assert_eq!(roots[0], legacy, "the legacy variable outranks HF_HOME");
 
         // constants.py falls back to XDG_CACHE_HOME when HF_HOME is unset.
-        let roots = roots_under(&home, lookup(&[("XDG_CACHE_HOME", "/xdg/cache")]));
-        assert_eq!(roots[0], PathBuf::from("/xdg/cache/huggingface/hub"));
+        let roots = roots_under(&home, lookup(&[("XDG_CACHE_HOME", ascii(&xdg))]));
+        assert_eq!(roots[0], xdg.join("huggingface/hub"));
 
         let roots = roots_under(&home, lookup(&[]));
         assert_eq!(roots[0], default);
@@ -297,7 +326,7 @@ mod tests {
     /// variables carry them in practice, and a shell is not running).
     #[test]
     fn a_leading_tilde_expands_against_home() {
-        let home = PathBuf::from("/the/home");
+        let home = fixture("the/home");
         let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "~/moved/hub")]));
         assert_eq!(roots[0], home.join("moved/hub"));
 
@@ -310,19 +339,26 @@ mod tests {
     /// absolute-roots test does not depend on the ambient environment.
     #[test]
     fn a_value_that_is_empty_or_relative_counts_as_unset() {
-        let home = PathBuf::from("/the/home");
+        let home = fixture("the/home");
+        let hf_home = fixture("hf/home");
 
-        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", ""), ("HF_HOME", "/hf/home")]));
+        let roots = roots_under(
+            &home,
+            lookup(&[("HF_HUB_CACHE", ""), ("HF_HOME", ascii(&hf_home))]),
+        );
         assert_eq!(
             roots[0],
-            PathBuf::from("/hf/home/hub"),
+            hf_home.join("hub"),
             "an empty HF_HUB_CACHE is unset, not a path"
         );
 
-        let roots = roots_under(&home, lookup(&[("HF_HUB_CACHE", "rel/hub"), ("HF_HOME", "/hf/home")]));
+        let roots = roots_under(
+            &home,
+            lookup(&[("HF_HUB_CACHE", "rel/hub"), ("HF_HOME", ascii(&hf_home))]),
+        );
         assert_eq!(
             roots[0],
-            PathBuf::from("/hf/home/hub"),
+            hf_home.join("hub"),
             "a relative HF_HUB_CACHE resolves against nothing meaningful; it is unset"
         );
 
