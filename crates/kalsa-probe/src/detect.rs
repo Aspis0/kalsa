@@ -298,6 +298,11 @@ pub fn backend_from_video_controllers_with(
             // the cap can still supply the size when the live entry wrote no
             // qwMemorySize; rare, and it can only name a card of at least
             // the cap that WMI reported as zero or absent.
+            // The mirror of that limit, also accepted: the cap floor binds
+            // the zero and absent cases too, so a genuine sub-cap card whose
+            // AdapterRAM read 0 or absent while its registry holds the true
+            // size answers unknown — the safe direction, never inventing a
+            // small card from the registry.
             let adapter = memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES);
             let resolved = match adapter {
                 Some(bytes) => Some(bytes),
