@@ -494,8 +494,14 @@ fn stop(
                     report,
                     child::Termination::Gone { needed: child::Step::Kill }
                 );
+                // The rungs `terminate` actually walks: the SIGTERM rung
+                // is unix-only, so Windows must not claim it.
+                #[cfg(unix)]
+                let rungs = "stdin, SIGTERM, SIGKILL";
+                #[cfg(windows)]
+                let rungs = "stdin, kill";
                 let walk = format!(
-                    "spawned child pid {pid}, {:?} per rung (stdin, SIGTERM, SIGKILL): {report:?}",
+                    "spawned child pid {pid}, {:?} per rung ({rungs}): {report:?}",
                     run.config.stop_grace
                 );
                 if let Some(file) = instance {

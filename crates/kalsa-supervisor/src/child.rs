@@ -203,8 +203,11 @@ impl ChildHandle {
         self.stdin.take().is_some()
     }
 
-    /// Stops the child: stdin EOF, then SIGTERM to its group, then SIGKILL,
-    /// each after `grace`. Always reaps, so no zombie survives this call —
+    /// Stops the child: stdin EOF after `grace`, then — unix — SIGTERM to
+    /// its group and SIGKILL, each after a `grace`. A Windows stop walks
+    /// stdin and then kills: there is no gentler step, and no grace to wait
+    /// out behind a signal that was never sent. Always reaps, so no zombie
+    /// survives this call —
     /// and REPORTS what the walk found instead of handing back an exit
     /// status that reads as "gone" either way. This end never reports
     /// `Survived`: we hold the handle, and the final `wait` IS the reap —
@@ -225,15 +228,22 @@ impl ChildHandle {
             }
         }
         #[cfg(unix)]
-        if let Err(error) = signal_group(self.pid(), libc::SIGTERM) {
-            complaints.push(format!("SIGTERM to the group: {error}"));
-        }
-        match self.wait_within(grace) {
-            Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
-            Ok(None) => {}
-            Err(error) => {
-                return Termination::Unknown {
-                    detail: format!("reaping after SIGTERM failed: {error}"),
+        {
+            if let Err(error) = signal_group(self.pid(), libc::SIGTERM) {
+                complaints.push(format!("SIGTERM to the group: {error}"));
+            }
+            // The SIGTERM rung's grace waits for the signal to work. On
+            // Windows no signal has been sent at this point — a second
+            // grace there was pure waiting (the walk printed "2.5s per
+            // rung" twice for one signal) — so the rung, grace and all,
+            // is unix-only.
+            match self.wait_within(grace) {
+                Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
+                Ok(None) => {}
+                Err(error) => {
+                    return Termination::Unknown {
+                        detail: format!("reaping after SIGTERM failed: {error}"),
+                    }
                 }
             }
         }
@@ -669,6 +679,38 @@ mod tests {
             "the reload is not a release, so it must not bump the count"
         );
         assert!(matches!(child.try_wait(), Ok(None)));
+    }
+
+    /// The stdin rung is the grace a Windows stop spends: the SIGTERM rung
+    /// is unix, and a second grace behind a signal that was never sent is
+    /// pure waiting — the walk printed "2.5s per rung" twice for a stop
+    /// with one signal. A child that ignores stdin EOF must cost one grace,
+    /// not two.
+    #[cfg(windows)]
+    #[test]
+    fn stop_of_a_child_that_ignores_stdin_costs_one_grace_not_two() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let mut child = ChildHandle::spawn(
+            Path::new("ping"),
+            &["-n".to_string(), "300".to_string(), "127.0.0.1".to_string()],
+            None,
+            releases,
+            residency,
+        )
+        .expect("spawn the stand-in");
+        let grace = Duration::from_secs(1);
+        let started = Instant::now();
+        let report = child.terminate(grace);
+        let elapsed = started.elapsed();
+        assert!(
+            matches!(report, Termination::Gone { needed: Step::Kill }),
+            "a child that ignores stdin dies to the kill rung: {report:?}"
+        );
+        assert!(
+            elapsed < grace * 2,
+            "stop took {elapsed:?}: one grace, not two, is the contract"
+        );
     }
 
     #[test]
