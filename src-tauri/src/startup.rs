@@ -410,7 +410,7 @@ pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
 /// The graphics build's catalog answer, with the processor fallback the
 /// owner ruled in. `decide_processor` is lazy — a choice that fits the card
 /// never pays for it — and only the builds whose budget IS the card's memory
-/// (Vulkan, CUDA) fall back: a processor refusal is a real refusal, and
+/// (Vulkan) fall back: a processor refusal is a real refusal, and
 /// Metal budgets RAM already. And only the NothingFits refusal falls back at
 /// all: the fallback's sentence is about the card's memory holding no row,
 /// which is true only of that one — a phone comparison, a speed floor or a
@@ -423,10 +423,7 @@ pub(crate) fn choose_with_processor_fallback(
     decide_processor: impl FnOnce() -> Result<kalsa_runtime::Decision, kalsa_runtime::DecideError>,
 ) -> Result<(ServerBackend, PathBuf, DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     let (winner, exe) = build;
-    let budgets_the_card = matches!(
-        winner,
-        ServerBackend::Vulkan | ServerBackend::Cuda12 | ServerBackend::Cuda13
-    );
+    let budgets_the_card = matches!(winner, ServerBackend::Vulkan);
     match choose_model(winner, machine, phone, chosen) {
         Ok((plan, row, reason)) => Ok((winner, exe, plan, row, reason)),
         // ONLY NothingFits buys the fallback: the sentence "no model fits
@@ -541,7 +538,7 @@ fn budget_backend(winner: ServerBackend, detected: kalsa_probe::Backend) -> kals
         ServerBackend::Cpu => kalsa_probe::Backend::Cpu,
         // A GPU build decodes in the card's memory: the budget is the VRAM
         // detection read, when it could read one honestly.
-        ServerBackend::Vulkan | ServerBackend::Cuda12 | ServerBackend::Cuda13 => match detected {
+        ServerBackend::Vulkan => match detected {
             kalsa_probe::Backend::DiscreteGpu { vram_bytes } => {
                 kalsa_probe::Backend::DiscreteGpu { vram_bytes }
             }
@@ -1924,7 +1921,7 @@ mod tests {
             "the CPU build runs in system RAM"
         );
         assert_eq!(
-            budget_backend(ServerBackend::Cuda12, detected),
+            budget_backend(ServerBackend::Vulkan, detected),
             detected,
             "a GPU build decodes in the card"
         );

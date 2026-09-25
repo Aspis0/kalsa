@@ -29,7 +29,7 @@
 //!   whole model gets none of it, explicitly, because a GPU-capable build
 //!   offloads every layer by default.
 //! * **The arguments follow from the build that won.** A CPU build has no
-//!   GPU code, so it gets no GPU flags; a Metal, Vulkan or CUDA build gets
+//!   GPU code, so it gets no GPU flags; a Metal or Vulkan build gets
 //!   the offload decision stated explicitly, never left to its default.
 //! * **Heat is part of the objective.** The plan's second rule is "the
 //!   highest throughput that is sustainable", not the maximum; where a

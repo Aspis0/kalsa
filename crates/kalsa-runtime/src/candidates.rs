@@ -2,17 +2,14 @@
 //!
 //! Detection (`kalsa_probe::Backend`) only *narrows* the candidates: a GPU
 //! build can still refuse at device init, and a failing GPU backend does not
-//! always fail cleanly (the CUDA error path calls `GGML_ABORT`, a missing DLL
-//! kills the process before the server starts). So this list is a plan for
-//! the probe, not a verdict — the probe walks it and stops at the first build
-//! that actually answers.
+//! always fail cleanly (a missing DLL kills the process before the server
+//! starts, and a build refused at device init exits rather than answering).
+//! So this list is a plan for the probe, not a verdict — the probe walks it
+//! and stops at the first build that actually answers.
 //!
-//! Candidate order is also *download* order, which is why the ~32 MB Vulkan
-//! build comes before either ~645 MB CUDA build: detection cannot tell an
-//! NVIDIA card from an AMD one (`kalsa_probe` collapses both into
-//! `DiscreteGpu`), and making an AMD owner download 645 MB of CUDA before a
-//! 32 MB archive that would have worked is not a decision this crate gets to
-//! make twice.
+//! Candidate order is also *download* order: when a list names both builds,
+//! the cheap Vulkan build (~26 MB) is fetched first and the machine pays for
+//! the CPU archive (~14 MB) only when Vulkan refuses it.
 
 use crate::assets::{Platform, ServerBackend};
 use kalsa_probe::Backend;
@@ -36,16 +33,11 @@ pub fn candidates_for(platform: Option<Platform>, detected: Backend) -> Vec<Serv
             // No discrete GPU: CPU, full stop. Vulkan would only find the
             // same system RAM through a slower, heavier door.
             Backend::Cpu => vec![ServerBackend::Cpu],
-            // NVIDIA or AMD, vendor unknown: Vulkan serves both and is cheap
-            // to fetch; CUDA 12 stays behind it as the NVIDIA deepening,
-            // tried only if Vulkan refuses (device below sm_50, or the
-            // driver is older than 551.61, or the device init aborts).
+            // NVIDIA or AMD, vendor unknown: Vulkan serves both and is
+            // cheap to fetch; CPU is the floor when Vulkan refuses (the
+            // device is below Vulkan 1.2 or lacks `storageBuffer16BitAccess`).
             Backend::DiscreteGpu { .. } => {
-                vec![
-                    ServerBackend::Vulkan,
-                    ServerBackend::Cuda12,
-                    ServerBackend::Cpu,
-                ]
+                vec![ServerBackend::Vulkan, ServerBackend::Cpu]
             }
             // Detection learned nothing (wmic gone, or Metal on Windows):
             // the Vulkan build includes the CPU backend, so probing it costs
@@ -115,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn a_discrete_gpu_tries_the_cheap_gpu_build_before_the_heavy_one() {
+    fn a_discrete_gpu_tries_vulkan_then_the_cpu_floor() {
         assert_eq!(
             candidates_for(
                 Some(Platform::WindowsX64),
@@ -123,25 +115,8 @@ mod tests {
                     vram_bytes: Some(8 << 30)
                 }
             ),
-            vec![
-                ServerBackend::Vulkan,
-                ServerBackend::Cuda12,
-                ServerBackend::Cpu,
-            ]
+            vec![ServerBackend::Vulkan, ServerBackend::Cpu]
         );
-    }
-
-    #[test]
-    fn cuda13_waits_until_detection_can_name_the_driver() {
-        // CUDA 13 needs sm_75+ and a driver >= 580, and detection today
-        // cannot check either. Putting it in the walk would have the probe
-        // fetch 541 MB only to fail on machines CUDA 12 already failed on
-        // for the same reason.
-        let list = candidates_for(
-            Some(Platform::WindowsX64),
-            Backend::DiscreteGpu { vram_bytes: None },
-        );
-        assert!(!list.contains(&ServerBackend::Cuda13));
     }
 
     #[test]

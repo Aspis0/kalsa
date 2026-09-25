@@ -18,8 +18,9 @@
 //!    server answers `/health` wins, and the verdict is saved).
 //!
 //! Detection only narrows because GPU backends do not always fail cleanly:
-//! llama.cpp's CUDA error path calls `GGML_ABORT`, and a missing DLL kills
-//! the process before the server starts. Only a child that answers is proof.
+//! a missing DLL kills the process before the server starts, and a build
+//! refused at device init exits rather than answering. Only a child that
+//! answers is proof.
 //!
 //! Blocking on purpose: this runs on a background thread, and an async
 //! runtime would be a dependency on the one thing an old machine cannot

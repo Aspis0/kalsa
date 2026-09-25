@@ -45,12 +45,10 @@ const fn engine_module_file(platform: Platform) -> &'static str {
 ///
 /// The counts are a measurement over an artifact that is NOT in this repo,
 /// so they travel with their command: `strings -a <module> | grep -c` on
-/// the published module answers `x-kalsa-slot` = 1 and `X-Kalsa-Slot` = 0
-/// (v1.1.2's macOS dylib, from the release archive, checked against its
-/// published sha256 first, 2026-09-25). Redo it the same way on the next
-/// release rather than trusting a version word here: searching for the
-/// capitalised form would report the inlet missing exactly where it is
-/// present.
+/// the published module answers `x-kalsa-slot` = 1 and `X-Kalsa-Slot` = 0.
+/// Redo it the same way on the next release rather than trusting a version
+/// word here: searching for the capitalised form would report the inlet
+/// missing exactly where it is present.
 const INLET: &[u8] = b"x-kalsa-slot";
 
 /// Whether the engine at `exe` consumes the door's private headers, read
@@ -181,9 +179,9 @@ mod tests {
 
     #[test]
     fn a_missing_module_is_not_a_capability() {
-        // An upstream archive (the CUDA rows) or an Intel row: the launcher
-        // exists and the module beside it does not. False, not an error the
-        // door has to interpret.
+        // The launcher alone is not the capability: with the module beside
+        // it missing the answer is False, not an error the door has to
+        // interpret.
         let dir = scratch("no-module");
         let exe = dir.join("kalsa-server");
         std::fs::write(&exe, b"a thin launcher").expect("launcher");

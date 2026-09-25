@@ -672,10 +672,10 @@ mod tests {
 
     #[test]
     fn a_retry_after_a_broken_second_archive_starts_clean_and_publishes_the_pair() {
-        // CUDA's shape: two archives, the second one failing on the first
-        // attempt. The failed attempt must leave no staging (so the retry
-        // cannot mix an old engine with a new runtime), and the retried pair
-        // must publish and validate together.
+        // Two archives, the second one failing on the first attempt: the
+        // failed attempt must leave no staging (so a retry cannot mix
+        // archives from two attempts), and the retried pair must publish
+        // and validate together.
         let root = scratch("pair");
         let dir = builds_dir(&root, ServerBackend::Cpu);
         let staging = staging_path(&dir);

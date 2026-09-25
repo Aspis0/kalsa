@@ -780,7 +780,7 @@ mod tests {
             },
             32 * GIB,
         );
-        let launched = plan(&input(ServerBackend::Cuda12, card, model, M1_MAX_RAMP))
+        let launched = plan(&input(ServerBackend::Vulkan, card, model, M1_MAX_RAMP))
             .expect("the model fits the VRAM budget");
         assert_eq!(launched.args.offload, Offload::All);
         let line = launched.args.argv().join(" ");

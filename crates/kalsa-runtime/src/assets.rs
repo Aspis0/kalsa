@@ -1,30 +1,20 @@
 //! The `llama.cpp` builds this product can run, and the proof that a download
 //! is the build we meant.
 //!
-//! Two facts shape this table. CUDA is thirty times the CPU build (~645 MB
-//! against ~18 MB compressed), so the heavy backends cannot live in the
-//! installer: ship small, fetch the backend this machine justifies. And a
-//! download without a digest is a bet, not a build: `kalsa-download` renames
-//! bytes onto their final name only when size and sha256 both hold, so every
-//! row must carry both before it is allowed to move.
+//! Two facts shape this table. Nothing here ships in the installer: the
+//! machine that runs an engine fetches the row its hardware justifies when
+//! it first starts. And a download without a digest is a bet, not a build:
+//! `kalsa-download` renames bytes onto their final name only when size and
+//! sha256 both hold, so every row must carry both before it is allowed to
+//! move.
 //!
-//! Sizes and digests below are exact, and each came from the publisher that
-//! serves it: the fork's rows (macOS arm64 metal, Windows CPU, Windows
-//! Vulkan) from the fork's own published manifest
-//! (`https://dl.kalsa.io/kalsa-server/v1.1.2/manifest.json`, read live on
-//! 2026-09-25 — an archive rebuilt from the same tag is not byte-identical,
-//! so the manifest the publisher serves is the record of THAT object), the
-//! remaining upstream rows from the GitHub release's own asset list on
-//! 2026-09-14 (GitHub publishes a sha256 digest per asset). Two publishers
-//! share one table because the table describes what this app may run, not
-//! who built it.
+//! Sizes and digests below are exact and came from the publisher that serves
+//! the bytes: an archive rebuilt from the same tag is not byte-identical, so
+//! the record of an object is the manifest its publisher serves, never a
+//! reconstruction of it.
 //!
 //! Note the macOS builds ship as `.tar.gz`, not `.zip`, unlike every
 //! Windows row.
-
-/// Where upstream's release assets live. One place, so a release bump is
-/// one edit.
-const RELEASE_BASE: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b10950";
 
 /// Where Kalsa's own fork of the engine is published: the app's CDN, not
 /// GitHub. The fork is the only engine that reads the door's private
@@ -80,19 +70,13 @@ pub enum ServerBackend {
     /// The macOS archive: Metal and CPU in one file (~11 MB compressed), so
     /// on a Mac there is nothing to choose.
     Metal,
-    /// The Windows CPU build (~18 MB): the only build that always works.
+    /// The Windows CPU build (~14 MB): the only build that always works.
     Cpu,
-    /// The Windows Vulkan build (~32 MB): the cheap way to reach any recent
+    /// The Windows Vulkan build (~26 MB): the cheap way to reach any recent
     /// NVIDIA or AMD GPU. Needs Vulkan 1.2 + `storageBuffer16BitAccess` —
     /// llama.cpp refuses devices below that with "Unsupported device" at
     /// device init, which is why the probe, not detection, decides.
     Vulkan,
-    /// The Windows CUDA 12 build: engine plus a separate CUDA DLL archive,
-    /// ~645 MB together. Supports sm_50 and up, driver >= 551.61.
-    Cuda12,
-    /// The Windows CUDA 13 build: same shape, ~541 MB together. Supports
-    /// sm_75 and up (the whole GTX 10 series is out), driver >= 580.
-    Cuda13,
 }
 
 impl ServerBackend {
@@ -102,8 +86,6 @@ impl ServerBackend {
             ServerBackend::Metal => "metal",
             ServerBackend::Cpu => "cpu",
             ServerBackend::Vulkan => "vulkan",
-            ServerBackend::Cuda12 => "cuda12",
-            ServerBackend::Cuda13 => "cuda13",
         }
     }
 
@@ -114,8 +96,6 @@ impl ServerBackend {
             "metal" => Some(ServerBackend::Metal),
             "cpu" => Some(ServerBackend::Cpu),
             "vulkan" => Some(ServerBackend::Vulkan),
-            "cuda12" => Some(ServerBackend::Cuda12),
-            "cuda13" => Some(ServerBackend::Cuda13),
             _ => None,
         }
     }
@@ -126,9 +106,6 @@ impl ServerBackend {
 pub(crate) enum Role {
     /// The llama-server archive itself.
     Engine,
-    /// The CUDA runtime DLLs, published apart from the engine: the engine
-    /// archive alone will not start.
-    CudaRuntimeDlls,
     /// A tiny GGUF the capability probe serves to prove a build works.
     ProbeModel,
 }
@@ -147,10 +124,9 @@ pub(crate) struct Asset {
     pub(crate) role: Role,
     pub(crate) backend: Option<ServerBackend>,
     pub(crate) platform: Option<Platform>,
-    /// Where this asset is published. A fact about the asset: upstream's
-    /// rows share [`RELEASE_BASE`], the macOS arm64 engine lives at the
-    /// fork's own CDN home, the probe model shares neither, and `url`
-    /// special-cases none of them.
+    /// Where this asset is published. A fact about the asset: the engines
+    /// live at the fork's own CDN home, the probe model shares neither, and
+    /// `url` special-cases none of them.
     pub(crate) home: &'static str,
     /// The file name at its home; the URL is home plus this.
     pub(crate) file: &'static str,
@@ -163,9 +139,8 @@ pub(crate) struct Asset {
     pub(crate) sha256: Option<&'static str>,
     /// sha256 of the extracted server inside the engine archive, re-checked
     /// on every start, because nothing under the user's directory is
-    /// trusted by provenance alone. Engine rows only: the CUDA runtime
-    /// archives and the probe model hold no server, so theirs stays None
-    /// with no further comment needed.
+    /// trusted by provenance alone. Engine rows only: a row that ships no
+    /// server (the probe model) keeps None, no further comment needed.
     ///
     /// On the fork's rows this is the thin launcher `kalsa-server`, NOT the
     /// version identity: the launcher's bytes do not change between the
@@ -187,27 +162,13 @@ impl Asset {
     }
 }
 
-// Upstream's sizes and sha256 digests below are the release's own published
-// figures, read from the GitHub release asset list on 2026-09-14 and
-// transcribed verbatim. The digest is what makes a download provably the
-// build we meant: `kalsa-download` renames bytes onto their final name only
-// when size and sha256 both hold.
-// Upstream's engine rows' exe_sha256 was measured on 2026-09-15 on a
-// macOS arm64 machine: each archive downloaded through `kalsa-download`
-// (which refuses to rename bytes whose size and digest do not hold),
-// extracted with this crate's own extractor, and the server executable
-// hashed. Nothing was executed to learn them: a digest is over bytes, and
-// the archive digest already proves whose bytes. The fork rows' exe digests
-// are the manifests' own. Non-engine rows carry no server, so theirs stays
-// None: there is nothing to hash.
-//
 // The fork rows' numbers are transcribed from Kalsa's own published
-// manifest for the release they name — `FORK_BASE` + `/manifest.json`, read
-// live on 2026-09-25 — because the manifest the publisher serves is the
-// record of THAT object. `size_bytes` and `sha256` are what `store.rs`
-// verifies the download against, so they are data and not prose:
-// `dev/test-engine-pin.py` re-reads the manifest and compares the macOS row
-// field by field (home, file, size_bytes, sha256, exe_sha256).
+// manifest (`FORK_BASE` + `/manifest.json`) because the manifest the
+// publisher serves is the record of that object. `size_bytes` and `sha256`
+// are what `store.rs` verifies the download against, so they are data and
+// not prose: `dev/test-engine-pin.py` re-reads the manifest and compares
+// the macOS row field by field (home, file, size_bytes, sha256,
+// exe_sha256).
 const ASSETS: &[Asset] = &[
     // The macOS arm64 engine is Kalsa's own fork of llama.cpp, not upstream.
     // Upstream ignores `X-Kalsa-Cache-Salt` and `X-Kalsa-Slot`, so mounting
@@ -266,59 +227,11 @@ const ASSETS: &[Asset] = &[
         size_bytes: Some(26_491_005),
         sha256: Some("24f0a98293e2ed6c5003f1b64837eadc12ff034f876706db3bfdbc8cb85c245e"),
     },
-    // CUDA 12.4: 254 MB engine plus a 391 MB runtime archive, 645 MB in all.
-    Asset {
-        role: Role::Engine,
-        backend: Some(ServerBackend::Cuda12),
-        platform: Some(Platform::WindowsX64),
-        home: RELEASE_BASE,
-        file: "llama-b10950-bin-win-cuda-12.4-x64.zip",
-        format: Some(ArchiveFormat::Zip),
-        exe_sha256: Some("55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457"),
-        size_bytes: Some(254_068_367),
-        sha256: Some("b184393e8dc54fdcca4f4de5059b02d143d2dc813e7cd5d900d1b494d127004c"),
-    },
-    Asset {
-        role: Role::CudaRuntimeDlls,
-        backend: Some(ServerBackend::Cuda12),
-        platform: Some(Platform::WindowsX64),
-        home: RELEASE_BASE,
-        file: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-        format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
-        size_bytes: Some(391_443_627),
-        sha256: Some("8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"),
-    },
-    // CUDA 13.3 - the release publishes 13.3, not 13.0: 150 MB engine plus
-    // the same-sized runtime archive, 541 MB in all.
-    Asset {
-        role: Role::Engine,
-        backend: Some(ServerBackend::Cuda13),
-        platform: Some(Platform::WindowsX64),
-        home: RELEASE_BASE,
-        file: "llama-b10950-bin-win-cuda-13.3-x64.zip",
-        format: Some(ArchiveFormat::Zip),
-        exe_sha256: Some("55fc2a7d17fb1ed5b4b81da5c4b87b6c04e65c84bf0bac371a55d783ea07a457"),
-        size_bytes: Some(149_703_269),
-        sha256: Some("f960ae6651bc832c3ddb59e1afbf2c9e8cb6f63cbe125997596ab93b56db8011"),
-    },
-    Asset {
-        role: Role::CudaRuntimeDlls,
-        backend: Some(ServerBackend::Cuda13),
-        platform: Some(Platform::WindowsX64),
-        home: RELEASE_BASE,
-        file: "cudart-llama-bin-win-cuda-13.3-x64.zip",
-        format: Some(ArchiveFormat::Zip),
-        exe_sha256: None,
-        size_bytes: Some(390_970_417),
-        sha256: Some("1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e"),
-    },
     // The probe's tiny model: stories260K from ggml-org/tiny-llamas, the
     // models llama.cpp's own CI leans on. Size and digest verified against
-    // the downloaded file (2026-09-14); the header reads as GGUFv3 with 48
-    // tensors, which b10950 will load. UNPROVEN: nobody has run llama-server
-    // against it yet, so a failed probe should suspect this file before
-    // blaming the backend.
+    // the downloaded file; the header reads as GGUFv3 with 48 tensors.
+    // UNPROVEN: nobody has run llama-server against it yet, so a failed
+    // probe should suspect this file before blaming the backend.
     Asset {
         role: Role::ProbeModel,
         backend: None,
@@ -332,8 +245,7 @@ const ASSETS: &[Asset] = &[
     },
 ];
 
-/// Every archive a backend needs, engine first: the CUDA DLL archive is
-/// useless without the engine next to it.
+/// Every archive a backend needs on this platform, engine first.
 pub(crate) fn assets_for(platform: Platform, backend: ServerBackend) -> Vec<&'static Asset> {
     ASSETS
         .iter()
@@ -377,27 +289,15 @@ mod tests {
             assets_for(Platform::WindowsX64, ServerBackend::Vulkan).len(),
             1
         );
-        // CUDA is engine + separate CUDA DLL archive, per the release layout.
-        assert_eq!(
-            assets_for(Platform::WindowsX64, ServerBackend::Cuda12).len(),
-            2
-        );
-        assert_eq!(
-            assets_for(Platform::WindowsX64, ServerBackend::Cuda13).len(),
-            2
-        );
         // Nothing is published for any other platform.
         assert!(assets_for(Platform::MacArm64, ServerBackend::Vulkan).is_empty());
     }
 
     #[test]
-    fn every_url_points_at_the_researched_release_by_name() {
-        for asset in assets_for(Platform::WindowsX64, ServerBackend::Cuda12) {
+    fn every_engine_row_downloads_from_the_fork() {
+        for asset in ASSETS.iter().filter(|asset| asset.role == Role::Engine) {
             let url = asset.url();
-            assert!(url.starts_with(RELEASE_BASE));
-            // The tag lives in the URL path; the CUDA runtime archive's own
-            // file name does not carry it, which matches the release layout.
-            assert!(url.contains("b10950"), "{url}");
+            assert!(url.starts_with(FORK_BASE), "{url}");
             assert!(url.ends_with(asset.file), "{url}");
         }
     }
@@ -430,8 +330,8 @@ mod tests {
     fn recorded_executables_are_shaped_like_sha256_and_live_on_engine_rows() {
         // The exe digest is held to the same shape as the archive digest —
         // 64 lowercase hex characters — and only engine rows may carry one:
-        // the CUDA runtime archives and the probe model hold no server, so
-        // a digest there would bless bytes that are never executed.
+        // the probe model holds no server, so a digest there would bless
+        // bytes that are never executed.
         for asset in ASSETS {
             match asset.exe_sha256 {
                 Some(sha) => {
@@ -578,8 +478,6 @@ mod tests {
             ServerBackend::Metal,
             ServerBackend::Cpu,
             ServerBackend::Vulkan,
-            ServerBackend::Cuda12,
-            ServerBackend::Cuda13,
         ] {
             assert_eq!(ServerBackend::from_name(backend.name()), Some(backend));
         }

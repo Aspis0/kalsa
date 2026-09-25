@@ -249,7 +249,7 @@ mod tests {
         );
         assert_ne!(
             fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu),
-            fingerprint(Platform::WindowsX64, ServerBackend::Cuda12, Backend::Cpu),
+            fingerprint(Platform::WindowsX64, ServerBackend::Cpu, Backend::Cpu),
             "a different build is a different fingerprint"
         );
     }
@@ -258,16 +258,7 @@ mod tests {
     fn the_fingerprint_carries_the_build_bytes_not_the_release() {
         // Digest over release tag: correcting a row in place changes the
         // bytes without changing the release, and those bytes have never
-        // been probed. For a multi-archive build every archive counts.
-        let cuda12 = assets::assets_for(Platform::WindowsX64, ServerBackend::Cuda12);
-        let digests: Vec<&str> = cuda12
-            .iter()
-            .map(|asset| asset.sha256.expect("the row is filled in"))
-            .collect();
-        let fp = fingerprint(Platform::WindowsX64, ServerBackend::Cuda12, Backend::Cpu);
-        for digest in digests {
-            assert!(fp.contains(digest), "{fp}");
-        }
+        // been probed.
         let fp = fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu);
         let engine = assets::assets_for(Platform::WindowsX64, ServerBackend::Vulkan)
             .into_iter()
@@ -275,6 +266,22 @@ mod tests {
             .and_then(|asset| asset.sha256)
             .expect("the vulkan engine row is filled in");
         assert!(fp.contains(engine), "{fp}");
+    }
+
+    #[test]
+    fn a_verdict_naming_a_build_this_app_does_not_ship_reads_as_none() {
+        // Trap: an install that ran a build offering another backend still
+        // has its string on disk. The parse must degrade to "no verdict"
+        // (the walk re-chooses), never panic and never block the start.
+        let dir = scratch("retired-backend");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        std::fs::write(
+            path(&dir, Slot::Main),
+            "kalsa-runtime v1\nbackend=cuda12\nfingerprint=x\n",
+        )
+        .expect("write");
+        assert_eq!(load(&dir, Slot::Main), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
