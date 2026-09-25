@@ -154,7 +154,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         Progress::Measuring => eprintln!("walk: measuring"),
         Progress::Deciding => eprintln!("walk: deciding the engine build"),
         Progress::Choosing => eprintln!("walk: the catalog is choosing"),
-        Progress::Tuning { done, planned } => eprintln!("walk: tuning {done}/{planned}"),
+        Progress::Tuning { done, total } => eprintln!("walk: tuning {done}/{total}"),
         Progress::RuntimeBytes { done, total } => {
             bytes_mark("runtime", done, total, &mut runtime_mark)
         }
@@ -180,7 +180,13 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // ── 4b. the tune's own report: one line per candidate, then the line
     // the panel would show — the Windows walks prove the tune from these.
     if let Some(tune) = &prepared.info.tune {
-        if let Tune::Measured(record) = tune {
+        // The refusals matter too: a NoWinner tune's whole point is which
+        // candidates refused, and the Windows walks print them here.
+        let record = match tune {
+            Tune::Measured(record) | Tune::NoWinner(record) => Some(record),
+            Tune::Skipped => None,
+        };
+        if let Some(record) = record {
             for (candidate, kept) in &record.trials {
                 let word = match kept {
                     kalsa_tune::record::Kept::Best(rate) => format!("{rate:.1} tok/s"),

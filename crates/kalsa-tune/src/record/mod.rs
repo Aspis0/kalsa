@@ -395,6 +395,14 @@ fn offload_from_name(name: &str) -> Option<Offload> {
     }
 }
 
+/// Throw the record away: the tuned launch just failed where the rule
+/// succeeded, so whatever this file said is not what this machine wants —
+/// the next start must measure again. Best effort: no record is already
+/// the goal, and a missing file is not an error anyone should see.
+pub fn invalidate(dir: &Path) {
+    let _ = fs::remove_file(path(dir));
+}
+
 fn path(dir: &Path) -> PathBuf {
     dir.join(FILE_NAME)
 }

@@ -23,21 +23,27 @@
         Ok(vec![value])
     }
 
+    /// A candidate with the exe the step would have resolved for it: the
+    /// pairing travels, so the tests never lose one either.
+    fn on(candidate: Candidate) -> (Candidate, PathBuf) {
+        (candidate, PathBuf::from("/stub-exe"))
+    }
+
     /// The Lenovo shape: a 4x GPU lead cannot be overturned by a re-run
     /// of anything, so round two never happens — one lifetime each, in
     /// list order.
     #[test]
     fn the_lenovo_shape_ends_after_one_round() {
-        let candidates = vec![gpu(), cpu(16), cpu(22)];
+        let candidates = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
         let ran = RefCell::new(Vec::new());
         let results = rounds(
             &candidates,
             TOTAL_BUDGET,
             || Duration::ZERO,
-            |candidate| {
+            |candidate, _| {
                 let at = candidates
                     .iter()
-                    .position(|other| other == candidate)
+                    .position(|(other, _)| other == candidate)
                     .expect("one of ours");
                 ran.borrow_mut().push(at);
                 match at {
@@ -58,17 +64,17 @@
     /// two candidates, not a replacement.
     #[test]
     fn the_surface_shape_gets_a_second_round_pooled() {
-        let candidates = vec![cpu(4), cpu(8)];
+        let candidates = vec![on(cpu(4)), on(cpu(8))];
         let ran = RefCell::new(Vec::new());
         let progress_seen = RefCell::new(Vec::new());
         let results = rounds(
             &candidates,
             TOTAL_BUDGET,
             || Duration::ZERO,
-            |candidate| {
+            |candidate, _| {
                 let at = candidates
                     .iter()
-                    .position(|other| other == candidate)
+                    .position(|(other, _)| other == candidate)
                     .expect("one of ours");
                 let round = ran.borrow().iter().filter(|&&seen| seen == at).count();
                 ran.borrow_mut().push(at);
@@ -100,16 +106,16 @@
     /// candidate with no rate cannot be one. The near pair still runs.
     #[test]
     fn a_refusal_in_round_one_is_never_rerun() {
-        let candidates = vec![cpu(4), cpu(8), cpu(16)];
+        let candidates = vec![on(cpu(4)), on(cpu(8)), on(cpu(16))];
         let ran = RefCell::new(Vec::new());
         let results = rounds(
             &candidates,
             TOTAL_BUDGET,
             || Duration::ZERO,
-            |candidate| {
+            |candidate, _| {
                 let at = candidates
                     .iter()
-                    .position(|other| other == candidate)
+                    .position(|(other, _)| other == candidate)
                     .expect("one of ours");
                 ran.borrow_mut().push(at);
                 match at {
@@ -209,7 +215,7 @@
     /// are simply absent — nothing is killed mid-measure.
     #[test]
     fn an_exhausted_budget_leaves_later_candidates_absent() {
-        let candidates = vec![cpu(4), cpu(8), cpu(16)];
+        let candidates = vec![on(cpu(4)), on(cpu(8)), on(cpu(16))];
         let ran = RefCell::new(Vec::new());
         let progress_seen = RefCell::new(Vec::new());
         let clock = RefCell::new(0u32);
@@ -228,10 +234,10 @@
                     TOTAL_BUDGET
                 }
             },
-            |candidate| {
+            |candidate, _| {
                 let at = candidates
                     .iter()
-                    .position(|other| other == candidate)
+                    .position(|(other, _)| other == candidate)
                     .expect("one of ours");
                 ran.borrow_mut().push(at);
                 measured(9.0 + at as f64)

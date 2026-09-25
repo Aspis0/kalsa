@@ -37,7 +37,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
-use kalsa_supervisor::{ServerState, StartOutcome, Supervisor, Watch};
+use kalsa_supervisor::{Failure, ServerState, StartOutcome, Supervisor, Watch};
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
 
@@ -1168,17 +1168,89 @@ fn settle_walk(brain: &Brain, walked: Walk, record_dir: Option<&Path>) -> Result
         }
     }
     match walked.0 {
-        Ok(prepared) => {
-            // Read the mounted engine's own bytes before the supervisor takes
-            // the config: the door's declaration is a property of that
-            // binary, not of this build of the shell.
+        Ok(mut prepared) => {
+            // The plan's own launch, kept before the tuned one goes up: if
+            // the tuned launch cannot load, this is the config a single
+            // retry uses — and the tuning record goes with the failure, so
+            // the next start measures again.
+            let rule = prepared.rule_launch.clone();
+            let tuned_changed = rule.as_ref().is_some_and(|(config, _)| {
+                config.argv != prepared.server.argv || config.exe != prepared.server.exe
+            });
+            let prior = brain.supervisor.state();
+            let mut outcome = brain.supervisor.start(prepared.server.clone()).outcome();
+            if outcome == StartOutcome::Accepted
+                && tuned_changed
+                && start_settled_failed(brain, prior)
+            {
+                if let Some((config, args)) = rule {
+                    kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root());
+                    outcome = brain.supervisor.start(config.clone()).outcome();
+                    // The record must describe what actually runs.
+                    prepared.info.args = args;
+                    prepared.info.tune = None;
+                    prepared.server = config;
+                }
+            }
+            // Read the mounted engine's own bytes after any retry: the
+            // door's declaration is a property of that binary, not of this
+            // build of the shell.
             let engine = prepared.server.exe.clone();
-            let outcome = brain.supervisor.start(prepared.server).outcome();
             brain.record_launch(prepared.info, outcome);
             brain.record_engine(&engine, outcome);
             Ok(())
         }
         Err(sentence) => Err(sentence),
+    }
+}
+
+/// Waits for a queued start to land: `Running` (it is up), or a terminal
+/// failure. True only for the two failures a tuned launch can cause and a
+/// single retry could fix — not ready, or exited while loading — and only
+/// when this start, not a stale state from before it, produced them.
+/// Bounded by the walk's own ready deadline; a start that never reports
+/// is simply not retried.
+fn start_settled_failed(brain: &Brain, prior: ServerState) -> bool {
+    let prior_was_failed = matches!(prior, ServerState::Failed { .. });
+    let deadline = std::time::Instant::now()
+        + startup::READY_TIMEOUT
+        + std::time::Duration::from_secs(5);
+    let mut saw_starting = false;
+    loop {
+        if let Some(retry) =
+            retry_decision(prior_was_failed, &mut saw_starting, &brain.supervisor.state())
+        {
+            return retry;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// One observation of the state, answered: `None` keeps waiting, `Some`
+/// settles the start. A failure counts when we watched THIS start begin
+/// (`Starting` is set by the worker at command pickup, before any work),
+/// or when the state before ours was not already failed — a fast failure
+/// we could have missed the `Starting` of. Only the two failures a tuned
+/// launch can cause and a retry could fix settle to `true`.
+fn retry_decision(
+    prior_was_failed: bool,
+    saw_starting: &mut bool,
+    state: &ServerState,
+) -> Option<bool> {
+    match state {
+        ServerState::Running { .. } => Some(false),
+        ServerState::Starting => {
+            *saw_starting = true;
+            None
+        }
+        ServerState::Failed { reason } if *saw_starting || !prior_was_failed => Some(matches!(
+            reason,
+            Failure::NotReady { .. } | Failure::ServerExited { .. }
+        )),
+        _ => None,
     }
 }
 

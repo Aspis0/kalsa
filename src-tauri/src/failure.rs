@@ -15,7 +15,7 @@ use kalsa_launch::KvCache;
 use kalsa_runtime::DecideError;
 use kalsa_supervisor::Failure;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum StartupFailure {
     /// The supervisor's own observations, worded like the rest.
     Supervisor(Failure),

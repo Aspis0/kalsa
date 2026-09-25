@@ -40,7 +40,7 @@ use crate::options::LaunchOverrides;
 /// Loopback port. The phone reaches it through a tunnel, never over the LAN.
 pub(crate) const PORT: u16 = 8130;
 /// Loading a model from a slow disk on an old machine is not fast.
-const READY_TIMEOUT: Duration = Duration::from_secs(600);
+pub(crate) const READY_TIMEOUT: Duration = Duration::from_secs(600);
 /// Long enough for a clean unload, short enough that closing the window is not
 /// a hang: the supervisor escalates to SIGKILL after the second one.
 const STOP_GRACE: Duration = Duration::from_secs(2);
@@ -86,8 +86,10 @@ pub(crate) enum Progress {
     /// Bytes moving for the chosen model itself.
     ModelBytes { done: u64, total: u64 },
     /// Candidate settings being tried on the real model: how many
-    /// lifetimes have finished, and how many are planned so far.
-    Tuning { done: usize, planned: usize },
+    /// lifetimes have finished, and how many are planned so far. The
+    /// second field is named for the page's own wire: ProgressStep reads
+    /// `total`, and one name on both sides is cheaper than a mapping.
+    Tuning { done: usize, total: usize },
 }
 
 /// The funded maxima under both cache types. The guard compares against the
@@ -179,6 +181,12 @@ pub(crate) struct LaunchInfo {
 pub(crate) struct PreparedStart {
     pub(crate) server: ServerConfig,
     pub(crate) info: LaunchInfo,
+    /// The plan's own launch — config AND args — beside the tuned one:
+    /// main.rs retries with this when the tuned launch fails to load (and
+    /// so tells the panel what actually ran), and compares it to know
+    /// whether the tune changed anything at all. `None` only until the
+    /// tune step has run — the development path never sets it.
+    pub(crate) rule_launch: Option<(ServerConfig, ServerArgs)>,
 }
 
 /// The whole walk. `server_override` (development) replaces the decide step:
@@ -226,6 +234,11 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
+            // The MAIN verdict (the build that answered its probe) travels
+            // to the tune separately from the chosen build: on the Lenovo
+            // the model choice falls through to the processor while the
+            // graphics candidate must still be offered for measuring.
+            let main = (backend, exe.clone());
             let (build, exe, plan, row, reason) = choose_with_processor_fallback(
                 (backend, exe),
                 &machine,
@@ -261,7 +274,6 @@ pub(crate) fn run(
             // The tune sits between the plan and the launch: it may rewrite
             // the exe, argv, threads and offload, and it may never fail the
             // walk — every path inside it degrades to the plan as made.
-            let main_exe = prepared.server.exe.clone();
             let mut memo = crate::tune_step::Memo {
                 cores: (
                     kalsa_probe::physical_cores(),
@@ -273,11 +285,11 @@ pub(crate) fn run(
                 &mut prepared,
                 &machine,
                 root,
-                (build, main_exe),
+                main,
                 &mut memo,
                 progress,
-                |candidates, rule, resolved, inner| {
-                    crate::tune_step::measure_with_rule(root, candidates, rule, resolved, inner)
+                |resolved, rule, inner| {
+                    crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
             );
             return Ok(prepared);
@@ -395,7 +407,7 @@ pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
 /// all: the fallback's sentence is about the card's memory holding no row,
 /// which is true only of that one — a phone comparison, a speed floor or a
 /// bad token are other facts and reach the owner unchanged (pinned below).
-fn choose_with_processor_fallback(
+pub(crate) fn choose_with_processor_fallback(
     build: (ServerBackend, PathBuf),
     machine: &Machine,
     phone: Option<PhoneModel>,
@@ -832,6 +844,7 @@ fn planned_config_with_overrides(
     };
     Ok(PreparedStart {
         server,
+        rule_launch: None,
         info: LaunchInfo {
             args,
             maximum_context: maxima,
@@ -925,6 +938,7 @@ fn dev_config_with_overrides(
     };
     Ok(PreparedStart {
         server,
+        rule_launch: None,
         info: LaunchInfo {
             args,
             // No budget on the dev path, so there is no funded maximum, no

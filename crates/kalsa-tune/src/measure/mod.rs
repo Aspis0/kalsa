@@ -70,17 +70,17 @@ const MEASURED_REQUESTS: usize = 2;
 /// lifetimes planned so far) before each one starts. Candidates past the
 /// budget are simply absent from the result.
 pub fn measure_candidates(
-    candidates: &[Candidate],
+    resolved: &[(Candidate, PathBuf)],
     state_root: &Path,
-    build: impl Fn(&Candidate, u16) -> (PathBuf, Vec<String>),
+    build: impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
     progress: &mut dyn FnMut(usize, usize),
 ) -> Vec<(Candidate, Outcome)> {
     let started = Instant::now();
     rounds(
-        candidates,
+        resolved,
         TOTAL_BUDGET,
         || started.elapsed(),
-        |candidate| run_lifetime(state_root, candidate, &build),
+        |candidate, exe| run_lifetime(state_root, candidate, exe, &build),
         progress,
     )
 }
@@ -88,13 +88,13 @@ pub fn measure_candidates(
 /// The rounds, over an injected lifetime and clock — the policy of rounds
 /// and budget with no process in sight, which is what the tests exercise.
 fn rounds(
-    candidates: &[Candidate],
+    resolved: &[(Candidate, PathBuf)],
     budget: Duration,
     since_start: impl Fn() -> Duration,
-    mut run: impl FnMut(&Candidate) -> Result<Vec<f64>, Refusal>,
+    mut run: impl FnMut(&Candidate, &PathBuf) -> Result<Vec<f64>, Refusal>,
     progress: &mut dyn FnMut(usize, usize),
 ) -> Vec<(Candidate, Outcome)> {
-    let count = candidates.len();
+    let count = resolved.len();
     let mut samples: Vec<Vec<f64>> = vec![Vec::new(); count];
     let mut refusals: Vec<Option<Refusal>> = vec![None; count];
     let mut ran: Vec<bool> = vec![false; count];
@@ -108,7 +108,7 @@ fn rounds(
         }
         progress(done, planned);
         ran[index] = true;
-        match run(&candidates[index]) {
+        match run(&resolved[index].0, &resolved[index].1) {
             Ok(rates) => samples[index] = rates,
             Err(refusal) => refusals[index] = Some(refusal),
         }
@@ -132,7 +132,7 @@ fn rounds(
                     break; // not started this round: its round-one answer stands
                 }
                 progress(done, planned);
-                if let Ok(rates) = run(&candidates[index]) {
+                if let Ok(rates) = run(&resolved[index].0, &resolved[index].1) {
                     // Pooled: the best of both rounds is what winner()
                     // will take later; a failed re-run never erases a
                     // first round that measured.
@@ -155,7 +155,7 @@ fn rounds(
             } else {
                 Outcome::Measured(samples[index].clone())
             };
-            (candidates[index], outcome)
+            (resolved[index].0, outcome)
         })
         .collect()
 }
@@ -167,10 +167,11 @@ fn rounds(
 fn run_lifetime(
     state_root: &Path,
     candidate: &Candidate,
-    build: &impl Fn(&Candidate, u16) -> (PathBuf, Vec<String>),
+    resolved_exe: &PathBuf,
+    build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
 ) -> Result<Vec<f64>, Refusal> {
     let port = free_loopback_port().map_err(|_| Refusal::DidNotStart)?;
-    let (exe, argv) = build(candidate, port);
+    let (exe, argv) = build(candidate, resolved_exe, port);
     // One identity per lifetime, and it goes into the launch as the
     // model's `--alias` — the rename the engine lists on `/v1/models`
     // ("set model name aliases … (to be used by API)",

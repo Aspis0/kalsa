@@ -2367,3 +2367,73 @@ fn the_desks_preferred_port_is_none_of_this_apps_other_fixed_ports() {
         "the guard's own test port"
     );
 }
+
+/// The start-wait's step function: when an observation settles a queued
+/// start, and when it only keeps the loop waiting. The live worker and the
+/// settle_walk wiring around it are not exercised here (no seam reaches
+/// them without a real start) — this covers the classification, which is
+/// the part a wrong answer would silently break.
+#[test]
+fn a_tuned_start_retries_only_for_the_two_load_failures() {
+    // The state before this start was already failed: the first Failed we
+    // see may be that stale one — it does not settle the new start until
+    // the worker has taken the command (Starting).
+    let mut saw = false;
+    assert_eq!(retry_decision(true, &mut saw, &failed_not_ready()), None);
+    // The worker picked the command up; the failure after it is ours.
+    assert_eq!(retry_decision(true, &mut saw, &ServerState::Starting), None);
+    assert!(saw, "Starting is what marks the failure as this start's");
+    assert_eq!(
+        retry_decision(true, &mut saw, &failed_not_ready()),
+        Some(true),
+        "not ready is one of the two retryable failures"
+    );
+
+    // A fast failure of THIS start — before we ever saw Starting — still
+    // settles: the state before was not failed.
+    let mut saw = false;
+    assert_eq!(
+        retry_decision(false, &mut saw, &failed_not_ready()),
+        Some(true)
+    );
+    assert!(!saw, "nothing to mark: the failure settled at once");
+
+    // Up is up: no retry.
+    let mut saw = false;
+    assert_eq!(
+        retry_decision(false, &mut saw, &ServerState::Running { pid: 7, port: 8130 }),
+        Some(false)
+    );
+
+    // The other failures are not the tuned launch's fault: a started
+    // server's binding refusal settles with no retry.
+    let mut saw = false;
+    assert_eq!(retry_decision(false, &mut saw, &ServerState::Starting), None);
+    assert_eq!(
+        retry_decision(
+            false,
+            &mut saw,
+            &ServerState::Failed {
+                reason: Failure::UnsafeBinding {
+                    detail: "exposed off loopback".to_string(),
+                },
+            }
+        ),
+        Some(false),
+        "a binding refusal is not fixed by the rule's launch"
+    );
+}
+
+/// A state that settles nothing: Stopped between send and pickup.
+#[test]
+fn a_state_that_settles_nothing_keeps_the_wait_running() {
+    let mut saw = false;
+    assert_eq!(retry_decision(true, &mut saw, &ServerState::Stopped), None);
+    assert!(!saw, "Stopped marks nothing");
+}
+
+fn failed_not_ready() -> ServerState {
+    ServerState::Failed {
+        reason: Failure::NotReady { seconds: 600 },
+    }
+}

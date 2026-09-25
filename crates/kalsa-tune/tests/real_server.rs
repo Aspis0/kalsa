@@ -70,7 +70,13 @@ fn the_metal_build_measures_full_and_forced_off() {
         },
     ];
     let root = Scratch::new();
-    let build = |candidate: &Candidate, port: u16| {
+    // Both candidates are the same Metal build — the exe travels with the
+    // candidate so the measure can never pair them wrongly.
+    let resolved = candidates
+        .iter()
+        .map(|candidate| (*candidate, PathBuf::from(&server)))
+        .collect::<Vec<_>>();
+    let build = |candidate: &Candidate, exe: &PathBuf, port: u16| {
         let mut argv = vec![
             "--host".to_string(),
             "127.0.0.1".to_string(),
@@ -85,9 +91,9 @@ fn the_metal_build_measures_full_and_forced_off() {
             Offload::ForcedOff => argv.extend(["--n-gpu-layers".to_string(), "0".to_string()]),
             Offload::NoGpuBuild => {}
         }
-        (PathBuf::from(&server), argv)
+        (exe.clone(), argv)
     };
-    let results = measure_candidates(&candidates, &root, build, &mut |_, _| {});
+    let results = measure_candidates(&resolved, &root, build, &mut |_, _| {});
 
     let mut lines = Vec::new();
     for (candidate, outcome) in &results {
