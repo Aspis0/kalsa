@@ -23,19 +23,12 @@ use crate::{command_text, once_present};
 /// such as 4293918720, is taken as a real size"). At or above this line the
 /// field is saying "at least this much": never a size, an unknown one. On
 /// Windows the size then comes from the driver's own registry values
-/// (`vram_registry`) when they hold one of at least 4 GiB; BELOW this line
+/// (`vram_registry`) when they hold one of at least this cap; BELOW it
 /// AdapterRAM itself
 /// still stands — it is the fallback the parser has always used, not the
 /// liar the cap makes it.
 #[cfg(any(target_os = "windows", test))]
 const WMI_SATURATION_BYTES: u64 = 0xFFF00000;
-
-/// The floor on a registry answer: a saturated 32-bit AdapterRAM means "at
-/// least 4 GiB", so a registry figure below 4 GiB cannot be the size of a
-/// card whose AdapterRAM saturated — substituting it would turn a known
-/// minimum into a smaller guess.
-#[cfg(any(target_os = "windows", test))]
-const MIN_REGISTRY_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 pub fn backend() -> Backend {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -151,13 +144,15 @@ fn windows_backend() -> Backend {
             || command_text("powershell", &POWERSHELL_CONTROLLERS, ANSWER_DEADLINE),
         )
         .map(|text| {
-            // The registry's own answers, asked beside the parse: the walk
-            // is thin and once-per-process (inside `once_present`), and the
-            // match happens per discrete row by name — so a machine whose
-            // WMI field saturated answers with the driver's real figure.
-            let sizes = crate::vram_registry::registry_vram_sizes();
+            // The registry walk is lazy: it runs at most once per
+            // detection, and only when some discrete row's AdapterRAM has
+            // no size to give — a machine whose every row stands alone
+            // never opens the class key. The once-per-process caching
+            // around this closure is unchanged.
+            let mut sizes: Option<Vec<(String, u64)>> = None;
             backend_from_video_controllers_with(&text, |name| {
-                crate::vram_registry::size_for(&sizes, name)
+                let entries = sizes.get_or_insert_with(crate::vram_registry::registry_vram_sizes);
+                crate::vram_registry::size_for(entries, name)
             })
         })
     })
@@ -247,7 +242,7 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// when it is not a non-answer: zero, or sitting on the 32-bit saturation
 /// line (`WMI_SATURATION_BYTES`). In that case — and only in that case —
 /// `registry_size` is asked the controller's name and may answer with this
-/// machine's driver-written `qwMemorySize`, when it is at least 4 GiB; a
+/// machine's driver-written `qwMemorySize`, when it is at least the cap; a
 /// valid AdapterRAM stands alone and the registry is never consulted (the
 /// owner's rule: a stale same-name entry under a replaced card must not
 /// supply the size). Injected rather than called, so the whole decision is
@@ -256,7 +251,7 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 #[cfg(any(target_os = "windows", test))]
 pub fn backend_from_video_controllers_with(
     text: &str,
-    registry_size: impl Fn(&str) -> Option<u64>,
+    mut registry_size: impl FnMut(&str) -> Option<u64>,
 ) -> Backend {
     let mut best: Option<u64> = None;
     let mut discrete = false;
@@ -295,15 +290,19 @@ pub fn backend_from_video_controllers_with(
             // is not consulted, because a stale same-name entry under a
             // replaced card must not supply the size. The registry is asked
             // only when AdapterRAM has no size to give — zero, absent, or
-            // saturated (a capped 32-bit field means "at least 4 GiB"; the
-            // Lenovo's 0xFFF00000 was a 6141 MiB card) — and only a figure
-            // of at least 4 GiB counts, because that is what the cap
-            // promises: a smaller registry number cannot be this card's size.
+            // saturated — and only a figure of at least the cap counts: a
+            // saturated field means "at least the cap", so a smaller
+            // registry number cannot be this card's size.
+            // Accepted limit: with AdapterRAM zero or absent — not only
+            // saturated — a lone stale same-name registry entry at or above
+            // the cap can still supply the size when the live entry wrote no
+            // qwMemorySize; rare, and it can only name a card of at least
+            // the cap that WMI reported as zero or absent.
             let adapter = memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES);
             let resolved = match adapter {
                 Some(bytes) => Some(bytes),
                 None => registry_size(name.trim())
-                    .filter(|bytes| *bytes >= MIN_REGISTRY_BYTES),
+                    .filter(|bytes| *bytes >= WMI_SATURATION_BYTES),
             };
             if let Some(bytes) = resolved {
                 best = Some(best.map_or(bytes, |current| current.max(bytes)));
@@ -405,10 +404,11 @@ mod tests {
         );
     }
 
-    /// The owner's rule, in three cases: a valid AdapterRAM is never
-    /// second-guessed by the registry; a saturated one is answered by a
-    /// registry figure big enough to be a card's; a registry figure under
-    /// 4 GiB answers nothing at all.
+    /// The owner's rule, in five cases: a valid AdapterRAM is never
+    /// second-guessed by the registry; a saturated, zero, or absent one is
+    /// answered by a registry figure big enough to be a card's; a registry
+    /// figure under the cap answers nothing at all; and a figure of exactly
+    /// the cap is accepted, because saturation means "at least the cap".
     #[test]
     fn the_registry_is_asked_only_when_adapter_ram_has_no_size_to_give() {
         let valid = "AdapterRAM  Name\n3221225472  NVIDIA GeForce GTX 1650\n";
@@ -426,12 +426,48 @@ mod tests {
             Backend::DiscreteGpu {
                 vram_bytes: Some(6_439_305_216)
             },
-            "saturated means at least 4 GiB — the registry may answer"
+            "saturated means at least the cap — the registry may answer"
         );
         assert_eq!(
             backend_from_video_controllers_with(saturated, |_| Some(2 * 1024 * 1024 * 1024)),
             Backend::DiscreteGpu { vram_bytes: None },
-            "a registry figure under 4 GiB cannot be this card's size"
+            "a registry figure under the cap cannot be this card's size"
+        );
+
+        // Zero and absent AdapterRAM ask the registry just as saturation
+        // does: WMI gave no size, so the driver's own figure is the only
+        // one left.
+        let zero = "AdapterRAM  Name\n0  NVIDIA GeForce RTX 4060\n";
+        assert_eq!(
+            backend_from_video_controllers_with(zero, |_| Some(6_439_305_216)),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216)
+            },
+            "a zero AdapterRAM lets the registry answer"
+        );
+        let absent = " NVIDIA GeForce RTX 4090\n";
+        assert_eq!(
+            backend_from_video_controllers_with(absent, |_| Some(6_439_305_216)),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216)
+            },
+            "an absent AdapterRAM lets the registry answer"
+        );
+        assert_eq!(
+            backend_from_video_controllers_with(zero, |_| Some(2 * 1024 * 1024 * 1024)),
+            Backend::DiscreteGpu { vram_bytes: None },
+            "under the cap answers nothing for a zero AdapterRAM either"
+        );
+
+        // The boundary: a registry figure of exactly the cap is accepted —
+        // saturation means "at least the cap", not "more than it". This is
+        // the case a floor of 4 GiB would wrongly reject.
+        assert_eq!(
+            backend_from_video_controllers_with(saturated, |_| Some(WMI_SATURATION_BYTES)),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(WMI_SATURATION_BYTES)
+            },
+            "exactly 0xFFF00000 from the registry is at least the cap"
         );
     }
 
