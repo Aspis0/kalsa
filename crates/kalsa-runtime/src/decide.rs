@@ -94,13 +94,14 @@ pub fn decide(
 /// 6 GiB against 32 GiB of RAM, nothing on the menu).
 ///
 /// Restricted this way a saved GPU verdict is no answer and is skipped; a
-/// saved CPU verdict short-circuits as usual — and this path saves one, on
-/// purpose overwriting the GPU verdict. The next start then lands on the
-/// same CPU choice with no probe at all, and the verdict's fingerprint
-/// (build digests, the detected backend, the OS, and on Windows the driver
-/// version) discards it when a bigger card or a driver update changes the
-/// machine: the whole decide runs again, and `candidates_for` puts the GPU
-/// build first, so the GPU gets its chance back.
+/// saved CPU verdict short-circuits as usual — from its OWN slot
+/// ([`verdict_slot`]): the fallback never writes the main verdict, so the
+/// next start asks the GPU verdict first, the catalog is asked on VRAM
+/// first, and a future row or margin that fits the card takes the card back
+/// with no probe at all. This slot's fingerprint (build digests, detection,
+/// OS, on Windows the driver version) gates it exactly as the main one does:
+/// a bigger card or a driver update discards it and the whole decide runs
+/// again.
 pub fn decide_cpu(
     detected: Backend,
     progress: &mut dyn FnMut(Progress),
@@ -149,18 +150,14 @@ pub(crate) fn decide_in(
 
     // The machine's standing answer, while it still describes what was
     // proven: this build's bytes, on this machine.
-    if let Some(verdict) = verdict::load(root) {
-        if only.is_none_or(|backend| verdict.backend == backend)
-            && verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected)
-        {
-            if let Ok(exe) = store::ensure_backend(root, platform, verdict.backend, progress) {
-                return Ok(Decision {
-                    backend: verdict.backend,
-                    exe,
-                });
-            }
-            // Its build is gone from disk: decide again from the top.
+    if let Some(verdict) = standing_verdict(root, only, platform, detected) {
+        if let Ok(exe) = store::ensure_backend(root, platform, verdict.backend, progress) {
+            return Ok(Decision {
+                backend: verdict.backend,
+                exe,
+            });
         }
+        // Its build is gone from disk: decide again from the top.
     }
     let model = store::ensure_probe_model(root, progress).map_err(map_store_error)?;
     let port = probe::free_loopback_port()
@@ -186,6 +183,7 @@ pub(crate) fn decide_in(
                         backend,
                         fingerprint: verdict::fingerprint(platform, backend, detected),
                     },
+                    verdict_slot(only),
                 );
                 return Ok(Decision { backend, exe });
             }
@@ -193,6 +191,41 @@ pub(crate) fn decide_in(
         }
     }
     Err(DecideError::NothingWorked { attempts })
+}
+
+/// The verdict file this ask reads and writes: the whole walk's own, or —
+/// for the CPU-only ask, which only `decide_cpu` (the processor fallback)
+/// makes — the fallback's separate slot.
+///
+/// The slot exists because overwriting the main verdict pinned the machine
+/// to the processor forever: the fingerprint carries the build bytes,
+/// detection, the OS and the driver, but NOT the catalog or the budget
+/// margin, so a CPU verdict left in the main slot kept answering every start
+/// even after a new row or a changed margin would have fit the card — and it
+/// was saved before the CPU choice had run at all. In two slots the main
+/// (GPU) verdict stands through a fallback: every start asks it first, the
+/// catalog is asked on VRAM first, and a future row that fits the card is
+/// used automatically. Each slot is gated by the same fingerprint as before.
+fn verdict_slot(only: Option<ServerBackend>) -> verdict::Slot {
+    match only {
+        Some(ServerBackend::Cpu) => verdict::Slot::ProcessorFallback,
+        _ => verdict::Slot::Main,
+    }
+}
+
+/// The verdict that answers this ask, if it still describes this machine:
+/// this slot's own file, the backend restriction, and the fingerprint — the
+/// three gates the short-circuit always had, now per slot.
+fn standing_verdict(
+    root: &Path,
+    only: Option<ServerBackend>,
+    platform: Platform,
+    detected: Backend,
+) -> Option<Verdict> {
+    let verdict = verdict::load(root, verdict_slot(only))?;
+    (only.is_none_or(|backend| verdict.backend == backend)
+        && verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected))
+    .then_some(verdict)
 }
 
 fn map_store_error(e: StoreError) -> DecideError {
@@ -335,6 +368,7 @@ mod tests {
                 backend,
                 fingerprint: verdict::fingerprint(platform, backend, detected),
             },
+            verdict::Slot::Main,
         )
         .expect("save verdict");
 
@@ -342,6 +376,55 @@ mod tests {
             .expect("a standing verdict answers without probing");
         assert_eq!(decision.backend, backend);
         assert_eq!(decision.exe, exe, "the on-disk build is the answer");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_fallback_verdict_has_its_own_slot_and_the_main_verdict_stands() {
+        // The slot both asks share, pinned at the seam: after a fallback has
+        // saved its CPU answer, the main slot still holds the GPU verdict —
+        // so a second start asks the GPU verdict first (and its catalog on
+        // VRAM first) — while the fallback ask finds its own slot and never
+        // the main one's. (Mutating `verdict_slot` to "always main" is the
+        // overwrite this replaces: it reddens the load below.)
+        let root = scratch("two-slots");
+        let platform = Platform::WindowsX64;
+        let detected = Backend::DiscreteGpu {
+            vram_bytes: Some(6 << 30),
+        };
+        let main = Verdict {
+            backend: ServerBackend::Vulkan,
+            fingerprint: verdict::fingerprint(platform, ServerBackend::Vulkan, detected),
+        };
+        verdict::save(&root, &main, verdict_slot(None)).expect("save the main verdict");
+        // What `decide_cpu` does after its probe — into its own slot.
+        let fallback = Verdict {
+            backend: ServerBackend::Cpu,
+            fingerprint: verdict::fingerprint(platform, ServerBackend::Cpu, detected),
+        };
+        verdict::save(&root, &fallback, verdict_slot(Some(ServerBackend::Cpu)))
+            .expect("save the fallback verdict");
+
+        assert_eq!(
+            verdict::load(&root, verdict::Slot::Main).as_ref(),
+            Some(&main),
+            "the fallback overwrote the main verdict"
+        );
+        assert_eq!(
+            standing_verdict(&root, None, platform, detected).as_ref(),
+            Some(&main),
+            "a second start asks the GPU verdict first"
+        );
+        assert_eq!(
+            standing_verdict(&root, Some(ServerBackend::Cpu), platform, detected).as_ref(),
+            Some(&fallback),
+            "the fallback ask finds its own slot"
+        );
+        assert_eq!(verdict_slot(None), verdict::Slot::Main);
+        assert_eq!(
+            verdict_slot(Some(ServerBackend::Cpu)),
+            verdict::Slot::ProcessorFallback
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 

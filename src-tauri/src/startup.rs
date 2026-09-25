@@ -361,7 +361,10 @@ pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
 /// owner ruled in. `decide_processor` is lazy — a choice that fits the card
 /// never pays for it — and only the builds whose budget IS the card's memory
 /// (Vulkan, CUDA) fall back: a processor refusal is a real refusal, and
-/// Metal budgets RAM already.
+/// Metal budgets RAM already. And only the NothingFits refusal falls back at
+/// all: the fallback's sentence is about the card's memory holding no row,
+/// which is true only of that one — a phone comparison, a speed floor or a
+/// bad token are other facts and reach the owner unchanged (pinned below).
 fn choose_with_processor_fallback(
     build: (ServerBackend, PathBuf),
     machine: &Machine,
@@ -376,13 +379,28 @@ fn choose_with_processor_fallback(
     );
     match choose_model(winner, machine, phone, chosen) {
         Ok((plan, row, reason)) => Ok((winner, exe, plan, row, reason)),
-        Err(_graphics_refusal) if budgets_the_card => {
+        // ONLY NothingFits buys the fallback: the sentence "no model fits
+        // this computer's graphics card's memory" is true only of it.
+        // NothingBetter / NothingFastEnough (a phone was compared),
+        // ChosenModelUnresolved, MachineNotMeasured — other facts, other
+        // words — fall through unchanged.
+        Err(graphics_refusal)
+            if budgets_the_card && matches!(graphics_refusal, StartupFailure::NothingFits) =>
+        {
             // The ruling: a GPU build that probes well but whose card holds
             // no row is not a reason to refuse the machine (Lenovo walk:
             // 6.4 GB of VRAM minus the margin leaves ~3.0 GiB — under the
             // smallest row — while 32 GiB of RAM funds one). The processor
             // answer carries the sentence that says which memory decided.
-            let decision = decide_processor()?;
+            let decision = match decide_processor() {
+                Ok(decision) => decision,
+                // The processor route failing must not wear
+                // NoBackendWorked ("None of the ways … work"): the
+                // graphics build already worked and proved itself. The
+                // truthful headline is the original refusal — nothing
+                // fits the card, and the processor is no answer either.
+                Err(_) => return Err(graphics_refusal),
+            };
             let (plan, row, reason) = choose_model(decision.backend, machine, phone, chosen)?;
             Ok((
                 decision.backend,
@@ -1399,6 +1417,98 @@ mod tests {
         assert!(
             reason.contains(&expected.2),
             "the choice's own words follow: {reason}"
+        );
+    }
+
+    #[test]
+    fn a_nothing_better_gpu_refusal_does_not_fall_back() {
+        // The guard, pinned from the refusal side: rows that FIT the card
+        // next to a phone no shipped row beats produce the phone
+        // comparison's NothingFits sibling — NothingBetter — and that one
+        // must not trigger the fallback or its sentence (finding 1).
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(24 << 30),
+                },
+            ),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        let phone = PhoneModel {
+            weights_bytes: 400 << 30,
+            parameters: None,
+            measured_tokens_per_second: None,
+            battery_powered: None,
+        };
+        assert!(
+            matches!(
+                choose_model(ServerBackend::Vulkan, &machine, Some(phone), None),
+                Err(StartupFailure::NothingBetter)
+            ),
+            "the fixture must produce the phone comparison's refusal"
+        );
+
+        let calls = std::cell::Cell::new(0);
+        let err = choose_with_processor_fallback(
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
+            &machine,
+            Some(phone),
+            None,
+            || {
+                calls.set(calls.get() + 1);
+                Ok(kalsa_runtime::Decision {
+                    backend: ServerBackend::Cpu,
+                    exe: PathBuf::from("/builds/cpu-server.exe"),
+                })
+            },
+        )
+        .expect_err("a phone refusal is not the card's to override");
+        assert!(matches!(err, StartupFailure::NothingBetter), "{err:?}");
+        assert_eq!(
+            calls.get(),
+            0,
+            "the processor decide must run for NothingFits and nothing else"
+        );
+    }
+
+    #[test]
+    fn a_processor_decide_that_fails_keeps_the_nothing_fits_headline() {
+        // Finding 3: the graphics build worked — its catalog answer did not
+        // fit the card. A dead processor route must not rename that to
+        // NoBackendWorked ("None of the ways … work"): the truthful
+        // headline is the original refusal.
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(6_439_305_216),
+                },
+            ),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        let calls = std::cell::Cell::new(0);
+        let err = choose_with_processor_fallback(
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
+            &machine,
+            None,
+            None,
+            || {
+                calls.set(calls.get() + 1);
+                Err(kalsa_runtime::DecideError::NothingWorked { attempts: vec![] })
+            },
+        )
+        .expect_err("no processor answer to give");
+        assert_eq!(calls.get(), 1, "the fixture reaches the decide");
+        assert!(
+            matches!(err, StartupFailure::NothingFits),
+            "the fallback's failure must wear the original refusal: {err:?}"
         );
     }
 

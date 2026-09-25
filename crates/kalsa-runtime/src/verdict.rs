@@ -19,6 +19,22 @@ use crate::assets::{self, Platform, ServerBackend};
 
 const MAGIC: &str = "kalsa-runtime v1";
 const FILE_NAME: &str = "verdict.txt";
+/// The processor fallback's verdict: the same format, its own file, so a
+/// fallback answer can never stand in for the main walk's — `decide.rs`'s
+/// `verdict_slot` is the one place that chooses between them.
+const PROCESSOR_FALLBACK_FILE_NAME: &str = "verdict-fallback.txt";
+
+/// Which verdict file an ask reads and writes. The slot is the ask's
+/// identity, not a change of trust: both files parse the same `MAGIC`, carry
+/// the same `backend`/`fingerprint` lines, and are gated by the same
+/// fingerprint formula — one file name apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Slot {
+    /// The whole walk's answer (`decide`).
+    Main,
+    /// The CPU-only ask's answer (`decide_cpu` — the processor fallback).
+    ProcessorFallback,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Verdict {
@@ -133,8 +149,8 @@ pub(crate) fn parse_driver_versions(text: &str) -> Option<String> {
 
 /// The verdict saved on this machine, if it parses. A torn or foreign file
 /// reads as no verdict: the cost of re-probing is seconds.
-pub(crate) fn load(dir: &Path) -> Option<Verdict> {
-    let text = std::fs::read_to_string(path(dir)).ok()?;
+pub(crate) fn load(dir: &Path, slot: Slot) -> Option<Verdict> {
+    let text = std::fs::read_to_string(path(dir, slot)).ok()?;
     let mut backend = None;
     let mut fingerprint = None;
     for line in text.lines().skip(1) {
@@ -158,9 +174,9 @@ pub(crate) fn load(dir: &Path) -> Option<Verdict> {
     }
 }
 
-pub(crate) fn save(dir: &Path, verdict: &Verdict) -> io::Result<()> {
+pub(crate) fn save(dir: &Path, verdict: &Verdict, slot: Slot) -> io::Result<()> {
     std::fs::create_dir_all(dir)?;
-    let mut file = std::fs::File::create(path(dir))?;
+    let mut file = std::fs::File::create(path(dir, slot))?;
     // Written in one call: a torn write reads as no verdict at all, which is
     // the safe direction, but there is no reason to prefer torn.
     file.write_all(
@@ -174,8 +190,11 @@ pub(crate) fn save(dir: &Path, verdict: &Verdict) -> io::Result<()> {
     file.flush()
 }
 
-fn path(dir: &Path) -> PathBuf {
-    dir.join(FILE_NAME)
+fn path(dir: &Path, slot: Slot) -> PathBuf {
+    dir.join(match slot {
+        Slot::Main => FILE_NAME,
+        Slot::ProcessorFallback => PROCESSOR_FALLBACK_FILE_NAME,
+    })
 }
 
 #[cfg(test)]
@@ -198,11 +217,11 @@ mod tests {
             backend: ServerBackend::Vulkan,
             fingerprint: fingerprint(Platform::WindowsX64, ServerBackend::Vulkan, Backend::Cpu),
         };
-        save(&dir, &verdict).expect("save");
-        let loaded = load(&dir).expect("load");
+        save(&dir, &verdict, Slot::Main).expect("save");
+        let loaded = load(&dir, Slot::Main).expect("load");
         assert_eq!(loaded, verdict);
-        std::fs::remove_file(path(&dir)).expect("remove");
-        assert_eq!(load(&dir), None);
+        std::fs::remove_file(path(&dir, Slot::Main)).expect("remove");
+        assert_eq!(load(&dir, Slot::Main), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -262,20 +281,50 @@ mod tests {
     fn a_torn_or_foreign_verdict_file_reads_as_none() {
         let dir = scratch("foreign");
         std::fs::create_dir_all(&dir).expect("mkdir");
-        std::fs::write(path(&dir), "someone else's state file\nbackend=vulkan\n").expect("write");
-        assert_eq!(load(&dir), None);
         std::fs::write(
-            path(&dir),
+            path(&dir, Slot::Main),
+            "someone else's state file\nbackend=vulkan\n",
+        )
+        .expect("write");
+        assert_eq!(load(&dir, Slot::Main), None);
+        std::fs::write(
+            path(&dir, Slot::Main),
             "kalsa-runtime v1\nbackend=not-a-backend\nfingerprint=x\n",
         )
         .expect("write");
-        assert_eq!(load(&dir), None);
-        std::fs::write(path(&dir), "kalsa-runtime v1\nbackend=vulkan\n").expect("write");
+        assert_eq!(load(&dir, Slot::Main), None);
+        std::fs::write(path(&dir, Slot::Main), "kalsa-runtime v1\nbackend=vulkan\n")
+            .expect("write");
         assert_eq!(
-            load(&dir),
+            load(&dir, Slot::Main),
             None,
             "a verdict without its fingerprint is not one"
         );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_processor_fallback_slot_is_the_same_format_in_its_own_file() {
+        let dir = scratch("fallback-slot");
+        let detected = Backend::DiscreteGpu {
+            vram_bytes: Some(6 << 30),
+        };
+        let verdict = Verdict {
+            backend: ServerBackend::Cpu,
+            fingerprint: fingerprint(Platform::WindowsX64, ServerBackend::Cpu, detected),
+        };
+        save(&dir, &verdict, Slot::ProcessorFallback).expect("save");
+        // The same format, whatever the file is called: the magic leads, the
+        // lines parse back.
+        let text = std::fs::read_to_string(path(&dir, Slot::ProcessorFallback)).expect("read");
+        assert!(text.starts_with(MAGIC), "{text}");
+        assert!(text.contains("backend=cpu"), "{text}");
+        assert_eq!(
+            load(&dir, Slot::ProcessorFallback).expect("load"),
+            verdict,
+            "the same fingerprint formula answers from the second slot"
+        );
+        assert_eq!(load(&dir, Slot::Main), None, "the main file is untouched");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
