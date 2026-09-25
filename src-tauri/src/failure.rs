@@ -467,5 +467,19 @@ mod tests {
             "The server that publishes the model did not allow the download just now. \
              Trying again later usually works."
         );
+
+        // The overrun arrives as a size mismatch — the stream ran past the
+        // publisher's promise — and the part was thrown away for it, which
+        // is exactly what this sentence says.
+        let overrun = StartupFailure::from(DownloadError::SizeMismatch {
+            expected: 1024 * 1024,
+            actual: 1024 * 1024 + 64 * 1024,
+        });
+        assert!(matches!(overrun, StartupFailure::DownloadCorrupted));
+        assert_eq!(
+            words(&overrun),
+            "The model download did not match the publisher's record, so it was \
+             thrown away. Trying again usually works."
+        );
     }
 }

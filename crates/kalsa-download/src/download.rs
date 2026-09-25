@@ -60,8 +60,22 @@ pub fn download(
         }
         return Err(DownloadError::NotEnoughSpace { free, needed });
     }
-    fetch::fetch(url, &mut part, expected_size, progress)?;
-    verify::publish(part, dest, expected_size, expected_sha256)
+    let fetched = fetch::fetch(url, &mut part, expected_size, progress);
+    match fetched {
+        // The stream ran past the publisher's promise: the same mismatch
+        // `verify` would have caught at the end, caught earlier. The part
+        // cannot resume into anything — a server that overruns once fails
+        // the size gate on every retry — so it goes now, keeping the
+        // enum's "the part is gone after a mismatch" contract true.
+        Err(error @ DownloadError::SizeMismatch { .. }) => {
+            part.discard();
+            Err(error)
+        }
+        fetched => {
+            fetched?;
+            verify::publish(part, dest, expected_size, expected_sha256)
+        }
+    }
 }
 
 /// `<dest>.part`, next to the destination: same filesystem, so the final
@@ -94,6 +108,27 @@ mod tests {
     /// digest.
     fn payload(len: usize) -> Vec<u8> {
         (0..len).map(|i| (i % 251) as u8).collect()
+    }
+
+    #[test]
+    fn an_overrun_throws_the_part_away_as_the_mismatch_it_is() {
+        let dir = scratch("dl-overrun");
+        let data = payload(1024 * 1024);
+        let server = httptest::serve(data, RangeMode::Overrun);
+        let dest = dir.join("model.gguf");
+        let err = download(&server.url, &dest, 1024 * 1024, &"0".repeat(64), &mut |_| {})
+            .expect_err("the overrun must be refused");
+        assert!(
+            matches!(err, DownloadError::SizeMismatch { .. }),
+            "{err:?}"
+        );
+        assert!(
+            !dest.with_file_name("model.gguf.part").exists(),
+            "the part is thrown away with the mismatch, not kept for a resume \
+             that can only fail the size gate again"
+        );
+        assert!(!dest.exists(), "nothing may land under the final name");
+        let _ = fs::remove_dir_all(&dir);
     }
 
     fn digest_of(bytes: &[u8]) -> String {

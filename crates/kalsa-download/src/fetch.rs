@@ -68,7 +68,7 @@ fn fetch_with_read_timeout(
         .and_then(|value| value.parse().ok());
     if let Some(declared) = declared {
         if declared > expected_size - start {
-            return Err(overrun());
+            return Err(overrun(expected_size, start + declared));
         }
     }
     let file = part.handle();
@@ -104,20 +104,19 @@ fn fetch_with_read_timeout(
             // The overrun is not a guess: those bytes were received. The
             // error is returned unconditionally — no further read can turn
             // it into a reset or an EOF.
-            return Err(overrun());
+            return Err(overrun(expected_size, done + read as u64));
         }
     }
 }
 
-/// The server is sending past the promised size. It belongs to the network
-/// half — the origin lied, not this machine's disk — and its kind
-/// (`InvalidData`) keeps it distinguishable from a dropped connection,
-/// which is exactly what resume is for.
-fn overrun() -> DownloadError {
-    DownloadError::Network(io::Error::new(
-        io::ErrorKind::InvalidData,
-        "server sent more than the promised size",
-    ))
+/// The origin is sending past the promised size: the very mismatch
+/// `verify` would report at the end, known the moment it becomes certain.
+/// It rides `SizeMismatch` — a mismatch with the publisher's record, not a
+/// transport failure — and `download` discards the part on it, keeping the
+/// enum's "the part is gone after a mismatch" contract true on this path
+/// too.
+fn overrun(expected: u64, actual: u64) -> DownloadError {
+    DownloadError::SizeMismatch { expected, actual }
 }
 
 /// Out of space mid-transfer is the one I/O failure this crate has a specific
@@ -213,10 +212,11 @@ mod tests {
         // file — here not one byte at all, because the overrun was visible in
         // the declared length before any body byte was asked for.
         assert_eq!(part.len().expect("len"), 0);
-        // The kind is deterministic too: decided from the response header,
-        // not from a read racing the server's teardown.
+        // The kind is the publisher's mismatch, with both of its figures:
+        // what was promised, and what the header said would arrive.
         assert!(
-            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidData),
+            matches!(&err, DownloadError::SizeMismatch { expected: e, actual } if *e == expected
+                && *actual == expected + 64 * 1024),
             "{err:?}"
         );
         let _ = fs::remove_dir_all(&dir);
