@@ -15,7 +15,7 @@ use kalsa_probe::Backend;
 #[cfg(target_os = "windows")]
 use kalsa_probe::{command_text, once_present};
 
-use crate::assets::{self, Platform, ServerBackend};
+use crate::assets::{self, Asset, Platform, ServerBackend};
 
 const MAGIC: &str = "kalsa-runtime v1";
 const FILE_NAME: &str = "verdict.txt";
@@ -56,8 +56,15 @@ pub(crate) struct Verdict {
 /// Elsewhere the driver ships with the OS, which the platform name already
 /// stands for.
 pub fn fingerprint(platform: Platform, backend: ServerBackend, detected: Backend) -> String {
-    let build = assets::assets_for(platform, backend)
-        .into_iter()
+    fingerprint_of(&assets::assets_for(platform, backend), detected)
+}
+
+/// The fingerprint of these exact archives on this machine: every archive's
+/// digest, joined in the order they were handed over, plus the machine facts
+/// the doc above names.
+fn fingerprint_of(assets: &[&Asset], detected: Backend) -> String {
+    let build = assets
+        .iter()
         .map(|asset| asset.sha256.unwrap_or("unfilled"))
         .collect::<Vec<_>>()
         .join("+");
@@ -266,6 +273,42 @@ mod tests {
             .and_then(|asset| asset.sha256)
             .expect("the vulkan engine row is filled in");
         assert!(fp.contains(engine), "{fp}");
+    }
+
+    #[test]
+    fn every_archive_of_a_build_joins_into_the_fingerprint() {
+        // Synthetic two-asset build: every table row is a single archive
+        // now, so the join — each archive's bytes pinned, not only the
+        // first's — needs an input the table cannot express.
+        const ENGINE_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        const EXTRA_SHA: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let engine = Asset {
+            role: assets::Role::Engine,
+            backend: None,
+            platform: None,
+            home: "https://example.invalid",
+            file: "engine.zip",
+            format: None,
+            size_bytes: Some(1),
+            sha256: Some(ENGINE_SHA),
+            exe_sha256: None,
+        };
+        let extra = Asset {
+            role: assets::Role::Engine,
+            backend: None,
+            platform: None,
+            home: "https://example.invalid",
+            file: "extra.zip",
+            format: None,
+            size_bytes: Some(1),
+            sha256: Some(EXTRA_SHA),
+            exe_sha256: None,
+        };
+        let fp = fingerprint_of(&[&engine, &extra], Backend::Cpu);
+        assert!(
+            fp.contains(&format!("{ENGINE_SHA}+{EXTRA_SHA}")),
+            "every archive's digest must be in the fingerprint, joined: {fp}"
+        );
     }
 
     #[test]

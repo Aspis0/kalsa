@@ -142,9 +142,10 @@ pub(crate) struct Asset {
     /// trusted by provenance alone. Engine rows only: a row that ships no
     /// server (the probe model) keeps None, no further comment needed.
     ///
-    /// On the fork's rows this is the thin launcher `kalsa-server`, NOT the
-    /// version identity: the launcher's bytes do not change between the
-    /// fork's releases (see the comment at that row). The ARCHIVE `sha256`
+    /// On the fork's rows this is the thin launcher `kalsa-server`, NOT
+    /// the version identity: the macOS launcher's digest is the same
+    /// across the fork's releases (that row's comment), but the Windows
+    /// launchers differ per variant within v1.1.2 — the ARCHIVE `sha256`
     /// is what tells versions apart.
     pub(crate) exe_sha256: Option<&'static str>,
 }
@@ -298,7 +299,10 @@ mod tests {
         for asset in ASSETS.iter().filter(|asset| asset.role == Role::Engine) {
             let url = asset.url();
             assert!(url.starts_with(FORK_BASE), "{url}");
-            assert!(url.ends_with(asset.file), "{url}");
+            // The fork's home serves the fork's own archive names: a row
+            // that mixed this home with somebody else's file name would
+            // fail as a 404 only when the build is first fetched.
+            assert!(asset.file.starts_with("kalsa-server-"), "{url}");
         }
     }
 

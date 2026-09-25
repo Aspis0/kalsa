@@ -310,8 +310,9 @@ mod tests {
     fn a_verdict_that_still_describes_this_machine_skips_the_probe() {
         // The most expensive failure this crate can have is re-probing on
         // every launch: a machine that already knows its answer would
-        // re-download up to 645 MB to learn it again, and experience that as
-        // an app that eats its connection. So the short-circuit is pinned
+        // re-download the ~26 MB build — the largest row — to learn it
+        // again, and experience that as an app that eats its connection.
+        // So the short-circuit is pinned
         // with the seams decide_in already takes: a build on disk in the
         // scratch root (as the store tests place one), a verdict whose
         // fingerprint matches those same inputs, and a launcher that fails

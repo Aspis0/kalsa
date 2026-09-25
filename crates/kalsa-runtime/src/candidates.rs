@@ -40,8 +40,9 @@ pub fn candidates_for(platform: Option<Platform>, detected: Backend) -> Vec<Serv
                 vec![ServerBackend::Vulkan, ServerBackend::Cpu]
             }
             // Detection learned nothing (wmic gone, or Metal on Windows):
-            // the Vulkan build includes the CPU backend, so probing it costs
-            // ~32 MB once and settles the question honestly.
+            // probe the cheap Vulkan build first (~26 MB); when device
+            // init refuses it, the CPU row beside it answers, so one walk
+            // settles the question honestly.
             Backend::Metal | Backend::Unknown => vec![ServerBackend::Vulkan, ServerBackend::Cpu],
         },
         // No build is published for this platform. Reported, not improvised.

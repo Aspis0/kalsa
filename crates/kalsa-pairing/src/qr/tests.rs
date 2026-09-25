@@ -188,6 +188,37 @@ fn a_square_with_the_road_off_carries_no_node_id() {
 }
 
 #[test]
+fn the_size_arithmetic_in_the_module_header_is_measured() {
+    // The header's numbers on the square the shell actually shows:
+    // `reachable` is the listener's loopback address (the shell builds it
+    // from its 127.0.0.1 bind), so the byte counts and the symbol
+    // versions below are measured here, not asserted in prose.
+    let base = "http://127.0.0.1:4952";
+    let session = Pairing::offer(base, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
+    let payload = session.qr_payload().unwrap();
+    assert_eq!(payload.len(), 160, "the header's byte count");
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(code.version().value(), 9, "160 bytes at level M");
+    let high = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::High).unwrap();
+    assert!(
+        high.version().value() > 12,
+        "level H must push the same payload past version 12"
+    );
+
+    let session = Pairing::offer(
+        base,
+        Some(NODE),
+        SystemTime::now(),
+        Duration::from_secs(300),
+    )
+    .unwrap();
+    let payload = session.qr_payload().unwrap();
+    assert_eq!(payload.len(), 234, "the open road's byte count");
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(code.version().value(), 11, "234 bytes at level M");
+}
+
+#[test]
 fn the_qr_leaks_nothing_outside_the_symbol_itself() {
     let (payload, svg) = offered_svg();
     let value: serde_json::Value = serde_json::from_str(&payload).unwrap();

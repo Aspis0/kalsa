@@ -1,6 +1,7 @@
 //! What the QR encodes: one versioned JSON document with everything the phone
-//! needs — how to reach this computer, the one-time code the whole
-//! completion protocol is keyed on, the per-offer nonce both MACs cover, and
+//! needs — the address this computer advertises, the one-time code the
+//! whole completion protocol is keyed on, the per-offer nonce both MACs
+//! cover, and
 //! — when this machine has its internet road open — the node id the phone
 //! dials that road by. The version field comes first: a phone that meets a
 //! `v` it does not know refuses the whole document instead of guessing at
@@ -27,10 +28,12 @@ const VERSION: u8 = 3;
 #[derive(Serialize)]
 struct QrPayloadV3 {
     v: u8,
-    /// How the phone reaches this computer on the LAN for the claim itself:
-    /// the pairing desk's own address (for example
-    /// `http://192.168.1.10:4952`). Covered by the phone's completion MAC,
-    /// like everything else the square showed.
+    /// The address this computer advertises for the ceremony: the pairing
+    /// desk's own loopback bind (`http://127.0.0.1:4952`, built by the
+    /// shell from the listener — nothing is opened on the LAN). The phone
+    /// never dials it — it arrives through the tunnel — but it MACs
+    /// `reachable` like everything else the square showed, so both sides
+    /// still hold the same string.
     reachable: String,
     /// The one-time code, hex. Single use; keyed on for both completion MACs.
     code: String,

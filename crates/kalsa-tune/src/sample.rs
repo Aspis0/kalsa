@@ -67,17 +67,22 @@ enum SendFailed {
     Failed,
 }
 
+/// The agent both asks share, so the POST and the identity GET hold the
+/// same bound: the request timeout covers neither the connect (ureq's
+/// default is 30 s) nor a redirect's deadline-free DNS lookup, and the
+/// only server we dial is our own on 127.0.0.1, which never redirects —
+/// a 3xx is refused instead of followed.
+fn agent(timeout: Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .timeout_connect(timeout)
+        .redirects(0)
+        .build()
+}
+
 /// One POST to `/completion`, shared by the tune's samples and the check.
 fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
     let body = completion_body(n_predict);
-    // Explicit: the request timeout covers neither the connect (ureq's
-    // default is 30 s) nor a redirect's deadline-free DNS lookup — the
-    // only server we dial is our own on 127.0.0.1, which never redirects.
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(timeout)
-        .redirects(0)
-        .build();
-    match agent
+    match agent(timeout)
         .post(&format!("http://{addr}/completion"))
         .timeout(timeout)
         .send_string(&body)
@@ -147,7 +152,10 @@ fn completion_body(n_predict: u64) -> String {
 /// into the set before ours and take the `id`
 /// (`server-context.cpp:1384-1395`), and the entry still carries ours.
 pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration) -> bool {
-    let reply = ureq::get(&format!("http://{addr}/v1/models")).timeout(timeout).call();
+    let reply = agent(timeout)
+        .get(&format!("http://{addr}/v1/models"))
+        .timeout(timeout)
+        .call();
     match reply {
         Ok(response) => id_among(&response.into_string().unwrap_or_default(), nonce),
         Err(_) => false,
@@ -339,11 +347,17 @@ mod check_tests {
 
     /// A 3xx is not our server's answer: it must read as `Failed` — not
     /// the `Timeout` that would blame the card, not a rate from somebody
-    /// else's body — and the check must be back inside its bound without
-    /// leaving this loopback, because the redirect's hostname is the one
-    /// thing that could outlast it.
+    /// else's body — and it must never be followed: the Location points
+    /// at a second listener this test owns, which has to see nothing.
+    /// Nothing here is a stopwatch, so nothing here is a flake.
     #[test]
-    fn a_redirect_is_refused_and_the_check_stays_inside_its_bound() {
+    fn a_redirect_is_refused_and_never_dialled() {
+        // The redirect's own destination: bound, never accepted, and
+        // asked once the check is done whether anything dialled it.
+        let target = TcpListener::bind("127.0.0.1:0").expect("bind");
+        target.set_nonblocking(true).expect("nonblocking");
+        let target_addr = target.local_addr().expect("addr");
+
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let port = listener.local_addr().expect("addr").port();
         let _responder = std::thread::spawn(move || {
@@ -384,7 +398,7 @@ mod check_tests {
                     // status may refuse it.
                     let fake = br#"{"timings":{"predicted_n":16,"predicted_per_second":99.9}}"#;
                     let reply = format!(
-                        "HTTP/1.1 302 Found\r\nlocation: http://example.invalid/\r\ncontent-length: {}\r\n\r\n{}",
+                        "HTTP/1.1 302 Found\r\nlocation: http://{target_addr}/\r\ncontent-length: {}\r\n\r\n{}",
                         fake.len(),
                         String::from_utf8_lossy(fake)
                     );
@@ -393,20 +407,20 @@ mod check_tests {
             }
         });
         let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
-        let timeout = Duration::from_millis(100);
-        let started = std::time::Instant::now();
-        let answer = checked_rate(addr, timeout);
-        let elapsed = started.elapsed();
+        let answer = checked_rate(addr, Duration::from_millis(500));
+        // The proof, not a stopwatch: a followed redirect completes its
+        // connect while the check is still running, so by now the target
+        // either holds that connection or was never dialled at all.
+        let dialled = match target.accept() {
+            Ok(_) => true,
+            // Nothing dialled is a plain WouldBlock; any other answer
+            // fails loud rather than green.
+            Err(error) => error.kind() != std::io::ErrorKind::WouldBlock,
+        };
+        assert!(!dialled, "the redirect target was dialled");
         assert!(
             matches!(answer, Answer::Failed),
             "a redirect must be a failure, not a rate and not a slow card"
-        );
-        // Two loopback round trips take ~1 ms; following the redirect pays
-        // a resolver lookup with no deadline of its own on top, so a wall
-        // at a twentieth of the ask's bound is where the hop shows.
-        assert!(
-            elapsed < timeout / 20,
-            "the check must stay inside its own bound: {elapsed:?} for a {timeout:?} ask"
         );
     }
 

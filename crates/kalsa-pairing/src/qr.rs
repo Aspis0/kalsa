@@ -15,18 +15,20 @@
 //!   see it can pair. That is the product decision documented in `secret`,
 //!   not a defect here.
 //!
-//! Size arithmetic, worked out rather than guessed: `payload::encode` emits
-//! `{"v":2,"reachable":"http://192.168.1.10:4952","code":"<32 hex>","nonce":"<64 hex>"}`
-//! — 165 bytes for a 24-character address. Error-correction level M (15% of
-//! codewords recoverable) is deliberate: the scan happens in calm conditions,
-//! and level H would grow the same payload from a version-9 symbol (53×53
-//! modules) past version 12, buying robustness a single-use, windowed code
-//! does not need — a damaged scan costs a re-scan, nothing else. Level M
-//! carries 165 bytes at version 9, a 60-character address at version 10
-//! (213 bytes), and refuses — [`PayloadTooLong`], never a truncated symbol —
-//! past version 40 (2331 bytes). If the payload ever outgrows its QR, the
-//! remedy is upstream in `payload`: the 48 bytes of hex overhead on the code
-//! and binding could ride as raw bytes instead.
+//! Size arithmetic, measured rather than guessed — `tests` encodes real
+//! payloads and pins every number below: `payload::encode` emits
+//! `{"v":3,"reachable":"http://127.0.0.1:4952","code":"<32 hex>","nonce":"<64 hex>"}`
+//! — 160 bytes with the shell's loopback address; an open road appends
+//! `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
+//! codewords recoverable) is deliberate: the scan happens in calm
+//! conditions, and level H would push the same payload past version 12,
+//! buying robustness a single-use, windowed code does not need — a
+//! damaged scan costs a re-scan, nothing else. Level M carries those 160
+//! bytes at version 9 (53×53 modules) and the 234-byte node square at
+//! version 11 (61×61), and refuses — [`PayloadTooLong`], never a
+//! truncated symbol — past version 40 (2331 bytes). If the payload ever
+//! outgrows its QR, the remedy is upstream in `payload`: the 48 bytes of
+//! hex overhead on the code and binding could ride as raw bytes instead.
 
 use qrcodegen::{QrCode, QrCodeEcc};
 

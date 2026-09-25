@@ -1531,6 +1531,46 @@ mod tests {
     }
 
     #[test]
+    fn the_processor_fallback_belongs_to_a_card_budget_only() {
+        // The guard's other half: the fallback exists because the CARD's
+        // budget refused every row while the machine's RAM holds one. A
+        // CPU winner that finds nothing is the machine itself — the decide
+        // must not run and the refusal stands in its own words.
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 2 * 1024 * 1024 * 1024,
+        };
+        assert!(
+            matches!(
+                choose_model(ServerBackend::Cpu, &machine, None, None),
+                Err(StartupFailure::NothingFits)
+            ),
+            "the fixture must be a machine no row fits"
+        );
+        let calls = std::cell::Cell::new(0);
+        let err = choose_with_processor_fallback(
+            (ServerBackend::Cpu, PathBuf::from("/builds/cpu-server.exe")),
+            &machine,
+            None,
+            None,
+            || {
+                calls.set(calls.get() + 1);
+                Ok(kalsa_runtime::Decision {
+                    backend: ServerBackend::Cpu,
+                    exe: PathBuf::from("/builds/cpu-server.exe"),
+                })
+            },
+        )
+        .expect_err("nothing fits, and a CPU winner has no card to fall back from");
+        assert!(matches!(err, StartupFailure::NothingFits), "{err:?}");
+        assert_eq!(
+            calls.get(),
+            0,
+            "a CPU winner must never reach the processor decide"
+        );
+    }
+
+    #[test]
     fn a_processor_decide_that_fails_keeps_the_nothing_fits_headline() {
         // Finding 3: the graphics build worked — its catalog answer did not
         // fit the card. A dead processor route must not rename that to
