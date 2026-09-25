@@ -20,7 +20,8 @@
 //!   (`kalsa_probe::plateau`), and where the machine can say its physical
 //!   core count the plan caps at it — hyperthreading carried the Lenovo's
 //!   plateau to 22 (16 physical / 22 logical) once in three runs, and at
-//!   22 decode was 26.5% slower than at 16, with complete separation. An
+//!   22 decode was 26.5% slower than at 16, with complete separation (n=2
+//!   runs per arm; the two 22-thread runs were 29% apart). An
 //!   unknown physical count leaves the plateau alone.
 //! * **Offload is all or nothing.** Measured upstream: 18.49 tok/s fully on
 //!   the GPU, 12.19 on CPU, 5.68 split across both — the split is 2.15×
@@ -53,6 +54,6 @@ pub use args::{
     idle_save_seconds,
 };
 pub use policy::{
-    context_price, funded_context, funded_maximum, plan, trained_context_unreadable, ContextPrice,
-    LaunchInput,
+    context_price, funded_context, funded_maximum, plan, thread_count,
+    trained_context_unreadable, ContextPrice, LaunchInput,
 };

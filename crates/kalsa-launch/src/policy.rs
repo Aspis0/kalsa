@@ -26,7 +26,8 @@ pub struct LaunchInput<'a> {
     /// threads can raise the plateau past the throughput peak — on the
     /// Lenovo (Core Ultra 9 185H, 16 physical / 22 logical) the plateau
     /// read 22 once in three runs, and at 22 decode was 26.5% slower than
-    /// at 16, with complete separation. The Surface (4 physical, plateau 4)
+    /// at 16, with complete separation (n=2 runs per arm; the two
+    /// 22-thread runs were 29% apart). The Surface (4 physical, plateau 4)
     /// and the M1 Max (10 physical, plateau 8) are unaffected.
     pub thread_ramp: &'a [(usize, f64)],
     /// The machine's physical core count — `kalsa_probe::physical_cores()`'s
@@ -56,6 +57,20 @@ pub struct LaunchInput<'a> {
     /// `slots`), created and permissioned there; [`plan`] only carries it
     /// into the argv, so a launch without the folder is impossible by type.
     pub slot_save_path: PathBuf,
+}
+
+/// The thread count the engine gets: the plateau capped at the machine's
+/// physical cores when that count is known (the rule and its evidence:
+/// [`LaunchInput::thread_ramp`]). A physical count of zero — a read that
+/// answered with nothing — is unknown: the plateau alone decides, and
+/// `--threads 0` is never rendered. One function so the plan and the dev
+/// path cannot drift.
+pub fn thread_count(plateau: Option<usize>, physical: Option<usize>) -> Option<usize> {
+    match physical {
+        Some(physical) if physical > 0 => plateau.map(|threads| threads.min(physical)),
+        // Zero and None are alike: unknown, the plateau alone decides.
+        _ => plateau,
+    }
 }
 
 /// The funded ceiling for one input, and the roof it was carved after: the
@@ -105,13 +120,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     let per_slot = slot_context(requested, slots)?;
     let context_tokens = per_slot * slots;
     let plateau_threads = plateau(input.thread_ramp).map(|(threads, _rate)| threads);
-    // The rule: never more threads than the machine's physical cores — the
-    // evidence sits on `thread_ramp`; an unknown physical count is the
-    // plateau alone.
-    let threads = match (plateau_threads, input.physical_cores) {
-        (Some(plateau), Some(physical)) => Some(plateau.min(physical)),
-        (plateau, _) => plateau,
-    };
+    let threads = thread_count(plateau_threads, input.physical_cores);
     let args = ServerArgs {
         model_path: input.model_path.clone(),
         port: input.port,
@@ -821,7 +830,8 @@ mod tests {
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
 
         // The Lenovo (16 physical / 22 logical): the plateau read 22, and
-        // at 22 decode was 26.5% slower than at 16 — the cap wins.
+        // at 22 decode was 26.5% slower than at 16 — the cap wins (n=2 per
+        // arm; the two 22-thread runs were 29% apart).
         let mut lenovo = input(ServerBackend::Cpu, budget, model, LENOVO_RAMP);
         lenovo.physical_cores = Some(16);
         let launched = plan(&lenovo).expect("the model is fundable");
@@ -841,6 +851,17 @@ mod tests {
         m1_unknown.physical_cores = None;
         let launched = plan(&m1_unknown).expect("the model is fundable");
         assert_eq!(launched.args.threads, Some(8));
+    }
+
+    /// A physical count of zero is a failed read that answered anyway, not
+    /// eight fewer threads: unknown, so the plateau alone decides and
+    /// `--threads 0` can never be rendered.
+    #[test]
+    fn a_physical_count_of_zero_is_unknown_not_zero_threads() {
+        assert_eq!(thread_count(Some(8), Some(0)), Some(8));
+        assert_eq!(thread_count(Some(8), Some(4)), Some(4));
+        assert_eq!(thread_count(Some(8), None), Some(8));
+        assert_eq!(thread_count(None, Some(4)), None);
     }
 
     #[test]

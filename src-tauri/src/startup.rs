@@ -831,13 +831,9 @@ fn dev_config_with_overrides(
     let kv_cache = overrides.kv_cache.unwrap_or_default();
     let plateau_threads =
         kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads);
-    // The same rule as the plan: never more threads than the machine's
-    // physical cores; an unknown count is the plateau alone (the evidence
-    // lives on `LaunchInput::thread_ramp`).
-    let threads = match (plateau_threads, kalsa_probe::physical_cores()) {
-        (Some(plateau), Some(physical)) => Some(plateau.min(physical)),
-        (plateau, _) => plateau,
-    };
+    // The plan's own rule, one function: the plateau capped at the machine's
+    // physical cores (the evidence lives on `LaunchInput::thread_ramp`).
+    let threads = kalsa_launch::thread_count(plateau_threads, kalsa_probe::physical_cores());
     let mut args = ServerArgs {
         model_path: model,
         port: PORT,
