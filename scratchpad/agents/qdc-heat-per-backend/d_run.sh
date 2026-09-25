@@ -55,22 +55,24 @@ ADB_LOG="$RAW/adb-exit.log"; DRIVER_LOG="$RAW/driver.log"; RESULTS="$RAW/results
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'pair\tarm\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\tsettle_s\tskin_before\tskin_after\tbatt_before\tbatt_after\tprefill_ms\tengine_prefill\tengine_decode\troute_requested\troute_push\troute_mismatch\tchunks_sum\tchunks_str\tprompt_n\ttokens_predicted\tdecode_tps\tthermal_state\tfailed\tfallback_count\ttool_calls\tlmkd_count\n' > "$RESULTS"
 PKG=com.kalsa.app
-# Shipping default: LFM2.5-2.6B (owner decision 2026-09-25; the catalog entry
-# declares no mmproj, so the governor stays eligible on this build).
+# Shipping default: the catalog file LFM2.5-2.6B-QAD-Q4_0.gguf (coordinator
+# decision 2026-09-25: we measure the shipped config; ModelRegistry.ts:278-279).
+# The entry declares no mmproj, so the governor stays eligible on this build.
 # Qwen3.5-4B stays reachable via env (MODEL/MODEL_DIR/MODEL_FILE/MMPROJ); its
 # identity constants key off MODEL_FILE, so this is enough:
 #   MODEL_DIR=qwen3.5-4b MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf MMPROJ=/Users/marco/kalsa-qdc/models/mmproj-F16.gguf
 MODEL_DIR="${MODEL_DIR:-lfm2.5-2.6b}"
-MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-Q4_K_M.gguf}"
-MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/$MODEL_FILE}"
+MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-QAD-Q4_0.gguf}"
 case "$MODEL_FILE" in
   Qwen3.5-4B-Q4_K_M.gguf)
+    MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/$MODEL_FILE}"
     MODEL_SIZE="${MODEL_SIZE:-2834975040}"
     MODEL_SHA="${MODEL_SHA:-3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630}"
     MMPROJ="${MMPROJ-/Users/marco/kalsa-qdc/models/mmproj-F16.gguf}" ;;
   *)
-    MODEL_SIZE="${MODEL_SIZE:-1674455040}"
-    MODEL_SHA="${MODEL_SHA:-02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed}" ;;
+    MODEL="${MODEL:-/Users/marco/kalsa-models/mac/$MODEL_FILE}"
+    MODEL_SIZE="${MODEL_SIZE:-1593894944}"
+    MODEL_SHA="${MODEL_SHA:-a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03}" ;;
 esac
 # Empty MMPROJ (the LFM default) skips every mmproj copy/size check in mmproj_setup.
 MMPROJ="${MMPROJ:-}"; MMPROJ_FILE="${MMPROJ_FILE:-mmproj-F16.gguf}"; MMPROJ_SIZE="${MMPROJ_SIZE:-672423616}"
