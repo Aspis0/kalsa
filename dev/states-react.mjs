@@ -233,6 +233,7 @@ const scenarios = [
   ["firstpage/off", "the machine is off", "empty", { setup: setupArm("stopped", "answered", true, "x") }],
   ["firstpage/starting", "the start is walking", "empty", { setup: setupArm("starting", "pending", false, "") }],
   ["firstpage/key", "the door stood up but could not hand its key over", "empty", { setup: setupArm("running", "missing", true, "") }],
+  ["firstpage/key-read", "the store would not let the key be read", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: "This computer could not read its own connection key." }],
   ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
   ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
   ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],
@@ -353,6 +354,7 @@ function componentFor(kind, data) {
     // runs, so the scenario pins the mapping and the rendered words both.
     return React.createElement(EmptyState, {
       setup: data?.setup,
+      credentialMessage: data?.credentialMessage ?? null,
       onOpenSettings: () => {},
       onOpenServer: () => {},
       onOpenDevices: () => {},

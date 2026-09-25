@@ -224,7 +224,7 @@ export function App() {
   // The door comes from the STATE's own address: the credential read is
   // gated on that address, so "no door" must never be confused with "the
   // credential has not answered yet".
-  const { state, credential } = useBrain();
+  const { state, credential, credentialMessage } = useBrain();
   const setup = setupArm(
     state?.kind ?? null,
     credential,
@@ -1133,6 +1133,7 @@ export function App() {
                 {empty ? (
                   <EmptyState
                     setup={setup}
+                    credentialMessage={credentialMessage}
                     onOpenSettings={() => openSurface("settings")}
                     onOpenServer={() => openSurface("server")}
                     onOpenDevices={() => openSurface("devices")}

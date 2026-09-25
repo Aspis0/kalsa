@@ -16,19 +16,22 @@ export type SetupArm = "server" | "service" | "starting" | "key" | "settings" | 
       lands within its second (the null arm below is shorter still); every
       other arm names a state that can last;
     - running with a door address but a credential the store would not
-      give — the `brain_host_credential` command's own "This computer has
-      not made its own connection key yet." — and the Devices page, whose
-      hatch re-mints it (that command's own recovery path). The read runs
-      only against a LIVE door, so this is a door that stood up and could
-      not hand its key over;
+      give — the `brain_host_credential` command's OWN sentence, whichever
+      the rejection said (`credentialMessage`: "This computer has not made
+      its own connection key yet." or "This computer could not read its own
+      connection key.") — and the Devices page, whose hatch re-mints it
+      (that command's recovery path). The read runs only against a LIVE
+      door, so this is a door that stood up and could not hand its key over;
     - running with no door in the state, whatever the credential says —
       the read is gated on the door's address (useBrain's poll at :204),
       so a fresh launch with the door stood down never even asks and the
-      credential stays `pending`. LASTING: the engine is up and this
-      computer's own service is not — the pairing page's words for a
-      stopped local service, with its "Go to Server"; the enumeration of
-      this state's causes and their real recoveries is owed to the owner
-      before the wording is called final;
+      credential stays `pending`. LASTING: the engine runs while this
+      computer's chat connection cannot — an empty store, an unreadable
+      one, a record the door refuses, a poisoned door lock, a listener
+      that cannot bind, or a door that cannot be built — and the Devices
+      page carries each cause's own remedy. The wording is the owner's
+      (2026-09-25): "This computer's chat connection is not working right
+      now." with "Go to Devices";
     - running, door up, no model name → Settings.
     Each arm is pinned in `dev/smoke-react.mjs`. */
 export function setupArm(
@@ -65,6 +68,10 @@ export function setupArm(
 
 interface EmptyStateProps {
   setup: SetupArm;
+  /** The `brain_host_credential` command's own refusal, when the store
+      refused the read: the key arm shows it verbatim so each case reads
+      its true words; null falls back to the not-made-yet sentence. */
+  credentialMessage: string | null;
   onOpenSettings: () => void;
   onOpenServer: () => void;
   onOpenDevices: () => void;
@@ -73,6 +80,7 @@ interface EmptyStateProps {
 /** First-run screen. One sentence, no jargon. */
 export function EmptyState({
   setup,
+  credentialMessage,
   onOpenSettings,
   onOpenServer,
   onOpenDevices,
@@ -92,11 +100,9 @@ export function EmptyState({
         </>
       ) : setup === "service" ? (
         <>
-          <p className="empty-copy">
-            The local pairing service stopped. Restart the app to make pairing available again.
-          </p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenServer}>
-            Go to Server
+          <p className="empty-copy">This computer's chat connection is not working right now.</p>
+          <button type="button" className="btn-primary btn-large" onClick={onOpenDevices}>
+            Go to Devices
           </button>
         </>
       ) : setup === "starting" ? (
@@ -109,7 +115,7 @@ export function EmptyState({
       ) : setup === "key" ? (
         <>
           <p className="empty-copy">
-            This computer has not made its own connection key yet.
+            {credentialMessage || "This computer has not made its own connection key yet."}
           </p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenDevices}>
             Devices

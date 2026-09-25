@@ -115,10 +115,11 @@ let hostCredential: string | null = null;
     Devices page re-mints it), or not asked yet. */
 export type HostKeyState = "answered" | "missing" | "pending";
 
-// Whether the credential's own read has FAILED — distinct from "not asked
-// yet": the store's refusal and a read still in flight send the owner to
-// different fixes, and the first page must not blur them.
-let credentialMissing = false;
+// The credential read's own refusal — the COMMAND's sentence, kept whole so
+// the first page can read each case its true words ("…has not made its own
+// connection key yet." vs "…could not read its own connection key."). null
+// means not refused: not asked yet, or answered.
+let credentialMessage: string | null = null;
 // What the shell is allowed to do with a slot, derived in `publish` from the
 // facts above. `unready` until the first answer: a window that has not heard
 // from its own brain does not know whether there is a door to diverge from.
@@ -206,13 +207,15 @@ async function poll(): Promise<void> {
       const value = await invoke<string>("brain_host_credential");
       if (typeof value === "string" && value.trim()) {
         hostCredential = value.trim();
-        credentialMissing = false;
+        credentialMessage = null;
       }
-    } catch {
+    } catch (error) {
       // No key yet: the page then has no local connection to offer, which is
-      // the honest state, and the next poll tries again. The refusal is
-      // remembered beside it: the first page names the fix, not the wait.
-      credentialMissing = true;
+      // the honest state, and the next poll tries again. The refusal keeps
+      // the command's own sentence — whichever of its two it was — so the
+      // first page reads this case's true words, not one standing in for both.
+      credentialMessage =
+        typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
     }
   }
   publish();
@@ -334,7 +337,7 @@ export function forgetLocalCredential(): void {
   hostCredential = null;
   // The hatch replaced the store this refusal spoke about: the next read is
   // pending, not refused.
-  credentialMissing = false;
+  credentialMessage = null;
   publish();
 }
 
@@ -590,11 +593,13 @@ export function useBrain() {
     act,
     chooseModel,
     // The credential's own state for the first page: a fresh attempt is
-    // pending, never a verdict.
+    // pending, never a verdict — and the refusal's own words travel with
+    // it, so the arm shows whichever sentence the command really said.
     credential: (hostCredential !== null
       ? "answered"
-      : credentialMissing
+      : credentialMessage !== null
         ? "missing"
         : "pending") as HostKeyState,
+    credentialMessage,
   };
 }
