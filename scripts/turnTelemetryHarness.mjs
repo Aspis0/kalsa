@@ -73,6 +73,10 @@ function assert(cond, msg) {
 
 const EXPECTED_KEYS = [
   "turnId",
+  // The runtime-fallback retry's join key: the formatter injects it with
+  // the attempt number (default 1) beside the reused turnId — added with
+  // the bench-route hook's fix round 1, initially missing from this list.
+  "attempt",
   "round",
   "tokensCached",
   "tokensEvaluated",
@@ -156,9 +160,11 @@ async function main() {
     const json = line.slice("KALSA_TELEMETRY ".length);
     const parsed = JSON.parse(json);
     const { promptN, ciswireFlags, ...rest } = sample;
+    // `attempt` is injected by the formatter (default 1), so it is in the
+    // payload but not in `rest`; it sits right after turnId by construction.
     assert(
       JSON.stringify(parsed) ===
-        JSON.stringify({ turnId: "turn-42", ...rest, prompt_n: promptN }),
+        JSON.stringify({ turnId: "turn-42", attempt: 1, ...rest, prompt_n: promptN }),
       `payload mismatch: ${json}`,
     );
   });
