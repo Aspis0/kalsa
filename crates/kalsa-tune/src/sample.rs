@@ -19,14 +19,25 @@ const PROMPT: &str = "Write a short paragraph about the history of the bicycle."
 /// than ordered (the answer proved less than we asked for), no timings
 /// block, or a rate that is not a positive finite number — none of those
 /// is a measurement.
-pub(crate) fn rate_from(body: &str) -> Option<f64> {
+pub(crate) fn rate_from(body: &str, min_n: u64) -> Option<f64> {
     let parsed: Value = serde_json::from_str(body).ok()?;
     let timings = parsed.get("timings")?;
-    if timings.get("predicted_n")?.as_u64()? < N_PREDICT {
+    if timings.get("predicted_n")?.as_u64()? < min_n {
         return None;
     }
     let rate = timings.get("predicted_per_second")?.as_f64()?;
     (rate.is_finite() && rate > 0.0).then_some(rate)
+}
+
+/// The per-start check's ask: few tokens, a bounded wait. A timeout is an
+/// answer too — `None`, which reads as slow (under ~1 tok/s).
+pub const CHECK_N_PREDICT: u64 = 16;
+pub const CHECK_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// The decode rate for one short request, read exactly the way the tune
+/// reads its samples, so the two numbers are comparable.
+pub fn checked_rate(addr: SocketAddr) -> Option<f64> {
+    request(addr, CHECK_TIMEOUT, CHECK_N_PREDICT)
 }
 
 /// One POST to llama-server's `/completion` — the endpoint that takes
@@ -40,7 +51,7 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Op
         .timeout(timeout)
         .send_string(&body);
     match reply {
-        Ok(response) => rate_from(&response.into_string().ok()?),
+        Ok(response) => rate_from(&response.into_string().ok()?, n_predict),
         Err(_) => None,
     }
 }
@@ -187,8 +198,8 @@ mod tests {
 
     #[test]
     fn a_complete_answer_is_the_rate_it_reports() {
-        assert_eq!(rate_from(&body(64, 45.4)), Some(45.4));
-        assert_eq!(rate_from(&body(128, 11.8)), Some(11.8));
+        assert_eq!(rate_from(&body(64, 45.4), N_PREDICT), Some(45.4));
+        assert_eq!(rate_from(&body(128, 11.8), N_PREDICT), Some(11.8));
     }
 
     /// One token short of the order is not a sample: the run decoded
@@ -196,23 +207,23 @@ mod tests {
     /// the rate of that work.
     #[test]
     fn fewer_tokens_than_ordered_is_no_sample() {
-        assert_eq!(rate_from(&body(63, 99.9)), None);
-        assert_eq!(rate_from(&body(0, 99.9)), None);
+        assert_eq!(rate_from(&body(63, 99.9), N_PREDICT), None);
+        assert_eq!(rate_from(&body(0, 99.9), N_PREDICT), None);
     }
 
     /// A rate that cannot be a measurement is not one, however the JSON
     /// spells it.
     #[test]
     fn a_rate_that_is_not_a_measurement_is_no_sample() {
-        assert_eq!(rate_from(&body(64, 0.0)), None);
-        assert_eq!(rate_from(&body(64, -1.0)), None);
-        assert_eq!(rate_from(&body(64, f64::NAN)), None);
+        assert_eq!(rate_from(&body(64, 0.0), N_PREDICT), None);
+        assert_eq!(rate_from(&body(64, -1.0), N_PREDICT), None);
+        assert_eq!(rate_from(&body(64, f64::NAN), N_PREDICT), None);
     }
 
     #[test]
     fn an_answer_without_timings_is_no_sample() {
-        assert_eq!(rate_from(r#"{"content":"hi"}"#), None);
-        assert_eq!(rate_from(r#"{"timings":{"predicted_n":64}}"#), None);
-        assert_eq!(rate_from("not json at all"), None);
+        assert_eq!(rate_from(r#"{"content":"hi"}"#, N_PREDICT), None);
+        assert_eq!(rate_from(r#"{"timings":{"predicted_n":64}}"#, N_PREDICT), None);
+        assert_eq!(rate_from("not json at all", N_PREDICT), None);
     }
 }

@@ -323,7 +323,13 @@ pub(crate) fn dto(
         iroh_sentence,
         internet_road: overrides.internet_road,
         running,
-        tune: active.and_then(|info| info.tune.as_ref()).map(crate::tune_step::tune_line),
+        tune: active.and_then(|info| {
+            let line = info.tune.as_ref().map(crate::tune_step::tune_line)?;
+            Some(match &info.checked {
+                Some(checked) => format!("{line}; {checked}"),
+                None => line,
+            })
+        }),
     }
 }
 
@@ -652,6 +658,7 @@ mod tests {
                 reason: Some("It is the more capable of the two.".to_string()),
                 model_sha256: None,
                 tune: None,
+                checked: None,
             }),
             Some(8130),
             "The internet road is open.".to_string(),

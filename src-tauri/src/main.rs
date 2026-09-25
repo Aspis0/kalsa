@@ -895,9 +895,12 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             // page reads the same store every poll and carries the escape
             // hatch. The square comes down either way: advertising a door
             // that cannot complete a request lies to the phone that scans.
-            if brain
-                .start_door_if_paired(port, &desk.pairing_file, internet_road)
-                .is_err()
+            // The door stays down while this walk is still finishing: the
+            // per-start speed check must not share its slot with a chat.
+            if !brain.turning_on.load(Ordering::SeqCst)
+                && brain
+                    .start_door_if_paired(port, &desk.pairing_file, internet_road)
+                    .is_err()
             {
                 brain.stop_door();
                 desk.desk.stop_serving();
@@ -1216,7 +1219,7 @@ fn settle_walk(
                 .then(|| waiter.settle())
                 .flatten();
             if let Some((retry, config, args)) =
-                attempt_retry(brain, stops_seen, settled, tuned_changed, rule)
+                attempt_retry(brain, stops_seen, settled.clone(), tuned_changed, rule)
             {
                 // Best effort: a delete that fails leaves the old record,
                 // which fails once more and takes the same retry.
@@ -1231,6 +1234,25 @@ fn settle_walk(
                 prepared.info.args = args;
                 prepared.info.tune = None;
                 prepared.server = config;
+            }
+            // The per-start speed check, still inside the walk: the door
+            // raises only once `turning_on` is released, so the check's slot
+            // is its own.
+            if matches!(settled, Some(StartSettled::Up)) {
+                let restart =
+                    |config: ServerConfig| restart_after_check(brain, stops_seen, config);
+                if let Some(checked_outcome) = speed_check(
+                    &mut prepared,
+                    kalsa_tune::checked_rate,
+                    || brain.supervisor.stop(),
+                    restart,
+                ) {
+                    outcome = checked_outcome;
+                }
+                if brain.stops.load(Ordering::SeqCst) != stops_seen {
+                    // A Turn off during the check: the walk records nothing.
+                    return Ok(());
+                }
             }
             // The door declares the bytes of what actually launched — the
             // rule's, after a retry.
@@ -1293,6 +1315,98 @@ fn attempt_retry(
     let (config, args) = rule?;
     let waiter = queue_start(brain, stops_seen, config.clone(), || ())?;
     Some((waiter, config, args))
+}
+
+/// Half the recorded best: below it this start is not the launch the record
+/// measured, and the processor candidate deserves the slot.
+fn worth_switching(checked: f64, recorded: f64) -> bool {
+    checked < recorded * 0.5
+}
+
+/// A restart the check makes: the same gate as the walk's own start, so a
+/// Turn off between the graphics stop and this queue is never undone.
+fn restart_after_check(
+    brain: &Brain,
+    stops_seen: u64,
+    config: ServerConfig,
+) -> Option<(StartOutcome, Option<StartSettled>)> {
+    let waiter = queue_start(brain, stops_seen, config, || ())?;
+    let outcome = waiter.outcome();
+    Some((outcome, waiter.settle()))
+}
+
+/// The per-start speed check: a graphics winner — record hit or fresh tune,
+/// both end in `Tune::Measured` — answers one short request, and under half
+/// its recorded best it hands the slot to the processor candidate. The
+/// record is never invalidated: the pressure is transient and the next start
+/// checks again. Returns the outcome to record when the launch changed.
+pub(crate) fn speed_check(
+    prepared: &mut startup::PreparedStart,
+    rate: impl FnOnce(SocketAddr) -> Option<f64>,
+    stop: impl FnOnce(),
+    mut start: impl FnMut(ServerConfig) -> Option<(StartOutcome, Option<StartSettled>)>,
+) -> Option<StartOutcome> {
+    let Some(tune_step::Tune::Measured(record)) = prepared.info.tune.as_ref() else {
+        return None;
+    };
+    let Some(winner) = &record.winner else {
+        return None;
+    };
+    if !matches!(
+        winner.candidate.offload,
+        kalsa_launch::Offload::All | kalsa_launch::Offload::EngineFitted
+    ) {
+        return None;
+    }
+    let recorded = winner.best;
+    let checked = rate(SocketAddr::from(([127, 0, 0, 1], prepared.server.port)));
+    let slow = checked.is_none_or(|rate| worth_switching(rate, recorded));
+    let graphics = prepared.server.clone();
+    let processor = prepared.processor.clone();
+    if !slow {
+        prepared.info.checked = Some(tune_step::checked_line(
+            checked,
+            recorded,
+            tune_step::Checked::Kept,
+        ));
+        return None;
+    }
+    let Some(processor) = processor else {
+        prepared.info.checked = Some(tune_step::checked_line(
+            checked,
+            recorded,
+            tune_step::Checked::NoProcessor,
+        ));
+        return None;
+    };
+    stop();
+    match start(processor.clone()) {
+        // A Turn off landed during the check: nothing may start.
+        None => None,
+        Some((outcome, Some(StartSettled::Up))) => {
+            prepared.server = processor;
+            prepared.info.checked = Some(tune_step::checked_line(
+                checked,
+                recorded,
+                tune_step::Checked::Switched,
+            ));
+            Some(outcome)
+        }
+        // The processor start failed: the graphics launch, once — slow beats
+        // nothing.
+        Some(_) => match start(graphics.clone()) {
+            Some((outcome, _)) => {
+                prepared.server = graphics;
+                prepared.info.checked = Some(tune_step::checked_line(
+                    checked,
+                    recorded,
+                    tune_step::Checked::StillGraphics,
+                ));
+                Some(outcome)
+            }
+            None => None,
+        },
+    }
 }
 
 /// Where this instance announces itself. It is locked while our server runs and

@@ -175,12 +175,20 @@ pub(crate) struct LaunchInfo {
     /// real walk's report are both words over this. `None` on the
     /// development path, where no choice was made to tune.
     pub(crate) tune: Option<crate::tune_step::Tune>,
+    /// This start's checked speed, as the panel shows it — the check's own
+    /// words, composed where the tune's words live. `None` when no check
+    /// ran (no graphics winner, or the development path).
+    pub(crate) checked: Option<String>,
 }
 
 #[derive(Debug)]
 pub(crate) struct PreparedStart {
     pub(crate) server: ServerConfig,
     pub(crate) info: LaunchInfo,
+    /// The graphics winner's processor alternative, resolved during the
+    /// tune: what the per-start check switches to when the card answers
+    /// slow. None unless the launch is a graphics winner.
+    pub(crate) processor: Option<ServerConfig>,
     /// The plan's own launch — config AND args — beside the tuned one:
     /// main.rs retries with this when the tuned launch fails to load (and
     /// so tells the panel what actually ran), and compares it to know
@@ -845,6 +853,7 @@ fn planned_config_with_overrides(
     Ok(PreparedStart {
         server,
         rule_launch: None,
+        processor: None,
         info: LaunchInfo {
             args,
             maximum_context: maxima,
@@ -854,6 +863,7 @@ fn planned_config_with_overrides(
             reason: Some(reason),
             model_sha256: Some(model_sha256.to_string()),
             tune: None,
+            checked: None,
         },
     })
 }
@@ -939,6 +949,7 @@ fn dev_config_with_overrides(
     Ok(PreparedStart {
         server,
         rule_launch: None,
+        processor: None,
         info: LaunchInfo {
             args,
             // No budget on the dev path, so there is no funded maximum, no
@@ -958,6 +969,7 @@ fn dev_config_with_overrides(
             // to carry, and none is computed from the file.
             model_sha256: None,
             tune: None,
+            checked: None,
         },
     })
 }

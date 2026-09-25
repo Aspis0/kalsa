@@ -166,6 +166,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
             reason: Some("It is the more capable of the two.".to_string()),
             model_sha256: None,
             tune: None,
+            checked: None,
         },
         StartOutcome::Accepted,
     );
@@ -325,6 +326,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
             reason: None,
             model_sha256: None,
             tune: None,
+            checked: None,
         });
     }
     brain.clear_launch_for_state(&ServerState::Starting);
@@ -357,6 +359,7 @@ fn a_drain_takes_the_launch_record_down_with_it() {
             reason: None,
             model_sha256: None,
             tune: None,
+            checked: None,
         },
         StartOutcome::Accepted,
     );
@@ -388,6 +391,7 @@ fn a_refused_start_never_publishes_its_record() {
         reason: None,
         model_sha256: None,
         tune: None,
+        checked: None,
     };
     let rejected = startup::LaunchInfo {
         args: launch_args("/models/rejected.gguf", 8138),
@@ -404,6 +408,7 @@ fn a_refused_start_never_publishes_its_record() {
         reason: None,
         model_sha256: None,
         tune: None,
+        checked: None,
     };
     brain.record_launch(running, StartOutcome::Accepted);
     brain.record_launch(rejected, StartOutcome::Refused);
@@ -1170,6 +1175,7 @@ fn a_store_holding_only_the_host_starts_the_door() {
             reason: None,
             model_sha256: None,
             tune: None,
+            checked: None,
         },
         StartOutcome::Accepted,
     );
@@ -1258,6 +1264,7 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
             reason: None,
             model_sha256: Some(sha256.to_string()),
             tune: None,
+            checked: None,
         },
         StartOutcome::Accepted,
     );
@@ -1323,6 +1330,7 @@ fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_w
             reason: None,
             model_sha256: None,
             tune: None,
+            checked: None,
         },
         StartOutcome::Accepted,
     );
@@ -1377,6 +1385,7 @@ fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_c
                 reason: None,
                 model_sha256: Some(digest.to_string()),
                 tune: None,
+                checked: None,
             },
             StartOutcome::Accepted,
         );
@@ -2458,8 +2467,10 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
             reason: None,
             model_sha256: None,
             tune: None,
+            checked: None,
         },
         rule_launch: None,
+        processor: None,
     };
 
     let verdict = settle_walk(&brain, (Ok(prepared), None), None, stops_seen);
@@ -2660,4 +2671,196 @@ fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
         brain.supervisor.state()
     );
     let _ = std::fs::remove_file(&config.state_file);
+}
+
+/// The graphics launch a speed check can judge: a Measured tune (the shape
+/// both a record hit and a fresh tune end in) whose winner is the card, with
+/// its processor alternative beside it.
+fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> startup::PreparedStart {
+    let server = gone_config(&format!("{tag}-graphics"), graphics_port);
+    let processor = gone_config(&format!("{tag}-processor"), processor_port);
+    let graphics = kalsa_tune::Candidate {
+        backend: kalsa_runtime::ServerBackend::Vulkan,
+        threads: Some(16),
+        offload: kalsa_launch::Offload::EngineFitted,
+    };
+    let record = kalsa_tune::record::Record {
+        fingerprint: "fp".to_string(),
+        winner: Some(kalsa_tune::Winner {
+            candidate: graphics,
+            best: 47.2,
+        }),
+        trials: vec![
+            (graphics, kalsa_tune::record::Kept::Best(47.2)),
+            (
+                kalsa_tune::Candidate {
+                    backend: kalsa_runtime::ServerBackend::Cpu,
+                    threads: Some(16),
+                    offload: kalsa_launch::Offload::NoGpuBuild,
+                },
+                kalsa_tune::record::Kept::Best(10.2),
+            ),
+        ],
+    };
+    let args = launch_args("/models/chosen.gguf", graphics_port);
+    startup::PreparedStart {
+        server,
+        info: startup::LaunchInfo {
+            args,
+            maximum_context: startup::ContextMaxima { q8_0: None, f16: None },
+            automatic_context: startup::ContextMaxima { q8_0: None, f16: None },
+            context_prices: Default::default(),
+            display_name: None,
+            reason: None,
+            model_sha256: None,
+            tune: Some(tune_step::Tune::Measured(record)),
+            checked: None,
+        },
+        processor: Some(processor),
+        rule_launch: None,
+    }
+}
+
+/// The line's own rule: half the recorded best, not a hair less.
+#[test]
+fn worth_switching_draws_the_line_at_half() {
+    assert!(!worth_switching(23.6, 47.2), "exactly half still counts");
+    assert!(worth_switching(23.59, 47.2), "just under half is not the recorded launch");
+    assert!(worth_switching(0.0, 47.2));
+    assert!(!worth_switching(47.2, 47.2));
+}
+
+/// A card answering under half its recorded best hands the slot to the
+/// processor candidate — the record keeps standing either way.
+#[test]
+fn a_slow_card_hands_the_slot_to_the_processor() {
+    let mut prepared = graphics_prepared("slow", 8194, 8195);
+    let mut stops = 0usize;
+    let mut starts: Vec<u16> = Vec::new();
+    let outcome = speed_check(
+        &mut prepared,
+        |_| Some(20.0),
+        || stops += 1,
+        |config| {
+            starts.push(config.port);
+            Some((StartOutcome::Accepted, Some(StartSettled::Up)))
+        },
+    );
+
+    assert_eq!(stops, 1, "the slow graphics server is stopped first");
+    assert_eq!(starts, vec![8195], "and only the processor config starts");
+    assert_eq!(prepared.server.port, 8195, "the prepared launch is the processor's");
+    assert_eq!(outcome, Some(StartOutcome::Accepted));
+    let checked = prepared.info.checked.as_deref().expect("the check is shown");
+    assert!(
+        checked.contains("checked 20.0 tokens/s against 47.2 recorded"),
+        "{checked}"
+    );
+    assert!(checked.contains("running the processor candidate"), "{checked}");
+    assert!(
+        matches!(prepared.info.tune, Some(tune_step::Tune::Measured(_))),
+        "the record survives — the pressure is transient"
+    );
+}
+
+/// A check that never gets an answer is an answer: under ~1 tok/s, slow.
+#[test]
+fn a_check_timeout_reads_as_slow() {
+    let mut prepared = graphics_prepared("timeout", 8188, 8189);
+    let mut stops = 0usize;
+    speed_check(&mut prepared, |_| None, || stops += 1, |config| {
+        assert_eq!(config.port, 8189);
+        Some((StartOutcome::Accepted, Some(StartSettled::Up)))
+    });
+    assert_eq!(stops, 1, "a timeout is slow, and slow switches");
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("no rate in 15 s")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// A Turn off lands while the check is running: the restart it would make
+/// is never queued.
+#[test]
+fn a_turn_off_during_the_check_prevents_the_restart() {
+    let brain = Brain::new();
+    let stops_seen = brain.begin_walk(|| {}).expect("first walk");
+    // The Turn off, mid-check:
+    brain.stops.fetch_add(1, Ordering::SeqCst);
+    let config = gone_config("speed-check-stop", 8193);
+    assert!(
+        restart_after_check(&brain, stops_seen, config.clone()).is_none(),
+        "a restart after a Turn off must not be queued"
+    );
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "and nothing was started"
+    );
+    let _ = std::fs::remove_file(&config.state_file);
+}
+
+/// The processor start fails after the graphics was stopped: the graphics
+/// config comes back once — slow beats nothing.
+#[test]
+fn a_processor_start_that_fails_gets_the_graphics_launch_once() {
+    let mut prepared = graphics_prepared("fallback", 8192, 8190);
+    let mut starts: Vec<u16> = Vec::new();
+    let outcome = speed_check(
+        &mut prepared,
+        |_| Some(20.0),
+        || {},
+        |config| {
+            starts.push(config.port);
+            Some((
+                StartOutcome::Accepted,
+                Some(StartSettled::Failed(Failure::ServerNotStarted {
+                    detail: "gone".to_string(),
+                })),
+            ))
+        },
+    );
+    assert_eq!(
+        starts,
+        vec![8190, 8192],
+        "the processor first, then the graphics config once"
+    );
+    assert_eq!(prepared.server.port, 8192, "the graphics launch is back");
+    assert_eq!(outcome, Some(StartOutcome::Accepted));
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("would not start; keeping the graphics launch")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// A card at its recorded speed keeps the slot it has.
+#[test]
+fn a_card_at_its_recorded_speed_keeps_the_slot() {
+    let mut prepared = graphics_prepared("kept", 8191, 8196);
+    let outcome = speed_check(
+        &mut prepared,
+        |_| Some(46.9),
+        || panic!("a fast server is not stopped"),
+        |config| {
+            let _ = config;
+            panic!("a fast server is not replaced");
+        },
+    );
+    assert!(outcome.is_none(), "nothing changed, nothing to record");
+    assert_eq!(prepared.server.port, 8191, "the graphics launch is untouched");
+    let checked = prepared.info.checked.as_deref().expect("the check is shown");
+    assert!(
+        checked.contains("checked 46.9 tokens/s against 47.2 recorded"),
+        "{checked}"
+    );
+    assert!(!checked.contains("processor candidate"), "{checked}");
 }

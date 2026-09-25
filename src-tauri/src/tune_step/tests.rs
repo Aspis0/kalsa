@@ -68,6 +68,7 @@ fn prepared(main: &str) -> PreparedStart {
 fn prepared_with(main: &str, args: ServerArgs) -> PreparedStart {
     PreparedStart {
         rule_launch: None,
+        processor: None,
         server: ServerConfig {
             exe: PathBuf::from(main),
             argv: args.argv(),
@@ -85,6 +86,7 @@ fn prepared_with(main: &str, args: ServerArgs) -> PreparedStart {
             reason: Some("the test chose it".to_string()),
             model_sha256: Some("deadbeef".to_string()),
             tune: None,
+            checked: None,
         },
     }
 }

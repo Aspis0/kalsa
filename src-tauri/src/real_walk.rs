@@ -163,7 +163,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
             bytes_mark("model", done, total, &mut model_mark);
         }
     };
-    let prepared = startup::run(
+    let mut prepared = startup::run(
         None,
         machine,
         None,
@@ -221,7 +221,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         Some(source.sha256),
         "the launch record does not carry the row's pinned digest"
     );
-    let model_path = &prepared.info.args.model_path;
+    let model_path = prepared.info.args.model_path.clone();
 
     // ── 6. the file on disk is the row's, byte for byte ────────────────────
     // Whoever placed the file already held its bytes to the row's sha256 —
@@ -229,7 +229,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // copy (startup.rs:495), the reuse pass for another program's cache
     // (claim.rs:82) — so hashing gigabytes again here would only re-buy
     // that answer.
-    let on_disk = std::fs::metadata(model_path).expect("the model file exists on disk");
+    let on_disk = std::fs::metadata(&model_path).expect("the model file exists on disk");
     assert_eq!(
         on_disk.len(),
         entry.weights_bytes,
@@ -276,7 +276,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     let supervisor = Supervisor::new();
     let mut engine_guard = EngineGuard { supervisor: &supervisor, stood_down: false };
     assert_eq!(
-        supervisor.start(prepared.server).outcome(),
+        supervisor.start(prepared.server.clone()).outcome(),
         StartOutcome::Accepted,
         "the supervisor refused the prepared start"
     );
@@ -300,6 +300,29 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     };
     assert_eq!(up_port, port, "the supervisor reported a port other than the walk's");
     eprintln!("the server is up on 127.0.0.1:{port} after {:.1?}", started.elapsed());
+
+    // The per-start speed check on the real server: the same request the
+    // panel's check makes, so what the pressure test prints here is the
+    // line the panel would show.
+    if let Some(outcome) = crate::speed_check(
+        &mut prepared,
+        kalsa_tune::checked_rate,
+        || supervisor.stop(),
+        |config| {
+            let waiter = supervisor.start(config);
+            let outcome = waiter.outcome();
+            Some((outcome, waiter.settle()))
+        },
+    ) {
+        assert_eq!(
+            outcome,
+            StartOutcome::Accepted,
+            "a switch's own start was refused"
+        );
+    }
+    if let Some(checked) = &prepared.info.checked {
+        eprintln!("speed: {checked}");
+    }
 
     let answer = chat_completion(port, PROMPT, MAX_TOKENS);
     // The "model" field is the answering server's self-report, not a

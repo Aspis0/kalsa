@@ -18,6 +18,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 
 use kalsa_launch::{Offload, ServerArgs};
+use kalsa_supervisor::ServerConfig;
 use kalsa_runtime::ServerBackend;
 
 use crate::failure::StartupFailure;
@@ -307,6 +308,20 @@ fn tune_launch_inner(
                 win.candidate.threads,
                 win.candidate.offload,
             );
+            if matches!(win.candidate.offload, Offload::All | Offload::EngineFitted) {
+                // The processor alternative beside a graphics winner: what
+                // the per-start check hands the slot to when the card
+                // answers slow. A hit and a fresh tune both arrive here.
+                prepared.processor = processor_launch(
+                    &record,
+                    &rule_args,
+                    machine,
+                    main,
+                    memo,
+                    progress,
+                    &prepared.server,
+                );
+            }
             prepared.info.tune = Some(Tune::Measured(record));
         }
         None => {
@@ -387,6 +402,74 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
             }
             line
         }
+    }
+}
+
+/// The graphics winner's processor alternative: the best processor trial in
+/// the record, on its own exe and threads, same port — the launch the
+/// per-start check hands the slot to when the card answers slow.
+fn processor_launch(
+    record: &kalsa_tune::record::Record,
+    rule_args: &ServerArgs,
+    machine: &Machine,
+    main: (ServerBackend, PathBuf),
+    memo: &mut Memo,
+    progress: &mut dyn FnMut(Progress),
+    base: &ServerConfig,
+) -> Option<ServerConfig> {
+    let (_, candidate) = record
+        .trials
+        .iter()
+        .filter_map(|(candidate, kept)| match kept {
+            kalsa_tune::record::Kept::Best(rate)
+                if matches!(candidate.offload, Offload::ForcedOff | Offload::NoGpuBuild) =>
+            {
+                Some((*rate, *candidate))
+            }
+            _ => None,
+        })
+        .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))?;
+    let exe = exe_for(
+        &candidate,
+        (main.0, &main.1),
+        &mut memo.processor,
+        machine,
+        progress,
+    )
+    .ok()?;
+    let (exe, argv) =
+        tuned_launch(rule_args, &exe, candidate.threads, candidate.offload, base.port);
+    Some(ServerConfig {
+        exe,
+        argv,
+        ..base.clone()
+    })
+}
+
+/// What the per-start check decided, for the panel's words.
+pub(crate) enum Checked {
+    Kept,
+    Switched,
+    NoProcessor,
+    /// The processor start failed: the graphics launch, once.
+    StillGraphics,
+}
+
+/// The check's line (DRAFT copy): this start's own speed against the
+/// recorded best, then what the launch did about it.
+pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked) -> String {
+    let speed = match checked {
+        Some(rate) => format!("{rate:.1} tokens/s"),
+        None => "no rate in 15 s".to_string(),
+    };
+    let head = format!("checked {speed} against {recorded:.1} recorded");
+    match outcome {
+        Checked::Kept => head,
+        Checked::Switched => format!("{head} — running the processor candidate"),
+        Checked::NoProcessor => format!("{head} — nothing to switch to"),
+        Checked::StillGraphics => format!(
+            "{head} — the processor candidate would not start; keeping the graphics launch"
+        ),
     }
 }
 
