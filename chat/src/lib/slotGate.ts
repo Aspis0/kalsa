@@ -83,9 +83,10 @@ export type Activate = (id: string) => Promise<SlotAnswer>;
 /** What this window knows about the door. Three states, not `Activate | null`:
     `null` was two different facts at once, and only one of them is a licence to
     open a chat locally.
-    - `absent`: no door this window can reach — a remote server, a plain
-      browser. An open settles locally on an assumption this client cannot
-      check: the configured endpoint is not itself a door. It can be.
+    - `absent`: no door this window can reach — a plain browser (there is no
+      endpoint left to point at one), or this app's own server being off. An
+      open settles locally on purpose; a door that appears later is the
+      hand-over below.
     - `unready`: a door EXISTS and cannot be called yet — the engine is running
       and its address is known while this window's credential is not in hand, or
       the poll has not answered yet. Opening locally here is C5.
@@ -113,9 +114,9 @@ export function standingOf(
   // brain does not know whether that brain is serving this slot, and the door
   // it has not heard from may be serving it right now.
   if (brain === null) return "unready";
-  // Starting, stopped or failed: no door serves this window at this moment, and
-  // the window falls back to the owner's own server. A door that appears later
-  // is the hand-over below.
+  // Starting, stopped or failed: no door serves this window at this moment,
+  // and an open settles locally until one does. A door that appears later is
+  // the hand-over below.
   if (brain.kind !== "running") return "absent";
   // A running engine whose door has no address yet, and a door up whose key
   // this window has not been handed: a door exists either way.

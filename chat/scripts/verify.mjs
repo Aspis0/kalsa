@@ -13,8 +13,13 @@ import {
 } from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
 import { fileURLToPath } from "node:url";
+import { installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
+// Copied on purpose, the way dev/smoke-react.mjs keeps its strings: node
+// cannot import chat.ts (its own imports are extensionless), and a copied
+// sentence goes red the day the product's changes.
+const DOOR_SILENT_TEXT = "The door did not answer, so the state of this device's slot is unknown.";
 const CONV_KEY = "crescent-chat.conversations.v1";
 const SET_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
@@ -27,6 +32,10 @@ function check(name, ok, detail = "") {
 }
 
 async function seed(page, { settings = null, convos = [], theme = "light" }) {
+  // The remote-server fields are not settings anymore: a seeded endpoint
+  // and token arrive as the BRAIN's own answers — the road the app reads
+  // them from — and the stored record keeps only what storage holds.
+  const { endpoint, token, ...stored } = settings ?? {};
   await page.addInitScript(
     ({ cKey, sKey, tKey, settings, convos, theme }) => {
       localStorage.clear();
@@ -35,8 +44,14 @@ async function seed(page, { settings = null, convos = [], theme = "light" }) {
       if (settings) localStorage.setItem(sKey, JSON.stringify(settings));
       if (convos.length) localStorage.setItem(cKey, JSON.stringify(convos));
     },
-    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, settings, convos, theme },
+    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, settings: settings ? stored : null, convos, theme },
   );
+  if (endpoint) {
+    await page.addInitScript(installBrainStub, {
+      state: { kind: "running", endpoint, model: stored.model ?? "" },
+      credential: token ?? "",
+    });
+  }
 }
 
 async function stored(page, key) {
@@ -226,6 +241,11 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
+            // The brain's pair, answered wherever a brain was seeded: read
+            // at call time, so a stub installed before this one keeps them.
+            const brain = window.__STUB_BRAIN__;
+            if (brain && command === "brain_state") return brain.state;
+            if (brain && command === "brain_host_credential") return brain.credential;
             if (command === "brain_web_stop") {
               window.__TOOL_CALLS__.push({ command, args });
               return null;
@@ -257,13 +277,20 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
 /** Seeded once, not on every document: a reload must not wipe what the page
     wrote, which is what the persistence checks are about. */
 async function seedOnce(page, settings) {
+  const { endpoint, token, ...stored } = settings ?? {};
   await page.addInitScript((settings) => {
     if (sessionStorage.getItem("verified-seeded")) return;
     sessionStorage.setItem("verified-seeded", "1");
     localStorage.clear();
     localStorage.setItem("crescent-chat.theme.v1", "light");
     localStorage.setItem("crescent-chat.settings.v1", JSON.stringify(settings));
-  }, settings);
+  }, settings ? stored : null);
+  if (endpoint) {
+    await page.addInitScript(installBrainStub, {
+      state: { kind: "running", endpoint, model: stored.model ?? "" },
+      credential: token ?? "",
+    });
+  }
 }
 
 /**
@@ -577,6 +604,14 @@ const tests = {
     await sendAndWait(page, "A page?", "not as a chat stream");
     const shown = await page.locator(".error-url").textContent();
     check("html: shows called URL", (shown ?? "").includes("/ok/v1/chat/completions"));
+    // The failed answer keeps one road out: Try again. The settings road
+    // left with the address it used to fix.
+    const actions = await page.locator(".error-actions button").allTextContents();
+    check(
+      "html: the failed answer offers Try again and no settings road",
+      actions.includes("Try again") && !actions.includes("Open settings"),
+      JSON.stringify(actions),
+    );
     await shot(page, "shots/32-html.png");
     await browser.close();
   },
@@ -584,14 +619,40 @@ const tests = {
   async networkurl() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
+    // The brain answers "running" but its endpoint is dead: the door's own
+    // activate cannot be reached, so the open is REFUSED with the door's
+    // sentence. There is no saved address left to point the chat at — the
+    // URL-error copy this used to assert is now reachable only mid-session,
+    // when a door dies under a live stream.
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18999", token: "t", model: "x" },
     });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "Nobody home?", "could not be reached");
-    const shown = await page.locator(".error-url").textContent();
-    check("network: shows called URL", (shown ?? "").includes("127.0.0.1:18999/v1/chat/completions"));
+    // It is the SEND that asks the door: the open either mints or is
+    // refused, and this door cannot be reached, so the refusal lands as the
+    // door's own sentence and the chat never opens.
+    await page.getByRole("textbox", { name: "Message" }).fill("Nobody home?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        (text) => (document.querySelector(".storage-banner")?.textContent ?? "").includes(text),
+        DOOR_SILENT_TEXT,
+        { timeout: 8000 },
+      );
+    } catch {
+      // The check below turns the absence into a failure with the text it saw.
+    }
+    const notice = (await page.locator(".storage-banner").textContent().catch(() => null)) ?? "";
+    check(
+      "network: an unreachable door refuses the open with its own sentence",
+      notice.includes(DOOR_SILENT_TEXT),
+      notice.trim() || "no notice shown",
+    );
+    check(
+      "network: and no chat opens against a corpse",
+      (await page.locator(".thread").count()) === 0,
+    );
     await shot(page, "shots/34-network.png");
     await browser.close();
   },
@@ -927,6 +988,103 @@ const tests = {
     await page.waitForTimeout(300);
     check("appearance: and it applies at once", (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark");
     check("appearance: and it is remembered", (await page.evaluate(() => localStorage.getItem("crescent-chat.theme.v1"))) === "dark");
+    // The remote-server fields are gone from this surface: what storage
+    // holds (a model name, the switches) is all there is to save.
+    check("settings: no server-address field", (await page.locator('.settings-page input[type="url"]').count()) === 0);
+    check("settings: no api-key field", (await page.locator('.settings-page input[type="password"]').count()) === 0);
+    await browser.close();
+  },
+
+  // A record from before the remote-server fields were removed: the stale
+  // endpoint and the stale API key must leave storage on the first load —
+  // an obsolete secret does not wait for a settings visit that may never
+  // come (the crash path's wipe is not a migration).
+  async legacysettings() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.addInitScript(() => {
+      localStorage.clear();
+      localStorage.setItem("crescent-chat.theme.v1", "light");
+      localStorage.setItem(
+        "crescent-chat.settings.v1",
+        JSON.stringify({
+          endpoint: "https://old.example:8000",
+          token: "sk-legacy-secret",
+          model: "keep-me",
+          webTools: false,
+        }),
+      );
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(600);
+    const raw = await page.evaluate(() => localStorage.getItem("crescent-chat.settings.v1"));
+    const parsed = JSON.parse(raw ?? "{}");
+    check("legacy: the stale endpoint is gone", !("endpoint" in parsed), raw ?? "null");
+    check("legacy: the stale key is gone", !("token" in parsed), raw ?? "null");
+    check("legacy: the model name survives", parsed.model === "keep-me", String(parsed.model));
+    check("legacy: the switch survives", parsed.webTools === false, String(parsed.webTools));
+    await browser.close();
+  },
+
+  // The first page with nothing to send to, in the words of the page that
+  // fixes it: the machine is off → the Server page; on but with no model
+  // name → Settings.
+  async emptysetup() {
+    let browser = await chromium.launch({ args: ["--no-sandbox"] });
+    let page = await browser.newPage();
+    await page.addInitScript(() => {
+      localStorage.clear();
+      localStorage.setItem("crescent-chat.theme.v1", "light");
+      localStorage.setItem(
+        "crescent-chat.settings.v1",
+        JSON.stringify({ model: "x", webTools: true }),
+      );
+    });
+    await page.goto(APP);
+    await openChat(page);
+    await page.waitForTimeout(500);
+    const offCopy = (await page.locator(".empty-copy").textContent().catch(() => null)) ?? "";
+    check(
+      "empty: an off machine says so in the Server page's words",
+      offCopy.includes("This computer is not running anything right now."),
+      offCopy || "no empty state",
+    );
+    check(
+      "empty: and offers Go to Server",
+      (await page.locator(".empty").getByRole("button", { name: "Go to Server" }).count()) === 1,
+    );
+    await browser.close();
+
+    browser = await chromium.launch({ args: ["--no-sandbox"] });
+    page = await browser.newPage();
+    await page.addInitScript(
+      ({ settings }) => {
+        localStorage.clear();
+        localStorage.setItem("crescent-chat.theme.v1", "light");
+        localStorage.setItem("crescent-chat.settings.v1", JSON.stringify(settings));
+      },
+      { model: "", webTools: true },
+    );
+    await page.addInitScript(installBrainStub, {
+      state: { kind: "running", endpoint: "http://127.0.0.1:8130/v1", model: "" },
+      credential: "stub-credential",
+    });
+    await page.goto(APP);
+    await openChat(page);
+    await page.waitForTimeout(500);
+    const unnamedCopy = (await page.locator(".empty-copy").textContent().catch(() => null)) ?? "";
+    check(
+      "empty: a running machine with no model name says so",
+      unnamedCopy.includes("This computer has no model name yet."),
+      unnamedCopy || "no empty state",
+    );
+    // Scoped to the empty state: the crescent's own entry carries the
+    // accessible name "Open Settings" (CrescentNav's `Open ${label}`), and
+    // an unscoped role query counts both.
+    check(
+      "empty: and offers Open settings",
+      (await page.locator(".empty").getByRole("button", { name: "Open settings" }).count()) === 1,
+    );
     await browser.close();
   },
 
@@ -2250,26 +2408,30 @@ const tests = {
     const offBodies = await allBodies(off);
 
     const plain = await browser.newPage();
-    await seedOnce(plain, toolSettings("toolsloop-demo"));
+    // No desktop, no server: without this window's own Tauri there is no
+    // endpoint anymore (the removed setting was the only other road), so
+    // this page has nothing it could send — the third half of the claim.
+    await seedOnce(plain, { model: "toolsloop-demo" });
     await openChat(plain);
-    await plain.waitForTimeout(1200);
+    await plain.waitForTimeout(800);
     await resetMock(plain);
-    await plain.getByRole("textbox", { name: "Message" }).fill("Just answer.");
-    await plain.getByRole("textbox", { name: "Message" }).press("Enter");
-    await plain.waitForTimeout(3000);
 
     const offered = (body) => (body?.tools ?? []).length;
     const plainBodies = await allBodies(plain);
     const withDoor = offered(first);
     const switchOff = offered(offBodies.at(-1));
-    const noDoor = offered(plainBodies.at(-1));
-    // The two negative halves also require that those pages actually sent a
-    // request: a page that crashed before sending must not read as "offered
-    // nothing", which is what would make this pass for the wrong reason.
+    // The switch-off half also requires that it actually sent a request: a
+    // page that crashed before sending must not read as "offered nothing",
+    // which is what would make this pass for the wrong reason.
     check(
       "tools: offered only when the switch is on and a command can run them",
-      withDoor === 2 && switchOff === 0 && noDoor === 0 && plainBodies.length >= 1 && offBodies.length >= 1,
-      `on with door ${withDoor}, switch off ${switchOff} (${offBodies.length} sent), no door ${noDoor} (${plainBodies.length} sent)`,
+      withDoor === 2 && switchOff === 0 && offBodies.length >= 1,
+      `on with door ${withDoor}, switch off ${switchOff} (${offBodies.length} sent)`,
+    );
+    check(
+      "tools: a page with no desktop has no server and sends nothing",
+      plainBodies.length === 0,
+      `no-desktop page sent ${plainBodies.length}`,
     );
 
     await page.reload();

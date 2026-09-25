@@ -6,6 +6,7 @@
 // Run: dev server on 5173, then `node scripts/contrast-dom.mjs`.
 // Exit 1 on any pair below 4.5 (normal text, AA).
 import { chromium } from "@playwright/test";
+import { installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
 
@@ -138,7 +139,7 @@ async function setupPage(browser, theme, mode) {
       localStorage.setItem("crescent-chat.conversations.v1", JSON.stringify(convos));
       localStorage.setItem(
         "crescent-chat.settings.v1",
-        JSON.stringify({ endpoint: "http://127.0.0.1:18081/ok", token: "t", model: "x" }),
+        JSON.stringify({ model: "x", webTools: true }),
       );
       localStorage.setItem(
         "crescent-chat.attach.seed-1.v2",
@@ -149,6 +150,12 @@ async function setupPage(browser, theme, mode) {
     },
     { convos: SEEDED, theme },
   );
+  // The remote-server fields are not settings anymore: the endpoint and
+  // token this page needs arrive as the brain's own answers.
+  await page.addInitScript(installBrainStub, {
+    state: { kind: "running", endpoint: "http://127.0.0.1:18081/ok", model: "x" },
+    credential: "t",
+  });
   await page.goto(APP);
   await page.waitForTimeout(1200);
   if (

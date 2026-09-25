@@ -61,9 +61,6 @@ export interface Conversation {
 }
 
 export interface ChatSettings {
-  /** Base URL of the server, e.g. https://my-host:8000 */
-  endpoint: string;
-  token: string;
   model: string;
   /**
    * Whether the assistant may search the web and open pages. The query and the
@@ -73,4 +70,13 @@ export interface ChatSettings {
    * the model at all.
    */
   webTools: boolean;
+}
+
+/** The stored settings plus this computer's own door — the only endpoint
+    and token there are. A brain that is not serving leaves the empty
+    strings: "nowhere to send" is a fact the pages must see as a value, not
+    an optional field every caller would have to guard. */
+export interface LiveSettings extends ChatSettings {
+  endpoint: string;
+  token: string;
 }

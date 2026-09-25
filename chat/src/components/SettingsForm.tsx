@@ -13,7 +13,8 @@ interface SettingsFormProps {
 }
 
 /**
- * The Settings surface: the search switch, then the connection form.
+ * The Settings surface: the search switch, then the model this computer asks
+ * its own server for.
  *
  * The switch is a privacy control, not a field of that form. It used to share
  * the form's Save, which returns early unless a server address and model are
@@ -21,26 +22,12 @@ interface SettingsFormProps {
  * this computer. So the switch could never be changed, and it defaults to on.
  */
 export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: SettingsFormProps) {
-  const [endpoint, setEndpoint] = useState(initial.endpoint);
-  const [token, setToken] = useState(initial.token);
   const [model, setModel] = useState(initial.model);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   function save(): void {
     setSaved(false);
-    const trimmedEndpoint = endpoint.trim().replace(/\/+$/, "");
-    if (!trimmedEndpoint) {
-      setError("Enter the server address, for example https://my-server:8000.");
-      return;
-    }
-    try {
-      const url = new URL(trimmedEndpoint);
-      if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("protocol");
-    } catch {
-      setError("That address does not look right — it should start with http:// or https://.");
-      return;
-    }
     if (!model.trim()) {
       setError("Enter the model name the server expects.");
       return;
@@ -50,8 +37,6 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
     // this form. Omitting it would store a record without it, and a record
     // without it reads back as `true`: Save would quietly turn the switch on.
     onSave({
-      endpoint: trimmedEndpoint,
-      token: token.trim(),
       model: model.trim(),
       webTools: initial.webTools,
     });
@@ -94,32 +79,8 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
       </div>
 
       <p className="settings-lede">
-        Where should your messages go? Everything here stays on this computer.
+        Messages go to this computer's own server. Everything here stays on this computer.
       </p>
-
-      <label className="settings-field">
-        <span>Server address</span>
-        <input
-          type="url"
-          value={endpoint}
-          onChange={(event) => setEndpoint(event.target.value)}
-          placeholder="https://my-server:8000"
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </label>
-
-      <label className="settings-field">
-        <span>API key</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="sk-…"
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </label>
 
       <label className="settings-field">
         <span>Model name</span>

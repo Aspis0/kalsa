@@ -12,7 +12,7 @@ import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
 import { loadThinking, saveThinking, thinkingSupport } from "./lib/thinking";
-import type { ChatSettings, Conversation, ConversationMeta, ToolRun } from "./lib/types";
+import type { ChatSettings, Conversation, ConversationMeta, LiveSettings, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import { filesRead } from "./lib/files";
@@ -209,21 +209,23 @@ export function App() {
 
   const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
   const streamingAny = Object.keys(streamingByConv).length > 0;
-  // The owner's typed settings win; the brain's own server fills the
-  // blanks, so the chat never calls itself unconfigured while the machine
-  // is serving.
+  // The brain's own server fills the blanks, so the chat never calls itself
+  // unconfigured while the machine is serving; with the machine off the
+  // blanks stand, and the first page says which page fixes that.
   const brainServer = useBrainServer();
   const effectiveSettings = useMemo(
     () => withBrainDefaults(settings, brainServer),
     [settings, brainServer],
   );
   const configured = isConfigured(effectiveSettings);
-  // The disk tier's door, when this window is talking to one: `withBrainDefaults`
-  // puts this computer's own door in front of the owner's saved server while the
-  // brain runs, so a running brain is the fact that makes the endpoint the door
-  // and the token this device's credential. With no door there is no tier to
-  // ask: `/kalsa/chat/activate` on somebody else's server is not a request that
-  // server ever agreed to read.
+  // Why the first page has nothing to offer, in the words of the page that
+  // fixes it: a machine that is off is the Server page's to turn on, and a
+  // running machine with no model name is Settings' to give one.
+  const setup = configured ? null : effectiveSettings.endpoint ? "settings" : "server";
+  // The disk tier's door, when this window is talking to one: a running
+  // brain is the fact that makes the endpoint the door and the token this
+  // device's credential (`withBrainDefaults`). With no door there is no tier
+  // to ask: there is no other server this page can name.
   const door = useMemo(
     () =>
       brainServer ? { endpoint: brainServer.endpoint, token: brainServer.credential } : null,
@@ -457,7 +459,7 @@ export function App() {
   }
 
   const runAssistant = useCallback(
-    async (conversationId: string, assistantId: string, currentSettings: ChatSettings) => {
+    async (conversationId: string, assistantId: string, currentSettings: LiveSettings) => {
       const conv = store.get(conversationId);
       if (!conv) return;
       const turns = conv.messages
@@ -1121,8 +1123,9 @@ export function App() {
                 ) : null}
                 {empty ? (
                   <EmptyState
-                    needsSetup={!configured}
+                    setup={setup}
                     onOpenSettings={() => openSurface("settings")}
+                    onOpenServer={() => openSurface("server")}
                   />
                 ) : (
                   <Thread
@@ -1131,7 +1134,6 @@ export function App() {
                     failed={effectiveFailed}
                     tails={tails}
                     onRetry={retry}
-                    onOpenSettings={() => openSurface("settings")}
                   />
                 )}
                 {attachStatus ? (

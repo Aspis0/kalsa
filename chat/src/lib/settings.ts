@@ -16,18 +16,27 @@ export type Theme = "light" | "dark";
 export function loadSettings(): ChatSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { endpoint: "", token: "", model: "", webTools: true };
-    const parsed = JSON.parse(raw) as Partial<ChatSettings>;
-    return {
-      endpoint: typeof parsed.endpoint === "string" ? parsed.endpoint : "",
-      token: typeof parsed.token === "string" ? parsed.token : "",
+    if (!raw) return { model: "", webTools: true };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const settings: ChatSettings = {
       model: typeof parsed.model === "string" ? parsed.model : "",
       // Settings written before this switch existed have no answer to give,
       // and the default — the same one new installs get — is on.
       webTools: parsed.webTools !== false,
     };
+    // The remote-server fields are gone, and a saved API key must not sit
+    // in durable storage waiting for a settings visit that may never come:
+    // the cleaned record goes back over them once.
+    if ("endpoint" in parsed || "token" in parsed) {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch {
+        // Private mode again: the stale fields wait for the next load.
+      }
+    }
+    return settings;
   } catch {
-    return { endpoint: "", token: "", model: "", webTools: true };
+    return { model: "", webTools: true };
   }
 }
 
@@ -39,7 +48,7 @@ export function saveSettings(settings: ChatSettings): void {
   }
 }
 
-export function isConfigured(settings: ChatSettings): boolean {
+export function isConfigured(settings: { endpoint: string; model: string }): boolean {
   return settings.endpoint.trim().length > 0 && settings.model.trim().length > 0;
 }
 

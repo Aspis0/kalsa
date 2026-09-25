@@ -112,10 +112,9 @@ export function serverBase(endpoint: string): string {
  * Anything missing, non-numeric or unreachable means UNKNOWN —
  * never an invented limit.
  *
- * The token is required when the caller's server is the local door: /props is
- * a request like any other there, and an unauthenticated one gets the 401 the
- * door gives strangers. A remote server that wants no token is served by an
- * empty string, which sends no Authorization header at all.
+ * The token is required: /props is a request like any other at the door, and
+ * an unauthenticated one gets the 401 the door gives strangers. An empty
+ * string sends no Authorization header at all.
  */
 export async function fetchContextSize(
   base: string,

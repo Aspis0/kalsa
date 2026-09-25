@@ -305,7 +305,7 @@ session handoff. What the code settles, and what is still missing:
   `absent | unready | ready`, `slotGate.ts`), with `unready` **holding** the open — pending,
   no request, no mint — instead of opening locally; and a door that becomes callable hands the
   locally minted active chat over through itself. A local mint stays possible for the client
-  that has no door at all: a remote server, or the plain browser (`standingOf`). Same commit:
+  that has no door at all: the plain browser (`standingOf`). Same commit:
   `sendMessage` refuses an `ActiveChat` the gate has moved past instead of ignoring it, the
   already-open fast path reads the gate (`isSettled`) and not the rendered active id, deleting
   a chat clears the gate's own active chat and refuses a late mint of that id (`clearIf`), and

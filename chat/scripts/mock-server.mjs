@@ -178,6 +178,19 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
+  // The door's slot routes, as a seeded brain's own endpoint reaches them:
+  // the endpoint carries a scenario prefix (/ok, /denied, …), so the path is
+  // matched by its end. 204 is SlotAnswer's `ok` (chat.ts slotRoute), which
+  // is all `activate`/`erase` need to say.
+  if (
+    req.method === "POST" &&
+    (req.url.endsWith("/kalsa/chat/activate") || req.url.endsWith("/kalsa/chat/erase"))
+  ) {
+    req.resume();
+    res.writeHead(204, CORS);
+    res.end();
+    return;
+  }
   // Test-only: what did the client actually send last? Lets asserts check
   // the wire (documents pinned, turns pruned) without guessing from UI.
   if (req.method === "GET" && req.url === "/__last-body") {

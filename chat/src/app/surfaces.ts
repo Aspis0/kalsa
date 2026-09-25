@@ -13,7 +13,7 @@ export interface SurfaceDefinition {
   /**
    * Which side of the line this page is on. `machine` describes this computer
    * and what runs on it; `app` is a preference of this program — appearance,
-   * the remote connection, the web-search switch — and it means something with
+   * the model, the web-search switch — and it means something with
    * the brain switched off. The brain page lists the first; the crescent
    * carries the second. One list, so nothing can be on both.
    */

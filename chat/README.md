@@ -1,14 +1,14 @@
 # Crescent Chat
 
-A calm desktop chat client for one person. Talks to an OpenAI-compatible
-endpoint (`POST /v1/chat/completions`, `stream: true`), stores everything
-locally, phones home to nobody.
+A calm desktop chat client for one person. Talks to this computer's own
+server over its OpenAI-compatible API (`POST /v1/chat/completions`,
+`stream: true`), stores everything locally, phones home to nobody.
 
 - **Stack**: Vite + React + TypeScript. No Node APIs in the frontend, so the
   `dist/` bundle drops into the parent app's Tauri v2 configuration
   (`../src-tauri/tauri.conf.json`).
-- **Offline rule**: the only network call the app ever makes is the
-  user-configured endpoint. System fonts only, no CDN, no telemetry.
+- **Offline rule**: the only network call the app ever makes is to this
+  computer's own server. System fonts only, no CDN, no telemetry.
   Model images are never loaded (a blocked-image notice is shown instead),
   and a CSP meta tag pins this down (`img-src 'self'`).
 - **Endpoint note**: because the app is a web view, the server must allow the

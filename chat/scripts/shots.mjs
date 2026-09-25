@@ -5,6 +5,7 @@
 // States assert their markers (must()) — a missing state FAILS, never a PNG.
 import { chromium } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -91,6 +92,10 @@ const SEEDED_THREAD = [
 ];
 
 async function seed(page, { settings = null, convos = [], theme = "light", v2 = null }) {
+  // The remote-server fields are not settings anymore: a seeded endpoint
+  // and token arrive as the BRAIN's own answers — the road the app reads
+  // them from — and the stored record keeps only what storage holds.
+  const { endpoint, token, ...stored } = settings ?? {};
   await page.addInitScript(
     ({ cKey, sKey, tKey, iKey, settings, convos, theme, v2 }) => {
       localStorage.clear();
@@ -108,8 +113,14 @@ async function seed(page, { settings = null, convos = [], theme = "light", v2 = 
         localStorage.setItem(cKey, JSON.stringify(convos));
       }
     },
-    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, iKey: INDEX_KEY, settings, convos, theme, v2 },
+    { cKey: CONV_KEY, sKey: SET_KEY, tKey: THEME_KEY, iKey: INDEX_KEY, settings: settings ? stored : null, convos, theme, v2 },
   );
+  if (endpoint) {
+    await page.addInitScript(installBrainStub, {
+      state: { kind: "running", endpoint, model: stored.model ?? "" },
+      credential: token ?? "",
+    });
+  }
 }
 
 /** Open the app AT THE CHAT. The brain is the home page now, so every state
@@ -392,19 +403,14 @@ async function main() {
       null,
       { timeout: 20000 },
     );
-    await page.locator(".error-block").getByRole("button", { name: "Open settings" }).click();
-    await page.getByPlaceholder("https://my-server:8000").fill("http://127.0.0.1:18081/ok");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    // Back to the conversation. The crescent no longer carries a Chat point --
-    // its four are Brain, New chat, History, Settings -- and it lives in the
-    // chat alone, so from a surface the way back is the header's own button.
-    // That lands on the brain when nothing pushed a hop, which is why the
-    // chat click below is second and conditional.
-    await page.getByRole("button", { name: /^Back to / }).first().click();
-    await page.waitForTimeout(400);
-    const backToChat = page.locator(".brain-bar-chat");
-    if ((await backToChat.count()) > 0) await backToChat.first().click();
-    await page.waitForTimeout(400);
+    // The address can no longer be fixed in Settings — there is no field
+    // for it. What the owner fixes is the SERVER, then presses Try again;
+    // the stub stands in for the Server page coming back up, and the
+    // one-second poll hands the new endpoint to the composer.
+    await page.evaluate(() => {
+      window.__STUB_BRAIN__.state.endpoint = "http://127.0.0.1:18081/ok";
+    });
+    await page.waitForTimeout(1500);
     await page.getByRole("button", { name: "Try again" }).click();
     await page.waitForFunction(
       () => document.querySelector(".thread")?.textContent?.includes("scrolls horizontally"),

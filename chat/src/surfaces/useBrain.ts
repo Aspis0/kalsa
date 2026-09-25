@@ -3,7 +3,7 @@ import { available, invoke, listen } from "../lib/tauri";
 import { lastKnown, standingOf } from "../lib/slotGate";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
-import type { ChatSettings } from "../lib/types";
+import type { ChatSettings, LiveSettings } from "../lib/types";
 
 const POLL_MS = 1000;
 const COULD_NOT_TELL =
@@ -159,11 +159,11 @@ function publish(): void {
     serverSnapshot = server;
   }
   // Outside the Tauri webview this window defaults to `absent` on an
-  // assumption it cannot verify: that the configured endpoint is not itself a
-  // door. A remote server or a plain browser satisfies it; a browser reaching
-  // this machine's door — or saved settings pointing at another
-  // Kalsa-brain — does not, and a chat minted there is that door's
-  // divergence by another road. Everywhere else the standing is the poll's.
+  // assumption it cannot verify: that this page is not being served BY a
+  // door. There is no configured endpoint left to point at one — a plain
+  // browser is the only thing this window can be — so a chat minted here is
+  // the client's own, and the assumption cannot be a lie. Everywhere else
+  // the standing is the poll's.
   standingSnapshot = available() ? standingOf(currentState, hostCredential !== null) : "absent";
   for (const listener of listeners) listener();
 }
@@ -320,26 +320,25 @@ export function forgetLocalCredential(): void {
   publish();
 }
 
-/** The brain's own connection WINS while it runs: its door endpoint, its
-    model and this computer's credential. The owner's saved values describe
-    their own remote server, and are used only while the brain is not
-    serving — letting a saved endpoint win would send this computer's
-    credential to a remote host, or a remote key to the door, which is the
-    one pairing of secret and address that must not happen. */
+/** The brain's own connection IS the connection: its door endpoint and its
+    model, with this computer's credential — the only endpoint and token the
+    chat has. No door means the empty strings, and the pages read that as
+    nowhere-to-send rather than as a setting to fall back on: there is no
+    saved remote address to fall back to, and a fallback would pair this
+    computer's credential with a door that never vouched for it. */
 export function withBrainDefaults(
   settings: ChatSettings,
   server: BrainServer | null,
-): ChatSettings {
-  if (!server) return settings;
+): LiveSettings {
   return {
     ...settings,
-    endpoint: server.endpoint,
-    token: server.credential,
+    endpoint: server?.endpoint ?? "",
+    token: server?.credential ?? "",
     // The model name is the one thing the brain may not have: the
     // development path pins a file no catalog choice named, and the page
     // then keeps whatever the owner typed. An empty brain model is the
     // absence of a name, not a name to send.
-    model: server.model.trim() ? server.model : settings.model,
+    model: server && server.model.trim() ? server.model : settings.model,
   };
 }
 

@@ -21,7 +21,6 @@ interface ThreadProps {
   failed: FailedState | null;
   tails: Record<string, string>;
   onRetry: (messageId: string) => void;
-  onOpenSettings: () => void;
 }
 
 function errorCopy(kind: ChatErrorKind, status?: number): { title: string; body: string } {
@@ -93,14 +92,12 @@ function AssistantRow({
   failed,
   tail,
   onRetry,
-  onOpenSettings,
 }: {
   message: ChatMessage;
   streaming: boolean;
   failed: FailedState | null;
   tail?: string;
   onRetry: (messageId: string) => void;
-  onOpenSettings: () => void;
 }) {
   const failedHere = failed !== null && failed.messageId === message.id;
   const hasReasoning = (message.reasoning ?? "") !== "";
@@ -155,9 +152,6 @@ function AssistantRow({
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 Try again
               </button>
-              <button type="button" className="btn-quiet" onClick={onOpenSettings}>
-                Open settings
-              </button>
             </div>
           </div>
         ) : null}
@@ -172,7 +166,6 @@ export function Thread({
   failed,
   tails,
   onRetry,
-  onOpenSettings,
 }: ThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -222,7 +215,6 @@ export function Thread({
                 failed={failed}
                 tail={tails[message.id]}
                 onRetry={onRetry}
-                onOpenSettings={onOpenSettings}
               />
             ),
           )}

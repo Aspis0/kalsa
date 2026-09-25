@@ -2,7 +2,7 @@
   "name": "crescent-chat",
   "private": true,
   "version": "0.1.0",
-  "description": "A calm desktop chat client for one person. OpenAI-compatible endpoint, local storage, no telemetry.",
+  "description": "A calm desktop chat client for one person. This computer's own server, local storage, no telemetry.",
   "type": "module",
   "scripts": {
     "dev": "vite",

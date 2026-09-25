@@ -243,8 +243,9 @@ try {
     check("a plain success has no slot sentence", plain.opened?.id === "plain" && plain.notice === null, JSON.stringify(plain.notice));
   }
 
-  // No door at all: a window on a remote server. Every open succeeds locally,
-  // because there is no slot to diverge from. This case must stay green.
+  // No door at all: a plain browser's window — there is no endpoint left
+  // to point at a door. Every open succeeds locally, because there is no
+  // slot to diverge from. This case must stay green.
   {
     const gate = app.createSlotGate();
     await gate.setAccess({ kind: "absent" });

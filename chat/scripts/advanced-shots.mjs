@@ -357,7 +357,7 @@ async function rightmostTrigger(page) {
 
 /** Stubs the Tauri bridge the way brain-shots.mjs does: answers, no bus. Every
     call is kept on the page, so a check can read the arguments a gesture sent. */
-function installStub({ advanced, brain }) {
+function installStub({ advanced, brain, credential }) {
   window.__INVOKES__ = [];
   window.__TAURI__ = {
     core: {
@@ -368,7 +368,9 @@ function installStub({ advanced, brain }) {
             ? advanced
             : command === "brain_state"
               ? brain
-              : command === "brain_capability"
+              : command === "brain_host_credential"
+                ? credential
+                : command === "brain_capability"
                 ? { kind: "unmeasured" }
                 : null,
         );
@@ -410,6 +412,10 @@ async function main() {
       brain: fixture.advanced.running
         ? { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Arcee Trinity Nano" }
         : { kind: "stopped" },
+      // The credential rides with the endpoint: together they are what
+      // `withBrainDefaults` reads, and an endpoint without one is no
+      // connection at all.
+      credential: "stub-token",
     });
     await page.goto(APP);
     await page.locator(".brain-settings-item", { hasText: "Advanced" }).click();
