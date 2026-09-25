@@ -5,12 +5,12 @@
 ## Trigger / identity / protocol
 
 - The Qwen path cannot pass validity: the app disables the governor whenever an mmproj is loaded
-  (`REPORT.md:405: src/engine/LlamaService.ts:2433-2441 (at 0509f8c8): governorLoad requires
+  (`REPORT.md:405-406: src/engine/LlamaService.ts:2433-2441 (at 0509f8c8): governorLoad requires
   !options.mmprojPath`; `:410-411: request is never pushed, and no arm can ever satisfy route_requested =
   arm, route_push = applied, route_mismatch = false`). Owner decision 2026-09-25: arms on LFM2.5-2.6B
   (`docs/ALIVE.md:589`; `PLAN.md:504: Heat arms run on LFM2.5-2.6B (no mmproj)`).
-- Model: LFM2.5-2.6B, text-only → no mmproj → governor eligible. App catalog `lfm2.5-2.6b` →
-  `LFM2.5-2.6B-QAD-Q4_0.gguf`, 1,593,894,944 B (`/Users/marco/Projects/kalsa/src/engine/ModelRegistry.ts:272`; `:278: // text-only: no mmproj in the HF repo`); all priors below are on it.
+- Model: LFM2.5-2.6B, text-only → no mmproj → governor eligible. The arms run the SHIPPED catalog file
+  `LFM2.5-2.6B-QAD-Q4_0.gguf` (not a K-quant repack): `/Users/marco/Projects/kalsa/src/engine/ModelRegistry.ts:272: id: "lfm2.5-2.6b"`, `:275: quant: "QAD-Q4_0"`, `:278: file: "LFM2.5-2.6B-QAD-Q4_0.gguf"`, `:279: sizeBytes: 1_593_894_944`, `:284: // text-only: no mmproj in the HF repo`; all priors below are on it.
   Pushed name+sha+size → PROMPT.meta before pair 1; an exact-size mismatch is the load gate that voided the Qwen arms.
 - Boards: QRD8650 / Adreno 750 (4 pairs), QRD7675 / Adreno 732 (2 pairs) (`PLAN.md:510`; `REPORT.md:304-305`).
 - Validity kept: `route_requested = arm`, `route_push = "applied"`, `route_mismatch = false`, chunk
@@ -21,23 +21,23 @@
 
 ## Measured LFM priors (in-app, forced GPU, 925 new tokens, ship quant)
 
-QRD8650 / Adreno 750, S5b run 8 (sa808770):
+QRD8650 / Adreno 750, S5b run 8 (sa808770); S5b quant QAD-Q4_0 — `scratchpad/agents/qdc-governor-s5b/PREREG.md:13: Model: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf,`:
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:166: | A | 1 | 8504.842 | … | 21.212 | 925 | … | 30.519→43.227 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:167: | B | 1 | 4294.885 | 4294.885 | … | 18.944 | 925 | GPU/CPU | FAST | 36.98→47.444 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:175: B1/A1 = 4294.885/8504.842 = 0.505 = 1/1.980 (A/B=1.980×) …`
 
-QRD7675 / Adreno 732, S5b run 9 (sa811420):
+QRD7675 / Adreno 732, S5b run 9 (sa811420; same QAD-Q4_0 model as above):
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:205: | A | 1 | 11769.454 | … | 16.975 | 925 | … | 28.18→40.718 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:206: | B | 1 | 7423.184 | 7423.184 | … | 14.953 | 925 | GPU/CPU | FAST | 36.834→44.961 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:207: | A | 2 | 12475.128 | … | 16.470 | 925 | … | 38.448→46.928 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:208: | B | 2 | 7421.679 | 7421.679 | … | 14.857 | 925 | GPU/CPU | FAST | 36.956→46.631 | …`
 - `scratchpad/agents/qdc-governor-s5b/REPORT.md:209: | A | 3 | 12543.090 | … | 16.346 | 925 | … | 38.405→47.571 | …`
-- `scratchpad/agents/qdc-governor-s5b/REPORT.md:217: … B1/A1 = 0.631; B2/A2 = 0.595; median = 0.613, 1/median = 1.632 …`
+- `scratchpad/agents/qdc-governor-s5b/REPORT.md:217: B1/A1 = 7423.184/11769.454 = 0.631 … B2/A2 = 7421.679/12475.128 = 0.595 … median = 0.613 … 1/median = 1.632`
 
-Native cross-check, same file, `-fa 0`:
+Native cross-check, QAD-Q4_0, `-fa 0` (quant stated in each row):
 - `scratchpad/agents/archive-gpu-cells/REPORT.md:435: | **Adreno 750** (QRD8650, job 797935 sa802004) | QAD-Q4_0, same flags | **284.18** | **23.42** | …`
 - `scratchpad/agents/archive-gpu-cells/REPORT.md:437: | **Adreno 750** tuned CPU comparator | QAD-Q4_0, `-t 4`, … | CPU pp512 **98.97 ± 12.78** | CPU tg128 **28.58 ± 0.32** |`
-- `scratchpad/agents/archive-gpu-cells/REPORT.md:432: | **Adreno 732** (7+ Gen 3, job 797795 sa801864) | QAD-Q4_0, same flags | **151.78 ± 1.12** | **17.26 ± 0.02** | …`
+- `scratchpad/agents/archive-gpu-cells/REPORT.md:432: | **Adreno 732** (7+ Gen 3, job 797795 sa801864) | QAD-Q4_0, `-ngl 99 -fa 0 -t 4` taskset f0, r=3 | **151.78 ± 1.12** | **17.26 ± 0.02** | …`
 
 ## Predictions (locked)
 
@@ -46,7 +46,7 @@ Native cross-check, same file, `-fa 0`:
 | QRD8650 | 4 (CGGCGCGC) | CPU hotter: P1 (cold board, C first) ≈ +2.2 (range −1.0…+4.5); P2/P4 (G first, warm start) ≈ 0…+1; median ≈ +1.5 | 9,400 / 4,750 (linear from 8,505 / 4,295 @925) | 21.2 / 18.9 |
 | QRD7675 | 2 (CGGC) | no confident sign: the two measured pairs straddle zero (+4.4 / −1.2); P1 (cold) ≈ +4, P2 ≈ −1; median ≈ +1.6 (range −2…+5) | 13,800 / 8,200 (linear from medians 12,475 / 7,422 @925) | 16.5 / 14.9 |
 
-- Basis: same-turn contrasts on the quoted rows — 750 +12.708 vs +10.464 = **+2.244 °C**; 732
+- Basis: same-turn contrasts on the quoted rows (all sources QAD-Q4_0, so none is "basis: other quant") — 750 +12.708 vs +10.464 = **+2.244 °C**; 732
   +12.538 vs +8.127 = **+4.411** and +8.480 vs +9.675 = **−1.195**. Measured prefill ratios
   0.505 / 0.613 → GPU prefill saves ~50 % / ~39 % of wall time.
 - The 732 pairs disagree because the CPU rise tracks its start skin: the same CPU workload rose
