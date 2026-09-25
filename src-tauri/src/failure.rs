@@ -76,6 +76,9 @@ pub(crate) enum StartupFailure {
     /// The connection dropped partway through. What arrived stays for the
     /// next try.
     ConnectionLost,
+    /// The publisher's server answered but did not allow the download: an
+    /// HTTP refusal, not a dropped connection.
+    DownloadRefused,
     /// A local file refused the model bytes: the destination or the part
     /// file is held by another program, unreadable, or unwritable.
     ModelFileUnwritable,
@@ -181,9 +184,14 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              already downloaded."
                 .into()
         }
+        StartupFailure::DownloadRefused => {
+            "The server that publishes the model did not allow the download just now. \
+             Trying again later usually works."
+                .into()
+        }
         StartupFailure::ModelFileUnwritable => {
-            "This computer could not save the model file. Another program may be using it; \
-             closing it and trying again usually works."
+            "This computer could not use the model file on its own disk. Trying again \
+             usually works; if it keeps failing, another program may be holding the file."
                 .into()
         }
     }
@@ -263,10 +271,12 @@ impl From<DecideError> for StartupFailure {
 impl From<DownloadError> for StartupFailure {
     fn from(error: DownloadError) -> Self {
         match error {
-            // The halves, as the production sites split them: the wire keeps
-            // the connection sentence; a file this machine refused gets its
-            // own words, because "connection" would be false.
+            // The halves, as the production sites split them: the wire
+            // splits again at an HTTP status — a refusal is not a dropped
+            // connection — and a file this machine refused gets its own
+            // words, because "connection" would be false.
             DownloadError::Network(_) => Self::ConnectionLost,
+            DownloadError::Refused { .. } => Self::DownloadRefused,
             DownloadError::Io(_) => Self::ModelFileUnwritable,
             DownloadError::DiskFull | DownloadError::NotEnoughSpace { .. } => Self::NotEnoughDisk,
             DownloadError::SizeMismatch { .. } | DownloadError::DigestMismatch { .. } => {
@@ -344,6 +354,7 @@ mod tests {
             StartupFailure::NotEnoughDisk,
             StartupFailure::DownloadCorrupted,
             StartupFailure::ConnectionLost,
+            StartupFailure::DownloadRefused,
             StartupFailure::ModelFileUnwritable,
         ]
     }
@@ -421,9 +432,10 @@ mod tests {
         );
     }
 
-    /// The halves, as the owner split them: a file this machine refused
-    /// says so in the owner's own words; a wire failure keeps the
-    /// connection sentence it always had.
+    /// The thirds, as the production sites split them: a file this machine
+    /// refused says so in the owner's own words; a wire failure keeps the
+    /// connection sentence it always had; an HTTP status names the server,
+    /// because "connection" would be false for an answer the publisher sent.
     #[test]
     fn a_local_download_error_names_the_file_and_a_network_one_names_the_connection() {
         let local = StartupFailure::from(DownloadError::Io(std::io::Error::new(
@@ -433,8 +445,8 @@ mod tests {
         assert!(matches!(local, StartupFailure::ModelFileUnwritable));
         assert_eq!(
             words(&local),
-            "This computer could not save the model file. Another program may be using it; \
-             closing it and trying again usually works."
+            "This computer could not use the model file on its own disk. Trying again \
+             usually works; if it keeps failing, another program may be holding the file."
         );
 
         let network = StartupFailure::from(DownloadError::Network(std::io::Error::new(
@@ -446,6 +458,14 @@ mod tests {
             words(&network),
             "The connection dropped partway through. Trying again keeps what was \
              already downloaded."
+        );
+
+        let refused = StartupFailure::from(DownloadError::Refused { status: 403 });
+        assert!(matches!(refused, StartupFailure::DownloadRefused));
+        assert_eq!(
+            words(&refused),
+            "The server that publishes the model did not allow the download just now. \
+             Trying again later usually works."
         );
     }
 }

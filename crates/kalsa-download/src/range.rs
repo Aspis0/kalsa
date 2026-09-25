@@ -92,11 +92,12 @@ fn content_range_start(value: &str) -> Option<u64> {
     range.split('-').next()?.parse().ok()
 }
 
+/// An HTTP status is the publisher refusing the download — an answer, not
+/// a transport failure — so it carries its own kind: the sentence for a
+/// dropped connection would be false, and resuming is not what it calls
+/// for.
 fn http_error(code: u16) -> DownloadError {
-    DownloadError::Network(io::Error::new(
-        io::ErrorKind::Other,
-        format!("server answered HTTP {code}"),
-    ))
+    DownloadError::Refused { status: code }
 }
 
 #[cfg(test)]
@@ -126,6 +127,19 @@ mod tests {
         assert_eq!(content_range_start("bytes */789"), None);
         assert_eq!(content_range_start("garbage"), None);
         assert_eq!(content_range_start(""), None);
+    }
+
+    #[test]
+    fn an_http_status_is_a_refusal_not_a_dropped_connection() {
+        // A 403 or a 429 is the publisher answering; only the transport
+        // half may ride `Network`, whose sentence says the connection
+        // dropped.
+        assert!(matches!(http_error(403), DownloadError::Refused { status: 403 }));
+        assert!(matches!(http_error(429), DownloadError::Refused { status: 429 }));
+        assert_eq!(
+            http_error(503).to_string(),
+            "the server refused the download: HTTP 503"
+        );
     }
 
     #[test]
