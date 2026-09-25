@@ -189,7 +189,9 @@
         assert!(nonce_from(|_| Ok::<(), ()>(())).is_some());
     }
 
-    /// The nonce looks like nothing a model is called.
+    /// The nonce's shape and freshness — the `kalsa-tune-` prefix, 128
+    /// bits of hex, and two draws that differ. It does not prove no model
+    /// on earth is called that; the aliases check proves ours is listed.
     #[test]
     fn a_nonce_is_unlike_any_model_name() {
         let nonce = fresh_nonce().expect("this machine has entropy");

@@ -35,6 +35,8 @@ export interface AdvancedDto {
   flash_attention: string;
   gpu_layers: string | null;
   threads: number | null;
+  /** The tune's own line, when a launch was tuned: see `tune_step`. */
+  tune?: string | null;
   door_port: number | null;
   // The pairing desk's own port and whether it is the preferred one, the
   // second serve command's target. Absent desk facts are left out of the
@@ -359,7 +361,7 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
           </AdvancedField>
           <p className="advanced-values">
             {dto
-              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? automaticLabel(dto, cache)}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.`
+              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? automaticLabel(dto, cache)}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.${dto.tune ? ` tune: ${dto.tune}.` : ""}`
               : "The values in force will appear here when the app is open."}
           </p>
           <p className="advanced-help">

@@ -55,6 +55,13 @@ const ROUND2_BAND: f64 = 0.25;
 /// two measured requests: two runs of one number let the best be the fair
 /// estimator and still cost seconds.
 const WARMUP_REQUESTS: usize = 1;
+
+/// What the warm-up asks for: a handful of tokens to settle the connection
+/// and the cache. On a processor run a full 64-token warm-up costs as much
+/// as a measurement — the Surface's whole four-lifetime tune took 144 s —
+/// and8 tokens warm it at a fraction of that. The discarded warm-up's rate
+/// is never parsed, so nothing compares it to the measured ones.
+const WARMUP_N_PREDICT: u64 = 8;
 const MEASURED_REQUESTS: usize = 2;
 
 /// Runs the candidates and hands back what each lifetime produced, for
@@ -173,7 +180,8 @@ fn run_lifetime(
     // (kalsallama `server-context.h:19`) and the served id becomes the
     // FIRST of them sorted — "backward compat: use first alias as model
     // name" (`server-context.cpp:1385-1386`) — so a repeated `--alias`
-    // does not resolve to the last. Ours alone, the id IS the nonce.
+    // does not resolve to the last — which is why the check below reads
+    // `aliases` as well as `id`.
     let nonce = fresh_nonce().ok_or(Refusal::DidNotStart)?;
     let mut argv = without_aliases(argv);
     argv.extend(["--alias".to_string(), nonce.clone()]);
@@ -192,7 +200,12 @@ fn run_lifetime(
     }
     let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
     for attempt in 0..(WARMUP_REQUESTS + MEASURED_REQUESTS) {
-        let rate = request(server.address(), REQUEST_TIMEOUT);
+        let n_predict = if attempt < WARMUP_REQUESTS {
+            WARMUP_N_PREDICT
+        } else {
+            crate::sample::N_PREDICT
+        };
+        let rate = request(server.address(), REQUEST_TIMEOUT, n_predict);
         if attempt >= WARMUP_REQUESTS {
             if let Some(rate) = rate {
                 rates.push(rate);

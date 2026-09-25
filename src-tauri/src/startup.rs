@@ -85,6 +85,9 @@ pub(crate) enum Progress {
     Choosing,
     /// Bytes moving for the chosen model itself.
     ModelBytes { done: u64, total: u64 },
+    /// Candidate settings being tried on the real model: how many
+    /// lifetimes have finished, and how many are planned so far.
+    Tuning { done: usize, planned: usize },
 }
 
 /// The funded maxima under both cache types. The guard compares against the
@@ -166,6 +169,10 @@ pub(crate) struct LaunchInfo {
     /// the development path, where the developer pinned a file no catalog row
     /// named, so there is no digest to carry.
     pub(crate) model_sha256: Option<String>,
+    /// What the tune decided for this launch — the panel's line and the
+    /// real walk's report are both words over this. `None` on the
+    /// development path, where no choice was made to tune.
+    pub(crate) tune: Option<crate::tune_step::Tune>,
 }
 
 #[derive(Debug)]
@@ -236,7 +243,7 @@ pub(crate) fn run(
                 },
             )?;
             let path = place_model(&plan, root, progress)?;
-            return planned_config_with_overrides(
+            let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
                 path,
@@ -250,7 +257,30 @@ pub(crate) fn run(
                 state_file,
                 slot_save_path,
                 overrides,
+            )?;
+            // The tune sits between the plan and the launch: it may rewrite
+            // the exe, argv, threads and offload, and it may never fail the
+            // walk — every path inside it degrades to the plan as made.
+            let main_exe = prepared.server.exe.clone();
+            let mut memo = crate::tune_step::Memo {
+                cores: (
+                    kalsa_probe::physical_cores(),
+                    std::thread::available_parallelism().ok().map(|cores| cores.get()),
+                ),
+                processor: None,
+            };
+            crate::tune_step::tune_launch(
+                &mut prepared,
+                &machine,
+                root,
+                (build, main_exe),
+                &mut memo,
+                progress,
+                |candidates, rule, resolved, inner| {
+                    crate::tune_step::measure_with_rule(root, candidates, rule, resolved, inner)
+                },
             );
+            return Ok(prepared);
         }
     };
     dev_config_with_overrides(
@@ -810,6 +840,7 @@ fn planned_config_with_overrides(
             display_name: Some(row.display_name.to_owned()),
             reason: Some(reason),
             model_sha256: Some(model_sha256.to_string()),
+            tune: None,
         },
     })
 }
@@ -912,6 +943,7 @@ fn dev_config_with_overrides(
             // A pinned file no catalog row named: there is no pinned digest
             // to carry, and none is computed from the file.
             model_sha256: None,
+            tune: None,
         },
     })
 }

@@ -9,6 +9,7 @@
 //! next start (`record`).
 
 pub mod record;
+pub use record::fingerprint;
 
 mod measure;
 mod sample;

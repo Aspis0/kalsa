@@ -2579,6 +2579,7 @@ dependencies = [
  "kalsa-runtime",
  "kalsa-sentinel",
  "kalsa-supervisor",
+ "kalsa-tune",
  "kalsa-web",
  "libc",
  "serde",

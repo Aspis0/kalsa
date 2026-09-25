@@ -22,6 +22,7 @@ mod options;
 mod pairing;
 mod road;
 mod startup;
+mod tune_step;
 mod ticker;
 mod transport;
 mod web;

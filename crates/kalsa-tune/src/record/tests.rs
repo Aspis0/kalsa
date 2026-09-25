@@ -294,6 +294,29 @@
         }
     }
 
+    /// The key moves with every part that must force a re-tune: the model,
+    /// the context, both core counts, and either engine build.
+    #[test]
+    fn the_fingerprint_moves_with_every_part_that_matters() {
+        use super::fingerprint;
+        let base = fingerprint("sha", 8192, Some(16), Some(22), ("g1", "c1"));
+        assert_eq!(
+            base,
+            fingerprint("sha", 8192, Some(16), Some(22), ("g1", "c1")),
+            "the same parts are the same key"
+        );
+        for changed in [
+            fingerprint("other", 8192, Some(16), Some(22), ("g1", "c1")),
+            fingerprint("sha", 4096, Some(16), Some(22), ("g1", "c1")),
+            fingerprint("sha", 8192, Some(15), Some(22), ("g1", "c1")),
+            fingerprint("sha", 8192, Some(16), Some(21), ("g1", "c1")),
+            fingerprint("sha", 8192, Some(16), Some(22), ("g2", "c1")),
+            fingerprint("sha", 8192, Some(16), Some(22), ("g1", "c2")),
+        ] {
+            assert_ne!(changed, base, "every part must move the key");
+        }
+    }
+
     /// A refusal on disk is a closed cause, not a sentence: a path or any
     /// other text a step-2 stderr line might carry is not our format.
     #[test]

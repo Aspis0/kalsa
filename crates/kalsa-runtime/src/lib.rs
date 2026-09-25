@@ -50,3 +50,6 @@ pub use candidates::candidates_for;
 pub use decide::{decide, decide_cpu, DecideError, Decision};
 pub use disposable::{free_loopback_port, serve, Disposable, ServeError};
 pub use inlet::{engine_consumes_private_headers, ENGINE_MODULE_FILE};
+// Engine identity, one source: the verdict's own fingerprint format, for
+// anything that must move when the verdict would (the tune record).
+pub use verdict::fingerprint;

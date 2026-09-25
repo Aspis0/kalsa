@@ -6,9 +6,10 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-/// Every sample decodes exactly this many tokens — `ignore_eos` holds the
-/// server to it — so rates from different builds are the same work made.
-const N_PREDICT: u64 = 64;
+/// Every measured sample decodes exactly this many tokens — `ignore_eos`
+/// holds the server to it — so rates from different builds are the same
+/// work made. The warm-up asks for far fewer (see `WARMUP_N_PREDICT`).
+pub(crate) const N_PREDICT: u64 = 64;
 
 /// One fixed prompt: the same work for every candidate, a plain factual
 /// paragraph no model is tempted to end early or refuse.
@@ -33,15 +34,8 @@ pub(crate) fn rate_from(body: &str) -> Option<f64> {
 /// parseable body is no sample: a server still loading answers 503, a
 /// build without the endpoint answers 404, and neither is this crate's
 /// problem to surface — it is a lifetime with no usable answer.
-pub(crate) fn request(addr: SocketAddr, timeout: Duration) -> Option<f64> {
-    let body = serde_json::json!({
-        "prompt": PROMPT,
-        "n_predict": N_PREDICT,
-        "ignore_eos": true,
-        "temperature": 0.0,
-        "cache_prompt": false,
-    })
-    .to_string();
+pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Option<f64> {
+    let body = completion_body(n_predict);
     let reply = ureq::post(&format!("http://{addr}/completion"))
         .timeout(timeout)
         .send_string(&body);
@@ -49,6 +43,19 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration) -> Option<f64> {
         Ok(response) => rate_from(&response.into_string().ok()?),
         Err(_) => None,
     }
+}
+
+/// The exact ask, with the token count the caller chose: the same prompt,
+/// the same flags, a different `n_predict` for the warm-up.
+fn completion_body(n_predict: u64) -> String {
+    serde_json::json!({
+        "prompt": PROMPT,
+        "n_predict": n_predict,
+        "ignore_eos": true,
+        "temperature": 0.0,
+        "cache_prompt": false,
+    })
+    .to_string()
 }
 
 /// True when the port lists OUR nonce among `/v1/models`'s entries — the
@@ -166,6 +173,16 @@ mod tests {
         assert!(!id_among(r#"{"data":[]}"#, nonce), "no entries: no proof");
         assert!(!id_among(r#"{"data":[{"object":"model"}]}"#, nonce), "no id: no proof");
         assert!(!id_among("not json at all", nonce), "unparsable: no proof");
+    }
+
+    /// The warm-up and the measured requests differ in exactly one field.
+    #[test]
+    fn the_warm_up_asks_for_fewer_tokens_than_the_measurement() {
+        let warm = completion_body(8);
+        assert!(warm.contains("\"n_predict\":8"), "{warm}");
+        let measured = completion_body(N_PREDICT);
+        assert!(measured.contains("\"n_predict\":64"), "{measured}");
+        assert!(warm.contains("\"ignore_eos\":true"), "{warm}");
     }
 
     #[test]

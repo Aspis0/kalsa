@@ -38,6 +38,7 @@ use kalsa_probe::ProbeConfig;
 use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
 
 use crate::capability::CHOSEN_REASON;
+use crate::tune_step::{tune_label, tune_line, Tune};
 use crate::startup::{self, Machine, Progress, PROCESSOR_FALLBACK_REASON};
 use self::http::chat_completion;
 
@@ -153,6 +154,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         Progress::Measuring => eprintln!("walk: measuring"),
         Progress::Deciding => eprintln!("walk: deciding the engine build"),
         Progress::Choosing => eprintln!("walk: the catalog is choosing"),
+        Progress::Tuning { done, planned } => eprintln!("walk: tuning {done}/{planned}"),
         Progress::RuntimeBytes { done, total } => {
             bytes_mark("runtime", done, total, &mut runtime_mark)
         }
@@ -174,6 +176,21 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     )
     .map_err(|failure| crate::failure::words(&failure))
     .expect("the walk placed the chosen model and prepared the start");
+
+    // ── 4b. the tune's own report: one line per candidate, then the line
+    // the panel would show — the Windows walks prove the tune from these.
+    if let Some(tune) = &prepared.info.tune {
+        if let Tune::Measured(record) = tune {
+            for (candidate, kept) in &record.trials {
+                let word = match kept {
+                    kalsa_tune::record::Kept::Best(rate) => format!("{rate:.1} tok/s"),
+                    kalsa_tune::record::Kept::Refused(refusal) => format!("refused ({refusal:?})"),
+                };
+                eprintln!("tune: {} — {word}", tune_label(candidate));
+            }
+        }
+        eprintln!("tune: {}", tune_line(tune));
+    }
 
     // ── 5. the stored choice was honoured, not silently replaced ───────────
     // On a machine that already holds the automatic answer this is the only

@@ -55,7 +55,7 @@ pub(crate) struct Verdict {
 /// the kind of change that flips a working backend into a refusing one.
 /// Elsewhere the driver ships with the OS, which the platform name already
 /// stands for.
-pub(crate) fn fingerprint(platform: Platform, backend: ServerBackend, detected: Backend) -> String {
+pub fn fingerprint(platform: Platform, backend: ServerBackend, detected: Backend) -> String {
     let build = assets::assets_for(platform, backend)
         .into_iter()
         .map(|asset| asset.sha256.unwrap_or("unfilled"))

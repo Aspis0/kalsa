@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 // vanilla setup page, removed when the chat became the frontend. The backend
 // contract is the Progress event
 // `brain_progress`, serialised in src-tauri/src/startup.rs with the tag
-// "kind": { kind: "measuring" | "deciding" | "choosing" } and the byte
+// "kind": { kind: "measuring" | "deciding" | "choosing" | "tuning" } and the byte
 // phases { kind: "runtime_bytes" | "model_bytes", done, total }. This view
 // replaces the Server surface body while the walk runs; the walk's failures
 // arrive as brain_start rejections and are spoken by the Server surface. The words
@@ -44,6 +44,10 @@ const COPY: Record<string, WalkCopy> = {
   choosing: {
     head: "Getting ready",
     sentence: "Deciding which model fits this computer and runs fast enough to use.",
+  },
+  tuning: {
+    head: "Getting ready",
+    sentence: "Trying a few settings on this computer and keeping the fastest one. This happens once.",
   },
   model_bytes: {
     head: "Downloading",
@@ -101,6 +105,19 @@ function walkView(raw: ProgressStep, lastKind: { current: string | null }): Walk
   const resumed = phaseStart && bytesPhase && (step.done ?? 0) > 0;
 
   const copy = COPY[kind] ?? COPY.unknown;
+
+  // The tune counts lifetimes, not bytes: its line is the count, and the
+  // byte machinery (MB/GB, received-so-far) must never see it.
+  if (kind === "tuning") {
+    const done = step.done ?? 0;
+    const planned = step.total ?? 0;
+    return {
+      head: copy.head,
+      sentence: copy.sentence,
+      progress: `${done} of ${planned} settings tried`,
+      pct: null,
+    };
+  }
 
   if (!bytesPhase) {
     return { head: copy.head, sentence: copy.sentence, progress: null, pct: null };

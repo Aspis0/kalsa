@@ -157,6 +157,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
             display_name: Some("IBM Granite 4 Tiny".to_string()),
             reason: Some("It is the more capable of the two.".to_string()),
             model_sha256: None,
+            tune: None,
         },
         StartOutcome::Accepted,
     );
@@ -315,6 +316,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
             display_name: None,
             reason: None,
             model_sha256: None,
+            tune: None,
         });
     }
     brain.clear_launch_for_state(&ServerState::Starting);
@@ -346,6 +348,7 @@ fn a_drain_takes_the_launch_record_down_with_it() {
             display_name: None,
             reason: None,
             model_sha256: None,
+            tune: None,
         },
         StartOutcome::Accepted,
     );
@@ -376,6 +379,7 @@ fn a_refused_start_never_publishes_its_record() {
         display_name: None,
         reason: None,
         model_sha256: None,
+        tune: None,
     };
     let rejected = startup::LaunchInfo {
         args: launch_args("/models/rejected.gguf", 8138),
@@ -391,6 +395,7 @@ fn a_refused_start_never_publishes_its_record() {
         display_name: None,
         reason: None,
         model_sha256: None,
+        tune: None,
     };
     brain.record_launch(running, StartOutcome::Accepted);
     brain.record_launch(rejected, StartOutcome::Refused);
@@ -1156,6 +1161,7 @@ fn a_store_holding_only_the_host_starts_the_door() {
             display_name: None,
             reason: None,
             model_sha256: None,
+            tune: None,
         },
         StartOutcome::Accepted,
     );
@@ -1243,6 +1249,7 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
             display_name: Some("IBM Granite 4 Tiny".to_string()),
             reason: None,
             model_sha256: Some(sha256.to_string()),
+            tune: None,
         },
         StartOutcome::Accepted,
     );
@@ -1307,6 +1314,7 @@ fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_w
             display_name: None,
             reason: None,
             model_sha256: None,
+            tune: None,
         },
         StartOutcome::Accepted,
     );
@@ -1360,6 +1368,7 @@ fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_c
                 display_name: None,
                 reason: None,
                 model_sha256: Some(digest.to_string()),
+                tune: None,
             },
             StartOutcome::Accepted,
         );

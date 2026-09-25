@@ -15,6 +15,27 @@ use crate::candidates::Candidate;
 use crate::winner::{Outcome, Refusal, Winner};
 
 const MAGIC: &str = "kalsa-tune v1";
+
+/// The record's key: everything whose change must force a re-tune. Opaque —
+/// save and load only compare it — and one function, so the walk, the tune
+/// and the real walk can never compose it differently. The two engine
+/// strings come from `kalsa_runtime::fingerprint` (the verdict's own
+/// format: build digests | OS | detected backend | driver version), so a
+/// new engine build, a new driver or a different card moves the key even
+/// when the model and the context stand still.
+pub fn fingerprint(
+    model_digest: &str,
+    context_tokens: u64,
+    physical_cores: Option<usize>,
+    logical_cores: Option<usize>,
+    engine_builds: (&str, &str),
+) -> String {
+    format!(
+        "kalsa-tune fp v1|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
+         logical={logical_cores:?}|graphics={}|processor={}",
+        engine_builds.0, engine_builds.1
+    )
+}
 /// The winner as the file holds it, field by field until every line has
 /// arrived: backend, offload, threads (optional), best.
 type WinnerLine = (ServerBackend, Option<Offload>, Option<usize>, Option<f64>);

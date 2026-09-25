@@ -26,6 +26,7 @@ kalsa-iroh = { path = "../crates/kalsa-iroh" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }
 kalsa-probe = { path = "../crates/kalsa-probe" }
 kalsa-runtime = { path = "../crates/kalsa-runtime" }
+kalsa-tune = { path = "../crates/kalsa-tune" }
 kalsa-sentinel = { path = "../crates/kalsa-sentinel" }
 kalsa-supervisor = { path = "../crates/kalsa-supervisor" }
 # The assistant's web search and page fetch. Requests leave from Rust: the

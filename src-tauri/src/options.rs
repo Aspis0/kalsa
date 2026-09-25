@@ -246,6 +246,14 @@ pub(crate) struct AdvancedDto {
     pub(crate) iroh_sentence: String,
     pub(crate) internet_road: bool,
     pub(crate) running: bool,
+    /// The tune's line for this launch, composed once in `tune_step` —
+    /// `None` when nothing was tuned to show (development path, or no
+    /// active launch). Absent from the JSON when `None`: the pinned
+    /// contract in chat/scripts names the fields the page reads today,
+    /// and an optional string the page treats as falsy needs no entry
+    /// there yet.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) tune: Option<String>,
 }
 
 pub(crate) fn dto(
@@ -315,6 +323,7 @@ pub(crate) fn dto(
         iroh_sentence,
         internet_road: overrides.internet_road,
         running,
+        tune: active.and_then(|info| info.tune.as_ref()).map(crate::tune_step::tune_line),
     }
 }
 
@@ -642,6 +651,7 @@ mod tests {
                 display_name: Some("Alibaba Qwen 3.6".to_string()),
                 reason: Some("It is the more capable of the two.".to_string()),
                 model_sha256: None,
+                tune: None,
             }),
             Some(8130),
             "The internet road is open.".to_string(),
