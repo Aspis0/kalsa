@@ -29,6 +29,7 @@ use std::time::Duration;
 
 use iroh::address_lookup::memory::MemoryLookup;
 use iroh::endpoint::presets;
+use iroh::endpoint::TransportAddrUsage;
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::timeout_at;
@@ -242,6 +243,31 @@ impl Transport {
 
     pub(crate) fn node_id(&self) -> NodeId {
         NodeId::from_bytes(*self.endpoint.id().as_bytes())
+    }
+
+    /// The transports iroh currently knows for `remote`, as plain text:
+    /// `active ip <addr>` or `known relay <url>` — `active` marks the path
+    /// in use. A snapshot, not a watcher; the dial example polls it. An
+    /// unknown or closed remote answers an empty list, which is a fact, not
+    /// an error.
+    pub(crate) async fn remote_paths(&self, remote: &NodeId) -> Vec<String> {
+        let Ok(id) = endpoint_id(remote) else {
+            return Vec::new();
+        };
+        let Some(info) = self.endpoint.remote_info(id).await else {
+            return Vec::new();
+        };
+        info.addrs()
+            .map(|entry| {
+                let usage = match entry.usage() {
+                    TransportAddrUsage::Active => "active",
+                    TransportAddrUsage::Inactive => "known",
+                    // The enum is `non_exhaustive` upstream.
+                    _ => "unknown-usage",
+                };
+                format!("{usage} {}", entry.addr())
+            })
+            .collect()
     }
 
     /// This endpoint's current addressing, into a book that was handed to

@@ -157,6 +157,13 @@ impl Bridge {
         self.transport.dial(&remote, self.dial_timeout).await
     }
 
+    /// The transports iroh currently knows for `remote`, in plain text —
+    /// the dial example's window onto the path iroh chose. Production code
+    /// never asks.
+    pub async fn remote_paths(&self, remote: NodeId) -> Vec<String> {
+        self.transport.remote_paths(&remote).await
+    }
+
     /// Stop accepting and close the endpoint gracefully: the tunnels in
     /// flight see QUIC close frames, not a reset. Idempotent.
     pub fn shutdown(&self) {
