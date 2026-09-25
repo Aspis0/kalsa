@@ -39,3 +39,4 @@ to agents. Short answers, brutal honesty, verify every load-bearing claim on dis
 4. New lane: CPU speculative decoding with a draft-probability gate (CPU verifies K=4 for 1.24x one step on
    the ship model, QRD8750).
 5. kalsa-brain-90 is repinning kalsa-server v1.1.2 (Mac + Windows); it will report to you.
+6. Fold the 2026-09-25 facts from COORDINATOR-STATE.md into PLAN.md and docs/ALIVE.md (the two living docs; NOT done by kalsa-99), including the v1.1.2 Windows release in ALIVE "Engine release pipeline".
