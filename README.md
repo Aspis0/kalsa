@@ -42,7 +42,8 @@ crates/kalsa-iroh/         the second road to the door: a hole-punched QUIC
                            one file
 crates/kalsa-launch/       the exact arguments llama-server gets: context sized
                            to what the KV cache fits after the weights, threads
-                           at the measured plateau, offload all or nothing
+                           at the measured plateau capped at the physical
+                           cores, offload all or nothing
 crates/kalsa-pairing/      the ceremony behind the pairing square: one-time
                            codes, the completion handshake, the offered /
                            claimed / paired machine, and the credential that

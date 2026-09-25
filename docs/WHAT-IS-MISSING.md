@@ -250,7 +250,16 @@ owes a waiting device do not.
   with the multi-device measurement; that measurement is done (`d6daf16`, `85a7b75`), so
   nothing blocks it now except someone taking it.
 
-## 12. The brain's own screen — the fields are CLOSED, the pairing moved, and the PC is still not a device
+## 12. The brain's own screen — the fields are CLOSED, the PC is a device, the seats are not drawn
+
+**Re-read on 2026-09-25: the rest of this section is stale on its central claim.** The PC registers
+itself as the first device (`kalsa-pairing` `store.rs` `enrol_host`, label `HOST_LABEL` = "This
+computer"; `src-tauri/src/main.rs` `take_own_seat`), and the desktop chat reaches the model through the
+door with that device's credential (`main.rs` `brain_host_credential`; `chat/src/surfaces/useBrain.ts`,
+"the page's own chat is a device at the door"). `9ce4fa2` and `0e11504` pin that the host cannot be
+forgotten and that its credential leaves by no other DTO. What is still open is drawing the four seats
+on the first screen, which is an owner decision (`docs/NIGHT-RUN-2026-09-25.md` §5). The text below is the
+record as it stood.
 
 `docs/THE-BRAIN-IS-THE-HOME.md` sets the design intent: which model is loaded, whether it
 is warm, how many of the four seats are taken and by whom. The two fields that first blocked
@@ -637,6 +646,10 @@ the server by port, verify its identity, and end it.
   `Stopping`. By its own commit message, `Watch::state()` still reads `Stopping` for such a
   drain.
 
+**Closed on 2026-09-25 (`f3cacdc`, `7b77116`, `a9e0023`): the first bullet below.** A stop that follows
+an unconfirmed stop now probes the port, with the prior state carried on the command, and writes Stopped
+only if the port refuses. The bullet is kept as the record of how it stood.
+
 What stays open:
 - **A second stop would claim "Off" with nothing checked.** The first stop takes what was
   owned (`owned.take()`, `supervisor.rs:485`), whatever it ends in, so a second stop command
@@ -729,6 +742,19 @@ to change. Deleting the page without an answer takes both with it, and nothing e
 on this list would notice.
 
 ## 22. Windows GPU detection runs a tool Windows 11 24H2 and 25H2 no longer ship — it may refuse every model there
+
+**Run on two Windows machines on 2026-09-25; see `docs/NIGHT-RUN-2026-09-25.md`.** The read-only capture
+(`dev/windows-gpu-capture.ps1`) recorded both producers on each machine:
+- on the Surface (25H2) `wmic` is absent and the PowerShell query answered;
+- on the Lenovo `wmic` is present and answered.
+
+The `AdapterRAM` risk below was real: the Lenovo's RTX 4050 read 4293918720, and the registry supplied
+6 439 305 216. It is now sized from the registry's `qwMemorySize` (`7fef63b` … `a18678e`).
+
+The "never compiled" item below is superseded: `cargo test -p kalsa-runtime` builds and runs natively on
+the Surface, per the coders' Surface runs recorded in `ac3e35c` and `5fce639`. The real walk passes on both machines. The Lenovo's card budget refused
+every row, and the processor fallback (`e6eb5b3`, `47984d1`) now runs the model on the CPU instead. Still
+open: Windows on ARM, which is the owner's call. The text below is the record as it stood.
 
 `crates/kalsa-probe/src/detect.rs:46` detects the Windows GPU by running
 `wmic path win32_VideoController get name,AdapterRAM`. When the command fails, it answers
