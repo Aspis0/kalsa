@@ -191,16 +191,36 @@ mod tests {
 
     /// A listener that answers `reply` to the first connection, then closes —
     /// or accepts and closes in silence when `reply` is `None`.
+    ///
+    /// Deterministic by construction. The thread signals just before it
+    /// blocks in `accept`, and this returns only on that signal, so the
+    /// probe's connect is queued for an accept that is already on its way
+    /// (a connect that slips in ahead of the accept lands in the listener's
+    /// queue — the same wait). And the request is drained before the socket
+    /// closes: closing with unread bytes sends RST, which can discard the
+    /// reply already in flight and read back as `Silent` — the flake this
+    /// fixture produced on the Surface (`a_200_reads_as_there`, twice).
     fn serve_once(reply: Option<String>) -> (SocketAddr, std::thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind the stand-in");
         let addr = listener.local_addr().expect("the stand-in's address");
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
         let handle = std::thread::spawn(move || {
+            let _ = ready_tx.send(());
             if let Ok((mut stream, _)) = listener.accept() {
+                // Read to the quiet edge, bounded: the probe's request is one
+                // small segment, and the trailing wait is what tells "all of
+                // it arrived" from "nothing more is coming".
+                let _ = stream.set_read_timeout(Some(Duration::from_millis(100)));
+                let mut request = [0u8; 1024];
+                while matches!(stream.read(&mut request), Ok(n) if n > 0) {}
                 if let Some(reply) = reply {
                     let _ = stream.write_all(reply.as_bytes());
                 }
             }
         });
+        ready_rx
+            .recv()
+            .expect("the server thread reached its accept");
         (addr, handle)
     }
 
