@@ -109,6 +109,16 @@ let serverSnapshot: BrainServer | null = null;
 // re-fetched rather than kept forever, because forgetting the store mints a
 // new one: see `forgetLocalCredential`.
 let hostCredential: string | null = null;
+
+/** The host credential's own progress — which the first page reads to name
+    its arm: answered (the door can present it), refused by the store (the
+    Devices page re-mints it), or not asked yet. */
+export type HostKeyState = "answered" | "missing" | "pending";
+
+// Whether the credential's own read has FAILED — distinct from "not asked
+// yet": the store's refusal and a read still in flight send the owner to
+// different fixes, and the first page must not blur them.
+let credentialMissing = false;
 // What the shell is allowed to do with a slot, derived in `publish` from the
 // facts above. `unready` until the first answer: a window that has not heard
 // from its own brain does not know whether there is a door to diverge from.
@@ -194,10 +204,15 @@ async function poll(): Promise<void> {
   if (currentState?.kind === "running" && currentState.endpoint && hostCredential === null) {
     try {
       const value = await invoke<string>("brain_host_credential");
-      if (typeof value === "string" && value.trim()) hostCredential = value.trim();
+      if (typeof value === "string" && value.trim()) {
+        hostCredential = value.trim();
+        credentialMissing = false;
+      }
     } catch {
       // No key yet: the page then has no local connection to offer, which is
-      // the honest state, and the next poll tries again.
+      // the honest state, and the next poll tries again. The refusal is
+      // remembered beside it: the first page names the fix, not the wait.
+      credentialMissing = true;
     }
   }
   publish();
@@ -317,6 +332,9 @@ export function useDoorStanding(): DoorStanding {
     without it the window keeps a dead credential until a reload. */
 export function forgetLocalCredential(): void {
   hostCredential = null;
+  // The hatch replaced the store this refusal spoke about: the next read is
+  // pending, not refused.
+  credentialMissing = false;
   publish();
 }
 
@@ -563,5 +581,20 @@ export function useBrain() {
     void poll();
   }
 
-  return { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel };
+  return {
+    state,
+    liveStep,
+    heldFailure,
+    stopFailure,
+    busy,
+    act,
+    chooseModel,
+    // The credential's own state for the first page: a fresh attempt is
+    // pending, never a verdict.
+    credential: (hostCredential !== null
+      ? "answered"
+      : credentialMissing
+        ? "missing"
+        : "pending") as HostKeyState,
+  };
 }

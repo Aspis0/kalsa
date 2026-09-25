@@ -412,6 +412,10 @@ try {
     "You never have to pick anything",
     "The Server page says why",
     "It is starting now",
+    // The first page, ready: no action offered HERE — the composer beside
+    // it is where the message goes (an EmptyState arm, added with the
+    // remote-server removal).
+    "Write your first message below to begin.",
   ];
   for (const { heading, sentence, button, working, walk, qr } of results) {
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
@@ -693,6 +697,38 @@ try {
     const waitingCount = sentence.match(/(\d+) (?:is|are) waiting/);
     if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
       problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
+    }
+
+    // The first page's arms: the sentence and the button must be the words
+    // of the page that fixes THAT arm (states-react titles carry the arm,
+    // and its scenarios build the arm through setupArm — the mapping App
+    // runs, so a broken mapping reddens its own arm's check here).
+    const FIRST_PAGE = {
+      off: ["This computer is not running anything right now.", "Go to Server"],
+      starting: ["Getting ready. On an older computer this can take a minute.", "Go to Server"],
+      key: ["This computer has not made its own connection key yet.", "Devices"],
+      settings: ["This computer has no model name yet.", "Open settings"],
+      ready: ["Write your first message below to begin.", null],
+    };
+    const armName = Object.keys(FIRST_PAGE).find((arm) =>
+      heading.startsWith(`firstpage/${arm} `),
+    );
+    if (heading.startsWith("firstpage/") && !armName) {
+      problems.push(`unknown first-page arm: ${heading}`);
+    }
+    if (armName) {
+      const [wanted, button] = FIRST_PAGE[armName];
+      if (!all.includes(wanted)) {
+        problems.push(`firstpage/${armName}: the arm must say "${wanted}": ${heading}`);
+      }
+      if (button === null) {
+        const offered = ["Go to Server", "Open settings", "Devices"].filter((b) => buttons.includes(b));
+        if (offered.length > 0) {
+          problems.push(`firstpage/${armName}: the ready page offers nothing to fix: ${JSON.stringify(offered)}`);
+        }
+      } else if (!buttons.includes(button)) {
+        problems.push(`firstpage/${armName}: the arm must offer "${button}": ${heading} (buttons: ${JSON.stringify(buttons)})`);
+      }
     }
     // The note is demanded exactly where the components render it. Only the
     // desk port is on every pairing read; the door's is there only while

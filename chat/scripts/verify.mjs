@@ -1000,29 +1000,72 @@ const tests = {
   // an obsolete secret does not wait for a settings visit that may never
   // come (the crash path's wipe is not a migration).
   async legacysettings() {
+    // Three shapes a record from the remote-server era can arrive in, each
+    // loaded by the real page: the stale pair must leave in ALL of them.
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
-    const page = await browser.newPage();
-    await page.addInitScript(() => {
-      localStorage.clear();
-      localStorage.setItem("crescent-chat.theme.v1", "light");
-      localStorage.setItem(
-        "crescent-chat.settings.v1",
-        JSON.stringify({
-          endpoint: "https://old.example:8000",
-          token: "sk-legacy-secret",
-          model: "keep-me",
-          webTools: false,
-        }),
-      );
-    });
-    await page.goto(APP);
-    await page.waitForTimeout(600);
-    const raw = await page.evaluate(() => localStorage.getItem("crescent-chat.settings.v1"));
-    const parsed = JSON.parse(raw ?? "{}");
-    check("legacy: the stale endpoint is gone", !("endpoint" in parsed), raw ?? "null");
-    check("legacy: the stale key is gone", !("token" in parsed), raw ?? "null");
-    check("legacy: the model name survives", parsed.model === "keep-me", String(parsed.model));
-    check("legacy: the switch survives", parsed.webTools === false, String(parsed.webTools));
+    const seeded = async (raw) => {
+      const page = await browser.newPage();
+      await page.addInitScript((value) => {
+        localStorage.clear();
+        localStorage.setItem("crescent-chat.theme.v1", "light");
+        localStorage.setItem("crescent-chat.settings.v1", value);
+      }, raw);
+      await page.goto(APP);
+      await page.waitForTimeout(600);
+      return page;
+    };
+    const stored = (page) => page.evaluate(() => localStorage.getItem("crescent-chat.settings.v1"));
+
+    // An object: endpoint/token leave; the model, the switch AND a key this
+    // version has never heard of stay — a whitelist rewrite would drop it.
+    let page = await seeded(
+      JSON.stringify({
+        endpoint: "https://old.example:8000",
+        token: "sk-legacy-secret",
+        model: "keep-me",
+        webTools: false,
+        future_key: "keep me",
+      }),
+    );
+    let raw = await stored(page);
+    let parsed = JSON.parse(raw ?? "null");
+    check("legacy object: the stale endpoint is gone", raw !== null && !("endpoint" in parsed), raw ?? "null");
+    check("legacy object: the stale key is gone", raw !== null && !("token" in parsed), raw ?? "null");
+    check("legacy object: an unknown key survives", parsed?.future_key === "keep me", raw ?? "null");
+    check(
+      "legacy object: the model and the switch survive",
+      parsed?.model === "keep-me" && parsed?.webTools === false,
+      raw ?? "null",
+    );
+    // …and a save must not rewrite the unknown key away either: the form
+    // holds only the fields it knows.
+    // The home page carries the Settings point directly (there is no open
+    // conversation and so no crescent menu to open first).
+    await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.waitForTimeout(300);
+    const afterSave = await stored(page);
+    const saved = JSON.parse(afterSave ?? "null");
+    check(
+      "legacy object: saving the form keeps the unknown key",
+      saved?.future_key === "keep me" && !("token" in saved),
+      afterSave ?? "null",
+    );
+    await page.close();
+
+    // Unparsable JSON: the bytes may BE the old API key — the record goes.
+    page = await seeded("not json {");
+    raw = await stored(page);
+    check("legacy broken: the record itself is removed", raw === null, String(raw));
+    await page.close();
+
+    // A plain string parses but is not a record: same verdict, same reason.
+    page = await seeded('"a string"');
+    raw = await stored(page);
+    check("legacy string: the record itself is removed", raw === null, String(raw));
+    await page.close();
+
     await browser.close();
   },
 

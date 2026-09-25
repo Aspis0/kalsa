@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { flushSync } from "react-dom";
 import { createStore, titleFor, uid } from "./lib/store";
 import { appendTail } from "./lib/tail";
-import { isConfigured, loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
+import { loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
 import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
 import { ensureContextSize, hasContextSize } from "./lib/contextSize";
@@ -29,13 +29,13 @@ import { Sidebar } from "./components/Sidebar";
 import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
-import { useBrainServer, useDoorStanding, withBrainDefaults } from "./surfaces/useBrain";
+import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./surfaces/useBrain";
 import { useServerFacts } from "./surfaces/useServerFacts";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { AdvancedSurface } from "./surfaces/AdvancedSurface";
-import { EmptyState } from "./components/EmptyState";
+import { EmptyState, setupArm } from "./components/EmptyState";
 import { executeToolCall, offeredTools } from "./lib/tools/registry";
 import type { GateCheck } from "./lib/tools/registry";
 import { WebGateDialog } from "./components/WebGateDialog";
@@ -217,11 +217,17 @@ export function App() {
     () => withBrainDefaults(settings, brainServer),
     [settings, brainServer],
   );
-  const configured = isConfigured(effectiveSettings);
   // Why the first page has nothing to offer, in the words of the page that
-  // fixes it: a machine that is off is the Server page's to turn on, and a
-  // running machine with no model name is Settings' to give one.
-  const setup = configured ? null : effectiveSettings.endpoint ? "settings" : "server";
+  // fixes it: `setupArm` maps this machine's own state onto those arms — an
+  // off machine lands on the Server page, a starting one says so, a refused
+  // key lands where the key is re-minted, a nameless model on Settings.
+  const { state, credential } = useBrain();
+  const setup = setupArm(
+    state?.kind ?? null,
+    credential,
+    brainServer !== null,
+    effectiveSettings.model,
+  );
   // The disk tier's door, when this window is talking to one: a running
   // brain is the fact that makes the endpoint the door and the token this
   // device's credential (`withBrainDefaults`). With no door there is no tier
@@ -1126,6 +1132,7 @@ export function App() {
                     setup={setup}
                     onOpenSettings={() => openSurface("settings")}
                     onOpenServer={() => openSurface("server")}
+                    onOpenDevices={() => openSurface("devices")}
                   />
                 ) : (
                   <Thread
@@ -1187,8 +1194,12 @@ export function App() {
                 saveSettings(next);
               }}
               onSave={(next) => {
-                setSettings(next);
-                saveSettings(next);
+                // The form holds only the fields it knows; the record may
+                // carry fields this version does not — a save must not
+                // rewrite them away.
+                const merged = { ...settings, ...next };
+                setSettings(merged);
+                saveSettings(merged);
                 nctxCache.current.clear();
                 setCtxInfo(null);
               }}

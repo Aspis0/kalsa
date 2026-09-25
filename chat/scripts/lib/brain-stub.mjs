@@ -19,7 +19,10 @@ export function installBrainStub(brain) {
         const stub = window.__STUB_BRAIN__;
         if (command === "brain_state") return stub?.state ?? null;
         if (command === "brain_host_credential") return stub?.credential ?? null;
-        return null;
+        // An undeclared command is a gap in the SCENARIO, not a null to
+        // swallow: the rejection names it, so a failing check says which
+        // declaration is missing instead of passing on a quiet undefined.
+        throw new Error(`brain-stub: scenario did not declare ${command}`);
       },
     },
     event: { listen: () => Promise.resolve(() => {}) },

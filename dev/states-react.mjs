@@ -13,6 +13,7 @@ import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
 import { brainWords } from "../chat/src/surfaces/useBrain";
+import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -226,6 +227,15 @@ const scenarios = [
   ["Pairing", "the connection could not be saved", "devices", { pairing: pairingDto("failed", { failure: "could-not-save" }) }],
   ["Pairing", "the existing phone connection could not be read", "devices", { pairing: pairingDto("failed", { failure: "could-not-read" }) }],
   ["Pairing", "the local pairing service stopped", "devices", { pairing: pairingDto("failed", { failure: "service-unavailable" }) }],
+  // The first page's arms: each state through setupArm — the mapping App
+  // runs — so a scenario pins the mapping AND the words the page that fixes
+  // that arm already shows. Titles carry the arm; smoke-react checks both.
+  ["firstpage/off", "the machine is off", "empty", { setup: setupArm("stopped", "answered", true, "x") }],
+  ["firstpage/starting", "the start is walking", "empty", { setup: setupArm("starting", "pending", false, "") }],
+  ["firstpage/key", "the store refused the key", "empty", { setup: setupArm("running", "missing", false, "") }],
+  ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
+  ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
+  ["firstpage/starting", "the door address has not arrived", "empty", { setup: setupArm("running", "answered", false, "") }],
 ];
 
 let bridgeState = {};
@@ -336,7 +346,17 @@ function extract(panel, heading, automatic = []) {
   };
 }
 
-function componentFor(kind) {
+function componentFor(kind, data) {
+  if (kind === "empty") {
+    // The first page off the app: its arms come from the same mapping App
+    // runs, so the scenario pins the mapping and the rendered words both.
+    return React.createElement(EmptyState, {
+      setup: data?.setup,
+      onOpenSettings: () => {},
+      onOpenServer: () => {},
+      onOpenDevices: () => {},
+    });
+  }
   if (kind === "server") return React.createElement(ServerSurface);
   if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
   if (kind === "advanced") return React.createElement(AdvancedSurface);
@@ -351,7 +371,7 @@ async function renderScenario(descriptor) {
   const panel = document.createElement("div");
   document.getElementById("cards").appendChild(panel);
   const root = createRoot(panel);
-  root.render(componentFor(kind));
+  root.render(componentFor(kind, data));
   await settle();
   if (data.step) {
     for (const handler of eventHandlers) handler(data.step);

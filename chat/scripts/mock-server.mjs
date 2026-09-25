@@ -182,10 +182,14 @@ const server = http.createServer((req, res) => {
   // the endpoint carries a scenario prefix (/ok, /denied, …), so the path is
   // matched by its end. 204 is SlotAnswer's `ok` (chat.ts slotRoute), which
   // is all `activate`/`erase` need to say.
-  if (
+  // The door's slot routes under the SCENARIO's own base — the exact path
+  // serverBase(endpoint) builds (`…/ok/kalsa/chat/activate`). A bare
+  // `/kalsa/chat/activate` would mean the address lost its scenario prefix,
+  // so only the based path answers 204: the check proves the address.
+  const slotRoute =
     req.method === "POST" &&
-    (req.url.endsWith("/kalsa/chat/activate") || req.url.endsWith("/kalsa/chat/erase"))
-  ) {
+    /^(?:\/[\w.-]+)+\/kalsa\/chat\/(?:activate|erase)$/.exec(req.url);
+  if (slotRoute) {
     req.resume();
     res.writeHead(204, CORS);
     res.end();
