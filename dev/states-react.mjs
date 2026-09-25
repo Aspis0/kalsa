@@ -235,7 +235,7 @@ const scenarios = [
   ["firstpage/key", "the store refused the key", "empty", { setup: setupArm("running", "missing", false, "") }],
   ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
   ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
-  ["firstpage/starting", "the door address has not arrived", "empty", { setup: setupArm("running", "answered", false, "") }],
+  ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],
 ];
 
 let bridgeState = {};

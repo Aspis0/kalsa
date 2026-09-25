@@ -705,6 +705,7 @@ try {
     // runs, so a broken mapping reddens its own arm's check here).
     const FIRST_PAGE = {
       off: ["This computer is not running anything right now.", "Go to Server"],
+      service: ["The local pairing service stopped. Restart the app to make pairing available again.", "Go to Server"],
       starting: ["Getting ready. On an older computer this can take a minute.", "Go to Server"],
       key: ["This computer has not made its own connection key yet.", "Devices"],
       settings: ["This computer has no model name yet.", "Open settings"],
