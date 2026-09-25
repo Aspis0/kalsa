@@ -1028,8 +1028,16 @@ mod tests {
         // not be signalled.
         let port = 8293;
         let stand_in_path = std::env::temp_dir().join(format!("kalsa-recycle-{port}.bin"));
+        // A live foreign process the stop must not signal. `ping -n` is the
+        // Windows sleep: it stays alive across the whole test either way.
+        #[cfg(unix)]
         let mut stand_in = std::process::Command::new("/bin/sleep")
             .arg("30")
+            .spawn()
+            .expect("spawn the stand-in for a recycled pid");
+        #[cfg(windows)]
+        let mut stand_in = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
             .spawn()
             .expect("spawn the stand-in for a recycled pid");
         let stand_in_pid = stand_in.id();
@@ -1072,8 +1080,16 @@ mod tests {
         let port = 8295;
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
+        // A live foreign process again; `ping -n` stands in for sleep on
+        // Windows the same way.
+        #[cfg(unix)]
         let mut stand_in = std::process::Command::new("/bin/sleep")
             .arg("300")
+            .spawn()
+            .expect("spawn the survivor");
+        #[cfg(windows)]
+        let mut stand_in = std::process::Command::new("ping")
+            .args(["-n", "300", "127.0.0.1"])
             .spawn()
             .expect("spawn the survivor");
         let pid = stand_in.id();
@@ -1191,9 +1207,17 @@ mod tests {
         let _ = std::fs::remove_file(&state_file);
         let suspect_path = format!("{}.orphan", state_file.display());
         let _ = std::fs::remove_file(&suspect_path);
+        // A pid to consume and reap — whatever exits immediately and
+        // cleanly will do; `cmd /c exit 0` is Windows' `sh -c "exit 0"`.
+        #[cfg(unix)]
         let mut decoy = std::process::Command::new("/bin/sh")
             .arg("-c")
             .arg("exit 0")
+            .spawn()
+            .expect("spawn the decoy");
+        #[cfg(windows)]
+        let mut decoy = std::process::Command::new("cmd")
+            .args(["/c", "exit", "0"])
             .spawn()
             .expect("spawn the decoy");
         let pid = decoy.id();
@@ -1204,7 +1228,11 @@ mod tests {
         )
         .expect("write the state file");
         let lock = std::fs::File::open(&state_file).expect("open the state file");
-        lock.try_lock().expect("hold the lock as the heir would");
+        // The product's own lock: std's whole-file try_lock is mandatory on
+        // Windows and would make this very record unreadable (os 33) —
+        // `hold_state_lock` takes the byte the readers read around, which
+        // is what the integration tests plant with too.
+        crate::hold_state_lock(&lock).expect("hold the lock as the heir would");
 
         let answering: presence::Probe = |_, _| presence::Presence::There {
             evidence: presence::Evidence::Answered {
@@ -1264,9 +1292,21 @@ mod tests {
         let _ = std::fs::remove_file(&state_file);
         let _ = std::fs::remove_file(&suspect_path);
         let residency = Residency::new();
+        // Our child, already on its way out — `cmd /c exit 0` is Windows'
+        // own `sh -c "exit 0"`.
+        #[cfg(unix)]
         let child = ChildHandle::spawn(
             Path::new("/bin/sh"),
             &["-c".into(), "exit 0".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            residency,
+        )
+        .expect("spawn the child that is already on its way out");
+        #[cfg(windows)]
+        let child = ChildHandle::spawn(
+            Path::new("cmd"),
+            &["/c".into(), "exit".into(), "0".into()],
             None,
             Arc::new(AtomicU64::new(0)),
             residency,

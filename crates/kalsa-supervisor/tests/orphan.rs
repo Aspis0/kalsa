@@ -13,6 +13,9 @@ use common::{
 };
 use kalsa_supervisor::{Failure, InstanceFile, ServerState, Supervisor};
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
     let port = unique_port();
@@ -46,6 +49,9 @@ fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
     let _ = stranger.wait();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
     let port = unique_port();
@@ -82,6 +88,9 @@ fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
     let _ = orphan.wait();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
     let port = unique_port();
@@ -110,6 +119,9 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
     supervisor.shutdown();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn an_adopted_server_that_dies_is_reported_not_kept_running() {
     let port = unique_port();
@@ -144,6 +156,9 @@ fn an_adopted_server_that_dies_is_reported_not_kept_running() {
     supervisor.shutdown();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     let port = unique_port();

@@ -4,6 +4,12 @@
 //! The HTTP side is real: the tests host a loopback listener that plays
 //! `/health` (after the child is up, like the child's own server), so the
 //! handshake and the port check under test are the production ones.
+//!
+//! Windows: every test here starts a shell-script fixture child
+//! (tests/fixtures/*.sh) or leans on the harness's `sleep`/`ps` helpers,
+//! so the whole file is unix-only — porting the fake children to Windows
+//! is out of scope.
+#![cfg(unix)]
 
 mod common;
 

@@ -111,6 +111,9 @@ fn a_silent_port_recovers_the_record_before_the_next_start() {
     supervisor.shutdown();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn an_answering_port_replaces_the_record_with_the_adoption() {
     // The replacement sentence: the port answers, `take_over` adopts by port
@@ -153,6 +156,9 @@ fn an_answering_port_replaces_the_record_with_the_adoption() {
     let _ = std::fs::remove_file(suspect_file(port));
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn a_reaped_child_whose_port_still_answers_leaves_the_suspicion_record() {
     // Commit 2's (d) completed: the reap carries the END (`Stopped` — the

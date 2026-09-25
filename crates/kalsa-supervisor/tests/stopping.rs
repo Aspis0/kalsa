@@ -33,6 +33,9 @@ fn stuck_config(port: u16, ready_timeout: Duration) -> kalsa_supervisor::ServerC
     cfg
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn a_stop_during_an_in_flight_start_is_stopping_until_the_worker_drains() {
     let port = unique_port();
@@ -92,6 +95,9 @@ fn a_stop_during_an_in_flight_start_is_stopping_until_the_worker_drains() {
     supervisor.shutdown();
 }
 
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
+#[cfg(unix)]
 #[test]
 fn shutdown_declares_the_drain_before_it_joins_the_worker() {
     let port = unique_port();
