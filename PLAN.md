@@ -488,6 +488,25 @@ dropped). Stated limit: the stamp says whether the tree was clean at a commit, *
 sources correspond byte-for-byte to the linked binary - a stale `target/` is invisible to it,
 and **the build id in `--version` remains the other half**.
 
+## Verified state, 2026-09-25
+
+Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINATOR-STATE.md`.
+
+- **Delivery chain (pushed):** engine `kalsa-phone-v1-1-8` `f25f0c1c5` (pause 43 / kill 44, critical =
+  kill), binding `88b2b57e`, app `main` `0509f8c8`, APK sha256 `855c89de...5c91e7` (CI 36171227792).
+- **Governor research status:** the per-backend (CPU/GPU/NPU) heat tables are still unmeasured (n = 0);
+  the admission deltas `{1.9, 3.25, 3.25, 5.15}` remain NPU-only S23 numbers. NPU-as-verifier is killed on
+  v79 speed; CPU speculative decoding with a draft-probability gate is the new lane (CPU verifies K=4 for
+  1.24x one step on the ship model).
+- **Open owner decision:** the app disables the governor whenever an mmproj is loaded
+  (`LlamaService.ts:2439`). Either run the heat arms on LFM2.5-2.6B (no mmproj) or fix the app first.
+- **Devices:** S23 DSP spin likely fixed by `setprop persist.traced.enable 0` (check it before every S23
+  session). QDC second account `aspis.launcher@gmail.com`; each Paseo browser tab has its own cookies;
+  QDC bills the full requested cap.
+- **Next, in order:** (1) the mmproj decision, then QDC heat arms (QRD8650 4 pairs, QRD7675 2 pairs);
+  (2) S23: NPU Step 0 on v73, then the S23 heat arms; (3) CPU speculative decoding with a confidence
+  gate; (4) only then the thermal routing design (per device AND per model, from the tables).
+
 ## Gates and dates (recovered 2026-09-21)
 
 The concise rewrite of this file dropped the dated register. It is recovered here from
@@ -612,6 +631,16 @@ The order is the owner's to set. The committed near-term work is:
 The engine binary ships inside the desktop app. The operational procedure and the manifest contract
 are in `docs/ALIVE.md`, "Engine release pipeline". This section records where the path stands and
 what is left.
+
+### Position, 2026-09-25
+
+- `kalsa-server-v1.1.2` published (tag `80d9f8b7`, commit `5102686dd` = fork `main` + the
+  BACKEND_DL-safe bmoe hook): macos-arm64, and for the first time win-cpu-x64 and win-vulkan-x64
+  (portable CPU variants). Digests in `docs/ALIVE.md`, "Published state, v1.1.2". kalsa-brain repins
+  Mac + Windows and reruns the walks. Owner OK given directly 2026-09-25.
+- Next: fix the `publish` input check (typed boolean), then consider extracting the duplicated
+  workflow steps into a composite action. A Windows engine-side governor is deferred (owner, 25/09);
+  a power-aware desktop tune is deferred too ("mettiamolo per dopo").
 
 ### Position, 2026-09-22
 

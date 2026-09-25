@@ -570,6 +570,49 @@ recorded because it will recur on every future fix: **a coder's refspec is a pro
 decision - the shipping line moves only when the audit's checklist is cleared, and the branch
 that holds a candidate is a *different object* from the line that ships.**
 
+### 2026-09-24/25 — governor thresholds and routing, route-switch KV, NPU verify, S23 DSP spin
+
+- **Governor lines are now the owner's, not the harness's.** `k_warn_c` 40 / `k_kill_c` 43 were the q56
+  harness guard (WARN 40 / KILL 43), never an owner decision. Owner 2026-09-25: pause 43 C, kill 44 C;
+  admission projection ceiling 42.5; critical_enter = kill in BOTH profiles (the plugged
+  `min(idle+7, cap)` fired at 42 C for a 35 C idle). Engine `kalsa-phone-v1-1-8` `f25f0c1c5`, binding
+  `88b2b57e`, app `0509f8c8`; luna + deepseek SHIP. Owner-accepted risk: a floor chunk from 42.99
+  projects 44.9 on the 1.9 C delta, and kill is a sticky governor failure for the session.
+- **Route-switch KV defect (fixed in `47f18811c`, v1-1-7):** after a GPU prewarm, a CPU-route prefill ran
+  on an empty decode context (answer computed without system prompt or history), then the next GPU
+  turn was rejected and the runtime fell back with the governor OFF. Fix: CPU-route catch-up commit and
+  `commit_side` trims a destination that is ahead. Verified on the S23 smoke
+  (`scratchpad/agents/route-switch-kv/`, `s23-heat-cpu-vs-gpu-v2/`).
+- **App: the governor is disabled whenever an mmproj is loaded** (`src/engine/LlamaService.ts:2439`,
+  `!options.mmprojPath`). Qwen3.5-4B (recommended on high-tier boards) never runs under the governor;
+  `bench:route` reports `skipped`. Found on QDC QRD8650, session 845086
+  (`scratchpad/agents/qdc-heat-per-backend/REPORT.md`). OPEN, owner decision.
+- **Per-backend heat tables: n = 0.** Every S23 and QDC attempt of 24-25/09 ended before a valid arm
+  (DSP spin, tools left ON, a cold-start gate, account/tab problems, the mmproj defect above). What
+  survives is the method: device-side 1 Hz sampler (median 1.06 s), tools OFF, a new-token target
+  (1024 +-5%), validity = `route_requested`/`route_push=applied`/`route_mismatch=false`, no cool-start
+  gate (owner). CPU prefill of 1,116 new tokens on the S23 with the DSP spinning took 68.3 s.
+- **NPU as speculative-decode verifier: killed on speed on v79** (QRD8750, session 845063, kit build
+  `4c7101af4`, LFM2.5-2.6B-QAD-Q4_0, d1920, `scratchpad/agents/npu-spec-verify/REPORT.md`):
+
+  | ms per call | K=1 | K=2 | K=4 | K=8 | K=16 | K4/K1 |
+  |---|---|---|---|---|---|---|
+  | CPU | 28.8 | 38.8 | 35.7 | 57.9 | 92.2 | 1.24 |
+  | NPU `-nkvo` | 39.4 | 43.1 | 71.6 | 74.4 | 97.4 | 1.82 |
+  | NPU KV on HTP | 50.9 | 59.0 | 97.1 | 79.9 | 81.0 | 1.91 |
+
+  Gate (NPU <= 1.5x AND CPU >= 2.5x) fails on both sides. Break-even acceptance for NPU verify ~0.79-0.84
+  vs measured 0.26-0.30. The CPU verifies K=4 for 1.24x one step on the ship model: the old "verify =
+  K x compute" closure (Qwen3.5-4B / MoE) does not transfer. v73 (S23) not yet measured.
+- **S23 DSP spin: cause and likely fix.** Cause: Perfetto `traced_perf` profiling signal (Samsung
+  perfmond). `debug.perfmond.default.perfetto=0` did NOT help (spin back after 63 min). `setprop
+  persist.traced.enable 0` stops traced/traced_probes/traced_perf and survives reboot: daemons at 0% on
+  every 10-min poll through 7630 s uptime (the spin used to return at ~4046 s); idle drain ~2%/h vs
+  ~17%/h. Revert: `setprop persist.traced.enable 1`. `scratchpad/agents/s23-dsp-spin-web/`.
+- **Windows server release:** v1.1.1 could not be built portably on Windows (bmoe linked a ggml-cpu
+  symbol directly, LNK2019 under `GGML_BACKEND_DL`); fixed via the CPU backend's `get_proc_address`
+  and released as v1.1.2 (see "Engine release pipeline").
+
 ## Engine release pipeline (`kalsa-server`)
 
 The macOS engine binary. How it works and how to do it again; current position, decisions and the
@@ -593,15 +636,39 @@ it was cut from (v1.0.0/v1.1.0: `b11010-merge`; v1.1.1: `kalsa-release-v1-1-1`).
 tagged tree already carries the current workflow, so the tag push itself publishes - v1.1.1 was
 published the same way, by run `35762258094`.
 
+### Published state, v1.1.2 (published 2026-09-25) — current, first Windows build
+
+Read back from the published `https://dl.kalsa.io/kalsa-server/v1.1.2/manifest.json`; kalsa-brain-90
+re-downloaded and re-hashed all three archives (sizes and sha256 match). Supersedes v1.1.1.
+
+| platform / backend | archive | bytes | sha256 | exe_sha256 |
+|---|---|---|---|---|
+| macos-arm64 / metal | `kalsa-server-v1.1.2-bin-macos-arm64.tar.gz` | 11207047 | `691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961` | `327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde` |
+| win-cpu-x64 / cpu | `kalsa-server-v1.1.2-bin-win-cpu-x64.zip` | 13762007 | `60b6cb686c58a8006c8889264b83163a9023e041611631d201aaed43f5ff57cc` | `a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9d673` |
+| win-vulkan-x64 / vulkan | `kalsa-server-v1.1.2-bin-win-vulkan-x64.zip` | 26491005 | `24f0a98293e2ed6c5003f1b64837eadc12ff034f876706db3bfdbc8cb85c245e` | `6e3c87144c9763f7d604483f63f9920b310121237a4c69e11ed6b16aac3b3e12` |
+
+- Tag object / commit: `80d9f8b7a1cf510efb2bc0ef2d54d388cdb10f69` / `5102686dd58cd39e235682868e7ba1fb0a1e8ad0`
+  (fork `main`, which includes `833cde99b` "server: stamp the cache namespace on a restored slot").
+  Run `36191270775`, `built_at 2026-09-25T21:30:43Z`, all four jobs green.
+- Windows: `GGML_NATIVE=OFF`, `GGML_BACKEND_DL=ON`, `GGML_CPU_ALL_VARIANTS=ON` (variants x64, sse42,
+  sandybridge, haswell, skylakex, cannonlake, cascadelake, icelake, alderlake); the vulkan zip also
+  carries the CPU variants (no upstream-style merge step). The `x-kalsa-slot` inlet lives in
+  `llama-server-impl.dll` (mac: `libllama-server-impl.dylib`). The MSVC runtime is NOT shipped (same as
+  upstream zips): the target needs the VC++ redistributable.
+- Workflow `kalsa-server.yml` gained `platforms` and `publish` dispatch inputs and a per-platform
+  manifest merge that preserves other platforms' rows. Known debt: `inputs.publish != 'false'` is wrong
+  for a typed boolean; ~700 duplicated lines between the mac and windows jobs; `cancel-in-progress`;
+  `R2_ENDPOINT` passed in argv.
+
 ### Published state, v1.1.1 (published 2026-09-22)
 
-v1.1.1 is current. Its identity was read back consumer-side from the published manifest, not from
+v1.1.1 was current until 2026-09-25 (superseded by v1.1.2). Its identity was read back consumer-side from the published manifest, not from
 the run log: `kalsa-brain` `dev/results/concurrency-two-devices/results.json` (fetched
 2026-09-22T22:48:07Z, manifest sha256
 `55d8128c05a985f54f7cb87a7cc99a89c640542d0619f4ae3cbf9ac1ec87f450`), with the matching method
 recorded in `kalsa-brain/docs/HANDOFF-2026-09-22.md` sec. 4.
 
-| check | v1.1.1 (current) |
+| check | v1.1.1 |
 |---|---|
 | Home | `https://dl.kalsa.io/kalsa-server/v1.1.1` |
 | Archive | `kalsa-server-v1.1.1-bin-macos-arm64.tar.gz` |
