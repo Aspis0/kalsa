@@ -9,10 +9,15 @@
 //! `InstanceFile`. On unix the child inherits the exclusive lock, so "the
 //! lock is held" keeps meaning "our probe child is alive" even after a
 //! force-quit, and the next start can name and kill it with
-//! `terminate_pid`. On Windows handles are not inherited — the app's lock
-//! dies with the app — so the child rides in the supervisor's kill-on-close
+//! `terminate_pid`. On Windows the state file's lock handle alone is not
+//! handed to the child — the child's stderr pipe end is — so the app's lock
+//! dies with the app and the child rides in the supervisor's kill-on-close
 //! job instead: a force-quit closes the job, the job reaps the child, and
-//! the record reads `Stale` with no pid left to signal.
+//! the record reads `Stale` with no pid left to signal. The accepted
+//! residual: a force-quit in the window between `spawn` and `confine`, or a
+//! failed confine (reported at the spawn), leaves the probe child outside
+//! the job, and a `Stale` record cannot name it — accepted for a probe that
+//! lives seconds on a tiny model.
 //!
 //! Two divergences are deliberate: no process group (the long-lived server
 //! gets one to reach helpers it spawns; a probe child spawns nothing), and
