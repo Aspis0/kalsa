@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { AppState, BackHandler, Linking, Pressable, Text, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
@@ -19,13 +19,31 @@ export function PairingQrScanner({ onFound, onCancel }: Props) {
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const colors = modes[mode];
   const insets = useSafeAreaInsets();
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission, recheckPermission] = useCameraPermissions();
   const [error, setError] = useState<string | null>(null);
   const accepted = useRef(false);
 
   useEffect(() => {
     if (permission?.status === "undetermined") void requestPermission();
   }, [permission?.status, requestPermission]);
+
+  // A grant made in Settings never reaches a mounted permission hook; the
+  // next foreground re-reads the status so the camera wakes in place.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") void recheckPermission();
+    });
+    return () => subscription.remove();
+  }, [recheckPermission]);
+
+  // Hardware back must leave the scanner, not the whole PairingScreen.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onCancel();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onCancel]);
 
   const handleScanned = ({ data }: { data: string }) => {
     if (accepted.current) return;
@@ -51,6 +69,8 @@ export function PairingQrScanner({ onFound, onCancel }: Props) {
     paddingHorizontal: space.md,
   };
   const granted = permission?.granted === true;
+  const denied = permission?.status === "denied";
+  const canAskAgain = permission?.canAskAgain === true;
 
   return (
     <View
@@ -85,19 +105,30 @@ export function PairingQrScanner({ onFound, onCancel }: Props) {
             {error}
           </Text>
         ) : null}
-        {permission && !granted ? (
+        {denied ? (
           <>
             <Text testID="pairing.scan.denied" style={[type.secondary, { color: "#fff" }]}>
               {t("pairing.scanDenied")}
             </Text>
-            <Pressable
-              testID="pairing.scan.openSettings"
-              accessibilityRole="button"
-              onPress={() => void Linking.openSettings()}
-              style={buttonStyle}
-            >
-              <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanOpenSettings")}</Text>
-            </Pressable>
+            {canAskAgain ? (
+              <Pressable
+                testID="pairing.scan.allow"
+                accessibilityRole="button"
+                onPress={() => void requestPermission()}
+                style={buttonStyle}
+              >
+                <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanAllow")}</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                testID="pairing.scan.openSettings"
+                accessibilityRole="button"
+                onPress={() => void Linking.openSettings()}
+                style={buttonStyle}
+              >
+                <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanOpenSettings")}</Text>
+              </Pressable>
+            )}
           </>
         ) : null}
         <Pressable

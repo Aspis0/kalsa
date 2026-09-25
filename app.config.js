@@ -81,17 +81,25 @@ const config = {
       "expo-image-picker",
       {
         photosPermission: "AI Chat lets you attach photos so the local model can read them.",
-        cameraPermission: "AI Chat uses the camera to take photos for the local model.",
+        // No cameraPermission here on purpose: NSCameraUsageDescription is
+        // owned by the expo-camera entry below. applyPermissions() keeps an
+        // existing Info.plist value when this plugin passes undefined
+        // (@expo/config-plugins ios/Permissions.js), so this plugin cannot
+        // override the shared string regardless of plugin order.
       },
     ],
-    // Adds android.permission.CAMERA and NSCameraUsageDescription for the
-    // pairing-QR scanner. The project has no checked-in android/ tree
-    // (prebuild generates it), so this plugin entry IS the native
-    // permission config.
+    // Adds android.permission.CAMERA and the single NSCameraUsageDescription
+    // covering both camera uses (photos for the local model, scanning the
+    // pairing QR). The project has no checked-in android/ tree (prebuild
+    // generates it), so this plugin entry IS the native permission config.
+    // recordAudioAndroid off: this plugin records nothing — RECORD_AUDIO
+    // stays for voice capture (src/voice/VoiceCapture.ts) via android.permissions.
     [
       "expo-camera",
       {
-        cameraPermission: "Kalsa reads the pairing QR code shown by Kalsa desktop with the camera.",
+        cameraPermission:
+          "Kalsa uses the camera to take photos for the local model and to scan the pairing QR code shown by Kalsa desktop.",
+        recordAudioAndroid: false,
       },
     ],
     [

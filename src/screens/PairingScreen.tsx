@@ -54,7 +54,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   });
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required">("ready");
+  const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required" | "door-required">("ready");
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const sessionRef = useRef<PairingSession | null>(null);
 
@@ -71,15 +71,22 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       setState("model-required");
       return;
     }
-    if (
-      !isAllowedPairingUrl(fields.doorUrl) ||
-      !isAllowedPairingUrl(fields.deskUrl)
-    ) {
+    if (!isAllowedPairingUrl(fields.doorUrl)) {
+      // A fresh install has no door URL yet; say which address is missing
+      // instead of folding it into the opaque desk refusal.
+      setState("door-required");
+      return;
+    }
+    if (!isAllowedPairingUrl(fields.deskUrl)) {
       setState("refused");
       return;
     }
     setBusy(true);
     try {
+      // A scanned square is a fresh square: it abandons a session holding a
+      // completion retry for the previous one. Only a run that passed its
+      // guards gets here, so a rejected scan never drops that session.
+      if (scanned) sessionRef.current = null;
       const existing = sessionRef.current;
       const retryingCompletion = existing?.needsCompletionRetry() === true;
       const session = retryingCompletion
@@ -112,9 +119,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     }
   };
 
+  // This handler preempts nothing: run() checks `busy`/`state` from this same
+  // committed render before it touches the session, so a rejected scan
+  // leaves a pending completion retry intact.
   const acceptScannedSquare = (square: PairingSquare) => {
-    sessionRef.current = null;
-    setState("ready");
     setScanning(false);
     setFields((current) => ({ ...current, ...square }));
     void run(square);
@@ -168,9 +176,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
             testID="pairing.scan"
             accessibilityRole="button"
             accessibilityLabel={t("pairing.scan")}
-            disabled={busy}
+            accessibilityState={{ disabled: busy || state === "waiting" }}
+            disabled={busy || state === "waiting"}
             onPress={() => setScanning(true)}
-            style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy ? 0.6 : 1 })}
+            style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy || state === "waiting" ? 0.6 : 1 })}
           >
             <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.scan")}</Text>
           </Pressable>
@@ -193,6 +202,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
           {state === "model-required" ? (
             <Text testID="pairing.model-required" style={[type.secondary, { color: colors.danger }]}>
               {t("pairing.modelRequired")}
+            </Text>
+          ) : null}
+          {state === "door-required" ? (
+            <Text testID="pairing.door-required" style={[type.secondary, { color: colors.danger }]}>
+              {t("pairing.doorRequired")}
             </Text>
           ) : null}
           {state === "refused" ? (

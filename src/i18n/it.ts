@@ -464,6 +464,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     submit: "Avvia il collegamento",
     working: "Collegamento…",
     modelRequired: "Scegli un modello GGUF locale su questo telefono prima del collegamento.",
+    doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",
     refused: "Il collegamento non è stato accettato.",
     waiting: "Conferma sul computer",
     scan: "Inquadra il codice QR",
@@ -472,6 +473,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     scanDenied:
       "Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema.",
     scanOpenSettings: "Apri le impostazioni",
+    scanAllow: "Consenti l'accesso alla fotocamera",
     scanErrors: {
       notJson: "Questo codice QR non contiene un quadrato di accoppiamento.",
       notObject: "Questo codice QR non contiene un oggetto di accoppiamento.",

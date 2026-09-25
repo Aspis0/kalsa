@@ -72,6 +72,20 @@ describe("parsePairingQr", () => {
     expect(parsePairingQr(square({ node: "" }))).toEqual({ ok: false, error: "invalidNode" });
   });
 
+  test("a captured desktop square parses with the desktop's exact key order", () => {
+    const captured =
+      '{"v":3,"reachable":"http://192.168.1.10:4952","code":"31313131313131313131313131313131","nonce":"3232323232323232323232323232323232323232323232323232323232323232","node":"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"}';
+    expect(parsePairingQr(captured)).toEqual({
+      ok: true,
+      square: {
+        reachable: "http://192.168.1.10:4952",
+        code: "31".repeat(16),
+        nonce: "32".repeat(32),
+        node: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      },
+    });
+  });
+
   test("reachable keeps its exact bytes: the MAC covers the string as shown", () => {
     const tricky = "HTTP://127.0.0.1:9500/pair?keep=this#fragment";
     expect(parsePairingQr(square({ reachable: tricky }))).toEqual({

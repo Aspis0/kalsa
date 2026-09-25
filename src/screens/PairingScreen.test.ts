@@ -79,12 +79,15 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-async function render(currentModelId = "local-model"): Promise<ReactTestRenderer> {
+async function render(
+  currentModelId = "local-model",
+  initialDoorUrl = "https://desktop.tailnet.ts.net",
+): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
       React.createElement(PairingScreen, {
-        initialDoorUrl: "https://desktop.tailnet.ts.net",
+        initialDoorUrl,
         currentModelId,
         onBack: jest.fn(),
       }),
@@ -174,6 +177,44 @@ describe("PairingScreen", () => {
     expect(saveCredentialMock).toHaveBeenCalled();
     expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
     expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
+  test("the scan button is disabled while waiting so a pending completion retry cannot be dropped", async () => {
+    installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    const scan = renderer.root.findByProps({ testID: "pairing.scan" });
+    expect(scan.props.disabled).toBe(true);
+    expect(scan.props.accessibilityState.disabled).toBe(true);
+    await act(async () => renderer.unmount());
+  });
+
+  test("a scan on a fresh install with no computer address names the missing address", async () => {
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const renderer = await render("local-model", "");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:8132",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.door-required" }).props.children)
+      .toBe("pairing.doorRequired");
+    expect(renderer.root.findAllByProps({ testID: "pairing.refused" })).toHaveLength(0);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(saveCredentialMock).not.toHaveBeenCalled();
     await act(async () => renderer.unmount());
   });
 

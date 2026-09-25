@@ -469,6 +469,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     submit: "Start pairing",
     working: "Pairing…",
     modelRequired: "Choose a local GGUF model on this phone before pairing.",
+    doorRequired: "Set your computer's address on this phone before pairing.",
     refused: "Pairing was not accepted.",
     waiting: "Confirm on your computer",
     scan: "Scan QR code",
@@ -477,6 +478,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     scanDenied:
       "The camera is needed to read the pairing code. Allow camera access in system settings.",
     scanOpenSettings: "Open settings",
+    scanAllow: "Allow camera access",
     scanErrors: {
       notJson: "This QR code is not a Kalsa pairing square.",
       notObject: "This QR code does not contain a pairing object.",

@@ -13,10 +13,11 @@ export type PairingQrResult =
   | { ok: true; square: PairingSquare }
   | { ok: false; error: PairingQrErrorCode };
 
-// PairingSession.begin() rejects any other shape with its own identical
-// regex before the one-shot code is claimed, so scanning it would only
-// waste the claim attempt. hexToBytes is lowercase-only ([0-9a-f]*), which
-// fixes the nonce (and node) casing rule for the whole wire.
+// What the transport already enforces, mirrored so a bad square is refused
+// at scan time instead of inside the ceremony: PairingSession.begin() tests
+// the code against ^[0-9a-f]{32}$ and decodes the nonce with hexToBytes
+// (lowercase-only) plus its 32-byte length check before the claim. node has
+// no downstream check at all — this parser is its only gate.
 const CODE_PATTERN = /^[0-9a-f]{32}$/;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
 const NODE_PATTERN = /^[0-9a-f]{64}$/;
