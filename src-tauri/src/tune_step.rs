@@ -1,23 +1,19 @@
-//! The walk's tune step: fingerprint the launch, look the winner up, keep it
-//! or measure it — between the plan and the first byte of argv.
+//! The walk's tune step: fingerprint the launch, look the winner up, keep
+//! it or measure it — between the plan and the first byte of argv.
 //!
-//! It may fail without failing the walk: an unmeasurable machine, an
-//! unresolvable build, or a panic (caught below — the runtime's hook prints
-//! its own line first, and neither line names argv) leaves the plan's launch
-//! standing. An incomplete tune is the one exception that still shapes this
-//! start: its measured winner runs and only the record is withheld, so the
-//! next start measures again.
+//! Every failure degrades to the plan's launch, panic included (caught
+//! below; the runtime's hook prints first, and neither line names argv).
+//! The exception: an incomplete tune's measured winner runs and only its
+//! record is withheld, so the next start measures again.
 //!
-//! The graphics candidate carries no GPU flag: `Offload::EngineFitted` holds
-//! the engine citations — `fit` decides the layers against the memory free
-//! at this start, and the tune's measurement is what licenses trying the
-//! card at all.
+//! No GPU flag on the graphics candidate: the engine's fit adapts the
+//! layers to this start's free memory only when no count is given
+//! (`LLAMA_ARG_FIT` in the environment turns that off — auto then offloads
+//! every layer).
 //!
-//! A quit mid-tune leaves no orphan: on Windows the child dies with the app
-//! when `confine` attached it to the kill-on-close job; on unix the next
-//! start's decide reaps the claimed state file. The record is written only
-//! at the end, so an interrupted tune runs again next start. The development
-//! path never tunes: a pinned binary has no catalog digest to key on.
+//! The development path never tunes: a pinned binary has no catalog digest
+//! to key a record on.
+
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 

@@ -592,8 +592,8 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
 }
 
 /// A legacy record — v1 magic, its graphics winner pinning `--n-gpu-layers
-/// all` — is refused, and the refusal is a fresh tune: the measure runs and
-/// the walk completes.
+/// all` — is refused, the refusal is a fresh tune, and the complete result
+/// replaces it with a v2 record on disk.
 #[test]
 fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     let dir = scratch("legacy");
@@ -637,18 +637,34 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         |resolved, _, counts| {
             measured += 1;
             counts(resolved.len(), resolved.len());
-            vec![]
+            // Complete: every candidate ran (each refused is an answer),
+            // so the result may be saved.
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    (
+                        *candidate,
+                        kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::NotReady),
+                    )
+                })
+                .collect()
         },
     );
 
     assert_eq!(measured, 1, "the refused record leads to a fresh measure");
     assert!(
-        matches!(
-            prepared.info.tune,
-            Some(Tune::NoWinner(_) | Tune::Measured(_))
-        ),
+        matches!(prepared.info.tune, Some(Tune::NoWinner(_))),
         "and the walk completes with a line, not a failure: {:?}",
         prepared.info.tune
+    );
+    let text = std::fs::read_to_string(dir.join("tuning.txt")).expect("read the record");
+    assert!(
+        text.starts_with("kalsa-tune v2\n"),
+        "the complete tune replaced it with a v2 record"
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &fingerprint).is_some(),
+        "and the v2 record loads"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

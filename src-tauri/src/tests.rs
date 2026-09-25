@@ -120,15 +120,21 @@ fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
 #[test]
 fn a_second_press_while_a_walk_is_running_starts_nothing() {
     let brain = Brain::new();
-    assert!(brain.begin_turn_on(), "the first press goes through");
+    assert!(brain.begin_walk(|| {}).is_some(), "the first press goes through");
     assert!(
-        !brain.begin_turn_on(),
+        brain.begin_walk(|| {}).is_none(),
         "a second press while the first is still going is refused: \
          no second decide, no second download, no second server"
     );
-    assert!(!brain.begin_turn_on(), "refusal holds until the walk ends");
+    assert!(
+        brain.begin_walk(|| {}).is_none(),
+        "refusal holds until the walk ends"
+    );
     brain.turning_on.store(false, Ordering::SeqCst);
-    assert!(brain.begin_turn_on(), "a finished walk frees the next one");
+    assert!(
+        brain.begin_walk(|| {}).is_some(),
+        "a finished walk frees the next one"
+    );
 }
 
 #[test]
@@ -2417,7 +2423,7 @@ fn the_retry_comes_from_the_starts_own_settled_report() {
     );
     assert!(
         !retry_after(None, true),
-        "no answer (the worker died, or a stop during the start) is not a failure"
+        "no answer (the worker died, or the app is going away) is not a failure"
     );
 }
 
@@ -2510,4 +2516,140 @@ fn a_stop_during_the_tuned_start_prevents_the_retry() {
         matches!(brain.supervisor.state(), ServerState::Stopped),
         "and nothing was queued"
     );
+}
+
+/// A start config that cannot come up, pointing at a state file of its own —
+/// the interleaving tests actually queue starts, and each claim writes one.
+fn gone_config(tag: &str, port: u16) -> kalsa_supervisor::ServerConfig {
+    let state_file =
+        std::env::temp_dir().join(format!("kalsa-gate-{tag}-{}.state", std::process::id()));
+    let _ = std::fs::remove_file(&state_file);
+    kalsa_supervisor::ServerConfig {
+        exe: PathBuf::from("/nonexistent/kalsa-server"),
+        argv: launch_args("/models/chosen.gguf", port).argv(),
+        state_file,
+        port,
+        ready_timeout: Duration::from_secs(1),
+        stop_grace: Duration::from_millis(50),
+    }
+}
+
+/// The window the stop race was lost in: the walk's check has passed and its
+/// send has not run. The Turn off lands exactly there. The gate makes check
+/// and send one step, so the Stop either precedes the check (nothing is
+/// queued) or queues behind the Start it then cancels — the walk's Start
+/// went first here, and the queued Stop must still end with the state down.
+#[test]
+fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
+    let brain = std::sync::Arc::new(Brain::new());
+    let stops_seen = brain.begin_walk(|| {}).expect("first walk");
+    let config = gone_config("between-check-send", 8197);
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let walker = {
+        let brain = std::sync::Arc::clone(&brain);
+        let config = config.clone();
+        std::thread::spawn(move || {
+            queue_start(&brain, stops_seen, config, || {
+                entered_tx.send(()).expect("signal");
+                release_rx.recv().expect("release");
+            })
+        })
+    };
+    entered_rx.recv().expect("the walk reached the window");
+
+    let stopper = {
+        let brain = std::sync::Arc::clone(&brain);
+        std::thread::spawn(move || {
+            let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+            brain.stops.fetch_add(1, Ordering::SeqCst);
+            brain.supervisor.stop();
+        })
+    };
+    // The Stop's chance to run while the walk sits in the window: under the
+    // gate it cannot get past the lock; without it, it finishes here.
+    for _ in 0..20 {
+        if stopper.is_finished() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    release_tx.send(()).expect("release");
+    let waiter = walker
+        .join()
+        .expect("walker thread")
+        .expect("the check passed before the Turn off arrived");
+    stopper.join().expect("stopper thread");
+
+    assert_eq!(waiter.outcome(), StartOutcome::Accepted);
+    let _ = waiter.settle(); // the start's own report, before the Stop runs it
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !matches!(brain.supervisor.state(), ServerState::Stopped)
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "the server must not be left started after a Turn off: {:?}",
+        brain.supervisor.state()
+    );
+    let _ = std::fs::remove_file(&config.state_file);
+}
+
+/// The other window: a Stop between the walk's claim and its snapshot would
+/// be absorbed (the walk would believe no stop ever happened). Claim and
+/// snapshot are one step under the gate, so the snapshot stays before the
+/// bump and the later check refuses the start.
+#[test]
+fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
+    let brain = std::sync::Arc::new(Brain::new());
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let walker = {
+        let brain = std::sync::Arc::clone(&brain);
+        std::thread::spawn(move || {
+            brain.begin_walk(|| {
+                entered_tx.send(()).expect("signal");
+                release_rx.recv().expect("release");
+            })
+        })
+    };
+    entered_rx.recv().expect("the walk claimed and paused inside the gate");
+
+    let stopper = {
+        let brain = std::sync::Arc::clone(&brain);
+        std::thread::spawn(move || {
+            let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+            brain.stops.fetch_add(1, Ordering::SeqCst);
+            brain.supervisor.stop();
+        })
+    };
+    for _ in 0..20 {
+        if stopper.is_finished() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    release_tx.send(()).expect("release");
+    let stops_seen = walker
+        .join()
+        .expect("walker thread")
+        .expect("the walk claimed first");
+    stopper.join().expect("stopper thread");
+
+    let config = gone_config("claim-snapshot", 8196);
+    let queued = queue_start(&brain, stops_seen, config.clone(), || ());
+    assert!(
+        queued.is_none(),
+        "a Stop the walk's snapshot absorbed must still refuse the start"
+    );
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "and nothing was started: {:?}",
+        brain.supervisor.state()
+    );
+    let _ = std::fs::remove_file(&config.state_file);
 }

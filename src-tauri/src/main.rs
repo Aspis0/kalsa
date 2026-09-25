@@ -89,6 +89,10 @@ struct Brain {
     /// start and re-checks it before each start it makes: a stop taken
     /// mid-walk is never undone by the launch that follows.
     stops: AtomicU64,
+    /// One gate across both sides of that race: the Stop side holds it over
+    /// bump+send, the walk side over claim+snapshot and check+send — so on
+    /// the channel's FIFO no Turn off can land between a check and its send.
+    gate: Mutex<()>,
 }
 
 struct ActiveDoor {
@@ -290,14 +294,25 @@ impl Brain {
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
+            gate: Mutex::new(()),
         }
     }
 
-    /// Claims the single walk. False when one is already going.
-    fn begin_turn_on(&self) -> bool {
-        self.turning_on
+    /// Claims the single walk and takes the stop generation it races, as
+    /// one step with any Turn off (both hold `gate`) — a Stop between the
+    /// claim and the snapshot would be absorbed into it. `after_claim` is
+    /// the window the test steps into. None when a walk is already going.
+    fn begin_walk(&self, after_claim: impl FnOnce()) -> Option<u64> {
+        let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
+        if self
+            .turning_on
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
+            .is_err()
+        {
+            return None;
+        }
+        after_claim();
+        Some(self.stops.load(Ordering::SeqCst))
     }
 
     /// The road's public identity, exactly while it is open and announced.
@@ -1059,13 +1074,10 @@ fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<()
 
 #[tauri::command]
 async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
-    if !brain.begin_turn_on() {
+    let Some(stops_seen) = brain.begin_walk(|| {}) else {
         return Err("The assistant is already starting.".into());
-    }
+    };
     brain.metrics.reset();
-    // The stop generation this walk is racing: a Turn off from here on must
-    // not be undone by any start this walk reaches.
-    let stops_seen = brain.stops.load(Ordering::SeqCst);
     let kept = brain
         .measurement
         .lock()
@@ -1192,7 +1204,7 @@ fn settle_walk(
             let tuned_changed = rule.as_ref().is_some_and(|(config, _)| {
                 config.argv != prepared.server.argv || config.exe != prepared.server.exe
             });
-            let waiter = match queue_start(brain, stops_seen, prepared.server.clone()) {
+            let waiter = match queue_start(brain, stops_seen, prepared.server.clone(), || ()) {
                 // A Turn off landed while the tune ran: nothing starts here.
                 Some(waiter) => waiter,
                 None => return Ok(()),
@@ -1248,11 +1260,20 @@ fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
 
 /// Queues one start — never one the owner already turned off: `stops_seen`
 /// is the generation the walk captured at its beginning, and any Turn off
-/// since then must not be undone by a launch that follows it.
-fn queue_start(brain: &Brain, stops_seen: u64, config: ServerConfig) -> Option<StartWaiter> {
+/// since then must not be undone by a launch that follows it. The check and
+/// the send are one step under `gate`, so a Stop's bump+send cannot land
+/// between them; `between` is the window the test steps into.
+fn queue_start(
+    brain: &Brain,
+    stops_seen: u64,
+    config: ServerConfig,
+    between: impl FnOnce(),
+) -> Option<StartWaiter> {
+    let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
     if brain.stops.load(Ordering::SeqCst) != stops_seen {
         return None;
     }
+    between();
     Some(brain.supervisor.start(config))
 }
 
@@ -1270,7 +1291,7 @@ fn attempt_retry(
         return None;
     }
     let (config, args) = rule?;
-    let waiter = queue_start(brain, stops_seen, config.clone())?;
+    let waiter = queue_start(brain, stops_seen, config.clone(), || ())?;
     Some((waiter, config, args))
 }
 
@@ -1337,8 +1358,11 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
     // itself. Lowering the door first — what this used to do — left the
     // field reading `Running` while the door was already down, and a poll in
     // that gap raised it again.
-    brain.stops.fetch_add(1, Ordering::SeqCst);
-    brain.supervisor.stop();
+    {
+        let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+        brain.stops.fetch_add(1, Ordering::SeqCst);
+        brain.supervisor.stop();
+    }
     brain.stop_door();
     brain.clear_launch();
     desk.desk.stop_serving();

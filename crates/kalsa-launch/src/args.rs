@@ -313,19 +313,10 @@ pub enum Offload {
     ForcedOff,
     /// The CPU build: no GPU code in it, so no GPU flag is rendered at all.
     NoGpuBuild,
-    /// The tune's graphics launch, and the launch that wins a tune: NO
-    /// `--n-gpu-layers`, so the engine's default stands (`-1` = auto,
-    /// common.h:473; a negative value is every layer without fit,
-    /// llama.h:320) and `fit` — on by default — fills the layers this
-    /// start's free memory holds (fit.cpp:488, keeping a pinned context at
-    /// fit.cpp:455). Both pinned engines agree: tags `b10950` =
-    /// ad6c66839 and `kalsa-server-v1.1.1` = a7d2cec79. Fit refuses a
-    /// user-set layer count (fit.cpp:463-464) and the server then loads
-    /// anyway (fit.cpp:894-903; common.cpp:1322/1331 on v1.1.1,
-    /// 1320/1329 on b10950) — a flag disabled the fitting, it never broke
-    /// a start. `LLAMA_ARG_FIT` (arg.cpp:2876) can turn fit off; auto then
-    /// offloads every layer, the old behaviour. The plan's budget rule
-    /// still renders `All` or `ForcedOff` (policy.rs).
+    /// The tune's graphics launch, and the launch that wins a tune: no
+    /// `--n-gpu-layers` — the engine's fit adapts the layer count to this
+    /// start's free memory only when no count is given. The plan's budget
+    /// rule still renders `All` or `ForcedOff`.
     EngineFitted,
 }
 

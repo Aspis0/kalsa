@@ -138,9 +138,9 @@ mod tests {
     }
 
     /// Two equal samples: the tie-break alone decides, and EngineFitted
-    /// ranks as the fuller offload — every layer, the engine confirming the
-    /// count. The refused side sits first in the list, so a broken rank
-    /// would pick it.
+    /// ranks with the fuller offload — it aims at the card, and the engine's
+    /// fit decides how many layers fit this start's free memory. The
+    /// refused side sits first, so a broken rank would pick it.
     #[test]
     fn an_engine_fitted_tie_is_the_fullest_offload() {
         let off = Candidate {
