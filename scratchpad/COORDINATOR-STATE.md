@@ -86,3 +86,8 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
   First Tailscale pairing run: the JELLY (owner, via brain: free, charging, Tailscale up to the Mac) with a
   main-chain CI APK; check the double Content-Length / 403 risk. Charging is fine: not a benchmark.
 - Codex (luna) returns 401: second reviewer = GLM-5.3-Flash until the key is fixed.
+- Tailscale pairing run prerequisites (kalsa-brain @1dd372b6): desktop listens loopback-only; owner runs
+  `tailscale serve --bg 8131` (door, 443) and `tailscale serve --bg --https=8443 8134` (desk) - both need
+  Marco's OK, removed after with `... off`. Tester types `https://marcos-macbook-pro.tail80a42d.ts.net`;
+  phone derives desk `:8443` (pairingUrls.ts:17-31, matches design). Brain app on; owner presses Allow.
+  Tell kalsa-brain (23ac3537) when the APK is ready.
