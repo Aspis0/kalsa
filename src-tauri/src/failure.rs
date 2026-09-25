@@ -76,6 +76,9 @@ pub(crate) enum StartupFailure {
     /// The connection dropped partway through. What arrived stays for the
     /// next try.
     ConnectionLost,
+    /// A local file refused the model bytes: the destination or the part
+    /// file is held by another program, unreadable, or unwritable.
+    ModelFileUnwritable,
 }
 
 /// The words for a failure. Fail closed: exhaustive over
@@ -178,6 +181,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              already downloaded."
                 .into()
         }
+        StartupFailure::ModelFileUnwritable => {
+            "This computer could not save the model file. Another program may be using it; \
+             closing it and trying again usually works."
+                .into()
+        }
     }
 }
 
@@ -255,7 +263,11 @@ impl From<DecideError> for StartupFailure {
 impl From<DownloadError> for StartupFailure {
     fn from(error: DownloadError) -> Self {
         match error {
-            DownloadError::Io(_) => Self::ConnectionLost,
+            // The halves, as the production sites split them: the wire keeps
+            // the connection sentence; a file this machine refused gets its
+            // own words, because "connection" would be false.
+            DownloadError::Network(_) => Self::ConnectionLost,
+            DownloadError::Io(_) => Self::ModelFileUnwritable,
             DownloadError::DiskFull | DownloadError::NotEnoughSpace { .. } => Self::NotEnoughDisk,
             DownloadError::SizeMismatch { .. } | DownloadError::DigestMismatch { .. } => {
                 Self::DownloadCorrupted
@@ -332,6 +344,7 @@ mod tests {
             StartupFailure::NotEnoughDisk,
             StartupFailure::DownloadCorrupted,
             StartupFailure::ConnectionLost,
+            StartupFailure::ModelFileUnwritable,
         ]
     }
 
@@ -405,6 +418,34 @@ mod tests {
             words(&StartupFailure::MeasurementUnreliable(Vec::new())),
             "This computer could not be measured just now — it may be busy. \
              Waiting a moment and turning on again usually works."
+        );
+    }
+
+    /// The halves, as the owner split them: a file this machine refused
+    /// says so in the owner's own words; a wire failure keeps the
+    /// connection sentence it always had.
+    #[test]
+    fn a_local_download_error_names_the_file_and_a_network_one_names_the_connection() {
+        let local = StartupFailure::from(DownloadError::Io(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "os error 5",
+        )));
+        assert!(matches!(local, StartupFailure::ModelFileUnwritable));
+        assert_eq!(
+            words(&local),
+            "This computer could not save the model file. Another program may be using it; \
+             closing it and trying again usually works."
+        );
+
+        let network = StartupFailure::from(DownloadError::Network(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "connection reset by peer",
+        )));
+        assert!(matches!(network, StartupFailure::ConnectionLost));
+        assert_eq!(
+            words(&network),
+            "The connection dropped partway through. Trying again keeps what was \
+             already downloaded."
         );
     }
 }

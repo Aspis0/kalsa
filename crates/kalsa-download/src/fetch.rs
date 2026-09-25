@@ -86,7 +86,7 @@ fn fetch_with_read_timeout(
         if done == expected_size {
             return Ok(());
         }
-        let read = reader.read(&mut chunk)?;
+        let read = reader.read(&mut chunk).map_err(DownloadError::Network)?;
         if read == 0 {
             // The server ran out before the promise; the length gate in
             // `verify` will call that what it is.
@@ -109,11 +109,12 @@ fn fetch_with_read_timeout(
     }
 }
 
-/// The server is sending past the promised size. Deliberately distinct from a
-/// network failure: a lying origin must never be retried against the same
-/// URL, while a dropped connection is exactly what resume is for.
+/// The server is sending past the promised size. It belongs to the network
+/// half — the origin lied, not this machine's disk — and its kind
+/// (`InvalidData`) keeps it distinguishable from a dropped connection,
+/// which is exactly what resume is for.
 fn overrun() -> DownloadError {
-    DownloadError::Io(io::Error::new(
+    DownloadError::Network(io::Error::new(
         io::ErrorKind::InvalidData,
         "server sent more than the promised size",
     ))
@@ -215,7 +216,7 @@ mod tests {
         // The kind is deterministic too: decided from the response header,
         // not from a read racing the server's teardown.
         assert!(
-            matches!(&err, DownloadError::Io(e) if e.kind() == io::ErrorKind::InvalidData),
+            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidData),
             "{err:?}"
         );
         let _ = fs::remove_dir_all(&dir);
@@ -244,7 +245,7 @@ mod tests {
             .recv_timeout(Duration::from_secs(8))
             .expect("a stalled fetch must return before the hard deadline");
         assert!(
-            matches!(&result, Err(DownloadError::Io(e)) if e.kind() == io::ErrorKind::TimedOut),
+            matches!(&result, Err(DownloadError::Network(e)) if e.kind() == io::ErrorKind::TimedOut),
             "a read timeout must be the existing resumable I/O failure: {result:?}"
         );
         assert_eq!(

@@ -81,7 +81,7 @@ fn send(
     }
     request
         .call()
-        .map_err(|e| DownloadError::Io(io::Error::new(io::ErrorKind::Other, e.to_string())))
+        .map_err(|e| DownloadError::Network(io::Error::new(io::ErrorKind::Other, e.to_string())))
 }
 
 /// Start offset of a `Content-Range: bytes N-M/T` header value, or None when
@@ -93,7 +93,7 @@ fn content_range_start(value: &str) -> Option<u64> {
 }
 
 fn http_error(code: u16) -> DownloadError {
-    DownloadError::Io(io::Error::new(
+    DownloadError::Network(io::Error::new(
         io::ErrorKind::Other,
         format!("server answered HTTP {code}"),
     ))

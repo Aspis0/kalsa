@@ -45,11 +45,19 @@ pub struct Progress {
 
 /// Why the download did not become the model. After `SizeMismatch` or
 /// `DigestMismatch` the `.part` file is gone: keeping it would only fail
-/// verification again. After `Io` or `DiskFull` it is still there — a dropped
-/// connection or a full disk is resumable, which is the whole point.
+/// verification again. After `Io`, `Network` or `DiskFull` it is still
+/// there — a refused file, a dropped connection or a full disk is
+/// resumable, which is the whole point.
 #[derive(Debug)]
 pub enum DownloadError {
+    /// A file on this machine refused: the part file, the destination, the
+    /// disk. Every `?` inside this crate is one of those, so the blanket
+    /// conversion below is the local error.
     Io(io::Error),
+    /// The transport or the origin — connect, read, HTTP status. Built at
+    /// the sites that know they are on the wire, never by the blanket
+    /// conversion.
+    Network(io::Error),
     DiskFull,
     NotEnoughSpace { free: u64, needed: u64 },
     SizeMismatch { expected: u64, actual: u64 },
@@ -65,7 +73,7 @@ impl From<io::Error> for DownloadError {
 impl std::fmt::Display for DownloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(e) => write!(f, "download failed: {e}"),
+            Self::Io(e) | Self::Network(e) => write!(f, "download failed: {e}"),
             Self::DiskFull => write!(f, "the disk filled up during the download"),
             Self::NotEnoughSpace { free, needed } => {
                 write!(
@@ -86,7 +94,7 @@ impl std::fmt::Display for DownloadError {
 impl std::error::Error for DownloadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Io(e) => Some(e),
+            Self::Io(e) | Self::Network(e) => Some(e),
             _ => None,
         }
     }
