@@ -45,8 +45,13 @@ fn brace_block(source: &str, from: usize) -> &str {
 /// own end, after the teardown — and constructed exactly once as the
 /// supervisor's initial value in `Supervisor::new`. Every other occurrence
 /// of the literal in production code is a READ (`unwrap_or`: a poisoned lock
-/// answers `Stopped` to the reader and writes nothing). The tests below the
-/// `#[cfg(test)]` marker are out of scope on purpose: they build states to
+/// answers `Stopped` to the reader and writes nothing). The region read as
+/// production ends at the tests module's OWN marker — the exact two-line
+/// text `#[cfg(test)]` on the line before `mod tests` — and that region is
+/// read in full: a cfg'd item inside it (the test-only `Command::Plant` is
+/// one) is still source this pin classifies, because the invariant is about
+/// where the source writes, not about what a build compiles. The tests below
+/// the module marker are out of scope on purpose: they build states to
 /// assert against, they never write into a live supervisor.
 ///
 /// The stop picks its end into a local (there are two: `Stopped`, or the
@@ -56,8 +61,13 @@ fn brace_block(source: &str, from: usize) -> &str {
 /// else. The invariant is the WHERE, not the count.
 fn only_the_drain_ends_writes_stopped(source: &str) -> Result<(), String> {
     let production_end = source
-        .find("#[cfg(test)]")
-        .ok_or_else(|| "supervisor.rs keeps its tests where the pin expects them".to_string())?;
+        .find("#[cfg(test)]\nmod tests")
+        .ok_or_else(|| {
+            "supervisor.rs lost the tests module's own two-line marker (the cfg-test \
+             attribute on the line before `mod tests`): this pin cannot tell production \
+             from tests and must not guess"
+                .to_string()
+        })?;
     let production = &source[..production_end];
     let new_at = production
         .find("pub fn new()")

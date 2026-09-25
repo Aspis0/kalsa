@@ -102,12 +102,7 @@ enum Command {
     /// needs a serving engine this file has no fixture for), so an API test
     /// can watch a first stop reach `StopUnconfirmed` the way every real one
     /// does — through the owned walk.
-    ///
-    /// `cfg(all(test))` is the same condition spelled the long way so the
-    /// source pin that delimits this file's production region — it searches
-    /// for the cfg-test marker of `mod tests` — still finds it where it
-    /// means: the pin must keep scanning this arm as production code.
-    #[cfg(all(test))]
+    #[cfg(test)]
     Plant(Box<Owned>),
 }
 
@@ -450,7 +445,7 @@ fn work(
                 stop(&mut owned, last.as_ref(), &state, probe, prior);
                 return;
             }
-            #[cfg(all(test))]
+            #[cfg(test)]
             Ok(Command::Plant(run)) => {
                 // A planted run stands in for a start: it brings the config
                 // exactly as one would leave it, or §18's second stop would
