@@ -15,15 +15,20 @@ export type SetupArm = "server" | "service" | "starting" | "key" | "settings" | 
       off. THIS is the transient arm: the poll's first `brain_state` answer
       lands within its second (the null arm below is shorter still); every
       other arm names a state that can last;
-    - running with a credential the store would not give — the
-      `brain_host_credential` command's own "This computer has not made its
-      own connection key yet." — and the Devices page, whose hatch re-mints
-      the key (the recovery path that command's doc names). main.rs stands
-      the door down on an empty or unreadable store, and both of those lose
-      the credential read too, so they arrive HERE, not below;
-    - running, credential answered, but no door in the state: the engine is
-      up and this computer's own service is not — the pairing page's own
-      words for a stopped local service, with its "Go to Server";
+    - running with a door address but a credential the store would not
+      give — the `brain_host_credential` command's own "This computer has
+      not made its own connection key yet." — and the Devices page, whose
+      hatch re-mints it (that command's own recovery path). The read runs
+      only against a LIVE door, so this is a door that stood up and could
+      not hand its key over;
+    - running with no door in the state, whatever the credential says —
+      the read is gated on the door's address (useBrain's poll at :204),
+      so a fresh launch with the door stood down never even asks and the
+      credential stays `pending`. LASTING: the engine is up and this
+      computer's own service is not — the pairing page's words for a
+      stopped local service, with its "Go to Server"; the enumeration of
+      this state's causes and their real recoveries is owed to the owner
+      before the wording is called final;
     - running, door up, no model name → Settings.
     Each arm is pinned in `dev/smoke-react.mjs`. */
 export function setupArm(
@@ -36,15 +41,19 @@ export function setupArm(
     case "starting":
       return "starting";
     case "running":
-      if (credential === "missing") return "key";
-      // The credential read is still in flight: getting ready, never off.
-      if (credential === "pending") return "starting";
-      // Credential answered but no door in the state: the engine runs and
-      // this computer's own service does not — a LASTING state, never
-      // "Getting ready". The pairing page owns the words for its stopped
-      // local service; main.rs's store-driven stops all arrive with the
-      // credential unreadable and land in "key" above.
+      // No door ADDRESS is a lasting state whatever the credential says:
+      // the credential read is gated on the door's address, so a fresh
+      // launch with the door stood down never even asks — the credential
+      // just stays `pending`, and routing on it would pin this page on
+      // "Getting ready" forever.
       if (!hasDoor) return "service";
+      // The read runs only against a LIVE door, so a refusal here is a
+      // door that stood up and could not hand its key over: the Devices
+      // page's hatch re-mints it.
+      if (credential === "missing") return "key";
+      // The door's address is known and the read is still in flight:
+      // getting ready — the transient arm.
+      if (credential === "pending") return "starting";
       return model.trim() ? null : "settings";
     default:
       // No answer yet reads as off only for as long as the poll's first

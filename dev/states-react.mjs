@@ -232,10 +232,11 @@ const scenarios = [
   // that arm already shows. Titles carry the arm; smoke-react checks both.
   ["firstpage/off", "the machine is off", "empty", { setup: setupArm("stopped", "answered", true, "x") }],
   ["firstpage/starting", "the start is walking", "empty", { setup: setupArm("starting", "pending", false, "") }],
-  ["firstpage/key", "the store refused the key", "empty", { setup: setupArm("running", "missing", false, "") }],
+  ["firstpage/key", "the door stood up but could not hand its key over", "empty", { setup: setupArm("running", "missing", true, "") }],
   ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
   ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
   ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],
+  ["firstpage/service", "the credential read never runs without a door", "empty", { setup: setupArm("running", "pending", false, "x") }],
 ];
 
 let bridgeState = {};

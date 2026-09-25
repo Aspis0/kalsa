@@ -221,11 +221,14 @@ export function App() {
   // fixes it: `setupArm` maps this machine's own state onto those arms — an
   // off machine lands on the Server page, a starting one says so, a refused
   // key lands where the key is re-minted, a nameless model on Settings.
+  // The door comes from the STATE's own address: the credential read is
+  // gated on that address, so "no door" must never be confused with "the
+  // credential has not answered yet".
   const { state, credential } = useBrain();
   const setup = setupArm(
     state?.kind ?? null,
     credential,
-    brainServer !== null,
+    Boolean(state?.endpoint),
     effectiveSettings.model,
   );
   // The disk tier's door, when this window is talking to one: a running
