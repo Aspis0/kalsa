@@ -53,10 +53,13 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration) -> Option<f64> {
 
 /// True when the port lists OUR nonce among `/v1/models`'s entries — the
 /// only proof the 200s and the rates came from our child: the engine
-/// builds each entry as `{"id", meta.model_name}` inside a `data` array
-/// (kalsallama `tools/server/server-context.cpp:4879-4885`, wrapped at
-/// `:4924-4928`), and `--alias` is what `model_name` is filled from (see
-/// `measure.rs`'s `without_aliases`).
+/// builds each entry as `{"id", meta.model_name}` with its aliases beside
+/// it (`{"aliases", meta.model_aliases}`,
+/// kalsallama `tools/server/server-context.cpp:4879-4885`, wrapped at
+/// `:4924-4928`). Our nonce counts as `id` OR as one of `aliases`: an
+/// inherited `LLAMA_ARG_ALIAS` (applied before the command line) can sort
+/// into the set before ours and take the `id`
+/// (`server-context.cpp:1384-1395`), and the entry still carries ours.
 pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration) -> bool {
     let reply = ureq::get(&format!("http://{addr}/v1/models")).timeout(timeout).call();
     match reply {
@@ -76,9 +79,15 @@ fn id_among(body: &str, nonce: &str) -> bool {
         .get("data")
         .and_then(Value::as_array)
         .map(|entries| {
-            entries
-                .iter()
-                .any(|entry| entry.get("id").and_then(Value::as_str) == Some(nonce))
+            entries.iter().any(|entry| {
+                entry.get("id").and_then(Value::as_str) == Some(nonce)
+                    || entry
+                        .get("aliases")
+                        .and_then(Value::as_array)
+                        .is_some_and(|aliases| {
+                            aliases.iter().any(|alias| alias.as_str() == Some(nonce))
+                        })
+            })
         })
         .unwrap_or(false)
 }
@@ -132,6 +141,28 @@ mod tests {
             !id_among(&models_json("Trinity-Nano-Preview-Q4_K_M"), nonce),
             "somebody else's model on our freed port is not ours"
         );
+        // An inherited LLAMA_ARG_ALIAS can take the id; ours survives in
+        // the aliases array — that still counts as our server.
+        let aliases_body = serde_json::json!({
+            "object": "list",
+            "data": [{
+                "id": "owner-inherited-name",
+                "aliases": [nonce],
+                "object": "model",
+            }],
+        })
+        .to_string();
+        assert!(id_among(&aliases_body, nonce), "our nonce in aliases is ours");
+        let nowhere_body = serde_json::json!({
+            "object": "list",
+            "data": [{
+                "id": "owner-inherited-name",
+                "aliases": ["other-name"],
+                "object": "model",
+            }],
+        })
+        .to_string();
+        assert!(!id_among(&nowhere_body, nonce), "neither id nor aliases: not ours");
         assert!(!id_among(r#"{"data":[]}"#, nonce), "no entries: no proof");
         assert!(!id_among(r#"{"data":[{"object":"model"}]}"#, nonce), "no id: no proof");
         assert!(!id_among("not json at all", nonce), "unparsable: no proof");

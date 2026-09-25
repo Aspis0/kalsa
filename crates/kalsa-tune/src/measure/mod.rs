@@ -13,9 +13,11 @@ use crate::winner::{Outcome, Refusal};
 /// The owner's budget for the whole tune: one to two minutes extra on a
 /// first start was the target. 180 s stops STARTS, not work: it is
 /// checked before each lifetime, never during one — a lifetime that has
-/// begun still gets its full run, worst case ready (READY_TIMEOUT) plus
-/// three requests at the per-request bound plus the stop, a little over
-/// five minutes. The budget's job is that few lifetimes begin at all.
+/// begun still gets its full run, and the real sum of the worst case is
+/// READY_TIMEOUT (120 s), three requests at REQUEST_TIMEOUT (3 x 60 s),
+/// two identity checks at IDENTITY_TIMEOUT (2 x 5 s) and the stop grace
+/// (5 s) — 315 s, a little over five minutes. The budget's job is that
+/// few lifetimes begin at all.
 const TOTAL_BUDGET: Duration = Duration::from_secs(180);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
@@ -35,6 +37,12 @@ const READY_TIMEOUT: Duration = Duration::from_secs(120);
 /// if it is the only candidate there is no tune, and the caller keeps the
 /// rule. One wedged candidate also cannot spend the whole budget.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// The identity checks get their own short bound: `/v1/models` is a
+/// set-iteration over one entry and a string build — instant — so five
+/// seconds is a hung server, not a slow one, and the gate must not spend
+/// a request's minute of the budget twice per lifetime.
+const IDENTITY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Round two re-runs only what round one could not separate: a candidate
 /// a quarter below the top would need an implausible swing to win a
@@ -166,7 +174,7 @@ fn run_lifetime(
     // FIRST of them sorted — "backward compat: use first alias as model
     // name" (`server-context.cpp:1385-1386`) — so a repeated `--alias`
     // does not resolve to the last. Ours alone, the id IS the nonce.
-    let nonce = fresh_nonce();
+    let nonce = fresh_nonce().ok_or(Refusal::DidNotStart)?;
     let mut argv = without_aliases(argv);
     argv.extend(["--alias".to_string(), nonce.clone()]);
     let mut server = serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
@@ -179,7 +187,7 @@ fn run_lifetime(
     // `ctx_http.start()` at :463-468 on `833cde99b`), so a foreign
     // server can answer while ours is still initialising — timing the
     // liveness gate cannot prove, identity can.
-    if !serves_id(server.address(), &nonce, REQUEST_TIMEOUT) {
+    if !serves_id(server.address(), &nonce, IDENTITY_TIMEOUT) {
         return Err(Refusal::DidNotStart);
     }
     let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
@@ -191,7 +199,7 @@ fn run_lifetime(
             }
         }
     }
-    let on_our_model = serves_id(server.address(), &nonce, REQUEST_TIMEOUT);
+    let on_our_model = serves_id(server.address(), &nonce, IDENTITY_TIMEOUT);
     conclude(rates, server.alive(), on_our_model)
 }
 
@@ -199,17 +207,29 @@ fn run_lifetime(
 /// Not secrecy — the question is only whether some OTHER server is
 /// answering our freed port — so uniqueness against any real model name
 /// is the whole requirement, and the door picks its ids the same way.
-fn fresh_nonce() -> String {
+fn fresh_nonce() -> Option<String> {
+    nonce_from(getrandom::fill)
+}
+
+/// The nonce through an injectable fallibility: the OS entropy source can
+/// refuse, and a tune that cannot draw an identity does not spawn — the
+/// lifetime is `Refusal::DidNotStart`, never a panic in the walk.
+fn nonce_from<E>(fill: impl FnOnce(&mut [u8]) -> Result<(), E>) -> Option<String> {
     let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).expect("the operating system's entropy source");
+    fill(&mut bytes).ok()?;
     let hex = bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-    format!("kalsa-tune-{hex}")
+    Some(format!("kalsa-tune-{hex}"))
 }
 
 /// The caller's own alias declarations removed, keeping every other
-/// argument in order: `--alias value`, `-a value`, `--alias=value`,
-/// `-a=value`. The only way our nonce is the served id is to be the only
-/// alias there is (see the set rule quoted above).
+/// argument in order. Exactly two forms exist: the parser looks the
+/// option up as a whole token and takes its value from the next one
+/// (kalsallama `common/arg.cpp:819-824`, `argv[++i]` at :849-852), so
+/// only `--alias VALUE` and `-a VALUE` are aliases. Stripping those
+/// cannot make our nonce the served id on its own — an inherited
+/// `LLAMA_ARG_ALIAS` (set at `arg.cpp:3015-3025`, applied before the
+/// command line at :781-802) still sorts into the set first — which is
+/// why the identity check reads the entry's `aliases` too.
 fn without_aliases(argv: Vec<String>) -> Vec<String> {
     let mut kept = Vec::with_capacity(argv.len());
     let mut skip_value = false;
@@ -220,9 +240,6 @@ fn without_aliases(argv: Vec<String>) -> Vec<String> {
         }
         if arg == "--alias" || arg == "-a" {
             skip_value = true;
-            continue;
-        }
-        if arg.starts_with("--alias=") || arg.starts_with("-a=") {
             continue;
         }
         kept.push(arg);

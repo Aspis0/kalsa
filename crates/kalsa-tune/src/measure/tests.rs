@@ -149,8 +149,10 @@
         );
     }
 
-    /// The caller's aliases come off in every spelling the engine's arg
-    /// parser accepts, and nothing else moves.
+    /// The caller's aliases come off in the two forms the engine's parser
+    /// actually knows — whole-token lookup, value in the next token — and
+    /// nothing else moves: an `=`-shaped token is not an alias to this
+    /// parser, so it is left as it was given.
     #[test]
     fn the_callers_aliases_are_removed_and_nothing_else() {
         let argv = vec![
@@ -163,7 +165,6 @@
             "-a".to_string(),
             "short".to_string(),
             "--alias=equals".to_string(),
-            "-a=e2".to_string(),
             "--port".to_string(),
             "8131".to_string(),
         ];
@@ -174,19 +175,31 @@
                 "127.0.0.1".to_string(),
                 "--model".to_string(),
                 "/m.gguf".to_string(),
+                "--alias=equals".to_string(),
                 "--port".to_string(),
                 "8131".to_string(),
             ]
         );
     }
 
+    /// No entropy, no panic: the lifetime refuses without spawning.
+    #[test]
+    fn a_nonce_that_cannot_be_drawn_is_a_refusal_not_a_panic() {
+        assert_eq!(nonce_from(|_| Err::<(), _>("no entropy")), None);
+        assert!(nonce_from(|_| Ok::<(), ()>(())).is_some());
+    }
+
     /// The nonce looks like nothing a model is called.
     #[test]
     fn a_nonce_is_unlike_any_model_name() {
-        let nonce = fresh_nonce();
+        let nonce = fresh_nonce().expect("this machine has entropy");
         assert!(nonce.starts_with("kalsa-tune-"), "{nonce}");
         assert_eq!(nonce.len(), "kalsa-tune-".len() + 32, "{nonce}");
-        assert_ne!(fresh_nonce(), nonce, "a fresh identity per lifetime");
+        assert_ne!(
+            fresh_nonce().expect("this machine has entropy"),
+            nonce,
+            "a fresh identity per lifetime"
+        );
     }
 
     /// The budget is checked before each lifetime, never inside one: the
