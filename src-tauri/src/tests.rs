@@ -2703,6 +2703,11 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
         ],
     };
     let args = launch_args("/models/chosen.gguf", graphics_port);
+    let processor_args = kalsa_launch::ServerArgs {
+        threads: Some(16),
+        offload: kalsa_launch::Offload::NoGpuBuild,
+        ..args.clone()
+    };
     startup::PreparedStart {
         server,
         info: startup::LaunchInfo {
@@ -2716,7 +2721,7 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
             tune: Some(tune_step::Tune::Measured(record)),
             checked: None,
         },
-        processor: Some(processor),
+        processor: Some((processor, processor_args)),
         rule_launch: None,
     }
 }
@@ -2737,9 +2742,9 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
     let mut prepared = graphics_prepared("slow", 8194, 8195);
     let mut stops = 0usize;
     let mut starts: Vec<u16> = Vec::new();
-    let outcome = speed_check(
+    let result = speed_check(
         &mut prepared,
-        |_| Some(20.0),
+        |_| kalsa_tune::Answer::Rate(20.0),
         || stops += 1,
         |config| {
             starts.push(config.port);
@@ -2750,7 +2755,12 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
     assert_eq!(stops, 1, "the slow graphics server is stopped first");
     assert_eq!(starts, vec![8195], "and only the processor config starts");
     assert_eq!(prepared.server.port, 8195, "the prepared launch is the processor's");
-    assert_eq!(outcome, Some(StartOutcome::Accepted));
+    assert_eq!(result, CheckResult::Launched(StartOutcome::Accepted));
+    assert_eq!(
+        prepared.info.args.threads,
+        Some(16),
+        "the panel's In force is the processor's, not the graphics args"
+    );
     let checked = prepared.info.checked.as_deref().expect("the check is shown");
     assert!(
         checked.contains("checked 20.0 tokens/s against 47.2 recorded"),
@@ -2768,7 +2778,7 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
 fn a_check_timeout_reads_as_slow() {
     let mut prepared = graphics_prepared("timeout", 8188, 8189);
     let mut stops = 0usize;
-    speed_check(&mut prepared, |_| None, || stops += 1, |config| {
+    speed_check(&mut prepared, |_| kalsa_tune::Answer::Timeout, || stops += 1, |config| {
         assert_eq!(config.port, 8189);
         Some((StartOutcome::Accepted, Some(StartSettled::Up)))
     });
@@ -2810,18 +2820,22 @@ fn a_turn_off_during_the_check_prevents_the_restart() {
 fn a_processor_start_that_fails_gets_the_graphics_launch_once() {
     let mut prepared = graphics_prepared("fallback", 8192, 8190);
     let mut starts: Vec<u16> = Vec::new();
-    let outcome = speed_check(
+    let result = speed_check(
         &mut prepared,
-        |_| Some(20.0),
+        |_| kalsa_tune::Answer::Rate(20.0),
         || {},
         |config| {
             starts.push(config.port);
-            Some((
-                StartOutcome::Accepted,
-                Some(StartSettled::Failed(Failure::ServerNotStarted {
-                    detail: "gone".to_string(),
-                })),
-            ))
+            if config.port == 8190 {
+                Some((
+                    StartOutcome::Accepted,
+                    Some(StartSettled::Failed(Failure::ServerNotStarted {
+                        detail: "gone".to_string(),
+                    })),
+                ))
+            } else {
+                Some((StartOutcome::Accepted, Some(StartSettled::Up)))
+            }
         },
     );
     assert_eq!(
@@ -2830,7 +2844,12 @@ fn a_processor_start_that_fails_gets_the_graphics_launch_once() {
         "the processor first, then the graphics config once"
     );
     assert_eq!(prepared.server.port, 8192, "the graphics launch is back");
-    assert_eq!(outcome, Some(StartOutcome::Accepted));
+    assert_eq!(result, CheckResult::Launched(StartOutcome::Accepted));
+    assert_eq!(
+        prepared.info.args.threads,
+        Some(4),
+        "the graphics args stay with the graphics launch"
+    );
     assert!(
         prepared
             .info
@@ -2846,16 +2865,16 @@ fn a_processor_start_that_fails_gets_the_graphics_launch_once() {
 #[test]
 fn a_card_at_its_recorded_speed_keeps_the_slot() {
     let mut prepared = graphics_prepared("kept", 8191, 8196);
-    let outcome = speed_check(
+    let result = speed_check(
         &mut prepared,
-        |_| Some(46.9),
+        |_| kalsa_tune::Answer::Rate(46.9),
         || panic!("a fast server is not stopped"),
         |config| {
             let _ = config;
             panic!("a fast server is not replaced");
         },
     );
-    assert!(outcome.is_none(), "nothing changed, nothing to record");
+    assert_eq!(result, CheckResult::Kept, "nothing changed, nothing to record");
     assert_eq!(prepared.server.port, 8191, "the graphics launch is untouched");
     let checked = prepared.info.checked.as_deref().expect("the check is shown");
     assert!(
@@ -2863,4 +2882,97 @@ fn a_card_at_its_recorded_speed_keeps_the_slot() {
         "{checked}"
     );
     assert!(!checked.contains("processor candidate"), "{checked}");
+}
+
+/// The processor start fails and the graphics fallback fails with it: the
+/// line must not claim either launch stands, and the walk records nothing.
+#[test]
+fn a_processor_and_graphics_failure_leaves_nothing_running() {
+    let mut prepared = graphics_prepared("bothdown", 8186, 8185);
+    let mut starts: Vec<u16> = Vec::new();
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(20.0),
+        || {},
+        |config| {
+            starts.push(config.port);
+            Some((
+                StartOutcome::Accepted,
+                Some(StartSettled::Failed(Failure::ServerNotStarted {
+                    detail: "gone".to_string(),
+                })),
+            ))
+        },
+    );
+    assert_eq!(
+        starts,
+        vec![8185, 8186],
+        "both starts were attempted, processor first"
+    );
+    assert_eq!(result, CheckResult::Down, "nothing runs, so nothing records");
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("neither launch came up")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// A check that fails outright (HTTP error, unusable body, rejected
+/// timing) says nothing about speed: the launch stands and the line says
+/// the check itself failed.
+#[test]
+fn a_failed_check_keeps_the_graphics_launch() {
+    let mut prepared = graphics_prepared("failed", 8184, 8187);
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Failed,
+        || panic!("a failed check does not stop anything"),
+        |config| {
+            let _ = config;
+            panic!("a failed check does not start anything");
+        },
+    );
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(prepared.server.port, 8184, "the graphics launch is untouched");
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("the check failed")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// The claim releases on every exit: the fallible calls between the claim
+/// and the settlement return through `?`, and a stuck claim would keep the
+/// door down forever.
+#[test]
+fn the_walk_guard_releases_the_claim_on_every_exit() {
+    let brain = Brain::new();
+    let _seen = brain.begin_walk(|| {}).expect("first claim");
+    {
+        let _walk = WalkGuard(&brain);
+        assert!(
+            brain.begin_walk(|| {}).is_none(),
+            "the claim is held while the walk lives"
+        );
+    }
+    assert!(
+        brain.begin_walk(|| {}).is_some(),
+        "every exit — `?` or return — releases the claim"
+    );
+}
+
+/// The door's raise is skipped while a walk finishes (its speed check must
+/// keep its slot); a door already open stays open.
+#[test]
+fn the_door_is_not_raised_while_a_walk_finishes() {
+    assert!(!door_may_raise(true), "the speed check keeps its slot");
+    assert!(door_may_raise(false), "no walk: the door may rise");
 }

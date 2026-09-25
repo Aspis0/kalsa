@@ -405,9 +405,10 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
     }
 }
 
-/// The graphics winner's processor alternative: the best processor trial in
-/// the record, on its own exe and threads, same port — the launch the
-/// per-start check hands the slot to when the card answers slow.
+/// The graphics winner's processor alternative: the best processor trial
+/// in the record, on its own exe, threads and offload, same port — the
+/// launch (and the args) the per-start check hands the slot to when the
+/// card answers slow.
 fn processor_launch(
     record: &kalsa_tune::record::Record,
     rule_args: &ServerArgs,
@@ -416,7 +417,7 @@ fn processor_launch(
     memo: &mut Memo,
     progress: &mut dyn FnMut(Progress),
     base: &ServerConfig,
-) -> Option<ServerConfig> {
+) -> Option<(ServerConfig, ServerArgs)> {
     let (_, candidate) = record
         .trials
         .iter()
@@ -439,11 +440,21 @@ fn processor_launch(
     .ok()?;
     let (exe, argv) =
         tuned_launch(rule_args, &exe, candidate.threads, candidate.offload, base.port);
-    Some(ServerConfig {
-        exe,
-        argv,
-        ..base.clone()
-    })
+    // The config AND its args together: the panel's "In force" reads the
+    // args, and after a switch they must be the processor's.
+    let args = ServerArgs {
+        threads: candidate.threads,
+        offload: candidate.offload,
+        ..rule_args.clone()
+    };
+    Some((
+        ServerConfig {
+            exe,
+            argv,
+            ..base.clone()
+        },
+        args,
+    ))
 }
 
 /// What the per-start check decided, for the panel's words.
@@ -453,10 +464,14 @@ pub(crate) enum Checked {
     NoProcessor,
     /// The processor start failed: the graphics launch, once.
     StillGraphics,
+    /// Neither launch came up.
+    Down,
+    /// The check itself failed: it says nothing about speed.
+    Failed,
 }
 
-/// The check's line (DRAFT copy): this start's own speed against the
-/// recorded best, then what the launch did about it.
+/// The check's line: this start's own speed against the recorded best,
+/// then what the launch did about it.
 pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked) -> String {
     let speed = match checked {
         Some(rate) => format!("{rate:.1} tokens/s"),
@@ -464,12 +479,15 @@ pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked
     };
     let head = format!("checked {speed} against {recorded:.1} recorded");
     match outcome {
+        // The check itself failed: it says nothing about speed.
+        Checked::Failed => "the check failed; the graphics launch stays".to_string(),
         Checked::Kept => head,
         Checked::Switched => format!("{head} — running the processor candidate"),
         Checked::NoProcessor => format!("{head} — nothing to switch to"),
         Checked::StillGraphics => format!(
             "{head} — the processor candidate would not start; keeping the graphics launch"
         ),
+        Checked::Down => format!("{head} — neither launch came up"),
     }
 }
 

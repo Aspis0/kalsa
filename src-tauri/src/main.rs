@@ -895,9 +895,9 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             // page reads the same store every poll and carries the escape
             // hatch. The square comes down either way: advertising a door
             // that cannot complete a request lies to the phone that scans.
-            // The door stays down while this walk is still finishing: the
-            // per-start speed check must not share its slot with a chat.
-            if !brain.turning_on.load(Ordering::SeqCst)
+            // While a walk is still finishing (its speed check included)
+            // the raise is skipped — a door already open stays open.
+            if door_may_raise(brain.turning_on.load(Ordering::SeqCst))
                 && brain
                     .start_door_if_paired(port, &desk.pairing_file, internet_road)
                     .is_err()
@@ -1080,6 +1080,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let Some(stops_seen) = brain.begin_walk(|| {}) else {
         return Err("The assistant is already starting.".into());
     };
+    // Every `?` below returns through this: the claim (and the door's
+    // raise) must not stay stuck behind a fallible call.
+    let _walk = WalkGuard(&brain);
     brain.metrics.reset();
     let kept = brain
         .measurement
@@ -1157,10 +1160,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         // keep, and the standing sentence for it.
         Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
     };
-    // The press owns the guard through settlement — the retry included:
-    // until this returns, no second Turn on may queue behind a start whose
-    // verdict is still open.
-    brain.turning_on.store(false, Ordering::SeqCst);
+    // The claim releases here (WalkGuard) — after settlement, retry
+    // included: no second Turn on may queue behind an open start verdict.
+    drop(_walk);
     result
 }
 
@@ -1241,13 +1243,16 @@ fn settle_walk(
             if matches!(settled, Some(StartSettled::Up)) {
                 let restart =
                     |config: ServerConfig| restart_after_check(brain, stops_seen, config);
-                if let Some(checked_outcome) = speed_check(
+                match speed_check(
                     &mut prepared,
-                    kalsa_tune::checked_rate,
+                    |addr| kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT),
                     || brain.supervisor.stop(),
                     restart,
                 ) {
-                    outcome = checked_outcome;
+                    CheckResult::Kept => {}
+                    CheckResult::Launched(checked_outcome) => outcome = checked_outcome,
+                    // Nothing is running; there is nothing to record.
+                    CheckResult::Down => return Ok(()),
                 }
                 if brain.stops.load(Ordering::SeqCst) != stops_seen {
                     // A Turn off during the check: the walk records nothing.
@@ -1268,6 +1273,24 @@ fn settle_walk(
 /// The retry's question: did the tuned start fail the way the rule's
 /// launch could fix — not ready, exited while loading, or the exe vanished
 /// — and did the tune change the launch at all? No answer counts as "no".
+/// Releases the single-walk claim when dropped — the fallible calls
+/// between the claim and the settlement all return through `?`, and the
+/// door raises only once `turning_on` is false.
+struct WalkGuard<'a>(&'a Brain);
+
+impl Drop for WalkGuard<'_> {
+    fn drop(&mut self) {
+        self.0.turning_on.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Whether this poll may raise the door: never while a walk is still
+/// finishing (its speed check must not share a slot with a chat). A door
+/// already open stays open — this only skips the raise.
+fn door_may_raise(walk_in_progress: bool) -> bool {
+    !walk_in_progress
+}
+
 fn retry_after(settled: Option<StartSettled>, tuned_changed: bool) -> bool {
     tuned_changed
         && matches!(
@@ -1335,76 +1358,110 @@ fn restart_after_check(
     Some((outcome, waiter.settle()))
 }
 
-/// The per-start speed check: a graphics winner — record hit or fresh tune,
-/// both end in `Tune::Measured` — answers one short request, and under half
-/// its recorded best it hands the slot to the processor candidate. The
-/// record is never invalidated: the pressure is transient and the next start
-/// checks again. Returns the outcome to record when the launch changed.
+/// What the check did: the launch stands as it was; a new launch to
+/// record; or nothing running at all (the walk records nothing).
+#[derive(Debug, PartialEq)]
+pub(crate) enum CheckResult {
+    Kept,
+    Launched(StartOutcome),
+    Down,
+}
+
+/// The per-start speed check: a graphics winner — record hit or fresh
+/// tune, both end in `Tune::Measured` — answers one short request, and
+/// under half its recorded best it hands the slot to the processor
+/// candidate. The record is never invalidated: the pressure is transient
+/// and the next start checks again.
 pub(crate) fn speed_check(
     prepared: &mut startup::PreparedStart,
-    rate: impl FnOnce(SocketAddr) -> Option<f64>,
+    rate: impl FnOnce(SocketAddr) -> kalsa_tune::Answer,
     stop: impl FnOnce(),
     mut start: impl FnMut(ServerConfig) -> Option<(StartOutcome, Option<StartSettled>)>,
-) -> Option<StartOutcome> {
+) -> CheckResult {
     let Some(tune_step::Tune::Measured(record)) = prepared.info.tune.as_ref() else {
-        return None;
+        return CheckResult::Kept;
     };
     let Some(winner) = &record.winner else {
-        return None;
+        return CheckResult::Kept;
     };
     if !matches!(
         winner.candidate.offload,
         kalsa_launch::Offload::All | kalsa_launch::Offload::EngineFitted
     ) {
-        return None;
+        return CheckResult::Kept;
     }
     let recorded = winner.best;
-    let checked = rate(SocketAddr::from(([127, 0, 0, 1], prepared.server.port)));
-    let slow = checked.is_none_or(|rate| worth_switching(rate, recorded));
-    let graphics = prepared.server.clone();
-    let processor = prepared.processor.clone();
-    if !slow {
+    let checked = match rate(SocketAddr::from(([127, 0, 0, 1], prepared.server.port))) {
+        kalsa_tune::Answer::Rate(rate) => Some(rate),
+        // Under ~1 tok/s: the check never came back.
+        kalsa_tune::Answer::Timeout => None,
+        kalsa_tune::Answer::Failed => {
+            // An HTTP error, an unusable body or a rejected timing says
+            // nothing about speed: this launch stands, and the line says
+            // the check itself failed.
+            prepared.info.checked = Some(tune_step::checked_line(
+                None,
+                recorded,
+                tune_step::Checked::Failed,
+            ));
+            return CheckResult::Kept;
+        }
+    };
+    if !checked.is_none_or(|rate| worth_switching(rate, recorded)) {
         prepared.info.checked = Some(tune_step::checked_line(
             checked,
             recorded,
             tune_step::Checked::Kept,
         ));
-        return None;
+        return CheckResult::Kept;
     }
-    let Some(processor) = processor else {
+    let Some((processor_config, processor_args)) = prepared.processor.clone() else {
         prepared.info.checked = Some(tune_step::checked_line(
             checked,
             recorded,
             tune_step::Checked::NoProcessor,
         ));
-        return None;
+        return CheckResult::Kept;
     };
+    let graphics = prepared.server.clone();
     stop();
-    match start(processor.clone()) {
+    match start(processor_config.clone()) {
         // A Turn off landed during the check: nothing may start.
-        None => None,
+        None => CheckResult::Down,
         Some((outcome, Some(StartSettled::Up))) => {
-            prepared.server = processor;
+            prepared.server = processor_config;
+            // The panel's "In force" must describe what runs: the
+            // processor's own threads and offload.
+            prepared.info.args = processor_args;
             prepared.info.checked = Some(tune_step::checked_line(
                 checked,
                 recorded,
                 tune_step::Checked::Switched,
             ));
-            Some(outcome)
+            CheckResult::Launched(outcome)
         }
-        // The processor start failed: the graphics launch, once — slow beats
-        // nothing.
+        // The processor start failed: the graphics launch, once — slow
+        // beats nothing.
         Some(_) => match start(graphics.clone()) {
-            Some((outcome, _)) => {
+            Some((outcome, Some(StartSettled::Up))) => {
                 prepared.server = graphics;
                 prepared.info.checked = Some(tune_step::checked_line(
                     checked,
                     recorded,
                     tune_step::Checked::StillGraphics,
                 ));
-                Some(outcome)
+                CheckResult::Launched(outcome)
             }
-            None => None,
+            // Both down: the line must not claim either launch stands.
+            Some(_) => {
+                prepared.info.checked = Some(tune_step::checked_line(
+                    checked,
+                    recorded,
+                    tune_step::Checked::Down,
+                ));
+                CheckResult::Down
+            }
+            None => CheckResult::Down,
         },
     }
 }

@@ -304,9 +304,9 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // The per-start speed check on the real server: the same request the
     // panel's check makes, so what the pressure test prints here is the
     // line the panel would show.
-    if let Some(outcome) = crate::speed_check(
+    match crate::speed_check(
         &mut prepared,
-        kalsa_tune::checked_rate,
+        |addr| kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT),
         || supervisor.stop(),
         |config| {
             let waiter = supervisor.start(config);
@@ -314,11 +314,15 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
             Some((outcome, waiter.settle()))
         },
     ) {
-        assert_eq!(
-            outcome,
-            StartOutcome::Accepted,
-            "a switch's own start was refused"
-        );
+        crate::CheckResult::Kept => {}
+        crate::CheckResult::Launched(outcome) => {
+            assert_eq!(
+                outcome,
+                StartOutcome::Accepted,
+                "a switch's own start was refused"
+            );
+        }
+        crate::CheckResult::Down => panic!("neither the processor nor the graphics launch came up"),
     }
     if let Some(checked) = &prepared.info.checked {
         eprintln!("speed: {checked}");

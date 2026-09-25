@@ -10,7 +10,7 @@
 
 pub mod record;
 pub use record::fingerprint;
-pub use sample::checked_rate;
+pub use sample::{checked_rate, Answer, CHECK_TIMEOUT};
 
 mod measure;
 mod sample;

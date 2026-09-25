@@ -185,10 +185,10 @@ pub(crate) struct LaunchInfo {
 pub(crate) struct PreparedStart {
     pub(crate) server: ServerConfig,
     pub(crate) info: LaunchInfo,
-    /// The graphics winner's processor alternative, resolved during the
-    /// tune: what the per-start check switches to when the card answers
-    /// slow. None unless the launch is a graphics winner.
-    pub(crate) processor: Option<ServerConfig>,
+    /// The graphics winner's processor alternative — config and args —
+    /// resolved during the tune: what the per-start check switches to when
+    /// the card answers slow. None unless the launch is a graphics winner.
+    pub(crate) processor: Option<(ServerConfig, ServerArgs)>,
     /// The plan's own launch — config AND args — beside the tuned one:
     /// main.rs retries with this when the tuned launch fails to load (and
     /// so tells the panel what actually ran), and compares it to know

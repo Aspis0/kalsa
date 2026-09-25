@@ -29,15 +29,63 @@ pub(crate) fn rate_from(body: &str, min_n: u64) -> Option<f64> {
     (rate.is_finite() && rate > 0.0).then_some(rate)
 }
 
-/// The per-start check's ask: few tokens, a bounded wait. A timeout is an
-/// answer too — `None`, which reads as slow (under ~1 tok/s).
+/// The per-start check's ask: 16 tokens after the tune's own discarded
+/// 8-token warm-up (a first-request cost — pipelines compiling — must
+/// never read as a slow card), each leg bounded by CHECK_TIMEOUT: the
+/// check can never take longer than two of them.
 pub const CHECK_N_PREDICT: u64 = 16;
+pub const CHECK_WARMUP_N_PREDICT: u64 = 8;
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// The decode rate for one short request, read exactly the way the tune
-/// reads its samples, so the two numbers are comparable.
-pub fn checked_rate(addr: SocketAddr) -> Option<f64> {
-    request(addr, CHECK_TIMEOUT, CHECK_N_PREDICT)
+/// What one check answered: the decode rate; a timeout, which reads as
+/// slow (under ~1 tok/s); or a failure that says nothing about speed —
+/// any HTTP error, an unusable body, a rejected timing.
+pub enum Answer {
+    Rate(f64),
+    Timeout,
+    Failed,
+}
+
+/// The decode rate for one short request, read the way the tune reads its
+/// samples: the same `rate_from`, after the same discarded warm-up.
+pub fn checked_rate(addr: SocketAddr, timeout: Duration) -> Answer {
+    let _ = request(addr, timeout, CHECK_WARMUP_N_PREDICT);
+    match post(addr, timeout, CHECK_N_PREDICT) {
+        Ok(text) => rate_from(&text, CHECK_N_PREDICT).map_or(Answer::Failed, Answer::Rate),
+        Err(SendFailed::Timeout) => Answer::Timeout,
+        Err(SendFailed::Failed) => Answer::Failed,
+    }
+}
+
+/// How a POST went wrong, kept apart because the check reads them apart:
+/// only a timeout means the card is slow.
+enum SendFailed {
+    Timeout,
+    Failed,
+}
+
+/// One POST to `/completion`, shared by the tune's samples and the check.
+fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
+    let body = completion_body(n_predict);
+    match ureq::post(&format!("http://{addr}/completion"))
+        .timeout(timeout)
+        .send_string(&body)
+    {
+        Ok(response) => response.into_string().map_err(|_| SendFailed::Failed),
+        Err(ureq::Error::Transport(transport)) => {
+            // ureq has no timeout kind of its own: a request that ran out
+            // of time arrives as an io error with TimedOut underneath.
+            let timed_out = std::error::Error::source(&transport)
+                .and_then(|source| source.downcast_ref::<std::io::Error>())
+                .is_some_and(|io| io.kind() == std::io::ErrorKind::TimedOut);
+            Err(if timed_out {
+                SendFailed::Timeout
+            } else {
+                SendFailed::Failed
+            })
+        }
+        Err(_) => Err(SendFailed::Failed),
+    }
 }
 
 /// One POST to llama-server's `/completion` — the endpoint that takes
@@ -46,14 +94,7 @@ pub fn checked_rate(addr: SocketAddr) -> Option<f64> {
 /// build without the endpoint answers 404, and neither is this crate's
 /// problem to surface — it is a lifetime with no usable answer.
 pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Option<f64> {
-    let body = completion_body(n_predict);
-    let reply = ureq::post(&format!("http://{addr}/completion"))
-        .timeout(timeout)
-        .send_string(&body);
-    match reply {
-        Ok(response) => rate_from(&response.into_string().ok()?, n_predict),
-        Err(_) => None,
-    }
+    rate_from(&post(addr, timeout, n_predict).ok()?, n_predict)
 }
 
 /// The exact ask, with the token count the caller chose: the same prompt,
@@ -225,5 +266,47 @@ mod tests {
         assert_eq!(rate_from(r#"{"content":"hi"}"#, N_PREDICT), None);
         assert_eq!(rate_from(r#"{"timings":{"predicted_n":64}}"#, N_PREDICT), None);
         assert_eq!(rate_from("not json at all", N_PREDICT), None);
+    }
+}
+
+#[cfg(test)]
+mod check_tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    /// The distinction the check hangs on: a request that ran out of time is
+    /// `Timeout` (slow), a connection that never could be made is `Failed`
+    /// (says nothing about speed).
+    #[test]
+    fn a_timeout_and_a_dead_port_are_different_answers() {
+        let hanging = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = hanging.local_addr().expect("addr").port();
+        let _acceptor = std::thread::spawn(move || {
+            if let Ok((stream, _)) = hanging.accept() {
+                // Held open past the client's deadline, then dropped.
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                drop(stream);
+            }
+        });
+        let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
+        assert!(
+            matches!(
+                checked_rate(addr, Duration::from_millis(100)),
+                Answer::Timeout
+            ),
+            "an unanswered request is a timeout"
+        );
+
+        let closed = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let dead_port = closed.local_addr().expect("addr").port();
+        drop(closed);
+        let dead: SocketAddr = format!("127.0.0.1:{dead_port}").parse().expect("addr");
+        assert!(
+            matches!(
+                checked_rate(dead, Duration::from_millis(500)),
+                Answer::Failed
+            ),
+            "a refused connection is a failure, not a slow card"
+        );
     }
 }
