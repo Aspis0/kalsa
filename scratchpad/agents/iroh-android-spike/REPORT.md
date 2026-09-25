@@ -83,3 +83,10 @@ The phone crate depends on brain's `crates/kalsa-iroh` as a git dependency pinne
 wraps only `Bridge::connect` + `TunnelStream` with uniffi. One source for ALPN, key format and relay
 choice, so the two ends cannot skew. Android blockers found inside it (e.g. the key file path or its
 permissions in `key.rs`) go back to kalsa-brain to be fixed on the desktop side.
+
+## Desktop real-network numbers (kalsa-brain 063dc06e, `docs/IROH-REAL-NETWORKS-2026-09-25.md`, unreviewed)
+Mac at home <- Surface on a corporate network: first stream ~315 ms, 20/20 HTTP round trips via tunnel+door,
+median 85 ms / p95 94 ms, RELAY throughout (corporate blocks direct UDP), 0 failures over a 2-min hold.
+Trap for the Jelly run: with Tailscale up on the Mac, iroh 1.2 also picks the Mac's 100.x address as a
+"direct" path and cannot exclude it - measure iroh on the Jelly with Tailscale OFF on the phone, or label it.
+Mobile network: unmeasured.
