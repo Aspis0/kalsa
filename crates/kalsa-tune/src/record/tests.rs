@@ -303,3 +303,56 @@
         rewrite(&dir, text.replace("refused=did-not-start", "refused=/home/user/llama.log"));
         assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
     }
+
+    /// A fingerprint is one non-empty line: the file is line-shaped, so a
+    /// newline or carriage return inside it would split the record into
+    /// something `load` reads as somebody else's (or not at all) while
+    /// `save` answered Ok. Refused before anything is written.
+    #[test]
+    fn a_fingerprint_that_is_not_one_line_is_refused() {
+        for (name, fingerprint) in [
+            ("fp-empty", ""),
+            ("fp-newline", "sha-abc\nsecond line"),
+            ("fp-cr", "sha-abc\rsecond line"),
+        ] {
+            let dir = Scratch::new(name);
+            let record = Record { fingerprint: fingerprint.into(), ..sample().clone() };
+            let error = save(&dir, &record).expect_err("one line or nothing");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}: {error}");
+            assert!(!dir.exists(), "{name}: nothing was written");
+        }
+    }
+
+    /// The builder de-duplicates candidates, so `save` refuses a record
+    /// that lists one launch twice — even carrying its own outcome.
+    #[test]
+    fn two_trials_of_one_launch_are_refused_by_save() {
+        let base = sample();
+        let mut trials = base.trials.clone();
+        let (candidate, kept) = trials[0].clone();
+        trials.push((candidate, kept));
+        let record = Record { trials, ..base };
+        let dir = Scratch::new("save-dup-trial");
+        let error = save(&dir, &record).expect_err("one launch, one trial");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{error}");
+        assert!(!dir.exists(), "nothing was written");
+    }
+
+    /// And `load` holds the same promise against a forged file: the same
+    /// backend/threads/offload twice — different numbers notwithstanding —
+    /// is not a list this builder would have written.
+    #[test]
+    fn a_forged_duplicate_trial_reads_as_no_record() {
+        let dir = Scratch::new("load-dup-trial");
+        std::fs::create_dir_all(&*dir).expect("mkdir");
+        let text = format!(
+            "{MAGIC}\nfingerprint=sha-abc|ctx8192|machine\n\
+             candidate.0.backend=vulkan\ncandidate.0.threads=16\n\
+             candidate.0.offload=all\ncandidate.0.best=49.0\n\
+             candidate.1.backend=vulkan\ncandidate.1.threads=16\n\
+             candidate.1.offload=all\ncandidate.1.best=48.0\n\
+             end\n"
+        );
+        rewrite(&dir, text);
+        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+    }

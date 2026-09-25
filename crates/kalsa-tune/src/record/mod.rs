@@ -64,8 +64,24 @@ fn validate(record: &Record) -> io::Result<()> {
     fn reject(why: &str) -> io::Result<()> {
         Err(io::Error::new(io::ErrorKind::InvalidInput, why))
     }
+    if record.fingerprint.is_empty() || record.fingerprint.contains(['\n', '\r']) {
+        return reject("a fingerprint is one non-empty line: the file is line-shaped");
+    }
     if record.trials.is_empty() {
         return reject("a record without trials reads as no record");
+    }
+    // The builder de-duplicates candidates; a record listing one launch
+    // twice describes an experiment that never ran as written.
+    let mut seen = std::collections::HashSet::new();
+    for (candidate, _) in &record.trials {
+        let identity = (
+            candidate.backend.name(),
+            candidate.threads,
+            offload_name(candidate.offload),
+        );
+        if !seen.insert(identity) {
+            return reject("two trials of one launch: the list is de-duplicated");
+        }
     }
     for (candidate, kept) in &record.trials {
         if candidate.threads == Some(0) {
@@ -134,12 +150,20 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
     // not have.
     text.push_str("end\n");
     let temp = temp_path(dir);
-    let written = {
-        let mut file = fs::File::create(&temp)?;
-        file.write_all(text.as_bytes())?;
-        file.flush()
+    // A create failure is the one early return past this point, and it is
+    // safe: no file of ours exists yet (this code never removes a path it
+    // did not just make). Every path AFTER the create — write, flush,
+    // rename — reports through `result`, never through `?`, because a `?`
+    // would return and leave this save's partial temp behind; one cleanup
+    // below owns them all.
+    let mut file = fs::File::create(&temp)?;
+    let staged = file.write_all(text.as_bytes()).and_then(|()| file.flush());
+    drop(file); // closed before the rename: nobody may hold the temp open
+    let result = match staged {
+        Ok(()) => fs::rename(&temp, path(dir)),
+        Err(error) => Err(error),
     };
-    if let Err(error) = written.and_then(|()| fs::rename(&temp, path(dir))) {
+    if let Err(error) = result {
         // Whatever failed, THIS save's temp is this save's to clean — by
         // its own unique name, never another save's half-written file.
         let _ = fs::remove_file(&temp);
@@ -234,10 +258,13 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
             }
             if kept.is_some() {
                 let (backend, threads, offload) = open.take()?;
-                trials.push((
-                    Candidate { backend, threads, offload: offload? },
-                    kept.take()?,
-                ));
+                let candidate = Candidate { backend, threads, offload: offload? };
+                if trials.iter().any(|(other, _)| *other == candidate) {
+                    // The builder de-duplicates: a file that does not is a
+                    // file from something else wearing our shape.
+                    return None;
+                }
+                trials.push((candidate, kept.take()?));
             }
             continue;
         }
