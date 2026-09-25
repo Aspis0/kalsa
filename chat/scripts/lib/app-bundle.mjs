@@ -39,6 +39,7 @@ export async function loadApp() {
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";
         export { thinkingSupport } from "../src/lib/thinking.ts";
         export { createToolMarkupStripper } from "../src/lib/toolMarkup.ts";
+        export { subscribeBrainRead } from "../src/surfaces/useBrain.ts";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",

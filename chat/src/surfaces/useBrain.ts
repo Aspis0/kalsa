@@ -116,6 +116,12 @@ let standingSnapshot: DoorStanding = "unready";
 const listeners = new Set<() => void>();
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let offProgress: (() => void) | null = null;
+// A `listen()` registration in flight: not held yet, and the reason a
+// second one does not start. StrictMode's mount→unmount→mount runs all
+// three before the first promise answers, so "nothing held" is not
+// "nothing wanted" — starting again there would put two live
+// subscriptions on one bus with one stored unsubscribe between them.
+let progressPending = false;
 
 function publish(): void {
   // A stable snapshot: identical facts keep their identity, so a poll
@@ -185,21 +191,44 @@ async function poll(): Promise<void> {
   publish();
 }
 
+/** Starts the bus subscription — the one `brain_progress` listener the whole
+    app holds. A resolution that finds no reader (the last one left while the
+    registration was in the air) or finds one already held releases its own
+    unsubscribe at once, so whichever order the promises resolve in, one
+    subscription lives while `listeners` is non-empty and none after it
+    empties. */
+function startProgress(): void {
+  if (offProgress !== null || progressPending) return;
+  progressPending = true;
+  void listen("brain_progress", (step: unknown) => {
+    currentStep = (step as ProgressStep) || null;
+    void poll();
+  }).then(
+    (unsubscribe) => {
+      progressPending = false;
+      if (listeners.size > 0 && offProgress === null) offProgress = unsubscribe;
+      else unsubscribe();
+    },
+    () => {
+      // A registration that never landed must not leave `progressPending`
+      // up: every reader after it would find the guard closed and start
+      // nothing, and only a reload could take the flag back down.
+      progressPending = false;
+    },
+  );
+}
+
 // The first reader starts the poll, the last one stops it. The bus
-// subscription is async: if the last reader leaves before it answers,
-// the unsubscribe still runs.
-function subscribeBrainRead(listener: () => void): () => void {
+// subscription is async: if the last reader leaves before it answers, the
+// unsubscribe still runs — `startProgress` answers its own late resolution
+// with `unsubscribe()` (see above). Exported for
+// `scripts/brain-progress.mjs`, which drives it against a fake bus.
+export function subscribeBrainRead(listener: () => void): () => void {
   listeners.add(listener);
   if (listeners.size === 1) {
     void poll();
     pollTimer = setInterval(() => void poll(), POLL_MS);
-    void listen("brain_progress", (step: unknown) => {
-      currentStep = (step as ProgressStep) || null;
-      void poll();
-    }).then((unsubscribe) => {
-      if (listeners.size > 0) offProgress = unsubscribe;
-      else unsubscribe();
-    });
+    startProgress();
   }
   return () => {
     listeners.delete(listener);
