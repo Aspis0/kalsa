@@ -67,3 +67,13 @@ did NOT work. Final report will be `s23-dsp-spin-web/STOP-SOURCE.md`.
   ALWAYS `update_agent` to Flash + high and confirm with `list_agents`. It burned the owner's quota.
 - Reuse an agent only if its context is still valid (the old QDC agent kept the old account).
 - Heat briefs: tools OFF, new-token target, no cool-start gate, validity = route fields.
+
+## Handover taken (2026-09-25 ~23:00) - new coordinator 43c25dd3-1926-4261-b5b3-71d4acecc0b4
+
+Owner said "go ahead" on the recommendation: both lanes in parallel.
+- Lane mmproj fix: recon aacdeedd (mimo, read-only) - why `!options.mmprojPath` exists; note it also
+  forces `n_gpu_layers = 0` when the governor feature is on (`LlamaService.ts` ~2433), so the mmproj
+  model may run CPU-only.
+- Lane LFM heat arms: driver retarget ffd088fb (mimo coder, lab cell `qdc-heat-per-backend`);
+  predictions addendum `PREREG-LFM.md` by 47ba0758 (luna). QDC run only after both.
+- S23 still held by 263437c8 (DSP watch) - NPU Step 0 waits for its STOP-SOURCE.md.
