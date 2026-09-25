@@ -11,8 +11,8 @@
 //! 32-bit figure is all Windows ever had. docs/WHAT-IS-MISSING.md §22 named
 //! this trap in words — "a card of 4 GiB or more can only be sized truly
 //! from another source, such as the registry's … qwMemorySize, which was
-//! not verified here" — and this is that source, now verified on both
-//! machines (the Surface's denied keys are skipped, not fatal).
+//! not verified here" — and this is that source, verified on the Lenovo;
+//! the Surface proved only that its denied keys are skipped, not a figure.
 //!
 //! Only the walk is Windows: the decode (value type plus bytes to a size)
 //! and the match (DriverDesc to WMI's name) are pure, so the decision they

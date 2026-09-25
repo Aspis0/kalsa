@@ -23,11 +23,19 @@ use crate::{command_text, once_present};
 /// such as 4293918720, is taken as a real size"). At or above this line the
 /// field is saying "at least this much": never a size, an unknown one. On
 /// Windows the size then comes from the driver's own registry values
-/// (`vram_registry`) when they hold one; BELOW this line AdapterRAM itself
+/// (`vram_registry`) when they hold one of at least 4 GiB; BELOW this line
+/// AdapterRAM itself
 /// still stands — it is the fallback the parser has always used, not the
 /// liar the cap makes it.
 #[cfg(any(target_os = "windows", test))]
 const WMI_SATURATION_BYTES: u64 = 0xFFF00000;
+
+/// The floor on a registry answer: a saturated 32-bit AdapterRAM means "at
+/// least 4 GiB", so a registry figure below 4 GiB cannot be the size of a
+/// card whose AdapterRAM saturated — substituting it would turn a known
+/// minimum into a smaller guess.
+#[cfg(any(target_os = "windows", test))]
+const MIN_REGISTRY_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 pub fn backend() -> Backend {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -237,13 +245,14 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 ///
 /// The name decides whether it is discrete; the memory is reported only
 /// when it is not a non-answer: zero, or sitting on the 32-bit saturation
-/// line (`WMI_SATURATION_BYTES`). The size a discrete card really has may
-/// come from somewhere else entirely — `registry_size` is asked the
-/// controller's name and answers this machine's driver-written
-/// `qwMemorySize` when the registry holds one, which wins whenever present.
-/// Injected rather than called, so the whole decision is testable on a
-/// machine with no such registry; the real answer is `vram_registry`'s
-/// walk, behind `cfg(windows)`.
+/// line (`WMI_SATURATION_BYTES`). In that case — and only in that case —
+/// `registry_size` is asked the controller's name and may answer with this
+/// machine's driver-written `qwMemorySize`, when it is at least 4 GiB; a
+/// valid AdapterRAM stands alone and the registry is never consulted (the
+/// owner's rule: a stale same-name entry under a replaced card must not
+/// supply the size). Injected rather than called, so the whole decision is
+/// testable on a machine with no such registry; the real answer is
+/// `vram_registry`'s walk, behind `cfg(windows)`.
 #[cfg(any(target_os = "windows", test))]
 pub fn backend_from_video_controllers_with(
     text: &str,
@@ -281,13 +290,21 @@ pub fn backend_from_video_controllers_with(
             && !lowered.contains("intel");
         if looks_discrete {
             discrete = true;
-            // A discrete card's size, in order of authority: the driver's
-            // own registry figure when this machine's walk holds one, and
-            // otherwise AdapterRAM — which counts only below the saturation
-            // line. Zero and the cap are both non-answers (the Lenovo's
-            // 0xFFF00000 was a 6141 MiB card), never sizes.
-            let resolved = registry_size(name.trim())
-                .or_else(|| memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES));
+            // The size, by the owner's rule: a valid AdapterRAM — non-zero,
+            // below the saturation line — stands on its own and the registry
+            // is not consulted, because a stale same-name entry under a
+            // replaced card must not supply the size. The registry is asked
+            // only when AdapterRAM has no size to give — zero, absent, or
+            // saturated (a capped 32-bit field means "at least 4 GiB"; the
+            // Lenovo's 0xFFF00000 was a 6141 MiB card) — and only a figure
+            // of at least 4 GiB counts, because that is what the cap
+            // promises: a smaller registry number cannot be this card's size.
+            let adapter = memory.filter(|bytes| *bytes != 0 && *bytes < WMI_SATURATION_BYTES);
+            let resolved = match adapter {
+                Some(bytes) => Some(bytes),
+                None => registry_size(name.trim())
+                    .filter(|bytes| *bytes >= MIN_REGISTRY_BYTES),
+            };
             if let Some(bytes) = resolved {
                 best = Some(best.map_or(bytes, |current| current.max(bytes)));
             }
@@ -385,6 +402,36 @@ mod tests {
             backend_from_video_controllers_with(lenovo, |_| None),
             Backend::DiscreteGpu { vram_bytes: None },
             "with no registry answer the saturated AdapterRAM stays unread"
+        );
+    }
+
+    /// The owner's rule, in three cases: a valid AdapterRAM is never
+    /// second-guessed by the registry; a saturated one is answered by a
+    /// registry figure big enough to be a card's; a registry figure under
+    /// 4 GiB answers nothing at all.
+    #[test]
+    fn the_registry_is_asked_only_when_adapter_ram_has_no_size_to_give() {
+        let valid = "AdapterRAM  Name\n3221225472  NVIDIA GeForce GTX 1650\n";
+        assert_eq!(
+            backend_from_video_controllers_with(valid, |_| Some(6_439_305_216)),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(3221225472)
+            },
+            "a valid AdapterRAM stands; the registry is not consulted"
+        );
+
+        let saturated = "AdapterRAM  Name\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        assert_eq!(
+            backend_from_video_controllers_with(saturated, |_| Some(6_439_305_216)),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216)
+            },
+            "saturated means at least 4 GiB — the registry may answer"
+        );
+        assert_eq!(
+            backend_from_video_controllers_with(saturated, |_| Some(2 * 1024 * 1024 * 1024)),
+            Backend::DiscreteGpu { vram_bytes: None },
+            "a registry figure under 4 GiB cannot be this card's size"
         );
     }
 
