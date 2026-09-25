@@ -23,12 +23,14 @@
 // directive in it and no default-src — fails it: unrestricted is not
 // confined.
 //
-// This reads both real files and fails when the two connect-src lists
-// disagree, when either policy would block the local server or the app's own
-// same-origin assets, when either is widened to a scheme-wide or wildcard
-// source, or when a gated chain resolves to no restriction at all. It parses
-// the directives; apart from what this app provably loads — the local server
-// and its bundled files — it holds no copy of an expected list.
+// This reads both real files and fails when either policy would block the
+// local server or Tauri's own IPC channel (the INTERSECTION is what the
+// webview enforces: one policy blocking a URL blocks it), when either would
+// block the app's own same-origin assets, when either is widened to a
+// scheme-wide or wildcard source, or when a gated chain resolves to no
+// restriction at all. It parses the directives; apart from what this app
+// provably loads — the local server, the IPC channel, and its bundled files
+// — it holds no copy of an expected list.
 // Run: `node scripts/csp-consistency.mjs`
 
 import { readFile } from "node:fs/promises";
@@ -38,16 +40,29 @@ const REPO_DIR = fileURLToPath(new URL("../..", import.meta.url));
 const INDEX_HTML = "chat/index.html";
 const TAURI_CONF = "src-tauri/tauri.conf.json";
 
-/// The local server the frontend must reach, named both ways the owner may
-/// have typed it. The port is `startup::PORT`, and the policies allow any port
-/// on the loopback hosts.
-const REACHABLE = ["http://127.0.0.1:8130", "http://localhost:8130"];
+/// Everything `connect-src` must admit FOR THIS APP to work at all — per
+/// policy, since the webview enforces the intersection and one policy
+/// blocking a URL blocks it for the whole app. The local server, named both
+/// ways an owner may type it (the port is `startup::PORT`, and the policies
+/// allow any port on the loopback hosts), and Tauri's own IPC channel in
+/// both spellings the policies carry.
+const REACHABLE = [
+  "http://127.0.0.1:8130",
+  "http://localhost:8130",
+  "ipc://localhost",
+  "http://ipc.localhost",
+];
 
 function directives(policy) {
   const found = new Map();
   for (const part of policy.split(";")) {
     const [name, ...sources] = part.trim().split(/\s+/);
-    if (name) found.set(name.toLowerCase(), sources);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    // The browser keeps the FIRST occurrence of a directive and ignores
+    // every later one; the map must agree with it, or the guard would
+    // judge a policy the webview does not enforce.
+    if (!found.has(key)) found.set(key, sources);
   }
   return found;
 }
@@ -105,8 +120,13 @@ function admits(source, target) {
   const [, scheme, host, port] = match;
   if (`${scheme}:` !== target.protocol) return false;
   if (host !== "*" && host !== target.hostname) return false;
-  const named = target.port || (target.protocol === "http:" ? "80" : "443");
-  return port === "*" || port === named;
+  // No port in the source is the scheme's DEFAULT port, not any port: the
+  // source `http://ipc.localhost` admits http://ipc.localhost and refuses
+  // that host on another port.
+  const defaultPort = target.protocol === "http:" ? "80" : "443";
+  const sourcePort = port ?? defaultPort;
+  const targetPort = target.port || defaultPort;
+  return sourcePort === "*" || sourcePort === targetPort;
 }
 
 /// `*`, a scheme-wide source, and a wildcard HOST admit any origin on that
@@ -118,16 +138,8 @@ function anyHost(source) {
   return wildcardHost(value);
 }
 
-function sameSources(left, right) {
-  const normalized = (sources) =>
-    sources === null
-      ? "<unnamed: no restriction>"
-      : [...sources].map((source) => source.toLowerCase()).sort().join(" ");
-  return normalized(left) === normalized(right);
-}
-
 function show(sources) {
-  return sources === null ? "<unnamed: no restriction>" : sources.join(" ") || "(nothing allowed)";
+  return sources.join(" ") || "(nothing allowed)";
 }
 
 /// The directives whose failure stops a BUILT binary from running its own
@@ -185,40 +197,21 @@ const policies = [
   ...(typeof tauriPolicy === "string" ? [{ label: TAURI_CONF, found: directives(tauriPolicy) }] : []),
 ];
 
-/// `connect-src` as the two policies spell it: named or falling back, which
-/// is what blocked every frontend fetch before this script existed.
-const connections = policies.map(({ label, found }) => {
-  const named = found.get("connect-src") ?? null;
-  return { label, named, effective: named ?? found.get("default-src") ?? [] };
-});
-
-for (const { label, named } of connections) {
-  if (named === null) {
-    problems.push(
-      `${label}: connect-src is missing, so default-src governs it and only the page's own origin is allowed; ` +
-        `name the local server there in the same words as the other policy`,
-    );
-  }
-}
-
-if (connections.length === 2 && connections.every(({ named }) => named !== null)) {
-  const [first, second] = connections;
-  if (!sameSources(first.named, second.named)) {
-    problems.push(
-      `the two connect-src lists disagree, so the webview enforces their intersection and the narrower one wins:\n` +
-        `      ${first.label}: ${first.named.join(" ")}\n` +
-        `      ${second.label}: ${second.named.join(" ")}\n` +
-        `    Make the two lists identical.`,
-    );
-  }
-}
+/// `connect-src` as each policy makes it: the directive, or what default-src
+/// makes of it when absent — the fallback is not silence. What the WEBVIEW
+/// allows is the INTERSECTION: every policy must admit each URL below, and
+/// two lists that both admit them need not match in any other word.
+const connections = policies.map(({ label, found }) => ({
+  label,
+  effective: found.get("connect-src") ?? found.get("default-src") ?? [],
+}));
 
 for (const { label, effective } of connections) {
   for (const url of REACHABLE) {
     if (!effective.some((source) => admits(source, new URL(url)))) {
       problems.push(
-        `${label}: ${url} is not allowed, so the frontend's fetches would be blocked; ` +
-          `add that origin to connect-src in both files`,
+        `${label}: the effective connect-src (${show(effective)}) does not allow ${url}; the webview ` +
+          `enforces the intersection, so this policy alone would block it — add the origin here`,
       );
     }
   }
@@ -265,9 +258,9 @@ if (problems.length > 0) {
   for (const problem of problems) console.log(`  - ${problem}`);
   process.exitCode = 1;
 } else {
-  const sources = connections[0]?.named?.join(" ") ?? "";
   console.log(
-    `ok: both policies reach the local server (connect-src: ${sources}); every gated chain (script-src, ` +
+    `ok: both policies admit the local server and Tauri's IPC channel in their effective connect-src ` +
+      `(the intersection is what the webview enforces), and every gated chain (script-src, ` +
       `script-src-elem, worker-src) resolves to a list that allows 'self' for the bundle's own files ` +
       `and carries no scheme-wide or wildcard source`,
   );
