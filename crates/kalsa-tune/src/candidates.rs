@@ -3,9 +3,9 @@
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
-/// One launch the tune may measure: which build, how many threads, how much
-/// of the processor it frees. `threads: None` means the engine's own
-/// default — no count was measured, and the tune does not invent one.
+/// One launch the tune may measure: which build, how many threads, what
+/// offload. `threads: None` means the engine's own default — no count was
+/// measured, and the tune does not invent one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Candidate {
     pub backend: ServerBackend,
@@ -13,12 +13,12 @@ pub struct Candidate {
     pub offload: Offload,
 }
 
-/// The offload a build gets: every GPU-capable build offloads all layers
-/// (the launch policy's own default for a budget that accounted for the
-/// memory it decodes from), and the CPU build has no GPU code to offload
-/// with. Kept here because a candidate is decided here — the record
-/// re-derives it on load rather than storing it, and this is the only
-/// shape `candidates` has ever produced.
+/// The offload a graphics candidate gets: the budget was sized for the
+/// memory this model decodes from, so every layer goes to the GPU. Kept
+/// here because a candidate is decided here; the record stores the
+/// offload rather than re-deriving it, because a processor run on the Mac
+/// is the Metal build with the offload forced off — not a function of the
+/// backend alone.
 pub(crate) fn offload_for(backend: ServerBackend) -> Offload {
     if backend == ServerBackend::Cpu {
         Offload::NoGpuBuild
@@ -30,8 +30,8 @@ pub(crate) fn offload_for(backend: ServerBackend) -> Offload {
 /// The ordered, de-duplicated candidates: the graphics build first when one
 /// answered its probe, then the processor runs ascending by threads.
 ///
-/// Processor counts come only from what was measured or known — the rule's
-/// count, the physical cores, the logical cores — each present value once.
+/// Counts come only from what was measured or known — the rule's count,
+/// the physical cores, the logical cores — each present value once.
 /// Nothing is synthesised: a missing input narrows the list, it never
 /// widens it.
 pub fn candidates(
@@ -40,6 +40,14 @@ pub fn candidates(
     physical_cores: Option<usize>,
     logical_cores: Option<usize>,
 ) -> Vec<Candidate> {
+    // A count of zero is a read that measured nothing — unknown, exactly
+    // like `None`, everywhere below. The rule can hand one back: its
+    // `thread_count` caps a zero plateau rather than filtering it, and the
+    // graphics candidate must not render `--threads 0` while the processor
+    // list drops it.
+    let rule_threads = rule_threads.filter(|count| *count > 0);
+    let physical_cores = physical_cores.filter(|count| *count > 0);
+    let logical_cores = logical_cores.filter(|count| *count > 0);
     // A CPU verdict is not a graphics candidate: there is no offload
     // decision left to make, only processor runs.
     let graphics = match gpu {
@@ -56,27 +64,30 @@ pub fn candidates(
             offload: offload_for(backend),
         });
     }
-    // No processor runs under Metal: on Apple Silicon Metal reaches the
-    // unified memory's bandwidth and the CPU does not (README: 110 vs a
-    // marginal 197 GB/s), and there is no separate CPU build on the Mac
-    // for a processor candidate to name.
-    if !matches!(graphics, Some(ServerBackend::Metal)) {
-        let mut counts = [rule_threads, physical_cores, logical_cores]
-            .into_iter()
-            .flatten()
-            // Zero is the failed-read sentinel `thread_count` already
-            // treats as unknown, not a count anyone measured.
-            .filter(|count| *count > 0)
-            .collect::<Vec<_>>();
-        counts.sort_unstable();
-        counts.dedup();
-        for threads in counts {
-            list.push(Candidate {
-                backend: ServerBackend::Cpu,
-                threads: Some(threads),
-                offload: Offload::NoGpuBuild,
-            });
-        }
+    // The processor runs, measured rather than assumed (the owner's
+    // ruling): on Metal it is the SAME build with the offload forced off —
+    // `--n-gpu-layers 0` on the one macOS archive, which carries Metal and
+    // CPU together — and elsewhere the CPU build with no GPU flag at all.
+    let processor = match graphics {
+        Some(ServerBackend::Metal) => Candidate {
+            backend: ServerBackend::Metal,
+            threads: None,
+            offload: Offload::ForcedOff,
+        },
+        _ => Candidate {
+            backend: ServerBackend::Cpu,
+            threads: None,
+            offload: Offload::NoGpuBuild,
+        },
+    };
+    let mut counts = [rule_threads, physical_cores, logical_cores]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    counts.sort_unstable();
+    counts.dedup();
+    for threads in counts {
+        list.push(Candidate { threads: Some(threads), ..processor });
     }
     list
 }
@@ -127,20 +138,50 @@ mod tests {
         assert!(needs_tuning(&list), "two launches differ: measuring can decide");
     }
 
-    /// The Mac: Metal, one candidate, no processor runs — and one candidate
-    /// is visible in the API as "no tune needed" rather than a case the
-    /// caller has to reinvent.
+    /// The Mac, measured rather than assumed: the Metal build at full
+    /// offload, then the same build with the offload forced off at each
+    /// known count — three launches, so the tune runs.
     #[test]
-    fn metal_is_one_candidate_and_needs_no_tune() {
+    fn metal_measures_full_offload_and_forced_off() {
         let list = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10));
         assert_eq!(
             list,
-            vec![Candidate {
-                backend: ServerBackend::Metal,
-                threads: Some(8),
-                offload: Offload::All,
-            }]
+            vec![
+                Candidate {
+                    backend: ServerBackend::Metal,
+                    threads: Some(8),
+                    offload: Offload::All,
+                },
+                Candidate {
+                    backend: ServerBackend::Metal,
+                    threads: Some(8),
+                    offload: Offload::ForcedOff,
+                },
+                Candidate {
+                    backend: ServerBackend::Metal,
+                    threads: Some(10),
+                    offload: Offload::ForcedOff,
+                },
+            ]
         );
-        assert!(!needs_tuning(&list), "one launch: measuring it cannot change the answer");
+        assert!(needs_tuning(&list), "three launches: measuring can decide");
+    }
+
+    /// A zero count is unknown everywhere — including the graphics
+    /// candidate, whose count comes from the rule the same way: the rule
+    /// caps rather than filters, so `Some(0)` can arrive and must not
+    /// become `--threads 0`.
+    #[test]
+    fn a_zero_count_is_unknown_to_every_candidate() {
+        let zero_rule = candidates(Some(ServerBackend::Vulkan), Some(0), Some(16), Some(32));
+        assert_eq!(zero_rule[0].threads, Some(16), "zero rule falls to the physical count");
+        assert!(
+            zero_rule.iter().all(|candidate| candidate.threads != Some(0)),
+            "no candidate may carry a count nobody measured: {zero_rule:?}"
+        );
+
+        let all_zero = candidates(Some(ServerBackend::Vulkan), Some(0), Some(0), Some(0));
+        assert_eq!(all_zero[0].threads, None, "zero and None are alike: unknown");
+        assert!(all_zero.iter().all(|candidate| candidate.threads != Some(0)));
     }
 }

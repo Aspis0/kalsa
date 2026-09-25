@@ -1,7 +1,7 @@
 //! Which trial won: the best sample says how fast, the band says what
 //! counts as equal, and the lighter setting takes the tie.
 
-use kalsa_runtime::ServerBackend;
+use kalsa_launch::Offload;
 
 use crate::candidates::Candidate;
 
@@ -26,13 +26,16 @@ impl Outcome {
     /// The candidate's estimate: its BEST sample, never the mean — the
     /// probe's own rule, competition can only make a sample slower, so the
     /// fastest observed run is the closest thing to this setting's own
-    /// speed. `None` for a refusal or an empty measurement: unmeasured,
-    /// and unmeasured cannot win.
+    /// speed. A rate that is not positive is not a measurement (0 tok/s
+    /// means nothing ran to completion), and `None` for a refusal or an
+    /// empty measurement means unmeasured — and unmeasured cannot win.
     pub fn best(&self) -> Option<f64> {
         match self {
-            Self::Measured(samples) => {
-                samples.iter().copied().filter(|rate| rate.is_finite()).reduce(f64::max)
-            }
+            Self::Measured(samples) => samples
+                .iter()
+                .copied()
+                .filter(|rate| rate.is_finite() && *rate > 0.0)
+                .reduce(f64::max),
             Self::Refused(_) => None,
         }
     }
@@ -46,11 +49,15 @@ pub struct Winner {
     pub best: f64,
 }
 
-/// Lighter is better inside the band: a graphics run first (it frees the
-/// processor entirely), then the fewer threads.
+/// Lighter is better inside the band: the offload that puts every layer on
+/// the GPU first (the GPU does the work then, though full offload does not
+/// free the processor entirely), then the fewer threads — and an unknown
+/// thread count ranks heaviest of all: the engine's own default may be
+/// every core the machine has.
 fn lightness(candidate: &Candidate) -> (u8, usize) {
-    let processor = candidate.backend == ServerBackend::Cpu;
-    (u8::from(processor), candidate.threads.unwrap_or(0))
+    let offload_rank = u8::from(candidate.offload != Offload::All);
+    let thread_rank = candidate.threads.unwrap_or(usize::MAX);
+    (offload_rank, thread_rank)
 }
 
 /// The winner among the trials: the top is the highest best, and within
@@ -80,7 +87,7 @@ pub fn winner(trials: &[(Candidate, Outcome)]) -> Option<Winner> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kalsa_launch::Offload;
+    use kalsa_runtime::ServerBackend;
 
     fn cpu(threads: usize) -> Candidate {
         Candidate {
@@ -99,8 +106,8 @@ mod tests {
     }
 
     /// Inside the band (11.8 is within 5 % of 12.1) the lighter setting
-    /// wins, not the raw maximum — 22 threads bought 0.3 tok/s and cost the
-    /// processor six cores.
+    /// wins, not the raw maximum — 12.1 tok/s asks for six more logical
+    /// threads than the machine's sixteen physical cores.
     #[test]
     fn a_tie_within_the_band_goes_to_the_fewer_threads() {
         let trials = [
@@ -159,6 +166,46 @@ mod tests {
         assert_eq!(
             winner(&trials).map(|win| (win.candidate, win.best)),
             Some((cpu(22), 15.0))
+        );
+    }
+
+    /// A rate that is not positive is not a measurement: 0 tok/s means
+    /// nothing ran to completion, and a row of them leaves nothing that
+    /// can win.
+    #[test]
+    fn a_sample_that_is_not_positive_is_not_a_measurement() {
+        assert_eq!(Outcome::Measured(vec![0.0, -3.0, 7.5]).best(), Some(7.5));
+        assert_eq!(Outcome::Measured(vec![0.0, -3.0]).best(), None);
+        let trials = [
+            (cpu(4), Outcome::Measured(vec![0.0])),
+            (cpu(8), Outcome::Measured(vec![9.0])),
+        ];
+        assert_eq!(winner(&trials).map(|win| win.candidate), Some(cpu(8)));
+        let all_bad = [
+            (cpu(4), Outcome::Measured(vec![0.0])),
+            (cpu(8), Outcome::Measured(vec![-1.0])),
+        ];
+        assert_eq!(winner(&all_bad), None, "non-positive samples leave no winner");
+    }
+
+    /// An unknown thread count is the heaviest, not the lightest: the
+    /// engine's own default may be every core, and ranking it as zero
+    /// would let the unmeasured setting win the tie it cannot justify.
+    #[test]
+    fn an_unknown_thread_count_is_the_heaviest_not_the_lightest() {
+        let unknown = Candidate {
+            backend: ServerBackend::Cpu,
+            threads: None,
+            offload: Offload::NoGpuBuild,
+        };
+        let trials = [
+            (unknown, Outcome::Measured(vec![12.0])),
+            (cpu(4), Outcome::Measured(vec![11.6])),
+        ];
+        assert_eq!(
+            winner(&trials).map(|win| win.candidate),
+            Some(cpu(4)),
+            "the known count is lighter than the engine's default"
         );
     }
 }
