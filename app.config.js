@@ -84,6 +84,16 @@ const config = {
         cameraPermission: "AI Chat uses the camera to take photos for the local model.",
       },
     ],
+    // Adds android.permission.CAMERA and NSCameraUsageDescription for the
+    // pairing-QR scanner. The project has no checked-in android/ tree
+    // (prebuild generates it), so this plugin entry IS the native
+    // permission config.
+    [
+      "expo-camera",
+      {
+        cameraPermission: "Kalsa reads the pairing QR code shown by Kalsa desktop with the camera.",
+      },
+    ],
     [
       "expo-notifications",
       {

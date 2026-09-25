@@ -471,6 +471,21 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     modelRequired: "Choose a local GGUF model on this phone before pairing.",
     refused: "Pairing was not accepted.",
     waiting: "Confirm on your computer",
+    scan: "Scan QR code",
+    scanCaution:
+      "Point the camera at the code shown by Kalsa desktop. Anyone who sees that code can pair a phone: show it only to people you trust.",
+    scanDenied:
+      "The camera is needed to read the pairing code. Allow camera access in system settings.",
+    scanOpenSettings: "Open settings",
+    scanErrors: {
+      notJson: "This QR code is not a Kalsa pairing square.",
+      notObject: "This QR code does not contain a pairing object.",
+      missingField: "This pairing square is missing required values.",
+      unsupportedVersion: "This pairing square uses an unsupported version.",
+      invalidCode: "The pairing code in this QR code is malformed.",
+      invalidNonce: "The nonce in this QR code is malformed.",
+      invalidNode: "The node id in this QR code is malformed.",
+    },
   },
 
   help: {

@@ -11,6 +11,7 @@ import { PairingSession, type PairingSquare } from "../pairing/pairingTransport"
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
 import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
+import { PairingQrScanner } from "./PairingQrScanner";
 
 type Props = {
   initialDoorUrl: string;
@@ -52,6 +53,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     node: "",
   });
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required">("ready");
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const sessionRef = useRef<PairingSession | null>(null);
@@ -62,7 +64,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     setFields((current) => ({ ...current, [key]: value }));
   };
 
-  const run = async () => {
+  const run = async (scanned?: PairingSquare) => {
     if (busy || state === "waiting") return;
     const phone = declarationForModel(currentModelId);
     if (!phone) {
@@ -84,12 +86,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         ? existing
         : new PairingSession({
             deskUrl: fields.deskUrl,
-            square: {
-              reachable: fields.reachable,
-              code: fields.code,
-              nonce: fields.nonce,
-              node: fields.node,
-            },
+            square: scanned ?? fields,
             phone,
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
@@ -113,6 +110,14 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     } finally {
       setBusy(false);
     }
+  };
+
+  const acceptScannedSquare = (square: PairingSquare) => {
+    sessionRef.current = null;
+    setState("ready");
+    setScanning(false);
+    setFields((current) => ({ ...current, ...square }));
+    void run(square);
   };
 
   const inputStyle = {
@@ -159,6 +164,16 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       >
         <GlassPanel2 opaque rounded="lg" style={{ padding: space.md, gap: space.md }}>
           <Text style={[type.secondary, { color: colors.ink2 }]}>{t("pairing.debugHint")}</Text>
+          <Pressable
+            testID="pairing.scan"
+            accessibilityRole="button"
+            accessibilityLabel={t("pairing.scan")}
+            disabled={busy}
+            onPress={() => setScanning(true)}
+            style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy ? 0.6 : 1 })}
+          >
+            <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.scan")}</Text>
+          </Pressable>
           {field("doorUrl", t("pairing.doorUrl"), "url")}
           {field("deskUrl", t("pairing.deskUrl"), "url")}
           {field("reachable", t("pairing.reachable"), "url")}
@@ -207,6 +222,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
           ) : null}
         </GlassPanel2>
       </ScrollView>
+      {scanning ? (
+        <PairingQrScanner onFound={acceptScannedSquare} onCancel={() => setScanning(false)} />
+      ) : null}
     </View>
   );
 }

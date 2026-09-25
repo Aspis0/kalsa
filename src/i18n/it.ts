@@ -466,6 +466,21 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     modelRequired: "Scegli un modello GGUF locale su questo telefono prima del collegamento.",
     refused: "Il collegamento non è stato accettato.",
     waiting: "Conferma sul computer",
+    scan: "Inquadra il codice QR",
+    scanCaution:
+      "Inquadra il codice che vedi su Kalsa desktop. Chiunque veda quel codice può collegare un telefono: mostralo solo ai tuoi.",
+    scanDenied:
+      "Serve la fotocamera per leggere il codice. Puoi concederla nelle impostazioni di sistema.",
+    scanOpenSettings: "Apri le impostazioni",
+    scanErrors: {
+      notJson: "Questo codice QR non contiene un quadrato di accoppiamento.",
+      notObject: "Questo codice QR non contiene un oggetto di accoppiamento.",
+      missingField: "Al quadrato di accoppiamento mancano valori obbligatori.",
+      unsupportedVersion: "Questo quadrato di accoppiamento usa una versione non supportata.",
+      invalidCode: "Il codice di accoppiamento in questo QR è malformato.",
+      invalidNonce: "Il nonce in questo QR è malformato.",
+      invalidNode: "L'id del nodo in questo QR è malformato.",
+    },
   },
 
   help: {

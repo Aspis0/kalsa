@@ -40,6 +40,13 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   savePairingCredential: jest.fn(),
 }));
 
+// The scanner pulls in expo-camera (native); PairingScreen is under test,
+// not the camera, so the scanner is a host stub with its props exposed.
+jest.mock("./PairingQrScanner", () => ({
+  PairingQrScanner: (props: Record<string, unknown>) =>
+    require("react").createElement("PairingQrScanner", { scannerStub: true, ...props }),
+}));
+
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
@@ -141,6 +148,32 @@ describe("PairingScreen", () => {
     expect(renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.value).toBe(
       "https://desktop.tailnet.ts.net:10443",
     );
+    await act(async () => renderer.unmount());
+  });
+
+  test("a scanned square fills the form fields and drives the same pairing flow", async () => {
+    const { bodies } = installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "ab".repeat(32),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.reachable" }).props.value)
+      .toBe("http://127.0.0.1:9500");
+    expect(renderer.root.findByProps({ testID: "pairing.node" }).props.value).toBe("ab".repeat(32));
+    expect(bodies[0]).toBe(`{"code":"${"41".repeat(16)}"}`);
+    expect(saveCredentialMock).toHaveBeenCalled();
+    expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     await act(async () => renderer.unmount());
   });
 
