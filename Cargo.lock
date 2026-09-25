@@ -2723,6 +2723,7 @@ dependencies = [
 name = "kalsa-tune"
 version = "0.0.1"
 dependencies = [
+ "getrandom 0.3.4",
  "kalsa-launch",
  "kalsa-runtime",
  "serde_json",

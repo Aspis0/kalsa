@@ -1,5 +1,9 @@
     use super::*;
     use kalsa_supervisor::pid_alive;
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
     use std::path::PathBuf;
 
     fn scratch(name: &str) -> PathBuf {
@@ -176,7 +180,7 @@
     /// may already be another program's.
     #[cfg(unix)]
     #[test]
-    fn an_exit_seen_by_alive_is_not_signalled_again_on_drop() {
+    fn an_exit_seen_by_alive_is_recorded_and_the_claim_released() {
         let root = scratch("observed-exit");
         let port = free_loopback_port().expect("port");
         let state = crate::decide::state_file(&root);
@@ -205,7 +209,7 @@
     /// observed-exit contract.
     #[cfg(windows)]
     #[test]
-    fn an_exit_seen_by_alive_is_not_signalled_again_on_drop() {
+    fn an_exit_seen_by_alive_is_recorded_and_the_claim_released() {
         let root = scratch("observed-exit");
         let port = free_loopback_port().expect("port");
         let state = crate::decide::state_file(&root);
@@ -230,3 +234,77 @@
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// A `Running` that counts its stops: the seam that makes the Drop
+    /// guard observable instead of assumed.
+    struct CountingStop {
+        exited: bool,
+        stops: std::rc::Rc<std::cell::Cell<u32>>,
+    }
+
+    impl child::Running for CountingStop {
+        fn pid(&self) -> u32 {
+            4242
+        }
+        fn try_exit(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
+            Ok(self
+                .exited
+                .then(|| std::process::ExitStatus::from_raw(0)))
+        }
+        fn stop(&mut self, _grace: Duration) -> std::io::Result<std::process::ExitStatus> {
+            self.stops.set(self.stops.get() + 1);
+            Ok(std::process::ExitStatus::from_raw(0))
+        }
+        fn tail(&self) -> Vec<String> {
+            Vec::new()
+        }
+    }
+
+    /// Drop stops only a child nobody has seen exit — through the counting
+    /// seam, not assumed: `stop` signals a pid, and a reaped pid may
+    /// already be another program's.
+    #[test]
+    fn drop_stops_an_unobserved_child_and_stays_quiet_on_an_observed_one() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        // Observed exit: `alive` recorded it, Drop stays quiet.
+        let stops = Rc::new(Cell::new(0u32));
+        let quiet_root = scratch("counting-quiet");
+        let quiet_state = crate::decide::state_file(&quiet_root);
+        let instance = InstanceFile::claim(&quiet_state).expect("claim");
+        let mut seen = Disposable {
+            running: Box::new(CountingStop {
+                exited: true,
+                stops: Rc::clone(&stops),
+            }),
+            instance: Some(instance),
+            addr: SocketAddr::from(([127, 0, 0, 1], free_loopback_port().expect("port"))),
+            exited: false,
+        };
+        assert!(!seen.alive(), "an exited child is not alive");
+        assert!(seen.exited, "the observation is recorded for Drop");
+        drop(seen);
+        assert_eq!(stops.get(), 0, "an observed exit must not be signalled");
+        assert!(!quiet_state.exists(), "the claim is released");
+
+        // Never observed: Drop stops it exactly once.
+        let stops = Rc::new(Cell::new(0u32));
+        let live_root = scratch("counting-stops");
+        let live_state = crate::decide::state_file(&live_root);
+        let instance = InstanceFile::claim(&live_state).expect("claim");
+        let live = Disposable {
+            running: Box::new(CountingStop {
+                exited: false,
+                stops: Rc::clone(&stops),
+            }),
+            instance: Some(instance),
+            addr: SocketAddr::from(([127, 0, 0, 1], free_loopback_port().expect("port"))),
+            exited: false,
+        };
+        drop(live);
+        assert_eq!(stops.get(), 1, "an unobserved child is stopped once");
+        assert!(!live_state.exists(), "the claim is released");
+
+        let _ = std::fs::remove_dir_all(&quiet_root);
+        let _ = std::fs::remove_dir_all(&live_root);
+    }

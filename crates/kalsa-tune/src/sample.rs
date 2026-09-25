@@ -51,6 +51,38 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration) -> Option<f64> {
     }
 }
 
+/// True when the port lists OUR nonce among `/v1/models`'s entries — the
+/// only proof the 200s and the rates came from our child: the engine
+/// builds each entry as `{"id", meta.model_name}` inside a `data` array
+/// (kalsallama `tools/server/server-context.cpp:4879-4885`, wrapped at
+/// `:4924-4928`), and `--alias` is what `model_name` is filled from (see
+/// `measure.rs`'s `without_aliases`).
+pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration) -> bool {
+    let reply = ureq::get(&format!("http://{addr}/v1/models")).timeout(timeout).call();
+    match reply {
+        Ok(response) => id_among(&response.into_string().unwrap_or_default(), nonce),
+        Err(_) => false,
+    }
+}
+
+/// The pure half of the check: our nonce is among the listed ids. A body
+/// that does not parse, has no `data` array, or lists other models is not
+/// our server.
+fn id_among(body: &str, nonce: &str) -> bool {
+    let Ok(parsed) = serde_json::from_str::<Value>(body) else {
+        return false;
+    };
+    parsed
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .any(|entry| entry.get("id").and_then(Value::as_str) == Some(nonce))
+        })
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +103,38 @@ mod tests {
             },
         })
         .to_string()
+    }
+
+    /// The engine's real `/v1/models` entry (server-context.cpp:4879-4885
+    /// inside the `data` array of `:4924-4928`), as it lists our alias.
+    fn models_json(id: &str) -> String {
+        serde_json::json!({
+            "models": [{"name": id, "model": id}],
+            "object": "list",
+            "data": [{
+                "id": id,
+                "aliases": [id],
+                "tags": [""],
+                "object": "model",
+                "created": 0,
+                "owned_by": "llamacpp",
+            }],
+        })
+        .to_string()
+    }
+
+    /// Identity, on the real shape: only OUR nonce on the port counts.
+    #[test]
+    fn only_our_nonce_on_the_models_listing_counts() {
+        let nonce = "kalsa-tune-00112233445566778899aabbccddeeff";
+        assert!(id_among(&models_json(nonce), nonce), "our server, our id");
+        assert!(
+            !id_among(&models_json("Trinity-Nano-Preview-Q4_K_M"), nonce),
+            "somebody else's model on our freed port is not ours"
+        );
+        assert!(!id_among(r#"{"data":[]}"#, nonce), "no entries: no proof");
+        assert!(!id_among(r#"{"data":[{"object":"model"}]}"#, nonce), "no id: no proof");
+        assert!(!id_among("not json at all", nonce), "unparsable: no proof");
     }
 
     #[test]

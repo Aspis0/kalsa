@@ -15,6 +15,9 @@ kalsa-runtime = { path = "../kalsa-runtime" }
 # runtime on the old laptops this runs on), serde_json parses the answer.
 serde_json = "1"
 ureq = "2"
+# 128 random bits per lifetime nonce, the door's own choice for ids: this
+# is identity against some other server on our freed port, not secrecy.
+getrandom = "0.3"
 
 # The real-server test builds its own candidates and argv, so it needs the
 # same two crates the crate itself names.

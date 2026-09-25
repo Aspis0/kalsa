@@ -48,9 +48,12 @@ pub fn free_loopback_port() -> std::io::Result<u16> {
 /// Runs `exe` with `args` as a disposable loopback server on `port`.
 /// `args` must already carry `--host 127.0.0.1` and `--port {port}` — the
 /// caller built them, because the caller knows the launch production
-/// would use. Ok hands back the running server; every Err path has
-/// already stopped and reaped it, and dropping the handle stops and
-/// reaps it on every other one.
+/// would use. Ok hands back the running server. The Err paths stop the
+/// child as best effort: stop's own error is ignored here, and the
+/// accepted residual is a child that outlives a failed stop (the next
+/// reap finds what remains; `Child::drop` skips its kill when `try_wait`
+/// itself errors). Dropping the handle stops and reaps every child nobody
+/// has observed exited.
 ///
 /// Two things this function does not promise, stated as the probe states
 /// its own: callers must be sequential — this fn REAPS before it claims
@@ -123,20 +126,16 @@ fn run(
         }
         if health_ok(addr, "/health", crate::probe::PROBE_TIMEOUT) {
             // A 200 on a port that was free before the spawn is not proof
-            // it was OURS — somebody else may have taken the port. The
-            // child must be alive too, and it is enough because the engine
-            // binds BEFORE it loads the model: kalsallama
-            // `tools/server/server.cpp:463-468` (upstream 833cde99b) —
-            // "// start the HTTP server before loading the model to be
-            // able to serve /health requests", `ctx_http.start()` checked
-            // at :465-466, `load_model` at :477 — and upstream llama.cpp
-            // carries the same order. A lost bind therefore exits within
-            // moments, long before three 64-token requests finish, and the
-            // gate below (plus the measurer's end-of-lifetime one) catches
-            // it. Residual: an engine that bound only AFTER loading would
-            // reopen the window — a foreign200 could arrive while our child
-            // still lives and loads — and only the end-of-lifetime gate's
-            // timing would be left.
+            // it was OURS: the window opens BEFORE the bind — the engine
+            // initialises its backend first (`llama_backend_init()`,
+            // kalsallama `server.cpp:109` on `833cde99b`, long before
+            // `ctx_http.start()` at :463-468; upstream llama.cpp carries
+            // the same order, `0de8878c9`, server.cpp:5598-5608) — so a
+            // foreign server can take the port and answer while ours is
+            // still initialising. This gate is only the cheap first
+            // filter: a child that has already exited never reaches the
+            // handle. The identity proof is the tune's nonce — measure.rs
+            // asks `/v1/models` for our id before and after the requests.
             match running.try_exit() {
                 Ok(None) => return Ok((running, addr)),
                 Ok(Some(_)) => return Err(ServeError::DidNotStart),
