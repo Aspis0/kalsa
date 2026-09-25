@@ -666,6 +666,17 @@ try {
     // approved phones and its waiting row says the rest.
     const phones = deviceNames.filter((name) => name !== "This computer").length;
     const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
+    // The host row has no Forget: every Forget button on the page belongs
+    // to an approved PHONE row, and "This computer" contributes none —
+    // the rendering half of a promise the Rust side keeps too (the
+    // command asks is_host, and Desk::forget_device refuses the id).
+    if (deviceNames.includes("This computer")) {
+      const forgets = buttons.filter((text) => text === "Forget").length;
+      const approvedPhones = phones - waitingRows;
+      if (forgets !== approvedPhones) {
+        problems.push(`every Forget must belong to an approved phone and none to This computer: ${heading} (${forgets} Forget for ${approvedPhones} approved phones)`);
+      }
+    }
     if (phones > 0) {
       const expected = waitingRows === phones ? "Waiting for your OK" : "Paired";
       if (headline !== expected) {

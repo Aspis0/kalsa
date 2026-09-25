@@ -190,6 +190,20 @@ impl PairingDto {
     }
 }
 
+/// Why the page's one-device forget did not happen. The store's own
+/// `forget_device` deliberately holds no such opinion — the hatch that must
+/// empty any file cannot afford one — so this gesture carries both reasons
+/// itself, and they stay distinct for whoever reports them.
+#[derive(Debug)]
+pub(crate) enum ForgetError {
+    /// This computer's own record: no Forget, anywhere. The command says
+    /// this to the owner's face; a caller that bypassed the command meets
+    /// the same wall here.
+    Host,
+    /// The store's own refusal, unchanged.
+    Store(StoreError),
+}
+
 impl Desk {
     /// A desk for the credential kept at `file`. A credential already on disk
     /// is the paired state — a stored phone may still be waiting for the
@@ -375,9 +389,20 @@ impl Desk {
     /// last phone leaving lands Idle. A live ceremony is left alone:
     /// forgetting a stored phone never burns a square another phone is
     /// part-way through.
-    pub(crate) fn forget_device(&self, id: u32) -> Result<(), StoreError> {
+    ///
+    /// The host is refused HERE as well as at the command: the page draws
+    /// no Forget for its row and the command asks `is_host` first for its
+    /// own sentence, but a gesture that reaches this method must still not
+    /// take the app's own key out of the store while the running door holds
+    /// it. The store's own `forget_device` keeps no such opinion — the
+    /// hatch that must empty any file is a different road, and it is not
+    /// this one.
+    pub(crate) fn forget_device(&self, id: u32) -> Result<(), ForgetError> {
+        if self.is_host(id) {
+            return Err(ForgetError::Host);
+        }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        kalsa_pairing::store::forget_device(&self.file, id)?;
+        kalsa_pairing::store::forget_device(&self.file, id).map_err(ForgetError::Store)?;
         // Only a desk that was paired: a live ceremony must survive the
         // owner tidying the stored set.
         if matches!(*state, State::Paired { .. }) {
@@ -1536,6 +1561,183 @@ mod tests {
         );
     }
 
+    /// The host has no Forget, end to end: the page draws no button for its
+    /// row, the command asks `is_host` first for its sentence — and THIS is
+    /// the layer beneath both, where a gesture that reached the method
+    /// anyway is refused, the store's bytes do not move, and the phone
+    /// beside it still forgets like any phone.
+    #[test]
+    fn forgetting_the_host_is_refused_and_leaves_the_store_unchanged() {
+        let file = scratch("forget-host-refused");
+        let host = kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now)
+            .expect("a phone pairs beside the host");
+        let before = std::fs::read(&file).expect("the store's bytes");
+
+        let error = desk
+            .forget_device(host.id)
+            .expect_err("the host has no Forget");
+        assert!(matches!(error, ForgetError::Host), "{error:?}");
+        assert_eq!(
+            std::fs::read(&file).expect("the store's bytes again"),
+            before,
+            "a refused forget must not touch a byte of the store"
+        );
+
+        // The gesture still does what it is for.
+        let phone = kalsa_pairing::store::load_devices(&file)
+            .unwrap()
+            .into_iter()
+            .find(|device| device.kind == DeviceKind::Phone)
+            .expect("the phone")
+            .id;
+        desk.forget_device(phone).expect("a phone forgets");
+        let after = kalsa_pairing::store::load_devices(&file).unwrap();
+        assert_eq!(after.len(), 1, "only one record is left");
+        assert!(
+            after.iter().all(|device| device.kind == DeviceKind::Host),
+            "and it is the host, still in its seat"
+        );
+    }
+
+    /// The host credential leaves by one road only — the expression
+    /// `brain_host_credential` answers with, asserted as the positive
+    /// control below. Every other surface this page is handed must be free
+    /// of it: the dd4a12d rule for prompts, applied to the PC's own key.
+    /// And whatever could PRINT it must not: the record that holds it
+    /// answers through `DebugText`, which reports what a `{:?}` would emit
+    /// (nothing at all when the type offers no Debug — the store's
+    /// deliberate "No Debug on purpose") — so a Debug that leaks the
+    /// credential reddens this test while a redacting Debug passes it.
+    #[test]
+    fn the_host_credential_leaves_only_by_its_own_command() {
+        use crate::failure::StartupFailure;
+
+        struct DebugText<'a, T>(&'a T);
+        // The specific answer first: an inherent method wins whenever the
+        // bound holds, so a type WITH Debug is printed for real.
+        impl<'a, T: std::fmt::Debug> DebugText<'a, T> {
+            fn debug_output(&self) -> String {
+                format!("{:?}", self.0)
+            }
+        }
+        // The blanket behind it answers for a type with no Debug at all:
+        // method resolution falls through when the inherent bound fails —
+        // that fall-through is the whole probe, and `String::new()` is what
+        // "prints nothing" means.
+        trait NoDebugOutput {
+            fn debug_output(&self) -> String;
+        }
+        impl<'a, T> NoDebugOutput for DebugText<'a, T> {
+            fn debug_output(&self) -> String {
+                String::new()
+            }
+        }
+
+        let file = scratch("credential-patrol");
+        let host = kalsa_pairing::store::enrol_host(&file).unwrap();
+        let desk = Desk::new(file.clone());
+        let now = SystemTime::now();
+        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.complete(declaration_for(&desk, a_phone(), now), now)
+            .expect("a phone pairs beside the host");
+        let devices = kalsa_pairing::store::load_devices(&file).unwrap();
+        let host_device = devices
+            .iter()
+            .find(|device| device.id == host.id)
+            .expect("the host record");
+        // The positive control: this is the exact string the page's
+        // brain_host_credential command answers with.
+        let credential = host_device.handshake.credential_hex();
+        assert!(!credential.is_empty(), "the secret this test patrols");
+
+        // The pairing DTO, devices list included, as the page receives it —
+        // with the host row really in it, so the absence below means
+        // something.
+        let pairing =
+            serde_json::to_string(&desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        assert!(
+            pairing.contains("This computer"),
+            "the host row is in the DTO"
+        );
+        assert!(
+            !pairing.contains(&credential),
+            "the pairing DTO carries the host credential"
+        );
+
+        // The metrics read the state carries: who is busy (the host among
+        // them) and the tier beside it.
+        let metrics = serde_json::to_string(&crate::metrics::RuntimeMetricsDto {
+            decode_tokens_per_second: None,
+            active_devices: Some(vec![crate::metrics::ActiveDeviceDto {
+                id: host.id,
+                label: kalsa_pairing::store::HOST_LABEL.to_string(),
+                kind: "host",
+            }]),
+            tier: Some(crate::metrics::TierDto {
+                capacity: 1,
+                residents: 0,
+                disk: None,
+            }),
+            throttled: None,
+        })
+        .unwrap();
+        assert!(
+            metrics.contains("This computer"),
+            "the metrics DTO was built"
+        );
+        assert!(
+            !metrics.contains(&credential),
+            "the metrics DTO carries the host credential"
+        );
+
+        // Every failure sentence the walk can say, exhaustively over the
+        // enum the sentences are exhaustive over.
+        let sentences = [
+            StartupFailure::Supervisor(kalsa_supervisor::Failure::PortTaken),
+            StartupFailure::NoBuildForThisMachine,
+            StartupFailure::ServerUnverified,
+            StartupFailure::NoBackendWorked,
+            StartupFailure::ServerFetchFailed,
+            StartupFailure::MachineNotMeasured,
+            StartupFailure::NothingFits,
+            StartupFailure::NothingBetter,
+            StartupFailure::NothingFastEnough,
+            StartupFailure::ChosenModelUnfundable,
+            StartupFailure::ChosenModelContextUnreadable,
+            StartupFailure::ContextTooLarge {
+                maximum_tokens: 0,
+                cache: None,
+            },
+            StartupFailure::ChosenModelUnresolved,
+            StartupFailure::MeasurementUnreliable(vec!["a note".to_string()]),
+            StartupFailure::SlotSavePathUnwritable,
+            StartupFailure::WeightsUnverified,
+            StartupFailure::NotEnoughDisk,
+            StartupFailure::DownloadCorrupted,
+            StartupFailure::ConnectionLost,
+            StartupFailure::DownloadRefused,
+            StartupFailure::ModelFileUnwritable,
+        ];
+        for failure in &sentences {
+            let words = crate::failure::words(failure);
+            assert!(
+                !words.contains(&credential),
+                "a failure sentence carries the host credential: {words}"
+            );
+        }
+
+        // The stored device itself, as any {:?} would print it.
+        let printed = DebugText(host_device).debug_output();
+        assert!(
+            !printed.contains(&credential),
+            "a Debug of the stored device prints the host credential: {printed}"
+        );
+    }
+
     /// A host and a phone: the PHONE decides the state, and the catalog gets
     /// the phone's model. The host rides in the device list with its kind.
     #[test]
@@ -1565,7 +1767,10 @@ mod tests {
     }
 
     /// Forgetting the host from a host-only store leaves the desk where it
-    /// already was — Idle — because a host never made it Paired.
+    /// already was — Idle — because a host never made it Paired. Two roads
+    /// may reach that store forget: the page's one-device gesture, which
+    /// now refuses the host (pinned above), and the store's own — the
+    /// hatch's, which must be able to empty any file, host included.
     #[test]
     fn forgetting_the_host_leaves_the_desk_idle() {
         let file = scratch("forget-host-desk");
@@ -1573,7 +1778,9 @@ mod tests {
         let desk = Desk::new(file.clone());
         assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
 
-        desk.forget_device(host.id).unwrap();
+        desk.forget_device(host.id)
+            .expect_err("the page's gesture refuses the host");
+        kalsa_pairing::store::forget_device(&file, host.id).expect("the store's own forget");
         assert!(!file.exists(), "the host was the whole store");
         assert!(matches!(*desk.state.lock().unwrap(), State::Idle));
     }
