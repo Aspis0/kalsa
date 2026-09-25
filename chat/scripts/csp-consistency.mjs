@@ -14,17 +14,21 @@
 // origin: `chat/src/lib/attachments.ts` sets `GlobalWorkerOptions.workerSrc`
 // to a `?url` asset — same-origin, so pdf.js passes that URL straight to
 // `new Worker` instead of wrapping it in a blob. So each policy's effective
-// `script-src` (`script-src` → `default-src`) and effective `worker-src`
-// (`worker-src` → `script-src` → `default-src` when a policy does not name
-// `worker-src` — neither does) must allow `'self'`, and neither may carry a
-// scheme-wide or wildcard source: this code loads nothing but its own bundle.
+// `script-src-elem` (`script-src-elem` → `script-src` → `default-src` — the
+// entry point is a script ELEMENT), `script-src` (`script-src` →
+// `default-src`) and `worker-src` (`worker-src` → `child-src` → `script-src`
+// → `default-src`, CSP3 §6.8.3) must each resolve to a list that allows
+// `'self'`, and none may carry a scheme-wide or wildcard source: this code
+// loads nothing but its own bundle. A chain that resolves to nothing — no
+// directive in it and no default-src — fails it: unrestricted is not
+// confined.
 //
 // This reads both real files and fails when the two connect-src lists
 // disagree, when either policy would block the local server or the app's own
-// same-origin assets, or when either is widened to a scheme-wide or wildcard
-// source. It parses the directives; apart from what this app provably loads —
-// the local server and its bundled files — it holds no copy of an expected
-// list.
+// same-origin assets, when either is widened to a scheme-wide or wildcard
+// source, or when a gated chain resolves to no restriction at all. It parses
+// the directives; apart from what this app provably loads — the local server
+// and its bundled files — it holds no copy of an expected list.
 // Run: `node scripts/csp-consistency.mjs`
 
 import { readFile } from "node:fs/promises";
@@ -50,7 +54,8 @@ function directives(policy) {
 
 /// One directive's effective sources: its own list, or the first entry of the
 /// fallback chain that names it. `null` — nothing in the chain names it — is
-/// the spec's "no restriction", which admits everything below.
+/// the spec's "no restriction": it would admit everything, which is why the
+/// check below fails it instead of trusting it.
 function effectiveSources(found, chain) {
   for (const name of chain) {
     const sources = found.get(name);
@@ -63,17 +68,27 @@ function effectiveSources(found, chain) {
 /// only source expression that names it — it is not a host a copy can drift
 /// with, it is wherever this page was served from.
 function admitsSelf(sources) {
-  return sources === null || sources.some((source) => source.toLowerCase() === "'self'");
+  return sources.some((source) => source.toLowerCase() === "'self'");
 }
 
-/// Whether a source opens a whole class of URL: `http:`, `blob:`, `data:` …
-/// or `*`. Nothing in this app loads anything outside its own bundle, so one
-/// of these in an effective `script-src`/`worker-src` is a permission no
-/// line of code asks for — harmless only while the other policy keeps
-/// narrowing, and live the moment both drift the same way.
-function schemeWide(source) {
+/// Whether a host stands for every host: `*`, `https://*`, `https://*.x.com`,
+/// `*.x.com` — with or without a scheme, as CSP writes host-sources. The
+/// scheme is stripped first so the host is what gets judged; a port wildcard
+/// (`http://127.0.0.1:*`, the local server's own shape) is not one.
+function wildcardHost(value) {
+  const host = value.replace(/^[a-z][a-z0-9+.-]*:\/\//, "").split(/[/:]/)[0];
+  return host === "*" || host.startsWith("*.");
+}
+
+/// Whether a source widens past this app's own files: a bare scheme
+/// (`http:`, `blob:`, `data:`), the bare `*`, or a wildcard HOST (above).
+/// Nothing in the code loads anything outside its own bundle, so one of
+/// these in an effective gated directive is a permission no line asks for —
+/// inert only while the other policy still narrows it, and live the moment
+/// both drift the same way.
+function widening(source) {
   const value = source.toLowerCase();
-  return value === "*" || /^[a-z][a-z0-9+.-]*:$/.test(value);
+  return /^[a-z][a-z0-9+.-]*:$/.test(value) || wildcardHost(value);
 }
 
 /// Whether one source expression admits `target`. Only the shapes a
@@ -94,11 +109,13 @@ function admits(source, target) {
   return port === "*" || port === named;
 }
 
-/// `*` and a scheme-wide source admit any host on that scheme. `ipc:` is the
-/// exception: it is Tauri's own in-process channel, not a network origin.
+/// `*`, a scheme-wide source, and a wildcard HOST admit any origin on that
+/// scheme. `ipc:` is the exception: it is Tauri's own in-process channel,
+/// not a network origin.
 function anyHost(source) {
   const value = source.toLowerCase();
-  return value === "*" || (/^[a-z][a-z0-9+.-]*:$/.test(value) && value !== "ipc:");
+  if (/^[a-z][a-z0-9+.-]*:$/.test(value)) return value !== "ipc:";
+  return wildcardHost(value);
 }
 
 function sameSources(left, right) {
@@ -115,17 +132,19 @@ function show(sources) {
 
 /// The directives whose failure stops a BUILT binary from running its own
 /// code, each with the fallback chain the spec resolves it through when a
-/// policy does not name the directive.
+/// policy does not name the directive (CSP3 §6.8.3).
 ///
 /// THE MODEL IS THE INTERSECTION, not list equality: the webview enforces
 /// both policies at once, so a source one policy names and the other omits
 /// is simply not allowed — a meta-only `'unsafe-inline'` changes nothing —
 /// and demanding identical lists would fail on differences the binary cannot
-/// feel. What it can feel is a load NEITHER policy admits, and a widening
-/// EITHER policy carries. So each entry below is checked for both: `'self'`
-/// must be present (the bundle's files are same-origin) and no scheme-wide
-/// source may be (a permission the code never asks for, inert only while the
-/// other policy still narrows it).
+/// feel. What it can feel is a load NEITHER policy admits, a widening
+/// EITHER policy carries, and a chain that resolves to nothing: no directive
+/// and no default-src is NO RESTRICTION, which is not confinement to the
+/// bundle. So each entry below is checked for all three: `'self'` must be
+/// present (the bundle's files are same-origin), no widening source may be
+/// (a permission the code never asks for, inert only while the other policy
+/// still narrows it), and the chain must resolve at all.
 const GATED = [
   {
     directive: "script-src",
@@ -133,8 +152,15 @@ const GATED = [
     loads: "the bundle's module scripts",
   },
   {
+    // The entry point is a script ELEMENT (`<script type="module" src=…>`),
+    // which script-src-elem governs directly once a policy names it.
+    directive: "script-src-elem",
+    chain: ["script-src-elem", "script-src", "default-src"],
+    loads: "index.html's entry module script",
+  },
+  {
     directive: "worker-src",
-    chain: ["worker-src", "script-src", "default-src"],
+    chain: ["worker-src", "child-src", "script-src", "default-src"],
     loads: "the pdf.js worker (the `?url` asset of chat/src/lib/attachments.ts)",
   },
 ];
@@ -209,14 +235,22 @@ for (const { label, effective } of connections) {
 for (const { directive, chain, loads } of GATED) {
   for (const { label, found } of policies) {
     const sources = effectiveSources(found, chain);
+    if (sources === null) {
+      problems.push(
+        `${label}: the ${directive} chain resolves to nothing — none of ${chain.join(", ")} is named — ` +
+          `so the load is unrestricted, and unrestricted is not confined to the bundle; name the ` +
+          `directive or default-src`,
+      );
+      continue;
+    }
     if (!admitsSelf(sources)) {
       problems.push(
         `${label}: the effective ${directive} (${show(sources)}) does not allow 'self'; ${loads} must ` +
           `come from the page's own origin and would be blocked in a built binary`,
       );
     }
-    for (const source of sources ?? []) {
-      if (schemeWide(source)) {
+    for (const source of sources) {
+      if (widening(source)) {
         problems.push(
           `${label}: the effective ${directive} allows "${source}" — a scheme-wide or wildcard source, ` +
             `and nothing in this app loads outside its own bundle; narrow it`,
@@ -233,8 +267,8 @@ if (problems.length > 0) {
 } else {
   const sources = connections[0]?.named?.join(" ") ?? "";
   console.log(
-    `ok: both policies reach the local server (connect-src: ${sources}), admit this app's scripts and ` +
-      `the pdf.js worker through their effective script-src and worker-src, and neither widens those ` +
-      `beyond its own bundle`,
+    `ok: both policies reach the local server (connect-src: ${sources}); every gated chain (script-src, ` +
+      `script-src-elem, worker-src) resolves to a list that allows 'self' for the bundle's own files ` +
+      `and carries no scheme-wide or wildcard source`,
   );
 }
