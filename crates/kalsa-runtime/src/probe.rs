@@ -347,11 +347,21 @@ mod tests {
         // nothing. "It started fine" proves nothing; only /health does.
         // (/bin/true has vanished on recent macOS; hostname is everywhere.)
         let dir = scratch("probe-true");
+        #[cfg(unix)]
         let exe = ["/usr/bin/true", "/bin/true", "/bin/hostname"]
             .iter()
             .map(Path::new)
             .find(|path| path.exists())
             .expect("an immediately-exiting binary exists");
+        // Windows has no /bin/true: a batch that ignores the launcher's
+        // arguments and exits 0 is the same fact — starts, serves nothing,
+        // leaves — and std runs a `.cmd` through cmd.exe itself.
+        #[cfg(windows)]
+        let stand_in = dir.join("exit-immediately.cmd");
+        #[cfg(windows)]
+        std::fs::write(&stand_in, "@exit /b 0\r\n").expect("write the stand-in");
+        #[cfg(windows)]
+        let exe = stand_in.as_path();
         let err = probe(
             &OsLaunch,
             exe,
