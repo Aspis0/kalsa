@@ -93,8 +93,22 @@ pub enum Failure {
 
 enum Command {
     Start(Box<ServerConfig>, mpsc::Sender<StartOutcome>),
-    Stop,
-    Shutdown,
+    /// The state the drain was declared over (`drain::declare`'s return):
+    /// by the time the worker reads the state it says `Stopping`, so this
+    /// is the only record of what the FIRST stop left behind (§18).
+    Stop { prior: Option<ServerState> },
+    Shutdown { prior: Option<ServerState> },
+    /// Test-only: the worker gets an owned run without a real start (which
+    /// needs a serving engine this file has no fixture for), so an API test
+    /// can watch a first stop reach `StopUnconfirmed` the way every real one
+    /// does — through the owned walk.
+    ///
+    /// `cfg(all(test))` is the same condition spelled the long way so the
+    /// source pin that delimits this file's production region — it searches
+    /// for the cfg-test marker of `mod tests` — still finds it where it
+    /// means: the pin must keep scanning this arm as production code.
+    #[cfg(all(test))]
+    Plant(Box<Owned>),
 }
 
 /// What the worker decided about a start request. `Accepted` means the
@@ -210,7 +224,7 @@ impl Supervisor {
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency)
+            move || work(inbox, state, releases, residency, presence::probe)
         });
         Self {
             commands,
@@ -310,7 +324,17 @@ impl Supervisor {
     /// `shutdown`.
     pub fn stop(&self) {
         let declared = drain::declare(&self.state);
-        if self.commands.send(Command::Stop).is_err() {
+        // The declaration travels: the worker cannot read it back off the
+        // state (that now says `Stopping`), and §18's second stop is decided
+        // by what the state said BEFORE this drain was declared. `restore`
+        // still gets the declaration itself on a send that never left.
+        if self
+            .commands
+            .send(Command::Stop {
+                prior: declared.clone(),
+            })
+            .is_err()
+        {
             // No worker to receive it (already joined, or dead): a drain
             // nobody performs must not stand as a state.
             drain::restore(&self.state, declared);
@@ -324,7 +348,15 @@ impl Supervisor {
     /// left: that is the declaration `restore` takes back.
     pub fn shutdown(&self) {
         let declared = drain::declare(&self.state);
-        if self.commands.send(Command::Shutdown).is_err() {
+        // Same carry as `stop`: the walk this command performs decides on the
+        // pre-declare state, not on `Stopping`.
+        if self
+            .commands
+            .send(Command::Shutdown {
+                prior: declared.clone(),
+            })
+            .is_err()
+        {
             drain::restore(&self.state, declared);
         }
         if let Ok(mut worker) = self.worker.lock() {
@@ -346,6 +378,11 @@ fn work(
     state: Arc<Mutex<ServerState>>,
     releases: Arc<AtomicU64>,
     residency: Residency,
+    // The port probe the stop walk asks, exactly as `stop` takes it:
+    // production always passes `presence::probe` — the API has no probe
+    // parameter, and the test that drives `Supervisor::stop` must not
+    // depend on a socket it (or a neighbour) can rebind under its feet.
+    probe: presence::Probe,
 ) {
     let mut owned: Option<Owned> = None;
     // The last start's config, kept after `owned` goes: §18's second stop
@@ -406,10 +443,21 @@ fn work(
                     Err(reason) => set(&state, ServerState::Failed { reason }),
                 }
             }
-            Ok(Command::Stop) => stop(&mut owned, last.as_ref(), &state, presence::probe),
-            Ok(Command::Shutdown) => {
-                stop(&mut owned, last.as_ref(), &state, presence::probe);
+            Ok(Command::Stop { prior }) => {
+                stop(&mut owned, last.as_ref(), &state, probe, prior)
+            }
+            Ok(Command::Shutdown { prior }) => {
+                stop(&mut owned, last.as_ref(), &state, probe, prior);
                 return;
+            }
+            #[cfg(all(test))]
+            Ok(Command::Plant(run)) => {
+                // A planted run stands in for a start: it brings the config
+                // exactly as one would leave it, or §18's second stop would
+                // have no address to probe and the API test could not see
+                // the probe path.
+                last = Some(run.config.clone());
+                owned = Some(*run);
             }
             Err(RecvTimeoutError::Timeout) => {
                 // The server can die on its own at any moment (an assertion, an
@@ -481,17 +529,30 @@ fn stop(
     // policy test must not depend on a socket it (or a neighbour) can
     // rebind under its feet.
     probe: presence::Probe,
+    // What the state read BEFORE the caller declared the drain —
+    // `drain::declare`'s return, carried by the command. The declaration
+    // set `Stopping`, so the carried prior is the only record of what the
+    // first stop left behind (§18).
+    prior: Option<ServerState>,
 ) {
-    // What the previous stop left, read before `Stopping` overwrites it:
-    // `StopUnconfirmed` says absence was never proved, and `owned` is gone
+    let prior = match prior {
+        Some(declared) => Some(declared),
+        // No declaration was carried: an undeclared direct call's prior is
+        // simply the state as it reads, and a poisoned lock is nothing
+        // known — never unconfirmed.
+        None => state.lock().ok().map(|current| current.clone()),
+    };
+    // Kept only when it says the previous stop could not prove absence:
+    // `StopUnconfirmed` means absence was never proved, and `owned` is gone
     // already — this is all a second stop has to go on (§18).
-    let previous = state.lock().expect("the state lock").clone();
-    let unconfirmed = matches!(
-        previous,
-        ServerState::Failed {
-            reason: Failure::StopUnconfirmed { .. }
-        }
-    );
+    let unconfirmed = match prior {
+        Some(
+            state @ ServerState::Failed {
+                reason: Failure::StopUnconfirmed { .. },
+            },
+        ) => Some(state),
+        _ => None,
+    };
     // Every entry to a stop passes here and declares the drain — a caller
     // that already declared it is re-declared, not doubled (`drain` drops the
     // duplicate write). What the walk below writes is the drain's END, and
@@ -629,7 +690,7 @@ fn stop(
                 reason: Failure::StopUnconfirmed { measures },
             }
         };
-    } else if unconfirmed {
+    } else if let Some(previous) = unconfirmed {
         // §18: the first stop took what was owned — whatever it ended in —
         // and the state it left says absence was never proved. Writing
         // `Stopped` here would claim a success with nothing checked. The
@@ -869,7 +930,7 @@ fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
 mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
     fn config(port: u16) -> ServerConfig {
         ServerConfig {
@@ -1048,7 +1109,7 @@ mod tests {
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency)
+            move || work(inbox, state, releases, residency, presence::probe)
         });
         let config = config(8294);
         let state_file = config.state_file.clone();
@@ -1066,7 +1127,7 @@ mod tests {
         // worker stops, the announcing child is reaped, and the state file the
         // failed start wrote is removed — the same "assertions included" shape
         // `ScratchDir` gives the tests next door in `main.rs`.
-        let _ = commands.send(Command::Shutdown);
+        let _ = commands.send(Command::Shutdown { prior: None });
         let _ = worker.join();
         let _ = announcing.terminate(Duration::from_millis(50));
         let _ = std::fs::remove_file(&state_file);
@@ -1114,7 +1175,7 @@ mod tests {
             pid: stand_in_pid,
             port,
         }));
-        stop(&mut owned, None, &state, presence::probe);
+        stop(&mut owned, None, &state, presence::probe, None);
         assert!(
             stand_in.try_wait().expect("poll the stand-in").is_none(),
             "a recycled pid was signalled: we killed somebody else's program"
@@ -1174,7 +1235,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, None, &state, answering);
+        stop(&mut owned, None, &state, answering, None);
 
         let ended = state.lock().expect("the state lock").clone();
         let measures = match &ended {
@@ -1227,7 +1288,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, None, &state, silent);
+        stop(&mut owned, None, &state, silent, None);
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1310,7 +1371,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, None, &state, answering);
+        stop(&mut owned, None, &state, answering, None);
 
         match state.lock().expect("the state lock").clone() {
             ServerState::Failed {
@@ -1388,7 +1449,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 1, port }));
-        stop(&mut owned, None, &state, answering);
+        stop(&mut owned, None, &state, answering, None);
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1427,7 +1488,7 @@ mod tests {
             config: config.clone(),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, Some(&config), &state, answering);
+        stop(&mut owned, Some(&config), &state, answering, None);
         assert!(owned.is_none(), "the first stop took what was owned");
         let first = state.lock().expect("the state lock").clone();
         assert!(
@@ -1442,7 +1503,7 @@ mod tests {
 
         // Second stop, nothing owned: the port is asked (§18) and answers
         // again — `Stopped` must not appear.
-        stop(&mut owned, Some(&config), &state, answering);
+        stop(&mut owned, Some(&config), &state, answering, None);
         let second = state.lock().expect("the state lock").clone();
         assert!(
             matches!(
@@ -1473,7 +1534,7 @@ mod tests {
             config: config.clone(),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, Some(&config), &state, answering);
+        stop(&mut owned, Some(&config), &state, answering, None);
         assert!(
             matches!(
                 state.lock().expect("the state lock").clone(),
@@ -1485,12 +1546,184 @@ mod tests {
         );
 
         let silent: presence::Probe = |_, _| presence::Presence::Gone;
-        stop(&mut owned, Some(&config), &state, silent);
+        stop(&mut owned, Some(&config), &state, silent, None);
         assert_eq!(
             state.lock().expect("the state lock").clone(),
             ServerState::Stopped,
             "a refusing port proves absence at a second stop"
         );
+    }
+
+    /// The API path's fixture: the real worker on the real command channel
+    /// behind a real `Supervisor`, with a run planted and the state
+    /// `Running` — the §18 precondition reached without a serving engine
+    /// (a real `Start` spawns and health-checks one). The planted run is
+    /// adopted-pid so the tick's watch is `pid_alive` and cannot race the
+    /// stop; the probe is injected because the public API has no parameter
+    /// for it and a policy test must not depend on a socket.
+    fn api_supervisor(port: u16, pid: u32, probe: presence::Probe) -> Supervisor {
+        let (commands, inbox) = mpsc::channel();
+        let state = Arc::new(Mutex::new(ServerState::Stopped));
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let worker = std::thread::spawn({
+            let state = Arc::clone(&state);
+            let releases = Arc::clone(&releases);
+            let residency = residency.clone();
+            move || work(inbox, state, releases, residency, probe)
+        });
+        let _ = commands.send(Command::Plant(Box::new(Owned {
+            child: None,
+            adopted_pid: Some(pid),
+            instance: None,
+            config: config(port),
+        })));
+        set(&state, ServerState::Running { pid, port });
+        Supervisor {
+            commands,
+            state,
+            worker: Mutex::new(Some(worker)),
+            releases,
+            residency,
+        }
+    }
+
+    /// The script for the refusing-second-stop API test: answers while the
+    /// first stop needs `StopUnconfirmed`, refuses once the test asks
+    /// again. One static, one function, one test — the module shares the
+    /// names, not the state.
+    static SECOND_STOP_ASK: AtomicU8 = AtomicU8::new(0);
+    fn answering_then_gone(_: std::net::SocketAddr, _: Duration) -> presence::Presence {
+        if SECOND_STOP_ASK.load(Ordering::Relaxed) == 0 {
+            presence::Presence::There {
+                evidence: presence::Evidence::Answered {
+                    status: "200".into(),
+                },
+            }
+        } else {
+            presence::Presence::Gone
+        }
+    }
+
+    /// `Supervisor::stop` returns at once; the walk it queued runs on the
+    /// worker. Read the state it settles on, bounded — `Stopping` past the
+    /// bound is the wedge the drain module already reports, and the
+    /// assertions below say so with it in the message.
+    fn drain_end(supervisor: &Supervisor) -> ServerState {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let state = supervisor.state();
+            if !matches!(state, ServerState::Stopping) || Instant::now() >= deadline {
+                return state;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    /// The carry, end to end: `Supervisor::stop` declares the drain and
+    /// sends the declaration, so the worker's §18 arm knows what the first
+    /// stop left — the state already reads `Stopping` when it looks.
+    /// Two stops through the real API; the port answers both times.
+    #[test]
+    fn a_second_stop_through_the_api_keeps_an_unconfirmed_state_while_the_port_answers() {
+        let port = 8311;
+        // A live foreign process the walk must not signal (no state file
+        // vouches for it). `ping -n` is the Windows sleep.
+        #[cfg(unix)]
+        let mut stand_in = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn the stand-in");
+        #[cfg(windows)]
+        let mut stand_in = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .spawn()
+            .expect("spawn the stand-in");
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+        let supervisor = api_supervisor(port, stand_in.id(), answering);
+
+        // First stop: the unvouched pid is not signalled and the port
+        // answers, so the drain ends StopUnconfirmed — reached through the
+        // owned walk, the way every real first stop reaches it.
+        supervisor.stop();
+        let first = drain_end(&supervisor);
+        assert!(
+            matches!(
+                first,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "the first stop through the API did not reach StopUnconfirmed: {first:?}"
+        );
+
+        // Second stop, nothing owned: with the carried declaration the
+        // worker asks the port and keeps the doubt — never `Stopped`.
+        supervisor.stop();
+        let second = drain_end(&supervisor);
+        assert!(
+            !matches!(second, ServerState::Stopped),
+            "a second stop claimed Stopped with nothing checked: {second:?}"
+        );
+        assert!(
+            matches!(
+                &second,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { measures },
+                } if measures.contains("a second stop")
+            ),
+            "the second stop's own probe did not run: {second:?}"
+        );
+
+        let _ = stand_in.kill();
+        let _ = stand_in.wait();
+    }
+
+    /// The same API path when the port turns refusing at the second stop:
+    /// absence is then proved the way the blind rule proves it, and
+    /// `Stopped` is honest.
+    #[test]
+    fn a_second_stop_through_the_api_proves_gone_when_the_port_refuses() {
+        let port = 8313;
+        #[cfg(unix)]
+        let mut stand_in = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn the stand-in");
+        #[cfg(windows)]
+        let mut stand_in = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .spawn()
+            .expect("spawn the stand-in");
+        SECOND_STOP_ASK.store(0, Ordering::Relaxed);
+        let supervisor = api_supervisor(port, stand_in.id(), answering_then_gone);
+
+        supervisor.stop();
+        let first = drain_end(&supervisor);
+        assert!(
+            matches!(
+                first,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "the first stop must reach StopUnconfirmed before the second is asked: {first:?}"
+        );
+
+        SECOND_STOP_ASK.store(1, Ordering::Relaxed);
+        supervisor.stop();
+        assert_eq!(
+            drain_end(&supervisor),
+            ServerState::Stopped,
+            "a refusing port proves absence at a second stop"
+        );
+
+        let _ = stand_in.kill();
+        let _ = stand_in.wait();
     }
 
     #[test]
