@@ -586,7 +586,7 @@ that holds a candidate is a *different object* from the line that ships.**
 - **App: the governor is disabled whenever an mmproj is loaded** (`src/engine/LlamaService.ts:2439`,
   `!options.mmprojPath`). Qwen3.5-4B (recommended on high-tier boards) never runs under the governor;
   `bench:route` reports `skipped`. Found on QDC QRD8650, session 845086
-  (`scratchpad/agents/qdc-heat-per-backend/REPORT.md`). OPEN, owner decision.
+  (`scratchpad/agents/qdc-heat-per-backend/REPORT.md`). Owner decision 2026-09-25: mmproj stays out of the governor until a governor vision lane exists; heat arms on LFM2.5-2.6B.
 - **Per-backend heat tables: n = 0.** Every S23 and QDC attempt of 24-25/09 ended before a valid arm
   (DSP spin, tools left ON, a cold-start gate, account/tab problems, the mmproj defect above). What
   survives is the method: device-side 1 Hz sampler (median 1.06 s), tools OFF, a new-token target

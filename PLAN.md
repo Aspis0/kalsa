@@ -498,8 +498,12 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
   the admission deltas `{1.9, 3.25, 3.25, 5.15}` remain NPU-only S23 numbers. NPU-as-verifier is killed on
   v79 speed; CPU speculative decoding with a draft-probability gate is the new lane (CPU verifies K=4 for
   1.24x one step on the ship model).
-- **Open owner decision:** the app disables the governor whenever an mmproj is loaded
-  (`LlamaService.ts:2439`). Either run the heat arms on LFM2.5-2.6B (no mmproj) or fix the app first.
+- **Owner decision (2026-09-25): mmproj models stay OUT of the governor until the governor has a
+  vision lane** (engine + binding + app; the binding throws on `initMultimodal` under the governor,
+  `cpp/rn-llama.cpp:1140`, and the engine governor has no vision path). No lazy-mmproj workaround.
+  It matters again soon: the LFM VLM head (LFM2.5-VL) follows. Heat arms run on LFM2.5-2.6B (no mmproj).
+  Note: with the governor switch off (default) Android is CPU-only for every model
+  (`deviceTuning.ts:397` `gpu-fit-gate-blind`).
 - **Devices:** S23 DSP spin likely fixed by `setprop persist.traced.enable 0` (check it before every S23
   session). QDC second account `aspis.launcher@gmail.com`; each Paseo browser tab has its own cookies;
   QDC bills the full requested cap.
