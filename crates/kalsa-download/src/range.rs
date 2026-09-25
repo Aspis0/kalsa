@@ -43,8 +43,8 @@ pub(crate) fn connect_with_read_timeout(
                 // continue our file.
                 _ => {}
             },
-            code if (200..300).contains(&code) => return Err(unexpected_success(code)),
-            code => return Err(http_error(code)),
+            code if code >= 400 => return Err(http_error(code)),
+            code => return Err(unusable_status(code)),
         }
     }
     let response = send(url, None, read_timeout)?;
@@ -56,9 +56,9 @@ pub(crate) fn connect_with_read_timeout(
             .header("Content-Range")
             .and_then(content_range_start)
             .filter(|at| *at == 0)
-            .ok_or_else(|| http_error(206))?,
-        code if (200..300).contains(&code) => return Err(unexpected_success(code)),
-        code => return Err(http_error(code)),
+            .ok_or_else(|| unusable_status(206))?,
+        code if code >= 400 => return Err(http_error(code)),
+        code => return Err(unusable_status(code)),
     };
     Ok((response, start))
 }
@@ -108,13 +108,16 @@ fn http_error(code: u16) -> DownloadError {
     DownloadError::Refused { status: code }
 }
 
-/// A 2xx that is neither 200 nor 206: the origin ALLOWED the request and
-/// still served nothing this code can place — a broken exchange, not a
-/// refusal, so it rides `Network`, whose sentence's retry can work.
-fn unexpected_success(code: u16) -> DownloadError {
+/// An HTTP status this code cannot use that is NOT a refusal: a 2xx that is
+/// neither 200 nor 206, a 3xx that arrived terminal (ureq already follows
+/// redirects, so one that reaches here is a broken exchange), a 206 whose
+/// Content-Range cannot be placed. The origin allowed the request in every
+/// one of those, so `Refused`'s sentence would be false; `Network`'s retry
+/// is the honest advice.
+fn unusable_status(code: u16) -> DownloadError {
     DownloadError::Network(io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("unexpected successful status {code}"),
+        io::ErrorKind::InvalidInput,
+        format!("unusable HTTP status {code}"),
     ))
 }
 
@@ -171,6 +174,36 @@ mod tests {
         let err = connect(&server.url, 0).expect_err("a 403 is an error");
         assert!(
             matches!(err, DownloadError::Refused { status: 403 }),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_unplaceable_206_is_not_a_refusal() {
+        // A 206 whose Content-Range starts nowhere we can use answered a
+        // request the origin allowed: `Refused`'s sentence would be false,
+        // so it rides `Network` with its retry advice.
+        let dir = scratch("range-misplaced");
+        let server = httptest::serve(payload(64), RangeMode::Misplaced);
+        let err = connect(&server.url, 0).expect_err("a misplaced 206 is an error");
+        assert!(
+            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidInput),
+            "{err:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_terminal_304_is_not_a_refusal() {
+        // ureq follows redirects, so a 304 that arrives as the answer is a
+        // broken exchange, not the publisher refusing: the connection
+        // sentence's retry is the honest advice.
+        let dir = scratch("range-not-modified");
+        let server = httptest::serve(payload(64), RangeMode::NotModified);
+        let err = connect(&server.url, 0).expect_err("a terminal 304 is an error");
+        assert!(
+            matches!(&err, DownloadError::Network(e) if e.kind() == io::ErrorKind::InvalidInput),
             "{err:?}"
         );
         let _ = std::fs::remove_dir_all(&dir);

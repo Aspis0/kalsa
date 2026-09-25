@@ -35,6 +35,11 @@ pub enum RangeMode {
     /// Declares u64::MAX bytes — honoring a Range with a 206 when one was
     /// asked, so a resumed prefix plus the declaration overflows the count.
     AbsurdLength,
+    /// Answers 206 to any request with a Content-Range that starts at 5:
+    /// a partial answer nobody asked for, unusable but not a refusal.
+    Misplaced,
+    /// Answers 304 with no Location: not an error status, and not usable.
+    NotModified,
     /// Sends a response head and a short prefix, then stays connected and
     /// silent until the client gives up.
     Stall,
@@ -123,6 +128,22 @@ fn answer(
                 u64::MAX
             )
         };
+        return stream.write_all(head.as_bytes());
+    }
+    if matches!(mode, RangeMode::Misplaced) {
+        let _ = read_range(&mut stream, seen)?;
+        let head = format!(
+            "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+             Content-Range: bytes 5-{}/{}\r\nConnection: close\r\n\r\n",
+            len.saturating_sub(5),
+            len.saturating_sub(1),
+            len
+        );
+        return stream.write_all(head.as_bytes());
+    }
+    if matches!(mode, RangeMode::NotModified) {
+        let _ = read_range(&mut stream, seen)?;
+        let head = "HTTP/1.1 304 Not Modified\r\nConnection: close\r\n\r\n";
         return stream.write_all(head.as_bytes());
     }
     let range = read_range(&mut stream, seen)?;
