@@ -45,3 +45,11 @@ vision lane. No lazy-mmproj. Path prefixes: engine = kalsallama, binding = llama
 - Pattern to copy: `tests/CMakeLists.txt:382: llama_build_and_test(test-governor-v0-hybrid.cpp LABEL "model")` with `:383: set_tests_properties(test-governor-v0-hybrid PROPERTIES SKIP_RETURN_CODE 77)` and env gate `tests/test-governor-v0-hybrid.cpp:235:         std::fprintf(stderr, "governor-hybrid: SKIP KALSA_HYBRID_GGUF is unset (exit 77)\n");` (`KALSA_HYBRID_GGUF=/Users/marco/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf`, EXIT=0 in recent audits).
 - New `tests/test-governor-vision.cpp`, gated `KALSA_VISION_GGUF` + `KALSA_VISION_MMPROJ` (same 77-skip): (a) encode via `mtmd_encode_chunk`, (b) feed the embd batch through `llama_governor_decode`, (c) assert commit bytes/watermark advance equals token count (`test-governor-v0-commit.cpp` already asserts commit stats), (d) oracle: governor logits vs single-context CPU reference, `max_abs_diff=0` bar as in `test-governor-v0-hybrid` evidence. Register in `tests/CMakeLists.txt` beside line 382.
 - Regression suite stays green: `test-governor-v02-router` (no model), `test-governor-v0-turns`, `test-governor-v0-hybrid`; app side `src/engine/governorRuntime.test.ts:41:     expect(init.mock.calls[0][0]).not.toHaveProperty("governor");` gains a case "mmproj + vision-capable → governor present", plus `npx tsc --noEmit` / jest gates. Phone validation only after host oracle passes: S23 (`src/engine/governorInputs.ts:7: export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";`), never while charging.
+
+---
+**PARKED 2026-09-25 (owner):** the governor is not yet proven on text (heat tables n=0); vision waits.
+Hostile audit c8b25dba (deepseek) REFUTED this sketch: it cites engine checkout `833cde99b`, 43 commits
+behind the shipped pin `f25f0c1c5` (verified by the coordinator), so line numbers resolve elsewhere; plus
+embd-batch chunking, thermal -2 on the image path, RAM gate without mmproj, hybrid checkpoints, and
+cancellation are unhandled. Cheapest alternative it names: latch the CPU route on media turns. Full audit
+in Paseo agent c8b25dba. Redo against the vendored engine when unparked.
