@@ -13,7 +13,12 @@ until it stops being readable. Test files follow the same logic: if a test file 
 indistinguishable list of cases, split it by topic, not by line count. Pre-existing excess is
 declared, not refactored. Minimal imports: no globs, no preventive pub, no convenience re-exports. No
 types or APIs nobody constructs yet. Comments only for WHY or a trap, never restating the code — and
-if a comment declares an invariant, that invariant must be true. No secret values. Tests: targeted
+if a comment declares an invariant, that invariant must be true.
+- No history in code. No "review fix-N finding M", no "pass 3", no "the earlier version did X": that
+  belongs in the report and the commit message.
+- A WHY is one or two lines. Code that explains itself gets no comment.
+- When you fix code, fix or delete its comment. Do not stack a new comment on top of the old one.
+No secret values. Tests: targeted
 filters while working, one full run at the end, and never report a piped command's status:
 `cmd > /tmp/out.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/out.log`, quoting the exit code. `git add` by
 name, `git branch --show-current` printed before every commit, no push, no tag, no new branch, and
