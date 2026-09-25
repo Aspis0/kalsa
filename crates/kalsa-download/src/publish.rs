@@ -115,31 +115,49 @@ fn checked_rename(part: &mut PartFile, dest: &Path) -> io::Result<()> {
 
 /// Renames the handle's file onto `dest`, replacing it, without asking the
 /// kernel about a source path we could be raced on: the request names the
-/// descriptor and the destination only. The buffer is the documented
-/// FILE_RENAME_INFO layout: DWORD ReplaceIfExists, DWORD FileNameLength (in
-/// bytes, including the terminator), WCHAR FileName[].
+/// descriptor and the destination only. The buffer is windows-sys's own
+/// `FILE_RENAME_INFO`, laid out by the compiler — { ReplaceIfExists } at 0,
+/// RootDirectory at 8, FileNameLength at 16, FileName at 20 on x64 — over a
+/// u64-word allocation, because the struct holds a HANDLE and needs the
+/// 8-byte alignment a `Vec<u8>` does not give. Per Microsoft's
+/// FILE_RENAME_INFO page, FileNameLength is the size of the name in bytes
+/// and "a terminating null character is not required": the count excludes
+/// the NUL, while the buffer still stores one — FileName is documented as a
+/// NUL-terminated string. The handle must carry DELETE; see part.rs's
+/// `with_delete_access`.
 #[cfg(windows)]
 fn windows(part: &mut PartFile, dest: &Path) -> io::Result<()> {
+    use std::mem::{offset_of, size_of};
     use std::os::windows::ffi::OsStrExt;
     use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Foundation::HANDLE;
-    use windows_sys::Win32::Storage::FileSystem::SetFileInformationByHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FileRenameInfo, SetFileInformationByHandle, FILE_RENAME_INFO, FILE_RENAME_INFO_0,
+    };
 
-    const FILE_RENAME_INFO: i32 = 3; // FileRenameInfo, from FILE_INFO_BY_HANDLE_CLASS
-    let mut name: Vec<u16> = dest.as_os_str().encode_wide().collect();
-    name.push(0);
-    let mut info = vec![0u8; 8 + name.len() * 2];
-    info[0] = 1; // ReplaceIfExists
-    info[4..8].copy_from_slice(&((name.len() * 2) as u32).to_le_bytes());
+    let name: Vec<u16> = dest
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let laid_out = offset_of!(FILE_RENAME_INFO, FileName) + name.len() * 2;
+    let bytes = size_of::<FILE_RENAME_INFO>().max(laid_out);
+    let mut buffer = vec![0u64; bytes.div_ceil(8)];
+    let info = unsafe { &mut *buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>() };
+    info.Anonymous = FILE_RENAME_INFO_0 { ReplaceIfExists: 1 };
+    info.RootDirectory = std::ptr::null_mut();
+    info.FileNameLength = ((name.len() - 1) * 2) as u32;
+    // The documented NUL-terminated string, written through the array's own
+    // pointer and kept inside this allocation.
+    let file_name = unsafe { std::ptr::addr_of_mut!(info.FileName).cast::<u16>() };
     for (i, unit) in name.iter().enumerate() {
-        info[8 + i * 2..8 + i * 2 + 2].copy_from_slice(&unit.to_le_bytes());
+        unsafe { file_name.add(i).write(*unit) };
     }
     let ok = unsafe {
         SetFileInformationByHandle(
-            part.handle().as_raw_handle() as HANDLE,
-            FILE_RENAME_INFO,
-            info.as_ptr() as *const core::ffi::c_void,
-            info.len() as u32,
+            part.handle().as_raw_handle(),
+            FileRenameInfo,
+            info as *const FILE_RENAME_INFO as *const core::ffi::c_void,
+            bytes as u32,
         )
     };
     if ok == 0 {
@@ -225,6 +243,10 @@ mod tests {
         let (mut part, good) = claimed_then_swapped(&dir);
         let dest = dir.join("model.gguf");
         let result = verified(&mut part, &dest);
+        // The byte lock travelled with the rename: `dest` is still ours, and
+        // Windows locks are mandatory — reading it by path needs the handle
+        // dropped first (the product drops it right after `verified`).
+        drop(part);
         assert_outcome(result, &dest, &good);
         let _ = fs::remove_dir_all(&dir);
     }
@@ -240,6 +262,10 @@ mod tests {
         fs::write(dir.join("model.gguf"), b"a previous, unverified copy").expect("plant dest");
         let dest = dir.join("model.gguf");
         verified(&mut part, &dest).expect("publish replaces");
+        // The byte lock travelled with the rename: `dest` is still ours, and
+        // Windows locks are mandatory — reading it by path needs the handle
+        // dropped first (the product drops it right after `verified`).
+        drop(part);
         assert_eq!(fs::read(&dest).expect("read"), good);
         let _ = fs::remove_dir_all(&dir);
     }

@@ -31,12 +31,11 @@ impl PartFile {
     /// Creates or reopens and locks the part file for `dest`.
     pub fn claim(path: PathBuf) -> io::Result<Self> {
         let created;
-        let file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create_new(true)
-            .open(&path)
-        {
+        let mut open = OpenOptions::new();
+        open.read(true).write(true);
+        #[cfg(windows)]
+        with_delete_access(&mut open);
+        let file = match open.create_new(true).open(&path) {
             Ok(file) => {
                 created = true;
                 file
@@ -128,6 +127,22 @@ fn open_existing(path: &Path) -> io::Result<File> {
     Ok(file)
 }
 
+/// Puts DELETE on a part-file handle: publication renames BY this handle
+/// (`SetFileInformationByHandle(FileRenameInfo)`), which needs DELETE access
+/// on it — plain read+write fails with GetLastError=5, measured on the
+/// Surface as the walk's `ServerFetchFailed`. `access_mode` replaces the
+/// read/write-derived rights, so all three are named together. Every other
+/// opener of the part file goes through std's default share
+/// (READ|WRITE|DELETE), which grants this access and a delete-sharing
+/// rename, so nothing can hold the file in the rename's way.
+#[cfg(windows)]
+fn with_delete_access(options: &mut OpenOptions) {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE};
+    use windows_sys::Win32::Storage::FileSystem::DELETE;
+    options.access_mode(GENERIC_READ | GENERIC_WRITE | DELETE);
+}
+
 /// Reopens a part file an earlier run left behind, without following a link
 /// planted at that path.
 #[cfg(windows)]
@@ -136,11 +151,12 @@ fn open_existing(path: &Path) -> io::Result<File> {
 
     // Opens the entry itself, not its target; the type check refuses it.
     const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0200_0000;
-    let file = OpenOptions::new()
-        .read(true)
+    let mut open = OpenOptions::new();
+    open.read(true)
         .write(true)
-        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
-        .open(path)?;
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    with_delete_access(&mut open);
+    let file = open.open(path)?;
     let meta = file.metadata()?;
     if !meta.is_file() || meta.is_symlink() {
         return Err(io::Error::new(
