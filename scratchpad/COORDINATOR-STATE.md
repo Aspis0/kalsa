@@ -97,3 +97,7 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
 - App main 1819d03f (QR scanner) pushed; device APK CI 36203268567 sha cfd5823e installed on the Jelly;
   pairing run waits for Marco (serve rules, scan, Allow).
 - Quotas: commandcode (mimo AND deepseek) weekly limit until 2026-09-29T15:21Z -> use opencode-go.
+- 2026-09-26 ~00:50 (owner asleep; worklist: iroh, APK, QDC, S23 on charge). Luna back.
+  S23 DSP fix CONFIRMED (STOP-SOURCE.md). S23 is charging: prep-only for NPU Step 0 v73 (2a127e6f), no timing.
+  Pairing fix batch 35563984 (refusal stage line, crypto suspect, keyboard, half-screen) -> review -> CI APK ->
+  Jelly; kalsa-brain drives the Jelly run tonight (adb fill from zbarimg, presses Allow, removes serve rules).
