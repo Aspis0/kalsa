@@ -849,7 +849,11 @@ ui_send() {
 route_send() {
   local prefix="$1"
   local mode="$2"
-  TYPE_TEXT="bench:route $mode"
+  # "/bench route" is the same app command as "bench:route" (benchConfig.ts
+  # stripBenchPrefix, case-insensitive) but a leading "/" cannot be
+  # auto-capitalized: the QRD8750 keyboard turned "bench:" into "Bench:" and
+  # the exact composer check voided the calibration (raw/sa854292).
+  TYPE_TEXT="/bench route $mode"
   ui_send "$prefix"
   local rc=$?
   return "$rc"

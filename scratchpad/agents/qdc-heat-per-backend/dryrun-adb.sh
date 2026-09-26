@@ -159,7 +159,7 @@ XML
     [ -z "$inner" ] && inner=$(printf '%s' "$raw" | sed 's/^input text //')
     dec=$(printf '%s' "$inner" | sed "s/%s/ /g; s/'\\\\''/'/g")
     printf '%s' "$dec" >> "$S/typed"
-    case "$dec" in "bench:route "*) printf '%s' "$dec" | awk '{print $2}' > "$S/last_route";; esac
+    case "$dec" in "bench:route "*) printf '%s' "$dec" | awk '{print $2}' > "$S/last_route";; "/bench route "*) printf '%s' "$dec" | awk '{print $3}' > "$S/last_route";; esac
     if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ ! -f "$S/tel_ready_at" ]; then
       tl=$(wc -c < "$S/typed")
       [ "$tl" -gt 1000 ] && printf '%s' "$(( $(date +%s) + DRY_TELEMETRY_DELAY_S ))" > "$S/tel_ready_at"
