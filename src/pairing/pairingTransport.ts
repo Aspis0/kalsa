@@ -6,6 +6,7 @@ import {
   phoneMacHex,
   type PairingPhoneDeclaration,
 } from "./pairingWire";
+import { logPairingFail } from "./pairingFailLog";
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_HEAD_BYTES = 8 * 1024;
@@ -60,11 +61,14 @@ export type PairingSessionOptions = {
 };
 
 function secureRandomBytes(length: number): Uint8Array {
-  const cryptoApi = globalThis.crypto;
-  if (!cryptoApi || typeof cryptoApi.getRandomValues !== "function") {
-    throw new Error("secure random source unavailable");
-  }
-  return cryptoApi.getRandomValues(new Uint8Array(length));
+  // Hermes has no Web Crypto global, and expo's winter runtime installs URL,
+  // fetch and the text codecs but never crypto, so the release runtime reach-
+  // es this function with no globalThis.crypto. expo-crypto's getRandomBytes
+  // is the platform CSPRNG. The require is lazy: expo-crypto's JS needs
+  // native modules the Node test environment lacks, and tests inject
+  // randomBytes instead.
+  const { getRandomBytes } = require("expo-crypto") as typeof import("expo-crypto");
+  return getRandomBytes(length);
 }
 
 function pairUrl(deskUrl: string, route: "claim" | "complete"): string {
@@ -116,11 +120,23 @@ export class PairingSession {
   private readonly fetcher: PairingFetch;
   private completeRetryPending = false;
   private finished = false;
+  // Built alongside the claim URL in begin(); complete() replays it so a
+  // desk URL problem always surfaces as claim_url, never mid-completion.
+  private completeUrl = "";
 
   constructor(private readonly options: PairingSessionOptions) {
     const random = options.randomBytes ?? secureRandomBytes;
-    const bytes = random(DELIVERY_TOKEN_BYTES);
-    if (bytes.length !== DELIVERY_TOKEN_BYTES) throw new Error("invalid random source");
+    let bytes: Uint8Array;
+    try {
+      bytes = random(DELIVERY_TOKEN_BYTES);
+    } catch {
+      logPairingFail("random", null);
+      throw new Error("secure random source unavailable");
+    }
+    if (bytes.length !== DELIVERY_TOKEN_BYTES) {
+      logPairingFail("random", null);
+      throw new Error("invalid random source");
+    }
     this.deliveryToken = bytesToHex(bytes);
     this.fetcher = options.fetcher ?? (globalThis.fetch as PairingFetch);
   }
@@ -139,15 +155,11 @@ export class PairingSession {
 
   async begin(): Promise<Uint8Array | null> {
     if (this.finished || this.completeRetryPending) return null;
-    let claimUrl: string;
-    let body: string;
     try {
       if (!/^[0-9a-f]{32}$/.test(this.options.square.code)) throw new Error("invalid code");
       const code = hexToBytes(this.options.square.code);
       const nonce = hexToBytes(this.options.square.nonce);
       if (code.length !== 16 || nonce.length !== 32) throw new Error("invalid square");
-      claimUrl = pairUrl(this.options.deskUrl, "claim");
-      body = `{"code":"${this.options.square.code}"}`;
       // Validate the signed fields and canonical declaration before claiming
       // the one-shot code at the desk.
       phoneMacHex(this.options.square.code, this.options.square.nonce, {
@@ -157,11 +169,27 @@ export class PairingSession {
         phone: this.options.phone,
       });
     } catch {
+      logPairingFail("validate", null);
       this.finished = true;
       return null;
     }
-    const claim = await postPairingJson(claimUrl, body, this.fetcher);
-    if (!claim || claim.status !== 200) {
+    let claimUrl: string;
+    try {
+      this.completeUrl = pairUrl(this.options.deskUrl, "complete");
+      claimUrl = pairUrl(this.options.deskUrl, "claim");
+    } catch {
+      logPairingFail("claim_url", null);
+      this.finished = true;
+      return null;
+    }
+    const claim = await postPairingJson(claimUrl, `{"code":"${this.options.square.code}"}`, this.fetcher);
+    if (!claim) {
+      logPairingFail("claim_network", null);
+      this.finished = true;
+      return null;
+    }
+    if (claim.status !== 200) {
+      logPairingFail("claim_status", claim.status);
       this.finished = true;
       return null;
     }
@@ -175,8 +203,6 @@ export class PairingSession {
 
   private async complete(): Promise<Uint8Array | null> {
     const retryingAfterTimeout = this.completeRetryPending;
-    let url: string;
-    let body: string;
     try {
       const { square, phone } = this.options;
       const nonce = hexToBytes(square.nonce);
@@ -198,10 +224,10 @@ export class PairingSession {
         mac_hex: mac,
         delivery_token_hex: this.deliveryToken,
       });
-      url = pairUrl(this.options.deskUrl, "complete");
-      body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
-      const response = await postPairingJson(url, body, this.fetcher);
+      const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
+      const response = await postPairingJson(this.completeUrl, body, this.fetcher);
       if (!response) {
+        logPairingFail("complete_network", null);
         this.completeRetryPending = true;
         return null;
       }
@@ -209,6 +235,7 @@ export class PairingSession {
       this.finished = true;
       this.completeRetryPending = false;
       if (response.status !== 200) {
+        logPairingFail("complete_status", response.status);
         if (retryingAfterTimeout && response.status === 403) {
           this.logDiagnostic({
             event: "pairing.retry_refused_after_timeout",
@@ -218,9 +245,24 @@ export class PairingSession {
         }
         return null;
       }
-      const seal = await response.json();
-      if (!isSeal(seal)) return null;
-      const credential = openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);
+      let seal: unknown;
+      try {
+        seal = await response.json();
+      } catch {
+        logPairingFail("seal", response.status);
+        return null;
+      }
+      if (!isSeal(seal)) {
+        logPairingFail("seal", response.status);
+        return null;
+      }
+      let credential: Uint8Array;
+      try {
+        credential = openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);
+      } catch {
+        logPairingFail("seal", response.status);
+        return null;
+      }
       this.logDiagnostic({
         event: "pairing.sealed_response",
         ciphertext_hex: seal.credential_ciphertext,
@@ -228,8 +270,11 @@ export class PairingSession {
       });
       return credential;
     } catch {
-      // A thrown fetch is the sole ambiguous complete outcome. Failures after
-      // a response were marked finished above and therefore cannot be replayed.
+      // postPairingJson never throws, so only request construction lands here
+      // — the same input problem begin() validated — and the attempt still
+      // owes its one stage line. The ambiguous lost-response outcome is the
+      // complete_network branch above, not this catch.
+      logPairingFail("validate", null);
       if (!this.finished) this.completeRetryPending = true;
       return null;
     }

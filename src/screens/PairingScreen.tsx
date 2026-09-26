@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
 import { useLocale } from "../i18n";
@@ -8,6 +8,7 @@ import { GlassPanel2 } from "../theme/components";
 import { SettingsHeader } from "./SettingsHeader";
 import { useLabTheme } from "../ui/labTheme";
 import { PairingSession, type PairingSquare } from "../pairing/pairingTransport";
+import { logPairingFail } from "../pairing/pairingFailLog";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
 import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
@@ -65,6 +66,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   };
 
   const run = async (scanned?: PairingSquare) => {
+    Keyboard.dismiss();
     if (busy || state === "waiting") return;
     const phone = declarationForModel(currentModelId);
     if (!phone) {
@@ -78,6 +80,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       return;
     }
     if (!isAllowedPairingUrl(fields.deskUrl)) {
+      logPairingFail("validate", null);
       setState("refused");
       return;
     }
@@ -108,7 +111,13 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         return;
       }
       // The paired URL and credential are the active door configuration.
-      await savePairingCredential(credential, fields.doorUrl.trim());
+      try {
+        await savePairingCredential(credential, fields.doorUrl.trim());
+      } catch {
+        logPairingFail("save", null);
+        setState("refused");
+        return;
+      }
       setState("waiting");
     } catch {
       // The pairing response is deliberately opaque: one refusal sentence for
@@ -178,7 +187,14 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
             accessibilityLabel={t("pairing.scan")}
             accessibilityState={{ disabled: busy || state === "waiting" }}
             disabled={busy || state === "waiting"}
-            onPress={() => setScanning(true)}
+            onPress={() => {
+              // The camera must mount with the keyboard already down: a hide
+              // event that lands after CameraView takes the screen is lost,
+              // and the Jelly keeps the adjustResize window at its keyboard-
+              // cropped height (the half screen seen on the road run).
+              Keyboard.dismiss();
+              setScanning(true);
+            }}
             style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy || state === "waiting" ? 0.6 : 1 })}
           >
             <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.scan")}</Text>

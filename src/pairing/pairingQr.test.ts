@@ -1,4 +1,5 @@
 import { parsePairingQr } from "./pairingQr";
+import { phoneMacHex, phoneMacPayload, type PairingPhoneDeclaration } from "./pairingWire";
 
 const REACHABLE = "http://192.168.1.10:4952";
 const CODE = "ab".repeat(16);
@@ -92,5 +93,55 @@ describe("parsePairingQr", () => {
       ok: true,
       square: { reachable: tricky, code: CODE, nonce: NONCE, node: "" },
     });
+  });
+});
+
+describe("the scanned square's MAC input", () => {
+  // Vector D in docs/PAIRING-WIRE.md is the loopback, node-less shape the
+  // desktop actually shows, frozen at port 8132. No frozen vector covers any
+  // other loopback port (tonight's road run showed :8134), so the :8134 MAC
+  // is deliberately not asserted here — only the input construction is.
+  const VECTOR_D_PHONE: PairingPhoneDeclaration = {
+    weights_bytes: 2_200_000_000,
+    parameters: { total: 7_600_000_000, active: 2_400_000_000 },
+    measured_tokens_per_second: 9.5,
+    battery_powered: true,
+  };
+  const TOKEN = "c0".repeat(16);
+  const D_REACHABLE = "http://127.0.0.1:8132";
+  const TONIGHT_REACHABLE = "http://127.0.0.1:8134";
+
+  test("a node-absent loopback square feeds the MAC an empty node and the exact reachable", () => {
+    const scanned = parsePairingQr(
+      `{"v":3,"reachable":"${TONIGHT_REACHABLE}","code":"${"31".repeat(16)}","nonce":"${"32".repeat(32)}"}`,
+    );
+    if (!scanned.ok) throw new Error("the road-run square shape must parse");
+    expect(scanned.square).toEqual({
+      reachable: TONIGHT_REACHABLE,
+      code: "31".repeat(16),
+      nonce: "32".repeat(32),
+      node: "",
+    });
+    const macInput = {
+      node: scanned.square.node,
+      deliveryToken: TOKEN,
+      phone: VECTOR_D_PHONE,
+    };
+    const dPayload = phoneMacPayload({ ...macInput, reachable: D_REACHABLE });
+    const scannedPayload = phoneMacPayload({ ...macInput, reachable: scanned.square.reachable });
+    // Same length, one byte apart — the port digit at the end of the first
+    // frame (u64 length prefix, then the reachable bytes). The node frame,
+    // token and declaration bytes are identical to vector D's.
+    expect(scannedPayload.length).toBe(dPayload.length);
+    const differing: number[] = [];
+    for (let i = 0; i < scannedPayload.length; i += 1) {
+      if (scannedPayload[i] !== dPayload[i]) differing.push(i);
+    }
+    expect(differing).toEqual([8 + TONIGHT_REACHABLE.length - 1]);
+    // The frozen half: the identical pipeline over vector D's own reachable
+    // reproduces the Python-frozen MAC.
+    expect(
+      phoneMacHex("31".repeat(16), "32".repeat(32), { ...macInput, reachable: D_REACHABLE }),
+    ).toBe("ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132");
   });
 });

@@ -3,6 +3,7 @@ jest.mock("react-native", () => {
   const host = (name: string) => (props: Record<string, unknown>) =>
     react.createElement(name, props, props.children as React.ReactNode);
   return {
+    Keyboard: { dismiss: jest.fn() },
     Pressable: host("Pressable"),
     ScrollView: host("ScrollView"),
     Text: host("Text"),
@@ -47,19 +48,28 @@ jest.mock("./PairingQrScanner", () => ({
     require("react").createElement("PairingQrScanner", { scannerStub: true, ...props }),
 }));
 
+// The transport lazily requires expo-crypto for its default random source;
+// a queue of fill bytes stands in for the CSPRNG (jest.mock factories may
+// only close over "mock"-prefixed bindings).
+let mockRandomFills: number[] = [0xc0];
+jest.mock("expo-crypto", () => ({
+  getRandomBytes: (length: number) => new Uint8Array(length).fill(mockRandomFills.shift() ?? 0xc0),
+}));
+
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
+import { Keyboard } from "react-native";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
 import { PairingScreen } from "./PairingScreen";
 
 const saveCredentialMock = savePairingCredential as jest.MockedFunction<typeof savePairingCredential>;
-const originalCrypto = globalThis.crypto;
 const originalFetch = globalThis.fetch;
 const preexistingCredential = { credential: "12".repeat(32), doorUrl: "https://old-computer.example" };
 let storedCredential = { ...preexistingCredential };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockRandomFills = [0xc0];
   storedCredential = { ...preexistingCredential };
   saveCredentialMock.mockImplementation(async (credential, doorUrl) => {
     storedCredential = {
@@ -67,15 +77,10 @@ beforeEach(() => {
       doorUrl,
     };
   });
-  Object.defineProperty(globalThis, "crypto", {
-    configurable: true,
-    value: { getRandomValues: (bytes: Uint8Array) => bytes.fill(0xc0) },
-  });
 });
 
 afterEach(() => {
   jest.restoreAllMocks();
-  Object.defineProperty(globalThis, "crypto", { configurable: true, value: originalCrypto });
   globalThis.fetch = originalFetch;
 });
 
@@ -160,6 +165,7 @@ describe("PairingScreen", () => {
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
     });
+    expect(Keyboard.dismiss).toHaveBeenCalled();
     const scanner = renderer.root.findByProps({ scannerStub: true });
     await act(async () => {
       scanner.props.onFound({
@@ -271,6 +277,46 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("an unusable desk address logs stage validate and refuses before dialling", async () => {
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.onChangeText(
+        "ftp://desktop.example",
+      );
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.refused" })).toBeDefined();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
+    log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("a save failure logs stage save and refuses with the uniform text", async () => {
+    installFetch(200);
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    saveCredentialMock.mockRejectedValueOnce(new Error("secure store unavailable"));
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.refused" })).toBeDefined();
+    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(fails).toHaveLength(1);
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "save", status: null });
+    expect(String(fails[0][1])).not.toContain("c0".repeat(16));
+    log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
   test("the visible diagnostics switch logs wire hex and a credential hash, never the credential", async () => {
     const { urls } = installFetch(200);
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
@@ -321,16 +367,7 @@ describe("PairingScreen", () => {
       if (completeCount === 1) throw new Error("response lost");
       return { status: 403, json: async () => "" } as Response;
     }) as typeof fetch;
-    let randomCalls = 0;
-    Object.defineProperty(globalThis, "crypto", {
-      configurable: true,
-      value: {
-        getRandomValues: (bytes: Uint8Array) => {
-          bytes.fill(randomCalls++ === 0 ? 0xc0 : 0x01);
-          return bytes;
-        },
-      },
-    });
+    mockRandomFills = [0xc0, 0x01];
     const renderer = await render();
 
     await act(async () => {
