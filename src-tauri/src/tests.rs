@@ -2725,6 +2725,14 @@ fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
         queued.is_none(),
         "a Stop the walk's snapshot absorbed must still refuse the start"
     );
+    // The stop's state change is not instantaneous — the drain lands on the
+    // supervisor's own clock — so wait for it the way the sibling above does.
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !matches!(brain.supervisor.state(), ServerState::Stopped)
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(Duration::from_millis(10));
+    }
     assert!(
         matches!(brain.supervisor.state(), ServerState::Stopped),
         "and nothing was started: {:?}",
