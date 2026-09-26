@@ -296,7 +296,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   if [ -n "$CAL_TOOLS" ] && [ "$CAL_TOOLS" -gt 0 ] 2>/dev/null; then
     log "TOOLS_NOT_OFF tool_calls=$CAL_TOOLS"; write_end "tools_not_off"; exit 3
   fi
-  PROMPT_VARIANTS="${PROMPT_VARIANTS:-727 786 841}"
+  PROMPT_VARIANTS="${PROMPT_VARIANTS:-727 786 841 1010}"
   BEST=""; BEST_TOK=0; BEST_D=99999
   for v in $PROMPT_VARIANTS; do
     vf="$OUT/prompt-$v.txt"

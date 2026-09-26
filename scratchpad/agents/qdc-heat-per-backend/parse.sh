@@ -182,6 +182,10 @@ set_prefs() {
 }
 
 count_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{n++}END{print n+0}' "$2"; }
+# Tool calls, not KALSA_TOOLCALL lines: the app logs one line per round even with
+# toolChoice none (structuredCalls 0, executed 0 — raw/sa849528b calibration).
+# Sums structuredCalls+fallbackCalls+executed; an unparsable line counts as 1.
+count_toolcalls_after() { awk -v a="$ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_TOOLCALL ")>0{sub(/.*KALSA_TOOLCALL /,"");print}' "$1" | /usr/bin/perl -MJSON::PP -ne '$j=eval{decode_json($_)}; $n+= $j ? ($j->{structuredCalls}//0)+($j->{fallbackCalls}//0)+($j->{executed}//0) : 1; END{print $n+0}'; }
 count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
 last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x=$0}END{sub(".*"m,"",x);sub(/^[[:space:]]+/,"",x);print x}' "$2"; }
 last_kvprefix_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/KALSA_KVPREFIX embd=[0-9]+ text_tokens=[0-9]+ n_common=[0-9]+/{x=$0}END{print x}' "$1"; }
@@ -274,7 +278,7 @@ calibrate_turn() {
   bench_chunks=$(route_chunks_audit "$gov" route_chunks "$backend")
   n0=$(printf '%s' "$bench_chunks" | sed -n 's/.*sum=\([0-9]*\).*/\1/p')
   printf 'calib	backend=%s\troute_push=%s\tchunks_sum=%s\ttool_calls=%s\n' \
-    "$backend" "$(json_field "$gov" route_push)" "${n0:-na}" "$(count_after KALSA_TOOLCALL "$logcat")"
+    "$backend" "$(json_field "$gov" route_push)" "${n0:-na}" "$(count_toolcalls_after "$logcat")"
   [ -n "$n0" ] && [ "$n0" -gt 0 ] 2>/dev/null
 }
 
@@ -923,7 +927,7 @@ run_arm() {
   lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || true
   skin_after=$(thermal_record "${prefix}_after") || skin_after=na
   batt_temp_after=$(battery_read)
-  tool_calls=$(count_after KALSA_TOOLCALL "$logcat")
+  tool_calls=$(count_toolcalls_after "$logcat")
   grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+|KVPREFIX' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat")
   lmkd=$(count_lmkd_after "$logcat")
