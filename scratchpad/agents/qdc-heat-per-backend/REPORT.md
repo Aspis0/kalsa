@@ -1049,3 +1049,57 @@ forced_decode, battery_trust). New runtime artifacts: `.restore-state` restored 
 after a setup-phase dry-run overwrote it (SER=dryserial); `restore-prefs.log` gitignored.
 Not verified on a device: force_ids decode length on hardware, the 46 °C fallback against a real
 QDC thermal ramp, signal delivery during a real adb push.
+
+---
+
+# LFM heat arms on QDC — dataset "forced-128" (2026-09-26, day)
+
+**A new dataset, separate from the 2026-09-26 night rows above.** Driver at lab `4f1e6907` (forced
+decode `kalsa.bench.force_ids` = 128 × id 30157 on both arms, battery-trust check with the owner-approved
+skin ≥ 46 °C stop on untrusted boards, clean SIGTERM, restore.sh fix) plus `851ec2f4` (every arm relaunches
+the app and waits for the load+prewarm proof before its route command — the night's pair-3 race; the
+prewarm is skipped while the KV holds a chat, so waiting after `new_chat` could not work). PREREG-LFM
+predictions assumed free decode; they are compared below, with that noted.
+
+Account verified on the page before anything else: `auth-session` email claim + chip =
+aspis.launcher@gmail.com (tab 3774c340). Portal before: QRD8650 **749** (741 read right after the night's
+session 2, credited +8 later), QRD7675 1000 (Unavailable), QRD8750 994.
+
+Cap arithmetic (per session, 4 arms): setup + load proof + calibration ≈ 6 min (night: 01:26:52 → 01:32:10);
+cold first arm ≈ 11 min (no wait, 478 s typing at the 100 rung, relaunch+proof ≈ 20 s, 128-token decode
+≈ 8 s, 60 s tail); 3 warm arms × (720 cooldown + 240 settle + ~80 route/relaunch/new chat + 480 typing
++ ~30 turn + 60 tail + ~40 dumps ≈ 27.5 min) ≈ 83 min → ≈ 100 min driver time; deadline 110 (guard max),
+cap 115 (tunnel + end). Env: `TYPE_FAST=0 TYPE_LADDER="100"`, tunnel port 6039.
+
+## forced-128, QRD8650 session 1 — STOPPED after arm 1 (tokens_predicted 127 ≠ 128; harness abort)
+
+- Session 847173 (`qdc-heat-f128-8650-s1`): stuck in QDC Setup "Enabling wifi on device" / "Failed to
+  enable wifi … Will retry" for 7 min → **canceled before start** (Started N/A). The card briefly read 634
+  (a 115 hold), then returned: see minutes below. A wizard script cut by the 15 s evaluate limit may have
+  toggled WiFi; the re-created session had WiFi/BT verified off and still showed "Enabling wifi" before
+  starting.
+- Session 847269 (`qdc-heat-f128-8650-s1b`), unit sa851338, serial cacfeec9 (SM8650), cap 115, SSH only,
+  Screen Always On, WiFi/BT off. Started 09:51:36, Ended 10:12:03 EDT (Completed; portal "21m").
+  Same injected battery override → `dumpsys battery reset` before the driver (`battery_*_reset.txt`).
+  Driver `CGGC`, deadline 110, `TYPE_FAST=0 TYPE_LADDER="100"`, forced decode default.
+- Driver log: `FORCED_DECODE n=128 id=30157 ids_sha256=fe8b738a…`; `BATTERY_SENSOR_UNTRUSTED
+  why=fixed_25.0C_stub temp=250,250` → skin ≥ 46 °C stop active; calibration N0=15, variant 1010, tools 0.
+- **Prewarm fix works on hardware:** arm 1 logcat `KALSA_PREWARM skip already_warm` then
+  `KALSA_KVPREFIX embd=518 text_tokens=1536 n_common=518`, chunks 1018 (`_relaunch.txt`, `_load.txt`).
+
+| dataset | session | pair | arm | turn | status | skin before→after | ΔT | prefill_ms | chunks | tokens_pred | decode tok/s | thermal |
+|---|---|---:|---|---:|---|---|---:|---:|---:|---:|---:|---|
+| forced-128 | 847269 | 1 | cpu | 1 | OK (gates) | 35.622→42.659 (cold, no wait) | +7.037 | 9969.0 | 1018 | **127** | 17.25 | FAST |
+
+- **Stop reason 1 (owner rule): tokens_predicted = 127, not 128**, with 128 forced ids. The calibration turn
+  also read 127. Not explained on hardware; unverified hypothesis: the reported count is decode evaluations and
+  the last forced token is sampled but never evaluated. Whether the GPU arm also reads 127 was not measured.
+- **Stop reason 2 (harness, my bug): driver ABORT after arm 1** (`lmkd_count=1`): the per-arm relaunch
+  (`851ec2f4`) force-stops the app, which logs `am_kill … stop com.kalsa.app due to from pid 14869`; the lmkd
+  counter matched it. Fixed in **`7e452572`** (excluded; real log 0, synthetic low-memory line 1). The fake
+  adb has no am_kill lines, so the dry-run could not see it.
+- `restore.sh` after the abort: **rc=0** (`bench_prefs=removed`) — the P3 fix holds on hardware.
+
+Minutes (QRD8650 card): 749 before → 634 while the canceled session held its cap → **728 after**
+(= 21 min for 847269, the actual duration; 847173 cost 0). QRD7675: 1000, Unavailable — not run.
+Comparison to PREREG-LFM: not attempted (1 row, no pair; and the prereg assumed free decode).
