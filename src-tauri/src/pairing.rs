@@ -1775,7 +1775,7 @@ mod tests {
             StartupFailure::MeasurementUnreliable(vec!["a note".to_string()]),
             StartupFailure::SlotSavePathUnwritable,
             StartupFailure::WeightsUnverified,
-            StartupFailure::NotEnoughDisk,
+            StartupFailure::NotEnoughDisk(None),
             StartupFailure::DownloadCorrupted,
             StartupFailure::ConnectionLost,
             StartupFailure::DownloadRefused,

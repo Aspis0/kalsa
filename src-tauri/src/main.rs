@@ -80,9 +80,9 @@ struct Brain {
     /// again and the Model page can say whether numbers exist. Memory only:
     /// a restart measures again rather than pretending a result survived.
     measurement: Mutex<Option<Measurement>>,
-    /// What the first run's Test found, for Allow to execute exactly. Memory
-    /// only: a reopened app starts from Start, and Test finds what is here.
-    plan: Mutex<Option<first_run::Plan>>,
+    /// True while an install from before the stored choice has its model
+    /// checked in the background (`legacy_choice`): the home page waits.
+    migrating: Arc<AtomicBool>,
     /// The second road to the door (iroh). It lives and dies with the door:
     /// opened beside it, closed by `stop_door`. Its failures are the road's
     /// own — the door does not answer for them.
@@ -303,7 +303,7 @@ impl Brain {
             road: Arc::new(road::Road::new()),
             desk_address: Mutex::new(None),
             measurement: Mutex::new(None),
-            plan: Mutex::new(None),
+            migrating: Arc::new(AtomicBool::new(false)),
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
@@ -1071,6 +1071,9 @@ struct ModelDto {
 /// until startup seeds a record this machine still matches, by design.
 #[tauri::command]
 fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::CapabilityDto {
+    if brain.migrating.load(Ordering::SeqCst) {
+        return capability::CapabilityDto::Migrating;
+    }
     let measurement = brain
         .measurement
         .lock()
@@ -1125,14 +1128,14 @@ fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<()
     options::save(&state_file, next).map_err(|_| "The choice could not be saved.".to_string())
 }
 
-/// "Start", the first run's Test: measure this computer (a reliable kept
-/// measurement stands), price the suggested models and the engine against
-/// the disk, and remember that plan for Allow. Nothing is downloaded.
+/// "Start": measure this computer (a reliable kept measurement stands) and
+/// answer with its suggestions, each marked when its file is already here.
+/// Nothing is downloaded; the pick stores the choice and `brain_start` walks.
 #[tauri::command]
 async fn brain_test(
     app: tauri::AppHandle,
     brain: State<'_, Brain>,
-) -> Result<first_run::TestPlanDto, String> {
+) -> Result<first_run::Suggestions, String> {
     let Some(_stops_seen) = brain.begin_walk(|| {}) else {
         return Err("The assistant is already starting.".into());
     };
@@ -1156,7 +1159,7 @@ async fn brain_test(
             (measurement, measurement::now_unix(SystemTime::now()), ram_bytes)
         })
         .await
-        .map_err(|_| "The test did not finish. Trying again usually works.".to_string())?;
+        .map_err(|_| "The check did not finish. Trying again usually works.".to_string())?;
         keep_measurement(&brain, Some(reading), record_dir.as_deref());
     }
     let measurement = brain
@@ -1182,71 +1185,9 @@ async fn brain_test(
         .flatten()
         .filter_map(|option| option.id.as_deref().and_then(startup::row_for_token))
         .collect();
-    let machine = startup::Machine {
-        measurement,
-        ram_bytes,
-    };
-    let (plan, answer) = tauri::async_runtime::spawn_blocking(move || {
-        first_run::survey(machine, entries, refusal, &runtime_root)
-    })
-    .await
-    .map_err(|_| "The test did not finish. Trying again usually works.".to_string())?
-    .map_err(|failure| failure::words(&failure))?;
-    if let Ok(mut slot) = brain.plan.lock() {
-        *slot = plan;
-    }
-    Ok(answer)
-}
-
-/// "Allow": download what Test's remembered plan still needs and tune each
-/// model it lists (`first_run::allow`). Nothing is left running and no
-/// choice is stored: the owner's pick on the card does both.
-#[tauri::command]
-async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
-    let Some(_stops_seen) = brain.begin_walk(|| {}) else {
-        return Err("The assistant is already starting.".into());
-    };
-    let _walk = WalkGuard(&brain);
-    brain.metrics.reset();
-    let plan = brain.plan.lock().ok().and_then(|stored| stored.clone());
-    let runtime_root = kalsa_runtime::runtime_root();
-    let state_file = state_file(&app)?;
-    let slot_save_path = slots_dir(&app)?;
-    let phone = phone(&app)?;
-    let devices = enrolled_devices(&pairing_file(&app)?);
-    let free_bytes = first_run::disk_free(&runtime_root);
-    let emitter = app.clone();
-    let allowed = tauri::async_runtime::spawn_blocking(move || {
-        let mut progress = |step: startup::Progress| {
-            let _ = emitter.emit("brain_progress", step);
-        };
-        first_run::allow(plan.as_ref(), free_bytes, |machine, entry, label| {
-            startup::run(
-                None,
-                machine.clone(),
-                phone,
-                devices,
-                None,
-                Some(startup::model_token(entry).as_str()),
-                Some(label),
-                state_file.clone(),
-                slot_save_path.clone(),
-                &runtime_root,
-                &mut progress,
-            )
-            .map(drop)
-            .map_err(|failure| failure::words(&failure))
-        })
-    })
-    .await
-    .map_err(|_| "The setup did not finish. Trying again usually works.".to_string())?;
-    // Done is done: a second Allow would need a new Test.
-    if allowed.is_ok() {
-        if let Ok(mut slot) = brain.plan.lock() {
-            *slot = None;
-        }
-    }
-    allowed
+    tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, &runtime_root))
+        .await
+        .map_err(|_| "The check did not finish. Trying again usually works.".to_string())
 }
 
 #[tauri::command]
@@ -1317,8 +1258,6 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             phone,
             devices,
             model_override,
-            None,
-            None,
             state_file,
             slot_save_path,
             &runtime_root,
@@ -1875,7 +1814,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_choose_model,
             brain_capability,
             brain_test,
-            brain_allow,
             brain_start,
             brain_stop,
             brain_pairing,
@@ -1951,10 +1889,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !app.manage(lock) {
                 return Err(io::Error::other("the instance lock was already managed").into());
             }
-            // Under the lock, before any window can read capability: an
-            // install from before the stored choice keeps its model.
+            // Under the lock, off this thread: an install from before the
+            // stored choice keeps its model, and the window opens meanwhile.
             if let Ok(state) = state_file(app.handle()) {
-                legacy_choice::migrate(&state, &kalsa_runtime::runtime_root());
+                legacy_choice::in_background(
+                    Arc::clone(&app.state::<Brain>().migrating),
+                    state,
+                    kalsa_runtime::runtime_root(),
+                );
             }
             // This computer takes its own seat before the desk reads the
             // store: the host is the first device, its own conversation gets

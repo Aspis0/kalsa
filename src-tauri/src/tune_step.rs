@@ -251,7 +251,7 @@ fn tune_launch_inner(
                 return;
             }
             let results = measure(&resolved, &rule_args, &mut |done, planned| {
-                progress(Progress::Tuning { label: None, done, total: planned })
+                progress(Progress::Tuning { done, total: planned })
             });
             let winner = kalsa_tune::winner(&results);
             let ran = results.len();

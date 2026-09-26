@@ -6,9 +6,8 @@
 //! progress as data; two presses cannot run two walks, which is the command
 //! guard's job, not this file's.
 //!
-//! The downloads are consented before the walk starts (the first-run
-//! flow's Test and Allow); the walk itself fetches what the choice —
-//! stored, or forced for this walk alone — names. A turn-on with nothing
+//! The download is consented before the walk starts: the first run's pick
+//! stores the choice, and the walk fetches what it names. A turn-on with nothing
 //! stored is refused before any walk (`first_run::require_choice`); the
 //! model's own fetch refuses too (`AwaitingChoice`), as the second line.
 //!
@@ -90,22 +89,13 @@ pub(crate) enum Progress {
     RuntimeBytes { done: u64, total: u64 },
     /// The catalog is choosing the model.
     Choosing,
-    /// Bytes moving for the chosen model itself. `label` names the model
-    /// when the walk carries one (Allow's per-suggestion walks).
-    ModelBytes {
-        label: Option<String>,
-        done: u64,
-        total: u64,
-    },
+    /// Bytes moving for the chosen model itself.
+    ModelBytes { done: u64, total: u64 },
     /// Candidate settings being tried on the real model: how many
     /// lifetimes have finished, and how many are planned so far. The
     /// second field is named for the page's own wire: ProgressStep reads
     /// `total`, and one name on both sides is cheaper than a mapping.
-    Tuning {
-        label: Option<String>,
-        done: usize,
-        total: usize,
-    },
+    Tuning { done: usize, total: usize },
 }
 
 /// The funded maxima under both cache types. The guard compares against the
@@ -222,8 +212,6 @@ pub(crate) fn run(
     phone: Option<PhoneModel>,
     devices: u32,
     model_override: Option<PathBuf>,
-    forced: Option<&str>,
-    label: Option<String>,
     state_file: PathBuf,
     slot_save_path: PathBuf,
     root: &Path,
@@ -238,30 +226,10 @@ pub(crate) fn run(
     // start and the tier would never exist.
     prepare_slot_save_dir(&slot_save_path)?;
     let overrides = crate::options::load(&state_file);
-    // The model choice: whoever the walk is working for — the stored
-    // choice, or the `forced` token a caller names for this walk alone
-    // (Allow's consent names each suggestion it listed). It is also the
-    // consent: a model is fetched only for a choice, stored or forced.
-    let chosen = forced.or(overrides.model.as_deref());
+    // The stored choice is also the consent: a model is fetched only for
+    // a choice the owner confirmed.
+    let chosen = overrides.model.as_deref();
     let consented = chosen.is_some();
-    // The byte-and-tune steps name their model when the walk carries a
-    // label (Allow's "Model 1 of 2: …"); everything else passes through.
-    let mut progress = |step: Progress| {
-        let step = match step {
-            Progress::ModelBytes { label: _, done, total } => Progress::ModelBytes {
-                label: label.clone(),
-                done,
-                total,
-            },
-            Progress::Tuning { label: _, done, total } => Progress::Tuning {
-                label: label.clone(),
-                done,
-                total,
-            },
-            other => other,
-        };
-        progress(step);
-    };
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -305,7 +273,7 @@ pub(crate) fn run(
                     )
                 },
             )?;
-            let path = place_model(&plan, root, consented, &mut progress)?;
+            let path = place_model(&plan, root, consented, progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -337,7 +305,7 @@ pub(crate) fn run(
                 root,
                 main,
                 &mut memo,
-                &mut progress,
+                progress,
                 |resolved, rule, inner| {
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
@@ -710,20 +678,17 @@ fn acquire_model(
     if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
     }
-    // The one download gate: a model is fetched only for a choice — the
-    // user's stored pick, or Allow's forced walk for exactly the models it
-    // listed. The automatic pick with nothing stored stops here instead.
+    // The second download gate: a model is fetched only for the owner's
+    // stored pick. The automatic pick with nothing stored stops here.
     if !consented {
         return Err(StartupFailure::AwaitingChoice);
     }
     progress(Progress::ModelBytes {
-        label: None,
         done: 0,
         total: plan.bytes,
     });
     let mut relay = |p: kalsa_download::Progress| {
         progress(Progress::ModelBytes {
-            label: None,
             done: p.bytes_done,
             total: p.bytes_total,
         })
@@ -1161,7 +1126,7 @@ pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use kalsa_probe::{Backend, ExecutionPath, Reliability, Series};
     use std::io::Write;
@@ -1193,7 +1158,7 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn machine(backend: Backend) -> Machine {
+    fn machine(backend: Backend) -> Machine {
         Machine {
             measurement: measured(80.0e9, backend),
             ram_bytes: 16 * 1024 * 1024 * 1024,
@@ -1401,9 +1366,8 @@ pub(crate) mod tests {
 
     #[test]
     fn the_placement_stops_when_the_model_is_not_consented() {
-        // The one download gate: without a stored choice and without
-        // Allow's forced walk, a fetch is refused with a distinct verdict
-        // and costs zero bytes; with the consent (either one) the file is
+        // The download gate: without a stored choice a fetch is refused
+        // with a distinct verdict and costs zero bytes; with it the file is
         // fetched and digest-verified as always.
         let (url, requests) = serve(PLAN_BODY);
         let root = scratch("ask-placement");
@@ -1878,8 +1842,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
-            None,
-            None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
@@ -1924,8 +1886,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
-            None,
-            None,
             PathBuf::from("/state/server.state"),
             slots.clone(),
             &root,
@@ -1971,8 +1931,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
-            None,
-            None,
             PathBuf::from("/state/server.state"),
             blocker.join("slots"),
             &root,
@@ -2017,8 +1975,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
-            None,
-            None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
@@ -2430,8 +2386,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
-            None,
-            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2476,8 +2430,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
-            None,
-            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2518,8 +2470,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
-            None,
-            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2804,8 +2754,6 @@ pub(crate) mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
-            None,
-            None,
             PathBuf::from("/state/dev.state"),
             root.join("slots"),
             &root,

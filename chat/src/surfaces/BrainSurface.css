@@ -240,9 +240,9 @@
   gap: 0.5rem;
 }
 
-/* The first run: one round button, then one plain ask. The page holds
-   nothing else until the owner has allowed the downloads — the settings
-   and the bar are for a computer that can already run something. */
+/* The first run: one round button, then one pick. The page holds nothing
+   else until a model is chosen — the settings and the bar are for a
+   computer that can already run something. */
 .brain-first-run {
   align-items: center;
   justify-content: center;
@@ -269,13 +269,40 @@
   text-align: left;
 }
 
-.first-run-consent {
+.first-run-pick,
+.first-run-confirm {
   flex: none;
-  max-width: 30rem;
+  width: min(34rem, 100%);
 }
 
-.first-run-list {
-  margin: 0.75rem 0;
-  padding-left: 1.25rem;
+.first-run-confirm .surface-actions {
+  justify-content: center;
+}
+
+.first-run-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.15rem 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.first-run-option .btn-primary {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+
+.first-run-option-size {
+  color: var(--silence);
+  font-size: 0.9em;
+}
+
+.first-run-details {
+  margin-top: 0.5rem;
   text-align: left;
 }

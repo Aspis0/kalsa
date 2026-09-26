@@ -277,8 +277,8 @@ const STATES = [
   },
   {
     // The first run: a machine with no choice stored owns the page — one
-    // round button and its one line, nothing else. Then Start's answer
-    // (the consent) and Allow's (the card) are shot too.
+    // round button and its one line, nothing else. Then the check, the
+    // pick, the download confirm and the walk's progress are shot too.
     name: "start",
     file: "shots/77-brain-start.png",
     firstRun: true,
@@ -287,26 +287,32 @@ const STATES = [
       kind: "measured",
       machine: MAC,
       chosen: false,
-      model: { ...MODEL, measured: 18.4 },
-      quicker: { ...QUICK_MODEL, measured: 58.1 },
+      model: MODEL,
+      quicker: QUICK_MODEL,
       refusal: null,
     },
     marker: "Start",
-    presence: "Kalsa checks this computer and finds the best settings for it.",
+    presence: "Kalsa checks your computer and suggests a model.",
     brainTest: {
-      engine_bytes: 26_491_005,
       options: [
-        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.weights_bytes, on_disk: false },
+        { id: MODEL.id, name: MODEL.name, weights_bytes: 3_700_000_000, on_disk: false },
         { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.weights_bytes, on_disk: true },
       ],
       refusal: null,
-      total_bytes: 26_491_005 + MODEL.weights_bytes,
     },
-    consentFile: "shots/78-brain-consent.png",
-    consentMarker: "Downloads needed",
-    consentPresence: "Kalsa downloads what is missing and tests each model on this computer. Then you pick one.",
-    cardFile: "shots/79-brain-card.png",
-    cardMarker: "58.1 tokens/s",
+    // Long enough to see: the check measures, the walk downloads.
+    delays: { brain_test: 1500, brain_start: 60_000 },
+  },
+  {
+    // An install from before the stored choice, while its model is checked
+    // in the background.
+    name: "migrating",
+    file: "shots/83-brain-migrating.png",
+    firstRun: true,
+    state: { kind: "stopped" },
+    capability: { kind: "migrating" },
+    marker: "Checking the model already on your computer…",
+    presence: "Checking the model already on your computer…",
   },
   {
     // Unmeasured IS the real fresh install — the probe has never run — and
@@ -317,7 +323,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "unmeasured", chosen: false },
     marker: "Start",
-    presence: "Kalsa checks this computer and finds the best settings for it.",
+    presence: "Kalsa checks your computer and suggests a model.",
   },
 ];
 
@@ -348,6 +354,10 @@ function contractProblems(fixture) {
     typeof text === "string" && text.trim().length >= 20 && /[.!?]$/.test(text.trim());
 
   const capability = fixture.capability;
+  if (capability.kind === "migrating") {
+    keysAre("capability", Object.keys(capability), ["kind"]);
+    return problems;
+  }
   if (capability.kind === "unmeasured") {
     keysAre("capability", Object.keys(capability), ["kind", "chosen"]);
     return problems;
@@ -508,14 +518,16 @@ async function main() {
     // correct page.
     const page = await browser.newPage({ viewport: WINDOW, locale: "en-US" });
     await page.addInitScript(
-      ({ answers, seeded, refuse }) => {
+      ({ answers, seeded, refuse, delays }) => {
         if (seeded) localStorage.setItem("crescent-chat.conversations.v1", JSON.stringify(seeded));
         window.__TAURI__ = {
           core: {
             invoke: (command) =>
               refuse.includes(command)
                 ? Promise.reject(new Error("refused"))
-                : Promise.resolve(answers[command] ?? null),
+                : new Promise((resolve) =>
+                    setTimeout(() => resolve(answers[command] ?? null), delays[command] ?? 0),
+                  ),
           },
           // The real bus hands the listener an ENVELOPE -- { event, id,
           // payload } -- not the payload. A stub that delivers nothing let
@@ -541,6 +553,7 @@ async function main() {
         },
         seeded: fixture.name === "pick" ? SEEDED : null,
         refuse: fixture.refuse ?? [],
+        delays: fixture.delays ?? {},
       },
     );
     await page.goto(APP);
@@ -692,20 +705,44 @@ async function main() {
       await page.click(".brain-presence .btn-primary");
       await mustText(page, STOP_REFUSED, `${fixture.name} refused turn-off`);
     }
-    // The consent screen: Start's own click, answered by the stub; then
-    // Allow's, which lands on the card with the tune's measured speeds.
+    // The first run past Start: the check, the pick (details closed), the
+    // download confirm, and the walk's two long phases.
     if (fixture.brainTest) {
       await page.setViewportSize(WINDOW);
       await page.click(".first-run-start");
-      await mustText(page, fixture.consentMarker, `${fixture.name} consent`);
-      await mustText(page, fixture.consentPresence, `${fixture.name} consent sentence`);
-      await mustText(page, "already on this computer", `${fixture.name} on-disk mark`);
-      await mustText(page, "The engine that runs the model — up to", `${fixture.name} engine size`);
-      await shot(page, fixture.consentFile);
-      await page.getByRole("button", { name: "Allow" }).click();
-      await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
-      await mustText(page, fixture.cardMarker, `${fixture.name} card`);
-      await shot(page, fixture.cardFile);
+      await mustText(page, "Checking your computer…", `${fixture.name} checking`);
+      await shot(page, "shots/78-brain-checking.png");
+      for (const words of ["Pick a model", "Smarter answers.", "Faster answers.", "3.7 GB download", "Already on your computer", "Show details"]) {
+        await mustText(page, words, `${fixture.name} pick: ${words}`);
+      }
+      const pickText = await page.locator(".first-run-pick").innerText();
+      for (const hidden of ["tokens/s", "Q4_K_M", "Memory"]) {
+        if (pickText.includes(hidden)) failures.push(`${fixture.name}: the pick shows "${hidden}" outside Show details`);
+      }
+      await shot(page, "shots/79-brain-pick.png");
+      await page.getByRole("button", { name: "Use this" }).first().click();
+      await mustText(page, "Download 3.7 GB?", `${fixture.name} confirm`);
+      await mustText(page, `Kalsa needs this file to run ${MODEL.name}.`, `${fixture.name} confirm sentence`);
+      await shot(page, "shots/80-brain-confirm.png");
+      await page.getByRole("button", { name: "Download" }).click();
+      await mustText(page, "Getting ready…", `${fixture.name} working`);
+      // The pick clears the previous walk's step once its choice is saved;
+      // a step delivered before that would be wiped with it.
+      await page.waitForTimeout(300);
+      const deliver = (payload) =>
+        page.evaluate((step) => {
+          for (const handler of window.__kbListeners?.brain_progress ?? []) {
+            handler({ event: "brain_progress", id: 8, payload: step });
+          }
+        }, payload);
+      await deliver({ kind: "model_bytes", done: 0, total: 3_700_000_000 });
+      await deliver({ kind: "model_bytes", done: 1_200_000_000, total: 3_700_000_000 });
+      await mustText(page, "Downloading…", `${fixture.name} downloading`);
+      await mustText(page, "1.2 of 3.7 GB", `${fixture.name} download bytes`);
+      await shot(page, "shots/81-brain-download.png");
+      await deliver({ kind: "tuning", done: 1, total: 4 });
+      await mustText(page, "Finding the best settings for your computer…", `${fixture.name} tuning`);
+      await shot(page, "shots/82-brain-tuning.png");
     }
     // Last, because it leaves the brain page: the morph's two widths, back at
     // the window size the app opens in.

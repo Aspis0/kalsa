@@ -72,8 +72,9 @@ pub(crate) enum StartupFailure {
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
     WeightsUnverified,
-    /// The disk was short before or during the model download.
-    NotEnoughDisk,
+    /// The disk was short before or during the model download: by how many
+    /// bytes, when the download's own check could say.
+    NotEnoughDisk(Option<u64>),
     /// The downloaded bytes did not match the publisher's record; they were
     /// thrown away.
     DownloadCorrupted,
@@ -169,29 +170,26 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
                 .into()
         }
         StartupFailure::AwaitingChoice => {
-            "Kalsa is not set up on this computer yet. Press Start on its home page and \
-             allow the downloads."
-                .into()
+            "Kalsa isn't set up yet. Go to Home and press Start.".into()
         }
         StartupFailure::WeightsUnverified => {
             "The model chosen for this computer cannot yet be verified against its \
              publisher, so it was not downloaded. A future app update finishes this."
                 .into()
         }
-        StartupFailure::NotEnoughDisk => {
-            "There is not enough room on the disk for the assistant's model. \
-             Freeing some space and trying again usually works."
-                .into()
-        }
+        StartupFailure::NotEnoughDisk(Some(short)) => format!(
+            "Not enough space. Free up {:.1} GB and try again.",
+            // Rounded up: freeing the figure shown must be enough.
+            (*short as f64 / 1e8).ceil() / 10.0
+        ),
+        StartupFailure::NotEnoughDisk(None) => "Not enough space. Free up some room and try again.".into(),
         StartupFailure::DownloadCorrupted => {
             "The model download did not match the publisher's record, so it was \
              thrown away. Trying again usually works."
                 .into()
         }
         StartupFailure::ConnectionLost => {
-            "The connection dropped partway through. Trying again keeps what was \
-             already downloaded."
-                .into()
+            "The download stopped. Check your internet and try again.".into()
         }
         StartupFailure::DownloadRefused => {
             "The server that publishes the model did not allow the download just now. \
@@ -287,7 +285,10 @@ impl From<DownloadError> for StartupFailure {
             DownloadError::Network(_) => Self::ConnectionLost,
             DownloadError::Refused { .. } => Self::DownloadRefused,
             DownloadError::Io(_) => Self::ModelFileUnwritable,
-            DownloadError::DiskFull | DownloadError::NotEnoughSpace { .. } => Self::NotEnoughDisk,
+            DownloadError::DiskFull => Self::NotEnoughDisk(None),
+            DownloadError::NotEnoughSpace { free, needed } => {
+                Self::NotEnoughDisk(Some(needed.saturating_sub(free)))
+            }
             DownloadError::SizeMismatch { .. } | DownloadError::DigestMismatch { .. } => {
                 Self::DownloadCorrupted
             }
@@ -360,7 +361,8 @@ mod tests {
             StartupFailure::ChosenModelUnresolved,
             StartupFailure::SlotSavePathUnwritable,
             StartupFailure::WeightsUnverified,
-            StartupFailure::NotEnoughDisk,
+            StartupFailure::NotEnoughDisk(Some(2_100_000_000)),
+            StartupFailure::NotEnoughDisk(None),
             StartupFailure::DownloadCorrupted,
             StartupFailure::ConnectionLost,
             StartupFailure::DownloadRefused,
@@ -465,9 +467,14 @@ mod tests {
         assert!(matches!(network, StartupFailure::ConnectionLost));
         assert_eq!(
             words(&network),
-            "The connection dropped partway through. Trying again keeps what was \
-             already downloaded."
+            "The download stopped. Check your internet and try again."
         );
+
+        let short = StartupFailure::from(DownloadError::NotEnoughSpace {
+            free: 1_000_000_000,
+            needed: 3_050_000_000,
+        });
+        assert_eq!(words(&short), "Not enough space. Free up 2.1 GB and try again.");
 
         let refused = StartupFailure::from(DownloadError::Refused { status: 403 });
         assert!(matches!(refused, StartupFailure::DownloadRefused));

@@ -95,6 +95,9 @@ fn shown_context(entry: &ModelEntry, usable_bytes: u64, parallel: u32) -> u64 {
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum CapabilityDto {
+    /// An install from before the stored choice is having its model checked
+    /// (`legacy_choice`); the page waits for the answer.
+    Migrating,
     /// This run has no measurement of the machine kept.
     /// This run keeps no measurement. It can still hold a stored choice —
     /// a measurement record may be deleted while the choice survives — and

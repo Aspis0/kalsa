@@ -104,7 +104,7 @@ fn archives_dir(root: &Path) -> PathBuf {
     root.join("archives")
 }
 
-pub(crate) fn builds_dir(root: &Path, backend: ServerBackend) -> PathBuf {
+fn builds_dir(root: &Path, backend: ServerBackend) -> PathBuf {
     root.join("builds").join(backend.name())
 }
 
@@ -338,32 +338,17 @@ pub(crate) fn ensure_probe_model(
         (Some(size), Some(sha)) => (size, sha),
         _ => return Err(StoreError::Unverified),
     };
-    if let Some(found) = local_probe_model(root, size, sha) {
-        return Ok(found);
-    }
     let path = models_dir(root).join(asset.file);
-    download(&asset.url(), &path, size, sha, progress).map_err(StoreError::Download)?;
-    Ok(path)
-}
-
-/// Whether the probe model is already here, by the same checks
-/// [`ensure_probe_model`] makes before it downloads.
-pub(crate) fn probe_model_on_disk(root: &Path) -> bool {
-    let asset = probe_model();
-    match (asset.size_bytes, asset.sha256) {
-        (Some(size), Some(sha)) => local_probe_model(root, size, sha).is_some(),
-        _ => false,
-    }
-}
-
-fn local_probe_model(root: &Path, size: u64, sha: &str) -> Option<PathBuf> {
-    let path = models_dir(root).join(probe_model().file);
     if file_digest_is(&path, size, sha) {
-        return Some(path);
+        return Ok(path);
     }
     // A digest-verified copy under ollama, LM Studio or the HF cache beats
     // any download, and it is only ever read.
-    find_local(&default_roots(), size, sha)
+    if let Some(found) = find_local(&default_roots(), size, sha) {
+        return Ok(found);
+    }
+    download(&asset.url(), &path, size, sha, progress).map_err(StoreError::Download)?;
+    Ok(path)
 }
 
 /// The archive on disk, proven to be the promised bytes.

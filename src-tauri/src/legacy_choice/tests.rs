@@ -84,3 +84,21 @@ fn a_file_with_the_wrong_bytes_is_not_migrated() {
     assert!(!migrate_with(&state_file, &root, lookup));
     assert_eq!(stored(&state_file), None);
 }
+
+#[test]
+fn the_check_runs_off_the_calling_thread_and_lowers_its_flag() {
+    let flag = Arc::new(AtomicBool::new(false));
+    let (release, wait) = std::sync::mpsc::channel::<()>();
+    let handle = spawn_flagged(Arc::clone(&flag), move || {
+        let _ = wait.recv_timeout(std::time::Duration::from_secs(5));
+    });
+    assert!(flag.load(Ordering::SeqCst), "the caller returned while the work still runs");
+    release.send(()).expect("the work is waiting");
+    handle.join().expect("the work ends");
+    assert!(!flag.load(Ordering::SeqCst), "the flag comes down when the work ends");
+
+    let flag = Arc::new(AtomicBool::new(false));
+    let panicked = spawn_flagged(Arc::clone(&flag), || panic!("the check blew up"));
+    assert!(panicked.join().is_err());
+    assert!(!flag.load(Ordering::SeqCst), "a panic still lowers the flag");
+}

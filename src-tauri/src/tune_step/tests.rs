@@ -272,7 +272,7 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
         "the rule's threads stand: {argv:?}"
     );
     assert!(
-        seen.iter().any(|step| matches!(step, Progress::Tuning { label: _, done: 3, total: 3 })),
+        seen.iter().any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
         "three lifetimes planned, three done"
     );
     let saved = kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).expect("the record was saved");
@@ -583,7 +583,7 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
     // The processor candidates were dropped by the memoized failure — one
     // lifetime ran, three candidates exist — so this is incomplete.
     assert!(
-        seen.iter().any(|step| matches!(step, Progress::Tuning { label: _, done: 1, total: 1 })),
+        seen.iter().any(|step| matches!(step, Progress::Tuning { done: 1, total: 1 })),
         "the processor candidates never ran"
     );
     assert!(
@@ -719,7 +719,7 @@ fn a_panicking_tune_leaves_the_plan_standing() {
 #[test]
 fn the_tuning_step_serialises_the_total_the_page_reads() {
     let json =
-        serde_json::to_value(Progress::Tuning { label: None, done: 1, total: 2 }).expect("serialise");
+        serde_json::to_value(Progress::Tuning { done: 1, total: 2 }).expect("serialise");
     assert_eq!(json["kind"], "tuning");
     assert_eq!(json["total"], 2);
     assert!(json.get("planned").is_none(), "the old name must not appear");

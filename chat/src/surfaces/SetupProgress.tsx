@@ -13,55 +13,21 @@ import type { CSSProperties } from "react";
 
 export interface ProgressStep {
   kind?: string;
-  // Which model the bytes or the settings belong to, when the walk is
-  // working through a list of them (the first run's Allow).
-  label?: string | null;
   done?: number;
   total?: number;
 }
 
-interface WalkCopy {
-  head: string;
-  sentence: string;
-}
+const GETTING_READY = "Getting ready…";
 
-const GENERIC_SENTENCE = "Getting this computer ready. This happens once.";
-
-// Why the computer is doing this, per phase. A `kind` nobody sent degrades
-// to the neutral sentence — fail closed, never a blank screen.
-const COPY: Record<string, WalkCopy> = {
-  measuring: {
-    head: "Getting ready",
-    sentence:
-      "Looking at what this computer has to work with — how much memory it has, and what is inside it.",
-  },
-  deciding: {
-    head: "Getting ready",
-    sentence: "Finding the version of the engine that fits this computer.",
-  },
-  runtime_bytes: {
-    head: "Downloading",
-    sentence:
-      "Your computer needs its own copy of the engine that does the thinking. This happens once.",
-  },
-  choosing: {
-    head: "Getting ready",
-    sentence: "Deciding which model fits this computer and runs fast enough to use.",
-  },
-  tuning: {
-    head: "Getting ready",
-    sentence:
-      "Trying a few settings on this computer to find the one that runs best.",
-  },
-  model_bytes: {
-    head: "Downloading",
-    sentence:
-      "Now the model itself — the part that knows things. It is the bigger download, and it also happens only once.",
-  },
-  unknown: {
-    head: "Getting ready",
-    sentence: GENERIC_SENTENCE,
-  },
+// One plain line per phase. A `kind` nobody sent degrades to the neutral
+// line — fail closed, never a blank screen.
+const HEAD: Record<string, string> = {
+  measuring: "Checking your computer…",
+  deciding: GETTING_READY,
+  runtime_bytes: "Downloading…",
+  choosing: GETTING_READY,
+  tuning: "Finding the best settings for your computer…",
+  model_bytes: "Downloading…",
 };
 
 // One rounding, one source: the percentage is computed from the same
@@ -79,7 +45,7 @@ function display(done: number, total: number): { text: string; pct: number | nul
     const totalShown = Number(shown[1]);
     if (totalShown > 0) {
       const pct = Math.floor((Number(shown[0]) / totalShown) * 100);
-      return { text: `${shown[0]} of ${shown[1]} ${shown[2]} · ${pct}%`, pct };
+      return { text: `${shown[0]} of ${shown[1]} ${shown[2]}`, pct };
     }
   }
   if (done <= 0) return { text: "Receiving — the size was not announced.", pct: null };
@@ -87,18 +53,16 @@ function display(done: number, total: number): { text: string; pct: number | nul
   return { text: `${received} received so far.`, pct: null };
 }
 
-// The step as the walk shows it: head, sentence, and the honest byte line.
+// The step as the walk shows it: its line, and the honest byte line.
 // A null progress hides the line; a null pct hides the bar.
 interface WalkView {
   head: string;
-  sentence: string;
   progress: string | null;
   pct: number | null;
 }
 
 function walkView(raw: ProgressStep, lastKind: { current: string | null }): WalkView {
-  // A step that is not an object degrades to the neutral sentence — fail
-  // closed, never a blank screen.
+  // A step that is not an object degrades to the neutral line.
   const step: ProgressStep = raw && typeof raw === "object" ? raw : { kind: "unknown" };
   const kind = step.kind ?? "unknown";
   const bytesPhase = kind === "runtime_bytes" || kind === "model_bytes";
@@ -107,27 +71,9 @@ function walkView(raw: ProgressStep, lastKind: { current: string | null }): Walk
   const phaseStart = kind !== lastKind.current;
   lastKind.current = kind;
   const resumed = phaseStart && bytesPhase && (step.done ?? 0) > 0;
+  const head = HEAD[kind] ?? GETTING_READY;
 
-  const copy = COPY[kind] ?? COPY.unknown;
-
-  // The tune counts lifetimes, not bytes: its line is the count, and the
-  // byte machinery (MB/GB, received-so-far) must never see it.
-  if (kind === "tuning") {
-    const done = step.done ?? 0;
-    const planned = step.total ?? 0;
-    return {
-      head: copy.head,
-      sentence: copy.sentence,
-      progress: step.label
-        ? `${step.label} — ${done} of ${planned} settings tried`
-        : `${done} of ${planned} settings tried`,
-      pct: null,
-    };
-  }
-
-  if (!bytesPhase) {
-    return { head: copy.head, sentence: copy.sentence, progress: null, pct: null };
-  }
+  if (!bytesPhase) return { head, progress: null, pct: null };
 
   const count = (value: number | undefined, min: number): number | null =>
     typeof value === "number" && Number.isFinite(value) && value >= min ? value : null;
@@ -138,21 +84,12 @@ function walkView(raw: ProgressStep, lastKind: { current: string | null }): Walk
     // No size announced, or a resumed download past the total it was
     // given: how much has arrived is all there honestly is.
     const received = done >= 1e9 ? `${(done / 1e9).toFixed(1)} GB` : `${Math.round(done / 1e6)} MB`;
-    return {
-      head: copy.head,
-      sentence: copy.sentence,
-      progress: done > 0 ? `${received} received so far.` : "Receiving.",
-      pct: null,
-    };
+    return { head, progress: done > 0 ? `${received} received so far.` : "Receiving.", pct: null };
   }
   const shown = display(done, total);
-  const label = step.label ? `${step.label} — ` : "";
   return {
-    head: copy.head,
-    sentence: copy.sentence,
-    progress: resumed
-      ? `${label}Picking up where it stopped — ${shown.text}`
-      : `${label}${shown.text}`,
+    head,
+    progress: resumed ? `Picking up where it stopped — ${shown.text}` : shown.text,
     pct: shown.pct ?? 0,
   };
 }
@@ -172,7 +109,6 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   return (
     <div className="surface-walk">
       <p className="surface-verdict">{view.head}</p>
-      <p className="surface-sentence">{view.sentence}</p>
       {view.progress !== null ? <p className="surface-walk-progress">{view.progress}</p> : null}
       {view.pct !== null ? (
         <div className="surface-walk-bar" style={{ "--pct": `${view.pct}%` } as CSSProperties} />

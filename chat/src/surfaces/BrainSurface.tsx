@@ -27,9 +27,9 @@ interface BrainSurfaceProps {
 }
 
 // A first run is a machine with no stored choice. An install from before
-// the choice had its model stored as the choice at app start.
+// the choice has its model checked first (`migrating`) and may become one.
 function firstRun(capability: Capability | null): boolean {
-  return capability !== null && !capability.chosen;
+  return capability !== null && capability.kind !== "migrating" && !capability.chosen;
 }
 
 // The app's home. The brain alone: what the machine is doing, all the
@@ -99,8 +99,16 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     }
   }, []);
 
+  // The legacy check takes about a minute; ask again until it answers.
+  useEffect(() => {
+    if (capability?.kind !== "migrating") return;
+    const timer = window.setTimeout(() => setReads((count) => count + 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [capability]);
+
   useEffect(() => {
     if (!carriesAutomaticStart.current || !state || capability === null) return;
+    if (capability.kind === "migrating") return;
     carriesAutomaticStart.current = false;
     if (state.kind === "stopped" && !firstRun(capability)) void act();
   }, [state, act, capability]);
@@ -121,15 +129,23 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     return <div className="surface-page brain-page" />;
   }
 
+  if (capability.kind === "migrating") {
+    return (
+      <div className="surface-page brain-page brain-first-run">
+        <p className="surface-verdict">Checking the model already on your computer…</p>
+      </div>
+    );
+  }
+
   // The first run owns the page until a model is picked.
   if (firstRun(capability)) {
     return (
       <FirstRun
         capability={capability}
         liveStep={liveStep}
-        busy={busy}
+        starting={state?.kind === "starting"}
         onChoose={(token) => void chooseModel(token)}
-        onAllowed={() => setReads((count) => count + 1)}
+        onChecked={() => setReads((count) => count + 1)}
       />
     );
   }

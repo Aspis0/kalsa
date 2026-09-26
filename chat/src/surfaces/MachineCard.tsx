@@ -36,6 +36,7 @@ export interface ModelOption {
 
 /** What `brain_capability` answers: this computer, and what the chooser picked. */
 export type Capability =
+  | { kind: "migrating" }
   | { kind: "unmeasured"; chosen: boolean }
   | {
       kind: "measured";
@@ -242,7 +243,7 @@ export function MachineCard({
   busy?: boolean;
   onChoose?: (token: string) => void;
 }) {
-  if (capability.kind === "unmeasured") {
+  if (capability.kind !== "measured") {
     return (
       <p className="surface-quiet">
         This computer has not been measured yet; turning the assistant on measures it.
