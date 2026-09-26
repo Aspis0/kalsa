@@ -68,6 +68,11 @@ export const it: typeof en = {
     whereRuns: "Dove risponde",
     thisPhone: "Questo telefono",
     modelPicker: "Modello",
+    modelPickerComputerHint:
+      "Il tuo computer esegue il suo modello; i modelli di questo telefono non sono scelte qui.",
+    computerModelName: "Modello sul tuo computer",
+    computerModelChecking: "Verifica cosa esegue il tuo computer…",
+    computerModelUnknown: "Il tuo computer non ha riportato alcun modello.",
     remoteModelName: "Kalsa desktop",
     modelSmallFast: "Più piccolo e veloce",
     modelCapableSlow: "Più capace, più lento",

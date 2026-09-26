@@ -69,6 +69,11 @@ export const en = {
     whereRuns: "Where it responds",
     thisPhone: "This phone",
     modelPicker: "Model",
+    modelPickerComputerHint:
+      "Your computer runs its own model; the models on this phone are not choices here.",
+    computerModelName: "Model on your computer",
+    computerModelChecking: "Checking what your computer runs…",
+    computerModelUnknown: "Your computer did not report a model.",
     remoteModelName: "Kalsa desktop",
     modelSmallFast: "Smaller and faster",
     modelCapableSlow: "More capable, slower",

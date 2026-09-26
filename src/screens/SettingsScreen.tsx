@@ -113,6 +113,8 @@ import { GlassPanel2 } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { PairingScreen } from "./PairingScreen";
+import { testRemoteConnection } from "../engine/engineBackend";
+import { computerProbeFromResult, type ComputerModelProbe } from "./settingsModelSheet";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -1373,6 +1375,17 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const hasTruncatedReplyFacts =
     memoryEnabled &&
     memoryFacts.some((fact) => fact.text.length > PROMPT_FACT_CHARS);
+
+  /** The computer's model, read from the paired door through the existing probe. */
+  const probeComputerModel = useCallback(async (): Promise<ComputerModelProbe> => {
+    try {
+      return computerProbeFromResult(await testRemoteConnection(), t);
+    } catch {
+      // A probe that throws still owes the row words, not a spinner.
+      return { state: "unreachable", message: t("settings.computerModelUnknown") };
+    }
+  }, [t]);
+
   // The compact model picker uses the same memory and disk gate as Advanced.
   const modelChoices = MODEL_REGISTRY.map((entry) => {
     const active = entry.id === model.currentModelId;
@@ -1435,6 +1448,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
         modelBusy={modelBusy}
         onSelectModel={model.onSelectModel}
         onSelectLocation={model.onSelectLocation}
+        probeComputerModel={probeComputerModel}
         webEnabled={webToolsEnabled ?? false}
         onToggleWeb={onToggleWebTools}
         telemetryEnabled={telemetryEnabled}

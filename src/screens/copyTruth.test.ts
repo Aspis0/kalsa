@@ -90,6 +90,7 @@ function homeElements(catalog: Catalog, modelId: string): Element[] {
     modelBusy: false,
     onSelectModel: jest.fn(),
     onSelectLocation: jest.fn(() => true),
+    probeComputerModel: jest.fn(async () => ({ state: "ok" as const, modelId: "ornith" })),
     telemetryEnabled: false,
     telemetryBusy: false,
     onToggleTelemetry: jest.fn(),

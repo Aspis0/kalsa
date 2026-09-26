@@ -30,6 +30,10 @@ import type { FontScaleId } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import { AttachSheet, type AttachSheetRowData } from "../ui/shell/AttachSheet";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
+import {
+  modelSheetRows,
+  type ComputerModelProbe,
+} from "./settingsModelSheet";
 import { SettingsHeader } from "./SettingsHeader";
 import { settingsWebToggleProps } from "./settingsWebToggle";
 
@@ -46,6 +50,8 @@ type Props = {
   modelBusy: boolean;
   onSelectModel: (id: string) => void;
   onSelectLocation: (location: "local" | "remote") => boolean;
+  /** Door probe for the computer's model; the parent owns the engine call. */
+  probeComputerModel: () => Promise<ComputerModelProbe>;
   webEnabled?: boolean;
   onToggleWeb?: () => void;
   telemetryEnabled: boolean;
@@ -168,6 +174,7 @@ export function SettingsHomeScreen({
   modelBusy,
   onSelectModel,
   onSelectLocation,
+  probeComputerModel,
   webEnabled,
   onToggleWeb,
   telemetryEnabled,
@@ -184,6 +191,8 @@ export function SettingsHomeScreen({
   const { mode, setMode, fontScaleId, setFontScaleId } = useLabTheme<ThemeContext>();
   const colors = modes[mode];
   const [sheet, setSheet] = useState<SheetName | null>(null);
+  /** Last door probe for the model sheet in computer mode. */
+  const [computerProbe, setComputerProbe] = useState<ComputerModelProbe>({ state: "checking" });
   const model = modelOptions.find((option) => option.id === currentModelId);
   const modelValue = currentModelId === REMOTE_COMPUTER_MODEL_ID
     ? t("settings.remoteModelName")
@@ -225,7 +234,20 @@ export function SettingsHomeScreen({
     });
   } else if (sheet === "model") {
     sheetTitle = t("settings.modelPicker");
-    rows = choiceRows("model", modelOptions.map(({ id, label, detail, disabled }) => ({ id, label: `${label} · ${detail}`, disabled })), currentModelId, onSelectModel);
+    if (remoteActive) sheetSubtitle = t("settings.modelPickerComputerHint");
+    rows = modelSheetRows({
+      remoteActive,
+      phoneOptions: modelOptions,
+      currentModelId,
+      probe: computerProbe,
+      labels: {
+        computerName: t("settings.computerModelName"),
+        checking: t("settings.computerModelChecking"),
+        unknownModel: t("settings.computerModelUnknown"),
+      },
+      onSelectPhone: onSelectModel,
+      onSelectComputer: () => onSelectModel(REMOTE_COMPUTER_MODEL_ID),
+    });
     scroll = true;
   } else if (sheet === "theme") {
     sheetTitle = t("settings.theme");
@@ -269,7 +291,17 @@ export function SettingsHomeScreen({
             colors={colors}
           />
           <Divider colors={colors} />
-          <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.sizeClass === "2B" ? t("settings.modelSmallFast") : model?.sizeClass === "4B" ? t("settings.modelCapableSlow") : undefined} value={modelValue} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => setSheet("model")} disabled={modelBusy} colors={colors} />
+          <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.sizeClass === "2B" ? t("settings.modelSmallFast") : model?.sizeClass === "4B" ? t("settings.modelCapableSlow") : undefined} value={modelValue} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => {
+            // The computer's model is read fresh each time the sheet opens:
+            // a stale id would be exactly the bug this row replaces.
+            if (remoteActive) {
+              setComputerProbe({ state: "checking" });
+              void probeComputerModel().then(setComputerProbe, () =>
+                setComputerProbe({ state: "unreachable", message: t("settings.computerModelUnknown") }),
+              );
+            }
+            setSheet("model");
+          }} disabled={modelBusy} colors={colors} />
         </Group>
 
         <Group title={t("settings.groupAppearance")} colors={colors}>

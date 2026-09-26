@@ -109,6 +109,7 @@ function mount(catalog: Catalog, remoteActive: boolean) {
     modelBusy: false,
     onSelectModel: jest.fn(),
     onSelectLocation: (location) => actions.selectLocation(location, "lfm2.5-2.6b"),
+    probeComputerModel: jest.fn(async () => ({ state: "ok" as const, modelId: "ornith" })),
     telemetryEnabled: false,
     telemetryBusy: false,
     onToggleTelemetry: jest.fn(),
@@ -183,5 +184,41 @@ describe("Settings where-answers row", () => {
     sheet?.props.rows.find((row: { testID: string }) => row.testID === "settings.sheet.where.local")?.onPress();
     expect(ports.selectLocalModel).toHaveBeenCalledWith("lfm2.5-2.6b");
     expect(switchHostToRemoteComputer).not.toHaveBeenCalled();
+  });
+
+  it("opens the model sheet with the computer's model and no phone models in computer mode", async () => {
+    const { render } = mount(en, true);
+    let nodes = render();
+    nodes.find((node) => node.type === "Pressable" && node.props.testID === "settings.home.model")?.props.onPress();
+    // The probe answers on a microtask; the sheet opens on "checking" first.
+    await new Promise((resolve) => setImmediate(resolve));
+    nodes = render();
+    const sheet = nodes.find((node) => node.type === "AttachSheet");
+
+    expect(sheet?.props.subtitle).toBe(en.settings.modelPickerComputerHint);
+    expect(sheet?.props.rows.map((row: { testID: string; label: string; disabled: boolean }) => ({
+      testID: row.testID,
+      label: row.label,
+      disabled: row.disabled,
+    }))).toEqual([
+      {
+        testID: "settings.sheet.model.computer",
+        label: `${en.settings.computerModelName} · ornith`,
+        disabled: false,
+      },
+    ]);
+  });
+
+  it("keeps this phone's models as the choices in local mode", () => {
+    const { render } = mount(en, false);
+    let nodes = render();
+    nodes.find((node) => node.type === "Pressable" && node.props.testID === "settings.home.model")?.props.onPress();
+    nodes = render();
+    const sheet = nodes.find((node) => node.type === "AttachSheet");
+
+    expect(sheet?.props.subtitle).toBeUndefined();
+    expect(sheet?.props.rows.map((row: { testID: string }) => row.testID)).toEqual([
+      "settings.sheet.model.lfm2.5-2.6b",
+    ]);
   });
 });
