@@ -1453,8 +1453,8 @@ mod tests {
             "6.4 GB of VRAM minus the margin must hold no row"
         );
 
-        // The walk's fallback ends on the processor, with its own answer and
-        // the sentence that says why the processor.
+        // The walk's fallback asks the processor route for its own answer,
+        // prefixed by the sentence that says which memory sized the model.
         let expected = choose_model(ServerBackend::Cpu, &machine, None, None)
             .expect("the processor budget is 32 GiB of RAM");
         let (build, exe, plan, row, reason) = choose_with_processor_fallback(
@@ -1475,8 +1475,13 @@ mod tests {
         assert_eq!(row.repo, expected.1.repo, "the processor build's own choice");
         assert_eq!(plan.sha256, expected.0.sha256, "its own pinned file");
         assert!(
+            !PROCESSOR_FALLBACK_REASON.contains("processor"),
+            "the sentence must not claim where the model runs — the tune may \
+             still pick the graphics build: {PROCESSOR_FALLBACK_REASON}"
+        );
+        assert!(
             reason.contains(PROCESSOR_FALLBACK_REASON),
-            "the reason must say why the processor: {reason}"
+            "the reason must say which memory sized the model: {reason}"
         );
         assert!(
             reason.contains(&expected.2),
