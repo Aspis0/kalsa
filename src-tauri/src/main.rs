@@ -1044,27 +1044,6 @@ fn model_chosen(display_name: Option<&str>, override_env_set: bool) -> bool {
     display_name.is_some() || override_env_set
 }
 
-/// The ask-first gate, whole. A turn-on with no stored choice and no
-/// development override stops and asks before fetching the automatic pick —
-/// but only when the ask is real: `pick_on_disk` is what this machine would
-/// be offered (`startup::automatic_pick_on_disk`), where `None` means
-/// nothing fits or the row cannot be named back, so the walk runs and the
-/// refusal reaches the owner as it always did, and `Some(true)` means the
-/// pick's file is already complete on disk, so the start fetches nothing
-/// and keeps working as before the update. The overrides are exempt: a
-/// developer pinning a binary or a model owns the choice.
-fn asks_before_download(
-    stored_choice: Option<&str>,
-    server_override: bool,
-    model_override: bool,
-    pick_on_disk: Option<bool>,
-) -> bool {
-    stored_choice.is_none()
-        && !server_override
-        && !model_override
-        && pick_on_disk.is_some_and(|on_disk| !on_disk)
-}
-
 /// Whether a model is configured, and which one when the catalog chose it.
 /// `display_name` is the catalog's own human name, built to be shown, and
 /// `reason` is the catalog's own sentence for why this one; the development
@@ -1153,7 +1132,6 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let slot_save_path = slots_dir(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
-    let stored_choice = options::load(&state_file).model;
     let phone = phone(&app)?;
     // How many seats the door must hold: this computer and every paired
     // phone. A seat is reserved per stored device for as long as it is
@@ -1194,20 +1172,14 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                 )
             }
         };
-        // With nobody having chosen, the walk asks before it fetches: the
-        // automatic pick's bytes are a download the owner never asked for —
-        // unless the file is already here, where nothing would be fetched,
-        // or there is no pick, where the refusal must come back as today.
-        // The next turn-on, with a choice stored, runs the rest.
-        if asks_before_download(
-            stored_choice.as_deref(),
-            server_override.is_some(),
-            model_override.is_some(),
-            startup::automatic_pick_on_disk(&machine, phone, &runtime_root),
-        ) {
-            return (None, measured);
-        }
-        let verdict = startup::run(
+        // The ask is the walk's own: `startup::run` stops where the
+        // automatic pick's download would start, on the plan it actually
+        // holds, so the verdict that comes back here can never disagree
+        // with what the walk would have fetched. Everything else — a
+        // stored choice, a copy already on disk, a reusable one in
+        // another program's store, nothing fitting at all — answers as it
+        // always did.
+        let verdict = match startup::run(
             server_override,
             machine,
             phone,
@@ -1217,11 +1189,14 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             slot_save_path,
             &runtime_root,
             &mut progress,
-        )
-        .map_err(|failure| failure::words(&failure));
+        ) {
+            Ok(prepared) => Some(Ok(prepared)),
+            Err(failure::StartupFailure::AwaitingChoice) => None,
+            Err(failure) => Some(Err(failure::words(&failure))),
+        };
         // The measurement rides the refusal too: a walk that failed still
         // measured a real machine.
-        (Some(verdict), measured)
+        (verdict, measured)
     })
     .await;
 
@@ -1242,8 +1217,8 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 /// when it measured — the reading beside the facts that make it a record:
 /// the instant the probe finished (stamped where the probe returned, not
 /// where the record is written minutes of download later) and the RAM the
-/// measured `Machine` was built with. `None` is the walk that measured and
-/// stopped: nobody has chosen a model, so nothing was decided or fetched.
+/// measured `Machine` was built with. `None` is the walk that stopped at
+/// the model's own fetch, awaiting the owner's choice.
 type Walk = (
     Option<Result<startup::PreparedStart, String>>,
     Option<(Measurement, u64, u64)>,

@@ -115,36 +115,6 @@ fn a_walk_with_no_choice_is_a_measurement_and_no_start() {
 }
 
 #[test]
-fn the_ask_holds_only_when_the_pick_would_be_downloaded() {
-    // The ask-first gate, case by case: (a) a fresh install with a pick to
-    // offer and its file not here asks; (b) an install whose automatic pick
-    // is already complete on disk starts as it always did, update or no
-    // update — the start fetches nothing; (c) a machine the catalog has
-    // nothing for runs, so the refusal comes back as today and Turn on
-    // never does nothing; (d) a stored choice is honoured without asking.
-    // The development overrides keep their exemption: a pinned binary or
-    // model owns the choice.
-    assert!(
-        asks_before_download(None, false, false, Some(false)),
-        "(a) nothing stored, a pick to offer, its file not here: ask"
-    );
-    assert!(
-        !asks_before_download(None, false, false, Some(true)),
-        "(b) the pick already on disk: no ask, the start fetches nothing"
-    );
-    assert!(
-        !asks_before_download(None, false, false, None),
-        "(c) no pick fits: no ask, the refusal must come back"
-    );
-    assert!(
-        !asks_before_download(Some("0000000000000001"), false, false, Some(false)),
-        "(d) a stored choice: no ask"
-    );
-    assert!(!asks_before_download(None, true, false, Some(false)), "a pinned binary runs");
-    assert!(!asks_before_download(None, false, true, Some(false)), "a pinned model runs");
-}
-
-#[test]
 fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
     // A store this app cannot read stands the DOOR down; the brain —
     // running, answering the local chat — does not report itself failed

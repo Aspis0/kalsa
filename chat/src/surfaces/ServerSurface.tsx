@@ -31,11 +31,13 @@ export function ServerSurface() {
   const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
   const [capability, setCapability] = useState<Capability | null>(null);
 
-  // Read on mount, whenever an action lands, and whenever the brain's own
-  // state changes kind: this page can mount in the middle of a walk whose
-  // capability answer is still the stale one from before it, and the state
-  // it already polls is what says the walk has landed.
+  // Read on mount, whenever an action lands, and whenever the walk's own
+  // signals move: the state changing kind (this page can mount mid-walk on
+  // a stale answer), and the shared progress step going from something to
+  // nothing — a walk that settles still `stopped` never changes kind, and
+  // the step clearing is what says it landed.
   const brainKind = state?.kind ?? null;
+  const walking = liveStep !== null;
   useEffect(() => {
     if (!available() || busy) return;
     let live = true;
@@ -50,7 +52,7 @@ export function ServerSurface() {
     return () => {
       live = false;
     };
-  }, [busy, brainKind]);
+  }, [busy, brainKind, walking]);
 
   const metrics = state?.metrics ?? {};
   // A phone, not this computer: the host's own chat runs through the same

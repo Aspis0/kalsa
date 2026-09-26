@@ -65,6 +65,13 @@ pub(crate) enum StartupFailure {
     /// model for an engine that cannot start.
     SlotSavePathUnwritable,
     // — placing the model on disk —
+    /// The walk stopped where the automatic pick's download would have
+    /// started: nobody has chosen a model, and no copy on this disk answers
+    /// for the file. Not a failure of the machine — the owner is asked to
+    /// pick, and the next turn-on runs with the choice. `brain_start`
+    /// intercepts this before `words`; the sentence here is the belt for
+    /// any path that ever lets it through.
+    AwaitingChoice,
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
     WeightsUnverified,
@@ -162,6 +169,10 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::SlotSavePathUnwritable => {
             "The assistant could not prepare the place on this computer where chats are \
              kept, so it did not start."
+                .into()
+        }
+        StartupFailure::AwaitingChoice => {
+            "A model has to be picked for this computer before the assistant can start."
                 .into()
         }
         StartupFailure::WeightsUnverified => {

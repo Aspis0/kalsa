@@ -6,9 +6,11 @@
 //! progress as data; two presses cannot run two walks, which is the command
 //! guard's job, not this file's.
 //!
-//! A first run with nobody having chosen never gets here: brain_start
-//! measures and stops before the decide step, and the next turn-on — with a
-//! stored choice — runs this walk whole.
+//! A first run with nobody having chosen stops INSIDE the walk, at the
+//! model's own fetch: the engine has been decided (tens of megabytes,
+//! accepted), and the placement answers `AwaitingChoice` rather than
+//! downloading the automatic pick. The next turn-on — with a choice
+//! stored — runs the walk whole.
 //!
 //! The model step follows the catalog: the choice is fetched against its
 //! digest (a verified copy in another program's cache beats the download,
@@ -224,6 +226,12 @@ pub(crate) fn run(
     // start and the tier would never exist.
     prepare_slot_save_dir(&slot_save_path)?;
     let overrides = crate::options::load(&state_file);
+    // The ask, decided once where the facts live: nobody has stored a
+    // choice, and no development override owns the model. A dev-pinned
+    // BINARY still fetches its automatic answer (its workflow had no page
+    // to choose on); a dev-pinned MODEL never reaches the placement at
+    // all. Read before the match below consumes the override.
+    let ask_before_fetch = overrides.model.is_none() && server_override.is_none();
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -267,7 +275,11 @@ pub(crate) fn run(
                     )
                 },
             )?;
-            let path = place_model(&plan, root, progress)?;
+            // The ask lives here, at the fetch itself, where the plan in
+            // hand is the walk's own pick — decided build included — so what
+            // the owner is asked about can never disagree with what the
+            // walk would download.
+            let path = place_model(&plan, root, ask_before_fetch, progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -594,26 +606,32 @@ pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupF
 
 /// Puts the chosen model on disk, against the plan's digest. The plan is
 /// not optional: the catalog's pick always carries its file's address.
+/// `ask_before_fetch` is the automatic pick's consent gate: true means no
+/// choice is stored, so a file that must be fetched stops the walk for the
+/// owner's pick instead of downloading.
 fn place_model(
     plan: &DownloadPlan,
     root: &Path,
+    ask_before_fetch: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
-    acquire_model(plan, &root.join("models"), &default_roots(), progress)
+    acquire_model(plan, &root.join("models"), &default_roots(), ask_before_fetch, progress)
 }
 
 /// Puts the chosen model on disk, against the plan's digest. A copy already
 /// on disk — ours, or another program's — is hash-checked or digest-found
-/// before any download happens. Another program's stores are searched cheap
-/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
-/// stat, and the store whose name claims our digest is read once to
-/// confirm), with `find_local` underneath for stores that name files like
-/// files. `roots` is handed in rather than taken from the environment so
-/// the search is a fact a test can pin.
+/// before any download happens, and only then may the ask stop the walk:
+/// what is already here costs nobody a choice. Another program's stores
+/// are searched cheap pass first (`kalsa-reuse`: stores that NAME blobs by
+/// their digest cost a stat, and the store whose name claims our digest is
+/// read once to confirm), with `find_local` underneath for stores that
+/// name files like files. `roots` is handed in rather than taken from the
+/// environment so the search is a fact a test can pin.
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
     roots: &[PathBuf],
+    ask_before_fetch: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
     let name = plan.url.rsplit('/').next().unwrap_or_default();
@@ -633,6 +651,14 @@ fn acquire_model(
     if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
     }
+    if ask_before_fetch {
+        // The automatic pick is in use and this file exists nowhere on
+        // this disk: fetching it would start a download the owner never
+        // asked for, so the walk stops for the pick instead. The verdict
+        // is distinct on purpose — brain_start settles it into the
+        // ordinary stopped state with the measurement kept.
+        return Err(StartupFailure::AwaitingChoice);
+    }
     progress(Progress::ModelBytes {
         done: 0,
         total: plan.bytes,
@@ -649,66 +675,6 @@ fn acquire_model(
 }
 
 /// The automatic pick reduced to the one fact the ask-first gate needs:
-/// `None` when this machine has nothing an ask could offer — the
-/// measurement is unreliable, the catalog refused, or the row cannot be
-/// named back — and otherwise whether the pick's file is already in this
-/// app's models directory. Presence and the plan's pinned length only,
-/// never a digest: the gate runs on every launch with no stored choice,
-/// where hashing would read the whole file — 22 GB on the machine this
-/// gate exists for — and [`acquire_model`] verifies the same bytes right
-/// after it. A file that passes here and fails there has cost one hash
-/// and the re-download the walk already gives a corrupt file. The reuse
-/// stores are not consulted: their answers are hashes by design, so the
-/// gate would pay what it exists to avoid — a model that lives only in
-/// another program's store draws one extra question, and picking it
-/// starts through that same reuse. Like the capability page, this runs
-/// before any build has won, so the catalog is asked with the machine's
-/// detected backend, never a winner's.
-pub(crate) fn automatic_pick_on_disk(
-    machine: &Machine,
-    phone: Option<PhoneModel>,
-    root: &Path,
-) -> Option<bool> {
-    // An unreliable measurement decides nothing: the walk itself refuses on
-    // one, so there is no honest pick to ask about.
-    if !machine.measurement.is_reliable() {
-        return None;
-    }
-    let input = ChoiceInput {
-        backend: machine.measurement.will_run_on,
-        ram_bytes: machine.ram_bytes,
-        bandwidth_bytes_per_second: machine.measurement.decode_bandwidth_bytes_per_second(),
-        compute_flops_per_second: machine.measurement.compute.max(),
-        bandwidth_is_lower_bound: machine.measurement.bandwidth_is_lower_bound(),
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
-        phone,
-    };
-    // The same two arms `choose_model` runs with nobody having chosen.
-    let plan = match phone {
-        None => kalsa_catalog::largest_that_runs_well(&input).ok()?.download,
-        Some(_) => match kalsa_catalog::choose(&input) {
-            Decision::Pick(selection) => {
-                chosen_row(
-                    selection.repo,
-                    selection.display_name,
-                    selection.quant,
-                    selection.weights_bytes,
-                )
-                .ok()?;
-                selection.download
-            }
-            Decision::Refuse(_) => return None,
-        },
-    };
-    // The name `acquire_model` would file this plan under, and the length
-    // the download is held to: one stat, no read of the contents.
-    let name = plan.url.rsplit('/').next().filter(|name| !name.is_empty())?;
-    let path = root.join("models").join(name);
-    Some(
-        std::fs::metadata(&path).is_ok_and(|meta| meta.len() == plan.bytes),
-    )
-}
-
 /// The reason a test's launch record carries. These tests are about budgets
 /// and argv, so the words only have to be recognisable and provably the ones
 /// the model step handed over.
@@ -1254,6 +1220,7 @@ mod tests {
             &plan,
             &root.join("models"),
             &[friendly_root.clone(), blob_root.clone()],
+            false,
             &mut |_| {},
         )
         .expect("the pinned copy in the digest store is on this disk");
@@ -1298,6 +1265,7 @@ mod tests {
             &plan,
             &root.join("models"),
             &[blob_root.clone(), friendly_root.clone()],
+            false,
             &mut |_| {},
         )
         .expect("the honest copy is still found");
@@ -1374,10 +1342,10 @@ mod tests {
 
     #[test]
     fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
-        // The automatic answer for a walk that must still decide: a fresh
-        // install whose pick is already on disk, the development path's
-        // pinned binary, and the fallback a stale stored choice rides —
-        // everything but the fresh install brain_start asks first. What
+        // The automatic answer for a walk that fetches it: a fresh install
+        // whose pick is already on disk, the development path's pinned
+        // binary, and the fallback a stale stored choice rides — everything
+        // but the fresh install whose placement stops at the fetch. What
         // this answers must still be exactly what the catalog answers,
         // plan and reason and all, compared against the catalog itself
         // rather than against a copied expectation.
@@ -1397,48 +1365,42 @@ mod tests {
     }
 
     #[test]
-    fn the_offer_to_ask_about_is_the_walk_s_own_pick() {
-        // The ask-first gate's offer, pinned where a unit test can reach it:
-        // a machine with a pick and an empty runtime root would fetch it
-        // (Some(false)); the same file present at the plan's pinned length
-        // answers Some(true) without its contents being read — a sparse
-        // stand-in for the gigabytes the gate must not hash; and a machine
-        // nothing fits offers nothing (None), so the walk runs and the
-        // refusal speaks.
-        let root = scratch("offer");
-        assert_eq!(
-            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root),
-            Some(false),
-            "a pick whose file is not here would be downloaded"
-        );
-        let input = choice_input(ServerBackend::Cpu, &machine(Backend::Cpu), None);
-        let plan =
-            kalsa_catalog::largest_that_runs_well(&input).expect("something runs").download;
-        let name = plan
-            .url
-            .rsplit('/')
-            .next()
-            .filter(|name| !name.is_empty())
-            .expect("the plan's address names a file");
-        let path = root.join("models").join(name);
-        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdirs");
-        std::fs::File::create(&path)
-            .expect("create")
-            .set_len(plan.bytes)
-            .expect("extend to the pinned length");
-        assert_eq!(
-            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root),
-            Some(true),
-            "the file is here at its pinned length: the start fetches nothing"
-        );
-        let nothing_fits = Machine {
-            measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 0,
+    fn the_placement_stops_for_the_ask_where_the_download_would_start() {
+        // The consent gate, pinned at the fetch: with no stored choice the
+        // walk stops before a single request leaves, with the file already
+        // valid on disk it stops nowhere, and with a choice stored (or a
+        // dev override owning the model — the same false flag) the fetch
+        // proceeds as it always did. A reusable copy in another program's
+        // store is the reuse tests' ground; here the roots are empty so
+        // the disk answers nothing.
+        let (url, requests) = serve(PLAN_BODY);
+        let root = scratch("ask-placement");
+        let plan = DownloadPlan {
+            url: url.clone(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
         };
+        let stopped = place_model(&plan, &root, true, &mut |_| {})
+            .expect_err("nothing stored and nothing on disk: the walk waits");
+        assert!(
+            matches!(stopped, StartupFailure::AwaitingChoice),
+            "a distinct verdict, not a download failure: {stopped:?}"
+        );
         assert_eq!(
-            automatic_pick_on_disk(&nothing_fits, None, &root),
-            None,
-            "nothing fits, so there is nothing to ask about"
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the ask must cost no bytes: the download was never called"
+        );
+        // The file valid on disk costs nobody a choice, ask or no ask.
+        let placed = place_model(&plan, &root, false, &mut |_| {}).expect("downloaded");
+        assert_eq!(std::fs::read(&placed).expect("read"), PLAN_BODY);
+        let again = place_model(&plan, &root, true, &mut |_| {})
+            .expect("the valid file on disk answers before the ask");
+        assert_eq!(again, placed, "and it is the same file");
+        assert_eq!(
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "one fetch in the whole test: the ask and the disk both refused to download"
         );
     }
 
@@ -1807,7 +1769,7 @@ mod tests {
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
         };
-        let path = place_model(&plan, &root, &mut |_| {}).expect("downloaded");
+        let path = place_model(&plan, &root, false, &mut |_| {}).expect("downloaded");
         assert_eq!(
             std::fs::read(&path).expect("read"),
             PLAN_BODY,
@@ -1816,7 +1778,7 @@ mod tests {
         assert_eq!(digest_of(PLAN_BODY), PLAN_SHA256);
         // A second pass with the file already on disk downloads nothing: the
         // on-disk bytes are re-hashed, and the server must not be asked again.
-        let path_again = place_model(&plan, &root, &mut |_| {}).expect("from disk");
+        let path_again = place_model(&plan, &root, false, &mut |_| {}).expect("from disk");
         assert_eq!(path_again, path);
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
@@ -1837,7 +1799,7 @@ mod tests {
             sha256: "0000000000000000000000000000000000000000000000000000000000000000",
         };
         let err =
-            place_model(&plan, &root, &mut |_| {}).expect_err("the digest is the promise");
+            place_model(&plan, &root, false, &mut |_| {}).expect_err("the digest is the promise");
         assert!(matches!(err, StartupFailure::DownloadCorrupted), "{err:?}");
         assert!(
             !root.join("models").join("stories260K.gguf").exists(),
