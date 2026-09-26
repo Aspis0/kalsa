@@ -492,3 +492,133 @@ both arms OK, device-side copy stat 1593894944, `END reason=exit_0`.
 (The earlier Q4_K_M-default run `raw/dryrun-lfm-driver.log` and the Qwen-via-env
 regression `raw/dryrun-qwen-driver.log` also exited 0; Qwen reproduced
 variant=786 tokens=786 total=1036 chars=3266 with the mmproj checks exercised.)
+
+---
+
+# Audit e662b9fb fixes — live thermo safety, calibration band, prompt pin (2026-09-25 night)
+
+Scope: defects F1, F2, F3, F5, F6, F9, F10 of hostile audit e662b9fb (F1 and
+F5 were coordinator-verified first). The session started from an uncommitted
+partial fix by a previous coder; what matched the audit was kept (the 30-column
+results printf, the band check, the missing_failed gate, `safety.sh`,
+`restore.sh`), what was wrong was corrected, what was missing was added.
+`parse.sh` (~944 lines) is pre-existing excess, declared, not refactored; all
+new logic went to `safety.sh` (one responsibility: live thermo and stops).
+
+## What changed, per defect
+
+- **F1 (frozen bench thermo).** `make_thermo` (old parse.sh:178, wrote
+  `batt_level_pct:100`, `plugged:false`, skin fixed at session start) is gone.
+  `safety.sh` re-reads `dumpsys thermalservice` + `dumpsys battery` before
+  EVERY model turn (`safety_gate setup` at d_run.sh:248, `safety_gate calib`
+  at :269, `safety_gate armN` in run_arm step 5, plus `safety_stops` at arm
+  entry) and pushes a fresh `kalsa.bench.thermo` through `set_prefs` with live
+  skin (in `batt_temp_tenths_c`, same field the frozen profile filled), the
+  real `batt_level_pct` and the real `plugged` — readGovernorThermo prefers
+  this profile over the sensor (governorInputs.ts:259-263), so the engine's
+  pause/kill and low-battery paths now see current values. Driver stops log
+  `STOP reason=...`, write `END reason=stop_*` and exit 0 (a stop is the
+  safety policy working, not a driver error): skin >= 44 C, thermal status >= 3,
+  battery temperature >= 44 C, battery level <= 25 %, plugged = true
+  (safety.sh:47-56). Two traps fixed while wiring it: (a) skin is now taken
+  from the `Current temperatures from HAL` section only (safety.sh:34) — the
+  un-gated sed matched `Cached temperatures` first, which trailed the live
+  value by 8.0 C in raw/sa849155c/session_pre_thermal.txt (30.361 cached,
+  line 36, vs 38.405 HAL, line 45); (b) a missing battery level aborts the
+  gate (`NO_LIVE_BATT_LEVEL`, safety.sh:72) instead of writing a fabricated
+  100 % back into the profile.
+- **F2 (band abort).** `CAL_TOTAL` must lie in [973, 1075] (= 1024 ±5 %)
+  after variant selection and before any arm: `CALIB_BAND_FAIL`, END
+  `calib_band`, exit 3 (d_run.sh:298). The old parse.sh band text said 1126
+  (wrong arithmetic); row validity uses the same [973,1075] (parse.sh:927).
+- **F3 (arms send the calibrated variant).** The neutered `.cp` dance is gone:
+  the chosen variant is copied to `PROMPT.txt`, `PROMPT.meta` is re-pinned
+  (sha256 + byte count), and `PROMPT_TEXT` is reloaded through the same
+  `load_prompt` a `DRIVER_PHASE=arms` invocation uses (d_run.sh:301-308) —
+  setup/full and arms invocations now send one identical text.
+- **F5 (printf fields).** The row printf has 30 `%s` for the 30-column header
+  (parse.sh:939-944); checked column by column against the header in the dry
+  run (both NF=30, every value in its column).
+- **F6 (battery columns).** `batt_before/batt_after` held the temperature;
+  they are now `batt_temp_before/batt_temp_after`, and `batt_level` +
+  `plugged` are separate columns filled from the live reading taken at the
+  pre-turn gate.
+- **F9 (tokens of the exact text sent).** `variant_tokens` reads the text on
+  stdin; the caller builds it exactly as the composer will receive it
+  (`tr '\n' ' '` then strip one trailing space): `load_prompt` now stores the
+  stripped text in `PROMPT_TEXT` (d_run.sh:39), so counted == typed. Proven
+  in the dry run: typed bytes == counted bytes (3027) -> 798 tokens on
+  LFM2.5-2.6B-QAD-Q4_0.
+- **Validity.** `failed="na"` voids the row with `void_reason=missing_failed`;
+  the gate runs last inside the validity block, so it overwrites the reasons
+  the gates above recorded (parse.sh:929-935).
+- **Load proof.** `poll_load`/`has_load_proof` existed in HEAD but were dead
+  (`run_smoke` was never called). They are now wired into the setup block at
+  d_run.sh:271-276 — but BEFORE `calibrate_turn`, because the engine
+  eager-loads at app start (device evidence:
+  s23-heat-cpu-vs-gpu-v2/raw/arm-stream-logcat.txt: `Running "main"` ->
+  `engine.eagerInit` -> `llama_model_loader` within 1 s), so the loader line
+  is in the buffer only until `clear_anchor` wipes it; placed after the anchor
+  a fresh session never loads again and poll_load would abort every real run.
+  The log records which GGUF the engine opened (`LOAD_PROOF ...`); unless the
+  line names `files/models/$MODEL_DIR/$MODEL_FILE`, setup aborts (END
+  `load_proof`, exit 3). `DRIVER_PHASE=setup` sends no turn, so it logs
+  `LOAD_PROOF_DEFERRED`; the full phase gates before any arm.
+- **Dead code deleted:** `smoke_turn` + `run_smoke` (unused in HEAD),
+  `device_tag`, `ttft`.
+- **F10 `restore.sh` (documented here):** after ANY abnormal end (SIGKILL,
+  crash, session abort) run `bash restore.sh` (ADB_PORT/ADB_BIN overridable,
+  as in d_run.sh). It undoes every device change d_run.sh makes:
+  `svc power stayon false`, the pre-run `screen_off_timeout`,
+  `locksettings set-disabled false` (keyguard re-enabled), and the sampler
+  (stop file + pkill). Exit 0 = all restores succeeded, nonzero = at least
+  one adb command failed (the `rc=` line says which state was attempted).
+  The normal end already restores via the driver's EXIT trap (`restore_device`).
+  Caveat: on a safety STOP the device-side `samples.txt` is not pulled (the
+  pull sits at the normal end of d_run.sh:331); it survives until the next
+  run's `launch_sampler` truncates it, so pull it manually before rerunning
+  if the aborted session's samples matter.
+
+## `.restore-state` — runtime state, NOT in git
+
+`d_run.sh:215` writes `$OUT/.restore-state` (`SER`, pre-run
+`SCREEN_OFF_TIMEOUT`) right after `configure_screen`, so a recovery is possible
+even if the process dies before its EXIT trap runs. It is runtime state —
+rewritten on every run, only read by `restore.sh` — so it is added to the repo
+`.gitignore` and never committed.
+
+## Dry-run fixtures (fake adb; Mac only — no device, no QDC, no browser)
+
+Harness now committed as `dryrun-adb.sh` (the old /tmp copy is a symlink to
+it); canned dumps + state in `/tmp/kalsa-dry` (RKStorage, logcat-cal/cpu/gpu).
+Reset state before each run:
+`rm -f /tmp/kalsa-dry/state/{typed,last_route,drawer,therm_calls}`.
+Common command shape (REPORT line 248 + fake adb + skipped sampler):
+
+```
+ADB_BIN=/tmp/kalsa-dry/bin/adb SKIP_SAMPLER=1 DRIVER_PHASE=full \
+  TYPE_FAST=1 TYPE_LADDER="200 100" bash d_run.sh <job> <apk> CG 30
+```
+
+| fixture | extra env | expectation | EXIT |
+|---|---|---|---|
+| `dryrun-fix-full` | — | LOAD_PROOF before calib, CALIB_DONE N0=250 variant=727 tokens=798 total=1048, both arms OK, results NF=30 both rows, `END reason=exit_0` | 0 |
+| `dryrun-fix-skin` | `DRY_SKIN_AT=6 DRY_SKIN_AFTER=44.5` | skin crosses 44 C at the pre-turn gate: `STOP reason=skin`, `END reason=stop_skin`, no arm row | 0 |
+| `dryrun-fix-band` | `PROMPT_VARIANTS=841` | `CALIB_BAND_FAIL total=1171`, `END reason=calib_band`, zero arm files (aborted before any arm) | 3 |
+| `dryrun-fix-batt` | `DRY_BATT_LEVEL=20` | `STOP reason=battery_level` at the setup gate, `END reason=stop_battery_level` | 0 |
+| `dryrun-fix-arms` | `DRIVER_PHASE=arms` | pinned PROMPT.txt/meta loaded and sent (F3/F9), both arms OK, NF=30 | 0 |
+| `restore.sh` | `ADB_BIN=/tmp/kalsa-dry/bin/adb` | `restored serial=dryserial ... rc=0` | 0 |
+
+`bash -n` clean: d_run.sh, parse.sh, safety.sh, restore.sh, smp.sh,
+dryrun-adb.sh.
+
+## Not verified (no device, no QDC, no browser)
+
+- The stops, the HAL-only skin read and the load-proof placement never ran on
+  a real board; the supporting evidence is historical device output
+  (sa849155c session_pre thermal dump, the S23 launch logcat), not a live
+  QDC session. `Thermal Status:` parsing matches raw/sa849155c/
+  session_pre_thermal.txt:10, but a status >= 3 was only exercised through
+  the fake.
+- Prewarm `op:done` landing inside the poll_load window on a fresh QRD8750
+  session (S23 evidence: +24 s after launch) is expected but unconfirmed.

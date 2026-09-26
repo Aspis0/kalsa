@@ -33,18 +33,20 @@ load_prompt() {
   size=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
   [ "$local_sha" = "$PROMPT_SHA" ] && [ "$size" = "$PROMPT_BYTES" ] || return 1
   text=$(tr '\n' ' ' < "$PROMPT_FILE") || return 1
-  PROMPT_TEXT="$text"
   PROMPT_EXPECTED_CHARS=$(printf '%s' "$text" | wc -m | tr -d '[:space:]')
+  # F9: PROMPT_TEXT is exactly what reaches the composer (newline-turned
+  # trailing space stripped); variant_tokens must count this same text.
+  PROMPT_TEXT="${text% }"
   [ -n "$PROMPT_TEXT" ] && [ "$PROMPT_EXPECTED_CHARS" -eq "$PROMPT_BYTES" ]
 }
 # prompt-<n>.txt names carry token counts measured with the Qwen tokenizer;
-# counting the same text against $MODEL keeps the nearest-to-1024 choice honest
-# for any tokenizer (LFM2.5 reads this filler ~70 tokens longer). Falls back to
-# the label when llama-tokenize is absent on the driver host.
+# this counts the exact bytes that will be typed (stdin) against $MODEL, so the
+# nearest-to-1024 choice stays honest for any tokenizer. Falls back to the
+# label when llama-tokenize is absent on the driver host.
 variant_tokens() {
   local count
   command -v llama-tokenize >/dev/null 2>&1 || return 1
-  count=$(tr '\n' ' ' < "$1" | llama-tokenize -m "$MODEL" --stdin --show-count 2>/dev/null | sed -n 's/.*tokens: \([0-9][0-9]*\).*/\1/p')
+  count=$(llama-tokenize -m "$MODEL" --stdin --show-count 2>/dev/null | sed -n 's/.*tokens: \([0-9][0-9]*\).*/\1/p')
   [ -n "$count" ] && printf '%s' "$count"
 }
 load_prompt || { echo "PROMPT_IDENTITY_FAIL" >&2; exit 6; }
@@ -53,7 +55,7 @@ OUT="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-
 RAW="$OUT/raw/$JOB"; mkdir -p "$RAW"
 ADB_LOG="$RAW/adb-exit.log"; DRIVER_LOG="$RAW/driver.log"; RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
-printf 'pair\tarm\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\tsettle_s\tskin_before\tskin_after\tbatt_before\tbatt_after\tprefill_ms\tengine_prefill\tengine_decode\troute_requested\troute_push\troute_mismatch\tchunks_sum\tchunks_str\tprompt_n\ttokens_predicted\tdecode_tps\tthermal_state\tfailed\tfallback_count\ttool_calls\tlmkd_count\n' > "$RESULTS"
+printf 'pair\tarm\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\tsettle_s\tskin_before\tskin_after\tbatt_temp_before\tbatt_temp_after\tbatt_level\tplugged\tprefill_ms\tengine_prefill\tengine_decode\troute_requested\troute_push\troute_mismatch\tchunks_sum\tchunks_str\tprompt_n\ttokens_predicted\tdecode_tps\tthermal_state\tfailed\tfallback_count\ttool_calls\tlmkd_count\n' > "$RESULTS"
 PKG=com.kalsa.app
 # Shipping default: the catalog file LFM2.5-2.6B-QAD-Q4_0.gguf (coordinator
 # decision 2026-09-25: we measure the shipped config; ModelRegistry.ts:278-279).
@@ -85,9 +87,9 @@ FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_E
 TYPE_PROMPT_CALLS=0; TYPE_LADDER_STATE=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=720
 SETTLE_TARGET_C=37.0; SETTLE_MAX_S=240; COOLDOWN_SECONDS=na; SETTLE_SECONDS=na
 SAMPLER_PID=0; STOP_SAMPLER_ON_EXIT=0
-SMOKE_TSV="$RAW/smoke.tsv"
 DRIVER_PHASE="${DRIVER_PHASE:-arms}"
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/parse.sh
+source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/safety.sh
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
 deadline_check() { [ "$(date +%s)" -lt "$DEADLINE_EPOCH" ] || { log "DEADLINE_${DEADLINE_MINUTES}_MIN"; write_end "deadline_${DEADLINE_MINUTES}_min"; exit 124; }; }
@@ -208,6 +210,9 @@ case "$SOC" in
 esac
 printf 'device_tag=%s\n' "$BOARD" >> "$RAW/recon.txt"
 configure_screen || { log "SCREEN_SETUP_FAIL"; exit 2; }
+# restore.sh (abnormal-end recovery) needs the pre-run timeout and serial even
+# if this process is SIGKILLed before cleanup can run.
+printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" > "$OUT/.restore-state"
 
 launch_sampler() {
   [ "${SKIP_SAMPLER:-0}" = "1" ] && { log "sampler_skipped (SKIP_SAMPLER=1)"; return 0; }
@@ -240,8 +245,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   bootstrap_db "$RAW/setup" || { log "BOOTSTRAP_FAIL"; exit 3; }
   FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }
   PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s)
-  make_thermo "$FIRST_SKIN_C"
-  set_prefs "$RAW/setup" || { log "PREFS_FAIL"; exit 3; }
+  safety_gate setup
   model_setup || { log "MODEL_SETUP_FAIL"; exit 5; }
   if [ "${SKIP_SAMPLER:-0}" != "1" ]; then
     adbT 30 -s "$SER" shell "mkdir -p $HEAT_TMP && rm -f $HEAT_TMP/stop" >> "$RAW/setup.log" 2>&1
@@ -252,6 +256,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   log "SETUP_DONE board=$BOARD sampler_pid=$SAMPLER_PID skin0=$FIRST_SKIN_C"
   if [ "$DRIVER_PHASE" = "setup" ]; then
     log "PHASE_SETUP_COMPLETE"
+    log "LOAD_PROOF_DEFERRED (the setup phase sends no turn, so no loader line exists yet)"
     exit 0
   fi
   # ---- one-per-board calibration + tools-off probe (owner protocol item 3) ----
@@ -261,6 +266,14 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   CAL_OUT="$RAW/calibration.txt"
   device_wake || true
   app_foreground "$RAW/calib" || { log "CALIB_FOREGROUND_FAIL"; exit 3; }
+  safety_gate calib
+  # Load proof MUST run before calibrate_turn: the engine eager-loads at app
+  # start, so the loader line exists in the logcat buffer only until
+  # clear_anchor wipes it (device evidence: s23-heat-cpu-vs-gpu-v2/raw/
+  # arm-stream-logcat.txt — launch -> engine.eagerInit -> llama_model_loader
+  # within 1 s). Aborts setup unless the opened GGUF is $MODEL_DIR/$MODEL_FILE.
+  poll_load "$RAW/calib_load.txt" || { log "LOAD_PROOF_FAIL expected=$MODEL_DIR/$MODEL_FILE"; write_end "load_proof"; exit 3; }
+  log "LOAD_PROOF $(grep -o 'llama_model_loader: loaded meta data with .* from [^ ]*' "$RAW/calib_load.txt" | tail -1)"
   calibrate_turn "$RAW/calib_cpu" cpu | tee "$CAL_OUT" | tee -a "$DRIVER_LOG"
   N0=$(sed -n 's/.*chunks_sum=\([0-9][0-9]*\).*/\1/p' "$CAL_OUT" | tail -1)
   CAL_TOOLS=$(sed -n 's/.*tool_calls=\([0-9][0-9]*\).*/\1/p' "$CAL_OUT" | tail -1)
@@ -275,18 +288,24 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   for v in $PROMPT_VARIANTS; do
     vf="$OUT/prompt-$v.txt"
     [ -f "$vf" ] || continue
-    tok=$(variant_tokens "$vf"); tok=${tok:-$v}
+    vtext=$(tr '\n' ' ' < "$vf"); vtext=${vtext% }
+    tok=$(printf '%s' "$vtext" | variant_tokens); tok=${tok:-$v}
     d=$(awk -v a="$tok" -v n="$N0" 'BEGIN{d=a+n-1024; if(d<0)d=-d; print d}')
     if awk -v d="$BEST_D" -v x="$d" 'BEGIN{exit !(x<d)}'; then BEST_D=$d; BEST=$v; BEST_TOK=$tok; fi
   done
   [ -n "$BEST" ] || { log "CALIB_VARIANT_FAIL N0=$N0"; write_end "calib_variant"; exit 3; }
   CAL_TOTAL=$((BEST_TOK + N0))
-  cp "$OUT/prompt-$BEST.txt" "$PROMPT_FILE.cp" 2>/dev/null || true
-  PROMPT_TEXT=$(tr '\n' ' ' < "$OUT/prompt-$BEST.txt")
-  PROMPT_TEXT=${PROMPT_TEXT% }
-  PROMPT_EXPECTED_CHARS=$(printf '%s' "$PROMPT_TEXT" | wc -m | tr -d '[:space:]')
-  rm -f "$PROMPT_FILE.cp"
-  log "CALIB_DONE N0=$N0 variant=$BEST tokens=$BEST_TOK total_estimate=$CAL_TOTAL chars=$PROMPT_EXPECTED_CHARS tools=$CAL_TOOLS"
+  [ "$CAL_TOTAL" -ge 973 ] && [ "$CAL_TOTAL" -le 1075 ] || { log "CALIB_BAND_FAIL total=$CAL_TOTAL N0=$N0 tokens=$BEST_TOK band=[973,1075]"; write_end "calib_band"; exit 3; }
+  # Arm identity follows the chosen variant: PROMPT.txt/PROMPT.meta are
+  # re-pinned to it so DRIVER_PHASE=arms invocations send and verify this text.
+  cp "$OUT/prompt-$BEST.txt" "$PROMPT_FILE"
+  PROMPT_SHA=$(/usr/bin/shasum -a 256 "$PROMPT_FILE" | awk '{print $1}')
+  PROMPT_BYTES=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
+  printf '%s %s\n' "$PROMPT_SHA" "$PROMPT_BYTES" > "$PROMPT_META"
+  # F3: reload through the same loader a DRIVER_PHASE=arms invocation will
+  # use, so this session's arms and any later one send one identical text.
+  load_prompt || { log "PROMPT_PIN_FAIL variant=$BEST"; write_end "prompt_pin"; exit 6; }
+  log "CALIB_DONE N0=$N0 variant=$BEST tokens=$BEST_TOK total_estimate=$CAL_TOTAL chars=${#PROMPT_TEXT} tools=$CAL_TOOLS"
 else
   holder_loop & HOLDER_PID=$!; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }

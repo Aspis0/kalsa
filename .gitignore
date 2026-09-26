@@ -73,3 +73,7 @@ scratchpad/agents/**/*.meta
 # transcripts, so they stay out of git the same way .messages.json/.share_hist.json do.
 scratchpad/agents/**/RKStorage*
 scratchpad/agents/**/did-switch
+
+# qdc-heat-per-backend: runtime recovery state (serial + pre-run screen
+# timeout), rewritten every run, read only by restore.sh — never versioned
+scratchpad/agents/qdc-heat-per-backend/.restore-state

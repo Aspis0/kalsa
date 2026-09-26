@@ -6,14 +6,6 @@
 
 EMPTY_TEXT="${EMPTY_TEXT:-}"
 
-device_tag() {
-  case "$1" in
-    QRD8650|SM8650) printf '8-Gen-3\n' ;;
-    QRD8750|SM8750) printf '8-Elite\n' ;;
-    *) printf '%s\n' "$(printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '-')" ;;
-  esac
-}
-
 configure_screen() {
   local previous
   previous=$(adbT 60 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || return 1
@@ -165,18 +157,6 @@ bootstrap_db() {
     fi
   done
   return 1
-}
-
-make_thermo() {
-  local skin="$1" now trend
-  now=$(date +%s)
-  if [ "$PREV_TIME" -gt 0 ]; then
-    trend=$(awk -v a="$skin" -v b="$PREV_SKIN" -v d="$((now-PREV_TIME))" 'BEGIN{if(d>0)printf "%.3f",(a-b)/(d/60);else print "0.000"}')
-  else
-    trend=0.000
-  fi
-  THERMO_JSON=$(printf '{"batt_temp_tenths_c":%s,"batt_level_pct":100,"plugged":false,"sensor_valid":true,"t_idle_valid":true,"t_idle_c":%s,"trend_c_per_min":%s}' "$(awk -v v="$skin" 'BEGIN{printf "%.0f",v*10}')" "$FIRST_SKIN_C" "$trend")
-  PREV_SKIN="$skin"; PREV_TIME="$now"
 }
 
 set_prefs() {
@@ -835,48 +815,6 @@ new_chat() {
   return 2
 }
 
-# smoke_one: one tiny READY turn after a route command; returns prompt_n.
-smoke_turn() {
-  local prefix="$1" backend="$2"
-  local logcat="${prefix}_logcat_all.txt"
-  local row_void=0 route_push=na route_mismatch=na chunks_sum=na prompt_n=na tokens_predicted=na gov tel rc
-  clear_anchor "$prefix" || return 1
-  app_foreground "$prefix" || { printf 'smoke\t%s\tFOREGROUND_FAIL\n' "$backend" >> "$SMOKE_TSV"; return 1; }
-  route_send "$prefix" "$backend"; rc=$?
-  if [ "$rc" -ne 0 ]; then printf 'smoke\t%s\tROUTE_SEND_RC=%s\n' "$backend" "$rc" >> "$SMOKE_TSV"; return 1; fi
-  sleep 3  # bench:route never calls the model (runBenchTurn): nothing to poll
-  new_chat "$prefix" || { printf 'smoke\t%s\tNEWCHAT_FAIL\n' "$backend" >> "$SMOKE_TSV"; return 1; }
-  TYPE_TEXT="Reply with exactly READY."
-  ui_send "$prefix" sm; rc=$?
-  if [ "$rc" -ne 0 ]; then printf 'smoke\t%s\tREADY_SEND_RC=%s\n' "$backend" "$rc" >> "$SMOKE_TSV"; return 1; fi
-  poll_until_telemetry "$logcat" 300 || { printf 'smoke\t%s\tREADY_NOCOMPLETE\n' "$backend" >> "$SMOKE_TSV"; return 1; }
-  sleep 2; logcat_all 120 "$logcat" || true
-  tel=$(last_json_after KALSA_TELEMETRY "$logcat")
-  gov=$(last_json_after 'KALSA_GOVERNOR ' "$logcat")
-  prompt_n=$(json_field "$tel" prompt_n); tokens_predicted=$(json_field "$tel" tokensPredicted)
-  route_push=$(json_field "$gov" route_push); route_mismatch=$(json_field "$gov" route_mismatch)
-  local bench_chunks
-  bench_chunks=$(route_chunks_audit "$gov" route_chunks "$backend")
-  chunks_sum=$(printf '%s\n' "$bench_chunks" | sed -n 's/.*sum=\([0-9]*\).*/\1/p')
-  printf 'smoke\t%s\troute_push=%s\troute_mismatch=%s\tchunks_sum=%s\tprompt_n=%s\ttokens_predicted=%s\n' \
-    "$backend" "${route_push:-na}" "${route_mismatch:-na}" "${chunks_sum:-na}" "${prompt_n:-na}" "${tokens_predicted:-na}" >> "$SMOKE_TSV"
-  [ "${route_push:-}" = "applied" ] && [ "${chunks_sum:-0}" -gt 0 ] 2>/dev/null
-}
-
-run_smoke() {
-  # CPU -> GPU -> CPU tiny-turn smoke (S23 protocol gate), plus template-overhead readout.
-  : > "$SMOKE_TSV"
-  device_wake || true
-  app_foreground "$RAW/smoke" || { log "SMOKE_FOREGROUND_FAIL"; return 1; }
-  poll_load "$RAW/smoke_load.txt" || { log "SMOKE_LOAD_FAIL"; return 1; }
-  smoke_turn "$RAW/smoke_t_cpu1" cpu || true
-  smoke_turn "$RAW/smoke_t_gpu" gpu || true
-  smoke_turn "$RAW/smoke_t_cpu2" cpu || true
-  log "SMOKE_TSV:"
-  cat "$SMOKE_TSV" >> "$DRIVER_LOG"
-  return 0
-}
-
 # run_arm: one measured arm (backend=cpu|gpu).
 run_arm() {
   local backend="$1" pair="$2" turn="$3"
@@ -884,12 +822,16 @@ run_arm() {
   local logcat="${prefix}_logcat_all.txt"
   local status=0 row_void=0 void_reason=na
   local cooldown_rc settle_rc skin_before=na skin_after=na
-  local warm_start=0 battery_before=na battery_after=na tool_calls=0
+  local warm_start=0 batt_temp_before=na batt_temp_after=na batt_level=na plugged=na tool_calls=0
   local tel gov bench_chunks chunks_sum chunks_str chunks_ok
-  local ttft=na prefill_ms=na engine_prefill=na engine_decode=na route_requested=na route_push=na route_mismatch=na
+  local prefill_ms=na engine_prefill=na engine_decode=na route_requested=na route_push=na route_mismatch=na
   local prompt_n=na tokens_predicted=na decode_tps=na thermal=na failed=na fallback=0 lmkd=0
   local reuse_line kvprefix
   deadline_check
+  # Stop check at arm entry: a device already at a limit ends the session
+  # instead of parking in 720 s of cooldown; safety_gate re-checks before
+  # the turn (safety.sh).
+  safety_stops
   LAST_EDIT_BOUNDS=""
   void_reason=na
   # 1) cooldown as a CAP only (owner decision: no cool-start gate) — start the
@@ -929,8 +871,10 @@ run_arm() {
   # 5) type + send the measured prompt
   if [ "$row_void" -eq 0 ]; then
     TYPE_TEXT="$PROMPT_TEXT"
+    safety_gate "arm${turn}"
     skin_before=$(thermal_record "${prefix}_before") || skin_before=na
-    battery_before=$(battery_read)
+    batt_temp_before=$(battery_read)
+    batt_level="${LIVE_BATT_LEVEL:-na}"; plugged="${LIVE_PLUGGED:-na}"
     ui_send "$prefix" "$turn"; rc=$?
     case "$rc" in
       0) : ;;
@@ -947,14 +891,14 @@ run_arm() {
   [ -f "$logcat" ] || : > "$logcat"
   lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || true
   skin_after=$(thermal_record "${prefix}_after") || skin_after=na
-  battery_after=$(battery_read)
+  batt_temp_after=$(battery_read)
   tool_calls=$(count_after KALSA_TOOLCALL "$logcat")
   grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+|KVPREFIX' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat")
   lmkd=$(count_lmkd_after "$logcat")
   tel=$(last_json_after KALSA_TELEMETRY "$logcat")
   gov=$(last_json_after 'KALSA_GOVERNOR ' "$logcat")
-  ttft=$(json_field "$tel" promptMs); prompt_n=$(json_field "$tel" prompt_n); tokens_predicted=$(json_field "$tel" tokensPredicted); decode_tps=$(json_field "$tel" predictedPerSecond)
+  prompt_n=$(json_field "$tel" prompt_n); tokens_predicted=$(json_field "$tel" tokensPredicted); decode_tps=$(json_field "$tel" predictedPerSecond)
   if [ -n "$gov" ]; then
     prefill_ms=$(json_field "$gov" prefill_ms); engine_prefill=$(json_field "$gov" engine_prefill); engine_decode=$(json_field "$gov" engine_decode)
     route_requested=$(json_field "$gov" route_requested); route_push=$(json_field "$gov" route_push); route_mismatch=$(json_field "$gov" route_mismatch)
@@ -968,7 +912,7 @@ run_arm() {
   fi
   reuse_line=$(last_reuse_after "$logcat"); kvprefix=$(last_kvprefix_after "$logcat")
   { printf 'reuse=%s\nkvprefix=%s\n' "${reuse_line:-na}" "${kvprefix:-na}"; } >> "${prefix}_filtered.txt"
-  for v in ttft prefill_ms engine_prefill engine_decode route_requested route_push route_mismatch prompt_n tokens_predicted decode_tps thermal failed; do
+  for v in prefill_ms engine_prefill engine_decode route_requested route_push route_mismatch prompt_n tokens_predicted decode_tps thermal failed; do
     eval "[ -n \"\$$v\" ] || $v=na"
   done
   # validity gate (task: route_mismatch or route_push != applied -> INVALID)
@@ -977,19 +921,26 @@ run_arm() {
     [ "$route_push" = "applied" ] || { row_void=1; void_reason=route_push; }
     { [ "$route_mismatch" = "0" ] || [ "$route_mismatch" = "false" ]; } || { row_void=1; void_reason=route_mismatch; }
     [ "$route_requested" = "$backend" ] || { row_void=1; void_reason=route_requested; }
-    { [ "$failed" = "0" ] || [ "$failed" = "false" ] || [ "$failed" = "na" ]; } || { row_void=1; void_reason=governor_failed; }
     [ "$fallback" -eq 0 ] 2>/dev/null || { row_void=1; void_reason=fallback; }
     [ "${tool_calls:-0}" -eq 0 ] 2>/dev/null || { row_void=1; void_reason=tool_round; }
     [ "$chunks_ok" = "1" ] || { row_void=1; void_reason=chunks_backend; }
-    awk -v n="$chunks_sum" 'BEGIN{exit !(n ~ /^[0-9]+$/ && n>=973 && n<=1126)}' >/dev/null 2>&1 || { row_void=1; void_reason=token_band; }
+    awk -v n="$chunks_sum" 'BEGIN{exit !(n ~ /^[0-9]+$/ && n>=973 && n<=1075)}' >/dev/null 2>&1 || { row_void=1; void_reason=token_band; }
     [ -n "$prefill_ms" ] && [ "$prefill_ms" != "na" ] || { row_void=1; void_reason=no_prefill_ms; }
+    # Checked last on purpose: with no governor line `failed` is missing and
+    # every field is suspect, so missing_failed overwrites the reasons the
+    # gates above recorded.
+    case "$failed" in
+      0|false) : ;;
+      na|"") row_void=1; void_reason=missing_failed ;;
+      *) row_void=1; void_reason=governor_failed ;;
+    esac
   fi
   local row_status=OK; [ "$row_void" -eq 0 ] || row_status=INVALID
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$pair" "$backend" "$turn" "$row_status" "$void_reason" "$warm_start" "$COOLDOWN_SECONDS" "$SETTLE_SECONDS" \
-    "$skin_before" "$skin_after" "$battery_before" "$battery_after" "$prefill_ms" "$engine_prefill" "$engine_decode" \
-    "$route_requested" "$route_push" "$route_mismatch" "$chunks_sum" "$chunks_str" \
-    "$prompt_n" "$tokens_predicted" "$decode_tps" "$thermal" "$failed" "$fallback" "$tool_calls" "$lmkd" | tee -a "$RESULTS"
+    "$skin_before" "$skin_after" "$batt_temp_before" "$batt_temp_after" "$batt_level" "$plugged" \
+    "$prefill_ms" "$engine_prefill" "$engine_decode" "$route_requested" "$route_push" "$route_mismatch" \
+    "$chunks_sum" "$chunks_str" "$prompt_n" "$tokens_predicted" "$decode_tps" "$thermal" "$failed" "$fallback" "$tool_calls" "$lmkd" | tee -a "$RESULTS"
   [ "$lmkd" -eq 0 ] || status=1
   return "$status"
 }
