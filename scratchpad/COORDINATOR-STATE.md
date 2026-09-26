@@ -91,3 +91,9 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
   Marco's OK, removed after with `... off`. Tester types `https://marcos-macbook-pro.tail80a42d.ts.net`;
   phone derives desk `:8443` (pairingUrls.ts:17-31, matches design). Brain app on; owner presses Allow.
   Tell kalsa-brain (23ac3537) when the APK is ready.
+- 2026-09-26 ~01:30: QDC heat driver passed 3 audit rounds (e662b9fb, 39c2dde6; fixes 091bf0ac, 930d9737:
+  live thermo per turn and mid-turn, fail-closed readings, stops force-stop the app, restore.sh).
+  QDC run launched: Opus 5.5 medium agent b5447088 (aspis, tab 4e7a3b7e), QRD8650 then QRD7675, APK 0509f8c8.
+- App main 1819d03f (QR scanner) pushed; device APK CI 36203268567 sha cfd5823e installed on the Jelly;
+  pairing run waits for Marco (serve rules, scan, Allow).
+- Quotas: commandcode (mimo AND deepseek) weekly limit until 2026-09-29T15:21Z -> use opencode-go.
