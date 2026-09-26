@@ -244,6 +244,7 @@ PRODUCT_NAME=$(adbT 60 -s "$SER" shell getprop ro.product.name | tr -d '\r')
 case "$SOC" in
   SM8550) BOARD=8-Gen-2 ;;
   SM8650|QRD8650) BOARD=8-Gen-3 ;;
+  SM8635|QRD8635) BOARD=8s-Gen-3 ;;
   SM8750|QRD8750) BOARD=8-Elite ;;
   SM7675|QRD7675) BOARD=7-Gen-3 ;;
   *) log "UNSUPPORTED_SOC=$SOC"; exit 6 ;;
