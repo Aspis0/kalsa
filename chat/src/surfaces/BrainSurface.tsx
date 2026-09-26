@@ -3,10 +3,10 @@ import type { FormEvent } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { SURFACES } from "../app/surfaces";
 import { MachineCard, bytesText } from "./MachineCard";
-import type { Capability, ModelOption } from "./MachineCard";
+import type { Capability } from "./MachineCard";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
-import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
+import { brainWords, clearWalkStep, STOP_FAILURE, useBrain } from "./useBrain";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
@@ -29,28 +29,27 @@ interface BrainSurfaceProps {
 // and what is already on this computer. The options are the capability
 // page's own rows — the consent can never offer something the walk would
 // not run.
+interface TestOption {
+  id: string;
+  name: string;
+  weights_bytes: number;
+  on_disk: boolean;
+  measured: number | null;
+}
+
 interface TestPlan {
   engine_bytes: number;
   engine_on_disk: boolean;
-  options: ModelOption[];
+  options: TestOption[];
   refusal: string | null;
   total_bytes: number;
 }
 
-// A first run is a machine with no choice stored and no usable model on
-// it — nothing downloaded, nothing tuned. Unmeasured is a first run too
-// (a machine never measured can hold neither), unless a choice survived
-// it: a deleted measurement record does not un-choose the model. An
-// install holding a choice, a file, or a tune is past its first run and
-// starts as it always has.
+// A first run is simply a machine with no stored choice: the app-start
+// migration files a tuned-and-downloaded model as the choice, so by the
+// time this reads anything, chosen is the whole truth.
 function firstRun(capability: Capability | null): boolean {
-  if (capability === null) return false;
-  if (capability.kind === "unmeasured") return !capability.chosen;
-  if (capability.chosen) return false;
-  const options: ModelOption[] = [capability.model, capability.quicker].filter(
-    (option): option is ModelOption => option !== null,
-  );
-  return options.every((option) => !option.on_disk && option.measured === null);
+  return capability !== null && !capability.chosen;
 }
 
 // The app's home. The brain alone: what the machine is doing, all the
@@ -150,6 +149,8 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     } catch (error) {
       setSetupError(String(error));
     }
+    // The walk is over, verdict or refusal: its steps go with it.
+    clearWalkStep();
     setWorking(null);
   }
 
@@ -158,6 +159,13 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     const value = text.trim();
     if (!value) return;
     onWrite(value);
+  }
+
+  // The read in flight is a blank: nothing on this page is true yet, and
+  // "Off" with a Turn on button would promise a start the first run must
+  // not make.
+  if (capability === null) {
+    return <div className="surface-page brain-page" />;
   }
 
   // The first run owns the page: one round button, then one plain ask.
@@ -170,15 +178,18 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
           <SetupProgress step={liveStep} />
         ) : plan ? (
           <section className="first-run-consent" aria-label="Before Kalsa can run">
-            <p className="surface-verdict">One yes and Kalsa is ready</p>
+            <p className="surface-verdict">Downloads needed</p>
             <p className="surface-sentence">
               Kalsa needs the pieces below to run on this computer. Without them it
               cannot work.
             </p>
             <ul className="first-run-list">
-              {!plan.engine_on_disk && plan.engine_bytes > 0 && (
-                <li>The engine that runs the model — {bytesText(plan.engine_bytes)}</li>
-              )}
+              <li>
+                Engine —{" "}
+                {plan.engine_on_disk
+                  ? "already on this computer"
+                  : `up to ${bytesText(plan.engine_bytes)}`}
+              </li>
               {plan.options.map((option) => (
                 <li key={option.id}>
                   {option.name} —{" "}
@@ -189,14 +200,26 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
             {plan.refusal ?? null}
             {setupError ?? null}
             <div className="surface-actions">
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={working !== null || plan.options.length === 0}
-                onClick={() => void runSetup("allow")}
-              >
-                Allow
-              </button>
+              {plan.options.length > 0 && plan.refusal === null && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={working !== null}
+                  onClick={() => void runSetup("allow")}
+                >
+                  Allow
+                </button>
+              )}
+              {setupError !== null && (
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  disabled={working !== null}
+                  onClick={() => void runSetup("allow")}
+                >
+                  Try again
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-quiet"
@@ -221,6 +244,18 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
               Kalsa checks this computer and finds the best settings for it.
             </p>
             {setupError ?? null}
+            {setupError !== null && (
+              <div className="surface-actions">
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  disabled={working !== null}
+                  onClick={() => void runSetup("test")}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

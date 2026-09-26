@@ -1139,6 +1139,26 @@ struct TestPlanDto {
     total_bytes: u64,
 }
 
+/// The engine's consent-screen facts for this machine, read without
+/// fetching: "up to" the sum of every build this platform could decide on
+/// (the probe model's bytes counted once, silently — it is not something
+/// the user is asked to understand), and whether some build already sits
+/// whole on disk. `None` when the platform or release table says nothing.
+fn engine_row(detected: kalsa_probe::Backend) -> Option<(u64, bool)> {
+    let platform = kalsa_runtime::Platform::current()?;
+    let candidates = kalsa_runtime::candidates_for(Some(platform), detected);
+    if candidates.is_empty() {
+        return None;
+    }
+    let mut total = kalsa_runtime::probe_model_bytes()?;
+    let mut on_disk = false;
+    for backend in candidates {
+        total += kalsa_runtime::engine_bytes(platform, backend)?;
+        on_disk |= kalsa_runtime::engine_on_disk(platform, backend);
+    }
+    Some((total, on_disk))
+}
+
 /// "Test", step one of the first run: measure this machine and answer with
 /// the plan — sizes and what is already on this computer. Nothing is
 /// downloaded; the answer is computed from the release table and the disk.
@@ -1187,7 +1207,9 @@ async fn brain_test(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<Te
         .lock()
         .ok()
         .and_then(|stored| stored.clone())
-        .ok_or_else(|| "This computer could not be measured. Trying again usually works.".to_string())?;
+        .ok_or_else(|| {
+            "This computer could not be measured. Trying again usually works.".to_string()
+        })?;
     let chosen = options::load(&state_file).model.is_some();
     let capability::CapabilityDto::Measured {
         model,
@@ -1198,19 +1220,8 @@ async fn brain_test(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<Te
     else {
         return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
     };
-    let platform = kalsa_runtime::Platform::current().ok_or_else(|| {
-        failure::words(&failure::StartupFailure::NoBuildForThisMachine)
-    })?;
-
-    let detected = measurement.will_run_on;
-    let backend = kalsa_runtime::candidates_for(Some(platform), detected)
-        .first()
-        .copied()
+    let (engine_bytes, engine_on_disk) = engine_row(measurement.will_run_on)
         .ok_or_else(|| failure::words(&failure::StartupFailure::NoBuildForThisMachine))?;
-    let (engine_bytes, engine_on_disk) =
-        kalsa_runtime::engine_facts(platform, backend).ok_or_else(|| {
-            failure::words(&failure::StartupFailure::NoBuildForThisMachine)
-        })?;
     let options: Vec<capability::ModelChoiceDto> = [model, quicker].into_iter().flatten().collect();
     let total_bytes = options
         .iter()
@@ -1228,13 +1239,17 @@ async fn brain_test(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<Te
     })
 }
 
-/// "Allow", step two of the first run: fetch what the plan said was
-/// missing and tune BOTH suggested models on this machine — the existing
-/// tune, run once per option, each record filed under its own model —
-/// then answer. Nothing is left running: the walk prepares, the owner's
-/// pick (the ordinary choose-and-start) is what turns anything on.
+/// "Allow", step two of the first run: fetch and tune exactly the models
+/// the consent screen listed (`ids`, `brain_test`'s answer — Allow
+/// consents to those and nothing else), then answer. Nothing is left
+/// running: the walk prepares, the owner's pick (the ordinary
+/// choose-and-start) is what turns anything on. Allow stores no choice.
 #[tauri::command]
-async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
+async fn brain_allow(
+    app: tauri::AppHandle,
+    brain: State<'_, Brain>,
+    ids: Option<Vec<String>>,
+) -> Result<(), String> {
     let Some(_stops_seen) = brain.begin_walk(|| {}) else {
         return Err("The assistant is already starting.".into());
     };
@@ -1254,6 +1269,27 @@ async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let devices = enrolled_devices(&pairing_file(&app)?);
     let emitter = app.clone();
     let record_dir = record_dir.clone();
+    // Exactly the models the consent screen showed, each still on the
+    // menu — the catalog moving on between Test and Allow refuses the
+    // whole allow rather than fetching something nobody saw.
+    let ids = ids.unwrap_or_default();
+    let entries = startup::resolve_tokens(&ids)?;
+    // The disk must hold what is still missing, engine included: the
+    // engine may already sit here whole (its marker proves it), the
+    // models likewise by digest or reuse.
+    let (engine_bytes, engine_present) =
+        engine_row(kalsa_probe::backend()).unwrap_or((0, true));
+    let missing = u64::from(!engine_present) * engine_bytes
+        + startup::missing_bytes(&runtime_root, &entries);
+    if let Some(free) = startup::disk_free(&runtime_root) {
+        if free < missing {
+            let gib = (missing as f64 / 1_073_741_824.0).ceil();
+            return Err(format!(
+                "Kalsa needs {gib} GiB more free on this computer's disk before it can \
+                 download what it listed. Free some space and press Allow again."
+            ));
+        }
+    }
 
     // The measurement brain_test kept: reused, or taken now for a caller
     // that skipped Test (it is a fact about the machine either way).
@@ -1284,18 +1320,16 @@ async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             }
         };
         let reading = measured;
-        // The suggestions, exactly as the consent screen showed them.
-        let capability::CapabilityDto::Measured { model, quicker, .. } =
-            capability::dto(&machine.measurement, ram_bytes, phone, false, &runtime_root)
-        else {
-            return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
-        };
-        let tokens: Vec<String> = [model, quicker]
-            .into_iter()
-            .flatten()
-            .filter_map(|option| option.id)
-            .collect();
-        for token in &tokens {
+        // Exactly the ids the consent screen listed — Allow consents to
+        // those and nothing else.
+        let total = entries.len();
+        for (index, entry) in entries.iter().enumerate() {
+            let label = format!(
+                "Model {} of {}: {}",
+                index + 1,
+                total,
+                entry.display_name
+            );
             // One full walk per suggestion, forced onto that row: decide
             // (the engine — cached after the first), the fetch, and the
             // tune whose record lands under this model's digest. The
@@ -1307,7 +1341,8 @@ async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                 phone,
                 devices,
                 None,
-                Some(token),
+                Some(startup::model_token(entry).as_str()),
+                Some(label),
                 state_file.clone(),
                 slot_save_path.clone(),
                 &runtime_root,
@@ -1315,7 +1350,7 @@ async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             )
             .map_err(|failure| failure::words(&failure))?;
         }
-        Ok(reading)
+        Ok::<Option<(Measurement, u64, u64)>, String>(reading)
     })
     .await;
     // The reading rides home the same way a walk's does.
@@ -1401,6 +1436,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             phone,
             devices,
             model_override,
+            None,
             None,
             state_file,
             slot_save_path,
@@ -2012,6 +2048,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     chip: kalsa_probe::brand_string(),
                 },
             );
+            // A pre-choice install's working model becomes its stored
+            // choice, once, before any window can read capability: tuned
+            // and downloaded here is this machine's model, not a first
+            // run. Best effort — when nothing qualifies, the first run's
+            // flow answers.
+            if let Ok(state) = state_file(app.handle()) {
+                let runtime_root = kalsa_runtime::runtime_root();
+                startup::migrate_choice(&state, &runtime_root, &runtime_root.join("models"));
+            }
             // The authority, before anything below can read or write the
             // store: one exclusive lock on this account's own data
             // directory, held for the app's whole life. A refusal is the

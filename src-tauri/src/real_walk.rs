@@ -154,11 +154,15 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         Progress::Measuring => eprintln!("walk: measuring"),
         Progress::Deciding => eprintln!("walk: deciding the engine build"),
         Progress::Choosing => eprintln!("walk: the catalog is choosing"),
-        Progress::Tuning { done, total } => eprintln!("walk: tuning {done}/{total}"),
+        Progress::Tuning { label, done, total } => {
+            eprintln!("walk: tuning {done}/{total}");
+            let _ = label;
+        }
         Progress::RuntimeBytes { done, total } => {
             bytes_mark("runtime", done, total, &mut runtime_mark)
         }
-        Progress::ModelBytes { done, total } => {
+        Progress::ModelBytes { label, done, total } => {
+            let _ = label;
             transfer.observe(done);
             bytes_mark("model", done, total, &mut model_mark);
         }
@@ -168,6 +172,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         machine,
         None,
         1,
+        None,
         None,
         None,
         state_file,

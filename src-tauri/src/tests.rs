@@ -124,8 +124,14 @@ fn brain_allow_is_one_forced_walk_per_suggestion_and_starts_nothing() {
         .find("async fn brain_allow(")
         .expect("brain_allow is the first run's allow step");
     let body = brace_block(&source, at);
-    assert!(body.contains("for token in &tokens"), "one walk per suggestion");
-    assert!(body.contains("Some(token)"), "each walk is forced onto its own row");
+    assert!(
+        body.contains("for (index, entry) in entries.iter().enumerate()"),
+        "one walk per suggestion"
+    );
+    assert!(
+        body.contains("Some(startup::model_token(entry)"),
+        "each walk is forced onto its own row"
+    );
     assert!(
         !body.contains("queue_start"),
         "Allow starts nothing: the pick does that"

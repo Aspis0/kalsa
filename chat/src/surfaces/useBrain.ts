@@ -384,6 +384,13 @@ export function withBrainDefaults(
 }
 
 /** The state as words: headline, sentence, and the one honest button. */
+/// Drops the walk's live step: the walk it belonged to has answered, and
+/// its last phase must not hang on the progress screen over the answer.
+export function clearWalkStep(): void {
+  currentStep = null;
+  publish();
+}
+
 export interface BrainWords {
   headline: string;
   sentence: string;

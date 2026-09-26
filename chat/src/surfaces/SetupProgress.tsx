@@ -13,6 +13,9 @@ import type { CSSProperties } from "react";
 
 export interface ProgressStep {
   kind?: string;
+  // Which model the bytes or the settings belong to, when the walk is
+  // working through a list of them (the first run's Allow).
+  label?: string | null;
   done?: number;
   total?: number;
 }
@@ -115,7 +118,9 @@ function walkView(raw: ProgressStep, lastKind: { current: string | null }): Walk
     return {
       head: copy.head,
       sentence: copy.sentence,
-      progress: `${done} of ${planned} settings tried`,
+      progress: step.label
+        ? `${step.label} — ${done} of ${planned} settings tried`
+        : `${done} of ${planned} settings tried`,
       pct: null,
     };
   }
@@ -141,10 +146,13 @@ function walkView(raw: ProgressStep, lastKind: { current: string | null }): Walk
     };
   }
   const shown = display(done, total);
+  const label = step.label ? `${step.label} — ` : "";
   return {
     head: copy.head,
     sentence: copy.sentence,
-    progress: resumed ? `Picking up where it stopped — ${shown.text}` : shown.text,
+    progress: resumed
+      ? `${label}Picking up where it stopped — ${shown.text}`
+      : `${label}${shown.text}`,
     pct: shown.pct ?? 0,
   };
 }

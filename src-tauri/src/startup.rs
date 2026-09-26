@@ -91,13 +91,22 @@ pub(crate) enum Progress {
     RuntimeBytes { done: u64, total: u64 },
     /// The catalog is choosing the model.
     Choosing,
-    /// Bytes moving for the chosen model itself.
-    ModelBytes { done: u64, total: u64 },
+    /// Bytes moving for the chosen model itself. `label` names the model
+    /// when the walk carries one (Allow's per-suggestion walks).
+    ModelBytes {
+        label: Option<String>,
+        done: u64,
+        total: u64,
+    },
     /// Candidate settings being tried on the real model: how many
     /// lifetimes have finished, and how many are planned so far. The
     /// second field is named for the page's own wire: ProgressStep reads
     /// `total`, and one name on both sides is cheaper than a mapping.
-    Tuning { done: usize, total: usize },
+    Tuning {
+        label: Option<String>,
+        done: usize,
+        total: usize,
+    },
 }
 
 /// The funded maxima under both cache types. The guard compares against the
@@ -215,6 +224,7 @@ pub(crate) fn run(
     devices: u32,
     model_override: Option<PathBuf>,
     forced: Option<&str>,
+    label: Option<String>,
     state_file: PathBuf,
     slot_save_path: PathBuf,
     root: &Path,
@@ -231,8 +241,28 @@ pub(crate) fn run(
     let overrides = crate::options::load(&state_file);
     // The model choice: whoever the walk is working for — the stored
     // choice, or the `forced` token a caller names for this walk alone
-    // (the first-run flow tunes both suggestions without storing either).
+    // (Allow's consent names each suggestion it listed). It is also the
+    // consent: a model is fetched only for a choice, stored or forced.
     let chosen = forced.or(overrides.model.as_deref());
+    let consented = chosen.is_some();
+    // The byte-and-tune steps name their model when the walk carries a
+    // label (Allow's "Model 1 of 2: …"); everything else passes through.
+    let mut progress = |step: Progress| {
+        let step = match step {
+            Progress::ModelBytes { label: _, done, total } => Progress::ModelBytes {
+                label: label.clone(),
+                done,
+                total,
+            },
+            Progress::Tuning { label: _, done, total } => Progress::Tuning {
+                label: label.clone(),
+                done,
+                total,
+            },
+            other => other,
+        };
+        progress(step);
+    };
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -276,7 +306,7 @@ pub(crate) fn run(
                     )
                 },
             )?;
-            let path = place_model(&plan, root, progress)?;
+            let path = place_model(&plan, root, consented, &mut progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -308,7 +338,7 @@ pub(crate) fn run(
                 root,
                 main,
                 &mut memo,
-                progress,
+                &mut progress,
                 |resolved, rule, inner| {
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
@@ -606,9 +636,10 @@ pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupF
 fn place_model(
     plan: &DownloadPlan,
     root: &Path,
+    consented: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
-    acquire_model(plan, &root.join("models"), &default_roots(), progress)
+    acquire_model(plan, &root.join("models"), &default_roots(), consented, progress)
 }
 
 /// Puts the chosen model on disk, against the plan's digest. A copy already
@@ -656,10 +687,123 @@ fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource
     )
 }
 
+/// One-time migration for installs that predate the choice: a model that
+/// was tuned AND sits complete in this app's models directory was this
+/// machine's working model — store it as the stored choice, so the update
+/// reads as an update and not as a first run. Only the size is checked
+/// here (the walk's digest check re-proves the file the first time it
+/// runs); only a row on the menu whose pinned digest matches a record's
+/// filename qualifies; and nothing is written when a choice already
+/// exists. Answers whether a choice was stored.
+/// One-time migration for installs that predate the choice: a model that
+/// was tuned AND sits complete in this app's models directory was this
+/// machine's working model — store it as the stored choice, so the update
+/// reads as an update and not as a first run. Only the size is checked
+/// here (the walk's digest check re-proves the file the first time it
+/// runs); only a row on the menu whose pinned digest matches a record's
+/// filename qualifies; and nothing is written when a choice already
+/// exists. Answers whether a choice was stored.
+pub(crate) fn migrate_choice(state_file: &Path, records_dir: &Path, models_dir: &Path) -> bool {
+    let mut overrides = crate::options::load(state_file);
+    if overrides.model.is_some() {
+        return false;
+    }
+    for digest in kalsa_tune::record::recorded_models(records_dir) {
+        let Some(row) = usable()
+            .find(|candidate| candidate.source().sha256 == digest)
+            .map(|candidate| candidate.entry())
+        else {
+            continue;
+        };
+        let source = match entry_source(row) {
+            Some(source) => source,
+            None => continue,
+        };
+        let url = source.url();
+        let Some(name) = url.rsplit('/').next().filter(|name| !name.is_empty()) else {
+            continue;
+        };
+        let present = std::fs::metadata(models_dir.join(name))
+            .is_ok_and(|meta| meta.len() == source.bytes);
+        if present {
+            overrides.model = Some(model_token(row));
+            return crate::options::save(state_file, overrides).is_ok();
+        }
+    }
+    false
+}
+/// The rows behind the consent screen's ids, in order. An id nothing
+/// answers to — the catalog moved on between Test and Allow — refuses the
+/// whole allow: the screen showed models, and every one of them is what
+/// may be fetched.
+pub(crate) fn resolve_tokens(ids: &[String]) -> Result<Vec<&'static ModelEntry>, String> {
+    if ids.is_empty() {
+        return Err("Kalsa found no model to fetch for this computer.".to_string());
+    }
+    ids.iter()
+        .map(|id| {
+            row_for_token(id).ok_or_else(|| {
+                "One of the models Kalsa offered is not available anymore. Press Start                  and test this computer again."
+                    .to_string()
+            })
+        })
+        .collect()
+}
+
+/// The bytes still to fetch for these rows on this machine: a file already
+/// here — by the same no-download checks the walk makes — costs nothing.
+pub(crate) fn missing_bytes(models_root: &Path, entries: &[&ModelEntry]) -> u64 {
+    entries
+        .iter()
+        .filter(|entry| !model_on_disk(models_root, entry))
+        .map(|entry| {
+            entry_source(entry)
+                .map(|source| source.bytes)
+                .unwrap_or(0)
+        })
+        .sum()
+}
+
+/// Free bytes on the volume holding `path`, when the platform says. `None`
+/// is "the platform would not say", never zero: the caller skips the check
+/// rather than refuse a machine it could not measure.
+pub(crate) fn disk_free(path: &Path) -> Option<u64> {
+    #[cfg(unix)]
+    {
+        let c = std::ffi::CString::new(path.as_os_str().to_str()?).ok()?;
+        let mut fs: libc::statvfs = unsafe { std::mem::zeroed() };
+        // SAFETY: `c` is a valid NUL-terminated path; statvfs only reads it
+        // and fills the caller's struct.
+        let rc = unsafe { libc::statvfs(c.as_ptr(), &mut fs) };
+        (rc == 0).then(|| fs.f_bavail as u64 * fs.f_frsize as u64)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let wide: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let mut free: u64 = 0;
+        // SAFETY: `wide` is NUL-terminated; the call fills one u64.
+        let rc = unsafe {
+            windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
+                wide.as_ptr(),
+                &mut free,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+        (rc != 0).then_some(free)
+    }
+}
+
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
     roots: &[PathBuf],
+    consented: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
     let name = plan.url.rsplit('/').next().unwrap_or_default();
@@ -679,12 +823,20 @@ fn acquire_model(
     if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
     }
+    // The one download gate: a model is fetched only for a choice — the
+    // user's stored pick, or Allow's forced walk for exactly the models it
+    // listed. The automatic pick with nothing stored stops here instead.
+    if !consented {
+        return Err(StartupFailure::AwaitingChoice);
+    }
     progress(Progress::ModelBytes {
+        label: None,
         done: 0,
         total: plan.bytes,
     });
     let mut relay = |p: kalsa_download::Progress| {
         progress(Progress::ModelBytes {
+            label: None,
             done: p.bytes_done,
             total: p.bytes_total,
         })
@@ -1240,6 +1392,7 @@ mod tests {
             &plan,
             &root.join("models"),
             &[friendly_root.clone(), blob_root.clone()],
+            true,
             &mut |_| {},
         )
         .expect("the pinned copy in the digest store is on this disk");
@@ -1284,6 +1437,7 @@ mod tests {
             &plan,
             &root.join("models"),
             &[blob_root.clone(), friendly_root.clone()],
+            true,
             &mut |_| {},
         )
         .expect("the honest copy is still found");
@@ -1356,6 +1510,123 @@ mod tests {
         assert_eq!(row.display_name, chosen.display_name, "the stored choice was not honoured");
         assert_eq!(reason, CHOSEN_REASON, "and the reason says who chose");
         assert!(plan.bytes > 0 && !plan.url.is_empty() && plan.sha256.len() == 64, "the row brings its own pinned file");
+    }
+
+    #[test]
+    fn the_placement_stops_when_the_model_is_not_consented() {
+        // The one download gate: without a stored choice and without
+        // Allow's forced walk, a fetch is refused with a distinct verdict
+        // and costs zero bytes; with the consent (either one) the file is
+        // fetched and digest-verified as always.
+        let (url, requests) = serve(PLAN_BODY);
+        let root = scratch("ask-placement");
+        let plan = DownloadPlan {
+            url: url.clone(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+        };
+        let stopped = place_model(&plan, &root, false, &mut |_| {})
+            .expect_err("nothing consents here: the walk waits");
+        assert!(
+            matches!(stopped, StartupFailure::AwaitingChoice),
+            "a distinct verdict, not a download failure: {stopped:?}"
+        );
+        assert_eq!(
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the gate must cost no bytes: the download was never called"
+        );
+        let placed = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
+        assert_eq!(std::fs::read(&placed).expect("read"), PLAN_BODY);
+        let again = place_model(&plan, &root, false, &mut |_| {})
+            .expect("the file now on disk answers before the gate");
+        assert_eq!(again, placed, "and it is the same file");
+        assert_eq!(
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "one fetch in the whole test: the gate and the disk both refused to download"
+        );
+    }
+
+    #[test]
+    fn a_tuned_and_downloaded_model_migrates_to_the_stored_choice() {
+        // The upgrade a pre-choice install deserves: its working model —
+        // tuned (a record filed) and on disk at its pinned size — becomes
+        // the stored choice, once, and the update reads as an update. A
+        // machine with no records keeps its first run.
+        let root = scratch("migrate");
+        let machine = machine(Backend::Cpu);
+        let input = choice_input(ServerBackend::Cpu, &machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
+        let entry = automatic.entry;
+        let source = usable()
+            .find(|candidate| candidate.entry().repo == entry.repo)
+            .expect("the automatic pick is on the menu");
+        // The record and the file, planted the way an old install left them.
+        let record = kalsa_tune::record::Record {
+            fingerprint: "kalsa-tune fp v1|model=x|ctx=1".to_string(),
+            winner: None,
+            trials: vec![(
+                kalsa_tune::Candidate {
+                    backend: ServerBackend::Cpu,
+                    threads: Some(8),
+                    offload: kalsa_launch::Offload::NoGpuBuild,
+                },
+                kalsa_tune::record::Kept::Best(21.0),
+            )],
+        };
+        kalsa_tune::record::save(&root, source.source().sha256, &record).expect("record");
+        let name = source
+            .source()
+            .url()
+            .rsplit('/')
+            .next()
+            .expect("the pinned address names a file")
+            .to_string();
+        let models_dir = root.join("models");
+        std::fs::create_dir_all(&models_dir).expect("mkdirs");
+        std::fs::File::create(models_dir.join(&name))
+            .expect("create")
+            .set_len(source.source().bytes)
+            .expect("the size the plan is held to");
+        let state_file = root.join("server.state");
+        assert!(
+            migrate_choice(&state_file, &root, &models_dir),
+            "tuned and on disk: the choice migrates"
+        );
+        let stored = crate::options::load(&state_file);
+        assert_eq!(
+            stored.model.as_deref(),
+            Some(model_token(&entry).as_str()),
+            "the stored choice is the model the record named"
+        );
+        // Already chosen: the migration touches nothing.
+        assert!(
+            !migrate_choice(&state_file, &root, &models_dir),
+            "a stored choice is never overwritten"
+        );
+        // No records, no migration.
+        let empty = scratch("migrate-empty");
+        let empty_state = empty.join("server.state");
+        assert!(
+            !migrate_choice(&empty_state, &empty, &empty.join("models")),
+            "a machine with no records keeps its first run"
+        );
+    }
+
+    #[test]
+    fn the_consent_ids_resolve_or_refuse_together() {
+        let machine = machine(Backend::Cpu);
+        let input = choice_input(ServerBackend::Cpu, &machine, None);
+        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
+        let token = model_token(automatic.entry);
+        let good = resolve_tokens(&[token.clone()]).expect("a catalog token resolves");
+        assert_eq!(good.len(), 1);
+        let err = resolve_tokens(&[token, "not-a-token".to_string()])
+            .expect_err("one bad id refuses the whole allow");
+        assert!(err.contains("not available anymore"), "{err}");
+        let err = resolve_tokens(&[]).expect_err("nothing listed is nothing to fetch");
+        assert!(err.contains("no model to fetch"), "{err}");
     }
 
     #[test]
@@ -1747,7 +2018,7 @@ mod tests {
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
         };
-        let path = place_model(&plan, &root, &mut |_| {}).expect("downloaded");
+        let path = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
         assert_eq!(
             std::fs::read(&path).expect("read"),
             PLAN_BODY,
@@ -1756,7 +2027,7 @@ mod tests {
         assert_eq!(digest_of(PLAN_BODY), PLAN_SHA256);
         // A second pass with the file already on disk downloads nothing: the
         // on-disk bytes are re-hashed, and the server must not be asked again.
-        let path_again = place_model(&plan, &root, &mut |_| {}).expect("from disk");
+        let path_again = place_model(&plan, &root, true, &mut |_| {}).expect("from disk");
         assert_eq!(path_again, path);
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
@@ -1777,7 +2048,7 @@ mod tests {
             sha256: "0000000000000000000000000000000000000000000000000000000000000000",
         };
         let err =
-            place_model(&plan, &root, &mut |_| {}).expect_err("the digest is the promise");
+            place_model(&plan, &root, true, &mut |_| {}).expect_err("the digest is the promise");
         assert!(matches!(err, StartupFailure::DownloadCorrupted), "{err:?}");
         assert!(
             !root.join("models").join("stories260K.gguf").exists(),
@@ -1802,6 +2073,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
@@ -1847,6 +2119,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             None,
             PathBuf::from("/state/server.state"),
             slots.clone(),
@@ -1894,6 +2167,7 @@ mod tests {
             1,
             Some(PathBuf::from("/dev/model.gguf")),
             None,
+            None,
             PathBuf::from("/state/server.state"),
             blocker.join("slots"),
             &root,
@@ -1938,6 +2212,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
@@ -2351,6 +2626,7 @@ mod tests {
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
             None,
+            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2396,6 +2672,7 @@ mod tests {
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
             None,
+            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2436,6 +2713,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
+            None,
             None,
             state_file,
             root.join("slots"),
@@ -2721,6 +2999,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             None,
             PathBuf::from("/state/dev.state"),
             root.join("slots"),

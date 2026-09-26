@@ -491,3 +491,32 @@ pub fn invalidate(dir: &Path, model_digest: &str) {
 
 #[cfg(test)]
 mod tests;
+
+/// The models this store holds records for, by digest: the per-model
+/// files' names, plus the legacy single file's model read from its key.
+/// The migration that turns an old install's tuned-and-downloaded model
+/// into its stored choice walks this list; nothing else needs it.
+pub fn recorded_models(dir: &Path) -> Vec<String> {
+    let mut models: Vec<String> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            name.strip_prefix("tuning-")
+                .and_then(|rest| rest.strip_suffix(".txt"))
+                .map(str::to_owned)
+        })
+        .collect();
+    if let Some((saved, _)) = fs::read_to_string(legacy_path(dir))
+        .ok()
+        .and_then(|text| parse(&text))
+    {
+        if let Some(model) = saved.split('|').find_map(|field| field.strip_prefix("model=")) {
+            models.push(model.to_owned());
+        }
+    }
+    models.sort();
+    models.dedup();
+    models
+}
