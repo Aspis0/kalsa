@@ -167,7 +167,7 @@ jobs:
       # a second NDK — the free-disk step above removed the runner's own.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+          targets: aarch64-linux-android,x86_64-linux-android
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-ndk
@@ -188,21 +188,51 @@ jobs:
           # step.
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
-      - name: Build libkalsa_iroh_mobile.so (16 KB pages, every requested ABI)
+      - name: Build libkalsa_iroh_mobile.so (16 KB pages, every supported ABI)
         run: |
           READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
           test -x "$READELF" || { echo "FATAL: llvm-readelf not found in the NDK"; exit 1; }
           cd native/kalsa-iroh-mobile
+
+          # One use, three callers: run readelf, capture its exit and output
+          # separately — a failing readelf must fail the job, never hide
+          # behind a pipe into awk.
+          check_load_alignment() {
+            local so="$1" what="$2" out
+            if ! out=$("$READELF" -lW "$so" 2>&1); then
+              echo "FATAL: llvm-readelf failed on $what: $so"
+              printf '%s\n' "$out"
+              exit 1
+            fi
+            local loads
+            loads=$(printf '%s\n' "$out" | awk '$1=="LOAD"')
+            if [ -z "$loads" ]; then
+              echo "FATAL: $what has no LOAD segments at all: $so"
+              exit 1
+            fi
+            local bad
+            bad=$(printf '%s\n' "$loads" | awk '$NF!="0x4000" {print $1}')
+            if [ -n "$bad" ]; then
+              echo "FATAL: $what has LOAD segments not aligned to 0x4000 ($bad): $so"
+              exit 1
+            fi
+          }
+
           # The crate's .cargo/config.toml carries the 16 KB page-size flags
-          # (max and common). A failed build, a missing .so, or a LOAD
-          # segment off the 16 KB boundary fails the job here, before Gradle
-          # could package a stale or misaligned library.
+          # (max and common). A failed build, a missing or empty .so, or a
+          # misaligned LOAD fails the job here, before Gradle could package
+          # a stale or broken library.
           IFS=',' read -ra ABIS <<< "${{ inputs.abi }}"
           for ABI in "${ABIS[@]}"; do
             case "$ABI" in
               arm64-v8a) TRIPLE=aarch64-linux-android ;;
-              armeabi-v7a) TRIPLE=armv7-linux-androideabi ;;
               x86_64) TRIPLE=x86_64-linux-android ;;
+              armeabi-v7a)
+                # The input list stays as other sessions rely on it; the
+                # build refuses what llama.rn cannot ship.
+                echo "FATAL: armeabi-v7a is not supported: llama.rn excludes 32-bit ABIs"
+                exit 1
+                ;;
               *)
                 echo "FATAL: unsupported ABI for the iroh library: $ABI"
                 exit 1
@@ -210,16 +240,25 @@ jobs:
             esac
             cargo ndk -t "$ABI" build --release
             SO="target/$TRIPLE/release/libkalsa_iroh_mobile.so"
-            test -f "$SO" || { echo "FATAL: $SO was not built"; exit 1; }
-            BAD=$("$READELF" -lW "$SO" | awk '$1=="LOAD" && $NF!="0x4000" {print $1}')
-            if [ -n "$BAD" ]; then
-              echo "FATAL: $SO has LOAD segments not aligned to 0x4000: $BAD"
-              exit 1
-            fi
+            test -s "$SO" || { echo "FATAL: $SO is missing or empty"; exit 1; }
+            check_load_alignment "$SO" "libkalsa_iroh_mobile ($ABI)"
             DEST="../../modules/kalsa-iroh/android/src/main/jniLibs/$ABI"
             mkdir -p "$DEST"
             cp "$SO" "$DEST/"
           done
+
+          # JNA ships its own native dispatcher inside the AAR; the same
+          # 16 KB rule applies to it. Gradle has not resolved anything yet
+          # at this point in the job, so the pinned AAR comes straight from
+          # Maven (version read from the module's build.gradle, the one
+          # source of truth — the grep stops before the @aar classifier).
+          JNA_VERSION=$(grep -o 'jna:[0-9][0-9.]*' ../../modules/kalsa-iroh/android/build.gradle | head -1 | cut -d: -f2)
+          test -n "$JNA_VERSION" || { echo "FATAL: could not read the JNA version from build.gradle"; exit 1; }
+          AAR=$(mktemp -d)/jna.aar
+          curl -fsSL -o "$AAR" "https://repo1.maven.org/maven2/net/java/dev/jna/jna/$JNA_VERSION/jna-$JNA_VERSION.aar"
+          JNIDISPATCH=$(mktemp -d)
+          unzip -q -j "$AAR" "jni/arm64-v8a/libjnidispatch.so" -d "$JNIDISPATCH"
+          check_load_alignment "$JNIDISPATCH/libjnidispatch.so" "libjnidispatch (jna $JNA_VERSION)"
 
       # The llama.rn fork carries the engine sources in its cpp/ and the
       # plugin (plugins/withLlamaFromSource.js) always compiles them from

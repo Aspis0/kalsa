@@ -51,13 +51,16 @@ test("a POST body gets exactly one Content-Length, after the caller's headers", 
   );
 });
 
-test("caller-supplied Content-Length and Host are refused, not duplicated", () => {
+test("caller-supplied Content-Length, Host, and Transfer-Encoding are refused", () => {
   expect(() =>
     serializeHttpRequest({ ...BASE, headers: { "content-length": "5" } }),
   ).toThrow(/Content-Length/);
   expect(() =>
     serializeHttpRequest({ ...BASE, headers: { Host: "other" } }),
   ).toThrow(/Host/);
+  expect(() =>
+    serializeHttpRequest({ ...BASE, headers: { "Transfer-Encoding": "chunked" } }),
+  ).toThrow(/Transfer-Encoding/);
 });
 
 describe("request smuggling refusals", () => {

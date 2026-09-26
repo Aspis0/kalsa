@@ -16,6 +16,9 @@ const CRLF_BYTES = new Uint8Array([13, 10]);
 /** The response head is refused past this size — headers, not a document. */
 const MAX_HEAD_BYTES = 16 * 1024;
 
+/** One chunk-size or trailer line is refused past this size. */
+const MAX_LINE_BYTES = 4 * 1024;
+
 export type { IrohHttpRequest };
 
 /** What the iroh module's tunnels look like to this parser. */
@@ -38,6 +41,9 @@ export interface IrohHttpResponse {
   /** The whole body, refused past `maxTotalBytes` (SSE callers iterate
    * bodyChunks instead of buffering). */
   readBody(maxTotalBytes: number): Promise<Uint8Array>;
+  /** Close the tunnel now — for a response whose body will never be
+   * iterated. Idempotent, and shared with the body's own close. */
+  close(): Promise<void>;
 }
 
 export interface IrohHttpOptions {
@@ -63,14 +69,20 @@ function statusHasNoBody(status: number): boolean {
   return (status >= 100 && status < 200) || status === 204 || status === 304;
 }
 
-/** Chunked when the FINAL Transfer-Encoding coding token is "chunked". */
-function isChunked(headers: Record<string, string>): boolean {
-  const codings = (headers["transfer-encoding"] ?? "")
+/** Chunked when the FINAL Transfer-Encoding coding token is "chunked".
+ * When a Transfer-Encoding exists but does not end in chunked, the body
+ * is close-delimited and any Content-Length is ignored (RFC 9112 §6.1):
+ * a length on a coded body describes the coded form, not the bytes. */
+function transferCoding(headers: Record<string, string>): "chunked" | "coded" | "none" {
+  if (headers["transfer-encoding"] === undefined) return "none";
+  const codings = headers["transfer-encoding"]
     .toLowerCase()
     .split(",")
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
-  return codings.length > 0 && codings[codings.length - 1] === "chunked";
+  return codings.length > 0 && codings[codings.length - 1] === "chunked"
+    ? "chunked"
+    : "coded";
 }
 
 /** Parse the status line and headers of one response head (ASCII). */
@@ -108,9 +120,10 @@ export function parseResponseHead(head: string): {
 }
 
 /**
- * Send one request on `tunnel` and parse the response head. The tunnel is
- * shut down when the body ends (or errors, or the response has no body);
- * callers do not close it themselves.
+ * Send one request on `tunnel` and parse the response head. The response
+ * owns the tunnel's close: it fires when the body ends, errors, or the
+ * response has no body — or when the caller, done with a body it never
+ * iterated, calls `close()`. Callers never shut the tunnel themselves.
  */
 export async function openIrohHttpRequest(
   tunnel: IrohTunnel,
@@ -119,7 +132,19 @@ export async function openIrohHttpRequest(
 ): Promise<IrohHttpResponse> {
   const readMax = options.readMax ?? 16384;
   const timeoutMs = options.timeoutMs ?? 30000;
-  await tunnel.write(serializeHttpRequest(request), timeoutMs);
+  let closed = false;
+  const closeTunnel = async (): Promise<void> => {
+    if (!closed) {
+      closed = true;
+      await tunnel.shutdown();
+    }
+  };
+  try {
+    await tunnel.write(serializeHttpRequest(request), timeoutMs);
+  } catch (error) {
+    await closeTunnel();
+    throw error;
+  }
 
   const window = new ByteWindow();
   let status: number;
@@ -142,26 +167,30 @@ export async function openIrohHttpRequest(
       asciiString(headBytes),
     ));
   } catch (error) {
-    await tunnel.shutdown();
+    await closeTunnel();
     throw error;
   }
 
   const headOnly =
     statusHasNoBody(status) || request.method.toUpperCase() === "HEAD";
-  if (headOnly) {
-    await tunnel.shutdown();
-  }
+  const coding = transferCoding(headers);
   const chunks = headOnly
     ? emptyChunks()
-    : isChunked(headers)
-      ? dechunked(tunnel, window, readMax, timeoutMs)
+    : coding === "chunked"
+      ? dechunked(tunnel, window, readMax, timeoutMs, closeTunnel)
       : lengthOrCloseDelimited(
           tunnel,
           window,
-          headers["content-length"],
+          // A coded body that does not end in chunked is close-delimited;
+          // its Content-Length describes the coded form and is ignored.
+          coding === "none" ? headers["content-length"] : undefined,
           readMax,
           timeoutMs,
+          closeTunnel,
         );
+  if (headOnly) {
+    await closeTunnel();
+  }
 
   return {
     status,
@@ -169,6 +198,7 @@ export async function openIrohHttpRequest(
     headers,
     bodyChunks: () => chunks,
     readBody: (maxTotalBytes) => collectBounded(chunks, maxTotalBytes),
+    close: closeTunnel,
   };
 }
 
@@ -209,6 +239,7 @@ async function* dechunked(
   window: ByteWindow,
   readMax: number,
   timeoutMs: number,
+  closeTunnel: () => Promise<void>,
 ): AsyncGenerator<Uint8Array> {
   try {
     while (true) {
@@ -239,7 +270,7 @@ async function* dechunked(
   } finally {
     // Completion, error, or an early return from the consumer: the
     // one-request tunnel is done either way.
-    await tunnel.shutdown();
+    await closeTunnel();
   }
 }
 
@@ -250,6 +281,11 @@ async function readChunkSize(
   timeoutMs: number,
 ): Promise<number> {
   while (window.indexOf(CRLF_BYTES) < 0) {
+    // A size line without an end inside the cap is a hostile frame; the
+    // window must not grow to hold it.
+    if (window.length > MAX_LINE_BYTES) {
+      throw new Error(`chunk size line exceeds ${MAX_LINE_BYTES} bytes`);
+    }
     await refill(tunnel, window, readMax, timeoutMs);
   }
   const line = asciiString(window.take(window.indexOf(CRLF_BYTES)));
@@ -264,7 +300,8 @@ async function readChunkSize(
   return size;
 }
 
-/** Trailers run to an empty line; an EOF before it is a torn body. */
+/** Trailers run to an empty line; an EOF before it is a torn body, and a
+ * trailer line without an end inside the cap is refused like a size line. */
 async function drainTrailers(
   tunnel: IrohTunnel,
   window: ByteWindow,
@@ -281,6 +318,9 @@ async function drainTrailers(
       window.take(at + CRLF_BYTES.length);
       continue;
     }
+    if (window.length > MAX_LINE_BYTES) {
+      throw new Error(`trailer line exceeds ${MAX_LINE_BYTES} bytes`);
+    }
     await refill(tunnel, window, readMax, timeoutMs);
   }
 }
@@ -292,10 +332,11 @@ async function* lengthOrCloseDelimited(
   contentLength: string | undefined,
   readMax: number,
   timeoutMs: number,
+  closeTunnel: () => Promise<void>,
 ): AsyncGenerator<Uint8Array> {
   const total = contentLength === undefined ? null : Number(contentLength);
   if (total !== null && (!Number.isFinite(total) || total < 0)) {
-    await tunnel.shutdown();
+    await closeTunnel();
     throw new Error(`not a Content-Length: ${contentLength}`);
   }
   let remaining = total;
@@ -318,7 +359,7 @@ async function* lengthOrCloseDelimited(
       yield piece;
     }
   } finally {
-    await tunnel.shutdown();
+    await closeTunnel();
   }
 }
 

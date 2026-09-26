@@ -22,11 +22,13 @@ function text(bytes: Uint8Array): string {
 class FakeTunnel implements IrohTunnel {
   readonly writes: Uint8Array[] = [];
   shutdowns = 0;
+  failWrites = false;
 
   constructor(private readonly reads: Uint8Array[]) {}
 
   async write(bytes: Uint8Array, timeoutMs: number): Promise<void> {
     expect(timeoutMs).toBeGreaterThan(0);
+    if (this.failWrites) throw new Error("write refused");
     this.writes.push(bytes);
   }
 
@@ -146,6 +148,24 @@ describe("size caps", () => {
 });
 
 describe("framing refusals", () => {
+  test("a chunk size line past 4 KiB is refused", async () => {
+    const head = ascii("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+    // A size line that never ends: 6 KiB of hex digits, no CRLF.
+    const tunnel = new FakeTunnel([head, ascii("f".repeat(6 * 1024))]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+    await expect(response.readBody(64)).rejects.toThrow(/size line exceeds/);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
+  test("a trailer line past 4 KiB is refused", async () => {
+    const head = ascii("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+    // The terminal chunk opens trailers, which then never end.
+    const tunnel = new FakeTunnel([head, ascii("0\r\n"), ascii("t".repeat(6 * 1024))]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+    await expect(response.readBody(64)).rejects.toThrow(/trailer line exceeds/);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
   test("a duplicate Content-Length is refused", async () => {
     const head = ascii(
       "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\n",
@@ -165,15 +185,16 @@ describe("framing refusals", () => {
     expect(text(await response.readBody(16))).toBe("x");
   });
 
-  test("chunked is not assumed when another coding comes last", async () => {
-    // "chunked, gzip" cannot be dechunked by this client: it must not
-    // pretend the body is plain chunked framing.
+  test("a Transfer-Encoding not ending in chunked is close-delimited, its Content-Length ignored", async () => {
+    // RFC 9112 §6.1: a coded body that does not end in chunked is closed
+    // by connection end; the length (here 2, lying) describes the coded
+    // form and must not bound the read.
     const head = ascii(
-      "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked, gzip\r\nContent-Length: 4\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked, gzip\r\nContent-Length: 2\r\n\r\n",
     );
     const tunnel = new FakeTunnel([head, ascii("abcd")]);
     const response = await openIrohHttpRequest(tunnel, REQUEST);
-    expect(text(await response.readBody(16))).toBe("abcd");
+    expect(text(await response.readBody(64))).toBe("abcd");
   });
 
   test("a missing CRLF after chunk data is refused", async () => {
@@ -211,6 +232,29 @@ describe("framing refusals", () => {
     const tunnel = new FakeTunnel([head, ascii("short")]);
     const response = await openIrohHttpRequest(tunnel, REQUEST);
     await expect(response.readBody(64)).rejects.toThrow(/bytes owed/);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+});
+
+describe("shutdown ownership", () => {
+  test("a response dropped without iteration closes its tunnel on close()", async () => {
+    const head = ascii("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n");
+    const tunnel = new FakeTunnel([head, ascii("hello")]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+    expect(tunnel.shutdowns).toBe(0);
+    await response.close();
+    expect(tunnel.shutdowns).toBe(1);
+    // The body was never iterated, and the tunnel stays closed once.
+    await response.close();
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
+  test("a failed request write closes the tunnel", async () => {
+    const tunnel = new FakeTunnel([]);
+    tunnel.failWrites = true;
+    await expect(openIrohHttpRequest(tunnel, REQUEST)).rejects.toThrow(
+      /write refused/,
+    );
     expect(tunnel.shutdowns).toBe(1);
   });
 });

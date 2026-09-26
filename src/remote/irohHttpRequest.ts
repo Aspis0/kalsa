@@ -53,6 +53,9 @@ export function serializeHttpRequest(request: IrohHttpRequest): Uint8Array {
     if (name.toLowerCase() === "host") {
       throw new Error("Host comes from request.host, never from headers");
     }
+    if (name.toLowerCase() === "transfer-encoding") {
+      throw new Error("Transfer-Encoding is not supported on requests");
+    }
   }
   const body = request.body ?? null;
   const lines = [
