@@ -106,7 +106,7 @@ pub(crate) enum CapabilityDto {
         machine: MachineDto,
         /// Whether a model choice is stored. False marks the first run: the
         /// home page answers it with the Start flow instead of an automatic
-        /// start — unless a usable model is already on this computer.
+        /// start.
         chosen: bool,
         /// The catalog's pick, when it has one.
         model: Option<ModelChoiceDto>,
@@ -151,7 +151,7 @@ pub(crate) struct ModelChoiceDto {
     pub(crate) id: Option<String>,
     name: String,
     quant: String,
-    pub(crate) weights_bytes: u64,
+    weights_bytes: u64,
     /// The context this machine would actually fund for the row, from the
     /// launch arithmetic — never the chooser's one-token pricing, which on
     /// the screen would read "context window: 1 token". `None` when the row
@@ -167,10 +167,6 @@ pub(crate) struct ModelChoiceDto {
     /// one is recorded. `None` is the ordinary first sight: the number
     /// exists only after the tune has run.
     measured: Option<f64>,
-    /// Whether the row's file already answers on this disk — the consent
-    /// screen says "already on this computer" instead of a size, and a
-    /// machine holding its model is not a first run.
-    pub(crate) on_disk: bool,
     /// `Selection::plain_reason` — already written for a human, pass it through.
     reason: String,
     /// `Selection::details` — the full working, for whoever asks.
@@ -245,7 +241,6 @@ pub(crate) fn dto(
                     speed_context_tokens: context,
                     speed: speed(&shown),
                     measured: row.and_then(|row| measured_speed(root, row)),
-                    on_disk: row.is_some_and(|row| crate::startup::model_on_disk(root, row)),
                     reason: selection.plain_reason,
                     details: selection.details,
                 }),
@@ -277,7 +272,6 @@ pub(crate) fn dto(
                             speed_context_tokens: context,
                             speed: speed(&shown),
                             measured: measured_speed(root, row.entry),
-                            on_disk: crate::startup::model_on_disk(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
                             // The working quotes the same figure as the line
                             // above it: built from `row.decode` it quoted the
@@ -328,7 +322,6 @@ pub(crate) fn dto(
                 speed_context_tokens: context,
                 speed: speed(&shown),
                 measured,
-                on_disk: crate::startup::model_on_disk(root, row.entry),
                 reason: reason.to_string(),
                 details: alternative_details(&row, &shown),
             }
@@ -530,7 +523,6 @@ mod tests {
                 // one for the row — part of the contract, so the sample
                 // shows it.
                 measured: Some(18.4),
-                on_disk: false,
                 reason: "It runs a clearly bigger model than your phone does.".to_string(),
                 details: "the full working".to_string(),
             }),
@@ -549,7 +541,6 @@ mod tests {
                     machine: "an M1 Max".to_string(),
                 },
                 measured: None,
-                on_disk: false,
                 reason: QUICKER_REASON.to_string(),
                 details: "the full working".to_string(),
             }),
@@ -572,7 +563,6 @@ mod tests {
         assert_eq!(json["model"]["speed"]["low"], 12.0);
         assert_eq!(json["model"]["speed"]["high"], 21.0);
         assert_eq!(json["model"]["measured"], 18.4);
-        assert_eq!(json["model"]["on_disk"], false);
         assert_eq!(json["quicker"]["measured"], serde_json::Value::Null);
         assert_eq!(json["quicker"]["name"], "Arcee Trinity Nano");
         assert_eq!(json["quicker"]["speed"]["shape"], "measured");
@@ -607,7 +597,6 @@ mod tests {
                 "id",
                 "measured",
                 "name",
-                "on_disk",
                 "quant",
                 "reason",
                 "speed",

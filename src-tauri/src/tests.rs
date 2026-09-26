@@ -94,61 +94,6 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
 }
 
 #[test]
-fn brain_test_answers_without_downloading_anything() {
-    // Test's whole promise: sizes and presence are read from the release
-    // table and the disk, and no fetch is wired in. A decide, a placement
-    // or a download call in this body moves megabytes on a first run —
-    // this pin goes red first.
-    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
-        .expect("main.rs is readable");
-    let at = source
-        .find("async fn brain_test(")
-        .expect("brain_test is the first run's measure step");
-    let body = brace_block(&source, at);
-    for banned in ["startup::run(", "place_model", "acquire_model", "kalsa_runtime::decide("] {
-        assert!(
-            !body.contains(banned),
-            "brain_test must not fetch anything: `{banned}` found in its body"
-        );
-    }
-}
-
-#[test]
-fn brain_allow_is_one_forced_walk_per_suggestion_and_starts_nothing() {
-    // Allow's shape: one full walk per option token (the engine cached
-    // after the first, the tune filed under that model's own digest), and
-    // nothing queued to start — the pick is what turns anything on.
-    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
-        .expect("main.rs is readable");
-    let at = source
-        .find("async fn brain_allow(")
-        .expect("brain_allow is the first run's allow step");
-    let body = brace_block(&source, at);
-    assert!(
-        body.contains("for (index, entry) in entries.iter().enumerate()"),
-        "one walk per suggestion"
-    );
-    assert!(
-        body.contains("Some(startup::model_token(entry)"),
-        "each walk is forced onto its own row"
-    );
-    assert!(
-        !body.contains("queue_start"),
-        "Allow starts nothing: the pick does that"
-    );
-    // The forced choice is the walk's choice slot, ahead of any stored one.
-    let startup =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/startup.rs"))
-            .expect("startup.rs is readable");
-    let run_at = startup.find("pub(crate) fn run(").expect("the walk");
-    let run_body = brace_block(&startup, run_at);
-    assert!(
-        run_body.contains("let chosen = forced.or(overrides.model.as_deref());"),
-        "the forced token leads; a stored choice is the default"
-    );
-}
-
-#[test]
 fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
     // A store this app cannot read stands the DOOR down; the brain —
     // running, answering the local chat — does not report itself failed

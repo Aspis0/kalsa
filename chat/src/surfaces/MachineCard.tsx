@@ -30,10 +30,6 @@ export interface ModelOption {
   // null until the tune has run. It outranks the predicted speed beside
   // it: a measurement of this computer beats an arithmetic about it.
   measured: number | null;
-  // Whether the row's file already answers on this disk — the consent
-  // screen says so instead of a size, and a machine holding a usable
-  // model is not a first run.
-  on_disk: boolean;
   reason: string; // one or two sentences, already written for a human
   details: string; // the full working, technical
 }
@@ -43,9 +39,8 @@ export type Capability =
   | { kind: "unmeasured"; chosen: boolean }
   | {
       kind: "measured";
-      /** Whether a model choice is stored. False is the first run's waiting
-          state: the walk measured this computer and stopped before choosing —
-          nothing downloads until the pick is made. */
+      /** Whether a model choice is stored. False is a first run: the home
+          page shows Start, and nothing downloads before Allow. */
       chosen: boolean;
       machine: {
         ram_bytes: number;

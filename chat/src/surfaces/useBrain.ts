@@ -570,10 +570,9 @@ export function useBrain() {
         currentStep = null;
         publish();
         await invoke("brain_start");
-        // A walk that ended without starting anything — the first run
-        // waiting for a choice — leaves the state stopped: its last step
-        // would otherwise hold the progress screen up over the waiting
-        // page. The read is the poll AFTER the command, never the one
+        // A walk that ended without starting anything — a Turn off that
+        // landed mid-walk — leaves the state stopped: its last step would
+        // otherwise hold the progress screen up over the stopped page. The read is the poll AFTER the command, never the one
         // before it: a start that took answers `starting` here and keeps
         // its step.
         await poll();

@@ -46,33 +46,35 @@ pub fn runtime_root() -> std::path::PathBuf {
     store::root()
 }
 
-/// The engine builds' published bytes for one platform and backend — the
-/// archives only; the probe model is a separate line item
-/// ([`probe_model_bytes`]) so a caller summing several candidate builds
-/// counts it once. `None` when the release table is unverified: sizes
-/// nobody pinned are sizes nobody can promise.
-pub fn engine_bytes(platform: Platform, backend: ServerBackend) -> Option<u64> {
-    let mut total = 0u64;
-    for asset in assets::assets_for(platform, backend) {
-        if !asset.verified() {
-            return None;
+/// The most a [`decide`] over these candidate builds could still fetch:
+/// every build not already whole on disk, plus the probe model when it is
+/// absent. Zero means nothing is missing. `None` when a missing piece's
+/// size is unpinned: sizes nobody pinned are sizes nobody can promise.
+pub fn engine_missing_bytes(platform: Platform, backends: &[ServerBackend]) -> Option<u64> {
+    let root = store::root();
+    let mut missing = 0u64;
+    for &backend in backends {
+        if build_on_disk(&root, platform, backend) {
+            continue;
         }
-        total += asset.size_bytes?;
+        for asset in assets::assets_for(platform, backend) {
+            if !asset.verified() {
+                return None;
+            }
+            missing += asset.size_bytes?;
+        }
     }
-    Some(total)
-}
-
-/// The probe model's published bytes, for callers summing the engine's
-/// true cost across candidate builds.
-pub fn probe_model_bytes() -> Option<u64> {
-    assets::probe_model().size_bytes
+    if !store::probe_model_on_disk(&root) {
+        missing += assets::probe_model().size_bytes?;
+    }
+    Some(missing)
 }
 
 /// Whether a whole engine build for this backend already sits on disk —
 /// the same marker validation a start performs, with no fetch.
-pub fn engine_on_disk(platform: Platform, backend: ServerBackend) -> bool {
+fn build_on_disk(root: &std::path::Path, platform: Platform, backend: ServerBackend) -> bool {
     let assets = assets::assets_for(platform, backend);
-    let dir = store::builds_dir(&store::root(), backend);
+    let dir = store::builds_dir(root, backend);
     let runtime: Vec<(&str, &str)> = assets
         .iter()
         .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))

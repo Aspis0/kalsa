@@ -9,9 +9,8 @@
 //! The downloads are consented before the walk starts (the first-run
 //! flow's Test and Allow); the walk itself fetches what the choice —
 //! stored, or forced for this walk alone — names. A turn-on with nothing
-//! stored and nothing on disk refuses at the model's own fetch
-//! (`AwaitingChoice`): the one guard standing between a stray Turn on and
-//! an un-consented download, whatever surface pressed it.
+//! stored is refused before any walk (`first_run::require_choice`); the
+//! model's own fetch refuses too (`AwaitingChoice`), as the second line.
 //!
 //! The model step follows the catalog: the choice is fetched against its
 //! digest (a verified copy in another program's cache beats the download,
@@ -642,19 +641,11 @@ fn place_model(
     acquire_model(plan, &root.join("models"), &default_roots(), consented, progress)
 }
 
-/// Puts the chosen model on disk, against the plan's digest. A copy already
-/// on disk — ours, or another program's — is hash-checked or digest-found
-/// before any download happens. Another program's stores are searched cheap
-/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
-/// stat, and the store whose name claims our digest is read once to
-/// confirm), with `find_local` underneath for stores that name files like
-/// files. `roots` is handed in rather than taken from the environment so
-/// the search is a fact a test can pin.
 /// Whether the row's file already answers on this disk, by the same two
 /// no-download checks [`acquire_model`] makes: a digest-verified copy in
 /// this app's models directory, or a reusable one in another program's
-/// store. The consent screen and the fresh-install rule are built on it —
-/// what is already here costs nothing, and must be said to.
+/// store. It hashes a present file whole, so it belongs on a blocking
+/// thread, never in a read the window makes often.
 pub(crate) fn model_on_disk(root: &Path, entry: &ModelEntry) -> bool {
     let Some(source) = entry_source(entry) else {
         return false;
@@ -687,118 +678,14 @@ fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource
     )
 }
 
-/// One-time migration for installs that predate the choice: a model that
-/// was tuned AND sits complete in this app's models directory was this
-/// machine's working model — store it as the stored choice, so the update
-/// reads as an update and not as a first run. Only the size is checked
-/// here (the walk's digest check re-proves the file the first time it
-/// runs); only a row on the menu whose pinned digest matches a record's
-/// filename qualifies; and nothing is written when a choice already
-/// exists. Answers whether a choice was stored.
-/// One-time migration for installs that predate the choice: a model that
-/// was tuned AND sits complete in this app's models directory was this
-/// machine's working model — store it as the stored choice, so the update
-/// reads as an update and not as a first run. Only the size is checked
-/// here (the walk's digest check re-proves the file the first time it
-/// runs); only a row on the menu whose pinned digest matches a record's
-/// filename qualifies; and nothing is written when a choice already
-/// exists. Answers whether a choice was stored.
-pub(crate) fn migrate_choice(state_file: &Path, records_dir: &Path, models_dir: &Path) -> bool {
-    let mut overrides = crate::options::load(state_file);
-    if overrides.model.is_some() {
-        return false;
-    }
-    for digest in kalsa_tune::record::recorded_models(records_dir) {
-        let Some(row) = usable()
-            .find(|candidate| candidate.source().sha256 == digest)
-            .map(|candidate| candidate.entry())
-        else {
-            continue;
-        };
-        let source = match entry_source(row) {
-            Some(source) => source,
-            None => continue,
-        };
-        let url = source.url();
-        let Some(name) = url.rsplit('/').next().filter(|name| !name.is_empty()) else {
-            continue;
-        };
-        let present = std::fs::metadata(models_dir.join(name))
-            .is_ok_and(|meta| meta.len() == source.bytes);
-        if present {
-            overrides.model = Some(model_token(row));
-            return crate::options::save(state_file, overrides).is_ok();
-        }
-    }
-    false
-}
-/// The rows behind the consent screen's ids, in order. An id nothing
-/// answers to — the catalog moved on between Test and Allow — refuses the
-/// whole allow: the screen showed models, and every one of them is what
-/// may be fetched.
-pub(crate) fn resolve_tokens(ids: &[String]) -> Result<Vec<&'static ModelEntry>, String> {
-    if ids.is_empty() {
-        return Err("Kalsa found no model to fetch for this computer.".to_string());
-    }
-    ids.iter()
-        .map(|id| {
-            row_for_token(id).ok_or_else(|| {
-                "One of the models Kalsa offered is not available anymore. Press Start                  and test this computer again."
-                    .to_string()
-            })
-        })
-        .collect()
-}
-
-/// The bytes still to fetch for these rows on this machine: a file already
-/// here — by the same no-download checks the walk makes — costs nothing.
-pub(crate) fn missing_bytes(models_root: &Path, entries: &[&ModelEntry]) -> u64 {
-    entries
-        .iter()
-        .filter(|entry| !model_on_disk(models_root, entry))
-        .map(|entry| {
-            entry_source(entry)
-                .map(|source| source.bytes)
-                .unwrap_or(0)
-        })
-        .sum()
-}
-
-/// Free bytes on the volume holding `path`, when the platform says. `None`
-/// is "the platform would not say", never zero: the caller skips the check
-/// rather than refuse a machine it could not measure.
-pub(crate) fn disk_free(path: &Path) -> Option<u64> {
-    #[cfg(unix)]
-    {
-        let c = std::ffi::CString::new(path.as_os_str().to_str()?).ok()?;
-        let mut fs: libc::statvfs = unsafe { std::mem::zeroed() };
-        // SAFETY: `c` is a valid NUL-terminated path; statvfs only reads it
-        // and fills the caller's struct.
-        let rc = unsafe { libc::statvfs(c.as_ptr(), &mut fs) };
-        (rc == 0).then(|| fs.f_bavail as u64 * fs.f_frsize as u64)
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::ffi::OsStrExt;
-        let wide: Vec<u16> = path
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-        let mut free: u64 = 0;
-        // SAFETY: `wide` is NUL-terminated; the call fills one u64.
-        let rc = unsafe {
-            windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
-                wide.as_ptr(),
-                &mut free,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-            )
-        };
-        (rc != 0).then_some(free)
-    }
-}
-
+/// Puts the chosen model on disk, against the plan's digest. A copy already
+/// on disk — ours, or another program's — is hash-checked or digest-found
+/// before any download happens. Another program's stores are searched cheap
+/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
+/// stat, and the store whose name claims our digest is read once to
+/// confirm), with `find_local` underneath for stores that name files like
+/// files. `roots` is handed in rather than taken from the environment so
+/// the search is a fact a test can pin.
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
@@ -1253,7 +1140,7 @@ pub(crate) fn ram_bytes() -> u64 {
 
 /// Size first, then the digest: the cheap check decides whether the expensive
 /// one is worth running.
-fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
+pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
     let Ok(mut file) = std::fs::File::open(path) else {
         return false;
     };
@@ -1274,7 +1161,7 @@ fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use kalsa_probe::{Backend, ExecutionPath, Reliability, Series};
     use std::io::Write;
@@ -1306,7 +1193,7 @@ mod tests {
         }
     }
 
-    fn machine(backend: Backend) -> Machine {
+    pub(crate) fn machine(backend: Backend) -> Machine {
         Machine {
             measurement: measured(80.0e9, backend),
             ram_bytes: 16 * 1024 * 1024 * 1024,
@@ -1549,92 +1436,10 @@ mod tests {
     }
 
     #[test]
-    fn a_tuned_and_downloaded_model_migrates_to_the_stored_choice() {
-        // The upgrade a pre-choice install deserves: its working model —
-        // tuned (a record filed) and on disk at its pinned size — becomes
-        // the stored choice, once, and the update reads as an update. A
-        // machine with no records keeps its first run.
-        let root = scratch("migrate");
-        let machine = machine(Backend::Cpu);
-        let input = choice_input(ServerBackend::Cpu, &machine, None);
-        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
-        let entry = automatic.entry;
-        let source = usable()
-            .find(|candidate| candidate.entry().repo == entry.repo)
-            .expect("the automatic pick is on the menu");
-        // The record and the file, planted the way an old install left them.
-        let record = kalsa_tune::record::Record {
-            fingerprint: "kalsa-tune fp v1|model=x|ctx=1".to_string(),
-            winner: None,
-            trials: vec![(
-                kalsa_tune::Candidate {
-                    backend: ServerBackend::Cpu,
-                    threads: Some(8),
-                    offload: kalsa_launch::Offload::NoGpuBuild,
-                },
-                kalsa_tune::record::Kept::Best(21.0),
-            )],
-        };
-        kalsa_tune::record::save(&root, source.source().sha256, &record).expect("record");
-        let name = source
-            .source()
-            .url()
-            .rsplit('/')
-            .next()
-            .expect("the pinned address names a file")
-            .to_string();
-        let models_dir = root.join("models");
-        std::fs::create_dir_all(&models_dir).expect("mkdirs");
-        std::fs::File::create(models_dir.join(&name))
-            .expect("create")
-            .set_len(source.source().bytes)
-            .expect("the size the plan is held to");
-        let state_file = root.join("server.state");
-        assert!(
-            migrate_choice(&state_file, &root, &models_dir),
-            "tuned and on disk: the choice migrates"
-        );
-        let stored = crate::options::load(&state_file);
-        assert_eq!(
-            stored.model.as_deref(),
-            Some(model_token(&entry).as_str()),
-            "the stored choice is the model the record named"
-        );
-        // Already chosen: the migration touches nothing.
-        assert!(
-            !migrate_choice(&state_file, &root, &models_dir),
-            "a stored choice is never overwritten"
-        );
-        // No records, no migration.
-        let empty = scratch("migrate-empty");
-        let empty_state = empty.join("server.state");
-        assert!(
-            !migrate_choice(&empty_state, &empty, &empty.join("models")),
-            "a machine with no records keeps its first run"
-        );
-    }
-
-    #[test]
-    fn the_consent_ids_resolve_or_refuse_together() {
-        let machine = machine(Backend::Cpu);
-        let input = choice_input(ServerBackend::Cpu, &machine, None);
-        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
-        let token = model_token(automatic.entry);
-        let good = resolve_tokens(&[token.clone()]).expect("a catalog token resolves");
-        assert_eq!(good.len(), 1);
-        let err = resolve_tokens(&[token, "not-a-token".to_string()])
-            .expect_err("one bad id refuses the whole allow");
-        assert!(err.contains("not available anymore"), "{err}");
-        let err = resolve_tokens(&[]).expect_err("nothing listed is nothing to fetch");
-        assert!(err.contains("no model to fetch"), "{err}");
-    }
-
-    #[test]
     fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
-        // The automatic answer for a walk that fetches it: a fresh install
-        // whose pick is already on disk, the development path's pinned
-        // binary, and the fallback a stale stored choice rides — everything
-        // but the fresh install whose placement stops at the fetch. What
+        // The automatic answer for a walk that fetches it: the development
+        // path's pinned binary, and the fallback a stale stored choice
+        // rides. What
         // this answers must still be exactly what the catalog answers,
         // plan and reason and all, compared against the catalog itself
         // rather than against a copied expectation.

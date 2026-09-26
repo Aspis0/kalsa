@@ -231,7 +231,7 @@ const STATES = [
     name: "refusal",
     file: "shots/71-brain-refusal.png",
     state: { kind: "stopped" },
-    capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: false, model: null, quicker: null, refusal: PHONE_UNKNOWN },
+    capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: true, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
     presence: "This computer is not running anything right now.",
     walkStep: true,
@@ -276,35 +276,44 @@ const STATES = [
     presence: "This computer is ready for you.",
   },
   {
-    // The first run: a machine with no choice stored and nothing usable on
-    // it owns the page — one round button and its one line, nothing else.
+    // The first run: a machine with no choice stored owns the page — one
+    // round button and its one line, nothing else. Then Start's answer
+    // (the consent) and Allow's (the card) are shot too.
     name: "start",
     file: "shots/77-brain-start.png",
+    firstRun: true,
     state: { kind: "stopped" },
-    capability: { kind: "measured", machine: CPU_ONLY, chosen: false, model: MODEL, quicker: null, refusal: null },
+    capability: {
+      kind: "measured",
+      machine: MAC,
+      chosen: false,
+      model: { ...MODEL, measured: 18.4 },
+      quicker: { ...QUICK_MODEL, measured: 58.1 },
+      refusal: null,
+    },
     marker: "Start",
     presence: "Kalsa checks this computer and finds the best settings for it.",
-    // After the shot: Test's answer, so the consent screen is shot too.
-    clickStart: {
-      brain_test: {
-        engine_bytes: 26_491_005,
-        engine_on_disk: false,
-        options: [
-          { ...MODEL, on_disk: false, measured: null },
-          { ...QUICK_MODEL, on_disk: true, measured: null },
-        ],
-        refusal: null,
-        total_bytes: 26_491_005 + MODEL.weights_bytes,
-      },
+    brainTest: {
+      engine_bytes: 26_491_005,
+      options: [
+        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.weights_bytes, on_disk: false },
+        { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.weights_bytes, on_disk: true },
+      ],
+      refusal: null,
+      total_bytes: 26_491_005 + MODEL.weights_bytes,
     },
+    consentFile: "shots/78-brain-consent.png",
     consentMarker: "Downloads needed",
-    consentPresence: "Kalsa needs the pieces below to run on this computer. Without them it cannot work.",
+    consentPresence: "Kalsa downloads what is missing and tests each model on this computer. Then you pick one.",
+    cardFile: "shots/79-brain-card.png",
+    cardMarker: "58.1 tokens/s",
   },
   {
     // Unmeasured IS the real fresh install — the probe has never run — and
     // it owns the same Start screen a measured first run gets.
     name: "unmeasured",
     file: "shots/73-brain-unmeasured.png",
+    firstRun: true,
     state: { kind: "stopped" },
     capability: { kind: "unmeasured", chosen: false },
     marker: "Start",
@@ -398,6 +407,7 @@ async function layout(page) {
   return page.evaluate((expected) => {
     const at = (n) => Math.round(n);
     const box = (el) => {
+      if (!el) return null;
       const r = el.getBoundingClientRect();
       return { left: at(r.left), right: at(r.right), top: at(r.top), bottom: at(r.bottom) };
     };
@@ -527,7 +537,7 @@ async function main() {
         answers: {
           brain_state: fixture.state,
           brain_capability: fixture.capability,
-          ...(fixture.clickStart?.brain_test ? { brain_test: fixture.clickStart.brain_test } : {}),
+          ...(fixture.brainTest ? { brain_test: fixture.brainTest } : {}),
         },
         seeded: fixture.name === "pick" ? SEEDED : null,
         refuse: fixture.refuse ?? [],
@@ -547,19 +557,19 @@ async function main() {
         text: card.innerText,
       };
     });
-    // The first run owns the page: no card exists to wait for, and its
-    // option rows are the consent screen's, checked in the clickStart
-    // block below.
-    if (fixture.capability.kind === "measured" && !fixture.clickStart) {
+    // The first run owns the page: no card before Allow.
+    if (fixture.firstRun) {
+      if (tiles) throw new Error(`${fixture.name}: the first run printed the card before Allow`);
+    } else if (fixture.capability.kind === "measured") {
       await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
-    } else if (tiles && !fixture.clickStart) {
+    } else if (tiles) {
       throw new Error(`${fixture.name}: unmeasured state printed numbers`);
     }
 
     await page.waitForTimeout(500);
     const held = await layout(page);
     const problems = [];
-    if (fixture.capability.model && !fixture.clickStart) {
+    if (fixture.capability.model && !fixture.firstRun) {
       // One block per option, in the order the backend sent them: the pick
       // first, the faster alternative — when the machine has one — under it.
       // A machine with a single speed class must show exactly one block.
@@ -607,7 +617,10 @@ async function main() {
         problems.push("a funded context printed none");
       }
     }
-    if (held.bar.bottom > WINDOW.height || held.scrollTop !== 0) {
+    if (fixture.firstRun) {
+      // Only the button and its line: no writing bar, no settings row.
+      if (held.bar !== null || held.nav !== null) problems.push("the first run shows more than Start");
+    } else if (held.bar.bottom > WINDOW.height || held.scrollTop !== 0) {
       problems.push(`writing bar bottom ${held.bar.bottom} > ${WINDOW.height}`);
     }
     // And the page itself, not just the bar: `.surface-page`'s bottom padding
@@ -616,12 +629,14 @@ async function main() {
     if (held.scrollHeight > WINDOW.height) {
       problems.push(`the page scrolls: ${held.scrollHeight} tall in ${WINDOW.height}`);
     }
-    if (!held.sameWords) {
+    if (fixture.firstRun) {
+      // The row's absence was checked above.
+    } else if (!held.sameWords) {
       problems.push(`the home row is [${held.labelled}] not [${MACHINE}]`);
     } else if (!held.allInside) {
       problems.push(`settings outside the viewport: ${JSON.stringify(held.boxes)}`);
     }
-    console.log(
+    if (!fixture.firstRun) console.log(
       `  ${fixture.name}: bar ${held.bar.bottom}/${WINDOW.height}, ` +
         `machine items ${held.labelled.length}/4 in ${held.rows} row(s) ${held.rowWidth}px wide inside a ` +
         `${held.nav.bottom - held.nav.top}px nav (${held.nav.top}-${held.nav.bottom}), ` +
@@ -644,7 +659,7 @@ async function main() {
     await page.setViewportSize(SMALL);
     await page.waitForTimeout(300);
     const small = await layout(page);
-    console.log(
+    if (!fixture.firstRun) console.log(
       `  ${fixture.name} at ${SMALL.width}x${SMALL.height}: bar bottom ${small.bar.bottom}, ` +
         `machine items ${small.labelled.length}/4 in ${small.rows} row(s) ${small.rowWidth}px wide ` +
         `${small.allInside ? "inside" : "OFF SCREEN"} (nav ${small.nav.top}-${small.nav.bottom}), ` +
@@ -677,16 +692,20 @@ async function main() {
       await page.click(".brain-presence .btn-primary");
       await mustText(page, STOP_REFUSED, `${fixture.name} refused turn-off`);
     }
-    // The consent screen: Start's own click, answered by the stub. Driven
-    // after the first shot so the Start screen itself is what the first
-    // marker and presence pin.
-    if (fixture.clickStart) {
+    // The consent screen: Start's own click, answered by the stub; then
+    // Allow's, which lands on the card with the tune's measured speeds.
+    if (fixture.brainTest) {
       await page.setViewportSize(WINDOW);
       await page.click(".first-run-start");
       await mustText(page, fixture.consentMarker, `${fixture.name} consent`);
       await mustText(page, fixture.consentPresence, `${fixture.name} consent sentence`);
       await mustText(page, "already on this computer", `${fixture.name} on-disk mark`);
-      await mustText(page, "The engine that runs the model", `${fixture.name} engine size`);
+      await mustText(page, "The engine that runs the model — up to", `${fixture.name} engine size`);
+      await shot(page, fixture.consentFile);
+      await page.getByRole("button", { name: "Allow" }).click();
+      await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
+      await mustText(page, fixture.cardMarker, `${fixture.name} card`);
+      await shot(page, fixture.cardFile);
     }
     // Last, because it leaves the brain page: the morph's two widths, back at
     // the window size the app opens in.

@@ -533,23 +533,13 @@
     }
 
     #[test]
-    fn the_store_names_the_models_it_holds_records_for() {
-        // The migration's map: per-model files name their digest, and the
-        // legacy single file names the model its key carries. Both appear;
-        // nothing else does.
-        let dir = Scratch::new("recorded");
-        save(&dir, DIGEST, &sample()).expect("the first save");
-        let mut other = sample();
-        other.fingerprint = fp(OTHER_DIGEST);
-        save(&dir, OTHER_DIGEST, &other).expect("the second save");
-        let mut models = recorded_models(&dir);
-        models.sort();
-        assert_eq!(models, vec![DIGEST.to_string(), OTHER_DIGEST.to_string()]);
-        // The legacy file's model, read from its key.
-        std::fs::remove_file(path(&dir, DIGEST).expect("hex digest")).expect("remove per-model");
-        std::fs::remove_file(path(&dir, OTHER_DIGEST).expect("hex digest")).expect("remove other");
-        save(&dir, DIGEST, &sample()).expect("re-save");
+    fn the_legacy_file_names_the_model_its_key_carries() {
+        // Only the legacy single file answers: per-model records name
+        // their model by file name and are never a legacy install's.
+        let dir = Scratch::new("legacy-model");
+        save(&dir, DIGEST, &sample()).expect("a per-model save");
+        assert_eq!(legacy_model(&dir), None, "a per-model record is not the legacy file");
         std::fs::rename(path(&dir, DIGEST).expect("hex digest"), legacy_path(&dir)).expect("age it");
-        assert_eq!(recorded_models(&dir), vec![DIGEST.to_string()]);
-        assert_eq!(recorded_models(&dir.parent().expect("parent").join("no-such")), Vec::<String>::new());
+        assert_eq!(legacy_model(&dir), Some(DIGEST.to_string()));
+        assert_eq!(legacy_model(&dir.parent().expect("parent").join("no-such")), None);
     }
