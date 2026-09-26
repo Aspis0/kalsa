@@ -65,16 +65,24 @@ require_numeric() {
 hard_stops() {
   require_numeric skin "$LIVE_SKIN"
   require_numeric thermal_status "$LIVE_THERMAL_STATUS"
-  require_numeric battery_temp "$LIVE_BATT_TEMP_TENTHS"
   require_numeric battery_level "$LIVE_BATT_LEVEL"
   [ "$LIVE_THERMAL_STATUS" -ge 3 ] && session_stop thermal_status
-  # Rule A5 (house rule): the battery stop is never disarmed. The skin stop at
-  # 46 C is ALWAYS armed on a QDC board (coordinator 2026-09-26: every QDC
-  # board seen had a fake battery) and ADDED on a local phone whose sensor
-  # battery_trust.sh flags; nothing here can disarm a stop.
-  awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
-  if [ "${QDC_BOARD:-1}" = "1" ] || [ "$BATTERY_UNTRUSTED" = "1" ]; then
+  if [ "${QDC_BOARD:-1}" = "1" ]; then
+    # QDC (coordinator 2026-09-26, within the owner's rule "untrusted battery
+    # -> skin >= 46"): every QDC board is untrusted and its battery value is
+    # injected (same unit read 42.0 then 44.0 with skin 30.6), so the battery
+    # reading is logged only — neither a stop nor a required reading — and the
+    # skin >= 46 C stop REPLACES it.
     awk -v v="$LIVE_SKIN" 'BEGIN{exit !(v+0 >= 46.0)}' && session_stop skin_fallback
+  else
+    # Local phones, rule A5: the battery stop is always armed (an untrusted
+    # verdict may be a false positive on a real battery); an untrusted verdict
+    # only ADDS the skin stop.
+    require_numeric battery_temp "$LIVE_BATT_TEMP_TENTHS"
+    awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
+    if [ "$BATTERY_UNTRUSTED" = "1" ]; then
+      awk -v v="$LIVE_SKIN" 'BEGIN{exit !(v+0 >= 46.0)}' && session_stop skin_fallback
+    fi
   fi
   [ "$LIVE_BATT_LEVEL" -le 25 ] && session_stop battery_level
   [ "$LIVE_PLUGGED" = true ] && session_stop plugged

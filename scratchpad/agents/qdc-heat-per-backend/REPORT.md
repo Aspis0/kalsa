@@ -1331,3 +1331,12 @@ restored exactly, holder gone, app stopped. QRD8635 / QRD7675 still Unavailable 
 
 Decision needed (coordinator/owner): A5 vs QDC stubs ≥ 44.0 (the injected value varies per session: 42.0,
 40.0, 44.0 on QRD8750; 25.0 on QRD8650). Retrying QRD8750 may land on the same unit again.
+
+## QDC: battery stop replaced by skin ≥ 46 (coordinator, within the owner's untrusted-battery rule)
+
+`safety.sh hard_stops`: on QDC (`QDC_BOARD=1`, the default) the battery temperature is logged only — neither
+a stop nor a required reading — and **skin ≥ 46 °C replaces it**; stops there: skin ≥ 46, thermal ≥ 3,
+level ≤ 25 %, plugged, missing skin/thermal/level. Local phones unchanged (A5: battery ≥ 44 always armed and
+required; skin ≥ 46 added if untrusted). Dry-runs (fake adb, canned tokens 127, restored after):
+QDC battery 44.0 + skin 30 → no stop, 2 OK rows, EXIT=0; QDC skin 46.5 → `STOP skin_fallback`, EXIT=0; local
+(port 5037) battery 44.5 → `STOP battery_temp`, EXIT=0.
