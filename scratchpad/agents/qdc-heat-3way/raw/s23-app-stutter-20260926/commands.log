@@ -1,0 +1,74 @@
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_power_before.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell am force-stop com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_force_stop.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell dumpsys gfxinfo com.kalsa.app reset > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_gfx_reset.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell log -t S23_STUTTER_DIAG cold1_launch > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_marker.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell monkey -p com.kalsa.app 1 > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_launch.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell pidof com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_pid.log 2>&1; echo EXIT=0
+adb -s SERIAL shell top -H -b -n 6 -d 5 -p 22317 > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_top.log 2>&1; echo EXIT=$?
+EXIT=0
+adb -s SERIAL shell dumpsys gfxinfo com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_gfxinfo.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL logcat -d -v threadtime > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_logcat_all.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run1_power_after.log 2>&1; echo EXIT=0
+EXIT=0
+adb -s SERIAL shell input keyevent KEYCODE_WAKEUP > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_wakeup.log 2>&1; echo EXIT=0
+adb -s SERIAL shell wm dismiss-keyguard >> scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_wakeup.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell am force-stop com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_force_stop.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys gfxinfo com.kalsa.app reset > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_gfx_reset.log 2>&1; echo EXIT=0
+adb -s SERIAL shell log -t S23_STUTTER_DIAG cold2_launch > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_marker.log 2>&1; echo EXIT=0
+adb -s SERIAL shell monkey -p com.kalsa.app 1 > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_launch.log 2>&1; echo EXIT=0
+adb -s SERIAL shell pidof com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_pid.log 2>&1; echo EXIT=0
+adb -s SERIAL shell top -H -b -n 6 -d 5 -p 22749 > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_top.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys gfxinfo com.kalsa.app > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_gfxinfo.log 2>&1; echo EXIT=0
+adb -s SERIAL logcat -d -v threadtime > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_logcat_all.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/run2_power_after.log 2>&1; echo EXIT=0
+nohup adb WAKEUP loop (4 s interval) > raw/.../wake_keepalive.log 2>&1 &
+adb -s SERIAL shell "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell pkill -INT -f "llama-completio[n]" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_interrupt.log 2>&1; echo EXIT=1
+adb -s SERIAL shell pkill -INT -f "llama-completio[n]" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_interrupt.log 2>&1; echo EXIT=130
+adb -s SERIAL shell dumpsys power > raw/.../runA1_power_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell dumpsys battery > raw/.../runA1_battery_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell dumpsys thermalservice > raw/.../runA1_thermal_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq > raw/.../runA1_cpu7_freq_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell ps -A | grep -E "llama|bench" > raw/.../runA1_processes_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys battery > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_battery_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys thermalservice > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_thermal_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_cpu7_freq_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell ps -A | grep -E "llama|bench" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA1_processes_after.log 2>&1; echo EXIT=1
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt --poll 1000 -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB1.log 2>&1; echo EXIT=$?
+while true; do adb -s SERIAL shell input keyevent KEYCODE_WAKEUP >> wake_keepalive.log 2>&1; echo EXIT=$? >> wake_keepalive.log; date -u +%Y-%m-%dT%H:%M:%SZ >> wake_keepalive.log; sleep 4; done
+adb -s SERIAL shell pkill -INT -f "llama-completio[n]" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB1_interrupt.log 2>&1; echo EXIT=130
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys battery > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1_battery_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys thermalservice > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1_thermal_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1_cpu7_freq_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA_valid1_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB_valid1_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt --poll 1000 -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB_valid1.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB_valid1_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA2_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA2.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runA2_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB2_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-completion -m ship.gguf -lm none -f prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt --poll 1000 -ngl 0" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB2.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/runB2_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/bench_power_before.log 2>&1; echo EXIT=0
+adb -s SERIAL shell -t "set -e; cd /data/local/tmp/heat3way; export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1; printf 'CPUSET='; cat /proc/self/cpuset; exec ./bin/llama-bench -m ship.gguf -ngl 0 -t 8 --poll 1000 -fa 1 -p 0 -n 64 -d 1018 -r 3" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/llama_bench_cpu.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell dumpsys battery > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/bench_mid_battery.log 2>&1; echo EXIT=0
+adb -s SERIAL shell dumpsys thermalservice > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/bench_mid_thermal.log 2>&1; echo EXIT=0
+adb -s SERIAL shell pkill -INT -f "llama-ben[ch]" > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/bench_interrupt.log 2>&1; echo EXIT=130
+adb -s SERIAL shell dumpsys power > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/cpu-decode/bench_power_after.log 2>&1; echo EXIT=0
+adb -s SERIAL shell settings delete system screen_off_timeout > raw/.../restore_timeout.log 2>&1; echo EXIT=$?
+adb -s SERIAL shell settings get system screen_off_timeout > raw/.../restore_timeout_check.log 2>&1; echo EXIT=0
+adb -s SERIAL shell getprop persist.traced.enable > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/post_traced.log 2>&1; echo EXIT=0
+adb -s SERIAL shell settings get system screen_off_timeout > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/post_timeout.log 2>&1; echo EXIT=0
+adb -s SERIAL shell settings get global stay_on_while_plugged_in > scratchpad/agents/qdc-heat-3way/raw/s23-app-stutter-20260926/post_stay_on.log 2>&1; echo EXIT=0

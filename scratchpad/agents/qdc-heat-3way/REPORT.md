@@ -274,3 +274,60 @@ the clearest confounds; these single trials do not isolate a scheduler cause.
 
 Raw commands, full binary output, per-test pre/post safety readings, cpusets,
 DSP snapshots, and screen restore are in `raw/s23-cli-diag-20260926/`.
+
+## S23 startup jank and CPU decode repeat — 2026-09-26
+
+No cell code or app data changed. Two cold launches of `com.kalsa.app` were
+measured idle for 30 s after launch. `gfxinfo`: run 1, 3/11 janky (27.27%),
+p50/p90/p99 11/27/32 ms; run 2, 3/10 (30.00%), 10/48/48 ms. **The idle
+startup is janky in both samples**, though the frame counts are small. `top`
+peaks while loading were `mqt_v_native` 84.4% / 96.1%, with
+`FrescoDecodeExe` 63.8% and `AsyncTask` 72.4% also busy. Logcat reports
+`KALSA_PREWARM done` at 14,263.837 ms and 14,252.387 ms (prompt_n 1660),
+in `raw/s23-app-stutter-20260926/run{1,2}_load_logcat.log`.
+
+Representative timestamped logcat lines:
+
+```
+09-26 16:48:38.329 22317 22346 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+09-26 16:48:52.651 22317 22346 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14263.837,"promptN":1660,"hash":"3677660334"}'
+09-26 16:49:53.782 22749 22774 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+09-26 16:50:08.059 22749 22774 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14252.387,"promptN":1660,"hash":"3677660334"}'
+```
+
+CPU-only CLI repeats used the verified 1018-token `prompt.txt`, `-ngl 0`,
+`-n 64 --ignore-eos`, 8 threads and `-fa 1`, in A-B-A-B order (A default
+poll; B `--poll 1000`). Each valid process reported `CPUSET=/`; power state
+was Awake before and after every run, and the background WAKEUP interval
+never exceeded 5 s. `-n 64` yielded 63 eval runs in all four complete runs.
+
+| Run | Start battery / temp / thermal / cpu7 MHz | Raw eval line | tok/s |
+|---|---|---|---:|
+| A1 | 51% / 35.5 C / 0 / 864 | `1084640.27 ms / 63 runs` | 0.06 |
+| B1 | 42% / 37.4 C / 1 / 864 | `641214.61 ms / 63 runs` | 0.10 |
+| A2 | 37% / 37.8 C / 1 / 864 | `525778.83 ms / 63 runs` | 0.12 |
+| B2 | 33% / 37.2 C / 1 / 864 | `3766.11 ms / 63 runs` | 16.73 |
+
+Rates are not stable enough to attribute the difference to polling: the
+second B line reports 16.73 tok/s but its total time includes 97.6 s
+unaccounted, versus 0.10 tok/s in B1. The preliminary A/B attempts are also
+retained but marked invalid because their detached keepalive exited, leaving
+continuous Awake state unproven. The four valid
+records, raw perf lines, sensor/power captures, and wake timestamps are in
+`raw/s23-app-stutter-20260926/cpu-decode/`.
+
+Quoted raw completion eval lines:
+
+```
+A1 19.02.456.871 I common_perf_print:        eval time = 1084640.27 ms /    63 runs   (17216.51 ms per token,     0.06 tokens per second)
+B1 11.51.099.349 I common_perf_print:        eval time =  641214.61 ms /    63 runs   (10178.01 ms per token,     0.10 tokens per second)
+A2 9.32.848.522 I common_perf_print:        eval time =  525778.83 ms /    63 runs   ( 8345.70 ms per token,     0.12 tokens per second)
+B2 1.56.393.210 I common_perf_print:        eval time =    3766.11 ms /    63 runs   (   59.78 ms per token,    16.73 tokens per second)
+```
+
+The requested CPU-only `llama-bench` (`-ngl 0 -t 8 --poll 1000 -fa 1 -p 0
+-n 64 -d 1018 -r 3`) was interrupted before a result row when the battery
+reached the 25% hard stop (40.6 C, thermal 2); no bench rate is reported.
+Final `persist.traced.enable` remained 0, timeout was restored to `null`,
+and `stay_on_while_plugged_in` remained 0. No uninstall or data clear was
+performed.
