@@ -182,14 +182,16 @@ describe("PairingSession delivery-token lifecycle", () => {
 describe("pairing request boundary", () => {
   test("an over-limit body is refused before fetch", async () => {
     const fetcher = jest.fn();
-    await expect(postPairingJson("https://computer.example/pair/claim", "x".repeat(8193), fetcher)).resolves.toBeNull();
+    await expect(postPairingJson("https://computer.example/pair/claim", "x".repeat(8193), fetcher))
+      .resolves.toEqual({ ok: false, reason: "request_too_large" });
     expect(fetcher).not.toHaveBeenCalled();
   });
 
   test("an over-limit request head is refused before fetch", async () => {
     const fetcher = jest.fn();
     const url = `https://computer.example/${"x".repeat(8192)}`;
-    await expect(postPairingJson(url, "{}", fetcher)).resolves.toBeNull();
+    await expect(postPairingJson(url, "{}", fetcher))
+      .resolves.toEqual({ ok: false, reason: "request_too_large" });
     expect(fetcher).not.toHaveBeenCalled();
   });
 

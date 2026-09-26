@@ -190,6 +190,23 @@ describe("pairing failure stages", () => {
     expect(failRecords(log)).toEqual([{ stage: "seal", status: 200 }]);
   });
 
+  test("a request the size caps refuse before fetch logs request_too_large, not a network stage", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const fetcher = jest.fn();
+    const session = new PairingSession({
+      // pairUrl keeps the host; a host this long pushes the reconstructed
+      // request head past MAX_HEAD_BYTES inside postPairingJson.
+      deskUrl: `http://${"a".repeat(9000)}:8443`,
+      square,
+      phone,
+      fetcher: fetcher as unknown as PairingFetch,
+      randomBytes: random(0xc0),
+    });
+    await expect(session.begin()).resolves.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(failRecords(log)).toEqual([{ stage: "request_too_large", status: null }]);
+  });
+
   test("the failure line carries only stage and status, never wire material", async () => {
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
     const fetcher: PairingFetch = async () => response(403, "");

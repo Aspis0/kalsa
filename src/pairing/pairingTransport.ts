@@ -86,14 +86,19 @@ export async function postPairingJson(
   url: string,
   body: string,
   fetcher: PairingFetch = globalThis.fetch as PairingFetch,
-): Promise<PairingResponse | null> {
+): Promise<
+  | { ok: true; response: PairingResponse }
+  | { ok: false; reason: "request_too_large" | "network" }
+> {
   try {
     const contentLength = utf8Bytes(body).byteLength;
-    if (contentLength > MAX_BODY_BYTES) return null;
+    // The caller must distinguish a refusal before any network call from a
+    // lost one, so each null path names its reason.
+    if (contentLength > MAX_BODY_BYTES) return { ok: false, reason: "request_too_large" };
     const parsed = new URL(url);
     const head = `POST ${parsed.pathname}${parsed.search} HTTP/1.1\r\nHost: ${parsed.host}\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: ${contentLength}\r\n\r\n`;
-    if (utf8Bytes(head).byteLength > MAX_HEAD_BYTES) return null;
-    return await fetcher(url, {
+    if (utf8Bytes(head).byteLength > MAX_HEAD_BYTES) return { ok: false, reason: "request_too_large" };
+    const response = await fetcher(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -102,9 +107,10 @@ export async function postPairingJson(
       },
       body,
     });
+    return { ok: true, response };
   } catch {
     // The wire provides no useful failure class. The caller sees one refusal.
-    return null;
+    return { ok: false, reason: "network" };
   }
 }
 
@@ -183,13 +189,13 @@ export class PairingSession {
       return null;
     }
     const claim = await postPairingJson(claimUrl, `{"code":"${this.options.square.code}"}`, this.fetcher);
-    if (!claim) {
-      logPairingFail("claim_network", null);
+    if (!claim.ok) {
+      logPairingFail(claim.reason === "request_too_large" ? "request_too_large" : "claim_network", null);
       this.finished = true;
       return null;
     }
-    if (claim.status !== 200) {
-      logPairingFail("claim_status", claim.status);
+    if (claim.response.status !== 200) {
+      logPairingFail("claim_status", claim.response.status);
       this.finished = true;
       return null;
     }
@@ -225,12 +231,13 @@ export class PairingSession {
         delivery_token_hex: this.deliveryToken,
       });
       const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
-      const response = await postPairingJson(this.completeUrl, body, this.fetcher);
-      if (!response) {
-        logPairingFail("complete_network", null);
+      const result = await postPairingJson(this.completeUrl, body, this.fetcher);
+      if (!result.ok) {
+        logPairingFail(result.reason === "request_too_large" ? "request_too_large" : "complete_network", null);
         this.completeRetryPending = true;
         return null;
       }
+      const response = result.response;
       // Any response ends this ceremony. A received 200 must never be replayed.
       this.finished = true;
       this.completeRetryPending = false;

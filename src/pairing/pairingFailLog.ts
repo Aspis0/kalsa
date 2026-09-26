@@ -7,7 +7,9 @@ export type PairingFailStage =
   | "complete_network"
   | "complete_status"
   | "seal"
-  | "save";
+  | "save"
+  | "request_too_large"
+  | "unexpected";
 
 /**
  * One always-on line per failed pairing attempt. logcat must answer "which

@@ -50,10 +50,15 @@ jest.mock("./PairingQrScanner", () => ({
 
 // The transport lazily requires expo-crypto for its default random source;
 // a queue of fill bytes stands in for the CSPRNG (jest.mock factories may
-// only close over "mock"-prefixed bindings).
+// only close over "mock"-prefixed bindings). Setting mockRandomError makes
+// the constructor throw, the one path that escapes the ceremony's own catches.
 let mockRandomFills: number[] = [0xc0];
+let mockRandomError: Error | null = null;
 jest.mock("expo-crypto", () => ({
-  getRandomBytes: (length: number) => new Uint8Array(length).fill(mockRandomFills.shift() ?? 0xc0),
+  getRandomBytes: (length: number) => {
+    if (mockRandomError) throw mockRandomError;
+    return new Uint8Array(length).fill(mockRandomFills.shift() ?? 0xc0);
+  },
 }));
 
 import React from "react";
@@ -70,6 +75,7 @@ let storedCredential = { ...preexistingCredential };
 beforeEach(() => {
   jest.clearAllMocks();
   mockRandomFills = [0xc0];
+  mockRandomError = null;
   storedCredential = { ...preexistingCredential };
   saveCredentialMock.mockImplementation(async (credential, doorUrl) => {
     storedCredential = {
@@ -313,6 +319,25 @@ describe("PairingScreen", () => {
     expect(fails).toHaveLength(1);
     expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "save", status: null });
     expect(String(fails[0][1])).not.toContain("c0".repeat(16));
+    log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("a throw that escapes every named stage logs unexpected and refuses", async () => {
+    installFetch(200);
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    mockRandomError = new Error("native crypto missing");
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.refused" })).toBeDefined();
+    const stages = log.mock.calls
+      .filter((call) => call[0] === "KALSA_PAIRING_FAIL")
+      .map((call) => JSON.parse(String(call[1])).stage);
+    // The transport names the random failure, then the rethrow lands here.
+    expect(stages).toEqual(["random", "unexpected"]);
     log.mockRestore();
     await act(async () => renderer.unmount());
   });

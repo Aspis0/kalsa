@@ -121,7 +121,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       setState("waiting");
     } catch {
       // The pairing response is deliberately opaque: one refusal sentence for
-      // bad input, an unavailable desk, and every server-side rejection.
+      // bad input, an unavailable desk, and every server-side rejection. A
+      // throw reaching here escaped every named stage and must still leave
+      // its one line in logcat.
+      logPairingFail("unexpected", null);
       setState("refused");
     } finally {
       setBusy(false);
