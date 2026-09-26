@@ -1,0 +1,4 @@
+# Runtime state of d_run.sh / restore.sh (serial + pre-run screen timeout),
+# written before the first device mutation and deleted at the next session
+# start. Not in git (same rule as qdc-heat-per-backend).
+.restore-state

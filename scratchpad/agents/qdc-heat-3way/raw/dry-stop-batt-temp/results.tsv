@@ -1,0 +1,2 @@
+pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	thermal_status	prompt_n	prefill_ms	decode_runs	decode_tps	proof
+1	cpu	1	OK	na	0	0	0	0	33.5	33.5	310	310	88	false	0	1018	45000.00	127	14.00	cpu_no_offload

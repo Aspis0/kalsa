@@ -1,0 +1,107 @@
+== fixture: six-arms (order CGNNGC, happy path) ==
+PASS  six rc
+PASS  six END
+PASS  six rows
+PASS  six arm sequence
+PASS  six pairs
+PASS  six all-OK
+PASS  six prompt_n
+PASS  six decode_runs
+PASS  six cpu prefill
+PASS  six gpu prefill
+PASS  six npu prefill
+PASS  six cpu proof
+PASS  six gpu proof
+PASS  six npu proof
+PASS  six npu proof ops
+PASS  six skin_before
+PASS  six restore-ran
+PASS  six timeout-restored
+PASS  six stayon-restored
+PASS  six no-unknown-shell
+PASS  six samples.txt
+PASS  six list-devices
+== fixture: missing HTP proof voids the N arm ==
+PASS  nohtp rc
+PASS  nohtp END
+PASS  nohtp rows
+PASS  nohtp status
+PASS  nohtp void_reason
+PASS  nohtp backend
+PASS  nohtp restore-ran
+PASS  nohtp timeout-restored
+PASS  nohtp stayon-restored
+PASS  nohtp no-unknown-shell
+== fixture: missing GPU proof voids the G arm ==
+PASS  nogpu rc
+PASS  nogpu rows
+PASS  nogpu status
+PASS  nogpu void_reason
+PASS  nogpu restore-ran
+PASS  nogpu timeout-restored
+PASS  nogpu stayon-restored
+== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
+PASS  warm rc
+PASS  warm END
+PASS  warm rows
+PASS  warm all-OK
+PASS  warm warm_start
+PASS  warm cooldown_s
+PASS  warm skin_before recorded
+PASS  warm restore-ran
+PASS  warm timeout-restored
+PASS  warm stayon-restored
+== fixture: stop thermal_status >= 3 (injected at first gate) ==
+PASS  st rc
+PASS  st END
+PASS  st rows
+PASS  st restore-ran
+PASS  st timeout-restored
+PASS  st stayon-restored
+== fixture: stop battery_temp >= 44.0 C (fires between arms) ==
+PASS  sbtemp rc
+PASS  sbtemp END
+PASS  sbtemp rows
+PASS  sbtemp first row OK
+PASS  sbtemp restore-ran
+PASS  sbtemp timeout-restored
+PASS  sbtemp stayon-restored
+== fixture: stop battery_level <= 25 % ==
+PASS  slvl rc
+PASS  slvl END
+PASS  slvl rows
+PASS  slvl restore-ran
+PASS  slvl timeout-restored
+PASS  slvl stayon-restored
+== fixture: stop plugged ==
+PASS  spl rc
+PASS  spl END
+PASS  spl rows
+PASS  spl restore-ran
+PASS  spl timeout-restored
+PASS  spl stayon-restored
+== fixture: stop missing_skin (fail-closed missing reading) ==
+PASS  smis rc
+PASS  smis END
+PASS  smis rows
+PASS  smis restore-ran
+PASS  smis timeout-restored
+PASS  smis stayon-restored
+== fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
+PASS  sskin rc
+PASS  sskin END
+PASS  sskin rows
+PASS  sskin trust verdict
+PASS  sskin restore-ran
+PASS  sskin timeout-restored
+PASS  sskin stayon-restored
+== fixture: stop fires mid-arm (background poll) ==
+PASS  smid rc
+PASS  smid END
+PASS  smid rows
+PASS  smid row voided by stop
+PASS  smid restore-ran
+PASS  smid timeout-restored
+PASS  smid stayon-restored
+
+dryrun summary: PASS=94 FAIL=0

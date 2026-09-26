@@ -1,0 +1,8 @@
+llama_model_loader: loaded meta data with 1145 tokens from /data/local/tmp/heat3way/ship.gguf
+llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+load_tensors: layer   0 assigned to device HTP0, is_swa = 0
+load_tensors: layer  32 assigned to device HTP0, is_swa = 0
+llama_perf_context_create: load time =  9876.5 ms
+llama_perf_context_print: prompt eval time = 18000.00 ms /  1018 tokens (   44.20 ms per token,     22.62 tokens per second)
+llama_perf_context_print:        eval time =  9071.00 ms /   127 runs   (   71.43 ms per token,     14.00 tokens per second)
+EXIT=0

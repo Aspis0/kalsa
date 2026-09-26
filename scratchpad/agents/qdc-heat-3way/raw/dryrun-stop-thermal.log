@@ -1,0 +1,9 @@
+[15:15:56] SESSION job=dry-stop-thermal board=S23-v73 soc=SM8550 serial=fakes23 order=CG
+[15:15:56] KIT_UNPACK_PUSH
+[15:15:56] DEVICE_LIST_OK
+[15:15:56] KIT_PUSH ship.gguf sha_before=absent
+[15:15:56] KIT_PUSH prompt.txt sha_before=absent
+[15:15:57] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310 skin=33.5->33.5
+[15:15:57] GATE label=setup
+[15:15:57] STOP reason=thermal_status
+[15:15:57] SESSION_STOP reason=thermal_status

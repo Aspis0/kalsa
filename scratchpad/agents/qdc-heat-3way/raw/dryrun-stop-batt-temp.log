@@ -1,0 +1,14 @@
+[15:15:57] SESSION job=dry-stop-batt-temp board=S23-v73 soc=SM8550 serial=fakes23 order=CG
+[15:15:57] KIT_UNPACK_PUSH
+[15:15:57] DEVICE_LIST_OK
+[15:15:57] KIT_PUSH ship.gguf sha_before=absent
+[15:15:57] KIT_PUSH prompt.txt sha_before=absent
+[15:15:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310 skin=33.5->33.5
+[15:15:59] GATE label=setup
+[15:15:59] SETUP_DONE skin0=33.5 battery_untrusted=0
+[15:15:59] SAMPLER_LAUNCHED pid=2387
+[15:15:59] ARM_START turn=1 backend=cpu pair=1
+[15:15:59] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 proof=cpu_no_offload
+[15:15:59] ARM_START turn=2 backend=gpu pair=1
+[15:15:59] STOP reason=battery_temp
+[15:15:59] SESSION_STOP reason=battery_temp
