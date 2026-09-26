@@ -52,6 +52,13 @@ pub(crate) const CHOSEN_STALE_NOTE: &str =
 const QUICKER_REASON: &str = "Smaller and much faster: it starts answering sooner. \
 The one above is the more capable of the two.";
 
+/// The second option's sentence when both figures are this machine's own
+/// measurements and the smaller one did not measure faster: the catalog's
+/// "much faster" is a prediction, and the measurement just disagreed with
+/// it. What stays true is the size, not the speed.
+const QUICKER_SMALLER_REASON: &str = "Smaller, so it starts answering sooner. \
+The one above is the more capable of the two.";
+
 /// The conversation length every speed on this page is priced at.
 ///
 /// [`CHOOSER_CONTEXT_TOKENS`] is 1 on purpose, and must stay 1: it decides
@@ -292,6 +299,15 @@ pub(crate) fn dto(
         .map(|row| {
             let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
             let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
+            let measured = measured_speed(root, row.entry);
+            // "Much faster" is the catalog's prediction. When both rows
+            // carry this machine's own measurements and the smaller one
+            // did not measure faster, the claim must not stand.
+            let pick_measured = model.as_ref().and_then(|choice| choice.measured);
+            let reason = match (pick_measured, measured) {
+                (Some(pick), Some(own)) if own <= pick => QUICKER_SMALLER_REASON,
+                _ => QUICKER_REASON,
+            };
             ModelChoiceDto {
                 id: Some(crate::startup::model_token(row.entry)),
                 name: row.entry.display_name.to_string(),
@@ -300,8 +316,8 @@ pub(crate) fn dto(
                 context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
                 speed_context_tokens: context,
                 speed: speed(&shown),
-                measured: measured_speed(root, row.entry),
-                reason: QUICKER_REASON.to_string(),
+                measured,
+                reason: reason.to_string(),
                 details: alternative_details(&row, &shown),
             }
         });
@@ -678,6 +694,81 @@ mod tests {
             panic!("the second read answers the same shape");
         };
         assert_eq!(after.measured, Some(23.5), "the tune's number travelled");
+    }
+
+    #[test]
+    fn a_measured_second_option_that_is_not_faster_is_not_called_faster() {
+        // "Smaller and much faster" is the catalog's prediction. Once both
+        // rows carry this machine's own measurements, the sentence follows
+        // the measurements: slower or equal drops the speed claim and says
+        // only what stays true — the size.
+        let root = records_root("quicker-reason");
+        let first = dto(&measured(Backend::Cpu), 32 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("a 32 GiB machine has both options");
+        };
+        assert!(
+            second.reason.contains("faster"),
+            "with no measurements the prediction's sentence stands: {}",
+            second.reason
+        );
+        assert_eq!(pick.measured, None, "nothing recorded yet");
+
+        let digests: Vec<&'static str> = [pick, second]
+            .into_iter()
+            .map(|option| {
+                usable()
+                    .find(|row| {
+                        let row = row.entry();
+                        row.display_name == option.name
+                            && row.quant == option.quant
+                            && row.weights_bytes == option.weights_bytes
+                    })
+                    .expect("both options are on the menu")
+                    .source()
+                    .sha256
+            })
+            .collect();
+        for (digest, rate) in [(digests[0], 30.0), (digests[1], 20.0)] {
+            let candidate = kalsa_tune::Candidate {
+                backend: kalsa_runtime::ServerBackend::Cpu,
+                threads: Some(8),
+                offload: Offload::NoGpuBuild,
+            };
+            let record = kalsa_tune::record::Record {
+                fingerprint: "the display read does not compare keys".to_string(),
+                winner: Some(kalsa_tune::Winner { candidate, best: rate }),
+                trials: vec![(candidate, kalsa_tune::record::Kept::Best(rate))],
+            };
+            kalsa_tune::record::save(&root, digest, &record).expect("file the record");
+        }
+
+        let again = dto(&measured(Backend::Cpu), 32 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(pick.measured, Some(30.0));
+        assert_eq!(second.measured, Some(20.0));
+        assert!(
+            !second.reason.contains("faster"),
+            "a slower measurement must not wear the faster claim: {}",
+            second.reason
+        );
+        assert!(
+            second.reason.contains("Smaller"),
+            "the size is still true and still said: {}",
+            second.reason
+        );
     }
 
     #[test]

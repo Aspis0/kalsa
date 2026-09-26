@@ -20,9 +20,25 @@ const MAGIC: &str = "kalsa-tune v2";
 /// single `tuning.txt` this replaces could hold one tune, so a second
 /// model's save erased the first. The digest is the caller's own pinned
 /// sha256 — the same identity the fingerprint embeds, handed to the store
-/// instead of parsed out of it.
-fn path(dir: &Path, model_digest: &str) -> PathBuf {
-    dir.join(format!("tuning-{model_digest}.txt"))
+/// instead of parsed out of it — and must be lowercase hex, the catalog's
+/// pinned form: a name pieced from anything else is a path nobody meant
+/// to make, so no file is touched at all.
+fn path(dir: &Path, model_digest: &str) -> Option<PathBuf> {
+    let hex = !model_digest.is_empty()
+        && model_digest
+            .bytes()
+            .all(|byte| matches!(byte, b'a'..=b'f' | b'0'..=b'9'));
+    hex.then(|| dir.join(format!("tuning-{model_digest}.txt")))
+}
+
+/// Whether a fingerprint names this model: the key's own format carries
+/// the digest in its `model=` field (see [`fingerprint`]). The one place
+/// the store looks inside the key, and only ever for the legacy file,
+/// whose name cannot say whose record it holds.
+fn names_model(fingerprint: &str, model_digest: &str) -> bool {
+    fingerprint
+        .split('|')
+        .any(|field| field == format!("model={model_digest}"))
 }
 
 /// The store this store replaces, kept only as a fallback so a record
@@ -151,6 +167,12 @@ fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, best: f64) -
 /// that could parse as a smaller truth.
 pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     validate(record)?;
+    let Some(target) = path(dir, model_digest) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "the model digest is not the catalog's pinned sha256 form",
+        ));
+    };
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
     for (index, (candidate, kept)) in record.trials.iter().enumerate() {
@@ -185,7 +207,7 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     // suffer lands before it, and a record without it is a record we do
     // not have.
     text.push_str("end\n");
-    let temp = temp_path(&path(dir, model_digest));
+    let temp = temp_path(&target);
     // A create failure is the one early return past this point, and it is
     // safe: no file of ours exists yet (this code never removes a path it
     // did not just make). Every path AFTER the create — write, flush,
@@ -196,7 +218,7 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     let staged = file.write_all(text.as_bytes()).and_then(|()| file.flush());
     drop(file); // closed before the rename: nobody may hold the temp open
     let result = match staged {
-        Ok(()) => fs::rename(&temp, path(dir, model_digest)),
+        Ok(()) => fs::rename(&temp, target),
         Err(error) => Err(error),
     };
     if let Err(error) = result {
@@ -229,7 +251,7 @@ fn temp_path(target: &Path) -> PathBuf {
 /// truncated, foreign or stale file reads as `None`: no error reaches the
 /// walk, the caller just keeps the rule.
 pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record> {
-    let text = fs::read_to_string(path(dir, model_digest))
+    let text = fs::read_to_string(path(dir, model_digest)?)
         .or_else(|_| fs::read_to_string(legacy_path(dir)))
         .ok()?;
     let (saved, record) = parse(&text)?;
@@ -240,12 +262,17 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
 /// model identity IS the file's name here, so the fingerprint's other
 /// facts (engine build, context) are not re-checked: a stale figure is
 /// corrected by that model's next tune, and the launch path keeps the
-/// strict [`load`] above.
+/// strict [`load`] above. The legacy single file is the one record whose
+/// name cannot say whose it is, so it is taken only when its fingerprint
+/// names this model — otherwise it belongs to another model, and another
+/// model's rate is not this one's.
 pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
-    let text = fs::read_to_string(path(dir, model_digest))
-        .or_else(|_| fs::read_to_string(legacy_path(dir)))
-        .ok()?;
-    parse(&text).map(|(_, record)| record)
+    if let Some(text) = fs::read_to_string(path(dir, model_digest)?).ok() {
+        return parse(&text).map(|(_, record)| record);
+    }
+    let text = fs::read_to_string(legacy_path(dir)).ok()?;
+    let (saved, record) = parse(&text)?;
+    names_model(&saved, model_digest).then_some(record)
 }
 
 /// The file's whole meaning: the fingerprint it claims, and the record it
@@ -445,12 +472,21 @@ fn offload_from_name(name: &str) -> Option<Offload> {
 /// Throw the model's record away: the tuned launch just failed where the
 /// rule succeeded, so whatever the file said is not what this machine
 /// wants — the next start must measure again. The legacy single file goes
-/// too: it can only be shadowing this model's own. Best effort: no record
-/// is already the goal, and a missing file is not an error anyone should
-/// see.
+/// only when it holds THIS model's record (its fingerprint says whose it
+/// is): a retry for one model must not erase another's legacy. Best
+/// effort: no record is already the goal, and a missing file is not an
+/// error anyone should see.
 pub fn invalidate(dir: &Path, model_digest: &str) {
-    let _ = fs::remove_file(path(dir, model_digest));
-    let _ = fs::remove_file(legacy_path(dir));
+    if let Some(file) = path(dir, model_digest) {
+        let _ = fs::remove_file(file);
+    }
+    let holds_this_model = fs::read_to_string(legacy_path(dir))
+        .ok()
+        .and_then(|text| parse(&text))
+        .is_some_and(|(saved, _)| names_model(&saved, model_digest));
+    if holds_this_model {
+        let _ = fs::remove_file(legacy_path(dir));
+    }
 }
 
 #[cfg(test)]

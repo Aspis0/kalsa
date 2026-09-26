@@ -124,8 +124,10 @@ function speedDetail(speed: Speed): string {
       return "estimated from memory speed";
     case "at_least":
       return "a lower bound, not a prediction";
+    // "last": a measured figure is a reading from one moment on one
+    // machine — an engine or driver change since can have moved it.
     case "measured":
-      return `measured on ${speed.machine}`;
+      return `last measured on ${speed.machine}`;
   }
 }
 
