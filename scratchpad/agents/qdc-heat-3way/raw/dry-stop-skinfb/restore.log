@@ -1,1 +1,1 @@
-restore 2026-09-26 15:16:06 serial=fakes23 state=1 stayon=false screen_off_timeout=60000 sampler=stopped llama=pkill rc=0
+restore 2026-09-26 16:12:11 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped llama=pkill rc=0

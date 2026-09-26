@@ -1,9 +1,9 @@
-[15:16:02] SESSION job=dry-stop-missing board=S23-v73 soc=SM8550 serial=fakes23 order=CG
-[15:16:02] KIT_UNPACK_PUSH
-[15:16:02] DEVICE_LIST_OK
-[15:16:02] KIT_PUSH ship.gguf sha_before=absent
-[15:16:02] KIT_PUSH prompt.txt sha_before=absent
-[15:16:04] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310 skin=na->na
-[15:16:04] GATE label=setup
-[15:16:04] STOP reason=missing_skin
-[15:16:04] SESSION_STOP reason=missing_skin
+[16:12:07] SESSION job=dry-stop-missing board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[16:12:07] KIT_UNPACK_PUSH
+[16:12:08] DEVICE_LIST_OK
+[16:12:08] KIT_PUSH ship.gguf sha_before=absent
+[16:12:08] KIT_PUSH prompt.txt sha_before=absent
+[16:12:09] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[16:12:09] GATE label=setup
+[16:12:09] STOP reason=missing_skin
+[16:12:09] SESSION_STOP reason=missing_skin

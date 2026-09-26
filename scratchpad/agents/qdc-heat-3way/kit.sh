@@ -29,7 +29,10 @@ kit_ensure() {
 }
 
 kit_setup() {
-  adbT 30 -s "$SER" shell "mkdir -p $D $HEAT_TMP && rm -f $HEAT_TMP/stop" >> "$RAW/setup.log" 2>&1 \
+  # A10: sweep every previous run's device-side logs first — arm logs are
+  # named <job>-<tag>.log and pulled by name, so a stale file from another
+  # session must not exist to be pulled as this session's evidence.
+  adbT 30 -s "$SER" shell "mkdir -p $D $HEAT_TMP && rm -f $HEAT_TMP/stop $D/*.log" >> "$RAW/setup.log" 2>&1 \
     || { log "MKDIR_FAIL"; return 1; }
   # Kit: SHA256SUMS lives in the archive root, so its presence+pass is the
   # unpacked-kit identity check (same trick as npu-spec-verify's d_run.sh).

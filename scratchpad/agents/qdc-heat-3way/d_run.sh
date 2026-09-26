@@ -1,14 +1,14 @@
 #!/bin/bash
 # d_run.sh — driver for ONE qdc-heat-3way session. One responsibility:
-# orchestrate the session — args, device prep, safety gates, the ordered
-# arm loop, result rows, END marker, restore. Reusable pieces live in the
-# siblings: safety.sh (stops), battery_trust.sh (sourced from
-# ../qdc-heat-per-backend), kit.sh (push+verify), arm.sh (one arm),
-# restore.sh (undo), smp.sh (on-device sampler).
+# orchestrate the session — args, device prep, safety gates, the ordered arm
+# loop (load phase + measured turn), result rows, END marker, restore.
+# Siblings: stop_lib.sh (stop logic), battery_trust.sh (battery verdict),
+# kit.sh (push+verify), arm.sh (one arm), restore.sh (undo), smp.sh (sampler).
 #
-# Protocol: PREREG.md (written before any device run). Order CGNNGC balanced,
-# pair = ceil(turn/2); cooldown as a CAP only (qdc-heat-per-backend owner
-# decision: no cool-start gate, start temps recorded, warm_start flagged).
+# Protocol: PREREG.md (amended after audit f2ee97f4, still pre-run). Order
+# CGNNGC (palindromic: linear drift cancels — registered in PREREG), pair =
+# ceil(turn/2); cooldown as a CAP only (owner decision: no cool-start gate,
+# start temps recorded, warm_start flagged).
 set -euo pipefail
 export LC_ALL=C
 
@@ -45,31 +45,33 @@ PROMPT_FILE="$CELL/PROMPT.txt"
 PROMPT_META="$CELL/PROMPT.meta"
 PROMPT_SHA=$(awk '{print $1}' "$PROMPT_META")
 PROMPT_BYTES=$(awk '{print $2}' "$PROMPT_META")
-PROMPT_TEXT=""; PROMPT_N_REF=""
+DECODE_EXPECT=127          # A7: equal-decode gate value (-n 127 --ignore-eos)
+PROMPT_N_REF=""
 
 RAW="$CELL/raw/$JOB"
 mkdir -p "$RAW"
 RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"
 DRIVER_LOG="$RAW/driver.log"; ADB_LOG="$RAW/adb-exit.log"
+# A2: a stale stop_request or END.txt from an earlier run of this job id must
+# not survive into this session — a stale stop_request would void the first
+# arm, a stale END would outlive a crash and misreport the outcome.
+rm -f "$RAW/stop_request" "$END_MARKER"
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'job=%s order=%s deadline_min=%s port=%s\nstart_utc=%s\n' \
   "$JOB" "$ARM_ORDER" "$DEADLINE_MINUTES" "$ADB_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RAW/session.env"
 
-# shellcheck source=safety.sh
-source "$CELL/safety.sh"
-# battery_trust.sh is sourced unchanged (see safety.sh header for why the
-# stop logic was copied but this was not): it is pure dumpsys logic and its
-# deps (adbT, log, RAW, SER) are defined below before any call.
-# shellcheck source=../qdc-heat-per-backend/battery_trust.sh
-source "$CELL/../qdc-heat-per-backend/battery_trust.sh"
+# shellcheck source=stop_lib.sh
+source "$CELL/stop_lib.sh"
+# shellcheck source=battery_trust.sh
+source "$CELL/battery_trust.sh"
 # shellcheck source=kit.sh
 source "$CELL/kit.sh"
 # shellcheck source=arm.sh
 source "$CELL/arm.sh"
 
-SER=""; SCREEN_OFF_TIMEOUT=""; FIRST_SKIN_C=""
+SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""; FIRST_SKIN_C=""
 SAMPLER_PID=0; ARM_POLL_PID=0; CURRENT_CHILD_PID=0
-END_WRITTEN=0; SIGNAL_NAME=""
+END_WRITTEN=0; SIGNAL_NAME=""; CLEANED=0
 COOLDOWN_SECONDS=0; WARM_START=0
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
@@ -79,7 +81,8 @@ deadline_check() {
 }
 # Timeout wrapper copied from qdc-heat-per-backend/d_run.sh (its adbT): the
 # perl alarm interrupts the wait immediately on INT/TERM, so on_signal does not
-# sit behind an in-flight adb call.
+# sit behind an in-flight adb call. Killed-by-alarm rc is 142 (SIGALRM), a
+# failed perl exec 127 — arm.sh treats >=124 as "remote process orphaned".
 adbT() {
   local seconds="$1" rc argline="" arg
   shift
@@ -102,8 +105,22 @@ stop_sampler() {
   fi
   return 0
 }
+# Defined before cleanup: an early exit must be able to kill the poll too.
+stop_arm_poll() {
+  [ "$ARM_POLL_PID" -ne 0 ] || return 0
+  kill "$ARM_POLL_PID" 2>/dev/null || true
+  wait "$ARM_POLL_PID" 2>/dev/null || true
+  ARM_POLL_PID=0
+  return 0
+}
 cleanup() {
   local rc=$?
+  # A11: on_signal -> cleanup -> exit fires the EXIT trap again — without
+  # this guard restore would run twice (and the second time against state the
+  # first restore already consumed).
+  [ "$CLEANED" -eq 0 ] || return 0
+  CLEANED=1
+  stop_arm_poll
   stop_sampler
   if [ -n "$SER" ]; then
     bash "$CELL/restore.sh" >> "$RAW/restore_run.log" 2>&1 || log "RESTORE_FAIL (see restore.sh output)"
@@ -133,19 +150,17 @@ finish_stop() {
   exit 0
 }
 
-# The prompt reaches the device single-quoted inside arm.sh's command; refuse
-# any text that could break out of the quotes instead of trying to escape it.
-load_prompt() {
-  local sha bytes text
+# The arm reads THE verified prompt as a file (-f $D/prompt.txt); this only
+# pins the local copy to PROMPT.meta, kit.sh pins the pushed copy to the same
+# sha. No prompt text travels through the shell, so no quoting check is needed.
+prompt_verify() {
+  local sha bytes
   [ -f "$PROMPT_FILE" ] || return 1
   sha=$(/usr/bin/shasum -a 256 "$PROMPT_FILE" | awk '{print $1}')
   bytes=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
   [ "$sha" = "$PROMPT_SHA" ] || return 1
   [ "$bytes" = "$PROMPT_BYTES" ] || return 1
-  text=$(tr '\n' ' ' < "$PROMPT_FILE")
-  PROMPT_TEXT="${text% }"
-  case "$PROMPT_TEXT" in *"'"*) log "PROMPT_HAS_SINGLE_QUOTE"; return 1;; esac
-  [ -n "$PROMPT_TEXT" ]
+  return 0
 }
 
 # ---- session setup ----
@@ -154,7 +169,7 @@ SER="${ADB_SERIAL:-$(adbT 60 devices | awk 'NR > 1 && $2 == "device" { print $1;
 adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WAIT_FOR_DEVICE_FAIL"; exit 2; }
 # Drop any stale .restore-state from an earlier session BEFORE this run may
 # fail again after arming the trap: restore.sh must never restore a guessed
-# timeout this run did not write (its presence is what authorizes the restore).
+# value this run did not write (its presence is what authorizes the restore).
 rm -f "$CELL/.restore-state"
 SOC=$(adbT 30 -s "$SER" shell getprop ro.soc.model | tr -d '\r')
 case "$SOC" in
@@ -164,12 +179,14 @@ esac
 # .restore-state BEFORE the first mutation: restore.sh only restores settings
 # when this exists (its presence means something was actually changed).
 SCREEN_OFF_TIMEOUT=$(adbT 30 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r')
-printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nJOB=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$JOB" > "$CELL/.restore-state"
+STAYON=$(adbT 30 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r')
+[ -n "$STAYON" ] || STAYON=null
+printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nSTAYON=%s\nJOB=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$STAYON" "$JOB" > "$CELL/.restore-state"
 adbT 30 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "$RAW/setup.log" 2>&1 || true
 adbT 30 -s "$SER" shell svc power stayon true >> "$RAW/setup.log" 2>&1 || true
 adbT 30 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$RAW/setup.log" 2>&1 || true
-log "SESSION job=$JOB board=$BOARD soc=$SOC serial=$SER order=$ARM_ORDER"
-load_prompt || { log "PROMPT_IDENTITY_FAIL"; exit 6; }
+log "SESSION job=$JOB board=$BOARD soc=$SOC serial=$SER order=$ARM_ORDER stayon_saved=$STAYON timeout_saved=$SCREEN_OFF_TIMEOUT"
+prompt_verify || { log "PROMPT_IDENTITY_FAIL"; exit 6; }
 kit_setup || { log "KIT_SETUP_FAIL"; exit 5; }
 battery_trust_check || { log "BATTERY_TRUST_READ_FAIL"; exit 3; }
 safety_gate setup || finish_stop
@@ -189,6 +206,7 @@ cooldown_wait() {
   local elapsed=0
   COOLDOWN_SECONDS=0; WARM_START=0
   while :; do
+    deadline_check   # A12: the cap can add 720 s — the deadline must bite inside the wait
     live_readings
     if ! hard_stops; then return 2; fi
     if awk -v s="$LIVE_SKIN" -v t="$COOL_TARGET_C" 'BEGIN{exit !(s+0 <= t+0)}'; then
@@ -218,18 +236,11 @@ arm_poll_loop() {
   done
 }
 start_arm_poll() { arm_poll_loop & ARM_POLL_PID=$!; }
-stop_arm_poll() {
-  [ "$ARM_POLL_PID" -ne 0 ] || return 0
-  kill "$ARM_POLL_PID" 2>/dev/null || true
-  wait "$ARM_POLL_PID" 2>/dev/null || true
-  ARM_POLL_PID=0
-  return 0
-}
 
 write_row() {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"
 }
-printf 'pair\tbackend\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\ttail_s\twall_s\tskin_before\tskin_after\tbatt_temp_before\tbatt_temp_after\tbatt_level\tplugged\tthermal_status\tprompt_n\tprefill_ms\tdecode_runs\tdecode_tps\tproof\n' > "$RESULTS"
+printf 'pair\tbackend\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\ttail_s\twall_s\tload_wall_s\tload_skin_before\tload_skin_after\tpagein_cold\tskin_before\tskin_after\tbatt_temp_before\tbatt_temp_after\tbatt_level\tplugged\tthermal_status\tprompt_n\tprefill_ms\tdecode_runs\tdecode_tps\tproof\n' > "$RESULTS"
 
 # ---- arms ----
 TURN=0
@@ -239,21 +250,38 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
   case "$letter" in C) backend=cpu ;; G) backend=gpu ;; N) backend=npu ;; esac
   TURN=$((TURN + 1))
   PAIR=$(( (TURN + 1) / 2 ))
-  tag="t${TURN}${backend}"
-  log "ARM_START turn=$TURN backend=$backend pair=$PAIR"
+  # A10: device logs are tagged with this job's id — no other session's file
+  # can match this pull even if the kit_setup sweep above were bypassed.
+  tag="${JOB}-t${TURN}${backend}"
+  PAGEIN_COLD=0
+  if [ "$TURN" -eq 1 ]; then PAGEIN_COLD=1; fi
+  log "ARM_START turn=$TURN backend=$backend pair=$PAIR tag=$tag"
   cd_rc=0
   cooldown_wait || cd_rc=$?
   [ "$cd_rc" -ne 2 ] || finish_stop
-  # The cooldown loop's last live_readings IS this arm's gate snapshot.
+  # The cooldown loop's last live_readings IS this arm's pre-load snapshot.
   B_SKIN=$LIVE_SKIN; B_BATT=$LIVE_BATT_TEMP_TENTHS; B_LVL=$LIVE_BATT_LEVEL
   B_PLUG=$LIVE_PLUGGED; B_TH=$LIVE_THERMAL_STATUS
+  # A8 load phase: page-in / weight upload / OpenCL compile happen here, with
+  # their own before (B_*)/after readings, outside the measured turn.
+  arm_load "$backend" "$tag"
+  if [ "$ARM_LOAD_RC" -ne 0 ]; then
+    write_row "$PAIR" "$backend" "$TURN" VOID load_fail "$WARM_START" "$COOLDOWN_SECONDS" na na \
+      "$ARM_LOAD_WALL_S" "$B_SKIN" na "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na
+    log "ARM_LOAD_FAIL turn=$TURN rc=$ARM_LOAD_RC"
+    continue
+  fi
+  live_readings || true
+  LOAD_SKIN_A=$LIVE_SKIN
+  hard_stops || finish_stop   # the load phase heats the board too
+  log "LOAD_PHASE turn=$TURN wall_s=$ARM_LOAD_WALL_S skin $B_SKIN->$LOAD_SKIN_A pagein_cold=$PAGEIN_COLD"
   start_arm_poll
   arm_run "$backend" "$tag"
   stop_arm_poll
   if [ -f "$RAW/stop_request" ]; then
     stop_reason=$(tr -d '\r\n' < "$RAW/stop_request")
-    write_row "$PAIR" "$backend" "$TURN" VOID "stop_$stop_reason" "$WARM_START" "$COOLDOWN_SECONDS" "$TAIL_S" "$ARM_WALL_S" \
-      "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na
+    write_row "$PAIR" "$backend" "$TURN" VOID "stop_$stop_reason" "$WARM_START" "$COOLDOWN_SECONDS" na "$ARM_WALL_S" \
+      "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na
     finish_stop
   fi
   if [ "$TAIL_S" -gt 0 ]; then sleep "$TAIL_S"; fi
@@ -267,10 +295,21 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
       ARM_STATUS=VOID; ARM_VOID=prompt_mismatch
     fi
   fi
+  # A7 equal-decode gate (qdc-heat-per-backend 851b053d): 127 on every arm,
+  # else the row is void AND the session stops after it.
+  decode_stop=0
+  if [ "$ARM_STATUS" = OK ] && [ "$ARM_RUNS" -ne "$DECODE_EXPECT" ]; then
+    ARM_STATUS=VOID; ARM_VOID=decode_len; decode_stop=1
+  fi
   write_row "$PAIR" "$backend" "$TURN" "$ARM_STATUS" "$ARM_VOID" "$WARM_START" "$COOLDOWN_SECONDS" "$TAIL_S" "$ARM_WALL_S" \
-    "$B_SKIN" "$A_SKIN" "$B_BATT" "$A_BATT" "$B_LVL" "$B_PLUG" "$B_TH" \
+    "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" "$A_SKIN" "$B_BATT" "$A_BATT" "$B_LVL" "$B_PLUG" "$B_TH" \
     "$ARM_PROMPT_N" "$ARM_PREFILL_MS" "$ARM_RUNS" "$ARM_DECODE_TPS" "$ARM_PROOF"
-  log "ARM_END turn=$TURN status=$ARM_STATUS void=$ARM_VOID prefill_ms=$ARM_PREFILL_MS proof=$ARM_PROOF"
+  log "ARM_END turn=$TURN status=$ARM_STATUS void=$ARM_VOID prefill_ms=$ARM_PREFILL_MS inload_ms=$ARM_INLOAD_MS proof=$ARM_PROOF"
+  if [ "$decode_stop" -eq 1 ]; then
+    log "STOP_UNEQUAL_DECODE got=$ARM_RUNS want=$DECODE_EXPECT"
+    write_end stop_unequal_decode
+    exit 0
+  fi
   hard_stops || finish_stop
 done
 

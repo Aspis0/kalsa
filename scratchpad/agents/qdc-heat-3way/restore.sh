@@ -4,12 +4,14 @@
 # device. It is called from d_run.sh's EXIT trap (normal path) and standalone
 # after an abnormal end.
 #
-# Changes d_run.sh makes, and their inverse here: stayon true -> false;
-# screen_off_timeout saved -> restored (or deleted if it was absent); the
-# 1 s sampler -> stop marker + host pkill; a mid-arm llama-completion (only
-# possible after a stop kill) -> device pkill. Kit/model/prompt files under
-# $D are left in place (npu-spec-verify does the same; deleting 1.59 GB is a
-# separate decision, not a restore).
+# Changes d_run.sh makes, and their inverse here: the saved
+# stay_on_while_plugged_in value restored (A13 — the previous value, not a
+# guessed `stayon false`); screen_off_timeout saved -> restored (or deleted
+# if it was absent); the 1 s sampler -> stop marker + host pkill; a mid-arm
+# llama-completion -> device pkill with the bracketed non-self-matching
+# pattern (A3). Kit/model/prompt files under $D are left in place
+# (npu-spec-verify does the same; deleting 1.59 GB is a separate decision,
+# not a restore).
 #
 # .restore-state is written by d_run.sh BEFORE the first mutation, so its
 # presence gates the settings restore: without it nothing was changed and
@@ -22,12 +24,13 @@ export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 D=/data/local/tmp/heat3way
 HEAT_TMP=$D/heat
-SER=""; SCREEN_OFF_TIMEOUT=""; JOB=""
+SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""; JOB=""
 STATE_PRESENT=0
 if [ -f "$CELL/.restore-state" ]; then
   . "$CELL/.restore-state"
   STATE_PRESENT=1
 fi
+[ -n "$STAYON" ] || STAYON=null
 # Per-session log when the session's RAW dir exists (normal and post-SIGKILL
 # paths); cell-level fallback when .restore-state is absent or stale.
 RESTORE_LOG="$CELL/restore.log"
@@ -40,9 +43,17 @@ fi
 rc=0
 "$ADB_BIN" -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
 pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
-"$ADB_BIN" -s "$SER" shell pkill -f llama-completion >/dev/null 2>&1 || true
+# A3: bracketed so the wrapping `sh -c` carrying this very pattern is not
+# matched and killed by its own pkill.
+"$ADB_BIN" -s "$SER" shell "pkill -f 'llama-completio[n]'" >/dev/null 2>&1 || true
 if [ "$STATE_PRESENT" -eq 1 ]; then
-  "$ADB_BIN" -s "$SER" shell svc power stayon false >/dev/null 2>&1 || rc=1
+  # A13: put back exactly what was read before the mutation (d_run.sh's
+  # `svc power stayon true` overwrites this global with 3).
+  case "$STAYON" in
+    null) "$ADB_BIN" -s "$SER" shell settings delete global stay_on_while_plugged_in >/dev/null 2>&1 || rc=1 ;;
+    ''|*[!0-9]*) echo "RESTORE_BAD_STAYON value=$STAYON" >&2; rc=1 ;;
+    *) "$ADB_BIN" -s "$SER" shell settings put global stay_on_while_plugged_in "$STAYON" >/dev/null 2>&1 || rc=1 ;;
+  esac
   case "$SCREEN_OFF_TIMEOUT" in
     null) "$ADB_BIN" -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || rc=1 ;;
     ''|*[!0-9]*) echo "RESTORE_BAD_TIMEOUT value=$SCREEN_OFF_TIMEOUT" >&2; rc=1 ;;
@@ -50,7 +61,7 @@ if [ "$STATE_PRESENT" -eq 1 ]; then
   esac
 fi
 {
-  printf 'restore %s serial=%s state=%s stayon=false screen_off_timeout=%s sampler=stopped llama=pkill rc=%s\n' \
-    "$(date '+%F %T')" "$SER" "$STATE_PRESENT" "${SCREEN_OFF_TIMEOUT:-na}" "$rc"
+  printf 'restore %s serial=%s state=%s stayon_restored=%s screen_off_timeout=%s sampler=stopped llama=pkill rc=%s\n' \
+    "$(date '+%F %T')" "$SER" "$STATE_PRESENT" "$STAYON" "${SCREEN_OFF_TIMEOUT:-na}" "$rc"
 } >> "$RESTORE_LOG"
 exit "$rc"

@@ -2,20 +2,24 @@
 # dryrun-adb.sh — fake adb for the qdc-heat-3way dry-run. One responsibility:
 # impersonate exactly the adb surface the driver uses (devices/get-state/
 # wait-for-device/push/pull/shell) and answer it from a per-fixture state dir,
-# with reading-injection knobs so the dry-run can prove every safety stop.
+# with reading- and log-injection knobs so the dry-run can prove every gate.
 #
 # Knobs (exported by dryrun.sh, read here):
 #   DRY_<X>_AT / DRY_<X>_AFTER  reading X takes the AFTER value from dumpsys
 #       call # AT onward (AT defaults to 1 when AFTER is set); X in
 #       SKIN, BATT_TEMP, BATT_LEVEL, THERMAL_STATUS, PLUGGED (0/1), MISSING
 #       (name of the reading to blank: skin|status|temp|level)
-#   DRY_BATT_STUB=1        battery temp pinned to the QDC 250 (25.0 C) stub,
-#       sysfs mirrors dumpsys so battery_trust.sh takes the stub branch
-#   DRY_ARM_SLEEP_S        fake llama-completion wall time (mid-arm stop test)
+#   DRY_BATT_STUB=1        battery temp pinned to the QDC 25.0 C stub, sysfs
+#       mirrors dumpsys so battery_trust.sh takes the stub branch
+#   DRY_ARM_SLEEP_S        fake llama-completion wall time (load + turn)
+#   DRY_DECODE_RUNS        runs in the perf eval line (default 127, A7 gate)
 #   DRY_NO_HTP_PROOF=1     omit Hexagon Arch + execute-op lines from N logs
-#   DRY_NO_GPU_PROOF=1     omit GPUOpenCL assignment lines from G logs
-#   DRY_PROMPT_N           prompt token count printed in perf lines (1018)
-#   DRY_ARM_RC             remote exit code of the arm (default 0)
+#   DRY_HTP_OPS=N          execute-op line count (default 1200, A6 floor 1000)
+#   DRY_NO_GPU_PROOF=1     omit GPUOpenCL assignment + kernel lines from G logs
+#   DRY_GPU_KERNELS=N      GGML_OPENCL_LOG_KERNELS line count (default 12, A6 floor 8)
+#   DRY_GPU_DISABLED=1     append the kernel-build-failed/device-disabled line
+#   DRY_PROMPT_N           prompt token count in the perf line (default 1018)
+#   DRY_ARM_RC             remote exit code of load/turn (default 0)
 # The dumpsys call counter counts ONLY gate/trust live reads; the 1 s sampler
 # peeks at the current value without advancing it (a real sampler would move
 # the readings itself, which would make AT-based injection nondeterministic).
@@ -54,6 +58,7 @@ Current Battery Service state:
   AC powered: $p
   USB powered: false
   Wireless powered: false
+  Dock powered: false
   status: 2
   health: 2
   present: true
@@ -80,10 +85,46 @@ Current cooling devices from HAL:
   Temperature{mValue=10.0, mType=15, mName=fan0}
 EOF
 }
-run_arm() { # synthesizes the pulled llama-completion log, then exits like it
+emit_gpu_block() { # placement + execution evidence (A6)
+  printf 'llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free\n'
+  printf 'ggml_opencl: default device: %s (%s)\n' "QUALCOMM Adreno(TM) 740" "OpenCL 2.0"
+  if [ "${DRY_NO_GPU_PROOF:-0}" != 1 ]; then
+    local i=0
+    while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device GPUOpenCL, is_swa = 0\n' "$i"; i=$((i + 1)); done
+    local k=0 kn="${DRY_GPU_KERNELS:-12}"
+    while [ "$k" -lt "$kn" ]; do printf 'GGML_OPENCL_LOG_KERNELS: kernel_%02d\n' "$k"; k=$((k + 1)); done
+    if [ "${DRY_GPU_DISABLED:-0}" = 1 ]; then
+      printf "ggml_opencl: kernel set failed to build on 'kernel_0' (driver 'Adreno'); device disabled\n"
+    fi
+  fi
+}
+emit_npu_block() { # dispatch evidence (A6: >= 1000 execute-op lines + arch)
+  printf 'llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free\n'
+  local i=0
+  while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device HTP0, is_swa = 0\n' "$i"; i=$((i + 1)); done
+  if [ "${DRY_NO_HTP_PROOF:-0}" != 1 ]; then
+    printf 'ggml-hex: Hexagon Arch version v73\n'
+    printf 'ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB\n'
+    local n="${DRY_HTP_OPS:-1200}" j=0
+    while [ "$j" -lt "$n" ]; do
+      printf 'ggml-hex: HTP0 execute-op MUL_MAT|node_%d x weight -> out|a|b|c|d|e|f|g|flags 0x0\n' "$j"
+      j=$((j + 1))
+    done
+  fi
+}
+emit_cpu_block() { # discovery lines mirror the real A.log: -ngl 0 still lists
+  # every device via `using device`, so the dry-run regresses the
+  # assignment-only CPU proof (audit lesson kept from round 1).
+  printf 'llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free\n'
+  printf 'llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free\n'
+  local i=0
+  while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
+}
+run_arm() { # synthesizes the pulled llama-completion log (turn or load phase)
   if [ "${DRY_ARM_SLEEP_S:-0}" -gt 0 ]; then sleep "$DRY_ARM_SLEEP_S"; fi
-  local tag backend prefill prompt_n backend_block=""
-  tag=$(printf '%s\n' "$cmd" | sed -n 's#.*heat3way/\([A-Za-z0-9]*\.log\) 2>&1.*#\1#p')
+  local tag backend prefill prompt_n block
+  # redirect target now carries the job id: heat3way/<job>-t1cpu[.load].log
+  tag=$(printf '%s\n' "$cmd" | sed -n 's#.*heat3way/\([A-Za-z0-9._-]*\.log\) 2>&1.*#\1#p')
   [ -n "$tag" ] || tag=unparsed.log
   case "$cmd" in
     *HTP0*) backend=npu; prefill=18000 ;;
@@ -92,36 +133,18 @@ run_arm() { # synthesizes the pulled llama-completion log, then exits like it
   esac
   prompt_n="${DRY_PROMPT_N:-1018}"
   case "$backend" in
-    cpu)
-      # Discovery lines mirror the real A.log: even -ngl 0 lists every device
-      # via `using device`, so the dry-run regresses the assignment-only proof.
-      backend_block="llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
-llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
-load_tensors: layer   0 assigned to device CPU, is_swa = 0
-load_tensors: layer   1 assigned to device CPU, is_swa = 0
-load_tensors: layer  32 assigned to device CPU, is_swa = 0" ;;
-    gpu)
-      [ "${DRY_NO_GPU_PROOF:-0}" = 1 ] && backend_block="llama_prepare_model_devices: no device prepared" || backend_block="llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free
-load_tensors: layer   0 assigned to device GPUOpenCL, is_swa = 0
-load_tensors: layer  32 assigned to device GPUOpenCL, is_swa = 0" ;;
-    npu)
-      backend_block="llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
-load_tensors: layer   0 assigned to device HTP0, is_swa = 0
-load_tensors: layer  32 assigned to device HTP0, is_swa = 0"
-      if [ "${DRY_NO_HTP_PROOF:-0}" != 1 ]; then
-        backend_block="$backend_block
-ggml-hex: Hexagon Arch version v73
-ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
-ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x embed -> conv
-ggml-hex: HTP0 execute-op SSM_CONV|node_19 x blk.0.shortconv.conv.weight -> out"
-      fi ;;
+    cpu) block=$(emit_cpu_block) ;;
+    gpu) block=$(emit_gpu_block) ;;
+    npu) block=$(emit_npu_block) ;;
   esac
   {
     printf 'llama_model_loader: loaded meta data with %s tokens from /data/local/tmp/heat3way/ship.gguf\n' "$((prompt_n + 127))"
-    printf '%s\n' "$backend_block"
-    printf 'llama_perf_context_create: load time =  9876.5 ms\n'
-    printf 'llama_perf_context_print: prompt eval time = %8.2f ms / %5s tokens (   44.20 ms per token,     22.62 tokens per second)\n' "$prefill" "$prompt_n"
-    printf 'llama_perf_context_print:        eval time = %8.2f ms / %5s runs   (   71.43 ms per token,     14.00 tokens per second)\n' 9071 127
+    printf '%s\n' "$block"
+    # A1: the fork's real perf format (f25f0c1c5 common/sampling.cpp:573-576).
+    printf 'common_perf_print:        load time = %10.2f ms\n' 9876.5
+    printf 'common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$prefill" "$prompt_n" 44.20 22.62
+    printf 'common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' 9071 "${DRY_DECODE_RUNS:-127}" 71.43 14.00
+    printf 'common_perf_print:       total time = %10.2f ms / %5d tokens\n' 54876.5 "$((prompt_n + 127))"
     printf 'EXIT=%s\n' "${DRY_ARM_RC:-0}"
   } > "$DEV/$tag"
   exit "${DRY_ARM_RC:-0}"
@@ -159,8 +182,8 @@ handle_shell() {
     *"sha256sum"*llama-completion*)
       if [ -f "$STATE/kit_unpacked" ]; then echo "790e38986321ff244535d297fbe66fc7d025454a07c5db904554e40dd4846109  bin/llama-completion"; exit 0; fi
       echo "sha256sum: no such file" >&2; exit 1 ;;
-    # pkill MUST precede the bare llama-completion arm branch: the driver's
-    # `pkill -f llama-completion` also contains that name.
+    # pkill MUST precede the bare llama-completion arm branch: even the
+    # bracketed pattern `llama-completio[n]` contains the substring.
     *pkill*) printf '%s\n' "$cmd" >> "$STATE/pkill.log"; exit 0 ;;
     *--list-devices*)
       printf 'Available devices:\n  GPUOpenCL: QUALCOMM Adreno(TM) (3536 MiB, 2512 MiB free)\n  HTP0: Hexagon (0 MiB, 0 MiB free)\n'
@@ -173,13 +196,17 @@ handle_shell() {
     *power_supply/battery/temp*) compute "$(read_n)"; echo "$TEMP_VAL"; exit 0 ;;
     *getprop*) echo SM8550; exit 0 ;;
     *"settings get system screen_off_timeout"*) cat "$STATE/screen_timeout" 2>/dev/null || echo 60000; exit 0 ;;
+    *"settings get global stay_on_while_plugged_in"*) cat "$STATE/stay_on_while_plugged_in" 2>/dev/null || echo null; exit 0 ;;
     *"settings put system screen_off_timeout"*) printf '%s\n' "${cmd##* }" > "$STATE/screen_timeout"; exit 0 ;;
+    *"settings put global stay_on_while_plugged_in"*) printf '%s\n' "${cmd##* }" > "$STATE/stay_on_while_plugged_in"; exit 0 ;;
     *"settings delete system screen_off_timeout"*) rm -f "$STATE/screen_timeout"; exit 0 ;;
-    *"svc power stayon"*) printf '%s\n' "${cmd##* }" > "$STATE/stayon"; exit 0 ;;
+    *"settings delete global stay_on_while_plugged_in"*) rm -f "$STATE/stay_on_while_plugged_in"; exit 0 ;;
+    # AOSP semantics: `svc power stayon true` writes global
+    # stay_on_while_plugged_in=3 — the setting restore.sh puts back (A13).
+    *"svc power stayon"*) printf '3\n' > "$STATE/stay_on_while_plugged_in"; exit 0 ;;
     *"input keyevent"*) exit 0 ;;
     *touch*stop*) : > "$DEV/stop_marker"; exit 0 ;;
     *"rm -f"*stop*) rm -f "$DEV/stop_marker"; exit 0 ;;
-    *mkdir*) exit 0 ;;
     *) printf '%s\n' "$cmd" >> "$STATE/unknown_shell.log"; exit 0 ;;
   esac
 }

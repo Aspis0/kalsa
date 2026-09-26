@@ -1,0 +1,47 @@
+llama_model_loader: loaded meta data with 1145 tokens from /data/local/tmp/heat3way/ship.gguf
+llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+load_tensors: layer   0 assigned to device HTP0, is_swa = 0
+load_tensors: layer   1 assigned to device HTP0, is_swa = 0
+load_tensors: layer   2 assigned to device HTP0, is_swa = 0
+load_tensors: layer   3 assigned to device HTP0, is_swa = 0
+load_tensors: layer   4 assigned to device HTP0, is_swa = 0
+load_tensors: layer   5 assigned to device HTP0, is_swa = 0
+load_tensors: layer   6 assigned to device HTP0, is_swa = 0
+load_tensors: layer   7 assigned to device HTP0, is_swa = 0
+load_tensors: layer   8 assigned to device HTP0, is_swa = 0
+load_tensors: layer   9 assigned to device HTP0, is_swa = 0
+load_tensors: layer  10 assigned to device HTP0, is_swa = 0
+load_tensors: layer  11 assigned to device HTP0, is_swa = 0
+load_tensors: layer  12 assigned to device HTP0, is_swa = 0
+load_tensors: layer  13 assigned to device HTP0, is_swa = 0
+load_tensors: layer  14 assigned to device HTP0, is_swa = 0
+load_tensors: layer  15 assigned to device HTP0, is_swa = 0
+load_tensors: layer  16 assigned to device HTP0, is_swa = 0
+load_tensors: layer  17 assigned to device HTP0, is_swa = 0
+load_tensors: layer  18 assigned to device HTP0, is_swa = 0
+load_tensors: layer  19 assigned to device HTP0, is_swa = 0
+load_tensors: layer  20 assigned to device HTP0, is_swa = 0
+load_tensors: layer  21 assigned to device HTP0, is_swa = 0
+load_tensors: layer  22 assigned to device HTP0, is_swa = 0
+load_tensors: layer  23 assigned to device HTP0, is_swa = 0
+load_tensors: layer  24 assigned to device HTP0, is_swa = 0
+load_tensors: layer  25 assigned to device HTP0, is_swa = 0
+load_tensors: layer  26 assigned to device HTP0, is_swa = 0
+load_tensors: layer  27 assigned to device HTP0, is_swa = 0
+load_tensors: layer  28 assigned to device HTP0, is_swa = 0
+load_tensors: layer  29 assigned to device HTP0, is_swa = 0
+load_tensors: layer  30 assigned to device HTP0, is_swa = 0
+load_tensors: layer  31 assigned to device HTP0, is_swa = 0
+load_tensors: layer  32 assigned to device HTP0, is_swa = 0
+ggml-hex: Hexagon Arch version v73
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 execute-op MUL_MAT|node_0 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_1 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_2 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_3 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_4 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+common_perf_print:        load time =    9876.50 ms
+common_perf_print: prompt eval time =   18000.00 ms /  1018 tokens (   44.20 ms per token,    22.62 tokens per second)
+common_perf_print:        eval time =    9071.00 ms /   127 runs   (   71.43 ms per token,    14.00 tokens per second)
+common_perf_print:       total time =   54876.50 ms /  1145 tokens
+EXIT=0

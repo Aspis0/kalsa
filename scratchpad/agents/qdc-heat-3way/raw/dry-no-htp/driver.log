@@ -1,12 +1,13 @@
-[15:15:39] SESSION job=dry-no-htp board=S23-v73 soc=SM8550 serial=fakes23 order=N
-[15:15:39] KIT_UNPACK_PUSH
-[15:15:39] DEVICE_LIST_OK
-[15:15:39] KIT_PUSH ship.gguf sha_before=absent
-[15:15:39] KIT_PUSH prompt.txt sha_before=absent
-[15:15:41] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310 skin=33.5->33.5
-[15:15:41] GATE label=setup
-[15:15:41] SETUP_DONE skin0=33.5 battery_untrusted=0
-[15:15:41] SAMPLER_LAUNCHED pid=98709
-[15:15:41] ARM_START turn=1 backend=npu pair=1
-[15:15:41] ARM_END turn=1 status=VOID void=no_htp_proof prefill_ms=18000.00 proof=na
-[15:15:41] DONE order=N rows=1 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-no-htp/results.tsv
+[16:11:44] SESSION job=dry-no-htp board=S23-v73 soc=SM8550 serial=fakes23 order=N stayon_saved=null timeout_saved=60000
+[16:11:44] KIT_UNPACK_PUSH
+[16:11:44] DEVICE_LIST_OK
+[16:11:44] KIT_PUSH ship.gguf sha_before=absent
+[16:11:44] KIT_PUSH prompt.txt sha_before=absent
+[16:11:45] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[16:11:45] GATE label=setup
+[16:11:45] SETUP_DONE skin0=33.5 battery_untrusted=0
+[16:11:45] SAMPLER_LAUNCHED pid=67809
+[16:11:45] ARM_START turn=1 backend=npu pair=1 tag=dry-no-htp-t1npu
+[16:11:46] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[16:11:46] ARM_END turn=1 status=VOID void=no_htp_proof prefill_ms=18000.00 inload_ms=9876.50 proof=na
+[16:11:46] DONE order=N rows=1 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-no-htp/results.tsv

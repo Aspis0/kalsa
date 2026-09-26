@@ -1,14 +1,14 @@
-[15:15:57] SESSION job=dry-stop-batt-temp board=S23-v73 soc=SM8550 serial=fakes23 order=CG
-[15:15:57] KIT_UNPACK_PUSH
-[15:15:57] DEVICE_LIST_OK
-[15:15:57] KIT_PUSH ship.gguf sha_before=absent
-[15:15:57] KIT_PUSH prompt.txt sha_before=absent
-[15:15:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310 skin=33.5->33.5
-[15:15:59] GATE label=setup
-[15:15:59] SETUP_DONE skin0=33.5 battery_untrusted=0
-[15:15:59] SAMPLER_LAUNCHED pid=2387
-[15:15:59] ARM_START turn=1 backend=cpu pair=1
-[15:15:59] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 proof=cpu_no_offload
-[15:15:59] ARM_START turn=2 backend=gpu pair=1
-[15:15:59] STOP reason=battery_temp
-[15:15:59] SESSION_STOP reason=battery_temp
+[16:12:02] SESSION job=dry-stop-batt-temp board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[16:12:02] KIT_UNPACK_PUSH
+[16:12:02] DEVICE_LIST_OK
+[16:12:02] KIT_PUSH ship.gguf sha_before=absent
+[16:12:02] KIT_PUSH prompt.txt sha_before=absent
+[16:12:04] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[16:12:04] GATE label=setup
+[16:12:04] SETUP_DONE skin0=33.5 battery_untrusted=0
+[16:12:04] SAMPLER_LAUNCHED pid=73450
+[16:12:04] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-batt-temp-t1cpu
+[16:12:04] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[16:12:04] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 proof=cpu_no_offload
+[16:12:04] STOP reason=battery_temp
+[16:12:04] SESSION_STOP reason=battery_temp

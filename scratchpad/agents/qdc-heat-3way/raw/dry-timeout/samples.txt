@@ -1,0 +1,5 @@
+H zones: /sys/class/thermal/thermal_zone0:cpu-0 /sys/class/thermal/thermal_zone5:gpuss-0
+Z 1790453547 cpu-thermal=42000
+S 1790453547 33.5
+Z 1790453548 cpu-thermal=42000
+S 1790453548 33.5

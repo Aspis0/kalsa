@@ -1,27 +1,35 @@
-== fixture: six-arms (order CGNNGC, happy path) ==
+== fixture: six-arms (order CGNNGC, happy path, seeded stayon=1) ==
 PASS  six rc
 PASS  six END
 PASS  six rows
 PASS  six arm sequence
 PASS  six pairs
 PASS  six all-OK
+PASS  six perf-prefix A1
+PASS  six inload-parsed A8
 PASS  six prompt_n
 PASS  six decode_runs
 PASS  six cpu prefill
 PASS  six gpu prefill
 PASS  six npu prefill
 PASS  six cpu proof
-PASS  six gpu proof
-PASS  six npu proof
+PASS  six gpu proof assign
+PASS  six gpu proof kernels
+PASS  six npu proof arch
 PASS  six npu proof ops
 PASS  six skin_before
+PASS  six load_skin_before A8
+PASS  six load_skin_after A8
+PASS  six pagein_cold arm1
+PASS  six pagein_cold arm2
+PASS  six load_wall_s
+PASS  six samples.txt
+PASS  six list-devices
 PASS  six restore-ran
 PASS  six timeout-restored
 PASS  six stayon-restored
 PASS  six no-unknown-shell
-PASS  six samples.txt
-PASS  six list-devices
-== fixture: missing HTP proof voids the N arm ==
+== fixture: missing HTP proof voids the N arm (A6) ==
 PASS  nohtp rc
 PASS  nohtp END
 PASS  nohtp rows
@@ -30,16 +38,32 @@ PASS  nohtp void_reason
 PASS  nohtp backend
 PASS  nohtp restore-ran
 PASS  nohtp timeout-restored
-PASS  nohtp stayon-restored
-PASS  nohtp no-unknown-shell
-== fixture: missing GPU proof voids the G arm ==
+== fixture: execute-op below the 1000 floor voids the N arm (A6) ==
+PASS  htplow rc
+PASS  htplow rows
+PASS  htplow void_reason
+PASS  htplow proof count
+PASS  htp-low restore-ran
+PASS  htp-low timeout-restored
+== fixture: missing GPU placement evidence voids the G arm (A6) ==
 PASS  nogpu rc
 PASS  nogpu rows
 PASS  nogpu status
 PASS  nogpu void_reason
 PASS  nogpu restore-ran
 PASS  nogpu timeout-restored
-PASS  nogpu stayon-restored
+== fixture: GPU kernel-dispatch below the 8 floor voids the G arm (A6) ==
+PASS  gpuex rc
+PASS  gpuex rows
+PASS  gpuex void_reason
+PASS  gpu-exec-low restore-ran
+PASS  gpu-exec-low timeout-restored
+== fixture: kernel-build failure line voids the G arm (A6) ==
+PASS  gpudis rc
+PASS  gpudis rows
+PASS  gpudis void_reason
+PASS  gpu-disabled restore-ran
+PASS  gpu-disabled timeout-restored
 == fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
 PASS  warm rc
 PASS  warm END
@@ -50,51 +74,53 @@ PASS  warm cooldown_s
 PASS  warm skin_before recorded
 PASS  warm restore-ran
 PASS  warm timeout-restored
-PASS  warm stayon-restored
 == fixture: stop thermal_status >= 3 (injected at first gate) ==
 PASS  st rc
 PASS  st END
 PASS  st rows
 PASS  st restore-ran
 PASS  st timeout-restored
-PASS  st stayon-restored
-== fixture: stop battery_temp >= 44.0 C (fires between arms) ==
+PASS  st stayon deleted
+== fixture: stop battery_temp >= 44.0 C (fires after arm 1, trusted) ==
 PASS  sbtemp rc
 PASS  sbtemp END
 PASS  sbtemp rows
 PASS  sbtemp first row OK
+PASS  sbtemp battery trusted
 PASS  sbtemp restore-ran
 PASS  sbtemp timeout-restored
-PASS  sbtemp stayon-restored
 == fixture: stop battery_level <= 25 % ==
 PASS  slvl rc
 PASS  slvl END
 PASS  slvl rows
 PASS  slvl restore-ran
 PASS  slvl timeout-restored
-PASS  slvl stayon-restored
 == fixture: stop plugged ==
 PASS  spl rc
 PASS  spl END
 PASS  spl rows
 PASS  spl restore-ran
 PASS  spl timeout-restored
-PASS  spl stayon-restored
 == fixture: stop missing_skin (fail-closed missing reading) ==
 PASS  smis rc
 PASS  smis END
 PASS  smis rows
 PASS  smis restore-ran
 PASS  smis timeout-restored
-PASS  smis stayon-restored
 == fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
 PASS  sskin rc
 PASS  sskin END
 PASS  sskin rows
-PASS  sskin trust verdict
+PASS  sskin untrusted verdict
 PASS  sskin restore-ran
 PASS  sskin timeout-restored
-PASS  sskin stayon-restored
+== fixture A5: untrusted battery still stops on 44.5 C (never disarmed) ==
+PASS  sunb rc
+PASS  sunb END
+PASS  sunb rows
+PASS  sunb untrusted verdict
+PASS  sunb restore-ran
+PASS  sunb timeout-restored
 == fixture: stop fires mid-arm (background poll) ==
 PASS  smid rc
 PASS  smid END
@@ -102,6 +128,31 @@ PASS  smid rows
 PASS  smid row voided by stop
 PASS  smid restore-ran
 PASS  smid timeout-restored
-PASS  smid stayon-restored
+== fixture A2: stale stop_request + END cleared at session start ==
+PASS  stale rc
+PASS  stale END
+PASS  stale rows
+PASS  stale first row OK
+PASS  stale stop_request gone
+PASS  stale restore-ran
+PASS  stale timeout-restored
+== fixture A3: arm timeout kills the remote orphan ==
+PASS  tmo rc
+PASS  tmo END
+PASS  tmo rows
+PASS  tmo void_reason
+PASS  tmo orphan-kill logged
+PASS  tmo bracketed pkill
+PASS  tmo restore-ran
+PASS  tmo timeout-restored
+== fixture A7: unequal decode voids the row and stops the session ==
+PASS  dec rc
+PASS  dec END
+PASS  dec rows
+PASS  dec status
+PASS  dec void_reason
+PASS  dec runs recorded
+PASS  dec restore-ran
+PASS  dec timeout-restored
 
-dryrun summary: PASS=94 FAIL=0
+dryrun summary: PASS=138 FAIL=0
