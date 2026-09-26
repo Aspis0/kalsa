@@ -5,7 +5,6 @@
 //! and parks every FFI call on it — from plain threads only; a call made
 //! inside an async context answers a typed error instead of panicking.
 
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -37,17 +36,15 @@ pub struct MobileBridge {
 impl MobileBridge {
     /// Load or mint the node key at `key_path` — its parent directory must
     /// already exist; on Android the app passes
-    /// `<Context.filesDir>/iroh-node.key` — and bind the endpoint. The
-    /// phone is dial-only, so the door address is the placeholder a
-    /// dialer's accept loop would never use. The dial itself is bounded
-    /// by brain's 10 s dial deadline.
+    /// `<Context.filesDir>/iroh-node.key` — and bind a dial-only endpoint:
+    /// no accept loop, no ALPN offered for inbound, and no pkarr
+    /// publication on the n0 road. No publication is not anonymity: on a
+    /// relayed road this node still tells the relay its stable EndpointId.
+    /// The dial itself is bounded by brain's 10 s dial deadline.
     #[uniffi::constructor]
     pub fn new(key_path: String) -> Result<Arc<Self>, IrohMobileError> {
         Self::start(
-            // TODO(kalsa-brain): N0Public also publishes this phone's id to
-            // n0 pkarr DNS, and brain spawns an accept loop even for a
-            // dial-only endpoint; both belong in kalsa-iroh, tracked there.
-            BridgeConfig::new(dialer_placeholder()).with_relay(RelayChoice::N0Public),
+            BridgeConfig::dial_only().with_relay(RelayChoice::N0Public),
             PathBuf::from(key_path),
         )
     }
@@ -83,23 +80,18 @@ impl MobileBridge {
     }
 }
 
-/// The door address a dial-only bridge hands brain's accept loop: never
-/// used for inbound traffic, `127.0.0.1:0` because a socket address is
-/// required even when nothing listens behind it.
-fn dialer_placeholder() -> SocketAddr {
-    SocketAddr::from(([127, 0, 0, 1], 0))
-}
-
 /// The network-free seam for the integration tests, deliberately outside
 /// the uniffi face: relays off, resolution through an in-process book —
-/// the exact shape brain's own round-trip test runs. Production
-/// constructors never take a book.
+/// the exact shape brain's own round-trip test runs. The phone here is
+/// dial-only like production; the desktop side of each test builds its
+/// own serving bridge with a real door address. Production constructors
+/// never take a book.
 #[cfg(feature = "test-support")]
 impl MobileBridge {
     #[doc(hidden)]
     pub fn for_tests(key_path: PathBuf, book: &kalsa_iroh::AddressBook) -> Result<Arc<Self>, IrohMobileError> {
         Self::start(
-            BridgeConfig::new(dialer_placeholder())
+            BridgeConfig::dial_only()
                 .with_relay(RelayChoice::Disabled)
                 .with_address_book(book.clone()),
             key_path,

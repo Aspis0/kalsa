@@ -858,10 +858,10 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_shutdown() and 0xFFFF) != 52378) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_write() and 0xFFFF) != 20757) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_write() and 0xFFFF) != 35850) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_constructor_mobilebridge_new() and 0xFFFF) != 15946) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_constructor_mobilebridge_new() and 0xFFFF) != 35980) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1262,10 +1262,11 @@ open class MobileBridge: Disposable, AutoCloseable, MobileBridgeInterface
     /**
      * Load or mint the node key at `key_path` — its parent directory must
      * already exist; on Android the app passes
-     * `<Context.filesDir>/iroh-node.key` — and bind the endpoint. The
-     * phone is dial-only, so the door address is the placeholder a
-     * dialer's accept loop would never use. The dial itself is bounded
-     * by brain's 10 s dial deadline.
+     * `<Context.filesDir>/iroh-node.key` — and bind a dial-only endpoint:
+     * no accept loop, no ALPN offered for inbound, and no pkarr
+     * publication on the n0 road. No publication is not anonymity: on a
+     * relayed road this node still tells the relay its stable EndpointId.
+     * The dial itself is bounded by brain's 10 s dial deadline.
      */
     constructor(`keyPath`: kotlin.String) :
         this(UniffiWithHandle, 
@@ -1547,8 +1548,8 @@ public interface TunnelInterface {
     /**
      * Write every byte, flushed before returning, under this call's own
      * deadline — nothing on this side waits on the peer's goodwill.
-     * A write that times out closes the tunnel: the stream's state
-     * after a partial write is not knowable.
+     * A write that times out closes the tunnel for real — the peer gets
+     * a FIN, not silence — because a half-written stream is not reusable.
      */
     fun `write`(`bytes`: kotlin.ByteArray, `timeoutMs`: kotlin.UInt)
     
@@ -1700,8 +1701,8 @@ open class Tunnel: Disposable, AutoCloseable, TunnelInterface
     /**
      * Write every byte, flushed before returning, under this call's own
      * deadline — nothing on this side waits on the peer's goodwill.
-     * A write that times out closes the tunnel: the stream's state
-     * after a partial write is not knowable.
+     * A write that times out closes the tunnel for real — the peer gets
+     * a FIN, not silence — because a half-written stream is not reusable.
      */
     @Throws(IrohMobileException::class)override fun `write`(`bytes`: kotlin.ByteArray, `timeoutMs`: kotlin.UInt)
         = 

@@ -14,7 +14,7 @@ test-support = []
 
 [dependencies]
 # The road itself, pinned to the brain rev whose ALPN contract is frozen.
-kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "a2cb3c93d6f711c5f42deafaa9d354a7a63166a1" }
+kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "637b2f79e2e3ad8591a6ca501084826dfcad65de" }
 # The wrapper parks FFI calls on this runtime; brain's accept loop needs it too.
 tokio = { version = "1", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 # Pinned exactly: the bindings and the scaffolding must come from one version.
