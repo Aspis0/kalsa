@@ -651,19 +651,23 @@ fn acquire_model(
 /// The automatic pick reduced to the one fact the ask-first gate needs:
 /// `None` when this machine has nothing an ask could offer — the
 /// measurement is unreliable, the catalog refused, or the row cannot be
-/// named back — and otherwise whether the pick's file is already complete
-/// on disk, by the same two no-download checks [`acquire_model`] makes. A
-/// pick already here means a turn-on that fetches nothing, so the owner
-/// who has it keeps the start they had. Like the capability page, this
-/// runs before any build has won, so the catalog is asked with the
-/// machine's detected backend, never a winner's. `roots` is handed in
-/// rather than taken from the environment for the same reason
-/// [`acquire_model`] takes it: the search is a fact a test can pin.
+/// named back — and otherwise whether the pick's file is already in this
+/// app's models directory. Presence and the plan's pinned length only,
+/// never a digest: the gate runs on every launch with no stored choice,
+/// where hashing would read the whole file — 22 GB on the machine this
+/// gate exists for — and [`acquire_model`] verifies the same bytes right
+/// after it. A file that passes here and fails there has cost one hash
+/// and the re-download the walk already gives a corrupt file. The reuse
+/// stores are not consulted: their answers are hashes by design, so the
+/// gate would pay what it exists to avoid — a model that lives only in
+/// another program's store draws one extra question, and picking it
+/// starts through that same reuse. Like the capability page, this runs
+/// before any build has won, so the catalog is asked with the machine's
+/// detected backend, never a winner's.
 pub(crate) fn automatic_pick_on_disk(
     machine: &Machine,
     phone: Option<PhoneModel>,
     root: &Path,
-    roots: &[PathBuf],
 ) -> Option<bool> {
     // An unreliable measurement decides nothing: the walk itself refuses on
     // one, so there is no honest pick to ask about.
@@ -696,11 +700,12 @@ pub(crate) fn automatic_pick_on_disk(
             Decision::Refuse(_) => return None,
         },
     };
-    let name = plan.url.rsplit('/').next().unwrap_or_default();
+    // The name `acquire_model` would file this plan under, and the length
+    // the download is held to: one stat, no read of the contents.
+    let name = plan.url.rsplit('/').next().filter(|name| !name.is_empty())?;
     let path = root.join("models").join(name);
     Some(
-        file_digest_is(&path, plan.bytes, plan.sha256)
-            || find_reusable(roots, plan.bytes, plan.sha256).is_some(),
+        std::fs::metadata(&path).is_ok_and(|meta| meta.len() == plan.bytes),
     )
 }
 
@@ -1395,23 +1400,43 @@ mod tests {
     fn the_offer_to_ask_about_is_the_walk_s_own_pick() {
         // The ask-first gate's offer, pinned where a unit test can reach it:
         // a machine with a pick and an empty runtime root would fetch it
-        // (Some(false)), and a machine nothing fits offers nothing (None),
-        // so the walk runs and the refusal speaks. The Some(true) arm — a
-        // digest-verified file already in place — needs the real bytes and
-        // is the real walk's to prove; the roots are empty here so no
-        // other store on the test machine can answer for the disk.
-        let root = scratch("offer-empty");
+        // (Some(false)); the same file present at the plan's pinned length
+        // answers Some(true) without its contents being read — a sparse
+        // stand-in for the gigabytes the gate must not hash; and a machine
+        // nothing fits offers nothing (None), so the walk runs and the
+        // refusal speaks.
+        let root = scratch("offer");
         assert_eq!(
-            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root, &[]),
+            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root),
             Some(false),
             "a pick whose file is not here would be downloaded"
+        );
+        let input = choice_input(ServerBackend::Cpu, &machine(Backend::Cpu), None);
+        let plan =
+            kalsa_catalog::largest_that_runs_well(&input).expect("something runs").download;
+        let name = plan
+            .url
+            .rsplit('/')
+            .next()
+            .filter(|name| !name.is_empty())
+            .expect("the plan's address names a file");
+        let path = root.join("models").join(name);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdirs");
+        std::fs::File::create(&path)
+            .expect("create")
+            .set_len(plan.bytes)
+            .expect("extend to the pinned length");
+        assert_eq!(
+            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root),
+            Some(true),
+            "the file is here at its pinned length: the start fetches nothing"
         );
         let nothing_fits = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
             ram_bytes: 0,
         };
         assert_eq!(
-            automatic_pick_on_disk(&nothing_fits, None, &root, &[]),
+            automatic_pick_on_disk(&nothing_fits, None, &root),
             None,
             "nothing fits, so there is nothing to ask about"
         );

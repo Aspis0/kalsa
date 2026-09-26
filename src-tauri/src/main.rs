@@ -1203,12 +1203,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             stored_choice.as_deref(),
             server_override.is_some(),
             model_override.is_some(),
-            startup::automatic_pick_on_disk(
-                &machine,
-                phone,
-                &runtime_root,
-                &kalsa_download::default_roots(),
-            ),
+            startup::automatic_pick_on_disk(&machine, phone, &runtime_root),
         ) {
             return (None, measured);
         }
