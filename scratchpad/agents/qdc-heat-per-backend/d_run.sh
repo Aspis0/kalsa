@@ -5,7 +5,7 @@ export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 # QDC heat run: per-backend prefill heat (CPU vs GPU) on the shipped app path.
 # usage: d_run.sh <job_id> <apk_path> <arm_order> [deadline_minutes]
 #   arm_order: C/G sequence, e.g. CGGCGC = pair1 C->G, pair2 G->C, pair3 C->G.
-# env: TYPE_LADDER (default "200 100"), DEADLINE via argv.
+# env: TYPE_LADDER (default "200 100"), TYPE_CHUNK_PAUSE_S (default 0), DEADLINE via argv.
 usage() { echo "usage: d_run.sh <job_id> <apk_path> <arm_order> [deadline_minutes]" >&2; }
 validate_deadline_minutes() {
   local value="$1"

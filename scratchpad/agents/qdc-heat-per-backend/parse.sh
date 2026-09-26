@@ -602,6 +602,7 @@ type_cap_for_chunk() {
   case "$1" in
     200) printf '400\n' ;;
     100) printf '700\n' ;;
+    50) printf '1800\n' ;;
     *) return 1 ;;
   esac
 }
@@ -639,6 +640,7 @@ type_prompt() {
         printf 'attempt=%s chunk_size=%s seconds=%s rc=%s\n' "$attempt" "$chunk_size" "$elapsed" "$rc" >> "${prefix}_type_prompt.txt"
         return 2
       fi
+      if [ "${TYPE_CHUNK_PAUSE_S:-0}" != 0 ]; then sleep "$TYPE_CHUNK_PAUSE_S"; fi
       offset="$expected_len"
       chunks=$((chunks + 1))
       if [ "${TYPE_FAST:-0}" = "1" ]; then continue; fi
