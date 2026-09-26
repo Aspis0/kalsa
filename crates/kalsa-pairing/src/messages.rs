@@ -130,7 +130,7 @@ impl PhoneFields {
 /// The phone's completion message: its own description, bound to the
 /// ceremony by a MAC keyed on the QR's one-time secret. The transport
 /// deserializes it and hands it to the ceremony; the ceremony verifies it
-/// or burns.
+/// or refuses it, moving nothing.
 #[derive(Serialize, Deserialize)]
 pub struct PhoneDeclaration {
     /// The metadata the phone declares about itself. Covered by the MAC.

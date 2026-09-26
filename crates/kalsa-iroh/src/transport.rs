@@ -435,3 +435,17 @@ async fn forward_stream(
         };
     let _ = pump::pump(stream, tcp, idle).await;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ALPN, DESK_ALPN};
+
+    // A phone pinned to an older brain commit dials the ALPN it was built
+    // with, so an edited tag would break that phone's handshake silently —
+    // iroh just refuses the peer — instead of failing here.
+    #[test]
+    fn the_two_alpn_tags_are_exactly_these_bytes() {
+        assert_eq!(ALPN, &b"kalsa/door-tunnel/1"[..]);
+        assert_eq!(DESK_ALPN, &b"kalsa/pair-desk/1"[..]);
+    }
+}

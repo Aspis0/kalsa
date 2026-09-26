@@ -18,7 +18,8 @@
 //! * a rejection never says how wrong the presentation was;
 //! * completion is a second gate and a one-shot: the phone proves knowledge
 //!   of the code with a MAC over the per-offer nonce and its metadata, and a
-//!   proof that fails burns the ceremony — one attempt, per completion, ever.
+//!   completion that fails is refused and changes no state — the window, not
+//!   a stranger's guess, ends a claimed ceremony.
 
 use std::fmt;
 use std::time::{Duration, SystemTime};
@@ -192,21 +193,18 @@ impl Pairing {
     /// The phone finished the handshake: its declaration arrives bound to
     /// the ceremony by a MAC keyed on the one-time secret the QR carried,
     /// over the nonce and the address the square advertised (`messages`).
-    /// Verified in constant time, or the ceremony burns.
+    /// Verified in constant time.
     ///
-    /// One attempt. A completion that fails — wrong proof, malformed proof,
-    /// metadata that cannot exist — burns the ceremony to `Expired` and it
-    /// stays burned even for a later, valid proof: an endpoint that mints
-    /// credentials does not offer an unbounded retry loop, and guessing a
-    /// 128-bit key was never the threat being managed here. The refusal is
-    /// [`CompleteError::Refused`] for **every** cause — a closed window, a
-    /// wrong proof, and a session with nothing claimed at all — because two
-    /// distinct answers would tell a prober whether a live, claimed ceremony
-    /// is on the table. A completion against a session with nothing claimed
-    /// changes no state: a stranger firing complete at a live offer can
-    /// neither learn that it is there nor burn it out from under the real
-    /// phone. Only entropy failure spares a claimed ceremony — nothing the
-    /// phone presented caused it.
+    /// A completion that fails — wrong proof, malformed proof, metadata that
+    /// cannot exist — is [`CompleteError::Refused`] and changes no state:
+    /// only the window ends a claimed ceremony, because a burn here would
+    /// let anyone holding the node id end every pairing, while the MAC keyed
+    /// on the 128-bit code already makes a wrong proof futile. Refusal stays
+    /// one answer for **every** cause — a closed window, a wrong proof, and
+    /// a session with nothing claimed at all — because two distinct answers
+    /// would tell a prober whether a live, claimed ceremony is on the table.
+    /// A closed window does expire the ceremony, and entropy failure leaves
+    /// the claim standing too: nothing the phone presented caused it.
     ///
     /// The two results go to two audiences: the handshake is this computer's
     /// to persist and serve from; the seal is the message the phone is
@@ -239,11 +237,9 @@ impl Pairing {
             &declaration.phone,
             &declaration.mac,
         ) {
-            *self = Self::Expired;
             return Err(CompleteError::Refused);
         }
         let Some(phone) = declaration.phone.into_phone() else {
-            *self = Self::Expired;
             return Err(CompleteError::Refused);
         };
         let credential = Credential::generate().map_err(|_| CompleteError::Entropy)?;

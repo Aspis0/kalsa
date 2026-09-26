@@ -18,7 +18,7 @@ INFERRED.
   `127.0.0.1:8131`; it only raises while the brain is Running, so the model
   pin was for the door's sake — the 401 test itself needs no model loaded.
   Internet road turned on through the Advanced panel; the app announced node
-  id `79c76dac9ab45e137f741121be045b4a9a597d231f739d8d53017498f6840198`.
+  id `79c76dac…` (first 8 hex only — the full id is not written down here).
 - Surface (workplace): Windows 11, corporate-managed (Palo Alto agents
   present on the network). Source synced by `git archive HEAD` + overlay of
   the three uncommitted files; `cargo build --release -p kalsa-iroh

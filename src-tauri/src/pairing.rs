@@ -1245,8 +1245,9 @@ mod tests {
         );
     }
 
-    /// A proof keyed on anything but this square mints nothing, and burns the
-    /// square: the real phone gets a fresh one rather than a spent one.
+    /// A proof keyed on anything but this square mints nothing, and moves
+    /// nothing either: the refusal changes no state, so the ceremony is
+    /// still the real phone's to finish.
     #[test]
     fn a_proof_from_another_square_mints_nothing() {
         let desk = Desk::new(scratch("wrong-proof"));
@@ -1262,11 +1263,11 @@ mod tests {
         assert!(desk.phone().unwrap().is_none(), "and no credential");
     }
 
-    /// One attempt. A correct proof presented after a wrong one is still
-    /// refused — the square is spent, not merely wrong.
+    /// A wrong proof spends nothing: it is refused, the claim stands, and
+    /// the real phone's correct proof afterwards pairs.
     #[test]
-    fn a_burnt_square_refuses_even_the_right_proof() {
-        let desk = Desk::new(scratch("burnt"));
+    fn a_wrong_proof_leaves_the_square_to_the_real_phone() {
+        let desk = Desk::new(scratch("wrong-then-right"));
         let now = SystemTime::now();
         desk.read(true, "http://127.0.0.1:1", None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().expect("square"));
@@ -1277,8 +1278,17 @@ mod tests {
         assert!(desk.complete(forged, now).is_none());
 
         let honest = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
-        assert!(desk.complete(honest, now).is_none(), "the square is spent");
-        assert!(desk.phone().unwrap().is_none());
+        assert!(
+            desk.complete(honest, now).is_some(),
+            "the refusal spent nothing: the real phone still pairs"
+        );
+        let devices = kalsa_pairing::store::load_devices(desk.file()).expect("the store reads");
+        assert!(
+            devices
+                .iter()
+                .any(|device| device.kind == DeviceKind::Phone),
+            "the phone is in the house"
+        );
     }
 
     /// A square is only offered while there is something behind it.

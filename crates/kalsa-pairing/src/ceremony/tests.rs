@@ -197,7 +197,7 @@ fn a_valid_proof_completes_the_pairing() {
 }
 
 #[test]
-fn a_single_flipped_bit_burns_the_ceremony() {
+fn a_single_flipped_bit_is_refused_and_the_real_phone_still_pairs() {
     let (mut session, start, code, nonce) = claimed();
     let mut tampered = declaration(&code, &nonce, REACHABLE, "", sample_phone());
     let mut raw = hex::decode(&tampered.mac).unwrap();
@@ -208,16 +208,24 @@ fn a_single_flipped_bit_burns_the_ceremony() {
         session.complete(tampered, start + Duration::from_secs(2)),
         Err(CompleteError::Refused)
     ));
-    assert!(matches!(session, Pairing::Expired));
-    // The burned secret is worth nothing: the *valid* proof, presented
-    // after the burn, pairs nothing. The answer is Refused now — the same
-    // answer any dead ceremony gives — and the state stays Expired.
-    let replay = declaration(&code, &nonce, REACHABLE, "", sample_phone());
-    assert!(matches!(
-        session.complete(replay, start + Duration::from_secs(3)),
-        Err(CompleteError::Refused)
-    ));
-    assert!(matches!(session, Pairing::Expired));
+    // The refusal moved nothing: only the window ends a claimed ceremony,
+    // so a stranger's bogus proof cannot take the square from the phone.
+    assert!(matches!(session, Pairing::Claimed(_)));
+
+    // The real phone's valid proof, presented after the refused one, pairs.
+    let honest = declaration(&code, &nonce, REACHABLE, "", sample_phone());
+    let (handshake, seal) = session
+        .complete(honest, start + Duration::from_secs(3))
+        .expect("the refusal spent nothing");
+    assert!(matches!(session, Pairing::Paired));
+    assert_eq!(
+        handshake
+            .phone
+            .expect("a completed ceremony declares a phone")
+            .weights_bytes,
+        2_200_000_000
+    );
+    assert_eq!(seal.open(&code, &nonce), Some(handshake.credential_hex()));
 }
 
 #[test]
@@ -232,7 +240,7 @@ fn metadata_altered_after_the_mac_is_refused() {
         session.complete(declaration, start + Duration::from_secs(2)),
         Err(CompleteError::Refused)
     ));
-    assert!(matches!(session, Pairing::Expired));
+    assert!(matches!(session, Pairing::Claimed(_)));
 }
 
 #[test]
@@ -246,7 +254,7 @@ fn the_declaration_is_bound_to_the_whole_square() {
         session.complete(wrong_square, start + Duration::from_secs(2)),
         Err(CompleteError::Refused)
     ));
-    assert!(matches!(session, Pairing::Expired));
+    assert!(matches!(session, Pairing::Claimed(_)));
 }
 
 #[test]
@@ -275,7 +283,7 @@ fn a_swapped_node_in_the_square_cannot_pair() {
         session.complete(swapped, start + Duration::from_secs(2)),
         Err(CompleteError::Refused)
     ));
-    assert!(matches!(session, Pairing::Expired));
+    assert!(matches!(session, Pairing::Claimed(_)));
 }
 
 #[test]
@@ -389,10 +397,11 @@ fn a_refusal_does_not_say_why() {
     assert!(matches!(wrong, Err(CompleteError::Refused)));
     assert!(matches!(expired, Err(CompleteError::Refused)));
     assert!(matches!(stranger, Err(CompleteError::Refused)));
-    // And the stranger's completion changed nothing: the live offer stands,
-    // untouched, for the real phone.
+    // And neither of the first two refusals changed anything: the live
+    // offer stands untouched, and the wrong proof left the claim standing
+    // for the real phone. Only the closed window expired its ceremony.
     assert!(matches!(unclaimed, Pairing::Offered(_)));
-    assert!(matches!(wrong_proof, Pairing::Expired));
+    assert!(matches!(wrong_proof, Pairing::Claimed(_)));
     assert!(matches!(closed, Pairing::Expired));
 }
 

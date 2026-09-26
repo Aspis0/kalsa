@@ -117,7 +117,9 @@ loopback with relays disabled (`:92`), so it proves the tunnel and the door and
 nothing about NAT. Even the `#[ignore]`d test that dials the real n0 lookup and
 relay infrastructure (`:160`) still runs both endpoints in one process — it
 pretends the internet, it does not cross one. What is missing is a harness with two
-real endpoints on two real networks.
+real endpoints on two real networks. (2026-09-25: one manual run crossed two
+real networks once — `IROH-REAL-NETWORKS-2026-09-25.md` — a harness is still
+what is missing.)
 
 ### What is possible now: the desk over iroh
 
@@ -139,6 +141,32 @@ time, not the tunnel. No lockout exists, and none was added: the attempts
 are bounded in throughput by the desk's acceptor (four workers, an
 eight-deep queue, twelve sockets), not in count, and 2^128 guesses against a
 two-minute window is not the threat being managed.
+
+**A known denial, declared rather than fixed for the alpha.** The desk's
+acceptor holds twelve sockets — `MAX_CONNECTIONS = WORKERS (4) + QUEUE (8)`
+(`src-tauri/src/transport.rs:27-31`, refused past that at `:319-321`) — and
+the road hands each iroh identity `STREAMS_PER_PEER` = 2 streams per lane
+(`crates/kalsa-iroh/src/transport.rs:63`). A node id costs nothing to mint,
+so six free identities holding two desk streams each fill all twelve with
+unfinished heads, and the owner's correct-code claim is then refused with
+the same 403 as a wrong one for as long as the spammer keeps the twelve
+refilled. Each socket dies after 30 s (`connection_expired`,
+`src-tauri/src/transport.rs:419-421`), but a fresh desk stream from the
+same identities replaces it at once, so that bound costs the spammer
+nothing but re-dialing. The later fix, named here so it is not mistaken
+for an oversight: open the desk lane only while an offer is live — QR on
+screen, 120 s — leaving nothing to reach the rest of the time. Until then
+an owner who opens Pair while a spammer holds the desk walks into a 403 on
+a correct code; declared here rather than papered over.
+
+**And with Tailscale up on the Mac, the road can quietly ride Tailscale.**
+Measured in `IROH-REAL-NETWORKS-2026-09-25.md` (Run B): the Mac's 100.x
+address showed up as a "direct" path and iroh took it, carrying road
+traffic over the tailnet; Run C had to bring Tailscale down to keep the road
+off it. iroh 1.2's `AddrFilter` cannot exclude one address — there is no
+per-address or per-range ban — so the only way to keep the 100.x path out
+today is to turn Tailscale off while the road is open, and a road that
+needs a machine-wide switch off is a road nobody will keep off.
 
 Still unproven, and unchanged: none of this has ever crossed a mobile
 network. The tests above run both endpoints in one process over loopback

@@ -29,7 +29,7 @@ const VERSION: u8 = 3;
 struct QrPayloadV3 {
     v: u8,
     /// The address this computer advertises for the ceremony: the pairing
-    /// desk's own loopback bind (`http://127.0.0.1:4952`, built by the
+    /// desk's own loopback bind (`http://127.0.0.1:8134`, built by the
     /// shell from the listener — nothing is opened on the LAN). The phone
     /// never dials it — it arrives through the tunnel — but it MACs
     /// `reachable` like everything else the square showed, so both sides

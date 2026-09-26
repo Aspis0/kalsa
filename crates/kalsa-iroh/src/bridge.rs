@@ -91,6 +91,10 @@ impl BridgeConfig {
     /// reachable to anyone who knows the node id; what gates that is the
     /// desk's own — a 128-bit one-time code in a two-minute window, one
     /// uniform refusal for every rejection — not this tunnel.
+    /// Known denial, declared: six free identities at `STREAMS_PER_PEER` (2)
+    /// hold all twelve desk sockets and the owner's correct claim then reads
+    /// 403; the fix is to open this lane only while an offer is live
+    /// (QR on screen, 120 s).
     pub fn with_desk(mut self, desk: SocketAddr) -> Self {
         self.desk = Some(desk);
         self
@@ -199,7 +203,9 @@ impl Bridge {
 
     /// The transports iroh currently knows for `remote`, in plain text —
     /// the dial example's window onto the path iroh chose. Production code
-    /// never asks.
+    /// never asks, so it is hidden from the docs: the phone-facing contract
+    /// is `node_id` and `connect`, and a dev accessor is not part of it.
+    #[doc(hidden)]
     pub async fn remote_paths(&self, remote: NodeId) -> Vec<String> {
         self.transport.remote_paths(&remote).await
     }

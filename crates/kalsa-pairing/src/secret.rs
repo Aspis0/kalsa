@@ -50,8 +50,9 @@
 //! stay outside any array's reach anyway. What the crate does instead is
 //! bound the exposure: the code lives exactly as long as the ceremony can
 //! still complete — carried through `Claimed` because the completion proof
-//! is keyed on it, dropped at `Paired`, burned with the ceremony on any
-//! refusal. If the store ever moves behind OS keychain encryption, this
+//! is keyed on it, kept through any refusal, since the claim can still
+//! complete, and dropped when the ceremony ends: at `Paired`, or with
+//! `Expired`. If the store ever moves behind OS keychain encryption, this
 //! calculus changes and `zeroize` earns its place; until then, adding it
 //! would be ritual, not defense.
 

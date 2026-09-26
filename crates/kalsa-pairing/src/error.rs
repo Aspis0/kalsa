@@ -56,12 +56,11 @@ impl Error for PayloadTooLong {}
 #[derive(Debug)]
 pub enum CompleteError {
     /// The ceremony is finished or was never alive — offered without a
-    /// claim, already paired, expired, or burned by a proof that did not
-    /// verify. Deliberately **one** answer for every cause: distinguishing
+    /// claim, already paired, expired, or presented with a proof that did
+    /// not verify. Deliberately **one** answer for every cause: distinguishing
     /// them would hand a prober an oracle for "is there a live, claimed
-    /// ceremony sitting here". A completion against a session with nothing
-    /// claimed changes no state; a completion against a live claim whose
-    /// proof fails burns it.
+    /// ceremony sitting here". No refusal moves the state machine: only the
+    /// window ends a claimed ceremony, so a bogus completion cannot take it.
     Refused,
     /// The long-lived credential could not be minted. This one is not
     /// attacker-facing — nothing the phone presented caused it — so the
