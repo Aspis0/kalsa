@@ -6,14 +6,25 @@
 
 EMPTY_TEXT="${EMPTY_TEXT:-}"
 
+# Pre-run screen_off_timeout and stay_on_while_plugged_in are read ONCE per job,
+# before anything changes them, into $RAW/restore-state (tmp + mv); a later
+# invocation of the same job reloads them instead of re-reading values this
+# driver already changed (audit C1/C2: a re-read saved our own 1800000).
+# restore_device / restore.sh put back exactly these. Stay-on only on AC.
 configure_screen() {
-  local previous
-  previous=$(adbT 60 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || return 1
-  [ -n "$previous" ] || return 1
-  SCREEN_OFF_TIMEOUT="$previous"
+  local tmp="$RAW/restore-state.tmp"
+  if [ -f "$RAW/restore-state" ]; then
+    SCREEN_OFF_TIMEOUT=$(sed -n 's/^SCREEN_OFF_TIMEOUT=//p' "$RAW/restore-state" | tail -1)
+    STAY_ON_PRE=$(sed -n 's/^STAY_ON=//p' "$RAW/restore-state" | tail -1)
+  else
+    SCREEN_OFF_TIMEOUT=$(adbT 60 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || return 1
+    STAY_ON_PRE=$(adbT 60 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r') || return 1
+    [ -n "$SCREEN_OFF_TIMEOUT" ] && [ -n "$STAY_ON_PRE" ] || return 1
+    printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nSTAY_ON=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$STAY_ON_PRE" > "$tmp" && mv "$tmp" "$RAW/restore-state" || return 1
+  fi
   SCREEN_OFF_TIMEOUT_SAVED=1
-  printf 'screen_off_timeout_previous=%s\n' "$SCREEN_OFF_TIMEOUT" >> "$RAW/recon.txt"
-  adbT 60 -s "$SER" shell svc power stayon true >> "$RAW/recon.txt" 2>&1 || return 1
+  printf 'screen_off_timeout_previous=%s stay_on_previous=%s\n' "$SCREEN_OFF_TIMEOUT" "$STAY_ON_PRE" >> "$RAW/recon.txt"
+  board_on_ac && { adbT 60 -s "$SER" shell svc power stayon true >> "$RAW/recon.txt" 2>&1 || return 1; }
   adbT 60 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$RAW/recon.txt" 2>&1 || return 1
 }
 
@@ -428,7 +439,9 @@ has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E
 # Load proof with the display kept awake through launch/load/prewarm: the app
 # skips its prewarm while backgrounded, and a QRD8750 unit slept ~10 s after
 # every app start (raw/sa853845b, sa853845c: "Going to sleep due to timeout",
-# prewarm skip background). Each ~5 s: wakefulness check, then KEYCODE_WAKEUP.
+# prewarm skip background). A dedicated keep-awake job (keep_awake_start, own
+# process group, killed here and in cleanup) sends KEYCODE_WAKEUP every ~5 s;
+# each ~5 s poll checks wakefulness.
 # Asleep/Dozing fails the proof explicitly (rc 3 = screen_off) instead of a
 # silent prewarm skip. On AC, stay-on is forced for the wait and the previous
 # stay_on_while_plugged_in value restored exactly. rc 0 proof, 1 none, 3 screen_off.
@@ -436,7 +449,8 @@ poll_load() {
   local file="$1"
   local elapsed=0 rc=1 wake saved_stayon=""
   : > "$file"
-  if adbT 30 -s "$SER" shell dumpsys battery 2>/dev/null | grep -Eq '^ *AC powered: true'; then
+  keep_awake_start
+  if board_on_ac; then
     saved_stayon=$(adbT 30 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r[:space:]')
     adbT 30 -s "$SER" shell svc power stayon true >/dev/null 2>&1 || true
     log "LOAD_PROOF_STAYON on_ac=1 saved=${saved_stayon:-empty}"
@@ -445,12 +459,12 @@ poll_load() {
     deadline_check
     wake=$(adbT 30 -s "$SER" shell dumpsys power 2>/dev/null | sed -n 's/.*mWakefulness=\([^, ]*\).*/\1/p' | head -1 | tr -d '\r')
     case "$wake" in Asleep|Dozing) log "LOAD_PROOF_SCREEN_OFF wakefulness=$wake elapsed=${elapsed}s"; rc=3; break ;; esac
-    adbT 30 -s "$SER" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
     logcat_all 60 "$file" || true
     has_load_proof "$file" && { rc=0; break; }
     sleep 5; elapsed=$((elapsed + 5))
   done
   if [ "$rc" -eq 1 ]; then logcat_all 60 "$file" || true; has_load_proof "$file" && rc=0; fi
+  keep_awake_stop
   if [ -n "$saved_stayon" ]; then
     case "$saved_stayon" in
       null) adbT 30 -s "$SER" shell settings delete global stay_on_while_plugged_in >/dev/null 2>&1 || true ;;
@@ -953,6 +967,8 @@ run_arm() {
   if [ "$row_void" -eq 0 ]; then
     TYPE_TEXT="$PROMPT_TEXT"
     safety_gate "arm${turn}"
+    # Record only: on QDC the skin stop is armed regardless of this verdict.
+    log "BATTERY_TRUST turn=$turn arm=$backend qdc=$QDC_BOARD untrusted=$BATTERY_UNTRUSTED why=$BATTERY_UNTRUSTED_WHY"
     # The wall cap in poll_until_telemetry covers the whole turn from here.
     TURN_START_EPOCH=$(date +%s)
     skin_before=$(thermal_record "${prefix}_before") || skin_before=na

@@ -9,10 +9,11 @@ ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 5037|6037|6039) ;; *) echo "AD
 export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 PKG=com.kalsa.app
-SER=""; SCREEN_OFF_TIMEOUT=60000
+SER=""; SCREEN_OFF_TIMEOUT=60000; STAY_ON=""
 # Written by d_run.sh right after configure_screen; source it for the pre-run
 # timeout and the serial (restores the values cleanup would have restored).
-[ -f "$OUT/.restore-state" ] && . "$OUT/.restore-state"
+RESTORE_STATE="${RESTORE_STATE:-$OUT/.restore-state}"
+[ -f "$RESTORE_STATE" ] && . "$RESTORE_STATE"
 # A serial from an old .restore-state (device swapped since) would fail every
 # command below; drop it and fall back to whatever is connected now.
 if [ -n "$SER" ] && ! "$ADB_BIN" -s "$SER" get-state >/dev/null 2>&1; then
@@ -28,7 +29,13 @@ rc=0
 # Force-stop before touching anything app-owned: no writer races the DB edit
 # and a runaway turn stops heating immediately.
 "$ADB_BIN" -s "$SER" shell "am force-stop $PKG" >/dev/null 2>&1 || rc=1
-"$ADB_BIN" -s "$SER" shell svc power stayon false >/dev/null 2>&1 || rc=1
+# Exact pre-run stay_on_while_plugged_in (saved once per job by d_run); an old
+# state file without it falls back to the previous "stayon false".
+case "$STAY_ON" in
+  '') "$ADB_BIN" -s "$SER" shell svc power stayon false >/dev/null 2>&1 || rc=1 ;;
+  null) "$ADB_BIN" -s "$SER" shell settings delete global stay_on_while_plugged_in >/dev/null 2>&1 || rc=1 ;;
+  *) "$ADB_BIN" -s "$SER" shell settings put global stay_on_while_plugged_in "$STAY_ON" >/dev/null 2>&1 || rc=1 ;;
+esac
 "$ADB_BIN" -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || rc=1
 if [ "$SCREEN_OFF_TIMEOUT" = null ]; then
   "$ADB_BIN" -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || rc=1
@@ -82,5 +89,5 @@ bench_prefs_clear() {
   return 0
 }
 bench_prefs_clear || rc=1
-echo "restored serial=$SER stayon=false screen_off_timeout=$SCREEN_OFF_TIMEOUT keyguard=enabled sampler=stopped app=force-stopped bench_prefs=removed rc=$rc"
+echo "restored serial=$SER stay_on=${STAY_ON:-false} screen_off_timeout=$SCREEN_OFF_TIMEOUT keyguard=enabled sampler=stopped app=force-stopped bench_prefs=removed rc=$rc"
 exit "$rc"

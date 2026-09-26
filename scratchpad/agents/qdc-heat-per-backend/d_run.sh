@@ -26,8 +26,9 @@ PAIR_START="${PAIR_START:-1}"
 case "$PAIR_START" in ''|*[!0-9]*) echo "PAIR_START must be an integer >= 1" >&2; exit 2;; esac
 [ "$PAIR_START" -ge 1 ] || { echo "PAIR_START must be an integer >= 1" >&2; exit 2; }
 
-PROMPT_FILE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.txt
-PROMPT_META=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.meta
+# Overridable so dry-runs pin prompts under raw/ and never rewrite the tracked files.
+PROMPT_FILE="${PROMPT_FILE:-/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.txt}"
+PROMPT_META="${PROMPT_META:-/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.meta}"
 PROMPT_SHA=$(awk '{print $1}' "$PROMPT_META")
 PROMPT_BYTES=$(awk '{print $2}' "$PROMPT_META")
 PROMPT_TEXT=""; PROMPT_EXPECTED_CHARS=0
@@ -87,6 +88,7 @@ DEVICE_TMP=/data/local/tmp/kalsa-heat; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 HEAT_TMP="$DEVICE_TMP/heat"
 TYPE_LADDER="${TYPE_LADDER:-"200 100"}"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
+DRIVER_PID=$$; KEEP_AWAKE_PID=0; SPAWNED_PID=0; STAY_ON_PRE=""; QDC_BOARD_ENV="${QDC_BOARD:-}"; QDC_BOARD=1
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0
 FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""
 TYPE_PROMPT_CALLS=0; TYPE_LADDER_STATE=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=720
@@ -158,7 +160,7 @@ wake_sequence() {
   adbT 60 -s "$SER" shell wm dismiss-keyguard >> "$wake_log" 2>&1 || true
   sleep 1
   wake_tap "$wake_log"; tap_rc=$?
-  adbT 60 -s "$SER" shell svc power stayon true >> "$wake_log" 2>&1 || true
+  board_on_ac && { adbT 60 -s "$SER" shell svc power stayon true >> "$wake_log" 2>&1 || true; }
   adbT 60 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$wake_log" 2>&1 || true
   adbT 60 -s "$SER" shell dumpsys power > "$check_file" 2>&1
   check_rc=$?
@@ -184,9 +186,35 @@ ensure_awake() {
   printf 'before=%s\nafter=%s\n' "${first:-missing}" "${second:-missing}" > "${prefix}_wakefulness.txt"
   [ "${second:-missing}" = Awake ] || return 1
 }
-restore_device() { [ -n "$SER" ] || return 0; adbT 60 -s "$SER" shell svc power stayon false >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || true; if [ "$SCREEN_OFF_TIMEOUT" = null ]; then adbT 60 -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || true; elif [ -n "$SCREEN_OFF_TIMEOUT" ]; then adbT 60 -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true; fi; }
-holder_loop() { while :; do [ "${ALLOW_RUN_AS_WITHOUT_CHMOD:-0}" = "1" ] || adbT 60 -s "$SER" shell chmod 771 /data >> "$RAW/holder.log" 2>&1 || true; sleep 2; done; }
-stop_holder() { [ "$HOLDER_PID" -ne 0 ] && { kill "$HOLDER_PID" 2>/dev/null || true; wait "$HOLDER_PID" 2>/dev/null || true; HOLDER_PID=0; }; }
+# Exact restore of the pre-run values saved once per job (configure_screen):
+# stay_on_while_plugged_in and screen_off_timeout ("null" = unset -> delete).
+restore_setting() {
+  local ns="$1" key="$2" value="$3"
+  case "$value" in
+    '') return 0 ;;
+    null) adbT 60 -s "$SER" shell settings delete "$ns" "$key" >/dev/null 2>&1 || true ;;
+    *) adbT 60 -s "$SER" shell settings put "$ns" "$key" "$value" >/dev/null 2>&1 || true ;;
+  esac
+}
+restore_device() {
+  [ -n "$SER" ] || return 0
+  adbT 60 -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || true
+  restore_setting global stay_on_while_plugged_in "$STAY_ON_PRE"
+  restore_setting system screen_off_timeout "$SCREEN_OFF_TIMEOUT"
+}
+board_on_ac() { adbT 30 -s "$SER" shell dumpsys battery 2>/dev/null | grep -Eq '^ *AC powered: true'; }
+# Background helpers run in their own process group (set -m) so one kill
+# takes their in-flight adb children too, and each loop exits by itself once
+# the driver is gone (DRIVER_PID check), even after a SIGKILL of the driver.
+spawn_group() { set -m; "$@" & SPAWNED_PID=$!; set +m; }
+kill_group() { [ "${1:-0}" -ne 0 ] || return 0; kill -- "-$1" 2>/dev/null || kill "$1" 2>/dev/null || true; wait "$1" 2>/dev/null || true; }
+holder_loop() { while kill -0 "$DRIVER_PID" 2>/dev/null; do [ "${ALLOW_RUN_AS_WITHOUT_CHMOD:-0}" = "1" ] || adbT 60 -s "$SER" shell chmod 771 /data >> "$RAW/holder.log" 2>&1 || true; sleep 2; done; }
+stop_holder() { kill_group "$HOLDER_PID"; HOLDER_PID=0; }
+start_holder() { spawn_group holder_loop; HOLDER_PID=$SPAWNED_PID; printf '%s\n' "$HOLDER_PID" > "$RAW/holder.pid"; }
+# Keep-awake job for the load proof (poll_load): one KEYCODE_WAKEUP every ~5 s.
+keep_awake_loop() { while kill -0 "$DRIVER_PID" 2>/dev/null; do adbT 30 -s "$SER" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true; sleep 5; done; }
+keep_awake_start() { [ "$KEEP_AWAKE_PID" -ne 0 ] && return 0; spawn_group keep_awake_loop; KEEP_AWAKE_PID=$SPAWNED_PID; printf '%s\n' "$KEEP_AWAKE_PID" > "$RAW/keep_awake.pid"; }
+keep_awake_stop() { kill_group "$KEEP_AWAKE_PID"; KEEP_AWAKE_PID=0; }
 stop_sampler() {
   [ "${SKIP_SAMPLER:-0}" = "1" ] && return 0
   [ -n "$SER" ] || return 0
@@ -203,6 +231,7 @@ CURRENT_CHILD_PID=0
 SIGNAL_NAME=""
 cleanup() {
   local rc=$?
+  keep_awake_stop
   restore_device
   stop_holder
   stop_sampler
@@ -250,10 +279,23 @@ case "$SOC" in
   *) log "UNSUPPORTED_SOC=$SOC"; exit 6 ;;
 esac
 printf 'device_tag=%s\n' "$BOARD" >> "$RAW/recon.txt"
+# QDC detection, fail-closed: a QDC tunnel port or a QRD build means QDC; only
+# the local adb port with a non-QRD build counts as a local phone. On QDC the
+# skin >= 46 C stop is always armed (safety.sh). QDC_BOARD=1 in the env can
+# force QDC mode; nothing can force a QDC board out of it.
+FINGERPRINT=$(adbT 60 -s "$SER" shell getprop ro.build.fingerprint | tr -d '\r')
+PROD_MODEL=$(adbT 60 -s "$SER" shell getprop ro.product.model | tr -d '\r')
+QDC_WHY=""
+case "$ADB_PORT" in 6037|6039) QDC_WHY="tunnel_port=$ADB_PORT" ;; esac
+case "$FINGERPRINT" in qti/*) QDC_WHY="${QDC_WHY:+$QDC_WHY,}fingerprint=qti" ;; esac
+case "$PROD_MODEL" in *"for arm64"*) QDC_WHY="${QDC_WHY:+$QDC_WHY,}model=$PROD_MODEL" ;; esac
+if [ -n "$QDC_WHY" ] || [ "$QDC_BOARD_ENV" = "1" ]; then QDC_WHY="${QDC_WHY:-env}"; QDC_BOARD=1; else QDC_BOARD=0; QDC_WHY="local_port_non_qrd"; fi
+log "QDC_BOARD=$QDC_BOARD why=$QDC_WHY"
 configure_screen || { log "SCREEN_SETUP_FAIL"; exit 2; }
 # restore.sh (abnormal-end recovery) needs the pre-run timeout and serial even
 # if this process is SIGKILLed before cleanup can run.
-printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" > "$OUT/.restore-state"
+RESTORE_STATE="${RESTORE_STATE:-$OUT/.restore-state}"
+cp "$RAW/restore-state" "$RESTORE_STATE.tmp" && mv "$RESTORE_STATE.tmp" "$RESTORE_STATE"
 
 launch_sampler() {
   [ "${SKIP_SAMPLER:-0}" = "1" ] && { log "sampler_skipped (SKIP_SAMPLER=1)"; return 0; }
@@ -281,7 +323,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   # "full" keeps running into the arms in the SAME invocation: the screen
   # timeout set by configure_screen stays 1800000 for the whole session and
   # is restored only by cleanup at the end (doze trap).
-  holder_loop & HOLDER_PID=$!; sleep 1
+  start_holder; sleep 1
   fresh_install "$RAW/setup" || { log "INSTALL_FAIL"; exit 3; }
   bootstrap_db "$RAW/setup" || { log "BOOTSTRAP_FAIL"; exit 3; }
   FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }
@@ -367,7 +409,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
     log "DECODE_LEN_REF=$DECODE_LEN_REF forced_n=$FORCED_DECODE_N"
   fi
 else
-  holder_loop & HOLDER_PID=$!; sleep 1
+  start_holder; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }
   battery_trust_load
   DECODE_LEN_REF=$(cat "$RAW/decode_len_ref.txt" 2>/dev/null)

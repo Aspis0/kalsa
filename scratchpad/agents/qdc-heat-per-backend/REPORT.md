@@ -1279,3 +1279,42 @@ Coordinator decisions, dry-run only (fake adb; no device).
 
 (Canned logcats set to tokensPredicted 127 for these runs, restored after; the first frozen-40 run stopped on
 the decode gate with the stale 96/30 canned values — gate behaving.) `bash -n` clean on all eight scripts.
+
+## Audit f2ee97f4 fixes — QDC untrusted by default, exact restore, helper jobs (2026-09-26 eve)
+
+Coordinator decision: detection is no longer the safety basis.
+- **Every QDC board: skin ≥ 46 °C always armed** (`safety.sh`), plus battery ≥ 44 (A5), thermal ≥ 3, level ≤ 25 %,
+  plugged, missing readings. QDC detection in `d_run.sh`, fail-closed: tunnel port 6037/6039, or fingerprint
+  `qti/*`, or model `*for arm64*` → `QDC_BOARD=1` (logged with reason); only a non-QRD build on another port is a
+  local phone. `QDC_BOARD=1` in the env can force QDC mode, nothing forces it off; unset in safety.sh = 1.
+- `battery_trust.sh` = logging on QDC (per arm: `BATTERY_TRUST turn=… qdc=… untrusted=… why=…`); on local phones
+  an untrusted verdict ADDS skin ≥ 46. A1: numeric, jitter-tolerant ranges (battery range ≤ 0.3 °C =
+  frozen), no permanent latch; rule (b) also re-checked every turn. A3: the setup check loads and never
+  downgrades a stored verdict. D4: verdict written tmp + mv.
+- C1/C2/C5: `screen_off_timeout` and `stay_on_while_plugged_in` are read ONCE per job into
+  `raw/<job>/restore-state` (tmp + mv; reused by later invocations of the job) and copied to `.restore-state`
+  (`RESTORE_STATE` overridable); `restore_device` (EXIT trap → every exit path incl. deadline 124 and
+  signals) and `restore.sh` put back exactly those values (`null` → delete). `svc power stayon true` is no
+  longer forced: only when the board is on AC (configure_screen, wake_sequence, poll_load).
+- C3: keep-awake = one dedicated background job (KEYCODE_WAKEUP every ~5 s) started/stopped by `poll_load`,
+  also stopped in cleanup. C4: holder and keep-awake run in their own process group (`set -m`), are killed as
+  a group, and exit by themselves when the driver PID is gone (covers SIGKILL).
+- Test hygiene: `PROMPT_FILE`/`PROMPT_META`/`RESTORE_STATE` overridable; the dry-run runner pins them under
+  `raw/<job>/` (tracked-by-intent PROMPT files untouched: mtime unchanged). Fake adb: stateful settings
+  (get/put/delete, svc stayon), `DRY_BATT_JITTER`, `DRY_BATT_RAMP`, sysfs follows the last dumpsys value,
+  `DRY_NO_LOAD_PROOF`, WAKEUP log.
+- Found by the dry-run and fixed before commit: the new detection line had overwritten `$MODEL` (the GGUF path)
+  with the product model → forced_decode failed; renamed `PROD_MODEL`.
+
+| fixture | result | EXIT |
+|---|---|---|
+| QDC, battery jitter 420/421, skin 30→46.5 | `QDC_BOARD=1`; trust (log) `frozen_far_from_skin temp=421,420`; `STOP skin_fallback` | 0 |
+| local (port 5037), battery ramping, skin 46.5 | `QDC_BOARD=0`, TRUSTED, calib gate at 46.5 → no stop (intended band stop after) | 3 |
+| full CG, pre-run stay_on=1 / timeout=60000 | 2 OK rows; no `svc stayon true`; final stay_on=1, timeout=60000; holder + keep-awake gone; 7 wakeups | 0 |
+| SIGTERM during load proof | END `signal_TERM`; stay_on=1 / 60000 exact; both jobs gone; wakeups stop (8→8) | 143 |
+| SIGKILL during load proof | both jobs exit by themselves; wakeups stop (7→7); `restore.sh` rc=0 → stay_on=1 / 60000 | 137 |
+| screen off during load | `LOAD_PROOF_FAIL reason=screen_off` | 3 |
+| A5: untrusted (25.0 stub) + battery 44.5 | `STOP battery_temp` | 0 |
+| decode gate, stale canned 96 vs ref 30 | `STOP_UNEQUAL_DECODE` | 1 |
+
+`bash -n` clean on all eight scripts. Untested: the on-AC stay-on branch (AC=true trips the plugged stop).

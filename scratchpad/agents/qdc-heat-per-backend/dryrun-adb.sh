@@ -33,7 +33,16 @@ case "$args" in
   *"getprop persist.sys.locale"*) echo en-US; exit 0;;
   *"MemTotal:"*) echo "MemTotal:       16293452 kB"; exit 0;;
   *"shell id"*) echo "uid=0(root) gid=0(root)"; exit 0;;
-  *"settings get system screen_off_timeout"*) echo 60000; exit 0;;
+  # Stateful settings: DRY_TIMEOUT_PRE / DRY_STAYON_PRE seed the pre-run values;
+  # every put/delete/svc stayon is applied and logged to $S/settings.log.
+  *"settings get system screen_off_timeout"*) cat "$S/screen_off" 2>/dev/null || echo "${DRY_TIMEOUT_PRE:-60000}"; exit 0;;
+  *"settings put system screen_off_timeout"*) v="${args##* }"; printf '%s' "$v" > "$S/screen_off"; echo "put screen_off_timeout=$v" >> "$S/settings.log"; exit 0;;
+  *"settings delete system screen_off_timeout"*) rm -f "$S/screen_off"; echo "delete screen_off_timeout" >> "$S/settings.log"; exit 0;;
+  *"settings put global stay_on_while_plugged_in"*) v="${args##* }"; printf '%s' "$v" > "$S/stayon"; echo "put stay_on=$v" >> "$S/settings.log"; exit 0;;
+  *"settings delete global stay_on_while_plugged_in"*) rm -f "$S/stayon"; echo "delete stay_on" >> "$S/settings.log"; exit 0;;
+  *"svc power stayon true"*) printf 7 > "$S/stayon"; echo "svc stayon true" >> "$S/settings.log"; exit 0;;
+  *"svc power stayon false"*) printf 0 > "$S/stayon"; echo "svc stayon false" >> "$S/settings.log"; exit 0;;
+  *"input keyevent KEYCODE_WAKEUP"*) echo "$(date +%s) wakeup" >> "$S/wakeups.log"; exit 0;;
   *"pm list packages"*) echo 0; echo "list_rc=1"; exit 0;;
   *"dumpsys package"*) echo "    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]"; exit 0;;
   *"dumpsys power"*)
@@ -42,7 +51,7 @@ case "$args" in
     w=Awake
     if [ -n "${DRY_POWER_DOZE_AFTER_CLEARS:-}" ] && [ "$(cat "$S/clears" 2>/dev/null || echo 0)" -ge "$DRY_POWER_DOZE_AFTER_CLEARS" ]; then w=Dozing; fi
     echo "  mWakefulness=$w"; echo "  mStayOn=false"; exit 0;;
-  *"settings get global stay_on_while_plugged_in"*) echo 0; exit 0;;
+  *"settings get global stay_on_while_plugged_in"*) cat "$S/stayon" 2>/dev/null || echo "${DRY_STAYON_PRE:-0}"; exit 0;;
   *"dumpsys activity activities"*) echo "    topResumedActivity=ActivityRecord{71f750a u0 com.kalsa.app/.MainActivity t8}"; exit 0;;
   *"dumpsys thermalservice"*)
     skin="${DRY_SKIN:-35.0}"
@@ -65,7 +74,9 @@ case "$args" in
       /usr/bin/sqlite3 /tmp/kalsa-dry/RKStorage "CREATE TABLE catalystLocalStorage (key TEXT, value TEXT); INSERT INTO catalystLocalStorage VALUES ('kalsa.bench.sampling','greedy');"
     fi
     cat /tmp/kalsa-dry/RKStorage; exit 0;;
-  *"power_supply/battery/temp"*) printf '%s\n' "${DRY_SYSFS_BATT:-${DRY_BATT_TEMP:-300}}"; exit 0;;
+  # sysfs follows the last dumpsys battery value (like a real, untampered
+  # sensor) unless DRY_SYSFS_BATT pins it (the dumpsys-vs-sysfs mismatch case).
+  *"power_supply/battery/temp"*) b="${DRY_SYSFS_BATT:-$(cat "$S/last_bt" 2>/dev/null || echo "${DRY_BATT_TEMP:-300}")}"; printf '%s\n' "$b"; exit 0;;
   *"sha256sum /data/local/tmp/kalsa-heat/"*)
     f=$(printf '%s' "$args" | sed -n 's|.*sha256sum /data/local/tmp/kalsa-heat/\([^ ]*\).*|\1|p')
     case "$f" in
@@ -81,11 +92,19 @@ case "$args" in
   *"logcat -b all -c"*) n=$(cat "$S/clears" 2>/dev/null || echo 0); printf '%s' "$((n + 1))" > "$S/clears"; exit 0;;
   *"dumpsys battery"*)
     bt="${DRY_BATT_TEMP:-300}"
+    # DRY_BATT_JITTER=1: alternate DRY_BATT_TEMP / +1 tenth on every dump (and
+    # sysfs follows), the audit-A1 fake-sensor jitter.
+    if [ "${DRY_BATT_JITTER:-0}" = "1" ]; then
+      j=$(cat "$S/jitter" 2>/dev/null || echo 0); j=$((1 - j)); printf '%s' "$j" > "$S/jitter"; bt=$((bt + j))
+    fi
     if [ -n "${DRY_BATT_TEMP_AT:-}" ]; then
       n=$(cat "$S/batt_calls" 2>/dev/null || echo 0); n=$((n + 1))
       printf '%s' "$n" > "$S/batt_calls"
       [ "$n" -gt "$DRY_BATT_TEMP_AT" ] && bt="${DRY_BATT_TEMP_AFTER:-445}"
     fi
+    # DRY_BATT_RAMP=1: +1 tenth per dump, a real sensor warming with the board.
+    if [ "${DRY_BATT_RAMP:-0}" = "1" ]; then r=$(cat "$S/ramp" 2>/dev/null || echo 0); r=$((r + 1)); printf '%s' "$r" > "$S/ramp"; bt=$((bt + r)); fi
+    printf '%s' "$bt" > "$S/last_bt"
     printf 'Current Battery Service state:\n  AC powered: %s\n  temperature: %s\n  level: %s\n' "${DRY_PLUGGED:-false}" "$bt" "${DRY_BATT_LEVEL:-100}"; exit 0;;
   *"logcat -v epoch -d -b all"*)
     now=$(date +%s)
@@ -99,6 +118,8 @@ case "$args" in
     # leading whitespace; normalize both so every line lands at/after the
     # fresh logcat anchor (last_json_after drops lines older than it).
     sed "s/^[[:space:]]*1[0-9]\{9\}\.[0-9]\{3\} /$now /; s/^[[:space:]]*1[0-9]\{9\} /$now /" "$src" > "$S/.logcat.out"
+    # DRY_NO_LOAD_PROOF=1: no loader line, so poll_load keeps waiting.
+    [ "${DRY_NO_LOAD_PROOF:-0}" = "1" ] && sed '/llama_model_loader: loaded meta/d' "$S/.logcat.out" > "$S/.logcat.out.3" && mv "$S/.logcat.out.3" "$S/.logcat.out"
     [ "${DRY_PREWARM:-}" = "restore" ] && sed 's/"op":"done"/"op":"restore","ok":true/' "$S/.logcat.out" > "$S/.logcat.out.2" && mv "$S/.logcat.out.2" "$S/.logcat.out"
     if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ -f "$S/tel_ready_at" ] && [ "$now" -lt "$(cat "$S/tel_ready_at")" ]; then
       # The turn is still generating: telemetry/governor lines do not exist yet.
