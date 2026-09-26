@@ -1,11 +1,12 @@
 //! What the QR encodes: one versioned JSON document with everything the phone
 //! needs — the address this computer advertises, the one-time code the
 //! whole completion protocol is keyed on, the per-offer nonce both MACs
-//! cover, and
+//! cover,
 //! — when this machine has its internet road open — the node id the phone
-//! dials that road by. The version field comes first: a phone that meets a
-//! `v` it does not know refuses the whole document instead of guessing at
-//! the fields.
+//! dials that road by, and — when both of this machine's Tailscale serve
+//! rules are up — the door's tailnet URL. The version field comes first: a
+//! phone that meets a `v` it does not know refuses the whole document
+//! instead of guessing at the fields.
 //!
 //! Only `encode` lives here, because only the desktop writes the QR. The
 //! tests parse what it wrote with a generic JSON reader, so the format is
@@ -50,6 +51,14 @@ struct QrPayloadV3 {
     /// carries it once the road is up.
     #[serde(skip_serializing_if = "Option::is_none")]
     node: Option<String>,
+    /// The door's Tailscale base URL — `https://` and this machine's tailnet
+    /// host, nothing else — when the desk saw both of its serve rules proxy
+    /// the door and this desk. A convenience the square offers the phone,
+    /// never a fact the ceremony depends on: no MAC covers it. Absent — the
+    /// key itself — unless the desk saw exactly both rules: no CLI, a
+    /// timeout, one rule, a wrong port, any surprise is absence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tailnet: Option<String>,
 }
 
 /// The QR's content, or `None` if serialization failed — for a plain struct
@@ -60,6 +69,7 @@ pub(crate) fn encode(
     code: &OneTimeCode,
     nonce: &[u8; NONCE_BYTES],
     node: Option<&str>,
+    tailnet: Option<&str>,
 ) -> Option<String> {
     serde_json::to_string(&QrPayloadV3 {
         v: VERSION,
@@ -67,6 +77,7 @@ pub(crate) fn encode(
         code: code.hex(),
         nonce: hex::encode(nonce),
         node: node.map(str::to_string),
+        tailnet: tailnet.map(str::to_string),
     })
     .ok()
 }
@@ -77,12 +88,13 @@ mod tests {
 
     const REACHABLE: &str = "http://192.168.1.10:4952";
     const NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    const TAILNET: &str = "https://desk.tail1234.ts.net";
 
     #[test]
     fn the_qr_names_its_version_and_carries_both_secrets() {
         let code = OneTimeCode::generate().unwrap();
         let nonce = [9u8; NONCE_BYTES];
-        let json = encode(REACHABLE, &code, &nonce, None).unwrap();
+        let json = encode(REACHABLE, &code, &nonce, None, None).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(value["v"], 3);
@@ -99,7 +111,7 @@ mod tests {
     #[test]
     fn an_open_road_rides_in_the_square() {
         let code = OneTimeCode::generate().unwrap();
-        let json = encode(REACHABLE, &code, &[7u8; NONCE_BYTES], Some(NODE)).unwrap();
+        let json = encode(REACHABLE, &code, &[7u8; NONCE_BYTES], Some(NODE), None).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["node"], NODE);
         assert_eq!(value["node"].as_str().unwrap().len(), 64);
@@ -111,12 +123,32 @@ mod tests {
         // string, not a placeholder. A square that named a node id while the
         // machine announces nothing would promise what it cannot keep.
         let code = OneTimeCode::generate().unwrap();
-        let json = encode(REACHABLE, &code, &[7u8; NONCE_BYTES], None).unwrap();
+        let json = encode(REACHABLE, &code, &[7u8; NONCE_BYTES], None, None).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(
             value.get("node").is_none(),
             "the square offered a node id with the road off: {}",
             json
+        );
+    }
+
+    #[test]
+    fn a_tailnet_the_desk_saw_rides_in_the_square() {
+        let code = OneTimeCode::generate().unwrap();
+        let json =
+            encode(REACHABLE, &code, &[5u8; NONCE_BYTES], None, Some(TAILNET)).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["tailnet"], TAILNET);
+    }
+
+    #[test]
+    fn a_tailnet_the_desk_did_not_see_leaves_no_key() {
+        let code = OneTimeCode::generate().unwrap();
+        let json = encode(REACHABLE, &code, &[5u8; NONCE_BYTES], None, None).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(
+            value.get("tailnet").is_none(),
+            "the square named a tailnet the desk never saw: {json}"
         );
     }
 
@@ -127,12 +159,14 @@ mod tests {
             &OneTimeCode::generate().unwrap(),
             &[1u8; NONCE_BYTES],
             None,
+            None,
         )
         .unwrap();
         let second = encode(
             REACHABLE,
             &OneTimeCode::generate().unwrap(),
             &[2u8; NONCE_BYTES],
+            None,
             None,
         )
         .unwrap();

@@ -24,6 +24,7 @@ mod options;
 mod pairing;
 mod road;
 mod startup;
+mod tailnet;
 mod tune_step;
 mod ticker;
 mod transport;
@@ -847,6 +848,7 @@ struct Desk {
     reachable: String,
     listener: transport::Listener,
     pairing_file: PathBuf,
+    tailnet: tailnet::Tailnet,
 }
 
 fn pairing_desk(file: PathBuf) -> Result<Desk, Box<dyn std::error::Error>> {
@@ -866,6 +868,7 @@ where
         reachable,
         listener,
         pairing_file,
+        tailnet: tailnet::Tailnet::new(),
     })
 }
 
@@ -1687,11 +1690,15 @@ fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto 
 fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
     let road_node_id = brain.road_node_id();
+    let tailnet = desk
+        .tailnet
+        .get(brain.door_port(), desk.listener.port());
     desk.desk
         .read(
             serving,
             &desk.reachable,
             road_node_id.as_deref(),
+            tailnet.as_deref(),
             SystemTime::now(),
         )
         .with_door_port(brain.door_port())
@@ -1706,8 +1713,16 @@ fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
 fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
     let road_node_id = brain.road_node_id();
-    desk.desk
-        .retry(serving, &desk.reachable, road_node_id.as_deref(), SystemTime::now());
+    let tailnet = desk
+        .tailnet
+        .get(brain.door_port(), desk.listener.port());
+    desk.desk.retry(
+        serving,
+        &desk.reachable,
+        road_node_id.as_deref(),
+        tailnet.as_deref(),
+        SystemTime::now(),
+    );
 }
 
 /// The owner says a device is no longer part of the house. The others keep

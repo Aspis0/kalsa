@@ -270,7 +270,14 @@ impl Desk {
             // scanning, so an allowed phone behind it still reaches the
             // catalog.
             DeviceKind::Phone if device.waiting => None,
-            DeviceKind::Phone => device.handshake.phone,
+            // A declared weights_bytes of 0 is the phone saying it has no
+            // local model, not a model of no bytes: the chooser is handed
+            // None and takes the phone-free route, exactly as with no phone
+            // at all.
+            DeviceKind::Phone => device
+                .handshake
+                .phone
+                .filter(|phone| phone.weights_bytes > 0),
             DeviceKind::Host => None,
         }))
     }
@@ -309,6 +316,7 @@ impl Desk {
         serving: bool,
         reachable: &str,
         node: Option<&str>,
+        tailnet: Option<&str>,
         now: SystemTime,
     ) -> PairingDto {
         if self.listener_failed.load(Ordering::SeqCst) {
@@ -327,7 +335,7 @@ impl Desk {
                     State::Live { previous, .. } => *previous,
                     _ => None,
                 };
-                *state = Self::fresh(reachable, node, now, Some(Refreshed::Expired), previous);
+                *state = Self::fresh(reachable, node, tailnet, now, Some(Refreshed::Expired), previous);
             }
         }
         match &*state {
@@ -336,7 +344,7 @@ impl Desk {
             | State::StoreUnavailable
             | State::ServiceUnavailable => {}
             _ if !serving => *state = State::Idle,
-            State::Idle => *state = Self::fresh(reachable, node, now, None, None),
+            State::Idle => *state = Self::fresh(reachable, node, tailnet, now, None, None),
             State::Live { .. } => {}
         }
         let devices = self.stored_devices();
@@ -423,7 +431,14 @@ impl Desk {
 
     /// The owner asked for another square. Anything in flight is abandoned:
     /// a square the owner has given up on must not still be completable.
-    pub(crate) fn retry(&self, serving: bool, reachable: &str, node: Option<&str>, now: SystemTime) {
+    pub(crate) fn retry(
+        &self,
+        serving: bool,
+        reachable: &str,
+        node: Option<&str>,
+        tailnet: Option<&str>,
+        now: SystemTime,
+    ) {
         if !serving {
             self.stop_serving();
             return;
@@ -445,7 +460,7 @@ impl Desk {
             _ => None,
         };
         let refreshed = matches!(*state, State::Live { .. }).then_some(Refreshed::WrongCode);
-        *state = Self::fresh(reachable, node, now, refreshed, previous);
+        *state = Self::fresh(reachable, node, tailnet, now, refreshed, previous);
     }
 
     /// A phone presents the code from the square. Nothing is returned but
@@ -608,11 +623,12 @@ impl Desk {
     fn fresh(
         reachable: &str,
         node: Option<&str>,
+        tailnet: Option<&str>,
         now: SystemTime,
         refreshed: Option<Refreshed>,
         previous: Option<PhoneModel>,
     ) -> State {
-        let Ok(pairing) = Pairing::offer(reachable, node, now, WINDOW) else {
+        let Ok(pairing) = Pairing::offer(reachable, node, tailnet, now, WINDOW) else {
             return State::Idle;
         };
         let Some(payload) = pairing.qr_payload() else {
@@ -762,7 +778,7 @@ mod tests {
         let now = SystemTime::now();
 
         assert!(desk.phone().unwrap().is_none(), "nothing is paired yet");
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let payload = desk.test_square().expect("a square is on screen");
         let (code, nonce, reachable) = secrets(&payload);
 
@@ -789,9 +805,40 @@ mod tests {
             .unwrap()
             .expect("the phone reached the catalog after Allow");
         assert_eq!(phone.weights_bytes, 2_000_000_000);
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(dto["phone"], "phone with 2 GB of model weights");
         assert_eq!(dto["delivery_pending"], true);
+    }
+
+    /// A phone that declares no local model — weights_bytes 0, what the
+    /// phone sends when it has nothing of its own to run — still pairs,
+    /// waits, and is allowed like any phone. Only the chooser's view
+    /// changes, and it changes to exactly what an unpaired desk would hand
+    /// it: so the pick this computer makes is the phone-free pick, the same
+    /// one it would make with no phone at all.
+    #[test]
+    fn a_zero_byte_phone_pairs_but_the_chooser_picks_as_with_no_phone() {
+        let desk = Desk::new(scratch("zero-byte"));
+        let now = SystemTime::now();
+
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
+        let declaration = declaration_for(
+            &desk,
+            PhoneModel {
+                weights_bytes: 0,
+                ..a_phone()
+            },
+            now,
+        );
+        assert!(desk.complete(declaration, now).is_some(), "the phone pairs");
+        desk.allow_device(0).expect("the owner presses Allow");
+
+        let with_zero_byte_phone = desk.phone().unwrap().is_none();
+        let with_no_phone = Desk::new(scratch("zero-byte-unpaired")).phone().unwrap().is_none();
+        assert!(
+            with_zero_byte_phone && with_no_phone,
+            "the chooser picks phone-free here exactly as with no phone"
+        );
     }
 
     /// A set the door refuses (record 1 declares parameters that cannot
@@ -858,13 +905,13 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let first = declaration_for(&desk, a_phone(), now);
         assert!(desk.complete(first, now).is_some(), "the first pairing seals");
 
         // The owner asks for another square ("Pair another phone"): the new
         // ceremony is a new authorisation, so it adds a second device.
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         let second = declaration_for(&desk, a_phone(), now);
         assert!(desk.complete(second, now).is_some(), "the second pairing seals too");
 
@@ -888,9 +935,9 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
 
         desk.forget_device(0).unwrap();
@@ -901,7 +948,7 @@ mod tests {
         // The next pairing numbers its label after the id the store mints —
         // never reused — so no device can arrive bearing a name another
         // device already carries, however many devices leave.
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now).unwrap();
         let labels: Vec<String> =
             kalsa_pairing::store::load_devices(&file).unwrap().into_iter().map(|d| d.label).collect();
@@ -928,7 +975,7 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration =
@@ -941,7 +988,7 @@ mod tests {
         desk.acknowledge(&token);
 
         let fresh = Desk::new(file.clone());
-        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(
             dto["delivery_pending"], false,
             "a restart must not rebuild an acknowledged delivery"
@@ -964,7 +1011,7 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let first = declaration_for(&desk, a_phone(), now);
         let first_token = first.delivery_token().to_string();
         assert!(desk.complete(first, now).is_some(), "phone A pairs");
@@ -972,7 +1019,7 @@ mod tests {
         // The ack lands in the gap: the owner has retried (the desk is
         // Live again) and phone B has not completed yet, so the in-memory
         // state holds nothing of A's.
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         desk.acknowledge(&first_token);
 
         let second = declaration_for(
@@ -999,7 +1046,7 @@ mod tests {
         // the ack's selectivity - that is the next test's subject. What this
         // half shows is the restart: nothing is rebuilt for A.
         let fresh = Desk::new(file.clone());
-        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(
             dto["delivery_pending"], false,
             "a restart must not rebuild A's acknowledged delivery"
@@ -1018,12 +1065,12 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let first = declaration_for(&desk, a_phone(), now);
         let first_token = first.delivery_token().to_string();
         assert!(desk.complete(first, now).is_some(), "phone A pairs");
 
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         let second = declaration_for(
             &desk,
             PhoneModel {
@@ -1060,7 +1107,7 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration =
@@ -1138,7 +1185,7 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("the first pairing seals");
         let old_id = kalsa_pairing::store::load_devices(&file)
@@ -1149,7 +1196,7 @@ mod tests {
             .id;
 
         // The owner pairs another phone: a fresh square, claimed by it.
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         let in_flight = declaration_for(&desk, a_phone(), now);
 
         desk.forget_device(old_id).unwrap();
@@ -1177,13 +1224,13 @@ mod tests {
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
 
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let first = declaration_for(&desk, a_phone(), now);
         let first_token = first.delivery_token().to_string();
         assert!(desk.complete(first, now).is_some(), "phone A pairs");
         desk.acknowledge(&first_token);
 
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         let second = declaration_for(
             &desk,
             PhoneModel {
@@ -1203,7 +1250,7 @@ mod tests {
             .unwrap();
         desk.forget_device(refused_id).unwrap();
 
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(
             dto["phone"], "phone with 2 GB of model weights",
             "the paired snapshot must name the phone that remains, not the refused one"
@@ -1230,12 +1277,12 @@ mod tests {
         .unwrap();
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         let declaration = declaration_for(&desk, a_phone(), now);
         assert!(desk.complete(declaration, now).is_none(), "no id, no seal");
 
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(dto["state"], "failed");
         assert_eq!(dto["failure"], "could-not-save");
         assert_eq!(
@@ -1252,7 +1299,7 @@ mod tests {
     fn a_proof_from_another_square_mints_nothing() {
         let desk = Desk::new(scratch("wrong-proof"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().expect("square"));
         assert!(desk.claim(&code, now));
 
@@ -1269,7 +1316,7 @@ mod tests {
     fn a_wrong_proof_leaves_the_square_to_the_real_phone() {
         let desk = Desk::new(scratch("wrong-then-right"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().expect("square"));
         assert!(desk.claim(&code, now));
 
@@ -1295,7 +1342,7 @@ mod tests {
     #[test]
     fn nothing_is_offered_while_the_server_is_down() {
         let desk = Desk::new(scratch("idle"));
-        desk.read(false, "http://127.0.0.1:1", None, SystemTime::now());
+        desk.read(false, "http://127.0.0.1:1", None, None, SystemTime::now());
         assert!(desk.test_square().is_none());
     }
 
@@ -1308,11 +1355,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let desk = Desk::new(dir.join("pairing.json"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
 
         let declaration = declaration_for(&desk, a_phone(), now);
         assert!(desk.complete(declaration, now).is_none());
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(dto["state"], "failed");
         assert_eq!(dto["failure"], "could-not-save");
         assert!(desk.phone().unwrap().is_none());
@@ -1322,7 +1369,7 @@ mod tests {
     fn a_saved_pairing_can_retry_when_its_success_response_was_lost() {
         let desk = Desk::new(scratch("delivery-retry"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
@@ -1343,7 +1390,7 @@ mod tests {
     fn a_different_attempt_cannot_collect_a_saved_seal() {
         let desk = Desk::new(scratch("delivery-identity"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
@@ -1380,7 +1427,7 @@ mod tests {
     fn a_saved_seal_expires_with_the_square() {
         let desk = Desk::new(scratch("delivery-expiry"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
@@ -1402,7 +1449,7 @@ mod tests {
         let path = scratch("delivery-restart");
         let now = SystemTime::now();
         let desk = Desk::new(path.clone());
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
@@ -1426,6 +1473,7 @@ mod tests {
             true,
             "http://127.0.0.1:1",
             None,
+            None,
             now + Duration::from_secs(1),
         ))
         .unwrap();
@@ -1440,7 +1488,7 @@ mod tests {
         let file = scratch("replay");
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let (code, nonce, reachable) = secrets(&desk.test_square().unwrap());
         assert!(desk.claim(&code, now));
         let first = PhoneDeclaration::sign(&code, &nonce, &reachable, None, a_phone()).unwrap();
@@ -1463,16 +1511,16 @@ mod tests {
     fn stopping_the_server_retires_the_square_and_blocks_routes() {
         let desk = Desk::new(scratch("stop"));
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         let payload = desk.test_square().unwrap();
         let (code, _, _) = secrets(&payload);
         desk.stop_serving();
         assert!(!desk.is_serving());
         assert!(!desk.claim(&code, now));
         assert!(desk.test_square().is_none());
-        desk.retry(false, "http://127.0.0.1:1", None, now);
+        desk.retry(false, "http://127.0.0.1:1", None, None, now);
         assert!(desk.test_square().is_none());
-        desk.retry(true, "http://127.0.0.1:1", None, now);
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
         assert!(desk.test_square().is_none());
     }
 
@@ -1482,7 +1530,7 @@ mod tests {
         std::fs::write(&path, b"not a pairing file").unwrap();
         let desk = Desk::new(path);
         let dto =
-            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now())).unwrap();
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now())).unwrap();
         assert_eq!(dto["state"], "failed");
         assert_eq!(dto["failure"], "could-not-read");
         assert!(desk.phone().is_err());
@@ -1494,13 +1542,13 @@ mod tests {
         std::fs::write(&path, b"not a pairing file").unwrap();
         let desk = Desk::new(path);
         assert_eq!(
-            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now())).unwrap()
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now())).unwrap()
                 ["failure"],
             "could-not-read"
         );
         desk.forget().unwrap();
         let dto =
-            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now())).unwrap();
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now())).unwrap();
         assert_eq!(dto["state"], "waiting");
         assert!(dto["qr_svg"].as_str().is_some_and(|qr| !qr.is_empty()));
         assert!(desk.phone().unwrap().is_none());
@@ -1509,10 +1557,10 @@ mod tests {
     #[test]
     fn the_listener_failure_is_visible_and_does_not_offer_a_square() {
         let desk = Desk::new(scratch("listener-failed"));
-        desk.read(true, "http://127.0.0.1:1", None, SystemTime::now());
+        desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now());
         desk.listener_failed();
         let dto =
-            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now())).unwrap();
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now())).unwrap();
         assert_eq!(dto["state"], "failed");
         assert_eq!(dto["failure"], "service-unavailable");
         assert_eq!(dto["qr_svg"], serde_json::Value::Null);
@@ -1533,7 +1581,7 @@ mod tests {
         );
 
         let dto =
-            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, SystemTime::now()))
+            serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, SystemTime::now()))
                 .unwrap();
         assert_eq!(dto["state"], "waiting", "the square still appears");
         assert!(dto["qr_svg"].as_str().is_some_and(|qr| !qr.is_empty()));
@@ -1555,7 +1603,7 @@ mod tests {
         );
 
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("a phone pairs beside the host");
         let phones = kalsa_pairing::store::load_devices(&file)
@@ -1582,7 +1630,7 @@ mod tests {
         let host = kalsa_pairing::store::enrol_host(&file).unwrap();
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("a phone pairs beside the host");
         let before = std::fs::read(&file).expect("the store's bytes");
@@ -1667,7 +1715,7 @@ mod tests {
         let host = kalsa_pairing::store::enrol_host(&file).unwrap();
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("a phone pairs beside the host");
         let devices = kalsa_pairing::store::load_devices(&file).unwrap();
@@ -1684,7 +1732,7 @@ mod tests {
         // with the host row really in it, so the absence below means
         // something.
         let pairing =
-            serde_json::to_string(&desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+            serde_json::to_string(&desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert!(
             pairing.contains("This computer"),
             "the host row is in the DTO"
@@ -1806,7 +1854,7 @@ mod tests {
         kalsa_pairing::store::enrol_host(&file).unwrap();
         let desk = Desk::new(file.clone());
         let now = SystemTime::now();
-        desk.read(true, "http://127.0.0.1:1", None, now);
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
         desk.complete(declaration_for(&desk, a_phone(), now), now)
             .expect("the phone pairs beside the host");
 
@@ -1820,7 +1868,7 @@ mod tests {
         let phone = desk.phone().unwrap().expect("the phone is still the phone");
         assert_eq!(phone.weights_bytes, 2_000_000_000);
 
-        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, now)).unwrap();
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(dto["devices"][0]["kind"], "host");
         assert_eq!(dto["devices"][1]["kind"], "phone");
     }

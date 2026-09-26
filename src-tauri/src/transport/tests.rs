@@ -43,7 +43,7 @@ fn setup(name: &str) -> (Arc<Desk>, Listener, String, String, String, String) {
     let listener = serve_on(desk.clone(), 0).expect("listener");
     let address = listener.address().to_string();
     let now = SystemTime::now();
-    let dto = serde_json::to_value(desk.read(true, &address, None, now)).expect("dto");
+    let dto = serde_json::to_value(desk.read(true, &address, None, None, now)).expect("dto");
     let qr = dto["qr_svg"].as_str().expect("page has a square");
     assert!(
         !qr.is_empty(),
@@ -127,7 +127,7 @@ fn a_phone_completes_over_real_http_and_the_post_route_is_required() {
     // protocol and the seal - is unchanged, so Allow, then the read.
     desk.allow_device(0).expect("the owner allows the phone");
     assert_eq!(desk.phone().unwrap().unwrap().weights_bytes, 2_000_000_000);
-    let dto = serde_json::to_value(desk.read(true, &address, None, SystemTime::now())).unwrap();
+    let dto = serde_json::to_value(desk.read(true, &address, None, None, SystemTime::now())).unwrap();
     assert_eq!(dto["delivery_pending"], false);
     listener.shutdown();
 }

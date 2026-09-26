@@ -55,6 +55,10 @@ pub struct Offer {
     /// phone's completion MAC must cover the same value, so a square whose
     /// node id was swapped pairs with nobody.
     node: Option<String>,
+    /// The tailnet URL the square offered, when the desk saw both serve
+    /// rules. MACed by nothing: once the square is claimed, nothing reads
+    /// it, so the claimed state does not carry it.
+    tailnet: Option<String>,
     code: OneTimeCode,
     /// Fresh per offer, carried in the QR: both completion MACs cover it, so
     /// a proof recorded in one ceremony verifies in no other.
@@ -121,6 +125,7 @@ impl Pairing {
     pub fn offer(
         reachable: &str,
         node: Option<&str>,
+        tailnet: Option<&str>,
         now: SystemTime,
         ttl: Duration,
     ) -> Result<Self, OfferError> {
@@ -134,6 +139,7 @@ impl Pairing {
         Ok(Self::Offered(Offer {
             reachable: reachable.to_string(),
             node: node.map(str::to_string),
+            tailnet: tailnet.map(str::to_string),
             code,
             nonce,
             expires_at,
@@ -150,6 +156,7 @@ impl Pairing {
                 &offer.code,
                 &offer.nonce,
                 offer.node.as_deref(),
+                offer.tailnet.as_deref(),
             ),
             _ => None,
         }

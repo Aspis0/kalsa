@@ -21,12 +21,16 @@
 //! `{"v":3,"reachable":"http://127.0.0.1:8134","code":"<32 hex>","nonce":"<64 hex>"}`
 //! — 160 bytes for the desk's preferred port; its random fallback port is
 //! the OS's pick, four or five digits — five is the worst case, making 161
-//! and the same symbol version; an open road appends `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
+//! and the same symbol version; an open road appends `,"node":"<64 hex>"`
+//! for 234, and a desk whose serve rules are up appends
+//! `,"tailnet":"https://<host>"` behind it, 289 bytes with both — the
+//! version-13 (69×69) square the desk's largest offer draws.
+//! Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm
 //! conditions, and level H would push the same payload past version 12,
 //! buying robustness a single-use, windowed code does not need — a
 //! damaged scan costs a re-scan, nothing else. Level M carries those 160
-//! bytes at version 9 (53×53 modules) and the 234-byte node square at
+//! bytes at version 9 (53×53 modules), the 234-byte node square at
 //! version 11 (61×61), and refuses — [`PayloadTooLong`], never a
 //! truncated symbol — past version 40 (2331 bytes). If the payload ever
 //! outgrows its QR, the remedy is upstream in `payload`: the hex overhead

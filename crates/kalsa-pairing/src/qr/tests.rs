@@ -8,6 +8,7 @@ use crate::ceremony::Pairing;
 use crate::error::PayloadTooLong;
 
 const REACHABLE: &str = "http://192.168.1.10:4952";
+const TAILNET: &str = "https://studio-imac-pro.tail99zz44x.ts.net";
 const NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 
 /// A real offer, composed the way the shell will: ceremony, then square.
@@ -15,7 +16,7 @@ const NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f0
 /// off, and the shape of every square before this release.
 fn offered_svg() -> (String, String) {
     let session =
-        Pairing::offer(REACHABLE, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
+        Pairing::offer(REACHABLE, None, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
     let payload = session.qr_payload().unwrap();
     let svg = qr_svg(&payload).unwrap();
     (payload, svg)
@@ -27,6 +28,7 @@ fn offered_svg_with_node() -> (String, String) {
     let session = Pairing::offer(
         REACHABLE,
         Some(NODE),
+        None,
         SystemTime::now(),
         Duration::from_secs(300),
     )
@@ -221,7 +223,8 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     // from its 127.0.0.1 bind), so the byte counts and the symbol
     // versions below are measured here, not asserted in prose.
     let base = "http://127.0.0.1:8134";
-    let session = Pairing::offer(base, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
+    let session =
+        Pairing::offer(base, None, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
     let payload = session.qr_payload().unwrap();
     assert_eq!(payload.len(), 160, "the header's byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
@@ -232,6 +235,7 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     // same symbol version.
     let session = Pairing::offer(
         "http://127.0.0.1:12345",
+        None,
         None,
         SystemTime::now(),
         Duration::from_secs(300),
@@ -250,6 +254,7 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     let session = Pairing::offer(
         base,
         Some(NODE),
+        None,
         SystemTime::now(),
         Duration::from_secs(300),
     )
@@ -258,6 +263,22 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     assert_eq!(payload.len(), 234, "the open road's byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
     assert_eq!(code.version().value(), 11, "234 bytes at level M");
+
+    // The tailnet rides behind the node id, so the desk's largest square is
+    // road and tailnet together — measured like the rest, a host-name length
+    // the real installs produce.
+    let session = Pairing::offer(
+        base,
+        Some(NODE),
+        Some(TAILNET),
+        SystemTime::now(),
+        Duration::from_secs(300),
+    )
+    .unwrap();
+    let payload = session.qr_payload().unwrap();
+    assert_eq!(payload.len(), 289, "the open road plus the tailnet");
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(code.version().value(), 13, "289 bytes at level M");
 }
 
 #[test]

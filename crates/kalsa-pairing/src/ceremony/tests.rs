@@ -12,13 +12,13 @@ const ELSEWHERE: &str = "http://192.168.1.66:1";
 
 fn offered() -> (Pairing, SystemTime) {
     let start = SystemTime::now();
-    (Pairing::offer(REACHABLE, None, start, TTL).unwrap(), start)
+    (Pairing::offer(REACHABLE, None, None, start, TTL).unwrap(), start)
 }
 
 fn offered_with_node(node: Option<&str>) -> (Pairing, SystemTime) {
     let start = SystemTime::now();
     (
-        Pairing::offer(REACHABLE, node, start, TTL).unwrap(),
+        Pairing::offer(REACHABLE, node, None, start, TTL).unwrap(),
         start,
     )
 }
@@ -417,10 +417,10 @@ fn the_offer_expires_on_its_own() {
 #[test]
 fn an_absurd_window_is_an_error_not_a_panic() {
     let start = SystemTime::now();
-    let outcome = Pairing::offer(REACHABLE, None, start, Duration::from_secs(u64::MAX));
+    let outcome = Pairing::offer(REACHABLE, None, None, start, Duration::from_secs(u64::MAX));
     assert!(matches!(outcome, Err(OfferError::Deadline)));
     // And a sane window is fine.
-    assert!(Pairing::offer(REACHABLE, None, start, TTL).is_ok());
+    assert!(Pairing::offer(REACHABLE, None, None, start, TTL).is_ok());
 }
 
 // The sweep: render everything a log line could plausibly hit — the session

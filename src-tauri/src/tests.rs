@@ -445,6 +445,7 @@ fn persist_pairing(file: &Path) {
     let mut pairing = kalsa_pairing::Pairing::offer(
         "http://127.0.0.1:8131",
         None,
+        None,
         now,
         Duration::from_secs(60),
     )
