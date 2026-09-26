@@ -3,10 +3,14 @@
 The first Windows walk on the kalsa fork (`kalsa-server` v1.1.2) instead of upstream llama.cpp, plus the
 first NSIS installer built, installed, started and uninstalled on Windows. Source: `a2cb3c93`, synced by
 `git archive a2cb3c93` (tar sha256 `0ad22ca7…5f097f94`, the same on both ends) → scp → `tar -xf` into the
-fresh `C:\kalsa-bench\src-a2cb3c93`. Machine: the owner's Lenovo "marcolenovo" (Core Ultra 9 185H 16C/22T,
-32 GB, RTX 4050 Laptop 6141 MiB + Intel Arc, Windows 11). Times are the Lenovo's clock. Everything below
-is measured unless it says INFERRED. The raw logs are in `C:\kalsa-bench` and on the Mac as
-`/tmp/lenovo-walk-a2cb3c93-*`.
+fresh `C:\kalsa-bench\src-a2cb3c93`. Machine: the owner's Lenovo (Core Ultra 9 185H 16C/22T, 32 GB,
+RTX 4050 Laptop 6141 MiB + Intel Arc, Windows 11). Times are the Lenovo's clock. The raw logs are in
+`C:\kalsa-bench` and on the Mac as `/tmp/lenovo-walk-a2cb3c93-*`.
+
+Three labels. Unmarked statements were measured on the Lenovo tonight. **CODE-DERIVED** means read from the
+source at `a2cb3c93`; the files cited are unchanged at the HEAD this doc lands on. **INFERRED** means neither
+measured nor in our code: an explanation, or a claim about Microsoft or Tauri behaviour taken from their
+documentation and not tested here.
 
 ## 1. VC++ runtime on this machine
 
@@ -39,10 +43,10 @@ Both equal the pins in `crates/kalsa-runtime/src/assets.rs:229` and `:215`. The 
 They extract to `builds\{vulkan,cpu}\kalsa-server-v1.1.2\`. The old verdicts (`fingerprint=787061f5…`,
 upstream) were replaced by `backend=vulkan fingerprint=24f0a982…` and `backend=cpu fingerprint=60b6cb68…`.
 
-**Why Vulkan.** Detection said `DiscreteGpu`. For that, `crates/kalsa-runtime/src/candidates.rs:39-41`
-orders `[Vulkan, Cpu]`, and the Vulkan probe on `stories260K.gguf` answered, so Vulkan won. The CPU build
-was fetched as well, for the processor fallback slot and the tune's processor candidates. The walk's
-engine, from the process watcher:
+**Why Vulkan.** Detection said `DiscreteGpu`. CODE-DERIVED: for that detection
+`crates/kalsa-runtime/src/candidates.rs:39-41` orders `[Vulkan, Cpu]`. Measured: the Vulkan probe on
+`stories260K.gguf` answered, so Vulkan won. The CPU build was fetched too, for the processor fallback
+slot and the tune's processor candidates. The walk's engine, from the process watcher:
 
 ```
 builds\vulkan\kalsa-server-v1.1.2\kalsa-server.exe --host 127.0.0.1 --port 8130 --model …\gemma-4-E4B-it-Q4_K_M.gguf
@@ -53,31 +57,39 @@ builds\vulkan\kalsa-server-v1.1.2\kalsa-server.exe --host 127.0.0.1 --port 8130 
 
 Peak GPU memory during run 1: 3659 MiB.
 
-**`--parallel` is 1, and it should be.** The walk calls `startup::run(…, devices = 1, …)`
-(`src-tauri/src/real_walk.rs:170`). The app passes the enrolled device count (`src-tauri/src/main.rs:1537`),
-which on a machine with no phone paired is the host alone. The plan is `funded_parallel(devices)`, and the
-inlet can only take it down (`src-tauri/src/startup.rs:700-705`). So one device gives `--parallel 1` with
-or without the fork. What the fork changes is the clamp, and that is proven separately:
+**`--parallel` is 1, and it should be.** Measured: both runs' argv carry `--parallel 1`. CODE-DERIVED,
+the reason:
+- The walk calls `startup::run(…, devices = 1, …)` (`src-tauri/src/real_walk.rs:170`).
+- The app reads the enrolled device count at `src-tauri/src/main.rs:1131`
+  (`let devices = enrolled_devices(&pairing_file(&app)?);`) and passes it to `startup::run` at `:1171`.
+- The plan takes `let requested_parallel = devices.max(1);` (`src-tauri/src/startup.rs:770`), funds it
+  through `funded_parallel` (`:771`), then applies the inlet clamp: `let parallel = planned_parallel(&exe,
+  affordable);` (`:777`, defined at `:700-705`). That clamp can only lower the number.
+- So one enrolled device yields `--parallel 1` with or without the fork.
 
+What the fork changes is the clamp, and that part was measured:
 - **Inlet detected.** Both `llama-server-impl.dll` files (Vulkan and CPU) contain the literal `x-kalsa-slot`
-  (a case-sensitive byte search, the same test as `crates/kalsa-runtime/src/inlet.rs:62`). So
-  `planned_parallel` keeps whatever it is asked for.
+  (a case-sensitive byte search). CODE-DERIVED: that is the test the app makes. The literal is
+  `crates/kalsa-runtime/src/inlet.rs:52`, the search is `:66` inside `engine_consumes_private_headers`
+  (`:62`). So `planned_parallel` keeps whatever it is asked for.
 - **The engine serves more than one slot.** The fork's Vulkan launcher, run by hand with `--parallel 2`
   on `stories260K.gguf`, answered `/props` `total_slots=2` and logged `n_slots = 2`.
 - NOT exercised: `--parallel` > 1 from the app itself. That needs a second enrolled device, and no phone
   has been paired to the Lenovo.
 
-**The 21-second first prompt.** Run 1's chat prompt took 21 353 ms, and run 2's took 153.5 ms.
-The upstream walks of 2026-09-25 whose speed check ran on graphics took 142.6–166.1 ms for the same
-prompt (`walk-3aa97bd5-1-fresh`, `-2-record`, `-3-pressure`). The speed
-check did not see it (decode 44.9 tok/s). INFERRED: Vulkan compiling its pipelines once for the
-freshly extracted `ggml-vulkan.dll` on the first prompt-sized batch. The tune and the speed check only
-decode. If so, a new install's first chat stalls about 20 s once. Measure it in the app before shipping.
+**The 21-second first prompt.** Run 1's chat prompt took 21 353 ms, and run 2's took 153.5 ms. The
+upstream walks of 2026-09-25 whose speed check ran on graphics took 142.6–166.1 ms for the same prompt
+(`walk-3aa97bd5-1-fresh`, `-2-record`, `-3-pressure`). The speed check did not see it (decode 44.9 tok/s).
+INFERRED: Vulkan compiling its pipelines once for the freshly extracted `ggml-vulkan.dll` on the first
+prompt-sized batch. The tune and the speed check only decode. If so, a new install's first chat stalls
+about 20 s once. Measure it in the app before shipping.
 
 **Graphics init failure / the rule retry.** It did not happen: VRAM was free (5920 MiB at the start), and
-the graphics launch came up both times. The question stays open for a busy GPU. `real_walk.rs` panics on
-`ServerState::Failed`. The app instead retries once with the rule's launch when the tuned start fails
-`NotReady`/`ServerExited`/`ServerNotStarted` and the tune changed the argv (`src-tauri/src/main.rs:1323-1335`).
+the graphics launch came up both times, so the question stays open for a busy GPU. CODE-DERIVED:
+- `real_walk.rs` panics on `ServerState::Failed`.
+- The app retries once with the rule's launch. The retry is queued and settled at
+  `src-tauri/src/main.rs:1252-1263`, and gated at `:1323-1331`: only when the tuned start failed
+  `NotReady`/`ServerExited`/`ServerNotStarted` and the tune changed the argv.
 
 ## 3. NSIS installer
 
@@ -95,20 +107,23 @@ is not a global install. WebView2 153.0.4234.48 was present.
 - **Install** (`/S`): exit 0 in 5 s, with no elevation. Per-user: `%LOCALAPPDATA%\Kalsa\kalsa-brain.exe`
   (25 793 024 bytes) and `uninstall.exe`, an uninstall entry under HKCU only (none in HKLM), a Start Menu
   and a Desktop shortcut.
-- **The installed app has no VC++ dependency.** `dumpbin /dependents kalsa-brain.exe` lists no
-  `VCRUNTIME*`/`MSVCP*`/`VCOMP*` (INFERRED: the Tauri CLI links the CRT statically). Only the downloaded
-  engine needs the runtime.
+- **The app binary imports no VC++ DLL directly.** `dumpbin /dependents kalsa-brain.exe` lists no
+  `VCRUNTIME*`/`MSVCP*`/`VCOMP*`. That command shows direct imports only, not the tree below them.
+  INFERRED: the Tauri CLI links the CRT statically, so nothing below needs it either. Not checked with a
+  transitive walker.
 - **Launch.** From the SSH session (session 0) the app process stayed up, but WebView2's DevTools port
   never opened, so it could not be driven. INFERRED: WebView2 does not render in session 0. The next
   launches went through a one-shot scheduled task (`/IT`, owner's session 1; the task was deleted every
   time and `schtasks /Query` confirms it is gone). They drove the page's own `invoke(…)` calls over
   WebView2 DevTools. That put a Kalsa window on the owner's desktop for a few minutes.
-- **Engine start.** The page turns the brain on by itself once per launch
-  (`chat/src/surfaces/BrainSurface.tsx:93-97`). With Gemma 4 E4B chosen, the state went `stopped` (28 s)
-  → `starting` (77 s) → `running` (90 s), and the engine came up as the app's child with the same argv as
-  the walk (slot path `%APPDATA%\ai.kalsa.brain\slots`, `--parallel 1`). `/health` answered
-  `{"status":"ok"}`, `/props` gave `total_slots=1`, and the app listened on 127.0.0.1:8131/8132/8134.
-  `brain_stop` answered `ok` and 0 engines were left.
+- **Engine start.** CODE-DERIVED: the page turns the brain on by itself once per app launch. The
+  module-level flag `let automaticStartUsed = false;` (`chat/src/surfaces/BrainSurface.tsx:18`) is
+  spent by the mount effect (`:84-91`), and the effect at `:93-97` then calls `act()` once when the
+  state is `stopped`. Measured, with Gemma 4 E4B chosen: the state went `stopped` (28 s) → `starting`
+  (77 s) → `running` (90 s), and the engine came up as the app's child with the same argv as the walk
+  (slot path `%APPDATA%\ai.kalsa.brain\slots`, `--parallel 1`). `/health` answered `{"status":"ok"}`,
+  `/props` gave `total_slots=1`, and the app listened on 127.0.0.1:8131/8132/8134. `brain_stop`
+  answered `ok` and 0 engines were left.
 - **Uninstall** (`uninstall.exe /S`): exit 0. The install dir, the HKCU uninstall entry and both shortcuts
   are gone. Left behind: an empty `HKCU\Software\Kalsa\Kalsa` key, plus the app data
   (`%APPDATA%\ai.kalsa.brain`, `%LOCALAPPDATA%\ai.kalsa.brain\EBWebView`). None of these existed before
@@ -127,12 +142,13 @@ is not a global install. WebView2 153.0.4234.48 was present.
    connection. Fixing permissions and trying again may help." INFERRED: an owner who runs Kalsa once "as
    administrator" reaches the same state. Not fixed tonight. The direction: grant the user's own SID
    explicitly, or set the owner to the user.
-2. **A fresh install downloads the automatic choice at first launch, and on this machine that is 22 GB.**
-   With no stored choice, the automatic route picks Qwen 3.6 35B-A3B (22 134 528 992 bytes; the VRAM route
-   refuses at a 3.0 GiB budget, and the RAM route has 24.0 GiB). My run set Gemma through
-   `brain_choose_model` right after launch, but the self-started walk had already begun and fetched
-   21 192 741 393 bytes in about 10 min before I killed the app. INFERRED: the walk reads the choice when
-   it starts. I deleted the `.part` by exact name. Whether a 22 GB unasked download on first launch is
+2. **A fresh install starts downloading the automatic choice at first launch, and on this machine that
+   file is 22 GB.** With no stored choice, the automatic route picks Qwen 3.6 35B-A3B (22 134 528 992
+   bytes; the VRAM route refuses at a 3.0 GiB budget, and the RAM route has 24.0 GiB). My run set Gemma
+   through `brain_choose_model` right after launch, but the self-started walk had already begun. What the
+   run proves is a started, partial download: the `.part` reached 21 192 741 393 bytes in about 10 min
+   before I killed the app. It was never completed or verified. INFERRED: the walk reads the choice when
+   it starts. I deleted the `.part` by exact name. Whether an unasked 22 GB download on first launch is
    acceptable is an owner call.
 3. **The panel says "processor" while the graphics build runs.** The installed app's state read "No model
    fits this computer's graphics card's memory, so this model runs on the processor", with
@@ -143,41 +159,56 @@ is not a global install. WebView2 153.0.4234.48 was present.
 
 ## 5. VC++: what we must do
 
-Measured with dumpbin: every fork module imports the dynamic runtime. `kalsa-server.exe` imports
-`VCRUNTIME140.dll`. `llama-server-impl.dll`, `llama-common.dll`, `llama.dll`, `ggml.dll`, `ggml-base.dll`,
-`ggml-vulkan.dll` and `mtmd.dll` import `MSVCP140.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll`. The
-CPU variants (`ggml-cpu-alderlake.dll` sampled) also import `VCOMP140.DLL`, MSVC's OpenMP runtime. The fork
-ships none of these, and the app itself needs none (§3).
+Measured with dumpbin (direct imports): every fork module imports the dynamic runtime.
+- `kalsa-server.exe` imports `VCRUNTIME140.dll`.
+- `llama-server-impl.dll`, `llama-common.dll`, `llama.dll`, `ggml.dll`, `ggml-base.dll`, `ggml-vulkan.dll`
+  and `mtmd.dll` import `MSVCP140.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll`.
+- The CPU variants (`ggml-cpu-alderlake.dll` sampled) also import `VCOMP140.DLL`, MSVC's OpenMP runtime.
+- The fork ships none of these, and the app binary imports none directly (§3).
+
+CODE-DERIVED: the engine is not always one the app downloaded. `src-tauri/src/main.rs:1125` takes a
+server binary from an environment override
+(`let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);`). Such a binary brings
+whatever its own folder carries, so none of the options below covers it; only a check before the launch
+does.
 
 **(a) The NSIS installer runs `vc_redist.x64.exe`.**
 - Covers all four DLLs. INFERRED: the redistributable ships `vcomp140.dll`. Measured: on this machine it
   sits beside the others at the same 14.50.35719 version.
 - Our installer is per-user and asks for no elevation (measured). INFERRED: `vc_redist.x64.exe` installs
-  per machine and needs admin, so every install that lacks it gains a UAC prompt, and a standard user
-  cannot finish.
-- It only covers installs made by our installer. The engine is downloaded by the app at runtime, so the
-  app should still check the runtime before a probe.
+  machine-wide, so every install that lacks it gains a UAC prompt. A standard user cannot finish without
+  admin credentials. The install is shared with every other program on the machine. It can ask for a
+  restart when the DLLs are in use.
+- It only covers installs made by our installer. The app should still check the runtime before a probe.
 
 **(b) The fork is built with the static CRT (`/MT`).**
 - Removes `VCRUNTIME140`/`MSVCP140`, with no installer work.
 - Does NOT remove `VCOMP140`. MSVC 14.44 on this machine ships only `vcomp.lib` and `vcompd.lib`, and
   INFERRED these are import libraries: MSVC has no static OpenMP. The CPU build would also need
   `GGML_OPENMP=OFF` (ggml's own thread pool). Its speed on these machines is unmeasured.
-- INFERRED risk: the fork is a dozen C++ DLLs. Under `/MT` each DLL gets its own CRT and heap, so any
-  `std::string`/`std::vector` or allocation that crosses a DLL boundary and is freed on the other side
-  corrupts memory. Nobody has checked the fork's DLL interfaces for that.
+- INFERRED risk (Microsoft's CRT documentation): under `/MT` each DLL gets its own copy of the CRT, with
+  its own state and heap. Passing CRT objects across such a boundary — memory allocated in one module and
+  freed in another, file handles, locale — can cause heap corruption or other failures. The fork is a
+  dozen C++ DLLs, and nobody has checked whether its DLL interfaces pass such objects.
 
 **Recommendation.** Of the two, **(a)**. (b) is two changes (`/MT` plus OpenMP off), and each has a risk
-nobody has measured. (a) is a known Microsoft package whose only cost is a UAC prompt.
+nobody has measured. (a) is a known Microsoft package. Its costs are the UAC prompt (admin credentials for
+a standard user), a machine-wide shared install and a possible restart.
 
 A third option beat both on the facts above, and I recommend it over (a): **ship the four DLLs beside
-`kalsa-server.exe` in the fork's Windows zips** (Microsoft's app-local deployment; INFERRED as supported).
-The three measured here total 724 288 bytes. There is no elevation, the per-user install stays per-user,
-and it covers every way the engine arrives, because the engine is the thing that needs them. Its cost:
-Windows Update does not service app-local copies, so each fork release must carry current DLLs. In every
-case the app should turn a missing runtime into a sentence, not a failed probe. INFERRED: today a launch
-without it would die at load (STATUS_DLL_NOT_FOUND) and surface as "no build works". That path has not
-been run on any machine.
+`kalsa-server.exe` in the fork's Windows zips** (Microsoft's app-local deployment):
+- **What it is:** `vcruntime140.dll`, `vcruntime140_1.dll` and `msvcp140.dll`, measured at 724 288 bytes
+  together here, plus `vcomp140.dll`, whose size was not measured.
+- **What it buys:** no elevation, the per-user install stays per-user, and it covers every engine the app
+  downloads from the fork's zips. It does not cover an engine supplied through the override above.
+- **What it costs (all INFERRED):**
+  - Microsoft does not recommend local deployment in most cases, because Windows Update does not service
+    local copies. Each fork release must carry current DLLs.
+  - Redistributing them follows the Visual Studio license terms.
+
+In every case the app should turn a missing runtime into a sentence, not a failed probe. INFERRED: today a
+launch without it would die at load (STATUS_DLL_NOT_FOUND) and surface as "no build works". That path has
+not been run on any machine.
 
 ## 6. What changed on the Lenovo
 
