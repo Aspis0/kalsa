@@ -1229,3 +1229,24 @@ with the existing opt-in `BATT_STUB_TENTHS=420` → `BATTERY_SENSOR_UNTRUSTED` (
 
 Pair deltas CPU−GPU: P1 **+0.349**, P2 **+0.358**. All chunks 1018, tools 0, lmkd 0.
 QRD8650 card settled at 512 (848429 = 109 min).
+
+## QRD8750 — S2 QDC 849776, unit sa853845, serial f3b4a4c5 — STOPPED: setup failed twice
+
+Started 16:13:43, Ended 16:36:38 (23 min; card 902 → 787 right after = the 115 hold, not settled). This unit's
+battery stub reads **40.0 °C** (400), not the S1 unit's 420: the first launch (`sa853845`, with
+`BATT_STUB_TENTHS=420`) was SIGTERMed before its trust check; relaunched with `BATT_STUB_TENTHS=400` →
+`BATTERY_SENSOR_UNTRUSTED` (skin ≥ 46 stop active). Then **`LOAD_PROOF_FAIL` twice** (`sa853845b`,
+`sa853845c`, END `load_proof`, 0 rows): each time `PowerManagerService: Going to sleep due to timeout
+(screenOffTimeout=1800000 …)` ~10 s after the app start (`screen_toggled: 0`, MainActivity paused), so the
+eager prewarm logged `skip not_ready` then `skip background` and no `op:done`/restore proof ever came. A
+manual WAKEUP + dismiss-keyguard + tap right before attempt 2 (`mWakefulness=Awake`, `mIsPowered=false`,
+`mStayOn=false`) did not change it — QRD trap 7 (stay-on inert on an unpowered board), deterministic on this
+unit; the S1 unit (9aed338b) never slept. Per the owner rule (board fails twice in setup) QRD8750 stops here
+with S1's 2 pairs. restore.sh rc=0 after each run (one rc=2 = transient tunnel reset right after a SIGTERM,
+re-run rc=0; one rc=1 = no app DB yet on a run stopped mid-setup).
+
+Not done / open: QRD8635 and QRD7675 read **Unavailable** at 16:37 — not run. Candidate fix for the
+unit-specific sleep (not made): keep the screen awake through the load (e.g. a periodic input tap / wake
+during poll_load, or `svc power stayon usb` if the board honours it) — driver change, needs owner/coordinator.
+Also: `battery_trust` only knows one stub value per run (`BATT_STUB_TENTHS`); QDC units carry 25.0 / 42.0 / 40.0
+stubs, so a frozen-identical dumpsys==sysfs reading while skin is ≥ 8 °C lower should be flagged generically.
