@@ -54,8 +54,8 @@ class KalsaIrohModule : Module() {
     AsyncFunction("openTunnel") { nodeHex: String, lane: String, promise: Promise ->
       run(control, promise) {
         val target = when (lane) {
-          "door" -> Lane.Door
-          "desk" -> Lane.Desk
+          "door" -> Lane.DOOR
+          "desk" -> Lane.DESK
           else -> throw IllegalArgumentException("lane must be \"door\" or \"desk\", got: $lane")
         }
         val tunnel = currentBridge().connect(nodeHex, target)
@@ -115,12 +115,18 @@ class KalsaIrohModule : Module() {
         try {
           promise.resolve(body())
         } catch (e: Throwable) {
-          promise.reject("KALSA_IROH", e.message ?: e::class.simpleName ?: "native error")
+          // The interface's reject takes all three; the message is the
+          // crate's own (never key material) or a class name.
+          promise.reject(
+            "KALSA_IROH",
+            e.message ?: e::class.simpleName ?: "native error",
+            null,
+          )
         }
       }
     } catch (e: Throwable) {
       // The pool is shut down or saturated beyond its queue: the call never ran.
-      promise.reject("KALSA_IROH", e.message ?: "could not submit the native call")
+      promise.reject("KALSA_IROH", e.message ?: "could not submit the native call", null)
     }
   }
 
