@@ -1,35 +1,41 @@
 /**
- * Unit tests for the eager-kick start path. InteractionManager is mocked,
- * timers are fake: the kick fires exactly once after gate + delay, the
- * default delay-0 path stays synchronous, and an explicit cancel (user send
- * / unmount) voids the wait.
+ * Unit tests for the eager kick's bench wait: fake timers, the real one-shot
+ * claim (ttftFlags is not mocked), console.log spied. The hook-level
+ * scenarios (unmount, remote flip, early send during the wait) live in
+ * usePipelineScansEagerKick.test.ts.
  */
-
-jest.mock("react-native", () => ({
-  InteractionManager: {
-    runAfterInteractions: jest.fn((task: () => void) => {
-      task();
-      return { cancel: jest.fn() };
-    }),
-  },
-}));
-
-import { InteractionManager } from "react-native";
 import { cancelPendingEagerKick, startEagerKick } from "./eagerKickDelay";
+import { claimEagerKick } from "../engine/ttftFlags";
 
-const runAfterInteractions =
-  InteractionManager.runAfterInteractions as jest.Mock;
+let idSeq = 0;
+
+function waitArgs(overrides: Partial<Parameters<typeof startEagerKick>[0]> = {}) {
+  return {
+    modelId: `model-${++idSeq}`,
+    generation: 1,
+    delayMs: 5000,
+    anchorMs: () => null,
+    remoteActive: () => false,
+    alreadyLoaded: () => false,
+    ensure: jest.fn(),
+    ...overrides,
+  };
+}
+
+function lines(tag: string): string[] {
+  return (console.log as jest.Mock).mock.calls
+    .filter(([first]) => first === tag)
+    .map(([, payload]) => payload as string);
+}
+
+function skipReasons(): string[] {
+  return lines("KALSA_EAGER_SKIP").map((payload) => JSON.parse(payload).reason);
+}
 
 beforeEach(() => {
   jest.useFakeTimers();
-  runAfterInteractions.mockClear();
-  // Default: the interaction gate is already settled.
-  runAfterInteractions.mockImplementation((task: () => void) => {
-    task();
-    return { cancel: jest.fn() };
-  });
-  cancelPendingEagerKick();
   jest.spyOn(console, "log").mockImplementation(() => undefined);
+  cancelPendingEagerKick("test_reset");
 });
 
 afterEach(() => {
@@ -37,113 +43,109 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-function kickArgs(delayMs: number, alreadyLoaded: () => boolean = () => false) {
-  return {
-    modelId: "model-a",
-    generation: 7,
-    delayMs,
-    alreadyLoaded,
-    kick: jest.fn(),
-  };
-}
-
-describe("startEagerKick with delay 0 (default path)", () => {
-  test("kicks synchronously and logs the measurement line", () => {
-    const args = kickArgs(0);
-    startEagerKick(args);
-    expect(args.kick).toHaveBeenCalledTimes(1);
-    const kalsaLine = (console.log as jest.Mock).mock.calls.find(
-      ([tag]) => tag === "KALSA_EAGER",
-    );
-    expect(JSON.parse(kalsaLine![1])).toMatchObject({ delay_ms: 0 });
-  });
-
-  test("does not consult alreadyLoaded — the default path is unchanged", () => {
-    const args = kickArgs(0, () => true);
-    startEagerKick(args);
-    expect(args.kick).toHaveBeenCalledTimes(1);
-    expect(runAfterInteractions).not.toHaveBeenCalled();
-  });
-});
-
-describe("startEagerKick with a bench delay", () => {
-  test("fires exactly once, after the full delay, logging at fire time", () => {
-    const args = kickArgs(5000);
-    startEagerKick(args);
-    expect(args.kick).not.toHaveBeenCalled();
+describe("startEagerKick firing", () => {
+  test("fires once after the full delay and logs KALSA_EAGER with modelId and generation", () => {
+    const wait = waitArgs();
+    startEagerKick(wait);
     jest.advanceTimersByTime(4999);
-    expect(args.kick).not.toHaveBeenCalled();
+    expect(wait.ensure).not.toHaveBeenCalled();
     jest.advanceTimersByTime(1);
-    expect(args.kick).toHaveBeenCalledTimes(1);
-    const kalsaLine = (console.log as jest.Mock).mock.calls.find(
-      ([tag]) => tag === "KALSA_EAGER",
-    );
-    expect(JSON.parse(kalsaLine![1])).toMatchObject({ delay_ms: 5000 });
+    expect(wait.ensure).toHaveBeenCalledTimes(1);
     jest.advanceTimersByTime(60000);
-    expect(args.kick).toHaveBeenCalledTimes(1);
+    expect(wait.ensure).toHaveBeenCalledTimes(1);
+    const [payload] = lines("KALSA_EAGER");
+    expect(JSON.parse(payload)).toMatchObject({
+      modelId: wait.modelId,
+      generation: wait.generation,
+      delay_ms: 5000,
+    });
+    expect(JSON.parse(payload).since_launch_ms).toEqual(expect.any(Number));
   });
 
-  test("the delay starts only once interactions settle", () => {
-    runAfterInteractions.mockImplementation(() => ({ cancel: jest.fn() }));
-    const args = kickArgs(1000);
-    startEagerKick(args);
-    jest.advanceTimersByTime(10000);
-    expect(args.kick).not.toHaveBeenCalled();
-    runAfterInteractions.mock.calls[0][0]();
+  test("counts the delay from the anchor (first committed render), not from the schedule", () => {
+    const wait = waitArgs({ anchorMs: () => Date.now() - 4000 });
+    startEagerKick(wait);
     jest.advanceTimersByTime(999);
-    expect(args.kick).not.toHaveBeenCalled();
+    expect(wait.ensure).not.toHaveBeenCalled();
     jest.advanceTimersByTime(1);
-    expect(args.kick).toHaveBeenCalledTimes(1);
-  });
-
-  test("an early send that loaded the model skips the kick entirely", () => {
-    const args = kickArgs(5000, () => true);
-    startEagerKick(args);
-    jest.advanceTimersByTime(60000);
-    expect(args.kick).not.toHaveBeenCalled();
-    expect(console.log).not.toHaveBeenCalledWith("KALSA_EAGER", expect.any(String));
+    expect(wait.ensure).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("cancelPendingEagerKick (early send / unmount)", () => {
-  test("a cancel before the fire voids the wait", () => {
-    const args = kickArgs(5000);
-    startEagerKick(args);
-    expect(cancelPendingEagerKick()).toBe(true);
+describe("startEagerKick fire-time veto", () => {
+  test("remote backend active at fire time skips the load", () => {
+    const wait = waitArgs({ remoteActive: () => true });
+    startEagerKick(wait);
     jest.advanceTimersByTime(60000);
-    expect(args.kick).not.toHaveBeenCalled();
-    expect(cancelPendingEagerKick()).toBe(false);
+    expect(wait.ensure).not.toHaveBeenCalled();
+    expect(skipReasons()).toContain("remote");
+    expect(lines("KALSA_EAGER")).toEqual([]);
   });
 
-  test("a cancel while interactions are pending voids the not-yet-armed timer", () => {
-    runAfterInteractions.mockImplementation(() => ({ cancel: jest.fn() }));
-    const args = kickArgs(1000);
-    startEagerKick(args);
-    expect(cancelPendingEagerKick()).toBe(true);
-    // Even a gate callback that slips through after the cancel arms nothing.
-    runAfterInteractions.mock.calls[0][0]();
+  test("a load an early send already started skips the kick", () => {
+    const wait = waitArgs({ alreadyLoaded: () => true });
+    startEagerKick(wait);
     jest.advanceTimersByTime(60000);
-    expect(args.kick).not.toHaveBeenCalled();
+    expect(wait.ensure).not.toHaveBeenCalled();
+    expect(skipReasons()).toContain("already_loaded");
+  });
+});
+
+describe("the one-shot claim", () => {
+  test("a cancelled wait does not consume it", () => {
+    const wait = waitArgs();
+    startEagerKick(wait);
+    cancelPendingEagerKick("host_teardown");
+    expect(claimEagerKick(wait.modelId, wait.generation)).toBe(true);
   });
 
-  test("cancel after the kick fired is a no-op", () => {
-    const args = kickArgs(1);
-    startEagerKick(args);
-    jest.advanceTimersByTime(1);
-    expect(args.kick).toHaveBeenCalledTimes(1);
-    expect(cancelPendingEagerKick()).toBe(false);
-    expect(args.kick).toHaveBeenCalledTimes(1);
+  test("a vetoed fire does not consume it; a real fire does", () => {
+    const skipped = waitArgs({ alreadyLoaded: () => true });
+    startEagerKick(skipped);
+    jest.advanceTimersByTime(60000);
+    expect(claimEagerKick(skipped.modelId, skipped.generation)).toBe(true);
+
+    const fired = waitArgs();
+    startEagerKick(fired);
+    jest.advanceTimersByTime(60000);
+    expect(claimEagerKick(fired.modelId, fired.generation)).toBe(false);
+  });
+});
+
+describe("cancelPendingEagerKick", () => {
+  test("cancels the wait, logs the skip reason, leaves no timer", () => {
+    const wait = waitArgs();
+    startEagerKick(wait);
+    expect(jest.getTimerCount()).toBe(1);
+    expect(cancelPendingEagerKick("host_teardown")).toBe(true);
+    expect(jest.getTimerCount()).toBe(0);
+    jest.advanceTimersByTime(60000);
+    expect(wait.ensure).not.toHaveBeenCalled();
+    expect(skipReasons()).toEqual(["host_teardown"]);
   });
 
-  test("the fired kick's ensure re-entering the cancel cannot self-cancel", () => {
-    const args = kickArgs(1);
-    args.kick = jest.fn(() => {
-      // The real kick calls ensureEngineForModel, which cancels the pending
-      // wait; after firing it must already be detached.
-      expect(cancelPendingEagerKick()).toBe(false);
-    });
-    startEagerKick(args);
+  test("with nothing pending it is a silent no-op", () => {
+    expect(cancelPendingEagerKick("host_teardown")).toBe(false);
+    expect(lines("KALSA_EAGER_SKIP")).toEqual([]);
+  });
+
+  test("after the kick fired it is a no-op", () => {
+    const wait = waitArgs({ delayMs: 1 });
+    startEagerKick(wait);
     jest.advanceTimersByTime(1);
-    expect(args.kick).toHaveBeenCalledTimes(1);
+    expect(wait.ensure).toHaveBeenCalledTimes(1);
+    expect(cancelPendingEagerKick("late")).toBe(false);
+    expect(wait.ensure).toHaveBeenCalledTimes(1);
+  });
+
+  test("a second wait supersedes the pending one", () => {
+    const first = waitArgs();
+    const second = waitArgs();
+    startEagerKick(first);
+    startEagerKick(second);
+    expect(skipReasons()).toEqual(["superseded"]);
+    jest.advanceTimersByTime(60000);
+    expect(first.ensure).not.toHaveBeenCalled();
+    expect(second.ensure).toHaveBeenCalledTimes(1);
   });
 });

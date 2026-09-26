@@ -5,7 +5,7 @@
  * left with the systems they belong to, and `bumpEmbedJobGeneration` left
  * with the embed pipeline.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
 import { isModelBundleDownloaded } from "../engine/ModelDownloader";
@@ -38,10 +38,7 @@ import type {
 } from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
 import { loadMarkerStore } from "./engineLoad";
-import {
-  cancelPendingEagerKick,
-  startEagerKick,
-} from "./eagerKickDelay";
+import { cancelPendingEagerKick, logEagerInit, startEagerKick } from "./eagerKickDelay";
 import {
   MODEL_STORAGE_KEY,
   modelSwitchInFlightRef,
@@ -97,6 +94,11 @@ export function usePipelineScans(params: {
 
   const [prefsReady, setPrefsReady] = useState(false);
   const [switchRevision, setSwitchRevision] = useState(0);
+  // Anchor of the bench eager-delay wait: the host's first committed render.
+  const firstRenderAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (firstRenderAtRef.current === null) firstRenderAtRef.current = Date.now();
+  }, []);
 
   useEffect(
     () => subscribeModelSwitchSettled(() => setSwitchRevision((revision) => revision + 1)),
@@ -275,10 +277,12 @@ export function usePipelineScans(params: {
       mounted = false;
     };
   }, []);
-  // Initial check: is the current model bundle already on disk?
-  // This kick is one-shot per process+generation (claimEagerKick). Effect deps
-  // stay [currentModel] only — ensureEngineForModel is read from a ref, not
-  // listed, so a new bound function never re-fires the kick.
+  // Initial check: is the current model bundle already on disk? The bench
+  // delay pref rides the SAME await as the disk probe, so at delay 0 the kick
+  // below keeps today's synchronous order (guard → claim → log → ensure, no
+  // await in between). The kick is one-shot per process+generation and the
+  // claim is consumed only when a kick really fires; ensureEngineForModel is
+  // read from a ref, so a re-bound function never re-fires it.
   useEffect(() => {
     const probeAction = decideRemoteHostProbe({
       prefsReady,
@@ -298,32 +302,40 @@ export function usePipelineScans(params: {
     void (async () => {
       try {
         const model = MODEL_REGISTRY[checkedIndex];
-        const ok = await isModelBundleDownloaded(model);
+        const [ok, eagerDelayMs] = await Promise.all([
+          isModelBundleDownloaded(model),
+          getBenchEagerDelayMs(),
+        ]);
         // The selected model may have changed in the meantime (the preference load).
         if (mounted && modelIndexRef.current === checkedIndex) {
           setModelState(ok ? "ready" : "missing");
           if (ok && EAGER_ENGINE_INIT && model) {
             const generation = engineGenerationRef.current;
-            if (claimEagerKick(model.id, generation)) {
+            if (eagerDelayMs > 0) {
               startEagerKick({
                 modelId: model.id,
                 generation,
-                delayMs: await getBenchEagerDelayMs(),
-                alreadyLoaded: () =>
-                  isEngineReady() && getActiveModelId() === model.id,
-                kick: () => void ensureEngineForModelRef.current(model),
+                delayMs: eagerDelayMs,
+                anchorMs: () => firstRenderAtRef.current,
+                remoteActive: () => refs.remoteActiveRef.current || isRemoteEngineBackend(),
+                alreadyLoaded: () => isEngineReady() && getActiveModelId() === model.id,
+                ensure: () => void ensureEngineForModelRef.current(model),
               });
+            } else if (claimEagerKick(model.id, generation)) {
+              logEagerInit(model.id, generation);
+              void ensureEngineForModelRef.current(model);
             }
           }
         }
-    } catch {
-      if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
-    }
-  })();
+      } catch {
+        if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
+      }
+    })();
     return () => {
       mounted = false;
-      // The bench wait must not fire into an unmounted generation.
-      cancelPendingEagerKick();
+      // Covers unmount AND every deps-change re-run (model switch, remote
+      // flip): the bench wait must not fire into another generation.
+      cancelPendingEagerKick("host_teardown");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentModel, prefsReady, remoteActive, switchRevision]);

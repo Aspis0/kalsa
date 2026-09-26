@@ -11,6 +11,7 @@ import {
   notifyModelSwitchSettled,
 } from "./modelSwitchState";
 import { hostEngineErrorText } from "./remoteEngineError";
+import { cancelPendingEagerKick } from "./eagerKickDelay";
 import type { TranslateFn } from "../i18n";
 
 export interface RemoteModelTransitionDeps {
@@ -33,6 +34,9 @@ export function switchHostToRemoteComputer(deps: RemoteModelTransitionDeps): voi
   if (modelSwitchInFlightRef.current) return;
   modelSwitchInFlightRef.current = true;
   deps.engineGenerationRef.current += 1;
+  // A pending bench-delayed eager kick belongs to the pre-switch generation;
+  // firing it inside the dispose→remote window would reload the local engine.
+  cancelPendingEagerKick("model_switch");
   const releasedGen = deps.chatGateGenRef.current;
   deps.chatGateGenRef.current = null;
   beginBackendSwitch("remote");

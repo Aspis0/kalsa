@@ -1,94 +1,103 @@
 /**
- * The eager engine kick and its bench wait (kalsa.bench.eager_delay_ms): the
- * kick's measurement lines, the cancellable InteractionManager+timer wait,
- * and the start. Default delay 0 is today's synchronous kick; a send during
- * the wait supersedes it (the explicit ensure cancels the pending wait).
+ * The eager engine kick's bench wait (kalsa.bench.eager_delay_ms) and its
+ * measurement lines. Delay 0 never enters this module — the hook runs the
+ * historical synchronous kick inline. Delay > 0 arms ONE cancellable wait per
+ * process; the delay counts from the host's first committed render, and at
+ * fire time a veto (remote backend, a load an early send already started,
+ * the one-shot claim — consumed only when the kick really fires) decides
+ * between the kick and a KALSA_EAGER_SKIP line. The model-switch paths and
+ * the hook's effect cleanup cancel the pending wait so it can never fire
+ * into another generation.
  */
-import { InteractionManager } from "react-native";
+import { claimEagerKick } from "../engine/ttftFlags";
 
-/** Wall-clock anchor of the KALSA_EAGER line; module eval ≈ JS launch. */
+/** Wall-clock anchor of since_launch_ms; module eval ≈ JS launch. */
 const PROCESS_LAUNCH_MS = Date.now();
 
-let pendingCancel: (() => void) | null = null;
+export interface EagerKickWait {
+  modelId: string;
+  generation: number;
+  delayMs: number;
+  /** Epoch ms of the host's first committed render; null → count from now. */
+  anchorMs: () => number | null;
+  /** Remote/computer backend active at fire time — the kick must not load. */
+  remoteActive: () => boolean;
+  /** An early send already loaded this exact model — no second load. */
+  alreadyLoaded: () => boolean;
+  /** The load start (the hook's ensure kick). */
+  ensure: () => void;
+}
+
+let pendingCancel: ((reason: string) => void) | null = null;
 
 /**
- * Cancel the pending wait. True when one was actually pending — after the
- * kick fired, or with nothing scheduled, this is a no-op.
+ * Cancel the pending wait, logging why it ended. True when one was actually
+ * pending — after the kick fired, or with nothing scheduled, a silent no-op.
  */
-export function cancelPendingEagerKick(): boolean {
+export function cancelPendingEagerKick(reason: string): boolean {
   const cancel = pendingCancel;
   pendingCancel = null;
-  if (!cancel) return false;
-  cancel();
+  if (cancel === null) return false;
+  cancel(reason);
   return true;
 }
 
-function logEagerKick(modelId: string, generation: number, delayMs: number): void {
+/** The kick's start line, shared by the immediate and the delayed path. */
+export function logEagerInit(modelId: string, generation: number): void {
   // eslint-disable-next-line no-console
   console.log("engine.eagerInit", JSON.stringify({ modelId, generation }));
-  // Measurement anchor: when the load actually started.
+}
+
+function logSkip(wait: EagerKickWait, reason: string): void {
   // eslint-disable-next-line no-console
   console.log(
-    "KALSA_EAGER",
+    "KALSA_EAGER_SKIP",
     JSON.stringify({
-      delay_ms: delayMs,
-      since_launch_ms: Date.now() - PROCESS_LAUNCH_MS,
+      reason,
+      modelId: wait.modelId,
+      generation: wait.generation,
+      delay_ms: wait.delayMs,
     }),
   );
 }
 
 /**
- * Start the kick now (delay 0 — exactly the historical path, no readiness
- * consult) or after interactions settle plus the delay, skipping the load if
- * an early send already loaded the model.
+ * Arm the wait. A wait still pending is superseded (cancelled with a SKIP
+ * line) — the hook's effect cleanup cancels on re-runs, so this is only a
+ * backstop against two schedulers in one process.
  */
-export function startEagerKick(args: {
-  modelId: string;
-  generation: number;
-  delayMs: number;
-  alreadyLoaded: () => boolean;
-  kick: () => void;
-}): void {
-  if (args.delayMs <= 0) {
-    logEagerKick(args.modelId, args.generation, args.delayMs);
-    args.kick();
-    return;
-  }
-  scheduleEagerKick(args.delayMs, () => {
-    if (args.alreadyLoaded()) return;
-    logEagerKick(args.modelId, args.generation, args.delayMs);
-    args.kick();
-  });
-}
-
-/**
- * Run `fire` once interactions settle, then `delayMs` later. Callers only
- * schedule with delayMs > 0 (the immediate kick must not round-trip the
- * scheduler).
- */
-function scheduleEagerKick(delayMs: number, fire: () => void): void {
-  let cleared = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let interactions: { cancel: () => void } | null = null;
-  const clear = () => {
-    cleared = true;
+export function startEagerKick(wait: EagerKickWait): void {
+  cancelPendingEagerKick("superseded");
+  const anchor = wait.anchorMs();
+  const elapsed = anchor === null ? 0 : Date.now() - anchor;
+  let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+    timer = null;
+    pendingCancel = null;
+    let reason: string | null = null;
+    if (wait.remoteActive()) reason = "remote";
+    else if (wait.alreadyLoaded()) reason = "already_loaded";
+    else if (!claimEagerKick(wait.modelId, wait.generation)) reason = "claimed";
+    if (reason !== null) {
+      logSkip(wait, reason);
+      return;
+    }
+    logEagerInit(wait.modelId, wait.generation);
+    // Measurement anchor: when the load actually started.
+    // eslint-disable-next-line no-console
+    console.log(
+      "KALSA_EAGER",
+      JSON.stringify({
+        modelId: wait.modelId,
+        generation: wait.generation,
+        delay_ms: wait.delayMs,
+        since_launch_ms: Date.now() - PROCESS_LAUNCH_MS,
+      }),
+    );
+    wait.ensure();
+  }, Math.max(0, wait.delayMs - elapsed));
+  pendingCancel = (reason: string) => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
-    interactions?.cancel();
-    interactions = null;
+    logSkip(wait, reason);
   };
-  pendingCancel = clear;
-  interactions = InteractionManager.runAfterInteractions(() => {
-    // A cancel while the gate was pending must stay void even if this
-    // callback still runs.
-    if (cleared) return;
-    timer = setTimeout(() => {
-      // Detach before firing: the kick's own ensure re-enters
-      // cancelPendingEagerKick and must not tear down its own kick.
-      timer = null;
-      interactions = null;
-      if (pendingCancel === clear) pendingCancel = null;
-      fire();
-    }, delayMs);
-  });
 }

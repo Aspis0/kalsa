@@ -49,6 +49,7 @@ import {
   modelSwitchInFlightRef,
   notifyModelSwitchSettled,
 } from "./modelSwitchState";
+import { cancelPendingEagerKick } from "./eagerKickDelay";
 export { MODEL_STORAGE_KEY, modelSwitchInFlightRef } from "./modelSwitchState";
 
 export interface ModelSwitchDeps extends EngineLoadDeps {
@@ -109,6 +110,10 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
       modelSwitchInFlightRef.current = true;
       beginBackendSwitch("local");
       engineGenerationRef.current += 1;
+      // A pending bench-delayed eager kick belongs to the pre-switch
+      // generation; the switch disposes that engine, the kick must not
+      // reload it mid-transition.
+      cancelPendingEagerKick("model_switch");
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
       // ensureEngineForModel may have acquired a higher gen by then.
