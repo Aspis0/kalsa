@@ -19,9 +19,9 @@
 //! payloads and measures every payload size and symbol version below:
 //! `payload::encode` emits
 //! `{"v":3,"reachable":"http://127.0.0.1:8134","code":"<32 hex>","nonce":"<64 hex>"}`
-//! — 160 bytes for the desk's preferred port; its random fallback is five
-//! digits, which makes 161 and the same symbol version; an open road
-//! appends `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
+//! — 160 bytes for the desk's preferred port; its random fallback port is
+//! the OS's pick, four or five digits — five is the worst case, making 161
+//! and the same symbol version; an open road appends `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm
 //! conditions, and level H would push the same payload past version 12,
 //! buying robustness a single-use, windowed code does not need — a

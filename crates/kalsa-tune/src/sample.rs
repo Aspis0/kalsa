@@ -198,7 +198,7 @@ fn id_among(body: &str, nonce: &str) -> bool {
 fn body(predicted_n: u64, rate: f64) -> String {
     // A rate that is no measurement has no millis to pair with it;
     // serde_json spells those `null`.
-    let predicted_ms = predicted_n as f64 / rate * 1000.0;
+    let predicted_ms = (rate.is_finite() && rate > 0.0).then(|| predicted_n as f64 / rate * 1000.0);
     serde_json::json!({
         "content": "The bicycle began as a hobby-horse.",
         "timings": {
@@ -364,11 +364,24 @@ mod check_tests {
     ) -> (SocketAddr, std::sync::mpsc::Receiver<bool>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
+        // A stub whose ask never comes must not park its thread in
+        // accept forever; the bound outlives every ask in these tests.
+        listener.set_nonblocking(true).expect("nonblocking");
         let (sent_tx, sent_rx) = std::sync::mpsc::channel();
+        let give_up_at = std::time::Instant::now() + Duration::from_secs(30);
         std::thread::spawn(move || {
             for _ in 0..requests {
-                let Ok((mut stream, _)) = listener.accept() else {
-                    return;
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            if std::time::Instant::now() > give_up_at {
+                                return;
+                            }
+                            std::thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(_) => return,
+                    }
                 };
                 let reply = reply.clone();
                 let sent_tx = sent_tx.clone();
@@ -566,9 +579,10 @@ mod check_tests {
         );
     }
 
-    /// The status gates the identity body: with redirects refused a 3xx
-    /// arrives as an Ok, and so does a 500 — a body that lists our nonce
-    /// is our server's listing only under a 2xx.
+    /// The status gates the identity body: a refused 3xx comes back as
+    /// an Ok (the guard's own case), a 5xx as an Err before any body is
+    /// read (ureq-2.12.1 request.rs:169) — and a listing of our nonce
+    /// counts only under a 2xx that was really sent.
     #[test]
     fn a_non_2xx_body_is_not_our_servers_listing() {
         let nonce = "kalsa-tune-00112233445566778899aabbccddeeff";
@@ -579,9 +593,14 @@ mod check_tests {
                 payload.len(),
                 payload
             );
-            let addr = stub_server(1, reply);
+            let (addr, sent) = stub_server_reported(1, reply);
+            let seen = serves_id(addr, nonce, Duration::from_millis(500));
             assert!(
-                !serves_id(addr, nonce, Duration::from_millis(500)),
+                matches!(sent.recv_timeout(Duration::from_secs(2)), Ok(true)),
+                "the {status} was never sent, so the refusal above means nothing"
+            );
+            assert!(
+                !seen,
                 "a {status} body is not our server's listing"
             );
         }
