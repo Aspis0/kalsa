@@ -227,7 +227,26 @@ describe("the probe fetcher on each road", () => {
     expect(second.shutdowns).toBeGreaterThan(0);
   });
 
-  test("the https road keeps using the global fetch, untouched", () => {
-    expect(doorFetchFor({ road: "https" })).toBe(globalThis.fetch);
+  test("the https road keeps using the global fetch, under the door-fetch shape", async () => {
+    const original = globalThis.fetch;
+    const fetchSpy = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ saved: true }),
+      text: async () => "",
+    }));
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    try {
+      const response = await doorFetchFor({ road: "https" })("https://desktop.example/props", {
+        method: "GET",
+        headers: {},
+      });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(response).toMatchObject({ ok: true, status: 200 });
+      await expect(response.json()).resolves.toEqual({ saved: true });
+      await expect(response.isBodyEmpty()).resolves.toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 });

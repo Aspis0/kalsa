@@ -9,6 +9,11 @@ export type PairingFailStage =
   | "seal"
   | "save"
   | "request_too_large"
+  // The ceremony succeeded (the credential is saved) and the desktop's
+  // allow-answer never arrived inside the confirmation cap: no existing
+  // stage can say "successful pairing, unconfirmed afterwards" without
+  // lying about where the attempt failed.
+  | "confirm_timeout"
   | "unexpected";
 
 /**

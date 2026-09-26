@@ -50,6 +50,23 @@ jest.mock("../remote/irohBridge", () => ({
   openIrohTunnel: jest.fn(),
 }));
 
+// The confirmation poll owns real time (2 s ticks, a 3-minute cap); the
+// screen tests drive its outcomes instead of sleeping through them.
+// jest.mock factories may only close over "mock"-prefixed bindings.
+let mockConfirmControl: {
+  resolve: ((outcome: { result: string }) => void) | null;
+  options: { onPhase?: (phase: unknown) => void } | null;
+} = { resolve: null, options: null };
+jest.mock("../pairing/pairingConfirmation", () => ({
+  pollForAllowance: jest.fn((options: { onPhase?: (phase: unknown) => void }) => {
+    mockConfirmControl.options = options;
+    return new Promise((resolve) => {
+      mockConfirmControl.resolve = resolve;
+    });
+  }),
+  pairedPropsProbe: jest.fn(() => jest.fn()),
+}));
+
 // The scanner pulls in expo-camera (native); PairingScreen is under test,
 // not the camera, so the scanner is a host stub with its props exposed.
 jest.mock("./PairingQrScanner", () => ({
@@ -85,6 +102,7 @@ let storedCredential = { ...preexistingCredential };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockConfirmControl = { resolve: null, options: null };
   (irohModulePresent as jest.Mock).mockReturnValue(false);
   (openIrohTunnel as jest.Mock).mockReset();
   mockRandomFills = [0xc0];
@@ -107,6 +125,7 @@ async function render(
   currentModelId = "local-model",
   initialDoorUrl = "https://desktop.tailnet.ts.net",
   expandManual = true,
+  onDone: () => void = jest.fn(),
 ): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -115,6 +134,7 @@ async function render(
         initialDoorUrl,
         currentModelId,
         onBack: jest.fn(),
+        onDone,
       }),
     );
   });
@@ -591,6 +611,85 @@ describe("PairingScreen", () => {
     expect(logged).not.toContain("ab".repeat(32));
     expect(logged).not.toContain("c0".repeat(16));
     log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("a confirmed pairing shows Paired and its button leaves for the chat", async () => {
+    installFetch(200);
+    const onDone = jest.fn();
+    const renderer = await render("local-model", "https://desktop.tailnet.ts.net", true, onDone);
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+
+    await act(async () => {
+      mockConfirmControl.resolve?.({ result: "paired" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findByProps({ testID: "pairing.paired" }).props.children)
+      .toBe("pairing.paired");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.paired.done" }).props.onPress();
+    });
+    expect(onDone).toHaveBeenCalledTimes(1);
+    await act(async () => renderer.unmount());
+  });
+
+  test("the cap ends the wait as not confirmed, logs confirm_timeout, and Retry restarts the poll", async () => {
+    installFetch(200);
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const { pollForAllowance } = jest.requireMock("../pairing/pairingConfirmation") as {
+      pollForAllowance: jest.Mock;
+    };
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      mockConfirmControl.resolve?.({ result: "not_confirmed" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findByProps({ testID: "pairing.notConfirmed" }).props.children)
+      .toBe("pairing.notConfirmed");
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(fails).toHaveLength(1);
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "confirm_timeout", status: null });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.retry" }).props.onPress();
+    });
+    expect(pollForAllowance).toHaveBeenCalledTimes(2);
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    expect(renderer.root.findAllByProps({ testID: "pairing.notConfirmed" })).toHaveLength(0);
+    log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("the unreachable line appears after repeated transport failures and clears on recovery", async () => {
+    installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const onPhase = mockConfirmControl.options?.onPhase;
+
+    await act(async () => {
+      onPhase?.({ phase: "unreachable", failures: 3 });
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.unreachable" }).props.children)
+      .toBe("pairing.unreachablePoll");
+
+    await act(async () => {
+      onPhase?.({ phase: "waiting" });
+    });
+    expect(renderer.root.findAllByProps({ testID: "pairing.unreachable" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 

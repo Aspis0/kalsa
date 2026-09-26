@@ -20,6 +20,8 @@ export type TunnelJsonInit = {
 export type TunnelJsonResponse = {
   ok: boolean;
   status: number;
+  /** Whether the drained body was empty — the desk's 403-busy signal. */
+  isBodyEmpty(): Promise<boolean>;
   json(): Promise<unknown>;
 };
 
@@ -92,6 +94,7 @@ export async function fetchJsonOverTunnel(
     return {
       ok: response.status >= 200 && response.status < 300,
       status: response.status,
+      isBodyEmpty: async () => bytes.length === 0,
       json: async () => JSON.parse(new TextDecoder("utf-8").decode(bytes)),
     };
   } finally {

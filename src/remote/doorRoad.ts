@@ -106,7 +106,20 @@ export type DoorFetch = (
  * request — the operation does not change roads halfway.
  */
 export function doorFetchFor(road: DoorRoad): DoorFetch {
-  if (road.road === "https") return globalThis.fetch;
+  if (road.road === "https") {
+    // Wrapped only to carry the same shape as the tunnel road: json() stays
+    // the response's own, and the body is read only when someone asks
+    // whether it was empty (the confirmation poll, on a 403).
+    return async (url, init) => {
+      const res = await globalThis.fetch(url, init);
+      return {
+        ok: res.ok,
+        status: res.status,
+        isBodyEmpty: async () => (await res.text()).length === 0,
+        json: () => res.json(),
+      };
+    };
+  }
   let pending: IrohTunnel | null = road.firstTunnel;
   return async (url, init) => {
     const tunnel = pending ?? (await road.openTunnel());

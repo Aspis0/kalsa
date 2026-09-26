@@ -10,10 +10,19 @@ import { useLabTheme } from "../ui/labTheme";
 import { PairingSession, type PairingSquare } from "../pairing/pairingTransport";
 import { PairingManualForm, type PairingFields } from "./PairingManualForm";
 import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
-import { chooseRoad } from "../remote/road";
+import { chooseRoad, isValidNodeHex } from "../remote/road";
 import { irohModulePresent } from "../remote/irohBridge";
 import { logPairingFail } from "../pairing/pairingFailLog";
-import { savePairingCredential } from "../pairing/pairingCredentialStore";
+import {
+  savePairingCredential,
+  type SavedPairingCredential,
+} from "../pairing/pairingCredentialStore";
+import {
+  pairedPropsProbe,
+  pollForAllowance,
+  type ConfirmationPhase,
+} from "../pairing/pairingConfirmation";
+import { bytesToHex } from "../pairing/sha256";
 import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
 import { PairingQrScanner } from "./PairingQrScanner";
@@ -22,7 +31,15 @@ type Props = {
   initialDoorUrl: string;
   currentModelId: string;
   onBack: () => void;
+  /** Leaves for the chat — passed when pairing was opened from settings. */
+  onDone?: () => void;
 };
+
+/** The desk's allow-answer poll: one /props every 2 s, up to 3 minutes. */
+const CONFIRM_POLL_INTERVAL_MS = 2_000;
+const CONFIRM_POLL_CAP_MS = 180_000;
+/** Consecutive transport failures before the unreachable line shows. */
+const CONFIRM_UNREACHABLE_AFTER = 3;
 
 function declarationForModel(modelId: string): PairingPhoneDeclaration | null {
   const model = MODEL_REGISTRY.find((entry) => entry.id === modelId);
@@ -42,7 +59,7 @@ function declarationForModel(modelId: string): PairingPhoneDeclaration | null {
   };
 }
 
-export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props) {
+export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }: Props) {
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const colors = modes[mode];
@@ -58,7 +75,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [showManual, setShowManual] = useState(false);
-  const [state, setState] = useState<"ready" | "refused" | "waiting" | "door-required">("ready");
+  const [state, setState] = useState<"ready" | "refused" | "waiting" | "door-required" | "paired" | "not-confirmed">("ready");
+  const [confirmPhase, setConfirmPhase] = useState<ConfirmationPhase>({ phase: "waiting" });
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   // A ceremony on this phone announces its weights_bytes, so without a
   // concrete local GGUF there is nothing to pair — the button shows why.
@@ -80,6 +98,39 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   const deskSignal = () => {
     deskAbortRef.current ??= new AbortController();
     return deskAbortRef.current.signal;
+  };
+
+  /** The saved credential as the confirmation poll reads it. */
+  const pairedRef = useRef<SavedPairingCredential | null>(null);
+
+  const startConfirmation = (paired: SavedPairingCredential) => {
+    const signal = deskSignal();
+    void pollForAllowance({
+      probe: pairedPropsProbe(paired, signal),
+      signal,
+      intervalMs: CONFIRM_POLL_INTERVAL_MS,
+      capMs: CONFIRM_POLL_CAP_MS,
+      unreachableAfter: CONFIRM_UNREACHABLE_AFTER,
+      onPhase: setConfirmPhase,
+    }).then((outcome) => {
+      if (outcome.result === "aborted") return;
+      if (outcome.result === "paired") {
+        setState("paired");
+        return;
+      }
+      // The cap is the only thing that can end a 401-only poll: refused,
+      // revoked and still-pending all answer 401 to the phone.
+      logPairingFail("confirm_timeout", null);
+      setState("not-confirmed");
+    });
+  };
+
+  const retryConfirmation = () => {
+    const paired = pairedRef.current;
+    if (!paired) return;
+    setConfirmPhase({ phase: "waiting" });
+    setState("waiting");
+    startConfirmation(paired);
   };
 
   const update = (key: keyof PairingFields, value: string) => {
@@ -154,7 +205,15 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         setState("refused");
         return;
       }
+      const paired: SavedPairingCredential = {
+        credential: bytesToHex(credential),
+        doorUrl: fields.doorUrl.trim(),
+        node: isValidNodeHex(square.node) ? square.node : null,
+        pairedVia: useIrohDesk ? "iroh" : "https",
+      };
+      pairedRef.current = paired;
       setState("waiting");
+      startConfirmation(paired);
     } catch {
       // The pairing response is deliberately opaque: one refusal sentence for
       // bad input, an unavailable desk, and every server-side rejection. A
@@ -186,7 +245,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
         : state === "refused"
           ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
-          : state === "waiting"
+          : state === "paired"
+            ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
+            : state === "not-confirmed"
+              ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
+              : state === "waiting"
             ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
             : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
@@ -226,6 +289,46 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
           <Text testID={status.testID} style={[type.secondary, { color: status.error ? colors.danger : colors.ink2 }]}>
             {status.text}
           </Text>
+          {state === "waiting" && confirmPhase.phase === "unreachable" ? (
+            <Text testID="pairing.unreachable" style={[type.secondary, { color: colors.danger }]}>
+              {t("pairing.unreachablePoll")}
+            </Text>
+          ) : null}
+          {state === "paired" ? (
+            <Pressable
+              testID="pairing.paired.done"
+              accessibilityRole="button"
+              accessibilityLabel={t("pairing.goToChat")}
+              onPress={() => onDone?.()}
+              style={({ pressed }) => ({
+                minHeight: 48,
+                borderRadius: radius.button,
+                alignItems: "center" as const,
+                justifyContent: "center" as const,
+                backgroundColor: pressed ? colors.brandDeep : colors.brand,
+              })}
+            >
+              <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.goToChat")}</Text>
+            </Pressable>
+          ) : state === "not-confirmed" ? (
+            <Pressable
+              testID="pairing.retry"
+              accessibilityRole="button"
+              accessibilityLabel={t("pairing.retry")}
+              onPress={retryConfirmation}
+              style={({ pressed }) => ({
+                minHeight: 48,
+                borderRadius: radius.button,
+                borderWidth: 1,
+                borderColor: colors.line,
+                alignItems: "center" as const,
+                justifyContent: "center" as const,
+                backgroundColor: pressed ? colors.surface : "transparent",
+              })}
+            >
+              <Text style={[type.bodyStrong, { color: colors.ink }]}>{t("pairing.retry")}</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             testID="pairing.manual"
             accessibilityRole="button"

@@ -474,6 +474,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",
     refused: "Non riesci a raggiungere il tuo computer, oppure ha rifiutato il collegamento. Riprova.",
     waiting: "Conferma sul computer",
+    paired: "Collegato al tuo computer",
+    goToChat: "Vai alla chat",
+    notConfirmed:
+      "Non confermato sul tuo computer — potrebbe essere stato rifiutato o essere scaduto.",
+    retry: "Riprova",
+    unreachablePoll: "Non riesci a raggiungere il tuo computer. Controlla che sia acceso e connesso.",
     scan: "Inquadra il codice QR sul tuo computer",
     scanCaution:
       "Inquadra il codice che vedi su Kalsa desktop. Chiunque veda quel codice può collegare un telefono: mostralo solo ai tuoi.",

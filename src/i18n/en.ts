@@ -479,6 +479,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     doorRequired: "Set your computer's address on this phone before pairing.",
     refused: "Can't reach your computer, or it refused the pairing. Try again.",
     waiting: "Confirm on your computer",
+    paired: "Paired with your computer",
+    goToChat: "Go to chat",
+    notConfirmed:
+      "Not confirmed on your computer — it may have been refused or timed out.",
+    retry: "Retry",
+    unreachablePoll: "Can't reach your computer. Check that it is on and connected.",
     scan: "Scan the QR on your computer",
     scanCaution:
       "Point the camera at the code shown by Kalsa desktop. Anyone who sees that code can pair a phone: show it only to people you trust.",

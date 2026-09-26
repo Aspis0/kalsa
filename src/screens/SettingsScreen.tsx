@@ -1497,6 +1497,11 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
         initialDoorUrl={pairingDoorUrl}
         currentModelId={model.currentModelId}
         onBack={() => setPairingOpen(false)}
+        onDone={() => {
+          // Paired: the chat is where the owner wanted to get back to.
+          setPairingOpen(false);
+          onBack();
+        }}
       />
     );
   }
