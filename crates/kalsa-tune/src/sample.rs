@@ -373,7 +373,12 @@ mod check_tests {
             for _ in 0..requests {
                 let mut stream = loop {
                     match listener.accept() {
-                        Ok((stream, _)) => break stream,
+                        Ok((mut stream, _)) => {
+                            // accept(2) hands O_NONBLOCK over on macOS/BSD:
+                            // the socket drains and writes as blocking.
+                            stream.set_nonblocking(false).expect("blocking");
+                            break stream;
+                        }
                         Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             if std::time::Instant::now() > give_up_at {
                                 return;
