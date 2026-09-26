@@ -622,3 +622,90 @@ dryrun-adb.sh.
   the fake.
 - Prewarm `op:done` landing inside the poll_load window on a fresh QRD8750
   session (S23 evidence: +24 s after launch) is expected but unconfirmed.
+
+---
+
+# Re-audit 39c2dde6 fixes — mid-turn safety, strict readings, load-proof restore (2026-09-25, late)
+
+Scope: items (a)-(d) of re-audit 39c2dde6 against commit `091bf0ac`, nothing
+else. The plugged stop stays: all 31 real QDC battery dumps in this repo read
+`AC powered: false` / `USB powered: false`.
+
+- **(a) Mid-turn safety.** `poll_until_telemetry` (parse.sh:370-395) now, while
+  waiting for telemetry: every ~30 s runs `safety_stops` (live readings +
+  all hard stops) and `thermo_refresh midturn` (safety.sh:83) — the same
+  rebuild+`set_prefs` push `safety_gate` does, so an engine that re-reads the
+  pref mid-turn sees live temperature; and it enforces a per-turn wall cap
+  `TURN_WALL_CAP_S` (default 900 s, d_run.sh:89; the turn's clock starts at
+  parse.sh:893 before `ui_send`). Cap hit → return 2 → the row is
+  voided `void_reason=turn_timeout`, the app is force-stopped
+  (parse.sh:908-917, evidence `<prefix>_turn_timeout.txt`), and the run
+  continues to the next arm's gates. The refresh label is `midturn`
+  (`$RAW/safety_midturn_prefs.txt`).
+- **(b) Fail-open readings gone.** `require_numeric` (safety.sh:51) runs first
+  in `hard_stops`: a missing/non-numeric skin, thermal status, battery
+  temperature or battery level ends the session with
+  `STOP reason=missing_<name>` (END `stop_missing_<name>`). The old `:-0` /
+  `:-100` defaults of 091bf0ac (safety.sh:48-55) and the `:-100` inside the
+  profile are
+  removed, so `thermo_refresh` can only run on validated readings —
+  `sensor_valid:true` never rests on a bad reading (it is only ever called
+  right after `safety_stops`).
+- **(c) Load proof.** `PREWARM_PATTERN` (parse.sh:97) accepts
+  `op:"restore", ok:true` as well as `op:"done"` (KV-snapshot restore logs no
+  `done`: LlamaService.ts:1328-1333). The anchor is now cleared BEFORE
+  `app_foreground` (d_run.sh:275): poll_load only accepts lines from this
+  launch (stale buffer lines cannot pass it), while clearing *after* the
+  app start would erase the eager load's loader line — the one line the proof
+  needs; that ordering trap is in the comment.
+- **(d) Leftovers.** `session_stop` force-stops the app before exiting
+  (safety.sh:20-28). The sampler stops on EVERY exit path: the
+  `STOP_SAMPLER_ON_EXIT` flag is deleted, `cleanup` (d_run.sh:187) calls
+  `stop_sampler` unconditionally, and `stop_sampler` (d_run.sh:175) touches
+  the device-side stop file even when `SAMPLER_PID=0` (a sampler orphaned by
+  an earlier invocation); `ensure_sampler` relaunches it on the next phase.
+  `restore.sh` additionally force-stops the app (line 30, before the DB edit)
+  and runs `bench_prefs_clear` (line 46), the same pull-edit-push round trip
+  as `set_prefs`, deleting the driver's bench prefs —
+  **`kalsa.bench.thermo`, `kalsa.bench.governor_force`, `kalsa.bench.sampling`,
+  `kalsa.bench.toolchoice`** (whole `kalsa.bench.%` namespace).
+  The other driver-set keys (`kalsa.model.id`, `kalsa.governor.enabled`,
+  `kalsa.web.enabled`, `kalsa.tools.device`, `kalsa.tools.calendar`) are
+  ordinary app settings, not bench overrides, and no pre-run value was
+  recorded for them, so they stay. Verified locally against the fixture DB:
+  after the DELETE only `kalsa.governor.enabled` of a seeded set remained
+  (SQL roundtrip EXIT=0).
+
+## Dry-run fixtures (fake adb; Mac only — no device, no QDC, no browser)
+
+State reset before each run:
+`rm -f /tmp/kalsa-dry/state/{typed,last_route,drawer,therm_calls,tel_ready_at}`.
+Harness knobs added to `dryrun-adb.sh`: `DRY_THERMAL_STATUS` set empty = no
+status line; `DRY_TELEMETRY_DELAY_S` holds telemetry/governor lines back after
+the prompt is typed; `DRY_PREWARM=restore` serves only restore-style proof
+(zero `op:"done"` lines in the served buffer).
+
+| fixture | extra env | expectation | EXIT |
+|---|---|---|---|
+| `dryrun-fix-midturn-skin` (new) | `DRY_TELEMETRY_DELAY_S=45 DRY_SKIN_AT=8 DRY_SKIN_AFTER=44.5` | `STOP reason=skin` from the poll at the ~30 s mid-turn check, `END reason=stop_skin`, results header only | 0 |
+| `dryrun-fix-missing-status` (new) | `DRY_THERMAL_STATUS=` | `STOP reason=missing_thermal_status`, `END reason=stop_missing_thermal_status` | 0 |
+| `dryrun-fix-restore-turn` (new) | `DRY_PREWARM=restore DRY_TELEMETRY_DELAY_S=50` | `LOAD_PROOF` with 0 `op:"done"` lines in the proof file, `THERMO_REFRESH label=midturn` + `safety_midturn_prefs.txt`, both arms OK NF=30 | 0 |
+| `dryrun-fix-turn-timeout` (new) | `TURN_WALL_CAP_S=60 DRY_TELEMETRY_DELAY_S=999` | `TURN_TIMEOUT after 60s` + `TURN_TIMEOUT_VOID`, both rows `INVALID void=turn_timeout`, `<prefix>_turn_timeout.txt` written, next arm's gates still ran | 0 |
+| `dryrun-fix-full` | — | LOAD_PROOF, CALIB_DONE, 2 OK rows NF=30, END exit_0 | 0 |
+| `dryrun-fix-skin` | `DRY_SKIN_AT=6 DRY_SKIN_AFTER=44.5` | pre-turn `STOP reason=skin` | 0 |
+| `dryrun-fix-band` | `PROMPT_VARIANTS=841` | `CALIB_BAND_FAIL total=1171`, no arm files | 3 |
+| `dryrun-fix-batt` | `DRY_BATT_LEVEL=20` | `STOP reason=battery_level` | 0 |
+| `dryrun-fix-arms` | `DRIVER_PHASE=arms` | 2 OK rows NF=30 | 0 |
+| `restore.sh` | `ADB_BIN=/tmp/kalsa-dry/bin/adb` | `... app=force-stopped bench_prefs=removed rc=0` | 0 |
+
+`bash -n` clean: d_run.sh, parse.sh, safety.sh, restore.sh, smp.sh,
+dryrun-adb.sh.
+
+## Not verified (no device, no QDC, no browser)
+
+- Mid-turn stops/refresh, the wall cap and the restore-only proof never ran
+  on a real board; the restore pattern is taken from app source
+  (LlamaService.ts:1328-1333), the mid-turn and timeout paths only from the
+  fake.
+- `restore.sh`'s DB round trip mirrors `set_prefs` but was only executed
+  against the fixture RKStorage, not a device database.

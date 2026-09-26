@@ -86,7 +86,8 @@ SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0
 FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""
 TYPE_PROMPT_CALLS=0; TYPE_LADDER_STATE=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=720
 SETTLE_TARGET_C=37.0; SETTLE_MAX_S=240; COOLDOWN_SECONDS=na; SETTLE_SECONDS=na
-SAMPLER_PID=0; STOP_SAMPLER_ON_EXIT=0
+TURN_WALL_CAP_S="${TURN_WALL_CAP_S:-900}"; TURN_START_EPOCH=""
+SAMPLER_PID=0
 DRIVER_PHASE="${DRIVER_PHASE:-arms}"
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/parse.sh
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/safety.sh
@@ -173,8 +174,11 @@ holder_loop() { while :; do adbT 60 -s "$SER" shell chmod 771 /data >> "$RAW/hol
 stop_holder() { [ "$HOLDER_PID" -ne 0 ] && { kill "$HOLDER_PID" 2>/dev/null || true; wait "$HOLDER_PID" 2>/dev/null || true; HOLDER_PID=0; }; }
 stop_sampler() {
   [ "${SKIP_SAMPLER:-0}" = "1" ] && return 0
-  [ "$SAMPLER_PID" -ne 0 ] || return 0
+  [ -n "$SER" ] || return 0
+  # Every exit path stops the device-side sampler, including one orphaned by
+  # an earlier invocation (SAMPLER_PID=0 here); ensure_sampler relaunches it.
   adbT 30 -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
+  [ "$SAMPLER_PID" -ne 0 ] || return 0
   sleep 3
   kill "$SAMPLER_PID" 2>/dev/null || true
   wait "$SAMPLER_PID" 2>/dev/null || true
@@ -184,7 +188,7 @@ cleanup() {
   local rc=$?
   restore_device
   stop_holder
-  if [ "${STOP_SAMPLER_ON_EXIT:-0}" = "1" ]; then stop_sampler; fi
+  stop_sampler
   write_end "exit_$rc"
 }
 trap cleanup EXIT INT TERM
@@ -265,6 +269,10 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   # window doubles as the tools-off probe (any KALSA_TOOLCALL aborts).
   CAL_OUT="$RAW/calibration.txt"
   device_wake || true
+  # Anchor BEFORE the app start: poll_load must only accept lines from this
+  # launch, but clearing after app_foreground would erase the eager load's
+  # loader line — the one line the proof needs.
+  clear_anchor "$RAW/calib" || { log "CALIB_CLEAR_FAIL"; exit 3; }
   app_foreground "$RAW/calib" || { log "CALIB_FOREGROUND_FAIL"; exit 3; }
   safety_gate calib
   # Load proof MUST run before calibrate_turn: the engine eager-loads at app
@@ -310,8 +318,6 @@ else
   holder_loop & HOLDER_PID=$!; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }
 fi
-
-STOP_SAMPLER_ON_EXIT=1
 
 # ---- arms ----
 PAIR=0; PREV_ARM=""; TURN=0; FINAL_RC=0

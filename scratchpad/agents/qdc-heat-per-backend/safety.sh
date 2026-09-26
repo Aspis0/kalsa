@@ -7,7 +7,8 @@
 # pause/kill (llama-governor-policy.cpp:12,23 reads batt_temp_tenths_c/10) or
 # its low-battery/plugged paths, so every model turn re-reads the device and
 # pushes a fresh profile first; the hard stops below end the run where the
-# engine would otherwise kill it.
+# engine would otherwise kill it. The same checks also run mid-turn from
+# poll_until_telemetry (parse.sh), every ~30 s while a turn generates.
 #
 # Field mapping: batt_temp_tenths_c carries the LIVE skin (the field the old
 # frozen profile filled, now current); t_idle_c stays the session's idle
@@ -19,7 +20,9 @@ LIVE_SKIN=""; LIVE_THERMAL_STATUS=""; LIVE_BATT_TEMP_TENTHS=""; LIVE_BATT_LEVEL=
 session_stop() {
   log "STOP reason=$1"
   write_end "stop_$1"
-  STOP_SAMPLER_ON_EXIT=1
+  # The session ends here, so the app must too: no generation keeps running
+  # past the stop (the EXIT trap restores settings, it does not kill the app).
+  adbT 30 -s "$SER" shell "am force-stop $PKG" >/dev/null 2>&1 || true
   exit 0
 }
 
@@ -42,34 +45,44 @@ live_readings() {
     "${LIVE_SKIN:-na}" "${LIVE_THERMAL_STATUS:-na}" "${LIVE_BATT_TEMP_TENTHS:-na}" "${LIVE_BATT_LEVEL:-na}" "$LIVE_PLUGGED" >> "$RAW/safety.log"
 }
 
+# A missing or non-numeric reading is a failed sensor, not a safe value:
+# defaulting it to 0/100 would both hide the stops below and let
+# thermo_refresh write sensor_valid:true from garbage, so it ends the session.
+require_numeric() {
+  awk -v v="$2" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' || session_stop "missing_$1"
+}
+
 # Hard stops (audit F1): skin >= 44 C, thermal status >= 3, battery
-# temperature >= 44 C, battery level <= 25 %, plugged = true.
+# temperature >= 44 C, battery level <= 25 %, plugged = true. The plugged
+# stop stays: all 31 real QDC battery dumps in this repo read AC/USB powered:
+# false, so true is a genuine anomaly (39c2dde6).
 hard_stops() {
-  awk -v v="${LIVE_SKIN:-0}" 'BEGIN{exit !(v+0 >= 44)}' && session_stop skin
-  [ "${LIVE_THERMAL_STATUS:-0}" -ge 3 ] 2>/dev/null && session_stop thermal_status
-  awk -v v="${LIVE_BATT_TEMP_TENTHS:-0}" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
-  [ "${LIVE_BATT_LEVEL:-100}" -le 25 ] 2>/dev/null && session_stop battery_level
+  require_numeric skin "$LIVE_SKIN"
+  require_numeric thermal_status "$LIVE_THERMAL_STATUS"
+  require_numeric battery_temp "$LIVE_BATT_TEMP_TENTHS"
+  require_numeric battery_level "$LIVE_BATT_LEVEL"
+  awk -v v="$LIVE_SKIN" 'BEGIN{exit !(v+0 >= 44)}' && session_stop skin
+  [ "$LIVE_THERMAL_STATUS" -ge 3 ] && session_stop thermal_status
+  awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
+  [ "$LIVE_BATT_LEVEL" -le 25 ] && session_stop battery_level
   [ "$LIVE_PLUGGED" = true ] && session_stop plugged
   return 0
 }
 
-# Stop checks only: called before the cooldown wait so a hot fixture cannot
-# park the driver in 720 s of polling.
+# Stop checks only: called at arm entry, before every turn, and mid-turn from
+# the poll loop, so a device at (or reading) a limit ends the session instead
+# of running on into the next gate.
 safety_stops() {
   live_readings
   hard_stops
 }
 
-# safety_gate <label>: hard stops, then rebuild and push the bench thermo
-# profile from live readings. Exits 0 via session_stop on any limit.
-safety_gate() {
+# Rebuild the bench thermo profile from the CURRENT live readings and push it.
+# Call only right after safety_stops: that validates every reading, so
+# sensor_valid:true never rests on a bad one (audit 39c2dde6 b).
+thermo_refresh() {
   local label="$1" now trend tskin
-  safety_stops
-  tskin="${LIVE_SKIN:-}"
-  [ -n "$tskin" ] || { log "NO_LIVE_SKIN label=$label"; write_end "no_live_skin"; exit 6; }
-  # A missing battery level must not fall back to a fabricated 100 % in the
-  # profile — that would hide the low-battery path F1 exists to unblock.
-  [ -n "$LIVE_BATT_LEVEL" ] || { log "NO_LIVE_BATT_LEVEL label=$label"; write_end "no_live_batt"; exit 6; }
+  tskin="$LIVE_SKIN"
   [ -n "$FIRST_SKIN_C" ] || FIRST_SKIN_C="$tskin"
   now=$(date +%s)
   trend=0.000
@@ -77,8 +90,15 @@ safety_gate() {
     trend=$(awk -v a="$tskin" -v b="$PREV_SKIN" -v d="$((now-PREV_TIME))" 'BEGIN{if(d>0)printf "%.3f",(a-b)/(d/60);else print "0.000"}')
   fi
   THERMO_JSON=$(printf '{"batt_temp_tenths_c":%s,"batt_level_pct":%s,"plugged":%s,"sensor_valid":true,"t_idle_valid":true,"t_idle_c":%s,"trend_c_per_min":%s}' \
-    "$(awk -v v="$tskin" 'BEGIN{printf "%.0f",v*10}')" "${LIVE_BATT_LEVEL:-100}" "$LIVE_PLUGGED" "$FIRST_SKIN_C" "$trend")
+    "$(awk -v v="$tskin" 'BEGIN{printf "%.0f",v*10}')" "$LIVE_BATT_LEVEL" "$LIVE_PLUGGED" "$FIRST_SKIN_C" "$trend")
   PREV_SKIN="$tskin"; PREV_TIME="$now"
   set_prefs "$RAW/safety_$label" || { log "PREFS_FAIL label=$label"; write_end "prefs_fail"; exit 3; }
-  log "THERMO_REFRESH label=$label skin=$tskin batt_level=${LIVE_BATT_LEVEL:-na} batt_temp=${LIVE_BATT_TEMP_TENTHS:-na} plugged=$LIVE_PLUGGED thermal_status=${LIVE_THERMAL_STATUS:-na}"
+  log "THERMO_REFRESH label=$label skin=$tskin batt_level=$LIVE_BATT_LEVEL batt_temp=$LIVE_BATT_TEMP_TENTHS plugged=$LIVE_PLUGGED thermal_status=$LIVE_THERMAL_STATUS"
+}
+
+# safety_gate <label>: hard stops, then rebuild and push the profile.
+# Exits 0 via session_stop on any limit or bad reading.
+safety_gate() {
+  safety_stops
+  thermo_refresh "$1"
 }

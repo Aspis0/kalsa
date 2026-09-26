@@ -367,17 +367,34 @@ app_foreground() {
   done
   return 1
 }
+# Wait for one turn's telemetry. Two safety duties while waiting (audit
+# 39c2dde6 a): a wall cap on the whole turn, and every ~30 s a stop check
+# plus a profile re-push — the poll reads only logcat while the device keeps
+# heating under a running turn. Returns 2 on wall-cap timeout.
 poll_until_telemetry() {
-  local file="$1" cap_s="$2" elapsed=0
+  local file="$1" cap_s="$2" elapsed=0 wall_start wall_deadline
+  wall_start="${TURN_START_EPOCH:-}"; [ -n "$wall_start" ] || wall_start=$(date +%s)
+  wall_deadline=$((wall_start + TURN_WALL_CAP_S))
   while [ "$elapsed" -lt "$cap_s" ]; do
     deadline_check; logcat_all 60 "$file" || true
     telemetry_complete "$file" && return 0
+    if [ "$(date +%s)" -ge "$wall_deadline" ]; then
+      log "TURN_TIMEOUT after ${TURN_WALL_CAP_S}s elapsed=${elapsed}s"
+      return 2
+    fi
+    if [ "$elapsed" -gt 0 ] && [ $((elapsed % 30)) -eq 0 ]; then
+      safety_stops
+      thermo_refresh midturn
+    fi
     sleep 5; elapsed=$((elapsed + 5))
   done
   logcat_all 60 "$file" || true; telemetry_complete "$file"
 }
 MODEL_LOAD_PATTERN="llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/$MODEL_DIR/$MODEL_FILE"
-PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'
+# A KV-snapshot restore proves the engine warmed the prefix instead of a full
+# prewarm: it logs op:"restore", ok:true and never op:"done"
+# (LlamaService.ts:1328-1333), so accept either.
+PREWARM_PATTERN='KALSA_PREWARM.*("op":"done"|"op":"restore","ok":true)'
 has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E "$PREWARM_PATTERN" "$1" >/dev/null 2>&1; }
 poll_load() {
   local file="$1"
@@ -826,7 +843,7 @@ run_arm() {
   local tel gov bench_chunks chunks_sum chunks_str chunks_ok
   local prefill_ms=na engine_prefill=na engine_decode=na route_requested=na route_push=na route_mismatch=na
   local prompt_n=na tokens_predicted=na decode_tps=na thermal=na failed=na fallback=0 lmkd=0
-  local reuse_line kvprefix
+  local reuse_line kvprefix poll_rc
   deadline_check
   # Stop check at arm entry: a device already at a limit ends the session
   # instead of parking in 720 s of cooldown; safety_gate re-checks before
@@ -872,6 +889,8 @@ run_arm() {
   if [ "$row_void" -eq 0 ]; then
     TYPE_TEXT="$PROMPT_TEXT"
     safety_gate "arm${turn}"
+    # The wall cap in poll_until_telemetry covers the whole turn from here.
+    TURN_START_EPOCH=$(date +%s)
     skin_before=$(thermal_record "${prefix}_before") || skin_before=na
     batt_temp_before=$(battery_read)
     batt_level="${LIVE_BATT_LEVEL:-na}"; plugged="${LIVE_PLUGGED:-na}"
@@ -884,7 +903,18 @@ run_arm() {
   fi
   # 6) wait for completion + 60 s tail (sampler keeps recording)
   if [ "$row_void" -eq 0 ]; then
-    poll_until_telemetry "$logcat" 600 || { row_void=1; void_reason=telemetry; }
+    poll_until_telemetry "$logcat" 600; poll_rc=$?
+    case "$poll_rc" in
+      0) : ;;
+      2)
+        # Wall cap hit: void the row, force-stop the app so the runaway turn
+        # stops heating, then run the normal post-processing — the next
+        # arm's gates re-check safety before anything else happens.
+        row_void=1; void_reason=turn_timeout
+        log "TURN_TIMEOUT_VOID backend=$backend pair=$pair turn=$turn"
+        adbT 60 -s "$SER" shell "am force-stop $PKG" >> "${prefix}_turn_timeout.txt" 2>&1 || true ;;
+      *) row_void=1; void_reason=telemetry ;;
+    esac
     sleep 2; logcat_all 120 "$logcat" || true
     sleep 60
   fi

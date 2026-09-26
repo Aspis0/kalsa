@@ -3,9 +3,12 @@
 # a warm engine already returning canned UI/logcat. One responsibility: answer
 # adb calls so d_run.sh can run end-to-end on the Mac, no device.
 # Run with ADB_BIN=<this file>; state and canned dumps live in /tmp/kalsa-dry.
-# Env fixtures: DRY_SKIN, DRY_THERMAL_STATUS, DRY_BATT_TEMP, DRY_BATT_LEVEL,
-# DRY_PLUGGED; DRY_SKIN_AT=<n> + DRY_SKIN_AFTER=<c> makes the skin cross <c>
-# after n thermalservice reads (exercises the driver's skin stop).
+# Env fixtures: DRY_SKIN, DRY_THERMAL_STATUS (set empty = device reports no
+# status), DRY_BATT_TEMP, DRY_BATT_LEVEL, DRY_PLUGGED; DRY_SKIN_AT=<n> +
+# DRY_SKIN_AFTER=<c> makes the skin cross <c> after n thermalservice reads;
+# DRY_TELEMETRY_DELAY_S=<s> holds telemetry/governor lines back <s> seconds
+# after the prompt is typed (keeps the poll loop running mid-turn);
+# DRY_PREWARM=restore serves only the KV-snapshot-restore proof, no op:done.
 S=/tmp/kalsa-dry/state
 mkdir -p "$S"
 args="$*"
@@ -40,7 +43,7 @@ case "$args" in
       printf '%s' "$n" > "$S/therm_calls"
       [ "$n" -gt "$DRY_SKIN_AT" ] && skin="${DRY_SKIN_AFTER:-44.5}"
     fi
-    printf 'Current temperatures from HAL:\n  Temperature{mValue=%s, mType=3, mName=skin, mStatus=0}\n  Temperature{mValue=41.0, mType=2, mName=cpu, mStatus=0}\nCurrent cooling devices from HAL:\nThermal Status: %s\n' "$skin" "${DRY_THERMAL_STATUS:-0}"; exit 0;;
+    printf 'Current temperatures from HAL:\n  Temperature{mValue=%s, mType=3, mName=skin, mStatus=0}\n  Temperature{mValue=41.0, mType=2, mName=cpu, mStatus=0}\nCurrent cooling devices from HAL:\nThermal Status: %s\n' "$skin" "${DRY_THERMAL_STATUS-0}"; exit 0;;
   *"pidof com.kalsa.app"*) echo 4242; exit 0;;
   *"date +%s"*) date +%s; exit 0;;
   *"date '+%m-%d %H:%M:%S.000'"*) date '+%m-%d %H:%M:%S.000'; exit 0;;
@@ -66,10 +69,19 @@ case "$args" in
     now=$(date +%s)
     tl=$(wc -c < "$S/typed" 2>/dev/null || echo 0)
     if [ "$tl" -gt 1000 ]; then
-      if [ "$(cat "$S/last_route" 2>/dev/null)" = "gpu" ]; then sed "s/^1[0-9]\{9\} /$now /" /tmp/kalsa-dry/logcat-gpu.txt; else sed "s/^1[0-9]\{9\} /$now /" /tmp/kalsa-dry/logcat-cpu.txt; fi
+      if [ "$(cat "$S/last_route" 2>/dev/null)" = "gpu" ]; then src=/tmp/kalsa-dry/logcat-gpu.txt; else src=/tmp/kalsa-dry/logcat-cpu.txt; fi
     else
-      sed "s/^1[0-9]\{9\} /$now /" /tmp/kalsa-dry/logcat-cal.txt
+      src=/tmp/kalsa-dry/logcat-cal.txt
     fi
+    sed "s/^1[0-9]\{9\} /$now /" "$src" > "$S/.logcat.out"
+    [ "${DRY_PREWARM:-}" = "restore" ] && sed 's/"op":"done"/"op":"restore","ok":true/' "$S/.logcat.out" > "$S/.logcat.out.2" && mv "$S/.logcat.out.2" "$S/.logcat.out"
+    if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ -f "$S/tel_ready_at" ] && [ "$now" -lt "$(cat "$S/tel_ready_at")" ]; then
+      # The turn is still generating: telemetry/governor lines do not exist yet.
+      grep -v 'KALSA_TELEMETRY\|KALSA_GOVERNOR ' "$S/.logcat.out"
+    else
+      cat "$S/.logcat.out"
+    fi
+    rm -f "$S/.logcat.out" "$S/.logcat.out.2"
     exit 0;;
   *"uiautomator dump"*) exit 0;;
   *"cat /data/local/tmp/kalsa-heat/ui.xml"*)
@@ -102,6 +114,10 @@ XML
     dec=$(printf '%s' "$inner" | sed "s/%s/ /g; s/'\\\\''/'/g")
     printf '%s' "$dec" >> "$S/typed"
     case "$dec" in "bench:route "*) printf '%s' "$dec" | awk '{print $2}' > "$S/last_route";; esac
+    if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ ! -f "$S/tel_ready_at" ]; then
+      tl=$(wc -c < "$S/typed")
+      [ "$tl" -gt 1000 ] && printf '%s' "$(( $(date +%s) + DRY_TELEMETRY_DELAY_S ))" > "$S/tel_ready_at"
+    fi
     exit 0;;
   *"input keycombination"*) : > "$S/typed"; exit 0;;
   *"input keyevent 67"*) : > "$S/typed"; exit 0;;
