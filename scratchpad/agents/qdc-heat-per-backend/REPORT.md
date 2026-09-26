@@ -1178,3 +1178,9 @@ All composer failures occurred before Send, so route and tokens are `na`; prefil
 No arm crossed the battery/thermal stop thresholds. The valid results table is empty apart from its header in each run. Before r3 DSP snapshot: `adsprpcd` pid 2222 utime/stime 4/0, `cdsprpcd` pid 2225 147/0; post-run snapshot recorded in `raw/s23-20260926/post_dsp_ticks.log` as 0/0 and 0/5 respectively (same pid values; counters as observed). Screen timeout post-restore: `null`.
 
 Raw preflight, all three driver logs/results, restore logs, and post-run state are under `raw/s23-20260926/` and `raw/s23-heat-cpu-vs-gpu-20260926-r{1,2,3}/`.
+
+## Composer diagnosis — slow-input check
+
+The r1-r3 UI dumps were exact prefixes of the expected prompt: there are no changed characters, autocorrections, capitalization changes, punctuation insertions, or altered spaces. Every mismatch is a missing suffix at the in-progress input boundary (positions are zero-based): r1 expected `[1197,1200)` `amb`, got empty; r2 first attempt `[970,1000)` `lacier harbor indigo juniper k`, got empty; r2 retry `[1389,1400)` ` juniper ke`, got empty; r3 first attempt `[965,1000)` `int glacier harbor indigo juniper k`, got empty; r3 retry `[1387,1400)` `go juniper ke`, got empty. All characters before those ranges matched byte-for-character.
+
+Diagnosis: **(b) chunk pacing/input injection drops the trailing characters**, not Samsung autocorrect or app-side text mutation. In one new scratch chat, one unsent 1400-character attempt typed as 50-character chunks with 1.5 s between chunks produced exactly 1400/1400 expected characters. No Send was pressed, no model load was requested, and the unsent text was cleared. Samsung Keyboard settings and installed IMEs were left unchanged. Raw diagnostic dumps for the slow check were kept under `/tmp` only.
