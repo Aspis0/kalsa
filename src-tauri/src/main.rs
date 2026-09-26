@@ -1077,10 +1077,9 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
     // but the catalog's answer to "no phone" — pair first — is the sentence
     // the owner can act on either way, and it is already written for them.
     let phone = phone(&app).ok().flatten();
-    // A stored choice is the page's one signal for "walk and start as
-    // before"; its absence is the first run's waiting state. A data dir
-    // this run cannot read reads as no choice, which is the honest arm:
-    // the next turn-on will say so itself.
+    // A stored choice is the page's one signal for "past the first run".
+    // A data dir this run cannot read reads as no choice, which is the
+    // honest arm: the next turn-on will say so itself.
     let chosen = state_file(&app)
         .ok()
         .map(|file| options::load(&file).model.is_some())
@@ -1116,6 +1115,216 @@ fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<()
         .filter(|value| !value.is_empty());
     next.validate()?;
     options::save(&state_file, next).map_err(|_| "The choice could not be saved.".to_string())
+}
+
+/// The first run's plan, `brain_test`'s answer: what a setup would fetch,
+/// and what is already here. The options reuse the capability page's own
+/// rows — same picker, same numbers — so the consent can never offer
+/// something the walk would not run.
+#[derive(Serialize)]
+struct TestPlanDto {
+    /// The engine's published byte size, and whether a whole build for it
+    /// already sits on disk.
+    engine_bytes: u64,
+    engine_on_disk: bool,
+    /// The chooser's pick and its faster alternative (one when the machine
+    /// has no second), each carrying its own `on_disk` and `measured`.
+    options: Vec<capability::ModelChoiceDto>,
+    /// Why the computer cannot run anything, when that is the answer.
+    refusal: Option<String>,
+    /// The bytes a yes would move: the missing engine plus the missing
+    /// models, nothing else.
+    total_bytes: u64,
+}
+
+/// "Test", step one of the first run: measure this machine and answer with
+/// the plan — sizes and what is already on this computer. Nothing is
+/// downloaded; the answer is computed from the release table and the disk.
+/// The measurement is kept, so Allow's walk does not measure again.
+#[tauri::command]
+async fn brain_test(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<TestPlanDto, String> {
+    let Some(_stops_seen) = brain.begin_walk(|| {}) else {
+        return Err("The assistant is already starting.".into());
+    };
+    let _walk = WalkGuard(&brain);
+    brain.metrics.reset();
+    let ram_bytes = startup::ram_bytes();
+    let runtime_root = kalsa_runtime::runtime_root();
+    let state_file = state_file(&app)?;
+    let phone = phone(&app)?;
+    let record_dir = app.path().app_data_dir().ok();
+    let emitter = app.clone();
+    let kept = brain
+        .measurement
+        .lock()
+        .ok()
+        .and_then(|stored| stored.clone());
+
+    let measured = tauri::async_runtime::spawn_blocking(move || {
+        let progress = |step: startup::Progress| {
+            let _ = emitter.emit("brain_progress", step);
+        };
+        match kept.filter(|m| m.is_reliable()) {
+            Some(_) => None,
+            None => {
+                progress(startup::Progress::Measuring);
+                let measurement = kalsa_probe::measure_reliable(&ProbeConfig::default());
+                let taken_unix = measurement::now_unix(SystemTime::now());
+                Some((measurement, taken_unix, ram_bytes))
+            }
+        }
+    })
+    .await
+    .map_err(|_| "The starting did not finish. Trying again usually works.".to_string())?;
+    // The reading rides home the same way a walk's does.
+    if let Some(reading) = measured {
+        keep_measurement(&brain, Some(reading), record_dir.as_deref());
+    }
+    let measurement = brain
+        .measurement
+        .lock()
+        .ok()
+        .and_then(|stored| stored.clone())
+        .ok_or_else(|| "This computer could not be measured. Trying again usually works.".to_string())?;
+    let chosen = options::load(&state_file).model.is_some();
+    let capability::CapabilityDto::Measured {
+        model,
+        quicker,
+        refusal,
+        ..
+    } = capability::dto(&measurement, ram_bytes, phone, chosen, &runtime_root)
+    else {
+        return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
+    };
+    let platform = kalsa_runtime::Platform::current().ok_or_else(|| {
+        failure::words(&failure::StartupFailure::NoBuildForThisMachine)
+    })?;
+
+    let detected = measurement.will_run_on;
+    let backend = kalsa_runtime::candidates_for(Some(platform), detected)
+        .first()
+        .copied()
+        .ok_or_else(|| failure::words(&failure::StartupFailure::NoBuildForThisMachine))?;
+    let (engine_bytes, engine_on_disk) =
+        kalsa_runtime::engine_facts(platform, backend).ok_or_else(|| {
+            failure::words(&failure::StartupFailure::NoBuildForThisMachine)
+        })?;
+    let options: Vec<capability::ModelChoiceDto> = [model, quicker].into_iter().flatten().collect();
+    let total_bytes = options
+        .iter()
+        .filter(|option| !option.on_disk)
+        .map(|option| option.weights_bytes)
+        .sum::<u64>()
+        + u64::from(!engine_on_disk) * engine_bytes;
+    drop(_walk);
+    Ok(TestPlanDto {
+        engine_bytes,
+        engine_on_disk,
+        options,
+        refusal,
+        total_bytes,
+    })
+}
+
+/// "Allow", step two of the first run: fetch what the plan said was
+/// missing and tune BOTH suggested models on this machine — the existing
+/// tune, run once per option, each record filed under its own model —
+/// then answer. Nothing is left running: the walk prepares, the owner's
+/// pick (the ordinary choose-and-start) is what turns anything on.
+#[tauri::command]
+async fn brain_allow(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
+    let Some(_stops_seen) = brain.begin_walk(|| {}) else {
+        return Err("The assistant is already starting.".into());
+    };
+    let _walk = WalkGuard(&brain);
+    brain.metrics.reset();
+    let kept = brain
+        .measurement
+        .lock()
+        .ok()
+        .and_then(|stored| stored.clone());
+    let ram_bytes = startup::ram_bytes();
+    let runtime_root = kalsa_runtime::runtime_root();
+    let state_file = state_file(&app)?;
+    let slot_save_path = slots_dir(&app)?;
+    let phone = phone(&app)?;
+    let record_dir = app.path().app_data_dir().ok();
+    let devices = enrolled_devices(&pairing_file(&app)?);
+    let emitter = app.clone();
+    let record_dir = record_dir.clone();
+
+    // The measurement brain_test kept: reused, or taken now for a caller
+    // that skipped Test (it is a fact about the machine either way).
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let mut progress = |step: startup::Progress| {
+            let _ = emitter.emit("brain_progress", step);
+        };
+        let kept = kept.filter(|m| m.is_reliable());
+        let (machine, measured) = match kept {
+            Some(measurement) => (
+                startup::Machine {
+                    measurement,
+                    ram_bytes,
+                },
+                None,
+            ),
+            None => {
+                progress(startup::Progress::Measuring);
+                let measurement = kalsa_probe::measure_reliable(&ProbeConfig::default());
+                let taken_unix = measurement::now_unix(SystemTime::now());
+                (
+                    startup::Machine {
+                        measurement: measurement.clone(),
+                        ram_bytes,
+                    },
+                    Some((measurement, taken_unix, ram_bytes)),
+                )
+            }
+        };
+        let reading = measured;
+        // The suggestions, exactly as the consent screen showed them.
+        let capability::CapabilityDto::Measured { model, quicker, .. } =
+            capability::dto(&machine.measurement, ram_bytes, phone, false, &runtime_root)
+        else {
+            return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
+        };
+        let tokens: Vec<String> = [model, quicker]
+            .into_iter()
+            .flatten()
+            .filter_map(|option| option.id)
+            .collect();
+        for token in &tokens {
+            // One full walk per suggestion, forced onto that row: decide
+            // (the engine — cached after the first), the fetch, and the
+            // tune whose record lands under this model's digest. The
+            // prepared start is dropped: nothing runs until the owner
+            // picks.
+            startup::run(
+                None,
+                machine.clone(),
+                phone,
+                devices,
+                None,
+                Some(token),
+                state_file.clone(),
+                slot_save_path.clone(),
+                &runtime_root,
+                &mut progress,
+            )
+            .map_err(|failure| failure::words(&failure))?;
+        }
+        Ok(reading)
+    })
+    .await;
+    // The reading rides home the same way a walk's does.
+    let walked = outcome.map_err(|_| {
+        "The starting did not finish. Trying again usually works.".to_string()
+    })??;
+    if let Some(reading) = walked {
+        keep_measurement(&brain, Some(reading), record_dir.as_deref());
+    }
+    drop(_walk);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1178,27 +1387,30 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                 )
             }
         };
-        // The ask is the walk's own: `startup::run` stops where the
-        // automatic pick's download would start, on the plan it actually
-        // holds, so the verdict that comes back here can never disagree
-        // with what the walk would have fetched. Everything else — a
-        // stored choice, a copy already on disk, a reusable one in
-        // another program's store, nothing fitting at all — answers as it
-        // always did.
+        // Consent is settled before the walk (the first-run flow's Test
+        // and Allow), so the walk fetches what its choice names. One
+        // refusal stays inside it: a turn-on with nothing stored and
+        // nothing on disk — a stray Turn on on the Server page, before
+        // any Allow — stops at the model's own fetch rather than
+        // downloading for a choice nobody made.
         let verdict = match startup::run(
             server_override,
             machine,
             phone,
             devices,
             model_override,
+            None,
             state_file,
             slot_save_path,
             &runtime_root,
             &mut progress,
         ) {
-            Ok(prepared) => Some(Ok(prepared)),
-            Err(failure::StartupFailure::AwaitingChoice) => None,
-            Err(failure) => Some(Err(failure::words(&failure))),
+            Ok(prepared) => Ok(prepared),
+            Err(failure::StartupFailure::AwaitingChoice) => Err(
+                "Kalsa is not set up on this computer yet. Press Start on its home page                  and allow the downloads."
+                    .into(),
+            ),
+            Err(failure) => Err(failure::words(&failure)),
         };
         // The measurement rides the refusal too: a walk that failed still
         // measured a real machine.
@@ -1223,10 +1435,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 /// when it measured — the reading beside the facts that make it a record:
 /// the instant the probe finished (stamped where the probe returned, not
 /// where the record is written minutes of download later) and the RAM the
-/// measured `Machine` was built with. `None` is the walk that stopped at
-/// the model's own fetch, awaiting the owner's choice.
+/// measured `Machine` was built with.
 type Walk = (
-    Option<Result<startup::PreparedStart, String>>,
+    Result<startup::PreparedStart, String>,
     Option<(Measurement, u64, u64)>,
 );
 
@@ -1246,12 +1457,7 @@ fn settle_walk(
     stops_seen: u64,
 ) -> Result<(), String> {
     keep_measurement(brain, walked.1, record_dir);
-    // The walk that measured and waits answers nothing: nothing started, so
-    // the state stays `stopped` and the page asks for the choice.
-    let Some(verdict) = walked.0 else {
-        return Ok(());
-    };
-    match verdict {
+    match walked.0 {
         Ok(mut prepared) => {
             // The plan's own launch, kept before the tuned one goes up: the
             // config the single retry uses if the tuned one cannot load.
@@ -1755,6 +1961,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_set_advanced,
             brain_choose_model,
             brain_capability,
+            brain_test,
+            brain_allow,
             brain_start,
             brain_stop,
             brain_pairing,

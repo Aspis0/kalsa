@@ -6,11 +6,12 @@
 //! progress as data; two presses cannot run two walks, which is the command
 //! guard's job, not this file's.
 //!
-//! A first run with nobody having chosen stops INSIDE the walk, at the
-//! model's own fetch: the engine has been decided (tens of megabytes,
-//! accepted), and the placement answers `AwaitingChoice` rather than
-//! downloading the automatic pick. The next turn-on — with a choice
-//! stored — runs the walk whole.
+//! The downloads are consented before the walk starts (the first-run
+//! flow's Test and Allow); the walk itself fetches what the choice —
+//! stored, or forced for this walk alone — names. A turn-on with nothing
+//! stored and nothing on disk refuses at the model's own fetch
+//! (`AwaitingChoice`): the one guard standing between a stray Turn on and
+//! an un-consented download, whatever surface pressed it.
 //!
 //! The model step follows the catalog: the choice is fetched against its
 //! digest (a verified copy in another program's cache beats the download,
@@ -25,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_catalog::{
-    memory_budget, rows, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
+    memory_budget, rows, usable, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
 };
 use kalsa_download::{default_roots, download};
 // The cheap first pass over stores that name blobs by digest; find_local
@@ -71,6 +72,7 @@ const DEV_CONTEXT_TOKENS: u64 = 4096;
 /// on a GPU — is a fact of the measurement, and dropping it on the way to the
 /// decision is how a runnable model got refused with a precise and wrong
 /// number.
+#[derive(Clone)]
 pub(crate) struct Machine {
     pub measurement: Measurement,
     pub ram_bytes: u64,
@@ -212,6 +214,7 @@ pub(crate) fn run(
     phone: Option<PhoneModel>,
     devices: u32,
     model_override: Option<PathBuf>,
+    forced: Option<&str>,
     state_file: PathBuf,
     slot_save_path: PathBuf,
     root: &Path,
@@ -226,12 +229,10 @@ pub(crate) fn run(
     // start and the tier would never exist.
     prepare_slot_save_dir(&slot_save_path)?;
     let overrides = crate::options::load(&state_file);
-    // The ask, decided once where the facts live: nobody has stored a
-    // choice, and no development override owns the model. A dev-pinned
-    // BINARY still fetches its automatic answer (its workflow had no page
-    // to choose on); a dev-pinned MODEL never reaches the placement at
-    // all. Read before the match below consumes the override.
-    let ask_before_fetch = overrides.model.is_none() && server_override.is_none();
+    // The model choice: whoever the walk is working for — the stored
+    // choice, or the `forced` token a caller names for this walk alone
+    // (the first-run flow tunes both suggestions without storing either).
+    let chosen = forced.or(overrides.model.as_deref());
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -263,7 +264,7 @@ pub(crate) fn run(
                 (backend, exe),
                 &machine,
                 phone,
-                overrides.model.as_deref(),
+                chosen,
                 || {
                     progress(Progress::Deciding);
                     kalsa_runtime::decide_cpu(
@@ -275,11 +276,7 @@ pub(crate) fn run(
                     )
                 },
             )?;
-            // The ask lives here, at the fetch itself, where the plan in
-            // hand is the walk's own pick — decided build included — so what
-            // the owner is asked about can never disagree with what the
-            // walk would download.
-            let path = place_model(&plan, root, ask_before_fetch, progress)?;
+            let path = place_model(&plan, root, progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -606,32 +603,63 @@ pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupF
 
 /// Puts the chosen model on disk, against the plan's digest. The plan is
 /// not optional: the catalog's pick always carries its file's address.
-/// `ask_before_fetch` is the automatic pick's consent gate: true means no
-/// choice is stored, so a file that must be fetched stops the walk for the
-/// owner's pick instead of downloading.
 fn place_model(
     plan: &DownloadPlan,
     root: &Path,
-    ask_before_fetch: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
-    acquire_model(plan, &root.join("models"), &default_roots(), ask_before_fetch, progress)
+    acquire_model(plan, &root.join("models"), &default_roots(), progress)
 }
 
 /// Puts the chosen model on disk, against the plan's digest. A copy already
 /// on disk — ours, or another program's — is hash-checked or digest-found
-/// before any download happens, and only then may the ask stop the walk:
-/// what is already here costs nobody a choice. Another program's stores
-/// are searched cheap pass first (`kalsa-reuse`: stores that NAME blobs by
-/// their digest cost a stat, and the store whose name claims our digest is
-/// read once to confirm), with `find_local` underneath for stores that
-/// name files like files. `roots` is handed in rather than taken from the
-/// environment so the search is a fact a test can pin.
+/// before any download happens. Another program's stores are searched cheap
+/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
+/// stat, and the store whose name claims our digest is read once to
+/// confirm), with `find_local` underneath for stores that name files like
+/// files. `roots` is handed in rather than taken from the environment so
+/// the search is a fact a test can pin.
+/// Whether the row's file already answers on this disk, by the same two
+/// no-download checks [`acquire_model`] makes: a digest-verified copy in
+/// this app's models directory, or a reusable one in another program's
+/// store. The consent screen and the fresh-install rule are built on it —
+/// what is already here costs nothing, and must be said to.
+pub(crate) fn model_on_disk(root: &Path, entry: &ModelEntry) -> bool {
+    let Some(source) = entry_source(entry) else {
+        return false;
+    };
+    let url = source.url();
+    let name = match url.rsplit('/').next() {
+        Some(name) if !name.is_empty() => name,
+        _ => return false,
+    };
+    if file_digest_is(&root.join("models").join(name), source.bytes, source.sha256) {
+        return true;
+    }
+    find_reusable(&default_roots(), source.bytes, source.sha256).is_some()
+}
+
+/// The row's own source, from the catalog's menu: the pinned address the
+/// download is held to. `None` — the row is not on the menu, or carries no
+/// identified file — means there is no file to look for.
+fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource> {
+    Some(
+        usable()
+            .find(|row| {
+                let row = row.entry();
+                row.repo == entry.repo
+                    && row.display_name == entry.display_name
+                    && row.quant == entry.quant
+                    && row.weights_bytes == entry.weights_bytes
+            })?
+            .source(),
+    )
+}
+
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
     roots: &[PathBuf],
-    ask_before_fetch: bool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
     let name = plan.url.rsplit('/').next().unwrap_or_default();
@@ -650,14 +678,6 @@ fn acquire_model(
     // runs underneath it.
     if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
-    }
-    if ask_before_fetch {
-        // The automatic pick is in use and this file exists nowhere on
-        // this disk: fetching it would start a download the owner never
-        // asked for, so the walk stops for the pick instead. The verdict
-        // is distinct on purpose — brain_start settles it into the
-        // ordinary stopped state with the measurement kept.
-        return Err(StartupFailure::AwaitingChoice);
     }
     progress(Progress::ModelBytes {
         done: 0,
@@ -1220,7 +1240,6 @@ mod tests {
             &plan,
             &root.join("models"),
             &[friendly_root.clone(), blob_root.clone()],
-            false,
             &mut |_| {},
         )
         .expect("the pinned copy in the digest store is on this disk");
@@ -1265,7 +1284,6 @@ mod tests {
             &plan,
             &root.join("models"),
             &[blob_root.clone(), friendly_root.clone()],
-            false,
             &mut |_| {},
         )
         .expect("the honest copy is still found");
@@ -1362,46 +1380,6 @@ mod tests {
         assert_eq!(plan.bytes, automatic.download.bytes);
         assert_eq!(plan.sha256, automatic.download.sha256);
         assert_eq!(reason, PHONE_FREE_REASON, "and the same sentence");
-    }
-
-    #[test]
-    fn the_placement_stops_for_the_ask_where_the_download_would_start() {
-        // The consent gate, pinned at the fetch: with no stored choice the
-        // walk stops before a single request leaves, with the file already
-        // valid on disk it stops nowhere, and with a choice stored (or a
-        // dev override owning the model — the same false flag) the fetch
-        // proceeds as it always did. A reusable copy in another program's
-        // store is the reuse tests' ground; here the roots are empty so
-        // the disk answers nothing.
-        let (url, requests) = serve(PLAN_BODY);
-        let root = scratch("ask-placement");
-        let plan = DownloadPlan {
-            url: url.clone(),
-            bytes: PLAN_BODY.len() as u64,
-            sha256: PLAN_SHA256,
-        };
-        let stopped = place_model(&plan, &root, true, &mut |_| {})
-            .expect_err("nothing stored and nothing on disk: the walk waits");
-        assert!(
-            matches!(stopped, StartupFailure::AwaitingChoice),
-            "a distinct verdict, not a download failure: {stopped:?}"
-        );
-        assert_eq!(
-            requests.load(std::sync::atomic::Ordering::SeqCst),
-            0,
-            "the ask must cost no bytes: the download was never called"
-        );
-        // The file valid on disk costs nobody a choice, ask or no ask.
-        let placed = place_model(&plan, &root, false, &mut |_| {}).expect("downloaded");
-        assert_eq!(std::fs::read(&placed).expect("read"), PLAN_BODY);
-        let again = place_model(&plan, &root, true, &mut |_| {})
-            .expect("the valid file on disk answers before the ask");
-        assert_eq!(again, placed, "and it is the same file");
-        assert_eq!(
-            requests.load(std::sync::atomic::Ordering::SeqCst),
-            1,
-            "one fetch in the whole test: the ask and the disk both refused to download"
-        );
     }
 
     #[test]
@@ -1769,7 +1747,7 @@ mod tests {
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
         };
-        let path = place_model(&plan, &root, false, &mut |_| {}).expect("downloaded");
+        let path = place_model(&plan, &root, &mut |_| {}).expect("downloaded");
         assert_eq!(
             std::fs::read(&path).expect("read"),
             PLAN_BODY,
@@ -1778,7 +1756,7 @@ mod tests {
         assert_eq!(digest_of(PLAN_BODY), PLAN_SHA256);
         // A second pass with the file already on disk downloads nothing: the
         // on-disk bytes are re-hashed, and the server must not be asked again.
-        let path_again = place_model(&plan, &root, false, &mut |_| {}).expect("from disk");
+        let path_again = place_model(&plan, &root, &mut |_| {}).expect("from disk");
         assert_eq!(path_again, path);
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
@@ -1799,7 +1777,7 @@ mod tests {
             sha256: "0000000000000000000000000000000000000000000000000000000000000000",
         };
         let err =
-            place_model(&plan, &root, false, &mut |_| {}).expect_err("the digest is the promise");
+            place_model(&plan, &root, &mut |_| {}).expect_err("the digest is the promise");
         assert!(matches!(err, StartupFailure::DownloadCorrupted), "{err:?}");
         assert!(
             !root.join("models").join("stories260K.gguf").exists(),
@@ -1824,6 +1802,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
@@ -1868,6 +1847,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             PathBuf::from("/state/server.state"),
             slots.clone(),
             &root,
@@ -1913,6 +1893,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             PathBuf::from("/state/server.state"),
             blocker.join("slots"),
             &root,
@@ -1957,6 +1938,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
@@ -2368,6 +2350,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
+            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2412,6 +2395,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
+            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2452,6 +2436,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/models/chosen.gguf")),
+            None,
             state_file,
             root.join("slots"),
             &root,
@@ -2736,6 +2721,7 @@ mod tests {
             None,
             1,
             Some(PathBuf::from("/dev/model.gguf")),
+            None,
             PathBuf::from("/state/dev.state"),
             root.join("slots"),
             &root,

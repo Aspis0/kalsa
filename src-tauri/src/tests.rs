@@ -62,9 +62,9 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     let verdict = settle_walk(
         &brain,
         (
-            Some(Err("No model that fits this computer is available yet. \
+            Err("No model that fits this computer is available yet. \
                  An app update may add one."
-                .into())),
+                .into()),
             Some((measured(80.0e9), 0, 0)),
         ),
         None,
@@ -81,7 +81,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
     let second =
-        settle_walk(&brain, (Some(Err("still refused".into())), Some((unbelieved, 0, 0))), None, 0);
+        settle_walk(&brain, (Err("still refused".into()), Some((unbelieved, 0, 0))), None, 0);
     assert!(
         second.is_err(),
         "an unreliable reading does not turn the refusal into a success"
@@ -94,23 +94,51 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
 }
 
 #[test]
-fn a_walk_with_no_choice_is_a_measurement_and_no_start() {
-    // A first run with nobody having chosen a model: the walk measures and
-    // stops. The verdict is None — nothing was decided, nothing fetched,
-    // nothing started — so the command answers Ok and the state stays
-    // `stopped` for the page to ask; the measurement still rides home, the
-    // card is owed an answer either way.
-    let brain = Brain::new();
-    let verdict = settle_walk(&brain, (None, Some((measured(80.0e9), 0, 0))), None, 0);
-    assert!(verdict.is_ok(), "a walk that waits is not a failure");
+fn brain_test_answers_without_downloading_anything() {
+    // Test's whole promise: sizes and presence are read from the release
+    // table and the disk, and no fetch is wired in. A decide, a placement
+    // or a download call in this body moves megabytes on a first run —
+    // this pin goes red first.
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let at = source
+        .find("async fn brain_test(")
+        .expect("brain_test is the first run's measure step");
+    let body = brace_block(&source, at);
+    for banned in ["startup::run(", "place_model", "acquire_model", "kalsa_runtime::decide("] {
+        assert!(
+            !body.contains(banned),
+            "brain_test must not fetch anything: `{banned}` found in its body"
+        );
+    }
+}
+
+#[test]
+fn brain_allow_is_one_forced_walk_per_suggestion_and_starts_nothing() {
+    // Allow's shape: one full walk per option token (the engine cached
+    // after the first, the tune filed under that model's own digest), and
+    // nothing queued to start — the pick is what turns anything on.
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let at = source
+        .find("async fn brain_allow(")
+        .expect("brain_allow is the first run's allow step");
+    let body = brace_block(&source, at);
+    assert!(body.contains("for token in &tokens"), "one walk per suggestion");
+    assert!(body.contains("Some(token)"), "each walk is forced onto its own row");
     assert!(
-        brain.measurement.lock().expect("lock").is_some(),
-        "the waiting walk still measured a real machine"
+        !body.contains("queue_start"),
+        "Allow starts nothing: the pick does that"
     );
+    // The forced choice is the walk's choice slot, ahead of any stored one.
+    let startup =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/startup.rs"))
+            .expect("startup.rs is readable");
+    let run_at = startup.find("pub(crate) fn run(").expect("the walk");
+    let run_body = brace_block(&startup, run_at);
     assert!(
-        matches!(brain.supervisor.state(), ServerState::Stopped),
-        "nothing may be running after a walk that had no choice to run: {:?}",
-        brain.supervisor.state()
+        run_body.contains("let chosen = forced.or(overrides.model.as_deref());"),
+        "the forced token leads; a stored choice is the default"
     );
 }
 
@@ -2497,7 +2525,7 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
         processor: None,
     };
 
-    let verdict = settle_walk(&brain, (Some(Ok(prepared)), None), None, stops_seen);
+    let verdict = settle_walk(&brain, (Ok(prepared), None), None, stops_seen);
 
     assert!(verdict.is_ok(), "a gated start is not an error");
     assert!(

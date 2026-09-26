@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
-import { awaitingChoice, type Capability } from "./MachineCard";
-import { available, invoke } from "../lib/tauri";
 import { concurrencyRow, tierRows } from "../lib/tierPanel";
 import { SetupProgress } from "./SetupProgress";
 import "./surfaces.css";
@@ -24,35 +21,11 @@ function connectedText(connected: boolean): string {
 // it was measured on (`concurrencyRow`: a rate, never a wall time). While
 // the first walk runs, its progress (the `brain_progress`
 // events) replaces the body. The state's facts and words come from the shared
-// hook; this page adds only what is its own: the stop failure, the metrics,
-// and one read of `brain_capability` — this page has no machine card, so the
-// waiting walk's ask must point at the home page instead of "below".
+// hook; this page adds only what is its own: the stop failure and the metrics.
+// A first run's Turn on refuses with words that point at the home page's
+// Start button — this page has no card of its own.
 export function ServerSurface() {
   const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
-  const [capability, setCapability] = useState<Capability | null>(null);
-
-  // Read on mount, whenever an action lands, and whenever the walk's own
-  // signals move: the state changing kind (this page can mount mid-walk on
-  // a stale answer), and the shared progress step going from something to
-  // nothing — a walk that settles still `stopped` never changes kind, and
-  // the step clearing is what says it landed.
-  const brainKind = state?.kind ?? null;
-  const walking = liveStep !== null;
-  useEffect(() => {
-    if (!available() || busy) return;
-    let live = true;
-    invoke<Capability>("brain_capability")
-      .then((next) => {
-        if (live) setCapability(next);
-      })
-      .catch(() => {
-        // No answer, no claim: the ordinary words stand.
-        if (live) setCapability(null);
-      });
-    return () => {
-      live = false;
-    };
-  }, [busy, brainKind, walking]);
 
   const metrics = state?.metrics ?? {};
   // A phone, not this computer: the host's own chat runs through the same
@@ -60,7 +33,7 @@ export function ServerSurface() {
   const deviceCount = (metrics.active_devices ?? []).filter(
     (device) => device.kind !== "host",
   ).length;
-  const words = brainWords(state, heldFailure, busy, awaitingChoice(capability), false);
+  const words = brainWords(state, heldFailure, busy);
   // What the metrics grid may state: the tier's own rows, plus the
   // concurrency row — which exists only while its constant names a
   // `matched` release, so the number never travels without its artifact

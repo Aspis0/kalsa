@@ -35,6 +35,7 @@
       "id": "0000000000000001",
       "measured": 18.4,
       "name": "IBM Granite 4 Tiny",
+      "on_disk": false,
       "quant": "Q4_K_M",
       "reason": "It runs a clearly bigger model than your phone does.",
       "speed": {
@@ -51,6 +52,7 @@
       "id": "0000000000000002",
       "measured": null,
       "name": "Arcee Trinity Nano",
+      "on_disk": false,
       "quant": "Q4_K_M",
       "reason": "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
       "speed": {

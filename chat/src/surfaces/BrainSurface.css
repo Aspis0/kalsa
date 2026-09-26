@@ -239,3 +239,39 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+/* The first run: one round button, then one plain ask. The page holds
+   nothing else until the owner has allowed the downloads — the settings
+   and the bar are for a computer that can already run something. */
+.brain-first-run {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.first-run-start {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  border: 1px solid var(--line, #ccc);
+  background: var(--surface, #fff);
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.first-run-start:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.first-run-consent {
+  flex: none;
+  max-width: 30rem;
+}
+
+.first-run-list {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+  text-align: left;
+}

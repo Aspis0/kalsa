@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { SURFACES } from "../app/surfaces";
-import { MachineCard, awaitingChoice } from "./MachineCard";
-import type { Capability } from "./MachineCard";
+import { MachineCard, bytesText } from "./MachineCard";
+import type { Capability, ModelOption } from "./MachineCard";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
@@ -25,6 +25,30 @@ interface BrainSurfaceProps {
   onOpenChat: () => void;
 }
 
+// The first run's plan, `brain_test`'s answer: what a setup would fetch,
+// and what is already on this computer. The options are the capability
+// page's own rows — the consent can never offer something the walk would
+// not run.
+interface TestPlan {
+  engine_bytes: number;
+  engine_on_disk: boolean;
+  options: ModelOption[];
+  refusal: string | null;
+  total_bytes: number;
+}
+
+// A first run is a machine with no choice stored and no usable model on
+// it — nothing downloaded, nothing tuned. An install holding either (the
+// owner's other computer, say, with its model already on disk and tuned)
+// is past its first run and starts as it always has.
+function firstRun(capability: Capability | null): boolean {
+  if (capability?.kind !== "measured" || capability.chosen) return false;
+  const options: ModelOption[] = [capability.model, capability.quicker].filter(
+    (option): option is ModelOption => option !== null,
+  );
+  return options.every((option) => !option.on_disk && option.measured === null);
+}
+
 // The app's home. The brain alone: what the machine is doing, all the
 // settings in one place, and one small bar to write in (§2, §5 of
 // THE-BRAIN-IS-THE-HOME.md). It also owns the first walk: a machine that
@@ -35,10 +59,15 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
   const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const [text, setText] = useState("");
   // Whether this mount carries the opening's one automatic attempt. Spent
-  // on first appearance — before any read lands — so nothing the owner does
-  // elsewhere inside the first moment (a turn-off on the Server page, say)
-  // can be undone by an attempt that fires when the read finally arrives.
+  // only once the capability read has landed: telling a first run (which
+  // never starts on its own) from an install that holds its model needs
+  // the answer, and the wait is one read long.
   const carriesAutomaticStart = useRef(false);
+  // The first run's own state: the plan the test answered with, and the
+  // step it is on — nothing at all until the button says Start.
+  const [plan, setPlan] = useState<TestPlan | null>(null);
+  const [working, setWorking] = useState<"test" | "allow" | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
   // The chooser's answer, read on mount and whenever a turn-on lands — the
   // walk can change what was measured, and a first walk can end having only
   // measured, which is exactly when the card must appear. There is no second
@@ -93,18 +122,105 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
   }, []);
 
   useEffect(() => {
-    if (!carriesAutomaticStart.current || !state) return;
+    if (!carriesAutomaticStart.current || !state || capability === null) return;
     carriesAutomaticStart.current = false;
-    if (state.kind === "stopped") void act();
-  }, [state, act]);
+    if (state.kind === "stopped" && !firstRun(capability)) void act();
+  }, [state, act, capability]);
 
-  const words = brainWords(state, heldFailure, busy, awaitingChoice(capability), true);
+  const words = brainWords(state, heldFailure, busy);
+
+  // Test: measure and answer with the plan — no downloads. Allow: the
+  // downloads and the tunes, then the ordinary page with its card, where
+  // the pick starts everything.
+  async function runSetup(step: "test" | "allow"): Promise<void> {
+    setWorking(step);
+    setSetupError(null);
+    try {
+      if (step === "test") {
+        setPlan(await invoke<TestPlan>("brain_test"));
+      } else {
+        await invoke("brain_allow");
+        setPlan(null);
+        setReads((count) => count + 1);
+      }
+    } catch (error) {
+      setSetupError(String(error));
+    }
+    setWorking(null);
+  }
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const value = text.trim();
     if (!value) return;
     onWrite(value);
+  }
+
+  // The first run owns the page: one round button, then one plain ask.
+  // The walk's progress (Allow's downloads and tunes) renders through the
+  // same live step every turn-on uses.
+  if (firstRun(capability)) {
+    return (
+      <div className="surface-page brain-page brain-first-run">
+        {liveStep ? (
+          <SetupProgress step={liveStep} />
+        ) : plan ? (
+          <section className="first-run-consent" aria-label="Before Kalsa can run">
+            <p className="surface-verdict">One yes and Kalsa is ready</p>
+            <p className="surface-sentence">
+              Kalsa needs the pieces below to run on this computer. Without them it
+              cannot work.
+            </p>
+            <ul className="first-run-list">
+              {!plan.engine_on_disk && plan.engine_bytes > 0 && (
+                <li>The engine that runs the model — {bytesText(plan.engine_bytes)}</li>
+              )}
+              {plan.options.map((option) => (
+                <li key={option.id}>
+                  {option.name} —{" "}
+                  {option.on_disk ? "already on this computer" : bytesText(option.weights_bytes)}
+                </li>
+              ))}
+            </ul>
+            {plan.refusal ?? null}
+            {setupError ?? null}
+            <div className="surface-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={working !== null || plan.options.length === 0}
+                onClick={() => void runSetup("allow")}
+              >
+                Allow
+              </button>
+              <button
+                type="button"
+                className="btn-quiet"
+                disabled={working !== null}
+                onClick={() => setPlan(null)}
+              >
+                Not now
+              </button>
+            </div>
+          </section>
+        ) : (
+          <div className="brain-presence">
+            <button
+              type="button"
+              className="first-run-start"
+              disabled={working !== null}
+              onClick={() => void runSetup("test")}
+            >
+              Start
+            </button>
+            <p className="surface-sentence">
+              Kalsa checks this computer and finds the best settings for it.
+            </p>
+            {setupError ?? null}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

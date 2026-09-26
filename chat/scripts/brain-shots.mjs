@@ -276,15 +276,29 @@ const STATES = [
     presence: "This computer is ready for you.",
   },
   {
-    // The first run's waiting state: the walk measured and stopped before
-    // choosing, so the presence asks and the card offers the one option
-    // this machine has — one option, one button.
-    name: "ask",
-    file: "shots/77-brain-ask.png",
+    // The first run: a machine with no choice stored and nothing usable on
+    // it owns the page — one round button and its one line, nothing else.
+    name: "start",
+    file: "shots/77-brain-start.png",
     state: { kind: "stopped" },
     capability: { kind: "measured", machine: CPU_ONLY, chosen: false, model: MODEL, quicker: null, refusal: null },
-    marker: "Pick a model",
-    presence: "This computer is measured. Pick one of the models below and it turns on with it.",
+    marker: "Start",
+    presence: "Kalsa checks this computer and finds the best settings for it.",
+    // After the shot: Test's answer, so the consent screen is shot too.
+    clickStart: {
+      brain_test: {
+        engine_bytes: 26_491_005,
+        engine_on_disk: false,
+        options: [
+          { ...MODEL, on_disk: false, measured: null },
+          { ...QUICK_MODEL, on_disk: true, measured: null },
+        ],
+        refusal: null,
+        total_bytes: 26_491_005 + MODEL.weights_bytes,
+      },
+    },
+    consentMarker: "One yes and Kalsa is ready",
+    consentPresence: "Kalsa needs the pieces below to run on this computer. Without them it cannot work.",
   },
   {
     name: "unmeasured",
@@ -508,7 +522,11 @@ async function main() {
         };
       },
       {
-        answers: { brain_state: fixture.state, brain_capability: fixture.capability },
+        answers: {
+          brain_state: fixture.state,
+          brain_capability: fixture.capability,
+          ...(fixture.clickStart?.brain_test ? { brain_test: fixture.clickStart.brain_test } : {}),
+        },
         seeded: fixture.name === "pick" ? SEEDED : null,
         refuse: fixture.refuse ?? [],
       },
@@ -527,16 +545,19 @@ async function main() {
         text: card.innerText,
       };
     });
-    if (fixture.capability.kind === "measured") {
+    // The first run owns the page: no card exists to wait for, and its
+    // option rows are the consent screen's, checked in the clickStart
+    // block below.
+    if (fixture.capability.kind === "measured" && !fixture.clickStart) {
       await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
-    } else if (tiles) {
+    } else if (tiles && !fixture.clickStart) {
       throw new Error(`${fixture.name}: unmeasured state printed numbers`);
     }
 
     await page.waitForTimeout(500);
     const held = await layout(page);
     const problems = [];
-    if (fixture.capability.model) {
+    if (fixture.capability.model && !fixture.clickStart) {
       // One block per option, in the order the backend sent them: the pick
       // first, the faster alternative — when the machine has one — under it.
       // A machine with a single speed class must show exactly one block.
@@ -653,6 +674,17 @@ async function main() {
       await page.setViewportSize(WINDOW);
       await page.click(".brain-presence .btn-primary");
       await mustText(page, STOP_REFUSED, `${fixture.name} refused turn-off`);
+    }
+    // The consent screen: Start's own click, answered by the stub. Driven
+    // after the first shot so the Start screen itself is what the first
+    // marker and presence pin.
+    if (fixture.clickStart) {
+      await page.setViewportSize(WINDOW);
+      await page.click(".first-run-start");
+      await mustText(page, fixture.consentMarker, `${fixture.name} consent`);
+      await mustText(page, fixture.consentPresence, `${fixture.name} consent sentence`);
+      await mustText(page, "already on this computer", `${fixture.name} on-disk mark`);
+      await mustText(page, "The engine that runs the model", `${fixture.name} engine size`);
     }
     // Last, because it leaves the brain page: the morph's two widths, back at
     // the window size the app opens in.

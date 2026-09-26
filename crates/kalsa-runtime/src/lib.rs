@@ -46,6 +46,35 @@ pub fn runtime_root() -> std::path::PathBuf {
     store::root()
 }
 
+/// The engine's consent-screen facts for one platform and backend, read
+/// from the release table and the store without fetching anything: the
+/// exact published bytes a missing engine costs (its archives plus the
+/// probe model), and whether a whole build for it already sits on disk.
+/// `None` when the release table itself is unverified — sizes nobody
+/// pinned are sizes nobody can promise.
+pub fn engine_facts(platform: Platform, backend: ServerBackend) -> Option<(u64, bool)> {
+    let assets = assets::assets_for(platform, backend);
+    let probe = assets::probe_model();
+    let mut total = 0u64;
+    for asset in assets.iter().chain(std::iter::once(&probe)) {
+        if !asset.verified() {
+            return None;
+        }
+        total += asset.size_bytes?;
+    }
+    let dir = store::builds_dir(&store::root(), backend);
+    let runtime: Vec<(&str, &str)> = assets
+        .iter()
+        .map(|asset| (asset.file, asset.sha256.unwrap_or_default()))
+        .collect();
+    let table_exe = assets
+        .iter()
+        .find(|asset| asset.role == assets::Role::Engine)
+        .and_then(|asset| asset.exe_sha256);
+    let on_disk = marker::validate(&dir, &runtime, table_exe).is_some();
+    Some((total, on_disk))
+}
+
 pub use assets::{Platform, ServerBackend};
 pub use candidates::candidates_for;
 pub use decide::{decide, decide_cpu, DecideError, Decision};

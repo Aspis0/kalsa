@@ -169,6 +169,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         None,
         1,
         None,
+        None,
         state_file,
         slot_save_path,
         &kalsa_runtime::runtime_root(),

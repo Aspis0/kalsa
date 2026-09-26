@@ -104,7 +104,7 @@ fn archives_dir(root: &Path) -> PathBuf {
     root.join("archives")
 }
 
-fn builds_dir(root: &Path, backend: ServerBackend) -> PathBuf {
+pub(crate) fn builds_dir(root: &Path, backend: ServerBackend) -> PathBuf {
     root.join("builds").join(backend.name())
 }
 
