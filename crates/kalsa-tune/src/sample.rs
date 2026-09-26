@@ -157,8 +157,12 @@ pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration) -> boo
         .timeout(timeout)
         .call();
     match reply {
-        Ok(response) => id_among(&response.into_string().unwrap_or_default(), nonce),
-        Err(_) => false,
+        // A refused redirect arrives as an Ok: the status gates the
+        // body, because somebody else's body is never our listing.
+        Ok(response) if (200..300).contains(&response.status()) => {
+            id_among(&response.into_string().unwrap_or_default(), nonce)
+        }
+        Ok(_) | Err(_) => false,
     }
 }
 
@@ -188,9 +192,13 @@ fn id_among(body: &str, nonce: &str) -> bool {
 
 /// The shape the server really writes — the two fields the measure
 /// reads and their neighbours, as the sentinel's real-server test and
-/// the real walk read them.
+/// the real walk read them. The millis are derived from the count and
+/// the rate, so a fixture never contradicts itself.
 #[cfg(test)]
 fn body(predicted_n: u64, rate: f64) -> String {
+    // A rate that is no measurement has no millis to pair with it;
+    // serde_json spells those `null`.
+    let predicted_ms = predicted_n as f64 / rate * 1000.0;
     serde_json::json!({
         "content": "The bicycle began as a hobby-horse.",
         "timings": {
@@ -198,9 +206,28 @@ fn body(predicted_n: u64, rate: f64) -> String {
             "prompt_ms": 3.1,
             "prompt_per_second": 3870.9,
             "predicted_n": predicted_n,
-            "predicted_ms": 1409.6,
+            "predicted_ms": predicted_ms,
             "predicted_per_second": rate,
         },
+    })
+    .to_string()
+}
+
+/// The engine's real `/v1/models` entry (server-context.cpp:4879-4885
+/// inside the `data` array of `:4924-4928`), as it lists our alias.
+#[cfg(test)]
+fn models_json(id: &str) -> String {
+    serde_json::json!({
+        "models": [{"name": id, "model": id}],
+        "object": "list",
+        "data": [{
+            "id": id,
+            "aliases": [id],
+            "tags": [""],
+            "object": "model",
+            "created": 0,
+            "owned_by": "llamacpp",
+        }],
     })
     .to_string()
 }
@@ -208,24 +235,6 @@ fn body(predicted_n: u64, rate: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// The engine's real `/v1/models` entry (server-context.cpp:4879-4885
-    /// inside the `data` array of `:4924-4928`), as it lists our alias.
-    fn models_json(id: &str) -> String {
-        serde_json::json!({
-            "models": [{"name": id, "model": id}],
-            "object": "list",
-            "data": [{
-                "id": id,
-                "aliases": [id],
-                "tags": [""],
-                "object": "model",
-                "created": 0,
-                "owned_by": "llamacpp",
-            }],
-        })
-        .to_string()
-    }
 
     /// Identity, on the real shape: only OUR nonce on the port counts.
     #[test]
@@ -344,22 +353,33 @@ mod check_tests {
     /// A stand-in server on loopback: each of its next `requests`
     /// connections is drained and answered with `reply`, verbatim.
     fn stub_server(requests: usize, reply: String) -> SocketAddr {
+        stub_server_reported(requests, reply).0
+    }
+
+    /// The same stand-in, reporting whether each reply actually left the
+    /// socket: a refusal is only proof if the reply was really sent.
+    fn stub_server_reported(
+        requests: usize,
+        reply: String,
+    ) -> (SocketAddr, std::sync::mpsc::Receiver<bool>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
+        let (sent_tx, sent_rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             for _ in 0..requests {
                 let Ok((mut stream, _)) = listener.accept() else {
                     return;
                 };
                 let reply = reply.clone();
+                let sent_tx = sent_tx.clone();
                 std::thread::spawn(move || {
                     use std::io::Write;
                     drain_request(&mut stream);
-                    let _ = stream.write_all(reply.as_bytes());
+                    let _ = sent_tx.send(stream.write_all(reply.as_bytes()).is_ok());
                 });
             }
         });
-        addr
+        (addr, sent_rx)
     }
 
     /// A 302 whose Location points at a listener this test owns — bound
@@ -369,6 +389,8 @@ mod check_tests {
     struct Redirect {
         addr: SocketAddr,
         target: TcpListener,
+        /// Reports, per connection, whether the redirect actually left.
+        sent: std::sync::mpsc::Receiver<bool>,
     }
 
     impl Redirect {
@@ -382,6 +404,16 @@ mod check_tests {
                 // fails loud rather than green.
                 Err(error) => error.kind() != std::io::ErrorKind::WouldBlock,
             }
+        }
+
+        /// True once the redirect has actually been written: a listener
+        /// that never answered would be refused too, so the refusals are
+        /// only meaningful when this holds.
+        fn reply_written(&self) -> bool {
+            matches!(
+                self.sent.recv_timeout(Duration::from_secs(2)),
+                Ok(true)
+            )
         }
     }
 
@@ -397,9 +429,11 @@ mod check_tests {
             fake.len(),
             String::from_utf8_lossy(fake)
         );
+        let (addr, sent) = stub_server_reported(requests, reply);
         Redirect {
-            addr: stub_server(requests, reply),
+            addr,
             target,
+            sent,
         }
     }
 
@@ -521,10 +555,35 @@ mod check_tests {
         let nonce = "kalsa-tune-00112233445566778899aabbccddeeff";
         let redirect = redirect(1);
         let seen = serves_id(redirect.addr, nonce, Duration::from_millis(500));
+        assert!(
+            redirect.reply_written(),
+            "the redirect was never sent, so the refusals above mean nothing"
+        );
         assert!(!seen, "a redirect is not our server's listing");
         assert!(
             !redirect.target_dialled(),
             "the redirect target was dialled"
         );
+    }
+
+    /// The status gates the identity body: with redirects refused a 3xx
+    /// arrives as an Ok, and so does a 500 — a body that lists our nonce
+    /// is our server's listing only under a 2xx.
+    #[test]
+    fn a_non_2xx_body_is_not_our_servers_listing() {
+        let nonce = "kalsa-tune-00112233445566778899aabbccddeeff";
+        for status in ["302 Found", "500 Internal Server Error"] {
+            let payload = models_json(nonce);
+            let reply = format!(
+                "HTTP/1.1 {status}\r\ncontent-length: {}\r\n\r\n{}",
+                payload.len(),
+                payload
+            );
+            let addr = stub_server(1, reply);
+            assert!(
+                !serves_id(addr, nonce, Duration::from_millis(500)),
+                "a {status} body is not our server's listing"
+            );
+        }
     }
 }

@@ -227,7 +227,8 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
     assert_eq!(code.version().value(), 9, "160 bytes at level M");
 
-    // The desk's random fallback port is five digits: one byte more, the
+    // The desk's random fallback port is the OS's pick — four or five
+    // digits; five is the worst case: one byte more than the base, the
     // same symbol version.
     let session = Pairing::offer(
         "http://127.0.0.1:12345",
