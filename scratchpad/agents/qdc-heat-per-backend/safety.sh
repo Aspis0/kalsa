@@ -35,7 +35,7 @@ live_readings() {
   # cached on line 36 vs 38.4 HAL on line 45) — a stale skin would both miss
   # stops and freeze the profile again.
   LIVE_SKIN=$(printf '%s\n' "$thermals" | awk '/Current temperatures from HAL/{f=1} f{print} /Current cooling devices from HAL/{f=0}' \
-    | sed -n 's/.*mValue=\([0-9.]*\), mType=3, mName=skin.*/\1/p' | head -1 | tr -d '\r')
+    | sed -n 's/.*mValue=\([0-9.]*\), mType=3, mName=[sS][kK][iI][nN].*/\1/p' | head -1 | tr -d '\r')
   LIVE_THERMAL_STATUS=$(printf '%s\n' "$thermals" | sed -n 's/.*Thermal Status: *\([0-9][0-9]*\).*/\1/p' | head -1 | tr -d '\r')
   LIVE_BATT_TEMP_TENTHS=$(printf '%s\n' "$battery" | sed -n 's/^ *temperature: *\([0-9][0-9]*\).*/\1/p' | head -1 | tr -d '\r')
   LIVE_BATT_LEVEL=$(printf '%s\n' "$battery" | sed -n 's/^ *level: *\([0-9][0-9]*\).*/\1/p' | head -1 | tr -d '\r')

@@ -1,0 +1,24 @@
+serial=dryserial
+port=5037
+ro.soc.model
+SM8750
+ro.product.name
+sun
+ro.product.model
+QRD8750
+ro.build.fingerprint
+android/fake
+ro.build.type
+userdebug
+ro.debuggable
+1
+persist.sys.locale
+en-US
+MemTotal
+MemTotal:       16293452 kB
+id
+uid=0(root) gid=0(root)
+screen_off_timeout
+60000
+device_tag=8-Elite
+screen_off_timeout_previous=60000

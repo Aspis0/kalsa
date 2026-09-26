@@ -13,7 +13,7 @@
 # an untrusted verdict into a skin-based stop at 46 C for that board only.
 BATTERY_UNTRUSTED=0; BATTERY_UNTRUSTED_WHY=na
 BATT_TRUST_INTERVAL_S="${BATT_TRUST_INTERVAL_S:-30}"
-BATT_STUB_TENTHS=250  # 25.0 C, the constant stub observed on both QRD8650 units
+BATT_STUB_TENTHS="${BATT_STUB_TENTHS:-250}"  # 25.0 C, the constant stub observed on both QRD8650 units
 
 batt_trust_sample() {
   local dump t sysfs skin
@@ -22,7 +22,7 @@ batt_trust_sample() {
   sysfs=$(adbT 60 -s "$SER" shell "cat /sys/class/power_supply/battery/temp 2>/dev/null" | head -1 | tr -d '\r[:space:]')
   skin=$(adbT 60 -s "$SER" shell dumpsys thermalservice 2>/dev/null \
     | awk '/Current temperatures from HAL/{f=1} f{print} /Current cooling devices from HAL/{f=0}' \
-    | sed -n 's/.*mValue=\([0-9.]*\), mType=3, mName=skin.*/\1/p' | head -1 | tr -d '\r')
+    | sed -n 's/.*mValue=\([0-9.]*\), mType=3, mName=[sS][kK][iI][nN].*/\1/p' | head -1 | tr -d '\r')
   printf '%s %s %s\n' "${t:-na}" "${sysfs:-na}" "${skin:-na}"
 }
 

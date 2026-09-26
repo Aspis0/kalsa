@@ -5,7 +5,7 @@
 # Usage: bash restore.sh          (ADB_PORT/ADB_BIN overridable, as in d_run.sh)
 set -u
 OUT="$(cd "$(dirname "$0")" && pwd)"
-ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 6037|6039) ;; *) echo "ADB_PORT must be 6037 or 6039" >&2; exit 2;; esac
+ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 5037|6037|6039) ;; *) echo "ADB_PORT must be 5037, 6037, or 6039" >&2; exit 2;; esac
 export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 PKG=com.kalsa.app
@@ -22,7 +22,7 @@ if [ -z "$SER" ]; then
   SER=$("$ADB_BIN" devices | awk 'NR > 1 && $2 == "device" { print $1; exit }' | tr -d '\r')
 fi
 [ -n "$SER" ] || { echo "NO_DEVICE on $ADB_PORT" >&2; exit 2; }
-case "$SCREEN_OFF_TIMEOUT" in ''|*[!0-9]*) SCREEN_OFF_TIMEOUT=60000 ;; esac
+case "$SCREEN_OFF_TIMEOUT" in null) ;; ''|*[!0-9]*) SCREEN_OFF_TIMEOUT=60000 ;; esac
 HEAT_TMP=/data/local/tmp/kalsa-heat/heat
 rc=0
 # Force-stop before touching anything app-owned: no writer races the DB edit
@@ -30,7 +30,11 @@ rc=0
 "$ADB_BIN" -s "$SER" shell "am force-stop $PKG" >/dev/null 2>&1 || rc=1
 "$ADB_BIN" -s "$SER" shell svc power stayon false >/dev/null 2>&1 || rc=1
 "$ADB_BIN" -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || rc=1
-"$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || rc=1
+if [ "$SCREEN_OFF_TIMEOUT" = null ]; then
+  "$ADB_BIN" -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || rc=1
+else
+  "$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || rc=1
+fi
 "$ADB_BIN" -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
 pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 
@@ -46,7 +50,9 @@ pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 bench_prefs_clear() {
   local dir remote
   dir=$(mktemp -d /tmp/kalsa-restore.XXXXXX) || return 1
-  "$ADB_BIN" -s "$SER" shell chmod 771 /data >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
+  if [ "${ALLOW_RUN_AS_WITHOUT_CHMOD:-0}" != "1" ]; then
+    "$ADB_BIN" -s "$SER" shell chmod 771 /data >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
+  fi
   "$ADB_BIN" -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage > "$dir/RKStorage" 2>/dev/null || { rm -rf "$dir"; return 1; }
   # The test needs run-as too: databases/ lives in the app's private dir,
   # so a bare `test -f` outside run-as always says "not found" (d3f85707).

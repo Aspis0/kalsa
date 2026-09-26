@@ -1,0 +1,14 @@
+[13:57:29] FORCED_DECODE n=128 id=30157 ids_sha256=fe8b738aebd7d31a8413d2151f47cf08868d41bd70a6f7919ce528393760d394
+[13:58:00] BATTERY_SENSOR_TRUSTED dumpsys=334,329 sysfs=na skin=33.2->32.8
+[13:58:01] THERMO_REFRESH label=setup skin=32.8 batt_level=86 batt_temp=329 plugged=false thermal_status=0
+[13:58:11] MMPROJ_SKIP (MMPROJ empty)
+[13:58:13] SETUP_DONE board=8-Gen-2 sampler_pid=63473 skin0=33.2
+[13:58:21] THERMO_REFRESH label=calib skin=32.8 batt_level=86 batt_temp=324 plugged=false thermal_status=0
+[13:58:31] LOAD_PROOF llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf
+calib	backend=cpu	route_push=applied	chunks_sum=15	tool_calls=0
+[13:59:40] CALIB_DONE N0=15 variant=1010 tokens=1010 total_estimate=1025 chars=3832 tools=0
+[13:59:40] DECODE_LEN_REF=127 forced_n=128
+[14:00:36] THERMO_REFRESH label=arm1 skin=35.5 batt_level=86 batt_temp=354 plugged=false thermal_status=0
+[14:03:39] STOP_INVALID_ROW backend=cpu pair=1 turn=1 reason=composer
+[14:03:39] ABORT arm=C pair=1 turn=1
+[14:03:42] DONE board=8-Gen-2 final_rc=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/raw/s23-heat-cpu-vs-gpu-20260926-r3/results.tsv

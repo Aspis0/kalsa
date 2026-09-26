@@ -1,0 +1,12 @@
+attempt=1 chunk=1 len=100 expected=100 result=exact t=7s
+attempt=1 chunk=3 len=200 expected=200 result=exact t=12s
+attempt=1 chunk=5 len=300 expected=300 result=exact t=17s
+attempt=1 chunk=7 len=400 expected=400 result=exact t=22s
+attempt=1 chunk=9 len=500 expected=500 result=exact t=27s
+attempt=1 chunk=11 len=600 expected=600 result=exact t=33s
+attempt=1 chunk=13 len=700 expected=700 result=exact t=39s
+attempt=1 chunk=15 len=800 expected=800 result=exact t=46s
+attempt=1 chunk=17 len=900 expected=900 result=exact t=54s
+attempt=1 chunk=19 len=1000 expected=1000 result=exact t=63s
+attempt=1 chunk=21 len=1100 expected=1100 result=exact t=74s
+attempt=1 chunk=23 len=1197 expected=1200 result=short t=87s

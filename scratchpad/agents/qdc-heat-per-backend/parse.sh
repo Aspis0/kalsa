@@ -31,7 +31,7 @@ run_as_retry() {
     : > "$err_file"
     adbT 60 -s "$SER" shell chmod 771 /data >> "$record" 2>&1
     chmod_rc=$?
-    if [ "$chmod_rc" -ne 0 ]; then rm -f "$err_file"; return "$chmod_rc"; fi
+    if [ "$chmod_rc" -ne 0 ] && [ "${ALLOW_RUN_AS_WITHOUT_CHMOD:-0}" != "1" ]; then rm -f "$err_file"; return "$chmod_rc"; fi
     if [ "$mode" = shell ]; then
       if [ "$#" -ne 1 ]; then rm -f "$err_file"; return 2; fi
       adbT "$timeout_s" -s "$SER" shell "run-as $PKG $1" > "$output" 2> "$err_file"
@@ -124,6 +124,24 @@ pull_rkstorage() {
 
 fresh_install() {
   local prefix="$1" uninstall_rc adb_list_rc package_count package_output rc flags
+  if [ "${PRESERVE_APP_DATA:-0}" = "1" ]; then
+    local apk_sha
+    apk_sha=$(/usr/bin/shasum -a 256 "$APK" | awk '{print $1}')
+    printf 'target_apk_sha256=%s installed_apk_sha256=%s\n' "$apk_sha" "${INSTALLED_APK_SHA:-unknown}" > "${prefix}_apk_sha.txt"
+    if [ "${INSTALLED_APK_SHA:-}" != "$apk_sha" ]; then
+      adbT 300 -s "$SER" install -r "$APK" > "${prefix}_install.txt" 2>&1
+      rc=$?; [ "$rc" -eq 0 ] || return 1
+      printf 'install_mode=install-r-preserve-data\n' >> "${prefix}_apk_sha.txt"
+    else
+      printf 'install_mode=skip-matching-installed-apk\n' > "${prefix}_install.txt"
+      printf 'install_mode=skip-matching-installed-apk\n' >> "${prefix}_apk_sha.txt"
+    fi
+    adbT 60 -s "$SER" shell "dumpsys package $PKG | grep -i flags" > "${prefix}_flags.txt" 2>&1
+    flags=$(cat "${prefix}_flags.txt")
+    printf 'application-debuggable required; flags=%s\n' "$flags" >> "${prefix}_apk_sha.txt"
+    printf '%s' "$flags" | grep -qi DEBUGGABLE
+    return $?
+  fi
   adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall_old.txt" 2>&1
   uninstall_rc=$?
   package_output=$(adbT 60 -s "$SER" shell "pm list packages | grep -c com.kalsa.app; list_rc=\$?; printf 'list_rc=%s\\n' \"\$list_rc\"" 2> "${prefix}_package_check.txt")
@@ -300,7 +318,7 @@ thermal_record() {
     adbT 90 -s "$SER" shell dumpsys thermalservice > "$file" 2>&1
     rc=$?
     awk '/Current temperatures from HAL/{f=1} f{print} /Current cooling devices from HAL/{f=0}' "$file" > "$gate"
-    skin=$(sed -n 's/.*mValue=\([0-9][0-9.]*\), mType=3, mName=skin.*/\1/p' "$gate" | head -1 | tr -d '\r')
+    skin=$(sed -n 's/.*mValue=\([0-9][0-9.]*\), mType=3, mName=[sS][kK][iI][nN].*/\1/p' "$gate" | head -1 | tr -d '\r')
     skin_valid=0
     awk -v v="$skin" 'BEGIN { exit !(v ~ /^[0-9]+([.][0-9]+)?$/) }' >/dev/null 2>&1 && skin_valid=1
     [ "$rc" -eq 0 ] && [ "$skin_valid" -eq 1 ] && break

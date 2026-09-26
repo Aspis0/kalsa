@@ -1,0 +1,5 @@
+Starting: Intent { cmp=com.kalsa.app/.MainActivity }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+chmod: chmod '/data' to 0771: Permission denied
+Starting: Intent { cmp=com.kalsa.app/.MainActivity }
+chmod: chmod '/data' to 0771: Permission denied

@@ -1,0 +1,5 @@
+/tmp/kalsa-heat-rkstorage.ic00oj/RKStorage: 1 file pushed, 0 skipped. 662.0 MB/s (364544 bytes in 0.001s)
+chmod: chmod '/data' to 0771: Permission denied
+run_as_attempt=1 chmod_rc=1 run_rc=0
+chmod: chmod '/data' to 0771: Permission denied
+run_as_attempt=1 chmod_rc=1 run_rc=0

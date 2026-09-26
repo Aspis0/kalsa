@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u
-ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 6037|6039) ;; *) echo "ADB_PORT must be 6037 or 6039" >&2; exit 2;; esac
+ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 5037|6037|6039) ;; *) echo "ADB_PORT must be 5037, 6037, or 6039" >&2; exit 2;; esac
 export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 # QDC heat run: per-backend prefill heat (CPU vs GPU) on the shipped app path.
 # usage: d_run.sh <job_id> <apk_path> <arm_order> [deadline_minutes]
@@ -184,8 +184,8 @@ ensure_awake() {
   printf 'before=%s\nafter=%s\n' "${first:-missing}" "${second:-missing}" > "${prefix}_wakefulness.txt"
   [ "${second:-missing}" = Awake ] || return 1
 }
-restore_device() { [ -n "$SER" ] || return 0; adbT 60 -s "$SER" shell svc power stayon false >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || true; [ -n "$SCREEN_OFF_TIMEOUT" ] && adbT 60 -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true; }
-holder_loop() { while :; do adbT 60 -s "$SER" shell chmod 771 /data >> "$RAW/holder.log" 2>&1 || true; sleep 2; done; }
+restore_device() { [ -n "$SER" ] || return 0; adbT 60 -s "$SER" shell svc power stayon false >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || true; if [ "$SCREEN_OFF_TIMEOUT" = null ]; then adbT 60 -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || true; elif [ -n "$SCREEN_OFF_TIMEOUT" ]; then adbT 60 -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true; fi; }
+holder_loop() { while :; do [ "${ALLOW_RUN_AS_WITHOUT_CHMOD:-0}" = "1" ] || adbT 60 -s "$SER" shell chmod 771 /data >> "$RAW/holder.log" 2>&1 || true; sleep 2; done; }
 stop_holder() { [ "$HOLDER_PID" -ne 0 ] && { kill "$HOLDER_PID" 2>/dev/null || true; wait "$HOLDER_PID" 2>/dev/null || true; HOLDER_PID=0; }; }
 stop_sampler() {
   [ "${SKIP_SAMPLER:-0}" = "1" ] && return 0
@@ -226,8 +226,9 @@ on_signal() {
 trap 'on_signal INT 2' INT
 trap 'on_signal TERM 15' TERM
 trap cleanup EXIT
-SER=$(adbT 60 devices | awk 'NR > 1 && $2 == "device" { print $1; exit }' | tr -d '\r')
+SER="${ADB_SERIAL:-$(adbT 60 devices | awk 'NR > 1 && $2 == "device" { print $1; exit }' | tr -d '\r')}"
 [ -n "$SER" ] || { log "NO_DEVICE on $ADB_PORT"; exit 2; }
+adbT 60 devices | awk -v serial="$SER" 'NR > 1 && $1 == serial && $2 == "device" { found=1 } END { exit !found }' || { log "DEVICE_NOT_ATTACHED serial=$SER port=$ADB_PORT"; exit 2; }
 adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WAIT_FOR_DEVICE_FAIL"; exit 2; }
 {
   echo "serial=$SER"; echo "port=$ANDROID_ADB_SERVER_PORT"
@@ -241,6 +242,7 @@ adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WA
 SOC=$(adbT 60 -s "$SER" shell getprop ro.soc.model | tr -d '\r')
 PRODUCT_NAME=$(adbT 60 -s "$SER" shell getprop ro.product.name | tr -d '\r')
 case "$SOC" in
+  SM8550) BOARD=8-Gen-2 ;;
   SM8650|QRD8650) BOARD=8-Gen-3 ;;
   SM8750|QRD8750) BOARD=8-Elite ;;
   SM7675|QRD7675) BOARD=7-Gen-3 ;;

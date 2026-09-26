@@ -1,0 +1,2 @@
+attempt=1 chunk_size=100 seconds=89 rc=1
+initial_seconds=89 rc=2 total_seconds=89

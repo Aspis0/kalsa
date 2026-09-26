@@ -1151,3 +1151,30 @@ decode tok/s (prereg 21.2/18.9, free decode) not comparable here (CPU 16.3–17.
 
 Minutes (QRD8650 card): 728 before S1 → 613 right after (115 hold) → 621 before S2 (S1 settled at 107) → 506
 right after S2 (115 hold, not yet settled). QRD7675: 1000, **Unavailable** at 14:01 — not run.
+
+---
+
+# Galaxy S23 (SM8550 / Adreno 740) — CPU vs GPU heat attempt
+
+**Result: n=0 valid arms.** Three live starts reached model load and CPU calibration, but each first CPU prompt failed composer verification before Send. No generation, route telemetry, token count, prefill measurement, or decode rate was produced. The requested two CGGC pairs and pair deltas therefore remain unavailable; no heat comparison is licensed.
+
+## Setup and method
+
+- Reused this QDC driver with a minimal S23 override: local ADB serial/port 5037, SM8550 board mapping, S23 HAL `SKIN` label support, preserved matching APK data, and `run-as` path when `/data` chmod is denied. Kept QDC model, forced-decode workflow, per-turn thermals, route/prewarm checks, and lmkd accounting unchanged. Working diff was checked against HEAD `5c472986`; the `DECODE_LEN_REF` / `DECODE_LEN_CHECK` equality gate from `851b053d` remains present.
+- Fake-ADB full dry-run: **EXIT=0**, evidence `raw/s23-dryrun-after-typing-fix/END.txt`.
+- Installed APK already matched target `0509f8c8` SHA-256 `855c89de6496b00d0721f981d551842abfd544a26c62d4c3a816028c4b5c91e7`; no install was needed. Package `0.1.0`, last update `2026-09-25 15:03:17`; target model SHA-256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
+- Live gates passed on the three attempts: unplugged, battery level 86–92%, battery 28.3–36.0 °C, thermal status 0, screen awake/Kalsa foreground, and DSP snapshots recorded. Calibration loaded the model, selected prompt variant 1010 at N0=15, and fixed decode reference at 127 tokens. `restore.sh` returned rc=0, force-stopped the app, removed harness prefs, stopped the sampler, restored screen timeout to `null`; no app uninstall or data clear was used.
+
+## Failed first CPU arms
+
+All composer failures occurred before Send, so route and tokens are `na`; prefill and decode timing are `na`, not zero.
+
+| Attempt | Route / tokens | Skin °C | Battery °C | Prefill / decode tok/s | Stop reason |
+|---|---|---:|---:|---|---|
+| r1 C1 | no turn / na | 33.4→33.9 | 32.3→32.2 | na / na | composer incomplete; invocation manually terminated during next-arm setup |
+| r2 C1 | no turn / na | 34.6→35.7 | 33.8→34.7 | na / na | composer incomplete; STOP_INVALID_ROW |
+| r3 C1 | no turn / na | 35.5→36.2 | 34.8→36.0 | na / na | composer 1387/1400 chars after retry ladder; STOP_INVALID_ROW |
+
+No arm crossed the battery/thermal stop thresholds. The valid results table is empty apart from its header in each run. Before r3 DSP snapshot: `adsprpcd` pid 2222 utime/stime 4/0, `cdsprpcd` pid 2225 147/0; post-run snapshot recorded in `raw/s23-20260926/post_dsp_ticks.log` as 0/0 and 0/5 respectively (same pid values; counters as observed). Screen timeout post-restore: `null`.
+
+Raw preflight, all three driver logs/results, restore logs, and post-run state are under `raw/s23-20260926/` and `raw/s23-heat-cpu-vs-gpu-20260926-r{1,2,3}/`.
