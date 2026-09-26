@@ -61,7 +61,17 @@ bench_prefs_clear() {
   remote="$HEAT_TMP/rkstorage-restore-$$"
   "$ADB_BIN" -s "$SER" shell "mkdir -p $HEAT_TMP" >/dev/null 2>&1 || true
   "$ADB_BIN" -s "$SER" push "$dir/RKStorage" "$remote" >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
-  "$ADB_BIN" -s "$SER" shell "run-as $PKG sh -c 'cp $remote databases/RKStorage && rm -f databases/RKStorage-wal databases/RKStorage-shm && rm -f $remote'" >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
+  # The cp and the wal/shm removal run as the app uid; the pushed file is NOT
+  # removed inside this chain: $HEAT_TMP is shell-owned 0755, so the app uid
+  # cannot unlink from it. Folding `rm -f $remote` into the chain is what made
+  # every restore exit rc=1 while the DB itself was restored fine (leftover
+  # rkstorage-restore-* on both QRD8650 units, 2026-09-26 sessions); set_prefs
+  # (parse.sh) always removed the remote as shell in a separate step.
+  printf 'restore %s serial=%s\n' "$(date '+%F %T')" "$SER" >> "$OUT/restore-prefs.log"
+  "$ADB_BIN" -s "$SER" shell "run-as $PKG sh -c 'cp $remote databases/RKStorage && rm -f databases/RKStorage-wal databases/RKStorage-shm'" >> "$OUT/restore-prefs.log" 2>&1 || { rm -rf "$dir"; return 1; }
+  # As shell uid (glob expands on-device): also sweeps stale leftovers from
+  # the pre-fix restores. Must not fail the restore.
+  "$ADB_BIN" -s "$SER" shell "rm -f $HEAT_TMP/rkstorage-restore-*" >/dev/null 2>&1 || true
   rm -rf "$dir"
   return 0
 }

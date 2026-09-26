@@ -954,3 +954,98 @@ Not run: the card read **Unavailable** (1000 min) after QRD8650 finished (03:12)
 - The battery override (`AC powered: true`, UPDATES STOPPED) was present on both fresh units — presumably
   QDC provisioning; battery temperature is a constant stub (25.0 °C), so the battery-temp stop cannot fire
   on these boards; skin (recorded, and reaching the engine through the bench profile) peaked at 45.535 °C.
+
+# Driver fixes after the 2026-09-26 run
+
+Cell-driver fixes for the confound and the three live findings above. App repo untouched (read at
+main 19526d78); no device/QDC/browser. Closes "Not verified" items 2 and 3 of the run section.
+
+## P1 — CPU 96 vs GPU 42 tokens: cause, and the fix the driver now wires
+
+(a) Sampling: the driver sets `kalsa.bench.sampling='greedy'` (parse.sh set_prefs) → app-side
+`applyBenchSampling` (benchSampling.ts:68-94) pins temperature 0, top_k 1, top_p 1, min_p 0, all
+penalties off, n_probs 1, **seed 42** → deterministic greedy. `n_predict` becomes max(48, 1024) — a
+ceiling only; EOS/stop ends the turn. Completion params are built at LlamaService.ts:5133 (main
+round) and :5581 (fallback round) through `applyBenchSampling`.
+
+(b) Fixed decode length: **no bench key for ignore_eos/n_predict exists** (full key list
+benchConfig.ts:30-68 + benchSampling.ts:3-5). The native engine supports `ignore_eos` (kalsa.rn
+types.ts:437; JSIParams.cpp:469; EOS logit_bias −∞ at :658-661) but the app never sets it — adding
+it would touch `BenchSamplingParams`/`applyBenchSampling` (benchSampling.ts:9,74). **But a working
+lever already exists: `kalsa.bench.force_ids`** (benchSampling.ts:5, read at :38-66, applied only in
+greedy — LlamaService.ts:4464-4465): the native loop ends exactly when the forced list is exhausted
+(rn-completion.cpp:1908-1910) and forced ids bypass sampling and natural EOS, so N forced ids = N
+decode tokens on both arms. Wired (new `forced_decode.sh`): FORCED_DECODE_N=128 (default) repeats
+one benign id — 'heat' → 30157, derived from the measured GGUF with llama-tokenize (`--ids
+--no-bos`); its piece cannot match any stop word (STOP_WORDS are special tokens,
+LlamaService.ts:667). `set_prefs` writes the key (parse.sh, one conditional SQL fragment; SQL shape
+unit-tested against sqlite); every arm's results.tsv `tokens_predicted` reads 128. Setup aborts
+(`write_end forced_decode`, exit 6) if derivation fails; `FORCED_DECODE_N=0` opts out. Recorded:
+driver.log `FORCED_DECODE n=128 id=30157 ids_sha256=fe8b738a…` + `raw/<job>/forced_ids.txt`.
+Caveat for the next run: forced decode removes the length confound, it does not make the two
+prefills bit-identical (see (c)).
+
+(c) GPU-vs-CPU divergence = the documented f16/f32 GEMM residual, yes: GPU prefill vs CPU median
+KLD 0.4538 root-caused to an f16 multiply in the batched GEMM (QDC-GPU-GOVERNOR-MAP-2026-09-16.md:
+141-145,308; ALIVE row 56); the shipped f32 kernel collapsed it to KLD 0.004736, same-top 94.8 %,
+median |Δp1| 0.0861 → 0.0014 (gemm-f32-ship REPORT — QRD8650/Adreno 750, this run's exact GPU;
+qdc-governor-s5 REPORT:79-84 saw the same as deterministic divergence at position 14). A ~5 %
+top-1 disagreement over a 1018-token greedy generation flips a token somewhere, after which the
+continuations legitimately diverge and EOS lands at 42 vs 96. Forcing ids makes decode work common
+mode; the logit residual itself remains.
+
+## P2 — d_run.sh ends cleanly on SIGTERM/SIGINT
+
+Cause of the old behavior: one trap ran `cleanup` for EXIT/INT/TERM and RETURNED (script resumed;
+END said `exit_0`), and while blocked inside a foreground adb call the trap waited out the whole
+call. Fix (d_run.sh): adbT backgrounds its perl-alarm adb child and `wait`s on it (signals interrupt
+`wait` at once; non-signal rc semantics unchanged); INT/TERM get `on_signal`, which kills the
+in-flight adb child, runs the same cleanup, writes `END reason=signal_<name>`, exits 128+signum.
+Worst-case delivery is the current bare sleep (5 s poll quantum / 15 s cooldown / 60 s tail).
+Note: SIGINT only works where INT is deliverable (foreground terminal); a background-spawned
+driver has INT ignored at entry per POSIX — use TERM there. Dry-run (fake adb, mid-turn):
+`kill -TERM` → **EXIT=143**, `END reason=signal_TERM`; INT variant → **EXIT=130**,
+`END reason=signal_INT`; END guard prevents the EXIT trap from overwriting the reason.
+
+## P3 — restore.sh rc=1 every time: root cause + fix
+
+Cause: the final device command folded `rm -f $remote` into the run-as chain
+(`cp … && rm -f databases/RKStorage-wal … && rm -f $remote`). `$HEAT_TMP` is shell-owned 0755, so
+the app uid cannot unlink from it: the cp **succeeded** (the DB was restored every time), the chain
+returned nonzero, and the pushed `rkstorage-restore-*` stayed behind — exactly the leftover files
+seen on both units. set_prefs never had the bug (it removes the remote as shell, parse.sh:179).
+Fix (restore.sh): run-as chain keeps cp + wal/shm removal only; remote removed as shell afterwards
+(`rm -f $HEAT_TMP/rkstorage-restore-*`, also sweeps the stale pre-fix leftovers; non-fatal); the
+cp-chain output now lands in `restore-prefs.log` (gitignored) instead of /dev/null.
+Dry-run: pre-fix restore.sh against the fake adb (emulating the real app-uid denial) → **EXIT=1**;
+fixed → **EXIT=0**, `bench_prefs=removed`.
+
+## P4 — untrusted battery sensor (QDC stubs) + skin fallback — COORDINATOR DECISION, PENDING OWNER REVIEW
+
+New `battery_trust.sh`, run in the setup phase before the first gate: two samples
+BATT_TRUST_INTERVAL_S apart (default 30 s) of dumpsys battery, sysfs
+`/sys/class/power_supply/battery/temp`, and HAL skin. Flags the board untrusted on (a) dumpsys vs
+sysfs mismatch, or (b) a frozen reading that is either exactly the 25.0 °C stub (BATT_STUB_TENTHS=
+250, both units observed) or frozen while the skin moves ≥ 0.3 °C. Logs
+`BATTERY_SENSOR_UNTRUSTED reason=…`, persists `raw/<job>/battery_trust.txt`; an arms-only
+invocation of the same job reloads the verdict. safety.sh `hard_stops`: on an untrusted board the
+can-never-fire battery ≥ 44 °C stop is REPLACED by a skin ≥ 46 °C stop (`STOP reason=skin_fallback`)
+— for that board only; trusted boards keep skin as a recorded value with the engine's own
+pause 43 / kill 44. Owner sign-off requested on the 46 °C figure and on the replacement semantics
+before the next QDC session. Dry-run: stub setup → `BATTERY_SENSOR_UNTRUSTED why=fixed_25.0C_stub
+temp=250,250` (EXIT=0); arms on that job with skin 46.5 → **EXIT=0**, `END reason=stop_skin_fallback`;
+trusted battery + skin 46.5 → **EXIT=0**, no STOP, arm gates pass (2 OK rows from the real
+sa849528d canned logs).
+
+## Fixture/harness notes
+
+`dryrun-adb.sh`: RKStorage fixture now self-creates a real sqlite DB; new emulation of the real
+app-uid remote-rm denial (run-as-only pattern; the P3 before/after proof rests on it); sysfs
+battery-temp line; logcat epoch normalization now handles the fractional epochs + leading
+whitespace of REAL captured logs — canned logcat-cal/cpu/gpu are staged from raw/sa849528d
+calibration and pair-1 arm dumps (`/tmp/kalsa-dry`, same arrangement as before, REPORT:593).
+`bash -n` clean on all eight scripts (d_run, parse, safety, smp, restore, dryrun-adb,
+forced_decode, battery_trust). New runtime artifacts: `.restore-state` restored to the real values
+after a setup-phase dry-run overwrote it (SER=dryserial); `restore-prefs.log` gitignored.
+Not verified on a device: force_ids decode length on hardware, the 46 °C fallback against a real
+QDC thermal ramp, signal delivery during a real adb push.

@@ -161,8 +161,13 @@ bootstrap_db() {
 
 set_prefs() {
   local prefix="$1"
-  local prefs_sql dir remote run_rc
-  prefs_sql="INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','1'),('kalsa.bench.governor_force','0'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','0'),('kalsa.bench.toolchoice','none'),('kalsa.tools.device','0'),('kalsa.tools.calendar','0');"
+  local prefs_sql dir remote run_rc force_ids_sql
+  # Fixed decode length for heat arms (forced_decode.sh): present in every
+  # set_prefs write once the setup phase built it; restore.sh clears it with
+  # the whole kalsa.bench.* namespace.
+  force_ids_sql=""
+  [ -n "$FORCED_IDS_JSON" ] && force_ids_sql=",('kalsa.bench.force_ids','$FORCED_IDS_JSON')"
+  prefs_sql="INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','1'),('kalsa.bench.governor_force','0'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','0'),('kalsa.bench.toolchoice','none'),('kalsa.tools.device','0'),('kalsa.tools.calendar','0')${force_ids_sql};"
   dir=$(mktemp -d /tmp/kalsa-heat-rkstorage.XXXXXX) || return 1
   : > "$prefix"_prefs.txt
   pull_rkstorage "$dir" || { rm -rf "$dir"; return 1; }

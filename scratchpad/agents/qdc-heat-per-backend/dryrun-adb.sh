@@ -52,7 +52,14 @@ case "$args" in
   *"test -f databases/RKStorage-wal"*) exit 1;;
   *"test -f databases/RKStorage-shm"*) exit 1;;
   *"test -f databases/RKStorage"*) exit 0;;
-  *"cat databases/RKStorage"*) cat /tmp/kalsa-dry/RKStorage; exit 0;;
+  *"cat databases/RKStorage"*)
+    # Real sqlite DB so restore.sh/set_prefs can edit it locally: seeded with
+    # one kalsa.bench.* row so the DELETE has something to clear.
+    if [ ! -f /tmp/kalsa-dry/RKStorage ]; then
+      /usr/bin/sqlite3 /tmp/kalsa-dry/RKStorage "CREATE TABLE catalystLocalStorage (key TEXT, value TEXT); INSERT INTO catalystLocalStorage VALUES ('kalsa.bench.sampling','greedy');"
+    fi
+    cat /tmp/kalsa-dry/RKStorage; exit 0;;
+  *"power_supply/battery/temp"*) printf '%s\n' "${DRY_SYSFS_BATT:-${DRY_BATT_TEMP:-300}}"; exit 0;;
   *"sha256sum /data/local/tmp/kalsa-heat/"*)
     f=$(printf '%s' "$args" | sed -n 's|.*sha256sum /data/local/tmp/kalsa-heat/\([^ ]*\).*|\1|p')
     case "$f" in
@@ -82,7 +89,10 @@ case "$args" in
     else
       src=/tmp/kalsa-dry/logcat-cal.txt
     fi
-    sed "s/^1[0-9]\{9\} /$now /" "$src" > "$S/.logcat.out"
+    # Real captured logs carry fractional epochs (1790398102.499) and some
+    # leading whitespace; normalize both so every line lands at/after the
+    # fresh logcat anchor (last_json_after drops lines older than it).
+    sed "s/^[[:space:]]*1[0-9]\{9\}\.[0-9]\{3\} /$now /; s/^[[:space:]]*1[0-9]\{9\} /$now /" "$src" > "$S/.logcat.out"
     [ "${DRY_PREWARM:-}" = "restore" ] && sed 's/"op":"done"/"op":"restore","ok":true/' "$S/.logcat.out" > "$S/.logcat.out.2" && mv "$S/.logcat.out.2" "$S/.logcat.out"
     if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ -f "$S/tel_ready_at" ] && [ "$now" -lt "$(cat "$S/tel_ready_at")" ]; then
       # The turn is still generating: telemetry/governor lines do not exist yet.
@@ -140,6 +150,14 @@ XML
     exit 0;;
   *"install -r"*) echo Success; exit 0;;
   *"push "*) echo "pushed (dry)"; exit 0;;
+  # Real-board behavior the 2026-09-26 restores hit: the app uid (run-as)
+  # cannot unlink from the shell-owned heat/ dir, so the old restore chain
+  # (cp ... && rm -f databases/... && rm -f $remote) failed AFTER a successful
+  # cp. Only the run-as-wrapped remote rm fails; a shell-uid rm (no run-as in
+  # the args) succeeds via the generic case below.
+  *"run-as"*"rm -f /data/local/tmp/kalsa-heat/heat/rkstorage-restore-"*)
+    printf 'rm: cannot remove %s: Permission denied\n' "/data/local/tmp/kalsa-heat/heat/rkstorage-restore-<pid>" >&2
+    exit 1;;
 esac
 # generic success for the remaining shell/puts (chmod, mkdir, rm, cp, settings put, svc, am, locksettings, sh -c, wm, get-state)
 exit 0

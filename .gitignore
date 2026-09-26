@@ -77,3 +77,7 @@ scratchpad/agents/**/did-switch
 # qdc-heat-per-backend: runtime recovery state (serial + pre-run screen
 # timeout), rewritten every run, read only by restore.sh — never versioned
 scratchpad/agents/qdc-heat-per-backend/.restore-state
+
+# qdc-heat-per-backend: restore.sh per-step cp-chain output (append-only log,
+# written on every abnormal-end recovery) — never versioned
+scratchpad/agents/qdc-heat-per-backend/restore-prefs.log

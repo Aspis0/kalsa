@@ -96,6 +96,8 @@ SAMPLER_PID=0
 DRIVER_PHASE="${DRIVER_PHASE:-arms}"
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/parse.sh
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/safety.sh
+source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/forced_decode.sh
+source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/battery_trust.sh
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
 deadline_check() { [ "$(date +%s)" -lt "$DEADLINE_EPOCH" ] || { log "DEADLINE_${DEADLINE_MINUTES}_MIN"; write_end "deadline_${DEADLINE_MINUTES}_min"; exit 124; }; }
@@ -103,8 +105,16 @@ ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 adbT() {
   local seconds="$1" rc argline="" arg
   shift
-  /usr/bin/perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" "$ADB_BIN" "$@"
+  # Background + wait: an arriving INT/TERM interrupts wait immediately, so
+  # on_signal runs without waiting out the perl alarm (2026-09-26: TERM used
+  # to sit until the in-flight adb call returned). Background children get
+  # stdin from /dev/null; adb reads none here. Non-signal semantics unchanged
+  # (wait returns the child's status, signal death still 128+n).
+  /usr/bin/perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" "$ADB_BIN" "$@" &
+  CURRENT_CHILD_PID=$!
+  wait "$CURRENT_CHILD_PID"
   rc=$?
+  CURRENT_CHILD_PID=0
   for arg in "$@"; do printf -v argline '%s %q' "$argline" "$arg"; done
   printf 'rc=%s%s\n' "$rc" "$argline" >> "$ADB_LOG"
   return "$rc"
@@ -189,14 +199,33 @@ stop_sampler() {
   wait "$SAMPLER_PID" 2>/dev/null || true
   SAMPLER_PID=0
 }
+CURRENT_CHILD_PID=0
+SIGNAL_NAME=""
 cleanup() {
   local rc=$?
   restore_device
   stop_holder
   stop_sampler
-  write_end "exit_$rc"
+  if [ -n "$SIGNAL_NAME" ]; then write_end "signal_$SIGNAL_NAME"; else write_end "exit_$rc"; fi
 }
-trap cleanup EXIT INT TERM
+# INT/TERM end the session through the same cleanup path, then exit (the old
+# shared EXIT/INT/TERM trap ran cleanup and RESUMED: the operator needed
+# kill -9 and END still said exit_0). Worst-case delivery is the current bare
+# sleep: 5 s poll quantum, 15 s cooldown/settle poll, 60 s post-turn tail;
+# every adbT is interrupted at once via the wait above.
+on_signal() {
+  SIGNAL_NAME="$1"
+  if [ "$CURRENT_CHILD_PID" -ne 0 ]; then
+    kill "$CURRENT_CHILD_PID" 2>/dev/null || true
+    wait "$CURRENT_CHILD_PID" 2>/dev/null || true
+    CURRENT_CHILD_PID=0
+  fi
+  cleanup
+  exit "$(( 128 + $2 ))"
+}
+trap 'on_signal INT 2' INT
+trap 'on_signal TERM 15' TERM
+trap cleanup EXIT
 SER=$(adbT 60 devices | awk 'NR > 1 && $2 == "device" { print $1; exit }' | tr -d '\r')
 [ -n "$SER" ] || { log "NO_DEVICE on $ADB_PORT"; exit 2; }
 adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WAIT_FOR_DEVICE_FAIL"; exit 2; }
@@ -254,6 +283,10 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   bootstrap_db "$RAW/setup" || { log "BOOTSTRAP_FAIL"; exit 3; }
   FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }
   PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s)
+  # Both before the first safety_gate: forced ids must exist before the first
+  # set_prefs writes them, and the trust verdict before the first hard_stops.
+  forced_ids_build || { log "FORCED_DECODE_FAIL"; write_end "forced_decode"; exit 6; }
+  battery_trust_check
   safety_gate setup
   model_setup || { log "MODEL_SETUP_FAIL"; exit 5; }
   if [ "${SKIP_SAMPLER:-0}" != "1" ]; then
@@ -322,6 +355,7 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
 else
   holder_loop & HOLDER_PID=$!; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }
+  battery_trust_load
 fi
 
 # ---- arms ----
