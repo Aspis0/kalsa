@@ -1103,3 +1103,11 @@ cap 115 (tunnel + end). Env: `TYPE_FAST=0 TYPE_LADDER="100"`, tunnel port 6039.
 Minutes (QRD8650 card): 749 before → 634 while the canceled session held its cap → **728 after**
 (= 21 min for 847269, the actual duration; 847173 cost 0). QRD7675: 1000, Unavailable — not run.
 Comparison to PREREG-LFM: not attempted (1 row, no pair; and the prereg assumed free decode).
+
+**Decode-length gate (coordinator decision 2026-09-26).** 127 is ACCEPTED as the forced-decode length (the goal
+is equal decode on both arms). Hypothesis for 127 vs 128 forced ids — **UNVERIFIED**: the reported count is
+decode evaluations, and the last forced id is sampled but never evaluated. Gate (driver, per arm, logged as
+`DECODE_LEN_CHECK`): tokens_predicted must equal the calibration turn's value (`DECODE_LEN_REF`, persisted in
+`raw/<job>/decode_len_ref.txt`); any other numeric value voids the row (`decode_len`) and stops the session
+after that arm (`STOP_UNEQUAL_DECODE`). Dry-runs: mismatch (ref 30, arm 96) EXIT=1 with the stop; equal (127 on
+calibration and both arms) EXIT=0, 2 OK rows.

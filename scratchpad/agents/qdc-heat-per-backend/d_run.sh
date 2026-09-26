@@ -352,10 +352,20 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   # use, so this session's arms and any later one send one identical text.
   load_prompt || { log "PROMPT_PIN_FAIL variant=$BEST"; write_end "prompt_pin"; exit 6; }
   log "CALIB_DONE N0=$N0 variant=$BEST tokens=$BEST_TOK total_estimate=$CAL_TOTAL chars=${#PROMPT_TEXT} tools=$CAL_TOOLS"
+  # Equal-decode reference (coordinator 2026-09-26): with forced ids every arm must
+  # report the calibration turn's tokensPredicted (127 for 128 forced ids on
+  # QRD8650, raw/sa851338); run_arm stops the session on any other value.
+  if [ "${FORCED_DECODE_N:-0}" -ge 1 ] 2>/dev/null; then
+    DECODE_LEN_REF=$(json_field "$(last_json_after KALSA_TELEMETRY "$RAW/calib_cpu_logcat_all.txt")" tokensPredicted)
+    case "$DECODE_LEN_REF" in ''|*[!0-9]*) log "DECODE_LEN_REF_FAIL value=$DECODE_LEN_REF"; write_end "decode_len_ref"; exit 6;; esac
+    printf '%s\n' "$DECODE_LEN_REF" > "$RAW/decode_len_ref.txt"
+    log "DECODE_LEN_REF=$DECODE_LEN_REF forced_n=$FORCED_DECODE_N"
+  fi
 else
   holder_loop & HOLDER_PID=$!; sleep 1
   ensure_sampler || { log "SAMPLER_DEAD"; exit 4; }
   battery_trust_load
+  DECODE_LEN_REF=$(cat "$RAW/decode_len_ref.txt" 2>/dev/null)
 fi
 
 # ---- arms ----

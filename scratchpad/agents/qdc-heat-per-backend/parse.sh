@@ -854,7 +854,7 @@ run_arm() {
   local tel gov bench_chunks chunks_sum chunks_str chunks_ok
   local prefill_ms=na engine_prefill=na engine_decode=na route_requested=na route_push=na route_mismatch=na
   local prompt_n=na tokens_predicted=na decode_tps=na thermal=na failed=na fallback=0 lmkd=0
-  local reuse_line kvprefix poll_rc
+  local reuse_line kvprefix poll_rc decode_len_stop=0
   deadline_check
   LAST_EDIT_BOUNDS=""
   void_reason=na
@@ -978,6 +978,12 @@ run_arm() {
     [ "$chunks_ok" = "1" ] || { row_void=1; void_reason=chunks_backend; }
     awk -v n="$chunks_sum" 'BEGIN{exit !(n ~ /^[0-9]+$/ && n>=973 && n<=1075)}' >/dev/null 2>&1 || { row_void=1; void_reason=token_band; }
     [ -n "$prefill_ms" ] && [ "$prefill_ms" != "na" ] || { row_void=1; void_reason=no_prefill_ms; }
+    # Equal decode: a numeric tokensPredicted other than the calibration value
+    # voids the row and ends the session after this arm (status=1 below).
+    if [ -n "${DECODE_LEN_REF:-}" ] && awk -v n="$tokens_predicted" 'BEGIN{exit !(n ~ /^[0-9]+$/)}'; then
+      log "DECODE_LEN_CHECK turn=$turn arm=$backend tokens=$tokens_predicted ref=$DECODE_LEN_REF"
+      [ "$tokens_predicted" = "$DECODE_LEN_REF" ] || { row_void=1; void_reason=decode_len; decode_len_stop=1; }
+    fi
     # Checked last on purpose: with no governor line `failed` is missing and
     # every field is suspect, so missing_failed overwrites the reasons the
     # gates above recorded.
@@ -994,5 +1000,6 @@ run_arm() {
     "$prefill_ms" "$engine_prefill" "$engine_decode" "$route_requested" "$route_push" "$route_mismatch" \
     "$chunks_sum" "$chunks_str" "$prompt_n" "$tokens_predicted" "$decode_tps" "$thermal" "$failed" "$fallback" "$tool_calls" "$lmkd" | tee -a "$RESULTS"
   [ "$lmkd" -eq 0 ] || status=1
+  [ "$decode_len_stop" -eq 0 ] || { log "STOP_UNEQUAL_DECODE turn=$turn arm=$backend tokens=$tokens_predicted ref=${DECODE_LEN_REF:-na}"; status=1; }
   return "$status"
 }
