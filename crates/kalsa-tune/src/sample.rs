@@ -196,9 +196,10 @@ fn id_among(body: &str, nonce: &str) -> bool {
 /// the rate, so a fixture never contradicts itself.
 #[cfg(test)]
 fn body(predicted_n: u64, rate: f64) -> String {
-    // A rate that is no measurement has no millis to pair with it;
-    // serde_json spells those `null`.
-    let predicted_ms = (rate.is_finite() && rate > 0.0).then(|| predicted_n as f64 / rate * 1000.0);
+    // A rate that is no measurement — or whose millis overflow — has
+    // no millis to pair with it; serde_json spells those `null`.
+    let millis = predicted_n as f64 / rate * 1000.0;
+    let predicted_ms = (rate.is_finite() && rate > 0.0 && millis.is_finite()).then_some(millis);
     serde_json::json!({
         "content": "The bicycle began as a hobby-horse.",
         "timings": {
@@ -373,7 +374,7 @@ mod check_tests {
             for _ in 0..requests {
                 let mut stream = loop {
                     match listener.accept() {
-                        Ok((mut stream, _)) => {
+                        Ok((stream, _)) => {
                             // accept(2) hands O_NONBLOCK over on macOS/BSD:
                             // the socket drains and writes as blocking.
                             stream.set_nonblocking(false).expect("blocking");
