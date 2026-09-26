@@ -416,6 +416,9 @@ describe("PairingScreen", () => {
     });
     expect(renderer.root.findByProps({ testID: "pairing.door-required" }).props.children)
       .toBe("pairing.doorRequired");
+    const submit = renderer.root.findByProps({ testID: "pairing.submit" });
+    expect(submit.props.accessibilityState.disabled).toBe(true);
+    expect(submit.props.style({ pressed: false }).opacity).toBe(0.6);
     expect(renderer.root.findAllByProps({ testID: "pairing.refused" })).toHaveLength(0);
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(saveCredentialMock).not.toHaveBeenCalled();
@@ -465,34 +468,32 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
-  test("without a concrete local GGUF the Start button is disabled with its reason, and any attempt logs validate", async () => {
-    globalThis.fetch = jest.fn() as unknown as typeof fetch;
+  test("without a local model the ceremony carries the zero declaration and Start stays live", async () => {
+    const { urls, bodies } = installFetch(200);
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
     const renderer = await render("kalsa-remote-mac");
 
     const submit = renderer.root.findByProps({ testID: "pairing.submit" });
-    expect(submit.props.accessibilityState.disabled).toBe(true);
-    expect(submit.props.style({ pressed: false }).opacity).toBe(0.6);
-    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
-      .toBe("pairing.modelRequired");
+    expect(submit.props.accessibilityState.disabled).toBe(false);
+    // The model-required refusal itself is gone: nothing renders it.
+    expect(renderer.root.findAllByProps({ testID: "pairing.model-required" })).toHaveLength(0);
 
     await act(async () => {
       submit.props.onPress();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
+    expect(urls).toHaveLength(2);
+    expect(bodies[1]).toContain('"weights_bytes":0');
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
-    expect(fails).toHaveLength(1);
-    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(saveCredentialMock).not.toHaveBeenCalled();
+    expect(fails).toHaveLength(0);
     log.mockRestore();
     await act(async () => renderer.unmount());
   });
 
-  test("scanning without a phone model refuses locally, keeps the reason on screen and logs validate", async () => {
-    globalThis.fetch = jest.fn() as unknown as typeof fetch;
-    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+  test("a scan without a phone model still pairs, carrying the zero declaration", async () => {
+    const { urls, bodies } = installFetch(200);
     const renderer = await render("kalsa-remote-mac", "https://desktop.tailnet.ts.net", false);
 
     await act(async () => {
@@ -509,16 +510,10 @@ describe("PairingScreen", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    // Collapsed view: the reason lives in the status line; no dial, no save.
-    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
-      .toBe("pairing.modelRequired");
-    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
-    expect(fails).toHaveLength(1);
-    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(saveCredentialMock).not.toHaveBeenCalled();
+    expect(urls).toHaveLength(2);
+    expect(bodies[1]).toContain('"weights_bytes":0');
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
-    log.mockRestore();
     await act(async () => renderer.unmount());
   });
 

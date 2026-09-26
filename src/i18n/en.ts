@@ -475,7 +475,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     scanHint: "Scan the code shown by Kalsa desktop to start pairing.",
     manual: "Enter details manually",
     manualHide: "Hide manual details",
-    modelRequired: "Choose a local GGUF model on this phone before pairing.",
     doorRequired: "Set your computer's address on this phone before pairing.",
     refused: "Can't reach your computer, or it refused the pairing. Try again.",
     waiting: "Confirm on your computer",

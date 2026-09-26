@@ -31,6 +31,19 @@ describe("pairing wire vectors", () => {
     );
   });
 
+  test("the no-model declaration is the desk contract's zero form, byte for byte", () => {
+    expect(
+      canonicalPhoneJson({
+        weights_bytes: 0,
+        parameters: null,
+        measured_tokens_per_second: null,
+        battery_powered: true,
+      }),
+    ).toBe(
+      '{"weights_bytes":0,"parameters":null,"measured_tokens_per_second":null,"battery_powered":true}',
+    );
+  });
+
   test("A: frozen phone MAC with empty node and empty vector token", () => {
     expect(phoneMacHex(code, nonce, {
       reachable: "http://192.168.1.10:4952",

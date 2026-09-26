@@ -470,7 +470,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     scanHint: "Inquadra il codice mostrato da Kalsa desktop per iniziare.",
     manual: "Inserisci i dettagli manualmente",
     manualHide: "Nascondi i dettagli manuali",
-    modelRequired: "Scegli un modello GGUF locale su questo telefono prima del collegamento.",
     doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",
     refused: "Non riesci a raggiungere il tuo computer, oppure ha rifiutato il collegamento. Riprova.",
     waiting: "Conferma sul computer",

@@ -41,14 +41,24 @@ const CONFIRM_POLL_CAP_MS = 180_000;
 /** Consecutive transport failures before the unreachable line shows. */
 const CONFIRM_UNREACHABLE_AFTER = 3;
 
-function declarationForModel(modelId: string): PairingPhoneDeclaration | null {
+function declarationForModel(modelId: string): PairingPhoneDeclaration {
   const model = MODEL_REGISTRY.find((entry) => entry.id === modelId);
   if (
     !model ||
     !model.file ||
     !Number.isSafeInteger(model.sizeBytes) ||
     model.sizeBytes <= 0
-  ) return null;
+  ) {
+    // The desk's final contract (kalsa-brain): no model selected announces
+    // itself with the zero declaration — same wire shape, canonical bytes,
+    // and the phone is still battery powered.
+    return {
+      weights_bytes: 0,
+      parameters: null,
+      measured_tokens_per_second: null,
+      battery_powered: true,
+    };
+  }
   return {
     weights_bytes: model.sizeBytes,
     // The catalog has no parameter or throughput metadata; do not infer them
@@ -75,13 +85,13 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [showManual, setShowManual] = useState(false);
-  const [state, setState] = useState<"ready" | "refused" | "waiting" | "door-required" | "paired" | "not-confirmed">("ready");
+  const [state, setState] = useState<"ready" | "refused" | "waiting" | "paired" | "not-confirmed">("ready");
   const [confirmPhase, setConfirmPhase] = useState<ConfirmationPhase>({ phase: "waiting" });
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
-  // A ceremony on this phone announces its weights_bytes, so without a
-  // concrete local GGUF there is nothing to pair — the button shows why.
-  const phone = declarationForModel(currentModelId);
-  const canPair = phone !== null;
+  // The typed address is Start's one blocking input: without a door the
+  // ceremony cannot even name who to ask. (A missing phone model is not a
+  // block — the zero declaration says "none" on the wire.)
+  const doorReady = isAllowedPairingUrl(fields.doorUrl);
   const sessionRef = useRef<PairingSession | null>(null);
   const deskAbortRef = useRef<AbortController | null>(null);
 
@@ -142,17 +152,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const run = async (scanned?: PairingSquare) => {
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
-    if (!phone) {
-      // The disabled button and its reason already say why; logcat still
-      // owes the pre-claim stage line every refusal produces.
-      logPairingFail("validate", null);
-      return;
-    }
     if (!isAllowedPairingUrl(fields.doorUrl)) {
-      // A fresh install has no door URL yet; say which address is missing
-      // instead of folding it into the opaque desk refusal.
+      // A fresh install has no door URL yet: the reason line already shows
+      // it (button disabled beside it); logcat still owes the stage line.
       logPairingFail("validate", null);
-      setState("door-required");
       return;
     }
     if (!isAllowedPairingUrl(fields.deskUrl)) {
@@ -179,7 +182,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
         : new PairingSession({
             deskUrl: fields.deskUrl,
             square,
-            phone,
+            phone: declarationForModel(currentModelId),
             fetcher: useIrohDesk ? createDeskPairingFetch(square.node, deskSignal()) : undefined,
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
@@ -239,19 +242,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
     ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
     // The reason renders either here (details collapsed) or next to the
     // disabled button inside the form — never both: one placement per view.
-    : !canPair && !showManual
-      ? { testID: "pairing.model-required", text: t("pairing.modelRequired"), error: true }
-      : state === "door-required"
-        ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
-        : state === "refused"
-          ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
-          : state === "paired"
-            ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
-            : state === "not-confirmed"
-              ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
-              : state === "waiting"
-            ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
-            : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
+    : !doorReady && !showManual
+      ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
+      : state === "refused"
+        ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+        : state === "paired"
+          ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
+          : state === "not-confirmed"
+            ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
+            : state === "waiting"
+              ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
+              : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 60, backgroundColor: colors.page }}>
@@ -355,7 +356,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
               fields={fields}
               busy={busy}
               waiting={state === "waiting"}
-              canPair={canPair}
+              doorReady={doorReady}
               diagnosticsEnabled={diagnosticsEnabled}
               onChange={update}
               onToggleDiagnostics={() => setDiagnosticsEnabled((value) => !value)}

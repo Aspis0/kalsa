@@ -17,8 +17,8 @@ type Props = {
   fields: PairingFields;
   busy: boolean;
   waiting: boolean;
-  /** A concrete local GGUF exists; without it there is nothing to pair with. */
-  canPair: boolean;
+  /** The typed door address is valid; without it the ceremony has no door. */
+  doorReady: boolean;
   diagnosticsEnabled: boolean;
   onChange: (key: keyof PairingFields, value: string) => void;
   onToggleDiagnostics: () => void;
@@ -29,7 +29,7 @@ export function PairingManualForm({
   fields,
   busy,
   waiting,
-  canPair,
+  doorReady,
   diagnosticsEnabled,
   onChange,
   onToggleDiagnostics,
@@ -96,8 +96,8 @@ export function PairingManualForm({
           testID="pairing.submit"
           accessibilityRole="button"
           accessibilityLabel={t("pairing.submit")}
-          accessibilityState={{ disabled: busy || !canPair }}
-          disabled={busy || !canPair}
+          accessibilityState={{ disabled: busy || !doorReady }}
+          disabled={busy || !doorReady}
           onPress={onSubmit}
           style={({ pressed }) => ({
             minHeight: 48,
@@ -105,7 +105,7 @@ export function PairingManualForm({
             alignItems: "center" as const,
             justifyContent: "center" as const,
             backgroundColor: pressed ? colors.brandDeep : colors.brand,
-            opacity: busy || !canPair ? 0.6 : 1,
+            opacity: busy || !doorReady ? 0.6 : 1,
           })}
         >
           <Text style={[type.bodyStrong, { color: colors.onBrand }]}>
@@ -113,9 +113,9 @@ export function PairingManualForm({
           </Text>
         </Pressable>
       )}
-      {canPair ? null : (
-        <Text testID="pairing.model-required" style={[type.secondary, { color: colors.danger }]}>
-          {t("pairing.modelRequired")}
+      {doorReady ? null : (
+        <Text testID="pairing.door-required" style={[type.secondary, { color: colors.danger }]}>
+          {t("pairing.doorRequired")}
         </Text>
       )}
     </View>
