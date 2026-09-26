@@ -709,3 +709,45 @@ dryrun-adb.sh.
   fake.
 - `restore.sh`'s DB round trip mirrors `set_prefs` but was only executed
   against the fixture RKStorage, not a device database.
+
+---
+
+# LFM heat arms on QDC (2026-09-26) — NOT OPENED (browser host disconnected)
+
+**No QDC session was requested, no minutes spent, no device touched.**
+
+- Pre-flight OK: APK `0509f8c8` sha256 `855c89de…5c91e7` (matches line 296);
+  model `LFM2.5-2.6B-QAD-Q4_0.gguf` sha256 `a247afd6…8b40b03` (matches d_run.sh:77);
+  `llama-tokenize` present; local adb server still on 6037 (pid 13821) → tunnel must use 6039.
+- Block: tab `4e7a3b7e-a2a7-4d6f-8452-09c65b9e172e` (the aspis.launcher login) answers
+  `browser_no_host: The app hosting browser tab … disconnected` (3 tries); `browser_list_tabs`
+  returns no tabs for this workspace. Portal not reachable → minutes not read, cap not requested.
+
+## Cap arithmetic (driver's own constants, for the retry)
+
+Per warm arm: cooldown cap 720 s (d_run.sh:87) + settle cap 240 s (:88) + route/new-chat
+~60 s + safety_gate set_prefs ~30 s + typing 3,027 chars at 200/chunk ~90 s + turn ~60 s +
+tail 60 s + dumps ~20 s ≈ 1,280 s ≈ 21.5 min. Both caps are expected to be hit after every
+hot turn: QRD8650 S5b run 8 B2 still read 38.49 °C at 900 s (qdc-governor-s5b/REPORT.md:191).
+First arm (cold, no wait) ≈ 5.5 min. Setup (install, bootstrap, 1.59 GB push ~75 s + sha,
+copy) + load proof + calibration ≈ 10 min.
+- QRD8650, 8 arms: 10 + 5.5 + 7 × 21.5 ≈ 166 min driver time → cap ≈ 166 + 5 (tunnel/end) = 171.
+  **The driver refuses deadlines > 110** (d_run.sh:13), so 4 pairs cannot fit one run as-is;
+  deadline 110 / cap 115 holds ≈ 5 arms (2 full pairs).
+- QRD7675, 4 arms: 10 + 5.5 + 3 × 21.5 ≈ 80 min → deadline 80, cap 85.
+- Risk that makes a large cap wasteful: `run_arm` calls `safety_stops` at arm entry, BEFORE
+  cooldown (parse.sh:851); S5b 8650 turns ended at 43.2 / 47.4 °C skin (PREREG-LFM.md:25-26),
+  so a skin ≥ 44 at the next arm's entry ends the session (by design, not loosened).
+
+## Pre-run observations (not fixed; no failure occurred yet)
+
+- Pair label: d_run.sh:332 increments PAIR on every arm change, so CGGCGCGC labels pairs
+  1,2,2,3,4,5,6,7. Data unaffected; pair = ceil(turn/2) must be used in analysis.
+- PREREG-LFM.md:17 says chunk band [973, 1126]; driver and brief use [973, 1075] (parse.sh:957).
+- restore.sh:51,54 tests `databases/RKStorage-wal|shm` without `run-as` (always false →
+  WAL not pulled before the DELETE).
+- smp.sh:25 greps the first skin value without the HAL-section gate (can read the cached value);
+  informational sampler only.
+
+To unblock: owner reconnects the Paseo browser host / re-opens the aspis.launcher tab, and
+decides between cap 115 (deadline 110, ~2 pairs) and raising the 110 guard (cap ~171).
