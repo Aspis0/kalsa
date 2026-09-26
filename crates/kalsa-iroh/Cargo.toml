@@ -17,13 +17,14 @@ hex = "0.4"
 getrandom = "0.3"
 
 # Windows-only: the node key file's protected DACL (owner-only access).
-# Declared, not proven: see key.rs — it never compiles on this machine.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Security",
     # The SDDL converter lives in `Security::Authorization`, not `Security`.
     "Win32_Security_Authorization",
+    # The process token that names the current user.
+    "Win32_System_Threading",
 ] }
 
 [dev-dependencies]

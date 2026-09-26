@@ -11,11 +11,10 @@
 //! On Unix the temp file is created `0600` — owner read and write, nothing
 //! for group or other — and a test checks the mode, not the intention. On
 //! Windows the mode bits do not exist, so the temp is restricted by an
-//! explicit protected DACL (system, administrators, and the file's owner
-//! get access; Everyone gets nothing) through the raw `windows-sys`
-//! bindings. The ACL is applied before any credential bytes are written. That
-//! Windows path is *declared, not proven*: it never compiles or runs on this
-//! machine, and nothing in the test suite covers it.
+//! explicit protected DACL (system, administrators, and the current user's
+//! SID get access; Everyone gets nothing) through the raw `windows-sys`
+//! bindings. The ACL is applied before any credential bytes are written. On
+//! Windows every test that saves runs that path, but no test asserts the ACL.
 //!
 //! Refusing is not forbidding. A stored credential is replaced only by the
 //! owner's explicit replacement decision, and that publication is atomic;
@@ -630,10 +629,7 @@ fn restrict_to_owner(_temp: &Path) -> Result<(), StoreError> {
 
 // Windows: the POSIX mode bits do not exist, so owner-only is done by hand —
 // an explicit *protected* DACL (no inherited ACEs) granting full access to
-// SYSTEM, Administrators and the file's owner, and nothing to anyone else.
-// DECLARED, NOT PROVEN: this code never compiles or runs on this machine
-// (it is behind `cfg(windows)`), and the report says so rather than claiming
-// a test covered it.
+// SYSTEM, Administrators and the current user, and nothing to anyone else.
 #[cfg(windows)]
 fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
     use std::os::windows::ffi::OsStrExt;
@@ -646,9 +642,10 @@ fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
     };
 
     const SDDL_REVISION_1: u32 = 1;
-    // Protected DACL: System, Administrators, Owner Rights — full access.
-    // Everyone, and anything inherited: nothing.
-    let sddl: Vec<u16> = "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;OW)"
+    // The user by SID, not Owner Rights: an elevated process makes
+    // Administrators the owner, and the next unelevated start is not.
+    let user = current_user_sid().map_err(StoreError::Io)?;
+    let sddl: Vec<u16> = format!("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;{user})")
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
@@ -694,6 +691,48 @@ fn restrict_to_owner(temp: &Path) -> Result<(), StoreError> {
         LocalFree(descriptor);
     }
     applied
+}
+
+/// The SID of the user this process runs as, in SDDL string form.
+#[cfg(windows)]
+fn current_user_sid() -> std::io::Result<String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, LocalFree};
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    let mut token = std::ptr::null_mut();
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // TOKEN_USER plus the SID it points into; a SID is at most 68 bytes.
+    let mut buffer = [0u64; 32];
+    let mut needed = 0;
+    let queried = unsafe {
+        GetTokenInformation(
+            token,
+            TokenUser,
+            buffer.as_mut_ptr().cast(),
+            std::mem::size_of_val(&buffer) as u32,
+            &mut needed,
+        )
+    };
+    let queried = if queried == 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) };
+    unsafe {
+        CloseHandle(token);
+    }
+    queried?;
+    let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
+    let mut text = std::ptr::null_mut();
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut text) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let len = (0..).take_while(|&i| unsafe { *text.add(i) } != 0).count();
+    let sid = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) });
+    unsafe {
+        LocalFree(text.cast());
+    }
+    Ok(sid)
 }
 
 /// The computer forgets the phone it was paired with. This is an explicit

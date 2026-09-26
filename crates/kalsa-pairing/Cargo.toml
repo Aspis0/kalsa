@@ -24,7 +24,6 @@ kalsa-catalog = { path = "../kalsa-catalog" }
 qrcodegen = "1.8.0"
 
 # Windows-only: the credential file's protected DACL (owner-only access).
-# See store.rs — that path is declared, not proven: it never compiles here.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
@@ -32,6 +31,8 @@ windows-sys = { version = "0.59", features = [
     # The SDDL converter lives in `Security::Authorization`, not `Security`.
     "Win32_Security_Authorization",
     "Win32_Storage_FileSystem",
+    # The process token that names the current user.
+    "Win32_System_Threading",
 ] }
 
 [dev-dependencies]

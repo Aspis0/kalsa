@@ -9,8 +9,8 @@
 //! final name, so a reader sees one complete file or the other, never a
 //! torn half, and a crash mid-write leaves a temp the next write replaces.
 //! On Windows the owner-only restriction is an explicit protected DACL
-//! through `windows-sys`, the same declared-not-proven path the pairing
-//! store takes: it never compiles or runs on this machine.
+//! through `windows-sys` naming the current user's SID, the same path the
+//! pairing store takes; no test asserts the ACL.
 //!
 //! [`NodeKey`] has a redacted `Debug` on purpose, the same decision
 //! `kalsa-pairing`'s one-time code made: a derived `Debug` would print the
@@ -147,8 +147,7 @@ fn restrict_to_owner(_temp: &Path) -> Result<(), BridgeError> {
 
 // Windows: the POSIX mode bits do not exist, so owner-only is done by hand —
 // an explicit *protected* DACL granting full access to SYSTEM,
-// Administrators and the file's owner, nothing to anyone else. DECLARED, NOT
-// PROVEN: like the pairing store's twin, this never compiles or runs here.
+// Administrators and the current user, nothing to anyone else.
 #[cfg(windows)]
 fn restrict_to_owner(temp: &Path) -> Result<(), BridgeError> {
     use std::os::windows::ffi::OsStrExt;
@@ -160,7 +159,10 @@ fn restrict_to_owner(temp: &Path) -> Result<(), BridgeError> {
     };
 
     const SDDL_REVISION_1: u32 = 1;
-    let sddl: Vec<u16> = "D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;OW)"
+    // The user by SID, not Owner Rights: an elevated process makes
+    // Administrators the owner, and the next unelevated start is not.
+    let user = current_user_sid().map_err(BridgeError::Io)?;
+    let sddl: Vec<u16> = format!("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;{user})")
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
@@ -194,6 +196,48 @@ fn restrict_to_owner(temp: &Path) -> Result<(), BridgeError> {
     } else {
         Ok(())
     }
+}
+
+/// The SID of the user this process runs as, in SDDL string form.
+#[cfg(windows)]
+fn current_user_sid() -> std::io::Result<String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, LocalFree};
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    let mut token = std::ptr::null_mut();
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // TOKEN_USER plus the SID it points into; a SID is at most 68 bytes.
+    let mut buffer = [0u64; 32];
+    let mut needed = 0;
+    let queried = unsafe {
+        GetTokenInformation(
+            token,
+            TokenUser,
+            buffer.as_mut_ptr().cast(),
+            std::mem::size_of_val(&buffer) as u32,
+            &mut needed,
+        )
+    };
+    let queried = if queried == 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) };
+    unsafe {
+        CloseHandle(token);
+    }
+    queried?;
+    let user = unsafe { &*buffer.as_ptr().cast::<TOKEN_USER>() };
+    let mut text = std::ptr::null_mut();
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut text) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let len = (0..).take_while(|&i| unsafe { *text.add(i) } != 0).count();
+    let sid = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) });
+    unsafe {
+        LocalFree(text.cast());
+    }
+    Ok(sid)
 }
 
 #[cfg(windows)]
