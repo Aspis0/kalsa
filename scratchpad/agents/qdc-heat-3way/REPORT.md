@@ -130,6 +130,53 @@ Every fixture also asserts restore ran (`raw/<job>/restore.log`
   injected logs.
 - Skin/battery numbers of PREREG — untouched predictions, still predictions.
 
+## Round 3 — run-1 defects fixed (2026-09-26); proof blocker found, NOT touched
+
+Run 1 (luna, commit `2256dbd8`, evidence `raw/s23-cli-heat-20260926/`) stopped
+after arm 1 with two driver defects; both are fixed in this round. No
+thread/poll flag was changed (the owner's CPU-speed diagnosis is running and
+its decision comes separately).
+
+| defect | evidence | fix |
+|---|---|---|
+| **1. parser anchored fields at `$1/$6`** — on the device every line carries `<ts> <level> ` before the label, so every perf value came back empty → `run_fail` → luna's fail-fast guard stopped the session | `raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:48` — `1.17.377.184 I common_perf_print: prompt eval time =   10947.50 ms /  1018 tokens` | `arm.sh:142-166` — locate the `common_perf_print:` TOKEN anywhere in the line and index fields relative to it (value at label+5/+4, counts at +8/+7); works for prefixed AND bare lines. The old header claim "log prefix off (common/log.cpp:174)" was refuted and rewritten (`arm.sh:13-20`). The fake now emits lines with byte-identical prefixes copied from that committed raw log (`dryrun-adb.sh:149-155`), asserted by `dryrun.sh:74` (`I common_perf_print:`) plus the parsed values |
+| **2. gate hard-required 127 runs** — `-n 127` structurally yields **126** eval runs (the first token comes from the prompt eval); `-n 64 → 63` device-confirmed | `raw/s23-cli-diag-20260926` (63 for -n 64) and run 1's `126 runs` | `arm.sh:41-46` — `DECODE_N` is the single source (feeds the `-n %d` flag at `arm.sh:68`); `d_run.sh:78` — gate derives `DECODE_EXPECT=$((DECODE_N - 1))`; stop log now carries `want=… n=…`. No second hardcoded number |
+
+Fixtures (`./dryrun.sh > /tmp/... 2>&1; echo EXIT=$?` → **EXIT=0, PASS=155,
+FAIL=0**): six-arms asserts the prefixed line parses to 45000.00/1018/**126**;
+`decode-unequal` now injects **125** (off-by-one must void →
+`END stop_unequal_decode`); **new** `decode-derived` runs `DECODE_N=64` with
+63 runs → OK row, `END exit_0` (a hardcoded 127-gate would void it); **new**
+`no-cpu` (fake omits assignment lines, i.e. a default-verbosity-shaped log) →
+VOID `no_cpu_proof`, `END method_void_no_cpu_proof`; the five proof-void
+fixtures now also assert luna's fail-fast `method_void_*` END (`dryrun.sh:101,114,123,131,139`).
+
+### Open blocker for run 2 — NOT fixed here, decision pending
+
+The placement/execute proof lines all sit below the kit's **default
+verbosity**, so after these two fixes run 2 would still void at arm 1:
+
+- `load_tensors: layer %3d assigned to device %s` is `LLAMA_LOG_DEBUG` in this
+  engine (`src/llama-model.cpp:1526,1531` at f25f0c1c5) — and run 1's real
+  log has **zero** such lines (also zero `using device`/`offloaded` lines,
+  although `loaded meta data` is `LLAMA_LOG_INFO` at
+  `src/llama-model-loader.cpp:715` and absent too): the tool's default
+  threshold suppresses the src/ messages (`common/log.cpp:109` gates DEBUG on
+  `common_log_verbosity_thold`).
+- `HTP0 execute-op` is `GGML_LOG_DEBUG` gated on `GGML_HEXAGON_VERBOSE=1`
+  (`ggml-hexagon.cpp:146-153`) but still needs the logger threshold raised;
+  `STEP0-V73-PREP.md`'s diagnostic used `-lv 5` to unlock exactly these
+  records.
+
+⇒ At default verbosity all three proofs void (`no_cpu_proof` first), and the
+fail-fast guard stops the session again. Awaiting the owner's pending
+decision (bundle with thread/poll): add `-lv 5` to the arm env/flags, or
+redesign the proofs on always-present lines. The `no-cpu` fixture documents current behavior against a default-verbosity-shaped log; no proof logic was
+changed in this commit.
+
+`PREREG.md` is locked (post-run): its "decode_runs must be 127" is superseded
+by the device-evidenced N-1 rule; recorded here, not edited there.
+
 ## Declared, not touched
 
 Nothing pre-existing was refactored: `../qdc-heat-per-backend/*` and

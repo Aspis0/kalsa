@@ -1,9 +1,9 @@
-[16:12:04] SESSION job=dry-stop-level board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[16:12:04] KIT_UNPACK_PUSH
-[16:12:04] DEVICE_LIST_OK
-[16:12:04] KIT_PUSH ship.gguf sha_before=absent
-[16:12:04] KIT_PUSH prompt.txt sha_before=absent
-[16:12:05] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[16:12:05] GATE label=setup
-[16:12:06] STOP reason=battery_level
-[16:12:06] SESSION_STOP reason=battery_level
+[17:12:30] SESSION job=dry-stop-level board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[17:12:30] KIT_UNPACK_PUSH
+[17:12:30] DEVICE_LIST_OK
+[17:12:30] KIT_PUSH ship.gguf sha_before=absent
+[17:12:30] KIT_PUSH prompt.txt sha_before=absent
+[17:12:31] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[17:12:31] GATE label=setup
+[17:12:31] STOP reason=battery_level
+[17:12:31] SESSION_STOP reason=battery_level

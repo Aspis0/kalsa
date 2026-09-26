@@ -10,10 +10,14 @@
 # are npu-spec-verify/d_run.sh's arm B/C selection plus `GPUOpenCL` from
 # `--list-devices`.
 #
-# Perf-line provenance (audit f2ee97f4 A1): the binary prints
-# `common_perf_print:` — verified at f25f0c1c5 common/sampling.cpp:573-576
-# (`LOG_INF("%s: prompt eval time = ...", __func__)`, default log prefix off:
-# common/log.cpp:174). `llama_perf_context_print` does not exist in this kit.
+# Perf-line provenance (audit f2ee97f4 A1, corrected after run 1): the
+# binary prints `common_perf_print:` — format string at f25f0c1c5
+# common/sampling.cpp:573-576; ON DEVICE every line carries a
+# `<seconds.millis> <level> ` prefix before it (run-1 evidence:
+# raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:48), so the
+# parser locates the label token instead of anchoring fields. The earlier
+# claim "log prefix off (common/log.cpp:174)" was refuted by that log.
+# `llama_perf_context_print` does not exist in this kit.
 #
 # Prompt identity (A15b): the arm reads THE verified file — `-f $D/prompt.txt`,
 # whose sha256 kit.sh checks against PROMPT.meta. No prompt text is inlined
@@ -34,6 +38,12 @@
 MIN_HTP_OPS=1000
 MIN_GPU_ASSIGN=30
 MIN_GPU_KERNELS=8
+# The -n of the measured turn. One definition feeds BOTH the -n flag below and
+# d_run's equal-decode gate (N-1 eval runs — device-confirmed structure: the
+# first token comes from the prompt eval, so -n 127 yields 126 runs and -n 64
+# yields 63, s23-cli-heat-20260926 / s23-cli-diag-20260926 raw logs), so the
+# flag and the gate cannot drift apart.
+DECODE_N="${DECODE_N:-127}"
 
 arm_backend_flags() {
   case "$1" in
@@ -50,12 +60,13 @@ arm_env() {
 }
 
 # The measured turn: 1018-token prefill (from the verified file) + exactly
-# 127 decode tokens, EOS ignored, greedy.
+# $DECODE_N decode tokens, EOS ignored, greedy (gate expectation: DECODE_N-1
+# eval runs).
 arm_remote_cmd() {
   local backend="$1" tag="$2" flags
   flags=$(arm_backend_flags "$backend") || return 1
-  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt %s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
-    "$(arm_env)" "$D" "$D" "$flags" "$D" "$tag" "$D" "$tag"
+  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt %s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+    "$(arm_env)" "$D" "$D" "$DECODE_N" "$flags" "$D" "$tag" "$D" "$tag"
 }
 
 # A8 load phase: same backend flags, 1-token prompt, no perf, no generation —
@@ -128,13 +139,32 @@ arm_parse() {
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
-  # Field layout (f25f0c1c5 common/sampling.cpp:573-576, no log prefix):
-  #   common_perf_print: prompt eval time = <ms> ms / <tok> tokens (...)
-  #   common_perf_print:        eval time = <ms> ms / <runs> runs   (...)
-  #   common_perf_print:        load time = <ms> ms
-  read -r ARM_PREFILL_MS ARM_PROMPT_N <<< "$(awk '$1=="common_perf_print:" && $2=="prompt" && $3=="eval" {ms=$6; tok=$9} END{if (tok!="") print ms, tok}' "$logf")"
-  read -r ARM_RUNS eval_ms <<< "$(awk '$1=="common_perf_print:" && $2=="eval" && $3=="time" {ms=$5; runs=$8} END{if (runs!="") print runs, ms}' "$logf")"
-  ARM_INLOAD_MS=$(awk '$1=="common_perf_print:" && $2=="load" && $3=="time" {print $5}' "$logf" | tail -1)
+  # Field layout: the real kit prefixes every line with `<ts> <level> ` —
+  # raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:48 reads
+  #   `1.17.377.184 I common_perf_print: prompt eval time = 10947.50 ms / 1018 tokens`
+  # while older captures are bare, so locate the `common_perf_print:` TOKEN
+  # anywhere in the line and index fields RELATIVE to it (run-1 defect: the
+  # old $1/$6 anchors assumed the bare layout and voided every row):
+  #   label+1 = prompt|eval|load; value at +5 (prompt) / +4 (eval, load);
+  #   counts at +8 (tokens) / +7 (runs).
+  read -r ARM_PREFILL_MS ARM_PROMPT_N <<< "$(awk '
+    { for (i = 1; i <= NF; i++) if ($i == "common_perf_print:") break
+      if ($i != "common_perf_print:") next
+      if ($(i+1) == "prompt" && $(i+2) == "eval" && $(i+3) == "time") { ms = $(i+5); tok = $(i+8) }
+    }
+    END { if (tok != "") print ms, tok }' "$logf")"
+  read -r ARM_RUNS eval_ms <<< "$(awk '
+    { for (i = 1; i <= NF; i++) if ($i == "common_perf_print:") break
+      if ($i != "common_perf_print:") next
+      if ($(i+1) == "eval" && $(i+2) == "time" && $(i+3) == "=") { rms = $(i+4); runs = $(i+7) }
+    }
+    END { if (runs != "") print runs, rms }' "$logf")"
+  ARM_INLOAD_MS=$(awk '
+    { for (i = 1; i <= NF; i++) if ($i == "common_perf_print:") break
+      if ($i != "common_perf_print:") next
+      if ($(i+1) == "load" && $(i+2) == "time" && $(i+3) == "=") { lms = $(i+4) }
+    }
+    END { if (lms != "") print lms }' "$logf" | tail -1)
   case "$ARM_PROMPT_N" in ''|*[!0-9]*) ARM_PROMPT_N=na;; esac
   case "$ARM_RUNS" in ''|*[!0-9]*) ARM_RUNS=na;; esac
   case "$ARM_INLOAD_MS" in ''|*[!0-9.]*|.) ARM_INLOAD_MS=na;; esac

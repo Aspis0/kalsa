@@ -12,7 +12,11 @@
 #   DRY_BATT_STUB=1        battery temp pinned to the QDC 25.0 C stub, sysfs
 #       mirrors dumpsys so battery_trust.sh takes the stub branch
 #   DRY_ARM_SLEEP_S        fake llama-completion wall time (load + turn)
-#   DRY_DECODE_RUNS        runs in the perf eval line (default 127, A7 gate)
+#   DRY_NO_CPU_PROOF=1     omit the `assigned to device CPU` lines from C
+#       logs — models a real default-verbosity log (those lines are
+#       LLAMA_LOG_DEBUG in f25, absent from run 1's raw log; proof decision pending)
+#   DRY_DECODE_RUNS        runs in the perf eval line (default 126 = N-1 of
+#       -n 127; the first token comes from the prompt eval — run-1 evidence)
 #   DRY_NO_HTP_PROOF=1     omit Hexagon Arch + execute-op lines from N logs
 #   DRY_HTP_OPS=N          execute-op line count (default 1200, A6 floor 1000)
 #   DRY_NO_GPU_PROOF=1     omit GPUOpenCL assignment + kernel lines from G logs
@@ -117,8 +121,10 @@ emit_cpu_block() { # discovery lines mirror the real A.log: -ngl 0 still lists
   # assignment-only CPU proof (audit lesson kept from round 1).
   printf 'llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free\n'
   printf 'llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free\n'
-  local i=0
-  while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
+  if [ "${DRY_NO_CPU_PROOF:-0}" != 1 ]; then
+    local i=0
+    while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
+  fi
 }
 run_arm() { # synthesizes the pulled llama-completion log (turn or load phase)
   if [ "${DRY_ARM_SLEEP_S:-0}" -gt 0 ]; then sleep "$DRY_ARM_SLEEP_S"; fi
@@ -140,11 +146,13 @@ run_arm() { # synthesizes the pulled llama-completion log (turn or load phase)
   {
     printf 'llama_model_loader: loaded meta data with %s tokens from /data/local/tmp/heat3way/ship.gguf\n' "$((prompt_n + 127))"
     printf '%s\n' "$block"
-    # A1: the fork's real perf format (f25f0c1c5 common/sampling.cpp:573-576).
-    printf 'common_perf_print:        load time = %10.2f ms\n' 9876.5
-    printf 'common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$prefill" "$prompt_n" 44.20 22.62
-    printf 'common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' 9071 "${DRY_DECODE_RUNS:-127}" 71.43 14.00
-    printf 'common_perf_print:       total time = %10.2f ms / %5d tokens\n' 54876.5 "$((prompt_n + 127))"
+    # A1 round 2: `<ts> <level> ` before the label — prefix strings copied
+    # byte-for-byte from the committed run log
+    # raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:47-50.
+    printf '1.17.377.180 I common_perf_print:        load time = %10.2f ms\n' 9876.5
+    printf '1.17.377.184 I common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$prefill" "$prompt_n" 44.20 22.62
+    printf '1.17.377.201 I common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' 9071 "${DRY_DECODE_RUNS:-126}" 71.43 14.00
+    printf '1.17.377.214 I common_perf_print:       total time = %10.2f ms / %5d tokens\n' 54876.5 "$((prompt_n + 127))"
     printf 'EXIT=%s\n' "${DRY_ARM_RC:-0}"
   } > "$DEV/$tag"
   exit "${DRY_ARM_RC:-0}"

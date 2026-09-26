@@ -1,0 +1,4 @@
+sha256sum: SHA256SUMS: No such file or directory
+bin/llama-bench: OK
+bin/llama-completion: OK
+lib/libggml.so: OK

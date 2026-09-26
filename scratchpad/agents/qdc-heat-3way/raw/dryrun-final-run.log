@@ -43,6 +43,7 @@ PASS  htplow rc
 PASS  htplow rows
 PASS  htplow void_reason
 PASS  htplow proof count
+PASS  htplow END
 PASS  htp-low restore-ran
 PASS  htp-low timeout-restored
 == fixture: missing GPU placement evidence voids the G arm (A6) ==
@@ -50,18 +51,21 @@ PASS  nogpu rc
 PASS  nogpu rows
 PASS  nogpu status
 PASS  nogpu void_reason
+PASS  nogpu END
 PASS  nogpu restore-ran
 PASS  nogpu timeout-restored
 == fixture: GPU kernel-dispatch below the 8 floor voids the G arm (A6) ==
 PASS  gpuex rc
 PASS  gpuex rows
 PASS  gpuex void_reason
+PASS  gpuex END
 PASS  gpu-exec-low restore-ran
 PASS  gpu-exec-low timeout-restored
 == fixture: kernel-build failure line voids the G arm (A6) ==
 PASS  gpudis rc
 PASS  gpudis rows
 PASS  gpudis void_reason
+PASS  gpudis END
 PASS  gpu-disabled restore-ran
 PASS  gpu-disabled timeout-restored
 == fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
@@ -154,5 +158,20 @@ PASS  dec void_reason
 PASS  dec runs recorded
 PASS  dec restore-ran
 PASS  dec timeout-restored
+== fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) ==
+PASS  decder rc
+PASS  decder END
+PASS  decder rows
+PASS  decder status
+PASS  decder runs accepted
+PASS  decder restore-ran
+PASS  decder timeout-restored
+== fixture: CPU placement proof absent — models a default-verbosity log ==
+PASS  nocpu rc
+PASS  nocpu rows
+PASS  nocpu void_reason
+PASS  nocpu END
+PASS  nocpu restore-ran
+PASS  nocpu timeout-restored
 
-dryrun summary: PASS=138 FAIL=0
+dryrun summary: PASS=155 FAIL=0

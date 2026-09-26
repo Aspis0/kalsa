@@ -1,13 +1,13 @@
-[16:11:50] SESSION job=dry-gpu-exec-low board=S23-v73 soc=SM8550 serial=fakes23 order=G stayon_saved=null timeout_saved=60000
-[16:11:50] KIT_UNPACK_PUSH
-[16:11:50] DEVICE_LIST_OK
-[16:11:50] KIT_PUSH ship.gguf sha_before=absent
-[16:11:50] KIT_PUSH prompt.txt sha_before=absent
-[16:11:51] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[16:11:51] GATE label=setup
-[16:11:51] SETUP_DONE skin0=33.5 battery_untrusted=0
-[16:11:51] SAMPLER_LAUNCHED pid=69702
-[16:11:51] ARM_START turn=1 backend=gpu pair=1 tag=dry-gpu-exec-low-t1gpu
-[16:11:52] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[16:11:52] ARM_END turn=1 status=VOID void=gpu_exec_low prefill_ms=14000.00 inload_ms=9876.50 proof=gpu_assigned_lines=33 kernels=3
-[16:11:52] DONE order=G rows=1 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-gpu-exec-low/results.tsv
+[17:12:16] SESSION job=dry-gpu-exec-low board=S23-v73 soc=SM8550 serial=fakes23 order=G stayon_saved=null timeout_saved=60000
+[17:12:16] KIT_UNPACK_PUSH
+[17:12:16] DEVICE_LIST_OK
+[17:12:16] KIT_PUSH ship.gguf sha_before=absent
+[17:12:16] KIT_PUSH prompt.txt sha_before=absent
+[17:12:18] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[17:12:18] GATE label=setup
+[17:12:18] SETUP_DONE skin0=33.5 battery_untrusted=0
+[17:12:18] SAMPLER_LAUNCHED pid=85435
+[17:12:18] ARM_START turn=1 backend=gpu pair=1 tag=dry-gpu-exec-low-t1gpu
+[17:12:18] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[17:12:18] ARM_END turn=1 status=VOID void=gpu_exec_low prefill_ms=14000.00 inload_ms=9876.50 proof=gpu_assigned_lines=33 kernels=3
+[17:12:18] STOP_METHOD_VOID turn=1 backend=gpu reason=gpu_exec_low

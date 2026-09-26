@@ -71,10 +71,10 @@ eq "six rows" 6 "$(rows)"
 eq "six arm sequence" "cpu gpu npu npu gpu cpu" "$(awk -F'\t' 'NR>1 {printf "%s%s", sep, $2; sep=" "}' "$RAW/results.tsv" 2>/dev/null)"
 eq "six pairs" "1 1 2 2 3 3" "$(awk -F'\t' 'NR>1 {printf "%s%s", sep, $1; sep=" "}' "$RAW/results.tsv" 2>/dev/null)"
 eq "six all-OK" "" "$(awk -F'\t' 'NR>1 && $4!="OK"{printf "%s ", $2}' "$RAW/results.tsv" 2>/dev/null)"
-has "six perf-prefix A1" "common_perf_print:" "$(cat "$RAW/dry-six-arms-t1cpu.log")"
+has "six perf-prefix A1" "I common_perf_print:" "$(cat "$RAW/dry-six-arms-t1cpu.log")"
 has "six inload-parsed A8" "inload_ms=9876.50" "$(cat "$RAW/driver.log")"
 eq "six prompt_n" 1018 "$(col 1 21)"
-eq "six decode_runs" 127 "$(col 1 23)"
+eq "six decode_runs" 126 "$(col 1 23)"
 eq "six cpu prefill" 45000.00 "$(col 1 22)"
 eq "six gpu prefill" 14000.00 "$(col 2 22)"
 eq "six npu prefill" 18000.00 "$(col 3 22)"
@@ -98,7 +98,7 @@ assert_clean_shell six
 echo "== fixture: missing HTP proof voids the N arm (A6) =="
 run_fixture no-htp N DRY_NO_HTP_PROOF=1
 eq "nohtp rc" 0 "$RC"
-assert_end nohtp exit_0
+assert_end nohtp method_void_no_htp_proof
 eq "nohtp rows" 1 "$(rows)"
 eq "nohtp status" VOID "$(col 1 4)"
 eq "nohtp void_reason" no_htp_proof "$(col 1 5)"
@@ -111,6 +111,7 @@ eq "htplow rc" 0 "$RC"
 eq "htplow rows" 1 "$(rows)"
 eq "htplow void_reason" htp_ops_low "$(col 1 5)"
 eq "htplow proof count" "htp_ops=5" "$(col 1 25)"
+assert_end htplow method_void_htp_ops_low
 assert_restore htp-low
 
 echo "== fixture: missing GPU placement evidence voids the G arm (A6) =="
@@ -119,6 +120,7 @@ eq "nogpu rc" 0 "$RC"
 eq "nogpu rows" 1 "$(rows)"
 eq "nogpu status" VOID "$(col 1 4)"
 eq "nogpu void_reason" no_gpu_proof "$(col 1 5)"
+assert_end nogpu method_void_no_gpu_proof
 assert_restore nogpu
 
 echo "== fixture: GPU kernel-dispatch below the 8 floor voids the G arm (A6) =="
@@ -126,6 +128,7 @@ run_fixture gpu-exec-low G DRY_GPU_KERNELS=3
 eq "gpuex rc" 0 "$RC"
 eq "gpuex rows" 1 "$(rows)"
 eq "gpuex void_reason" gpu_exec_low "$(col 1 5)"
+assert_end gpuex method_void_gpu_exec_low
 assert_restore gpu-exec-low
 
 echo "== fixture: kernel-build failure line voids the G arm (A6) =="
@@ -133,6 +136,7 @@ run_fixture gpu-disabled G DRY_GPU_DISABLED=1
 eq "gpudis rc" 0 "$RC"
 eq "gpudis rows" 1 "$(rows)"
 eq "gpudis void_reason" gpu_disabled "$(col 1 5)"
+assert_end gpudis method_void_gpu_disabled
 assert_restore gpu-disabled
 
 echo "== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) =="
@@ -228,14 +232,31 @@ has "tmo bracketed pkill" "llama-completio[n]" "$(cat "$STATE/pkill.log" 2>/dev/
 assert_restore tmo
 
 echo "== fixture A7: unequal decode voids the row and stops the session =="
-run_fixture decode-unequal C DRY_DECODE_RUNS=96
+run_fixture decode-unequal C DRY_DECODE_RUNS=125
 eq "dec rc" 0 "$RC"
 assert_end dec stop_unequal_decode
 eq "dec rows" 1 "$(rows)"
 eq "dec status" VOID "$(col 1 4)"
 eq "dec void_reason" decode_len "$(col 1 5)"
-eq "dec runs recorded" 96 "$(col 1 23)"
+eq "dec runs recorded" 125 "$(col 1 23)"
 assert_restore dec
+
+echo "== fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) =="
+run_fixture decode-derived C DECODE_N=64 DRY_DECODE_RUNS=63
+eq "decder rc" 0 "$RC"
+assert_end decder exit_0
+eq "decder rows" 1 "$(rows)"
+eq "decder status" OK "$(col 1 4)"
+eq "decder runs accepted" 63 "$(col 1 23)"
+assert_restore decder
+
+echo "== fixture: CPU placement proof absent — models a default-verbosity log =="
+run_fixture no-cpu C DRY_NO_CPU_PROOF=1
+eq "nocpu rc" 0 "$RC"
+eq "nocpu rows" 1 "$(rows)"
+eq "nocpu void_reason" no_cpu_proof "$(col 1 5)"
+assert_end nocpu method_void_no_cpu_proof
+assert_restore nocpu
 
 echo
 echo "dryrun summary: PASS=$PASS FAIL=$FAIL"

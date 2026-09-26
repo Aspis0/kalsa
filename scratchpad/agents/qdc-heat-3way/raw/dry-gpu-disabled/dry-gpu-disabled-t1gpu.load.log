@@ -47,8 +47,8 @@ GGML_OPENCL_LOG_KERNELS: kernel_09
 GGML_OPENCL_LOG_KERNELS: kernel_10
 GGML_OPENCL_LOG_KERNELS: kernel_11
 ggml_opencl: kernel set failed to build on 'kernel_0' (driver 'Adreno'); device disabled
-common_perf_print:        load time =    9876.50 ms
-common_perf_print: prompt eval time =   14000.00 ms /  1018 tokens (   44.20 ms per token,    22.62 tokens per second)
-common_perf_print:        eval time =    9071.00 ms /   127 runs   (   71.43 ms per token,    14.00 tokens per second)
-common_perf_print:       total time =   54876.50 ms /  1145 tokens
+1.17.377.180 I common_perf_print:        load time =    9876.50 ms
+1.17.377.184 I common_perf_print: prompt eval time =   14000.00 ms /  1018 tokens (   44.20 ms per token,    22.62 tokens per second)
+1.17.377.201 I common_perf_print:        eval time =    9071.00 ms /   126 runs   (   71.43 ms per token,    14.00 tokens per second)
+1.17.377.214 I common_perf_print:       total time =   54876.50 ms /  1145 tokens
 EXIT=0

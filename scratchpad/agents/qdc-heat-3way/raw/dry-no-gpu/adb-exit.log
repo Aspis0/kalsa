@@ -39,5 +39,3 @@ rc=0 -s fakes23 pull /data/local/tmp/heat3way/dry-no-gpu-t1gpu.log /Users/marco/
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop
-rc=0 -s fakes23 pull /data/local/tmp/heat3way/heat/samples.txt /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-no-gpu/samples.txt
-rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop

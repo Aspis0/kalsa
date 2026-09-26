@@ -45,7 +45,6 @@ PROMPT_FILE="$CELL/PROMPT.txt"
 PROMPT_META="$CELL/PROMPT.meta"
 PROMPT_SHA=$(awk '{print $1}' "$PROMPT_META")
 PROMPT_BYTES=$(awk '{print $2}' "$PROMPT_META")
-DECODE_EXPECT=127          # A7: equal-decode gate value (-n 127 --ignore-eos)
 PROMPT_N_REF=""
 
 RAW="$CELL/raw/$JOB"
@@ -73,6 +72,10 @@ SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""; FIRST_SKIN_C=""
 SAMPLER_PID=0; ARM_POLL_PID=0; CURRENT_CHILD_PID=0
 END_WRITTEN=0; SIGNAL_NAME=""; CLEANED=0
 COOLDOWN_SECONDS=0; WARM_START=0
+# A7 gate: eval runs must be N-1 on every arm (first token comes from the
+# prompt eval: -n 127 -> 126, -n 64 -> 63, device-confirmed). DECODE_N is
+# arm.sh's own -n value — derived, never a second hardcoded number.
+DECODE_EXPECT=$((DECODE_N - 1))
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
@@ -295,7 +298,9 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
       ARM_STATUS=VOID; ARM_VOID=prompt_mismatch
     fi
   fi
-  # A7 equal-decode gate (qdc-heat-per-backend 851b053d): 127 on every arm,
+  # A7 equal-decode gate (qdc-heat-per-backend 851b053d): exactly DECODE_N-1
+  # eval runs on every arm — run 1 of this cell produced 126 for -n 127 and
+  # voided; -n 64 -> 63 confirmed on device (s23-cli-diag-20260926).
   # else the row is void AND the session stops after it.
   decode_stop=0
   if [ "$ARM_STATUS" = OK ] && [ "$ARM_RUNS" -ne "$DECODE_EXPECT" ]; then
@@ -306,7 +311,7 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
     "$ARM_PROMPT_N" "$ARM_PREFILL_MS" "$ARM_RUNS" "$ARM_DECODE_TPS" "$ARM_PROOF"
   log "ARM_END turn=$TURN status=$ARM_STATUS void=$ARM_VOID prefill_ms=$ARM_PREFILL_MS inload_ms=$ARM_INLOAD_MS proof=$ARM_PROOF"
   if [ "$decode_stop" -eq 1 ]; then
-    log "STOP_UNEQUAL_DECODE got=$ARM_RUNS want=$DECODE_EXPECT"
+    log "STOP_UNEQUAL_DECODE got=$ARM_RUNS want=$DECODE_EXPECT n=$DECODE_N"
     write_end stop_unequal_decode
     exit 0
   fi
