@@ -780,8 +780,9 @@ made; no data exists yet.
   `PAIR_START` is validated like the other args (non-integer or < 1 → exit 2).
 - **`PAIR_START` = the session split (deadline stays 110).** Owner chose two
   QRD8650 sessions of ~115 min, 2 pairs each, order per PREREG: session 1 =
-  pairs 1-2 (`ARM_ORDER=CGCG`, `PAIR_START` unset → 1), session 2 = pairs 3-4
-  (same `ARM_ORDER`, `PAIR_START=3`). `validate_deadline_minutes` still caps
+  pairs 1-2 (`ARM_ORDER=CGGC`, `PAIR_START` unset → 1), session 2 = pairs 3-4
+  (`ARM_ORDER=GCGC`, `PAIR_START=3`) - the halves of PREREG-LFM's CGGCGCGC
+  (coordinator correction: CGCG was not the preregistered order). `validate_deadline_minutes` still caps
   at 110 (d_run.sh:13) — unchanged, as decided.
 - **`restore.sh` WAL/SHM test fixed** (restore.sh:53-57): the `test -f` now
   runs under `run-as` like the `cat` beside it; without it the test always
