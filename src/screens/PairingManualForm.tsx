@@ -17,6 +17,8 @@ type Props = {
   fields: PairingFields;
   busy: boolean;
   waiting: boolean;
+  /** A concrete local GGUF exists; without it there is nothing to pair with. */
+  canPair: boolean;
   diagnosticsEnabled: boolean;
   onChange: (key: keyof PairingFields, value: string) => void;
   onToggleDiagnostics: () => void;
@@ -27,6 +29,7 @@ export function PairingManualForm({
   fields,
   busy,
   waiting,
+  canPair,
   diagnosticsEnabled,
   onChange,
   onToggleDiagnostics,
@@ -93,8 +96,8 @@ export function PairingManualForm({
           testID="pairing.submit"
           accessibilityRole="button"
           accessibilityLabel={t("pairing.submit")}
-          accessibilityState={{ disabled: busy }}
-          disabled={busy}
+          accessibilityState={{ disabled: busy || !canPair }}
+          disabled={busy || !canPair}
           onPress={onSubmit}
           style={({ pressed }) => ({
             minHeight: 48,
@@ -102,13 +105,18 @@ export function PairingManualForm({
             alignItems: "center" as const,
             justifyContent: "center" as const,
             backgroundColor: pressed ? colors.brandDeep : colors.brand,
-            opacity: busy ? 0.6 : 1,
+            opacity: busy || !canPair ? 0.6 : 1,
           })}
         >
           <Text style={[type.bodyStrong, { color: colors.onBrand }]}>
             {busy ? t("pairing.working") : t("pairing.submit")}
           </Text>
         </Pressable>
+      )}
+      {canPair ? null : (
+        <Text testID="pairing.model-required" style={[type.secondary, { color: colors.danger }]}>
+          {t("pairing.modelRequired")}
+        </Text>
       )}
     </View>
   );

@@ -477,7 +477,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     manualHide: "Hide manual details",
     modelRequired: "Choose a local GGUF model on this phone before pairing.",
     doorRequired: "Set your computer's address on this phone before pairing.",
-    refused: "Pairing was not accepted.",
+    refused: "Can't reach your computer, or it refused the pairing. Try again.",
     waiting: "Confirm on your computer",
     scan: "Scan the QR on your computer",
     scanCaution:

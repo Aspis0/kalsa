@@ -472,7 +472,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     manualHide: "Nascondi i dettagli manuali",
     modelRequired: "Scegli un modello GGUF locale su questo telefono prima del collegamento.",
     doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",
-    refused: "Il collegamento non è stato accettato.",
+    refused: "Non riesci a raggiungere il tuo computer, oppure ha rifiutato il collegamento. Riprova.",
     waiting: "Conferma sul computer",
     scan: "Inquadra il codice QR sul tuo computer",
     scanCaution:

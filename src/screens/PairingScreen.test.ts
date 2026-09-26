@@ -377,8 +377,9 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
-  test("a scan on a fresh install with no computer address names the missing address", async () => {
+  test("a scan on a fresh install with no computer address names the missing address and logs validate", async () => {
     globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
     const renderer = await render("local-model", "");
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
@@ -398,6 +399,10 @@ describe("PairingScreen", () => {
     expect(renderer.root.findAllByProps({ testID: "pairing.refused" })).toHaveLength(0);
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(saveCredentialMock).not.toHaveBeenCalled();
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(fails).toHaveLength(1);
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
+    log.mockRestore();
     await act(async () => renderer.unmount());
   });
 
@@ -440,18 +445,60 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
-  test("refuses before the desk request when there is no concrete local GGUF", async () => {
+  test("without a concrete local GGUF the Start button is disabled with its reason, and any attempt logs validate", async () => {
     globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
     const renderer = await render("kalsa-remote-mac");
+
+    const submit = renderer.root.findByProps({ testID: "pairing.submit" });
+    expect(submit.props.accessibilityState.disabled).toBe(true);
+    expect(submit.props.style({ pressed: false }).opacity).toBe(0.6);
+    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
+      .toBe("pairing.modelRequired");
+
     await act(async () => {
-      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      submit.props.onPress();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
-      .toBe("pairing.modelRequired");
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(fails).toHaveLength(1);
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(saveCredentialMock).not.toHaveBeenCalled();
+    log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("scanning without a phone model refuses locally, keeps the reason on screen and logs validate", async () => {
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const renderer = await render("kalsa-remote-mac", "https://desktop.tailnet.ts.net", false);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:8132",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Collapsed view: the reason lives in the status line; no dial, no save.
+    expect(renderer.root.findByProps({ testID: "pairing.model-required" }).props.children)
+      .toBe("pairing.modelRequired");
+    const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
+    expect(fails).toHaveLength(1);
+    expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(saveCredentialMock).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
+    log.mockRestore();
     await act(async () => renderer.unmount());
   });
 

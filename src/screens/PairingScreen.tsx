@@ -58,8 +58,12 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [showManual, setShowManual] = useState(false);
-  const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required" | "door-required">("ready");
+  const [state, setState] = useState<"ready" | "refused" | "waiting" | "door-required">("ready");
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
+  // A ceremony on this phone announces its weights_bytes, so without a
+  // concrete local GGUF there is nothing to pair — the button shows why.
+  const phone = declarationForModel(currentModelId);
+  const canPair = phone !== null;
   const sessionRef = useRef<PairingSession | null>(null);
   const deskAbortRef = useRef<AbortController | null>(null);
 
@@ -87,14 +91,16 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   const run = async (scanned?: PairingSquare) => {
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
-    const phone = declarationForModel(currentModelId);
     if (!phone) {
-      setState("model-required");
+      // The disabled button and its reason already say why; logcat still
+      // owes the pre-claim stage line every refusal produces.
+      logPairingFail("validate", null);
       return;
     }
     if (!isAllowedPairingUrl(fields.doorUrl)) {
       // A fresh install has no door URL yet; say which address is missing
       // instead of folding it into the opaque desk refusal.
+      logPairingFail("validate", null);
       setState("door-required");
       return;
     }
@@ -172,7 +178,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
 
   const status: { testID: string; text: string; error: boolean } = busy
     ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
-    : state === "model-required"
+    // The reason renders either here (details collapsed) or next to the
+    // disabled button inside the form — never both: one placement per view.
+    : !canPair && !showManual
       ? { testID: "pairing.model-required", text: t("pairing.modelRequired"), error: true }
       : state === "door-required"
         ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
@@ -244,6 +252,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
               fields={fields}
               busy={busy}
               waiting={state === "waiting"}
+              canPair={canPair}
               diagnosticsEnabled={diagnosticsEnabled}
               onChange={update}
               onToggleDiagnostics={() => setDiagnosticsEnabled((value) => !value)}
