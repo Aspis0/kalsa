@@ -297,7 +297,7 @@ const STATES = [
         total_bytes: 26_491_005 + MODEL.weights_bytes,
       },
     },
-    consentMarker: "One yes and Kalsa is ready",
+    consentMarker: "Downloads needed",
     consentPresence: "Kalsa needs the pieces below to run on this computer. Without them it cannot work.",
   },
   {
