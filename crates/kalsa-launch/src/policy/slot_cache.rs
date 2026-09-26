@@ -224,13 +224,10 @@ fn each_recurrent_row_prices_its_own_state() {
         // Qwen 3.6: 30 gated-delta-net layers (40 blocks,
         // `full_attention_interval 4`), R+S = 24_576 + 524_288 F32 elements.
         ("Alibaba Qwen 3.6", 65_863_680u64),
-        // Granite 4 Tiny: 36 Mamba-style layers (head_count_kv is an array
-        // whose four non-zero entries are layers 5/15/25/35), R+S = 3 x 3328
-        // + 393_216 F32 elements.
-        ("IBM Granite 4 Tiny", 58_060_800),
-        // LFM 2.5: 18 shortconv-recurrent layers, conv history only,
-        // `n_embd x (l_cache - 1)` = 2048 x 2 F32 elements.
-        ("Liquid LFM 2.5", 294_912),
+        // LFM 2.5: 22 shortconv-recurrent layers (`head_count_kv` array:
+        // 22 zeros among 30), conv history only, `n_embd x (l_cache - 1)` =
+        // 2048 x 2 F32 elements.
+        ("Liquid LFM 2.5", 360_448),
     ];
     for (name, bytes_per_slot) in cases {
         let row = shipped_row(name);

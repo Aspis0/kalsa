@@ -80,17 +80,6 @@ fn pc_with_phone(ram_gib: u64, vram_gib: Option<u64>, model: PhoneModel) -> Choi
     }
 }
 
-/// The smallest machine this catalog serves: 8.5 GiB leaves 5.5 GiB after
-/// the 3 GiB margin — above the smallest row's 5.19 GiB footprint and below
-/// every other row's, so exactly one row fits and the tier's answer is that
-/// row.
-fn smallest_tier(phone_known: bool) -> ChoiceInput {
-    ChoiceInput {
-        ram_bytes: 8 * GIB + GIB / 2,
-        ..input(9, phone_known)
-    }
-}
-
 fn chosen(input: &ChoiceInput) -> &'static str {
     match choose(input) {
         Decision::Pick(selection) => selection.repo,
@@ -108,11 +97,11 @@ fn refusal(input: &ChoiceInput) -> (RefusalReason, String) {
 }
 
 #[test]
-fn the_smallest_tier_is_offered_for_relief_and_not_capability() {
+fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
     // The premise: nothing that fits admits a capability claim against the
-    // phone's reported parameters — one row fits here, and it is a mixture
-    // whose published dense equivalent is under the phone's own size.
-    let usable = usable_bytes(8 * GIB + GIB / 2);
+    // phone's reported parameters — the two rows that fit here are the two
+    // compressions of one dense 2.69B model, under the phone's own 4B.
+    let usable = usable_bytes(8 * GIB);
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
         if footprint_bytes(entry, 8192).total_bytes() <= usable {
@@ -127,11 +116,12 @@ fn the_smallest_tier_is_offered_for_relief_and_not_capability() {
 
     // But every token the PC generates is one the phone did not, so the
     // recommendation comes through the relief axis, and says so.
-    match choose(&smallest_tier(true)) {
+    match choose(&input(8, true)) {
         Decision::Pick(selection) => {
             assert_eq!(selection.justification, Justification::Relief);
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
-            assert_eq!(selection.display_name, "IBM Granite 4 Tiny");
+            assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
+            assert_eq!(selection.display_name, "Liquid LFM 2.5");
+            assert_eq!(selection.quant, "Q8_0", "the bigger file wins the tier");
             assert!(
                 selection.details.contains("relief"),
                 "{}",
@@ -145,13 +135,13 @@ fn the_smallest_tier_is_offered_for_relief_and_not_capability() {
             // The details are the user's sentence too: no repo path, no quant,
             // and the prefill floor prints as a floor, never as a range.
             assert!(
-                !selection.details.contains("ibm-granite/"),
+                !selection.details.contains("LiquidAI/"),
                 "{}",
                 selection.details
             );
             assert!(!selection.details.contains("Q4"), "{}", selection.details);
             assert!(
-                selection.details.contains("at least 50.0"),
+                selection.details.contains("at least 18.5"),
                 "{}",
                 selection.details
             );
@@ -170,21 +160,23 @@ fn the_smallest_tier_is_offered_for_relief_and_not_capability() {
 fn every_pick_carries_its_pinned_plan() {
     // There is no "pick without a plan" case to test: the selection's plan
     // is not an Option, because the chooser only sees rows that carry their
-    // file's address. The smallest tier's pick hands the shell the exact
-    // file at the pinned commit, the size every byte must add up to, and the
-    // digest nothing unverified gets past.
-    match choose(&smallest_tier(true)) {
+    // file's address. The 8 GiB tier's pick — the bigger of the LFM
+    // compressions — hands the shell the exact file at the pinned commit,
+    // the size every byte must add up to, and the digest nothing
+    // unverified gets past.
+    match choose(&input(8, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
+            assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
+            assert_eq!(selection.quant, "Q8_0");
             let plan = &selection.download;
             assert_eq!(
                 plan.url,
-                "https://huggingface.co/ibm-granite/granite-4.0-h-tiny-GGUF/resolve/08d5a8a9741dd5c1a95d2d39e25253226aa1464e/granite-4.0-h-tiny-Q4_K_M.gguf"
+                "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
             );
-            assert_eq!(plan.bytes, 4_230_976_352);
+            assert_eq!(plan.bytes, 2_874_779_648);
             assert_eq!(
                 plan.sha256,
-                "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd"
+                "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9"
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -222,7 +214,7 @@ fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
     // Charging is a moment, not a property: the catalog asks only whether the
     // device runs on battery at all, so the relief offer cannot depend on
     // which second of the day the question is asked.
-    match choose(&smallest_tier(true)) {
+    match choose(&input_with_phone(8, Some(true))) {
         Decision::Pick(selection) => {
             assert_eq!(selection.justification, Justification::Relief);
             assert_eq!(
@@ -237,10 +229,7 @@ fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
 
 #[test]
 fn a_phone_that_has_not_said_it_runs_on_battery_gets_no_relief() {
-    let (reason, explanation) = refusal(&ChoiceInput {
-        phone: Some(phone(None)),
-        ..smallest_tier(true)
-    });
+    let (reason, explanation) = refusal(&input_with_phone(8, None));
     assert_eq!(reason, RefusalReason::NothingBetter);
     assert!(explanation.contains("has not said"), "{explanation}");
 }
@@ -250,10 +239,7 @@ fn a_device_that_does_not_run_on_battery_gets_no_relief() {
     // For a phone the answer is always yes, so this is not a phone — but the
     // rule still holds: relief is about saving a battery, and a wall-powered
     // device has none to save.
-    let (reason, explanation) = refusal(&ChoiceInput {
-        phone: Some(phone(Some(false))),
-        ..smallest_tier(true)
-    });
+    let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
     assert_eq!(reason, RefusalReason::NothingBetter);
     assert!(
         explanation.contains("does not run on battery"),
@@ -265,9 +251,8 @@ fn a_device_that_does_not_run_on_battery_gets_no_relief() {
 fn capability_does_not_need_a_battery() {
     // Capability is a claim about the model, not about the device's power:
     // it is offered to a wall-powered device all the same. The reachable
-    // capability route on shipped rows is the publisher's own dense
-    // comparison: IBM places Granite near dense 3B, which clears the bar
-    // against a dense 2B phone.
+    // capability route on shipped rows is dense against dense: Gemma 4 E4B
+    // (8B dense) clears the parameter bar against a dense 2B phone.
     let machine = pc_with_phone(
         32,
         Some(9),
@@ -279,13 +264,10 @@ fn capability_does_not_need_a_battery() {
     );
     match choose(&machine) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
             assert!(matches!(
                 selection.justification,
-                Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
-                    parameters: 3_000_000_000,
-                    ..
-                })
+                Justification::Capability(CapabilityBasis::Parameters)
             ));
         }
         other => panic!("expected a capability pick, got {other:?}"),
@@ -294,10 +276,10 @@ fn capability_does_not_need_a_battery() {
 
 #[test]
 fn a_small_card_is_not_bypassed_by_the_system_ram() {
-    // 32 GiB of RAM would fit the 19 GiB research MoE; the 6 GiB card gives a
-    // 3 GiB budget, which fits nothing. The machine is refused — a model
-    // sized to its RAM would spill across both memories, and the spill is a
-    // loss.
+    // 32 GiB of RAM would fit the 20.6 GiB MoE; the 5 GiB card gives a
+    // 2 GiB budget, and the smallest row in the catalog needs 2.1 GiB at
+    // 8192, so nothing fits. The machine is refused — a model sized to its
+    // RAM would spill across both memories, and the spill is a loss.
     let biggest_on_ram = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
         .expect("the 35B row exists");
@@ -305,7 +287,7 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
         footprint_bytes(biggest_on_ram, 8192).total_bytes() <= usable_bytes(32 * GIB),
         "the RAM alone would have allowed the 35B row, which is what makes this test real"
     );
-    let (reason, explanation) = refusal(&pc(32, Some(6)));
+    let (reason, explanation) = refusal(&pc(32, Some(5)));
     assert_eq!(reason, RefusalReason::NothingFits);
     assert!(explanation.contains("GiB"), "{explanation}");
 }
@@ -440,7 +422,7 @@ fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
     let lfm = DOWNLOADABLE
         .iter()
         .map(|row| &row.model)
-        .find(|entry| entry.repo == "LiquidAI/LFM2.5-8B-A1B")
+        .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B")
         .expect("the LFM row exists");
     match lfm.licence {
         kalsa_catalog::Licence::Conditional { id, condition } => {
@@ -458,10 +440,15 @@ fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
     );
 
     // Every selection carries its row's licence as data, so a conditional row
-    // can never present itself as unconditional.
-    match choose(&smallest_tier(true)) {
+    // can never present itself as unconditional — and here the pick IS the
+    // conditional row, which is the case the rule exists for.
+    match choose(&input(8, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.licence.id(), "apache-2.0");
+            assert_eq!(selection.licence.id(), "lfm1.0");
+            assert_eq!(
+                selection.licence.condition(),
+                Some("commercial use only for entities under $10M annual revenue")
+            );
         }
         other => panic!("expected a pick, got {other:?}"),
     }
@@ -472,7 +459,7 @@ fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
     // Relief moves the work to a comparable model. If everything that fits is
     // smaller than what the phone already runs, the work would move to a
     // weaker model — a downgrade the user would feel, not relief.
-    let mut big_phone = smallest_tier(true);
+    let mut big_phone = input(8, true);
     if let Some(p) = big_phone.phone.as_mut() {
         p.weights_bytes = 6 * GIB;
     }
@@ -523,70 +510,6 @@ fn a_large_unsourced_moe_is_expected_but_unmeasured_and_never_capability() {
 }
 
 #[test]
-fn a_sourced_equivalent_claims_capability_through_that_route_and_says_so() {
-    // A 6 GiB card budget holds the mid-size rows and nothing denser or
-    // bigger. IBM's own published figure places granite near dense 3B, which
-    // clears the bar against a dense 2B phone — and granite also decodes
-    // fastest in the leader's class, so it is the pick. The claim carries its
-    // source as data, and the user sees a name, not a repo path.
-    let machine = pc_with_phone(
-        32,
-        Some(9),
-        PhoneModel {
-            weights_bytes: 2_000_000_000,
-            parameters: Some(Parameters::dense(2_000_000_000)),
-            ..phone(Some(true))
-        },
-    );
-    match choose(&machine) {
-        Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
-            assert_eq!(selection.display_name, "IBM Granite 4 Tiny");
-            assert_eq!(
-                selection.justification,
-                Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
-                    parameters: 3_000_000_000,
-                    note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below \
-                           on BBH and IFEval",
-                    source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
-                })
-            );
-            assert!(
-                selection.details.contains("publisher's own comparison"),
-                "{}",
-                selection.details
-            );
-        }
-        other => panic!("expected a capability pick, got {other:?}"),
-    }
-}
-
-#[test]
-fn a_sourced_row_offered_as_relief_records_its_equivalence() {
-    // Against the default 4B phone, IBM's own figure says phone-class — the
-    // evidence refuses capability, and what is left is relief, on battery,
-    // with the published comparison recorded in the result.
-    match choose(&pc_with_phone(32, Some(9), phone(Some(true)))) {
-        Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
-            assert_eq!(selection.justification, Justification::Relief);
-            let equivalent = selection
-                .dense_equivalent
-                .expect("the published comparison travels with the row");
-            assert_eq!(equivalent.parameters, 3_000_000_000);
-            assert!(
-                selection
-                    .details
-                    .contains("places it near a dense model of 3.0B"),
-                "{}",
-                selection.details
-            );
-        }
-        other => panic!("expected a relief pick, got {other:?}"),
-    }
-}
-
-#[test]
 fn a_phone_without_parameter_counts_is_never_offered_capability() {
     // The handshake did not say what the phone runs in parameters, so no
     // claim is invented — the pick carries relief instead, whatever it is.
@@ -618,7 +541,7 @@ fn the_plain_reason_speaks_the_readers_language() {
         "MiB",
         "KiB",
     ];
-    for ram in [9, 16, 32, 64] {
+    for ram in [8, 16, 32, 64] {
         match choose(&input(ram, true)) {
             Decision::Pick(selection) => {
                 let reason = &selection.plain_reason;
@@ -638,11 +561,11 @@ fn the_plain_reason_speaks_the_readers_language() {
         }
     }
     // And each justification's honest bit is in the plain words, not buried
-    // in the details. 9 GiB is relief; 16 GiB is now a dense Capability pick
+    // in the details. 8 GiB is relief; 16 GiB is a dense Capability pick
     // on the Parameters basis, whose honest bit is the admission that
     // "bigger" was not measured as "better"; 32 and 64 are MoE picks that
     // stay on the expected-but-unmeasured sentence.
-    let reasons: Vec<(u64, String)> = [9, 16, 32, 64]
+    let reasons: Vec<(u64, String)> = [8, 16, 32, 64]
         .into_iter()
         .map(|ram| match choose(&input(ram, true)) {
             Decision::Pick(selection) => (ram, selection.plain_reason),
@@ -657,8 +580,8 @@ fn the_plain_reason_speaks_the_readers_language() {
             "{ram}: the honest bit is missing from the plain reason"
         );
     };
-    say(9, "about as good as what your phone");
-    say(9, "keeps the heat and the battery drain off your phone");
+    say(8, "about as good as what your phone");
+    say(8, "keeps the heat and the battery drain off your phone");
     say(16, "We have not measured whether it is better");
     say(32, "We have not checked it on this computer.");
     say(64, "We have not checked it on this computer.");
@@ -805,25 +728,32 @@ fn without_the_phone_the_largest_runnable_row_still_answers() {
 
 #[test]
 fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
-    // On 16 GiB the refused Instella MoE (9.75 GiB, 16B/2.8B) would be a
-    // bigger pick than the chosen row: the licence gate keeps it out of the
-    // menu, and the type split keeps it from ever coming back by accident.
-    let instella = kalsa_catalog::CATALOG
+    // On 8 GiB the research row Gemma 4 E2B (3.22 GiB, no pinned file)
+    // weighs more than the chosen row and fits the budget: it would win by
+    // the size rule, and it is still never offered — the chooser is handed
+    // DOWNLOADABLE only, and the type split keeps a research row from ever
+    // coming back by accident.
+    let e2b = kalsa_catalog::CATALOG
         .iter()
-        .find(|entry| entry.repo.starts_with("amd/"))
-        .expect("instella is in the catalog");
+        .find(|entry| entry.repo == "google/gemma-4-E2B-it")
+        .expect("the research row is in the catalog");
     assert!(
-        footprint_bytes(instella, 8192).total_bytes() <= usable_bytes(16 * GIB),
-        "the refused row does fit, which is what makes this test meaningful"
+        footprint_bytes(e2b, 8192).total_bytes() <= usable_bytes(8 * GIB),
+        "the research row does fit, which is what makes this test meaningful"
+    );
+    let pick = chosen(&input(8, true));
+    assert_eq!(pick, "LiquidAI/LFM2.5-2.6B");
+    let chosen_row = kalsa_catalog::usable()
+        .find(|entry| entry.entry().repo == pick)
+        .expect("the pick is on the menu");
+    assert!(
+        e2b.weights_bytes > chosen_row.entry().weights_bytes,
+        "and it is bigger than the chosen row, which is what \"would win\" means"
     );
     assert!(
-        instella.weights_bytes > 8 * GIB,
-        "and it is bigger than the chosen row (Gemma, 7.1 GiB)"
+        kalsa_catalog::usable().all(|entry| entry.entry().repo != e2b.repo),
+        "the research row never reaches the chooser"
     );
-    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
-    assert!(kalsa_catalog::excluded().any(|(entry, reason)| {
-        entry.repo == instella.repo && reason.contains("research only")
-    }));
 }
 
 #[test]
@@ -951,10 +881,11 @@ fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
 
 #[test]
 fn a_machine_with_one_honest_answer_is_not_given_two() {
-    // The smallest tier: exactly one row fits at all, so a second option
-    // would be the same model wearing a different name. None is the answer.
-    let machine = smallest_tier(false);
-    let first = largest_that_runs_well(&machine).expect("the smallest tier runs one row");
+    // The 8 GiB tier: the rows that fit are two compressions of ONE model,
+    // so a second option would be the same model wearing a different file.
+    // None is the answer.
+    let machine = input(8, false);
+    let first = largest_that_runs_well(&machine).expect("the 8 GiB tier runs a row");
     if let Some(quick) = quicker_alternative(&machine, &first.decode) {
         panic!(
             "offered {} beside {} on a machine with one thing to offer",
@@ -994,26 +925,26 @@ fn a_refused_machine_offers_no_second_option_either() {
     };
     assert_eq!(refusal(&machine).0, RefusalReason::NothingBetter);
 
-    // Granite 4 Tiny is the row the speed bar admits: 7B of mixture, which
-    // earns none of the three justifications — its published dense equivalent
-    // is 3.0B against the phone's 9B, its total is under the 10B the
-    // literature permits an expectation at, and there is no relief from a
-    // phone on the wall socket. It clears the speed bar easily (44.6
-    // against 20.4 tok/s), so the bar was never what stopped it: it is a row
-    // the walk would not start, and it is not offered here.
+    // Liquid LFM 2.5 is the row the speed bar admits: 2.69B dense, which
+    // earns none of the three justifications — no published dense
+    // equivalent to compare, no mixture to expect (and under the 10B total
+    // either way), and no relief from a phone on the wall socket. It clears
+    // the speed bar easily (51.9 against 20.4 tok/s), so the bar was never
+    // what stopped it: it is a row the walk would not start, and it is not
+    // offered here.
     let than = largest_that_runs_well(&machine)
         .expect("a 16 GiB machine runs something")
         .decode;
-    let granite = kalsa_catalog::usable()
-        .find(|row| row.entry().repo == "ibm-granite/granite-4.0-h-tiny")
+    let lfm = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "LiquidAI/LFM2.5-2.6B")
         .expect("the fast row beside the refusal is on the menu");
     assert!(
-        footprint_bytes(granite.entry(), machine.context_tokens).total_bytes()
+        footprint_bytes(lfm.entry(), machine.context_tokens).total_bytes()
             <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"
     );
     assert!(
-        kalsa_catalog::decode_prediction(granite, &machine).floor()
+        kalsa_catalog::decode_prediction(lfm, &machine).floor()
             >= than.floor() * QUICK_SPEED_ADVANTAGE,
         "the speed bar no longer admits it, so this test would pass for the wrong reason"
     );
@@ -1030,11 +961,11 @@ fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
     // cannot show one at all — `decode.and_then` in `src-tauri/src/capability.rs:248-249`
     // computes the alternative only from the prediction of the row on the
     // page, and a refusal carries no such row. Sixteen gibibytes of unified
-    // memory at 140 GB/s with a 4B phone on the wall socket: the pick is Gemma 4
+    // memory at 200 GB/s with a 4B phone on the wall socket: the pick is Gemma 4
     // 12B on capability, and the row beside it earns nothing.
     let machine = ChoiceInput {
         backend: Backend::Metal,
-        bandwidth_bytes_per_second: 140.0e9,
+        bandwidth_bytes_per_second: 200.0e9,
         ..input_with_phone_model(16, phone(Some(false)))
     };
     let Decision::Pick(pick) = choose(&machine) else {
@@ -1043,37 +974,40 @@ fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
     assert_eq!(pick.repo, "google/gemma-4-12B-it");
     assert!(matches!(pick.justification, Justification::Capability(_)));
 
-    // The row beside that pick, and why it earns none of the three —
-    // asserting the branches, not only the outcome: no capability (a mixture
-    // against a dense phone, whose published dense equivalent is under the
-    // phone's own size), no expectation (under the 10B total the literature
-    // permits one at), and no relief, though relief is the branch this row
-    // would have taken. The phone's battery flag is therefore what decides
-    // it, and a phone on battery makes the row legitimate: there would be no
+    // The row beside that pick — the bigger LFM file, which clears the speed
+    // bar at this bandwidth — and why it earns none of the three:
+    // asserting the branches, not only the outcome: no capability (2.69B
+    // dense under the phone's own 4B, with no published comparison), no
+    // expectation (it is not a mixture, and 2.69B is under the 10B total
+    // anyway), and no relief, though relief is the branch this row would
+    // have taken. The phone's battery flag is therefore what decides it,
+    // and a phone on battery makes the row legitimate: there would be no
     // defect at all.
-    let granite = kalsa_catalog::usable()
-        .find(|row| row.entry().repo == "ibm-granite/granite-4.0-h-tiny")
+    let lfm = kalsa_catalog::usable()
+        .find(|row| {
+            row.entry().repo == "LiquidAI/LFM2.5-2.6B" && row.entry().quant == "Q8_0"
+        })
         .expect("the row beside the pick is on the menu");
     assert!(
-        footprint_bytes(granite.entry(), machine.context_tokens).total_bytes()
+        footprint_bytes(lfm.entry(), machine.context_tokens).total_bytes()
             <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"
     );
     assert!(
         capability_basis(
-            granite.entry().parameters,
-            granite.entry().dense_equivalent,
+            lfm.entry().parameters,
+            lfm.entry().dense_equivalent,
             Some(PHONE_PARAMS)
         )
         .is_none(),
-        "the capability branch must fail: 7B of mixture with a 3.0B dense equivalent does not clear a bar against a dense 4B"
+        "the capability branch must fail: 2.69B dense does not clear the parameter bar against a dense 4B"
     );
     assert!(
-        granite.entry().parameters.total().count() < LARGE_MOE_TOTAL_PARAMETERS,
+        lfm.entry().parameters.total().count() < LARGE_MOE_TOTAL_PARAMETERS,
         "the expectation branch must fail on the size line"
     );
     assert!(
-        granite.entry().weights_bytes as f64 >= PHONE_BYTES as f64 * SAME_CLASS_BAND,
+        lfm.entry().weights_bytes as f64 >= PHONE_BYTES as f64 * SAME_CLASS_BAND,
         "it is inside the phone's own class, so relief is the branch the battery flag decides"
     );
     assert_eq!(
@@ -1092,37 +1026,38 @@ fn without_a_phone_the_second_option_keeps_the_only_bar_there_is() {
     // A phone is what makes a comparison; without one, the first option is
     // simply the largest that runs well, and nothing asked it to justify
     // itself. Asking the second option for a justification its neighbour
-    // never faced would be the same bug from the other side. Granite 4 Tiny
+    // never faced would be the same bug from the other side. Liquid LFM 2.5
     // clears the speed bar here and is offered with no justification asked
     // of it at all.
     let machine = ChoiceInput {
         backend: Backend::Metal,
-        bandwidth_bytes_per_second: 140.0e9,
+        bandwidth_bytes_per_second: 200.0e9,
         ..input(16, false)
     };
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&machine, &first.decode)
         .expect("fit and the speed bar are the whole of the rule with no phone");
-    assert_eq!(quick.entry.repo, "ibm-granite/granite-4.0-h-tiny");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
 }
 
 #[test]
 fn a_phone_on_battery_still_earns_the_quicker_row_its_place() {
     // The rule is not "the second option is gone". On the same machine, a
     // phone that runs on battery and whose own class the quicker row is in
-    // (4.23 GB against a 2.83 GB phone, inside the 0.85 band) justifies relief
+    // (2.87 GB against a 2.83 GB phone, inside the 0.85 band) justifies relief
     // — every token generated here is one the phone did not generate — so the
     // quicker row is still offered, and on exactly the ground the walk itself
     // would offer it.
     let machine = ChoiceInput {
         backend: Backend::Metal,
-        bandwidth_bytes_per_second: 140.0e9,
+        bandwidth_bytes_per_second: 200.0e9,
         ..input_with_phone(16, Some(true))
     };
     assert_eq!(chosen(&machine), "google/gemma-4-12B-it");
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&machine, &first.decode).expect("relief earns it a place");
-    assert_eq!(quick.entry.repo, "ibm-granite/granite-4.0-h-tiny");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(quick.entry.quant, "Q8_0", "the bigger file is the one in the phone's class");
     assert!(
         capability_basis(
             quick.entry.parameters,
@@ -1130,7 +1065,7 @@ fn a_phone_on_battery_still_earns_the_quicker_row_its_place() {
             Some(PHONE_PARAMS)
         )
         .is_none(),
-        "it is not offered as a capability claim: 7B of mixture with a 3.0B dense equivalent does not clear a bar against 4B"
+        "it is not offered as a capability claim: 2.69B dense does not clear the parameter bar against 4B"
     );
     assert!(
         quick.entry.weights_bytes as f64 >= PHONE_BYTES as f64 * SAME_CLASS_BAND,

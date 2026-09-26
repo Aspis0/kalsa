@@ -12,8 +12,8 @@
 //! nothing is claimed as capability.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, largest_that_runs_well, memory_budget, Backend,
-    ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB,
+    capability_basis, choose, footprint_bytes, largest_that_runs_well, memory_budget,
+    quicker_alternative, Backend, ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB,
 };
 
 fn main() {
@@ -116,6 +116,15 @@ fn main() {
                     "         {} bytes, sha256 {}",
                     row.download.bytes, row.download.sha256
                 );
+                match quicker_alternative(&input, &row.decode) {
+                    Some(second) => println!(
+                        "second:  {} ({}) — {} of weights",
+                        second.entry.display_name,
+                        second.entry.repo,
+                        gibs(second.entry.weights_bytes)
+                    ),
+                    None => println!("second:  none (nothing beside it clears the speed bar)"),
+                }
             }
             Err(refusal) => {
                 println!("refused ({:?}): {}", refusal.reason, refusal.explanation);
@@ -140,6 +149,15 @@ fn main() {
                 let plan = &selection.download;
                 println!("fetch:   {}", plan.url);
                 println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
+                match quicker_alternative(&input, &selection.decode) {
+                    Some(second) => println!(
+                        "second:  {} ({}) — {} of weights",
+                        second.entry.display_name,
+                        second.entry.repo,
+                        gibs(second.entry.weights_bytes)
+                    ),
+                    None => println!("second:  none (nothing beside it clears the speed bar)"),
+                }
                 println!("why:    {}", selection.plain_reason);
                 println!("detail: {}", selection.details);
             }

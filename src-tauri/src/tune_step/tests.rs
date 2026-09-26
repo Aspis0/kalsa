@@ -433,10 +433,10 @@ fn the_fingerprint_follows_the_launch_and_the_machine() {
 /// the machine never measures the thing it is fastest at.
 #[test]
 fn a_processor_fallback_still_tunes_the_graphics_candidate() {
-    // A machine whose 6 GiB card refuses the model: the choice falls
+    // A machine whose 5 GiB card refuses the model: the choice falls
     // through, and the stub decides the processor build.
     let machine = machine(Backend::DiscreteGpu {
-        vram_bytes: Some(6_439_305_216),
+        vram_bytes: Some(5 * 1024 * 1024 * 1024),
     });
     let (build, exe, _plan, _row, reason) = crate::startup::choose_with_processor_fallback(
         (ServerBackend::Vulkan, PathBuf::from("/gpu-exe")),

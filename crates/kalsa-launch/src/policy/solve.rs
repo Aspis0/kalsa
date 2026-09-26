@@ -67,11 +67,13 @@ fn a_plain_row_pays_no_per_slot_term() {
     let roof = (leftover / 4).min(6_442_450_944);
     assert_eq!(flat, (leftover - roof) / ASSUMED_KV_BYTES_PER_TOKEN);
 
-    // The shipped menu row the engine also allocates as one plain pool.
-    let phi = shipped_row("Microsoft Phi Mini");
-    assert_eq!(phi.slot_cache, SlotCache::None);
+    // A row with no pinned header to read geometry from pays nothing per
+    // slot: `SlotCache::None` is the honest empty, and the research row
+    // carries it (no file, so no header).
+    let research = shipped_row("Google Gemma 4 E2B");
+    assert_eq!(research.slot_cache, SlotCache::None);
     assert_eq!(
-        slot_cache_bytes(phi, 4096, KvCache::Q8_0, u64::from(UBATCH)),
+        slot_cache_bytes(research, 4096, KvCache::Q8_0, u64::from(UBATCH)),
         0
     );
 }

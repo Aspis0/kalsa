@@ -96,7 +96,7 @@ const SEEDED = [
 
 const MODEL = {
   id: "0f3e5d7c9b1a2468",
-  name: "IBM Granite 4 Tiny",
+  name: "Liquid LFM 2.5",
   quant: "Q4_K_M",
   weights_bytes: 4_000_000_000,
   context_tokens: 4584,
@@ -188,7 +188,7 @@ const STATES = [
   {
     name: "pick",
     file: "shots/70-brain-pick.png",
-    state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "IBM Granite 4 Tiny" },
+    state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" },
     capability: {
       kind: "measured",
       chosen: true,
@@ -213,7 +213,7 @@ const STATES = [
     state: {
       kind: "running",
       endpoint: "http://127.0.0.1:8080/v1",
-      model: "IBM Granite 4 Tiny",
+      model: "Liquid LFM 2.5",
       asleep: true,
     },
     capability: {
@@ -244,7 +244,7 @@ const STATES = [
     state: {
       kind: "running",
       endpoint: "http://127.0.0.1:8080/v1",
-      model: "IBM Granite 4 Tiny",
+      model: "Liquid LFM 2.5",
       metrics: { decode_tokens_per_second: 21.4, active_devices: [{ id: 1 }] },
     },
     capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: MODEL, quicker: null, refusal: null },
@@ -254,7 +254,7 @@ const STATES = [
   {
     name: "no-context",
     file: "shots/74-brain-no-context.png",
-    state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "IBM Granite 4 Tiny" },
+    state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" },
     capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
     marker: "12.0–21.0 tokens/s",
     presence: "This computer is ready for you.",

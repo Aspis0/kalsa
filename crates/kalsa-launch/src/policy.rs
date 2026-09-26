@@ -556,7 +556,7 @@ mod tests {
 
     /// The row most of these tests ride on: small enough to be fundable on
     /// every budget in the suite, shipped and usable.
-    const GRANITE: &str = "IBM Granite 4 Tiny";
+    const LFM: &str = "Liquid LFM 2.5";
 
     /// A real, usable catalog row, so the compiler — not this file — notices
     /// when the row's shape changes, and the tests exercise something the
@@ -667,21 +667,25 @@ mod tests {
 
     #[test]
     fn the_context_fits_after_the_chat_reserve_and_never_one_token_into_it() {
-        // Granite 4 Tiny (4_230_976_352 bytes) on an 8 GiB CPU machine:
-        // 5 GiB usable, minus the weights and 512 MiB of compute buffers,
-        // leaves 600_861_856 bytes. The sleeping-chat reserve takes a
-        // quarter — 150_215_464 bytes — and the row's own per-slot state
-        // (58_060_800 bytes of recurrent R+S, charged before a single token)
-        // comes out next: 392_585_592 bytes at 96 KiB/token = 3993 whole
-        // tokens. The machine could fund a 3994th; the reserve PLUS the state
-        // is what stops it, and that boundary is what the last assertions
-        // pin. `fits` prices only the flat per-token cache, so it cannot show
-        // this boundary; it is left as a weak sanity check only.
-        let model = shipped_row(GRANITE);
-        let budget = memory_budget(Backend::Cpu, 8 * GIB);
+        // Liquid LFM 2.5 (1_674_455_040 bytes) on a 5.55 GB CPU machine:
+        // the margin leaves 2_329_783_648 bytes, minus the weights and
+        // 512 MiB of compute buffers. The sleeping-chat reserve takes a
+        // quarter of what is left, and the row's own per-slot conv state
+        // (360_448 bytes, charged before a single token) comes out next:
+        // the rest, at the row's own measured 8192 bytes a token, buys
+        // 10 708 whole tokens. The machine could fund a 10 709th; the
+        // reserve PLUS the state is what stops it, and that boundary is what
+        // the last assertions pin. `fits` prices only the flat per-token
+        // cache, so it cannot show this boundary; it is left as a weak
+        // sanity check only.
+        let model = shipped_row(LFM);
+        let budget = memory_budget(Backend::Cpu, 5_550_000_000);
+        let per_token = model
+            .kv_bytes_per_token
+            .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 3_993);
+        assert_eq!(launched.args.context_tokens, 10_708);
         assert!(fits(model, launched.args.context_tokens, &budget));
         let state = slot_cache_bytes(
             model,
@@ -689,7 +693,7 @@ mod tests {
             KvCache::Q8_0,
             u64::from(crate::args::UBATCH),
         );
-        assert_eq!(state, 58_060_800, "Granite's recurrent state, per slot");
+        assert_eq!(state, 360_448, "the conv state, per slot");
         let leftover = budget.usable_bytes
             - model
                 .weights_bytes
@@ -697,18 +701,20 @@ mod tests {
                 .saturating_add(COMPUTE_BUFFER_BYTES);
         let roof = leftover / PROMPT_CACHE_ROOF_SHARE;
         assert!(
-            roof + state + (launched.args.context_tokens + 1) * ASSUMED_KV_BYTES_PER_TOKEN
-                > leftover,
+            roof + state + (launched.args.context_tokens + 1) * per_token > leftover,
             "one more token would be taken from the sleeping chats' reserve"
         );
         assert!(
-            roof + state + launched.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN <= leftover,
+            roof + state + launched.args.context_tokens * per_token <= leftover,
             "the funded context never reaches into the reserve"
         );
-        assert_eq!(launched.memory.kv_cache_bytes, 3_993 * 96 * KIB + state);
+        assert_eq!(
+            launched.memory.kv_cache_bytes,
+            launched.args.context_tokens * per_token + state
+        );
         assert!(
-            launched.memory.kv_per_token_assumed,
-            "Granite still prices its context on the assumption"
+            !launched.memory.kv_per_token_assumed,
+            "the row carries its own per-token figure, so the assumption is not in the arithmetic"
         );
         // The roof the plan carries is the reserve, in whole MiB.
         assert_eq!(
@@ -732,7 +738,7 @@ mod tests {
 
     #[test]
     fn the_cpu_build_gets_no_gpu_flags() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -746,7 +752,7 @@ mod tests {
         // VRAM could not be read honestly, so the budget is system RAM and
         // says the card was not accounted for: CPU decode, forced explicitly,
         // because a GPU build would otherwise offload every layer by default.
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let unreadable = memory_budget(Backend::DiscreteGpu { vram_bytes: None }, 32 * GIB);
         assert!(!unreadable.gpu_accounted_for);
         let launched = plan(&input(
@@ -769,7 +775,7 @@ mod tests {
 
     #[test]
     fn a_gpu_the_budget_was_sized_for_gets_every_layer() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         // The card's own memory is the budget: usable(8 GiB) = 5 GiB, and the
         // 4 GiB model was chosen against it, so full offload is what the
         // catalog already promised.
@@ -793,7 +799,7 @@ mod tests {
 
     #[test]
     fn the_thread_count_is_the_measured_plateau_not_a_fraction() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -825,7 +831,7 @@ mod tests {
     /// when the physical count is unknown.
     #[test]
     fn the_thread_count_is_capped_by_the_physical_cores() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
 
         // The Lenovo (16 physical / 22 logical): the plateau read 22, and
@@ -923,7 +929,7 @@ mod tests {
         // turn (cache_n 0, ~4.0 s at 4.5k tokens). One classic slot keeps
         // the prompt cache in the game — the same turn measured 187 ms —
         // which is why the flag says 1 and not the default.
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Metal, 64 * GIB);
         let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -1032,29 +1038,35 @@ mod tests {
     /// carry the same context and this goes RED.
     ///
     /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 3993
-    /// tokens at q8_0, four orders of magnitude below its 1_048_576-token
-    /// trained cap, so the cap does not bind and the halving is visible. At
-    /// f16 the same leftover buys 1996, which is `3993 / 2`. The row's F32
-    /// per-slot state is charged first and does NOT double with the cache
-    /// type, so the equality is the floored one the assertion states.
+    /// tokens at q8_0 on 6 GiB, below its 131_072-token trained cap, so the
+    /// cap does not bind and the halving is visible: 92_415 at q8_0 and
+    /// 46_207 at f16, which is `92_415 / 2` floored. The row's F32 per-slot
+    /// conv state is charged first and does NOT double with the cache type,
+    /// so the equality is the floored one the assertion states.
     #[test]
     fn the_cache_type_halves_the_context_the_budget_funds() {
-        let model = shipped_row(GRANITE);
-        let budget = memory_budget(Backend::Cpu, 8 * GIB);
-        let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
-            .expect("the model is fundable");
-        let f16 = plan(&LaunchInput {
+        let model = shipped_row(LFM);
+        let budget = memory_budget(Backend::Cpu, 6 * GIB);
+        let q8_0_input = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
+        let f16_input = LaunchInput {
             kv_cache: KvCache::F16,
             ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
-        })
-        .expect("the model is fundable");
+        };
+        let q8_0 = plan(&q8_0_input).expect("the model is fundable");
+        let f16 = plan(&f16_input).expect("the model is fundable");
         assert_eq!(q8_0.args.kv_cache, KvCache::Q8_0);
         assert_eq!(f16.args.kv_cache, KvCache::F16);
-        assert_eq!(q8_0.args.context_tokens, 3_993);
-        assert_eq!(f16.args.context_tokens, 1_996);
+        // The plan takes the chat default where the budget funds more of it,
+        // and the budget's own smaller figure where it does not.
+        assert_eq!(q8_0.args.context_tokens, 65_536);
+        assert_eq!(f16.args.context_tokens, 46_207);
+        let q8_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
+        let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
+        assert_eq!(q8_funded, 92_415);
+        assert_eq!(f16_funded, 46_207);
         assert_eq!(
-            f16.args.context_tokens,
-            q8_0.args.context_tokens / 2,
+            f16_funded,
+            q8_funded / 2,
             "the f16 funded context must be half the q8_0 one"
         );
     }
@@ -1065,16 +1077,18 @@ mod tests {
     /// warm start is lost. The roof must therefore follow the cache type the
     /// same way the context arithmetic does.
     ///
-    /// Granite 4 Tiny on 64 GiB of CPU: at q8_0 the two-long-chats term binds
-    /// (6144 MiB); at f16 the same two chats are priced twice and the
-    /// quarter-of-the-leftover rule caps them (11_151 MiB). The context the
-    /// budget funds, carved after the roof and after the row's 55.371 MiB
-    /// per-slot recurrent state, drops from 409_660 tokens to 178_124. Both
-    /// automatic contexts are the 65 536 chat default, so the
-    /// roof's effect is read from the FUNDED MAXIMA, where it still decides.
+    /// Liquid LFM 2.5 on 64 GiB of CPU: at q8_0 the two-long-chats term
+    /// binds (6144 MiB); at f16 the same two chats are priced twice and the
+    /// quarter-of-the-leftover rule caps them. The roof the argv carries
+    /// follows the cache type, which is the promise being pinned here. Both
+    /// automatic contexts are the 65 536 chat default, and both FUNDED
+    /// maxima sit on the row's trained 131_072 — the cap binds before the
+    /// roof at this size, so the roof's own figure above is where the cache
+    /// type still decides; the budget-funded half of the arithmetic is
+    /// pinned in `the_cache_type_halves_the_context_the_budget_funds`.
     #[test]
     fn the_prompt_cache_roof_keeps_its_two_chat_promise_at_f16() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
         let q8_0_input = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
         let f16_input = LaunchInput {
@@ -1095,11 +1109,10 @@ mod tests {
         assert_eq!(f16.args.context_tokens, DEFAULT_CONTEXT_TOKENS);
         let q8_0_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
         let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
-        assert_eq!(q8_0_funded, 409_660);
-        assert_eq!(f16_funded, 178_124);
-        assert!(
-            f16_funded < q8_0_funded / 2,
-            "the bigger roof must make the f16 funded maximum smaller than half the q8_0 one"
+        assert_eq!(q8_0_funded, 131_072, "the trained cap binds first at this size");
+        assert_eq!(
+            f16_funded, 131_072,
+            "and it binds for both caches: the roof's effect lives in the roof above"
         );
     }
 
@@ -1109,7 +1122,7 @@ mod tests {
     /// stays q8_0-only; the multiplier belongs here, where the choice is known.
     #[test]
     fn the_memory_report_is_true_for_the_chosen_cache() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 64 * GIB);
         let q8_0 = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -1126,16 +1139,19 @@ mod tests {
             u64::from(crate::args::UBATCH),
         );
         assert_eq!(
-            state, 58_060_800,
+            state, 360_448,
             "the recurrent state is F32: the cache type does not scale it"
         );
+        let per_token = model
+            .kv_bytes_per_token
+            .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
         assert_eq!(
             q8_0.memory.kv_cache_bytes,
-            q8_0.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN + state
+            q8_0.memory.context_tokens * per_token + state
         );
         assert_eq!(
             f16.memory.kv_cache_bytes,
-            f16.memory.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN * 2 + state,
+            f16.memory.context_tokens * per_token * 2 + state,
             "the f16 per-token half doubles; the F32 per-slot state does not"
         );
         assert_eq!(
@@ -1155,7 +1171,7 @@ mod tests {
     /// number beside the control would be a second arithmetic.
     #[test]
     fn the_panels_price_is_the_launchers_own_kv_arithmetic() {
-        for name in ["Alibaba Qwen 3.6", "Google Gemma 4 12B", GRANITE] {
+        for name in ["Alibaba Qwen 3.6", "Google Gemma 4 12B", LFM] {
             let model = shipped_row(name);
             let budget = memory_budget(Backend::Metal, 64 * GIB);
             let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
@@ -1182,7 +1198,7 @@ mod tests {
 
     #[test]
     fn the_server_stays_on_loopback_and_goes_cold_when_idle() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -1273,7 +1289,7 @@ mod tests {
     /// test that goes red.
     #[test]
     fn the_disk_tier_flags_reach_the_line_and_swa_full_stays_out() {
-        let model = shipped_row(GRANITE);
+        let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Cpu, 16 * GIB);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
@@ -1298,7 +1314,7 @@ mod tests {
 
     #[test]
     fn the_context_stops_where_the_model_was_trained() {
-        let mut model = *shipped_row(GRANITE);
+        let mut model = *shipped_row(LFM);
         model.trained_context_tokens = Some(8_192);
         assert_eq!(
             funded_context(&model, ROOMY_BYTES, 1),
@@ -1310,10 +1326,13 @@ mod tests {
     #[test]
     fn a_small_machine_is_still_limited_by_its_memory() {
         // The cap is a ceiling, not a floor: where the memory funds less than
-        // the model was trained for, the memory still decides.
-        let mut model = *shipped_row(GRANITE);
+        // the model was trained for, the memory still decides. 8 GiB funds
+        // LFM2.5-2.6B a quarter of a million tokens — well under the fake
+        // million-token cap the row is handed here.
+        let mut model = *shipped_row(LFM);
         model.trained_context_tokens = Some(1_000_000);
-        let funded = funded_context(&model, ROOMY_BYTES, 1).expect("a window");
+        let budget = memory_budget(Backend::Cpu, 8 * GIB);
+        let funded = funded_context(&model, budget.usable_bytes, 1).expect("a window");
         assert!(
             funded < 1_000_000,
             "the trained figure became a promise the memory cannot keep: {funded}"
@@ -1322,7 +1341,7 @@ mod tests {
 
     #[test]
     fn a_row_with_no_header_read_keeps_the_memory_figure() {
-        let mut model = *shipped_row(GRANITE);
+        let mut model = *shipped_row(LFM);
         model.trained_context_tokens = None;
         let uncapped = funded_context(&model, ROOMY_BYTES, 1).expect("a window");
         model.trained_context_tokens = Some(u64::MAX);
@@ -1334,7 +1353,7 @@ mod tests {
         // Absent, the memory figure stands; zero, the length is unreadable
         // and nothing may be started from it. Collapsing the two would blame
         // the machine for a header we read wrong.
-        let mut model = *shipped_row(GRANITE);
+        let mut model = *shipped_row(LFM);
         model.trained_context_tokens = None;
         assert!(!trained_context_unreadable(&model));
         assert!(funded_context(&model, ROOMY_BYTES, 1).is_some());

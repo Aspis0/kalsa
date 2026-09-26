@@ -49,7 +49,7 @@ fn limited_input<'a>(
 /// `--parallel 0` beside one-slot arithmetic.
 #[test]
 fn a_zero_slot_count_is_clamped_to_one_slot() {
-    let model = shipped_row("IBM Granite 4 Tiny");
+    let model = shipped_row("Liquid LFM 2.5");
     let budget = memory_budget(Backend::Cpu, 8 * GIB);
     let zero = plan(&device_input(ServerBackend::Cpu, budget, model, 0)).expect("fundable");
     let one = plan(&device_input(ServerBackend::Cpu, budget, model, 1)).expect("fundable");
@@ -64,21 +64,21 @@ fn a_zero_slot_count_is_clamped_to_one_slot() {
 /// with no owner choice the context is the chat default where the machine
 /// funds it ([`DEFAULT_CONTEXT_TOKENS`]), and still the machine's own figure
 /// where it does not. The engine's division by one is exact, so aligning
-/// would trade tokens the engine pads back for nothing. Granite on 8 GiB is
-/// the small machine the existing suite already pins — its 3993 tokens (after
-/// its 55.371 MiB per-slot recurrent state) are below the default, so they
-/// stay 3993 — and the on-disk big row is what the app actually runs, where
-/// the automatic figure moves 262 144 → 65 536.
+/// would trade tokens the engine pads back for nothing. Liquid LFM 2.5 on a
+/// 5.55 GB machine is the small machine the existing suite already pins —
+/// its 10 708 tokens (after its 360 448-byte per-slot conv state) are below
+/// the default, so they stay 10 708 — and the on-disk big row is what the
+/// app actually runs, where the automatic figure moves 262 144 → 65 536.
 #[test]
 fn one_slot_is_still_todays_number() {
-    let granite = shipped_row("IBM Granite 4 Tiny");
-    let small = memory_budget(Backend::Cpu, 8 * GIB);
-    let one = plan(&device_input(ServerBackend::Cpu, small, granite, 1)).expect("fundable");
-    assert_eq!(one.args.context_tokens, 3_993);
+    let lfm = shipped_row("Liquid LFM 2.5");
+    let small = memory_budget(Backend::Cpu, 5_550_000_000);
+    let one = plan(&device_input(ServerBackend::Cpu, small, lfm, 1)).expect("fundable");
+    assert_eq!(one.args.context_tokens, 10_708);
     assert_eq!(one.args.parallel, 1);
     assert_eq!(
-        funded_context(granite, small.usable_bytes, 1),
-        Some(3_993),
+        funded_context(lfm, small.usable_bytes, 1),
+        Some(10_708),
         "the preview reads the same window as the one-slot plan"
     );
 
@@ -112,16 +112,16 @@ fn the_automatic_context_is_the_chat_default_or_the_machines_own_figure() {
         "the intended change: this argv used to say 262144\n{line}"
     );
 
-    // An 8 GiB machine funds 3993 and must keep getting 3993: the default is
-    // a cap, never a promise the memory cannot keep.
-    let granite = shipped_row("IBM Granite 4 Tiny");
-    let small = memory_budget(Backend::Cpu, 8 * GIB);
+    // A 5.55 GB machine funds 10 708 and must keep getting 10 708: the
+    // default is a cap, never a promise the memory cannot keep.
+    let lfm = shipped_row("Liquid LFM 2.5");
+    let small = memory_budget(Backend::Cpu, 5_550_000_000);
     let automatic =
-        plan(&device_input(ServerBackend::Cpu, small, granite, 1)).expect("fundable");
-    assert_eq!(automatic.args.context_tokens, 3_993);
+        plan(&device_input(ServerBackend::Cpu, small, lfm, 1)).expect("fundable");
+    assert_eq!(automatic.args.context_tokens, 10_708);
     assert_eq!(
-        funded_maximum(&device_input(ServerBackend::Cpu, small, granite, 1)),
-        Some(3_993),
+        funded_maximum(&device_input(ServerBackend::Cpu, small, lfm, 1)),
+        Some(10_708),
         "the maximum is the machine's own figure, not the default"
     );
 }
@@ -243,7 +243,7 @@ fn the_owners_total_is_divided_the_way_the_engine_divides_it() {
 /// slot count exactly as it is at one.
 #[test]
 fn a_zero_trained_length_is_refused_at_every_slot_count() {
-    let mut model = *shipped_row("IBM Granite 4 Tiny");
+    let mut model = *shipped_row("Liquid LFM 2.5");
     model.trained_context_tokens = Some(0);
     let budget = memory_budget(Backend::Cpu, 16 * GIB);
     assert!(plan(&device_input(ServerBackend::Cpu, budget, &model, 1)).is_none());
@@ -252,16 +252,16 @@ fn a_zero_trained_length_is_refused_at_every_slot_count() {
 
 /// THE floor refusal, and the only test of the floor: a machine that cannot
 /// give every slot 4096 tokens refuses rather than serving a smaller slot.
-/// Granite on 8 GiB funds 3993 in total, so four slots would get 998, cut by
-/// the engine's 256 alignment to 768 — below the 4096 a slot needs for a
-/// real conversation (`docs/MULTI-DEVICE-SHAPE.md` §4). The accept boundary,
-/// Phi Mini landing exactly on 4096 a slot at N=4, is in `menu.rs`.
+/// Liquid LFM 2.5 on a 5.55 GB machine funds 10 708 in total, so four slots
+/// would get 2677, cut by the engine's 256 alignment to 2560 — below the
+/// 4096 a slot needs for a real conversation (`docs/MULTI-DEVICE-SHAPE.md`
+/// §4).
 #[test]
 fn a_budget_that_cannot_floor_four_slots_is_refused() {
-    let model = shipped_row("IBM Granite 4 Tiny");
-    let budget = memory_budget(Backend::Cpu, 8 * GIB);
+    let model = shipped_row("Liquid LFM 2.5");
+    let budget = memory_budget(Backend::Cpu, 5_550_000_000);
     let one = plan(&device_input(ServerBackend::Cpu, budget, model, 1)).expect("one slot fits");
-    assert_eq!(one.args.context_tokens, 3_993);
+    assert_eq!(one.args.context_tokens, 10_708);
     assert!(
         one.args.context_tokens / 4 < MIN_CONTEXT_TOKENS_PER_SLOT,
         "the budget must be short of the floor for four slots"

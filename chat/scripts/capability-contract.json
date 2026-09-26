@@ -34,7 +34,7 @@
       "details": "the full working",
       "id": "0000000000000001",
       "measured": 18.4,
-      "name": "IBM Granite 4 Tiny",
+      "name": "Liquid LFM 2.5",
       "quant": "Q4_K_M",
       "reason": "It runs a clearly bigger model than your phone does.",
       "speed": {

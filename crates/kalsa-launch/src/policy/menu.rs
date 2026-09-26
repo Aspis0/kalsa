@@ -8,10 +8,10 @@
 //! The offer table is per DEVICE (what one phone gets), q8_0, on a 64 GiB Mac.
 //! It is the real answer, not the 4096 floor: on this machine a row usually
 //! offers tens of thousands of tokens per device, and the floor appears only
-//! as a refusal (in `slots.rs`) and as Phi Mini's accept boundary.
+//! as a refusal (in `slots.rs`).
 //!
 //! The three sliding-window rows — Gemma 4 26B, Gemma 4 12B,
-//! Gemma 4 E4B — and the three recurrent rows (Qwen 3.6, Granite 4 Tiny,
+//! Gemma 4 E4B — and the two recurrent rows (Qwen 3.6,
 //! LFM 2.5) carry their per-slot geometry, so the plan prices the replication
 //! `docs/MULTI-DEVICE-SHAPE.md` §7 measured (+167 MiB going np=1 → np=4 on
 //! Trinity-Nano) instead of a flat per-token cache. The per-token half is
@@ -73,8 +73,8 @@ struct Offer {
     n2: (u64, Bind),
     n4: (u64, Bind),
     /// Sliding-window hybrid: carries a per-slot window pool, whose header
-    /// geometry `slot_cache.rs` pins. The recurrent rows (Qwen 3.6, Granite 4
-    /// Tiny, LFM 2.5) carry a per-slot state too but no window, so they are
+    /// geometry `slot_cache.rs` pins. The recurrent rows (Qwen 3.6,
+    /// LFM 2.5) carry a per-slot state too but no window, so they are
     /// not marked here; their terms are pinned in the same module.
     swa: bool,
     /// Carries a measured per-token cache figure rather than the assumption.
@@ -123,38 +123,18 @@ const OFFERS: &[Offer] = &[
         swa: true,
         measured_kv: false,
     },
-    // THE 4096-trained row: the training length bounds each slot, so four
-    // slots each take the full 4096 and the total is 16384. That lands the
-    // slot exactly on the floor — the accept boundary — and the old clamp on
-    // the total would have served 1024 a slot in silence.
-    Offer {
-        name: "Microsoft Phi Mini",
-        n1: (4_096, Bind::Trained),
-        n2: (4_096, Bind::Trained),
-        n4: (4_096, Bind::Trained),
-        swa: false,
-        measured_kv: false,
-    },
-    // Mid-range controls.
+    // The smallest shipped row, at its own per-token figure (8192 bytes,
+    // read from its header) plus its 360 448-byte conv state a slot: the
+    // trained 131_072 binds every slot count on a 64 GiB Mac, and the two
+    // compressions of the row share this one name — `menu()` answers with
+    // the first (Q4_K_M).
     Offer {
         name: "Liquid LFM 2.5",
-        n1: (128_000, Bind::Trained),
-        n2: (128_000, Bind::Trained),
-        n4: (101_632, Bind::Memory),
+        n1: (131_072, Bind::Trained),
+        n2: (131_072, Bind::Trained),
+        n4: (131_072, Bind::Trained),
         swa: false,
-        measured_kv: false,
-    },
-    // Not the plain control it used to be: `granitehybrid` is 4 attention +
-    // 36 recurrent layers, so 55.371 MiB of F32 R+S state a slot is paid
-    // before the context. Its three figures move; the other dense rows in this
-    // table (Phi Mini) do not.
-    Offer {
-        name: "IBM Granite 4 Tiny",
-        n1: (409_660, Bind::Memory),
-        n2: (204_288, Bind::Memory),
-        n4: (101_888, Bind::Memory),
-        swa: false,
-        measured_kv: false,
+        measured_kv: true,
     },
 ];
 
@@ -278,10 +258,9 @@ fn every_offered_row_keeps_the_invariants_at_every_slot_count() {
 }
 
 /// The cache figure is the row's own measurement or the shared assumption,
-/// and never the other one; Phi Mini is the row that lands exactly on the
-/// floor at N=4, which is the floor's accept boundary.
+/// and never the other one.
 #[test]
-fn the_menu_rows_price_their_cache_and_the_4096_row_lands_on_the_floor() {
+fn the_menu_rows_price_their_cache() {
     let budget = memory_budget(Backend::Metal, 64 * GIB);
     let rows = menu();
     for offer in OFFERS {
@@ -317,14 +296,6 @@ fn the_menu_rows_price_their_cache_and_the_4096_row_lands_on_the_floor() {
             offer.name
         );
     }
-    let phi = shipped_row("Microsoft Phi Mini");
-    let planned = plan(&device_input(ServerBackend::Metal, budget, phi, 4)).expect("marketed");
-    assert_eq!(planned.args.context_tokens, 16_384);
-    assert_eq!(
-        planned.args.context_tokens / 4,
-        MIN_CONTEXT_TOKENS_PER_SLOT,
-        "Phi Mini's four slots land exactly on the floor: the accept boundary"
-    );
 }
 
 /// The sliding-window rows carry the per-slot term the plan used to omit:
@@ -366,8 +337,8 @@ fn the_sliding_window_rows_carry_their_per_slot_term() {
     );
     assert_eq!(
         OFFERS.iter().filter(|offer| !offer.swa).count(),
-        4,
-        "the non-window set on the menu changed (three recurrent + Phi Mini)"
+        2,
+        "the non-window set on the menu changed (two recurrent rows)"
     );
 }
 

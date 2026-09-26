@@ -527,7 +527,7 @@ mod tests {
             chosen: true,
             model: Some(ModelChoiceDto {
                 id: Some("0000000000000001".to_string()),
-                name: "IBM Granite 4 Tiny".to_string(),
+                name: "Liquid LFM 2.5".to_string(),
                 quant: "Q4_K_M".to_string(),
                 weights_bytes: 4_000_000_000,
                 context_tokens: Some(4584),
@@ -575,7 +575,7 @@ mod tests {
         assert_eq!(json["machine"]["gpu_accounted_for"], true);
         assert_eq!(json["machine"]["runs_on"], "the graphics chip");
         assert_eq!(json["machine"]["bandwidth_basis"], "chip");
-        assert_eq!(json["model"]["name"], "IBM Granite 4 Tiny");
+        assert_eq!(json["model"]["name"], "Liquid LFM 2.5");
         assert_eq!(json["model"]["speed"]["shape"], "range");
         assert_eq!(json["model"]["speed"]["low"], 12.0);
         assert_eq!(json["model"]["speed"]["high"], 21.0);

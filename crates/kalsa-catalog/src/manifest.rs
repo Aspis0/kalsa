@@ -301,8 +301,8 @@ static TEST_ONLY_SOURCE: GgufSource = GgufSource {
     sha256: "0000000000000000000000000000000000000000000000000000000000000000",
 };
 
-/// The research record: rows sized on paper, one of them refused, none of
-/// them with an identified file. This table is why the audit page can say
+/// The research record: rows sized on paper, none of them with an
+/// identified file. This table is why the audit page can say
 /// what was evaluated and turned down — and it is structurally NOT the
 /// chooser's menu; nothing here can produce a [`DownloadPlan`](crate::DownloadPlan).
 pub const CATALOG: &[ModelEntry] = &[
@@ -351,23 +351,6 @@ pub const CATALOG: &[ModelEntry] = &[
         trained_context_tokens: None,
         stale: None,
     },
-    ModelEntry {
-        repo: "mistralai/Ministral-3-8B-Instruct-2512",
-        display_name: "Mistral Ministral 3",
-        last_modified: "2026-07-15",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::dense(8_800_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(4, 84),
-        mmproj_bytes: Some(gigabytes(0, 86)),
-        kv_bytes_per_token: None,
-        slot_cache: SlotCache::None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        trained_context_tokens: None,
-        stale: None,
-    },
     // Google Gemma 4 12B moved to DOWNLOADABLE (2026-09-17): its pinned file
     // was identified, verified against the response headers, downloaded and
     // hashed. See the download table.
@@ -375,44 +358,6 @@ pub const CATALOG: &[ModelEntry] = &[
     // was identified and verified. See the download table.
     // Qwen3.6-35B-A3B moved to DOWNLOADABLE (2026-09-16): its pinned file
     // was identified and verified. See the download table.
-    ModelEntry {
-        repo: "llm-jp/llm-jp-4-32b-a3b-thinking",
-        display_name: "LLM-jp 4",
-        last_modified: "2026-04-24",
-        licence: Licence::Open("apache-2.0"),
-        parameters: Parameters::mixture(32_100_000_000, 3_830_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(19, 93),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        slot_cache: SlotCache::None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        trained_context_tokens: None,
-        stale: None,
-    },
-    // ── refused, kept for the record ────────────────────────────────────────
-    ModelEntry {
-        repo: "amd/Instella-MoE-16B-A3B-Think",
-        display_name: "AMD Instella",
-        last_modified: "2026-09-02",
-        licence: Licence::Blocked {
-            id: "researchrail",
-            reason: "research only: a paid fine-tune of this base would not be licit",
-        },
-        parameters: Parameters::mixture(16_000_000_000, 2_800_000_000),
-        quant: "Q4_K_M",
-        weights_bytes: gigabytes(9, 75),
-        mmproj_bytes: None,
-        kv_bytes_per_token: None,
-        slot_cache: SlotCache::None,
-        dense_equivalent: None,
-        kv_assumption_undercounts: false,
-        measured_decode: None,
-        trained_context_tokens: None,
-        stale: None,
-    },
 ];
 
 /// The chooser's menu: rows whose weights are one exact, pinned, verified
@@ -439,133 +384,6 @@ pub const CATALOG: &[ModelEntry] = &[
 /// [`GgufSource`] is a compile error, which is the whole point of the
 /// split.
 pub const DOWNLOADABLE: &[DownloadableEntry] = &[
-    // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-8B-A1B",
-            display_name: "Liquid LFM 2.5",
-            last_modified: "2026-08-24T21:05:21.000Z",
-            // LFM 1.0 permits commercial use only for entities under $10M annual
-            // revenue: a condition on whoever ships a paid fine-tune of this base,
-            // not a refusal of the row. See Licence::Conditional.
-            licence: Licence::Conditional {
-                id: "lfm1.0",
-                condition: "commercial use only for entities under $10M annual revenue",
-            },
-            parameters: Parameters::mixture(8_300_000_000, 1_500_000_000),
-            quant: "IQ4_XS",
-            weights_bytes: 4_588_301_888,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            // `lfm2moe` is a hybrid: `head_count_kv` is an array with six
-            // non-zero entries (layers 2, 6, 10, 14, 18, 21), so 18 of the 24
-            // blocks are shortconv-recurrent (`lfm2moe.cpp:13` marks a layer
-            // recurrent when `n_head_kv == 0`; confirmed on THIS pinned
-            // file's header). The cached state is the conv history only:
-            // `n_embd_r() = n_embd x (l_cache - 1)` (`llama-hparams.cpp:216`),
-            // read as `embedding_length 2048` and `shortconv.l_cache 3`, and
-            // there is no S state (no `ssm.*` keys, so `n_embd_s()` is 0).
-            // F32 and one row per sequence (`llama-model.cpp:2681`):
-            // 18 x 4_096 x 4 = 294_912 B = 0.28 MiB per slot.
-            slot_cache: SlotCache::Recurrent {
-                bytes_per_slot: 294_912,
-            },
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(128_000),
-            stale: None,
-        },
-        source: GgufSource {
-            repo: "liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF",
-            commit: "dc77c293fd6f9107db3c9cecfb19befe2ae49755",
-            file: "LFM2.5-8B-A1B-IQ4_XS.gguf",
-            bytes: 4_588_301_888,
-            sha256: "2237675ffa1c2d5a277db4ef02b79e613fc172d4b63511ae8cbcb8c3d75d1148",
-        },
-    },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "microsoft/Phi-mini-MoE-instruct",
-            display_name: "Microsoft Phi Mini",
-            last_modified: "2025-12-10T18:20:28.000Z",
-            licence: Licence::Open("mit"),
-            parameters: Parameters::mixture(7_600_000_000, 2_400_000_000),
-            quant: "Q4_K_S",
-            weights_bytes: 4_616_170_016,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            slot_cache: SlotCache::None,
-            // Microsoft's model card runs the same lm-evaluation-harness table for
-            // this row and the dense Phi-3 models of the same lab: the published
-            // place to put it is near Phi-3 mini, clearly below Phi-3 small.
-            dense_equivalent: Some(DenseEquivalent {
-                parameters: 3_800_000_000,
-                note: "near Phi-3 mini on the model card's evaluation table, clearly below \
-                       Phi-3 small (7.4B)",
-                source: "Microsoft's Phi-mini-MoE-instruct model card, accessed 2026-09-14",
-            }),
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(4_096),
-            stale: None,
-        },
-        source: GgufSource {
-            repo: "smarttasks/Phi-mini-MoE-instruct-GGUF",
-            commit: "ba0df1bd60632b932002d3aaae14808de2c0d804",
-            file: "Phi-mini-MoE-instruct-Q4_K_S.gguf",
-            bytes: 4_616_170_016,
-            sha256: "16e1824f25a890ead375fd7f6476ef0813128079796286319e5594e8ffa1aefa",
-        },
-    },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "ibm-granite/granite-4.0-h-tiny",
-            display_name: "IBM Granite 4 Tiny",
-            last_modified: "2025-11-03T19:42:57.000Z",
-            licence: Licence::Open("apache-2.0"),
-            parameters: Parameters::mixture(7_000_000_000, 1_000_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 4_230_976_352,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            // `granitehybrid`, not a plain transformer: `head_count_kv` is an
-            // array whose four non-zero entries are layers 5, 15, 25, 35 of
-            // 40 (read from THIS pinned file's header on 2026-09-21), so 36
-            // blocks are Mamba-style recurrent (`granite-hybrid.cpp:24` marks
-            // a layer recurrent when `n_head_kv == 0`). Per recurrent layer
-            // the cached state is R+S = (conv_kernel - 1) x (inner + 2 x
-            // group x state) + state x inner (`llama-hparams.cpp:229,257`),
-            // header values `ssm.conv_kernel 4`, `ssm.inner_size 3072`,
-            // `ssm.group_count 1`, `ssm.state_size 128` — 3 x 3328 + 393_216
-            // = 403_200 F32 elements. One row per sequence
-            // (`llama-model.cpp:2681`): 36 x 403_200 x 4 = 58_060_800 B =
-            // 55.371 MiB per slot at every context.
-            slot_cache: SlotCache::Recurrent {
-                bytes_per_slot: 58_060_800,
-            },
-            // IBM's own documentation compares this row to their dense Granite
-            // 4.0 H-Micro, trained on the same recipe — the strongest evidence
-            // that exists for a MoE's class, and it exists only for this row.
-            dense_equivalent: Some(DenseEquivalent {
-                parameters: 3_000_000_000,
-                note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below on BBH and \
-                       IFEval",
-                source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
-            }),
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(1_048_576),
-            stale: None,
-        },
-        source: GgufSource {
-            repo: "ibm-granite/granite-4.0-h-tiny-GGUF",
-            commit: "08d5a8a9741dd5c1a95d2d39e25253226aa1464e",
-            file: "granite-4.0-h-tiny-Q4_K_M.gguf",
-            bytes: 4_230_976_352,
-            sha256: "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
-        },
-    },
     // ── Google Gemma 4 26B-A4B, verified 2026-09-18 ────────────────────────
     // Google's own quantisation-aware training build, not a post-training
     // quantisation of it: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, apache-2.0
@@ -822,6 +640,113 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "gemma-4-12B-it-Q4_K_M.gguf",
             bytes: 7_662_533_088,
             sha256: "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509",
+        },
+    },
+    // ── LiquidAI LFM2.5-2.6B, verified against the Hugging Face API on 2026-09-26 ──
+    // The same model the phone app ships, pinned at commit
+    // `e7caca5d835a3901a8e0d63e94009429bafafdfc`, two files of one row each:
+    // the same weights at two compressions, so a small machine gets Q4_K_M
+    // and a machine with room gets the less compressed Q8_0. The chooser
+    // takes the biggest that runs (`largest_that_runs_well`), so Q8_0 wins
+    // wherever it fits and Q4_K_M covers what it does not.
+    //
+    // `general.architecture` was read from THIS pinned file's own GGUF
+    // header by range-requesting its first bytes: `lfm2` — found in
+    // llama-arch.cpp at b10950, quoting that file:
+    // `{ LLM_ARCH_LFM2, "lfm2" }` line 127. `curl -sIL` on the resolve URL
+    // returned exactly the `x-linked-size` and `x-linked-etag` below.
+    //
+    // Licence `lfm1.0` (read from this repo's own LICENSE), as a condition
+    // and not a refusal: §1 Definitions — `"Threshold" shall mean annual
+    // revenue of 10 million United States dollars ($10,000,000) or more` —
+    // and §5 Commercial Use Limitation: (a) the rights for Commercial Use
+    // are `conditioned upon You or Your Legal Entity not exceeding the
+    // Threshold`, (b) commercial use by an entity that exceeds it `is not
+    // licensed under this Agreement`, (c) the Threshold does not apply to a
+    // Qualified Non-Profit's non-commercial or research use.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "LiquidAI/LFM2.5-2.6B",
+            display_name: "Liquid LFM 2.5",
+            last_modified: "2026-09-22T20:42:43.000Z",
+            licence: Licence::Conditional {
+                id: "lfm1.0",
+                condition: "commercial use only for entities under $10M annual revenue",
+            },
+            parameters: Parameters::dense(2_697_198_592),
+            quant: "Q4_K_M",
+            weights_bytes: 1_674_455_040,
+            mmproj_bytes: None,
+            // From THIS pinned file's header: `lfm2.attention.head_count_kv`
+            // is per layer — 30 entries, 22 zeros and 8 eights — so 8 of the
+            // 30 blocks hold attention, with 8 KV heads each.
+            // `attention.key_length` / `value_length` are ABSENT from the
+            // header, and the engine defaults them to n_embd / n_head =
+            // 2048 / 32 = 64 (llama-model.cpp:1344-1349 at b10950, where the
+            // default is set before the key is looked up). So:
+            // 8 x 8 x (64 + 64) = 8_192 elements per token, one byte each at
+            // the q8_0 cache the launcher pins — a tenth of the shared
+            // 96 KiB assumption, which therefore errs safe for this row.
+            kv_bytes_per_token: Some(8_192),
+            // The hybrid half: 22 of the 30 blocks are shortconv-recurrent
+            // (`src/models/lfm2.cpp:12` at b10950:
+            // `hparams.is_recr_impl[il] = hparams.n_head_kv(il) == 0`) and
+            // hold no per-token KV. Their conv history is per slot: F32, one
+            // row per sequence, `n_embd x (l_cache - 1)` elements
+            // (`llama-hparams.cpp:216` at b10950), read here as
+            // `lfm2.embedding_length 2048` and `lfm2.shortconv.l_cache 3` —
+            // 22 x 4_096 x 4 = 360_448 B per slot at every context.
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 360_448,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(131_072),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
+            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
+            file: "LFM2.5-2.6B-Q4_K_M.gguf",
+            bytes: 1_674_455_040,
+            sha256: "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+        },
+    },
+    // The same row at Q8_0: same repo, same commit, same header — only the
+    // file, its size and its digest differ, and each was read back from the
+    // response headers: `x-linked-size` 2_874_779_648, `x-linked-etag` the
+    // sha256 below. The licence, the per-token cache and the per-slot term
+    // are the Q4_K_M row's, derived from that header.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "LiquidAI/LFM2.5-2.6B",
+            display_name: "Liquid LFM 2.5",
+            last_modified: "2026-09-22T20:42:43.000Z",
+            licence: Licence::Conditional {
+                id: "lfm1.0",
+                condition: "commercial use only for entities under $10M annual revenue",
+            },
+            parameters: Parameters::dense(2_697_198_592),
+            quant: "Q8_0",
+            weights_bytes: 2_874_779_648,
+            mmproj_bytes: None,
+            kv_bytes_per_token: Some(8_192),
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 360_448,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(131_072),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
+            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
+            file: "LFM2.5-2.6B-Q8_0.gguf",
+            bytes: 2_874_779_648,
+            sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
         },
     },
 ];

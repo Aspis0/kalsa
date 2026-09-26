@@ -1,14 +1,45 @@
-use super::{excluded, excluded_in, rows, usable, usable_in, Standing, CATALOG, DOWNLOADABLE};
+use super::{
+    excluded, excluded_in, rows, usable, usable_in, DenseEquivalent, Licence, Standing,
+    CATALOG, DOWNLOADABLE,
+};
 use crate::footprint::ASSUMED_KV_BYTES_PER_TOKEN;
 
 #[test]
-fn the_research_only_row_cannot_reach_the_chooser() {
-    assert!(!CATALOG
-        .iter()
-        .find(|entry| entry.repo.starts_with("amd/"))
-        .expect("instella is in the catalog")
-        .is_usable());
-    assert!(usable().all(|entry| entry.entry().repo != "amd/Instella-MoE-16B-A3B-Think"));
+fn a_research_only_licence_never_reaches_the_chooser_and_keeps_its_reason() {
+    // The gate, on a row this test writes: no shipped row carries a
+    // research-only licence today, so the refusal itself is pinned with a
+    // fixture — refused rows stay off the menu, and the reason survives the
+    // filter for the page that shows it.
+    let clean = DOWNLOADABLE[0];
+    let mut refused = DOWNLOADABLE[0];
+    refused.model.repo = "test/research-only";
+    refused.model.licence = Licence::Blocked {
+        id: "researchrail",
+        reason: "research only: a paid fine-tune of this base would not be licit",
+    };
+    assert!(!refused.model.is_usable(), "a research-only licence refuses");
+
+    let menu: Vec<&str> = usable_in(&[clean, refused])
+        .map(|row| row.entry().repo)
+        .collect();
+    assert_eq!(
+        menu,
+        vec![clean.model.repo],
+        "the refused row reached the chooser"
+    );
+    let reasons: Vec<(&str, &str)> = excluded_in([clean.model, refused.model].iter())
+        .map(|(entry, reason)| (entry.repo, reason))
+        .collect();
+    assert_eq!(
+        reasons,
+        vec![( "test/research-only", "research only: a paid fine-tune of this base would not be licit")],
+        "the refusal carries its reason"
+    );
+    assert_eq!(
+        excluded().count(),
+        0,
+        "no shipped row is refused today"
+    );
 }
 
 #[test]
@@ -169,19 +200,6 @@ fn every_measured_decode_names_its_machine_and_date() {
 }
 
 #[test]
-fn refused_rows_keep_their_reason() {
-    let refused: Vec<_> = excluded().collect();
-    assert_eq!(
-        refused.len(),
-        1,
-        "one row is refused: the research-only licence"
-    );
-    assert!(refused.iter().any(|(entry, reason)| {
-        entry.repo.starts_with("amd/") && reason.contains("research only")
-    }));
-}
-
-#[test]
 fn every_row_has_a_name_a_person_can_say() {
     // Vendor plus family: the only model identity the user ever sees. The
     // repo path, the quantisation, the parameter suffixes and the variant
@@ -206,13 +224,15 @@ fn every_row_has_a_name_a_person_can_say() {
     assert_eq!(
         named,
         vec![
-            ("LiquidAI/LFM2.5-8B-A1B", "Liquid LFM 2.5"),
-            ("microsoft/Phi-mini-MoE-instruct", "Microsoft Phi Mini"),
-            ("ibm-granite/granite-4.0-h-tiny", "IBM Granite 4 Tiny"),
             ("google/gemma-4-26B-A4B-it", "Google Gemma 4 26B"),
             ("google/gemma-4-E4B-it", "Google Gemma 4 E4B"),
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
             ("google/gemma-4-12B-it", "Google Gemma 4 12B"),
+            // One name for the two compressions of one model: the name rule
+            // above bans the quantisation from it, and the card tells the
+            // two apart by the file's size.
+            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
+            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
         ]
     );
 }
@@ -223,8 +243,9 @@ fn every_row_passes_the_axes_and_the_floor() {
         let total = entry.parameters.total().count();
         let active = entry.parameters.active().count();
         assert!(
-            total >= 4_000_000_000,
-            "{} is under the 4B floor",
+            total >= 2_500_000_000,
+            "{} is under the 2.5B floor — the smallest row the catalog ships \
+             is LFM2.5-2.6B at 2.69B dense",
             entry.repo
         );
         assert!(active <= total, "{} has active > total", entry.repo);
@@ -245,13 +266,12 @@ fn only_the_download_rows_know_where_their_weights_live() {
     assert_eq!(
         pinned,
         [
-            "liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF",
-            "smarttasks/Phi-mini-MoE-instruct-GGUF",
-            "ibm-granite/granite-4.0-h-tiny-GGUF",
             "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
             "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
+            "LiquidAI/LFM2.5-2.6B-GGUF",
+            "LiquidAI/LFM2.5-2.6B-GGUF",
         ]
     );
 }
@@ -310,13 +330,19 @@ fn a_source_serves_its_exact_file_at_its_commit() {
     // The URL is an address: repo, pinned commit, exact file name —
     // nothing derived from a quant string, nothing that 404s when a
     // publisher renames a file in a later commit.
-    let lfm = DOWNLOADABLE
+    let urls: Vec<String> = DOWNLOADABLE
         .iter()
-        .find(|row| row.model.repo == "LiquidAI/LFM2.5-8B-A1B")
-        .expect("the LFM row is in the download table");
+        .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
+        .map(|row| row.source.url())
+        .collect();
+    assert_eq!(urls.len(), 2, "both compressions are pinned");
     assert_eq!(
-        lfm.source.url(),
-        "https://huggingface.co/liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF/resolve/dc77c293fd6f9107db3c9cecfb19befe2ae49755/LFM2.5-8B-A1B-IQ4_XS.gguf"
+        urls[0],
+        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q4_K_M.gguf"
+    );
+    assert_eq!(
+        urls[1],
+        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
     );
 }
 
@@ -332,70 +358,69 @@ fn the_download_rows_carry_their_exact_bytes() {
     assert_eq!(
         bytes,
         vec![
-            ("LiquidAI/LFM2.5-8B-A1B", 4_588_301_888),
-            ("microsoft/Phi-mini-MoE-instruct", 4_616_170_016),
-            ("ibm-granite/granite-4.0-h-tiny", 4_230_976_352),
             ("google/gemma-4-26B-A4B-it", 14_439_363_584),
             ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("google/gemma-4-12B-it", 7_662_533_088),
+            ("LiquidAI/LFM2.5-2.6B", 1_674_455_040),
+            ("LiquidAI/LFM2.5-2.6B", 2_874_779_648),
         ]
     );
 }
 
 #[test]
 fn dense_equivalents_carry_only_published_comparisons() {
-    // The two rows whose publisher compared them to a same-recipe dense
-    // model, with the source that makes the figure citable.
-    for repo in [
-        "ibm-granite/granite-4.0-h-tiny",
-        "microsoft/Phi-mini-MoE-instruct",
-    ] {
-        let row = DOWNLOADABLE
-            .iter()
-            .find(|row| row.model.repo == repo)
-            .expect("row is in the download table");
-        let equivalent = row
-            .model
-            .dense_equivalent
-            .unwrap_or_else(|| panic!("{repo} has a published dense equivalent"));
-        assert!(equivalent.parameters > 0);
-        assert!(!equivalent.note.is_empty());
-        let source = equivalent.source;
-        assert!(source.contains("accessed 2026-09-14"), "{source}");
-    }
-    // LFM publishes vendor-to-vendor tables, not a same-recipe dense LFM
-    // comparison, and Qwen 3.6 publishes nothing: None is the
-    // honest value, and it means nothing was published — not that the
-    // model is weak.
-    for repo in [
-        "LiquidAI/LFM2.5-8B-A1B",
-        "Qwen/Qwen3.6-35B-A3B",
-    ] {
-        let row = DOWNLOADABLE
-            .iter()
-            .find(|row| row.model.repo == repo)
-            .expect("row is in the download table");
-        assert!(row.model.dense_equivalent.is_none(), "{repo}");
+    // No shipped row publishes a same-recipe dense comparison today, so the
+    // shape runs on a fixture: the note and the citable source are what make
+    // the figure evidence rather than a claim, and every shipped row records
+    // the honest None — nothing published, not a weak model.
+    let mut row = DOWNLOADABLE[0].model;
+    assert!(
+        row.dense_equivalent.is_none(),
+        "the template row publishes nothing"
+    );
+    row.dense_equivalent = Some(DenseEquivalent {
+        parameters: 3_000_000_000,
+        note: "close to it: above on GSM8K, below on BBH",
+        source: "the publisher's model card, accessed 2026-09-14",
+    });
+    let equivalent = row.dense_equivalent.expect("set above");
+    assert!(equivalent.parameters > 0);
+    assert!(!equivalent.note.is_empty());
+    assert!(
+        equivalent.source.contains("accessed 2026-09-14"),
+        "{}",
+        equivalent.source
+    );
+    for entry in rows() {
+        assert!(
+            entry.dense_equivalent.is_none(),
+            "{}: nothing published a dense comparison for it",
+            entry.repo
+        );
     }
 }
 
 #[test]
 fn the_lfm_row_is_usable_and_carries_its_condition() {
-    let lfm = DOWNLOADABLE
+    let lfm: Vec<_> = DOWNLOADABLE
         .iter()
-        .find(|row| row.model.repo == "LiquidAI/LFM2.5-8B-A1B")
-        .expect("lfm row is in the download table");
-    assert!(
-        lfm.model.is_usable(),
-        "a condition on the shipper is not a refusal of the row"
-    );
-    assert_eq!(lfm.model.licence.refusal(), None);
-    assert_eq!(
-        lfm.model.licence.condition(),
-        Some("commercial use only for entities under $10M annual revenue"),
-    );
-    assert!(usable().any(|entry| entry.entry().repo == lfm.model.repo));
+        .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
+        .collect();
+    assert_eq!(lfm.len(), 2, "both compressions are pinned");
+    for row in lfm {
+        assert!(
+            row.model.is_usable(),
+            "a condition on the shipper is not a refusal of the row"
+        );
+        assert_eq!(row.model.licence.refusal(), None);
+        assert_eq!(row.model.licence.id(), "lfm1.0");
+        assert_eq!(
+            row.model.licence.condition(),
+            Some("commercial use only for entities under $10M annual revenue"),
+        );
+    }
+    assert!(usable().any(|entry| entry.entry().repo == "LiquidAI/LFM2.5-2.6B"));
 }
 
 #[test]

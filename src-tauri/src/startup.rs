@@ -1668,7 +1668,7 @@ mod tests {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(6_439_305_216),
+                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -1820,7 +1820,7 @@ mod tests {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(6_439_305_216),
+                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -2153,7 +2153,7 @@ mod tests {
             "{err:?}"
         );
         // And a real row is found on everything the selection carries.
-        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let found = chosen_row(row.repo, row.display_name, row.quant, row.weights_bytes)
             .expect("the row is in the catalog");
@@ -2262,14 +2262,13 @@ mod tests {
     #[test]
     fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
         // The product path: the context comes from the chosen row's cache
-        // geometry against the real budget. Granite 4 Tiny on 8 GiB used to
-        // fund 6112 tokens; now the sleeping-chat reserve is carved out first
-        // (150_215_464 of the 600_861_856 bytes left), then the row's own
-        // 58_060_800-byte recurrent state, and the context funds the rest:
-        // 3993 tokens. The flags are still the launch
+        // geometry against the real budget. Liquid LFM 2.5 on 8 GiB funds
+        // up to its trained 131_072 at q8_0, and the launch takes the
+        // automatic chat default — 65_536 — with the plan's own cache roof
+        // of 752 MiB. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
-        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2287,12 +2286,12 @@ mod tests {
         let joined = config.server.argv.join(" ");
         assert_eq!(
             rendered_value(&config.server.argv, "--ctx-size"),
-            "3993",
+            "65536",
             "{joined}"
         );
         assert_eq!(
             rendered_value(&config.server.argv, "--cache-ram"),
-            "143",
+            "752",
             "{joined}"
         );
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
@@ -2468,17 +2467,18 @@ mod tests {
     }
 
     /// A machine that cannot fund the enrolled family keeps the smaller
-    /// number and says so: Granite 4 Tiny on 8 GiB funds one 3993-token slot,
-    /// and two slots would each land below the 4096-token floor. The plan
-    /// stays at one seat; the door then refuses the second device with words.
+    /// number and says so: Liquid LFM 2.5 on 5.5 GB of RAM funds one slot
+    /// above the 4096-token floor, and two slots would each land below it.
+    /// The plan stays at one seat; the door then refuses the second device
+    /// with words.
     #[test]
     fn a_machine_that_cannot_fund_the_family_keeps_the_smaller_number() {
         let row = rows()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 8 * 1024 * 1024 * 1024,
+            ram_bytes: 5_505_000_000,
         };
         let fork = engine_dir("seats-unfunded", Some(b"a module carrying x-kalsa-slot inside"));
         let config = planned_config_with_overrides(
@@ -2629,7 +2629,7 @@ mod tests {
 
     #[test]
     fn a_catalog_context_above_the_funded_maximum_is_rejected() {
-        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2649,13 +2649,13 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides {
-                context_tokens: Some(8192),
+                context_tokens: Some(262_144),
                 idle_unload_seconds: Some(600),
                 internet_road: false,
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("8192 exceeds Granite's funded maximum on 8 GiB");
+        .expect_err("262144 exceeds the row's funded maximum on 8 GiB");
         assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
     }
 
@@ -2721,17 +2721,18 @@ mod tests {
 
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
-        // Granite 4 Tiny on 8 GiB of CPU funds 3993 tokens at q8_0 and 1996
-        // at f16. 4096 fits the q8_0 cache and not the f16 one: choosing f16
-        // must refuse it, not start a server whose f16 cache would
-        // oversubscribe the machine. If the guard read the q8_0 maximum
-        // instead of the chosen cache's, this would be accepted.
+        // Liquid LFM 2.5 on 7 GiB of CPU funds its trained 131_072 tokens
+        // at q8_0 and 95_359 at f16: the halved per-token price is what
+        // moves the f16 maximum. 131_072 fits the q8_0 cache and not the
+        // f16 one — choosing f16 must refuse it, not start a server whose
+        // f16 cache would oversubscribe the machine. If the guard read the
+        // q8_0 maximum instead of the chosen cache's, this would be accepted.
         let row = rows()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 8 * 1024 * 1024 * 1024,
+            ram_bytes: 7 * 1024 * 1024 * 1024,
         };
         let err = planned_config_with_overrides(
             ServerBackend::Cpu,
@@ -2746,13 +2747,13 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides {
-                context_tokens: Some(4096),
+                context_tokens: Some(131_072),
                 idle_unload_seconds: Some(600),
                 kv_cache: Some(KvCache::F16),
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("4096 is beyond the f16 funded maximum of 1996");
+        .expect_err("131072 is beyond the f16 funded maximum of 95359");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -2762,7 +2763,7 @@ mod tests {
         // request was too large.
         let spoken = crate::failure::words(&err);
         assert!(
-            spoken.contains("1996"),
+            spoken.contains("95359"),
             "the refusal must name the funded maximum: {spoken}"
         );
         assert!(
@@ -2802,7 +2803,7 @@ mod tests {
         // — a fact about the file — never that the machine is short of
         // memory, which is what the unfundable refusal said.
         let mut row = *rows()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         row.trained_context_tokens = Some(0);
         let machine = Machine {
@@ -2828,7 +2829,7 @@ mod tests {
 
     #[test]
     fn a_metal_machine_gets_the_full_offload_the_budget_accounted_for() {
-        let row = rows().find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Metal),
@@ -2857,7 +2858,7 @@ mod tests {
         // catalog through the launch record — never re-derived from a
         // filename, which stays a Rust-side fact.
         let row = rows()
-            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2874,7 +2875,7 @@ mod tests {
         .expect("the model is fundable");
         assert_eq!(
             config.info.display_name.as_deref(),
-            Some("IBM Granite 4 Tiny"),
+            Some("Liquid LFM 2.5"),
             "the catalog's own name travels with the launch"
         );
         assert_eq!(

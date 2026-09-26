@@ -22,24 +22,39 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-/// The four catalog rows that carry a `GgufSource` — (file, bytes, sha256),
+/// The catalog rows that carry a `GgufSource` — (file, bytes, sha256),
 /// copied from `crates/kalsa-catalog/src/manifest.rs`, which is where they
 /// live and the only place they may be corrected.
 const SOURCED_ROWS: &[(&str, u64, &str)] = &[
     (
-        "LFM2.5-8B-A1B-IQ4_XS.gguf",
-        4_588_301_888,
-        "2237675ffa1c2d5a277db4ef02b79e613fc172d4b63511ae8cbcb8c3d75d1148",
+        "gemma-4-26B_q4_0-it.gguf",
+        14_439_363_584,
+        "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
     ),
     (
-        "Phi-mini-MoE-instruct-Q4_K_S.gguf",
-        4_616_170_016,
-        "16e1824f25a890ead375fd7f6476ef0813128079796286319e5594e8ffa1aefa",
+        "gemma-4-E4B-it-Q4_K_M.gguf",
+        4_977_171_584,
+        "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
     ),
     (
-        "granite-4.0-h-tiny-Q4_K_M.gguf",
-        4_230_976_352,
-        "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
+        "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+        22_134_528_992,
+        "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
+    ),
+    (
+        "gemma-4-12B-it-Q4_K_M.gguf",
+        7_662_533_088,
+        "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509",
+    ),
+    (
+        "LFM2.5-2.6B-Q4_K_M.gguf",
+        1_674_455_040,
+        "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+    ),
+    (
+        "LFM2.5-2.6B-Q8_0.gguf",
+        2_874_779_648,
+        "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
     ),
 ];
 
