@@ -43,22 +43,28 @@ gate() {
     echo "CHARGING_REFUSED"
     exit 11
   fi
+  battery_level=$(awk '/^[[:space:]]*level:/ { print $2; exit }' "$battery")
   battery_temp=$(awk '/^[[:space:]]*temperature:/ { print $2; exit }' "$battery")
   thermal_status=$(awk -F: '/Thermal Status:/ { gsub(/[[:space:]]/, "", $2); print $2; exit }' "$thermal")
-  if [ -z "$battery_temp" ] || [ -z "$thermal_status" ]; then
-    echo "GATE_READ_FAILED missing thermal status or battery temperature"
+  if [ -z "$battery_level" ] || [ -z "$battery_temp" ] || [ -z "$thermal_status" ]; then
+    echo "GATE_READ_FAILED missing battery level, battery temperature, or thermal status"
     exit 10
+  fi
+  if [ "$battery_level" -lt 30 ]; then
+    echo "BATTERY_LEVEL_REFUSED percent=$battery_level"
+    exit 15
   fi
   if [ "$thermal_status" -ge 3 ]; then
     echo "THERMAL_STATUS_REFUSED status=$thermal_status"
     exit 12
   fi
-  if [ "$battery_temp" -ge 440 ]; then
+  if [ "$battery_temp" -ge 400 ]; then
     echo "BATTERY_TEMP_REFUSED tenths_c=$battery_temp"
     exit 13
   fi
-  if [ "$(tr -d '\r\n' < "$traced")" != 0 ]; then
-    echo "TRACED_REFUSED value=$(tr -d '\r\n' < "$traced")"
+  traced_value=$(sed -n '1p' "$traced" | tr -d '\r\n')
+  if [ "$traced_value" != 0 ]; then
+    echo "TRACED_REFUSED value=$traced_value"
     exit 14
   fi
 }
@@ -91,16 +97,16 @@ run_arm() {
     export ADSP_LIBRARY_PATH=$D/lib && \
     export GGML_HEXAGON_NDEV=1 && \
     export GGML_HEXAGON_VERBOSE=1 && \
-    $* > $D/${arm}.log 2>&1; echo EXIT=\$? >> $D/${arm}.log"
+    $* > $D/${arm}.log 2>&1; rc=\$?; echo EXIT=\$rc >> $D/${arm}.log; exit \$rc"
   echo "ADB_SHELL_EXIT=$?" > "$RAW/${arm}.adbstatus"
   run_logged "$RAW/${arm}_pull.txt" adb_s pull "$D/${arm}.log" "$RAW/${arm}.log" || echo "PULL_FAIL" >> "$RAW/${arm}.adbstatus"
   therm "post_${arm}"
   gate "post_${arm}"
 }
 
-COMMON="./bin/llama-bench -m $D/ship.gguf -lm none --fit off --poll 1000 -t 8 -ub 1024 -fa 1 -p 1,2,4,8,16 -n 0 -d 1920 -r 5 -v"
+COMMON="./bin/llama-bench -m $D/ship.gguf -lm none --poll 1000 -t 8 -ub 1024 -fa 1 -p 1,2,4,8,16 -n 0 -d 1920 -r 5 -v"
 run_arm A "$COMMON -ngl 0"
-run_arm B "$COMMON --device HTP0 -ngl 99 -nkvo"
+run_arm B "$COMMON --device HTP0 -ngl 99 -nkvo 1"
 run_arm C "$COMMON --device HTP0 -ngl 99"
 
 echo "END_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "$RAW/session.env"

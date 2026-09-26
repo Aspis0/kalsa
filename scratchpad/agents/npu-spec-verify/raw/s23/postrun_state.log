@@ -1,0 +1,16 @@
+BATTERY
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 100
+  temperature: 269
+THERMAL
+Thermal Status: 0
+TRACED
+0
+SCREEN
+  mWakefulness=Awake
+  mHoldingDisplaySuspendBlocker=true
+DSP_TICKS
+adsprpcd 2222 0 0
+cdsprpcd 2225 0 4

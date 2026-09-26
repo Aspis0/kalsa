@@ -46,7 +46,7 @@ adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/np
 
 `persist.traced.enable` was `0` before and after. The display remained awake. The strict zero-tick DSP check did **not** pass: before correctness, `adsprpcd` was `0/0` and `cdsprpcd` was `0/2` (utime/stime); after, they were `0/0` and `0/3`. Thus the CDSP counter was already nonzero and advanced one tick. No attempt was made to reset or restart either daemon.
 
-The S23 reported AC powered, thermal status 0, and battery temperature 28.9 C. No benchmark was run and no timing results were recorded. The driver charging guard was exercised: it printed `CHARGING_REFUSED` and exited 11 before setup or timing. The guard also refuses thermal status 3 or higher and battery temperature 44.0 C or higher. Its battery and thermal gates are syntax checked; the thermal thresholds were not exercised independently because charging refusal correctly ran first.
+The S23 reported AC powered, thermal status 0, and battery temperature 28.9 C. No benchmark was run and no timing results were recorded in the preparation phase. The driver charging guard was exercised: it printed `CHARGING_REFUSED` and exited 11 before setup or timing. The driver now refuses battery below 30%, thermal status 3 or higher, battery temperature 40.0 C or higher, and nonzero `persist.traced.enable`; these stricter limits are rechecked before every arm.
 
 The earlier `llama-cli` attempt was rejected by its argument parser, then the server-wrapping UI path emitted excessive output and was stopped. Only task-owned temporary files under `/data/local/tmp/npu-step0/` were involved. The final kit omits `llama-cli`; an older copy already unpacked in that temporary device directory was left untouched. No Kalsa app or app data was accessed, cleared, or changed.
 
@@ -80,7 +80,26 @@ execute-op=1063; opqueue-push=93; opqueue-pop=93; process exit=0
 
 DSP counters (utime/stime ticks) were adsprpcd `0/0`, cdsprpcd `0/3` before the call; `0/4` immediately after; and still `0/4` after 3 seconds idle. The short CDSP activity during successful HTP work is expected; there was no continuing tick growth in the idle check. `persist.traced.enable` stayed `0`, screen stayed awake, and no app or app data was touched. Logs: `raw/s23-prep/htp_exec_before.log`, `htp_exec_after_idle.log`, `htp_exec_dispatch_summary.log`, and `htp_exec_proof_excerpt.txt`. The phone remained charging throughout; this was correctness/dispatch validation only, with no timing values collected.
 
-## Timing run when unplugged
+## Timing result — Galaxy S23 / SM8550 / Hexagon v73 (2026-09-26)
+
+**Verdict: NPU verification does not beat CPU verification on v73.** The valid A/B/C run was `s23-v73-step0` (13:47:44–13:51:09 UTC), all three arms exited 0. Before timing after the required two-minute idle: unplugged; battery 100%; battery 26.5 C; thermal status 0; `persist.traced.enable=0`; screen Awake; adsprpcd utime/stime `0/0`, cdsprpcd `0/4`. The screen timeout was set to 30 minutes after the owner woke the screen and remained Awake through the run.
+
+ms/call = `1000 × K / (pp t/s)`:
+
+| arm | K=1 ms/call | K=4 ms/call | K=4/K=1 |
+|---|---:|---:|---:|
+| CPU (`-ngl 0`) | 53.3* | 75.6 | 1.42* |
+| HTP0, CPU KV (`-nkvo 1`) | 102.5 | 185.1 | 1.81 |
+
+The CPU matrix's first pp1 row was an isolated outlier (`0.08 t/s`, 12,500 ms/call) while pp2 and pp4 were 72.5 and 75.6 ms/call. A same-setting CPU pp1 confirmation after A/B/C gave `18.77 ± 0.59 t/s` (53.3 ms/call); the table uses that confirmation. Cause of the first pp1 outlier is unknown; both logs are retained. Even on that caveat, the K=4 result is decisive: HTP0 took 2.45× the CPU call time. The alternative HTP-KV arm C was also slower at K=1 (59.6 ms) and K=4 (159.1 ms) than CPU.
+
+HTP execution is confirmed on the timing binary: B logged `Hexagon Arch version v73`, the v73 `&_dom=cdsp&_session=0` fallback session, `HTP0 execute-op` dispatches (11,407 lines), and 992 `opqueue-push`/`opqueue-pop` responses. C logged 13,715 execute-op lines and 32 queue responses. This is actual HTP work, not only backend initialization. Immediately after A/B/C, adsprpcd remained `0/0` and cdsprpcd `0/4`; after the later CPU-only K=1 confirmation, the observed counts were `0/0` and `0/5`. No thermal, charging, or tracing gate failed; no Kalsa app or app data was touched. Full timing/proof logs are under `raw/s23/`.
+
+The first two driver invocations were rejected before any valid measurement. The first hit a guard parsing bug (`TRACED_REFUSED value=0` despite `getprop` returning `0`); `run_logged` had appended `EXIT=0` to the property log. The next hit the kit's unsupported `--fit off` option, and the driver initially swallowed the benchmark's exit status. The driver now parses only the property value, enforces battery >=30% and temperature <40 C, omits the unnecessary fit option, passes `-nkvo 1`, and propagates each benchmark exit. The final three arms all succeeded. See `raw/s23/driver_attempt_notes.txt`.
+
+For the timing run, the owner woke the screen physically. The screen timeout was temporarily set to 30 minutes and stay-on was enabled by the driver; the display remained Awake through the run. After timing and the CPU pp1 confirmation, the original settings were restored (`stay_on_while_plugged_in=0`, system screen timeout absent/null).
+
+## Timing command (completed run; repeat only when unplugged)
 
 Unplug the S23, keep it idle, and run this exact command from the lab cell. It rechecks charge, thermal state, battery temperature and `persist.traced.enable` before each arm and refuses timing if any gate fails:
 
@@ -88,4 +107,4 @@ Unplug the S23, keep it idle, and run this exact command from the lab cell. It r
 cd /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/npu-spec-verify && ./d_run.sh s23 5037 s23-v73-step0 > raw/s23/timing_driver.log 2>&1; echo EXIT=$?
 ```
 
-The resulting run is arms A (CPU), B (HTP with CPU KV), and C (HTP with KV offload), using `-nkvo` as a flag (no value) and `--fit off`. Timing remains unverified until that command runs while unplugged.
+The completed command ran arms A (CPU), B (HTP with CPU KV), and C (HTP with KV offload). The driver enforces battery at least 30%, thermal status below 3, battery temperature below 40 C, unplugged state, and `persist.traced.enable=0`. It propagates benchmark failures and uses `-nkvo 1`; `--fit off` was removed because this llama-bench accepts `--fit-target` (default off). The initial execution-only errors are not used as timing data.

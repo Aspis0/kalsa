@@ -1,0 +1,2 @@
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf: 1 file pushed, 0 skipped. 25.8 MB/s (1593894944 bytes in 58.890s)
+EXIT=0

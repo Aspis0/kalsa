@@ -1,0 +1,5 @@
+BEFORE stay=15 timeout=1800000
+Deleted 1 rows
+AFTER stay=0 timeout=null
+  mWakefulness=Dozing
+  mHoldingDisplaySuspendBlocker=true

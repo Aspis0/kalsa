@@ -1,0 +1,2 @@
+/data/local/tmp/npu-step0/C.log: 1 file pulled, 0 skipped. 22.1 MB/s (14751596 bytes in 0.638s)
+EXIT=0

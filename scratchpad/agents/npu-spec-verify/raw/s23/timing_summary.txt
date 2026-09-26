@@ -1,0 +1,23 @@
+Galaxy S23 / SM8550 / Hexagon v73 — Step 0 timing summary
+Valid d_run session: s23-v73-step0, 2026-09-26 13:47:44–13:51:09 UTC, arms A/B/C exit 0.
+Formula: ms/call = 1000 * K / (pp t/s).
+
+Arm A CPU, -ngl 0:
+  K=1 confirmation: 18.77 ± 0.59 t/s => 53.3 ms/call.
+  K=4 matrix:       52.91 ± 1.75 t/s => 75.6 ms/call.
+  K4/K1 = 1.42.
+  Original A K=1 matrix row was 0.08 ± 0.00 t/s; kept in A.log, not used because the same-setting repeat was 18.77 ± 0.59 and adjacent K=2/K=4 rows were 27.59/52.91 t/s. Cause of the outlier is unknown.
+
+Arm B HTP0 with CPU KV, -nkvo 1:
+  K=1: 9.76 ± 1.66 t/s => 102.5 ms/call.
+  K=4: 21.61 ± 1.33 t/s => 185.1 ms/call.
+  K4/K1 = 1.81; HTP/CPU = 1.92x at K=1 and 2.45x at K=4.
+
+Arm C HTP0 with KV on HTP:
+  K=1: 16.79 ± 2.07 t/s => 59.6 ms/call.
+  K=4: 25.14 ± 0.78 t/s => 159.1 ms/call.
+  K4/K1 = 2.67; HTP/CPU = 1.12x at K=1 and 2.11x at K=4.
+
+Immediate post A/B/C daemon ticks (utime/stime): adsprpcd 0/0, cdsprpcd 0/4. After later CPU-only K=1 confirmation: adsprpcd 0/0, cdsprpcd 0/5.
+HTP proof in B.log.gz: Hexagon Arch version v73; a v73 CDSP fallback session opened; 11,407 execute-op lines and 992 opqueue-push plus 992 opqueue-pop lines. C: 13,715 execute-op lines and 32 matched opqueue responses.
+Verdict: CPU verification is faster on this v73 device at both K=1 and K=4. HTP K=4 is 2.45x slower with CPU KV and 2.11x slower with KV on HTP.

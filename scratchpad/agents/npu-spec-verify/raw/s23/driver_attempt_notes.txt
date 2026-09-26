@@ -1,0 +1,9 @@
+Galaxy S23 Step 0 driver attempts (2026-09-26)
+
+Attempt 1 used the requested command:
+cd /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/npu-spec-verify && ./d_run.sh s23 5037 s23-v73-step0 > raw/s23/timing_driver.log 2>&1; echo EXIT=$?
+Result: EXIT=14, TRACED_REFUSED value=0. The property command returned 0, but its log also contained EXIT=0 and the gate compared both lines. No setup or benchmark ran.
+
+Attempt 2 used the same requested command. The benchmark rejected --fit off in A, B, and C. The inner shell then returned the success status from echo instead of the benchmark status, so the driver marked the invocation DONE. No timing output from this attempt is accepted. The underlying attempt logs were overwritten by the final valid run.
+
+The driver was fixed to read only the first property line, enforce battery >=30% and temperature <40 C, remove unsupported --fit off (fit is off by default), pass -nkvo 1, and propagate benchmark exit status. The final invocation of the requested command ran all three arms successfully; see timing_driver.log and A.log/B.log/C.log.

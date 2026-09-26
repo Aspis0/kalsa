@@ -1,0 +1,5 @@
+stay_on_before=0
+screen_timeout_before=null
+screen_timeout_after=1800000
+  mWakefulness=Awake
+  mHoldingDisplaySuspendBlocker=true

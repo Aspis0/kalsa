@@ -202,23 +202,54 @@ board (v79, the strongest NPU we can book) answered both gate conditions decisiv
 weaker NPU on a slower board cannot reverse a 2× deficit at K=4. Revisit only if a v73/v75
 data point is wanted for the per-device catalogue (cf. mtp-payoff-is-per-device).
 
+## Step 0 — Galaxy S23 / SM8550 / Hexagon v73 (2026-09-26)
+
+This is the separate owner-requested v73 phone run (session `s23-v73-step0`), not the unavailable
+QRD8635 booking above. It ran A/B/C from `d_run.sh` on engine pin `f25f0c1c5`; all arms exited
+0. Preflight after two minutes idle with the screen awake: unplugged, battery 100%, 26.5 C,
+thermal status 0, `persist.traced.enable=0`; adsprpcd `0/0` and cdsprpcd `0/4` utime/stime.
+
+ms/call = `1000 × K / (pp t/s)`:
+
+| arm | ms(1) | ms(4) | ms(4)/ms(1) |
+|---|---:|---:|---:|
+| CPU `-ngl 0` | 53.3* | 75.6 | 1.42* |
+| HTP0 `-nkvo 1` | 102.5 | 185.1 | 1.81 |
+| HTP0 with KV on HTP (C) | 59.6 | 159.1 | 2.67 |
+
+The first CPU pp1 line was an anomalous `0.08 t/s` (12,500 ms/call), while pp2 and pp4 were
+72.5 and 75.6 ms/call. Repeating CPU pp1 alone with the same settings after A/B/C returned
+`18.77 ± 0.59 t/s` (53.3 ms/call); the table uses that confirmation, with the initial line
+retained in the raw log and the cause unresolved. The K=4 comparison is unaffected: HTP0
+`-nkvo` took 2.45× the CPU call time. **Verdict: NPU verification does not beat CPU verification
+on v73**, at K=1 or K=4.
+
+HTP ran on DSP: B reported Hexagon v73 and dispatched 11,407 HTP0 execute-op lines with 992
+matched opqueue pushes/pops; C reported 13,715 execute-op lines and 32 queue responses. Thus
+these are real HTP results, not CPU fallback. Immediately after A/B/C, adsprpcd remained `0/0`
+and cdsprpcd `0/4`; after the later CPU-only pp1 confirmation they were `0/0` and `0/5`.
+Battery was 98%, 31.2 C, thermal status 0, tracing 0 after the follow-up. Full evidence is in
+`scratchpad/agents/npu-spec-verify/raw/s23/`; the prep record has command/gate details.
+
 ## Step 0 close-out
 
 | board | state | minutes before → after |
 |---|---|---|
 | QRD8750 | session 845063 Completed, 3 arms EXIT=0, proofs banked | 1000 → 970 |
 | QRD8635 | never bookable (pool Unavailable, card disabled) | 1000 → 1000 |
+| Galaxy S23 | A/B/C EXIT=0, v73 HTP0 dispatch proved | N/A (local device) |
 
 Raw data: `raw/qrd8750/` (A/B/C logs + tables, adbstatus, therm snapshots, push and sha
 provenance, session.env). Zero INTERNAL-ERROR lines in any arm; arm A pure CPU (0 execute-ops,
 all layers on CPU). Where this leaves the idea:
 
-1. **NPU-verify spec decoding: KILLED on speed for v79-class phones** (record next to PLAN #1/#15;
+1. **NPU-verify spec decoding: KILLED on speed on measured v79 and SM8550/v73 phones** (record next to PLAN #1/#15;
    reopen gate: a J/token measurement showing NPU verify saves real energy at α ≥ 0.8 — nothing
    today supports spending on the dual-context engine work).
-2. **The live follow-up is the opposite corner**: CPU verify of K=4 costs 1.24× one step on the
-   8 Elite with the ship model — the pre registered reading "CPU premise fails" was wrong. A
-   CPU-only speculative lane (existing `--draft-p-min` gate + MTP) deserves the next measurement
-   on THIS board class, not the v75 numbers F6 was closed on.
-3. QRD8635/v73 CPU + HTP small-batch remains an open per-device-catalogue cell, blocked on pool
-   availability, not on minutes.
+2. **The CPU remains faster than HTP for verification**: CPU K=4 costs 1.24× one step on the
+   8 Elite/v79 and 1.42× on the Galaxy S23/v73, while HTP is 1.82× flat on v79 and 1.81× on
+   S23. The NPU verifier loses at both K=1 and K=4 on S23. A CPU-only speculative lane (existing
+   `--draft-p-min` gate + MTP) remains the better speed direction; acceptance and handoff costs
+   still need measurement before a prototype.
+3. QRD8635 remains an unrun board-specific cell, blocked on pool availability, not on minutes;
+   the separate S23/SM8550 result now supplies the requested Hexagon v73 data point.
