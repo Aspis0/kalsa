@@ -10,7 +10,7 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use kalsa_download::Progress;
+use kalsa_download::{DownloadError, Progress};
 use kalsa_probe::Backend;
 use kalsa_supervisor::DEFAULT_STOP_GRACE;
 
@@ -42,6 +42,10 @@ pub enum DecideError {
     NoBuildForThisMachine,
     /// A build or the probe model could not be put on disk.
     CannotAcquire(String),
+    /// The disk is full: the build or the probe model could not be written.
+    /// Its own verdict, so the app can say "not enough space" instead of
+    /// blaming a connection that was never the problem.
+    StorageFull,
     /// Every candidate was fetched (where possible) and every candidate
     /// failed the probe. The reasons are the candidates' own words.
     NothingWorked {
@@ -61,6 +65,7 @@ impl fmt::Display for DecideError {
                 write!(f, "no server build is published for this platform")
             }
             DecideError::CannotAcquire(reason) => write!(f, "could not fetch the server: {reason}"),
+            DecideError::StorageFull => write!(f, "there is not enough disk space for the server"),
             DecideError::NothingWorked { attempts } => {
                 write!(f, "no server build works on this machine:")?;
                 for (backend, reason) in attempts {
@@ -231,6 +236,19 @@ fn standing_verdict(
 fn map_store_error(e: StoreError) -> DecideError {
     match e {
         StoreError::Unverified => DecideError::UnverifiedAssets,
+        // A full disk is a fact about this computer, never about the
+        // connection: it keeps its own verdict all the way to the sentence.
+        StoreError::Io(error) if error.kind() == std::io::ErrorKind::StorageFull => {
+            DecideError::StorageFull
+        }
+        StoreError::Download(DownloadError::Io(error))
+            if error.kind() == std::io::ErrorKind::StorageFull =>
+        {
+            DecideError::StorageFull
+        }
+        StoreError::Download(DownloadError::DiskFull | DownloadError::NotEnoughSpace { .. }) => {
+            DecideError::StorageFull
+        }
         other => DecideError::CannotAcquire(other.to_string()),
     }
 }
@@ -286,6 +304,28 @@ mod tests {
         let err = map_store_error(StoreError::ExeMismatch);
         assert!(matches!(err, DecideError::CannotAcquire(_)), "{err}");
         assert!(err.to_string().contains("does not match"), "{err}");
+    }
+
+    #[test]
+    fn a_full_disk_is_its_own_verdict_not_a_fetch_failure() {
+        // ENOSPC while writing the build must reach the app as a fact about
+        // this computer's disk, so the sentence it reads is "not enough
+        // space" and never "checking the connection".
+        let full = std::io::Error::new(std::io::ErrorKind::StorageFull, "no space left");
+        assert!(matches!(
+            map_store_error(StoreError::Io(full)),
+            DecideError::StorageFull
+        ));
+        assert!(matches!(
+            map_store_error(StoreError::Download(DownloadError::DiskFull)),
+            DecideError::StorageFull
+        ));
+        // A transport failure is still the fetch's own words.
+        let reset = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "reset");
+        assert!(matches!(
+            map_store_error(StoreError::Download(DownloadError::Network(reset))),
+            DecideError::CannotAcquire(_)
+        ));
     }
 
     #[test]

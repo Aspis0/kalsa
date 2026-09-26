@@ -86,6 +86,35 @@ fn a_file_with_the_wrong_bytes_is_not_migrated() {
 }
 
 #[test]
+fn a_failed_legacy_check_is_never_repeated() {
+    // The record is checked once. The file was the wrong bytes, and the
+    // check hashed it whole — a digest that did not match will not match
+    // next launch, so the answer is kept and the hashing never runs again.
+    let root = scratch("checked-once");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    let file = root.join("models").join("old.gguf");
+    std::fs::write(&file, vec![b'x'; BODY.len()]).expect("the wrong bytes");
+    let state_file = root.join("server.state");
+
+    let checks = std::cell::Cell::new(0);
+    let counting = |wanted: &str| {
+        checks.set(checks.get() + 1);
+        lookup(wanted)
+    };
+    assert!(!migrate_with(&state_file, &root, counting));
+    assert_eq!(checks.get(), 1, "the first launch checked the record");
+    assert_eq!(stored(&state_file), None, "and stored nothing");
+
+    // The file turns out to be right after all: the record was checked, and
+    // a checked record is never checked again.
+    std::fs::write(&file, BODY).expect("the right bytes now");
+    assert!(!migrate_with(&state_file, &root, counting));
+    assert_eq!(checks.get(), 1, "no second check, no re-hash");
+    assert_eq!(stored(&state_file), None, "and nothing was stored");
+}
+
+#[test]
 fn the_check_runs_off_the_calling_thread_and_lowers_its_flag() {
     let flag = Arc::new(AtomicBool::new(false));
     let (release, wait) = std::sync::mpsc::channel::<()>();

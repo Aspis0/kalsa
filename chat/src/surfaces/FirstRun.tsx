@@ -24,7 +24,8 @@ type Step =
   | { kind: "checking" }
   | { kind: "pick"; suggestions: Suggestions }
   | { kind: "confirm"; suggestions: Suggestions; option: Suggestion }
-  | { kind: "working" };
+  | { kind: "working"; suggestions: Suggestions }
+  | { kind: "failed"; suggestions: Suggestions; error: string };
 
 const TAGLINES = ["Smarter answers.", "Faster answers."];
 
@@ -37,8 +38,9 @@ interface FirstRunProps {
   capability: Capability;
   liveStep: ProgressStep | null;
   starting: boolean;
-  // Stores the choice and runs the walk: download, tune, start.
-  onChoose: (token: string) => void;
+  // Stores the choice and runs the walk: download, tune, start. Answers the
+  // failure's words when it did not, so this screen can say what went wrong.
+  onChoose: (token: string) => Promise<string | null>;
   // Start measured the computer: the details need the capability again.
   onChecked: () => void;
 }
@@ -63,13 +65,14 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     clearWalkStep();
   }
 
-  function choose(option: Suggestion): void {
-    setStep({ kind: "working" });
-    onChoose(option.id);
+  async function choose(suggestions: Suggestions, option: Suggestion): Promise<void> {
+    setStep({ kind: "working", suggestions });
+    const failure = await onChoose(option.id);
+    if (failure !== null) setStep({ kind: "failed", suggestions, error: failure });
   }
 
   function use(suggestions: Suggestions, option: Suggestion): void {
-    if (option.on_disk) choose(option);
+    if (option.on_disk) void choose(suggestions, option);
     else setStep({ kind: "confirm", suggestions, option });
   }
 
@@ -82,6 +85,23 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     body = <SetupProgress step={liveStep} />;
   } else if (step.kind === "working") {
     body = <p className="surface-verdict">Getting ready…</p>;
+  } else if (step.kind === "failed") {
+    const { suggestions, error } = step;
+    body = (
+      <section className="first-run-pick">
+        <p className="surface-verdict">The model was not set up.</p>
+        <p className="surface-sentence">{error}</p>
+        <div className="surface-actions">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setStep({ kind: "pick", suggestions })}
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
   } else if (step.kind === "confirm") {
     const { option, suggestions } = step;
     body = (
@@ -89,7 +109,7 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
         <p className="surface-verdict">Download {gigabytes(option.weights_bytes)}?</p>
         <p className="surface-sentence">Kalsa needs this file to run {option.name}.</p>
         <div className="surface-actions">
-          <button type="button" className="btn-primary" onClick={() => choose(option)}>
+          <button type="button" className="btn-primary" onClick={() => void choose(suggestions, option)}>
             Download
           </button>
           <button

@@ -1081,20 +1081,25 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
         .and_then(|stored| stored.clone());
     // A stored choice is the page's one signal for "past the first run" —
     // readable even with no measurement (a record can be deleted while the
-    // choice survives), so it is read before the Unmeasured arm. A data
-    // dir this run cannot read reads as no choice, which is the honest
-    // arm: the next turn-on will say so itself.
-    let chosen = state_file(&app)
+    // choice survives), so it is read before the Unmeasured arm. A token no
+    // catalog row answers to reads as no choice: the page owes the owner the
+    // first run again, not a choice the walk would refuse. A data dir this
+    // run cannot read reads the same way.
+    let stored = state_file(&app)
         .ok()
-        .map(|file| options::load(&file).model.is_some())
-        .unwrap_or(false);
+        .and_then(|file| first_run::stored_choice(&file));
     let Some(measurement) = measurement else {
-        return capability::CapabilityDto::Unmeasured { chosen };
+        return capability::CapabilityDto::Unmeasured {
+            chosen: stored.is_some(),
+        };
     };
     // An unreadable phone store is not the same fact as an unpaired phone,
     // but the catalog's answer to "no phone" — pair first — is the sentence
     // the owner can act on either way, and it is already written for them.
     let phone = phone(&app).ok().flatten();
+    // With a measurement the choice is held to the walk's own gate: the row
+    // must run here now, or the first run is what the page owes.
+    let chosen = capability::chosen_stands(&measurement, startup::ram_bytes(), phone, stored);
     capability::dto(
         &measurement,
         startup::ram_bytes(),
@@ -1170,7 +1175,7 @@ async fn brain_test(
         .ok_or_else(|| {
             "This computer could not be measured. Trying again usually works.".to_string()
         })?;
-    let chosen = options::load(&state_file).model.is_some();
+    let chosen = first_run::stored_choice(&state_file).is_some();
     let capability::CapabilityDto::Measured {
         model,
         quicker,

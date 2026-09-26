@@ -601,10 +601,14 @@ export function useBrain() {
    * the walk again. The stop is skipped when nothing is up. The choice is
    * written by the backend, which is the only side that can turn the page's
    * token back into a catalog row.
+   *
+   * Answers the failure's own words, or null when the whole run went through:
+   * the first run owns the screen while this runs and shows the refusal itself.
    */
-  async function chooseModel(token: string): Promise<void> {
+  async function chooseModel(token: string): Promise<string | null> {
     setBusy(true);
     holdStopFailure(false);
+    let failure: string | null = null;
     try {
       await invoke("brain_choose_model", { token });
       if (state !== null && state.kind !== "stopped" && state.kind !== "failed") {
@@ -615,10 +619,12 @@ export function useBrain() {
       publish();
       await invoke("brain_start");
     } catch (error) {
-      holdFailure(String(error));
+      failure = String(error);
+      holdFailure(failure);
     }
     setBusy(false);
     void poll();
+    return failure;
   }
 
   return {

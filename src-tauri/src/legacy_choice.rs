@@ -21,10 +21,12 @@ struct Pinned {
 }
 
 /// Starts the migration on its own thread when there is something to check
-/// — no stored choice and a legacy record — so the window opens at once.
+/// — no stored choice, no answer yet to a check already made, and a legacy
+/// record — so the window opens at once.
 /// Hashing a model takes about a minute; `migrating` is true until it ends.
 pub(crate) fn in_background(migrating: Arc<AtomicBool>, state_file: PathBuf, runtime_root: PathBuf) {
     if crate::options::load(&state_file).model.is_some()
+        || checked(&state_file)
         || kalsa_tune::record::legacy_model(&runtime_root).is_none()
     {
         return;
@@ -63,28 +65,48 @@ fn catalog_row(digest: &str) -> Option<Pinned> {
     })
 }
 
+/// The record of a check already made, beside the state file. The check
+/// hashes a whole model file, and a digest that did not match will not match
+/// next launch — so the answer is kept and the check never runs twice.
+fn checked(state_file: &Path) -> bool {
+    marker(state_file).exists()
+}
+
+fn mark_checked(state_file: &Path) {
+    let _ = std::fs::write(marker(state_file), b"");
+}
+
+fn marker(state_file: &Path) -> PathBuf {
+    state_file.with_file_name("legacy-choice-checked")
+}
+
 /// Stores the legacy model as the choice when nothing is stored yet and its
 /// file in `runtime_root/models` hashes to the pinned digest. The choice it
-/// stores stops it running again.
+/// stores stops it running again — and so does a check that already ran
+/// without storing one.
 fn migrate_with(
     state_file: &Path,
     runtime_root: &Path,
     lookup: impl Fn(&str) -> Option<Pinned>,
 ) -> bool {
     let mut overrides = crate::options::load(state_file);
-    if overrides.model.is_some() {
+    if overrides.model.is_some() || checked(state_file) {
         return false;
     }
-    let Some(pinned) = kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d))
-    else {
-        return false;
+    let stored = match kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d)) {
+        None => false,
+        Some(pinned) => {
+            let path = runtime_root.join("models").join(&pinned.file);
+            if !file_digest_is(&path, pinned.bytes, pinned.sha256) {
+                false
+            } else {
+                overrides.model = Some(pinned.token);
+                crate::options::save(state_file, overrides).is_ok()
+            }
+        }
     };
-    let path = runtime_root.join("models").join(&pinned.file);
-    if !file_digest_is(&path, pinned.bytes, pinned.sha256) {
-        return false;
-    }
-    overrides.model = Some(pinned.token);
-    crate::options::save(state_file, overrides).is_ok()
+    mark_checked(state_file);
+    stored
 }
 
 #[cfg(test)]

@@ -9,7 +9,6 @@ import type { BrainState } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
-const MODEL_NO_PICK = "You never have to pick one.";
 /** Shown only when the launch record carried no reason: the development path,
  *  where the developer pinned a file and no catalog choice was made. It states
  *  nothing about a phone, because on this path a phone played no part. */
@@ -19,7 +18,7 @@ interface ModelsSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
 
-// The Models surface explains that selection is automatic and owns the advanced
+// The Models surface says what this computer is running and owns the advanced
 // launch controls. The chooser remains in Rust; this page reads its answer — the
 // model and the reason it gave for this start — and sends explicit edits back to
 // the start command.
@@ -55,7 +54,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         // point. The sentence is the reason the shell gave for THIS start, not
         // a general rule about how choosing works.
         headline = state.model ? `Running ${state.model}` : "Chosen for this computer";
-        sentence = `${state.reason ?? MODEL_REASON_FALLBACK} ${MODEL_NO_PICK}`;
+        sentence = state.reason ?? MODEL_REASON_FALLBACK;
         break;
       case "stopping":
         // The drain, in this page's own subject: the model this computer had
@@ -65,7 +64,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         // sentence standing on screen for the whole teardown.
         headline = "Stopping";
         sentence =
-          "This computer is putting the model away. When you turn it on again it will pick a model it can run; it reuses its measurement for up to a month, and measures again after an app update or when it notices the computer has changed.";
+          "This computer is putting the model away. When you turn it on again it will run the model you picked; it reuses its measurement for up to a month, and measures again after an app update or when it notices the computer has changed.";
         break;
       case "starting":
         headline = "Chosen and starting";
@@ -77,7 +76,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         break;
       case "stopped":
         sentence =
-          "When you turn on, this computer picks a model it can run and starts it. It measures itself the first time and reuses that measurement for up to a month, measuring again after an app update or when it notices the computer has changed. You never have to pick anything.";
+          "When you turn on, this computer runs the model you picked. It measures itself the first time and reuses that measurement for up to a month, measuring again after an app update or when it notices the computer has changed. You picked that model on Home, and you can change it there.";
         button = "Go to Server";
         break;
       default: {

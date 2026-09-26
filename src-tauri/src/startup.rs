@@ -226,10 +226,7 @@ pub(crate) fn run(
     // start and the tier would never exist.
     prepare_slot_save_dir(&slot_save_path)?;
     let overrides = crate::options::load(&state_file);
-    // The stored choice is also the consent: a model is fetched only for
-    // a choice the owner confirmed.
     let chosen = overrides.model.as_deref();
-    let consented = chosen.is_some();
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (backend, exe) = match server_override {
@@ -273,7 +270,9 @@ pub(crate) fn run(
                     )
                 },
             )?;
-            let path = place_model(&plan, root, consented, progress)?;
+            // Consent is the stored row itself, checked against the row
+            // about to be placed; any other row may come only from disk.
+            let path = place_model(&plan, root, consented(chosen, row), progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -508,6 +507,14 @@ pub(crate) fn row_for_token(token: &str) -> Option<&'static ModelEntry> {
         [row] => Some(row),
         [] | [_, _, ..] => None,
     }
+}
+
+/// Whether the row the walk is about to place IS the owner's stored choice:
+/// the only consent a fetch has. The automatic answer behind a stale token —
+/// or a row this machine cannot run now — consents to nothing, so it is used
+/// only when it is already on disk.
+fn consented(stored: Option<&str>, row: &ModelEntry) -> bool {
+    stored.is_some_and(|token| model_token(row) == token)
 }
 
 /// The row a selection names. `repo` alone is not a key — two rows can share
@@ -1485,6 +1492,14 @@ mod tests {
         assert_eq!(plan.sha256, automatic.download.sha256);
         assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
         assert!(reason.contains(PHONE_FREE_REASON), "the automatic answer's own words follow: {reason}");
+        // The fallback row is not the owner's pick, so nothing consents to
+        // fetching it: the gate holds it at AwaitingChoice without spending
+        // a byte, and the walk stops instead of downloading.
+        let consent = consented(Some("not-a-token"), row);
+        assert!(!consent, "a stale token is not consent to download");
+        let stopped = acquire_model(&plan, &scratch("stale-consent"), &[], consent, &mut |_| {})
+            .expect_err("a fallback row nobody picked is never fetched");
+        assert!(matches!(stopped, StartupFailure::AwaitingChoice), "{stopped:?}");
     }
 
     #[test]

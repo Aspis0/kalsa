@@ -16,8 +16,8 @@ use serde::Serialize;
 
 use kalsa_catalog::{
     choose, decode_prediction, largest_that_runs_well, memory_budget, quicker_alternative, rows,
-    usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction, RefusalReason,
-    RunnableRow, Selection,
+    runnable_row, usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction,
+    RefusalReason, RunnableRow, Selection,
 };
 use kalsa_launch::{funded_context, DEFAULT_PARALLEL};
 use kalsa_probe::{Backend, Measurement};
@@ -184,6 +184,35 @@ pub(crate) enum SpeedDto {
     Measured { value: f64, machine: String },
 }
 
+/// The catalog's input for one read: the detected backend, this machine's
+/// own figures, and the phone. Built in one place so the page's answer and
+/// the stored-choice check below can never disagree about what was asked.
+fn input_for(measurement: &Measurement, ram_bytes: u64, phone: Option<PhoneModel>) -> ChoiceInput {
+    ChoiceInput {
+        backend: measurement.will_run_on,
+        ram_bytes,
+        bandwidth_bytes_per_second: measurement.decode_bandwidth_bytes_per_second(),
+        bandwidth_is_lower_bound: measurement.bandwidth_is_lower_bound(),
+        compute_flops_per_second: measurement.compute.max(),
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        phone,
+    }
+}
+
+/// Whether a stored choice — the row its token named — is one this machine
+/// can honour right now: that row is on the menu for this machine, the same
+/// gate the walk's model step holds a stored choice to. A choice that fails
+/// it is no choice, so the home page answers with the first run again
+/// instead of a `chosen` the walk would refuse.
+pub(crate) fn chosen_stands(
+    measurement: &Measurement,
+    ram_bytes: u64,
+    phone: Option<PhoneModel>,
+    stored: Option<&'static ModelEntry>,
+) -> bool {
+    stored.is_some_and(|row| runnable_row(&input_for(measurement, ram_bytes, phone), row).is_some())
+}
+
 /// The answer, computed. The catalog's input is rebuilt here rather than
 /// borrowed from `startup::choice_input`, whose backend is the budget path of
 /// a build that has won — this preview has no winner, so it hands the catalog
@@ -197,15 +226,7 @@ pub(crate) fn dto(
     chosen: bool,
     root: &Path,
 ) -> CapabilityDto {
-    let input = ChoiceInput {
-        backend: measurement.will_run_on,
-        ram_bytes,
-        bandwidth_bytes_per_second: measurement.decode_bandwidth_bytes_per_second(),
-        bandwidth_is_lower_bound: measurement.bandwidth_is_lower_bound(),
-        compute_flops_per_second: measurement.compute.max(),
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
-        phone,
-    };
+    let input = input_for(measurement, ram_bytes, phone);
     let budget = memory_budget(input.backend, input.ram_bytes);
     let machine = MachineDto {
         ram_bytes: input.ram_bytes,
@@ -812,6 +833,36 @@ mod tests {
         assert!(model.is_none(), "nothing fits, nothing is offered");
         let spoken = refusal.expect("the fallback refusal keeps its words");
         assert!(spoken.contains("not worth using"), "{spoken}");
+    }
+
+    #[test]
+    fn a_stored_choice_this_machine_cannot_run_reads_as_the_first_run() {
+        // The home page reads `chosen` to pick between the first run and the
+        // normal page, and the walk holds a stored choice to this same gate.
+        // A choice that would not be honoured must read as no choice, or the
+        // page promises a model the walk refuses.
+        let measurement = measured(Backend::Cpu);
+        let running = largest_that_runs_well(&input_for(&measurement, 64 * GIB, None))
+            .expect("a 64 GiB machine runs something");
+        assert!(
+            chosen_stands(&measurement, 64 * GIB, None, Some(running.entry)),
+            "the row runs here, so the choice stands"
+        );
+        // A machine whose budget is half the row's weights: the row cannot
+        // fit it, so the same stored choice is no choice there.
+        assert!(
+            !chosen_stands(
+                &measured(Backend::Cpu),
+                running.entry.weights_bytes / 2,
+                None,
+                Some(running.entry)
+            ),
+            "a choice this machine cannot run is the first run again"
+        );
+        assert!(
+            !chosen_stands(&measurement, 64 * GIB, None, None),
+            "nothing stored is no choice"
+        );
     }
 
     #[test]

@@ -11,12 +11,14 @@ import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
-// True once this open of the app has had its one automatic attempt to
-// bring the brain up. Module scope, not component state: the brain page
-// unmounts whenever the user opens a settings page, and a second automatic
-// try on the way back would override a deliberate turn-off made on the
+// The opening's one automatic attempt to bring the brain up, as a fact of
+// this open of the app: it stays pending until the capability read can act
+// on it. Module scope, not component state — the brain page unmounts whenever
+// the user opens a settings page, and the legacy check can outlive a mount —
+// so leaving the page must neither lose the attempt nor spend it twice: a
+// second automatic try would override a deliberate turn-off made on the
 // Server page.
-let automaticStartUsed = false;
+let automaticStartPending = true;
 
 interface BrainSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
@@ -41,11 +43,6 @@ function firstRun(capability: Capability | null): boolean {
 export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfaceProps) {
   const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const [text, setText] = useState("");
-  // Whether this mount carries the opening's one automatic attempt. Spent
-  // only once the capability read has landed: telling a first run (which
-  // never starts on its own) from an install that holds its model needs
-  // the answer, and the wait is one read long.
-  const carriesAutomaticStart = useRef(false);
   // The chooser's answer, read on mount and whenever a turn-on lands — the
   // walk can change what was measured, and a first walk can end having only
   // measured, which is exactly when the card must appear. There is no second
@@ -54,6 +51,9 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
   const [capability, setCapability] = useState<Capability | null>(null);
   const [reads, setReads] = useState(0);
   const previousKind = useRef<string | null>(null);
+  // The last answer that landed, as the legacy check sees it: a read that
+  // fails mid-check leaves this as it was, so the polling below keeps asking.
+  const migrating = useRef(false);
 
   useEffect(() => {
     const kind = state?.kind ?? null;
@@ -78,11 +78,14 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     let live = true;
     invoke<Capability>("brain_capability")
       .then((next) => {
-        if (live) setCapability(next);
+        if (!live) return;
+        migrating.current = next.kind === "migrating";
+        setCapability(next);
       })
       .catch(() => {
         // A read that failed leaves the card off the page rather than
-        // showing a machine that was never measured.
+        // showing a machine that was never measured — but the answer before
+        // it still stands for the legacy check below.
         if (live) setCapability(null);
       });
     return () => {
@@ -90,26 +93,19 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     };
   }, [reads, busy]);
 
+  // The legacy check takes about a minute; ask again until it answers. A read
+  // that fails in the middle of it keeps the timer going — `reads` is in the
+  // dependencies for that — or one failure would leave the page blank forever.
   useEffect(() => {
-    if (!automaticStartUsed) {
-      automaticStartUsed = true;
-      // The ref survives StrictMode's double invocation; the module flag
-      // makes the second run leave the budget spent.
-      carriesAutomaticStart.current = true;
-    }
-  }, []);
-
-  // The legacy check takes about a minute; ask again until it answers.
-  useEffect(() => {
-    if (capability?.kind !== "migrating") return;
+    if (!migrating.current) return;
     const timer = window.setTimeout(() => setReads((count) => count + 1), 1000);
     return () => window.clearTimeout(timer);
-  }, [capability]);
+  }, [capability, reads]);
 
   useEffect(() => {
-    if (!carriesAutomaticStart.current || !state || capability === null) return;
+    if (!automaticStartPending || !state || capability === null) return;
     if (capability.kind === "migrating") return;
-    carriesAutomaticStart.current = false;
+    automaticStartPending = false;
     if (state.kind === "stopped" && !firstRun(capability)) void act();
   }, [state, act, capability]);
 
@@ -144,7 +140,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
         capability={capability}
         liveStep={liveStep}
         starting={state?.kind === "starting"}
-        onChoose={(token) => void chooseModel(token)}
+        onChoose={(token) => chooseModel(token)}
         onChecked={() => setReads((count) => count + 1)}
       />
     );

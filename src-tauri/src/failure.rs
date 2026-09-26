@@ -270,6 +270,8 @@ impl From<DecideError> for StartupFailure {
             DecideError::NoBuildForThisMachine => Self::NoBuildForThisMachine,
             DecideError::UnverifiedAssets => Self::ServerUnverified,
             DecideError::CannotAcquire(_) => Self::ServerFetchFailed,
+            // A full disk gets the disk's sentence, not the connection's.
+            DecideError::StorageFull => Self::NotEnoughDisk(None),
             DecideError::NothingWorked { .. } => Self::NoBackendWorked,
         }
     }
@@ -380,6 +382,16 @@ mod tests {
                 "{failure:?} leaks the crate's own words: {spoken}"
             );
         }
+    }
+
+    #[test]
+    fn a_full_disk_says_space_and_never_the_connection() {
+        // A disk that filled up while the engine was being fetched is a fact
+        // about this computer: the sentence must be the disk's own, and must
+        // not send the owner to check a connection that was never the problem.
+        let spoken = words(&StartupFailure::from(DecideError::StorageFull));
+        assert!(spoken.contains("space"), "{spoken}");
+        assert!(!spoken.contains("connection"), "{spoken}");
     }
 
     /// The causes the user cannot act on, named one by one. A failure joins this

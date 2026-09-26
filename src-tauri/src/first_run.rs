@@ -45,11 +45,20 @@ pub(crate) fn suggest(
     Suggestions { options, refusal }
 }
 
+/// The stored choice, when a catalog row still answers to its token. A
+/// token nothing answers to is no choice at all — that is the one fact the
+/// home page reads to tell the first run from an install, and the gate below
+/// holds before any walk.
+pub(crate) fn stored_choice(state_file: &Path) -> Option<&'static ModelEntry> {
+    let token = crate::options::load(state_file).model?;
+    startup::row_for_token(&token)
+}
+
 /// Checked before a turn-on walks at all — no measuring, no engine, no
 /// model: without a stored choice or a development override there is
 /// nothing anyone agreed to download.
 pub(crate) fn require_choice(state_file: &Path, dev_override: bool) -> Result<(), StartupFailure> {
-    if dev_override || crate::options::load(state_file).model.is_some() {
+    if dev_override || stored_choice(state_file).is_some() {
         Ok(())
     } else {
         Err(StartupFailure::AwaitingChoice)
