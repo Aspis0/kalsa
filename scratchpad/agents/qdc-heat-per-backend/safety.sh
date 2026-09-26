@@ -68,15 +68,11 @@ hard_stops() {
   require_numeric battery_temp "$LIVE_BATT_TEMP_TENTHS"
   require_numeric battery_level "$LIVE_BATT_LEVEL"
   [ "$LIVE_THERMAL_STATUS" -ge 3 ] && session_stop thermal_status
+  # Rule A5 (house rule): the battery stop is never disarmed; an untrusted
+  # battery sensor (battery_trust.sh) only ADDS a skin stop at 46 C.
+  awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
   if [ "$BATTERY_UNTRUSTED" = "1" ]; then
-    # Coordinator decision 2026-09-26, PENDING OWNER REVIEW: on a board whose
-    # battery sensor is an injected stub (battery_trust.sh) the 44 C battery
-    # stop can never fire, so a skin stop at 46 C takes its place — for that
-    # board only. Trusted boards keep skin as a recorded value, stop only via
-    # the engine (pause 43 / kill 44 through the profile).
     awk -v v="$LIVE_SKIN" 'BEGIN{exit !(v+0 >= 46.0)}' && session_stop skin_fallback
-  else
-    awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
   fi
   [ "$LIVE_BATT_LEVEL" -le 25 ] && session_stop battery_level
   [ "$LIVE_PLUGGED" = true ] && session_stop plugged
@@ -88,6 +84,9 @@ hard_stops() {
 # ends the session instead of running on into the next gate.
 safety_stops() {
   live_readings
+  # Re-check the battery sensor every turn: a board can turn untrusted
+  # mid-session (battery_trust.sh rule d), which adds the skin stop below.
+  battery_trust_update
   hard_stops
 }
 

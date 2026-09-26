@@ -1250,3 +1250,32 @@ unit-specific sleep (not made): keep the screen awake through the load (e.g. a p
 during poll_load, or `svc power stayon usb` if the board honours it) — driver change, needs owner/coordinator.
 Also: `battery_trust` only knows one stub value per run (`BATT_STUB_TENTHS`); QDC units carry 25.0 / 42.0 / 40.0
 stubs, so a frozen-identical dumpsys==sysfs reading while skin is ≥ 8 °C lower should be flagged generically.
+
+## Driver: generic battery-stub detection, rule A5, screen kept awake during the load proof (2026-09-26 eve)
+
+Coordinator decisions, dry-run only (fake adb; no device).
+- `battery_trust.sh`: UNTRUSTED on (a) dumpsys≠sysfs; (b) frozen at `BATT_STUB_TENTHS` (default 250, override
+  kept); (c) dumpsys==sysfs frozen across the setup samples with skin ≥ 5.0 °C away from it; (d) reading identical
+  in every sample (setup + every `safety_stops`) while skin moves ≥ 1.0 °C — can fire mid-session. Verdict only
+  trusted→untrusted, persisted with tracking state (`track_ref`, `skin_min/max`) and reloaded in arms phase.
+  The old 0.3 °C frozen rule is replaced by (d)'s 1.0 °C.
+- `safety.sh`: **rule A5** — battery ≥ 44 °C is always armed; untrusted only ADDS skin ≥ 46 °C.
+  `safety_stops` calls `battery_trust_update` each turn (arm gate, pre-turn, mid-turn).
+- `parse.sh poll_load`: every ~5 s checks `mWakefulness` then sends `KEYCODE_WAKEUP`; Asleep/Dozing → rc 3,
+  logged `LOAD_PROOF_SCREEN_OFF`; calibration ends `LOAD_PROOF_FAIL reason=screen_off` / END `screen_off`; an arm
+  voids `screen_off`. On AC only: `svc power stayon true` for the wait, previous
+  `stay_on_while_plugged_in` restored exactly (null → delete). Not exercised by a fixture (AC=true trips the
+  plugged stop in setup); the stay-on branch is untested.
+- Caveat: rule (c) also flags a real battery sitting ≥ 5 °C off the skin; under A5 that only adds the skin stop.
+
+| fixture | env | result | EXIT |
+|---|---|---|---|
+| frozen 42.0, skin 30→46.5 | `DRY_BATT_TEMP=420 DRY_SKIN=30.0 DRY_SKIN_AT=4 DRY_SKIN_AFTER=46.5` | `UNTRUSTED frozen_far_from_skin temp=420 sysfs=420 skin=30.0`, `STOP reason=skin_fallback` | 0 |
+| frozen 40.0 | `DRY_BATT_TEMP=400 DRY_SKIN=35.0` | `UNTRUSTED frozen_far_from_skin`, 2 OK rows | 0 |
+| trusted moving battery, skin 46.5 | `DRY_BATT_TEMP=340 …_AT=1 …_AFTER=345 DRY_SKIN_AFTER=46.5 PROMPT_VARIANTS=841` | `TRUSTED dumpsys=340,345`; calib gate at skin 46.5 → no STOP (ends at the intended CALIB_BAND_FAIL) | 3 |
+| mid-session freeze | `DRY_BATT_TEMP=350 DRY_SKIN=35.0 DRY_SKIN_AT=4 DRY_SKIN_AFTER=36.5` | TRUSTED at setup → `UNTRUSTED frozen_while_skin_moves … (mid-session)`, persisted, 2 OK rows | 0 |
+| screen off during load | `DRY_POWER_DOZE_AFTER_CLEARS=1` | `LOAD_PROOF_SCREEN_OFF wakefulness=Dozing`, END `screen_off` | 3 |
+| A5: untrusted + battery 44.5 | `DRY_BATT_TEMP=250 DRY_BATT_TEMP_AT=3 DRY_BATT_TEMP_AFTER=445` | `UNTRUSTED fixed_stub`, `STOP reason=battery_temp` | 0 |
+
+(Canned logcats set to tokensPredicted 127 for these runs, restored after; the first frozen-40 run stopped on
+the decode gate with the stale 96/30 canned values — gate behaving.) `bash -n` clean on all eight scripts.

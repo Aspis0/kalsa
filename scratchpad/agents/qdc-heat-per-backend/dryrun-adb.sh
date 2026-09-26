@@ -36,7 +36,13 @@ case "$args" in
   *"settings get system screen_off_timeout"*) echo 60000; exit 0;;
   *"pm list packages"*) echo 0; echo "list_rc=1"; exit 0;;
   *"dumpsys package"*) echo "    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]"; exit 0;;
-  *"dumpsys power"*) echo "  mWakefulness=Awake"; echo "  mStayOn=false"; exit 0;;
+  *"dumpsys power"*)
+    # DRY_POWER_DOZE_AFTER_CLEARS=<k>: after the k-th logcat clear the screen
+    # reports Dozing (the load-proof screen_off fixture).
+    w=Awake
+    if [ -n "${DRY_POWER_DOZE_AFTER_CLEARS:-}" ] && [ "$(cat "$S/clears" 2>/dev/null || echo 0)" -ge "$DRY_POWER_DOZE_AFTER_CLEARS" ]; then w=Dozing; fi
+    echo "  mWakefulness=$w"; echo "  mStayOn=false"; exit 0;;
+  *"settings get global stay_on_while_plugged_in"*) echo 0; exit 0;;
   *"dumpsys activity activities"*) echo "    topResumedActivity=ActivityRecord{71f750a u0 com.kalsa.app/.MainActivity t8}"; exit 0;;
   *"dumpsys thermalservice"*)
     skin="${DRY_SKIN:-35.0}"
@@ -72,7 +78,7 @@ case "$args" in
       *qwen3.5-4b/Qwen3.5-4B-Q4_K_M.gguf*) echo 2834975040;;
       *qwen3.5-4b/mmproj-F16.gguf*) echo 672423616;;
     esac; exit 0;;
-  *"logcat -b all -c"*) exit 0;;
+  *"logcat -b all -c"*) n=$(cat "$S/clears" 2>/dev/null || echo 0); printf '%s' "$((n + 1))" > "$S/clears"; exit 0;;
   *"dumpsys battery"*)
     bt="${DRY_BATT_TEMP:-300}"
     if [ -n "${DRY_BATT_TEMP_AT:-}" ]; then

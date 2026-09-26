@@ -425,17 +425,39 @@ MODEL_LOAD_PATTERN="llama_model_loader: loaded meta data with .* from /data/user
 # (LlamaService.ts:1328-1333), so accept either.
 PREWARM_PATTERN='KALSA_PREWARM.*("op":"done"|"op":"restore","ok":true)'
 has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E "$PREWARM_PATTERN" "$1" >/dev/null 2>&1; }
+# Load proof with the display kept awake through launch/load/prewarm: the app
+# skips its prewarm while backgrounded, and a QRD8750 unit slept ~10 s after
+# every app start (raw/sa853845b, sa853845c: "Going to sleep due to timeout",
+# prewarm skip background). Each ~5 s: wakefulness check, then KEYCODE_WAKEUP.
+# Asleep/Dozing fails the proof explicitly (rc 3 = screen_off) instead of a
+# silent prewarm skip. On AC, stay-on is forced for the wait and the previous
+# stay_on_while_plugged_in value restored exactly. rc 0 proof, 1 none, 3 screen_off.
 poll_load() {
   local file="$1"
-  local elapsed=0
+  local elapsed=0 rc=1 wake saved_stayon=""
   : > "$file"
+  if adbT 30 -s "$SER" shell dumpsys battery 2>/dev/null | grep -Eq '^ *AC powered: true'; then
+    saved_stayon=$(adbT 30 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r[:space:]')
+    adbT 30 -s "$SER" shell svc power stayon true >/dev/null 2>&1 || true
+    log "LOAD_PROOF_STAYON on_ac=1 saved=${saved_stayon:-empty}"
+  fi
   while [ "$elapsed" -lt 300 ]; do
     deadline_check
+    wake=$(adbT 30 -s "$SER" shell dumpsys power 2>/dev/null | sed -n 's/.*mWakefulness=\([^, ]*\).*/\1/p' | head -1 | tr -d '\r')
+    case "$wake" in Asleep|Dozing) log "LOAD_PROOF_SCREEN_OFF wakefulness=$wake elapsed=${elapsed}s"; rc=3; break ;; esac
+    adbT 30 -s "$SER" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
     logcat_all 60 "$file" || true
-    has_load_proof "$file" && return 0
+    has_load_proof "$file" && { rc=0; break; }
     sleep 5; elapsed=$((elapsed + 5))
   done
-  logcat_all 60 "$file" || true; has_load_proof "$file"
+  if [ "$rc" -eq 1 ]; then logcat_all 60 "$file" || true; has_load_proof "$file" && rc=0; fi
+  if [ -n "$saved_stayon" ]; then
+    case "$saved_stayon" in
+      null) adbT 30 -s "$SER" shell settings delete global stay_on_while_plugged_in >/dev/null 2>&1 || true ;;
+      *) adbT 30 -s "$SER" shell settings put global stay_on_while_plugged_in "$saved_stayon" >/dev/null 2>&1 || true ;;
+    esac
+  fi
+  return "$rc"
 }
 
 dump_ui() {
@@ -898,7 +920,7 @@ run_arm() {
   adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_relaunch.txt" 2>&1 || true
   app_foreground "$prefix" || { row_void=1; void_reason=foreground; }
   if [ "$row_void" -eq 0 ]; then
-    poll_load "${prefix}_load.txt" || { row_void=1; void_reason=load_proof; }
+    poll_load "${prefix}_load.txt"; case $? in 0) : ;; 3) row_void=1; void_reason=screen_off ;; *) row_void=1; void_reason=load_proof ;; esac
   fi
   if [ "$row_void" -eq 0 ]; then
     APP_PID=$(adbT 60 -s "$SER" shell pidof "$PKG" | awk 'NR==1{print $1;exit}' | tr -d '\r')

@@ -321,7 +321,9 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   # clear_anchor wipes it (device evidence: s23-heat-cpu-vs-gpu-v2/raw/
   # arm-stream-logcat.txt — launch -> engine.eagerInit -> llama_model_loader
   # within 1 s). Aborts setup unless the opened GGUF is $MODEL_DIR/$MODEL_FILE.
-  poll_load "$RAW/calib_load.txt" || { log "LOAD_PROOF_FAIL expected=$MODEL_DIR/$MODEL_FILE"; write_end "load_proof"; exit 3; }
+  poll_load "$RAW/calib_load.txt"; LOAD_RC=$?
+  [ "$LOAD_RC" -eq 3 ] && { log "LOAD_PROOF_FAIL reason=screen_off expected=$MODEL_DIR/$MODEL_FILE"; write_end "screen_off"; exit 3; }
+  [ "$LOAD_RC" -eq 0 ] || { log "LOAD_PROOF_FAIL expected=$MODEL_DIR/$MODEL_FILE"; write_end "load_proof"; exit 3; }
   log "LOAD_PROOF $(grep -o 'llama_model_loader: loaded meta data with .* from [^ ]*' "$RAW/calib_load.txt" | tail -1)"
   calibrate_turn "$RAW/calib_cpu" cpu | tee "$CAL_OUT" | tee -a "$DRIVER_LOG"
   N0=$(sed -n 's/.*chunks_sum=\([0-9][0-9]*\).*/\1/p' "$CAL_OUT" | tail -1)
