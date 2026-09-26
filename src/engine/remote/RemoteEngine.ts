@@ -16,6 +16,9 @@ import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
+import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../../remote/doorRoad";
+import { createIrohChatXhr } from "../../remote/irohChatXhr";
+import type { IrohTunnel } from "../../remote/irohHttp";
 import {
   canSendAuthorization,
   isNonLoopback,
@@ -85,10 +88,11 @@ async function jsonGet(
   base: string,
   path: string,
   token: string | null,
+  fetcher: DoorFetch,
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const url = joinRemoteApiUrl(base, path);
-  const res = await fetch(url, {
+  const res = await fetcher(url, {
     method: "GET",
     headers: { Accept: "application/json", ...authHeaders(url, token) },
     signal,
@@ -130,17 +134,21 @@ export async function testRemoteConnection(): Promise<{
         error: "remote_brain_token_required",
       };
     }
+    // One road decision for the whole probe, established before any of its
+    // requests carries the paired credential.
+    const road = await establishDoorRoad(door.node);
+    const doorFetch = doorFetchFor(road);
     // The window the server will actually answer within: we send no context
     // length, so its setting decides, and sizing prompts beyond it fails with
     // something the user cannot act on. Best effort and backend-agnostic: a
     // server that does not expose /props keeps our conservative default.
-    const props = await jsonGet(base, "/props", token, probe.signal);
+    const props = await jsonGet(base, "/props", token, doorFetch, probe.signal);
     const serverContext = props.ok ? parseServerContext(props.body) : null;
     if (serverContext !== null && serverContext !== getRemoteContextSize()) {
       await setRemoteContextSize(serverContext);
     }
 
-    const models = await jsonGet(base, "/v1/models", token, probe.signal);
+    const models = await jsonGet(base, "/v1/models", token, doorFetch, probe.signal);
     let ids: string[] = [];
     if (models.ok) {
       const data = (models.body as { data?: Array<{ id?: string }> } | null)?.data;
@@ -148,7 +156,7 @@ export async function testRemoteConnection(): Promise<{
         ? data.map((row) => row?.id).filter((id): id is string => typeof id === "string" && id.length > 0)
         : [];
     } else {
-      const health = await jsonGet(base, "/health", token, probe.signal);
+      const health = await jsonGet(base, "/health", token, doorFetch, probe.signal);
       if (!health.ok) {
         return {
           ok: false,
@@ -298,6 +306,20 @@ export async function streamRemoteAssistantTurn(
     reportPreStreamError(new Error("remote_brain_token_required"));
     return;
   }
+  // One road decision for the whole turn, before any request byte exists.
+  const road = await establishDoorRoad(door.node);
+  // The turn's iroh tunnel is released only while it is still ours: once
+  // send() takes it, the chat XHR shim owns its close.
+  let turnTunnel: IrohTunnel | null = road.road === "iroh" ? road.firstTunnel : null;
+  const releaseTurnTunnel = () => {
+    const tunnel = turnTunnel;
+    turnTunnel = null;
+    if (tunnel !== null) void tunnel.shutdown().catch(() => undefined);
+  };
+  if (!stillMine()) {
+    releaseTurnTunnel();
+    return;
+  }
   let visible = "";
   let emitted = "";
   let thinking = false;
@@ -348,6 +370,7 @@ export async function streamRemoteAssistantTurn(
   const finishOnce = (err?: Error) => {
     if (closed) return;
     closed = true;
+    releaseTurnTunnel();
     if (timer != null) {
       clearTimeout(timer);
       timer = null;
@@ -404,7 +427,10 @@ export async function streamRemoteAssistantTurn(
 
   let streamStarted = false;
   try {
-  if (!stillMine()) return;
+  if (!stillMine()) {
+    releaseTurnTunnel();
+    return;
+  }
   if (signal?.aborted) {
     const err = new Error(strings.chat.interrupted);
     (err as { code?: string; preservePartial?: boolean }).code = "interrupted";
@@ -412,7 +438,10 @@ export async function streamRemoteAssistantTurn(
     finishOnce(err);
     return;
   }
-  if (!stillMine()) return;
+  if (!stillMine()) {
+    releaseTurnTunnel();
+    return;
+  }
   // Format B, local parity (ttftFlags.ts:26): facts ride the last user turn,
   // never the system prompt — a fact edit must not rewrite prompt position 0.
   const factsTail = buildMemoryFactsBlock(locale, options.memoryFacts);
@@ -429,6 +458,7 @@ export async function streamRemoteAssistantTurn(
       }
     };
     if (!stillMine()) {
+      releaseTurnTunnel();
       resolve();
       return;
     }
@@ -487,8 +517,20 @@ export async function streamRemoteAssistantTurn(
           settle(err);
         },
       },
+      road.road === "iroh"
+        ? () =>
+            createIrohChatXhr(() => {
+              const tunnel = turnTunnel;
+              turnTunnel = null;
+              if (tunnel === null) throw new Error("iroh door tunnel already consumed");
+              return tunnel;
+            })
+        : undefined,
     );
     if (handle.isClosed()) {
+      // The transport finished before send(): whatever the shim did not take
+      // is still ours to close.
+      releaseTurnTunnel();
       return;
     }
     if (!stillMine()) {

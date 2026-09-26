@@ -44,5 +44,10 @@ The uniffi Kotlin runtime speaks JNA; the AAR variant is the Android
 build. **5.16.0** is the first release with the Android 16 KB page-size
 fix (JNA CHANGES.md, issue #1618; a follow-up, #1647, landed in 5.17.0).
 
-Not wired into pairing or chat yet: `src/remote/irohHttp.ts` is the
-transport that will ride these tunnels.
+Wired into pairing and chat (iroh step 3): `src/remote/irohBridge.ts`
+lazily loads this JS face and turns tunnels into byte streams;
+`src/remote/doorRoad.ts` picks the door road (paired node + module
+present, one connect, one KALSA_ROAD line, HTTPS on a failed connect);
+`src/pairing/pairingDeskFetch.ts` carries claim/complete on the desk
+lane. `src/remote/irohHttp.ts` is the HTTP/1.1 transport riding these
+tunnels; without a node or this module, every road stays HTTPS.

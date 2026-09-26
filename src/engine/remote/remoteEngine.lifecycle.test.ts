@@ -38,6 +38,13 @@ jest.mock("./openaiTransport", () => ({
   streamOpenAiChat: jest.fn(),
 }));
 
+// Absent by default: existing cases stay on the HTTPS road. The road tests
+// flip the module in per case.
+jest.mock("../../remote/irohBridge", () => ({
+  irohModulePresent: jest.fn(() => false),
+  openIrohTunnel: jest.fn(),
+}));
+
 jest.mock("../thinkStream", () => ({
   createThinkStreamCleaner: jest.fn(() => ({
     cleanDelta: (text: string) => text,
@@ -195,6 +202,7 @@ describe("RemoteEngine lifecycle", () => {
     (getPairingCredential as jest.Mock).mockResolvedValue({
       doorUrl: pairedDoorUrl,
       credential: pairedCredential,
+      node: null,
     });
     await setRemoteServerModelId("ornith");
     fetchMock.mockImplementation(async () => ({
@@ -1120,5 +1128,104 @@ describe("RemoteEngine lifecycle", () => {
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("a paired node on a build without the module keeps probe and turn on the https road", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    const { irohModulePresent } = await import("../../remote/irohBridge");
+    const node = "ab".repeat(32);
+    (irohModulePresent as jest.Mock).mockReturnValue(false);
+    (getPairingCredential as jest.Mock).mockResolvedValue({
+      doorUrl: "https://desktop.tailnet.ts.net:9443",
+      credential: "ab".repeat(32),
+      node,
+    });
+    await setRemoteServerModelId("ornith");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: "ornith" }] }),
+    });
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    completeStreamMock("https-road-turn");
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "hello" }],
+      { onDelta: () => undefined, onDone: () => undefined, onError: (e) => { throw e; } },
+      undefined,
+      { locale: "en", turnId: "t-lifecycle" },
+    );
+
+    // Probe went over the wired fetch; the turn got no iroh factory at all.
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://desktop.tailnet.ts.net:9443/props",
+      "https://desktop.tailnet.ts.net:9443/v1/models",
+    ]);
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    expect(streamOpenAiChat.mock.calls[0][2]).toBeUndefined();
+    const lines = log.mock.calls
+      .filter((args) => args[0] === "KALSA_ROAD")
+      .map((args) => JSON.parse(args[1] as string));
+    expect(lines).toEqual([
+      { road: "https", reason: "module_absent", node8: node.slice(0, 8) },
+      { road: "https", reason: "module_absent", node8: node.slice(0, 8) },
+    ]);
+    log.mockRestore();
+  });
+
+  test("a failed iroh connect falls back once per operation with one connect_failed line", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    const { irohModulePresent, openIrohTunnel } = await import("../../remote/irohBridge");
+    const node = "ab".repeat(32);
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    (openIrohTunnel as jest.Mock).mockRejectedValue(new Error("dial refused"));
+    (getPairingCredential as jest.Mock).mockResolvedValue({
+      doorUrl: "https://desktop.tailnet.ts.net:9443",
+      credential: "ab".repeat(32),
+      node,
+    });
+    await setRemoteServerModelId("ornith");
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: "ornith" }] }),
+    });
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    completeStreamMock("fallback-turn");
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "hello" }],
+      { onDelta: () => undefined, onDone: () => undefined, onError: (e) => { throw e; } },
+      undefined,
+      { locale: "en", turnId: "t-lifecycle" },
+    );
+
+    // Each operation made exactly one iroh connect attempt, then one HTTPS
+    // attempt against the paired URL — never a mid-request switch.
+    expect((openIrohTunnel as jest.Mock).mock.calls).toEqual([[node, "door"], [node, "door"]]);
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://desktop.tailnet.ts.net:9443/props",
+      "https://desktop.tailnet.ts.net:9443/v1/models",
+    ]);
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    expect(streamOpenAiChat.mock.calls[0][2]).toBeUndefined();
+    const lines = log.mock.calls
+      .filter((args) => args[0] === "KALSA_ROAD")
+      .map((args) => JSON.parse(args[1] as string));
+    expect(lines).toEqual([
+      { road: "https", reason: "connect_failed", node8: node.slice(0, 8) },
+      { road: "https", reason: "connect_failed", node8: node.slice(0, 8) },
+    ]);
+    const payloads = log.mock.calls
+      .filter((args) => args[0] === "KALSA_ROAD")
+      .map((args) => args[1] as string);
+    expect(payloads.join("")).not.toContain(node);
+    log.mockRestore();
   });
 });
