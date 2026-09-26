@@ -1085,7 +1085,13 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
         .ok()
         .map(|file| options::load(&file).model.is_some())
         .unwrap_or(false);
-    capability::dto(&measurement, startup::ram_bytes(), phone, chosen)
+    capability::dto(
+        &measurement,
+        startup::ram_bytes(),
+        phone,
+        chosen,
+        &kalsa_runtime::runtime_root(),
+    )
 }
 
 /// "Turn on": decide the backend, place the chosen model, start the server.
@@ -1269,7 +1275,9 @@ fn settle_walk(
             {
                 // Best effort: a delete that fails leaves the old record,
                 // which fails once more and takes the same retry.
-                kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root());
+                if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
+                    kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root(), model_digest);
+                }
                 let retry_outcome = retry.outcome();
                 // The retry settles too before the guard lets go.
                 if retry_outcome == StartOutcome::Accepted {

@@ -102,6 +102,7 @@ const MODEL = {
   context_tokens: 4584,
   speed_context_tokens: 8192,
   speed: { shape: "range", low: 12, high: 21 },
+  measured: null,
   reason: "This is a clear step up from what your phone runs: a bigger, stronger model.",
   details:
     "budget 12.75 GiB of 17.0 GiB — 4.25 GiB kept for the system\n" +
@@ -133,6 +134,7 @@ const QUICK_MODEL = {
   context_tokens: 65_315,
   speed_context_tokens: 8192,
   speed: { shape: "measured", value: 62.7, machine: "an M1 Max" },
+  measured: null,
   reason:
     "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
   details:
@@ -163,6 +165,7 @@ const BIG_MODEL = {
   context_tokens: 547_503,
   speed_context_tokens: 8192,
   speed: { shape: "range", low: 31.0, high: 46.4 },
+  measured: null,
   reason:
     "This is the biggest model this computer runs well. Pair your phone and the app can tell you whether it beats what the phone runs.",
   details: "the full working",
@@ -172,6 +175,7 @@ const BIG_QUICK = {
   ...QUICK_MODEL,
   context_tokens: 414_767,
   speed: { shape: "measured", value: 62.7, machine: "M1 Max" },
+  measured: null,
 };
 
 // Raised by the catalog before anything else when no phone is paired

@@ -10,6 +10,8 @@
 //! downloaded. The catalog's refusal is an answer, not an error — an unpaired
 //! phone refuses with words the owner can act on, and they travel untouched.
 
+use std::path::Path;
+
 use serde::Serialize;
 
 use kalsa_catalog::{
@@ -149,6 +151,10 @@ pub(crate) struct ModelChoiceDto {
     /// measured at is the empty-cache best case wearing a general claim.
     speed_context_tokens: u64,
     speed: SpeedDto,
+    /// The tune's measured decode rate for this row on THIS machine, when
+    /// one is recorded. `None` is the ordinary first sight: the number
+    /// exists only after the tune has run.
+    measured: Option<f64>,
     /// `Selection::plain_reason` — already written for a human, pass it through.
     reason: String,
     /// `Selection::details` — the full working, for whoever asks.
@@ -174,6 +180,7 @@ pub(crate) fn dto(
     ram_bytes: u64,
     phone: Option<PhoneModel>,
     chosen: bool,
+    root: &Path,
 ) -> CapabilityDto {
     let input = ChoiceInput {
         backend: measurement.will_run_on,
@@ -221,6 +228,7 @@ pub(crate) fn dto(
                         .and_then(|row| funded_context(row, budget.usable_bytes, DEFAULT_PARALLEL)),
                     speed_context_tokens: context,
                     speed: speed(&shown),
+                    measured: row.and_then(|row| measured_speed(root, row)),
                     reason: selection.plain_reason,
                     details: selection.details,
                 }),
@@ -251,6 +259,7 @@ pub(crate) fn dto(
                             ),
                             speed_context_tokens: context,
                             speed: speed(&shown),
+                            measured: measured_speed(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
                             // The working quotes the same figure as the line
                             // above it: built from `row.decode` it quoted the
@@ -291,6 +300,7 @@ pub(crate) fn dto(
                 context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
                 speed_context_tokens: context,
                 speed: speed(&shown),
+                measured: measured_speed(root, row.entry),
                 reason: QUICKER_REASON.to_string(),
                 details: alternative_details(&row, &shown),
             }
@@ -302,6 +312,22 @@ pub(crate) fn dto(
         quicker,
         refusal,
     }
+}
+
+/// The tune's own number for a row, when this machine has recorded one:
+/// the record is filed under the row's pinned digest, and the figure is
+/// what this machine measured — it outranks the prediction beside it.
+fn measured_speed(root: &Path, entry: &ModelEntry) -> Option<f64> {
+    let source = usable()
+        .find(|row| {
+            let row = row.entry();
+            row.repo == entry.repo
+                && row.quant == entry.quant
+                && row.weights_bytes == entry.weights_bytes
+        })?
+        .source();
+    let record = kalsa_tune::record::load_by_model(root, source.sha256)?;
+    record.winner.map(|winner| winner.best)
 }
 
 /// The decode figure the page shows for a row: the same catalog arithmetic,
@@ -428,8 +454,23 @@ fn phone_free_details(row: &RunnableRow, decode: &Prediction) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kalsa_launch::Offload;
 
     const GIB: u64 = 1_073_741_824;
+
+    /// An empty records root, private to one test: tests run in parallel
+    /// inside this binary, and a shared path would have each call wiping
+    /// the others'. These tests read predictions — a tune record nobody
+    /// wrote says nothing.
+    fn records_root(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-capability-{}-{name}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        dir
+    }
 
     #[test]
     fn the_json_the_page_reads_is_a_contract_pinned_here() {
@@ -457,6 +498,10 @@ mod tests {
                     low: 12.0,
                     high: 21.0,
                 },
+                // The tune's own number, when this machine has recorded
+                // one for the row — part of the contract, so the sample
+                // shows it.
+                measured: Some(18.4),
                 reason: "It runs a clearly bigger model than your phone does.".to_string(),
                 details: "the full working".to_string(),
             }),
@@ -474,6 +519,7 @@ mod tests {
                     value: 62.7,
                     machine: "an M1 Max".to_string(),
                 },
+                measured: None,
                 reason: QUICKER_REASON.to_string(),
                 details: "the full working".to_string(),
             }),
@@ -495,6 +541,8 @@ mod tests {
         assert_eq!(json["model"]["speed"]["shape"], "range");
         assert_eq!(json["model"]["speed"]["low"], 12.0);
         assert_eq!(json["model"]["speed"]["high"], 21.0);
+        assert_eq!(json["model"]["measured"], 18.4);
+        assert_eq!(json["quicker"]["measured"], serde_json::Value::Null);
         assert_eq!(json["quicker"]["name"], "Arcee Trinity Nano");
         assert_eq!(json["quicker"]["speed"]["shape"], "measured");
         assert_eq!(json["refusal"], serde_json::Value::Null);
@@ -526,6 +574,7 @@ mod tests {
                 "context_tokens",
                 "details",
                 "id",
+                "measured",
                 "name",
                 "quant",
                 "reason",
@@ -583,11 +632,60 @@ mod tests {
     }
 
     #[test]
+    fn a_recorded_tune_puts_its_own_number_on_the_option() {
+        // The record the tune files for the pick's row is the number the
+        // card quotes: this machine's measurement, not the catalog's
+        // prediction. Absent until a tune has run — the ordinary first
+        // sight — and found by the row's pinned digest alone.
+        let root = records_root("measured");
+        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(before),
+            ..
+        } = first
+        else {
+            panic!("a measured machine answers Measured with a pick");
+        };
+        assert_eq!(before.measured, None, "no record, no claim of one");
+
+        let digest = usable()
+            .find(|row| {
+                let row = row.entry();
+                row.display_name == before.name
+                    && row.quant == before.quant
+                    && row.weights_bytes == before.weights_bytes
+            })
+            .expect("the pick is on the menu")
+            .source()
+            .sha256;
+        let candidate = kalsa_tune::Candidate {
+            backend: kalsa_runtime::ServerBackend::Cpu,
+            threads: Some(8),
+            offload: Offload::NoGpuBuild,
+        };
+        let record = kalsa_tune::record::Record {
+            fingerprint: "the display read does not compare keys".to_string(),
+            winner: Some(kalsa_tune::Winner { candidate, best: 23.5 }),
+            trials: vec![(candidate, kalsa_tune::record::Kept::Best(23.5))],
+        };
+        kalsa_tune::record::save(&root, digest, &record).expect("file the record");
+
+        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(after), ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(after.measured, Some(23.5), "the tune's number travelled");
+    }
+
+    #[test]
     fn an_unpaired_phone_gets_the_largest_model_that_runs_not_a_dead_end() {
         // The commonest first run: a Mac with no phone paired. The page's
         // question — what can this computer run? — still has an answer; the
         // upgrade question is the one that waits for the phone.
-        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, true);
+        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, true, &records_root("unpaired"));
         let CapabilityDto::Measured {
             model,
             refusal,
@@ -605,7 +703,7 @@ mod tests {
         // And when nothing runs even without the comparison, the phone-free
         // question's own refusal answers — here, nothing fits — with its
         // words, not the pair-first sentence that no longer gates anything.
-        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, true);
+        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, true, &records_root("nothing-fits"));
         let CapabilityDto::Measured { model, refusal, .. } = nothing_fits else {
             panic!("a measured machine answers Measured, not Unmeasured");
         };
@@ -626,7 +724,7 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), true);
+        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), true, &records_root("phone"));
         let CapabilityDto::Measured {
             model: Some(choice),
             ..
@@ -654,7 +752,7 @@ mod tests {
         for ram in [8, 16, 32, 64] {
             for backend in [Backend::Cpu, Backend::Metal] {
                 let CapabilityDto::Measured { model, quicker, .. } =
-                    dto(&measured(backend), ram * GIB, None, true)
+                    dto(&measured(backend), ram * GIB, None, true, &records_root("speed-context"))
                 else {
                     panic!("{ram} GiB: a measured machine answers Measured");
                 };
@@ -686,7 +784,7 @@ mod tests {
         // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
         // The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
-            dto(&measured(Backend::Cpu), 32 * GIB, None, true)
+            dto(&measured(Backend::Cpu), 32 * GIB, None, true, &records_root("largest"))
         else {
             panic!("a measured machine answers Measured");
         };

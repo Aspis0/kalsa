@@ -1,7 +1,7 @@
-//! What the tune kept: one file, one magic line, `key=value` lines — the
-//! verdict's discipline, for a different question, and stricter about the
-//! file's shape: a torn record must read as no record, never as a smaller
-//! truth.
+//! What the tune kept: one file per model, one magic line, `key=value`
+//! lines — the verdict's discipline, for a different question, and
+//! stricter about the file's shape: a torn record must read as no record,
+//! never as a smaller truth.
 
 use std::fs;
 use std::io::{self, Write};
@@ -15,6 +15,22 @@ use crate::candidates::Candidate;
 use crate::winner::{Outcome, Refusal, Winner};
 
 const MAGIC: &str = "kalsa-tune v2";
+
+/// One record per model, filed under the model digest the key names. The
+/// single `tuning.txt` this replaces could hold one tune, so a second
+/// model's save erased the first. The digest is the caller's own pinned
+/// sha256 — the same identity the fingerprint embeds, handed to the store
+/// instead of parsed out of it.
+fn path(dir: &Path, model_digest: &str) -> PathBuf {
+    dir.join(format!("tuning-{model_digest}.txt"))
+}
+
+/// The store this store replaces, kept only as a fallback so a record
+/// written before the split keeps serving its model until its next re-tune
+/// files the new name.
+fn legacy_path(dir: &Path) -> PathBuf {
+    dir.join("tuning.txt")
+}
 
 /// The record's key: everything whose change must force a re-tune. Opaque —
 /// save and load only compare it — and one function, so the walk, the tune
@@ -39,7 +55,6 @@ pub fn fingerprint(
 /// The winner as the file holds it, field by field until every line has
 /// arrived: backend, offload, threads (optional), best.
 type WinnerLine = (ServerBackend, Option<Offload>, Option<usize>, Option<f64>);
-const FILE_NAME: &str = "tuning.txt";
 
 /// A candidate's kept result: its best rate, or its refusal. The record
 /// keeps the winning number, not every sample — the app shows the figure
@@ -134,7 +149,7 @@ fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, best: f64) -
 /// over the old one. A crash mid-write therefore leaves the predecessor
 /// whole (or no record at all on the first save) — never a truncated file
 /// that could parse as a smaller truth.
-pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
+pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     validate(record)?;
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
@@ -170,7 +185,7 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
     // suffer lands before it, and a record without it is a record we do
     // not have.
     text.push_str("end\n");
-    let temp = temp_path(dir);
+    let temp = temp_path(&path(dir, model_digest));
     // A create failure is the one early return past this point, and it is
     // safe: no file of ours exists yet (this code never removes a path it
     // did not just make). Every path AFTER the create — write, flush,
@@ -181,7 +196,7 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
     let staged = file.write_all(text.as_bytes()).and_then(|()| file.flush());
     drop(file); // closed before the rename: nobody may hold the temp open
     let result = match staged {
-        Ok(()) => fs::rename(&temp, path(dir)),
+        Ok(()) => fs::rename(&temp, path(dir, model_digest)),
         Err(error) => Err(error),
     };
     if let Err(error) = result {
@@ -196,17 +211,47 @@ pub fn save(dir: &Path, record: &Record) -> io::Result<()> {
 /// One temp name per save: the pid separates processes, the counter
 /// separates saves inside one — two concurrent saves must never truncate
 /// or rename each other's half-written file.
-fn temp_path(dir: &Path) -> PathBuf {
+fn temp_path(target: &Path) -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let serial = COUNTER.fetch_add(1, Ordering::Relaxed);
-    dir.join(format!("{FILE_NAME}.{}.{}.tmp", std::process::id(), serial))
+    let name = target.file_name().expect("a path we just built names a file");
+    target.with_file_name(format!(
+        "{}.{}.{}.tmp",
+        name.to_string_lossy(),
+        std::process::id(),
+        serial
+    ))
 }
 
-/// The saved record, if it is ours, whole, valid, and still this
-/// fingerprint. A corrupt, truncated, foreign or stale file reads as
-/// `None`: no error reaches the walk, the caller just keeps the rule.
-pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
-    let text = fs::read_to_string(path(dir)).ok()?;
+/// The saved record for one model, if it is ours, whole, valid, and still
+/// this fingerprint. The per-model file is read first; the legacy single
+/// file answers only for the model its fingerprint names. A corrupt,
+/// truncated, foreign or stale file reads as `None`: no error reaches the
+/// walk, the caller just keeps the rule.
+pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record> {
+    let text = fs::read_to_string(path(dir, model_digest))
+        .or_else(|_| fs::read_to_string(legacy_path(dir)))
+        .ok()?;
+    let (saved, record) = parse(&text)?;
+    (saved == fingerprint).then_some(record)
+}
+
+/// The record filed for one model, by name alone — the display read. The
+/// model identity IS the file's name here, so the fingerprint's other
+/// facts (engine build, context) are not re-checked: a stale figure is
+/// corrected by that model's next tune, and the launch path keeps the
+/// strict [`load`] above.
+pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
+    let text = fs::read_to_string(path(dir, model_digest))
+        .or_else(|_| fs::read_to_string(legacy_path(dir)))
+        .ok()?;
+    parse(&text).map(|(_, record)| record)
+}
+
+/// The file's whole meaning: the fingerprint it claims, and the record it
+/// holds. Shared by both loads, so neither can grow a reading the other
+/// lacks.
+fn parse(text: &str) -> Option<(String, Record)> {
     let mut lines = text.lines();
     // The magic must be the WHOLE first line: a version we do not know —
     // `kalsa-tune v1` with its fit-disabling graphics winner, today — is not
@@ -323,9 +368,6 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
     if !saw_end || saved_fingerprint.is_none() || trials.is_empty() {
         return None;
     }
-    if saved_fingerprint? != fingerprint {
-        return None;
-    }
     let winner = match winner {
         None => None,
         Some((backend, offload, threads, best)) => {
@@ -340,7 +382,8 @@ pub fn load(dir: &Path, fingerprint: &str) -> Option<Record> {
             Some(Winner { candidate, best })
         }
     };
-    Some(Record { fingerprint: saved_fingerprint?.to_string(), winner, trials })
+    let fingerprint = saved_fingerprint?.to_string();
+    Some((fingerprint.clone(), Record { fingerprint, winner, trials }))
 }
 
 /// A rate the record may hold: a positive, finite number. Anything else
@@ -399,16 +442,15 @@ fn offload_from_name(name: &str) -> Option<Offload> {
     }
 }
 
-/// Throw the record away: the tuned launch just failed where the rule
-/// succeeded, so whatever this file said is not what this machine wants —
-/// the next start must measure again. Best effort: no record is already
-/// the goal, and a missing file is not an error anyone should see.
-pub fn invalidate(dir: &Path) {
-    let _ = fs::remove_file(path(dir));
-}
-
-fn path(dir: &Path) -> PathBuf {
-    dir.join(FILE_NAME)
+/// Throw the model's record away: the tuned launch just failed where the
+/// rule succeeded, so whatever the file said is not what this machine
+/// wants — the next start must measure again. The legacy single file goes
+/// too: it can only be shadowing this model's own. Best effort: no record
+/// is already the goal, and a missing file is not an error anyone should
+/// see.
+pub fn invalidate(dir: &Path, model_digest: &str) {
+    let _ = fs::remove_file(path(dir, model_digest));
+    let _ = fs::remove_file(legacy_path(dir));
 }
 
 #[cfg(test)]

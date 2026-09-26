@@ -200,13 +200,18 @@ fn tune_launch_inner(
 ) {
     let rule_args = prepared.info.args.clone();
     let rule_exe = prepared.server.exe.clone();
+    let Some(model_digest) = prepared.info.model_sha256.clone() else {
+        // A model with no digest has nothing to key a record on.
+        prepared.info.tune = Some(Tune::Skipped);
+        return;
+    };
     let Some(fingerprint) = tune_fingerprint(machine, &prepared.info, main.0, memo.cores) else {
         prepared.info.tune = Some(Tune::Skipped);
         return;
     };
 
     // A kept record: the winner, no measuring.
-    let kept = kalsa_tune::record::load(root, &fingerprint);
+    let kept = kalsa_tune::record::load(root, &model_digest, &fingerprint);
     let (record, winner) = match kept {
         Some(record) => {
             // Kept: no measuring, and the panel says what won from the
@@ -268,7 +273,7 @@ fn tune_launch_inner(
             // lifetime never began (the budget cut round one, or an exe
             // that could not be resolved) makes the picture incomplete.
             if ran == candidates.len() {
-                if let Err(error) = kalsa_tune::record::save(root, &record) {
+                if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
                     // Best effort: a record that cannot be written costs a
                     // re-tune next start, never this launch.
                     eprintln!("kalsa-brain: the tune record could not be written: {error}");

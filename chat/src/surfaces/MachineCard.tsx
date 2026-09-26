@@ -26,6 +26,10 @@ export interface ModelOption {
     | { shape: "range"; low: number; high: number }
     | { shape: "at_least"; value: number }
     | { shape: "measured"; value: number; machine: string };
+  // The tune's measured decode rate on this machine, when one exists —
+  // null until the tune has run. It outranks the predicted speed beside
+  // it: a measurement of this computer beats an arithmetic about it.
+  measured: number | null;
   reason: string; // one or two sentences, already written for a human
   details: string; // the full working, technical
 }
@@ -152,7 +156,9 @@ function machineSentence(machine: Machine): string {
 // What the model's detail line says. The context appears only when the
 // machine funds one: `funded_context` answers None for a row that fits with
 // nothing left over, and "null tokens of context" is not a fact to print.
-function modelDetail(model: ModelOption): string {
+// `speed` is the figure the head already chose — the tune's own number
+// where one exists, the prediction otherwise.
+function modelDetail(model: ModelOption, speed: Speed): string {
   const held = `${model.quant} · ${bytesText(model.weights_bytes)} on disk`;
   // "up to": the figure is the largest context the memory funds, and the
   // speed beside it is priced at a much shorter conversation. Saying it flat
@@ -161,7 +167,7 @@ function modelDetail(model: ModelOption): string {
     typeof model.context_tokens === "number"
       ? ` · up to ${model.context_tokens.toLocaleString()} tokens of context`
       : "";
-  return `${held}${context} · ${speedDetail(model.speed)}`;
+  return `${held}${context} · ${speedDetail(speed)}`;
 }
 
 // The machine card: the numbers the chooser used, and the model it chose. It is
@@ -184,14 +190,20 @@ function Option({
 }) {
   const [confirming, setConfirming] = useState(false);
   const isRunning = running != null && running === model.name;
+  // The tune's own number replaces the prediction when this machine has
+  // one; "measured on this computer" is then the truth of the figure.
+  const speed: Speed =
+    model.measured != null
+      ? { shape: "measured", value: model.measured, machine: "this computer" }
+      : model.speed;
   return (
     <div className="machine-option">
       <p className="machine-option-head">
         <strong className="machine-option-name">{model.name}</strong>
-        <span className="machine-option-speed">{speedText(model.speed)}</span>
+        <span className="machine-option-speed">{speedText(speed)}</span>
         {isRunning ? <span className="machine-option-running">Running now.</span> : null}
       </p>
-      <p className="machine-option-detail">{modelDetail(model)}</p>
+      <p className="machine-option-detail">{modelDetail(model, speed)}</p>
       <p className="machine-option-reason">{model.reason}</p>
       {isRunning ? null : model.id === null || onChoose === undefined ? null : confirming ? (
         <div className="machine-option-choose">

@@ -29,6 +29,18 @@
         }
     }
 
+    /// The model `sample()`'s fingerprint names: the store keys by this,
+    /// the fingerprint compares it.
+    const DIGEST: &str = "sha-abc";
+
+    fn path_last(model_digest: &str) -> String {
+        path(Path::new("."), model_digest)
+            .file_name()
+            .expect("the store's own path names a file")
+            .to_string_lossy()
+            .into_owned()
+    }
+
     fn sample() -> Record {
         let cpu16 = Candidate {
             backend: ServerBackend::Cpu,
@@ -58,23 +70,23 @@
 
     /// The saved text of `sample()`, for the cut-boundary tests.
     fn sample_text(dir: &Path) -> String {
-        save(dir, &sample()).expect("save");
-        std::fs::read_to_string(path(dir)).expect("read")
+        save(dir, DIGEST, &sample()).expect("save");
+        std::fs::read_to_string(path(dir, DIGEST)).expect("read")
     }
 
     fn rewrite(dir: &Path, text: impl AsRef<[u8]>) {
-        std::fs::write(path(dir), text).expect("rewrite");
+        std::fs::write(path(dir, DIGEST), text).expect("rewrite");
     }
 
     #[test]
     fn a_record_survives_a_restart_with_the_same_fingerprint() {
         let dir = Scratch::new("roundtrip");
         let record = sample();
-        save(&dir, &record).expect("save");
-        let loaded = load(&dir, &record.fingerprint).expect("load");
+        save(&dir, DIGEST, &record).expect("save");
+        let loaded = load(&dir, DIGEST, &record.fingerprint).expect("load");
         assert_eq!(loaded, record);
-        std::fs::remove_file(path(&dir)).expect("remove");
-        assert_eq!(load(&dir, &record.fingerprint), None);
+        std::fs::remove_file(path(&dir, DIGEST)).expect("remove");
+        assert_eq!(load(&dir, DIGEST, &record.fingerprint), None);
     }
 
     /// The tune's graphics winner is remembered as engine-fitted: the name
@@ -91,8 +103,8 @@
                 candidate.offload = Offload::EngineFitted;
             }
         }
-        save(&dir, &record).expect("save");
-        let back = load(&dir, &record.fingerprint).expect("load");
+        save(&dir, DIGEST, &record).expect("save");
+        let back = load(&dir, DIGEST, &record.fingerprint).expect("load");
         assert_eq!(
             back.winner.expect("kept").candidate.offload,
             Offload::EngineFitted
@@ -102,8 +114,8 @@
     #[test]
     fn a_changed_machine_or_model_reads_as_no_record() {
         let dir = Scratch::new("fingerprint");
-        save(&dir, &sample()).expect("save");
-        assert_eq!(load(&dir, "sha-other|ctx8192|machine"), None);
+        save(&dir, DIGEST, &sample()).expect("save");
+        assert_eq!(load(&dir, DIGEST, "sha-other|ctx8192|machine"), None);
     }
 
     #[test]
@@ -111,7 +123,7 @@
         let dir = Scratch::new("corrupt");
         let text = sample_text(&dir).replace("best=49", "best=banana");
         rewrite(&dir, text);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A cut before the winner: the trials parse completely and there is
@@ -123,7 +135,7 @@
         let text = sample_text(&dir);
         let cut = text.find("winner-backend").expect("the sample has a winner");
         rewrite(&dir, &text[..cut]);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A cut inside a later candidate: the earlier ones parse and the
@@ -135,7 +147,7 @@
         let text = sample_text(&dir);
         let cut = text.find("candidate.1.threads").expect("the second trial's fields");
         rewrite(&dir, &text[..cut]);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A cut right after a refusal line. The cause itself can no longer be
@@ -148,19 +160,19 @@
         let text = sample_text(&dir);
         let cut = text.find("candidate.2.backend").expect("the trial after the refusal");
         rewrite(&dir, &text[..cut]);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     #[test]
     fn a_foreign_magic_reads_as_no_record() {
         let dir = Scratch::new("foreign");
-        save(&dir, &sample()).expect("save");
+        save(&dir, DIGEST, &sample()).expect("save");
         // Our shape, another tool's magic: only the exact magic line
         // stands between this file and being believed.
-        let text = std::fs::read_to_string(path(&dir)).expect("read");
+        let text = std::fs::read_to_string(path(&dir, DIGEST)).expect("read");
         let foreign = text.replacen(MAGIC, "another-tool v7", 1);
         rewrite(&dir, foreign);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A version bump is not our version: the magic is the whole line,
@@ -168,10 +180,10 @@
     #[test]
     fn a_version_bump_reads_as_no_record() {
         let dir = Scratch::new("v10");
-        save(&dir, &sample()).expect("save");
-        let text = std::fs::read_to_string(path(&dir)).expect("read");
+        save(&dir, DIGEST, &sample()).expect("save");
+        let text = std::fs::read_to_string(path(&dir, DIGEST)).expect("read");
         rewrite(&dir, text.replacen(MAGIC, "kalsa-tune v10", 1));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// The v1 records pinned the graphics winner as `all`, whose flag makes
@@ -180,10 +192,10 @@
     #[test]
     fn a_v1_record_reads_as_no_record() {
         let dir = Scratch::new("legacy-v1");
-        save(&dir, &sample()).expect("save");
-        let text = std::fs::read_to_string(path(&dir)).expect("read");
+        save(&dir, DIGEST, &sample()).expect("save");
+        let text = std::fs::read_to_string(path(&dir, DIGEST)).expect("read");
         rewrite(&dir, text.replacen(MAGIC, "kalsa-tune v1", 1));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A rate the format must not hold: zero, negative and non-finite are
@@ -195,7 +207,7 @@
             let text = sample_text(&dir).replace("best=49", &format!("best={bad}"));
             rewrite(&dir, text);
             assert_eq!(
-                load(&dir, "sha-abc|ctx8192|machine"),
+                load(&dir, DIGEST, "sha-abc|ctx8192|machine"),
                 None,
                 "best={bad} must not load"
             );
@@ -211,15 +223,15 @@
 
         // A thread count no trial has.
         rewrite(&dir, base.replace("winner-threads=16", "winner-threads=99"));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
 
         // The same trial, a different number.
         rewrite(&dir, base.replace("winner-best=49", "winner-best=48"));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
 
         // An offload no trial has.
         rewrite(&dir, base.replace("winner-offload=all", "winner-offload=forced-off"));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// One temp name per save: the pid separates processes and the
@@ -228,8 +240,8 @@
     #[test]
     fn temp_names_never_collide() {
         let dir = Scratch::new("temp-names");
-        let first = temp_path(&dir);
-        let second = temp_path(&dir);
+        let first = temp_path(&path(&dir, DIGEST));
+        let second = temp_path(&path(&dir, DIGEST));
         assert_ne!(first, second, "one name per save");
         let name = first.file_name().expect("a file name").to_string_lossy();
         assert!(
@@ -242,12 +254,12 @@
     #[test]
     fn every_save_leaves_no_temp_behind() {
         let dir = Scratch::new("no-temp");
-        save(&dir, &sample()).expect("save");
+        save(&dir, DIGEST, &sample()).expect("save");
         let names = std::fs::read_dir(&*dir)
             .expect("the dir")
             .map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        assert_eq!(names, vec![FILE_NAME.to_string()], "only the record remains");
+        assert_eq!(names, vec![path_last(DIGEST)], "only the record remains");
     }
 
     /// When the rename cannot land (the target is a directory), the temp
@@ -256,13 +268,13 @@
     #[test]
     fn a_failed_rename_removes_the_temp_it_wrote() {
         let dir = Scratch::new("failed-rename");
-        std::fs::create_dir_all(path(&dir)).expect("a directory where the file should go");
-        let _error = save(&dir, &sample()).expect_err("a directory cannot be renamed over");
+        std::fs::create_dir_all(path(&dir, DIGEST)).expect("a directory where the file should go");
+        let _error = save(&dir, DIGEST, &sample()).expect_err("a directory cannot be renamed over");
         let names = std::fs::read_dir(&*dir)
             .expect("the dir")
             .map(|entry| entry.expect("an entry").file_name().to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        assert_eq!(names, vec![FILE_NAME.to_string()], "no temp outlives its save");
+        assert_eq!(names, vec![path_last(DIGEST)], "no temp outlives its save");
     }
 
     /// A candidate opened and never finished before the end marker: the
@@ -278,7 +290,7 @@
         forged.push_str("candidate.3.backend=vulkan\n");
         forged.push_str("end\n");
         rewrite(&dir, forged);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// Every shape `load` would refuse is refused by `save` first, with
@@ -321,7 +333,7 @@
             ("save-stray-winner", stray_winner),
         ] {
             let dir = Scratch::new(name);
-            let error = save(&dir, &record)
+            let error = save(&dir, DIGEST, &record)
                 .expect_err("save must refuse what load would refuse");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}: {error}");
             assert!(!dir.exists(), "{name}: nothing was written");
@@ -358,7 +370,7 @@
         let dir = Scratch::new("free-text-refusal");
         let text = sample_text(&dir);
         rewrite(&dir, text.replace("refused=did-not-start", "refused=/home/user/llama.log"));
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
     }
 
     /// A fingerprint is one non-empty line: the file is line-shaped, so a
@@ -374,7 +386,7 @@
         ] {
             let dir = Scratch::new(name);
             let record = Record { fingerprint: fingerprint.into(), ..sample().clone() };
-            let error = save(&dir, &record).expect_err("one line or nothing");
+            let error = save(&dir, DIGEST, &record).expect_err("one line or nothing");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}: {error}");
             assert!(!dir.exists(), "{name}: nothing was written");
         }
@@ -390,7 +402,7 @@
         trials.push((candidate, kept));
         let record = Record { trials, ..base };
         let dir = Scratch::new("save-dup-trial");
-        let error = save(&dir, &record).expect_err("one launch, one trial");
+        let error = save(&dir, DIGEST, &record).expect_err("one launch, one trial");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{error}");
         assert!(!dir.exists(), "nothing was written");
     }
@@ -411,5 +423,65 @@
              end\n"
         );
         rewrite(&dir, text);
-        assert_eq!(load(&dir, "sha-abc|ctx8192|machine"), None);
+        assert_eq!(load(&dir, DIGEST, "sha-abc|ctx8192|machine"), None);
+    }
+
+    #[test]
+    fn two_models_keep_their_own_records() {
+        // The store's reason for existing: two models tuned on one machine
+        // must both survive, each under its own digest. The single file
+        // this store replaced answered only the last one saved.
+        let dir = Scratch::new("per-model");
+        let mut other = sample();
+        other.fingerprint = "sha-other|ctx8192|machine".into();
+        let mac = Candidate {
+            backend: ServerBackend::Metal,
+            threads: Some(8),
+            offload: Offload::ForcedOff,
+        };
+        other.winner = Some(Winner { candidate: mac, best: 21.0 });
+        save(&dir, DIGEST, &sample()).expect("the first model's save");
+        save(&dir, "sha-other", &other).expect("the second model's save");
+        let first = load(&dir, DIGEST, "sha-abc|ctx8192|machine")
+            .expect("the first model's record survived the second save");
+        let second = load(&dir, "sha-other", "sha-other|ctx8192|machine")
+            .expect("and the second's survived the first");
+        assert_eq!(first.winner.expect("kept").best, 49.0);
+        assert_eq!(second.winner.expect("kept").best, 21.0);
+        assert_eq!(
+            load_by_model(&dir, DIGEST).expect("by name alone").fingerprint,
+            "sha-abc|ctx8192|machine"
+        );
+    }
+
+    #[test]
+    fn a_legacy_single_file_still_serves_its_model() {
+        // A record the pre-split store wrote: one tuning.txt, holding one
+        // model's tune. It keeps answering for that model — and for no
+        // other — until its next re-tune files the new name.
+        let dir = Scratch::new("legacy");
+        save(&dir, DIGEST, &sample()).expect("save");
+        std::fs::rename(path(&dir, DIGEST), legacy_path(&dir)).expect("age the file by hand");
+        assert!(
+            load(&dir, DIGEST, "sha-abc|ctx8192|machine").is_some(),
+            "the legacy file answers for its own model"
+        );
+        assert!(
+            load(&dir, "sha-other", "sha-other|ctx8192|machine").is_none(),
+            "and for no other model"
+        );
+        assert!(load_by_model(&dir, DIGEST).is_some(), "the display read too");
+        // The next save for the model files the new name, and the legacy
+        // file stops mattering.
+        save(&dir, DIGEST, &sample()).expect("re-save");
+        std::fs::remove_file(legacy_path(&dir)).expect("the legacy file is gone");
+        assert!(
+            load(&dir, DIGEST, "sha-abc|ctx8192|machine").is_some(),
+            "the per-model file stands on its own"
+        );
+        invalidate(&dir, DIGEST);
+        assert!(
+            load(&dir, DIGEST, "sha-abc|ctx8192|machine").is_none(),
+            "invalidation clears the per-model file"
+        );
     }

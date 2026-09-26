@@ -191,7 +191,7 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
             kalsa_tune::record::Kept::Best(49.0),
         )],
     };
-    kalsa_tune::record::save(&dir, &record).expect("save");
+    kalsa_tune::record::save(&dir, prepared.info.model_sha256.as_deref().unwrap(), &record).expect("save");
     let mut seen: Vec<Progress> = Vec::new();
     let mut progress = |step: Progress| seen.push(step);
     let mut memo = Memo {
@@ -275,7 +275,7 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
         seen.iter().any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
         "three lifetimes planned, three done"
     );
-    let saved = kalsa_tune::record::load(&dir, &fingerprint).expect("the record was saved");
+    let saved = kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).expect("the record was saved");
     assert_eq!(saved.winner, None, "and it says there was no winner");
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -316,7 +316,7 @@ fn a_single_candidate_is_skipped_and_never_measured() {
     );
     assert!(prepared.server.argv.iter().all(|arg| arg != "--threads"));
     assert!(
-        kalsa_tune::record::load(&dir, &fingerprint).is_none(),
+        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
         "nothing measured, nothing saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -541,7 +541,7 @@ fn an_incomplete_tune_is_not_saved() {
     );
     // …but nothing was written down.
     assert!(
-        kalsa_tune::record::load(&dir, &fingerprint).is_none(),
+        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
         "an incomplete tune must not be saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -587,7 +587,7 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
         "the processor candidates never ran"
     );
     assert!(
-        kalsa_tune::record::load(&dir, &fingerprint).is_none(),
+        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
         "an incomplete tune must not be saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -622,9 +622,10 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
             kalsa_tune::record::Kept::Best(49.0),
         )],
     };
-    kalsa_tune::record::save(&dir, &record).expect("save");
+    kalsa_tune::record::save(&dir, prepared.info.model_sha256.as_deref().unwrap(), &record)
+        .expect("save");
     // The file as the pre-fit build wrote it:
-    let file = dir.join("tuning.txt");
+    let file = dir.join("tuning-deadbeef.txt");
     let text = std::fs::read_to_string(&file).expect("read");
     std::fs::write(&file, text.replacen("kalsa-tune v2", "kalsa-tune v1", 1)).expect("rewrite");
 
@@ -664,13 +665,15 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         "and the walk completes with a line, not a failure: {:?}",
         prepared.info.tune
     );
-    let text = std::fs::read_to_string(dir.join("tuning.txt")).expect("read the record");
+    let text =
+        std::fs::read_to_string(dir.join("tuning-deadbeef.txt")).expect("read the record");
     assert!(
         text.starts_with("kalsa-tune v2\n"),
         "the complete tune replaced it with a v2 record"
     );
     assert!(
-        kalsa_tune::record::load(&dir, &fingerprint).is_some(),
+        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint)
+            .is_some(),
         "and the v2 record loads"
     );
     let _ = std::fs::remove_dir_all(&dir);
