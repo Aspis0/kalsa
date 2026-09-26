@@ -1340,3 +1340,19 @@ level ≤ 25 %, plugged, missing skin/thermal/level. Local phones unchanged (A5:
 required; skin ≥ 46 added if untrusted). Dry-runs (fake adb, canned tokens 127, restored after):
 QDC battery 44.0 + skin 30 → no stop, 2 OK rows, EXIT=0; QDC skin 46.5 → `STOP skin_fallback`, EXIT=0; local
 (port 5037) battery 44.5 → `STOP battery_temp`, EXIT=0.
+
+## QRD8750 S2 on the QDC-skin-stop driver — QDC 850223, unit sa854292, serial 9aed338b — keyboard auto-caps; STOPPED
+
+Started 17:45:37. Battery stub 42.0 this time (logged only; no stop). Run 1 (`sa854292`): `CALIB_FAIL` —
+the composer held "Bench:route cpu": Gboard (`com.google.android.inputmethod.latin`) auto-capitalized the first
+letter and the exact composer check voided the route command. Fix **`cdad7bfe`**: type `/bench route <mode>`
+(same app command, `stripBenchPrefix`, case-insensitive; "/" cannot be capitalized); dry-run EXIT=0. Run 2
+(`sa854292b`): calibration OK (route_push applied, N0=15, `DECODE_LEN_REF=127`), but arm 1 (G, pair 3) INVALID
+`composer`: the prompt's first word became "Amber" (same auto-cap); every arm on this provisioning would void
+(S1 on the same serial typed fine, so the keyboard state differs per provisioning). Driver SIGTERMed at 18:14
+(END `signal_TERM`), restore.sh rc=0 (stay_on 15 / timeout 60000). Not fixed: needs a device-side change
+(QDC only, e.g. disable the IME or Gboard auto-caps with exact restore) — left for the coordinator.
+
+**End Session not confirmed:** the tab 3774c340 came back LOGGED OUT (landing page, "Login" → Qualcomm
+sign-in form). No credentials typed. Session 850223 may still be Running until its cap (19:40:37) — owner must
+log in in tab 3774c340 and end it; card minutes not read after it. QRD8635 / QRD7675 were Unavailable at 17:39.
