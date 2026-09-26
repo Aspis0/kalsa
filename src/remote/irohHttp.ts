@@ -324,16 +324,22 @@ async function drainTrailers(
       return;
     }
     if (at > 0) {
+      // Count what is consumed, prefetched bytes included: a whole trailer
+      // block can sit in the window without any refill ever running, and
+      // the per-read timeout restarts on every drip — consumption is the
+      // only place the aggregate cap can be enforced from.
+      drained += at + CRLF_BYTES.length;
+      if (drained > MAX_TRAILER_BYTES) {
+        throw new Error(`trailer bytes exceed ${MAX_TRAILER_BYTES}`);
+      }
       window.take(at + CRLF_BYTES.length);
       continue;
     }
     if (window.length > MAX_LINE_BYTES) {
       throw new Error(`trailer line exceeds ${MAX_LINE_BYTES} bytes`);
     }
-    drained += await refill(tunnel, window, readMax, timeoutMs);
-    if (drained > MAX_TRAILER_BYTES) {
-      throw new Error(`trailer bytes exceed ${MAX_TRAILER_BYTES}`);
-    }
+    // Bytes read but not yet consumable are bounded by MAX_LINE_BYTES above.
+    await refill(tunnel, window, readMax, timeoutMs);
   }
 }
 
@@ -380,11 +386,10 @@ async function refill(
   window: ByteWindow,
   readMax: number,
   timeoutMs: number,
-): Promise<number> {
+): Promise<void> {
   const chunk = await tunnel.read(readMax, timeoutMs);
   if (chunk.length === 0) {
     throw new Error("tunnel EOF inside the body framing");
   }
   window.push(chunk);
-  return chunk.length;
 }

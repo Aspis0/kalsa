@@ -166,4 +166,59 @@ describe("pairing over the desk lane", () => {
     ).rejects.toThrow("aborted");
     expect(openTunnelMock).not.toHaveBeenCalled();
   });
+
+  test("a dial that never resolves hits the desk deadline", async () => {
+    // jest.useRealTimers() leaves the timer globals undefined in this
+    // environment (jest 30.4.2 node, reproduced in-repo): the three this
+    // file's tests use are captured here and put back in the finally.
+    const realTimers = {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      setImmediate: globalThis.setImmediate,
+    };
+    jest.useFakeTimers();
+    try {
+      openTunnelMock.mockReturnValue(new Promise<IrohTunnel>(() => undefined));
+      const fetcher = createDeskPairingFetch(NODE);
+      const pending = fetcher("https://desktop.example:8443/pair/claim", {
+        method: "POST",
+        headers: {},
+        body: "{}",
+      });
+      const asserted = expect(pending).rejects.toThrow("desk dial deadline exceeded");
+      jest.advanceTimersByTime(15_000);
+      await asserted;
+      expect(openTunnelMock).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+      globalThis.setTimeout = realTimers.setTimeout;
+      globalThis.clearTimeout = realTimers.clearTimeout;
+      globalThis.setImmediate = realTimers.setImmediate;
+    }
+  });
+
+  test("an abort during the dial rejects promptly and the late tunnel is shut down", async () => {
+    const controller = new AbortController();
+    let resolveDial!: (tunnel: IrohTunnel) => void;
+    openTunnelMock.mockReturnValue(
+      new Promise<IrohTunnel>((resolve) => {
+        resolveDial = resolve;
+      }),
+    );
+    const fetcher = createDeskPairingFetch(NODE, controller.signal);
+    const pending = fetcher("https://desktop.example:8443/pair/claim", {
+      method: "POST",
+      headers: {},
+      body: "{}",
+    });
+    const asserted = expect(pending).rejects.toThrow("aborted");
+    controller.abort();
+    // Rejected while the dial is still pending — the abort never waits for it.
+    await asserted;
+
+    const late = new FakeTunnel([]);
+    resolveDial(late);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(late.shutdowns).toBeGreaterThan(0);
+  });
 });

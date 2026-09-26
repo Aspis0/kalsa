@@ -177,6 +177,17 @@ describe("framing refusals", () => {
     expect(tunnel.shutdowns).toBe(1);
   });
 
+  test("trailers already entirely in the buffer are counted too", async () => {
+    const head = ascii("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+    // The terminal chunk and every trailer line arrive in one read: no
+    // refill ever runs, so only counting what is consumed can cap them.
+    const line = `x-evil: ${"v".repeat(2000)}\r\n`;
+    const tunnel = new FakeTunnel([head, ascii(`0\r\n${line.repeat(5)}`)]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+    await expect(response.readBody(64)).rejects.toThrow(/trailer bytes exceed/);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
   test("a hostile status line never reaches the error message", async () => {
     const hostile = "<script>alert(1)</script>";
     const tunnel = new FakeTunnel([ascii(`${hostile}\r\n\r\n`)]);
