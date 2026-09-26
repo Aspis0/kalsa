@@ -122,7 +122,9 @@ fn the_svg_draws_exactly_the_encoders_matrix() {
     }
     assert_eq!(from_svg, from_encoder);
     // And the symbol is the size the arithmetic in the module header
-    // promises for a 165-byte payload at level M.
+    // promises for this payload at level M — the byte count pinned here,
+    // measured from what this test builds.
+    assert_eq!(payload.len(), 163, "the ceremony's own payload");
     assert_eq!(code.version().value(), 9);
 }
 
@@ -133,8 +135,33 @@ fn a_payload_that_does_not_fit_is_an_error_not_a_smaller_symbol() {
     // square that scans into something else.
     let too_long = "x".repeat(2500);
     assert!(matches!(qr_svg(&too_long), Err(PayloadTooLong)));
-    // The 165-byte payload the ceremony actually produces does fit.
+    // The 163-byte payload the ceremony actually produces does fit.
     assert!(qr_svg(&offered_svg().0).is_ok());
+}
+
+#[test]
+fn the_capacity_boundaries_the_header_names_are_measured() {
+    // The refusal line's numbers, at the byte: level M's version-40
+    // capacity fits exactly and refuses one byte more; level L's 2953 is
+    // the figure the refusal test above leans on.
+    let at_m = QrCode::encode_binary(&[b'x'; 2331], QrCodeEcc::Medium)
+        .expect("2331 bytes fit level M at version 40");
+    assert_eq!(
+        at_m.version().value(),
+        40,
+        "2331 bytes is the version-40 symbol at level M"
+    );
+    assert!(
+        QrCode::encode_binary(&[b'x'; 2332], QrCodeEcc::Medium).is_err(),
+        "one byte past the capacity must refuse, not grow a symbol"
+    );
+    let at_l = QrCode::encode_binary(&[b'x'; 2953], QrCodeEcc::Low)
+        .expect("2953 bytes fit level L at version 40");
+    assert_eq!(
+        at_l.version().value(),
+        40,
+        "2953 bytes is the version-40 symbol at level L"
+    );
 }
 
 #[test]
@@ -193,12 +220,26 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     // `reachable` is the listener's loopback address (the shell builds it
     // from its 127.0.0.1 bind), so the byte counts and the symbol
     // versions below are measured here, not asserted in prose.
-    let base = "http://127.0.0.1:4952";
+    let base = "http://127.0.0.1:8134";
     let session = Pairing::offer(base, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
     let payload = session.qr_payload().unwrap();
     assert_eq!(payload.len(), 160, "the header's byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
     assert_eq!(code.version().value(), 9, "160 bytes at level M");
+
+    // The desk's random fallback port is five digits: one byte more, the
+    // same symbol version.
+    let session = Pairing::offer(
+        "http://127.0.0.1:12345",
+        None,
+        SystemTime::now(),
+        Duration::from_secs(300),
+    )
+    .unwrap();
+    let payload = session.qr_payload().unwrap();
+    assert_eq!(payload.len(), 161, "five-digit fallback port byte count");
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(code.version().value(), 9, "161 bytes at level M");
     let high = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::High).unwrap();
     assert!(
         high.version().value() > 12,

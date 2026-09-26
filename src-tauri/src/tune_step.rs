@@ -475,8 +475,9 @@ pub(crate) enum Checked {
 pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked) -> String {
     let speed = match checked {
         Some(rate) => format!("{rate:.1} tokens/s"),
-        // The request can wait out its connect bound and its read bound,
-        // each CHECK_TIMEOUT: the line states what the ask really waited.
+        // Connect and read share one deadline, so a single ask cannot
+        // wait 2×CHECK_TIMEOUT: the number is the whole check — two
+        // asks, one deadline each.
         None => format!("no rate in {} s", kalsa_tune::CHECK_TIMEOUT.as_secs() * 2),
     };
     let head = format!("checked {speed} against {recorded:.1} recorded");

@@ -16,10 +16,12 @@
 //!   not a defect here.
 //!
 //! Size arithmetic, measured rather than guessed — `tests` encodes real
-//! payloads and pins every number below: `payload::encode` emits
-//! `{"v":3,"reachable":"http://127.0.0.1:4952","code":"<32 hex>","nonce":"<64 hex>"}`
-//! — 160 bytes with the shell's loopback address; an open road appends
-//! `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
+//! payloads and measures every payload size and symbol version below:
+//! `payload::encode` emits
+//! `{"v":3,"reachable":"http://127.0.0.1:8134","code":"<32 hex>","nonce":"<64 hex>"}`
+//! — 160 bytes for the desk's preferred port; its random fallback is five
+//! digits, which makes 161 and the same symbol version; an open road
+//! appends `,"node":"<64 hex>"` for 234. Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm
 //! conditions, and level H would push the same payload past version 12,
 //! buying robustness a single-use, windowed code does not need — a
@@ -27,8 +29,8 @@
 //! bytes at version 9 (53×53 modules) and the 234-byte node square at
 //! version 11 (61×61), and refuses — [`PayloadTooLong`], never a
 //! truncated symbol — past version 40 (2331 bytes). If the payload ever
-//! outgrows its QR, the remedy is upstream in `payload`: the 48 bytes of
-//! hex overhead on the code and binding could ride as raw bytes instead.
+//! outgrows its QR, the remedy is upstream in `payload`: the hex overhead
+//! on the code and binding could ride as raw bytes instead.
 
 use qrcodegen::{QrCode, QrCodeEcc};
 
