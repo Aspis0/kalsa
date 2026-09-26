@@ -1,0 +1,2 @@
+pair	arm	turn	status	void_reason	warm_start	cooldown_s	settle_s	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	prefill_ms	engine_prefill	engine_decode	route_requested	route_push	route_mismatch	chunks_sum	chunks_str	prompt_n	tokens_predicted	decode_tps	thermal_state	failed	fallback_count	tool_calls	lmkd_count
+1	cpu	1	INVALID	composer	0	45	15	36.9	38.5	376	388	71	false	na	na	na	na	na	na	na	na	na	na	na	na	na	0	0	0

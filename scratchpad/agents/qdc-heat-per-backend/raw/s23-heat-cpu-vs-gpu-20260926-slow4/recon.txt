@@ -1,0 +1,24 @@
+serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+port=5037
+ro.soc.model
+SM8550
+ro.product.name
+dm1qsqw
+ro.product.model
+SM-S911U
+ro.build.fingerprint
+samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys
+ro.build.type
+user
+ro.debuggable
+0
+persist.sys.locale
+en-US
+MemTotal
+MemTotal:        7243744 kB
+id
+uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:shell:s0
+screen_off_timeout
+null
+device_tag=8-Gen-2
+screen_off_timeout_previous=null

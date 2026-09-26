@@ -1179,8 +1179,33 @@ No arm crossed the battery/thermal stop thresholds. The valid results table is e
 
 Raw preflight, all three driver logs/results, restore logs, and post-run state are under `raw/s23-20260926/` and `raw/s23-heat-cpu-vs-gpu-20260926-r{1,2,3}/`.
 
+## Slow-pacing relaunch — 2026-09-26
+
+**Result: n=0 valid arms; no CPU/GPU heat comparison.** Relaunched with the audited QDC driver, `CGGC`, and the opt-in typing override proved on the scratch chat: `TYPE_LADDER="50 50 50" TYPE_CHUNK_PAUSE_S=1.5 TYPE_FAST=0`. QDC defaults remain unchanged. The preflight passed: unplugged, 72% battery, 37.6 °C battery / 37.0 °C skin, thermal status 0, traced disabled; screen wake and foreground checks were performed by the driver. Calibration loaded the model and set `DECODE_LEN_REF=127`.
+
+The first CPU arm failed the composer's exact-text gate before Send. Its three 50-character typing attempts with the 1.5-second pause were exact prefixes through 1,599/1,600, 1,749/1,750, and 1,844/1,850 characters. No prompt was sent, so equal-decode validation, backend route, prefill, and decode rate were not reached. I interrupted the driver after its first invalid row, before arm 2; the remaining CGGC arms were not run.
+
+| Pair | Arm | Route / tokens | Skin °C | Battery °C | Prefill / decode tok/s | Stop |
+|---|---|---|---:|---:|---|---|
+| 1 | CPU | no call / n.a. | 36.9→38.5 | 37.6→38.8 | n.a. / n.a. | composer incomplete (1844/1850 at final check) |
+
+No complete pair exists, so CPU−GPU deltas are n.a. DSP before: `adsprpcd` 0/0, `cdsprpcd` 0/5 ticks; after: `adsprpcd` 0/0, `cdsprpcd` 0/5. `restore.sh` returned rc=0, restoring screen timeout `null`, stopping the sampler, force-stopping the app, and clearing bench preferences. Raw files, including the command, per-chunk composer checks, results row, preflight, restore, and post-run DSP snapshot, are in `raw/s23-heat-cpu-vs-gpu-20260926-slow4/`.
+
 ## Composer diagnosis — slow-input check
 
 The r1-r3 UI dumps were exact prefixes of the expected prompt: there are no changed characters, autocorrections, capitalization changes, punctuation insertions, or altered spaces. Every mismatch is a missing suffix at the in-progress input boundary (positions are zero-based): r1 expected `[1197,1200)` `amb`, got empty; r2 first attempt `[970,1000)` `lacier harbor indigo juniper k`, got empty; r2 retry `[1389,1400)` ` juniper ke`, got empty; r3 first attempt `[965,1000)` `int glacier harbor indigo juniper k`, got empty; r3 retry `[1387,1400)` `go juniper ke`, got empty. All characters before those ranges matched byte-for-character.
 
 Diagnosis: **(b) chunk pacing/input injection drops the trailing characters**, not Samsung autocorrect or app-side text mutation. In one new scratch chat, one unsent 1400-character attempt typed as 50-character chunks with 1.5 s between chunks produced exactly 1400/1400 expected characters. No Send was pressed, no model load was requested, and the unsent text was cleared. Samsung Keyboard settings and installed IMEs were left unchanged. Raw diagnostic dumps for the slow check were kept under `/tmp` only.
+
+---
+
+# forced-decode heat arms — all boards (owner: "proviamoli tutti"), 2026-09-26 afternoon
+
+Driver: lab HEAD `bc389a0e` (adds SM8635|QRD8635 to the SoC allowlist). Luna's S23 commits
+(3b3be15c/f6656ade/9123a73c) checked: every new knob is opt-in (`TYPE_CHUNK_PAUSE_S` default 0,
+`ALLOW_RUN_AS_WITHOUT_CHMOD` 0, `PRESERVE_APP_DATA` 0, `ADB_SERIAL` unset, `50` ladder rung only if asked);
+QDC defaults incl. typing unchanged; skin sensor name now matched case-insensitively. Env per QRD run
+unchanged: `TYPE_FAST=0 TYPE_LADDER="100"`, forced decode default, cap 115 / deadline ≤110.
+
+Balances read 14:1x EDT on aspis (account verified): QRD8750 **994** (Available), QRD8635 **1000**
+(Unavailable), QRD7675 **1000** (Unavailable), QRD8650 **506** (Available; the last 848429 hold not yet settled).
