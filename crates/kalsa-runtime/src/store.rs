@@ -163,15 +163,17 @@ pub(crate) fn ensure_backend(
 }
 
 /// Build-directory names this product has ever written: today's
-/// backends, plus `cuda12`, the upstream-based builds an upgraded
-/// install may still carry. A directory under `builds/` whose name is
-/// not here was not written by this crate and is never a candidate.
-const KNOWN_BUILD_DIRS: &[&str] = &["metal", "cpu", "vulkan", "cuda12"];
+/// backends, plus `cuda12` and `cuda13`, the upstream-based builds an
+/// upgraded install may still carry. A directory under `builds/` whose
+/// name is not here was not written by this crate and is never a
+/// candidate.
+const KNOWN_BUILD_DIRS: &[&str] = &["metal", "cpu", "vulkan", "cuda12", "cuda13"];
 
 /// Deletes what no pin names, once a backend has settled — narrowed to
 /// what can only be this crate's own leftovers. In `archives/`: regular
-/// `.zip` files whose name no pinned archive carries (a `.part` is a
-/// download in flight, anything else is not ours). In `builds/`:
+/// files ending in an archive extension this crate downloads (`.zip`,
+/// `.tar.gz`) whose name no pinned archive carries; a `.part` is a
+/// download in flight and anything else is not ours. In `builds/`:
 /// directories named for a backend this platform does not pin — staging
 /// (`.new`) and unknown names were never ours to write. Names compare
 /// ASCII case-insensitively so a case-insensitive filesystem's validated
@@ -198,7 +200,9 @@ fn sweep_unpinned(root: &Path, platform: Platform) {
                 continue;
             };
             let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
-            if meta.is_file() && name.ends_with(".zip") && !keep_files.contains(&name) {
+            let stale_archive =
+                name.ends_with(".zip") || name.ends_with(".tar.gz");
+            if meta.is_file() && stale_archive && !keep_files.contains(&name) {
                 let _ = std::fs::remove_file(entry.path());
             }
         }
@@ -861,5 +865,32 @@ mod tests {
         );
         assert!(model.is_file(), "the model is never a sweep candidate");
         let _ = std::fs::remove_dir_all(&root);
+
+        // The Mac's archives are tar.gz, not zip: the same rule holds
+        // there — the pinned fork archive stays, an upstream leftover of
+        // the same shape goes.
+        let mac = scratch("sweep-mac");
+        place_archive(
+            &mac,
+            "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz",
+            b"the pinned mac bytes",
+        );
+        place_archive(
+            &mac,
+            "llama-b10950-bin-macos-arm64.tar.gz",
+            b"upstream's mac leftover",
+        );
+        sweep_unpinned(&mac, Platform::MacArm64);
+        let mac_archives: Vec<String> = std::fs::read_dir(archives_dir(&mac))
+            .expect("mac archives")
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            mac_archives,
+            ["kalsa-server-v1.1.2-bin-macos-arm64.tar.gz".to_string()],
+            "the pinned tar.gz stays, upstream's tar.gz goes"
+        );
+        let _ = std::fs::remove_dir_all(&mac);
     }
 }
