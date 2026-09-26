@@ -707,10 +707,16 @@ fn dto(state: &State, devices: Vec<PairedDeviceDto>) -> PairingDto {
 }
 
 fn phone_label(phone: PhoneModel) -> String {
-    format!(
-        "phone with {} GB of model weights",
-        phone.weights_bytes / 1_000_000_000
-    )
+    // Zero weights is the phone saying it has no local model — a
+    // "0 GB model" would quote a model the phone never claimed.
+    if phone.weights_bytes == 0 {
+        "phone with no model of its own".to_string()
+    } else {
+        format!(
+            "phone with {} GB of model weights",
+            phone.weights_bytes / 1_000_000_000
+        )
+    }
 }
 
 /// The desk, shared with the listener thread.
@@ -839,6 +845,13 @@ mod tests {
             with_zero_byte_phone && with_no_phone,
             "the chooser picks phone-free here exactly as with no phone"
         );
+
+        // The page names the same fact in its own words: no invented
+        // "0 GB" model on the Devices card or in the paired sentence.
+        let dto = serde_json::to_value(desk.read(true, "http://127.0.0.1:1", None, None, now))
+            .unwrap();
+        assert_eq!(dto["phone"], "phone with no model of its own");
+        assert_eq!(dto["devices"][0]["phone"], "phone with no model of its own");
     }
 
     /// A set the door refuses (record 1 declares parameters that cannot

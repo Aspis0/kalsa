@@ -23,8 +23,10 @@
 //! the OS's pick, four or five digits — five is the worst case, making 161
 //! and the same symbol version; an open road appends `,"node":"<64 hex>"`
 //! for 234, and a desk whose serve rules are up appends
-//! `,"tailnet":"https://<host>"` behind it, 289 bytes with both — the
-//! version-13 (69×69) square the desk's largest offer draws.
+//! `,"tailnet":"https://<host>"` behind it — 289 bytes with both for a
+//! real host, and at most 355, a version-14 (73×73) symbol, when the host
+//! is the longest the detection allows: the 100-character cap the desk
+//! puts on a host is the bound on the square.
 //! Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm
 //! conditions, and level H would push the same payload past version 12,

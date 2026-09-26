@@ -848,7 +848,6 @@ struct Desk {
     reachable: String,
     listener: transport::Listener,
     pairing_file: PathBuf,
-    tailnet: tailnet::Tailnet,
 }
 
 fn pairing_desk(file: PathBuf) -> Result<Desk, Box<dyn std::error::Error>> {
@@ -868,7 +867,6 @@ where
         reachable,
         listener,
         pairing_file,
-        tailnet: tailnet::Tailnet::new(),
     })
 }
 
@@ -1680,19 +1678,33 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
 /// been lied to, so "not running" is `idle` and the page sends the owner to
 /// Status instead.
 #[tauri::command]
-fn brain_pairing(brain: State<Brain>, desk: State<Desk>) -> pairing::PairingDto {
-    pairing_dto(&brain, &desk)
+async fn brain_pairing(
+    brain: State<'_, Brain>,
+    desk: State<'_, Desk>,
+) -> Result<pairing::PairingDto, String> {
+    Ok(pairing_dto(&brain, &desk).await)
+}
+
+/// The tailnet URL a square made right now would carry, or `None`. Read off
+/// the CLI fresh — nothing cached, the ports passed in every time — on a
+/// blocking thread under the detection's own short deadline, so neither
+/// command that draws a square waits on it or fails by it.
+async fn tailnet_now(brain: &Brain, desk: &Desk) -> Option<String> {
+    let door_port = brain.door_port();
+    let desk_port = desk.listener.port();
+    tauri::async_runtime::spawn_blocking(move || tailnet::detect(door_port, desk_port))
+        .await
+        .ok()
+        .flatten()
 }
 
 /// The Devices page's read: the desk's own state, plus both ports the owner
 /// can point a road at — the door's, and the desk's own listener, which can
 /// be the fallback port and so must be read, not assumed.
-fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
+async fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
     let road_node_id = brain.road_node_id();
-    let tailnet = desk
-        .tailnet
-        .get(brain.door_port(), desk.listener.port());
+    let tailnet = tailnet_now(brain, desk).await;
     desk.desk
         .read(
             serving,
@@ -1710,12 +1722,10 @@ fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
 
 /// The owner asked for another square. Whatever was in flight is abandoned.
 #[tauri::command]
-fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
+async fn brain_pairing_retry(brain: State<'_, Brain>, desk: State<'_, Desk>) -> Result<(), String> {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
     let road_node_id = brain.road_node_id();
-    let tailnet = desk
-        .tailnet
-        .get(brain.door_port(), desk.listener.port());
+    let tailnet = tailnet_now(&brain, &desk).await;
     desk.desk.retry(
         serving,
         &desk.reachable,
@@ -1723,6 +1733,7 @@ fn brain_pairing_retry(brain: State<Brain>, desk: State<Desk>) {
         tailnet.as_deref(),
         SystemTime::now(),
     );
+    Ok(())
 }
 
 /// The owner says a device is no longer part of the house. The others keep

@@ -162,7 +162,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
                 f16: Some(4096),
             },
             context_prices: Default::default(),
-            display_name: Some("IBM Granite 4 Tiny".to_string()),
+            display_name: Some("Liquid LFM 2.5".to_string()),
             reason: Some("It is the more capable of the two.".to_string()),
             model_sha256: None,
             tune: None,
@@ -173,7 +173,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
     let dto = brain.model_dto();
     assert_eq!(
         dto.display_name.as_deref(),
-        Some("IBM Granite 4 Tiny"),
+        Some("Liquid LFM 2.5"),
         "the catalog's own name, not a filename"
     );
     assert_eq!(
@@ -189,7 +189,7 @@ fn a_development_override_counts_as_chosen_without_a_catalog_name() {
     // The dev override configures a model the catalog never chose and
     // the launch record cannot name: the page must still say "chosen",
     // which is the override's whole purpose.
-    assert!(model_chosen(Some("IBM Granite 4 Tiny"), false));
+    assert!(model_chosen(Some("Liquid LFM 2.5"), false));
     assert!(model_chosen(None, true));
     assert!(!model_chosen(None, false), "neither fact, no model");
 }
@@ -199,7 +199,7 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
     let dto = StateDto::Running {
         port: startup::PORT,
         endpoint: Some(format!("http://127.0.0.1:{}/v1", startup::PORT)),
-        model: Some("IBM Granite 4 Tiny".to_string()),
+        model: Some("Liquid LFM 2.5".to_string()),
         reason: Some("It is the more capable of the two.".to_string()),
         asleep: Some(true),
         metrics: metrics::RuntimeMetricsDto {
@@ -217,7 +217,7 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
         "the door's own OpenAI-style address, loopback, is the only one the page takes"
     );
     assert_eq!(
-        json["model"], "IBM Granite 4 Tiny",
+        json["model"], "Liquid LFM 2.5",
         "the catalog's own name, not a filename"
     );
     assert_eq!(
@@ -239,7 +239,7 @@ fn a_running_engine_without_a_door_publishes_no_endpoint() {
     let dto = StateDto::Running {
         port: startup::PORT,
         endpoint: None,
-        model: Some("IBM Granite 4 Tiny".to_string()),
+        model: Some("Liquid LFM 2.5".to_string()),
         reason: None,
         asleep: None,
         metrics: metrics::RuntimeMetricsDto {
@@ -1264,7 +1264,7 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
                 f16: None,
             },
             context_prices: Default::default(),
-            display_name: Some("IBM Granite 4 Tiny".to_string()),
+            display_name: Some("Liquid LFM 2.5".to_string()),
             reason: None,
             model_sha256: Some(sha256.to_string()),
             tune: None,
@@ -2359,7 +2359,8 @@ fn the_pairing_dto_carries_the_desks_actual_port() {
     let holder = pairing_desk_with(root.join("pairing.json"), |desk| transport::serve_on(desk, 0))
         .unwrap();
     let brain = Brain::new();
-    let dto = serde_json::to_value(pairing_dto(&brain, &holder)).unwrap();
+    let dto = serde_json::to_value(tauri::async_runtime::block_on(pairing_dto(&brain, &holder)))
+        .unwrap();
     assert_eq!(
         dto["desk_port"].as_u64(),
         Some(u64::from(holder.listener.port())),

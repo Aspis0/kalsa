@@ -282,6 +282,31 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
 }
 
 #[test]
+fn the_worst_case_square_still_encodes_at_a_stated_version() {
+    // The longest host the desk will ever put in a square is one hundred
+    // characters — the cap the detection enforces — and it rides behind
+    // the node id, the square's other optional. Both together are the
+    // bound, and it must stay a version a phone camera resolves.
+    let tailnet = format!("https://{}", "a".repeat(100));
+    let session = Pairing::offer(
+        "http://127.0.0.1:8134",
+        Some(NODE),
+        Some(&tailnet),
+        SystemTime::now(),
+        Duration::from_secs(300),
+    )
+    .unwrap();
+    let payload = session.qr_payload().unwrap();
+    assert_eq!(payload.len(), 355, "the worst case the desk can emit");
+    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
+    assert_eq!(
+        code.version().value(),
+        14,
+        "355 bytes at level M: the bound the header names"
+    );
+}
+
+#[test]
 fn the_qr_leaks_nothing_outside_the_symbol_itself() {
     let (payload, svg) = offered_svg();
     let value: serde_json::Value = serde_json::from_str(&payload).unwrap();
