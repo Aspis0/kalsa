@@ -90,3 +90,14 @@ median 85 ms / p95 94 ms, RELAY throughout (corporate blocks direct UDP), 0 fail
 Trap for the Jelly run: with Tailscale up on the Mac, iroh 1.2 also picks the Mac's 100.x address as a
 "direct" path and cannot exclude it - measure iroh on the Jelly with Tailscale OFF on the phone, or label it.
 Mobile network: unmeasured.
+
+## Pin and contract (kalsa-brain, origin/brain a2cb3c93, reviewed FIT by GLM-Flash)
+Pin `crates/kalsa-iroh` at **a2cb3c93**. `pub enum Lane { Door, Desk }`; `Bridge::connect(&self, remote: NodeId,
+lane: Lane) -> Result<TunnelStream, BridgeError>`; `NodeId: FromStr` from the QR's 64-hex `node`. Public types
+Send + Sync + 'static. ALPNs frozen by test (transport.rs ~447): door `kalsa/door-tunnel/1`, desk
+`kalsa/pair-desk/1`. Framing: raw bidi stream of plain HTTP/1.1 (same bytes as today; SSE included; Bearer
+on the door). Phone pairs with Lane::Desk (/pair/claim, /pair/complete), chats with Lane::Door. `node` only
+present while the road is on. Declared: desk-socket exhaustion can 403 a claim (retry / fresh square); a
+wrong completion no longer burns a claimed ceremony (120 s window). Do NOT wrap `Bridge::remote_paths`.
+Unproven on Android: key.rs path/permissions -> file:line to kalsa-brain.
+Jelly Tailscale run: Marco scans when home; kalsa-brain adds the serve rules only at that moment.
