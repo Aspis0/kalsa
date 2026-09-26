@@ -301,12 +301,14 @@ const STATES = [
     consentPresence: "Kalsa needs the pieces below to run on this computer. Without them it cannot work.",
   },
   {
+    // Unmeasured IS the real fresh install — the probe has never run — and
+    // it owns the same Start screen a measured first run gets.
     name: "unmeasured",
     file: "shots/73-brain-unmeasured.png",
     state: { kind: "stopped" },
-    capability: { kind: "unmeasured" },
-    marker: "has not been measured yet",
-    presence: "This computer is not running anything right now.",
+    capability: { kind: "unmeasured", chosen: false },
+    marker: "Start",
+    presence: "Kalsa checks this computer and finds the best settings for it.",
   },
 ];
 
@@ -338,7 +340,7 @@ function contractProblems(fixture) {
 
   const capability = fixture.capability;
   if (capability.kind === "unmeasured") {
-    keysAre("capability", Object.keys(capability), ["kind"]);
+    keysAre("capability", Object.keys(capability), ["kind", "chosen"]);
     return problems;
   }
   keysAre("capability", Object.keys(capability), Object.keys(SAMPLE));

@@ -40,7 +40,7 @@ export interface ModelOption {
 
 /** What `brain_capability` answers: this computer, and what the chooser picked. */
 export type Capability =
-  | { kind: "unmeasured" }
+  | { kind: "unmeasured"; chosen: boolean }
   | {
       kind: "measured";
       /** Whether a model choice is stored. False is the first run's waiting

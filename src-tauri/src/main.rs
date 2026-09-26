@@ -1070,20 +1070,22 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
         .lock()
         .ok()
         .and_then(|stored| stored.clone());
+    // A stored choice is the page's one signal for "past the first run" —
+    // readable even with no measurement (a record can be deleted while the
+    // choice survives), so it is read before the Unmeasured arm. A data
+    // dir this run cannot read reads as no choice, which is the honest
+    // arm: the next turn-on will say so itself.
+    let chosen = state_file(&app)
+        .ok()
+        .map(|file| options::load(&file).model.is_some())
+        .unwrap_or(false);
     let Some(measurement) = measurement else {
-        return capability::CapabilityDto::Unmeasured;
+        return capability::CapabilityDto::Unmeasured { chosen };
     };
     // An unreadable phone store is not the same fact as an unpaired phone,
     // but the catalog's answer to "no phone" — pair first — is the sentence
     // the owner can act on either way, and it is already written for them.
     let phone = phone(&app).ok().flatten();
-    // A stored choice is the page's one signal for "past the first run".
-    // A data dir this run cannot read reads as no choice, which is the
-    // honest arm: the next turn-on will say so itself.
-    let chosen = state_file(&app)
-        .ok()
-        .map(|file| options::load(&file).model.is_some())
-        .unwrap_or(false);
     capability::dto(
         &measurement,
         startup::ram_bytes(),

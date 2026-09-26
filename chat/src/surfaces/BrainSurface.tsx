@@ -38,11 +38,15 @@ interface TestPlan {
 }
 
 // A first run is a machine with no choice stored and no usable model on
-// it — nothing downloaded, nothing tuned. An install holding either (the
-// owner's other computer, say, with its model already on disk and tuned)
-// is past its first run and starts as it always has.
+// it — nothing downloaded, nothing tuned. Unmeasured is a first run too
+// (a machine never measured can hold neither), unless a choice survived
+// it: a deleted measurement record does not un-choose the model. An
+// install holding a choice, a file, or a tune is past its first run and
+// starts as it always has.
 function firstRun(capability: Capability | null): boolean {
-  if (capability?.kind !== "measured" || capability.chosen) return false;
+  if (capability === null) return false;
+  if (capability.kind === "unmeasured") return !capability.chosen;
+  if (capability.chosen) return false;
   const options: ModelOption[] = [capability.model, capability.quicker].filter(
     (option): option is ModelOption => option !== null,
   );

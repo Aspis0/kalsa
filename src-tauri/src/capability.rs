@@ -96,7 +96,12 @@ fn shown_context(entry: &ModelEntry, usable_bytes: u64, parallel: u32) -> u64 {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum CapabilityDto {
     /// This run has no measurement of the machine kept.
-    Unmeasured,
+    /// This run keeps no measurement. It can still hold a stored choice —
+    /// a measurement record may be deleted while the choice survives — and
+    /// that one fact decides the first run's screen, so it travels.
+    Unmeasured {
+        chosen: bool,
+    },
     Measured {
         machine: MachineDto,
         /// Whether a model choice is stored. False marks the first run: the
@@ -614,9 +619,12 @@ mod tests {
         let mut quicker_keys: Vec<_> = json["quicker"].as_object().unwrap().keys().collect();
         quicker_keys.sort();
         assert_eq!(quicker_keys, model_keys);
-        let unmeasured =
-            serde_json::to_value(CapabilityDto::Unmeasured).expect("serialise");
-        assert_eq!(unmeasured, serde_json::json!({ "kind": "unmeasured" }));
+        let unmeasured = serde_json::to_value(CapabilityDto::Unmeasured { chosen: false })
+            .expect("serialise");
+        assert_eq!(
+            unmeasured,
+            serde_json::json!({ "kind": "unmeasured", "chosen": false })
+        );
 
         // The fixture the Playwright harness validates against is pinned
         // here: this test compares what the type now produces against the
