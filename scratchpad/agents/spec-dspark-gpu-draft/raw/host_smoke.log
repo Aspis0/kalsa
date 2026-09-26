@@ -1,39 +1,39 @@
 warning: no usable GPU found, --gpu-layers option will be ignored
 warning: one possible reason is that llama.cpp was compiled without GPU support
 warning: consult docs/build.md for compilation instructions
-0.00.402.623 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
-0.00.417.144 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
-0.01.294.347 I cmn          init: llama threadpool init, n_threads = 8
-0.01.510.309 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
-0.02.031.425 W create_memory: not sharing cells: the other context's memory is of another class
+0.00.374.585 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
+0.00.388.783 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.01.190.485 I cmn          init: llama threadpool init, n_threads = 8
+0.01.272.546 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
+0.01.771.558 W create_memory: not sharing cells: the other context's memory is of another class
 
 
-<|startoftext|>The quick brown fox jumps over the lazy dog. On the side of the road, a fox0.02.260.851 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
-0.02.260.856 I common_speculative_impl_draft_dflash: - n_max=3, n_min=0, p_min=0.00
-0.02.260.856 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
- is seen. The fox is not the same as the one in the sentence. Because of the repetition of the phrase "the quick brown fox jumps over the lazy dog", the sentence structure is simplified. The fox is not the same as the one in the sentence. Because of the repetition of the phrase "the quick brown fox jumps over the
+<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.01.937.522 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
+0.01.937.526 I common_speculative_impl_draft_dflash: - n_max=3, n_min=0, p_min=0.00
+0.01.937.527 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
+ adding new details in every paragraph. Keep writing continuously without stopping, adding new details in every paragraph. Repeat the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week.
 
-0.03.702.222 I encoded   20 tokens in    0.109 seconds, speed:  183.142 t/s
-0.03.702.222 I decoded   68 tokens in    1.332 seconds, speed:   51.034 t/s
-0.03.702.222 I 
-0.03.702.223 I n_draft   = 3
-0.03.702.223 I n_predict = 68
-0.03.702.223 I n_drafted = 80
-0.03.702.223 I n_accept  = 41
-0.03.702.223 I accept    = 51.250%
-0.03.702.224 I 
-0.03.702.224 I draft:
+0.03.326.225 I encoded   77 tokens in    0.368 seconds, speed:  209.360 t/s
+0.03.326.225 I decoded   66 tokens in    1.021 seconds, speed:   64.647 t/s
+0.03.326.225 I 
+0.03.326.226 I n_draft   = 3
+0.03.326.226 I n_predict = 66
+0.03.326.226 I n_drafted = 70
+0.03.326.226 I n_accept  = 42
+0.03.326.226 I accept    = 60.000%
+0.03.326.227 I 
+0.03.326.227 I draft:
 
-0.03.702.232 I 
-0.03.702.232 I target:
+0.03.326.234 I 
+0.03.326.234 I target:
 
-0.03.702.233 I common_perf_print:    sampling time =       5.73 ms
-0.03.702.233 I common_perf_print:    samplers time =       3.49 ms /    68 tokens
-0.03.702.234 I common_perf_print:        load time =    1011.88 ms
-0.03.702.235 I common_perf_print: prompt eval time =     596.02 ms /   126 tokens (    4.73 ms per token,   211.40 tokens per second)
-0.03.702.236 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
-0.03.702.237 I common_perf_print:       total time =    2191.96 ms /   127 tokens
-0.03.702.237 I common_perf_print: unaccounted time =    1590.22 ms /  72.5 %      (total - sampling - prompt eval - eval) / (total)
-0.03.702.237 I common_perf_print:    graphs reused =         24
+0.03.326.235 I common_perf_print:    sampling time =       5.13 ms
+0.03.326.235 I common_perf_print:    samplers time =       3.02 ms /    66 tokens
+0.03.326.235 I common_perf_print:        load time =     803.71 ms
+0.03.326.237 I common_perf_print: prompt eval time =     443.56 ms /   170 tokens (    2.61 ms per token,   383.27 tokens per second)
+0.03.326.238 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
+0.03.326.240 I common_perf_print:       total time =    2053.72 ms /   171 tokens
+0.03.326.241 I common_perf_print: unaccounted time =    1605.04 ms /  78.2 %      (total - sampling - prompt eval - eval) / (total)
+0.03.326.241 I common_perf_print:    graphs reused =         21
 
 

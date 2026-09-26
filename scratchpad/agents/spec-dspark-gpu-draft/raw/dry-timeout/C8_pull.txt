@@ -1,0 +1,1 @@
+fake-adb: cannot stat '/data/local/tmp/dspark-spec/C8.log'

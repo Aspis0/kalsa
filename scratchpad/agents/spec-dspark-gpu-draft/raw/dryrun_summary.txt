@@ -1,0 +1,60 @@
+== fixture: happy path — probes + matched-N, sha-verified push, restore ==
+PASS  happy rc
+PASS  happy END
+PASS  happy rows
+PASS  happy probe arms
+PASS  happy probe N
+PASS  happy matched N
+PASS  happy match-gate
+PASS  happy all-OK
+PASS  happy A no-spec
+PASS  happy C4 gpu-proof
+PASS  happy C4 kernel-proof
+PASS  happy B4 cpu-proof
+PASS  happy kit-verified
+PASS  happy pushed kit.tgz
+PASS  happy pushed ship.gguf
+PASS  happy pushed draft.gguf
+PASS  happy pushed prompt.txt
+PASS  happy no pkill
+PASS  happy screen-restored
+PASS  happy timeout-restored
+PASS  happy stayon-restored
+PASS  happy no-unknown-shell
+== fixture: battery >= 44.0 C stops BEFORE the push ==
+PASS  batt rc
+PASS  batt END
+PASS  batt rows
+PASS  batt no-push
+== fixture: thermal >= 3 stops MID-ARM and kills the binary ==
+PASS  thermal rc
+PASS  thermal END
+PASS  thermal rows
+PASS  thermal void
+PASS  thermal killed-spec
+PASS  thermal screen-restored
+PASS  thermal timeout-restored
+PASS  thermal stayon-restored
+== fixture: level <= 25 % stops ==
+PASS  level rc
+PASS  level END
+PASS  level rows
+== fixture: plugged stops ==
+PASS  plug rc
+PASS  plug END
+PASS  plug rows
+== fixture: missing battery temp fails closed ==
+PASS  miss rc
+PASS  miss END
+PASS  miss rows
+== fixture: arm timeout orphans the remote process -> kill + VOID ==
+PASS  timeout rc
+PASS  timeout END
+PASS  timeout rows
+PASS  timeout void
+PASS  timeout killed-spec
+PASS  timeout screen-restored
+PASS  timeout timeout-restored
+PASS  timeout stayon-restored
+
+SUMMARY pass=51 fail=0

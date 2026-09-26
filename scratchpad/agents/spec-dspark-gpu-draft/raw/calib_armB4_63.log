@@ -1,0 +1,39 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.362.580 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
+0.00.374.082 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.01.161.727 I cmn          init: llama threadpool init, n_threads = 8
+0.01.242.104 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
+0.01.738.023 W create_memory: not sharing cells: the other context's memory is of another class
+
+
+<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.01.874.158 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
+0.01.874.160 I common_speculative_impl_draft_dflash: - n_max=4, n_min=0, p_min=0.00
+0.01.874.160 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
+ adding new details in every paragraph. Keep writing continuously without stopping, adding new details in every paragraph. Repeat the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week.
+
+0.03.149.827 I encoded   77 tokens in    0.236 seconds, speed:  326.168 t/s
+0.03.149.828 I decoded   66 tokens in    1.040 seconds, speed:   63.485 t/s
+0.03.149.828 I 
+0.03.149.828 I n_draft   = 4
+0.03.149.828 I n_predict = 66
+0.03.149.828 I n_drafted = 82
+0.03.149.828 I n_accept  = 45
+0.03.149.829 I accept    = 54.878%
+0.03.149.829 I 
+0.03.149.829 I draft:
+
+0.03.149.837 I 
+0.03.149.838 I target:
+
+0.03.149.839 I common_perf_print:    sampling time =       4.96 ms
+0.03.149.839 I common_perf_print:    samplers time =       3.05 ms /    66 tokens
+0.03.149.840 I common_perf_print:        load time =     787.58 ms
+0.03.149.841 I common_perf_print: prompt eval time =     552.81 ms /   179 tokens (    3.09 ms per token,   323.80 tokens per second)
+0.03.149.842 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
+0.03.149.842 I common_perf_print:       total time =    1907.76 ms /   180 tokens
+0.03.149.843 I common_perf_print: unaccounted time =    1350.00 ms /  70.8 %      (total - sampling - prompt eval - eval) / (total)
+0.03.149.843 I common_perf_print:    graphs reused =         18
+
+

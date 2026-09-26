@@ -1,0 +1,14 @@
+rc=0 devices
+rc=0 -s fakes23 wait-for-device
+rc=0 -s fakes23 shell getprop ro.soc.model
+rc=0 -s fakes23 shell settings get system screen_off_timeout
+rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
+rc=0 -s fakes23 shell input keyevent KEYCODE_WAKEUP
+rc=0 -s fakes23 shell svc power stayon true
+rc=0 -s fakes23 shell settings put system screen_off_timeout 1800000
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell pkill\ -f\ \'llama-completio\[n\]\'
+rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
+rc=0 -s fakes23 shell settings\ put\ system\ screen_off_timeout\ 60000
+rc=0 -s fakes23 shell settings\ put\ global\ stay_on_while_plugged_in\ 1

@@ -1,0 +1,41 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.367.303 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
+0.00.379.356 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.01.171.863 I cmn          init: llama threadpool init, n_threads = 8
+0.01.249.977 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
+0.01.764.068 W create_memory: not sharing cells: the other context's memory is of another class
+
+
+<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.01.909.272 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
+0.01.909.274 I common_speculative_impl_draft_dflash: - n_max=4, n_min=0, p_min=0.00
+0.01.909.275 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
+ adding new details in every paragraph. Keep writing continuously without stopping, adding new details in every paragraph. Repeat the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week.
+
+The instructions are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. In
+
+0.03.972.123 I encoded   77 tokens in    0.232 seconds, speed:  331.238 t/s
+0.03.972.123 I decoded  136 tokens in    1.830 seconds, speed:   74.300 t/s
+0.03.972.124 I 
+0.03.972.124 I n_draft   = 4
+0.03.972.124 I n_predict = 136
+0.03.972.124 I n_drafted = 165
+0.03.972.124 I n_accept  = 94
+0.03.972.125 I accept    = 56.970%
+0.03.972.125 I 
+0.03.972.125 I draft:
+
+0.03.972.133 I 
+0.03.972.133 I target:
+
+0.03.972.134 I common_perf_print:    sampling time =      10.06 ms
+0.03.972.135 I common_perf_print:    samplers time =       6.30 ms /   136 tokens
+0.03.972.135 I common_perf_print:        load time =     790.24 ms
+0.03.972.136 I common_perf_print: prompt eval time =    1010.82 ms /   283 tokens (    3.57 ms per token,   279.97 tokens per second)
+0.03.972.137 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
+0.03.972.137 I common_perf_print:       total time =    2722.18 ms /   284 tokens
+0.03.972.138 I common_perf_print: unaccounted time =    1701.30 ms /  62.5 %      (total - sampling - prompt eval - eval) / (total)
+0.03.972.138 I common_perf_print:    graphs reused =         39
+
+

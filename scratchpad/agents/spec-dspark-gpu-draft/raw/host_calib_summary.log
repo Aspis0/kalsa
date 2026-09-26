@@ -1,0 +1,10 @@
+PROMPT_SHA=0c58258bd0fad3c58e2bc9954a22ad0d10b37c81139beb03579a10d49c712644
+CALIB tag=eog170 n_max=0 limit=170 exit=0 n_predict=171 overshoot=1 n_drafted=0 n_accept=0 accept=nan% speed_tps=39.243
+CALIB tag=armA127 n_max=0 limit=127 exit=0 n_predict=128 overshoot=1 n_drafted=0 n_accept=0 accept=nan% speed_tps=40.101
+CALIB tag=armB4_127 n_max=4 limit=127 exit=0 n_predict=132 overshoot=5 n_drafted=162 n_accept=91 accept=56.173% speed_tps=73.941
+CALIB tag=armB8_127 n_max=8 limit=127 exit=0 n_predict=136 overshoot=9 n_drafted=261 n_accept=103 accept=39.464% speed_tps=62.971
+CALIB tag=armB4_63 n_max=4 limit=63 exit=0 n_predict=66 overshoot=3 n_drafted=82 n_accept=45 accept=54.878% speed_tps=63.485
+CALIB tag=armB8_63 n_max=8 limit=63 exit=0 n_predict=66 overshoot=3 n_drafted=128 n_accept=50 accept=39.062% speed_tps=61.371
+CALIB tag=armA_135 n_max=0 limit=135 exit=0 n_predict=136 overshoot=1 accept=nan%
+CALIB tag=armB4_131 n_max=4 limit=131 exit=0 n_predict=136 overshoot=5 accept=56.970%
+CALIB tag=armB4_123 n_max=4 limit=123 exit=0 n_predict=128 overshoot=5 accept=55.346%

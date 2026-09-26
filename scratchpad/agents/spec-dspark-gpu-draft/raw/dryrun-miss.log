@@ -1,0 +1,4 @@
+[16:55:47] SESSION job=dry-miss board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[16:55:47] GATE label=before_setup
+[16:55:47] STOP reason=missing_battery_temp
+[16:55:47] SESSION_STOP reason=missing_battery_temp
