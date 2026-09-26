@@ -46,9 +46,39 @@ adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/np
 
 `persist.traced.enable` was `0` before and after. The display remained awake. The strict zero-tick DSP check did **not** pass: before correctness, `adsprpcd` was `0/0` and `cdsprpcd` was `0/2` (utime/stime); after, they were `0/0` and `0/3`. Thus the CDSP counter was already nonzero and advanced one tick. No attempt was made to reset or restart either daemon.
 
-The S23 reported AC powered, thermal status 0, and battery temperature 30.1 C. No benchmark was run and no timing results were recorded. The driver charging guard was exercised: it printed `CHARGING_REFUSED` and exited 11 before setup or timing. The guard also refuses thermal status 3 or higher and battery temperature 44.0 C or higher. Its battery and thermal gates are syntax checked; the thermal thresholds were not exercised independently because charging refusal correctly ran first.
+The S23 reported AC powered, thermal status 0, and battery temperature 28.9 C. No benchmark was run and no timing results were recorded. The driver charging guard was exercised: it printed `CHARGING_REFUSED` and exited 11 before setup or timing. The guard also refuses thermal status 3 or higher and battery temperature 44.0 C or higher. Its battery and thermal gates are syntax checked; the thermal thresholds were not exercised independently because charging refusal correctly ran first.
 
 The earlier `llama-cli` attempt was rejected by its argument parser, then the server-wrapping UI path emitted excessive output and was stopped. Only task-owned temporary files under `/data/local/tmp/npu-step0/` were involved. The final kit omits `llama-cli`; an older copy already unpacked in that temporary device directory was left untouched. No Kalsa app or app data was accessed, cleared, or changed.
+
+## Follow-up: HTP execution proof (no timing)
+
+**Verdict: HTP_EXECUTES.** The first correctness log was insufficient: identical tokens alone allow silent CPU fallback, and logger verbosity had suppressed the debug execution records. A diagnostic call with `-lv 5`, `GGML_SCHED_DEBUG=2`, and `GGML_HEXAGON_VERBOSE=1` enabled them. It generated one token with `--no-perf`; no profiling timers were enabled. The graph is mixed: HTP0 handled the nodes shown below while CPU nodes remain for operations such as KV/attention under `-nkvo`.
+
+The non-timing diagnostic invocation was:
+
+```sh
+cd /data/local/tmp/npu-step0
+export LD_LIBRARY_PATH=$PWD/lib ADSP_LIBRARY_PATH=$PWD/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_SCHED_DEBUG=2
+./bin/llama-completion -m /data/local/tmp/npu-step0/ship.gguf -lm none -p 'The capital of France is' -n 1 -c 128 -b 16 -ub 16 -t 8 -fa 1 --device HTP0 -ngl 99 --fit off -nkvo --seed 1 --temp 0 --no-perf --simple-io --no-display-prompt -lv 5
+```
+
+```text
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007de91d6df0
+## SPLIT #1: HTP0 # 2 inputs: [model.embed_tokens (   8K)] [node_5 (reshaped) (  16K)]
+node # 14 (   MUL_MAT): model.layers.{}.conv (  24K) [ HTP0         ]
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x model.layers.{}.operator_norm-0 (reshaped) -> model.layers.{}.conv.in_proj-0|...|HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2801664|flags 0x0
+ggml-hex: HTP0 execute-op SSM_CONV|node_19 x blk.0.shortconv.conv.weight -> model.layers.{}.conv.conv-0|...|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 opqueue-pop batch #1 : n-bufs 2 n-tensors 10 n-ops 4 : m-size 1728 b-size 48 t-size 560 o-size 928
+ggml-hex: HTP0 opqueue-pop batch #2 : n-bufs 2 n-tensors 21 n-ops 13 : m-size 4864 b-size 48 t-size 1176 o-size 3016
+ggml-hex: HTP0 opqueue-pop batch #3 : n-bufs 2 n-tensors 27 n-ops 15 : m-size 5760 b-size 48 t-size 1512 o-size 3480
+execute-op=1063; opqueue-push=93; opqueue-pop=93; process exit=0
+```
+
+`0x14` is `AEE_EUNSUPPORTED` (“API is not supported”) in Qualcomm FastRPC `AEEStdErr.h` (base offset 0 plus `0x014`). Engine source shows it came from `FASTRPC_GET_URI`; on that lookup failure, the engine forms the fallback URI and then calls `htp_iface_open`. The `hwinfo` and `new session` records prove that fallback opened a real HTP session on domain 3 (CDSP); the HTP0 `execute-op` lines and matched 93 queue submissions/responses prove graph work was dispatched and returned. This is not evidence of CPU fallback, so no library/path/skel/signing fix was needed. Reference: [Qualcomm FastRPC AEEStdErr.h](https://android.googlesource.com/platform/external/fastrpc/%2B/refs/tags/android-platform-12.1.0_r4/inc/AEEStdErr.h).
+
+DSP counters (utime/stime ticks) were adsprpcd `0/0`, cdsprpcd `0/3` before the call; `0/4` immediately after; and still `0/4` after 3 seconds idle. The short CDSP activity during successful HTP work is expected; there was no continuing tick growth in the idle check. `persist.traced.enable` stayed `0`, screen stayed awake, and no app or app data was touched. Logs: `raw/s23-prep/htp_exec_before.log`, `htp_exec_after_idle.log`, `htp_exec_dispatch_summary.log`, and `htp_exec_proof_excerpt.txt`. The phone remained charging throughout; this was correctness/dispatch validation only, with no timing values collected.
 
 ## Timing run when unplugged
 

@@ -1,0 +1,13 @@
+SESSION
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007de91d6df0
+COUNTS
+execute-op=1063
+opqueue-push=93
+opqueue-pop=93
+DSP_RESPONSES
+ggml-hex: HTP0 opqueue-pop batch #1 : n-bufs 2 n-tensors 10 n-ops 4 : m-size 1728 b-size 48 t-size 560 o-size 928
+ggml-hex: HTP0 opqueue-pop batch #2 : n-bufs 2 n-tensors 21 n-ops 13 : m-size 4864 b-size 48 t-size 1176 o-size 3016
+ggml-hex: HTP0 opqueue-pop batch #3 : n-bufs 2 n-tensors 27 n-ops 15 : m-size 5760 b-size 48 t-size 1512 o-size 3480
+EXIT=0

@@ -1,0 +1,12 @@
+POST
+adsprpcd 2222 0 0
+cdsprpcd 2225 0 4
+IDLE
+adsprpcd 2222 0 0
+cdsprpcd 2225 0 4
+TRACED
+0
+SCREEN
+  mWakefulness=Awake
+  mHoldingDisplaySuspendBlocker=true
+EXIT=0

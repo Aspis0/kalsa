@@ -1,0 +1,14 @@
+ggml-hex: HTP0 allocating new session : domain 3 phys-idx 0 virt-idx 0
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007de91d6df0
+## SPLIT #1: HTP0 # 2 inputs: [model.embed_tokens (   8K)] [node_5 (reshaped) (  16K)]
+node # 14 (   MUL_MAT): model.layers.{}.conv (  24K) [ HTP0         ]
+node # 39 (   MUL_MAT): ffn_gate-0 (  42K) [ HTP0         ]
+ggml-hex: HTP0 execute-op RMS_NORM|HTP0#model.embed_tokens#0 -> norm-0|2048:2 -> 2048:2|f32 -> f32|4:8192 -> 4:8192|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x model.layers.{}.operator_norm-0 (reshaped) -> model.layers.{}.conv.in_proj-0|2048:6144 x 2048:2 -> 6144:2|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:24576|HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2801664|flags 0x0
+ggml-hex: HTP0 execute-op SSM_CONV|node_19 x blk.0.shortconv.conv.weight -> model.layers.{}.conv.conv-0|4:2048 x 3:2048 -> 2048:2|f32 x f32 -> f32|4:16 x 4:12 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 opqueue-pop batch #1 : n-bufs 2 n-tensors 10 n-ops 4 : m-size 1728 b-size 48 t-size 560 o-size 928
+ggml-hex: HTP0 opqueue-pop batch #2 : n-bufs 2 n-tensors 21 n-ops 13 : m-size 4864 b-size 48 t-size 1176 o-size 3016
+ggml-hex: HTP0 opqueue-pop batch #3 : n-bufs 2 n-tensors 27 n-ops 15 : m-size 5760 b-size 48 t-size 1512 o-size 3480
+execute-op=1063; opqueue-push=93; opqueue-pop=93; process exit=0
