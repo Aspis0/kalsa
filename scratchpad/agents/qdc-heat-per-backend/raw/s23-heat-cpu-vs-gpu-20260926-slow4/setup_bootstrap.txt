@@ -1,3 +1,0 @@
-Starting: Intent { cmp=com.kalsa.app/.MainActivity }
-chmod: chmod '/data' to 0771: Permission denied
-run_as_attempt=1 chmod_rc=1 run_rc=0

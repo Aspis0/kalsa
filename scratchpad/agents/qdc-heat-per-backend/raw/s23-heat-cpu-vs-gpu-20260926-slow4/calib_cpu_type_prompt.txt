@@ -1,2 +1,0 @@
-attempt=1 chunk_size=50 seconds=7 rc=0
-initial_seconds=7 rc=0 total_seconds=7

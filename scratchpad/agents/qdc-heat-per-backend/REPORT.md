@@ -1209,3 +1209,23 @@ unchanged: `TYPE_FAST=0 TYPE_LADDER="100"`, forced decode default, cap 115 / dea
 
 Balances read 14:1x EDT on aspis (account verified): QRD8750 **994** (Available), QRD8635 **1000**
 (Unavailable), QRD7675 **1000** (Unavailable), QRD8650 **506** (Available; the last 848429 hold not yet settled).
+
+## QRD8750 (8 Elite, Android 16) — S1 QDC 849171, unit sa853240, serial 9aed338b
+
+Started 14:39:14, Ended 16:10:42 (92 min; card 994 → 902). Battery override reset as usual, but this board's
+battery reads a flat **42.0 °C** (dumpsys 420 = sysfs 420 while skin 30.4) — `battery_trust` called it
+TRUSTED (it only knows the 25.0 stub; skin moved 0.03 °C in its window), which would have left NO working
+temperature stop (battery ≥ 44 can never fire on a frozen 42.0, skin ≥ 46 inactive). Driver SIGTERMed after
+calibration, before any arm (`sa853240`, END `signal_TERM`, 0 rows, restore rc=0), relaunched as `sa853240b`
+with the existing opt-in `BATT_STUB_TENTHS=420` → `BATTERY_SENSOR_UNTRUSTED` (log label still says
+"fixed_25.0C_stub": hardcoded text) → skin ≥ 46 stop active. `DECODE_LEN_REF=127`. END exit_0.
+
+| pair | arm | turn | skin before→after | ΔT | prefill_ms | tokens | decode tok/s | cooldown/settle s |
+|---:|---|---:|---|---:|---:|---:|---:|---|
+| 1 | cpu | 1 | 35.914→38.146 | +2.232 | 6308.7 | 127 | 26.13 | 0/0 |
+| 1 | gpu | 2 | 36.943→38.826 | +1.883 | 3428.3 | 127 | 27.20 | 225/150 |
+| 2 | gpu | 3 | 37.272→39.597 | +2.325 | 3562.0 | 127 | 25.90 | 720/240 |
+| 2 | cpu | 4 | 37.730→40.413 | +2.683 | 6554.9 | 127 | 26.04 | 720/240 |
+
+Pair deltas CPU−GPU: P1 **+0.349**, P2 **+0.358**. All chunks 1018, tools 0, lmkd 0.
+QRD8650 card settled at 512 (848429 = 109 min).

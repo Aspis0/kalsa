@@ -1,3 +1,0 @@
-untrusted=0
-why=na
-samples=378 na 37.3 373 na 36.9

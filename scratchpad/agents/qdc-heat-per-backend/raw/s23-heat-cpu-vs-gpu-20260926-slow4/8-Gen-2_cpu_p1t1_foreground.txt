@@ -1,4 +1,0 @@
-attempt=1 top=com.android.chrome/org.chromium.chrome.browser.firstrun.FirstRunActivity
-Starting: Intent { cmp=com.kalsa.app/.MainActivity }
-attempt=2 top=com.kalsa.app/.MainActivity
-attempt=1 top=com.kalsa.app/.MainActivity

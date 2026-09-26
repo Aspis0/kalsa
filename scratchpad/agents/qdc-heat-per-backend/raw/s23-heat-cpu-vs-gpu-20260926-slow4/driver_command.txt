@@ -1,3 +1,0 @@
-ADB_PORT=5037 ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_BIN=/opt/homebrew/bin/adb PRESERVE_APP_DATA=1 INSTALLED_APK_SHA=855c89de6496b00d0721f981d551842abfd544a26c62d4c3a816028c4b5c91e7 ALLOW_RUN_AS_WITHOUT_CHMOD=1 BATT_STUB_TENTHS=0 TYPE_FAST=0 TYPE_LADDER='50 50 50' TYPE_CHUNK_PAUSE_S=1.5 DRIVER_PHASE=full FORCED_DECODE_N=128 bash ./scratchpad/agents/qdc-heat-per-backend/d_run.sh s23-heat-cpu-vs-gpu-20260926-slow4 /Users/marco/kalsa-apks/0509f8c8/kalsa-apk-arm64-v8a-debuggable-0509f8c8c07d1a28fff627e086247c5f6d2b7ec0/app-release.apk CGGC 110 > scratchpad/agents/qdc-heat-per-backend/raw/s23-heat-cpu-vs-gpu-20260926-slow4/timing_driver.log 2>&1; echo EXIT=$?
-
-Observed exit after explicit SIGINT following invalid composer row: 130.

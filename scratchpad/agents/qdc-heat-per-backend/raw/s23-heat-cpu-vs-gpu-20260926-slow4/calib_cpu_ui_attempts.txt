@@ -1,2 +1,0 @@
-typing_chunk=1 wake_before=Awake wake_after=Awake
-attempt=1 edit_bounds=231 1107 693 1269 send_bounds=873 1128 1017 1248

@@ -1,1 +1,0 @@
-attempt=initial actual=25 expected=25 hint_len=0 empty_text_len=0
