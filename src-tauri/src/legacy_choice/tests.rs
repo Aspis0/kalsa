@@ -115,6 +115,25 @@ fn a_failed_legacy_check_is_never_repeated() {
 }
 
 #[test]
+fn an_unreadable_model_leaves_no_marker() {
+    // An I/O error is not an answer: the file could not be read, so the
+    // question stays open for the next launch and nothing is recorded —
+    // only a file read whole and found wrong ends the checking.
+    let root = scratch("unreadable");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    // `models` becomes a file, so the model path below it cannot be opened
+    // at all: opening fails with a directory error, not a digest.
+    std::fs::remove_dir_all(root.join("models")).expect("drop the directory");
+    std::fs::write(root.join("models"), b"not a directory").expect("a file instead");
+    let state_file = root.join("server.state");
+
+    assert!(!migrate_with(&state_file, &root, lookup));
+    assert!(!checked(&state_file), "an I/O error records nothing");
+    assert_eq!(stored(&state_file), None, "and nothing was stored");
+}
+
+#[test]
 fn the_check_runs_off_the_calling_thread_and_lowers_its_flag() {
     let flag = Arc::new(AtomicBool::new(false));
     let (release, wait) = std::sync::mpsc::channel::<()>();

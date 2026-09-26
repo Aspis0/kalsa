@@ -9,7 +9,9 @@
 //! The download is consented before the walk starts: the first run's pick
 //! stores the choice, and the walk fetches what it names. A turn-on with nothing
 //! stored is refused before any walk (`first_run::require_choice`); the
-//! model's own fetch refuses too (`AwaitingChoice`), as the second line.
+//! model's own fetch refuses too (`AwaitingChoice`), as the second line. A
+//! stored choice this walk cannot honour stops there too — and is
+//! forgotten, so the home page offers the pick again.
 //!
 //! The model step follows the catalog: the choice is fetched against its
 //! digest (a verified copy in another program's cache beats the download,
@@ -38,7 +40,7 @@ use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::capability::{CHOSEN_REASON, CHOSEN_STALE_NOTE, PHONE_FREE_REASON};
+use crate::capability::{CHOSEN_REASON, PHONE_FREE_REASON};
 use crate::failure::StartupFailure;
 use crate::options::LaunchOverrides;
 
@@ -254,7 +256,7 @@ pub(crate) fn run(
             // the model choice falls through to the processor while the
             // graphics candidate must still be offered for measuring.
             let main = (backend, exe.clone());
-            let (build, exe, plan, row, reason) = choose_with_processor_fallback(
+            let step = choose_with_processor_fallback(
                 (backend, exe),
                 &machine,
                 phone,
@@ -269,9 +271,22 @@ pub(crate) fn run(
                         }),
                     )
                 },
-            )?;
+            );
+            let (build, exe, plan, row, reason) = match step {
+                Ok(step) => step,
+                // A stored choice this walk cannot honour stops the walk AND
+                // is forgotten: Home offers the pick again instead of a
+                // choice the walk refuses, and nothing unpicked is fetched,
+                // taken from disk or started.
+                Err(StartupFailure::AwaitingChoice) => {
+                    forget_choice(&state_file);
+                    return Err(StartupFailure::AwaitingChoice);
+                }
+                Err(failure) => return Err(failure),
+            };
             // Consent is the stored row itself, checked against the row
-            // about to be placed; any other row may come only from disk.
+            // about to be placed; without it nothing is used — not even a
+            // copy already on disk.
             let path = place_model(&plan, root, consented(chosen, row), progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
@@ -353,6 +368,11 @@ fn prepare_slot_save_dir(path: &Path) -> Result<(), StartupFailure> {
 /// upgrade, never whether the brain can run. Each branch carries the row its
 /// plan was built from, so the file that is fetched is always the row that was
 /// judged, and the reason in the owner's words that came with the branch.
+///
+/// A stored choice is honoured only when this walk can run it; anything else
+/// stops the walk (`AwaitingChoice`). There is no automatic answer beside
+/// it: a model the owner did not pick is never started, not even one already
+/// on disk.
 fn choose_model(
     winner: ServerBackend,
     machine: &Machine,
@@ -360,17 +380,14 @@ fn choose_model(
     chosen: Option<&str>,
 ) -> Result<(DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     let input = choice_input(winner, machine, phone);
-    // A stored choice is honoured first, and only when this machine can
-    // actually run that row — it is on the menu (its file is still fetchable)
-    // and it fits. Anything else falls back to the automatic answer with a
-    // sentence saying so: a model that will not start is worse than one nobody
-    // chose.
+    // The stored choice and nothing else. A token this walk cannot run —
+    // unknown to this catalog, no file left to fetch, or too big for this
+    // build's budget — stops the walk rather than picking something else.
     if let Some(token) = chosen {
-        if let Some(run) = row_for_token(token).and_then(|row| kalsa_catalog::runnable_row(&input, row)) {
-            return Ok((run.download, run.entry, CHOSEN_REASON.to_string()));
-        }
-        let (plan, row, reason) = automatic_choice(&input, phone)?;
-        return Ok((plan, row, format!("{CHOSEN_STALE_NOTE}{reason}")));
+        let run = row_for_token(token)
+            .and_then(|row| kalsa_catalog::runnable_row(&input, row))
+            .ok_or(StartupFailure::AwaitingChoice)?;
+        return Ok((run.download, run.entry, CHOSEN_REASON.to_string()));
     }
     automatic_choice(&input, phone)
 }
@@ -424,8 +441,9 @@ pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
 /// (Vulkan) fall back: a processor refusal is a real refusal, and
 /// Metal budgets RAM already. And only the NothingFits refusal falls back at
 /// all: the fallback's sentence is about the card's memory holding no row,
-/// which is true only of that one — a phone comparison, a speed floor or a
-/// bad token are other facts and reach the owner unchanged (pinned below).
+/// which is true only of that one — a phone comparison or a speed floor are
+/// other facts and reach the owner unchanged (pinned below); a stored choice
+/// this walk cannot honour stops the walk.
 pub(crate) fn choose_with_processor_fallback(
     build: (ServerBackend, PathBuf),
     machine: &Machine,
@@ -515,6 +533,19 @@ pub(crate) fn row_for_token(token: &str) -> Option<&'static ModelEntry> {
 /// only when it is already on disk.
 fn consented(stored: Option<&str>, row: &ModelEntry) -> bool {
     stored.is_some_and(|token| model_token(row) == token)
+}
+
+/// The stored choice this walk cannot honour, forgotten — so the home page
+/// offers the pick again rather than a choice the walk refuses. Nothing to
+/// forget is nothing to do; a failed save leaves the stale token, and the
+/// walk stops on it again at the next turn-on.
+fn forget_choice(state_file: &Path) {
+    let mut overrides = crate::options::load(state_file);
+    if overrides.model.is_none() {
+        return;
+    }
+    overrides.model = None;
+    let _ = crate::options::save(state_file, overrides);
 }
 
 /// The row a selection names. `repo` alone is not a key — two rows can share
@@ -653,14 +684,16 @@ fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource
     )
 }
 
-/// Puts the chosen model on disk, against the plan's digest. A copy already
-/// on disk — ours, or another program's — is hash-checked or digest-found
-/// before any download happens. Another program's stores are searched cheap
-/// pass first (`kalsa-reuse`: stores that NAME blobs by their digest cost a
-/// stat, and the store whose name claims our digest is read once to
-/// confirm), with `find_local` underneath for stores that name files like
-/// files. `roots` is handed in rather than taken from the environment so
-/// the search is a fact a test can pin.
+/// Puts the chosen model on disk, against the plan's digest. The consent
+/// gate comes first, before the disk is even looked at: without the owner's
+/// stored pick no copy — here or in another program's store — is used and no
+/// byte is fetched. A copy already on disk is then hash-checked or
+/// digest-found before any download happens. Another program's stores are
+/// searched cheap pass first (`kalsa-reuse`: stores that NAME blobs by their
+/// digest cost a stat, and the store whose name claims our digest is read
+/// once to confirm), with `find_local` underneath for stores that name files
+/// like files. `roots` is handed in rather than taken from the environment
+/// so the search is a fact a test can pin.
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
@@ -674,6 +707,12 @@ fn acquire_model(
         // stored: refuse rather than invent a plausible name.
         return Err(StartupFailure::WeightsUnverified);
     }
+    // A model is used or fetched only for the owner's stored pick — the
+    // automatic pick with nothing stored stops here, before the disk is
+    // consulted at all.
+    if !consented {
+        return Err(StartupFailure::AwaitingChoice);
+    }
     let path = models_dir.join(name);
     if file_digest_is(&path, plan.bytes, plan.sha256) {
         return Ok(path);
@@ -684,11 +723,6 @@ fn acquire_model(
     // runs underneath it.
     if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
         return Ok(found);
-    }
-    // The second download gate: a model is fetched only for the owner's
-    // stored pick. The automatic pick with nothing stored stops here.
-    if !consented {
-        return Err(StartupFailure::AwaitingChoice);
     }
     progress(Progress::ModelBytes {
         done: 0,
@@ -1113,11 +1147,21 @@ pub(crate) fn ram_bytes() -> u64 {
 /// Size first, then the digest: the cheap check decides whether the expensive
 /// one is worth running.
 pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return false;
-    };
-    if !matches!(file.metadata(), Ok(meta) if meta.len() == size) {
-        return false;
+    file_digest_checked(path, size, sha).unwrap_or(false)
+}
+
+/// The same check with its answer's honesty: `Err` when the file was never
+/// read whole — absent, not the promised size, or the disk said no — which
+/// is not an answer. `Ok(true)` is the pinned file; `Ok(false)` is read whole
+/// and not it, the one answer a caller may treat as final.
+pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io::Result<bool> {
+    let mut file = std::fs::File::open(path)?;
+    let meta = file.metadata()?;
+    if meta.len() != size {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the file is not the size the pin promises",
+        ));
     }
     let mut hasher = Sha256::new();
     let mut buf = [0u8; 64 * 1024];
@@ -1125,11 +1169,11 @@ pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
         match file.read(&mut buf) {
             Ok(0) => break,
             Ok(n) => hasher.update(&buf[..n]),
-            Err(_) => return false,
+            Err(error) => return Err(error),
         }
     }
     let digest = format!("{:x}", hasher.finalize());
-    digest.eq_ignore_ascii_case(sha)
+    Ok(digest.eq_ignore_ascii_case(sha))
 }
 
 #[cfg(test)]
@@ -1372,10 +1416,32 @@ mod tests {
     }
 
     #[test]
+    fn the_stored_row_itself_is_the_consent() {
+        // Consent names the row, not the token's existence: the row about to
+        // be placed must be the row the owner picked, and no other pair
+        // consents — not another row, not nothing stored.
+        let machine = machine(Backend::Cpu);
+        let (automatic, chosen) = a_smaller_row_that_runs(&machine);
+        assert!(
+            consented(Some(&model_token(chosen)), chosen),
+            "the row's own token is the consent"
+        );
+        assert!(
+            !consented(Some(&model_token(chosen)), automatic),
+            "another row is not the stored choice"
+        );
+        assert!(
+            !consented(None, chosen),
+            "nothing stored consents to nothing"
+        );
+    }
+
+    #[test]
     fn the_placement_stops_when_the_model_is_not_consented() {
         // The download gate: without a stored choice a fetch is refused
         // with a distinct verdict and costs zero bytes; with it the file is
-        // fetched and digest-verified as always.
+        // fetched and digest-verified as always. The gate holds before the
+        // disk is consulted, so a copy already here is not consent either.
         let (url, requests) = serve(PLAN_BODY);
         let root = scratch("ask-placement");
         let plan = DownloadPlan {
@@ -1397,20 +1463,54 @@ mod tests {
         let placed = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
         assert_eq!(std::fs::read(&placed).expect("read"), PLAN_BODY);
         let again = place_model(&plan, &root, false, &mut |_| {})
-            .expect("the file now on disk answers before the gate");
-        assert_eq!(again, placed, "and it is the same file");
+            .expect_err("the file on disk is not the owner's pick");
+        assert!(matches!(again, StartupFailure::AwaitingChoice), "{again:?}");
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
             1,
-            "one fetch in the whole test: the gate and the disk both refused to download"
+            "one fetch in the whole test: the gate held for the copy on disk too"
+        );
+    }
+
+    #[test]
+    fn a_stale_choice_places_nothing_not_even_a_copy_that_is_already_here() {
+        // The gate against a file that is already on disk: a row the stored
+        // token does not name is not placed from a local copy either. The
+        // stub behind the loopback URL counts requests, so a broken gate
+        // would show up here as bytes — and the catalog is never asked.
+        let (url, requests) = serve(PLAN_BODY);
+        let root = scratch("stale-local-copy");
+        let models = root.join("models");
+        std::fs::create_dir_all(&models).expect("mkdir");
+        let plan = DownloadPlan {
+            url,
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+        };
+        let local = models.join(plan.url.rsplit('/').next().expect("a file name"));
+        std::fs::write(&local, PLAN_BODY).expect("the copy already here");
+
+        let row = rows().next().expect("the catalog carries rows");
+        let stopped = place_model(&plan, &root, consented(Some("not-a-token"), row), &mut |_| {})
+            .expect_err("a row nobody picked is not placed, not even from disk");
+        assert!(matches!(stopped, StartupFailure::AwaitingChoice), "{stopped:?}");
+        assert_eq!(
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "no request was made"
+        );
+        assert_eq!(
+            std::fs::read(&local).expect("the copy is still there"),
+            PLAN_BODY,
+            "and it is untouched"
         );
     }
 
     #[test]
     fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
         // The automatic answer for a walk that fetches it: the development
-        // path's pinned binary, and the fallback a stale stored choice
-        // rides. What
+        // path's pinned binary, and the answer a walk with nothing stored
+        // still owes. What
         // this answers must still be exactly what the catalog answers,
         // plan and reason and all, compared against the catalog itself
         // rather than against a copied expectation.
@@ -1479,35 +1579,62 @@ mod tests {
     }
 
     #[test]
-    fn a_choice_the_catalog_does_not_know_falls_back_and_says_so() {
-        // A token from a build whose catalog has moved on. It must not stop
-        // the walk and must not be passed over in silence.
+    fn a_choice_the_catalog_does_not_know_stops_the_walk() {
+        // A token from a build whose catalog has moved on: the walk stops
+        // with AwaitingChoice. It never picks a model itself — no plan, so
+        // no URL, is built for one.
         let machine = machine(Backend::Cpu);
-        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None, Some("not-a-token"))
-            .expect("a stale choice must not stop the brain from starting");
-
-        let input = choice_input(ServerBackend::Cpu, &machine, None);
-        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
-        assert_eq!(row.display_name, automatic.entry.display_name);
-        assert_eq!(plan.sha256, automatic.download.sha256);
-        assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
-        assert!(reason.contains(PHONE_FREE_REASON), "the automatic answer's own words follow: {reason}");
-        // The fallback row is not the owner's pick, so nothing consents to
-        // fetching it: the gate holds it at AwaitingChoice without spending
-        // a byte, and the walk stops instead of downloading.
-        let consent = consented(Some("not-a-token"), row);
-        assert!(!consent, "a stale token is not consent to download");
-        let stopped = acquire_model(&plan, &scratch("stale-consent"), &[], consent, &mut |_| {})
-            .expect_err("a fallback row nobody picked is never fetched");
-        assert!(matches!(stopped, StartupFailure::AwaitingChoice), "{stopped:?}");
+        let failure = choose_model(ServerBackend::Cpu, &machine, None, Some("not-a-token"))
+            .expect_err("a stale choice must not choose something else");
+        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
     }
 
     #[test]
-    fn a_choice_with_no_file_left_to_fetch_falls_back_and_says_so() {
+    fn a_stale_choice_clears_itself_and_places_nothing() {
+        // The walk's model step against a stored choice nothing answers to:
+        // the walk stops, forgets the choice so Home offers the pick again,
+        // and never reaches a file. No plan is built, so no catalog URL can
+        // be touched whatever the gate does.
+        let root = scratch("stale-walk");
+        let state_file = root.join("server.state");
+        let stale = LaunchOverrides {
+            model: Some("not-a-token".to_string()),
+            ..LaunchOverrides::default()
+        };
+        crate::options::save(&state_file, stale).expect("store the stale choice");
+
+        let failure = run(
+            // A development build pins the binary, so no engine is decided
+            // or fetched on the way to the model step.
+            Some(PathBuf::from("/dev/null/stand-in-server")),
+            machine(Backend::Cpu),
+            None,
+            1,
+            None,
+            state_file.clone(),
+            root.join("slots"),
+            &root,
+            &mut |_| {},
+        )
+        .expect_err("a choice this walk cannot honour must not start");
+        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
+        assert!(
+            crate::options::load(&state_file).model.is_none(),
+            "the stale choice is forgotten, so Home offers the pick again"
+        );
+        assert!(
+            !root.join("models").exists(),
+            "nothing was placed: the walk never reached the file"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_choice_with_no_file_left_to_fetch_stops_the_walk() {
         // The other way a stored choice goes stale: the catalog still knows
         // the row, and there is nothing left to fetch for it — the research
-        // rows carry no file. This is the "its file has gone" case, and it
-        // falls back for the same reason.
+        // rows carry no file. The walk stops; it does not pick something
+        // the owner did not choose.
         let machine = machine(Backend::Cpu);
         let without_file = rows()
             .find(|entry| {
@@ -1520,17 +1647,14 @@ mod tests {
             "the token resolves: this is not the unknown-token case"
         );
 
-        let (_, row, reason) = choose_model(
+        let failure = choose_model(
             ServerBackend::Cpu,
             &machine,
             None,
             Some(&model_token(without_file)),
         )
-        .expect("a row with nothing to fetch must not stop the brain from starting");
-        let input = choice_input(ServerBackend::Cpu, &machine, None);
-        let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
-        assert_eq!(row.display_name, automatic.entry.display_name);
-        assert!(reason.starts_with(CHOSEN_STALE_NOTE), "{reason}");
+        .expect_err("a row with nothing to fetch stops the walk");
+        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
     }
 
     /// The owner's ruling, on the machine that asked for it: the Lenovo's

@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 
 use kalsa_catalog::usable;
 
-use crate::startup::{file_digest_is, model_token};
+use crate::startup::{file_digest_checked, model_token};
 
 /// The pinned file a legacy record's digest names.
 struct Pinned {
@@ -65,9 +65,10 @@ fn catalog_row(digest: &str) -> Option<Pinned> {
     })
 }
 
-/// The record of a check already made, beside the state file. The check
-/// hashes a whole model file, and a digest that did not match will not match
-/// next launch — so the answer is kept and the check never runs twice.
+/// The record of a check that finished: the model file was read whole and
+/// was not the pinned one. Only that answer is kept — it cannot change next
+/// launch, while an absent, wrong-sized or unreadable file is no answer at
+/// all and is asked again.
 fn checked(state_file: &Path) -> bool {
     marker(state_file).exists()
 }
@@ -82,8 +83,8 @@ fn marker(state_file: &Path) -> PathBuf {
 
 /// Stores the legacy model as the choice when nothing is stored yet and its
 /// file in `runtime_root/models` hashes to the pinned digest. The choice it
-/// stores stops it running again — and so does a check that already ran
-/// without storing one.
+/// stores stops it running again — and so does a check that proved the file
+/// is not the pinned one.
 fn migrate_with(
     state_file: &Path,
     runtime_root: &Path,
@@ -93,20 +94,31 @@ fn migrate_with(
     if overrides.model.is_some() || checked(state_file) {
         return false;
     }
-    let stored = match kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d)) {
-        None => false,
-        Some(pinned) => {
-            let path = runtime_root.join("models").join(&pinned.file);
-            if !file_digest_is(&path, pinned.bytes, pinned.sha256) {
-                false
-            } else {
-                overrides.model = Some(pinned.token);
-                crate::options::save(state_file, overrides).is_ok()
-            }
-        }
+    let Some(pinned) = kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d))
+    else {
+        // No record, or no catalog row for its digest: nothing was read, so
+        // nothing is recorded and the next launch asks again.
+        return false;
     };
-    mark_checked(state_file);
-    stored
+    let path = runtime_root.join("models").join(&pinned.file);
+    match file_digest_checked(&path, pinned.bytes, pinned.sha256) {
+        // Read whole, and not the pinned file: a re-check next launch would
+        // answer the same, so the answer is the record.
+        Ok(false) => {
+            mark_checked(state_file);
+            false
+        }
+        // The pinned file becomes the choice, which stops this running
+        // again. No record is written: a save that failed must be retried,
+        // and the stored choice alone is the answer when it succeeded.
+        Ok(true) => {
+            overrides.model = Some(pinned.token);
+            crate::options::save(state_file, overrides).is_ok()
+        }
+        // Absent, the wrong size, or the disk said no — no verdict, so no
+        // record. The file may still arrive.
+        Err(_) => false,
+    }
 }
 
 #[cfg(test)]

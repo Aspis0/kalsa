@@ -174,7 +174,15 @@ pub(crate) fn decide_in(
         let exe = match store::ensure_backend(root, platform, backend, progress) {
             Ok(exe) => exe,
             Err(e) => {
-                attempts.push((backend, e.to_string()));
+                // The candidate's own words travel either way. A full disk
+                // is the walk's verdict, not one attempt among the rest:
+                // under "no build works" the owner would be told to check
+                // a connection that was never the problem.
+                let words = e.to_string();
+                if matches!(map_store_error(e), DecideError::StorageFull) {
+                    return Err(DecideError::StorageFull);
+                }
+                attempts.push((backend, words));
                 continue;
             }
         };
@@ -344,6 +352,96 @@ mod tests {
             "the refusal must not download the probe model or stage a build"
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A filesystem with far less room than one download's own margin
+    /// (256 MB), mounted without root: `hdiutil` attaches an image this
+    /// user owns, and the volume detaches itself when the test is done —
+    /// on a panic included.
+    #[cfg(target_os = "macos")]
+    struct Volume(std::path::PathBuf);
+
+    #[cfg(target_os = "macos")]
+    impl Volume {
+        fn new(name: &str) -> Option<Self> {
+            let dir = std::env::temp_dir().join(format!(
+                "kalsa-runtime-decide-{name}-{}",
+                std::process::id()
+            ));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).ok()?;
+            let image = dir.join("volume.dmg");
+            let mount = dir.join("mount");
+            let created = std::process::Command::new("hdiutil")
+                .args(["create", "-size", "8m", "-fs", "HFS+", "-quiet"])
+                .arg(&image)
+                .status()
+                .ok()?
+                .success();
+            let attached = created
+                && std::process::Command::new("hdiutil")
+                    .args(["attach", "-nobrowse", "-quiet", "-mountpoint"])
+                    .arg(&mount)
+                    .arg(&image)
+                    .status()
+                    .map(|status| status.success())
+                    .unwrap_or(false);
+            if !attached {
+                let _ = std::fs::remove_dir_all(&dir);
+                return None;
+            }
+            Some(Self(mount))
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    impl Drop for Volume {
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("hdiutil")
+                .args(["detach", "-force", "-quiet"])
+                .arg(&self.0)
+                .status();
+        }
+    }
+
+    /// The loop's own subject: a build that cannot be written because the
+    /// disk is full must be the walk's verdict, not "no build works". The
+    /// room is made rather than waited for, and the probe model is
+    /// symlinked from the store this machine already has — so nothing is
+    /// fetched, no archive is needed, and no socket is opened.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_full_disk_inside_the_candidate_loop_is_the_walks_verdict() {
+        let Some(platform) = Platform::current() else {
+            eprintln!("skipping: this platform publishes no engine");
+            return;
+        };
+        if candidates_for(Some(platform), Backend::Cpu).is_empty() {
+            eprintln!("skipping: no candidate to walk on this platform");
+            return;
+        }
+        let probe = crate::store::root()
+            .join("models")
+            .join(crate::assets::probe_model().file);
+        if !probe.is_file() {
+            eprintln!("skipping: no probe model on this machine's disk");
+            return;
+        }
+        let Some(volume) = Volume::new("full-disk") else {
+            eprintln!("skipping: this machine could not make a full filesystem");
+            return;
+        };
+        let root = volume.0.join("runtime");
+        std::fs::create_dir_all(root.join("models")).expect("mkdir");
+        std::os::unix::fs::symlink(
+            &probe,
+            root.join("models").join(crate::assets::probe_model().file),
+        )
+        .expect("the probe model, linked rather than copied");
+
+        let err = decide_in(&root, Some(platform), Backend::Cpu, None, &OsLaunch, &mut |_| {})
+            .expect_err("nothing can be written to a disk this full");
+        assert!(matches!(err, DecideError::StorageFull), "{err}");
     }
 
     #[test]

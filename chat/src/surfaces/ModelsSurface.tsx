@@ -64,7 +64,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         // sentence standing on screen for the whole teardown.
         headline = "Stopping";
         sentence =
-          "This computer is putting the model away. When you turn it on again it will run the model you picked; it reuses its measurement for up to a month, and measures again after an app update or when it notices the computer has changed.";
+          "This computer is putting the model away. When you turn it on again it will run the model you picked.";
         break;
       case "starting":
         headline = "Chosen and starting";
@@ -75,8 +75,7 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
         sentence = "This computer is not running right now. The Server page says why.";
         break;
       case "stopped":
-        sentence =
-          "When you turn on, this computer runs the model you picked. It measures itself the first time and reuses that measurement for up to a month, measuring again after an app update or when it notices the computer has changed. You picked that model on Home, and you can change it there.";
+        sentence = "Kalsa is off. Go to Home to start it.";
         button = "Go to Server";
         break;
       default: {

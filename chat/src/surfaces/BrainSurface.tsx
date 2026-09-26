@@ -93,11 +93,14 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     };
   }, [reads, busy]);
 
-  // The legacy check takes about a minute; ask again until it answers. A read
-  // that fails in the middle of it keeps the timer going — `reads` is in the
-  // dependencies for that — or one failure would leave the page blank forever.
+  // Ask again until an answer lands: the legacy check takes about a minute,
+  // and a read that fails — before the first answer or in the middle of the
+  // check — keeps the 1 s timer going. `reads` is in the dependencies so a
+  // failure on an already-blank answer reschedules too; one timer per run,
+  // cleared on the way out.
   useEffect(() => {
-    if (!migrating.current) return;
+    if (!available()) return;
+    if (capability !== null && !migrating.current) return;
     const timer = window.setTimeout(() => setReads((count) => count + 1), 1000);
     return () => window.clearTimeout(timer);
   }, [capability, reads]);

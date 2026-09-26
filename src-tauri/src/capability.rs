@@ -37,14 +37,6 @@ Pair your phone and the app can tell you whether it beats what the phone runs.";
 pub(crate) const CHOSEN_REASON: &str = "You chose this model, so it is the one this computer runs. \
 Choose another, or let this computer choose again, from the same page.";
 
-/// Said before the automatic answer when a stored choice could not be honoured
-/// — a row the catalog no longer has, or one this machine cannot run now. The
-/// owner is told why the model in front of them is not the one they picked;
-/// the automatic answer's own words follow it.
-pub(crate) const CHOSEN_STALE_NOTE: &str =
-    "The model you chose is not one this computer can run now, so it has gone back to choosing for \
-     itself. ";
-
 /// The second option's sentence. It says the trade in the order the owner
 /// needs it: what it gives (speed), what it costs (capability), and which of
 /// the two is the stronger model — never leaving that to be inferred from the
@@ -185,8 +177,9 @@ pub(crate) enum SpeedDto {
 }
 
 /// The catalog's input for one read: the detected backend, this machine's
-/// own figures, and the phone. Built in one place so the page's answer and
-/// the stored-choice check below can never disagree about what was asked.
+/// own figures, and the phone — everything this page knows before any build
+/// has won. Built in one place so the page's answer and the stored-choice
+/// check below are asked the same question.
 fn input_for(measurement: &Measurement, ram_bytes: u64, phone: Option<PhoneModel>) -> ChoiceInput {
     ChoiceInput {
         backend: measurement.will_run_on,
@@ -199,11 +192,11 @@ fn input_for(measurement: &Measurement, ram_bytes: u64, phone: Option<PhoneModel
     }
 }
 
-/// Whether a stored choice — the row its token named — is one this machine
-/// can honour right now: that row is on the menu for this machine, the same
-/// gate the walk's model step holds a stored choice to. A choice that fails
-/// it is no choice, so the home page answers with the first run again
-/// instead of a `chosen` the walk would refuse.
+/// Whether a stored choice is one this page can still stand behind: the row
+/// its token named runs on this machine, as the page reads it. The walk asks
+/// the same question with the build that won and answers it by stopping the
+/// walk and forgetting the choice — so a choice the walk refuses reads as
+/// the first run again on the home page's next read.
 pub(crate) fn chosen_stands(
     measurement: &Measurement,
     ram_bytes: u64,
