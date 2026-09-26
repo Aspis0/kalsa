@@ -829,3 +829,128 @@ dryrun-adb.sh.
 - `restore.sh`'s run-as WAL/SHM test could not find a real WAL to pull (the
   fixture DB has none); the command form mirrors `run_as_retry` (parse.sh:34).
 - `smp.sh`'s gated read is validated on a captured dump, not a live sampler.
+
+---
+
+# LFM heat arms on QDC (2026-09-26)
+
+Account verified from the page before anything else: tab `3774c340`, `auth-session` email claim
+and account chip = **aspis.launcher@gmail.com** (no credential typed or read).
+
+## Cap arithmetic (written before requesting session 1)
+
+Owner decision: QRD8650 in two sessions, 2 pairs each, cap ~115 / driver deadline 110.
+Expected driver time for 4 arms (constants d_run.sh:87-89): setup+load proof+calibration
+≈ 10 min + cold first arm ≈ 5.5 min + 3 warm arms × 21.5 min (720 s cooldown cap + 240 s
+settle cap + ~5.5 min active) ≈ **80 min**. The remaining 30 min of deadline absorb the
+driver's own retry caps (typing rung cap 400/700 s, turn wall cap 900 s) — one retry ladder
+or one slow turn fits, two do not. Cap = 110 deadline + ~4 min tunnel/start + ~1 min end
+= **115 min requested**.
+Portal before session 1: QRD8650 **957 min** remaining (Available Now; was 885 after 845086 —
+the portal later credited 72 min back, unexplained), QRD7675 1000 (Unavailable), QRD8750 994.
+
+## QRD8650 session 1 — QDC 845459, unit sa849528, serial 7b5f6c52 (SM8650, Android 14 userdebug)
+
+`qdc-heat-lfm-8650-s1`, SSH only, key kalsa-mac, Screen Always On, cap 115. Submitted 23:43:07,
+Started 23:44:22, Ended 01:23:25 EDT (Completed, portal-verified after a second End→Yes) = 99 min 3 s.
+**QRD8650 card 957 → 842 = 115 billed = the full cap.** Tunnel `-L 6039:sa849528…:5037` (6037 held by
+the local adb server, left alone). Four driver runs inside the one session:
+
+| run | outcome | cause / action |
+|---|---|---|
+| `sa849528` | `STOP reason=plugged` at the setup gate, 23:47:00, no turn | `dumpsys battery` = `(UPDATES STOPPED)`, `AC powered: true`, level 100, temp 250 — an injected battery override, not real power (`stop_battery_dump.txt`). `dumpsys battery reset` → real HAL: `AC powered: false`, sysfs `battery/status=Discharging`, `battery/temp=250` (stub, constant; `battery_after_reset.txt`, `power_supply_sysfs.txt`). Stop set untouched; device reset only. |
+| `sa849528b` | `TOOLS_NOT_OFF tool_calls=1` after calibration | driver counted KALSA_TOOLCALL **lines**; the line read `toolChoice:"none","structuredCalls":0,…,"executed":0`. Also N0=15 (tokensCached 564: the system prompt is prewarmed), so the largest variant gave 922+15=937 < 973. **Fix commit `90a12c99`** (count calls, add `prompt-1010.txt`). |
+| `sa849528c` | arm 1 CPU `INVALID composer` (skin 34.45→43.96 with no turn sent) | `TYPE_FAST=1` lost characters: 2993/3832, retype 3219/3832 (`*_composer_len.txt`) — QRD trap 4 (no dump pacing). Stopped by operator; **SIGTERM does not stop d_run.sh** (the TERM trap runs cleanup and the script continues; END.txt then says `exit_0`) → SIGKILL. |
+| `sa849528d` | **2 valid rows (pair 1)**, operator stop after row 2 at 01:22 | `TYPE_FAST=0`; arm 3 could not finish before the 01:35 deadline (cooldown cap alone 12 min), so the driver was killed and the session ended early. Typing: the 200 rung lost characters on both arms (rc=1 after 199/222 s), the 100 rung was exact (473/450 s) → 672 s typing per arm. |
+
+`restore.sh` ran after every abnormal end; it returned rc=1 each time with `rkstorage-restore-*` files left in
+`/data/local/tmp/kalsa-heat/heat/` → its final `run-as cp` fails (not diagnosed; the app was force-stopped and
+stay-on/timeout/keyguard restored — `restore.txt` per run).
+
+Calibration (`sa849528d`): READY turn chunk sum N0=15, tools 0, variant 1010 → estimate 1025; PROMPT.meta
+`2a4b5dea…0ea1 3833`. Load proof: `…files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf`.
+
+Mid-turn safety interval: no mid-turn check fired (both turns completed before 30 s of polling). One
+`logcat -v epoch -d -b all` through the tunnel took **1.59 s** (1.95 MB) → interval ≈ 6 × (5 + 1.6) ≈ 40 s,
+far under the 120 s abort limit.
+
+## QRD8650 session 2 — QDC 845490, unit sa849559, serial 36aa3b71 (SM8650)
+
+`qdc-heat-lfm-8650-s2`, same config, cap 115. Submitted 01:24:28, Started 01:25:45, Ended 03:11:33 EDT
+(Completed, portal-verified; End Session needed a JS click to open the dialog — ref-clicks did nothing
+twice) = 105 min 48 s. **QRD8650 card 842 → 741 = 101 min**, neither the cap (115) nor the duration (106);
+read once right after the end, may still move. Same injected battery override on this unit
+(`battery_before_reset.txt`: UPDATES STOPPED, AC powered: true) → `dumpsys battery reset` before the
+driver (`battery_after_reset.txt`: AC false). Driver `ARM_ORDER=GCGC PAIR_START=3`, deadline 109,
+`TYPE_FAST=0 TYPE_LADDER="100"` (env only: the 200 rung failed on both session-1 arms; 100 was exact in
+478/…s, cap 700). Normal end `exit_0`, samples pulled, app force-stopped after.
+
+Arm t1 (G, pair 3) **INVALID `token_band`**: chunk sum 1536 = 512+7+512+128+128+128+118+3. The board was
+cold (32.4 °C), so cooldown/settle took 0 s and the send raced the new chat's system-prompt prewarm:
+`KALSA_PREWARM {"op":"start",…}` then `{"match":false,"reason":"prefix_miss",…}` — the system prompt was
+prefilled inside the arm. In session 1 the 720+240 s waits always let the prewarm finish. Not rescued.
+Candidate fix (not made): after `new_chat`, wait for `KALSA_PREWARM op:done` before typing.
+
+## Per-arm table (valid and invalid rows; source raw/sa849528d, raw/sa849559 results.tsv)
+
+| session | pair | arm | turn | status | warm_start | cooldown_s / settle_s | skin before→after °C | ΔT °C | prefill_ms | chunks | engine prefill/decode | route req/push/mismatch | tokens_pred | decode tok/s | thermal_state |
+|---|---:|---|---:|---|---:|---|---|---:|---:|---:|---|---|---:|---:|---|
+| 1 | 1 | cpu | 1 | OK | 1 | 720 / 240 | 38.540→45.378 | +6.838 | 11109.2 | 1018 | CPU/CPU | cpu/applied/0 | 96 | 16.50 | WARM |
+| 1 | 1 | gpu | 2 | OK | 1 | 720 / 240 | 40.368→45.272 | +4.904 | 6881.6 | 1018 | GPU/CPU | gpu/applied/0 | 42 | 18.21 | COOLMODE |
+| 2 | 3 | gpu | 1 | INVALID token_band | 0 | 0 / 0 | 32.434→39.640 | (+7.206) | 10088.0 | 1536 | GPU/CPU | gpu/applied/0 | 42 | 24.84 | FAST |
+| 2 | 3 | cpu | 2 | OK | 1 | 720 / 240 | 38.263→43.971 | +5.708 | 10749.4 | 1018 | CPU/CPU | cpu/applied/0 | 96 | 17.08 | WARM |
+| 2 | 4 | gpu | 3 | OK | 1 | 720 / 240 | 40.260→44.457 | +4.197 | 6879.9 | 1018 | GPU/CPU | gpu/applied/0 | 42 | 17.71 | COOLMODE |
+| 2 | 4 | cpu | 4 | OK | 1 | 720 / 240 | 40.926→45.535 | +4.609 | 11140.0 | 1018 | CPU/CPU | cpu/applied/0 | 96 | 16.69 | COOLMODE |
+
+All valid rows: failed=0, fallback 0, tool calls 0, lmkd 0, plugged false, batt level 100, batt temp 25.0
+(stub). **n valid: CPU 3, GPU 2.** Pair 2 was never run (session 1 ended after pair 1). Every valid arm was a
+warm start (cooldown cap hit: the board never got back to 37 °C in 720 s).
+
+## Pair deltas (ΔT cpu − ΔT gpu, same pair)
+
+| pair | order | ΔT cpu | ΔT gpu | Δ cpu−gpu |
+|---:|---|---:|---:|---:|
+| 1 | C→G | +6.838 | +4.904 | **+1.934** |
+| 2 | G→C | — | — | not run |
+| 3 | G→C | +5.708 | invalid | — |
+| 4 | G→C | +4.609 | +4.197 | **+0.412** |
+
+Median of the 2 valid pairs: **+1.173 °C**. Arm means: CPU +5.718 (n=3), GPU +4.550 (n=2).
+
+## Against PREREG-LFM (QRD8650 row) — hit/miss, no re-interpretation
+
+| prediction | measured | verdict |
+|---|---|---|
+| P1 ≈ +2.2 (range −1.0…+4.5) | +1.934 | hit (inside range) — note P1 was not a cold start (CPU arm started at 38.54 °C) |
+| P2/P4 ≈ 0…+1 | P4 +0.412; P2 not run | hit for P4; P2 untested |
+| median ≈ +1.5; falsifier: median ≤ 0 | +1.173 (2 pairs) | not refuted; below the point estimate |
+| prefill 9,400 / 4,750 ms | CPU 10,749–11,140; GPU 6,880–6,882 | miss (both slower) |
+| prefill ratio GPU/CPU in 0.45–0.60 | 0.619 (P1), 0.618 (P4) | miss (off-prior, just above) |
+| decode 21.2 / 18.9 tok/s | CPU 16.50–17.08; GPU 17.71–18.21 | CPU miss (−20 %); GPU close |
+| decode spread > 20 % = off-prior | CPU vs GPU ≈ 7–10 % | not off-prior |
+
+**Confound not in the prereg:** greedy output differs by backend — every CPU arm generated 96 tokens,
+every GPU arm 42 — so decode (CPU in both arms) is NOT common mode: CPU arms carry ~54 extra decode tokens
+(~3 s at ~17 tok/s). Part of the CPU−GPU contrast is decode length, not prefill backend.
+
+Descriptive only (n = 2 pairs), one board, one model, one build; no routing conclusion.
+
+## QRD7675
+
+Not run: the card read **Unavailable** (1000 min) after QRD8650 finished (03:12). No session requested.
+
+## Minutes billed (aspis account, QRD8650 card)
+
+957 before → 842 after session 1 (115 = cap) → 741 after session 2 (101). Total 216 min for 2 sessions.
+
+## Not verified / open
+
+- Session-2 billing (101) was read once right after the end; not re-read later.
+- `restore.sh` rc=1 on every run (leftover `rkstorage-restore-*`); cause not diagnosed.
+- `d_run.sh` ignores SIGTERM (the TERM trap does not exit) and then writes `END reason=exit_0` — misleading;
+  not fixed.
+- No mid-turn safety check ever fired (all turns < 30 s of polling); the ≈40 s interval is computed from one
+  timed logcat dump, not observed.
+- The battery override (`AC powered: true`, UPDATES STOPPED) was present on both fresh units — presumably
+  QDC provisioning; battery temperature is a constant stub (25.0 °C), so the battery-temp stop cannot fire
+  on these boards; skin (recorded, and reaching the engine through the bench profile) peaked at 45.535 °C.

@@ -1,0 +1,5 @@
+pair	arm	turn	status	void_reason	warm_start	cooldown_s	settle_s	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	prefill_ms	engine_prefill	engine_decode	route_requested	route_push	route_mismatch	chunks_sum	chunks_str	prompt_n	tokens_predicted	decode_tps	thermal_state	failed	fallback_count	tool_calls	lmkd_count
+3	gpu	1	INVALID	token_band	0	0	0	32.434	39.64	250	250	100	false	10087.972	GPU	CPU	gpu	applied	0	1536	512+7+512+128+128+128+118+3	1536	42	24.8387257024037	FAST	0	0	0	0
+3	cpu	2	OK	na	1	720	240	38.263	43.971	250	250	100	false	10749.423	CPU	CPU	cpu	applied	0	1018	512+128+128+128+122	1018	96	17.0849848077112	WARM	0	0	0	0
+4	gpu	3	OK	na	1	720	240	40.26	44.457	250	250	100	false	6879.891	GPU	CPU	gpu	applied	0	1018	128+128+128+128+128+128+128+122	1018	42	17.7140671202874	COOLMODE	0	0	0	0
+4	cpu	4	OK	na	1	720	240	40.926	45.535	250	250	100	false	11139.953	CPU	CPU	cpu	applied	0	1018	128+128+128+128+128+128+128+122	1018	96	16.6941250243891	COOLMODE	0	0	0	0
