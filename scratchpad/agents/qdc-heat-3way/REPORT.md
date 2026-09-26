@@ -331,3 +331,24 @@ reached the 25% hard stop (40.6 C, thermal 2); no bench rate is reported.
 Final `persist.traced.enable` remained 0, timeout was restored to `null`,
 and `stay_on_while_plugged_in` remained 0. No uninstall or data clear was
 performed.
+
+### Follow-up: app lifetime and native-thread load correlation
+
+The command ledger records `am force-stop com.kalsa.app` only before each
+TASK 1 cold launch; it records no force-stop between TASK 1 and the CPU CLI
+runs. The preflight `ps` filtered only `llama|bench`, and TASK 2 recorded no
+Kalsa PID check or `dumpsys meminfo`. Thus Kalsa was likely still resident
+during TASK 2, but its PID/lifetime at each CLI run is not directly proven.
+No `lowmemorykiller`, `lmkd`, `kswapd`, or meminfo evidence is present in the
+saved raw logs. During TASK 1, `top` showed the app at up to 2.2G RES / 1.8G
+SHR and system swap use around 2.2G; this is consistent with substantial
+memory pressure, but does not prove the app remained alive in TASK 2.
+
+In both 30-second startup windows, `mqt_v_native` peaked at 84.4% / 96.1%
+(first sample for run 2), coincident with `KALSA_NATIVE ... load_tensors ...
+(load_mode = mmap+mlock)` and `KALSA_PREWARM` start-to-done of about 14.26 s.
+This points to native model load/prewarm activity; there is no retained stack
+trace or explicit repack event to identify the exact native operation. Each
+retained PID-filtered log has exactly 2 `KALSA_NATIVE` lines. The original
+full logcat dumps were not retained, so the total number of all mirror lines
+in either 30-second window cannot be recovered.
