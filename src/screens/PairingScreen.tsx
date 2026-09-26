@@ -8,6 +8,9 @@ import { GlassPanel2 } from "../theme/components";
 import { SettingsHeader } from "./SettingsHeader";
 import { useLabTheme } from "../ui/labTheme";
 import { PairingSession, type PairingSquare } from "../pairing/pairingTransport";
+import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
+import { chooseRoad } from "../remote/road";
+import { irohModulePresent } from "../remote/irohBridge";
 import { logPairingFail } from "../pairing/pairingFailLog";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
 import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
@@ -90,14 +93,22 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       // completion retry for the previous one. Only a run that passed its
       // guards gets here, so a rejected scan never drops that session.
       if (scanned) sessionRef.current = null;
+      const square = scanned ?? fields;
       const existing = sessionRef.current;
       const retryingCompletion = existing?.needsCompletionRetry() === true;
       const session = retryingCompletion
         ? existing
         : new PairingSession({
             deskUrl: fields.deskUrl,
-            square: scanned ?? fields,
+            square,
             phone,
+            // The desk lane replaces the HTTPS desk only when the square
+            // names a node and the native module is there; claim/complete
+            // keep the same wire and failure stages either way.
+            fetcher:
+              chooseRoad(square.node, irohModulePresent).road === "iroh"
+                ? createDeskPairingFetch(square.node)
+                : undefined,
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
               : undefined,
@@ -110,9 +121,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         setState("refused");
         return;
       }
-      // The paired URL and credential are the active door configuration.
+      // The paired URL, credential and node are the active door configuration.
       try {
-        await savePairingCredential(credential, fields.doorUrl.trim());
+        await savePairingCredential(credential, fields.doorUrl.trim(), square.node);
       } catch {
         logPairingFail("save", null);
         setState("refused");

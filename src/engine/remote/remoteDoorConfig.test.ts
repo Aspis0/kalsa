@@ -28,12 +28,14 @@ describe("remote door configuration precedence", () => {
     pairedMock.mockResolvedValue({
       doorUrl: "https://paired.tailnet.ts.net:9443",
       credential: "ab".repeat(32),
+      node: null,
     });
     const config = await getRemoteDoorConfig();
 
     expect(config).toEqual({
       url: "https://paired.tailnet.ts.net:9443",
       pairedCredential: "ab".repeat(32),
+      node: null,
       source: "pairing",
     });
     expect(config.url).not.toBe(getRemoteBrainUrl());
@@ -41,11 +43,23 @@ describe("remote door configuration precedence", () => {
     expect(manualTokenMock).not.toHaveBeenCalled();
   });
 
+  test("the paired iroh node rides the config so the door road can choose it", async () => {
+    const node = "cd".repeat(32);
+    pairedMock.mockResolvedValue({
+      doorUrl: "https://paired.tailnet.ts.net:9443",
+      credential: "ab".repeat(32),
+      node,
+    });
+    const config = await getRemoteDoorConfig();
+    expect(config.node).toBe(node);
+  });
+
   test("without a pairing the manual URL and token remain the active path", async () => {
     const config = await getRemoteDoorConfig();
     expect(config).toEqual({
       url: "https://manual.example:8000",
       pairedCredential: null,
+      node: null,
       source: "manual",
     });
     await expect(getRemoteDoorToken(config)).resolves.toBe("typed-token");

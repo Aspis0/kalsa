@@ -41,6 +41,13 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   savePairingCredential: jest.fn(),
 }));
 
+// A square may carry a valid node; the screen asks the real module whether
+// the iroh road exists, and in jest the answer must stay "no" — the road
+// gate itself is covered in road.test.
+jest.mock("../remote/irohBridge", () => ({
+  irohModulePresent: jest.fn(() => false),
+}));
+
 // The scanner pulls in expo-camera (native); PairingScreen is under test,
 // not the camera, so the scanner is a host stub with its props exposed.
 jest.mock("./PairingQrScanner", () => ({
@@ -245,6 +252,7 @@ describe("PairingScreen", () => {
     expect(saveCredentialMock).toHaveBeenCalledWith(
       new Uint8Array(32).fill(0xab),
       "https://desktop.tailnet.ts.net",
+      "",
     );
     expect(bodies[1]).toContain('"weights_bytes":1234');
     expect(bodies[1]).toContain('"battery_powered":true');

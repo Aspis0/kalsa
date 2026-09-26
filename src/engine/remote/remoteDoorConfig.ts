@@ -5,22 +5,26 @@ import { getRemoteBrainUrl } from "./remoteSettings";
 export type RemoteDoorConfig = {
   url: string;
   pairedCredential: string | null;
+  /** The paired desktop's iroh node id (64 hex); null = HTTPS road only. */
+  node: string | null;
   source: "pairing" | "manual";
 };
 
-/** A completed pairing owns its door and credential as one indivisible choice. */
+/** A completed pairing owns its door, credential and node as one indivisible choice. */
 export async function getRemoteDoorConfig(): Promise<RemoteDoorConfig> {
   const paired = await getPairingCredential();
   if (paired) {
     return {
       url: paired.doorUrl,
       pairedCredential: paired.credential,
+      node: paired.node,
       source: "pairing",
     };
   }
   return {
     url: getRemoteBrainUrl(),
     pairedCredential: null,
+    node: null,
     source: "manual",
   };
 }

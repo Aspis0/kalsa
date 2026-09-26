@@ -32,6 +32,14 @@ function getNativeModule(): NativeKalsaIrohModule | null {
   return nativeModule;
 }
 
+/**
+ * True when the platform registered the native module: a build that omits
+ * it reads false here, before anything tries to dial.
+ */
+export function isNativeModulePresent(): boolean {
+  return getNativeModule() !== null;
+}
+
 function requireModule(): NativeKalsaIrohModule {
   const module = getNativeModule();
   if (!module) {
