@@ -203,6 +203,7 @@ describe("RemoteEngine lifecycle", () => {
       doorUrl: pairedDoorUrl,
       credential: pairedCredential,
       node: null,
+      pairedVia: null,
     });
     await setRemoteServerModelId("ornith");
     fetchMock.mockImplementation(async () => ({
@@ -1139,6 +1140,9 @@ describe("RemoteEngine lifecycle", () => {
       doorUrl: "https://desktop.tailnet.ts.net:9443",
       credential: "ab".repeat(32),
       node,
+      // Paired over HTTPS on this very build — the road that authorises
+      // the door's HTTPS fallback.
+      pairedVia: "https",
     });
     await setRemoteServerModelId("ornith");
     fetchMock.mockResolvedValue({
@@ -1186,6 +1190,7 @@ describe("RemoteEngine lifecycle", () => {
       doorUrl: "https://desktop.tailnet.ts.net:9443",
       credential: "ab".repeat(32),
       node,
+      pairedVia: "https",
     });
     await setRemoteServerModelId("ornith");
     fetchMock.mockResolvedValue({

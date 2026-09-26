@@ -66,9 +66,14 @@ describe("parsePairingQr", () => {
     expect(parsePairingQr(square({ nonce: "cd".repeat(33) }))).toEqual({ ok: false, error: "invalidNonce" });
   });
 
-  test("a node that is present must be 64 lowercase hex characters", () => {
-    expect(parsePairingQr(square({ node: "EF".repeat(32) }))).toEqual({ ok: false, error: "invalidNode" });
+  test("a present node must be 64 hex characters and is stored in canonical lowercase", () => {
+    // Uppercase hex is the same key: accepted, normalised to lowercase.
+    expect(parsePairingQr(square({ node: "EF".repeat(32) }))).toEqual({
+      ok: true,
+      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "ef".repeat(32) },
+    });
     expect(parsePairingQr(square({ node: "ef".repeat(31) }))).toEqual({ ok: false, error: "invalidNode" });
+    expect(parsePairingQr(square({ node: "g".repeat(64) }))).toEqual({ ok: false, error: "invalidNode" });
     expect(parsePairingQr(square({ node: null }))).toEqual({ ok: false, error: "invalidNode" });
     expect(parsePairingQr(square({ node: "" }))).toEqual({ ok: false, error: "invalidNode" });
   });

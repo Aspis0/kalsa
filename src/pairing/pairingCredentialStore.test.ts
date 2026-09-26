@@ -32,33 +32,50 @@ describe("pairing credential storage boundary", () => {
       credential: "12".repeat(32),
       doorUrl: "https://desktop.tailnet.ts.net",
       node: null,
+      pairedVia: null,
     });
     secureStore.getItemAsync.mockResolvedValue(JSON.stringify({ credential: "bad", doorUrl: "x" }));
     await expect(getPairingCredential()).resolves.toBeNull();
   });
 
-  test("a valid node round-trips; a malformed stored node degrades to null, not to a refusal", async () => {
+  test("a node round-trips with the road the pairing rode; a malformed node drops both", async () => {
     const node = "ab".repeat(32);
     secureStore.setItemAsync.mockResolvedValue();
-    await savePairingCredential(new Uint8Array(32).fill(0xab), "https://desktop.example", node);
+    await savePairingCredential(new Uint8Array(32).fill(0xab), "https://desktop.example", {
+      node,
+      pairedVia: "iroh",
+    });
     expect(secureStore.setItemAsync).toHaveBeenCalledWith(
       "kalsa.pairing.credential.v3",
-      JSON.stringify({ credential: "ab".repeat(32), doorUrl: "https://desktop.example", node }),
+      JSON.stringify({ credential: "ab".repeat(32), doorUrl: "https://desktop.example", node, pairedVia: "iroh" }),
     );
 
     secureStore.getItemAsync.mockResolvedValue(
       JSON.stringify({ credential: "12".repeat(32), doorUrl: "https://desktop.example", node: "nope" }),
     );
-    await expect(getPairingCredential()).resolves.toMatchObject({ node: null });
+    await expect(getPairingCredential()).resolves.toMatchObject({ node: null, pairedVia: null });
   });
 
-  test("a node that is not 64 lowercase hex is dropped at save time", async () => {
-    secureStore.setItemAsync.mockResolvedValue();
-    await savePairingCredential(
-      new Uint8Array(32).fill(0xab),
-      "https://desktop.example",
-      "AB".repeat(32),
+  test("a node saved without a pairing road reads as pairedVia null — no fallback ever", async () => {
+    secureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        credential: "12".repeat(32),
+        doorUrl: "https://desktop.example",
+        node: "ab".repeat(32),
+      }),
     );
+    await expect(getPairingCredential()).resolves.toMatchObject({
+      node: "ab".repeat(32),
+      pairedVia: null,
+    });
+  });
+
+  test("a node that is not 64 lowercase hex is dropped at save time, pairedVia with it", async () => {
+    secureStore.setItemAsync.mockResolvedValue();
+    await savePairingCredential(new Uint8Array(32).fill(0xab), "https://desktop.example", {
+      node: "AB".repeat(32),
+      pairedVia: "iroh",
+    });
     expect(secureStore.setItemAsync).toHaveBeenCalledWith(
       "kalsa.pairing.credential.v3",
       JSON.stringify({ credential: "ab".repeat(32), doorUrl: "https://desktop.example" }),

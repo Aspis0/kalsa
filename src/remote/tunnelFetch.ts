@@ -26,6 +26,12 @@ export type TunnelJsonResponse = {
 export type TunnelFetchOptions = {
   /** One write/read deadline; the caller picks it per operation. */
   timeoutMs: number;
+  /**
+   * Deadline for the whole request. Per-read timeouts reset on every byte,
+   * so a peer that drips can outlive them; when this fires the tunnel
+   * shuts down and the in-flight read fails the request.
+   */
+  totalTimeoutMs?: number;
   /** Aborting mid-flight shuts the tunnel down, which fails the in-flight read. */
   signal?: AbortSignal;
 };
@@ -70,6 +76,12 @@ export async function fetchJsonOverTunnel(
     void tunnel.shutdown();
   };
   options.signal?.addEventListener("abort", onAbort);
+  const totalDeadline =
+    options.totalTimeoutMs === undefined
+      ? null
+      : setTimeout(() => {
+          void tunnel.shutdown();
+        }, options.totalTimeoutMs);
   try {
     const response = await openIrohHttpRequest(tunnel, request, {
       timeoutMs: options.timeoutMs,
@@ -83,6 +95,7 @@ export async function fetchJsonOverTunnel(
       json: async () => JSON.parse(new TextDecoder("utf-8").decode(bytes)),
     };
   } finally {
+    if (totalDeadline !== null) clearTimeout(totalDeadline);
     options.signal?.removeEventListener("abort", onAbort);
   }
 }

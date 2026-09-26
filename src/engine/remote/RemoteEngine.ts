@@ -16,7 +16,7 @@ import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
-import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../../remote/doorRoad";
+import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
 import { createIrohChatXhr } from "../../remote/irohChatXhr";
 import type { IrohTunnel } from "../../remote/irohHttp";
 import {
@@ -135,8 +135,9 @@ export async function testRemoteConnection(): Promise<{
       };
     }
     // One road decision for the whole probe, established before any of its
-    // requests carries the paired credential.
-    const road = await establishDoorRoad(door.node);
+    // requests carries the paired credential; the probe's abort window
+    // covers the dial too.
+    const road = await establishDoorRoad(door, probe.signal);
     const doorFetch = doorFetchFor(road);
     // The window the server will actually answer within: we send no context
     // length, so its setting decides, and sizing prompts beyond it fails with
@@ -307,7 +308,22 @@ export async function streamRemoteAssistantTurn(
     return;
   }
   // One road decision for the whole turn, before any request byte exists.
-  const road = await establishDoorRoad(door.node);
+  let road: DoorRoad;
+  try {
+    road = await establishDoorRoad(door, signal);
+  } catch (error) {
+    if ((error as { code?: string }).code !== "interrupted") {
+      reportPreStreamError(error);
+      return;
+    }
+    // The turn's own signal killed the dial: interrupted copy, like any
+    // abort this engine reports.
+    const err = new Error(strings.chat.interrupted);
+    (err as { code?: string }).code = "interrupted";
+    (err as { preservePartial?: boolean }).preservePartial = true;
+    reportPreStreamError(err);
+    return;
+  }
   // The turn's iroh tunnel is released only while it is still ours: once
   // send() takes it, the chat XHR shim owns its close.
   let turnTunnel: IrohTunnel | null = road.road === "iroh" ? road.firstTunnel : null;

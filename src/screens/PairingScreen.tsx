@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
@@ -61,6 +61,22 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required" | "door-required">("ready");
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const sessionRef = useRef<PairingSession | null>(null);
+  const deskAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(
+    () => () => {
+      // Back or unmount: a desk request still in flight must stop here and
+      // shut its tunnel, not finish against a screen that is gone.
+      deskAbortRef.current?.abort();
+    },
+    [],
+  );
+
+  /** The one signal every desk request of this screen shares. */
+  const deskSignal = () => {
+    deskAbortRef.current ??= new AbortController();
+    return deskAbortRef.current.signal;
+  };
 
   const update = (key: keyof PairingFields, value: string) => {
     sessionRef.current = null;
@@ -96,19 +112,18 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
       const square = scanned ?? fields;
       const existing = sessionRef.current;
       const retryingCompletion = existing?.needsCompletionRetry() === true;
+      // The desk lane replaces the HTTPS desk only when the square names a
+      // node and the native module is there; claim/complete keep the same
+      // wire and failure stages either way. This is also what the saved
+      // credential records as pairedVia: the road the ceremony rode.
+      const useIrohDesk = chooseRoad(square.node, irohModulePresent).road === "iroh";
       const session = retryingCompletion
         ? existing
         : new PairingSession({
             deskUrl: fields.deskUrl,
             square,
             phone,
-            // The desk lane replaces the HTTPS desk only when the square
-            // names a node and the native module is there; claim/complete
-            // keep the same wire and failure stages either way.
-            fetcher:
-              chooseRoad(square.node, irohModulePresent).road === "iroh"
-                ? createDeskPairingFetch(square.node)
-                : undefined,
+            fetcher: useIrohDesk ? createDeskPairingFetch(square.node, deskSignal()) : undefined,
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
               : undefined,
@@ -121,9 +136,13 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         setState("refused");
         return;
       }
-      // The paired URL, credential and node are the active door configuration.
+      // The paired URL, credential, node and pairing road are the active
+      // door configuration — the road decides what fallbacks exist later.
       try {
-        await savePairingCredential(credential, fields.doorUrl.trim(), square.node);
+        await savePairingCredential(credential, fields.doorUrl.trim(), {
+          node: square.node,
+          pairedVia: useIrohDesk ? "iroh" : "https",
+        });
       } catch {
         logPairingFail("save", null);
         setState("refused");

@@ -2,12 +2,16 @@
  * The door road for one operation (a probe or one chat turn): chosen from
  * the paired credential's node plus the runtime module, established with
  * exactly one connect whose tunnel carries the operation's first request,
- * and recorded as exactly one KALSA_ROAD line. Rule: the road may fall
- * from iroh to the paired HTTPS URL only when that first connect fails —
- * before any request byte left the phone — never mid-request.
+ * and recorded as exactly one KALSA_ROAD line.
+ *
+ * Fallback rule: HTTPS is a road only for a credential whose PAIRING went
+ * over HTTPS to the saved URLs (pairedVia "https") — that ceremony proved
+ * the URL answers for the paired desktop. A credential paired over iroh —
+ * or one whose pairing road is unknown — never falls back: a failed
+ * connect is a connection error, surfaced like any unreachable desk.
  */
 
-import { chooseRoad, logRoadDecision } from "./road";
+import { chooseRoad, isValidNodeHex, logRoadDecision, type Road } from "./road";
 import { irohModulePresent, openIrohTunnel } from "./irohBridge";
 import { fetchJsonOverTunnel, type TunnelJsonResponse } from "./tunnelFetch";
 import type { IrohTunnel } from "./irohHttp";
@@ -26,32 +30,68 @@ export type DoorRoad =
       openTunnel: () => Promise<IrohTunnel>;
     };
 
+/** The pairing facts a road decision needs; RemoteDoorConfig satisfies it. */
+export type PairedDoor = { node: string | null; pairedVia: Road | null };
+
+/** What an unreachable desk already reports: mapped to copy, never shown raw. */
+function connectionError(): Error {
+  return new Error("remote_brain_network");
+}
+
+/** The turn/probe died while dialling: the code the UI already knows. */
+function abortedError(): Error {
+  const error = new Error("remote_brain_aborted") as Error & { code: string };
+  error.code = "interrupted";
+  return error;
+}
+
 /**
- * Decide and establish the road. Never rejects: a failed iroh connect is
- * the HTTPS road plus its one log line, because the fallback target is the
- * same paired desktop the iroh dial was aiming at.
+ * Decide and establish the road. Rejects only when there is no road to
+ * ride (an iroh-paired credential whose dial or module is gone) or the
+ * caller's signal aborted the operation — never as a fallback trigger.
  */
 export async function establishDoorRoad(
-  node: string | null | undefined,
+  door: PairedDoor,
+  signal?: AbortSignal,
 ): Promise<DoorRoad> {
-  const choice = chooseRoad(node, irohModulePresent);
+  // Read through a call: the abort can flip between the checks, and TS's
+  // narrowing of `signal?.aborted` would otherwise make the second read dead.
+  const aborted = () => signal?.aborted === true;
+  if (aborted()) throw abortedError();
+  const choice = chooseRoad(door.node, irohModulePresent);
   if (choice.road === "https") {
-    logRoadDecision("https", choice.reason, node);
+    if (isValidNodeHex(door.node) && door.pairedVia !== "https") {
+      // A node whose pairing never proved the saved URL, and no iroh road
+      // to reach it: HTTPS here would send the bearer to an unproven host.
+      logRoadDecision("iroh", "module_absent", door.node);
+      throw connectionError();
+    }
+    logRoadDecision("https", choice.reason, door.node);
     return { road: "https" };
   }
+  let firstTunnel: IrohTunnel;
   try {
-    const firstTunnel = await openIrohTunnel(choice.node, "door");
-    logRoadDecision("iroh", "connected", choice.node);
-    return {
-      road: "iroh",
-      node: choice.node,
-      firstTunnel,
-      openTunnel: () => openIrohTunnel(choice.node, "door"),
-    };
+    firstTunnel = await openIrohTunnel(choice.node, "door");
   } catch {
-    logRoadDecision("https", "connect_failed", choice.node);
-    return { road: "https" };
+    if (door.pairedVia === "https") {
+      logRoadDecision("https", "connect_failed", choice.node);
+      return { road: "https" };
+    }
+    logRoadDecision("iroh", "connect_failed", choice.node);
+    throw connectionError();
   }
+  if (aborted()) {
+    // The operation died while dialling: close before any request could ride it.
+    await firstTunnel.shutdown();
+    throw abortedError();
+  }
+  logRoadDecision("iroh", "connected", choice.node);
+  return {
+    road: "iroh",
+    node: choice.node,
+    firstTunnel,
+    openTunnel: () => openIrohTunnel(choice.node, "door"),
+  };
 }
 
 export type DoorFetch = (

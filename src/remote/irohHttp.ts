@@ -3,8 +3,9 @@
  * then hands out the body as a single-pass async iterator of raw chunks
  * — a streamed SSE response arrives chunk by chunk, never buffered
  * whole. The tunnel is shut down when the body ends, errors, or the
- * response carries no body: one request per tunnel. Not wired into
- * pairing or chat yet.
+ * response carries no body: one request per tunnel. This is the wire the
+ * pairing desk lane and both door roads ride (pairingDeskFetch,
+ * tunnelFetch, irohChatXhr); the HTTPS roads never touch it.
  */
 
 import { ByteWindow, HEAD_TERMINATOR } from "./byteStream";
@@ -18,6 +19,11 @@ const MAX_HEAD_BYTES = 16 * 1024;
 
 /** One chunk-size or trailer line is refused past this size. */
 const MAX_LINE_BYTES = 4 * 1024;
+
+/** Trailer bytes are bounded across the whole drain, not per line: the
+ *  per-read timeout restarts on every drip, so a slow trickle of short
+ *  trailer lines would otherwise never end. */
+const MAX_TRAILER_BYTES = 8 * 1024;
 
 export type { IrohHttpRequest };
 
@@ -94,7 +100,9 @@ export function parseResponseHead(head: string): {
   const lines = head.split(CRLF);
   const statusMatch = /^HTTP\/\d\.\d (\d{3})(?: (.*))?$/.exec(lines[0] ?? "");
   if (!statusMatch) {
-    throw new Error(`not an HTTP status line: ${lines[0] ?? "(empty)"}`);
+    // No peer-controlled text: this message may reach the UI through the
+    // engine's error mapping.
+    throw new Error("not an HTTP status line");
   }
   const headers: Record<string, string> = {};
   for (const line of lines.slice(1)) {
@@ -295,7 +303,7 @@ async function readChunkSize(
     ? Number.parseInt(digits, 16)
     : Number.NaN;
   if (!Number.isFinite(size) || size < 0) {
-    throw new Error(`not a chunk size: ${line}`);
+    throw new Error("not a chunk size");
   }
   return size;
 }
@@ -308,6 +316,7 @@ async function drainTrailers(
   readMax: number,
   timeoutMs: number,
 ): Promise<void> {
+  let drained = 0;
   while (true) {
     const at = window.indexOf(CRLF_BYTES);
     if (at === 0) {
@@ -321,7 +330,10 @@ async function drainTrailers(
     if (window.length > MAX_LINE_BYTES) {
       throw new Error(`trailer line exceeds ${MAX_LINE_BYTES} bytes`);
     }
-    await refill(tunnel, window, readMax, timeoutMs);
+    drained += await refill(tunnel, window, readMax, timeoutMs);
+    if (drained > MAX_TRAILER_BYTES) {
+      throw new Error(`trailer bytes exceed ${MAX_TRAILER_BYTES}`);
+    }
   }
 }
 
@@ -337,7 +349,7 @@ async function* lengthOrCloseDelimited(
   const total = contentLength === undefined ? null : Number(contentLength);
   if (total !== null && (!Number.isFinite(total) || total < 0)) {
     await closeTunnel();
-    throw new Error(`not a Content-Length: ${contentLength}`);
+    throw new Error("not a Content-Length");
   }
   let remaining = total;
   try {
@@ -368,10 +380,11 @@ async function refill(
   window: ByteWindow,
   readMax: number,
   timeoutMs: number,
-): Promise<void> {
+): Promise<number> {
   const chunk = await tunnel.read(readMax, timeoutMs);
   if (chunk.length === 0) {
     throw new Error("tunnel EOF inside the body framing");
   }
   window.push(chunk);
+  return chunk.length;
 }

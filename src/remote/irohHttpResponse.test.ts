@@ -166,6 +166,56 @@ describe("framing refusals", () => {
     expect(tunnel.shutdowns).toBe(1);
   });
 
+  test("trailer bytes are bounded across the whole drain, not per line", async () => {
+    const head = ascii("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+    // Three lines, each under the per-line cap, together over the aggregate:
+    // the per-read timeout would reset on every drip, so bytes must count.
+    const line = ascii(`x-evil: ${"v".repeat(3000)}\r\n`);
+    const tunnel = new FakeTunnel([head, ascii("0\r\n"), line, line, line]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+    await expect(response.readBody(64)).rejects.toThrow(/trailer bytes exceed/);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
+  test("a hostile status line never reaches the error message", async () => {
+    const hostile = "<script>alert(1)</script>";
+    const tunnel = new FakeTunnel([ascii(`${hostile}\r\n\r\n`)]);
+
+    const error = await openIrohHttpRequest(tunnel, REQUEST).catch((caught: Error) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("not an HTTP status line");
+    expect((error as Error).message).not.toContain(hostile);
+  });
+
+  test("a hostile chunk-size line never reaches the error message", async () => {
+    const hostile = "EVIL-SECRET-9f86d081";
+    const head = ascii("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+    const tunnel = new FakeTunnel([head, ascii(`${hostile}\r\n`)]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+
+    const error = await response.readBody(64).catch((caught: Error) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("not a chunk size");
+    expect((error as Error).message).not.toContain(hostile);
+    expect(tunnel.shutdowns).toBe(1);
+  });
+
+  test("a hostile Content-Length value never reaches the error message", async () => {
+    const hostile = "666evil";
+    const head = ascii(`HTTP/1.1 200 OK\r\nContent-Length: ${hostile}\r\n\r\n`);
+    const tunnel = new FakeTunnel([head]);
+    const response = await openIrohHttpRequest(tunnel, REQUEST);
+
+    const error = await response.readBody(64).catch((caught: Error) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("not a Content-Length");
+    expect((error as Error).message).not.toContain(hostile);
+    expect(tunnel.shutdowns).toBeGreaterThan(0);
+  });
+
   test("a duplicate Content-Length is refused", async () => {
     const head = ascii(
       "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\n",

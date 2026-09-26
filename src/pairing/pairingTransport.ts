@@ -2,7 +2,6 @@ import { bytesToHex, hexToBytes, sha256, utf8Bytes } from "./sha256";
 import {
   canonicalPhoneJson,
   openCredentialSeal,
-  phoneMacPayload,
   phoneMacHex,
   type PairingPhoneDeclaration,
 } from "./pairingWire";
@@ -28,10 +27,11 @@ export type RandomBytes = (length: number) => Uint8Array;
 
 export type PairingDiagnostic =
   | {
+      // Fingerprints of what was sent, never the live inputs: the signed
+      // payload and its delivery token stay out of logcat even with the
+      // diagnostics switch on (the toggle promises fingerprint only).
       event: "pairing.signed_request";
-      payload_hex: string;
       mac_hex: string;
-      delivery_token_hex: string;
     }
   | {
       event: "pairing.sealed_response";
@@ -221,14 +221,7 @@ export class PairingSession {
       });
       this.logDiagnostic({
         event: "pairing.signed_request",
-        payload_hex: bytesToHex(phoneMacPayload({
-          reachable: square.reachable,
-          node: square.node,
-          deliveryToken: this.deliveryToken,
-          phone,
-        })),
         mac_hex: mac,
-        delivery_token_hex: this.deliveryToken,
       });
       const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
       const result = await postPairingJson(this.completeUrl, body, this.fetcher);

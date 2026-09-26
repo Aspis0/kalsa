@@ -6,7 +6,6 @@ import {
   type PairingResponse,
 } from "./pairingTransport";
 import type { PairingPhoneDeclaration } from "./pairingWire";
-import { phoneMacPayload } from "./pairingWire";
 
 const square = {
   reachable: "http://127.0.0.1:8132",
@@ -136,7 +135,7 @@ describe("PairingSession delivery-token lifecycle", () => {
     expect(bytesToHex(randomBytes.mock.results[0].value)).toBe("0a".repeat(16));
   });
 
-  test("optional diagnostics include signed wire bytes and only a credential fingerprint", async () => {
+  test("diagnostics carry only fingerprints: the mac and the sealed credential, never the token or payload", async () => {
     const diagnostics: unknown[] = [];
     const bodies: string[] = [];
     const fetcher: PairingFetch = async (url, init) => {
@@ -155,27 +154,19 @@ describe("PairingSession delivery-token lifecycle", () => {
 
     expect(credential).toEqual(new Uint8Array(32).fill(0xab));
     expect(diagnostics).toHaveLength(2);
-    expect(diagnostics[0]).toMatchObject({
+    expect(diagnostics[0]).toEqual({
       event: "pairing.signed_request",
-      delivery_token_hex: "c0".repeat(16),
+      mac_hex: (JSON.parse(bodies[1]) as { mac: string }).mac,
     });
-    const signedRequest = diagnostics[0] as {
-      payload_hex: string;
-      mac_hex: string;
-    };
-    expect(signedRequest.payload_hex).toBe(bytesToHex(phoneMacPayload({
-      reachable: "http://127.0.0.1:8132",
-      node: "",
-      deliveryToken: "c0".repeat(16),
-      phone,
-    })));
-    expect(signedRequest.mac_hex).toBe((JSON.parse(bodies[1]) as { mac: string }).mac);
     expect(diagnostics[1]).toEqual({
       event: "pairing.sealed_response",
       ciphertext_hex: seal.credential_ciphertext,
       credential_sha256_hex: bytesToHex(sha256(new Uint8Array(32).fill(0xab))),
     });
-    expect(JSON.stringify(diagnostics)).not.toContain("ab".repeat(32));
+    const logged = JSON.stringify(diagnostics);
+    // Neither the credential nor the live ceremony inputs reach logcat.
+    expect(logged).not.toContain("ab".repeat(32));
+    expect(logged).not.toContain("c0".repeat(16));
   });
 });
 

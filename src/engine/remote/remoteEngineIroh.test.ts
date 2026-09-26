@@ -99,6 +99,7 @@ describe("the iroh road through RemoteEngine", () => {
       doorUrl: DOOR_URL,
       credential: CREDENTIAL,
       node: NODE,
+      pairedVia: "iroh",
     });
     (openIrohTunnel as jest.Mock).mockReset();
     await setRemoteServerModelId("ornith");

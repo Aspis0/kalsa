@@ -42,10 +42,12 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
 }));
 
 // A square may carry a valid node; the screen asks the real module whether
-// the iroh road exists, and in jest the answer must stay "no" — the road
-// gate itself is covered in road.test.
+// the iroh road exists, and the default in jest must stay "no" — the road
+// gate itself is covered in road.test. Tests that take the iroh road flip
+// these two in their own case (beforeEach restores the defaults).
 jest.mock("../remote/irohBridge", () => ({
   irohModulePresent: jest.fn(() => false),
+  openIrohTunnel: jest.fn(),
 }));
 
 // The scanner pulls in expo-camera (native); PairingScreen is under test,
@@ -72,6 +74,8 @@ import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { Keyboard } from "react-native";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
+import { irohModulePresent, openIrohTunnel } from "../remote/irohBridge";
+import type { IrohTunnel } from "../remote/irohHttp";
 import { PairingScreen } from "./PairingScreen";
 
 const saveCredentialMock = savePairingCredential as jest.MockedFunction<typeof savePairingCredential>;
@@ -81,6 +85,8 @@ let storedCredential = { ...preexistingCredential };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (irohModulePresent as jest.Mock).mockReturnValue(false);
+  (openIrohTunnel as jest.Mock).mockReset();
   mockRandomFills = [0xc0];
   mockRandomError = null;
   storedCredential = { ...preexistingCredential };
@@ -123,6 +129,11 @@ async function render(
   return renderer;
 }
 
+const SEAL = {
+  credential_ciphertext: "19d0b3455e311a70ba202aea83ea569e8127f2f1936f67bdc557439a82222ba7",
+  mac: "6d86a29391e258de9bb13dae9ceb3612143c4448050562a36ad2e6ac8dd4a849",
+};
+
 function installFetch(completeStatus: number) {
   const urls: string[] = [];
   const bodies: string[] = [];
@@ -132,13 +143,47 @@ function installFetch(completeStatus: number) {
     if (typeof init?.body === "string") bodies.push(init.body);
     return {
       status: url.endsWith("/pair/claim") ? 200 : completeStatus,
-      json: async () => ({
-        credential_ciphertext: "19d0b3455e311a70ba202aea83ea569e8127f2f1936f67bdc557439a82222ba7",
-        mac: "6d86a29391e258de9bb13dae9ceb3612143c4448050562a36ad2e6ac8dd4a849",
-      }),
+      json: async () => SEAL,
     } as Response;
   }) as typeof fetch;
   return { urls, bodies };
+}
+
+function ascii(text: string): Uint8Array {
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0xff;
+  return bytes;
+}
+
+function requestText(bytes: Uint8Array): string {
+  let out = "";
+  for (const byte of bytes) out += String.fromCharCode(byte);
+  return out;
+}
+
+function cannedResponse(statusLine: string, body: string): Uint8Array {
+  return ascii(`HTTP/1.1 ${statusLine}\r\nContent-Length: ${body.length}\r\n\r\n${body}`);
+}
+
+/** One canned response per read for the desk lane's fake tunnels. */
+function fakeDeskTunnel(reads: Uint8Array[]): IrohTunnel & { writes: Uint8Array[] } {
+  const queue = [...reads];
+  return {
+    writes: [],
+    async write(bytes: Uint8Array) {
+      this.writes.push(bytes);
+    },
+    async read(max: number) {
+      if (queue.length === 0) return new Uint8Array(0);
+      const next = queue.shift() as Uint8Array;
+      if (next.length <= max) return next;
+      queue.unshift(next.subarray(max));
+      return next.subarray(0, max);
+    },
+    async shutdown() {
+      // Nothing to release: the fake holds no native handle.
+    },
+  };
 }
 
 describe("PairingScreen", () => {
@@ -199,6 +244,101 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("a scanned square with a node rides the iroh desk lane and saves that pairing road", async () => {
+    const node = "ab".repeat(32);
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    const claimTunnel = fakeDeskTunnel([cannedResponse("200 OK", "")]);
+    const completeTunnel = fakeDeskTunnel([cannedResponse("200 OK", JSON.stringify(SEAL))]);
+    (openIrohTunnel as jest.Mock)
+      .mockResolvedValueOnce(claimTunnel)
+      .mockResolvedValueOnce(completeTunnel);
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The ceremony never touched the URL fields' host: claim and complete
+    // both rode desk tunnels, byte-identical to the HTTPS wire.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(openIrohTunnel).toHaveBeenCalledTimes(2);
+    expect(openIrohTunnel).toHaveBeenNthCalledWith(1, node, "desk");
+    expect(openIrohTunnel).toHaveBeenNthCalledWith(2, node, "desk");
+    expect(requestText(claimTunnel.writes[0])).toContain("POST /pair/claim HTTP/1.1\r\n");
+    expect(requestText(completeTunnel.writes[0])).toContain("POST /pair/complete HTTP/1.1\r\n");
+    expect(saveCredentialMock).toHaveBeenCalledWith(
+      new Uint8Array(32).fill(0xab),
+      "https://desktop.tailnet.ts.net",
+      { node, pairedVia: "iroh" },
+    );
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
+  test("unmounting with a desk request in flight aborts it and closes its tunnel", async () => {
+    const node = "ab".repeat(32);
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let shutdowns = 0;
+    (openIrohTunnel as jest.Mock).mockResolvedValueOnce({
+      async write() {
+        // The claim is accepted; the response never arrives.
+      },
+      async read() {
+        await blocked;
+        throw new Error("tunnel closed");
+      },
+      async shutdown() {
+        shutdowns++;
+        release();
+      },
+    });
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(shutdowns).toBe(0);
+
+    await act(async () => {
+      renderer.unmount();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The screen's signal fired on unmount: the claim's tunnel is shut,
+    // and no complete ever opens a second one.
+    expect(shutdowns).toBeGreaterThan(0);
+    expect(openIrohTunnel).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test("the scan button is disabled while waiting so a pending completion retry cannot be dropped", async () => {
     installFetch(200);
     const renderer = await render();
@@ -252,7 +392,7 @@ describe("PairingScreen", () => {
     expect(saveCredentialMock).toHaveBeenCalledWith(
       new Uint8Array(32).fill(0xab),
       "https://desktop.tailnet.ts.net",
-      "",
+      { node: "", pairedVia: "https" },
     );
     expect(bodies[1]).toContain('"weights_bytes":1234');
     expect(bodies[1]).toContain('"battery_powered":true');
@@ -370,12 +510,15 @@ describe("PairingScreen", () => {
       "pairing.signed_request",
       "pairing.sealed_response",
     ]);
-    expect(records[0]).toHaveProperty("payload_hex");
     expect(records[0]).toHaveProperty("mac_hex");
-    expect(records[0]).toHaveProperty("delivery_token_hex", "c0".repeat(16));
+    // The toggle promises fingerprints only: the live ceremony inputs stay out.
+    expect(records[0]).not.toHaveProperty("payload_hex");
+    expect(records[0]).not.toHaveProperty("delivery_token_hex");
     expect(records[1]).toHaveProperty("ciphertext_hex");
     expect(records[1]).toHaveProperty("credential_sha256_hex");
-    expect(JSON.stringify(records)).not.toContain("ab".repeat(32));
+    const logged = JSON.stringify(records);
+    expect(logged).not.toContain("ab".repeat(32));
+    expect(logged).not.toContain("c0".repeat(16));
     log.mockRestore();
     await act(async () => renderer.unmount());
   });

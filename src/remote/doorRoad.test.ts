@@ -1,8 +1,9 @@
 /**
- * The door road fallback rule: iroh only when a paired node meets a
- * present module, one connect decides the road before any request byte,
- * and a failed connect becomes exactly one HTTPS KALSA_ROAD line — never
- * a mid-request switch.
+ * The door road fallback rule: HTTPS is a road only for a credential
+ * whose pairing went over HTTPS (pairedVia "https") — that ceremony
+ * proved the saved URL; a credential paired over iroh rides iroh only,
+ * and a failed connect is a connection error, never a road switch. One
+ * connect decides per operation; one KALSA_ROAD line records it.
  */
 
 jest.mock("./irohBridge", () => ({
@@ -56,23 +57,23 @@ class FakeTunnel implements IrohTunnel {
 const jsonGet = (body: string) =>
   ascii(`HTTP/1.1 200 OK\r\nContent-Length: ${body.length}\r\n\r\n${body}`);
 
-describe("establishing the door road", () => {
-  let log: jest.SpyInstance;
+let log: jest.SpyInstance;
 
-  beforeEach(() => {
-    openTunnelMock.mockReset();
-    presentMock.mockReset();
-    log = jest.spyOn(console, "log").mockImplementation(() => undefined);
-  });
-  afterEach(() => log.mockRestore());
+const roadLines = (): Array<{ road: string; reason: string; node8?: string }> =>
+  log.mock.calls
+    .filter((args) => args[0] === "KALSA_ROAD")
+    .map((args) => JSON.parse(args[1] as string));
 
-  const roadLines = (): Array<{ road: string; reason: string; node8?: string }> =>
-    log.mock.calls
-      .filter((args) => args[0] === "KALSA_ROAD")
-      .map((args) => JSON.parse(args[1] as string));
+beforeEach(() => {
+  openTunnelMock.mockReset();
+  presentMock.mockReset();
+  log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+});
+afterEach(() => log.mockRestore());
 
+describe("which credential may fall back to HTTPS", () => {
   test("a credential without a node logs one no_node line and dials nothing", async () => {
-    const road = await establishDoorRoad(null);
+    const road = await establishDoorRoad({ node: null, pairedVia: null });
 
     expect(road).toEqual({ road: "https" });
     expect(presentMock).not.toHaveBeenCalled();
@@ -80,10 +81,10 @@ describe("establishing the door road", () => {
     expect(roadLines()).toEqual([{ road: "https", reason: "no_node" }]);
   });
 
-  test("a paired node on a build without the module logs module_absent and dials nothing", async () => {
+  test("a credential paired over HTTPS rides HTTPS while the module is absent", async () => {
     presentMock.mockReturnValue(false);
 
-    const road = await establishDoorRoad(NODE);
+    const road = await establishDoorRoad({ node: NODE, pairedVia: "https" });
 
     expect(road).toEqual({ road: "https" });
     expect(openTunnelMock).not.toHaveBeenCalled();
@@ -92,12 +93,64 @@ describe("establishing the door road", () => {
     ]);
   });
 
+  test("an iroh-paired credential with no module has no road: connection error, no dial", async () => {
+    presentMock.mockReturnValue(false);
+
+    await expect(establishDoorRoad({ node: NODE, pairedVia: "iroh" })).rejects.toThrow(
+      "remote_brain_network",
+    );
+    expect(openTunnelMock).not.toHaveBeenCalled();
+    expect(roadLines()).toEqual([
+      { road: "iroh", reason: "module_absent", node8: NODE.slice(0, 8) },
+    ]);
+  });
+
+  test("a credential whose pairing road is unknown never falls back either", async () => {
+    presentMock.mockReturnValue(true);
+    openTunnelMock.mockRejectedValue(new Error("dial refused"));
+
+    await expect(establishDoorRoad({ node: NODE, pairedVia: null })).rejects.toThrow(
+      "remote_brain_network",
+    );
+    expect(roadLines()).toEqual([
+      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
+    ]);
+  });
+
+  test("a failed connect falls back for a credential paired over HTTPS", async () => {
+    presentMock.mockReturnValue(true);
+    openTunnelMock.mockRejectedValue(new Error("dial refused"));
+
+    const road = await establishDoorRoad({ node: NODE, pairedVia: "https" });
+
+    expect(road).toEqual({ road: "https" });
+    expect(roadLines()).toEqual([
+      { road: "https", reason: "connect_failed", node8: NODE.slice(0, 8) },
+    ]);
+  });
+
+  test("a failed connect for an iroh-paired credential is a connection error, logged as one iroh line", async () => {
+    presentMock.mockReturnValue(true);
+    openTunnelMock.mockRejectedValue(new Error("dial refused"));
+
+    await expect(establishDoorRoad({ node: NODE, pairedVia: "iroh" })).rejects.toThrow(
+      "remote_brain_network",
+    );
+    const lines = roadLines();
+    expect(lines).toEqual([
+      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
+    ]);
+    expect(JSON.stringify(lines[0])).not.toContain(NODE);
+  });
+});
+
+describe("establishing the road", () => {
   test("a successful connect is the iroh road, logged once with only the node's first 8 hex", async () => {
     presentMock.mockReturnValue(true);
     const tunnel = new FakeTunnel([]);
     openTunnelMock.mockResolvedValue(tunnel);
 
-    const road = await establishDoorRoad(NODE);
+    const road = await establishDoorRoad({ node: NODE, pairedVia: "iroh" });
 
     expect(road.road).toBe("iroh");
     if (road.road !== "iroh") throw new Error("unreachable");
@@ -105,45 +158,54 @@ describe("establishing the door road", () => {
     expect(road.firstTunnel).toBe(tunnel);
     expect(openTunnelMock).toHaveBeenCalledWith(NODE, "door");
     expect(await road.openTunnel()).toBe(tunnel);
-    const lines = roadLines();
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toEqual({ road: "iroh", reason: "connected", node8: NODE.slice(0, 8) });
-    expect(JSON.stringify(lines[0])).not.toContain(NODE);
+    expect(roadLines()).toEqual([
+      { road: "iroh", reason: "connected", node8: NODE.slice(0, 8) },
+    ]);
   });
 
-  test("a failed connect falls back to one https line — the road rule in one log", async () => {
+  test("an already-aborted signal never dials and logs no road", async () => {
     presentMock.mockReturnValue(true);
-    openTunnelMock.mockRejectedValue(new Error("dial refused"));
+    const controller = new AbortController();
+    controller.abort();
 
-    const road = await establishDoorRoad(NODE);
+    const error = await establishDoorRoad(
+      { node: NODE, pairedVia: "iroh" },
+      controller.signal,
+    ).catch((caught: Error & { code?: string }) => caught);
 
-    expect(road).toEqual({ road: "https" });
-    const lines = roadLines();
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toEqual({
-      road: "https",
-      reason: "connect_failed",
-      node8: NODE.slice(0, 8),
+    expect((error as { code?: string }).code).toBe("interrupted");
+    expect(openTunnelMock).not.toHaveBeenCalled();
+    expect(roadLines()).toEqual([]);
+  });
+
+  test("a signal aborted during the dial shuts the fresh tunnel down and rides nothing", async () => {
+    presentMock.mockReturnValue(true);
+    const controller = new AbortController();
+    const tunnel = new FakeTunnel([]);
+    openTunnelMock.mockImplementation(async () => {
+      controller.abort();
+      return tunnel;
     });
-    expect(JSON.stringify(lines[0])).not.toContain(NODE);
+
+    const error = await establishDoorRoad(
+      { node: NODE, pairedVia: "iroh" },
+      controller.signal,
+    ).catch((caught: Error & { code?: string }) => caught);
+
+    expect((error as { code?: string }).code).toBe("interrupted");
+    expect(tunnel.shutdowns).toBeGreaterThan(0);
+    expect(roadLines()).toEqual([]);
   });
 });
 
 describe("the probe fetcher on each road", () => {
-  beforeEach(() => {
-    openTunnelMock.mockReset();
-    presentMock.mockReset();
-    jest.spyOn(console, "log").mockImplementation(() => undefined);
-  });
-  afterEach(() => jest.restoreAllMocks());
-
   test("the first request rides the establishment tunnel, later ones open their own", async () => {
     presentMock.mockReturnValue(true);
     const first = new FakeTunnel([jsonGet("{}")]);
     const second = new FakeTunnel([jsonGet('{"data":[]}')]);
     openTunnelMock.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
 
-    const road = await establishDoorRoad(NODE);
+    const road = await establishDoorRoad({ node: NODE, pairedVia: "iroh" });
     const fetcher = doorFetchFor(road);
     const headers = { Accept: "application/json", Authorization: "Bearer abab" };
 

@@ -5,6 +5,9 @@
  * arrives as a thunk so a credential without a node never loads anything.
  */
 
+/** The two roads an operation can ride. */
+export type Road = "iroh" | "https";
+
 /** Reasons an operation rides HTTPS instead of iroh. */
 export type HttpsRoadReason = "no_node" | "module_absent";
 
@@ -42,7 +45,7 @@ export function chooseRoad(
  * KALSA_PAIRING_FAIL: road, reason, and at most the node's first 8 hex —
  * never a URL, a credential, or the full node id.
  */
-export function logRoadDecision(road: "iroh" | "https", reason: RoadReason, node: string | null | undefined): void {
+export function logRoadDecision(road: Road, reason: RoadReason, node: string | null | undefined): void {
   try {
     const line: Record<string, string> = { road, reason };
     if (isValidNodeHex(node)) line.node8 = node.slice(0, 8);

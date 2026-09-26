@@ -151,4 +151,19 @@ describe("pairing over the desk lane", () => {
     expect(session.needsCompletionRetry()).toBe(true);
     log.mockRestore();
   });
+
+  test("an aborted signal (screen unmounted) never dials the desk", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetcher = createDeskPairingFetch(NODE, controller.signal);
+
+    await expect(
+      fetcher(`https://desktop.example:8443/pair/claim`, {
+        method: "POST",
+        headers: {},
+        body: "{}",
+      }),
+    ).rejects.toThrow("aborted");
+    expect(openTunnelMock).not.toHaveBeenCalled();
+  });
 });

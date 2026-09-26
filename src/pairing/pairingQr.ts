@@ -16,8 +16,9 @@ export type PairingQrResult =
 // What the transport already enforces, mirrored so a bad square is refused
 // at scan time instead of inside the ceremony: PairingSession.begin() tests
 // the code against ^[0-9a-f]{32}$ and decodes the nonce with hexToBytes
-// (lowercase-only) plus its 32-byte length check before the claim. node has
-// no downstream check at all — this parser is its only gate.
+// (lowercase-only) plus its 32-byte length check before the claim. The node
+// is normalised to lowercase here — its canonical spelling — and re-checked
+// later by the road gate and the credential store.
 const CODE_PATTERN = /^[0-9a-f]{32}$/;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
 const NODE_PATTERN = /^[0-9a-f]{64}$/;
@@ -59,8 +60,12 @@ export function parsePairingQr(text: string): PairingQrResult {
   // no URL validation, no trimming, no normalisation of any kind here.
   if (payload.node === undefined) return { ok: true, square: { reachable, code, nonce, node: "" } };
   const node = payload.node;
-  if (typeof node !== "string" || !NODE_PATTERN.test(node)) {
+  if (typeof node !== "string") return { ok: false, error: "invalidNode" };
+  // Uppercase hex is the same key: accept it and store the canonical
+  // lowercase form the road gate and the credential store require.
+  const canonicalNode = node.toLowerCase();
+  if (!NODE_PATTERN.test(canonicalNode)) {
     return { ok: false, error: "invalidNode" };
   }
-  return { ok: true, square: { reachable, code, nonce, node } };
+  return { ok: true, square: { reachable, code, nonce, node: canonicalNode } };
 }
