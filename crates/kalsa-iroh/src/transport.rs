@@ -218,7 +218,7 @@ fn endpoint_builder(relay: &RelayChoice, dial_only: bool) -> Result<Builder, Bri
         builder = builder.alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()]);
     }
     match relay {
-        // The n0 preset set the relay mode; the mirror above set it too.
+        // The n0 preset set the relay mode in both branches above.
         RelayChoice::N0Public => {}
         RelayChoice::Custom { url } => {
             let parsed: RelayUrl = url
@@ -305,9 +305,9 @@ impl Transport {
 
     /// This endpoint's current addressing, into a book that was handed to
     /// `bind`. Without a book this is nothing to do: the book is the only
-    /// destination for these addresses — a serving road publishes itself
-    /// through iroh's lookups, and a dial-only node publishes nothing at
-    /// all. An address the socket reports as unspecified (`0.0.0.0`) is
+    /// destination for these addresses — only the n0 and custom serving
+    /// roads publish through iroh's lookups, a disabled road has no
+    /// publisher at all, and a dial-only node publishes nothing either. An address the socket reports as unspecified (`0.0.0.0`) is
     /// registered as loopback: a book is an in-process fact, and a dial to
     /// `0.0.0.0` is not one.
     pub(crate) fn register_self(&self, book: Option<&AddressBook>) {
