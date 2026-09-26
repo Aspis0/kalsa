@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { SURFACES } from "../app/surfaces";
-import { MachineCard } from "./MachineCard";
+import { MachineCard, awaitingChoice } from "./MachineCard";
 import type { Capability } from "./MachineCard";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
@@ -39,10 +39,11 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
   // elsewhere inside the first moment (a turn-off on the Server page, say)
   // can be undone by an attempt that fires when the read finally arrives.
   const carriesAutomaticStart = useRef(false);
-  // The chooser's answer, read on mount and once more when a turn-on
-  // finishes — a real turn-on can change what was measured. There is no
-  // second timer here: the machine is measured by the brain itself, and the
-  // shared read already says when it moved.
+  // The chooser's answer, read on mount and whenever a turn-on lands — the
+  // walk can change what was measured, and a first walk can end having only
+  // measured, which is exactly when the card must appear. There is no second
+  // timer here: the machine is measured by the brain itself, and the shared
+  // read already says when it moved.
   const [capability, setCapability] = useState<Capability | null>(null);
   const [reads, setReads] = useState(0);
   const previousKind = useRef<string | null>(null);
@@ -64,8 +65,9 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
 
   useEffect(() => {
     // Outside the Tauri webview there is no chooser to ask: the page says
-    // nothing about a machine it cannot read.
-    if (!available()) return;
+    // nothing about a machine it cannot read. A walk in flight would answer
+    // stale, so the read waits for it to land (`busy` falling re-runs this).
+    if (!available() || busy) return;
     let live = true;
     invoke<Capability>("brain_capability")
       .then((next) => {
@@ -79,7 +81,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     return () => {
       live = false;
     };
-  }, [reads]);
+  }, [reads, busy]);
 
   useEffect(() => {
     if (!automaticStartUsed) {
@@ -96,7 +98,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
     if (state.kind === "stopped") void act();
   }, [state, act]);
 
-  const words = brainWords(state, heldFailure, busy);
+  const words = brainWords(state, heldFailure, busy, awaitingChoice(capability), true);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();

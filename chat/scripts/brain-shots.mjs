@@ -187,6 +187,7 @@ const STATES = [
     state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "IBM Granite 4 Tiny" },
     capability: {
       kind: "measured",
+      chosen: true,
       machine: MAC,
       model: MODEL,
       quicker: QUICK_MODEL,
@@ -213,6 +214,7 @@ const STATES = [
     },
     capability: {
       kind: "measured",
+      chosen: true,
       machine: MAC,
       model: MODEL,
       quicker: QUICK_MODEL,
@@ -225,7 +227,7 @@ const STATES = [
     name: "refusal",
     file: "shots/71-brain-refusal.png",
     state: { kind: "stopped" },
-    capability: { kind: "measured", machine: UNREADABLE_CARD, model: null, quicker: null, refusal: PHONE_UNKNOWN },
+    capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: false, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
     presence: "This computer is not running anything right now.",
     walkStep: true,
@@ -241,7 +243,7 @@ const STATES = [
       model: "IBM Granite 4 Tiny",
       metrics: { decode_tokens_per_second: 21.4, active_devices: [{ id: 1 }] },
     },
-    capability: { kind: "measured", machine: CPU_ONLY, model: MODEL, quicker: null, refusal: null },
+    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: MODEL, quicker: null, refusal: null },
     marker: "the path a model would use",
     presence: "Your phone is using this computer right now.",
   },
@@ -249,7 +251,7 @@ const STATES = [
     name: "no-context",
     file: "shots/74-brain-no-context.png",
     state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "IBM Granite 4 Tiny" },
-    capability: { kind: "measured", machine: CPU_ONLY, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
+    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
     marker: "12.0–21.0 tokens/s",
     presence: "This computer is ready for you.",
     noContext: true,
@@ -260,6 +262,7 @@ const STATES = [
     state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Alibaba Qwen 3.6" },
     capability: {
       kind: "measured",
+      chosen: true,
       machine: BIG_MAC,
       model: BIG_MODEL,
       quicker: BIG_QUICK,
@@ -267,6 +270,17 @@ const STATES = [
     },
     marker: "547,503 tokens of context",
     presence: "This computer is ready for you.",
+  },
+  {
+    // The first run's waiting state: the walk measured and stopped before
+    // choosing, so the presence asks and the card offers the one option
+    // this machine has — one option, one button.
+    name: "ask",
+    file: "shots/77-brain-ask.png",
+    state: { kind: "stopped" },
+    capability: { kind: "measured", machine: CPU_ONLY, chosen: false, model: MODEL, quicker: null, refusal: null },
+    marker: "Pick a model",
+    presence: "This computer is measured. Pick one of the models below and it turns on with it.",
   },
   {
     name: "unmeasured",

@@ -394,11 +394,15 @@ export interface BrainWords {
 
 // The brain's state in words, shared by the brain page (presence only) and
 // the Server surface (which adds its metrics). One decision, so the two
-// pages can never disagree about the same machine.
+// pages can never disagree about the same machine. `awaitingChoice` says
+// the walk measured and waited; `onHomePage` picks the sentence that
+// points at the card — "below" is true only where the card is.
 export function brainWords(
   state: BrainState | null,
   heldFailure: string | null,
   busy: boolean,
+  awaitingChoice: boolean,
+  onHomePage: boolean,
 ): BrainWords {
   const running = state?.kind === "running";
   if (!state) {
@@ -450,6 +454,21 @@ export function brainWords(
   }
   switch (state.kind) {
     case "stopped":
+      // Measured with nobody having chosen: the walk measured and waited,
+      // and the pick — not a download — is what turns the assistant on.
+      // Starting again would measure nothing new and wait again, so the
+      // button stays and the sentence carries the ask.
+      if (awaitingChoice) {
+        return {
+          headline: "Pick a model",
+          sentence: onHomePage
+            ? "This computer is measured. Pick one of the models below and it turns on with it."
+            : "This computer is measured. Pick a model on the home page and it turns on with it.",
+          button: "Turn on",
+          enabled: true,
+          running,
+        };
+      }
       // A held start failure means an attempt ran and did not end in a
       // running brain. "Off" would deny the attempt; "Stopped" would claim
       // something was halted that never began.
@@ -563,6 +582,13 @@ export function useBrain() {
         currentStep = null;
         publish();
         await invoke("brain_start");
+        // A walk that ended without starting anything — the first run
+        // waiting for a choice — leaves the state stopped: its last step
+        // would otherwise hold the progress screen up over the waiting page.
+        if (currentState?.kind === "stopped") {
+          currentStep = null;
+          publish();
+        }
       } else {
         await invoke("brain_stop");
       }

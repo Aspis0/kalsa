@@ -1044,6 +1044,19 @@ fn model_chosen(display_name: Option<&str>, override_env_set: bool) -> bool {
     display_name.is_some() || override_env_set
 }
 
+/// Whether this turn-on has nothing to run until someone chooses: no stored
+/// choice and no development override owning the model. The walk then
+/// measures and stops — the automatic pick would start a download the owner
+/// never asked for. The server override is exempt: a developer pinning a
+/// binary still wants the automatic answer their workflow always had.
+fn waits_for_choice(
+    stored_choice: Option<&str>,
+    server_override: bool,
+    model_override: bool,
+) -> bool {
+    stored_choice.is_none() && !server_override && !model_override
+}
+
 /// Whether a model is configured, and which one when the catalog chose it.
 /// `display_name` is the catalog's own human name, built to be shown, and
 /// `reason` is the catalog's own sentence for why this one; the development
@@ -1077,7 +1090,15 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
     // but the catalog's answer to "no phone" — pair first — is the sentence
     // the owner can act on either way, and it is already written for them.
     let phone = phone(&app).ok().flatten();
-    capability::dto(&measurement, startup::ram_bytes(), phone)
+    // A stored choice is the page's one signal for "walk and start as
+    // before"; its absence is the first run's waiting state. A data dir
+    // this run cannot read reads as no choice, which is the honest arm:
+    // the next turn-on will say so itself.
+    let chosen = state_file(&app)
+        .ok()
+        .map(|file| options::load(&file).model.is_some())
+        .unwrap_or(false);
+    capability::dto(&measurement, startup::ram_bytes(), phone, chosen)
 }
 
 /// "Turn on": decide the backend, place the chosen model, start the server.
@@ -1124,6 +1145,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     let slot_save_path = slots_dir(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
+    let stored_choice = options::load(&state_file).model;
+    let ask_first = waits_for_choice(
+        stored_choice.as_deref(),
+        server_override.is_some(),
+        model_override.is_some(),
+    );
     let phone = phone(&app)?;
     // How many seats the door must hold: this computer and every paired
     // phone. A seat is reserved per stored device for as long as it is
@@ -1164,6 +1191,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
                 )
             }
         };
+        // With nobody having chosen, the measurement is the whole walk: the
+        // automatic pick would start a download the owner never asked for.
+        // The page asks instead, and the next turn-on runs the rest.
+        if ask_first {
+            return (None, measured);
+        }
         let verdict = startup::run(
             server_override,
             machine,
@@ -1178,7 +1211,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         .map_err(|failure| failure::words(&failure));
         // The measurement rides the refusal too: a walk that failed still
         // measured a real machine.
-        (verdict, measured)
+        (Some(verdict), measured)
     })
     .await;
 
@@ -1199,8 +1232,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 /// when it measured — the reading beside the facts that make it a record:
 /// the instant the probe finished (stamped where the probe returned, not
 /// where the record is written minutes of download later) and the RAM the
-/// measured `Machine` was built with.
-type Walk = (Result<startup::PreparedStart, String>, Option<(Measurement, u64, u64)>);
+/// measured `Machine` was built with. `None` is the walk that measured and
+/// stopped: nobody has chosen a model, so nothing was decided or fetched.
+type Walk = (
+    Option<Result<startup::PreparedStart, String>>,
+    Option<(Measurement, u64, u64)>,
+);
 
 /// Settles the walk: keeps the machine's fact, then answers the walk's. A
 /// measurement is a fact about the machine; the verdict is a fact about the
@@ -1217,20 +1254,13 @@ fn settle_walk(
     record_dir: Option<&Path>,
     stops_seen: u64,
 ) -> Result<(), String> {
-    if let Some((measured, taken_unix, ram_bytes)) =
-        walked.1.filter(|(measured, _, _)| measured.is_reliable())
-    {
-        // Written down beside the kept copy, under the same rule: only what
-        // the probe itself believes. A record the disk refuses costs the
-        // next launch one re-measurement — it is logged, never fatal.
-        if let Some(dir) = record_dir {
-            measurement::save(&measured, dir, taken_unix, ram_bytes);
-        }
-        if let Ok(mut stored) = brain.measurement.lock() {
-            *stored = Some(measured);
-        }
-    }
-    match walked.0 {
+    keep_measurement(brain, walked.1, record_dir);
+    // The walk that measured and waits answers nothing: nothing started, so
+    // the state stays `stopped` and the page asks for the choice.
+    let Some(verdict) = walked.0 else {
+        return Ok(());
+    };
+    match verdict {
         Ok(mut prepared) => {
             // The plan's own launch, kept before the tuned one goes up: the
             // config the single retry uses if the tuned one cannot load.
@@ -1296,6 +1326,28 @@ fn settle_walk(
             Ok(())
         }
         Err(sentence) => Err(sentence),
+    }
+}
+
+/// Keeps the walk's measurement, under the rule that only a reading the
+/// probe itself believes survives: written down beside the kept copy (a
+/// record the disk refuses costs the next launch one re-measurement — it
+/// is logged, never fatal) and stored for `brain_capability` until then.
+fn keep_measurement(
+    brain: &Brain,
+    measured: Option<(Measurement, u64, u64)>,
+    record_dir: Option<&Path>,
+) {
+    let Some((measured, taken_unix, ram_bytes)) =
+        measured.filter(|(measured, _, _)| measured.is_reliable())
+    else {
+        return;
+    };
+    if let Some(dir) = record_dir {
+        measurement::save(&measured, dir, taken_unix, ram_bytes);
+    }
+    if let Ok(mut stored) = brain.measurement.lock() {
+        *stored = Some(measured);
     }
 }
 

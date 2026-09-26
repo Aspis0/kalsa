@@ -35,6 +35,10 @@ export type Capability =
   | { kind: "unmeasured" }
   | {
       kind: "measured";
+      /** Whether a model choice is stored. False is the first run's waiting
+          state: the walk measured this computer and stopped before choosing —
+          nothing downloads until the pick is made. */
+      chosen: boolean;
       machine: {
         ram_bytes: number;
         budget_bytes: number; // what a model may occupy
@@ -57,6 +61,13 @@ export type Capability =
 
 type Machine = Extract<Capability, { kind: "measured" }>["machine"];
 type Speed = ModelOption["speed"];
+
+/** The walk measured and is waiting: this computer can run something and
+    nobody has chosen it yet. A machine that can run nothing has no choice
+    to offer, so the page must not ask for one. */
+export function awaitingChoice(capability: Capability | null): boolean {
+  return capability?.kind === "measured" && !capability.chosen && capability.model !== null;
+}
 
 // One byte formatter for the page. The divisor is binary and so is the LABEL:
 // the catalog's own working text, one click below on the same card, prints

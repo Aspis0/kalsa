@@ -19,6 +19,7 @@
     ]
   },
   "sample": {
+    "chosen": true,
     "kind": "measured",
     "machine": {
       "bandwidth_basis": "chip",

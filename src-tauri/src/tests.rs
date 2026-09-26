@@ -62,9 +62,9 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     let verdict = settle_walk(
         &brain,
         (
-            Err("No model that fits this computer is available yet. \
+            Some(Err("No model that fits this computer is available yet. \
                  An app update may add one."
-                .into()),
+                .into())),
             Some((measured(80.0e9), 0, 0)),
         ),
         None,
@@ -81,7 +81,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     let mut unbelieved = measured(80.0e9);
     unbelieved.reliability.reliable = false;
     let second =
-        settle_walk(&brain, (Err("still refused".into()), Some((unbelieved, 0, 0))), None, 0);
+        settle_walk(&brain, (Some(Err("still refused".into())), Some((unbelieved, 0, 0))), None, 0);
     assert!(
         second.is_err(),
         "an unreliable reading does not turn the refusal into a success"
@@ -90,6 +90,63 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     assert!(
         stored.as_ref().is_some_and(|kept| kept.is_reliable()),
         "what is kept is the reliable reading, nothing else"
+    );
+}
+
+#[test]
+fn a_walk_with_no_choice_is_a_measurement_and_no_start() {
+    // A first run with nobody having chosen a model: the walk measures and
+    // stops. The verdict is None — nothing was decided, nothing fetched,
+    // nothing started — so the command answers Ok and the state stays
+    // `stopped` for the page to ask; the measurement still rides home, the
+    // card is owed an answer either way.
+    let brain = Brain::new();
+    let verdict = settle_walk(&brain, (None, Some((measured(80.0e9), 0, 0))), None, 0);
+    assert!(verdict.is_ok(), "a walk that waits is not a failure");
+    assert!(
+        brain.measurement.lock().expect("lock").is_some(),
+        "the waiting walk still measured a real machine"
+    );
+    assert!(
+        matches!(brain.supervisor.state(), ServerState::Stopped),
+        "nothing may be running after a walk that had no choice to run: {:?}",
+        brain.supervisor.state()
+    );
+}
+
+#[test]
+fn only_a_product_first_run_waits_for_a_choice() {
+    // The ask belongs to the product's fresh install: a stored choice runs
+    // as always, and either development override owns its model the way it
+    // always has. The server override is exempt because a pinned binary
+    // still needs the catalog's automatic answer to run at all.
+    assert!(waits_for_choice(None, false, false), "a fresh install waits");
+    assert!(
+        !waits_for_choice(Some("0000000000000001"), false, false),
+        "a stored choice runs"
+    );
+    assert!(!waits_for_choice(None, true, false), "a pinned binary runs");
+    assert!(!waits_for_choice(None, false, true), "a pinned model runs");
+}
+
+#[test]
+fn the_ask_stops_the_walk_before_the_runtime_and_the_model() {
+    // The stop must sit between the measurement and `startup::run`: past
+    // that call the walk has already fetched the engine (`Deciding`) and is
+    // on its way to the model's bytes. Removing the early return puts the
+    // automatic download back on a fresh install — this pin goes red first.
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let at = source
+        .find("fn brain_start(")
+        .expect("brain_start is the turn-on command");
+    let body = brace_block(&source, at);
+    let ask = body.find("if ask_first {").expect("brain_start asks when nothing is stored");
+    let stop = body.find("return (None, measured);").expect("the ask is a walk that stops");
+    let run = body.find("startup::run(").expect("the walk's remainder is startup::run");
+    assert!(
+        stop < run && ask < run,
+        "the ask-first return must come before startup::run, or the engine and model download first"
     );
 }
 
@@ -2476,7 +2533,7 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
         processor: None,
     };
 
-    let verdict = settle_walk(&brain, (Ok(prepared), None), None, stops_seen);
+    let verdict = settle_walk(&brain, (Some(Ok(prepared)), None), None, stops_seen);
 
     assert!(verdict.is_ok(), "a gated start is not an error");
     assert!(

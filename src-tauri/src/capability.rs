@@ -90,6 +90,10 @@ pub(crate) enum CapabilityDto {
     Unmeasured,
     Measured {
         machine: MachineDto,
+        /// Whether a model choice is stored. False is the first run's waiting
+        /// state: the walk measured this machine and stopped before choosing,
+        /// and the page asks instead of downloading.
+        chosen: bool,
         /// The catalog's pick, when it has one.
         model: Option<ModelChoiceDto>,
         /// The second option: the most model this machine runs clearly faster
@@ -169,6 +173,7 @@ pub(crate) fn dto(
     measurement: &Measurement,
     ram_bytes: u64,
     phone: Option<PhoneModel>,
+    chosen: bool,
 ) -> CapabilityDto {
     let input = ChoiceInput {
         backend: measurement.will_run_on,
@@ -292,6 +297,7 @@ pub(crate) fn dto(
         });
     CapabilityDto::Measured {
         machine,
+        chosen,
         model,
         quicker,
         refusal,
@@ -439,6 +445,7 @@ mod tests {
                 bandwidth_bytes_per_second: 197.0e9,
                 bandwidth_basis: "chip",
             },
+            chosen: true,
             model: Some(ModelChoiceDto {
                 id: Some("0000000000000001".to_string()),
                 name: "IBM Granite 4 Tiny".to_string(),
@@ -475,6 +482,7 @@ mod tests {
         let json = serde_json::to_value(&dto).expect("serialise");
         println!("{}", serde_json::to_string_pretty(&dto).expect("serialise"));
         assert_eq!(json["kind"], "measured");
+        assert_eq!(json["chosen"], true);
         assert_eq!(
             json["machine"]["ram_bytes"],
             serde_json::to_value(17 * GIB).unwrap()
@@ -492,9 +500,9 @@ mod tests {
         assert_eq!(json["refusal"], serde_json::Value::Null);
         let mut top_keys: Vec<_> = json.as_object().unwrap().keys().collect();
         top_keys.sort();
-        assert_eq!(top_keys, ["kind", "machine", "model", "quicker", "refusal"]);
+        assert_eq!(top_keys, ["chosen", "kind", "machine", "model", "quicker", "refusal"]);
         // The exact key sets, so a renamed or added field breaks loudly:
-        // these are the names the frontend reads, and there is no fifth.
+        // these are the names the frontend reads, and there is no sixth.
         // Both sides sorted: the contract is the set of names, whatever
         // order serde_json's map happens to keep.
         let mut machine_keys: Vec<_> = json["machine"].as_object().unwrap().keys().collect();
@@ -579,7 +587,7 @@ mod tests {
         // The commonest first run: a Mac with no phone paired. The page's
         // question — what can this computer run? — still has an answer; the
         // upgrade question is the one that waits for the phone.
-        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None);
+        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, true);
         let CapabilityDto::Measured {
             model,
             refusal,
@@ -597,7 +605,7 @@ mod tests {
         // And when nothing runs even without the comparison, the phone-free
         // question's own refusal answers — here, nothing fits — with its
         // words, not the pair-first sentence that no longer gates anything.
-        let nothing_fits = dto(&measured(Backend::Cpu), 0, None);
+        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, true);
         let CapabilityDto::Measured { model, refusal, .. } = nothing_fits else {
             panic!("a measured machine answers Measured, not Unmeasured");
         };
@@ -618,7 +626,7 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone));
+        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), true);
         let CapabilityDto::Measured {
             model: Some(choice),
             ..
@@ -646,7 +654,7 @@ mod tests {
         for ram in [8, 16, 32, 64] {
             for backend in [Backend::Cpu, Backend::Metal] {
                 let CapabilityDto::Measured { model, quicker, .. } =
-                    dto(&measured(backend), ram * GIB, None)
+                    dto(&measured(backend), ram * GIB, None, true)
                 else {
                     panic!("{ram} GiB: a measured machine answers Measured");
                 };
@@ -678,7 +686,7 @@ mod tests {
         // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
         // The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
-            dto(&measured(Backend::Cpu), 32 * GIB, None)
+            dto(&measured(Backend::Cpu), 32 * GIB, None, true)
         else {
             panic!("a measured machine answers Measured");
         };

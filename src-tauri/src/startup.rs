@@ -6,6 +6,10 @@
 //! progress as data; two presses cannot run two walks, which is the command
 //! guard's job, not this file's.
 //!
+//! A first run with nobody having chosen never gets here: brain_start
+//! measures and stops before the decide step, and the next turn-on — with a
+//! stored choice — runs this walk whole.
+//!
 //! The model step follows the catalog: the choice is fetched against its
 //! digest (a verified copy in another program's cache beats the download,
 //! and the stores that name their blobs by digest are asked first, at the
@@ -1309,15 +1313,18 @@ mod tests {
 
     #[test]
     fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
-        // The whole promise for everyone who never opens the page: with no
-        // stored choice the walk must answer exactly what the catalog answers,
-        // plan and reason and all. Compared against the catalog itself rather
-        // than against a copied expectation.
+        // The automatic answer for a walk that must still decide: the
+        // development path's pinned binary with no stored choice, and the
+        // fallback a stale stored choice rides. The product's fresh install
+        // never reaches this step — brain_start stops and asks first — but
+        // what this answers must still be exactly what the catalog answers,
+        // plan and reason and all, compared against the catalog itself
+        // rather than against a copied expectation.
         let machine = machine(Backend::Cpu);
         let input = choice_input(ServerBackend::Cpu, &machine, None);
         let automatic = kalsa_catalog::largest_that_runs_well(&input).expect("something runs");
-        let (plan, row, reason) =
-            choose_model(ServerBackend::Cpu, &machine, None, None).expect("no choice is today's walk");
+        let (plan, row, reason) = choose_model(ServerBackend::Cpu, &machine, None, None)
+            .expect("an undecided walk still chooses automatically");
 
         assert_eq!(row.repo, automatic.entry.repo);
         assert_eq!(row.quant, automatic.entry.quant);
@@ -1337,7 +1344,7 @@ mod tests {
         // weights would produce: the record must not carry it.
         let machine = machine(Backend::Cpu);
         let (plan, row, reason) =
-            choose_model(ServerBackend::Cpu, &machine, None, None).expect("today's walk");
+            choose_model(ServerBackend::Cpu, &machine, None, None).expect("the automatic answer");
         let from_catalog = kalsa_catalog::usable()
             .find(|entry| entry.entry().repo == row.repo && entry.entry().quant == row.quant)
             .expect("the chosen row is on the menu")
