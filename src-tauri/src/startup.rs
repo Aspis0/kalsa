@@ -403,9 +403,11 @@ fn automatic_choice(
 /// Why the walk starts the processor build after the graphics build's
 /// catalog answer refused: the card's memory holds no row this app ships —
 /// the owner's ruling after the Lenovo walk (RTX 4050 6 GiB, 32 GiB RAM,
-/// E4B ran on the processor at ~11.8 tok/s that night).
+/// E4B ran on the processor at ~11.8 tok/s that night). The sentence says
+/// which memory sized the model, never which build runs it: the tune may
+/// still pick the graphics build.
 pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
-    "No model fits this computer's graphics card's memory, so this model runs on the processor.";
+    "No model fits this computer's graphics card's memory alone, so this model is sized for this computer's memory.";
 
 /// The graphics build's catalog answer, with the processor fallback the
 /// owner ruled in. `decide_processor` is lazy — a choice that fits the card
