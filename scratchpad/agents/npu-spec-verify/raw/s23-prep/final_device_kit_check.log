@@ -1,0 +1,10 @@
+bin/llama-bench: OK
+bin/llama-completion: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml.so: OK
+lib/libggml-hexagon.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml-htp-v73.so: OK
+dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea  kit.tgz
+EXIT=0

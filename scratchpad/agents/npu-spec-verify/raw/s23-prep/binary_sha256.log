@@ -1,0 +1,9 @@
+5b52c79f2491daeab5995635de946d345cd13de06e6952ef785c52f00706cd1e  /Users/marco/kalsa-qdc/npu-step0-v73/stage/bin/llama-bench
+790e38986321ff244535d297fbe66fc7d025454a07c5db904554e40dd4846109  /Users/marco/kalsa-qdc/npu-step0-v73/stage/bin/llama-completion
+7f22aa79a1cbe99a8c0c9e253402b35c128fd019b45d06d1ad1ac6473a28874f  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml-base.so
+14818705d30c97c8c28a85978dd06b90116abd2c1d4022e5a1b037d0d306bde0  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml-cpu.so
+43bb954ff035a86f7a40ed1cc06f3a8089c9c43b544084c314347a7d9df7cffe  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml.so
+0679df5550f582775177858fd3482f1c43533cc465db9c33c46826d276e8afb2  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml-hexagon.so
+bf0d9a3cce6be290588b30a8f36190229fbd58a4d7dc17074115dd0cb9552935  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml-opencl.so
+33e4e586f54c7c151d112d2cb8f8bbd8b8fd6ed2cf65339341813be9fbefcf46  /Users/marco/kalsa-qdc/npu-step0-v73/stage/lib/libggml-htp-v73.so
+EXIT=0

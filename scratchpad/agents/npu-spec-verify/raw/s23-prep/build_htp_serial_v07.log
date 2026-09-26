@@ -1,0 +1,149 @@
+[1/3] Performing build step for 'htp-v73'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v73.dir/htp_iface_skel.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v73.dir/dma-queue.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v73.dir/work-queue.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v73.dir/hmx-queue.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v73.dir/htp-tensor.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v73.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v73.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v73.dir/gated-delta-net-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v73.dir/binary-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v73.dir/softmax-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v73.dir/act-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v73.dir/rope-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v73.dir/set-rows-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v73.dir/flash-attn-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v73.dir/cpy-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v73.dir/get-rows-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v73.dir/repeat-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v73.dir/ssm-conv.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v73.dir/cumsum-ops.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v73.dir/diag-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v73.dir/fill-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v73.dir/concat-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v73.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v73.dir/pad-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v73.dir/unary-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v73.dir/argsort-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v73.dir/im2col-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v73.dir/allreduce-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v73.dir/matmul-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v73.so
+[2/3] Performing install step for 'htp-v73'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-s23-step0-v73/ggml/src/ggml-hexagon/libggml-htp-v73.so
+[3/3] Completed 'htp-v73'
+[1/3] Performing build step for 'htp-v75'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v75.dir/dma-queue.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v75.dir/htp_iface_skel.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v75.dir/work-queue.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v75.dir/hmx-queue.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v75.dir/htp-tensor.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v75.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v75.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v75.dir/gated-delta-net-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v75.dir/binary-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v75.dir/flash-attn-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v75.dir/softmax-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v75.dir/act-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v75.dir/rope-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v75.dir/repeat-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v75.dir/set-rows-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v75.dir/get-rows-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v75.dir/cpy-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v75.dir/ssm-conv.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v75.dir/cumsum-ops.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v75.dir/fill-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v75.dir/concat-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v75.dir/diag-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v75.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v75.dir/pad-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v75.dir/argsort-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v75.dir/im2col-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v75.dir/unary-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v75.dir/matmul-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v75.dir/allreduce-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v75.so
+[2/3] Performing install step for 'htp-v75'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-s23-step0-v73/ggml/src/ggml-hexagon/libggml-htp-v75.so
+[3/3] Completed 'htp-v75'
+[1/3] Performing build step for 'htp-v79'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v79.dir/htp_iface_skel.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v79.dir/dma-queue.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v79.dir/work-queue.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v79.dir/hmx-queue.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v79.dir/htp-tensor.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v79.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v79.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v79.dir/binary-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v79.dir/gated-delta-net-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v79.dir/flash-attn-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v79.dir/softmax-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v79.dir/rope-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v79.dir/set-rows-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v79.dir/act-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v79.dir/get-rows-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v79.dir/repeat-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v79.dir/cpy-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v79.dir/cumsum-ops.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v79.dir/ssm-conv.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v79.dir/fill-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v79.dir/concat-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v79.dir/diag-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v79.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v79.dir/pad-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v79.dir/im2col-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v79.dir/unary-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v79.dir/argsort-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v79.dir/matmul-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v79.dir/allreduce-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v79.so
+[2/3] Performing install step for 'htp-v79'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-s23-step0-v73/ggml/src/ggml-hexagon/libggml-htp-v79.so
+[3/3] Completed 'htp-v79'
+[1/3] Performing build step for 'htp-v81'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v81.dir/dma-queue.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v81.dir/work-queue.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v81.dir/htp_iface_skel.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v81.dir/htp-tensor.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v81.dir/hmx-queue.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v81.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v81.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v81.dir/gated-delta-net-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v81.dir/binary-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v81.dir/softmax-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v81.dir/flash-attn-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v81.dir/act-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v81.dir/rope-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v81.dir/set-rows-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v81.dir/repeat-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v81.dir/get-rows-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v81.dir/cpy-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v81.dir/cumsum-ops.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v81.dir/ssm-conv.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v81.dir/fill-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v81.dir/concat-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v81.dir/diag-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v81.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v81.dir/pad-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v81.dir/matmul-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v81.dir/argsort-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v81.dir/im2col-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v81.dir/unary-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v81.dir/allreduce-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v81.so
+[2/3] Performing install step for 'htp-v81'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-s23-step0-v73/ggml/src/ggml-hexagon/libggml-htp-v81.so
+[3/3] Completed 'htp-v81'
+EXIT=0

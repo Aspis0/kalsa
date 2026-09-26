@@ -1,0 +1,10 @@
+[1/11] Linking CXX static library tools/llama-bench/libllama-bench-impl.a
+[2/11] Building CXX object tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[3/11] Provisioning UI assets
+-- UI: HF stamp matches 'ggml-org/llama-ui|b0', skipping HF fetch
+-- UI: assets unchanged, skipping embedding
+[4/7] Linking CXX static library tools/cli/libllama-cli-impl.a
+[5/7] Building CXX object tools/cli/CMakeFiles/llama-cli.dir/main.cpp.o
+[6/7] Linking CXX executable bin/llama-bench
+[7/7] Linking CXX executable bin/llama-cli
+EXIT=0

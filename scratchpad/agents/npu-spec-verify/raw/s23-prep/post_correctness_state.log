@@ -1,0 +1,9 @@
+SCREEN
+  mWakefulness=Awake
+  mHoldingDisplaySuspendBlocker=true
+TRACED
+0
+DSP_TICKS
+adsprpcd 2222 0 0
+cdsprpcd 2225 0 3
+EXIT=0

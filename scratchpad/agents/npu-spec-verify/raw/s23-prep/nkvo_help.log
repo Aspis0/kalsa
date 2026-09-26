@@ -1,0 +1,7 @@
+0.00.026.001 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+--yarn-beta-fast N                      YaRN: low correction dim or beta (default: -1.00)
+                                        (env: LLAMA_ARG_YARN_BETA_FAST)
+-kvo,  --kv-offload, -nkvo, --no-kv-offload
+                                        whether to enable KV cache offloading (default: enabled)
+                                        (env: LLAMA_ARG_KV_OFFLOAD)
+EXIT=0

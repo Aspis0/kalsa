@@ -1,0 +1,10 @@
+CPU_EXIT=0
+HTP_EXIT=0
+TOKEN_CMP=IDENTICAL
+723303e4487a7dfe7ed80e5af1b92f7f38eac0b2f3e87045066f080710a45313  cpu.tokens
+723303e4487a7dfe7ed80e5af1b92f7f38eac0b2f3e87045066f080710a45313  htp.tokens
+0.00.039.988 W DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+0.00.040.033 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+0.00.042.719 I llama_completion: llama backend init
+0.00.263.363 W ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+EXIT=0
