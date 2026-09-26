@@ -1,0 +1,13 @@
+[16:18:53] SESSION job=s23-cli-heat-20260926 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[16:18:53] KIT_UNPACK_PUSH
+[16:18:54] DEVICE_LIST_OK
+[16:18:54] KIT_PUSH ship.gguf sha_before=absent
+[16:19:55] KIT_PUSH prompt.txt sha_before=absent
+[16:20:26] BATTERY_SENSOR_TRUSTED dumpsys=266,269 sysfs=,
+[16:20:26] GATE label=setup
+[16:20:26] SETUP_DONE skin0=28.2 battery_untrusted=0
+[16:20:28] SAMPLER_LAUNCHED pid=99478
+[16:20:28] ARM_START turn=1 backend=cpu pair=1 tag=s23-cli-heat-20260926-t1cpu
+[16:21:01] LOAD_PHASE turn=1 wall_s=32 skin 28.2->28.8 pagein_cold=1
+[16:23:21] ARM_END turn=1 status=VOID void=run_fail prefill_ms= inload_ms=na proof=na
+[16:23:21] STOP_METHOD_VOID turn=1 backend=cpu reason=run_fail

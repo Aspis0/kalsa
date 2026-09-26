@@ -1,0 +1,2 @@
+pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	load_wall_s	load_skin_before	load_skin_after	pagein_cold	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	thermal_status	prompt_n	prefill_ms	decode_runs	decode_tps	proof
+1	cpu	1	VOID	run_fail	0	0	60	77	32	28.2	28.8	1	28.2	29.9	266	281	65	false	0	na		na	na	na

@@ -311,6 +311,11 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
     exit 0
   fi
   hard_stops || finish_stop
+  if [ "$ARM_STATUS" != OK ]; then
+    log "STOP_METHOD_VOID turn=$TURN backend=$backend reason=$ARM_VOID"
+    write_end "method_void_$ARM_VOID"
+    exit 0
+  fi
 done
 
 # ---- finish ----

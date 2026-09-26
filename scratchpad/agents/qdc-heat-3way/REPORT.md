@@ -137,3 +137,44 @@ Nothing pre-existing was refactored: `../qdc-heat-per-backend/*` and
 its oversized `parse.sh` (48 KB app harness) is pre-existing excess, left
 alone by design — this cell does not source it. `safety.sh` from round 1 was
 replaced by `stop_lib.sh` (A15), not kept alongside it.
+
+## Real S23 session — 2026-09-26
+
+**Stopped after arm 1; no three-backend comparison.** Preflight passed on
+SM8550: unplugged (AC/USB/Wireless/Dock all false), battery 65% at 25.9 °C,
+thermal status 0, skin 27.3 °C, `persist.traced.enable=0`, display Awake.
+Pre-run DSP ticks: adsprpcd 0/0, cdsprpcd 0/5. The model, prompt and v73 kit
+were pushed and SHA-verified; device list contained GPUOpenCL and HTP0. The
+battery sensor check returned trusted (dumpsys 26.6→26.9 °C; sysfs reading
+unavailable), so no skin fallback gate was added; the 44 °C battery stop
+remained armed. Restore returned rc=0, restored timeout `null` and stay-on 0,
+stopped the sampler; post-run traced remained 0 and the display returned to
+Dozing. Post DSP ticks: adsprpcd 0/6, cdsprpcd 0/12.
+
+The first CPU turn exited 0. Its raw perf output did not match the parser's
+assumed token positions: the binary emitted a timestamp and severity before
+`common_perf_print:`, so the parser returned `run_fail` and stopped the
+session. Representative raw lines:
+
+```
+1.17.377.184 I common_perf_print: prompt eval time =   10947.50 ms /  1018 tokens (   10.75 ms per token,    92.99 tokens per second)
+1.17.377.201 I common_perf_print:        eval time =   22178.79 ms /   126 runs   (  176.02 ms per token,     5.68 tokens per second)
+```
+
+| Pair | Turn | Backend | Proof counts (CPU assignment / GPU assignment / HTP execute-op / GPU kernels) | prompt_n | decode_runs | prefill ms | decode tok/s | Skin °C | Battery °C | Load phase |
+|---|---:|---|---|---:|---:|---:|---:|---|---|---|
+| 1 | 1 | CPU | 0 / 0 / 0 / 0 (CPU proof absent) | 1018 | 126 (required 127) | 10947.50 | 5.68 | 28.2→29.9 | 26.6→28.1 | 32 s; skin 28.2→28.8; in-process load 10950.51 ms; pagein_cold=1 |
+
+The CPU prefill (10.95 s) is inside PREREG's 8–45 s range and below its
+15 s point prediction. Skin rose 1.7 °C, inside the registered +0.5…+5.0 °C
+range and below the +2.5 °C point. The row is still VOID: its decode count
+was 126, and CPU assignment proof was absent. The equal-decode gate, GPU/HTP
+proofs, remaining arms, and all CPU−GPU / CPU−NPU contrasts are unavailable;
+no prediction about backend ranking or comparative heating was tested.
+
+The run used `CGNNGC`, `-n 127 --ignore-eos`, and the preregistered proof
+thresholds unchanged. A minimal post-row fail-fast guard was added to
+`d_run.sh` before execution so any VOID parser/proof row ends the session;
+`bash -n d_run.sh` passed. No PREREG content was changed. Raw preflight,
+complete arm log, parser row, stop/restore, and DSP snapshots are under
+`raw/s23-cli-heat-20260926/`.

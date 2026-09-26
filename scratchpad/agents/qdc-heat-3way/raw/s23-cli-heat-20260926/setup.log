@@ -1,0 +1,13 @@
+sha256sum: SHA256SUMS: No such file or directory
+/Users/marco/kalsa-qdc/npu-step0-v73/npu-kit-f25f0c1c5.tgz: 1 file pushed, 0 skipped. 30.8 MB/s (9187129 bytes in 0.284s)
+bin/llama-bench: OK
+bin/llama-completion: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml.so: OK
+lib/libggml-hexagon.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml-htp-v73.so: OK
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf: 1 file pushed, 0 skipped. 25.3 MB/s (1593894944 bytes in 60.020s)
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/PROMPT.txt: 1 file pushed, 0 skipped. 43.8 MB/s (3833 bytes in 0.000s)
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/smp.sh: 1 file pushed, 0 skipped. 14.8 MB/s (1397 bytes in 0.000s)

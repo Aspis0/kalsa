@@ -1,0 +1,5 @@
+0.00.133.271 W DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+0.00.133.300 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+Available devices:
+  GPUOpenCL: QUALCOMM Adreno(TM) (3536 MiB, 2512 MiB free)
+  HTP0: Hexagon (0 MiB, 0 MiB free)

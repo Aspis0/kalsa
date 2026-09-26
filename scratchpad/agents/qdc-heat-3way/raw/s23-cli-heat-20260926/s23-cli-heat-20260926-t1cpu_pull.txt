@@ -1,0 +1,1 @@
+/data/local/tmp/heat3way/s23-cli-heat-20260926-t1cpu.log: 1 file pulled, 0 skipped. 0.3 MB/s (3777 bytes in 0.012s)
