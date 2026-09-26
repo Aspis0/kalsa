@@ -88,6 +88,10 @@ impl BridgeConfig {
     /// pkarr publisher, because publishing is what makes this node's stable
     /// id and addresses public enough for a stranger to dial back. `connect`
     /// is the same from either side; only what can arrive changes.
+    ///
+    /// No publication is not anonymity: on a relayed road this node still
+    /// tells the relay its stable EndpointId — that is the relay handshake's
+    /// first purpose (iroh-relay-1.2.0/src/protos/handshake.rs:4).
     pub fn dial_only() -> Self {
         Self::toward(None)
     }

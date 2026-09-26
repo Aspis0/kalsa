@@ -91,9 +91,10 @@ async fn a_dial_only_bridge_reaches_a_serving_bridge_door_and_desk() {
     }
 }
 
-/// The other half: nobody serves a dial-only bridge. With no accept loop
-/// behind it the peer's handshake never begins, so the dialer's own deadline
-/// is what ends the wait — an error, bounded, never a stream.
+/// The other half: nobody serves a dial-only bridge. Without an accept
+/// loop the incoming connection is never accepted, so its handshake never
+/// completes — the dialer's own deadline is what ends the wait: an error,
+/// bounded, never a stream.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_stream_dialled_at_a_dial_only_bridge_is_refused() {
     let book = AddressBook::new();
@@ -125,6 +126,13 @@ async fn a_stream_dialled_at_a_dial_only_bridge_is_refused() {
     assert!(
         matches!(error, BridgeError::Deadline),
         "expected the caller's own deadline, got: {error}"
+    );
+    // The deadline is waited out, not returned on the spot: the floor
+    // sits half a second under the configured 2 s so timer precision
+    // cannot trip it.
+    assert!(
+        elapsed >= Duration::from_millis(1500),
+        "the deadline came back immediately: {elapsed:?}"
     );
     assert!(
         elapsed < Duration::from_secs(8),

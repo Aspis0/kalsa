@@ -28,7 +28,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use iroh::address_lookup::{memory::MemoryLookup, DnsAddressLookup, PkarrResolver};
-use iroh::endpoint::{default_relay_mode, presets, Builder, TransportAddrUsage};
+use iroh::endpoint::{presets, Builder, TransportAddrUsage};
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::timeout_at;
@@ -194,27 +194,29 @@ pub(crate) struct Transport {
 }
 
 /// The endpoint builder behind [`Transport::bind`]: the address lookups
-/// that resolve a bare node id, and the relays that may carry the
-/// ciphertext.
+/// that resolve a bare node id, the relays that may carry the ciphertext,
+/// and — for a bridge that serves — the ALPNs offered inbound.
 ///
-/// `dial_only` mirrors `presets::N0` minus its one publishing line
-/// (`PkarrPublisher::n0_dns()`, iroh-1.2.0/src/endpoint/presets.rs:125): the
-/// builder can add a lookup but not remove one, so the mirror is written out
-/// rather than derived. The difference is not cosmetic — publishing hands
-/// n0's pkarr DNS this node's stable id and addresses, which is what lets a
-/// stranger dial back, and a dialer only ever needs to RESOLVE the other
-/// side.
+/// `dial_only` derives from `presets::N0` instead of mirroring it:
+/// `clear_address_lookup` removes the publisher the preset adds
+/// (`PkarrPublisher::n0_dns()`, iroh-1.2.0/src/endpoint/presets.rs:125) and
+/// the two resolvers are re-added. Publishing is what hands n0's pkarr DNS
+/// this node's stable id and addresses — what lets a stranger dial back —
+/// and a dialer only ever needs to resolve the other side.
 fn endpoint_builder(relay: &RelayChoice, dial_only: bool) -> Result<Builder, BridgeError> {
     let mut builder = match relay {
         RelayChoice::Disabled => Endpoint::builder(presets::Minimal),
         RelayChoice::N0Public | RelayChoice::Custom { .. } if dial_only => {
-            Endpoint::builder(presets::Minimal)
+            Endpoint::builder(presets::N0)
+                .clear_address_lookup()
                 .address_lookup(PkarrResolver::n0_dns())
                 .address_lookup(DnsAddressLookup::n0_dns())
-                .relay_mode(default_relay_mode())
         }
         RelayChoice::N0Public | RelayChoice::Custom { .. } => Endpoint::builder(presets::N0),
     };
+    if !dial_only {
+        builder = builder.alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()]);
+    }
     match relay {
         // The n0 preset set the relay mode; the mirror above set it too.
         RelayChoice::N0Public => {}
@@ -249,9 +251,6 @@ impl Transport {
         let mut builder = endpoint_builder(relay, dial_only)?;
         if let Some(book) = book {
             builder = builder.address_lookup(book.inner.clone());
-        }
-        if !dial_only {
-            builder = builder.alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()]);
         }
         let endpoint = builder
             .secret_key(SecretKey::from_bytes(&key.to_bytes()))
@@ -305,10 +304,12 @@ impl Transport {
     }
 
     /// This endpoint's current addressing, into a book that was handed to
-    /// `bind`. Without a book this is nothing to do: production roads
-    /// publish through iroh's own lookup services. An address the socket
-    /// reports as unspecified (`0.0.0.0`) is registered as loopback: a book
-    /// is an in-process fact, and a dial to `0.0.0.0` is not one.
+    /// `bind`. Without a book this is nothing to do: the book is the only
+    /// destination for these addresses — a serving road publishes itself
+    /// through iroh's lookups, and a dial-only node publishes nothing at
+    /// all. An address the socket reports as unspecified (`0.0.0.0`) is
+    /// registered as loopback: a book is an in-process fact, and a dial to
+    /// `0.0.0.0` is not one.
     pub(crate) fn register_self(&self, book: Option<&AddressBook>) {
         let Some(book) = book else {
             return;
@@ -504,6 +505,25 @@ mod tests {
         assert!(
             dialing.contains("Relay { relay_map:"),
             "it must still ride n0's relays"
+        );
+    }
+
+    // The other dial-only half, pinned where it is decided: no ALPN is
+    // offered inbound, and iroh refuses an inbound handshake it has no tag
+    // for — so nothing can be dialled into a phone at all.
+    #[test]
+    fn the_dial_only_road_offers_no_inbound_alpn() {
+        let serving = format!("{:?}", endpoint_builder(&RelayChoice::N0Public, false).unwrap());
+        let dialing = format!("{:?}", endpoint_builder(&RelayChoice::N0Public, true).unwrap());
+        let alpns = format!("{:?}", vec![ALPN.to_vec(), DESK_ALPN.to_vec()]);
+
+        assert!(
+            serving.contains(&alpns),
+            "the serving road must still answer both lanes: {serving}"
+        );
+        assert!(
+            !dialing.contains(&alpns),
+            "a dial-only bridge must offer no inbound ALPN: {dialing}"
         );
     }
 }
