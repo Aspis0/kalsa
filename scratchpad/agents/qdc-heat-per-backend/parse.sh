@@ -191,7 +191,9 @@ count_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{n++}E
 # toolChoice none (structuredCalls 0, executed 0 — raw/sa849528b calibration).
 # Sums structuredCalls+fallbackCalls+executed; an unparsable line counts as 1.
 count_toolcalls_after() { awk -v a="$ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_TOOLCALL ")>0{sub(/.*KALSA_TOOLCALL /,"");print}' "$1" | /usr/bin/perl -MJSON::PP -ne '$j=eval{decode_json($_)}; $n+= $j ? ($j->{structuredCalls}//0)+($j->{fallbackCalls}//0)+($j->{executed}//0) : 1; END{print $n+0}'; }
-count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
+# The per-arm relaunch force-stops the app, which logs "am_kill ... stop com.kalsa.app
+# due to from pid"; that is not a low-memory kill (raw/sa851338 aborted on it).
+count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&index($0,"stop com.kalsa.app")==0&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
 last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x=$0}END{sub(".*"m,"",x);sub(/^[[:space:]]+/,"",x);print x}' "$2"; }
 last_kvprefix_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/KALSA_KVPREFIX embd=[0-9]+ text_tokens=[0-9]+ n_common=[0-9]+/{x=$0}END{print x}' "$1"; }
 last_reuse_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/reusing [0-9]+\/[0-9]+/{x=$0}END{print x}' "$1"; }
