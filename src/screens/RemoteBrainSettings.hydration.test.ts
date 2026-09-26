@@ -289,7 +289,7 @@ function fieldInput(
   }
 }
 
-async function render(onOpenPairing: (doorUrl: string) => void = jest.fn()): Promise<ReactTestRenderer> {
+async function render(): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
@@ -297,7 +297,6 @@ async function render(onOpenPairing: (doorUrl: string) => void = jest.fn()): Pro
         currentModelId: "local-model",
         busy: false,
         onSelectModel: jest.fn(),
-        onOpenPairing,
       }),
     );
   });
@@ -578,16 +577,11 @@ describe("RemoteBrainSettings hydration", () => {
     await unmount(renderer);
   });
 
-  test("remote settings opens pairing with the configured door address as a prefill", async () => {
-    const onOpenPairing = jest.fn();
-    const renderer = await render(onOpenPairing);
+  test("the advanced panel carries no pairing entry — pairing lives in the where-it-responds section now", async () => {
+    const renderer = await render();
     await finishHydration();
 
-    await act(async () => {
-      renderer.root.findByProps({ testID: "remote-brain.open-pairing" }).props.onPress();
-    });
-
-    expect(onOpenPairing).toHaveBeenCalledWith(STORED_URL);
+    expect(renderer.root.findAllByProps({ testID: "remote-brain.open-pairing" })).toHaveLength(0);
     await unmount(renderer);
   });
 });

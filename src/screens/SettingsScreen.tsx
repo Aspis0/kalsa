@@ -114,6 +114,8 @@ import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBa
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { PairingScreen } from "./PairingScreen";
 import { testRemoteConnection } from "../engine/engineBackend";
+import { getPairingCredential } from "../pairing/pairingCredentialStore";
+import { getRemoteBrainUrl } from "../engine/remote/remoteSettings";
 import { computerProbeFromResult, type ComputerModelProbe } from "./settingsModelSheet";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
@@ -212,6 +214,30 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const [page, setPage] = useState<"home" | "advanced">("home");
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingDoorUrl, setPairingDoorUrl] = useState("");
+  /** Whether a pairing exists yet: gates the where-section primary action. */
+  const [paired, setPaired] = useState(false);
+
+  // Re-read on mount and whenever the pairing screen closes: its success
+  // is what flips this, so the entry must not go stale behind that screen.
+  useEffect(() => {
+    let cancelled = false;
+    void getPairingCredential().then(
+      (credential) => {
+        if (!cancelled) setPaired(credential !== null);
+      },
+      () => {
+        // An unreadable store says nothing about pairing; keep the last answer.
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [pairingOpen]);
+
+  const openPairing = useCallback(() => {
+    setPairingDoorUrl(getRemoteBrainUrl());
+    setPairingOpen(true);
+  }, []);
 
   // Production "default" is thinking-on with the model's short budget.
   // The picker shows the two user-facing live budgets.
@@ -1449,6 +1475,8 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
         onSelectModel={model.onSelectModel}
         onSelectLocation={model.onSelectLocation}
         probeComputerModel={probeComputerModel}
+        paired={paired}
+        onOpenPairing={openPairing}
         webEnabled={webToolsEnabled ?? false}
         onToggleWeb={onToggleWebTools}
         telemetryEnabled={telemetryEnabled}
@@ -2490,10 +2518,6 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           currentModelId={model.currentModelId}
           busy={modelBusy}
           onSelectModel={model.onSelectModel}
-          onOpenPairing={(doorUrl) => {
-            setPairingDoorUrl(doorUrl);
-            setPairingOpen(true);
-          }}
         />
 
         {/* ── Models ───────────────────────────────────────────────────── */}

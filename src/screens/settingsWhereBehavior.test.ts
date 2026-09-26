@@ -91,7 +91,7 @@ function makeHostActions(remoteActive: boolean) {
   return { actions: createRemoteModelHostActions(ports as never), ports };
 }
 
-function mount(catalog: Catalog, remoteActive: boolean) {
+function mount(catalog: Catalog, remoteActive: boolean, overrides: Partial<Parameters<typeof SettingsHomeScreen>[0]> = {}) {
   strings = flatten(catalog);
   hookValues = [];
   hookCursor = 0;
@@ -118,6 +118,7 @@ function mount(catalog: Catalog, remoteActive: boolean) {
     calendarToolsEnabled: false,
     onToggleCalendarTools: jest.fn(),
     appVersion: "1.0",
+    ...overrides,
   };
   const render = () => {
     hookCursor = 0;
@@ -220,5 +221,36 @@ describe("Settings where-answers row", () => {
     expect(sheet?.props.rows.map((row: { testID: string }) => row.testID)).toEqual([
       "settings.sheet.model.lfm2.5-2.6b",
     ]);
+  });
+});
+
+describe("pairing entry visibility", () => {
+  const hasTestID = (nodes: Element[], testID: string) =>
+    nodes.some((node) => node.props.testID === testID);
+
+  it("shows the where-section primary action only while the computer is chosen and unpaired", () => {
+    const computerUnpaired = mount(en, true, { paired: false, onOpenPairing: jest.fn() }).render();
+    const computerPaired = mount(en, true, { paired: true, onOpenPairing: jest.fn() }).render();
+    const phoneChosen = mount(en, false, { paired: false, onOpenPairing: jest.fn() }).render();
+
+    expect(hasTestID(computerUnpaired, "settings.home.pair.primary")).toBe(true);
+    expect(hasTestID(computerPaired, "settings.home.pair.primary")).toBe(false);
+    expect(hasTestID(phoneChosen, "settings.home.pair.primary")).toBe(false);
+  });
+
+  it("keeps one top-level pair row that opens the pairing screen", () => {
+    const onOpenPairing = jest.fn();
+    const nodes = mount(en, false, { paired: false, onOpenPairing }).render();
+
+    const row = nodes.find((node) => node.props.testID === "settings.home.pair");
+    expect(row).toBeDefined();
+    row?.props.onPress();
+    expect(onOpenPairing).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no pairing entry when the handler is not supplied", () => {
+    const nodes = mount(en, false).render();
+    expect(hasTestID(nodes, "settings.home.pair")).toBe(false);
+    expect(hasTestID(nodes, "settings.home.pair.primary")).toBe(false);
   });
 });

@@ -36,7 +36,9 @@ describe("Settings v2 home and advanced pages", () => {
     expect(homeIds).toEqual([
       "settings.home.scroll",
       "settings.home.where",
+      "settings.home.pair.primary",
       "settings.home.model",
+      "settings.home.pair",
       "settings.home.theme",
       "settings.home.fontSize",
       "settings.home.language",

@@ -8,6 +8,7 @@ import {
   Languages,
   Laptop,
   Moon,
+  QrCode,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -52,6 +53,9 @@ type Props = {
   onSelectLocation: (location: "local" | "remote") => boolean;
   /** Door probe for the computer's model; the parent owns the engine call. */
   probeComputerModel: () => Promise<ComputerModelProbe>;
+  /** A pairing exists yet; gates the where-section primary action. */
+  paired?: boolean;
+  onOpenPairing?: () => void;
   webEnabled?: boolean;
   onToggleWeb?: () => void;
   telemetryEnabled: boolean;
@@ -175,6 +179,8 @@ export function SettingsHomeScreen({
   onSelectModel,
   onSelectLocation,
   probeComputerModel,
+  paired,
+  onOpenPairing,
   webEnabled,
   onToggleWeb,
   telemetryEnabled,
@@ -290,6 +296,28 @@ export function SettingsHomeScreen({
             onPress={() => setSheet("where")}
             colors={colors}
           />
+          {remoteActive && paired !== true && onOpenPairing ? (
+            <>
+              <Divider colors={colors} />
+              <Pressable
+                testID="settings.home.pair.primary"
+                accessibilityRole="button"
+                accessibilityLabel={t("pairing.open")}
+                onPress={onOpenPairing}
+                style={({ pressed }) => ({
+                  minHeight: 48,
+                  marginHorizontal: space.md,
+                  marginVertical: space.sm,
+                  borderRadius: radius.button,
+                  alignItems: "center" as const,
+                  justifyContent: "center" as const,
+                  backgroundColor: pressed ? colors.brandDeep : colors.brand,
+                })}
+              >
+                <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.open")}</Text>
+              </Pressable>
+            </>
+          ) : null}
           <Divider colors={colors} />
           <Row testID="settings.home.model" title={t("settings.modelPicker")} subtitle={model?.sizeClass === "2B" ? t("settings.modelSmallFast") : model?.sizeClass === "4B" ? t("settings.modelCapableSlow") : undefined} value={modelValue} icon={<Cpu size={20} color={colors.accent} strokeWidth={1.75} />} onPress={() => {
             // The computer's model is read fresh each time the sheet opens:
@@ -302,6 +330,18 @@ export function SettingsHomeScreen({
             }
             setSheet("model");
           }} disabled={modelBusy} colors={colors} />
+          {onOpenPairing ? (
+            <>
+              <Divider colors={colors} />
+              <Row
+                testID="settings.home.pair"
+                title={t("pairing.open")}
+                icon={<QrCode size={20} color={colors.accent} strokeWidth={1.75} />}
+                onPress={onOpenPairing}
+                colors={colors}
+              />
+            </>
+          ) : null}
         </Group>
 
         <Group title={t("settings.groupAppearance")} colors={colors}>
