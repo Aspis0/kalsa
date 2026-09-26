@@ -35,8 +35,9 @@ ANDROID_NDK_HOME=<ndk> cargo ndk -t arm64-v8a build --release
 Release profile: `opt-level = "z"` (measured smaller than `"s"`: 11.16 MB vs
 11.55 MB), `strip = "symbols"`, `lto = "thin"`.
 
-Kotlin bindings — generate from the **debug** dylib (the release one is
-stripped; bindgen reads its symbols). Not wired into the app yet:
+Kotlin bindings — generate from the **debug** dylib. The release `.so`
+cannot serve as uniffi `--library` input: it is stripped, and bindgen
+reads the library's symbols. Not wired into the app yet:
 
 ```
 cargo build

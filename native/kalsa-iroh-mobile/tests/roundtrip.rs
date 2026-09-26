@@ -109,7 +109,9 @@ async fn a_read_that_never_gets_bytes_answers_deadline() {
             .connect(desktop_hex, Lane::Door)
             .expect("tunnel opens");
         let started = std::time::Instant::now();
-        (started.elapsed(), tunnel.read(8192, 300))
+        let read = tunnel.read(8192, 300);
+        // Elapsed measured after the call returns: the read's own duration.
+        (started.elapsed(), read)
     })
     .join()
     .expect("plain thread runs");

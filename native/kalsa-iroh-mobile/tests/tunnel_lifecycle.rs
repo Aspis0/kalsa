@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use kalsa_iroh::{AddressBook, Bridge};
 use kalsa_iroh_mobile::{IrohMobileError, Lane, MobileBridge, Tunnel};
-use support::{spawn_upstream, temp_dir, Upstream};
+use support::{spawn_upstream, temp_dir, wait_read_held, Upstream};
 
 /// A live tunnel against `behavior`, plus the desktop bridge (kept alive:
 /// dropping it closes the endpoint and every tunnel with it), the phone
@@ -109,12 +109,14 @@ async fn a_parked_read_and_a_write_do_not_wait_on_each_other() {
 
     let reader = Arc::clone(&tunnel);
     let read_thread = std::thread::spawn(move || reader.read(8192, 5_000));
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    wait_read_held(&tunnel).await;
 
     let writer = Arc::clone(&tunnel);
     let write_thread = std::thread::spawn(move || {
         let started = Instant::now();
-        (started.elapsed(), writer.write(REQUEST.to_vec(), 5_000))
+        let outcome = writer.write(REQUEST.to_vec(), 5_000);
+        // Elapsed measured after the call returns: the write's own duration.
+        (started.elapsed(), outcome)
     });
     let (write_took, write_outcome) = join_plain(write_thread)
         .await
@@ -145,7 +147,7 @@ async fn shutdown_cancels_a_parked_read() {
 
     let reader = Arc::clone(&tunnel);
     let read_thread = std::thread::spawn(move || reader.read(8192, 30_000));
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    wait_read_held(&tunnel).await;
     tunnel.shutdown();
 
     let outcome = tokio::time::timeout(Duration::from_secs(5), join_plain(read_thread))
@@ -166,7 +168,7 @@ async fn dropping_the_bridge_fails_a_parked_read_cleanly() {
 
     let reader = Arc::clone(&tunnel);
     let read_thread = std::thread::spawn(move || reader.read(8192, 30_000));
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    wait_read_held(&tunnel).await;
     // The tunnel holds its own Arc to the runtime; the bridge's drop
     // closes the endpoint and the parked read must return a typed error,
     // never a panic or a hang.
@@ -202,5 +204,83 @@ async fn a_call_from_inside_a_runtime_context_is_a_typed_error() {
         matches!(error, IrohMobileError::AsyncContext),
         "expected AsyncContext, got: {error}"
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A write that times out must close the transport, not just the API
+/// latch: against a peer that stops reading, the deadline fires, later
+/// calls answer Closed, and the peer sees the FIN end to end.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_timed_out_write_half_closes_the_transport_not_just_the_latch() {
+    let (release, release_upstream) = tokio::sync::oneshot::channel::<()>();
+    let (fin, fin_seen) = tokio::sync::oneshot::channel::<()>();
+    let (_desktop, _phone, tunnel, dir) =
+        tunnel_on(Upstream::StallThenFin { release: release_upstream, fin }).await;
+
+    // The upstream stalls without reading: backpressure must pile up on
+    // the tunnel's write half until the deadline fires.
+    let writer = Arc::clone(&tunnel);
+    let write_thread =
+        std::thread::spawn(move || writer.write(vec![b'x'; 16 * 1024 * 1024], 500));
+    let outcome = join_plain(write_thread).await.expect("write thread runs");
+    assert!(
+        matches!(outcome, Err(IrohMobileError::Deadline)),
+        "a stalled peer must break the write with Deadline"
+    );
+
+    let latched = Arc::clone(&tunnel);
+    let after = join_plain(std::thread::spawn(move || latched.read(64, 1_000)))
+        .await
+        .expect("probe thread runs");
+    assert!(
+        matches!(after, Err(IrohMobileError::Closed)),
+        "a timed-out write must latch the tunnel Closed"
+    );
+
+    let _ = release.send(());
+    tokio::time::timeout(Duration::from_secs(5), fin_seen)
+        .await
+        .expect("the FIN must reach the upstream after a timed-out write")
+        .expect("upstream still connected");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The last runtime references dropped from async tasks, concurrently:
+/// the owner's drop hands the runtime to a dedicated thread with a
+/// bounded shutdown, so no drop panics and none hangs.
+#[tokio::test(flavor = "multi_thread")]
+async fn concurrent_async_drops_of_the_last_runtime_refs_do_not_panic() {
+    let dir = temp_dir("drop-race");
+    let door = spawn_upstream(Upstream::Silent).await;
+    let book = AddressBook::new();
+    let desktop = support::desktop_bridge(&dir, &book, door, None).await;
+    let desktop_hex = desktop.node_id().to_string();
+    let phone_key = dir.join("phone.key");
+
+    let (phone, first, second) = std::thread::spawn(move || {
+        let phone = MobileBridge::for_tests(phone_key, &book).expect("phone bridge starts");
+        let first = phone
+            .connect(desktop_hex.clone(), Lane::Door)
+            .expect("first tunnel opens");
+        let second = phone
+            .connect(desktop_hex, Lane::Door)
+            .expect("second tunnel opens");
+        (phone, first, second)
+    })
+    .join()
+    .expect("plain thread runs");
+
+    // Three runtime references (bridge + two tunnels), each dropped from
+    // its own async task, racing the final release.
+    let drops = vec![
+        tokio::spawn(async move { drop(phone) }),
+        tokio::spawn(async move { drop(first) }),
+        tokio::spawn(async move { drop(second) }),
+    ];
+    for task in drops {
+        task.await.expect("a concurrent async drop panicked");
+    }
+
     let _ = std::fs::remove_dir_all(&dir);
 }

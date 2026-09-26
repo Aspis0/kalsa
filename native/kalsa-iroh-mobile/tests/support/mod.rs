@@ -11,8 +11,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, RelayChoice};
+use kalsa_iroh_mobile::Tunnel;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::oneshot;
 
 // Tests run in parallel in one binary: every temp dir must be its own.
 static DIR_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -34,6 +36,13 @@ pub enum Upstream {
     /// Read the request head, wait, then echo it back — late enough that a
     /// parked reader is provably parked before any byte returns.
     EchoAfter(Duration),
+    /// Read the request head, then stall without reading — backpressure
+    /// piles up on the tunnel's writer — until released; then drain to
+    /// EOF and signal: the FIN the phone sent must come through.
+    StallThenFin {
+        release: oneshot::Receiver<()>,
+        fin: oneshot::Sender<()>,
+    },
 }
 
 pub async fn spawn_upstream(behavior: Upstream) -> SocketAddr {
@@ -48,6 +57,20 @@ async fn serve_once(listener: TcpListener, behavior: Upstream) {
         return;
     };
     let mut buffer = vec![0u8; 4096];
+    // The stalled peer reads nothing at all — not even a request head —
+    // because every byte it drains is backpressure released.
+    if let Upstream::StallThenFin { release, fin } = behavior {
+        let _ = release.await;
+        loop {
+            match socket.read(&mut buffer).await {
+                Ok(0) | Err(_) => {
+                    let _ = fin.send(());
+                    return;
+                }
+                Ok(_) => {}
+            }
+        }
+    }
     let mut head = Vec::new();
     loop {
         match socket.read(&mut buffer).await {
@@ -80,6 +103,7 @@ async fn serve_once(listener: TcpListener, behavior: Upstream) {
             let _ = socket.shutdown().await;
             let _ = socket.read(&mut buffer).await;
         }
+        Upstream::StallThenFin { .. } => unreachable!("handled before the head prelude"),
     }
 }
 
@@ -100,4 +124,16 @@ pub async fn desktop_bridge(
     Bridge::start(config, &dir.join("desktop.key"))
         .await
         .expect("desktop bridge starts")
+}
+
+/// Block until a read on `tunnel` provably holds the read half and is
+/// awaiting bytes — the barrier that replaces sleeps in the timing tests.
+pub async fn wait_read_held(tunnel: &Tunnel) {
+    for _ in 0..200 {
+        if tunnel.read_held() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("the read never parked on the read half");
 }
