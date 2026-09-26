@@ -5,20 +5,13 @@
 //! in-process `AddressBook` is brain's own network-free seam — both
 //! endpoints resolve each other in-process and bind only local sockets.
 
-use std::net::SocketAddr;
+mod support;
+
 use std::path::PathBuf;
 
-use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, RelayChoice};
+use kalsa_iroh::AddressBook;
 use kalsa_iroh_mobile::{Lane, MobileBridge};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
-
-fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir()
-        .join(format!("kalsa-iroh-mobile-rt-{}-{tag}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("temp dir creates");
-    dir
-}
+use support::{spawn_upstream, temp_dir, Upstream};
 
 /// One chunked body piece: the size in hex, the bytes, the CRLF.
 fn chunk(payload: &[u8]) -> Vec<u8> {
@@ -52,41 +45,10 @@ fn chunked_sse_desk_response() -> Vec<u8> {
     response
 }
 
-/// A stand-in loopback service: one accept, one request head drained, one
-/// canned response, write side closed — EOF for the reader.
-async fn serve_once(listener: TcpListener, response: Vec<u8>) {
-    let Ok((mut socket, _)) = listener.accept().await else {
-        return;
-    };
-    let mut buffer = vec![0u8; 4096];
-    let mut head = Vec::new();
-    loop {
-        match socket.read(&mut buffer).await {
-            Ok(0) | Err(_) => return,
-            Ok(n) => {
-                head.extend_from_slice(&buffer[..n]);
-                if head.windows(4).any(|window| window == b"\r\n\r\n") {
-                    break;
-                }
-            }
-        }
-    }
-    let _ = socket.write_all(&response).await;
-    let _ = socket.shutdown().await;
-}
-
-async fn spawn_upstream(response: Vec<u8>) -> SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("upstream binds");
-    let address = listener.local_addr().expect("upstream address");
-    tokio::spawn(serve_once(listener, response));
-    address
-}
-
 /// Reassemble a chunked body from a raw response carried across the tunnel.
 fn dechunk(raw: &str) -> String {
-    let (_head, rest) = raw.split_once("\r\n\r\n").expect("response head");
+    let (_head, mut rest) = raw.split_once("\r\n\r\n").expect("response head");
     let mut body = String::new();
-    let mut rest = rest;
     loop {
         let Some((size_line, after)) = rest.split_once("\r\n") else {
             panic!("chunked stream broke off at: {rest:?}");
@@ -103,50 +65,81 @@ fn dechunk(raw: &str) -> String {
 }
 
 /// The phone's exact call sequence: connect, write the request, read to
-/// EOF, close. Runs on a blocking thread because the wrapper is blocking.
-fn read_response(phone: &MobileBridge, node_hex: &str, lane: Lane, request: &[u8]) -> String {
+/// EOF under per-call deadlines, shutdown. Runs on plain threads because
+/// the wrapper is blocking and refuses runtime-thread callers.
+fn read_response(
+    phone: &MobileBridge,
+    node_hex: &str,
+    lane: Lane,
+    request: &[u8],
+) -> String {
     let tunnel = phone
         .connect(node_hex.to_string(), lane)
         .expect("tunnel opens");
-    tunnel.write(request.to_vec()).expect("request written");
+    tunnel
+        .write(request.to_vec(), 30_000)
+        .expect("request written");
     let mut raw = Vec::new();
     loop {
-        let bytes = tunnel.read(8192).expect("tunnel read");
+        let bytes = tunnel.read(8192, 30_000).expect("tunnel read");
         if bytes.is_empty() {
             break;
         }
         raw.extend_from_slice(&bytes);
     }
-    tunnel.close();
+    tunnel.shutdown();
     String::from_utf8(raw).expect("utf-8")
+}
+
+/// A read that outlives its deadline answers Deadline, not a hang — the
+/// per-call deadline is this side's own bound, the upstream's silence
+/// notwithstanding.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_read_that_never_gets_bytes_answers_deadline() {
+    let dir = temp_dir("read-deadline");
+    let door = spawn_upstream(Upstream::Silent).await;
+    let book = AddressBook::new();
+    let desktop = support::desktop_bridge(&dir, &book, door, None).await;
+    let desktop_hex = desktop.node_id().to_string();
+    let phone_key = dir.join("phone.key");
+
+    let outcome = std::thread::spawn(move || {
+        let phone = MobileBridge::for_tests(phone_key, &book).expect("phone bridge starts");
+        let tunnel = phone
+            .connect(desktop_hex, Lane::Door)
+            .expect("tunnel opens");
+        let started = std::time::Instant::now();
+        (started.elapsed(), tunnel.read(8192, 300))
+    })
+    .join()
+    .expect("plain thread runs");
+    assert!(
+        matches!(outcome.1, Err(kalsa_iroh_mobile::IrohMobileError::Deadline)),
+        "a silent upstream must answer Deadline"
+    );
+    assert!(
+        outcome.0 < std::time::Duration::from_secs(5),
+        "the deadline fired at {:?}, not when the caller set it",
+        outcome.0
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn both_lanes_carry_http_through_the_tunnel() {
-    let dir = temp_dir("lanes");
+    let dir: PathBuf = temp_dir("lanes");
     let book = AddressBook::new();
 
-    let door_addr = spawn_upstream(chunked_door_response()).await;
-    let desk_addr = spawn_upstream(chunked_sse_desk_response()).await;
-
-    let desktop = Bridge::start(
-        BridgeConfig::new(door_addr)
-            .with_desk(desk_addr)
-            .with_relay(RelayChoice::Disabled)
-            .with_address_book(book.clone()),
-        &dir.join("desktop.key"),
-    )
-    .await
-    .expect("desktop bridge starts");
+    let door = spawn_upstream(Upstream::Respond(chunked_door_response())).await;
+    let desk = spawn_upstream(Upstream::Respond(chunked_sse_desk_response())).await;
+    let desktop = support::desktop_bridge(&dir, &book, door, Some(desk)).await;
     let desktop_hex = desktop.node_id().to_string();
-
-    // The phone bridge starts its own runtime, so it is born on the
-    // blocking pool too — never inside this test's async context.
     let phone_key = dir.join("phone.key");
-    let phone_book = book.clone();
+
     let (door_response, desk_response) =
-        tokio::task::spawn_blocking(move || {
-            let phone = MobileBridge::for_tests(phone_key, &phone_book)
+        std::thread::spawn(move || {
+            let phone = MobileBridge::for_tests(phone_key, &book)
                 .expect("phone bridge starts");
             let door = read_response(
                 &phone,
@@ -163,8 +156,8 @@ async fn both_lanes_carry_http_through_the_tunnel() {
             );
             (door, desk)
         })
-        .await
-        .expect("blocking client runs");
+        .join()
+        .expect("plain thread runs");
 
     assert!(
         door_response.starts_with("HTTP/1.1 200 OK"),
@@ -177,7 +170,7 @@ async fn both_lanes_carry_http_through_the_tunnel() {
     assert_eq!(
         dechunk(&door_response),
         "kalsa-roundtrip!",
-        "both chunks must survive the tunnel: {door_response}"
+        "both chunks must survive the tunnel"
     );
 
     assert!(
@@ -187,10 +180,7 @@ async fn both_lanes_carry_http_through_the_tunnel() {
     let desk_body = dechunk(&desk_response);
     let offer = desk_body.find("data: offer-abc").expect("the offer event");
     let complete = desk_body.find("data: complete-def").expect("the complete event");
-    assert!(
-        offer < complete,
-        "the desk's events must arrive in order: {desk_body}"
-    );
+    assert!(offer < complete, "the desk's events must arrive in order");
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -200,7 +190,8 @@ async fn a_mistyped_node_hex_is_a_typed_error_not_a_panic() {
     let dir = temp_dir("badhex");
     let book = AddressBook::new();
     let phone_key = dir.join("phone.key");
-    let attempts = tokio::task::spawn_blocking(move || {
+
+    let attempts = std::thread::spawn(move || {
         let phone = MobileBridge::for_tests(phone_key, &book)
             .expect("phone bridge starts");
         vec![
@@ -208,8 +199,8 @@ async fn a_mistyped_node_hex_is_a_typed_error_not_a_panic() {
             phone.connect("z".repeat(64), Lane::Door),
         ]
     })
-    .await
-    .expect("blocking client runs");
+    .join()
+    .expect("plain thread runs");
 
     for attempt in attempts {
         let error = attempt

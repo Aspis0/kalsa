@@ -1,0 +1,4 @@
+# Android loads .so files at 16 KB page granularity; the linker flag lives
+# here so no build has to remember it.
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]

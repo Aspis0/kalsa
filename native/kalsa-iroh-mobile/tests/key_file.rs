@@ -4,17 +4,12 @@
 //! reload-same-identity are proven here, against a real file on disk.
 
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
 
 use kalsa_iroh::AddressBook;
 use kalsa_iroh_mobile::MobileBridge;
 
-fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir()
-        .join(format!("kalsa-iroh-mobile-key-{}-{tag}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("temp dir creates");
-    dir
-}
+mod support;
+use support::temp_dir;
 
 #[test]
 fn the_key_file_is_created_owner_only_and_reloaded_as_the_same_identity() {
@@ -43,6 +38,19 @@ fn the_key_file_is_created_owner_only_and_reloaded_as_the_same_identity() {
         "a reload must keep the node's identity"
     );
 
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The production constructor, on the real relay preset: binding the
+/// endpoint is local work and answers fast — measured ~60 ms — so no
+/// network dependency of the constructor can park the app at startup.
+/// (The dial itself needs the network; that is `connect`'s business.)
+#[test]
+fn the_production_constructor_starts_quickly() {
+    let dir = temp_dir("n0");
+    let bridge = MobileBridge::new(dir.join("phone.key").to_string_lossy().into_owned())
+        .expect("the N0Public bridge starts");
+    assert_eq!(bridge.node_id().len(), 64, "node id is 64 hex characters");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

@@ -679,9 +679,9 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_kalsa_iroh_mobile_checksum_method_mobilebridge_node_id(
     ): Int
-    external fun uniffi_kalsa_iroh_mobile_checksum_method_tunnel_close(
-    ): Int
     external fun uniffi_kalsa_iroh_mobile_checksum_method_tunnel_read(
+    ): Int
+    external fun uniffi_kalsa_iroh_mobile_checksum_method_tunnel_shutdown(
     ): Int
     external fun uniffi_kalsa_iroh_mobile_checksum_method_tunnel_write(
     ): Int
@@ -721,11 +721,11 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_kalsa_iroh_mobile_fn_free_tunnel(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_close(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_read(`ptr`: Long,`max`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_read(`ptr`: Long,`max`: Int,`timeoutMs`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_write(`ptr`: Long,`bytes`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_shutdown(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_kalsa_iroh_mobile_fn_method_tunnel_write(`ptr`: Long,`bytes`: RustBuffer.ByValue,`timeoutMs`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun ffi_kalsa_iroh_mobile_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -846,22 +846,22 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_mobilebridge_connect() and 0xFFFF) != 4341) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_mobilebridge_connect() and 0xFFFF) != 11797) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_mobilebridge_node_id() and 0xFFFF) != 40915) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_close() and 0xFFFF) != 24558) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_read() and 0xFFFF) != 30116) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_read() and 0xFFFF) != 50054) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_shutdown() and 0xFFFF) != 52378) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_write() and 0xFFFF) != 28600) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_method_tunnel_write() and 0xFFFF) != 20757) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_kalsa_iroh_mobile_checksum_constructor_mobilebridge_new() and 0xFFFF) != 61032) {
+    if ((lib.uniffi_kalsa_iroh_mobile_checksum_constructor_mobilebridge_new() and 0xFFFF) != 15946) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1219,9 +1219,10 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
 public interface MobileBridgeInterface {
     
     /**
-     * Open one tunnel to the remote node, under the dial deadline. Reads
-     * and writes on the returned tunnel answer `Deadline` when the peer
-     * goes silent longer than brain's idle deadline.
+     * Open one tunnel to the remote node, under brain's dial deadline.
+     * Reads and writes on the returned tunnel are bounded by the
+     * deadlines the caller passes each call; this side trusts no
+     * silence, because keepalives can keep a dead connection open.
      */
     fun `connect`(`nodeHex`: kotlin.String, `lane`: Lane): Tunnel
     
@@ -1263,7 +1264,8 @@ open class MobileBridge: Disposable, AutoCloseable, MobileBridgeInterface
      * already exist; on Android the app passes
      * `<Context.filesDir>/iroh-node.key` — and bind the endpoint. The
      * phone is dial-only, so the door address is the placeholder a
-     * dialer's accept loop would never use.
+     * dialer's accept loop would never use. The dial itself is bounded
+     * by brain's 10 s dial deadline.
      */
     constructor(`keyPath`: kotlin.String) :
         this(UniffiWithHandle, 
@@ -1353,9 +1355,10 @@ open class MobileBridge: Disposable, AutoCloseable, MobileBridgeInterface
 
     
     /**
-     * Open one tunnel to the remote node, under the dial deadline. Reads
-     * and writes on the returned tunnel answer `Deadline` when the peer
-     * goes silent longer than brain's idle deadline.
+     * Open one tunnel to the remote node, under brain's dial deadline.
+     * Reads and writes on the returned tunnel are bounded by the
+     * deadlines the caller passes each call; this side trusts no
+     * silence, because keepalives can keep a dead connection open.
      */
     @Throws(IrohMobileException::class)override fun `connect`(`nodeHex`: kotlin.String, `lane`: Lane): Tunnel {
             return FfiConverterTypeTunnel.lift(
@@ -1526,25 +1529,28 @@ public object FfiConverterTypeMobileBridge: FfiConverter<MobileBridge, Long> {
 public interface TunnelInterface {
     
     /**
+     * One read of at most `max` bytes under this call's own deadline; an
+     * empty return is EOF. A single call returns whatever arrived, so
+     * callers loop until empty — that is what keeps a streamed SSE body
+     * incremental. Shutdown, or the bridge's drop closing the endpoint,
+     * cancels a parked read and answers `Closed`.
+     */
+    fun `read`(`max`: kotlin.UInt, `timeoutMs`: kotlin.UInt): kotlin.ByteArray
+    
+    /**
      * Half-close the write side: the peer sees an ending, not a reset.
-     * Waits out any in-flight read (bounded by the idle deadline), then
-     * marks the tunnel closed — later reads and writes answer `Closed`.
-     * Idempotent; a failing shutdown means the transport is already gone.
+     * Cancels parked reads and writes (they answer `Closed`) without
+     * waiting for them, and is idempotent.
      */
-    fun `close`()
+    fun `shutdown`()
     
     /**
-     * One read of at most `max` bytes; an empty return is EOF. A single
-     * call returns whatever arrived, so callers loop until empty — that
-     * is what keeps a streamed SSE body incremental.
+     * Write every byte, flushed before returning, under this call's own
+     * deadline — nothing on this side waits on the peer's goodwill.
+     * A write that times out closes the tunnel: the stream's state
+     * after a partial write is not knowable.
      */
-    fun `read`(`max`: kotlin.UInt): kotlin.ByteArray
-    
-    /**
-     * Write every byte, flushed before returning. Bounded by brain's
-     * idle deadline, not by the peer's goodwill.
-     */
-    fun `write`(`bytes`: kotlin.ByteArray)
+    fun `write`(`bytes`: kotlin.ByteArray, `timeoutMs`: kotlin.UInt)
     
     companion object
 }
@@ -1652,15 +1658,37 @@ open class Tunnel: Disposable, AutoCloseable, TunnelInterface
 
     
     /**
+     * One read of at most `max` bytes under this call's own deadline; an
+     * empty return is EOF. A single call returns whatever arrived, so
+     * callers loop until empty — that is what keeps a streamed SSE body
+     * incremental. Shutdown, or the bridge's drop closing the endpoint,
+     * cancels a parked read and answers `Closed`.
+     */
+    @Throws(IrohMobileException::class)override fun `read`(`max`: kotlin.UInt, `timeoutMs`: kotlin.UInt): kotlin.ByteArray {
+            return FfiConverterByteArray.lift(
+    callWithHandle {
+    uniffiRustCallWithError(IrohMobileException) { _status ->
+    UniffiLib.uniffi_kalsa_iroh_mobile_fn_method_tunnel_read(
+        it,
+        
+        FfiConverterUInt.lower(`max`),
+        FfiConverterUInt.lower(`timeoutMs`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Half-close the write side: the peer sees an ending, not a reset.
-     * Waits out any in-flight read (bounded by the idle deadline), then
-     * marks the tunnel closed — later reads and writes answer `Closed`.
-     * Idempotent; a failing shutdown means the transport is already gone.
-     */override fun `close`()
+     * Cancels parked reads and writes (they answer `Closed`) without
+     * waiting for them, and is idempotent.
+     */override fun `shutdown`()
         = 
     callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_kalsa_iroh_mobile_fn_method_tunnel_close(
+    UniffiLib.uniffi_kalsa_iroh_mobile_fn_method_tunnel_shutdown(
         it,
         _status)
 }
@@ -1670,37 +1698,20 @@ open class Tunnel: Disposable, AutoCloseable, TunnelInterface
 
     
     /**
-     * One read of at most `max` bytes; an empty return is EOF. A single
-     * call returns whatever arrived, so callers loop until empty — that
-     * is what keeps a streamed SSE body incremental.
+     * Write every byte, flushed before returning, under this call's own
+     * deadline — nothing on this side waits on the peer's goodwill.
+     * A write that times out closes the tunnel: the stream's state
+     * after a partial write is not knowable.
      */
-    @Throws(IrohMobileException::class)override fun `read`(`max`: kotlin.UInt): kotlin.ByteArray {
-            return FfiConverterByteArray.lift(
-    callWithHandle {
-    uniffiRustCallWithError(IrohMobileException) { _status ->
-    UniffiLib.uniffi_kalsa_iroh_mobile_fn_method_tunnel_read(
-        it,
-        
-        FfiConverterUInt.lower(`max`),_status)
-}
-    }
-    )
-    }
-    
-
-    
-    /**
-     * Write every byte, flushed before returning. Bounded by brain's
-     * idle deadline, not by the peer's goodwill.
-     */
-    @Throws(IrohMobileException::class)override fun `write`(`bytes`: kotlin.ByteArray)
+    @Throws(IrohMobileException::class)override fun `write`(`bytes`: kotlin.ByteArray, `timeoutMs`: kotlin.UInt)
         = 
     callWithHandle {
     uniffiRustCallWithError(IrohMobileException) { _status ->
     UniffiLib.uniffi_kalsa_iroh_mobile_fn_method_tunnel_write(
         it,
         
-        FfiConverterByteArray.lower(`bytes`),_status)
+        FfiConverterByteArray.lower(`bytes`),
+        FfiConverterUInt.lower(`timeoutMs`),_status)
 }
     }
     
@@ -1759,10 +1770,10 @@ sealed class IrohMobileException: kotlin.Exception() {
      */
     class Io(
         
-        val `message`: kotlin.String
+        val `detail`: kotlin.String
         ) : IrohMobileException() {
         override val message
-            get() = "message=${ `message` }"
+            get() = "detail=${ `detail` }"
     }
     
     /**
@@ -1775,15 +1786,15 @@ sealed class IrohMobileException: kotlin.Exception() {
     }
     
     /**
-     * The stored node key violates its own structure. The message names
+     * The stored node key violates its own structure. The detail names
      * the shape of the corruption, never the key.
      */
     class KeyCorrupt(
         
-        val `message`: kotlin.String
+        val `detail`: kotlin.String
         ) : IrohMobileException() {
         override val message
-            get() = "message=${ `message` }"
+            get() = "detail=${ `detail` }"
     }
     
     /**
@@ -1800,14 +1811,14 @@ sealed class IrohMobileException: kotlin.Exception() {
      */
     class Config(
         
-        val `message`: kotlin.String
+        val `detail`: kotlin.String
         ) : IrohMobileException() {
         override val message
-            get() = "message=${ `message` }"
+            get() = "detail=${ `detail` }"
     }
     
     /**
-     * The dial or the idle deadline fired.
+     * A deadline the caller set (or the dial deadline) fired.
      */
     class Deadline(
         ) : IrohMobileException() {
@@ -1825,14 +1836,24 @@ sealed class IrohMobileException: kotlin.Exception() {
     }
     
     /**
+     * The call was made from inside an async runtime thread; park it on
+     * a plain thread instead.
+     */
+    class AsyncContext(
+        ) : IrohMobileException() {
+        override val message
+            get() = ""
+    }
+    
+    /**
      * The transport refused or dropped the attempt.
      */
     class Transport(
         
-        val `message`: kotlin.String
+        val `detail`: kotlin.String
         ) : IrohMobileException() {
         override val message
-            get() = "message=${ `message` }"
+            get() = "detail=${ `detail` }"
     }
     
 
@@ -1867,7 +1888,8 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
                 )
             6 -> IrohMobileException.Deadline()
             7 -> IrohMobileException.Closed()
-            8 -> IrohMobileException.Transport(
+            8 -> IrohMobileException.AsyncContext()
+            9 -> IrohMobileException.Transport(
                 FfiConverterString.read(buf),
                 )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
@@ -1879,7 +1901,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
             is IrohMobileException.Io -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.`message`)
+                + FfiConverterString.allocationSize(value.`detail`)
             )
             is IrohMobileException.Entropy -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
@@ -1888,7 +1910,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
             is IrohMobileException.KeyCorrupt -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.`message`)
+                + FfiConverterString.allocationSize(value.`detail`)
             )
             is IrohMobileException.InvalidNodeHex -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
@@ -1897,7 +1919,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
             is IrohMobileException.Config -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.`message`)
+                + FfiConverterString.allocationSize(value.`detail`)
             )
             is IrohMobileException.Deadline -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
@@ -1907,10 +1929,14 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
+            is IrohMobileException.AsyncContext -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
             is IrohMobileException.Transport -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.`message`)
+                + FfiConverterString.allocationSize(value.`detail`)
             )
         }
     }
@@ -1919,7 +1945,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
         when(value) {
             is IrohMobileException.Io -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.`message`, buf)
+                FfiConverterString.write(value.`detail`, buf)
                 Unit
             }
             is IrohMobileException.Entropy -> {
@@ -1928,7 +1954,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
             }
             is IrohMobileException.KeyCorrupt -> {
                 buf.putInt(3)
-                FfiConverterString.write(value.`message`, buf)
+                FfiConverterString.write(value.`detail`, buf)
                 Unit
             }
             is IrohMobileException.InvalidNodeHex -> {
@@ -1937,7 +1963,7 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
             }
             is IrohMobileException.Config -> {
                 buf.putInt(5)
-                FfiConverterString.write(value.`message`, buf)
+                FfiConverterString.write(value.`detail`, buf)
                 Unit
             }
             is IrohMobileException.Deadline -> {
@@ -1948,9 +1974,13 @@ public object FfiConverterTypeIrohMobileError : FfiConverterRustBuffer<IrohMobil
                 buf.putInt(7)
                 Unit
             }
-            is IrohMobileException.Transport -> {
+            is IrohMobileException.AsyncContext -> {
                 buf.putInt(8)
-                FfiConverterString.write(value.`message`, buf)
+                Unit
+            }
+            is IrohMobileException.Transport -> {
+                buf.putInt(9)
+                FfiConverterString.write(value.`detail`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
