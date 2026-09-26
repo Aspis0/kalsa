@@ -11,9 +11,11 @@
 //! the door still owns authentication.
 
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
-use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, NodeId, NodeKey, RelayChoice};
+use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, Lane, NodeId, NodeKey, RelayChoice};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -97,7 +99,10 @@ async fn bridge_to(door: SocketAddr, book: &AddressBook) -> Bridge {
 }
 
 async fn exchange(bridge: &Bridge, target: &NodeId, credential: &str) -> String {
-    let mut tunnel = bridge.connect(*target).await.expect("tunnel opens");
+    let mut tunnel = bridge
+        .connect(*target, Lane::Door)
+        .await
+        .expect("tunnel opens");
     let request = format!(
         "GET /v1/models HTTP/1.1\r\nHost: kalsa\r\n\
          Authorization: Bearer {credential}\r\nConnection: close\r\n\r\n"
@@ -149,6 +154,153 @@ async fn the_full_loop_carries_http_through_the_tunnel_and_the_door() {
     assert!(
         refused.starts_with("HTTP/1.1 401"),
         "the door must refuse a wrong credential through the tunnel: {refused}"
+    );
+}
+
+/// A stand-in desk: it counts every connection that reaches it and answers
+/// one request with a marker no door would ever produce.
+async fn stub_desk(listener: TcpListener, hits: Arc<AtomicUsize>) {
+    loop {
+        let Ok((mut socket, _)) = listener.accept().await else {
+            return;
+        };
+        hits.fetch_add(1, Ordering::SeqCst);
+        tokio::spawn(async move {
+            let mut buffer = vec![0u8; 4096];
+            let mut head = Vec::new();
+            loop {
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => {
+                        head.extend_from_slice(&buffer[..n]);
+                        if head.windows(4).any(|window| window == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                }
+            }
+            let answer = b"HTTP/1.1 200 OK\r\nContent-Length: 20\r\nConnection: close\r\n\r\n{\"from\":\"desk-stub\"}";
+            let _ = socket.write_all(answer).await;
+            let _ = socket.shutdown().await;
+        });
+    }
+}
+
+/// The desk's own lane, both halves of the routing claim: a desk stream is
+/// answered by the desk (never by the door), and a door stream leaves the
+/// desk's counter untouched (never reaches it).
+#[tokio::test(flavor = "multi_thread")]
+async fn the_desk_lane_reaches_the_desk_and_the_lanes_never_cross() {
+    let _upstream = upstream_guard().await;
+    let door_listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door listener binds");
+    let running_door =
+        kalsa_door::Door::new(door_listener, _upstream.1.port(), one_device(CREDENTIAL), 1)
+            .expect("door builds")
+            .start()
+            .expect("door starts");
+
+    let desk_listener = TcpListener::bind("127.0.0.1:0").await.expect("desk binds");
+    let desk_addr = desk_listener.local_addr().expect("desk address");
+    let hits = Arc::new(AtomicUsize::new(0));
+    let _desk = TaskGuard(tokio::spawn(stub_desk(desk_listener, Arc::clone(&hits))));
+
+    let book = AddressBook::new();
+    let server_key = NodeKey::generate().expect("entropy");
+    let server = Bridge::start_with_key(
+        BridgeConfig::new(running_door.address())
+            .with_desk(desk_addr)
+            .with_relay(RelayChoice::Disabled)
+            .with_address_book(book.clone()),
+        &server_key,
+    )
+    .await
+    .expect("bridge starts");
+    let client = bridge_to(running_door.address(), &book).await;
+
+    // The desk lane, end to end: this answer can only have come from the
+    // desk — a door in the path would answer with door-shaped HTTP instead.
+    let mut tunnel = client
+        .connect(server.node_id(), Lane::Desk)
+        .await
+        .expect("desk lane opens");
+    let request = b"POST /pair/claim HTTP/1.1\r\nHost: kalsa\r\nContent-Length: 2\r\n\r\n{}";
+    tunnel
+        .write_all(request)
+        .await
+        .expect("desk request written");
+    tunnel.flush().await.expect("request flushed");
+    let mut answer = Vec::new();
+    tunnel.read_to_end(&mut answer).await.expect("desk answers");
+    let answer = String::from_utf8(answer).expect("utf-8");
+    assert!(
+        answer.contains("{\"from\":\"desk-stub\"}"),
+        "the desk stream must be answered by the desk, not the door: {answer}"
+    );
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        1,
+        "the desk stream reached the desk exactly once"
+    );
+
+    // The door lane on the same endpoints: the door answers, and the
+    // desk's counter does not move — a door stream never reaches the desk.
+    let response = exchange(&client, &server.node_id(), CREDENTIAL).await;
+    assert!(
+        response.starts_with("HTTP/1.1 200 OK"),
+        "expected the door's answer, got: {response}"
+    );
+    assert_eq!(
+        hits.load(Ordering::SeqCst),
+        1,
+        "the door lane must never reach the desk"
+    );
+}
+
+/// The desk lane with no desk behind it refuses cleanly: bounded, carrying
+/// nothing — never a hang, and never the door answering in the desk's
+/// place. The door lane itself is untouched by the refusal.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_desk_lane_with_no_desk_carries_nothing() {
+    let _upstream = upstream_guard().await;
+    let door_listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door listener binds");
+    let running_door =
+        kalsa_door::Door::new(door_listener, _upstream.1.port(), one_device(CREDENTIAL), 1)
+            .expect("door builds")
+            .start()
+            .expect("door starts");
+
+    let book = AddressBook::new();
+    let server = bridge_to(running_door.address(), &book).await;
+    let client = bridge_to(running_door.address(), &book).await;
+
+    let carried = tokio::time::timeout(Duration::from_secs(5), async {
+        match client.connect(server.node_id(), Lane::Desk).await {
+            // Refused before a stream existed, or handed a stream the
+            // server closed instead of forwarding: either way, nothing.
+            Err(_) => Vec::new(),
+            Ok(mut stream) => {
+                let _ = stream
+                    .write_all(b"POST /pair/claim HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}")
+                    .await;
+                let _ = stream.flush().await;
+                let mut back = Vec::new();
+                let _ = stream.read_to_end(&mut back).await;
+                back
+            }
+        }
+    })
+    .await
+    .expect("the refusal is bounded, never a hang");
+    assert!(
+        carried.is_empty(),
+        "a desk lane with no desk must carry nothing: {}",
+        String::from_utf8_lossy(&carried)
+    );
+
+    let response = exchange(&client, &server.node_id(), CREDENTIAL).await;
+    assert!(
+        response.starts_with("HTTP/1.1 200 OK"),
+        "the door must still answer after a refused desk lane: {response}"
     );
 }
 

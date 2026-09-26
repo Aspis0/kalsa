@@ -119,6 +119,32 @@ relay infrastructure (`:160`) still runs both endpoints in one process — it
 pretends the internet, it does not cross one. What is missing is a harness with two
 real endpoints on two real networks.
 
+### What is possible now: the desk over iroh
+
+The endpoint accepts a second ALPN, `kalsa/pair-desk/1`, and routes streams
+carrying it to the pairing desk's bound loopback socket while door streams
+(`kalsa/door-tunnel/1`) still go to the door — one ALPN per QUIC connection,
+so the lanes cannot cross, and `crates/kalsa-iroh/tests/roundtrip.rs` pins
+all three claims: a desk stream is answered by the desk, a door stream
+leaves the desk untouched, and a desk lane with no desk behind it refuses
+cleanly instead of hanging. A phone with the node id from the square can now
+`POST /pair/claim` and `/pair/complete` over the road it will later chat on.
+
+What the lane opens is gated only by the desk itself, and that is worth
+saying plainly: while the road is on, anyone who knows the node id can reach
+the ceremony's two endpoints. Wrong code, absent offer, spent completion —
+one uniform 403, the session unchanged by a miss; the protection is the
+128-bit one-time code inside its two-minute window, compared in constant
+time, not the tunnel. No lockout exists, and none was added: the attempts
+are bounded in throughput by the desk's acceptor (four workers, an
+eight-deep queue, twelve sockets), not in count, and 2^128 guesses against a
+two-minute window is not the threat being managed.
+
+Still unproven, and unchanged: none of this has ever crossed a mobile
+network. The tests above run both endpoints in one process over loopback
+with relays disabled — they prove the routing and the refusal, nothing
+about NAT, relays, or a SIM.
+
 ## 5. What happens when the route dies mid-answer — the door decided, and this list did not notice
 
 The road measurement that opened this section still stands: five unreachable

@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use kalsa_door::Door;
-use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, NodeKey, RelayChoice};
+use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, Lane, NodeKey, RelayChoice};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -105,7 +105,10 @@ async fn a_stranger_past_its_budget_is_refused_and_the_owner_is_not() {
     // the move has to be re-approved here.
     let mut held = Vec::new();
     for _ in 0..2 {
-        let mut stream = stranger.connect(target).await.expect("stranger dials");
+        let mut stream = stranger
+            .connect(target, Lane::Door)
+            .await
+            .expect("stranger dials");
         hold_open(&mut stream).await;
         held.push(stream);
     }
@@ -113,7 +116,10 @@ async fn a_stranger_past_its_budget_is_refused_and_the_owner_is_not() {
     // One stream past the ceiling: refused at the road. From the phone it
     // is a tunnel that closes at once — never a forwarded chance to hold a
     // door slot, and never a response, for the door never saw it.
-    let mut extra = stranger.connect(target).await.expect("stranger dials again");
+    let mut extra = stranger
+        .connect(target, Lane::Door)
+        .await
+        .expect("stranger dials again");
     extra
         .write_all(b"POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\r\n")
         .await
@@ -142,7 +148,10 @@ async fn a_stranger_past_its_budget_is_refused_and_the_owner_is_not() {
     )
     .await
     .expect("owner bridge starts");
-    let mut stream = owner.connect(target).await.expect("owner dials");
+    let mut stream = owner
+        .connect(target, Lane::Door)
+        .await
+        .expect("owner dials");
     stream
         .write_all(
             format!(

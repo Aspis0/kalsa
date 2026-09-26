@@ -82,6 +82,11 @@ struct Brain {
     /// opened beside it, closed by `stop_door`. Its failures are the road's
     /// own — the door does not answer for them.
     road: Arc<road::Road>,
+    /// The pairing desk's bound loopback address — the port the listener
+    /// actually bound (it falls back to a random one), never the
+    /// preferred-port constant. Set once beside the `Desk` at startup; the
+    /// road carries it so the desk lane lands on the socket that serves.
+    desk_address: Mutex<Option<SocketAddr>>,
     /// One walk at a time: a second press while the first is still deciding,
     /// downloading or starting must not start a second of anything.
     turning_on: AtomicBool,
@@ -291,6 +296,7 @@ impl Brain {
             engine: Mutex::new(None),
             metrics,
             road: Arc::new(road::Road::new()),
+            desk_address: Mutex::new(None),
             measurement: Mutex::new(None),
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
@@ -324,6 +330,19 @@ impl Brain {
             road::RoadState::Open { node_id } => Some(node_id),
             _ => None,
         }
+    }
+
+    /// Record the desk's address as its listener bound it — once, beside
+    /// the `Desk` itself. `None` until then: no desk lane, which the bridge
+    /// refuses rather than misroutes.
+    fn set_desk_address(&self, address: SocketAddr) {
+        if let Ok(mut desk) = self.desk_address.lock() {
+            *desk = Some(address);
+        }
+    }
+
+    fn desk_address(&self) -> Option<SocketAddr> {
+        self.desk_address.lock().ok().and_then(|held| *held)
     }
 
     fn stop_door(&self) {
@@ -669,7 +688,12 @@ impl Brain {
                 // a port reconstructed from elsewhere. A road that cannot open
                 // says so in the panel and leaves the door standing.
                 if internet_road {
-                    road::open(&self.road, address, road::key_path(file));
+                    road::open(
+                        &self.road,
+                        address,
+                        self.desk_address(),
+                        road::key_path(file),
+                    );
                 }
             }
         }
@@ -782,7 +806,12 @@ impl Brain {
                     _ => false,
                 };
                 if retryable {
-                    road::open(&self.road, address, road::key_path(pairing_file));
+                    road::open(
+                        &self.road,
+                        address,
+                        self.desk_address(),
+                        road::key_path(pairing_file),
+                    );
                 }
             }
             (true, None) => {}
@@ -1783,7 +1812,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // not an empty pairing state: `?` aborts the hook, and tauri
             // turns that into a loud panic on the event loop rather than a
             // QR that cannot work.
-            app.manage(pairing_desk(file)?);
+            let desk = pairing_desk(file)?;
+            // The road takes the desk's bound port — it may have fallen
+            // back to a random one — so its desk lane lands on the socket
+            // that actually serves.
+            let desk_address = SocketAddr::from(([127, 0, 0, 1], desk.listener.port()));
+            app.manage(desk);
+            app.state::<Brain>().set_desk_address(desk_address);
             // The disk tier's tick, on a thread of its own and with a `Weak` to
             // the door slot: it runs while this window is an icon — the phone's
             // case, and the one the webview's poll degraded in — and it holds no

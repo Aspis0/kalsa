@@ -24,7 +24,7 @@
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 
-use kalsa_iroh::{Bridge, BridgeConfig, NodeId, NodeKey, RelayChoice};
+use kalsa_iroh::{Bridge, BridgeConfig, Lane, NodeId, NodeKey, RelayChoice};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// How many sequential round trips make the timing sample. Each one is a
@@ -42,7 +42,10 @@ const REQUEST: &[u8] = b"GET /v1/models HTTP/1.1\r\nHost: kalsa\r\nConnection: c
 
 async fn round_trip(bridge: &Bridge, remote: NodeId) -> Result<(u16, Duration), String> {
     let started = Instant::now();
-    let mut tunnel = bridge.connect(remote).await.map_err(|e| e.to_string())?;
+    let mut tunnel = bridge
+        .connect(remote, Lane::Door)
+        .await
+        .map_err(|e| e.to_string())?;
     tunnel
         .write_all(REQUEST)
         .await
@@ -102,7 +105,10 @@ async fn run() -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     let started = Instant::now();
-    let first = bridge.connect(remote).await.map_err(|e| e.to_string())?;
+    let first = bridge
+        .connect(remote, Lane::Door)
+        .await
+        .map_err(|e| e.to_string())?;
     drop(first);
     println!(
         "first connected stream in {} ms",

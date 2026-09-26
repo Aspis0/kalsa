@@ -812,7 +812,10 @@ fn the_road_reaches_the_door_the_app_started() {
     let response: Vec<u8> = road::runtime().block_on(async {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let remote = node_id.parse().expect("the node id is 64 hex characters");
-        let mut stream = client.connect(remote).await.expect("the tunnel dials");
+        let mut stream = client
+            .connect(remote, kalsa_iroh::Lane::Door)
+            .await
+            .expect("the tunnel dials");
         let request = format!(
             "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
              Authorization: Bearer {credential}\r\nContent-Length: 0\r\n\

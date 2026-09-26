@@ -5,9 +5,11 @@
 //! The door on loopback never learns which road a request took. Tailscale
 //! Serve is the first road; this crate is the second. One endpoint here
 //! accepts iroh connections and, per accepted stream, opens one TCP
-//! connection to `127.0.0.1:<door>` and pumps bytes both ways until a side
-//! closes. There is no HTTP in this crate: the door already speaks it, and
-//! the tunnel is the confidentiality boundary, not this hop.
+//! connection — to `127.0.0.1:<door>`, or to the pairing desk when the
+//! stream negotiated the desk's ALPN — and pumps bytes both ways until a
+//! side closes. There is no HTTP in this crate: the door and the desk
+//! already speak it, and the tunnel is the confidentiality boundary, not
+//! this hop.
 //!
 //! Two rules shape everything:
 //!
@@ -37,7 +39,7 @@ mod key;
 mod pump;
 mod transport;
 
-pub use bridge::{Bridge, BridgeConfig, RelayChoice};
+pub use bridge::{Bridge, BridgeConfig, Lane, RelayChoice};
 pub use error::BridgeError;
 pub use key::{NodeId, NodeKey};
 pub use transport::{AddressBook, TunnelStream, STREAMS_PER_PEER};

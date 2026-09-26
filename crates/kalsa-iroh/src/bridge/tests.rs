@@ -2,7 +2,7 @@ use std::net::UdpSocket;
 use std::time::{Duration, Instant};
 
 use super::Bridge;
-use crate::bridge::{BridgeConfig, RelayChoice};
+use crate::bridge::{BridgeConfig, Lane, RelayChoice};
 use crate::key::NodeKey;
 use crate::transport::AddressBook;
 
@@ -37,7 +37,7 @@ async fn a_dead_peer_meets_our_deadline_not_iroh_s_silence() {
     let caller = bridge_with(&book, Duration::from_secs(2)).await;
 
     let start = Instant::now();
-    let outcome = caller.connect(stranger).await;
+    let outcome = caller.connect(stranger, Lane::Door).await;
     let elapsed = start.elapsed();
 
     let Err(error) = &outcome else {
@@ -62,7 +62,7 @@ async fn an_unknown_id_fails_closed() {
 
     let unknown = crate::NodeId::from_bytes([0x01; 32]);
     let returned =
-        tokio::time::timeout(Duration::from_secs(10), caller.connect(unknown)).await;
+        tokio::time::timeout(Duration::from_secs(10), caller.connect(unknown, Lane::Door)).await;
     let outcome = returned.expect("connect must return, not hang");
     let Err(error) = &outcome else {
         panic!("dialing an unresolvable id must fail");

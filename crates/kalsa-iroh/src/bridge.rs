@@ -1,14 +1,16 @@
-//! The public face of the crate: a bridge between one iroh endpoint and the
-//! loopback door.
+//! The public face of the crate: a bridge between one iroh endpoint and
+//! the loopback services behind it.
 //!
 //! The bridge is the whole production story in one type. `Bridge::start`
 //! loads (or mints) the node's key beside the pairing file, binds the
 //! endpoint, and starts the accept loop that forwards every accepted stream
-//! to the door on `127.0.0.1`. `node_id` hands back the 32 public bytes the
-//! pairing square carries. `connect` is the same road from the other side —
-//! dialing a peer by its 32 public bytes alone, under a deadline. Nothing
-//! here, in any signature, mentions the transport underneath; that is the
-//! one-file rule this crate exists to keep.
+//! to its loopback target — the door, or the pairing desk when the stream
+//! arrived under the desk's ALPN. `node_id` hands back the 32 public bytes
+//! the pairing square carries. `connect` is the same road from the other
+//! side — dialing a peer by its 32 public bytes alone, under a deadline,
+//! choosing [`Lane::Door`] or [`Lane::Desk`]. Nothing here, in any
+//! signature, mentions the transport underneath; that is the one-file rule
+//! this crate exists to keep.
 //!
 //! Two deadlines own this crate's behavior, because iroh does not supply
 //! any: the dial deadline (a published-but-dead peer blocks the transport
@@ -45,9 +47,23 @@ pub enum RelayChoice {
     Disabled,
 }
 
+/// Which loopback service a tunneled stream is for. The choice rides the
+/// connection's ALPN — one QUIC connection negotiates exactly one — so the
+/// lanes cannot cross: a door stream is never read by the desk, and a desk
+/// stream never reaches the door.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lane {
+    /// The authenticated door: chat and inference, the road as it was.
+    Door,
+    /// The pairing desk: claim and complete, so a phone can pair over the
+    /// road instead of only chat over it.
+    Desk,
+}
+
 /// Everything a bridge needs that is not a secret or a socket.
 pub struct BridgeConfig {
     door: SocketAddr,
+    desk: Option<SocketAddr>,
     dial_timeout: Duration,
     idle_timeout: Duration,
     relay: RelayChoice,
@@ -61,11 +77,23 @@ impl BridgeConfig {
     pub fn new(door: SocketAddr) -> Self {
         Self {
             door,
+            desk: None,
             dial_timeout: Duration::from_secs(10),
             idle_timeout: Duration::from_secs(30),
             relay: RelayChoice::default(),
             book: None,
         }
+    }
+
+    /// The pairing desk's loopback address — the port the listener
+    /// actually bound (it falls back to a random one), never the
+    /// preferred-port constant. Opening this lane makes the ceremony
+    /// reachable to anyone who knows the node id; what gates that is the
+    /// desk's own — a 128-bit one-time code in a two-minute window, one
+    /// uniform refusal for every rejection — not this tunnel.
+    pub fn with_desk(mut self, desk: SocketAddr) -> Self {
+        self.desk = Some(desk);
+        self
     }
 
     /// Replace the dial deadline (lookup, hole punching, handshake, stream).
@@ -125,14 +153,26 @@ impl Bridge {
                  not the door",
             ));
         }
+        if config.desk.is_some_and(|desk| !desk.ip().is_loopback()) {
+            return Err(BridgeError::Config(
+                "the desk address must be loopback: the tunnel is the confidentiality boundary, \
+                 not the desk",
+            ));
+        }
         let transport = Transport::bind(key, &config.relay, config.book.as_ref()).await?;
         transport.register_self(config.book.as_ref());
         let node_id = transport.node_id();
-        let (door, dial_timeout, idle_timeout) =
-            (config.door, config.dial_timeout, config.idle_timeout);
+        let (door, desk, dial_timeout, idle_timeout) = (
+            config.door,
+            config.desk,
+            config.dial_timeout,
+            config.idle_timeout,
+        );
         let loop_transport = transport.clone();
         let accept_loop = tokio::spawn(async move {
-            loop_transport.serve(door, dial_timeout, idle_timeout).await;
+            loop_transport
+                .serve(door, desk, dial_timeout, idle_timeout)
+                .await;
         });
         Ok(Self {
             transport,
@@ -151,10 +191,10 @@ impl Bridge {
     }
 
     /// One tunneled stream to `remote`, resolved from its 32 public bytes
-    /// alone, under the dial deadline. Reads and writes on the returned
-    /// stream carry the idle deadline.
-    pub async fn connect(&self, remote: NodeId) -> Result<TunnelStream, BridgeError> {
-        self.transport.dial(&remote, self.dial_timeout).await
+    /// alone, under the dial deadline, for the service [`Lane`] names.
+    /// Reads and writes on the returned stream carry the idle deadline.
+    pub async fn connect(&self, remote: NodeId, lane: Lane) -> Result<TunnelStream, BridgeError> {
+        self.transport.dial(&remote, lane, self.dial_timeout).await
     }
 
     /// The transports iroh currently knows for `remote`, in plain text —

@@ -218,9 +218,17 @@ impl Road {
 }
 
 /// Opens a road toward `door`, which must be the address the running door
-/// itself reported. The attempt runs on the shared runtime: the caller — a
-/// once-a-second poll — returns at once and reads the outcome when it lands.
-pub(crate) fn open(road: &Arc<Road>, door: SocketAddr, key_path: PathBuf) {
+/// itself reported, and — when the pairing listener has one — toward `desk`
+/// too, so the same endpoint carries the desk lane to the socket the desk
+/// actually bound (its port falls back to a random one). The attempt runs
+/// on a shared runtime: the caller — a once-a-second poll — returns at once
+/// and reads the outcome when it lands.
+pub(crate) fn open(
+    road: &Arc<Road>,
+    door: SocketAddr,
+    desk: Option<SocketAddr>,
+    key_path: PathBuf,
+) {
     let epoch = road.begin();
     let shaping = Shaping {
         relay: road.shaping.relay.clone(),
@@ -229,7 +237,14 @@ pub(crate) fn open(road: &Arc<Road>, door: SocketAddr, key_path: PathBuf) {
     runtime().spawn({
         let road = Arc::clone(road);
         async move {
-            let config = shaping.apply(kalsa_iroh::BridgeConfig::new(door));
+            let mut config = kalsa_iroh::BridgeConfig::new(door);
+            // The bound port, not the preferred one: the desk may have
+            // fallen back, and a lane aimed at the wrong socket is a lane
+            // that refuses every stream.
+            if let Some(desk) = desk {
+                config = config.with_desk(desk);
+            }
+            let config = shaping.apply(config);
             let attempt = tokio::time::timeout(OPEN_BUDGET, Bridge::start(config, &key_path)).await;
             let opened = match attempt {
                 Ok(Ok(bridge)) => Some(bridge),

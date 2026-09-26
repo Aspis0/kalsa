@@ -34,7 +34,7 @@ use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, Se
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::timeout_at;
 
-use crate::bridge::RelayChoice;
+use crate::bridge::{Lane, RelayChoice};
 use crate::error::BridgeError;
 use crate::key::{NodeId, NodeKey};
 use crate::pump;
@@ -42,6 +42,11 @@ use crate::pump;
 /// The application protocol tag of this tunnel. Bump when the framing
 /// changes; iroh refuses peers that do not answer this ALPN.
 const ALPN: &[u8] = b"kalsa/door-tunnel/1";
+
+/// The desk's tag, negotiated on its own connections. One QUIC connection
+/// carries exactly one ALPN, which makes this tag the routing between the
+/// two loopback services — the lanes cannot cross inside one endpoint.
+const DESK_ALPN: &[u8] = b"kalsa/pair-desk/1";
 
 /// How many tunneled streams one remote peer may hold toward the door at
 /// the same time. Stated honestly, this ceiling does NOT close the threat
@@ -65,7 +70,7 @@ pub(crate) struct PeerBudgets {
 
 impl PeerBudgets {
     /// One stream's worth of a peer's budget, or none when the peer is at
-    /// its ceiling — the stream is then dropped unopened toward the door,
+    /// its ceiling — the stream is then dropped unopened toward its target,
     /// which from the phone is a tunnel that closes at once.
     fn acquire(&self, peer: &NodeId) -> Option<StreamPermit> {
         let mut in_flight = self.in_flight.lock().ok()?;
@@ -143,8 +148,8 @@ impl AddressBook {
 }
 
 /// One tunneled connection: the two half-streams of a QUIC connection,
-/// presented as an ordinary tokio duplex. The door's HTTP flows through
-/// this unchanged.
+/// presented as an ordinary tokio duplex. The door's HTTP — and the
+/// desk's — flows through this unchanged.
 pub struct TunnelStream {
     send: iroh::endpoint::SendStream,
     recv: iroh::endpoint::RecvStream,
@@ -219,7 +224,7 @@ impl Transport {
             builder = builder.address_lookup(book.inner.clone());
         }
         let endpoint = builder
-            .alpns(vec![ALPN.to_vec()])
+            .alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()])
             .secret_key(SecretKey::from_bytes(&key.to_bytes()))
             .bind()
             .await
@@ -291,19 +296,23 @@ impl Transport {
     }
 
     /// Open one tunneled stream to a remote node, resolved by its 32 public
-    /// bytes alone. `deadline` covers the whole dial — lookup, hole
-    /// punching, handshake, stream open — because iroh itself would wait
-    /// indefinitely on a published-but-dead peer (measured: 25 seconds of
-    /// silence and counting).
+    /// bytes alone, on the lane [`Lane`] names. `deadline` covers the whole
+    /// dial — lookup, hole punching, handshake, stream open — because iroh
+    /// itself would wait indefinitely on a published-but-dead peer
+    /// (measured: 25 seconds of silence and counting).
     pub(crate) async fn dial(
         &self,
         remote: &NodeId,
+        lane: Lane,
         deadline: Duration,
     ) -> Result<TunnelStream, BridgeError> {
+        let alpn = match lane {
+            Lane::Door => ALPN,
+            Lane::Desk => DESK_ALPN,
+        };
         let remote = endpoint_id(remote)?;
         let overall = tokio::time::Instant::now() + deadline;
-        let connection =
-            match timeout_at(overall, self.endpoint.connect(remote, ALPN)).await {
+        let connection = match timeout_at(overall, self.endpoint.connect(remote, alpn)).await {
             Ok(result) => result.map_err(|e| BridgeError::Transport(e.to_string()))?,
             Err(_) => return Err(BridgeError::Deadline),
         };
@@ -315,9 +324,19 @@ impl Transport {
     }
 
     /// The accept loop: every accepted bidirectional stream becomes one TCP
-    /// connection to the door on loopback. Runs until the endpoint closes.
-    pub(crate) async fn serve(self, door: SocketAddr, dial_timeout: Duration, idle: Duration) {
-        let budgets = PeerBudgets::default();
+    /// connection — to `door`, or to `desk` when the stream arrived on the
+    /// desk's ALPN. Runs until the endpoint closes.
+    pub(crate) async fn serve(
+        self,
+        door: SocketAddr,
+        desk: Option<SocketAddr>,
+        dial_timeout: Duration,
+        idle: Duration,
+    ) {
+        // One budget per lane: desk traffic must not spend the door's
+        // slots, nor the door's the desk's.
+        let door_budgets = PeerBudgets::default();
+        let desk_budgets = PeerBudgets::default();
         while let Some(incoming) = self.endpoint.accept().await {
             let accepting = match incoming.accept() {
                 Ok(accepting) => accepting,
@@ -327,12 +346,32 @@ impl Transport {
                 Ok(connection) => connection,
                 Err(_) => continue,
             };
-            // The peer is known from the tunnel's own handshake; its budget
-            // is checked per stream, before anything is forwarded.
+            // The peer is known from the tunnel's own handshake; its ALPN
+            // is the route, and each lane's budget is checked per stream,
+            // before anything is forwarded.
+            let (target, budgets) = if connection.alpn() == DESK_ALPN {
+                // The desk lane is open to anyone who knows the node id;
+                // the gate is the desk's own — a 128-bit one-time code in a
+                // two-minute window, one uniform refusal — not this tunnel.
+                (desk, &desk_budgets)
+            } else if connection.alpn() == ALPN {
+                (Some(door), &door_budgets)
+            } else {
+                // This endpoint registered both tags, so TLS should never
+                // have negotiated a third: a peer we cannot place is a
+                // peer we do not forward.
+                continue;
+            };
+            let Some(target) = target else {
+                // The desk lane with no desk behind it: refuse the
+                // connection whole — the dialer sees its stream close, it
+                // never hangs and never reaches the door.
+                continue;
+            };
             let peer = NodeId::from_bytes(*connection.remote_id().as_bytes());
             tokio::spawn(forward_connection(
                 connection,
-                door,
+                target,
                 dial_timeout,
                 idle,
                 budgets.clone(),
@@ -351,7 +390,7 @@ fn transport_ip(addr: &TransportAddr) -> Option<SocketAddr> {
 
 async fn forward_connection(
     connection: iroh::endpoint::Connection,
-    door: SocketAddr,
+    target: SocketAddr,
     dial_timeout: Duration,
     idle: Duration,
     budgets: PeerBudgets,
@@ -370,26 +409,29 @@ async fn forward_connection(
             Ok(Err(_)) | Err(_) => return,
         };
         let Some(permit) = budgets.acquire(&peer) else {
-            // Past the ceiling: the stream is dropped here, never given a
-            // chance to hold a door slot.
+            // Past the ceiling: the stream is dropped here, never given
+            // a chance to hold a slot at the service.
             continue;
         };
-        tokio::spawn(forward_stream(stream, door, dial_timeout, idle, permit));
+        tokio::spawn(forward_stream(stream, target, dial_timeout, idle, permit));
     }
 }
 
 async fn forward_stream(
     stream: TunnelStream,
-    door: SocketAddr,
+    target: SocketAddr,
     dial_timeout: Duration,
     idle: Duration,
     _permit: StreamPermit,
 ) {
-    let tcp = match tokio::time::timeout(dial_timeout, tokio::net::TcpStream::connect(door)).await {
-        Ok(Ok(tcp)) => tcp,
-        // The door is loopback-only; failing to reach it in `dial_timeout`
-        // means the door is down. The phone sees the stream close.
-        Ok(Err(_)) | Err(_) => return,
-    };
+    let tcp =
+        match tokio::time::timeout(dial_timeout, tokio::net::TcpStream::connect(target)).await {
+            Ok(Ok(tcp)) => tcp,
+            // The targets are loopback-only; failing to reach one in
+            // `dial_timeout` means that service is down. The phone sees
+            // the stream close — the desk being down refuses, it does not
+            // hang.
+            Ok(Err(_)) | Err(_) => return,
+        };
     let _ = pump::pump(stream, tcp, idle).await;
 }
