@@ -1111,3 +1111,43 @@ decode evaluations, and the last forced id is sampled but never evaluated. Gate 
 `raw/<job>/decode_len_ref.txt`); any other numeric value voids the row (`decode_len`) and stops the session
 after that arm (`STOP_UNEQUAL_DECODE`). Dry-runs: mismatch (ref 30, arm 96) EXIT=1 with the stop; equal (127 on
 calibration and both arms) EXIT=0, 2 OK rows.
+
+## forced-128 (decode length 127) — QRD8650, 2 sessions, 4 pairs — 2026-09-26 day
+
+Driver at `851b053d` (equal-decode gate) on top of `7e452572`/`851ec2f4`/`4f1e6907`. Both units: injected battery
+override reset before the driver; `BATTERY_SENSOR_UNTRUSTED fixed_25.0C_stub` → skin ≥ 46 °C stop (never fired;
+peak 45.613). `DECODE_LEN_REF=127` in both calibrations; `DECODE_LEN_CHECK` = 127 on all 8 arms; tools 0,
+lmkd 0, failed 0, chunks 1018 on every arm (the cold-first-arm prewarm race is gone: session-2 G arm 1 was
+cold and read 1018). Env `TYPE_FAST=0 TYPE_LADDER="100"`, deadline 109/110, cap 115.
+
+- S1: QDC **847601**, unit sa851670, serial a652109b, Started 10:24:20, Ended 12:10:29 (106 min), `CGGC`,
+  END exit_0.
+- S2: QDC **848429**, unit sa852498, serial 36aa3b71, Started 12:12:45, Ended 14:00:10 (107 min), `GCGC
+  PAIR_START=3`. All 4 rows written; then `END reason=exit_258` with `d_run.sh: line 386: syntax error` —
+  **d_run.sh was modified on disk by another session at 13:28 during the run** (uncommitted, not mine, not
+  committed here); bash had already parsed the arm loop, so the rows ran the committed code; only the post-loop
+  sample pull died (pulled manually; restore.sh rc=0).
+
+| pair | arm | turn | start | skin before→after | ΔT | prefill_ms | tokens_pred | decode tok/s | thermal |
+|---:|---|---:|---|---|---:|---:|---:|---:|---|
+| 1 | cpu | 1 | cold | 33.768→40.509 | +6.741 | 10142.4 | 127 | 17.30 | FAST |
+| 1 | gpu | 2 | warm | 37.801→43.227 | +5.426 | 6599.8 | 127 | 17.05 | FAST |
+| 2 | gpu | 3 | warm | 39.190→44.109 | +4.919 | 6594.8 | 127 | 17.38 | WARM |
+| 2 | cpu | 4 | warm | 39.789→45.257 | +5.468 | 11235.7 | 127 | 16.33 | COOLMODE |
+| 3 | gpu | 1 | cold | 33.844→40.432 | +6.588 | 6347.0 | 127 | 18.41 | FAST |
+| 3 | cpu | 2 | warm | 38.717→44.478 | +5.761 | 10890.6 | 127 | 16.66 | WARM |
+| 4 | gpu | 3 | warm | 40.769→45.613 | +4.844 | 6889.4 | 127 | 18.18 | COOLMODE |
+| 4 | cpu | 4 | warm | 41.017→45.585 | +4.568 | 10367.8 | 127 | 17.75 | COOLMODE |
+
+**Pair deltas CPU−GPU:** P1 **+1.315**, P2 **+0.549**, P3 **−0.827**, P4 **−0.276**. Mean +0.190, median
++0.137; arm means CPU +5.634, GPU +5.444 (n = 4 each). The sign follows which arm got the cold board: P1 (CPU
+cold) +1.3, P3 (GPU cold) −0.8; the two all-warm pairs +0.55 / −0.28.
+
+**vs PREREG-LFM (its predictions assumed FREE decode; this dataset forces 127 tokens on both arms):**
+P1 +2.2 (−1.0…+4.5) → +1.315 inside range (hit); P2/P4 0…+1 → P2 +0.549 hit, P4 −0.276 miss (below 0);
+median ≈ +1.5 / falsifier ≤ 0 → +0.137, not refuted, far below the point; prefill 9,400 / 4,750 ms → CPU
+10,142–11,236, GPU 6,347–6,889: miss; GPU/CPU ratio 0.45–0.60 → 0.651, 0.587, 0.583, 0.665: 2 of 4 inside;
+decode tok/s (prereg 21.2/18.9, free decode) not comparable here (CPU 16.3–17.8, GPU 17.1–18.4).
+
+Minutes (QRD8650 card): 728 before S1 → 613 right after (115 hold) → 621 before S2 (S1 settled at 107) → 506
+right after S2 (115 hold, not yet settled). QRD7675: 1000, **Unavailable** at 14:01 — not run.
