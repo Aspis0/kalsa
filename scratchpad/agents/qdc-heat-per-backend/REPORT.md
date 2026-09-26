@@ -1356,3 +1356,20 @@ letter and the exact composer check voided the route command. Fix **`cdad7bfe`**
 **End Session not confirmed:** the tab 3774c340 came back LOGGED OUT (landing page, "Login" → Qualcomm
 sign-in form). No credentials typed. Session 850223 may still be Running until its cap (19:40:37) — owner must
 log in in tab 3774c340 and end it; card minutes not read after it. QRD8635 / QRD7675 were Unavailable at 17:39.
+
+Follow-up 850223: after Marco's re-login the portal showed it **Completed, Ended On 18:17:37** (32 min; my End
+Session had registered, the list view was stale). Balances (aspis, ~19:0x): QRD8750 **757** (872 − 115 hold,
+not settled), QRD8650 **512**, QRD8635 **1000** (Unavailable), QRD7675 **1000** (Unavailable).
+
+## QDC: IME taken out of the way for the session, exact restore (coordinator decision)
+
+QDC boards only (`QDC_BOARD=1`): `configure_screen` records `default_input_method`, `enabled_input_methods` and
+`ime list -s` once per job in `restore-state` (copied to `.restore-state`), then `ime disable <default>`, so
+`adb input text` reaches the focused EditText as key events (no auto-cap, no autocorrect). Before calibration
+`ime_check` types `aB3 xY9 kalsa QDC t1` (20 chars) into the composer, reads it back and clears it; any mismatch
+→ `IME_CHECK_FAIL`, END `ime_check`, exit 3 (stop and report, no fallback). Restore on every exit path
+(`restore_device` → `restore_ime`, and `restore.sh`): put the saved enabled list (or delete it if it was absent),
+`ime enable` each saved id, `ime set <saved default>`. Prompt text unchanged. Fake adb dry-runs (canned tokens 127,
+restored after): I1 QDC CG → IME_CHECK read-back exact, 2 OK, IME restored, EXIT=0; I2 `DRY_IME_BROKEN=1` → read-back
+'' → `IME_CHECK_FAIL`, driver exit 3, IME restored; I3 local port 5037 → zero IME ops, 2 OK, EXIT=0; I4 SIGKILL at 45 s
+(IME off) → `restore.sh` rc=0, IME restored exactly.

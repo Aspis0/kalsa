@@ -42,6 +42,15 @@ case "$args" in
   *"settings delete global stay_on_while_plugged_in"*) rm -f "$S/stayon"; echo "delete stay_on" >> "$S/settings.log"; exit 0;;
   *"svc power stayon true"*) printf 7 > "$S/stayon"; echo "svc stayon true" >> "$S/settings.log"; exit 0;;
   *"svc power stayon false"*) printf 0 > "$S/stayon"; echo "svc stayon false" >> "$S/settings.log"; exit 0;;
+  # Stateful keyboard: DRY_IME_DEFAULT / DRY_IME_ENABLED / DRY_IME_LIST seed it;
+  # ime disable/enable/set and the enabled-list put are applied and logged.
+  *"settings get secure default_input_method"*) cat "$S/ime_default" 2>/dev/null || echo "${DRY_IME_DEFAULT:-com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME}"; exit 0;;
+  *"settings get secure enabled_input_methods"*) cat "$S/ime_enabled" 2>/dev/null || echo "${DRY_IME_ENABLED:-com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME;1:com.google.android.tts/voice.VoiceIME}"; exit 0;;
+  *"settings put secure enabled_input_methods"*) v=$(printf '%s' "$args" | sed "s/.*enabled_input_methods '\(.*\)'.*/\1/"); printf '%s' "$v" > "$S/ime_enabled"; echo "put enabled_input_methods=$v" >> "$S/settings.log"; exit 0;;
+  *"ime list -s"*) printf '%s\n' ${DRY_IME_LIST:-com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME com.google.android.tts/voice.VoiceIME}; exit 0;;
+  *"ime disable "*) id="${args##* }"; : > "$S/ime_off"; echo "ime disable $id" >> "$S/settings.log"; exit 0;;
+  *"ime enable "*) id="${args##* }"; rm -f "$S/ime_off"; echo "ime enable $id" >> "$S/settings.log"; exit 0;;
+  *"ime set "*) id="${args##* }"; printf '%s' "$id" > "$S/ime_default"; echo "ime set $id" >> "$S/settings.log"; exit 0;;
   *"input keyevent KEYCODE_WAKEUP"*) echo "$(date +%s) wakeup" >> "$S/wakeups.log"; exit 0;;
   *"pm list packages"*) echo 0; echo "list_rc=1"; exit 0;;
   *"dumpsys package"*) echo "    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]"; exit 0;;
@@ -158,7 +167,7 @@ XML
     inner=$(printf '%s' "$raw" | sed -n "s/^input text '\(.*\)'\$/\1/p")
     [ -z "$inner" ] && inner=$(printf '%s' "$raw" | sed 's/^input text //')
     dec=$(printf '%s' "$inner" | sed "s/%s/ /g; s/'\\\\''/'/g")
-    printf '%s' "$dec" >> "$S/typed"
+    if [ "${DRY_IME_BROKEN:-0}" = "1" ] && [ -f "$S/ime_off" ]; then :; else printf '%s' "$dec" >> "$S/typed"; fi
     case "$dec" in "bench:route "*) printf '%s' "$dec" | awk '{print $2}' > "$S/last_route";; "/bench route "*) printf '%s' "$dec" | awk '{print $3}' > "$S/last_route";; esac
     if [ -n "${DRY_TELEMETRY_DELAY_S:-}" ] && [ ! -f "$S/tel_ready_at" ]; then
       tl=$(wc -c < "$S/typed")

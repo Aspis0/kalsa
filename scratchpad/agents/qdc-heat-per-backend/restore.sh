@@ -9,7 +9,7 @@ ADB_PORT="${ADB_PORT:-6037}"; case "$ADB_PORT" in 5037|6037|6039) ;; *) echo "AD
 export LC_ALL=C ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 PKG=com.kalsa.app
-SER=""; SCREEN_OFF_TIMEOUT=60000; STAY_ON=""
+SER=""; SCREEN_OFF_TIMEOUT=60000; STAY_ON=""; IME_DEFAULT=""; IME_ENABLED=""; IME_LIST=""
 # Written by d_run.sh right after configure_screen; source it for the pre-run
 # timeout and the serial (restores the values cleanup would have restored).
 RESTORE_STATE="${RESTORE_STATE:-$OUT/.restore-state}"
@@ -43,6 +43,16 @@ else
   "$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || rc=1
 fi
 "$ADB_BIN" -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
+# Keyboard (QDC runs disable the default IME): saved enabled list, every listed
+# IME re-enabled, saved default re-selected.
+if [ -n "$IME_DEFAULT" ] && [ "$IME_DEFAULT" != null ]; then
+  case "$IME_ENABLED" in
+    ''|null) "$ADB_BIN" -s "$SER" shell settings delete secure enabled_input_methods >/dev/null 2>&1 || rc=1 ;;
+    *) "$ADB_BIN" -s "$SER" shell "settings put secure enabled_input_methods '$IME_ENABLED'" >/dev/null 2>&1 || rc=1 ;;
+  esac
+  for id in $(printf '%s' "$IME_LIST" | tr ',' ' '); do "$ADB_BIN" -s "$SER" shell ime enable "$id" >/dev/null 2>&1 || rc=1; done
+  "$ADB_BIN" -s "$SER" shell ime set "$IME_DEFAULT" >/dev/null 2>&1 || rc=1
+fi
 pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 
 # Bench prefs set by set_prefs (parse.sh:165), removed as the whole
@@ -89,5 +99,5 @@ bench_prefs_clear() {
   return 0
 }
 bench_prefs_clear || rc=1
-echo "restored serial=$SER stay_on=${STAY_ON:-false} screen_off_timeout=$SCREEN_OFF_TIMEOUT keyguard=enabled sampler=stopped app=force-stopped bench_prefs=removed rc=$rc"
+echo "restored serial=$SER stay_on=${STAY_ON:-false} screen_off_timeout=$SCREEN_OFF_TIMEOUT ime=${IME_DEFAULT:-untouched} keyguard=enabled sampler=stopped app=force-stopped bench_prefs=removed rc=$rc"
 exit "$rc"

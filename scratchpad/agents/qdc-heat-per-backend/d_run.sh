@@ -88,7 +88,7 @@ DEVICE_TMP=/data/local/tmp/kalsa-heat; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 HEAT_TMP="$DEVICE_TMP/heat"
 TYPE_LADDER="${TYPE_LADDER:-"200 100"}"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
-DRIVER_PID=$$; KEEP_AWAKE_PID=0; SPAWNED_PID=0; STAY_ON_PRE=""; QDC_BOARD_ENV="${QDC_BOARD:-}"; QDC_BOARD=1
+DRIVER_PID=$$; KEEP_AWAKE_PID=0; SPAWNED_PID=0; STAY_ON_PRE=""; IME_DEFAULT=""; IME_ENABLED=""; IME_LIST=""; IME_DISABLED=0; QDC_BOARD_ENV="${QDC_BOARD:-}"; QDC_BOARD=1
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0
 FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""
 TYPE_PROMPT_CALLS=0; TYPE_LADDER_STATE=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=720
@@ -196,11 +196,24 @@ restore_setting() {
     *) adbT 60 -s "$SER" shell settings put "$ns" "$key" "$value" >/dev/null 2>&1 || true ;;
   esac
 }
+# Keyboard restore (QDC only): the saved enabled list, every listed IME
+# re-enabled, the saved default re-selected.
+restore_ime() {
+  [ -n "$IME_DEFAULT" ] && [ "$IME_DEFAULT" != null ] || return 0
+  case "$IME_ENABLED" in
+    ''|null) adbT 60 -s "$SER" shell settings delete secure enabled_input_methods >/dev/null 2>&1 || true ;;
+    *) adbT 60 -s "$SER" shell "settings put secure enabled_input_methods '$IME_ENABLED'" >/dev/null 2>&1 || true ;;
+  esac
+  local id
+  for id in $(printf '%s' "$IME_LIST" | tr ',' ' '); do adbT 60 -s "$SER" shell ime enable "$id" >/dev/null 2>&1 || true; done
+  adbT 60 -s "$SER" shell ime set "$IME_DEFAULT" >/dev/null 2>&1 || true
+}
 restore_device() {
   [ -n "$SER" ] || return 0
   adbT 60 -s "$SER" shell locksettings set-disabled false >/dev/null 2>&1 || true
   restore_setting global stay_on_while_plugged_in "$STAY_ON_PRE"
   restore_setting system screen_off_timeout "$SCREEN_OFF_TIMEOUT"
+  restore_ime
 }
 board_on_ac() { adbT 30 -s "$SER" shell dumpsys battery 2>/dev/null | grep -Eq '^ *AC powered: true'; }
 # Background helpers run in their own process group (set -m) so one kill
@@ -367,6 +380,9 @@ if [ "$DRIVER_PHASE" = "setup" ] || [ "$DRIVER_PHASE" = "full" ]; then
   [ "$LOAD_RC" -eq 3 ] && { log "LOAD_PROOF_FAIL reason=screen_off expected=$MODEL_DIR/$MODEL_FILE"; write_end "screen_off"; exit 3; }
   [ "$LOAD_RC" -eq 0 ] || { log "LOAD_PROOF_FAIL expected=$MODEL_DIR/$MODEL_FILE"; write_end "load_proof"; exit 3; }
   log "LOAD_PROOF $(grep -o 'llama_model_loader: loaded meta data with .* from [^ ]*' "$RAW/calib_load.txt" | tail -1)"
+  if [ "$IME_DISABLED" = "1" ]; then
+    ime_check "$RAW/ime_check" || { log "IME_CHECK_FAIL (input text without an IME did not reach the composer unchanged)"; write_end "ime_check"; exit 3; }
+  fi
   calibrate_turn "$RAW/calib_cpu" cpu | tee "$CAL_OUT" | tee -a "$DRIVER_LOG"
   N0=$(sed -n 's/.*chunks_sum=\([0-9][0-9]*\).*/\1/p' "$CAL_OUT" | tail -1)
   CAL_TOOLS=$(sed -n 's/.*tool_calls=\([0-9][0-9]*\).*/\1/p' "$CAL_OUT" | tail -1)

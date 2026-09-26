@@ -16,16 +16,58 @@ configure_screen() {
   if [ -f "$RAW/restore-state" ]; then
     SCREEN_OFF_TIMEOUT=$(sed -n 's/^SCREEN_OFF_TIMEOUT=//p' "$RAW/restore-state" | tail -1)
     STAY_ON_PRE=$(sed -n 's/^STAY_ON=//p' "$RAW/restore-state" | tail -1)
+    IME_DEFAULT=$(sed -n "s/^IME_DEFAULT='\(.*\)'\$/\1/p" "$RAW/restore-state" | tail -1)
+    IME_ENABLED=$(sed -n "s/^IME_ENABLED='\(.*\)'\$/\1/p" "$RAW/restore-state" | tail -1)
+    IME_LIST=$(sed -n "s/^IME_LIST='\(.*\)'\$/\1/p" "$RAW/restore-state" | tail -1)
   else
     SCREEN_OFF_TIMEOUT=$(adbT 60 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || return 1
     STAY_ON_PRE=$(adbT 60 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r') || return 1
     [ -n "$SCREEN_OFF_TIMEOUT" ] && [ -n "$STAY_ON_PRE" ] || return 1
-    printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nSTAY_ON=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$STAY_ON_PRE" > "$tmp" && mv "$tmp" "$RAW/restore-state" || return 1
+    if [ "$QDC_BOARD" = "1" ]; then
+      IME_DEFAULT=$(adbT 60 -s "$SER" shell settings get secure default_input_method | tr -d '\r') || return 1
+      IME_ENABLED=$(adbT 60 -s "$SER" shell settings get secure enabled_input_methods | tr -d '\r') || return 1
+      IME_LIST=$(adbT 60 -s "$SER" shell ime list -s | tr -d '\r' | awk 'NF{printf "%s%s", (n++?",":""), $1}') || return 1
+    fi
+    { printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nSTAY_ON=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$STAY_ON_PRE"
+      printf "IME_DEFAULT='%s'\nIME_ENABLED='%s'\nIME_LIST='%s'\n" "$IME_DEFAULT" "$IME_ENABLED" "$IME_LIST"
+    } > "$tmp" && mv "$tmp" "$RAW/restore-state" || return 1
   fi
   SCREEN_OFF_TIMEOUT_SAVED=1
   printf 'screen_off_timeout_previous=%s stay_on_previous=%s\n' "$SCREEN_OFF_TIMEOUT" "$STAY_ON_PRE" >> "$RAW/recon.txt"
   board_on_ac && { adbT 60 -s "$SER" shell svc power stayon true >> "$RAW/recon.txt" 2>&1 || return 1; }
   adbT 60 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$RAW/recon.txt" 2>&1 || return 1
+  # QDC only (coordinator 2026-09-26): take the keyboard out of the way — Gboard
+  # auto-capitalized the first typed letter ("Bench:", "Amber", raw/sa854292*).
+  # Without an IME, adb `input text` reaches the focused EditText as plain key
+  # events. restore_device / restore.sh re-enable and re-select it exactly.
+  if [ "$QDC_BOARD" = "1" ] && [ -n "$IME_DEFAULT" ] && [ "$IME_DEFAULT" != null ]; then
+    adbT 60 -s "$SER" shell ime disable "$IME_DEFAULT" >> "$RAW/recon.txt" 2>&1 || return 1
+    IME_DISABLED=1
+    log "IME_DISABLED default=$IME_DEFAULT enabled_list=$IME_LIST"
+  fi
+}
+
+# Pre-calibration check with the IME disabled: type a 20-char mixed string into
+# the composer, read it back exactly, clear it. Fails the session (stop and
+# report) if the text does not arrive unchanged or does not clear.
+IME_CHECK_TEXT="aB3 xY9 kalsa QDC t1"
+ime_check() {
+  local prefix="$1" edit got metrics left
+  dump_ui "${prefix}_edit.xml" || return 1
+  edit=$(bounds_edit "${prefix}_edit.xml"); [ -n "$edit" ] || return 1
+  EMPTY_TEXT=$(composer_text_attr "${prefix}_edit.xml" text)
+  tap_bounds "$edit" >/dev/null 2>&1 || return 1
+  sleep 2
+  adbT 60 -s "$SER" shell "input text '$(printf '%s' "$IME_CHECK_TEXT" | sed 's/ /%s/g')'" >/dev/null 2>&1 || return 1
+  sleep 1
+  dump_ui "${prefix}_typed.xml" || return 1
+  got=$(composer_text_attr "${prefix}_typed.xml" text)
+  clear_composer >/dev/null 2>&1 || true
+  sleep 1
+  dump_ui "${prefix}_cleared.xml" || return 1
+  metrics=$(composer_text_len "${prefix}_cleared.xml"); left=${metrics%% *}
+  log "IME_CHECK typed='$IME_CHECK_TEXT' read_back='$got' cleared_len=${left:-na}"
+  [ "$got" = "$IME_CHECK_TEXT" ] && [ "${left:-99}" -le 3 ]
 }
 
 run_as_retry() {
