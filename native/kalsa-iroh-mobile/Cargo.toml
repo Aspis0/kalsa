@@ -1,0 +1,24 @@
+[package]
+name = "kalsa-iroh-mobile"
+version = "0.1.0"
+edition = "2021"
+description = "uniffi face of brain's kalsa-iroh road: dial the Kalsa desktop from the Android app"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+# The road itself, pinned to the brain rev whose ALPN contract is frozen.
+kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "a2cb3c93d6f711c5f42deafaa9d354a7a63166a1" }
+# The wrapper parks FFI calls on this runtime; brain's accept loop needs it too.
+tokio = { version = "1", features = ["io-util", "rt", "rt-multi-thread", "sync"] }
+uniffi = { version = "0.32.2", features = ["cli"] }
+
+[dev-dependencies]
+# Same rev as above: the host test's desktop side is brain's bridge directly.
+kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "a2cb3c93d6f711c5f42deafaa9d354a7a63166a1" }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
