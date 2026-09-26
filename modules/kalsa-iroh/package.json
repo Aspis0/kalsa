@@ -1,0 +1,10 @@
+{
+  "name": "kalsa-iroh",
+  "version": "0.1.0",
+  "description": "Kalsa's iroh road to the desktop: uniffi bindings behind an Expo module (Android).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

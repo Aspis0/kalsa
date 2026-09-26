@@ -160,6 +160,47 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
           df -h /
 
+      # The iroh tunnel: build the Rust .so on the runner into the module's
+      # jniLibs so Gradle packages it with the app. The NDK version is the one
+      # the RN gradle catalog pins (node_modules/react-native/gradle/
+      # libs.versions.toml), so Gradle reuses this install instead of fetching
+      # a second NDK — the free-disk step above removed the runner's own.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-linux-android
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - name: Cache the iroh cargo build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/kalsa-iroh-mobile/target
+          key: iroh-mobile-${{ runner.os }}-${{ hashFiles('native/kalsa-iroh-mobile/Cargo.lock') }}
+          restore-keys: iroh-mobile-${{ runner.os }}-
+      - name: Install the NDK for cargo-ndk
+        run: |
+          # pipefail comes off for this one pipeline only: `yes` feeds the
+          # license prompt and dies of SIGPIPE once sdkmanager stops reading,
+          # which would fail the step under the runner's default pipefail.
+          # sdkmanager's own exit code still decides the step's fate.
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
+      - name: Build libkalsa_iroh_mobile.so (arm64-v8a, 16 KB pages)
+        run: |
+          cd native/kalsa-iroh-mobile
+          # The crate's .cargo/config.toml carries the 16 KB page-size flag.
+          # A failed build or a missing .so must fail the job here, before
+          # Gradle could package a stale or absent library.
+          cargo ndk -t arm64-v8a build --release
+          SO=target/aarch64-linux-android/release/libkalsa_iroh_mobile.so
+          test -f "$SO"
+          mkdir -p ../../modules/kalsa-iroh/android/src/main/jniLibs/arm64-v8a
+          cp "$SO" ../../modules/kalsa-iroh/android/src/main/jniLibs/arm64-v8a/
+
       # The llama.rn fork carries the engine sources in its cpp/ and the
       # plugin (plugins/withLlamaFromSource.js) always compiles them from
       # source; there is no patch step. KALSA_LLAMA_FROM_SOURCE=0 is not

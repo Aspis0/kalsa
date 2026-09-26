@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.kalsa.iroh'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.kalsairoh"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // The uniffi Kotlin runtime speaks JNA; @aar is the Android build of it
+  // (the jar carries natives for desktop OSes only).
+  implementation "net.java.dev.jna:jna:5.15.0@aar"
+}

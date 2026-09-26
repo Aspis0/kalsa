@@ -1,5 +1,5 @@
 /**
- * Uint8Array → base64 for RN (no Node Buffer). Hermes-safe: array+join once,
+ * Uint8Array ↔ base64 for RN (no Node Buffer). Hermes-safe: array+join once,
  * never grow a flat string with `+=` across chunks (see pdfText / htmlToText).
  */
 
@@ -28,4 +28,18 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
     );
   }
   return globalThis.btoa(parts.join(""));
+}
+
+/**
+ * Decode standard base64 back to bytes (via atob on a binary string).
+ * Throws if atob is unavailable or the input is not base64.
+ */
+export function base64ToUint8Array(text: string): Uint8Array {
+  if (typeof globalThis.atob !== "function") {
+    throw new Error("base64 decoder unavailable");
+  }
+  const binary = globalThis.atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
