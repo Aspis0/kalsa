@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
 import { useLocale } from "../i18n";
@@ -8,6 +8,7 @@ import { GlassPanel2 } from "../theme/components";
 import { SettingsHeader } from "./SettingsHeader";
 import { useLabTheme } from "../ui/labTheme";
 import { PairingSession, type PairingSquare } from "../pairing/pairingTransport";
+import { PairingManualForm, type PairingFields } from "./PairingManualForm";
 import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
 import { chooseRoad } from "../remote/road";
 import { irohModulePresent } from "../remote/irohBridge";
@@ -22,8 +23,6 @@ type Props = {
   currentModelId: string;
   onBack: () => void;
 };
-
-type PairingFields = PairingSquare & { doorUrl: string; deskUrl: string };
 
 function declarationForModel(modelId: string): PairingPhoneDeclaration | null {
   const model = MODEL_REGISTRY.find((entry) => entry.id === modelId);
@@ -58,6 +57,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
   });
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [state, setState] = useState<"ready" | "refused" | "waiting" | "model-required" | "door-required">("ready");
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const sessionRef = useRef<PairingSession | null>(null);
@@ -170,39 +170,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
     void run(square);
   };
 
-  const inputStyle = {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.field,
-    paddingHorizontal: space.md,
-    color: colors.ink,
-    backgroundColor: colors.surface,
-    ...type.body,
-  };
-  const field = (
-    key: keyof PairingFields,
-    label: string,
-    keyboardType: "url" | "default" = "default",
-    secureTextEntry = false,
-  ) => (
-    <View key={key} style={{ gap: space.xs }}>
-      <Text style={[type.secondary, { color: colors.ink2 }]}>{label}</Text>
-      <TextInput
-        testID={`pairing.${key}`}
-        accessibilityLabel={label}
-        value={fields[key]}
-        onChangeText={(value) => update(key, value)}
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!busy}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        placeholderTextColor={colors.ink3}
-        style={inputStyle}
-      />
-    </View>
-  );
+  const status: { testID: string; text: string; error: boolean } = busy
+    ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
+    : state === "model-required"
+      ? { testID: "pairing.model-required", text: t("pairing.modelRequired"), error: true }
+      : state === "door-required"
+        ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
+        : state === "refused"
+          ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+          : state === "waiting"
+            ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
+            : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 60, backgroundColor: colors.page }}>
@@ -213,7 +191,6 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
         contentContainerStyle={{ paddingHorizontal: space.md, paddingTop: space.xs, paddingBottom: insets.bottom + space.lg, gap: space.md, flexGrow: 0 }}
       >
         <GlassPanel2 opaque rounded="lg" style={{ padding: space.md, gap: space.md }}>
-          <Text style={[type.secondary, { color: colors.ink2 }]}>{t("pairing.debugHint")}</Text>
           <Pressable
             testID="pairing.scan"
             accessibilityRole="button"
@@ -221,67 +198,57 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack }: Props)
             accessibilityState={{ disabled: busy || state === "waiting" }}
             disabled={busy || state === "waiting"}
             onPress={() => {
-              // The camera must mount with the keyboard already down: a hide
-              // event that lands after CameraView takes the screen is lost,
-              // and the Jelly keeps the adjustResize window at its keyboard-
-              // cropped height (the half screen seen on the road run).
+              // Drop the IME before the camera opens; the scanner lives in
+              // its own Modal window (PairingQrScanner), so the app
+              // window's keyboard-cropped height can no longer crop it.
               Keyboard.dismiss();
               setScanning(true);
             }}
-            style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy || state === "waiting" ? 0.6 : 1 })}
+            style={({ pressed }) => ({
+              minHeight: 64,
+              borderRadius: radius.button,
+              alignItems: "center" as const,
+              justifyContent: "center" as const,
+              backgroundColor: pressed ? colors.brandDeep : colors.brand,
+              opacity: busy || state === "waiting" ? 0.6 : 1,
+            })}
           >
             <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.scan")}</Text>
           </Pressable>
-          {field("doorUrl", t("pairing.doorUrl"), "url")}
-          {field("deskUrl", t("pairing.deskUrl"), "url")}
-          {field("reachable", t("pairing.reachable"), "url")}
-          {field("code", t("pairing.code"), "default", true)}
-          {field("nonce", t("pairing.nonce"), "default", true)}
-          {field("node", t("pairing.node"))}
+          <Text testID={status.testID} style={[type.secondary, { color: status.error ? colors.danger : colors.ink2 }]}>
+            {status.text}
+          </Text>
           <Pressable
-            testID="pairing.diagnostics"
-            accessibilityRole="switch"
-            accessibilityLabel={t("pairing.diagnostics")}
-            accessibilityState={{ checked: diagnosticsEnabled, disabled: busy }}
+            testID="pairing.manual"
+            accessibilityRole="button"
+            accessibilityLabel={t("pairing.manual")}
+            accessibilityState={{ expanded: showManual, disabled: busy }}
             disabled={busy}
-            onPress={() => setDiagnosticsEnabled((value) => !value)}
+            onPress={() => setShowManual((open) => !open)}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              borderRadius: radius.button,
+              borderWidth: 1,
+              borderColor: colors.line,
+              alignItems: "center" as const,
+              justifyContent: "center" as const,
+              backgroundColor: pressed ? colors.surface : "transparent",
+            })}
           >
-            <Text style={[type.secondary, { color: colors.ink2 }]}>{t("pairing.diagnostics")}</Text>
+            <Text style={[type.body, { color: colors.ink }]}>
+              {showManual ? t("pairing.manualHide") : t("pairing.manual")}
+            </Text>
           </Pressable>
-          {state === "model-required" ? (
-            <Text testID="pairing.model-required" style={[type.secondary, { color: colors.danger }]}>
-              {t("pairing.modelRequired")}
-            </Text>
-          ) : null}
-          {state === "door-required" ? (
-            <Text testID="pairing.door-required" style={[type.secondary, { color: colors.danger }]}>
-              {t("pairing.doorRequired")}
-            </Text>
-          ) : null}
-          {state === "refused" ? (
-            <Text testID="pairing.refused" style={[type.secondary, { color: colors.danger }]}>
-              {t("pairing.refused")}
-            </Text>
-          ) : null}
-          {state === "waiting" ? (
-            <Text testID="pairing.waiting" style={[type.bodyStrong, { color: colors.ink }]}>
-              {t("pairing.waiting")}
-            </Text>
-          ) : null}
-          {state !== "waiting" ? (
-            <Pressable
-              testID="pairing.submit"
-              accessibilityRole="button"
-              accessibilityLabel={t("pairing.submit")}
-              accessibilityState={{ disabled: busy }}
-              disabled={busy}
-              onPress={() => void run()}
-              style={({ pressed }) => ({ minHeight: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? colors.brandDeep : colors.brand, opacity: busy ? 0.6 : 1 })}
-            >
-              <Text style={[type.bodyStrong, { color: colors.onBrand }]}>
-                {busy ? t("pairing.working") : t("pairing.submit")}
-              </Text>
-            </Pressable>
+          {showManual ? (
+            <PairingManualForm
+              fields={fields}
+              busy={busy}
+              waiting={state === "waiting"}
+              diagnosticsEnabled={diagnosticsEnabled}
+              onChange={update}
+              onToggleDiagnostics={() => setDiagnosticsEnabled((value) => !value)}
+              onSubmit={() => void run()}
+            />
           ) : null}
         </GlassPanel2>
       </ScrollView>

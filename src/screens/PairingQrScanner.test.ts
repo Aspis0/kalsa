@@ -21,6 +21,7 @@ jest.mock("react-native", () => {
     Pressable: host("Pressable"),
     Text: host("Text"),
     View: host("View"),
+    Modal: host("Modal"),
     Linking: { openSettings: jest.fn(async () => undefined) },
     BackHandler: { addEventListener: back.addEventListener, state: back.state },
     AppState: { addEventListener: appState.addEventListener, state: appState.state },
@@ -90,6 +91,7 @@ const camera = jest.requireMock("expo-camera") as {
   store: { permission: Permission | null; get: jest.Mock; request: jest.Mock };
 };
 const rn = jest.requireMock("react-native") as {
+  Modal: (props: Record<string, unknown>) => React.ReactElement;
   BackHandler: { addEventListener: jest.Mock; state: { handler: (() => boolean) | null; remove: jest.Mock | null } };
   AppState: { addEventListener: jest.Mock; state: { handler: ((state: string) => void) | null; remove: jest.Mock | null } };
   Linking: { openSettings: jest.Mock };
@@ -214,6 +216,20 @@ describe("PairingQrScanner navigation", () => {
       handled = handler!();
     });
     expect(handled).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    await act(async () => renderer.unmount());
+  });
+
+  test("the scanner lives in a dialog window whose own back hook also cancels it", async () => {
+    const { renderer, onCancel } = await renderScanner(GRANTED);
+    const modal = renderer.root.findByType(rn.Modal);
+
+    expect(modal.props.visible).toBe(true);
+    expect(modal.props.transparent).toBe(true);
+    await act(async () => {
+      modal.props.onRequestClose();
+    });
+
     expect(onCancel).toHaveBeenCalledTimes(1);
     await act(async () => renderer.unmount());
   });

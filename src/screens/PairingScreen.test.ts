@@ -106,6 +106,7 @@ afterEach(() => {
 async function render(
   currentModelId = "local-model",
   initialDoorUrl = "https://desktop.tailnet.ts.net",
+  expandManual = true,
 ): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -117,8 +118,12 @@ async function render(
       }),
     );
   });
+  if (!expandManual) return renderer;
+  // The typed fields live behind the disclosure; most tests fill them.
+  await act(async () => {
+    renderer.root.findByProps({ testID: "pairing.manual" }).props.onPress();
+  });
   for (const [id, value] of [
-    ["pairing.reachable", "http://127.0.0.1:8132"],
     ["pairing.code", "41".repeat(16)],
     ["pairing.nonce", "42".repeat(32)],
   ]) {
@@ -187,6 +192,27 @@ function fakeDeskTunnel(reads: Uint8Array[]): IrohTunnel & { writes: Uint8Array[
 }
 
 describe("PairingScreen", () => {
+  test("the default view is one scan action plus a status line; details stay collapsed", async () => {
+    const renderer = await render("local-model", "https://desktop.tailnet.ts.net", false);
+
+    expect(renderer.root.findByProps({ testID: "pairing.scan" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.hint" }).props.children)
+      .toBe("pairing.scanHint");
+    expect(renderer.root.findAllByProps({ testID: "pairing.doorUrl" })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: "pairing.submit" })).toHaveLength(0);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.manual" }).props.onPress();
+    });
+
+    expect(renderer.root.findByProps({ testID: "pairing.doorUrl" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.code" })).toBeDefined();
+    // The square's reachable value is MAC'd, never typed or dialled: it
+    // has no field in any view — only the square state carries it.
+    expect(renderer.root.findAllByProps({ testID: "pairing.reachable" })).toHaveLength(0);
+    await act(async () => renderer.unmount());
+  });
+
   test("door and desk share an initial host prefill but remain independently editable", async () => {
     const renderer = await render();
     expect(renderer.root.findByProps({ testID: "pairing.doorUrl" }).props.value).toBe(
@@ -234,8 +260,6 @@ describe("PairingScreen", () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(renderer.root.findByProps({ testID: "pairing.reachable" }).props.value)
-      .toBe("http://127.0.0.1:9500");
     expect(renderer.root.findByProps({ testID: "pairing.node" }).props.value).toBe("ab".repeat(32));
     expect(bodies[0]).toBe(`{"code":"${"41".repeat(16)}"}`);
     expect(saveCredentialMock).toHaveBeenCalled();
@@ -526,7 +550,6 @@ describe("PairingScreen", () => {
   test.each([
     ["code", "43".repeat(16)],
     ["nonce", "44".repeat(32)],
-    ["reachable", "http://127.0.0.1:8133"],
   ])("a fresh square after changing %s gets a fresh delivery token", async (field, nextValue) => {
     const completeBodies: string[] = [];
     const claimBodies: string[] = [];

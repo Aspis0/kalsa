@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, Linking, Pressable, Text, View } from "react-native";
+import { AppState, BackHandler, Linking, Modal, Pressable, Text, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
@@ -36,7 +36,9 @@ export function PairingQrScanner({ onFound, onCancel }: Props) {
     return () => subscription.remove();
   }, [recheckPermission]);
 
-  // Hardware back must leave the scanner, not the whole PairingScreen.
+  // Hardware back must leave the scanner, not the whole PairingScreen:
+  // whichever window holds the key press — the Modal dialog's
+  // onRequestClose, or the app window's listener — closes the scanner.
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       onCancel();
@@ -73,73 +75,75 @@ export function PairingQrScanner({ onFound, onCancel }: Props) {
   const canAskAgain = permission?.canAskAgain === true;
 
   return (
-    <View
-      testID="pairing.scanner"
-      style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 70, backgroundColor: "#000" }}
-    >
-      {granted ? (
-        <CameraView
-          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
-          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-          onBarcodeScanned={handleScanned}
-        />
-      ) : null}
+    <Modal visible transparent onRequestClose={onCancel}>
       <View
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: space.md,
-          paddingBottom: insets.bottom + space.md,
-          gap: space.sm,
-        }}
+        testID="pairing.scanner"
+        style={{ flex: 1, backgroundColor: "#000" }}
       >
         {granted ? (
-          <Text testID="pairing.scan.caution" style={[type.secondary, { color: "#fff" }]}>
-            {t("pairing.scanCaution")}
-          </Text>
+          <CameraView
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+            onBarcodeScanned={handleScanned}
+          />
         ) : null}
-        {error ? (
-          <Text testID="pairing.scan.error" style={[type.secondary, { color: colors.danger }]}>
-            {error}
-          </Text>
-        ) : null}
-        {denied ? (
-          <>
-            <Text testID="pairing.scan.denied" style={[type.secondary, { color: "#fff" }]}>
-              {t("pairing.scanDenied")}
-            </Text>
-            {canAskAgain ? (
-              <Pressable
-                testID="pairing.scan.allow"
-                accessibilityRole="button"
-                onPress={() => void requestPermission()}
-                style={buttonStyle}
-              >
-                <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanAllow")}</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                testID="pairing.scan.openSettings"
-                accessibilityRole="button"
-                onPress={() => void Linking.openSettings()}
-                style={buttonStyle}
-              >
-                <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanOpenSettings")}</Text>
-              </Pressable>
-            )}
-          </>
-        ) : null}
-        <Pressable
-          testID="pairing.scan.cancel"
-          accessibilityRole="button"
-          onPress={onCancel}
-          style={buttonStyle}
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            padding: space.md,
+            paddingBottom: insets.bottom + space.md,
+            gap: space.sm,
+          }}
         >
-          <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("common.cancel")}</Text>
-        </Pressable>
+          {granted ? (
+            <Text testID="pairing.scan.caution" style={[type.secondary, { color: "#fff" }]}>
+              {t("pairing.scanCaution")}
+            </Text>
+          ) : null}
+          {error ? (
+            <Text testID="pairing.scan.error" style={[type.secondary, { color: colors.danger }]}>
+              {error}
+            </Text>
+          ) : null}
+          {denied ? (
+            <>
+              <Text testID="pairing.scan.denied" style={[type.secondary, { color: "#fff" }]}>
+                {t("pairing.scanDenied")}
+              </Text>
+              {canAskAgain ? (
+                <Pressable
+                  testID="pairing.scan.allow"
+                  accessibilityRole="button"
+                  onPress={() => void requestPermission()}
+                  style={buttonStyle}
+                >
+                  <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanAllow")}</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  testID="pairing.scan.openSettings"
+                  accessibilityRole="button"
+                  onPress={() => void Linking.openSettings()}
+                  style={buttonStyle}
+                >
+                  <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("pairing.scanOpenSettings")}</Text>
+                </Pressable>
+              )}
+            </>
+          ) : null}
+          <Pressable
+            testID="pairing.scan.cancel"
+            accessibilityRole="button"
+            onPress={onCancel}
+            style={buttonStyle}
+          >
+            <Text style={[type.bodyStrong, { color: "#fff" }]}>{t("common.cancel")}</Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
