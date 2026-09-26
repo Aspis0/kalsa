@@ -31,7 +31,7 @@ pub const MARGIN_FRACTION: f64 = 0.25;
 
 /// The compute buffers (the micro-batch's attention and FFN intermediates):
 /// they follow the batch, not the model, which is the naive formula's first
-/// mistake. Measured on the shipped build with the shipped Trinity row at
+/// mistake. Measured on the shipped build with a 4 GiB MoE row at
 /// the shipped ubatch 512, the allocator reports ~60 MiB where the weights
 /// are ~4 GiB; the forfait stays 512 MiB on purpose, because a large dense
 /// row's buffers cost more than an MoE's and the point of a forfait is to

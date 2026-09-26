@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 pub(crate) const HOST: &str = "127.0.0.1";
 
 /// The logical prompt batch, at the binary's own default (b10950 `--help`:
-/// "batch-size N (default: 2048)"). Measured on the shipped build with the
-/// shipped Trinity row: the first turn's prefill — the turn the phone
+/// "batch-size N (default: 2048)"). Measured on the shipped build with a
+/// 4 GiB MoE row: the first turn's prefill — the turn the phone
 /// actually waits for — went from 1151 to 1883 tokens per second against
 /// the old 512, with the thermal state unchanged.
 pub(crate) const BATCH: u32 = 2048;

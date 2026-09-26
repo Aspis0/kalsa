@@ -4,7 +4,7 @@
 //! arithmetic and says nothing about the one fact only the world can settle —
 //! whether the speed the catalog predicts for a row is the speed the machine
 //! actually delivers. Tonight's first end-to-end run made that answerable:
-//! the shell downloaded the pinned Trinity GGUF and served it with the real
+//! the shell downloaded a pinned GGUF and served it with the real
 //! engine, and this test re-runs both halves and prints them side by side.
 //!
 //! The machine is probed the way the product probes it, the catalog is asked
@@ -30,25 +30,25 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 /// The context the prediction and the measurement share. 8192 is the
-/// catalog's working context, and at it the 8 GiB tier asks about Trinity —
-/// at 4096 the heavier granite-4.0-h-tiny also fits and displaces Trinity in
-/// the same-class tiebreak, which would make this test measure a row the
-/// shell did not predict.
+/// catalog's working context, and at it the smallest tier that runs
+/// anything asks about Granite 4 Tiny — the row the walk picks there.
 const CONTEXT_TOKENS: u64 = 8192;
 
 /// The phone the pairing handshake reports: a dense 4B at 2.83 GB, on
-/// battery. Trinity is the 8 GiB tier's pick against it, and decode does not
-/// depend on the budget — only on the path, the weights and the context — so
-/// this is the honest way to ask the catalog about Trinity through the public
-/// walk without lying about anything that matters.
-fn trinity_tier_input(
+/// battery. Granite 4 Tiny is the smallest tier's pick against it, and decode
+/// does not depend on the budget — only on the path, the weights and the
+/// context — so this is the honest way to ask the catalog about that row
+/// through the public walk without lying about anything that matters.
+fn smallest_tier_input(
     backend: kalsa_probe::Backend,
     ceiling: f64,
     lower_bound: bool,
 ) -> ChoiceInput {
     ChoiceInput {
         backend,
-        ram_bytes: 8 * GIB,
+        // The smallest machine the catalog serves: 5.5 GiB of budget after
+        // the margin, above the row's 5.19 GiB footprint.
+        ram_bytes: 8 * GIB + GIB / 2,
         bandwidth_bytes_per_second: ceiling,
         bandwidth_is_lower_bound: lower_bound,
         compute_flops_per_second: 100.0e9,
@@ -186,13 +186,13 @@ fn the_catalog_prediction_meets_the_measured_decode() {
         eprintln!("probe:    note: {note}");
     }
 
-    // What the catalog predicts for the Trinity row, through the public walk.
-    let input = trinity_tier_input(backend, ceiling, lower_bound);
+    // What the catalog predicts for the row, through the public walk.
+    let input = smallest_tier_input(backend, ceiling, lower_bound);
     let predicted = match choose(&input) {
         Decision::Pick(selection) => {
             assert_eq!(
-                selection.repo, "arcee-ai/Trinity-Nano-Preview",
-                "the 8 GiB tier must ask about Trinity"
+                selection.repo, "ibm-granite/granite-4.0-h-tiny",
+                "the smallest tier must ask about Granite 4 Tiny"
             );
             // The floor path is the active one on a Metal machine: the
             // bandwidth was measured on the CPU while the model decodes on
@@ -207,15 +207,15 @@ fn the_catalog_prediction_meets_the_measured_decode() {
                 selection.decode
             );
             let plan = &selection.download;
-            assert!(plan.url.contains("Trinity-Nano-Preview-Q4_K_M.gguf"));
+            assert!(plan.url.contains("granite-4.0-h-tiny-Q4_K_M.gguf"));
             let predicted = selection.decode.floor();
             eprintln!(
                 "predicted: ≥ {predicted:.1} tok/s (Prediction::Floor; the tier picks \
-                 Trinity by relief)"
+                 Granite by relief)"
             );
             predicted
         }
-        other => panic!("expected a pick for Trinity, got {other:?}"),
+        other => panic!("expected a pick for the smallest tier, got {other:?}"),
     };
 
     // The real engine, started the way the launcher starts it, on a port

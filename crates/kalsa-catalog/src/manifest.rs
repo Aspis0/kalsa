@@ -566,59 +566,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             sha256: "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
         },
     },
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "arcee-ai/Trinity-Nano-Preview",
-            display_name: "Arcee Trinity Nano",
-            last_modified: "2026-05-28T22:45:39.000Z",
-            // OpenMDW permits commercial use and modification; preserving licence
-            // and notices, and terminating rights on a patent suit, is the same
-            // standard permissive package MIT and Apache-2.0 ship under other
-            // words, so this is Open rather than its own category.
-            licence: Licence::Open("openmdw-1.1"),
-            parameters: Parameters::mixture(6_000_000_000, 1_000_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 3_786_957_088,
-            mmproj_bytes: None,
-            kv_bytes_per_token: None,
-            // Header, read from THIS pinned file on 2026-09-21:
-            // `afmoe.block_count 56`, `afmoe.attention.head_count_kv 2`,
-            // `afmoe.attention.key_length 128`,
-            // `afmoe.attention.value_length 128`,
-            // `afmoe.attention.sliding_window 2048`. The 42 sliding-window
-            // layers are NOT a header key: `afmoe.cpp` defaults
-            // `swa_period = 4` and `llama-hparams.cpp:15` marks
-            // `il % 4 < 3` windowed, so 42 of 56. Per cell:
-            // 42 x 2 x (128 + 128) = 21_504 K+V elements — the engine's own
-            // "42 layers" SWA pool: 55.78 MiB at 2560 cells, q8_0
-            // (`docs/MULTI-DEVICE-SHAPE.md` §7, A np=1).
-            slot_cache: SlotCache::SlidingWindow {
-                window_tokens: 2048,
-                width_per_cell: 21_504,
-            },
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            // Measured tonight, 2026-09-14, on the machine this catalog is
-            // developed on: the real engine, the real path, the server's own
-            // timings. Every other row is unmeasured, and none of them pretends
-            // otherwise.
-            measured_decode: Some(MeasuredDecode {
-                tokens_per_second: 62.7,
-                backend: Backend::Metal,
-                measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
-                              on GPU, context 4096), 2026-09-14",
-            }),
-            trained_context_tokens: Some(131_072),
-            stale: None,
-        },
-        source: GgufSource {
-            repo: "arcee-ai/Trinity-Nano-Preview-GGUF",
-            commit: "2aa08593b79242d224da0215fb36924dcc0f87ea",
-            file: "Trinity-Nano-Preview-Q4_K_M.gguf",
-            bytes: 3_786_957_088,
-            sha256: "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
-        },
-    },
     // ── Google Gemma 4 26B-A4B, verified 2026-09-18 ────────────────────────
     // Google's own quantisation-aware training build, not a post-training
     // quantisation of it: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, apache-2.0

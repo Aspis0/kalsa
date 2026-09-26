@@ -2222,12 +2222,13 @@ mod tests {
 
     #[test]
     fn the_chooser_does_not_exclude_a_model_the_machine_funds_at_a_smaller_context() {
-        // On 8 GiB, the rows around 4 GiB fund 5–6k tokens each; priced at
-        // 8192 the chooser refused every one of them and handed the tier to
-        // a smaller row. The pick must come from what the machine funds.
+        // At 16 GiB the rows around 4–7 GiB fund thousands of tokens each;
+        // priced at 8192 the chooser must not refuse every one of them and
+        // hand the tier to the smallest row on the menu. The pick must come
+        // from what the machine funds.
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 8 * 1024 * 1024 * 1024,
+            ram_bytes: 16 * 1024 * 1024 * 1024,
         };
         let phone = PhoneModel {
             weights_bytes: 2_200_000_000,
@@ -2243,10 +2244,12 @@ mod tests {
              comparison's own words"
         );
         assert!(!reason.is_empty(), "the comparison must say something");
-        let trinity = rows().find(|entry| entry.display_name == "Arcee Trinity Nano")
-            .expect("the comparison row left the catalog");
+        let smallest = kalsa_catalog::usable()
+            .min_by_key(|entry| entry.entry().weights_bytes)
+            .expect("the catalog carries downloadable rows")
+            .entry();
         assert!(
-            row.weights_bytes > trinity.weights_bytes,
+            row.weights_bytes > smallest.weights_bytes,
             "the tier went to {} when bigger funded rows exist",
             row.display_name
         );

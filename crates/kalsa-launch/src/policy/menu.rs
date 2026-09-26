@@ -10,7 +10,7 @@
 //! offers tens of thousands of tokens per device, and the floor appears only
 //! as a refusal (in `slots.rs`) and as Phi Mini's accept boundary.
 //!
-//! The four sliding-window rows — Trinity Nano, Gemma 4 26B, Gemma 4 12B,
+//! The three sliding-window rows — Gemma 4 26B, Gemma 4 12B,
 //! Gemma 4 E4B — and the three recurrent rows (Qwen 3.6, Granite 4 Tiny,
 //! LFM 2.5) carry their per-slot geometry, so the plan prices the replication
 //! `docs/MULTI-DEVICE-SHAPE.md` §7 measured (+167 MiB going np=1 → np=4 on
@@ -93,15 +93,6 @@ const OFFERS: &[Offer] = &[
         n4: (135_168, Bind::Memory),
         swa: false,
         measured_kv: true,
-    },
-    // SWA, assumed KV: the row the +167 MiB replication was measured on.
-    Offer {
-        name: "Arcee Trinity Nano",
-        n1: (131_072, Bind::Trained),
-        n2: (131_072, Bind::Trained),
-        n4: (102_912, Bind::Memory),
-        swa: true,
-        measured_kv: false,
     },
     // SWA, assumed KV (`sliding_window_pattern` in the row's own comment).
     Offer {
@@ -370,7 +361,7 @@ fn the_sliding_window_rows_carry_their_per_slot_term() {
     }
     assert_eq!(
         OFFERS.iter().filter(|offer| offer.swa).count(),
-        4,
+        3,
         "the sliding-window set on the menu changed"
     );
     assert_eq!(

@@ -41,11 +41,6 @@ const SOURCED_ROWS: &[(&str, u64, &str)] = &[
         4_230_976_352,
         "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
     ),
-    (
-        "Trinity-Nano-Preview-Q4_K_M.gguf",
-        3_786_957_088,
-        "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
-    ),
 ];
 
 #[test]

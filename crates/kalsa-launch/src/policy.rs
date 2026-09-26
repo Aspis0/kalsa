@@ -254,9 +254,8 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
 /// carved first and the context takes the rest.
 ///
 /// Per shipped row, context before → after the amendment (Metal, measured
-/// through `plan`): Trinity-Nano 16 GiB 87 087 → 65 315; Qwen 3.5 16 GiB
-/// 94 917 → 71 188; Granite 4 Tiny 32 GiB 213 642 → 160 232; Qwen 3.5
-/// 64 GiB 488 133 → 422 597. The lost tokens were never usable: a context
+/// through `plan`): Qwen 3.5 16 GiB 94 917 → 71 188; Granite 4 Tiny 32 GiB
+/// 213 642 → 160 232; Qwen 3.5 64 GiB 488 133 → 422 597. The lost tokens were never usable: a context
 /// ten times the model's training length is funded arithmetic, not memory
 /// anyone's conversation reaches. The roof itself is bounded by the chats
 /// it serves, never by the machine's size (see
@@ -1156,7 +1155,7 @@ mod tests {
     /// number beside the control would be a second arithmetic.
     #[test]
     fn the_panels_price_is_the_launchers_own_kv_arithmetic() {
-        for name in ["Alibaba Qwen 3.6", "Arcee Trinity Nano", GRANITE] {
+        for name in ["Alibaba Qwen 3.6", "Google Gemma 4 12B", GRANITE] {
             let model = shipped_row(name);
             let budget = memory_budget(Backend::Metal, 64 * GIB);
             let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))

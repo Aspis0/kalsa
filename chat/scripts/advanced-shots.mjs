@@ -410,7 +410,7 @@ async function main() {
     await page.addInitScript(installStub, {
       advanced: fixture.advanced,
       brain: fixture.advanced.running
-        ? { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Arcee Trinity Nano" }
+        ? { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Google Gemma 4 E4B" }
         : { kind: "stopped" },
       // The credential rides with the endpoint: together they are what
       // `withBrainDefaults` reads, and an endpoint without one is no

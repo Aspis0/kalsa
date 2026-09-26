@@ -780,17 +780,17 @@ mod tests {
 
     #[test]
     fn an_unsourced_moe_never_claims_capability_over_a_dense_phone() {
-        // Trinity-Nano is 6B total: 1.5× the phone's 4B, clearing the bar on
+        // A 6B mixture: 1.5× the phone's 4B, clearing the bar on
         // parameters — and the claim is still refused, because MoE against
         // dense is a claim across shapes, no sourced rule converts the shapes,
-        // and Trinity publishes nothing that would settle it.
-        let trinity = Parameters::mixture(6_000_000_000, 1_000_000_000);
+        // and nothing published would settle it.
+        let mixture = Parameters::mixture(6_000_000_000, 1_000_000_000);
         let phone = Parameters::dense(4_000_000_000);
         assert!(
-            trinity.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO,
+            mixture.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO,
             "the parameter bar is cleared; only the missing evidence refuses"
         );
-        assert!(capability_basis(trinity, None, Some(phone)).is_none());
+        assert!(capability_basis(mixture, None, Some(phone)).is_none());
     }
 
     #[test]

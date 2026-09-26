@@ -26,11 +26,11 @@ use std::time::Instant;
 /// file, bytes, sha256), copied from `crates/kalsa-catalog/src/manifest.rs`,
 /// which is where it lives and the only place it may be corrected.
 const ROW: (&str, &str, &str, u64, &str) = (
-    "arcee-ai/Trinity-Nano-Preview-GGUF",
-    "2aa08593b79242d224da0215fb36924dcc0f87ea",
-    "Trinity-Nano-Preview-Q4_K_M.gguf",
-    3_786_957_088,
-    "287562a3824ce2277e2c71cfcc70248b2d90f7fa342a4779979e0bf3e37ad546",
+    "ibm-granite/granite-4.0-h-tiny-GGUF",
+    "08d5a8a9741dd5c1a95d2d39e25253226aa1464e",
+    "granite-4.0-h-tiny-Q4_K_M.gguf",
+    4_230_976_352,
+    "5a38b08c441ae1adbafb1d2b8a7167e0d48734d83af68b268cefea1eec553dcd",
 );
 
 /// Where the first leg is killed: far enough in that resuming is real work,
@@ -38,7 +38,7 @@ const ROW: (&str, &str, &str, u64, &str) = (
 const INTERRUPT_AT: u64 = 512 * 1024 * 1024;
 
 #[test]
-#[ignore = "moves ~3.6 GB over the network; set KALSA_BRAIN_REAL_DOWNLOAD=1"]
+#[ignore = "moves ~4.2 GB over the network; set KALSA_BRAIN_REAL_DOWNLOAD=1"]
 fn a_catalog_row_downloads_resumes_and_verifies_for_real() {
     if std::env::var_os("KALSA_BRAIN_REAL_DOWNLOAD").is_none() {
         eprintln!("skip: set KALSA_BRAIN_REAL_DOWNLOAD=1 to move gigabytes over the network");

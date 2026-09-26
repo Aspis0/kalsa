@@ -548,9 +548,9 @@ mod tests {
             // render it the first time a machine produces one.
             quicker: Some(ModelChoiceDto {
                 id: Some("0000000000000002".to_string()),
-                name: "Arcee Trinity Nano".to_string(),
+                name: "Google Gemma 4 E4B".to_string(),
                 quant: "Q4_K_M".to_string(),
-                weights_bytes: 3_786_957_088,
+                weights_bytes: 4_977_171_584,
                 context_tokens: Some(8192),
                 speed_context_tokens: SPEED_CONTEXT_TOKENS,
                 speed: SpeedDto::Measured {
@@ -581,7 +581,7 @@ mod tests {
         assert_eq!(json["model"]["speed"]["high"], 21.0);
         assert_eq!(json["model"]["measured"], 18.4);
         assert_eq!(json["quicker"]["measured"], serde_json::Value::Null);
-        assert_eq!(json["quicker"]["name"], "Arcee Trinity Nano");
+        assert_eq!(json["quicker"]["name"], "Google Gemma 4 E4B");
         assert_eq!(json["quicker"]["speed"]["shape"], "measured");
         assert_eq!(json["refusal"], serde_json::Value::Null);
         let mut top_keys: Vec<_> = json.as_object().unwrap().keys().collect();

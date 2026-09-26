@@ -1,11 +1,10 @@
 //! The per-slot term: what the engine allocates for EACH stream on top of the
 //! context-wide pool, and the money solve that pays it before it buys tokens.
 //!
-//! The pinned reference is `docs/MULTI-DEVICE-SHAPE.md` §7 — the engine's own
-//! `llama_kv_cache` log lines from the A/B2/B4 runs on the shipped b10950 with
-//! the pinned `Trinity-Nano-Preview-Q4_K_M.gguf`, `--ctx-size 16384`, q8_0 and
-//! ubatch 512. The numbers below are that log. If they move, either this
-//! arithmetic or the engine changed, and the run says which:
+//! The reference is `docs/MULTI-DEVICE-SHAPE.md` §7 — the engine's own
+//! `llama_kv_cache` log lines from the A/B2/B4 runs on b10950 with
+//! `Trinity-Nano-Preview-Q4_K_M.gguf`, `--ctx-size 16384`, q8_0 and
+//! ubatch 512. The numbers below are that log:
 //!
 //! ```text
 //! np=1: SWA  55.78 MiB ( 2560 cells, 42 layers, 1/1 seqs)
@@ -31,19 +30,47 @@ use kalsa_probe::Backend;
 /// The one context every §7 run used, in tokens.
 const SECTION_7_CONTEXT: u64 = 16_384;
 
-/// §7, verbatim. Trinity-Nano's geometry, read from the pinned file's header:
-/// `afmoe.block_count 56`, `afmoe.attention.head_count_kv 2`,
+/// The window geometry §7 ran with — window 2048, 21_504 K+V elements per
+/// cell — as a row-shaped fixture, because the arithmetic under test is the
+/// engine's and the log is the judge. The real rows that ship carry their own
+/// geometry and are pinned in [`each_sliding_window_row_prices_its_own_geometry`].
+fn section_7_row() -> ModelEntry {
+    ModelEntry {
+        repo: "fixture/section-7",
+        display_name: "Section 7 Fixture",
+        last_modified: "2026-01-01",
+        licence: kalsa_catalog::Licence::Open("apache-2.0"),
+        parameters: kalsa_catalog::Parameters::mixture(6_000_000_000, 1_000_000_000),
+        quant: "Q4_K_M",
+        weights_bytes: 3_786_957_088,
+        mmproj_bytes: None,
+        kv_bytes_per_token: None,
+        slot_cache: SlotCache::SlidingWindow {
+            window_tokens: 2048,
+            width_per_cell: 21_504,
+        },
+        dense_equivalent: None,
+        kv_assumption_undercounts: false,
+        measured_decode: None,
+        trained_context_tokens: None,
+        stale: None,
+    }
+}
+
+/// §7, verbatim, against the window geometry its run read from its file's
+/// header: `afmoe.block_count 56`, `afmoe.attention.head_count_kv 2`,
 /// `key_length 128`, `value_length 128`, `sliding_window 2048`; the 42
 /// windowed layers are `afmoe.cpp`'s `swa_period = 4` default
 /// (`llama-hparams.cpp:15`: `il % 4 < 3`), not a header key. The full
 /// attention pool is the other 14 layers, 2 x (128 + 128) elements per cell.
+/// The judge is the engine's own log; the geometry is the fixture.
 #[test]
 fn the_engine_log_of_section_7_reproduces() {
-    let trinity = shipped_row("Arcee Trinity Nano");
+    let section_7 = section_7_row();
 
     for (slots, logged_mib) in [(1u64, 55.78f64), (2, 111.56), (4, 223.12)] {
         let per_slot = SECTION_7_CONTEXT / slots;
-        let bytes = slot_cache_bytes(trinity, per_slot, KvCache::Q8_0, u64::from(UBATCH)) * slots;
+        let bytes = slot_cache_bytes(&section_7, per_slot, KvCache::Q8_0, u64::from(UBATCH)) * slots;
         let mib = bytes as f64 / MIB as f64;
         assert!(
             (mib - logged_mib).abs() < 0.005,
@@ -73,9 +100,9 @@ fn the_engine_log_of_section_7_reproduces() {
     // PER-SLOT pool is constant, so four streams pay it four times. The
     // difference is the "+167 MiB" the doc names (223.12 - 55.78 = 167.34).
     let per_slot_one =
-        slot_cache_bytes(trinity, SECTION_7_CONTEXT, KvCache::Q8_0, u64::from(UBATCH));
+        slot_cache_bytes(&section_7, SECTION_7_CONTEXT, KvCache::Q8_0, u64::from(UBATCH));
     let per_slot_four = slot_cache_bytes(
-        trinity,
+        &section_7,
         SECTION_7_CONTEXT / 4,
         KvCache::Q8_0,
         u64::from(UBATCH),
@@ -98,17 +125,14 @@ fn the_engine_log_of_section_7_reproduces() {
     );
 }
 
-/// Every sliding-window row prices ITS OWN geometry, not Trinity's: window,
-/// windowed layer count and per-cell width all differ. Each expected figure
-/// carries where it came from, and a wrong row entry fails here rather than
-/// silently funding a wrong context.
+/// Every sliding-window row prices ITS OWN geometry: window, windowed layer
+/// count and per-cell width differ per row. Each expected figure carries
+/// where it came from, and a wrong row entry fails here rather than silently
+/// funding a wrong context.
 #[test]
 fn each_sliding_window_row_prices_its_own_geometry() {
     // (row, window tokens, per-cell K+V elements, saturated MiB)
     let cases = [
-        // Header + `afmoe.cpp` default: 42 x 2 x (128 + 128) = 21_504 per
-        // cell, PAD(2048 + 512, 256) = 2560 cells.
-        ("Arcee Trinity Nano", 2048u64, 21_504u64, 55.781_25f64),
         // Header (Explorer's read): 25 windowed x 8 x (256 + 256) = 102_400
         // per cell, PAD(1024 + 512, 256) = 1536 cells.
         ("Google Gemma 4 26B", 1024, 102_400, 159.375),

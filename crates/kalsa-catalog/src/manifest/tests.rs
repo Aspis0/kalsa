@@ -119,29 +119,27 @@ fn the_undercount_flag_agrees_with_a_carried_measurement() {
 
 #[test]
 fn every_measured_decode_names_its_machine_and_date() {
-    // Measured tonight on the M1 Max, on the path the row will decode
+    // Measured on the M1 Max, on the path the row will decode
     // on: the figure and the machine travel together, and the backend
     // gate means a different machine is never told this one's speed.
-    let trinity = DOWNLOADABLE
+    let measured: Vec<_> = DOWNLOADABLE
         .iter()
-        .find(|row| row.model.repo == "arcee-ai/Trinity-Nano-Preview")
-        .expect("trinity is in the download table");
-    let measured = trinity
-        .model
-        .measured_decode
-        .expect("trinity was measured on the real engine");
-    assert_eq!(measured.tokens_per_second, 62.7);
-    assert_eq!(measured.backend, kalsa_probe::Backend::Metal);
+        .filter_map(|row| row.model.measured_decode.map(|measured| (row.model.repo, measured)))
+        .collect();
     assert!(
-        measured.measured_on.contains("M1 Max"),
-        "{}",
-        measured.measured_on
+        !measured.is_empty(),
+        "the catalog still carries a measurement taken on the real engine"
     );
-    assert!(
-        measured.measured_on.contains("2026-09-14"),
-        "{}",
-        measured.measured_on
-    );
+    for (repo, measured) in measured {
+        assert!(measured.tokens_per_second > 0.0, "{repo}");
+        assert_eq!(measured.backend, kalsa_probe::Backend::Metal, "{repo}");
+        assert!(measured.measured_on.contains("M1 Max"), "{repo}: {}", measured.measured_on);
+        assert!(
+            measured.measured_on.contains("2026-"),
+            "{repo}: {}",
+            measured.measured_on
+        );
+    }
     assert!(rows().all(|entry| {
         entry.measured_decode.is_none_or(|measured| {
             let (machine, _) = measured
@@ -211,7 +209,6 @@ fn every_row_has_a_name_a_person_can_say() {
             ("LiquidAI/LFM2.5-8B-A1B", "Liquid LFM 2.5"),
             ("microsoft/Phi-mini-MoE-instruct", "Microsoft Phi Mini"),
             ("ibm-granite/granite-4.0-h-tiny", "IBM Granite 4 Tiny"),
-            ("arcee-ai/Trinity-Nano-Preview", "Arcee Trinity Nano"),
             ("google/gemma-4-26B-A4B-it", "Google Gemma 4 26B"),
             ("google/gemma-4-E4B-it", "Google Gemma 4 E4B"),
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
@@ -251,7 +248,6 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF",
             "smarttasks/Phi-mini-MoE-instruct-GGUF",
             "ibm-granite/granite-4.0-h-tiny-GGUF",
-            "arcee-ai/Trinity-Nano-Preview-GGUF",
             "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
             "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
@@ -339,7 +335,6 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("LiquidAI/LFM2.5-8B-A1B", 4_588_301_888),
             ("microsoft/Phi-mini-MoE-instruct", 4_616_170_016),
             ("ibm-granite/granite-4.0-h-tiny", 4_230_976_352),
-            ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
             ("google/gemma-4-26B-A4B-it", 14_439_363_584),
             ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
@@ -370,12 +365,11 @@ fn dense_equivalents_carry_only_published_comparisons() {
         assert!(source.contains("accessed 2026-09-14"), "{source}");
     }
     // LFM publishes vendor-to-vendor tables, not a same-recipe dense LFM
-    // comparison, and Trinity and Qwen 3.6 publish nothing: None is the
+    // comparison, and Qwen 3.6 publishes nothing: None is the
     // honest value, and it means nothing was published — not that the
     // model is weak.
     for repo in [
         "LiquidAI/LFM2.5-8B-A1B",
-        "arcee-ai/Trinity-Nano-Preview",
         "Qwen/Qwen3.6-35B-A3B",
     ] {
         let row = DOWNLOADABLE

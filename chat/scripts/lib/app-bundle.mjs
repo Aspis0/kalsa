@@ -66,7 +66,7 @@ export function startCommand(endpoint) {
     `"$HOME/Library/Application Support/kalsa-brain/runtime/builds/metal/llama-b10950/llama-server"`,
     "--host 127.0.0.1",
     `--port ${port}`,
-    `--model "$HOME/Library/Application Support/kalsa-brain/runtime/models/Trinity-Nano-Preview-Q4_K_M.gguf"`,
+    `--model "$HOME/Library/Application Support/kalsa-brain/runtime/models/gemma-4-E4B-it-Q4_K_M.gguf"`,
     "--n-gpu-layers all",
     "--flash-attn on",
     "--cache-type-k q8_0",

@@ -50,7 +50,7 @@
       "details": "the full working",
       "id": "0000000000000002",
       "measured": null,
-      "name": "Arcee Trinity Nano",
+      "name": "Google Gemma 4 E4B",
       "quant": "Q4_K_M",
       "reason": "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
       "speed": {
@@ -59,7 +59,7 @@
         "value": 62.7
       },
       "speed_context_tokens": 8192,
-      "weights_bytes": 3786957088
+      "weights_bytes": 4977171584
     },
     "refusal": null
   },

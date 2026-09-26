@@ -81,7 +81,13 @@ fn a_plain_row_pays_no_per_slot_term() {
 /// divide" would charge for a full pool the engine never allocates.
 #[test]
 fn the_solve_switches_when_the_window_has_not_saturated() {
-    let trinity = shipped_row("Arcee Trinity Nano");
+    // The window geometry as a fixture: the regime switch is the unit under
+    // test, not whichever row the catalog happens to ship.
+    let mut windowed = plain_row(4 * GIB);
+    windowed.slot_cache = SlotCache::SlidingWindow {
+        window_tokens: 2048,
+        width_per_cell: 21_504,
+    };
     let per_token = ASSUMED_KV_BYTES_PER_TOKEN;
     let window = 2048u64;
     let width = 21_504u64;
@@ -97,12 +103,12 @@ fn the_solve_switches_when_the_window_has_not_saturated() {
         sliding_window_cells(window, u64::from(UBATCH), below),
         below
     );
-    assert!(slot_cache_bytes(trinity, below, KvCache::Q8_0, u64::from(UBATCH)) < saturated_bytes);
+    assert!(slot_cache_bytes(&windowed, below, KvCache::Q8_0, u64::from(UBATCH)) < saturated_bytes);
 
     // One byte short of the budget that would buy a saturated pool a slot.
     let budget = saturated_bytes + 2560 * per_token - 1;
     let funded = funded_cache_tokens(
-        trinity,
+        &windowed,
         budget,
         per_token,
         1,

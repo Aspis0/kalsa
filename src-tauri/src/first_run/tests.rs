@@ -31,6 +31,35 @@ fn a_turn_on_with_nothing_chosen_is_refused_before_it_walks() {
 }
 
 #[test]
+fn the_choice_that_left_the_catalog_reads_as_no_choice() {
+    // A user who picked Arcee Trinity Nano before it left the catalog holds
+    // exactly this token — `startup::model_token`'s answer for
+    // `arcee-ai/Trinity-Nano-Preview` / "Arcee Trinity Nano" / Q4_K_M /
+    // 3_786_957_088 bytes. No row answers to it now, so the stored choice is
+    // no choice: the turn-on waits for a pick, and the home page owes that
+    // user the first run again.
+    let dir = scratch("removed-row");
+    let state_file = dir.join("server.state");
+    let chosen = crate::options::LaunchOverrides {
+        model: Some("625b43dfded00c02".to_string()),
+        ..Default::default()
+    };
+    crate::options::save(&state_file, chosen).expect("save");
+    assert!(stored_choice(&state_file).is_none(), "no row answers to it");
+    assert!(
+        matches!(
+            require_choice(&state_file, false),
+            Err(StartupFailure::AwaitingChoice)
+        ),
+        "the turn-on waits for a pick"
+    );
+    assert!(
+        require_choice(&state_file, true).is_ok(),
+        "a dev override owns its bytes"
+    );
+}
+
+#[test]
 fn a_token_no_row_answers_to_is_no_choice() {
     // A choice that has gone stale reads as the first run again: the walk
     // must not start on a token nothing resolves, or the home page would

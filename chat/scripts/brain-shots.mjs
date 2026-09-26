@@ -128,9 +128,9 @@ const QUICK_MODEL = {
   // The backend's opaque token for the row. The page sends it back on a click
   // and never learns what it is made of.
   id: "6f1c0a4b2d9e7315",
-  name: "Arcee Trinity Nano",
+  name: "Google Gemma 4 E4B",
   quant: "Q4_K_M",
-  weights_bytes: 3_786_957_088,
+  weights_bytes: 4_977_171_584,
   context_tokens: 65_315,
   speed_context_tokens: 8192,
   speed: { shape: "measured", value: 62.7, machine: "an M1 Max" },
@@ -139,7 +139,7 @@ const QUICK_MODEL = {
     "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
   details:
     "budget 12.75 GiB of 17.0 GiB — 4.25 GiB kept for the system\n" +
-    "weights 3.5 GiB at Q4_K_M\n" +
+    "weights 4.6 GiB at Q4_K_M\n" +
     "speed 62.7 tokens/s, measured on an M1 Max through Metal",
 };
 
