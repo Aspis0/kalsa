@@ -11,7 +11,7 @@ import { requireOptionalNativeModule } from "expo-modules-core";
 export type IrohLane = "door" | "desk";
 
 type NativeKalsaIrohModule = {
-  startBridge(keyPath: string): Promise<void>;
+  startBridge(): Promise<void>;
   nodeId(): Promise<string>;
   openTunnel(nodeHex: string, lane: IrohLane): Promise<number>;
   write(id: number, base64: string, timeoutMs: number): Promise<void>;
@@ -41,11 +41,12 @@ function requireModule(): NativeKalsaIrohModule {
 }
 
 /**
- * Load or mint the node identity at `keyPath` (its parent directory must
- * exist). On Android the app passes `<FileSystem.documentDirectory>/iroh-node.key`.
+ * Load or mint the node identity. The key file's path is resolved natively
+ * from the app's filesDir (`<filesDir>/iroh-node.key`, owner-only); no
+ * path crosses the JS bridge.
  */
-export function startBridge(keyPath: string): Promise<void> {
-  return requireModule().startBridge(keyPath);
+export function startBridge(): Promise<void> {
+  return requireModule().startBridge();
 }
 
 /** This node's public identity, 64 hex characters. */

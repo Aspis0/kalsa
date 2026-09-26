@@ -167,7 +167,7 @@ jobs:
       # a second NDK — the free-disk step above removed the runner's own.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          target: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-ndk
@@ -182,24 +182,44 @@ jobs:
           restore-keys: iroh-mobile-${{ runner.os }}-
       - name: Install the NDK for cargo-ndk
         run: |
-          # pipefail comes off for this one pipeline only: `yes` feeds the
-          # license prompt and dies of SIGPIPE once sdkmanager stops reading,
-          # which would fail the step under the runner's default pipefail.
-          # sdkmanager's own exit code still decides the step's fate.
-          set +o pipefail
+          # The runner's default Linux shell is `bash -e` WITHOUT pipefail,
+          # so this pipeline's status is sdkmanager's own exit code; `yes`
+          # dying of SIGPIPE once the license prompt is fed cannot fail the
+          # step.
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
-      - name: Build libkalsa_iroh_mobile.so (arm64-v8a, 16 KB pages)
+      - name: Build libkalsa_iroh_mobile.so (16 KB pages, every requested ABI)
         run: |
+          READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          test -x "$READELF" || { echo "FATAL: llvm-readelf not found in the NDK"; exit 1; }
           cd native/kalsa-iroh-mobile
-          # The crate's .cargo/config.toml carries the 16 KB page-size flag.
-          # A failed build or a missing .so must fail the job here, before
-          # Gradle could package a stale or absent library.
-          cargo ndk -t arm64-v8a build --release
-          SO=target/aarch64-linux-android/release/libkalsa_iroh_mobile.so
-          test -f "$SO"
-          mkdir -p ../../modules/kalsa-iroh/android/src/main/jniLibs/arm64-v8a
-          cp "$SO" ../../modules/kalsa-iroh/android/src/main/jniLibs/arm64-v8a/
+          # The crate's .cargo/config.toml carries the 16 KB page-size flags
+          # (max and common). A failed build, a missing .so, or a LOAD
+          # segment off the 16 KB boundary fails the job here, before Gradle
+          # could package a stale or misaligned library.
+          IFS=',' read -ra ABIS <<< "${{ inputs.abi }}"
+          for ABI in "${ABIS[@]}"; do
+            case "$ABI" in
+              arm64-v8a) TRIPLE=aarch64-linux-android ;;
+              armeabi-v7a) TRIPLE=armv7-linux-androideabi ;;
+              x86_64) TRIPLE=x86_64-linux-android ;;
+              *)
+                echo "FATAL: unsupported ABI for the iroh library: $ABI"
+                exit 1
+                ;;
+            esac
+            cargo ndk -t "$ABI" build --release
+            SO="target/$TRIPLE/release/libkalsa_iroh_mobile.so"
+            test -f "$SO" || { echo "FATAL: $SO was not built"; exit 1; }
+            BAD=$("$READELF" -lW "$SO" | awk '$1=="LOAD" && $NF!="0x4000" {print $1}')
+            if [ -n "$BAD" ]; then
+              echo "FATAL: $SO has LOAD segments not aligned to 0x4000: $BAD"
+              exit 1
+            fi
+            DEST="../../modules/kalsa-iroh/android/src/main/jniLibs/$ABI"
+            mkdir -p "$DEST"
+            cp "$SO" "$DEST/"
+          done
 
       # The llama.rn fork carries the engine sources in its cpp/ and the
       # plugin (plugins/withLlamaFromSource.js) always compiles them from

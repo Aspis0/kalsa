@@ -1,16 +1,22 @@
 /**
- * HTTP/1.1 over an iroh tunnel: serializes exactly one request (method,
- * path, Host, headers, Content-Length once, body) and parses the response
- * (status line, headers, Content-Length or chunked body). The body is an
- * async iterator of raw chunks — a streamed SSE response arrives chunk by
- * chunk, never buffered whole. One request per tunnel; not wired into
+ * HTTP/1.1 responses over an iroh tunnel: parses the head (bounded),
+ * then hands out the body as a single-pass async iterator of raw chunks
+ * — a streamed SSE response arrives chunk by chunk, never buffered
+ * whole. The tunnel is shut down when the body ends, errors, or the
+ * response carries no body: one request per tunnel. Not wired into
  * pairing or chat yet.
  */
 
 import { ByteWindow, HEAD_TERMINATOR } from "./byteStream";
+import { serializeHttpRequest, type IrohHttpRequest } from "./irohHttpRequest";
 
 const CRLF = "\r\n";
 const CRLF_BYTES = new Uint8Array([13, 10]);
+
+/** The response head is refused past this size — headers, not a document. */
+const MAX_HEAD_BYTES = 16 * 1024;
+
+export type { IrohHttpRequest };
 
 /** What the iroh module's tunnels look like to this parser. */
 export interface IrohTunnel {
@@ -20,36 +26,24 @@ export interface IrohTunnel {
   shutdown(): Promise<void>;
 }
 
-export interface IrohHttpRequest {
-  method: string;
-  path: string;
-  host: string;
-  headers?: Record<string, string>;
-  body?: Uint8Array | null;
-}
-
 export interface IrohHttpResponse {
   status: number;
   statusText: string;
-  /** Header names lowercased; on duplicates the last one wins. */
+  /** Header names lowercased; on duplicates the last one wins (and some
+   * duplicates — Content-Length — are refused outright). */
   headers: Record<string, string>;
-  /** Raw body chunks: dechunked when chunked, as delivered otherwise.
-   * Single pass — the tunnel carries the body once. */
+  /** Raw body chunks, each no larger than one tunnel read. Single pass —
+   * the tunnel carries the body once. */
   bodyChunks(): AsyncIterable<Uint8Array>;
-  readBody(): Promise<Uint8Array>;
+  /** The whole body, refused past `maxTotalBytes` (SSE callers iterate
+   * bodyChunks instead of buffering). */
+  readBody(maxTotalBytes: number): Promise<Uint8Array>;
 }
 
 export interface IrohHttpOptions {
   /** One read's byte ceiling and every call's deadline. */
   readMax?: number;
   timeoutMs?: number;
-}
-
-/** Latin-1 bytes for the ASCII-only request head (header values too). */
-function asciiBytes(text: string): Uint8Array {
-  const bytes = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0xff;
-  return bytes;
 }
 
 function asciiString(bytes: Uint8Array): string {
@@ -64,31 +58,19 @@ function asciiString(bytes: Uint8Array): string {
   return out;
 }
 
-export function serializeHttpRequest(request: IrohHttpRequest): Uint8Array {
-  for (const name of Object.keys(request.headers ?? {})) {
-    const lower = name.toLowerCase();
-    if (lower === "content-length") {
-      throw new Error("Content-Length is computed here, never passed in");
-    }
-    if (lower === "host") {
-      throw new Error("Host comes from request.host, never from headers");
-    }
-  }
-  const body = request.body ?? null;
-  const lines = [
-    `${request.method} ${request.path} HTTP/1.1`,
-    `Host: ${request.host}`,
-    ...Object.entries(request.headers ?? {}).map(
-      ([name, value]) => `${name}: ${value}`,
-    ),
-  ];
-  if (body) lines.push(`Content-Length: ${body.length}`);
-  const head = asciiBytes(lines.join(CRLF) + CRLF + CRLF);
-  if (!body) return head;
-  const out = new Uint8Array(head.length + body.length);
-  out.set(head, 0);
-  out.set(body, head.length);
-  return out;
+/** Statuses whose responses are defined to have no body. */
+function statusHasNoBody(status: number): boolean {
+  return (status >= 100 && status < 200) || status === 204 || status === 304;
+}
+
+/** Chunked when the FINAL Transfer-Encoding coding token is "chunked". */
+function isChunked(headers: Record<string, string>): boolean {
+  const codings = (headers["transfer-encoding"] ?? "")
+    .toLowerCase()
+    .split(",")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+  return codings.length > 0 && codings[codings.length - 1] === "chunked";
 }
 
 /** Parse the status line and headers of one response head (ASCII). */
@@ -104,11 +86,19 @@ export function parseResponseHead(head: string): {
   }
   const headers: Record<string, string> = {};
   for (const line of lines.slice(1)) {
+    // obs-fold (a line starting with SP/HTAB continuing the previous
+    // header) died in RFC 7230; accepting it would let a header value
+    // smuggle whatever the folded line carries.
+    if (line.startsWith(" ") || line.startsWith("\t")) {
+      throw new Error("obsolete header line folding in the response head");
+    }
     const at = line.indexOf(":");
     if (at <= 0) continue;
-    headers[line.slice(0, at).trim().toLowerCase()] = line
-      .slice(at + 1)
-      .trim();
+    const name = line.slice(0, at).trim().toLowerCase();
+    if (name === "content-length" && headers["content-length"] !== undefined) {
+      throw new Error("duplicate Content-Length in the response head");
+    }
+    headers[name] = line.slice(at + 1).trim();
   }
   return {
     status: Number(statusMatch[1]),
@@ -118,8 +108,9 @@ export function parseResponseHead(head: string): {
 }
 
 /**
- * Send one request on `tunnel` and parse the response head. The returned
- * body iterators continue reading the same tunnel; `readBody` collects.
+ * Send one request on `tunnel` and parse the response head. The tunnel is
+ * shut down when the body ends (or errors, or the response has no body);
+ * callers do not close it themselves.
  */
 export async function openIrohHttpRequest(
   tunnel: IrohTunnel,
@@ -131,79 +122,124 @@ export async function openIrohHttpRequest(
   await tunnel.write(serializeHttpRequest(request), timeoutMs);
 
   const window = new ByteWindow();
-  while (window.indexOf(HEAD_TERMINATOR) < 0) {
-    const chunk = await tunnel.read(readMax, timeoutMs);
-    if (chunk.length === 0) {
-      throw new Error("tunnel EOF before the response head");
+  let status: number;
+  let statusText: string;
+  let headers: Record<string, string>;
+  try {
+    while (window.indexOf(HEAD_TERMINATOR) < 0) {
+      const chunk = await tunnel.read(readMax, timeoutMs);
+      if (chunk.length === 0) {
+        throw new Error("tunnel EOF before the response head");
+      }
+      window.push(chunk);
+      if (window.length > MAX_HEAD_BYTES) {
+        throw new Error(`response head exceeds ${MAX_HEAD_BYTES} bytes`);
+      }
     }
-    window.push(chunk);
+    const headBytes = window.take(window.indexOf(HEAD_TERMINATOR));
+    window.take(HEAD_TERMINATOR.length);
+    ({ status, statusText, headers } = parseResponseHead(
+      asciiString(headBytes),
+    ));
+  } catch (error) {
+    await tunnel.shutdown();
+    throw error;
   }
-  const headBytes = window.take(window.indexOf(HEAD_TERMINATOR));
-  window.take(HEAD_TERMINATOR.length);
-  const { status, statusText, headers } = parseResponseHead(
-    asciiString(headBytes),
-  );
 
-  const isChunked = (headers["transfer-encoding"] ?? "").includes("chunked");
-  const bodyChunks = isChunked
-    ? dechunked(tunnel, window, readMax, timeoutMs)
-    : lengthOrCloseDelimited(
-        tunnel,
-        window,
-        headers["content-length"],
-        readMax,
-        timeoutMs,
-      );
+  const headOnly =
+    statusHasNoBody(status) || request.method.toUpperCase() === "HEAD";
+  if (headOnly) {
+    await tunnel.shutdown();
+  }
+  const chunks = headOnly
+    ? emptyChunks()
+    : isChunked(headers)
+      ? dechunked(tunnel, window, readMax, timeoutMs)
+      : lengthOrCloseDelimited(
+          tunnel,
+          window,
+          headers["content-length"],
+          readMax,
+          timeoutMs,
+        );
 
   return {
     status,
     statusText,
     headers,
-    bodyChunks: () => bodyChunks,
-    readBody: async () => {
-      const parts: Uint8Array[] = [];
-      for await (const chunk of bodyChunks) parts.push(chunk);
-      let size = 0;
-      for (const part of parts) size += part.length;
-      const out = new Uint8Array(size);
-      let at = 0;
-      for (const part of parts) {
-        out.set(part, at);
-        at += part.length;
-      }
-      return out;
-    },
+    bodyChunks: () => chunks,
+    readBody: (maxTotalBytes) => collectBounded(chunks, maxTotalBytes),
   };
 }
 
-/** Chunked framing: size line, bytes, CRLF; a zero size ends with trailers. */
+async function* emptyChunks(): AsyncGenerator<Uint8Array> {}
+
+/** Collects the single-pass iterator under a total-byte budget. An early
+ * exit (budget or transport error) auto-returns the generator, whose
+ * finally closes the tunnel — no second shutdown here. */
+async function collectBounded(
+  chunks: AsyncIterable<Uint8Array>,
+  maxTotalBytes: number,
+): Promise<Uint8Array> {
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for await (const part of chunks) {
+    size += part.length;
+    if (size > maxTotalBytes) {
+      throw new Error(`response body exceeds ${maxTotalBytes} bytes`);
+    }
+    parts.push(part);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+/**
+ * Chunked framing: size line, data, CRLF; a zero size ends with trailers.
+ * Every yielded piece is bounded by one tunnel read (`readMax`) — a huge
+ * declared chunk size streams through the window, it is never allocated.
+ */
 async function* dechunked(
   tunnel: IrohTunnel,
   window: ByteWindow,
   readMax: number,
   timeoutMs: number,
 ): AsyncGenerator<Uint8Array> {
-  while (true) {
-    const size = await readChunkSize(tunnel, window, readMax, timeoutMs);
-    if (size === 0) {
-      await drainTrailers(tunnel, window, readMax, timeoutMs);
-      return;
-    }
-    let remaining = size;
-    while (remaining > 0) {
-      if (window.length === 0) {
+  try {
+    while (true) {
+      const size = await readChunkSize(tunnel, window, readMax, timeoutMs);
+      if (size === 0) {
+        await drainTrailers(tunnel, window, readMax, timeoutMs);
+        return;
+      }
+      let remaining = size;
+      while (remaining > 0) {
+        if (window.length === 0) {
+          await refill(tunnel, window, readMax, timeoutMs);
+        }
+        const piece = window.take(Math.min(remaining, window.length));
+        remaining -= piece.length;
+        yield piece;
+      }
+      // The chunk's data must end with CRLF; a missing one is a torn or
+      // hostile frame, and skipping blind would desync the stream.
+      while (window.length < CRLF_BYTES.length) {
         await refill(tunnel, window, readMax, timeoutMs);
       }
-      const piece = window.take(Math.min(remaining, window.length));
-      remaining -= piece.length;
-      yield piece;
+      const terminator = window.take(CRLF_BYTES.length);
+      if (terminator[0] !== CRLF_BYTES[0] || terminator[1] !== CRLF_BYTES[1]) {
+        throw new Error("chunk data not terminated by CRLF");
+      }
     }
-    // The CRLF that closes this chunk's data must be consumed before the
-    // next size line is parsed; it may not have arrived yet.
-    while (window.length < CRLF_BYTES.length) {
-      await refill(tunnel, window, readMax, timeoutMs);
-    }
-    window.take(CRLF_BYTES.length);
+  } finally {
+    // Completion, error, or an early return from the consumer: the
+    // one-request tunnel is done either way.
+    await tunnel.shutdown();
   }
 }
 
@@ -228,7 +264,7 @@ async function readChunkSize(
   return size;
 }
 
-/** Trailers run to an empty line; anything EOFs early is a torn body. */
+/** Trailers run to an empty line; an EOF before it is a torn body. */
 async function drainTrailers(
   tunnel: IrohTunnel,
   window: ByteWindow,
@@ -259,25 +295,30 @@ async function* lengthOrCloseDelimited(
 ): AsyncGenerator<Uint8Array> {
   const total = contentLength === undefined ? null : Number(contentLength);
   if (total !== null && (!Number.isFinite(total) || total < 0)) {
+    await tunnel.shutdown();
     throw new Error(`not a Content-Length: ${contentLength}`);
   }
   let remaining = total;
-  while (remaining === null || remaining > 0) {
-    if (window.length === 0) {
-      const chunk = await tunnel.read(readMax, timeoutMs);
-      if (chunk.length === 0) {
-        if (remaining !== null && remaining > 0) {
-          throw new Error(`tunnel EOF with ${remaining} body bytes owed`);
+  try {
+    while (remaining === null || remaining > 0) {
+      if (window.length === 0) {
+        const chunk = await tunnel.read(readMax, timeoutMs);
+        if (chunk.length === 0) {
+          if (remaining !== null && remaining > 0) {
+            throw new Error(`tunnel EOF with ${remaining} body bytes owed`);
+          }
+          return;
         }
-        return;
+        window.push(chunk);
       }
-      window.push(chunk);
+      const piece = window.take(
+        remaining === null ? window.length : Math.min(remaining, window.length),
+      );
+      if (remaining !== null) remaining -= piece.length;
+      yield piece;
     }
-    const piece = window.take(
-      remaining === null ? window.length : Math.min(remaining, window.length),
-    );
-    if (remaining !== null) remaining -= piece.length;
-    yield piece;
+  } finally {
+    await tunnel.shutdown();
   }
 }
 

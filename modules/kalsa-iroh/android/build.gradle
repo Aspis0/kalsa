@@ -15,7 +15,8 @@ android {
 }
 
 dependencies {
-  // The uniffi Kotlin runtime speaks JNA; @aar is the Android build of it
-  // (the jar carries natives for desktop OSes only).
-  implementation "net.java.dev.jna:jna:5.15.0@aar"
+  // The uniffi Kotlin runtime speaks JNA; the @aar is the Android build.
+  // 5.16.0 is the first release with the Android 16 KB page-size fix
+  // (JNA CHANGES.md, issue #1618); a follow-up (#1647) landed in 5.17.0.
+  implementation "net.java.dev.jna:jna:5.16.0@aar"
 }

@@ -8,9 +8,11 @@ bounded by per-call deadlines — never the JS thread.
 
 ## Layout
 
-- `android/.../KalsaIrohModule.kt` — the Expo module: `startBridge(keyPath)`,
+- `android/.../KalsaIrohModule.kt` — the Expo module: `startBridge()`
+  (argless — the key path is resolved natively from `context.filesDir`),
   `nodeId()`, `openTunnel(nodeHex, lane)`, `write(id, base64, timeoutMs)`,
   `read(id, max, timeoutMs)` (base64, empty = EOF), `shutdown(id)`.
+  Blocking calls run on a bounded fixed pool (8 plain threads).
 - `android/.../uniffi/kalsa_iroh_mobile/` — the generated uniffi Kotlin
   bindings, vendored: they change only when the crate's uniffi API changes,
   and vendoring keeps the Gradle build hermetic (no Rust toolchain needed
@@ -22,20 +24,25 @@ bounded by per-call deadlines — never the JS thread.
 
 ## The .so
 
-Built on CI (`apk.yml`): rustup + cargo-ndk, NDK `27.1.12297006` (the RN
-gradle catalog's pin), `cargo ndk -t arm64-v8a build --release` with the
-crate's `.cargo/config.toml` supplying the 16 KB page-size flag. A failed
-build fails the job before Gradle runs.
+Built on CI (`apk.yml`) for every ABI in the build's `inputs.abi`
+(unsupported ABIs fail the job with a message): rustup + cargo-ndk, NDK
+`27.1.12297006` (the RN gradle catalog's pin), `cargo ndk -t <abi> build
+--release` with the crate's `.cargo/config.toml` supplying the 16 KB
+page-size flags (max and common). Each built `.so` is verified —
+`llvm-readelf -lW`: every LOAD segment `Align 0x4000`, else the job
+fails — then copied into the module's jniLibs.
 
 ## Key path
 
-The node identity lives at `<FileSystem.documentDirectory>/iroh-node.key`
-(Android's filesDir); the key file is created owner-only by the crate.
+The node identity lives at `<Context.filesDir>/iroh-node.key`, resolved
+by the Kotlin module — a filesystem path is what the crate wants, and
+resolving it natively means no `file://` URI is ever parsed in JS.
 
 ## JNA
 
-The uniffi Kotlin runtime speaks JNA; the AAR variant
-(`net.java.dev.jna:jna:5.15.0@aar`) is the Android build of it.
+The uniffi Kotlin runtime speaks JNA; the AAR variant is the Android
+build. **5.16.0** is the first release with the Android 16 KB page-size
+fix (JNA CHANGES.md, issue #1618; a follow-up, #1647, landed in 5.17.0).
 
 Not wired into pairing or chat yet: `src/remote/irohHttp.ts` is the
 transport that will ride these tunnels.

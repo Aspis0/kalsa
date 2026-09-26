@@ -1,4 +1,21 @@
-# Android loads .so files at 16 KB page granularity; the linker flag lives
-# here so no build has to remember it.
+# Android loads .so files at 16 KB page granularity; both linker flags
+# live here so no build has to remember them. max-page-size alone can
+# leave the "common" (minimum) alignment lower than the kernel's page
+# size, which trips the 16 KB requirement on some loaders.
 [target.aarch64-linux-android]
-rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+rustflags = [
+  "-C", "link-arg=-Wl,-z,max-page-size=16384",
+  "-C", "link-arg=-Wl,-z,common-page-size=16384",
+]
+
+[target.armv7-linux-androideabi]
+rustflags = [
+  "-C", "link-arg=-Wl,-z,max-page-size=16384",
+  "-C", "link-arg=-Wl,-z,common-page-size=16384",
+]
+
+[target.x86_64-linux-android]
+rustflags = [
+  "-C", "link-arg=-Wl,-z,max-page-size=16384",
+  "-C", "link-arg=-Wl,-z,common-page-size=16384",
+]

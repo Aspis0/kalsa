@@ -7,6 +7,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import uniffi.kalsa_iroh_mobile.Lane
 import uniffi.kalsa_iroh_mobile.MobileBridge
 import uniffi.kalsa_iroh_mobile.Tunnel
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -17,11 +18,18 @@ import java.util.concurrent.atomic.AtomicLong
  * purpose — the crate's API is blocking and bounded by per-call deadlines —
  * so each runs on a plain pool thread: never the JS thread, and never a
  * coroutine dispatcher the crate could mistake for a runtime context.
+ *
+ * The key path is resolved here from context.filesDir, not passed from JS:
+ * a filesystem path is what the crate wants, and filesDir is the canonical
+ * app-files directory — turning a JS file:// URI into a path in two
+ * languages would only add a parsing seam where the key lands.
  */
 class KalsaIrohModule : Module() {
-  // A cached pool, not a fixed one: calls park up to their own deadlines
-  // (a 30 s read), so they must never queue behind each other.
-  private val native = Executors.newCachedThreadPool()
+  // Bounded on purpose: calls park up to their own deadlines (a 30 s
+  // read), so an unbounded pool would let a runaway caller spawn threads
+  // without limit. The ninth concurrent call waits for a thread — the JS
+  // side sees latency, never a silently dropped call.
+  private val native = Executors.newFixedThreadPool(8)
   private val bridges = Any()
   @Volatile private var bridge: MobileBridge? = null
   private val tunnels = ConcurrentHashMap<Long, Tunnel>()
@@ -30,19 +38,8 @@ class KalsaIrohModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("KalsaIroh")
 
-    AsyncFunction("startBridge") { keyPath: String, promise: Promise ->
-      run(promise) {
-        synchronized(bridges) {
-          val previous = bridge
-          bridge = MobileBridge(keyPath)
-          previous
-        }?.let { previous ->
-          // Drop the replaced bridge outside the lock: its runtime shutdown
-          // is bounded but not instant, and no caller is waiting on it.
-          native.execute { dropBridge(previous) }
-          null
-        }
-      }
+    AsyncFunction("startBridge") { promise: Promise ->
+      run(promise) { startBridgeAtFilesDir() }
     }
 
     AsyncFunction("nodeId") { promise: Promise ->
@@ -79,6 +76,7 @@ class KalsaIrohModule : Module() {
 
     AsyncFunction("shutdown") { id: Double, promise: Promise ->
       run(promise) {
+        // Removed whether or not it was open: a shut-down handle is gone.
         tunnels.remove(id.toLong())?.shutdown()
       }
     }
@@ -90,6 +88,8 @@ class KalsaIrohModule : Module() {
         open.forEach { it.shutdown() }
         dropBridge(currentBridge())
       }
+      // After the queued teardown runs, the pool takes no more work.
+      native.shutdown()
     }
   }
 
@@ -104,8 +104,26 @@ class KalsaIrohModule : Module() {
         }
       }
     } catch (e: Throwable) {
+      // The pool is shut down or saturated beyond its queue: the call never ran.
       promise.reject("KALSA_IROH", e.message ?: "could not submit the native call")
     }
+  }
+
+  private fun startBridgeAtFilesDir(): MobileBridge {
+    val filesDir = appContext.reactContext?.applicationContext?.filesDir
+      ?: throw IllegalStateException("the Android context is not ready")
+    val started = MobileBridge(File(filesDir, "iroh-node.key").path)
+    val previous = synchronized(bridges) {
+      val old = bridge
+      bridge = started
+      old
+    }
+    if (previous != null) {
+      // Drop the replaced bridge outside the lock: its runtime shutdown
+      // is bounded but not instant, and no caller is waiting on it.
+      native.execute { dropBridge(previous) }
+    }
+    return started
   }
 
   private fun currentBridge(): MobileBridge {
