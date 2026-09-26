@@ -867,7 +867,17 @@ run_arm() {
   # 2) route command turn (also triggers model load when idle-unloaded)
   clear_anchor "$prefix" || return 1
   device_wake || true
+  # Relaunch + load proof before the route command, the same start the
+  # calibration turn gets. The app skips the system-prompt prewarm while the KV
+  # holds a chat (kv_holds_chat) and only runs it at send time, where it can be
+  # pre-empted: raw/sa849559 pair-3 G prefilled the 518-token system prompt
+  # inside the arm (prefix_miss, chunks 1536). After a fresh start the eager
+  # prewarm finishes first, so every arm sends onto a warm prefix.
+  adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_relaunch.txt" 2>&1 || true
   app_foreground "$prefix" || { row_void=1; void_reason=foreground; }
+  if [ "$row_void" -eq 0 ]; then
+    poll_load "${prefix}_load.txt" || { row_void=1; void_reason=load_proof; }
+  fi
   if [ "$row_void" -eq 0 ]; then
     APP_PID=$(adbT 60 -s "$SER" shell pidof "$PKG" | awk 'NR==1{print $1;exit}' | tr -d '\r')
     route_send "$prefix" "$backend"; rc=$?
