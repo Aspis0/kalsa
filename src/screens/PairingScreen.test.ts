@@ -331,6 +331,86 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("a scanned tailnet with a node pairs over iroh and saves the tailnet door", async () => {
+    const node = "ab".repeat(32);
+    const tailnet = "https://paired.example.ts.net";
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    const claimTunnel = fakeDeskTunnel([cannedResponse("200 OK", "")]);
+    const completeTunnel = fakeDeskTunnel([cannedResponse("200 OK", JSON.stringify(SEAL))]);
+    (openIrohTunnel as jest.Mock)
+      .mockResolvedValueOnce(claimTunnel)
+      .mockResolvedValueOnce(completeTunnel);
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node,
+        tailnet,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Road rule unchanged: node + module = iroh; the desk address came from
+    // the tailnet (same origin, port 8443), never from the typed fields.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(openIrohTunnel).toHaveBeenCalledTimes(2);
+    expect(openIrohTunnel).toHaveBeenNthCalledWith(1, node, "desk");
+    expect(requestText(claimTunnel.writes[0])).toContain("Host: paired.example.ts.net:8443\r\n");
+    expect(saveCredentialMock).toHaveBeenCalledWith(
+      new Uint8Array(32).fill(0xab),
+      tailnet,
+      { node, pairedVia: "iroh" },
+    );
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
+  test("a scanned tailnet without a node fills both addresses and pairs over the https desk", async () => {
+    const { urls } = installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+        tailnet: "https://paired.example.ts.net",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Tailscale via tailnet: door = the URL, desk = same origin :8443,
+    // both filled from the scan — pairing started without any typing.
+    expect(urls).toEqual([
+      "https://paired.example.ts.net:8443/pair/claim",
+      "https://paired.example.ts.net:8443/pair/complete",
+    ]);
+    expect(renderer.root.findByProps({ testID: "pairing.doorUrl" }).props.value)
+      .toBe("https://paired.example.ts.net");
+    expect(renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.value)
+      .toBe("https://paired.example.ts.net:8443");
+    expect(saveCredentialMock).toHaveBeenCalledWith(
+      new Uint8Array(32).fill(0xab),
+      "https://paired.example.ts.net",
+      { node: "", pairedVia: "https" },
+    );
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
   test("unmounting with a desk request in flight aborts it and closes its tunnel", async () => {
     const node = "ab".repeat(32);
     (irohModulePresent as jest.Mock).mockReturnValue(true);

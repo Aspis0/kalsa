@@ -13,14 +13,14 @@ describe("parsePairingQr", () => {
   test("a full v3 square maps onto the form's fields", () => {
     expect(parsePairingQr(square({ node: NODE }))).toEqual({
       ok: true,
-      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: NODE },
+      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: NODE, tailnet: "" },
     });
   });
 
   test("an absent node maps to the empty string the manual form uses", () => {
     expect(parsePairingQr(square())).toEqual({
       ok: true,
-      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "" },
+      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "", tailnet: "" },
     });
   });
 
@@ -28,7 +28,7 @@ describe("parsePairingQr", () => {
     const result = parsePairingQr(square({ future_field: "ignored" }));
     expect(result).toEqual({
       ok: true,
-      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "" },
+      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "", tailnet: "" },
     });
   });
 
@@ -70,7 +70,7 @@ describe("parsePairingQr", () => {
     // Uppercase hex is the same key: accepted, normalised to lowercase.
     expect(parsePairingQr(square({ node: "EF".repeat(32) }))).toEqual({
       ok: true,
-      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "ef".repeat(32) },
+      square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "ef".repeat(32), tailnet: "" },
     });
     expect(parsePairingQr(square({ node: "ef".repeat(31) }))).toEqual({ ok: false, error: "invalidNode" });
     expect(parsePairingQr(square({ node: "g".repeat(64) }))).toEqual({ ok: false, error: "invalidNode" });
@@ -88,6 +88,7 @@ describe("parsePairingQr", () => {
         code: "31".repeat(16),
         nonce: "32".repeat(32),
         node: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        tailnet: "",
       },
     });
   });
@@ -96,7 +97,7 @@ describe("parsePairingQr", () => {
     const tricky = "HTTP://127.0.0.1:9500/pair?keep=this#fragment";
     expect(parsePairingQr(square({ reachable: tricky }))).toEqual({
       ok: true,
-      square: { reachable: tricky, code: CODE, nonce: NONCE, node: "" },
+      square: { reachable: tricky, code: CODE, nonce: NONCE, node: "", tailnet: "" },
     });
   });
 });
@@ -126,6 +127,7 @@ describe("the scanned square's MAC input", () => {
       code: "31".repeat(16),
       nonce: "32".repeat(32),
       node: "",
+      tailnet: "",
     });
     const macInput = {
       node: scanned.square.node,
@@ -148,5 +150,51 @@ describe("the scanned square's MAC input", () => {
     expect(
       phoneMacHex("31".repeat(16), "32".repeat(32), { ...macInput, reachable: D_REACHABLE }),
     ).toBe("ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132");
+  });
+});
+
+describe("the optional v3 tailnet", () => {
+  const base = { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "" };
+
+  test("a valid tailnet rides the square exactly as scanned", () => {
+    expect(parsePairingQr(square({ tailnet: "https://macbook.local" }))).toEqual({
+      ok: true,
+      square: { ...base, tailnet: "https://macbook.local" },
+    });
+    const hundred = `https://${"a".repeat(100)}`;
+    expect(parsePairingQr(square({ tailnet: hundred }))).toEqual({
+      ok: true,
+      square: { ...base, tailnet: hundred },
+    });
+    // Dots and hyphens inside the host are the tailnet spelling.
+    expect(parsePairingQr(square({ tailnet: "https://10-0-0-5.tailnet.ts.net" }))).toEqual({
+      ok: true,
+      square: { ...base, tailnet: "https://10-0-0-5.tailnet.ts.net" },
+    });
+  });
+
+  test.each([
+    ["uppercase host", "https://EXAMPLE.ts.net"],
+    ["a port", "https://macbook.local:8443"],
+    ["a path", "https://macbook.local/pair"],
+    ["a trailing slash", "https://macbook.local/"],
+    ["101 host chars", `https://${"a".repeat(101)}`],
+    ["a leading dot", "https://.macbook.local"],
+    ["a trailing dot", "https://macbook.local."],
+    ["http scheme", "http://macbook.local"],
+    ["a query", "https://macbook.local?x=1"],
+    ["a userinfo", "https://user@macbook.local"],
+  ])("a malformed tailnet (%s) is ignored — the scan still succeeds", (_label, tailnet) => {
+    expect(parsePairingQr(square({ tailnet }))).toEqual({
+      ok: true,
+      square: { ...base, tailnet: "" },
+    });
+  });
+
+  test("a non-string tailnet is ignored like a malformed one", () => {
+    expect(parsePairingQr(square({ tailnet: true }))).toEqual({
+      ok: true,
+      square: { ...base, tailnet: "" },
+    });
   });
 });

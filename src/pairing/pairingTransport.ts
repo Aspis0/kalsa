@@ -49,6 +49,8 @@ export type PairingSquare = {
   code: string;
   nonce: string;
   node: string;
+  /** Optional v3 tailnet URL (validated at scan); "" = absent. Never MAC'd. */
+  tailnet: string;
 };
 
 export type PairingSessionOptions = {

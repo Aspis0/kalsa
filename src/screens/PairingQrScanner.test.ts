@@ -131,6 +131,7 @@ describe("PairingQrScanner acceptance", () => {
       code: "41".repeat(16),
       nonce: "42".repeat(32),
       node: "",
+      tailnet: "",
     } satisfies PairingSquare);
     await act(async () => renderer.unmount());
   });

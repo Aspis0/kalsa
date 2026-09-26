@@ -22,6 +22,24 @@ export type PairingQrResult =
 const CODE_PATTERN = /^[0-9a-f]{32}$/;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
 const NODE_PATTERN = /^[0-9a-f]{64}$/;
+const TAILNET_PREFIX = "https://";
+/** The tailnet host, exactly: lowercase, no port/path/query/fragment. */
+const TAILNET_HOST_PATTERN = /^[a-z0-9.-]+$/;
+
+/**
+ * The optional v3 `tailnet`: a validated `https://<host>` (lowercase
+ * [a-z0-9.-], 1..100 chars, no leading/trailing dot), else "" — a
+ * malformed value is the absence of a value, never a refused scan. It is
+ * never MAC'd: the signatures cover reachable/node exactly as before.
+ */
+function canonicalTailnet(value: unknown): string {
+  if (typeof value !== "string" || !value.startsWith(TAILNET_PREFIX)) return "";
+  const host = value.slice(TAILNET_PREFIX.length);
+  if (host.length < 1 || host.length > 100) return "";
+  if (!TAILNET_HOST_PATTERN.test(host)) return "";
+  if (host.startsWith(".") || host.endsWith(".")) return "";
+  return value;
+}
 
 const REQUIRED_STRING_FIELDS = ["reachable", "code", "nonce"] as const;
 
@@ -58,7 +76,10 @@ export function parsePairingQr(text: string): PairingQrResult {
   if (!NONCE_PATTERN.test(nonce)) return { ok: false, error: "invalidNonce" };
   // `reachable` is MAC'd exactly as shown and never dialled by the phone:
   // no URL validation, no trimming, no normalisation of any kind here.
-  if (payload.node === undefined) return { ok: true, square: { reachable, code, nonce, node: "" } };
+  const tailnet = canonicalTailnet(payload.tailnet);
+  if (payload.node === undefined) {
+    return { ok: true, square: { reachable, code, nonce, node: "", tailnet } };
+  }
   const node = payload.node;
   if (typeof node !== "string") return { ok: false, error: "invalidNode" };
   // Uppercase hex is the same key: accept it and store the canonical
@@ -67,5 +88,5 @@ export function parsePairingQr(text: string): PairingQrResult {
   if (!NODE_PATTERN.test(canonicalNode)) {
     return { ok: false, error: "invalidNode" };
   }
-  return { ok: true, square: { reachable, code, nonce, node: canonicalNode } };
+  return { ok: true, square: { reachable, code, nonce, node: canonicalNode, tailnet } };
 }

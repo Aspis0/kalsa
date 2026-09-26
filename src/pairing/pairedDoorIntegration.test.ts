@@ -39,6 +39,7 @@ describe("paired credential reaches the live door header", () => {
         code: "41".repeat(16),
         nonce: "42".repeat(32),
         node: "",
+        tailnet: "",
       },
       phone: {
         weights_bytes: 2_200_000_000,

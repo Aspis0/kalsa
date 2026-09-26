@@ -12,6 +12,7 @@ const square = {
   code: "41".repeat(16),
   nonce: "42".repeat(32),
   node: "",
+  tailnet: "",
 };
 const phone: PairingPhoneDeclaration = {
   weights_bytes: 2_200_000_000,

@@ -81,6 +81,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
     code: "",
     nonce: "",
     node: "",
+    tailnet: "",
   });
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -152,13 +153,19 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const run = async (scanned?: PairingSquare) => {
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
-    if (!isAllowedPairingUrl(fields.doorUrl)) {
+    // A scanned tailnet names both addresses itself (door = the URL, desk =
+    // same origin on :8443, through the same prefill both typed fields use);
+    // otherwise the typed fields are the addresses.
+    const scannedUrls = scanned?.tailnet ? pairingUrlPrefill(scanned.tailnet) : null;
+    const doorUrl = scannedUrls ? scannedUrls.doorUrl : fields.doorUrl;
+    const deskUrl = scannedUrls ? scannedUrls.deskUrl : fields.deskUrl;
+    if (!isAllowedPairingUrl(doorUrl)) {
       // A fresh install has no door URL yet: the reason line already shows
       // it (button disabled beside it); logcat still owes the stage line.
       logPairingFail("validate", null);
       return;
     }
-    if (!isAllowedPairingUrl(fields.deskUrl)) {
+    if (!isAllowedPairingUrl(deskUrl)) {
       logPairingFail("validate", null);
       setState("refused");
       return;
@@ -180,7 +187,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       const session = retryingCompletion
         ? existing
         : new PairingSession({
-            deskUrl: fields.deskUrl,
+            deskUrl,
             square,
             phone: declarationForModel(currentModelId),
             fetcher: useIrohDesk ? createDeskPairingFetch(square.node, deskSignal()) : undefined,
@@ -199,7 +206,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // The paired URL, credential, node and pairing road are the active
       // door configuration — the road decides what fallbacks exist later.
       try {
-        await savePairingCredential(credential, fields.doorUrl.trim(), {
+        await savePairingCredential(credential, doorUrl.trim(), {
           node: square.node,
           pairedVia: useIrohDesk ? "iroh" : "https",
         });
@@ -210,7 +217,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       }
       const paired: SavedPairingCredential = {
         credential: bytesToHex(credential),
-        doorUrl: fields.doorUrl.trim(),
+        doorUrl: doorUrl.trim(),
         node: isValidNodeHex(square.node) ? square.node : null,
         pairedVia: useIrohDesk ? "iroh" : "https",
       };
@@ -234,7 +241,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   // leaves a pending completion retry intact.
   const acceptScannedSquare = (square: PairingSquare) => {
     setScanning(false);
-    setFields((current) => ({ ...current, ...square }));
+    const scannedUrls = square.tailnet ? pairingUrlPrefill(square.tailnet) : null;
+    setFields((current) => ({ ...current, ...square, ...(scannedUrls ?? {}) }));
     void run(square);
   };
 
