@@ -584,7 +584,11 @@ export function useBrain() {
         await invoke("brain_start");
         // A walk that ended without starting anything — the first run
         // waiting for a choice — leaves the state stopped: its last step
-        // would otherwise hold the progress screen up over the waiting page.
+        // would otherwise hold the progress screen up over the waiting
+        // page. The read is the poll AFTER the command, never the one
+        // before it: a start that took answers `starting` here and keeps
+        // its step.
+        await poll();
         if (currentState?.kind === "stopped") {
           currentStep = null;
           publish();

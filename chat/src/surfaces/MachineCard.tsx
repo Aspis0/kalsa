@@ -62,11 +62,18 @@ export type Capability =
 type Machine = Extract<Capability, { kind: "measured" }>["machine"];
 type Speed = ModelOption["speed"];
 
-/** The walk measured and is waiting: this computer can run something and
-    nobody has chosen it yet. A machine that can run nothing has no choice
-    to offer, so the page must not ask for one. */
+/** The walk measured and is waiting: this computer can run something,
+    nobody has chosen it yet, and the pick can be named back. A machine
+    that can run nothing has no choice to offer, and a row whose id is
+    null is shown but not offered — either way there is no button to
+    press, so the page must not ask for one. */
 export function awaitingChoice(capability: Capability | null): boolean {
-  return capability?.kind === "measured" && !capability.chosen && capability.model !== null;
+  return (
+    capability?.kind === "measured" &&
+    !capability.chosen &&
+    capability.model !== null &&
+    capability.model.id !== null
+  );
 }
 
 // One byte formatter for the page. The divisor is binary and so is the LABEL:

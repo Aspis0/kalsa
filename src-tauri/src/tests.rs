@@ -115,39 +115,33 @@ fn a_walk_with_no_choice_is_a_measurement_and_no_start() {
 }
 
 #[test]
-fn only_a_product_first_run_waits_for_a_choice() {
-    // The ask belongs to the product's fresh install: a stored choice runs
-    // as always, and either development override owns its model the way it
-    // always has. The server override is exempt because a pinned binary
-    // still needs the catalog's automatic answer to run at all.
-    assert!(waits_for_choice(None, false, false), "a fresh install waits");
+fn the_ask_holds_only_when_the_pick_would_be_downloaded() {
+    // The ask-first gate, case by case: (a) a fresh install with a pick to
+    // offer and its file not here asks; (b) an install whose automatic pick
+    // is already complete on disk starts as it always did, update or no
+    // update — the start fetches nothing; (c) a machine the catalog has
+    // nothing for runs, so the refusal comes back as today and Turn on
+    // never does nothing; (d) a stored choice is honoured without asking.
+    // The development overrides keep their exemption: a pinned binary or
+    // model owns the choice.
     assert!(
-        !waits_for_choice(Some("0000000000000001"), false, false),
-        "a stored choice runs"
+        asks_before_download(None, false, false, Some(false)),
+        "(a) nothing stored, a pick to offer, its file not here: ask"
     );
-    assert!(!waits_for_choice(None, true, false), "a pinned binary runs");
-    assert!(!waits_for_choice(None, false, true), "a pinned model runs");
-}
-
-#[test]
-fn the_ask_stops_the_walk_before_the_runtime_and_the_model() {
-    // The stop must sit between the measurement and `startup::run`: past
-    // that call the walk has already fetched the engine (`Deciding`) and is
-    // on its way to the model's bytes. Removing the early return puts the
-    // automatic download back on a fresh install — this pin goes red first.
-    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
-        .expect("main.rs is readable");
-    let at = source
-        .find("fn brain_start(")
-        .expect("brain_start is the turn-on command");
-    let body = brace_block(&source, at);
-    let ask = body.find("if ask_first {").expect("brain_start asks when nothing is stored");
-    let stop = body.find("return (None, measured);").expect("the ask is a walk that stops");
-    let run = body.find("startup::run(").expect("the walk's remainder is startup::run");
     assert!(
-        stop < run && ask < run,
-        "the ask-first return must come before startup::run, or the engine and model download first"
+        !asks_before_download(None, false, false, Some(true)),
+        "(b) the pick already on disk: no ask, the start fetches nothing"
     );
+    assert!(
+        !asks_before_download(None, false, false, None),
+        "(c) no pick fits: no ask, the refusal must come back"
+    );
+    assert!(
+        !asks_before_download(Some("0000000000000001"), false, false, Some(false)),
+        "(d) a stored choice: no ask"
+    );
+    assert!(!asks_before_download(None, true, false, Some(false)), "a pinned binary runs");
+    assert!(!asks_before_download(None, false, true, Some(false)), "a pinned model runs");
 }
 
 #[test]

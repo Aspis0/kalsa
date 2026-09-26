@@ -31,8 +31,11 @@ export function ServerSurface() {
   const { state, liveStep, heldFailure, stopFailure, busy, act } = useBrain();
   const [capability, setCapability] = useState<Capability | null>(null);
 
-  // Read on mount and whenever an action lands: a first run's Turn on
-  // measures without choosing, and the words must say so the moment it ends.
+  // Read on mount, whenever an action lands, and whenever the brain's own
+  // state changes kind: this page can mount in the middle of a walk whose
+  // capability answer is still the stale one from before it, and the state
+  // it already polls is what says the walk has landed.
+  const brainKind = state?.kind ?? null;
   useEffect(() => {
     if (!available() || busy) return;
     let live = true;
@@ -47,7 +50,7 @@ export function ServerSurface() {
     return () => {
       live = false;
     };
-  }, [busy]);
+  }, [busy, brainKind]);
 
   const metrics = state?.metrics ?? {};
   // A phone, not this computer: the host's own chat runs through the same

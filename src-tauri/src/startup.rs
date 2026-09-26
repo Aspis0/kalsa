@@ -648,6 +648,62 @@ fn acquire_model(
     Ok(path)
 }
 
+/// The automatic pick reduced to the one fact the ask-first gate needs:
+/// `None` when this machine has nothing an ask could offer — the
+/// measurement is unreliable, the catalog refused, or the row cannot be
+/// named back — and otherwise whether the pick's file is already complete
+/// on disk, by the same two no-download checks [`acquire_model`] makes. A
+/// pick already here means a turn-on that fetches nothing, so the owner
+/// who has it keeps the start they had. Like the capability page, this
+/// runs before any build has won, so the catalog is asked with the
+/// machine's detected backend, never a winner's. `roots` is handed in
+/// rather than taken from the environment for the same reason
+/// [`acquire_model`] takes it: the search is a fact a test can pin.
+pub(crate) fn automatic_pick_on_disk(
+    machine: &Machine,
+    phone: Option<PhoneModel>,
+    root: &Path,
+    roots: &[PathBuf],
+) -> Option<bool> {
+    // An unreliable measurement decides nothing: the walk itself refuses on
+    // one, so there is no honest pick to ask about.
+    if !machine.measurement.is_reliable() {
+        return None;
+    }
+    let input = ChoiceInput {
+        backend: machine.measurement.will_run_on,
+        ram_bytes: machine.ram_bytes,
+        bandwidth_bytes_per_second: machine.measurement.decode_bandwidth_bytes_per_second(),
+        compute_flops_per_second: machine.measurement.compute.max(),
+        bandwidth_is_lower_bound: machine.measurement.bandwidth_is_lower_bound(),
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        phone,
+    };
+    // The same two arms `choose_model` runs with nobody having chosen.
+    let plan = match phone {
+        None => kalsa_catalog::largest_that_runs_well(&input).ok()?.download,
+        Some(_) => match kalsa_catalog::choose(&input) {
+            Decision::Pick(selection) => {
+                chosen_row(
+                    selection.repo,
+                    selection.display_name,
+                    selection.quant,
+                    selection.weights_bytes,
+                )
+                .ok()?;
+                selection.download
+            }
+            Decision::Refuse(_) => return None,
+        },
+    };
+    let name = plan.url.rsplit('/').next().unwrap_or_default();
+    let path = root.join("models").join(name);
+    Some(
+        file_digest_is(&path, plan.bytes, plan.sha256)
+            || find_reusable(roots, plan.bytes, plan.sha256).is_some(),
+    )
+}
+
 /// The reason a test's launch record carries. These tests are about budgets
 /// and argv, so the words only have to be recognisable and provably the ones
 /// the model step handed over.
@@ -1313,11 +1369,11 @@ mod tests {
 
     #[test]
     fn with_nothing_stored_the_automatic_decision_is_the_same_decision() {
-        // The automatic answer for a walk that must still decide: the
-        // development path's pinned binary with no stored choice, and the
-        // fallback a stale stored choice rides. The product's fresh install
-        // never reaches this step — brain_start stops and asks first — but
-        // what this answers must still be exactly what the catalog answers,
+        // The automatic answer for a walk that must still decide: a fresh
+        // install whose pick is already on disk, the development path's
+        // pinned binary, and the fallback a stale stored choice rides —
+        // everything but the fresh install brain_start asks first. What
+        // this answers must still be exactly what the catalog answers,
         // plan and reason and all, compared against the catalog itself
         // rather than against a copied expectation.
         let machine = machine(Backend::Cpu);
@@ -1333,6 +1389,32 @@ mod tests {
         assert_eq!(plan.bytes, automatic.download.bytes);
         assert_eq!(plan.sha256, automatic.download.sha256);
         assert_eq!(reason, PHONE_FREE_REASON, "and the same sentence");
+    }
+
+    #[test]
+    fn the_offer_to_ask_about_is_the_walk_s_own_pick() {
+        // The ask-first gate's offer, pinned where a unit test can reach it:
+        // a machine with a pick and an empty runtime root would fetch it
+        // (Some(false)), and a machine nothing fits offers nothing (None),
+        // so the walk runs and the refusal speaks. The Some(true) arm — a
+        // digest-verified file already in place — needs the real bytes and
+        // is the real walk's to prove; the roots are empty here so no
+        // other store on the test machine can answer for the disk.
+        let root = scratch("offer-empty");
+        assert_eq!(
+            automatic_pick_on_disk(&machine(Backend::Cpu), None, &root, &[]),
+            Some(false),
+            "a pick whose file is not here would be downloaded"
+        );
+        let nothing_fits = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 0,
+        };
+        assert_eq!(
+            automatic_pick_on_disk(&nothing_fits, None, &root, &[]),
+            None,
+            "nothing fits, so there is nothing to ask about"
+        );
     }
 
     #[test]
