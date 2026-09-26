@@ -12,6 +12,11 @@
 //! signature, mentions the transport underneath; that is the one-file rule
 //! this crate exists to keep.
 //!
+//! [`BridgeConfig::dial_only`] is that story with the inbound half removed:
+//! no door to forward to, so no accept loop and no ALPN offered, and on the
+//! n0 road the resolvers without the publisher — the phone's side of this
+//! crate, which only ever dials.
+//!
 //! Two deadlines own this crate's behavior, because iroh does not supply
 //! any: the dial deadline (a published-but-dead peer blocks the transport
 //! for 25 seconds and more without erroring) and the idle deadline (a peer
@@ -62,7 +67,7 @@ pub enum Lane {
 
 /// Everything a bridge needs that is not a secret or a socket.
 pub struct BridgeConfig {
-    door: SocketAddr,
+    door: Option<SocketAddr>,
     desk: Option<SocketAddr>,
     dial_timeout: Duration,
     idle_timeout: Duration,
@@ -75,6 +80,19 @@ impl BridgeConfig {
     /// bounded well under iroh's natural 25-second stall, idle well under
     /// its natural 12-second-plus silence.
     pub fn new(door: SocketAddr) -> Self {
+        Self::toward(Some(door))
+    }
+
+    /// A bridge that only dials: no door, so no accept loop and no ALPN
+    /// offered for inbound — and on the n0 road the resolvers without the
+    /// pkarr publisher, because publishing is what makes this node's stable
+    /// id and addresses public enough for a stranger to dial back. `connect`
+    /// is the same from either side; only what can arrive changes.
+    pub fn dial_only() -> Self {
+        Self::toward(None)
+    }
+
+    fn toward(door: Option<SocketAddr>) -> Self {
         Self {
             door,
             desk: None,
@@ -128,13 +146,13 @@ impl BridgeConfig {
     }
 }
 
-/// The running bridge: the accept loop toward the door, and the dialing
-/// road back out. Dropping it stops the loop and closes the endpoint; in a
-/// server whose lifetime is the process, that Drop is the safety net an
-/// assert in a test once needed.
+/// The running bridge: the dialing road back out and — unless the config
+/// was dial-only — the accept loop toward the door. Dropping it stops the
+/// loop and closes the endpoint; in a server whose lifetime is the process,
+/// that Drop is the safety net an assert in a test once needed.
 pub struct Bridge {
     transport: Transport,
-    accept_loop: JoinHandle<()>,
+    accept_loop: Option<JoinHandle<()>>,
     node_id: NodeId,
     dial_timeout: Duration,
 }
@@ -142,7 +160,8 @@ pub struct Bridge {
 impl Bridge {
     /// Load or mint the node key at `key_path` (its parent directory must
     /// exist; put it beside the pairing file), bind the endpoint, and start
-    /// the accept loop forwarding to the door.
+    /// the accept loop forwarding to the door — when the config has a door
+    /// ([`BridgeConfig::dial_only`] has none, and binds no inbound at all).
     pub async fn start(config: BridgeConfig, key_path: &Path) -> Result<Self, BridgeError> {
         let key = NodeKey::load_or_create(key_path)?;
         Self::start_with_key(config, &key).await
@@ -151,10 +170,18 @@ impl Bridge {
     /// Start from an already-loaded key: the round-trip test mints keys in
     /// memory, and a future caller may hold the key in hand.
     pub async fn start_with_key(config: BridgeConfig, key: &NodeKey) -> Result<Self, BridgeError> {
-        if !config.door.ip().is_loopback() {
+        if let Some(door) = config.door {
+            if !door.ip().is_loopback() {
+                return Err(BridgeError::Config(
+                    "the door address must be loopback: the tunnel is the confidentiality boundary, \
+                     not the door",
+                ));
+            }
+        } else if config.desk.is_some() {
+            // Refused rather than silently ignored: a builder call that
+            // quietly does nothing is a trap for whoever set it.
             return Err(BridgeError::Config(
-                "the door address must be loopback: the tunnel is the confidentiality boundary, \
-                 not the door",
+                "a dial-only bridge has nothing to route a desk to: no door, no desk",
             ));
         }
         if config.desk.is_some_and(|desk| !desk.ip().is_loopback()) {
@@ -163,7 +190,13 @@ impl Bridge {
                  not the desk",
             ));
         }
-        let transport = Transport::bind(key, &config.relay, config.book.as_ref()).await?;
+        let transport = Transport::bind(
+            key,
+            &config.relay,
+            config.book.as_ref(),
+            config.door.is_none(),
+        )
+        .await?;
         transport.register_self(config.book.as_ref());
         let node_id = transport.node_id();
         let (door, desk, dial_timeout, idle_timeout) = (
@@ -172,11 +205,13 @@ impl Bridge {
             config.dial_timeout,
             config.idle_timeout,
         );
-        let loop_transport = transport.clone();
-        let accept_loop = tokio::spawn(async move {
-            loop_transport
-                .serve(door, desk, dial_timeout, idle_timeout)
-                .await;
+        let accept_loop = door.map(|door| {
+            let loop_transport = transport.clone();
+            tokio::spawn(async move {
+                loop_transport
+                    .serve(door, desk, dial_timeout, idle_timeout)
+                    .await;
+            })
         });
         Ok(Self {
             transport,
@@ -213,7 +248,9 @@ impl Bridge {
     /// Stop accepting and close the endpoint gracefully: the tunnels in
     /// flight see QUIC close frames, not a reset. Idempotent.
     pub fn shutdown(&self) {
-        self.accept_loop.abort();
+        if let Some(accept_loop) = &self.accept_loop {
+            accept_loop.abort();
+        }
         self.transport.close();
     }
 }

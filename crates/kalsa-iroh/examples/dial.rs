@@ -1,7 +1,7 @@
 //! Dev-only dialer: the road's far side, from a terminal. It takes one node
 //! id — 64 hex characters, the string a pairing square carries — and dials
-//! it exactly the way production dials (`Bridge::connect` under
-//! `RelayChoice::N0Public`), then measures what the road did:
+//! it exactly the way production dials (`Bridge::connect` from a dial-only
+//! bridge under `RelayChoice::N0Public`), then measures what the road did:
 //!
 //! * the time from dial to the first connected stream,
 //! * the path iroh ended on, direct or relay, as `Bridge::remote_paths`
@@ -92,11 +92,12 @@ async fn run() -> Result<(), String> {
     let remote = NodeId::from_str(&argument).map_err(|e| e.to_string())?;
     println!("dialing {remote}");
 
-    // The dialer never accepts: nothing dials it, so its door address is a
-    // placeholder the accept loop would only use for inbound traffic.
+    // Dial-only: this side never accepts, so it registers no inbound ALPN
+    // and — on this road — publishes nothing to n0's pkarr DNS. No door
+    // placeholder, because there is no door here at all.
     let key = NodeKey::generate().map_err(|e| e.to_string())?;
     let bridge = Bridge::start_with_key(
-        BridgeConfig::new("127.0.0.1:0".parse().expect("loopback parses"))
+        BridgeConfig::dial_only()
             // Spelled out even though it is the default: the road under test.
             .with_relay(RelayChoice::N0Public),
         &key,

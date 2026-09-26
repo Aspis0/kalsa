@@ -27,9 +27,8 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use iroh::address_lookup::memory::MemoryLookup;
-use iroh::endpoint::presets;
-use iroh::endpoint::TransportAddrUsage;
+use iroh::address_lookup::{memory::MemoryLookup, DnsAddressLookup, PkarrResolver};
+use iroh::endpoint::{default_relay_mode, presets, Builder, TransportAddrUsage};
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::timeout_at;
@@ -194,37 +193,67 @@ pub(crate) struct Transport {
     runtime: Option<tokio::runtime::Handle>,
 }
 
+/// The endpoint builder behind [`Transport::bind`]: the address lookups
+/// that resolve a bare node id, and the relays that may carry the
+/// ciphertext.
+///
+/// `dial_only` mirrors `presets::N0` minus its one publishing line
+/// (`PkarrPublisher::n0_dns()`, iroh-1.2.0/src/endpoint/presets.rs:125): the
+/// builder can add a lookup but not remove one, so the mirror is written out
+/// rather than derived. The difference is not cosmetic — publishing hands
+/// n0's pkarr DNS this node's stable id and addresses, which is what lets a
+/// stranger dial back, and a dialer only ever needs to RESOLVE the other
+/// side.
+fn endpoint_builder(relay: &RelayChoice, dial_only: bool) -> Result<Builder, BridgeError> {
+    let mut builder = match relay {
+        RelayChoice::Disabled => Endpoint::builder(presets::Minimal),
+        RelayChoice::N0Public | RelayChoice::Custom { .. } if dial_only => {
+            Endpoint::builder(presets::Minimal)
+                .address_lookup(PkarrResolver::n0_dns())
+                .address_lookup(DnsAddressLookup::n0_dns())
+                .relay_mode(default_relay_mode())
+        }
+        RelayChoice::N0Public | RelayChoice::Custom { .. } => Endpoint::builder(presets::N0),
+    };
+    match relay {
+        // The n0 preset set the relay mode; the mirror above set it too.
+        RelayChoice::N0Public => {}
+        RelayChoice::Custom { url } => {
+            let parsed: RelayUrl = url
+                .parse()
+                .map_err(|_| BridgeError::Config("the relay URL is not a valid URL"))?;
+            builder = builder.relay_mode(RelayMode::Custom(RelayMap::from(parsed)));
+        }
+        RelayChoice::Disabled => builder = builder.relay_mode(RelayMode::Disabled),
+    }
+    Ok(builder)
+}
+
 impl Transport {
-    /// Bind the endpoint under the node's persisted key. The relay choice
-    /// and the address book are the caller's decisions; the ALPN and the
-    /// identity are not.
+    /// Bind the endpoint under the node's persisted key. The relay choice,
+    /// the address book and the role are the caller's decisions; the ALPNs
+    /// and the identity are not.
+    ///
+    /// `dial_only` is the phone's half: no ALPN is registered for inbound —
+    /// iroh accepts a connection only under a configured ALPN — and nothing
+    /// about this node is published to n0's pkarr DNS.
     pub(crate) async fn bind(
         key: &NodeKey,
         relay: &RelayChoice,
         book: Option<&AddressBook>,
+        dial_only: bool,
     ) -> Result<Self, BridgeError> {
         // Captured for a graceful close: `Endpoint::close` is async, and
         // shutdown is called from threads that own no runtime.
         let runtime = tokio::runtime::Handle::try_current().ok();
-        let mut builder = match relay {
-            RelayChoice::N0Public | RelayChoice::Custom { .. } => Endpoint::builder(presets::N0),
-            RelayChoice::Disabled => Endpoint::builder(presets::Minimal),
-        };
-        builder = match relay {
-            RelayChoice::N0Public => builder,
-            RelayChoice::Custom { url } => {
-                let parsed: RelayUrl = url
-                    .parse()
-                    .map_err(|_| BridgeError::Config("the relay URL is not a valid URL"))?;
-                builder.relay_mode(RelayMode::Custom(RelayMap::from(parsed)))
-            }
-            RelayChoice::Disabled => builder.relay_mode(RelayMode::Disabled),
-        };
+        let mut builder = endpoint_builder(relay, dial_only)?;
         if let Some(book) = book {
             builder = builder.address_lookup(book.inner.clone());
         }
+        if !dial_only {
+            builder = builder.alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()]);
+        }
         let endpoint = builder
-            .alpns(vec![ALPN.to_vec(), DESK_ALPN.to_vec()])
             .secret_key(SecretKey::from_bytes(&key.to_bytes()))
             .bind()
             .await
@@ -438,7 +467,7 @@ async fn forward_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::{ALPN, DESK_ALPN};
+    use super::{endpoint_builder, RelayChoice, ALPN, DESK_ALPN};
 
     // A phone pinned to an older brain commit dials the ALPN it was built
     // with, so an edited tag would break that phone's handshake silently —
@@ -447,5 +476,34 @@ mod tests {
     fn the_two_alpn_tags_are_exactly_these_bytes() {
         assert_eq!(ALPN, &b"kalsa/door-tunnel/1"[..]);
         assert_eq!(DESK_ALPN, &b"kalsa/pair-desk/1"[..]);
+    }
+
+    // The phone's audit finding, pinned where it is decided: the serving
+    // road publishes to n0's pkarr DNS (that is how the Mac is found by id)
+    // and the dial-only road does not — it still resolves through both n0
+    // lookups and still rides n0's relays. `Builder` renders what it holds,
+    // so this reads the config without touching a network.
+    #[test]
+    fn the_dial_only_road_resolves_without_publishing() {
+        let serving = format!("{:?}", endpoint_builder(&RelayChoice::N0Public, false).unwrap());
+        let dialing = format!("{:?}", endpoint_builder(&RelayChoice::N0Public, true).unwrap());
+
+        assert!(
+            serving.contains("PkarrPublisherBuilder"),
+            "the serving road must still publish this node to n0's pkarr DNS"
+        );
+        assert!(
+            !dialing.contains("PkarrPublisherBuilder"),
+            "a dial-only bridge must never publish its node id: {dialing}"
+        );
+        assert!(dialing.contains("PkarrResolverBuilder"), "it must still resolve");
+        assert!(
+            dialing.contains("DnsAddressLookupBuilder"),
+            "it must still resolve through the DNS lookup N0 adds"
+        );
+        assert!(
+            dialing.contains("Relay { relay_map:"),
+            "it must still ride n0's relays"
+        );
     }
 }

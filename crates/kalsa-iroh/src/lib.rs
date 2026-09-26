@@ -11,6 +11,11 @@
 //! already speak it, and the tunnel is the confidentiality boundary, not
 //! this hop.
 //!
+//! A bridge built from [`BridgeConfig::dial_only`] is this crate from the
+//! phone's side: it dials and never accepts — no accept loop, no ALPN
+//! registered for inbound — and on the n0 road it resolves through the same
+//! lookups while publishing nothing about itself.
+//!
 //! Two rules shape everything:
 //!
 //! * **One file names the transport.** Only `transport.rs` imports the
