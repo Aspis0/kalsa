@@ -9,6 +9,7 @@
  *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|moe=on,...|clear>
  *   /bench devmodels <on|off>
  *   /bench route <cpu|gpu|auto>
+ *   /bench eager_delay <0..30000|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking default
@@ -16,6 +17,7 @@
  *   bench:speculative none
  *   bench:engine moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon
  *   bench:route cpu|gpu|auto
+ *   bench:eager_delay 8000
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
@@ -36,6 +38,7 @@
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
  * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
  * - kalsa.bench.route: "cpu" | "gpu" (next-turn prefill-route request; absent/"auto" → engine decides)
+ * - kalsa.bench.eager_delay_ms: "0".."30000" (bench wait before the boot eager engine kick; absent/invalid = 0 = kick immediately)
  *
  * The app boot reads this once. Read failures reject so the boot path can
  * explicitly choose the production catalog and still render the app.
@@ -54,6 +57,7 @@ import {
   parseBenchRanking,
   parseBenchDigestCadence,
 } from "../context/compactor";
+import { getBenchEagerDelayMs, setBenchEagerDelayMs } from "./eagerDelay";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -852,11 +856,12 @@ export async function formatBenchStatus(): Promise<string> {
   // "unset" until the engine has probed; no log noise on the normal path.
   const threadsSrc = getThreadCountSource();
   const route = await readBenchRoute();
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, route=${route}, threads_src=${threadsSrc}`;
+  const eagerDelayMs = await getBenchEagerDelayMs();
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, route=${route}, eager_delay_ms=${eagerDelayMs}, threads_src=${threadsSrc}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench route <cpu|gpu|auto> | bench:route <cpu|gpu|auto> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench route <cpu|gpu|auto> | bench:route <cpu|gpu|auto> | /bench eager_delay <0..30000|clear> | bench:eager_delay <0..30000|clear> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -931,6 +936,18 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     const ok = await setBenchRoute(arg as BenchRouteMode);
     if (!ok) return "bench: failed to write route";
     return `bench: route=${arg} (next turn, no reload)`;
+  }
+
+  if (sub === "eager_delay") {
+    if (!arg) {
+      return `bench: missing eager_delay ms. ${BENCH_USAGE}`;
+    }
+    const stored = await setBenchEagerDelayMs(arg);
+    if (stored === null) {
+      return `bench: invalid eager_delay "${arg}". ${BENCH_USAGE}`;
+    }
+    // The kick reads the pref at boot, like every other init-time knob.
+    return `bench: eager_delay_ms=${stored}${stored > 0 ? " (force-stop + relaunch to apply)" : ""}`;
   }
 
   if (sub === "speculative") {

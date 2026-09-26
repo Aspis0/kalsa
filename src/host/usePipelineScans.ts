@@ -30,6 +30,7 @@ import {
 } from "../engine/EmbeddingService";
 import { markChatReleased, runNativeOp } from "../engine/llamaContextGate";
 import { EAGER_ENGINE_INIT, claimEagerKick } from "../engine/ttftFlags";
+import { getBenchEagerDelayMs } from "../bench/eagerDelay";
 import type {
   EmbeddingPipelineState,
   ModelPipelineState,
@@ -37,6 +38,10 @@ import type {
 } from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
 import { loadMarkerStore } from "./engineLoad";
+import {
+  cancelPendingEagerKick,
+  startEagerKick,
+} from "./eagerKickDelay";
 import {
   MODEL_STORAGE_KEY,
   modelSwitchInFlightRef,
@@ -300,21 +305,25 @@ export function usePipelineScans(params: {
           if (ok && EAGER_ENGINE_INIT && model) {
             const generation = engineGenerationRef.current;
             if (claimEagerKick(model.id, generation)) {
-              // eslint-disable-next-line no-console
-              console.log(
-                "engine.eagerInit",
-                JSON.stringify({ modelId: model.id, generation }),
-              );
-              void ensureEngineForModelRef.current(model);
+              startEagerKick({
+                modelId: model.id,
+                generation,
+                delayMs: await getBenchEagerDelayMs(),
+                alreadyLoaded: () =>
+                  isEngineReady() && getActiveModelId() === model.id,
+                kick: () => void ensureEngineForModelRef.current(model),
+              });
             }
           }
         }
-      } catch {
-        if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
-      }
-    })();
+    } catch {
+      if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
+    }
+  })();
     return () => {
       mounted = false;
+      // The bench wait must not fire into an unmounted generation.
+      cancelPendingEagerKick();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentModel, prefsReady, remoteActive, switchRevision]);

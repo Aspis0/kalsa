@@ -31,6 +31,7 @@ import { writeLastGoodModelId } from "../engine/loadMarker";
 import { markChatReleased } from "../engine/llamaContextGate";
 import { isEmbedderHung } from "../engine/EmbeddingService";
 import { loadMarkerStore } from "./engineLoad";
+import { cancelPendingEagerKick } from "./eagerKickDelay";
 import { performEngineLoad } from "./engineEnsureLoad";
 import type { EngineLoadDeps } from "./engineLoad";
 import { runLocalEnsureGate } from "./localEnsureGate";
@@ -39,6 +40,9 @@ export function ensureEngineForModel(
   deps: EngineLoadDeps,
   model: ModelInfo,
 ): Promise<boolean> {
+  // An explicit ensure (user send, reload, download fallback) supersedes a
+  // pending bench-delayed eager kick: the load starts now, the wait is void.
+  cancelPendingEagerKick();
   return runLocalEnsureGate(isRemoteEngineBackend(), () => ensureLocalEngineForModel(deps, model));
 }
 

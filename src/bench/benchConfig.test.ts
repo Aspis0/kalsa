@@ -29,6 +29,7 @@ import {
   shouldUseToolCalling,
   tryHandleBenchCommand,
 } from "./benchConfig";
+import { BENCH_EAGER_DELAY_KEY, getBenchEagerDelayMs } from "./eagerDelay";
 
 const MAX_TOOL_ROUNDS = 3;
 type DevGlobal = typeof globalThis & { __DEV__?: boolean };
@@ -408,5 +409,56 @@ describe("/bench route round-trip — the next turn's prefill request", () => {
     expect(reply).toContain('bench: invalid route mode "turbo"');
     expect(store.size).toBe(0);
     await expect(readBenchRoute()).resolves.toBe("auto");
+  });
+});
+
+describe("/bench eager_delay round-trip — the boot kick's bench wait", () => {
+  const store = new Map<string, string>();
+
+  beforeEach(() => {
+    store.clear();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      async (key: string) => store.get(key) ?? null,
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation(
+      async (key: string, value: string) => {
+        store.set(key, value);
+      },
+    );
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation(
+      async (key: string) => {
+        store.delete(key);
+      },
+    );
+  });
+
+  test("a delay persists canonically and echoes in status", async () => {
+    const reply = await tryHandleBenchCommand("/bench eager_delay 8000");
+    expect(reply).toContain("bench: eager_delay_ms=8000");
+    expect(store.get(BENCH_EAGER_DELAY_KEY)).toBe("8000");
+    await expect(getBenchEagerDelayMs()).resolves.toBe(8000);
+    await expect(formatBenchStatus()).resolves.toContain("eager_delay_ms=8000");
+  });
+
+  test("0 and clear remove the key; absent reads as 0", async () => {
+    await tryHandleBenchCommand("bench:eager_delay 8000");
+    const reply = await tryHandleBenchCommand("/bench eager_delay 0");
+    expect(reply).toContain("bench: eager_delay_ms=0");
+    expect(store.has(BENCH_EAGER_DELAY_KEY)).toBe(false);
+    await expect(getBenchEagerDelayMs()).resolves.toBe(0);
+    await tryHandleBenchCommand("bench:eager_delay 8000");
+    await tryHandleBenchCommand("bench:eager_delay clear");
+    expect(store.has(BENCH_EAGER_DELAY_KEY)).toBe(false);
+  });
+
+  test("a value above the clamp is stored clamped", async () => {
+    await tryHandleBenchCommand("/bench eager_delay 999999");
+    expect(store.get(BENCH_EAGER_DELAY_KEY)).toBe("30000");
+  });
+
+  test("an invalid token is refused and writes nothing", async () => {
+    const reply = await tryHandleBenchCommand("/bench eager_delay soon");
+    expect(reply).toContain('bench: invalid eager_delay "soon"');
+    expect(store.size).toBe(0);
   });
 });
