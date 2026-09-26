@@ -101,3 +101,16 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
   S23 DSP fix CONFIRMED (STOP-SOURCE.md). S23 is charging: prep-only for NPU Step 0 v73 (2a127e6f), no timing.
   Pairing fix batch 35563984 (refusal stage line, crypto suspect, keyboard, half-screen) -> review -> CI APK ->
   Jelly; kalsa-brain drives the Jelly run tonight (adb fill from zbarimg, presses Allow, removes serve rules).
+- 2026-09-26 night results:
+  * Pairing root cause CONFIRMED (Hermes has no globalThis.crypto; constructor threw before any network).
+    Fix pushed: app main 19526d78 (expo-crypto CSPRNG, always-on KALSA_PAIRING_FAIL {stage,status},
+    keyboard dismissal). APK CI 36221646949 sha bfd80e52 INSTALLED on the Jelly. Run NOT done: battery 9 %.
+    Morning with Marco: charge first, diagnostics OFF (they log MAC/token; credential NOT recoverable
+    from them: needs code+nonce, pairingWire.ts:128-165), kalsa-brain drives.
+  * iroh phone road: 7 commits ready in worktree kalsa-wt-iroh (crate pinned to brain 637b2f79 dial_only,
+    Expo module kalsa-iroh, CI Rust build + 16 KB readelf gate, JNA 5.17.0, hardened HTTP/1.1 client),
+    rebased on 19526d78, luna-audited in 4 rounds. PUSH WAS REFUSED by a permission prompt -> ask Marco.
+  * S23 NPU Step 0 v73: kit rebuilt on f25f0c1c5, HTP EXECUTES (sessions on cdsp v73, execute-op logged),
+    correctness OK. Timing waits for the phone OFF the charger:
+    `cd scratchpad/agents/npu-spec-verify && ./d_run.sh s23 5037 s23-v73-step0` (refuses while charging).
+  * Quotas: commandcode + opencode-go out; GLM-Flash codes, luna reviews.
