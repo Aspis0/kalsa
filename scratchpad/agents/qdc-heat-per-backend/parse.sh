@@ -845,10 +845,6 @@ run_arm() {
   local prompt_n=na tokens_predicted=na decode_tps=na thermal=na failed=na fallback=0 lmkd=0
   local reuse_line kvprefix poll_rc
   deadline_check
-  # Stop check at arm entry: a device already at a limit ends the session
-  # instead of parking in 720 s of cooldown; safety_gate re-checks before
-  # the turn (safety.sh).
-  safety_stops
   LAST_EDIT_BOUNDS=""
   void_reason=na
   # 1) cooldown as a CAP only (owner decision: no cool-start gate) — start the
@@ -885,6 +881,11 @@ run_arm() {
     settle_to_target "$prefix"; settle_rc=$?
     [ "$settle_rc" -eq 1 ] && { log "SETTLE_THERMAL_FAIL backend=$backend pair=$pair"; return 1; }
   fi
+  # Owner decision 2026-09-26: the arm's stop check runs AFTER the
+  # cooldown/settle wait — the wait exists to bring the board down, so a
+  # check before it would end sessions the wait could still fix.
+  # safety_gate re-checks right before typing (safety.sh).
+  safety_stops
   # 5) type + send the measured prompt
   if [ "$row_void" -eq 0 ]; then
     TYPE_TEXT="$PROMPT_TEXT"

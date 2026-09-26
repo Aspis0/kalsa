@@ -48,10 +48,12 @@ bench_prefs_clear() {
   dir=$(mktemp -d /tmp/kalsa-restore.XXXXXX) || return 1
   "$ADB_BIN" -s "$SER" shell chmod 771 /data >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
   "$ADB_BIN" -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage > "$dir/RKStorage" 2>/dev/null || { rm -rf "$dir"; return 1; }
-  if "$ADB_BIN" -s "$SER" shell "test -f databases/RKStorage-wal" >/dev/null 2>&1; then
+  # The test needs run-as too: databases/ lives in the app's private dir,
+  # so a bare `test -f` outside run-as always says "not found" (d3f85707).
+  if "$ADB_BIN" -s "$SER" shell "run-as $PKG test -f databases/RKStorage-wal" >/dev/null 2>&1; then
     "$ADB_BIN" -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage-wal > "$dir/RKStorage-wal" 2>/dev/null || { rm -rf "$dir"; return 1; }
   fi
-  if "$ADB_BIN" -s "$SER" shell "test -f databases/RKStorage-shm" >/dev/null 2>&1; then
+  if "$ADB_BIN" -s "$SER" shell "run-as $PKG test -f databases/RKStorage-shm" >/dev/null 2>&1; then
     "$ADB_BIN" -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage-shm > "$dir/RKStorage-shm" 2>/dev/null || { rm -rf "$dir"; return 1; }
   fi
   /usr/bin/sqlite3 -bail "$dir/RKStorage" "DELETE FROM catalystLocalStorage WHERE key LIKE 'kalsa.bench.%';" >/dev/null || { rm -rf "$dir"; return 1; }

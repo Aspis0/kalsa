@@ -57,3 +57,21 @@ Native cross-check, QAD-Q4_0, `-fa 0` (quant stated in each row):
   ratios outside 0.45–0.60 (750) / 0.50–0.75 (732), or decode spread > 20 %, are off-prior. Decode is CPU
   in both arms (the 18.9–21.2 / 14.9–17.0 t/s spread is context overhead, not route); n = 1 and n = 2
   measured pairs make this descriptive, with no routing conclusion.
+
+---
+
+## Pre-run amendment (2026-09-26)
+
+**Chunk band: [973, 1075]** — ±5 % of 1024 (1024 × 0.95 = 972.8 → 973;
+1024 × 1.05 = 1075.2 → 1075).
+
+The "Validity kept" bullet above prints `[973, 1126]`: 1126 is +10 % of 1024,
+contradicting the same bullet's stated `new-token target 1024 ±5 %`. The
+1126 upper edge was an arithmetic slip (1024 + ~10 %), not a protocol choice;
+the ±5 % figure is the rule the protocol states and the rule the driver gates
+on (`CALIB_BAND_FAIL`, parse.sh token-band gate, both since 2026-09-25).
+
+No LFM heat run has happened (the 2026-09-26 session was never opened —
+REPORT "NOT OPENED"), so this correction is written before any data existed.
+The driver gate was already [973, 1075]; nothing is loosened or tightened for
+future runs. The predictions above are untouched by this amendment.

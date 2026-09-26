@@ -52,16 +52,18 @@ require_numeric() {
   awk -v v="$2" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' || session_stop "missing_$1"
 }
 
-# Hard stops (audit F1): skin >= 44 C, thermal status >= 3, battery
-# temperature >= 44 C, battery level <= 25 %, plugged = true. The plugged
-# stop stays: all 31 real QDC battery dumps in this repo read AC/USB powered:
-# false, so true is a genuine anomaly (39c2dde6).
+# Hard stops (owner decision 2026-09-26): thermal status >= 3, battery
+# temperature >= 44 C, battery level <= 25 %, plugged = true, plus the
+# fail-closed missing-reading stops above. Skin is RECORDED (results columns,
+# thermo profile) but is NOT a driver stop — the engine's own pause 43 / kill
+# 44 acts on it through the profile. Plugged stays: all 31 real QDC battery
+# dumps in this repo read AC/USB powered: false, so true is a genuine
+# anomaly (39c2dde6).
 hard_stops() {
   require_numeric skin "$LIVE_SKIN"
   require_numeric thermal_status "$LIVE_THERMAL_STATUS"
   require_numeric battery_temp "$LIVE_BATT_TEMP_TENTHS"
   require_numeric battery_level "$LIVE_BATT_LEVEL"
-  awk -v v="$LIVE_SKIN" 'BEGIN{exit !(v+0 >= 44)}' && session_stop skin
   [ "$LIVE_THERMAL_STATUS" -ge 3 ] && session_stop thermal_status
   awk -v v="$LIVE_BATT_TEMP_TENTHS" 'BEGIN{exit !(v+0 >= 440)}' && session_stop battery_temp
   [ "$LIVE_BATT_LEVEL" -le 25 ] && session_stop battery_level
@@ -69,9 +71,9 @@ hard_stops() {
   return 0
 }
 
-# Stop checks only: called at arm entry, before every turn, and mid-turn from
-# the poll loop, so a device at (or reading) a limit ends the session instead
-# of running on into the next gate.
+# Stop checks only: called after an arm's cooldown/settle wait, before every
+# turn, and mid-turn from the poll loop, so a device at (or reading) a limit
+# ends the session instead of running on into the next gate.
 safety_stops() {
   live_readings
   hard_stops

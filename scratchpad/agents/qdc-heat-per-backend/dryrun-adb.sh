@@ -6,6 +6,8 @@
 # Env fixtures: DRY_SKIN, DRY_THERMAL_STATUS (set empty = device reports no
 # status), DRY_BATT_TEMP, DRY_BATT_LEVEL, DRY_PLUGGED; DRY_SKIN_AT=<n> +
 # DRY_SKIN_AFTER=<c> makes the skin cross <c> after n thermalservice reads;
+# DRY_BATT_TEMP_AT=<n> + DRY_BATT_TEMP_AFTER=<t> does the same for the
+# battery temperature (tenths of C) after n battery dumps;
 # DRY_TELEMETRY_DELAY_S=<s> holds telemetry/governor lines back <s> seconds
 # after the prompt is typed (keeps the poll loop running mid-turn);
 # DRY_PREWARM=restore serves only the KV-snapshot-restore proof, no op:done.
@@ -64,7 +66,14 @@ case "$args" in
       *qwen3.5-4b/mmproj-F16.gguf*) echo 672423616;;
     esac; exit 0;;
   *"logcat -b all -c"*) exit 0;;
-  *"dumpsys battery"*) printf 'Current Battery Service state:\n  AC powered: %s\n  temperature: %s\n  level: %s\n' "${DRY_PLUGGED:-false}" "${DRY_BATT_TEMP:-300}" "${DRY_BATT_LEVEL:-100}"; exit 0;;
+  *"dumpsys battery"*)
+    bt="${DRY_BATT_TEMP:-300}"
+    if [ -n "${DRY_BATT_TEMP_AT:-}" ]; then
+      n=$(cat "$S/batt_calls" 2>/dev/null || echo 0); n=$((n + 1))
+      printf '%s' "$n" > "$S/batt_calls"
+      [ "$n" -gt "$DRY_BATT_TEMP_AT" ] && bt="${DRY_BATT_TEMP_AFTER:-445}"
+    fi
+    printf 'Current Battery Service state:\n  AC powered: %s\n  temperature: %s\n  level: %s\n' "${DRY_PLUGGED:-false}" "$bt" "${DRY_BATT_LEVEL:-100}"; exit 0;;
   *"logcat -v epoch -d -b all"*)
     now=$(date +%s)
     tl=$(wc -c < "$S/typed" 2>/dev/null || echo 0)

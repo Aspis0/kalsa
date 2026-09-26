@@ -751,3 +751,80 @@ copy) + load proof + calibration ≈ 10 min.
 
 To unblock: owner reconnects the Paseo browser host / re-opens the aspis.launcher tab, and
 decides between cap 115 (deadline 110, ~2 pairs) and raising the 110 guard (cap ~171).
+
+---
+
+# Owner decision (2026-09-26) — stop set, pair numbering, session split
+
+Applied on top of `930d9737`, addressing the QDC runner's pre-run observations
+(d3f85707, "Pre-run observations" block). No session was open when these were
+made; no data exists yet.
+
+- **Stops (owner's list, nothing else).** The driver-level `skin >= 44 C`
+  stop is removed — it was a coordinator invention, not the owner's rule.
+  Kept (safety.sh:55-69): thermal status >= 3, battery temperature >= 44 C,
+  battery level <= 25 %, plugged = true, and the fail-closed
+  `missing_<name>` stops for every reading (skin included — the profile's
+  `batt_temp_tenths_c` carries skin, so a bad skin read still fails closed).
+  Skin is recorded everywhere (results columns, thermo profile) and reaches
+  the engine's unchanged **pause 43 / kill 44** through the bench profile;
+  the profile construction (`thermo_refresh`) is untouched.
+- **Stop check moved after the wait.** The per-arm `safety_stops` ran at arm
+  entry, BEFORE the cooldown/settle wait (old parse.sh:851), so a board that
+  the wait could still cool ended the session instead. It now runs right
+  after step 4 settle (parse.sh:884-888); `safety_gate` re-checks before
+  typing and the poll keeps checking every ~30 s with the new stop set.
+- **Pair numbering.** Old d_run.sh:332 incremented `PAIR` on every arm change
+  → CGGCGCGC labelled 1,2,2,3,4,5,6,7. Now `pair = ceil(turn/2) + (PAIR_START-1)`
+  (d_run.sh:337-339): default CGCG → 1,1,2,2; `PREV_ARM` machinery removed.
+  `PAIR_START` is validated like the other args (non-integer or < 1 → exit 2).
+- **`PAIR_START` = the session split (deadline stays 110).** Owner chose two
+  QRD8650 sessions of ~115 min, 2 pairs each, order per PREREG: session 1 =
+  pairs 1-2 (`ARM_ORDER=CGCG`, `PAIR_START` unset → 1), session 2 = pairs 3-4
+  (same `ARM_ORDER`, `PAIR_START=3`). `validate_deadline_minutes` still caps
+  at 110 (d_run.sh:13) — unchanged, as decided.
+- **`restore.sh` WAL/SHM test fixed** (restore.sh:53-57): the `test -f` now
+  runs under `run-as` like the `cat` beside it; without it the test always
+  said "not found" (runner's d3f85707 finding) and the WAL was never pulled
+  before the DELETE.
+- **`smp.sh` skin read gated** (smp.sh:25-27): same HAL-section-only
+  `sed -n '/Current temperatures from HAL/,/Current cooling devices from HAL/p'`
+  gate as safety.sh. Proven against the real dump: ungated grep returns the
+  cached 30.361 °C, gated returns the HAL 38.405 °C
+  (raw/sa849155c/session_pre_thermal.txt).
+- **PREREG band amended, predictions untouched.** `PREREG-LFM.md` now ends
+  with "Pre-run amendment (2026-09-26)": band **[973, 1075]** (±5 % of 1024);
+  the earlier 1126 was +10 % and contradicted the same bullet's stated ±5 %.
+  Written before any LFM run (the 2026-09-26 session was never opened).
+
+## Dry-run fixtures after the stop-set change
+
+State reset before each run:
+`rm -f /tmp/kalsa-dry/state/{typed,last_route,drawer,therm_calls,tel_ready_at,batt_calls}`.
+Harness knob added: `DRY_BATT_TEMP_AT`/`DRY_BATT_TEMP_AFTER` (battery-temp
+crossing after N dumps).
+
+| fixture | env / order | expectation | EXIT |
+|---|---|---|---|
+| `dryrun-fix-skin47` (replaces fix-skin) | `DRY_SKIN_AT=6 DRY_SKIN_AFTER=47`, `C` | skin 47 at the pre-turn gate does NOT stop: 0 STOP lines, `THERMO_REFRESH label=arm1 skin=47`, 1 OK row, `END exit_0` | 0 |
+| `dryrun-fix-batt-temp` (new) | `DRY_BATT_TEMP=445`, `C` | `STOP reason=battery_temp`, `END stop_battery_temp` | 0 |
+| `dryrun-fix-midturn-batt` (replaces midturn-skin) | `DRY_TELEMETRY_DELAY_S=45 DRY_BATT_TEMP_AT=5 DRY_BATT_TEMP_AFTER=445`, `C` | `STOP reason=battery_temp` at the ~30 s mid-turn check, `END stop_battery_temp`, header-only results | 0 |
+| `dryrun-fix-pair-start` (new) | `PAIR_START=3`, `CGCG` | rows pairs **3,3,4,4** (turns 1-4), all OK NF=30 | 0 |
+| `dryrun-fix-full` | `CG` | pairs **1,1** (was 1,2 — numbering fix visible), 2 OK rows | 0 |
+| `dryrun-fix-band` | `PROMPT_VARIANTS=841` | `CALIB_BAND_FAIL total=1171` | 3 |
+| `dryrun-fix-batt` | `DRY_BATT_LEVEL=20` | `STOP reason=battery_level` | 0 |
+| `dryrun-fix-missing-status` | `DRY_THERMAL_STATUS=` | `STOP reason=missing_thermal_status` | 0 |
+| `dryrun-fix-arms` | `DRIVER_PHASE=arms`, `CG` | pairs 1,1, 2 OK rows NF=30 | 0 |
+| `restore.sh` | fake adb | `app=force-stopped bench_prefs=removed rc=0` (run-as WAL tests now taken) | 0 |
+| `PAIR_START=abc` / `PAIR_START=0` | arg validation | rejected before any adb call | 2 / 2 |
+
+`bash -n` clean: d_run.sh, parse.sh, safety.sh, restore.sh, smp.sh,
+dryrun-adb.sh.
+
+## Not verified (no device, no QDC, no browser)
+
+- The owner's stop set and the moved check never ran on a board; the
+  battery-temp stop and the mid-turn path were proven against the fake only.
+- `restore.sh`'s run-as WAL/SHM test could not find a real WAL to pull (the
+  fixture DB has none); the command form mirrors `run_as_retry` (parse.sh:34).
+- `smp.sh`'s gated read is validated on a captured dump, not a live sampler.

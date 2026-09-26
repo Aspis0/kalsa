@@ -20,6 +20,11 @@ case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2;; esac
 case "$APK" in /*) ;; *) echo "apk_path must be absolute" >&2; exit 2;; esac
 case "$ARM_ORDER" in *[!CG]*) echo "arm_order must contain only C and G" >&2; exit 2;; esac
 [ -n "$ARM_ORDER" ] || { echo "arm_order empty" >&2; exit 2; }
+# PAIR_START lets a later session continue the pair sequence (owner
+# 2026-09-26: two QRD8650 sessions, session 2 runs PAIR_START=3).
+PAIR_START="${PAIR_START:-1}"
+case "$PAIR_START" in ''|*[!0-9]*) echo "PAIR_START must be an integer >= 1" >&2; exit 2;; esac
+[ "$PAIR_START" -ge 1 ] || { echo "PAIR_START must be an integer >= 1" >&2; exit 2; }
 
 PROMPT_FILE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.txt
 PROMPT_META=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-per-backend/PROMPT.meta
@@ -320,7 +325,7 @@ else
 fi
 
 # ---- arms ----
-PAIR=0; PREV_ARM=""; TURN=0; FINAL_RC=0
+TURN=0; FINAL_RC=0
 for ((i=0; i<${#ARM_ORDER}; i++)); do
   deadline_check
   a="${ARM_ORDER:i:1}"
@@ -329,9 +334,10 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
     G) BACKEND=gpu ;;
   esac
   TURN=$((TURN+1))
-  if [ "$a" != "$PREV_ARM" ]; then PAIR=$((PAIR+1)); fi
+  # pair = ceil(turn/2) + (PAIR_START - 1): every consecutive pair of turns
+  # is one pair (1,1,2,2,...), offset so a later session continues it.
+  PAIR=$((PAIR_START + (TURN + 1) / 2 - 1))
   run_arm "$BACKEND" "$PAIR" "$TURN" || { FINAL_RC=1; log "ABORT arm=$a pair=$PAIR turn=$TURN"; break; }
-  PREV_ARM="$a"
 done
 stop_sampler
 if [ "${SKIP_SAMPLER:-0}" != "1" ]; then adbT 120 -s "$SER" pull "$HEAT_TMP/samples.txt" "$RAW/samples.txt" >> "$RAW/setup.log" 2>&1 || true; fi

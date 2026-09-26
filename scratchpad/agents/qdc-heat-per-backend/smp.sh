@@ -22,7 +22,9 @@ while [ ! -f "$STOP" ]; do
     line="$line $t=$v"
   done
   echo "$line" >> "$OUT"
-  s=$(dumpsys thermalservice 2>/dev/null | grep -o 'mValue=[0-9.]*, mType=3, mName=skin' | head -1 | sed 's/mValue=//;s/,.*//')
+  # HAL section only: the whole dump also carries a stale "Cached
+  # temperatures" skin value (same trap as safety.sh live_readings).
+  s=$(dumpsys thermalservice 2>/dev/null | sed -n '/Current temperatures from HAL/,/Current cooling devices from HAL/p' | grep -o 'mValue=[0-9.]*, mType=3, mName=skin' | head -1 | sed 's/mValue=//;s/,.*//')
   echo "S $(date +%s) $s" >> "$OUT"
   sleep 1
 done
