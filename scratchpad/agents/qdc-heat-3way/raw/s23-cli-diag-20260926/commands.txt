@@ -1,0 +1,11 @@
+Device: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp, port 5037
+Remote kit: /data/local/tmp/heat3way; binary and model are from the already verified f25f0c1c5 kit.
+Diagnostic prompt file: /data/local/tmp/heat3way/diag-prompt.txt; contents `Reply with exactly READY.`
+Common completion env: LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_OPENCL_LOG_KERNELS=1
+Common completion args: -m ship.gguf -lm none -f diag-prompt.txt -n 64 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 8 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -ngl 0
+A: common args, no --poll override
+B: common args + --poll 1000
+C: common args + --poll 1000 -tb 8
+D: ./bin/llama-bench -m ship.gguf -t 8 --poll 1000 -fa 1 -p 0 -n 64 -d 1018
+Each remote shell read /proc/self/cpuset into its log and then exec-replaced the same PID with the binary. ADB shell and log pull both exited 0 for A-D.
+Original display settings saved: screen_off_timeout=null; stay_on_while_plugged_in=0. Restored and verified after the commands. The temporary prompt and four remote logs were removed after pulling.

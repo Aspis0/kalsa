@@ -178,3 +178,52 @@ thresholds unchanged. A minimal post-row fail-fast guard was added to
 `bash -n d_run.sh` passed. No PREREG content was changed. Raw preflight,
 complete arm log, parser row, stop/restore, and DSP snapshots are under
 `raw/s23-cli-heat-20260926/`.
+
+## Manual S23 decode diagnosis — 2026-09-26
+
+No heat arms or cell code changes. Preflight passed: unplugged, battery 63%
+at 29.0 °C, skin 29.9 °C, thermal status 0, traced 0; display was awakened
+before each command. Battery/thermal/traced were checked between tests and
+afterward (last: 62%, 31.9 °C battery / 32.4 °C skin, thermal 0, unplugged,
+traced 0). The optional skin stop was not approached. DSP before was
+adsprpcd 0/10, cdsprpcd 0/16; after 0/24 and 0/30. Original display settings
+(`screen_off_timeout=null`, `stay_on_while_plugged_in=0`) were restored.
+
+All four commands returned exit 0. For (a)–(c), the diagnostic prompt was
+`Reply with exactly READY.` (15 prompt tokens); each used `-ngl 0`, `-t 8`,
+`-fa 1`, `--no-warmup --perf`, `-n 64 --ignore-eos`. (b) added
+`--poll 1000`; (c) added `-tb 8`. The cpuset was read in the remote shell
+immediately before `exec` replaced that same PID with the binary:
+`CPUSET=/` for all four commands (root cpuset; no restricted cpuset path).
+
+| Command | Raw eval line | Decode tok/s |
+|---|---|---:|
+| (a) completion default poll | `4234.94 ms / 63 runs` | 14.88 |
+| (b) completion `--poll 1000` | `5575.90 ms / 63 runs` | 11.30 |
+| (c) completion `--poll 1000 -tb 8` | `9492.21 ms / 63 runs` | 6.64 |
+| (d) llama-bench as requested | `tg64 @ d1018: 6.28 ± 2.36 t/s` | 6.28 ± 2.36 |
+
+Completion raw `common_perf_print:` eval lines (full logs in the raw folder):
+
+```
+(a) eval time = 4234.94 ms / 63 runs (67.22 ms per token, 14.88 tokens per second)
+(b) eval time = 5575.90 ms / 63 runs (88.51 ms per token, 11.30 tokens per second)
+(c) eval time = 9492.21 ms / 63 runs (150.67 ms per token, 6.64 tokens per second)
+```
+
+This confirms the count relationship: `-n 64` yields 63 eval runs here, as
+the long CLI turn's `-n 127` yielded 126. The first generated token is
+sampled from prompt-eval logits; only subsequent tokens need eval runs.
+`--poll 1000` did not explain or fix the slow decode in these one-shot tests;
+(b)/(c) were slower than (a), with no repeats to estimate run-to-run noise.
+The bench row is not a CPU-only comparator: it reports `backend=OpenCL,HTP`
+and `ngl=-1` (the command omitted `-ngl 0`). That log loaded the Adreno
+OpenCL device and HTP v73, but contains no HTP execute-op or OpenCL kernel
+dispatch proof lines, so the backend label alone does not prove either
+backend executed the benchmark graph. The earlier 5.68 tok/s came from the
+1018-token context; (a)–(c) used a 15-token prompt, while (d) used
+`tg64 @ d1018`. Context depth and the bench's backend configuration remain
+the clearest confounds; these single trials do not isolate a scheduler cause.
+
+Raw commands, full binary output, per-test pre/post safety readings, cpusets,
+DSP snapshots, and screen restore are in `raw/s23-cli-diag-20260926/`.
