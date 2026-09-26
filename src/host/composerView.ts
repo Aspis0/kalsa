@@ -35,6 +35,8 @@ export interface ComposerViewInput {
   translating: boolean;
   modelState: ModelPipelineState;
   engineResident: boolean;
+  /** Computer mode: the phone's model lifecycle may not hold this composer. */
+  remoteActive: boolean;
   /** The composer's staged rows (D1 row 43): counted for the send control
    *  (an attachment-only send is a send) and named for the chip row. */
   attachments: readonly LocalAttachment[];
@@ -77,6 +79,7 @@ export function composerView(input: ComposerViewInput): ComposerView {
     coolingStatus: input.coolingStatus,
     modelState: input.modelState,
     engineResident: input.engineResident,
+    remoteActive: input.remoteActive,
     converting: input.converting,
   });
   // The single `attachment` field names the last-staged file (the state's

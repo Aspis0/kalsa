@@ -45,9 +45,13 @@ export function modelErrorHint(args: {
   modelState: ModelPipelineState;
   modelError: string | null;
   modelErrorDetail: string | null;
+  /** Computer mode: the error line already carries the computer's own words
+   *  — a local raw diagnostic may never sit beside it. */
+  remoteActive?: boolean;
   t: TranslateFn;
 }): string | null {
-  const { modelState, modelError, modelErrorDetail, t } = args;
+  const { modelState, modelError, modelErrorDetail, remoteActive = false, t } = args;
+  if (remoteActive) return null;
   if (modelState !== "error") return null;
   const isConnectivity =
     !!modelError &&
@@ -86,6 +90,22 @@ export function modelBarStatus(args: {
 }): ModelBarStatus {
   const { modelState, jsReady, activeMatches, hung, errorKind, percent, model, remoteActive = false, t } = args;
   const kind = decideEngineBarKind({ modelState, jsReady, activeMatches });
+  if (remoteActive) {
+    // Computer mode: the phone's load lifecycle may not speak here. Only
+    // the computer's own states do — ready, the check while its ensure
+    // runs, and otherwise nothing: the error line beside this row carries
+    // the reachability message, never "Load failed" (and never its tap
+    // promise — no retryLabel on these rows).
+    switch (kind) {
+      case "ready":
+        return { label: t("download.readyRemote"), tone: "good" };
+      case "checking":
+      case "loading":
+        return { label: t("download.computerChecking"), tone: "muted" };
+      default:
+        return { label: "", tone: "muted" };
+    }
+  }
   switch (kind) {
     case "checking":
       return { label: t("download.checking"), tone: "muted" };
@@ -115,7 +135,7 @@ export function modelBarStatus(args: {
       };
     case "ready":
       return {
-        label: t(remoteActive ? "download.readyRemote" : "download.readyLocal"),
+        label: t("download.readyLocal"),
         tone: "good",
       };
     case "reload":

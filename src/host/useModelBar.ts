@@ -67,6 +67,7 @@ export function useModelBar(modelHost: ModelHost): {
       modelState: modelHost.modelState,
       modelError: modelHost.modelError,
       modelErrorDetail: modelHost.modelErrorDetail,
+      remoteActive: modelHost.remoteActive,
       t,
     }),
     battery: buildBatteryLines(batteryEta, modelHost.modelState, t),

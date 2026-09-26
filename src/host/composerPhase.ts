@@ -14,7 +14,8 @@ import type { ComposerPhase } from "../ui/shell/composerState";
 export interface ComposerPhaseInput {
   /** False only during the first milliseconds, before history settles. */
   historyLoaded: boolean;
-  /** OS thermal CRITICAL: the machine refuses every entry point. */
+  /** OS thermal CRITICAL: the machine refuses every entry point — local
+   *  mode only; in computer mode the phone computes nothing this turn. */
   thermalGated: boolean;
   /** A run is live (the engine has not released). */
   sending: boolean;
@@ -32,6 +33,9 @@ export interface ComposerPhaseInput {
   modelState: ModelPipelineState;
   /** The engine holds this very model (isEngineReady + active match). */
   engineResident: boolean;
+  /** "Where it responds" is the computer: the phone's model pipeline is not
+   *  this composer's business — no load/fail/hold line may come from it. */
+  remoteActive: boolean;
   /** A picked PDF is still being read into pages (the composer's own phase —
    *  the controller's `!pdfToRender` in `canSend`, `Chat:3620`, as a row of
    *  the table with its own hold line). */
@@ -39,7 +43,7 @@ export interface ComposerPhaseInput {
 }
 
 export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
-  if (input.thermalGated) return "tooHot";
+  if (input.thermalGated && !input.remoteActive) return "tooHot";
   if (input.sending) {
     if (input.stopping) return "stopping";
     if (input.statusLabel === input.coolingStatus) return "cooling";
@@ -55,9 +59,15 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   // is disabled while the face says stop, so no conversion starts mid-run.
   if (input.converting) return "converting";
   // Idle-side order: settle history first (the first renders of a switch are
-  // not "ready"), then the model's own pipeline. "missing" and "error" are
-  // both "not loaded" for the composer — the strip pill's tap is the way out.
+  // not "ready"), then the model's own pipeline.
   if (!input.historyLoaded) return "loading";
+  // Computer mode stops here: every remaining row is the PHONE's model
+  // lifecycle (load, missing, failure, residency), and its words must not
+  // hold a send that goes to the computer. The strip's reachability line
+  // and the turn's own ensure own the computer's state instead.
+  if (input.remoteActive) return "idle";
+  // "missing" and "error" are both "not loaded" for the composer — the strip
+  // pill's tap is the way out.
   if (input.modelState === "checking" || input.modelState === "loading") return "loading";
   if (input.modelState === "downloading") return "loading";
   // Ready but not resident (idle unload) is NOT a hold: the send reloads

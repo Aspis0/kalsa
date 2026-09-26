@@ -32,6 +32,7 @@ function input(over: Partial<ComposerViewInput> = {}): ComposerViewInput {
     translating: false,
     modelState: "ready" as ModelPipelineState,
     engineResident: true,
+    remoteActive: false,
     attachments: [],
     converting: false,
     ...over,

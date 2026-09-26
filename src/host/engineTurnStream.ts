@@ -23,6 +23,7 @@ import { formatMemoryLine } from "../memory/memoryTelemetry";
 import * as MemoryStore from "../memory/MemoryStore";
 import { mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { bridgeEngineCallbacks } from "../app/engineCallbackBridge";
+import { isRemoteEngineBackend } from "../engine/engineBackend";
 import { forceRebuildByChat } from "./turnCorpus";
 import type { EngineTurnDeps } from "./engineTurnDeps";
 import type { CompactorRun } from "./engineTurnCompactor";
@@ -91,12 +92,14 @@ export async function streamEngineTurn(
             // A slide's clearCache does not spare the static prefix — same
             // native cache — so without this the send below re-prefills ~1832
             // tokens of system prompt and tool schemas it already paid for.
+            // Never in computer mode: that prewarm fills the PHONE's native
+            // engine, which a remote turn never touches.
             // Awaited on purpose: the promise resolves once the job is
             // ENQUEUED, which is the ordering guarantee we need — the restore
             // must sit in front of this send's completion in the FIFO, or the
             // completion arrives first and the prewarm is skipped for holding
             // chat KV.
-            if (nativeClearedForAssemble) {
+            if (nativeClearedForAssemble && !isRemoteEngineBackend()) {
               try {
                 await queueStaticPrefixPrewarm(
                   locale,

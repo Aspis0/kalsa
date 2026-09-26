@@ -36,12 +36,13 @@ import {
   tryAcquireChat,
 } from "../engine/llamaContextGate";
 import { handleSendStream } from "./engineTurn";
+import { REMOTE_COMPUTER_MODEL } from "../engine/remote/remoteComputerModel";
 import { buildTurnDeps, type HostDepsInput } from "./hostDeps";
 import type { EngineTurnCallbacks } from "./engineTurnDeps";
 
 const LOCAL_MODEL = MODEL_REGISTRY[0];
 
-function turnHarness() {
+function turnHarness(currentModel: typeof LOCAL_MODEL = LOCAL_MODEL) {
   const thermalHardGateRef = { current: false };
   const ensureMock = jest.fn(async (_model: typeof LOCAL_MODEL) => false);
   const setStreaming = jest.fn();
@@ -76,7 +77,7 @@ function turnHarness() {
     webToolsEnabledRef: { current: false },
     deviceToolsEnabledRef: { current: false },
     calendarToolsEnabledRef: { current: false },
-    currentModel: LOCAL_MODEL,
+    currentModel,
     ensureEngineForModelRef: { current: ensureMock },
     remoteErrorRef: { current: null },
     chatEngineCtxRef: { current: 0 },
@@ -156,6 +157,25 @@ describe("the send's ensure outcome", () => {
     await handleSendStream(deps, "hello", callbacks, new AbortController().signal);
 
     expect(callbacks.onFailed).toHaveBeenCalledWith("chat.thermalHardGateBody");
+    expect(callbacks.onFailed).not.toHaveBeenCalledWith("chat.modelLoadFailed");
+  });
+
+  test("a computer-mode send is never refused by the phone's thermal backstop — an unreachable computer says so instead", async () => {
+    const { thermalHardGateRef, ensureMock, callbacks, deps } = turnHarness(
+      REMOTE_COMPUTER_MODEL,
+    );
+    // The phone's CRITICAL gate is set: irrelevant to a send that computes
+    // nothing on this phone.
+    thermalHardGateRef.current = true;
+    deps.remoteErrorRef.current = "computer unreachable";
+    ensureMock.mockImplementation(async () => false);
+    jest.mocked(isModelBundleDownloaded).mockResolvedValueOnce(true);
+
+    await handleSendStream(deps, "hello", callbacks, new AbortController().signal);
+
+    expect(callbacks.onFailedReason).toHaveBeenCalledWith("computer unreachable");
+    expect(callbacks.onFailed).toHaveBeenCalledWith("chat.serviceUnreachable");
+    expect(callbacks.onFailed).not.toHaveBeenCalledWith("chat.thermalHardGateBody");
     expect(callbacks.onFailed).not.toHaveBeenCalledWith("chat.modelLoadFailed");
   });
 });

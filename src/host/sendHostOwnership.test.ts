@@ -107,6 +107,7 @@ describe("sendHost binds engine ownership to the token it issued", () => {
     coolingStatus: "Cooling down",
         modelState: "ready",
         engineResident: true,
+        remoteActive: false,
       }),
     ).toBe("prefill");
 

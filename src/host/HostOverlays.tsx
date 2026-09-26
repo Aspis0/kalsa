@@ -174,7 +174,7 @@ export function HostOverlays(props: OverlaysProps) {
   // Extra guidance for connectivity-shaped failures plus the raw diagnostic
   // — the controller's single builder (`App:6725-6745`), shared with the
   // strip's hint row (`modelBar.ts`).
-  const hint = modelErrorHint({ modelState, modelError, modelErrorDetail, t });
+  const hint = modelErrorHint({ modelState, modelError, modelErrorDetail, remoteActive, t });
 
   if (overlay?.kind === "settings") {
     return (

@@ -50,6 +50,7 @@ const ONE_LINE = SHELL_NOTICE_HEIGHT;
  * one on the screen while the engine has refused this model.
  */
 function statusRowHeight(view: ModelBarView): number {
+  if (view.status.label === "") return 0;
   return view.status.retryLabel !== undefined ? MIN_TOUCH_TARGET : ONE_LINE;
 }
 /** The controller's hint is `numberOfLines={4}` (`AppShell.tsx:7005`). */
@@ -132,13 +133,13 @@ export function ModelBar({
             {view.status.label}
           </Text>
         </Pressable>
-      ) : (
+      ) : view.status.label !== "" ? (
         <View style={[ROW, { height: statusRowHeight(view) }]} testID="shell.modelBar.status">
           <Text numberOfLines={1} style={[type.meta, { color: toneColor(view.status.tone, colors) }]}>
             {view.status.label}
           </Text>
         </View>
-      )}
+      ) : null}
 
       {view.battery.length > 0 ? (
         <View

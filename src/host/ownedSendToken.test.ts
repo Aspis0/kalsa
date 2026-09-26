@@ -12,6 +12,7 @@ const phaseFor = (hasTokens: boolean) =>
     coolingStatus: "Cooling down",
     modelState: "ready",
     engineResident: true,
+    remoteActive: false,
   } satisfies ComposerPhaseInput);
 
 describe("owned send token callbacks", () => {

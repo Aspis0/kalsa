@@ -552,6 +552,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     loadFailedRetry: "Load failed — tap to retry",
     readyLocal: "Ready · local",
     readyRemote: "Ready · remote",
+    computerChecking: "Checking your computer…",
     downloaded: "Downloaded",
     incomplete: "Download incomplete — tap to retry.",
     readyNotice: "{name} is ready.",

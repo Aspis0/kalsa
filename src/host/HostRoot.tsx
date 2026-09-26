@@ -199,8 +199,8 @@ export function HostRoot() {
     // send itself refuses in `sendHost.send`.
     translating: messageActions.translating,
     modelState: modelHost.modelState,
-    engineResident:
-      isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
+    engineResident: isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
+    remoteActive: modelHost.remoteActive,
     attachments: attachments.items,
     converting: attachments.converting !== null,
   });

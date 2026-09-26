@@ -547,6 +547,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     loadFailedRetry: "Caricamento non riuscito — tocca per riprovare",
     readyLocal: "Pronto · locale",
     readyRemote: "Pronto · remoto",
+    computerChecking: "Verifica del tuo computer…",
     downloaded: "Scaricato",
     incomplete: "Download incompleto — tocca per riprovare.",
     readyNotice: "{name} pronto.",

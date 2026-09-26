@@ -123,8 +123,13 @@ export function handleSendStream(
         };
 
         // Synchronous backstop for a CRITICAL event that lands after
-        // the pre-send guard but before this callback runs.
-        if (thermalHardGateRef.current || thermalHardGated) {
+        // the pre-send guard but before this callback runs. A computer-mode
+        // send computes nothing on the phone, so the phone's governor
+        // backstop may not refuse it.
+        if (
+          (thermalHardGateRef.current || thermalHardGated) &&
+          currentModel.id !== REMOTE_COMPUTER_MODEL_ID
+        ) {
           fail(t("chat.thermalHardGateBody"), "chat.thermalHardGateBody");
           return;
         }

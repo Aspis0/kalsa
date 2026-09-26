@@ -15,6 +15,7 @@ const base: ComposerPhaseInput = {
   coolingStatus: "Cooling down",
   modelState: "ready",
   engineResident: true,
+  remoteActive: false,
 };
 
 const phase = (over: Partial<ComposerPhaseInput>) => hostComposerPhase({ ...base, ...over });
@@ -74,6 +75,27 @@ describe("hostComposerPhase", () => {
 
   test("sending outranks a not-yet-resident model (the run holds the engine)", () => {
     expect(phase({ sending: true, hasTokens: true, engineResident: false, modelState: "loading" })).not.toBe("unloaded");
+  });
+});
+
+describe("computer mode: the phone's model lifecycle never holds the composer", () => {
+  test("missing, error, loading and checking states all send idle", () => {
+    expect(phase({ remoteActive: true, modelState: "missing" })).toBe("idle");
+    expect(phase({ remoteActive: true, modelState: "error" })).toBe("idle");
+    expect(phase({ remoteActive: true, modelState: "loading" })).toBe("idle");
+    expect(phase({ remoteActive: true, modelState: "checking" })).toBe("idle");
+  });
+
+  test("the phone's thermal CRITICAL gate does not refuse a computer send", () => {
+    expect(phase({ remoteActive: true, thermalGated: true })).toBe("idle");
+    // …while local mode still holds it: the gate is mode-scoped, not removed.
+    expect(phase({ thermalGated: true })).toBe("tooHot");
+  });
+
+  test("history still settling and a live turn are unchanged in computer mode", () => {
+    expect(phase({ remoteActive: true, historyLoaded: false })).toBe("loading");
+    expect(phase({ remoteActive: true, sending: true, hasTokens: true, statusLabel: "Thinking" })).toBe("thinking");
+    expect(phase({ remoteActive: true, converting: true })).toBe("converting");
   });
 });
 
