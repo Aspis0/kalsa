@@ -266,6 +266,29 @@ pub(crate) fn probe_model() -> &'static Asset {
         .expect("the probe model row exists")
 }
 
+/// Every archive file name the table pins for `platform`: the keep-list
+/// when the store sweeps the archives directory. The probe model never
+/// appears here — it is not platform-tagged and never lives under
+/// `archives/`.
+pub(crate) fn pinned_files(platform: Platform) -> Vec<&'static str> {
+    ASSETS
+        .iter()
+        .filter(|asset| asset.platform == Some(platform))
+        .map(|asset| asset.file)
+        .collect()
+}
+
+/// Every build-directory name the table pins for `platform`: the
+/// keep-list when the store sweeps the builds directory.
+pub(crate) fn pinned_backends(platform: Platform) -> Vec<&'static str> {
+    ASSETS
+        .iter()
+        .filter(|asset| asset.platform == Some(platform))
+        .filter_map(|asset| asset.backend)
+        .map(|backend| backend.name())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -136,6 +136,7 @@ pub(crate) fn ensure_backend(
         .find(|asset| asset.role == assets::Role::Engine)
         .and_then(|asset| asset.exe_sha256);
     if let Some(exe) = marker::validate(&dir, &runtime, table_exe) {
+        sweep_unpinned(root, platform);
         return Ok(exe);
     }
     // A build that claims this release but carries another executable is
@@ -156,7 +157,36 @@ pub(crate) fn ensure_backend(
         let archives = acquire_all(root, &assets, progress)?;
         extract_into(&staging, &archives).map_err(StoreError::Io)?;
     }
-    publish(&staging, &dir, &runtime, table_exe)
+    let exe = publish(&staging, &dir, &runtime, table_exe)?;
+    sweep_unpinned(root, platform);
+    Ok(exe)
+}
+
+/// Deletes what no pin names, once a backend has settled: archives and
+/// build directories left behind by earlier releases — upstream's zips
+/// beside the fork's, an upgraded install's `cuda12` build — are dead
+/// weight this machine will never run again. Candidates come from the
+/// directory listing of the runtime's own `archives/` and `builds/`
+/// only, compared by exact name, so nothing outside them and no model
+/// file is ever a candidate; a locked file is left for the next start
+/// rather than failing this one.
+fn sweep_unpinned(root: &Path, platform: Platform) {
+    let keep_files = assets::pinned_files(platform);
+    if let Ok(entries) = std::fs::read_dir(archives_dir(root)) {
+        for entry in entries.flatten() {
+            if !keep_files.contains(&entry.file_name().to_string_lossy().as_ref()) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+    let keep_dirs = assets::pinned_backends(platform);
+    if let Ok(entries) = std::fs::read_dir(root.join("builds")) {
+        for entry in entries.flatten() {
+            if !keep_dirs.contains(&entry.file_name().to_string_lossy().as_ref()) {
+                let _ = std::fs::remove_dir_all(entry.path());
+            }
+        }
+    }
 }
 
 /// Refuses a build that claims this release but carries another
@@ -734,5 +764,53 @@ mod tests {
                 .contains("Library/Application Support"),
             "{root:?}"
         );
+    }
+
+    /// The machine the sweep was written for: upstream's zips beside the
+    /// fork's, an upgraded install's `cuda12` build. What a pin names
+    /// stays, what nothing names goes, and the model is never a candidate.
+    #[test]
+    fn settling_sweeps_what_no_pin_names_and_nothing_else() {
+        let root = scratch("sweep");
+        let pinned = assets::pinned_files(Platform::WindowsX64);
+        assert_eq!(pinned.len(), 2, "the fork's cpu and vulkan archives");
+        for file in &pinned {
+            place_archive(&root, file, b"the pinned bytes");
+        }
+        place_archive(&root, "llama-b10950-bin-win-cpu-x64.zip", b"upstream's leftover");
+        std::fs::create_dir_all(builds_dir(&root, ServerBackend::Vulkan)).expect("pinned build");
+        std::fs::create_dir_all(root.join("builds").join("cuda12")).expect("stale build");
+        let model = models_dir(&root).join("stories260K.gguf");
+        std::fs::create_dir_all(models_dir(&root)).expect("models dir");
+        std::fs::write(&model, b"the probe's model").expect("model");
+
+        sweep_unpinned(&root, Platform::WindowsX64);
+
+        let mut archives: Vec<String> = std::fs::read_dir(archives_dir(&root))
+            .expect("archives")
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        archives.sort();
+        assert_eq!(
+            archives,
+            [
+                "kalsa-server-v1.1.2-bin-win-cpu-x64.zip".to_string(),
+                "kalsa-server-v1.1.2-bin-win-vulkan-x64.zip".to_string(),
+            ],
+            "upstream's archive is gone, both pins stay"
+        );
+        let builds: Vec<String> = std::fs::read_dir(root.join("builds"))
+            .expect("builds")
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            builds,
+            ["vulkan".to_string()],
+            "cuda12 is gone, the pinned build stays"
+        );
+        assert!(model.is_file(), "the model is never a sweep candidate");
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
