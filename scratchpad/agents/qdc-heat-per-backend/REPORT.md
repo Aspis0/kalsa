@@ -1318,3 +1318,16 @@ Coordinator decision: detection is no longer the safety basis.
 | decode gate, stale canned 96 vs ref 30 | `STOP_UNEQUAL_DECODE` | 1 |
 
 `bash -n` clean on all eight scripts. Untested: the on-AC stay-on branch (AC=true trips the plugged stop).
+
+## QRD8750 S2 retry on the new driver — QDC 850167, unit sa854236, serial 9aed338b — safety STOP at setup
+
+Started 17:29:26, Ended 17:32:20 (3 min; card 876 → 761 = the 115 hold, not settled). Same serial as S1
+(9aed338b), whose stub read 42.0 then; this time the injected battery reads **44.0 °C** (dumpsys 440 = sysfs 440,
+skin 30.6). `QDC_BOARD=1 why=tunnel_port=6039,fingerprint=qti,model=Sun for arm64`; trust (log)
+`frozen_far_from_skin temp=440,440`; **`STOP reason=battery_temp` at the setup gate** — rule A5 keeps battery ≥ 44
+armed, so a QDC stub at ≥ 44.0 blocks the board before any turn. No rows. Cleanup verified on the board:
+screen_off_timeout 60000 and stay_on_while_plugged_in **15** (the pre-run values saved in raw/sa854236/restore-state)
+restored exactly, holder gone, app stopped. QRD8635 / QRD7675 still Unavailable (17:33).
+
+Decision needed (coordinator/owner): A5 vs QDC stubs ≥ 44.0 (the injected value varies per session: 42.0,
+40.0, 44.0 on QRD8750; 25.0 on QRD8650). Retrying QRD8750 may land on the same unit again.
