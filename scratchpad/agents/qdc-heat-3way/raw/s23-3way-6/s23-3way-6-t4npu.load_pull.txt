@@ -1,0 +1,1 @@
+/data/local/tmp/heat3way/s23-3way-6-t4npu.load.log: 1 file pulled, 0 skipped. 20.8 MB/s (3861896 bytes in 0.177s)

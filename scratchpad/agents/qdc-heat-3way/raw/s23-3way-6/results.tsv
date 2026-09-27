@@ -1,0 +1,7 @@
+pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	load_wall_s	load_skin_before	load_skin_after	pagein_cold	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	thermal_status	prompt_n	prefill_ms	decode_runs	decode_tps	proof	sampler
+1	cpu	1	OK	na	0	0	60	29	52	31.1	33.3	1	31.1	33.4	302	327	79	false	0	1010	19026.97	126	21.15	cpu_no_offload tokens=5 fp=buf=CPU,CPU_REPACK off=0/31 thr=5	ok
+1	gpu	2	OK	na	0	0	60	26	7	33.4	33.4	0	33.4	33.7	327	333	78	false	0	1010	7347.20	126	11.26	gpu_assigned_lines=62 kernels=15 tokens=5 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5	ok
+2	npu	3	OK	na	0	0	60	16	5	33.7	33.5	0	33.7	33.6	333	332	77	false	0	1010	1668.22	126	13.01	htp_ops=1398 min=699 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5	ok
+2	npu	4	OK	na	0	0	60	16	5	33.6	33.6	0	33.6	33.7	332	332	77	false	0	1010	1558.10	126	12.91	htp_ops=1398 min=699 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5	ok
+3	gpu	5	OK	na	0	0	60	26	8	33.7	33.6	0	33.7	34.1	332	339	77	false	0	1010	7326.37	126	11.10	gpu_assigned_lines=62 kernels=15 tokens=5 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5	ok
+3	cpu	6	OK	na	0	0	60	19	3	34.1	33.8	0	34.1	34.3	339	341	76	false	0	1010	10389.45	126	21.12	cpu_no_offload tokens=5 fp=buf=CPU,CPU_REPACK off=0/31 thr=5	ok

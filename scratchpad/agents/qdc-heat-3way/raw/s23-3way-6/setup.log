@@ -1,0 +1,10 @@
+bin/llama-bench: OK
+bin/llama-completion: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml.so: OK
+lib/libggml-hexagon.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml-htp-v73.so: OK
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/smp.sh: 1 file pushed, 0 skipped. 18.3 MB/s (2013 bytes in 0.000s)
+/data/local/tmp/heat3way/heat/samples.txt: 1 file pulled, 0 skipped. 3.2 MB/s (114520 bytes in 0.034s)

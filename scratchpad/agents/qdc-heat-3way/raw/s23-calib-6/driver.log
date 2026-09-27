@@ -1,0 +1,21 @@
+[01:58:45] SESSION job=s23-calib-6 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[01:58:45] DEVICE_LIST_OK
+[01:58:47] KIT_PRESENT ship.gguf
+[01:58:47] KIT_PRESENT prompt.txt
+[01:59:18] BATTERY_SENSOR_TRUSTED dumpsys=275,276 sysfs=,
+[01:59:18] GATE label=setup
+[01:59:18] SETUP_DONE skin0=28.7 battery_untrusted=0 htp_floor=0.86 source=prior
+[01:59:19] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:59:21] SAMPLER_LAUNCHED pid=26514
+[01:59:21] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
+[01:59:21] CALIB_START backend=cpu tag=s23-calib-6-calcpu
+[01:59:25] CALIB backend=cpu phase=proof status=OK void=na tokens=5 proof=cpu_no_offload tokens=5 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[01:59:39] CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[01:59:39] CALIB_START backend=gpu tag=s23-calib-6-calgpu
+[01:59:47] CALIB backend=gpu phase=proof status=OK void=na tokens=5 proof=gpu_assigned_lines=62 kernels=15 tokens=5 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[02:00:02] CALIB backend=gpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[02:00:02] CALIB_START backend=npu tag=s23-calib-6-calnpu
+[02:00:09] CALIB backend=npu phase=proof status=OK void=na tokens=5 proof=htp_ops=1398 min=5 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[02:00:16] CALIB backend=npu phase=turn fp=buf=CPU,HTP0 off=31/31 thr=5
+[02:00:16] CALIB buf_gpu=CPU,CPU_REPACK,OpenCL buf_npu=CPU,HTP0 (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
+[02:00:16] CALIB_DONE floor_htp_ops_per_tok=139.8000 (measured 1398 ops / 5 tokens; pinned in calib.ok)

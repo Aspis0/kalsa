@@ -1,0 +1,48 @@
+[02:00:55] PRIOR_RESTORE .restore-state from an earlier run
+[02:00:55] CALIB_PIN_BOARD_OK serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp soc=SM8550
+[02:00:58] SESSION job=s23-3way-6 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[02:00:58] DEVICE_LIST_OK
+[02:01:01] KIT_PRESENT ship.gguf
+[02:01:01] KIT_PRESENT prompt.txt
+[02:01:31] BATTERY_SENSOR_TRUSTED dumpsys=309,302 sysfs=,
+[02:01:31] GATE label=setup
+[02:01:31] SETUP_DONE skin0=31.1 battery_untrusted=0 htp_floor=139.8000 source=calib.ok
+[02:01:33] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[02:01:35] SAMPLER_LAUNCHED pid=63509
+[02:01:35] ARM_START turn=1 backend=cpu pair=1 tag=s23-3way-6-t1cpu
+[02:02:27] LOAD_PHASE turn=1 wall_s=52 skin 31.1->33.3 pagein_cold=1
+[02:02:28] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:02:59] SAMPLER_LAUNCHED pid=72255
+[02:02:59] SAMPLER_RESUMED
+[02:03:59] ARM_END turn=1 status=OK void=na prefill_ms=19026.97 inload_ms=19028.61 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=5 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[02:03:59] ARM_START turn=2 backend=gpu pair=1 tag=s23-3way-6-t2gpu
+[02:04:07] LOAD_PHASE turn=2 wall_s=7 skin 33.4->33.4 pagein_cold=0
+[02:04:08] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:04:36] SAMPLER_LAUNCHED pid=87655
+[02:04:36] SAMPLER_RESUMED
+[02:05:36] ARM_END turn=2 status=OK void=na prefill_ms=7347.20 inload_ms=7348.40 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=62 kernels=15 tokens=5 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[02:05:36] ARM_START turn=3 backend=npu pair=2 tag=s23-3way-6-t3npu
+[02:05:41] LOAD_PHASE turn=3 wall_s=5 skin 33.7->33.5 pagein_cold=0
+[02:05:45] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:06:03] SAMPLER_LAUNCHED pid=10944
+[02:06:03] SAMPLER_RESUMED
+[02:07:03] ARM_END turn=3 status=OK void=na prefill_ms=1668.22 inload_ms=1669.52 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=1398 min=699 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[02:07:03] ARM_START turn=4 backend=npu pair=2 tag=s23-3way-6-t4npu
+[02:07:08] LOAD_PHASE turn=4 wall_s=5 skin 33.6->33.6 pagein_cold=0
+[02:07:09] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:07:27] SAMPLER_LAUNCHED pid=34323
+[02:07:27] SAMPLER_RESUMED
+[02:08:27] ARM_END turn=4 status=OK void=na prefill_ms=1558.10 inload_ms=1559.37 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=1398 min=699 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[02:08:27] ARM_START turn=5 backend=gpu pair=3 tag=s23-3way-6-t5gpu
+[02:08:36] LOAD_PHASE turn=5 wall_s=8 skin 33.7->33.6 pagein_cold=0
+[02:08:38] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:09:06] SAMPLER_LAUNCHED pid=61769
+[02:09:06] SAMPLER_RESUMED
+[02:10:06] ARM_END turn=5 status=OK void=na prefill_ms=7326.37 inload_ms=7329.80 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=62 kernels=15 tokens=5 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[02:10:06] ARM_START turn=6 backend=cpu pair=3 tag=s23-3way-6-t6cpu
+[02:10:10] LOAD_PHASE turn=6 wall_s=3 skin 34.1->33.8 pagein_cold=0
+[02:10:13] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[02:10:35] SAMPLER_LAUNCHED pid=85056
+[02:10:35] SAMPLER_RESUMED
+[02:11:35] ARM_END turn=6 status=OK void=na prefill_ms=10389.45 inload_ms=10390.68 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=5 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[02:11:35] DONE order=CGNNGC rows=6 ok=6 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/results.tsv

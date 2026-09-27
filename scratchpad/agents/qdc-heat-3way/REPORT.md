@@ -967,3 +967,44 @@ Restore verified (`kill_check=verified rc=0`). Final: unplugged, 81%, 35.8 C
 battery, thermal 0, traced 0, Kalsa and llama/bench absent, screen Awake and
 unlocked, timeout `null`, stay-on 0. Raw driver, safety, sampler, partial CPU
 log, and restore evidence are in `raw/s23-3way-5/`.
+
+
+### S23 three-way run 6 — raw-prompt calibration and six valid arms
+
+Preflight passed on the pinned TLS endpoint: unplugged, battery 80%, thermal
+0, `persist.traced.enable=0`, Kalsa force-stopped, no `llama|bench`, display
+Awake/unlocked. The new raw-prompt calibration ended `calibrated` (exit 0);
+its proof logs had no `Running in interactive mode` line before the heat
+command. The heat log reported `CALIB_PIN_BOARD_OK`, `source=calib.ok`, and
+ended `exit_0` (exit 0), with six OK rows and no stops or voids. Every arm
+used prompt_n=1010 and decode_runs=126 (the registered N−1 count).
+
+| Calibration backend | Proof / tokens | Arch | HTP ops / proof minimum | Fingerprint | Pinned floor |
+|---|---|---|---:|---|---:|
+| CPU | OK / 5 | — | — | `buf=CPU,CPU_REPACK off=0/31 thr=5` | — |
+| GPU | OK / 5; 62 assigns, 15 kernels | — | — | `buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5` | — |
+| NPU | OK / 5 | v73 | 1398 / 5 | `buf=CPU,HTP0 off=31/31 thr=5` | 139.8000 ops/token |
+
+The NPU floor is half the measured 1398/5 = 279.6 ops/token. Calibration
+candidate buffers: CPU 206.07 MiB + CPU_REPACK 1511.20 MiB; GPU CPU 205.08 +
+CPU_REPACK 205.08 + OpenCL 1307.20 MiB; NPU CPU 205.08 + HTP0 1525.87 MiB.
+
+| Pair / turn | Backend | Status | Skin start / peak C | Prefill ms | Decode tok/s | Fingerprint match | HTP ops/min | Sampler |
+|---|---|---|---:|---:|---:|---|---:|---|
+| 1 / 1 | CPU | OK | 31.1 / 35.2 | 19026.97 | 21.15 | yes | — | ok |
+| 1 / 2 | GPU | OK | 33.4 / 35.3 | 7347.20 | 11.26 | yes | — | ok |
+| 2 / 3 | NPU | OK | 33.7 / 35.1 | 1668.22 | 13.01 | yes | 1398 / 699 | ok |
+| 2 / 4 | NPU | OK | 33.6 / 35.0 | 1558.10 | 12.91 | yes | 1398 / 699 | ok |
+| 3 / 5 | GPU | OK | 33.7 / 35.5 | 7326.37 | 11.10 | yes | — | ok |
+| 3 / 6 | CPU | OK | 34.1 / 35.5 | 10389.45 | 21.12 | yes | — | ok |
+
+Skin peak is the maximum HAL skin sample between each `ARM_START` and
+`ARM_END`; starts and post-tail readings are the row's `skin_before` and
+`skin_after`. Using per-arm skin rise (`skin_after - skin_before`), pair 1
+CPU−GPU = +2.0 C; pair 3 CPU−GPU = −0.2 C (mean contrast +0.9 C). The two
+CPU arms averaged +1.25 C rise and the two NPU arms averaged 0.00 C, so the
+registered CPU−NPU mean contrast is +1.25 C; pair 2 is NPU/NPU and has no
+within-pair CPU−NPU contrast. Restore verified (`kill_check=verified rc=0`),
+sampler stopped, screen timeout restored to null and stay-on restored to 0.
+Raw preflight, calibration, heat, safety/sampler samples, wake, and restore
+logs are under `raw/s23-calib-6/` and `raw/s23-3way-6/`.

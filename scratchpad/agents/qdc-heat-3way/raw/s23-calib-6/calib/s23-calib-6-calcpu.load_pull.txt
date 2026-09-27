@@ -1,0 +1,1 @@
+/data/local/tmp/heat3way/s23-calib-6-calcpu.load.log: 1 file pulled, 0 skipped. 11.4 MB/s (1111781 bytes in 0.093s)

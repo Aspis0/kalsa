@@ -1,0 +1,10 @@
+htp_ops_floor_per_tok=139.8000
+measured_npu_ops=1398
+measured_npu_tokens=5
+serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+soc=SM8550
+model_sha=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+kit_sha=dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea
+prompt_mode=raw
+calibrated_utc=2026-09-27T06:00:16Z
+job=s23-calib-6

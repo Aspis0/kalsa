@@ -1,0 +1,1 @@
+/data/local/tmp/heat3way/s23-3way-6-t5gpu.load.log: 1 file pulled, 0 skipped. 3.1 MB/s (143624 bytes in 0.044s)

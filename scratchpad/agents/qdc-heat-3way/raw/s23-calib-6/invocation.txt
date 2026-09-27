@@ -1,0 +1,1 @@
+CALIBRATE=1 ./d_run.sh s23-calib-6 > /tmp/s23calib.log 2>&1; echo EXIT=0

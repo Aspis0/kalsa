@@ -1,0 +1,1 @@
+./d_run.sh s23-3way-6 CGNNGC 100 > /tmp/s23heat6.log 2>&1; echo EXIT=0
