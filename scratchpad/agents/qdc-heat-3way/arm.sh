@@ -68,13 +68,18 @@ arm_backend_flags() {
 }
 
 # Env shared by both phases: device discovery only, no per-op output.
+# INVARIANT: this ends in `&& ` — every consumer appends its own
+# `export … && `/command directly; prepending another separator produces
+# `&& &&` (S23 run 2 died on exactly that, 9c5474d6).
 arm_env() {
   printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && export ADSP_LIBRARY_PATH=%s/lib && export GGML_HEXAGON_NDEV=1 && ' \
     "$D" "$D" "$D"
 }
 # Proof-only env (A-2: verbose output lives exclusively in the load phase).
+# Composed as arm_env + extras: no separator of its own (arm_env already
+# ended with one) — that double `&&` was run-2's syntax error.
 arm_proof_env() {
-  printf '%s&& export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ' "$(arm_env)"
+  printf '%sexport GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ' "$(arm_env)"
 }
 
 # The measured turn (and the calibration short run — same flags, its own n):

@@ -69,18 +69,19 @@ measured window is prefill+decode only. The app has no NPU route
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (308) — proof-run and turn commands, run/pull, shared perf parse,
+- `arm.sh` (313) — proof-run and turn commands, run/pull, shared perf parse,
   fingerprint (with the `off`-is-a-count note), the two parses.
 - `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
   row column), resume, stop.
 - `restore.sh` (88) — undo every device change (standalone-capable,
   health-probed kill with a `kill_check=` verdict field).
 - `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
-- `dryrun-adb.sh` (386 — declared, over the ~350 indicative) — fake adb with
-  reading/log/kill/pgrep/sampler knobs + the pgrep self-match model.
-- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (96) + `dryrun-core.sh`
-  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (124) — fixture matrix
-  split by topic (39 fixtures, 301 assertions).
+- `dryrun-adb.sh` (397 — declared, over the ~350 indicative) — fake adb with
+  reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, and a
+  `dash -n` syntax check on every shell string it receives.
+- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (103) + `dryrun-core.sh`
+  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (129) — fixture matrix
+  split by topic (39 fixtures, 340 assertions).
 - `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
@@ -427,6 +428,42 @@ NOT yet addressed — N-A1 (a valid pin rejected because the serial is an
 alias of this board's) and N-A2 (the G/N buf-collision check is skipped when
 either `buf` is `?`) — awaiting instruction, as this round's brief covered
 the self-match defect only.
+
+## Round 8 — the double `&&` that killed S23 run 2 (9c5474d6) — red→green (2026-09-27)
+
+Run 2 died at the first CPU load with `/system/bin/sh: syntax error:
+unexpected '&&'` (`END calib_fail_load_cpu`): `arm_env` ends its printf in
+`&& ` and `arm_proof_env` prepended ANOTHER `&& `, producing
+`… GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 …` — every
+proof/load command was invalid shell since 5ba47a92, and the matrix never
+noticed because the fake executed nothing.
+
+| # | fix (file:line) |
+|---|---|
+| 1. double `&&` | `arm.sh:75-84` — `arm_proof_env` now composes `arm_env` output + its own `export … && ` with **no separator of its own**, and `arm_env` carries the invariant comment (a consumer must not prepend a separator) |
+| 2. fake syntax-checks EVERY `shell` string | `dryrun-adb.sh:247-258` — `dash -n -c "$cmd"` before dispatch; a rejected string is appended to `$STATE/shell_syntax_error.log` and the command fails like a broken remote shell (rc 2). Interpreter: **dash** (`/bin/dash` — POSIX, the closest to `/system/bin/sh` on this Mac; `busybox` and `mksh` are not installed, verified `command -v` EXIT=1). Assertion wired into the runner for every fixture (`dryrun-lib.sh:68-75`) and the bespoke SIGHUP block (`dryrun-paths.sh:121-125`) |
+| 3. same-class audit of every assembled command | (a) composed commands unit-checked: `arm_remote_cmd cpu`, `arm_remote_cmd npu 16`, `arm_load_cmd gpu` each piped to `dash -n -c` → **PASS 3/3, EXIT=0**; (b) static grep `&& &&|&& ;|&&&&|; ;` over all `*.sh` → single hit is the comment documenting this bug (`arm.sh:78`); (c) every literal shell string (selftest, probes, kit, settings, sampler) now flows through the fake's `dash -n` at fixture runtime — 39 `shell-syntax` assertions, all green |
+
+**Red → green, quoted exit codes**
+
+```
+# old arm.sh (double &&) + syntax-checking fake:
+./dryrun.sh > /tmp/dr8-red.log 2>&1; echo "EXIT=$?"
+EXIT=1   PASS=206 FAIL=134        (raw/dryrun-double-amp-red.log)
+         six-arms shell-syntax FAIL quoting the exact `… NDEV=1 && && export …` load command
+# after the arm_proof_env fix:
+./dryrun.sh > /tmp/dr8-green.log 2>&1; echo "EXIT=$?"
+EXIT=0   PASS=340 FAIL=0           (raw/dryrun-final-run.log)
+bash -n on every script → 0
+```
+
+**Not verified (round 8):** `dash -n` is a POSIX parser, not Android's
+`/system/bin/sh` (mksh/toybox lineage) — it accepts a superset in places; the
+composed commands are simple `export`/`&&`/redirect chains where the two
+agree, but a construct that differs would need the board to catch. The real
+S23 has not re-run these commands (no phone). The `dash -n` check parses, it
+does not execute: a command can be syntactically valid and still fail
+remotely (paths, flags) — that class stays covered by the device run itself.
 
 ## Declared, not touched
 

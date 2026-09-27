@@ -1,0 +1,416 @@
+== fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
+FAIL  six-arms shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-six-arms-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-six-arms-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-six-arms-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-six-arms-t2gpu.load.log; exit $rc 
+PASS  six rc
+PASS  six END
+PASS  six rows
+PASS  six arm sequence
+PASS  six pairs
+FAIL  six all-OK -- expected=[] got=[cpu gpu npu npu gpu cpu ]
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-six-arms/dry-six-arms-t1cpu.log: No such file or directory
+FAIL  six perf-prefix A1 -- missing [I common_perf_print:] in []
+FAIL  six inload-parsed A8 -- missing [inload_ms=9876.50] in [[00:04:25] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[00:04:25] KIT_UNPACK_PUSH
+[00:04:25] DEVICE_LIST_OK
+[00:04:25] KIT_PUSH shi]
+FAIL  six prompt_n -- expected=[1018] got=[na]
+FAIL  six decode_runs -- expected=[126] got=[na]
+FAIL  six cpu prefill -- expected=[45000.00] got=[na]
+FAIL  six gpu prefill -- expected=[14000.00] got=[na]
+FAIL  six npu prefill -- expected=[18000.00] got=[na]
+FAIL  six cpu proof -- missing [cpu_no_offload] in [na]
+FAIL  six cpu fingerprint (placement) -- missing [fp=buf=CPU off=0/33 thr=5] in [na]
+FAIL  six gpu proof assign -- missing [gpu_assigned_lines=] in [na]
+FAIL  six gpu proof kernels -- missing [kernels=] in [na]
+FAIL  six gpu fingerprint (placement) -- missing [fp=buf=GPUOpenCL off=33/33 thr=5] in [na]
+FAIL  six npu proof arch -- missing [arch=v73] in [na]
+FAIL  six npu proof ops -- missing [htp_ops=80] in [na]
+FAIL  six npu fingerprint (placement) -- missing [fp=buf=HTP0 off=33/33 thr=5] in [na]
+FAIL  six npu scaled floor -- missing [min=4] in [na]
+PASS  six skin_before
+PASS  six load_skin_before A8
+FAIL  six load_skin_after A8 -- expected=[33.5] got=[na]
+PASS  six pagein_cold arm1
+PASS  six pagein_cold arm2
+PASS  six load_wall_s
+PASS  six samples.txt
+PASS  six list-devices
+FAIL  six sampler-paused A11 NEW-6 -- missing [SAMPLER_PAUSE_CONFIRMED] in [[00:04:25] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[00:04:25] KIT_UNPACK_PUSH
+[00:04:25] DEVICE_LIST_OK
+[00:04:25] KIT_PUSH shi]
+FAIL  six sampler state (A-N7) -- expected=[ok] got=[na]
+FAIL  six sampler state on last turn -- expected=[ok] got=[na]
+FAIL  six sampler-resumed A11 -- missing [SAMPLER_RESUMED] in [[00:04:25] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[00:04:25] KIT_UNPACK_PUSH
+[00:04:25] DEVICE_LIST_OK
+[00:04:25] KIT_PUSH shi]
+PASS  six pgrep selftest NEW-4
+PASS  six floor source (until calibrated)
+PASS  six single sampler header
+FAIL  six sampler launches -- expected=[7] got=[1]
+PASS  six restore-ran
+PASS  six timeout-restored
+PASS  six stayon-restored
+PASS  six no-unknown-shell
+== fixture A-13: unregistered/odd orders are rejected ==
+PASS  odd order CGN rejected
+PASS  unregistered pair CC rejected
+== fixture: missing HTP proof voids the N proof run (A6) ==
+FAIL  no-htp shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-no-htp-t1npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-htp-t1npu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-no-htp-t2npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-htp-t2npu.load.log; exit $rc 
+PASS  nohtp rc
+FAIL  nohtp END -- expected=[method_void_no_htp_proof] got=[exit_0]
+FAIL  nohtp rows -- expected=[1] got=[2]
+PASS  nohtp status
+FAIL  nohtp void_reason -- expected=[no_htp_proof] got=[load_fail]
+PASS  nohtp backend
+PASS  nohtp restore-ran
+PASS  nohtp timeout-restored
+== fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) ==
+FAIL  htp-low shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-htp-low-t1npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-htp-low-t1npu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-htp-low-t2npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-htp-low-t2npu.load.log; exit $rc 
+PASS  htplow rc
+FAIL  htplow rows -- expected=[1] got=[2]
+FAIL  htplow void_reason -- expected=[htp_ops_low] got=[load_fail]
+FAIL  htplow scaled proof count -- missing [htp_ops=2 min=4] in [na]
+FAIL  htplow END -- expected=[method_void_htp_ops_low] got=[exit_0]
+PASS  htp-low restore-ran
+PASS  htp-low timeout-restored
+== fixture: missing GPU placement evidence voids the G proof run (A6) ==
+FAIL  no-gpu shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-no-gpu-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-gpu-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-no-gpu-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-gpu-t2cpu.load.log; exit $rc 
+PASS  nogpu rc
+FAIL  nogpu rows -- expected=[1] got=[2]
+PASS  nogpu status
+FAIL  nogpu void_reason -- expected=[no_gpu_proof] got=[load_fail]
+FAIL  nogpu END -- expected=[method_void_no_gpu_proof] got=[exit_0]
+PASS  nogpu restore-ran
+PASS  nogpu timeout-restored
+== fixture: GPU kernel-dispatch below the 8 floor voids the G proof run (A6) ==
+FAIL  gpu-exec-low shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-gpu-exec-low-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-gpu-exec-low-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-gpu-exec-low-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-gpu-exec-low-t2cpu.load.log; exit $rc 
+PASS  gpuex rc
+FAIL  gpuex rows -- expected=[1] got=[2]
+FAIL  gpuex void_reason -- expected=[gpu_exec_low] got=[load_fail]
+FAIL  gpuex END -- expected=[method_void_gpu_exec_low] got=[exit_0]
+PASS  gpu-exec-low restore-ran
+PASS  gpu-exec-low timeout-restored
+== fixture: kernel-build failure line voids the G proof run (A6) ==
+FAIL  gpu-disabled shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-gpu-disabled-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-gpu-disabled-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-gpu-disabled-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-gpu-disabled-t2cpu.load.log; exit $rc 
+PASS  gpudis rc
+FAIL  gpudis rows -- expected=[1] got=[2]
+FAIL  gpudis void_reason -- expected=[gpu_disabled] got=[load_fail]
+FAIL  gpudis END -- expected=[method_void_gpu_disabled] got=[exit_0]
+PASS  gpu-disabled restore-ran
+PASS  gpu-disabled timeout-restored
+== fixture: CPU placement proof absent in the proof run (A15) ==
+FAIL  no-cpu shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-no-cpu-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-cpu-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-no-cpu-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-cpu-t2gpu.load.log; exit $rc 
+PASS  nocpu rc
+FAIL  nocpu rows -- expected=[1] got=[2]
+FAIL  nocpu void_reason -- expected=[no_cpu_proof] got=[load_fail]
+FAIL  nocpu END -- expected=[method_void_no_cpu_proof] got=[exit_0]
+PASS  nocpu restore-ran
+PASS  nocpu timeout-restored
+== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
+FAIL  backend-mismatch shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-backend-mismatch-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-backend-mismatch-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-backend-mismatch-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-backend-mismatch-t2cpu.load.log; exit $rc 
+PASS  bfp rc
+FAIL  bfp rows -- expected=[1] got=[2]
+FAIL  bfp void_reason -- expected=[backend_mismatch] got=[load_fail]
+FAIL  bfp turn says CPU -- missing [fp_turn=buf=CPU] in [na]
+FAIL  bfp proof says GPUOpenCL -- missing [fp_proof=buf=GPUOpenCL] in [na]
+FAIL  bfp END -- expected=[method_void_backend_mismatch] got=[exit_0]
+PASS  backend-mismatch restore-ran
+PASS  backend-mismatch timeout-restored
+== fixture: turn log without fingerprint -> no_fingerprint (fail closed) ==
+FAIL  no-fingerprint shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-no-fingerprint-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-fingerprint-t2cpu.load.log; exit $rc 
+PASS  nfp rc
+FAIL  nfp rows -- expected=[1] got=[2]
+FAIL  nfp void_reason -- expected=[no_fingerprint] got=[load_fail]
+FAIL  nfp END -- expected=[method_void_no_fingerprint] got=[exit_0]
+PASS  no-fingerprint restore-ran
+PASS  no-fingerprint timeout-restored
+== fixture: kernel-disable line in the TURN log voids it too (NEW-3) ==
+FAIL  turn-disabled shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-turn-disabled-t1gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-turn-disabled-t1gpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-turn-disabled-t2cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-turn-disabled-t2cpu.load.log; exit $rc 
+PASS  tdis rc
+FAIL  tdis rows -- expected=[1] got=[2]
+FAIL  tdis void_reason -- expected=[turn_backend_disabled] got=[load_fail]
+FAIL  tdis END -- expected=[method_void_turn_backend_disabled] got=[exit_0]
+PASS  turn-disabled restore-ran
+PASS  turn-disabled timeout-restored
+== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
+FAIL  warm-start shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-warm-start-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-warm-start-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-warm-start-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-warm-start-t2gpu.load.log; exit $rc 
+PASS  warm rc
+PASS  warm END
+PASS  warm rows
+FAIL  warm all-OK -- expected=[] got=[cpu gpu ]
+PASS  warm warm_start
+PASS  warm cooldown_s
+PASS  warm skin_before recorded
+PASS  warm restore-ran
+PASS  warm timeout-restored
+== fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) ==
+FAIL  calibrate shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-calibrate-calcpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-calibrate-calcpu.load.log; exit $rc 
+FAIL  cal rc -- expected=[0] got=[3]
+FAIL  cal END -- expected=[calibrated] got=[calib_fail_load_cpu]
+PASS  cal no heat rows
+PASS  cal report written
+FAIL  cal proof stats cpu -- missing [CALIB backend=cpu phase=proof] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal proof stats npu (ops+tokens) -- missing [tokens=4 proof=htp_ops=80] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal turn fingerprint cpu -- missing [CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal candidate buffer line -- missing [cand=buf|] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal candidate fit line -- missing [cand=fit|] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal candidate device line -- missing [cand=device|] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+FAIL  cal logs moved into calib/ -- expected=[yes] got=[no]
+FAIL  cal floor pinned (0.5 x 80/4) -- expected=[htp_ops_floor_per_tok=10.0000] got=[]
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/calib.ok: No such file or directory
+FAIL  cal pin bound to board/kit (A-N6) -- missing [serial=fakes23] in []
+FAIL  cal buf printed for G/N (A-N8) -- missing [CALIB buf_gpu=GPUOpenCL buf_npu=HTP0] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:04:52Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+PASS  cal restore-ran
+PASS  cal timeout-restored
+== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) ==
+FAIL  calibrate-void shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-calibrate-void-calcpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-calibrate-void-calcpu.load.log; exit $rc 
+PASS  cav rc
+FAIL  cav END -- expected=[calib_void_cpu] got=[calib_fail_load_cpu]
+PASS  cav no calib.ok
+PASS  cav no heat rows
+FAIL  cav void reported -- missing [CALIB_VOID backend=cpu reason=no_cpu_proof] in [qdc-heat-3way calibration job=dry-calibrate-void utc=2026-09-27T04:04:54Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.]
+PASS  cav restore-ran
+PASS  cav timeout-restored
+== fixture A-N8: G/N buffer-name collision fails calibration ==
+FAIL  buf-collision shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-buf-collision-calcpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-buf-collision-calcpu.load.log; exit $rc 
+PASS  bcol rc
+FAIL  bcol END -- expected=[calib_buf_collision] got=[calib_fail_load_cpu]
+PASS  bcol no calib.ok
+FAIL  bcol collision logged -- missing [CALIB_FAIL buf_collision] in [[00:04:54] SESSION job=dry-buf-collision board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
+[00:04:54] KIT_UNPACK_PUSH
+[00:04:54] DEVICE_LIST_OK
+[00:04:54] KIT_PUS]
+PASS  bcol restore-ran
+PASS  bcol timeout-restored
+== fixture: production reads the PINNED floor from calib.ok ==
+FAIL  pinned-floor shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-pinned-floor-t1npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-pinned-floor-t1npu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev HTP0 -ngl 99 -nkvo > /data/local/tmp/heat3way/dry-pinned-floor-t2npu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-pinned-floor-t2npu.load.log; exit $rc 
+PASS  pin rc
+FAIL  pin END -- expected=[method_void_htp_ops_low] got=[exit_0]
+FAIL  pin rows -- expected=[1] got=[2]
+PASS  pin floor came from calib.ok
+FAIL  pin scaled min=40 -- missing [htp_ops=20 min=40] in [na]
+PASS  pinned-floor restore-ran
+PASS  pinned-floor timeout-restored
+== fixture: stop thermal_status >= 3 (injected at first gate) ==
+PASS  stop-thermal shell-syntax
+PASS  st rc
+PASS  st END
+PASS  st rows
+PASS  st restore-ran
+PASS  st timeout-restored
+PASS  st stayon deleted
+== fixture: stop battery_temp >= 44.0 C (fires after arm 1, trusted) ==
+FAIL  stop-batt-temp shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-stop-batt-temp-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-batt-temp-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-stop-batt-temp-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-batt-temp-t2gpu.load.log; exit $rc 
+PASS  sbtemp rc
+FAIL  sbtemp END -- expected=[stop_battery_temp] got=[exit_0]
+FAIL  sbtemp rows -- expected=[1] got=[2]
+FAIL  sbtemp first row OK -- expected=[OK] got=[VOID]
+PASS  sbtemp battery trusted
+PASS  sbtemp restore-ran
+PASS  sbtemp timeout-restored
+== fixture: stop battery_level <= 25 % ==
+PASS  stop-level shell-syntax
+PASS  slvl rc
+PASS  slvl END
+PASS  slvl rows
+PASS  slvl restore-ran
+PASS  slvl timeout-restored
+== fixture: stop plugged ==
+PASS  stop-plugged shell-syntax
+PASS  spl rc
+PASS  spl END
+PASS  spl rows
+PASS  spl restore-ran
+PASS  spl timeout-restored
+== fixture: stop missing_skin (fail-closed missing reading) ==
+PASS  stop-missing shell-syntax
+PASS  smis rc
+PASS  smis END
+PASS  smis rows
+PASS  smis restore-ran
+PASS  smis timeout-restored
+== fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
+FAIL  stop-skinfb shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-stop-skinfb-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-skinfb-t2gpu.load.log; exit $rc 
+PASS  sskin rc
+FAIL  sskin END -- expected=[stop_skin_fallback] got=[exit_0]
+FAIL  sskin rows -- expected=[1] got=[2]
+PASS  sskin untrusted verdict
+PASS  sskin restore-ran
+PASS  sskin timeout-restored
+== fixture A5: untrusted battery still stops on 44.5 C (never disarmed) ==
+FAIL  stop-untrusted-batt shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-stop-untrusted-batt-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-untrusted-batt-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-stop-untrusted-batt-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-untrusted-batt-t2gpu.load.log; exit $rc 
+PASS  sunb rc
+FAIL  sunb END -- expected=[stop_battery_temp] got=[exit_0]
+FAIL  sunb rows -- expected=[1] got=[2]
+PASS  sunb untrusted verdict
+PASS  sunb restore-ran
+PASS  sunb timeout-restored
+== fixture: stop fires mid-arm (background poll, POLL_S=1) ==
+FAIL  stop-midarm shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-stop-midarm-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-midarm-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-stop-midarm-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stop-midarm-t2gpu.load.log; exit $rc 
+PASS  smid rc
+FAIL  smid END -- expected=[stop_battery_temp] got=[exit_0]
+FAIL  smid rows -- expected=[1] got=[2]
+FAIL  smid row voided by stop -- expected=[VOID stop_battery_temp] got=[VOID load_fail]
+PASS  smid restore-ran
+PASS  smid timeout-restored
+== fixture A-4: pkill that does not kill -> loud kill_unverified end ==
+FAIL  kill-unverified shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-kill-unverified-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-kill-unverified-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-kill-unverified-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-kill-unverified-t2gpu.load.log; exit $rc 
+PASS  kuv rc
+FAIL  kuv END -- expected=[stop_battery_temp_kill_unverified] got=[kill_unverified]
+FAIL  kuv rows -- expected=[1] got=[2]
+FAIL  kuv loud log -- missing [PKILL_UNVERIFIED] in [[00:05:12] SESSION job=dry-kill-unverified board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:05:12] KIT_UNPACK_PUSH
+[00:05:12] DEVICE_LIST_OK
+[00:05:12] KIT_PU]
+PASS  kuv restore loud
+PASS  kuv restore rc
+PASS  kuv timeout-restored
+PASS  kuv pgrep probed
+== fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 ==
+FAIL  restore-late shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-restore-late-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-restore-late-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-restore-late-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-restore-late-t2gpu.load.log; exit $rc 
+PASS  rla rc
+PASS  rla END
+FAIL  rla rows-ok -- expected=[] got=[cpu gpu ]
+PASS  rla marker written
+PASS  rla restore message
+PASS  rla restore rc
+PASS  rla timeout-restored
+== fixture A-N7: an unconfirmed sampler pause is flagged in the row ==
+FAIL  sampler-unconfirmed shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-sampler-unconfirmed-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-sampler-unconfirmed-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-sampler-unconfirmed-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-sampler-unconfirmed-t2gpu.load.log; exit $rc 
+PASS  spc rc
+PASS  spc END
+PASS  spc rows
+FAIL  spc unconfirmed logged -- missing [SAMPLER_PAUSE_UNCONFIRMED] in [[00:05:16] SESSION job=dry-sampler-unconfirmed board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:05:16] KIT_UNPACK_PUSH
+[00:05:16] DEVICE_LIST_OK
+[00:05:16] KI]
+FAIL  spc row flag -- expected=[unconfirmed] got=[na]
+FAIL  spc turns still OK (validity recorded, not silently clean) -- expected=[] got=[cpu gpu ]
+PASS  spc restore-ran
+PASS  spc timeout-restored
+== fixture A-10/A-3: production 15 s poll cadence during the load phase ==
+FAIL  poll-cadence shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-poll-cadence-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-poll-cadence-t1cpu.load.log; exit $rc 
+PASS  pcad rc
+PASS  pcad END
+PASS  pcad rows
+FAIL  pcad row is the load-phase stop -- expected=[VOID stop_battery_temp na] got=[VOID load_fail na]
+FAIL  pcad stop latency -- gap=[1] start=00:05:19 stop=00:05:20 (expected 13..40 at production cadence)
+PASS  poll-cadence restore-ran
+PASS  poll-cadence timeout-restored
+== fixture A2: stale stop_request + END cleared at session start ==
+FAIL  stale shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-stale-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stale-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-stale-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-stale-t2gpu.load.log; exit $rc 
+PASS  stale rc
+PASS  stale END
+PASS  stale rows
+FAIL  stale first row OK -- expected=[OK] got=[VOID]
+PASS  stale stop_request gone
+PASS  stale kill marker gone (A-N2)
+PASS  stale restore-ran
+PASS  stale timeout-restored
+== fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
+FAIL  timeout shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-timeout-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-timeout-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-timeout-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-timeout-t2gpu.load.log; exit $rc 
+PASS  tmo rc
+PASS  tmo END
+PASS  tmo rows
+PASS  tmo void_reason
+FAIL  tmo orphan-kill logged -- missing [ARM_TIMEOUT backend=cpu] in [[00:05:22] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:05:22] KIT_UNPACK_PUSH
+[00:05:22] DEVICE_LIST_OK
+[00:05:22] KIT_PUSH ship.]
+FAIL  tmo kill verified -- missing [KILL_VERIFIED] in [[00:05:22] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:05:22] KIT_UNPACK_PUSH
+[00:05:22] DEVICE_LIST_OK
+[00:05:22] KIT_PUSH ship.]
+FAIL  tmo bracketed pkill -- expected=[yes] got=[no]
+PASS  tmo pgrep probed
+PASS  tmo restore-ran
+PASS  tmo timeout-restored
+== fixture A7: unequal decode voids the row and stops the session ==
+FAIL  decode-unequal shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-decode-unequal-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-decode-unequal-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-decode-unequal-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-decode-unequal-t2gpu.load.log; exit $rc 
+PASS  dec rc
+FAIL  dec END -- expected=[stop_unequal_decode] got=[exit_0]
+FAIL  dec rows -- expected=[1] got=[2]
+PASS  dec status
+FAIL  dec void_reason -- expected=[decode_len] got=[load_fail]
+FAIL  dec runs recorded -- expected=[125] got=[na]
+PASS  dec restore-ran
+PASS  dec timeout-restored
+== fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) ==
+FAIL  decode-derived shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-decode-derived-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-decode-derived-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-decode-derived-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-decode-derived-t2gpu.load.log; exit $rc 
+PASS  decder rc
+PASS  decder END
+PASS  decder rows
+FAIL  decder status -- expected=[OK] got=[VOID]
+FAIL  decder runs accepted -- expected=[63] got=[na]
+PASS  decder restore-ran
+PASS  decder timeout-restored
+== fixture A-6: stale .restore-state is consumed (prior restore), not clobbered ==
+FAIL  prior-restore shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-prior-restore-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-prior-restore-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-prior-restore-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-prior-restore-t2gpu.load.log; exit $rc 
+PASS  prs rc
+PASS  prs END
+PASS  prs prior restore log
+PASS  prs fresh state captured pristine
+PASS  prs final timeout pristine
+PASS  prs final stayon pristine
+PASS  prior-restore restore-ran
+PASS  prior-restore timeout-restored
+== fixture A-9: adb failures log loudly instead of dying raw ==
+PASS  fail-devices shell-syntax
+PASS  fdv rc
+PASS  fdv NO_DEVICE logged
+PASS  fdv no-END (pre-trap exit)
+PASS  fail-soc shell-syntax
+PASS  fsoc rc
+PASS  fsoc ADB_FAIL logged
+PASS  fsoc no-END (pre-trap exit)
+== fixture NEW-4: broken pgrep aborts before any load ==
+PASS  pgrep-broken shell-syntax
+PASS  pgb rc
+PASS  pgb selftest failed
+PASS  pgb END
+PASS  pgb no load ran
+PASS  pgb no turn ran
+PASS  pgb restore rc loud
+PASS  pgb restore unverified
+PASS  pgb timeout-restored
+== fixture A-N6: a pin from another board refuses the session ==
+PASS  calib-pin-mismatch shell-syntax
+PASS  cpm rc
+PASS  cpm mismatch logged
+PASS  cpm no-END (pre-trap exit)
+PASS  cpm no load ran
+== fixture A-N5a: an out-of-band pin rate refuses the session pre-device ==
+PASS  calib-pin-badrate shell-syntax
+PASS  cpr rc
+PASS  cpr invalid logged
+PASS  cpr no-END (pre-trap exit)
+PASS  cpr never touched the device
+== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
+FAIL  no-selfmatch shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-no-selfmatch-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-selfmatch-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-no-selfmatch-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-no-selfmatch-t2gpu.load.log; exit $rc 
+PASS  nsm rc
+PASS  nsm END
+PASS  nsm rows
+PASS  nsm selftest ok
+PASS  nsm restore probe verified
+PASS  nsm restore rc
+PASS  nsm restore-ran
+PASS  nsm timeout-restored
+== fixture A-5: SIGHUP (SSH drop) restores the device ==
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/dryrun-paths.sh: line 116: kill: (40842) - No such process
+FAIL  hup shell-syntax -- SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -ngl 0 > /data/local/tmp/heat3way/dry-sighup-t1cpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-sighup-t1cpu.load.log; exit $rc SYNTAX_FAIL: cd /data/local/tmp/heat3way && export LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib && export GGML_HEXAGON_NDEV=1 && && export GGML_HEXAGON_VERBOSE=1 && export GGML_OPENCL_LOG_KERNELS=1 && ./bin/llama-completion -m /data/local/tmp/heat3way/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 -dev GPUOpenCL -ngl 99 > /data/local/tmp/heat3way/dry-sighup-t2gpu.load.log 2>&1; rc=$?; echo EXIT=$rc >> /data/local/tmp/heat3way/dry-sighup-t2gpu.load.log; exit $rc 
+FAIL  hup rc -- expected=[129] got=[0]
+FAIL  hup END -- expected=[signal_HUP] got=[exit_0]
+PASS  hup restore-ran
+PASS  hup timeout-restored
+PASS  hup stop marker left for the sampler
+
+dryrun summary: PASS=206 FAIL=134

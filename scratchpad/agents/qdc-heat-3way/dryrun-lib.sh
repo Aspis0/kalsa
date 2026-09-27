@@ -66,6 +66,13 @@ run_fixture() {
   RC=$?
   set -e
   RAW="$CELL/raw/dry-$name"
+  # Every shell string above went through dash -n in the fake: a malformed
+  # composition (run-2's double `&&`) must fail the fixture loudly.
+  if [ -f "$STATE/shell_syntax_error.log" ]; then
+    fail "$name shell-syntax" "$(head -2 "$STATE/shell_syntax_error.log" | tr '\n' ' ')"
+  else
+    pass "$name shell-syntax"
+  fi
 }
 rows() { awk 'NR > 1' "$RAW/results.tsv" 2>/dev/null | wc -l | tr -d '[:space:]'; }
 end_reason() { sed -n 's/^END reason=//p' "$RAW/END.txt" 2>/dev/null | tail -1; }

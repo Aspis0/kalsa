@@ -118,6 +118,11 @@ wait "$HUP_PID"
 RC=$?
 set -e
 RAW="$CELL/raw/dry-sighup"
+if [ -f "$STATE/shell_syntax_error.log" ]; then
+  fail "hup shell-syntax" "$(head -2 "$STATE/shell_syntax_error.log" | tr '\n' ' ')"
+else
+  pass "hup shell-syntax"
+fi
 eq "hup rc" 129 "$RC"
 assert_end hup signal_HUP
 assert_restore hup

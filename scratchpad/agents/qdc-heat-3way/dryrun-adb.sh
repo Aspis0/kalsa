@@ -243,6 +243,17 @@ run_sampler() {
   exit 0
 }
 handle_shell() {
+  # Syntax-check EVERY device shell string with dash — POSIX, the closest to
+  # /system/bin/sh available on this Mac (busybox/mksh are not installed):
+  # the fake never executes the command, so without this a malformed
+  # composition (the double `&&` that killed S23 run 2) sails through the
+  # whole matrix in silence. A syntax error is recorded loudly and the
+  # command fails the way a broken remote shell does (rc 2).
+  if ! dash -n -c "$cmd" 2>/dev/null; then
+    printf 'SYNTAX_FAIL: %s\n' "$cmd" >> "$STATE/shell_syntax_error.log"
+    echo "/system/bin/sh: syntax error (dash -n rejected this command)" >&2
+    exit 2
+  fi
   case "$cmd" in
     *"sha256sum -c"*)
       if [ -f "$STATE/kit_unpacked" ]; then

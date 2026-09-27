@@ -1,1 +1,1 @@
-[23:51:11] CALIB_PIN_INVALID why=floor_rate_out_of_band(999.0000) file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/calib.ok — recalibrate with CALIBRATE=1
+[00:09:38] CALIB_PIN_INVALID why=floor_rate_out_of_band(999.0000) file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/calib.ok — recalibrate with CALIBRATE=1

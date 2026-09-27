@@ -1,10 +1,10 @@
-[23:49:41] SESSION job=dry-stop-level board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[23:49:41] KIT_UNPACK_PUSH
-[23:49:41] DEVICE_LIST_OK
-[23:49:41] KIT_PUSH ship.gguf sha_before=absent
-[23:49:41] KIT_PUSH prompt.txt sha_before=absent
-[23:49:42] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[23:49:42] GATE label=setup
-[23:49:42] STOP reason=battery_level
-[23:49:42] KILL_VERIFIED ctx=stop_battery_level (no llama-completion remains)
-[23:49:42] SESSION_STOP reason=battery_level
+[00:08:06] SESSION job=dry-stop-level board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:08:06] KIT_UNPACK_PUSH
+[00:08:06] DEVICE_LIST_OK
+[00:08:06] KIT_PUSH ship.gguf sha_before=absent
+[00:08:06] KIT_PUSH prompt.txt sha_before=absent
+[00:08:07] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:08:07] GATE label=setup
+[00:08:07] STOP reason=battery_level
+[00:08:07] KILL_VERIFIED ctx=stop_battery_level (no llama-completion remains)
+[00:08:07] SESSION_STOP reason=battery_level
