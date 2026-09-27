@@ -1070,3 +1070,198 @@ llama-bench rows for gemma-4/Qwen3.6 (none found); granite-4.2 tok/s
 (anywhere — currently zero public measurements); Ling-3.0-tiny on desktop
 CPUs (only a phone number exists); localscore.ai expanding beyond its fixed
 Llama 1B/8B/14B set (checked 2026-09-26 — it cannot answer our models).
+
+---
+
+# Part 8 — CPU-only PCs and the minimum CPU (added 2026-09-26, follow-up #4)
+
+Context: Kalsa runs its own llama.cpp fork (based on upstream **b10950**) on
+Windows PCs, some with no usable GPU. Two owner questions: (1) on CPU-only,
+is decode bound by RAM or CPU? (2) is Haswell (AVX2+FMA, 2013) the right
+minimum? Same rules: quoted sources, no invented numbers; estimates are
+labelled "est." and derived by arithmetic from measured anchors.
+
+## 8.1 Decode is memory-bound; prefill is compute-bound
+
+**Decode (token generation) = memory-bandwidth-bound. Measured evidence:**
+
+- The cleanest controlled experiment found (dev.to, "DDR5 Speed and LLM
+  Inference", https://dev.to/maximsaplin/ddr5-speed-and-llm-inference-3cdn):
+  i5-13600KF, LM Studio, **same CPU**, only RAM speed changed —
+  "Mistral 7B [Q6_K]: 9.42 t/s at 4800MT/s → 11.93 t/s at 6200MT/s";
+  "Llama 3.1 8B [f16]: 3.86 t/s → 4.87 t/s"; the author's conclusion:
+  "STRONG linear correlation between tokens per second and AIDA-reported
+  memory speeds" and "You might be better off with fewer/slower cores yet
+  faster memory." Core count barely mattered — RAM bandwidth was the knob.
+- Mechanism, in llama.cpp's own discussion of CPU (Snapdragon) performance,
+  ggml-org/llama.cpp discussion #8273: during token generation the whole
+  active model must be moved "from RAM into the CPU's on-die caches" per
+  token (TG stage), i.e. GBs per token — the definition of bandwidth-bound.
+- Single-channel ≈ halves decode. Linus Tech Tips forum (llama.cpp memory
+  threads): dual channel doubles memory bandwidth and "the entire model
+  must be read from memory to generate each token", so single-channel runs
+  at roughly half speed. No A/B tok/s table was found — the halving is
+  bandwidth arithmetic, labelled est. Cheap single-stick laptops are the
+  worst Kalsa machines for this reason.
+- r/LocalLLaMA CPU-only thread (…/1p90zzi/, hardware unstated in snippet):
+  "Phi-4 (14B): 6.0 tokens/second. Qwen3-14B: 5.8 …" and
+  "prompt eval time = 12053.37 ms / 1459 tokens" (≈121 tok/s prefill) —
+  note the prefill:decode ratio (~20:1) that is typical of CPU-only runs.
+- Anchor points for small models on CPU: LFM2.5-2.6B card (publisher):
+  "220 tok/s on an Apple M5 Max and 113 tok/s on an AMD Ryzen CPU, in under
+  2.5 GB of memory" (https://huggingface.co/LiquidAI/LFM2.5-2.6B; relayed
+  by smol.ai AINews as "112 tokens per second on an AMD CPU"); LFM2-2.6B
+  is "usable" even on a Raspberry Pi 5 (deputyos.com); Ling-3.0-tiny:
+  9 tok/s on a Galaxy A56 phone's CPU via llama.cpp (X post, Aug 23 2026).
+- Community CPU references for 7–8B Q4: Ryzen 5 5600G ≈ "12.1 tokens/s"
+  average in OpenBenchmarking's llama.cpp CPU suite (model/quant not stated
+  in the snippet — weak anchor); a Ryzen 3900 PRO CPU-only run at ~6 t/s
+  (dev.to "Running Local LLMs, CPU vs GPU"); AMD's own blog (publisher):
+  "The AMD Ryzen AI 9 HX 375 processor can achieve up to 50.7 tokens per
+  second in Meta Llama 3.2 1b Instruct (4-bit quantization)"
+  (https://www.amd.com). One low outlier to treat with caution: sitepoint
+  (Mar 2026) claims "Full CPU inference on DDR5-4800 dual-channel systems
+  can manage 1 to 3 tokens per second for a 7B Q4_K_M model" — far below
+  the dev.to controlled numbers above; likely a suboptimal/thread-starved
+  setup. **No published tok/s was found for any of our models on a
+  Haswell/Skylake DDR3/DDR4 box** — the estimates in 8.4 are computed.
+
+**Prefill (prompt processing) = compute-bound.** Consensus across tuning
+guides and fork discussions: llama.cpp performance-tuning notes —
+"Prompt processing (pp) Compute (FLOPS) … tokens/sec of output Memory
+bandwidth" (notes.itsvasugrover.com, Mar 2026); ik_llama.cpp GitHub
+discussion on an Intel mini PC: "token generation being mostly
+memory-bound, so CPU-side gains (e.g., AVX-512) yield small improvements
+for TG" — i.e. the AVX level and core count pay off on prefill, not decode.
+This is why CPU-only chat feels fine per token but the first answer after
+a long prompt is slow. No AVX2-vs-AVX512 prefill A/B number was found; the
+sapphirerapids/zen4 AVX-512 variants in upstream exist for exactly this
+(see 8.2).
+
+**Typical real memory bandwidth (unit arithmetic: MT/s × 8 bytes per
+channel; dual channel = ×2 — computed, not a quoted benchmark):**
+
+| RAM | Channels | GB/s (est.) |
+|---|---|---|
+| DDR3-1600 | dual | 25.6 |
+| DDR4-2666 | dual | 42.6 |
+| DDR4-3200 | dual | 51.2 |
+| DDR4-3200 | **single** | 25.6 |
+| DDR5-4800 | dual | 76.8 |
+| DDR5-5600 | dual | 89.6 |
+| LPDDR5-5500 (laptop, soldered) | (wide) | ~88 |
+
+(Crucial markets DDR5-5600 as "~50% more bandwidth than DDR4" — eBay/Newegg
+listing text; the table above is JEDEC transfer math.) For comparison: an
+M1 Max is 400 GB/s and an RTX 3090 is ~936 GB/s (Part 7) — a dual-channel
+DDR4 desktop gives the CPU ~1/8 of a 3090 and ~1/16 of an M-series Max.
+
+## 8.2 The minimum instruction set in llama.cpp today (upstream + our fork)
+
+- **Upstream ships runtime-dispatched CPU variants.** From
+  `ggml/src/CMakeLists.txt` (master, read 2026-09-26), the x86-64 variant
+  list is: `x64`, `sse42`, `sandybridge (SSE42 AVX)`, `haswell (SSE42 AVX
+  F16C FMA AVX2 BMI2)`, `skylakex (… AVX512)`, `icelake (… AVX512_VBMI
+  AVX512_VNNI)`, plus ivybridge, piledriver, cannonlake, cascadelake,
+  cooperlake, zen4, alderlake, sapphirerapids. Enabling them all requires
+  dynamic backend loading: "GGML_CPU_ALL_VARIANTS requires
+  GGML_BACKEND_DL" (same file, ~line 460). At runtime the loader picks the
+  best variant whose feature flags the CPU satisfies — that is the whole
+  point of the `ggml-cpu-*.dll` layout.
+- **Upstream b10950 (= our fork's base) publishes exactly this:** release
+  tag b10950 includes `llama-b10950-bin-win-cpu-x64.zip` — 18,426,198
+  bytes, large enough only because it is a multi-variant fat archive
+  (GitHub API asset list, read 2026-09-26).
+- **So: a CPU without AVX2 does not crash.** The sse42/sandybridge variant
+  is in the same archive and loads instead; it runs, slower (fewer/wider
+  FMA units hurt prefill much more than decode, per 8.1). An
+  illegal-instruction crash happens only on a build compiled with a single
+  native variant above the CPU's level — which neither upstream's release
+  zip nor our fork is (below).
+- **Our fork, checked in this repo** (read-only; no GitHub search needed):
+  `crates/kalsa-runtime/src/assets.rs:210` — "The fork's Windows archives
+  carry the per-variant `ggml-cpu-*` libraries and no plain `ggml-cpu.dll`,
+  and need the VC++ redistributable, as upstream's did." Same for the
+  Vulkan archive (assets.rs:224). The Windows CPU engine row is
+  `kalsa-server-v1.1.2-bin-win-cpu-x64.zip` (13,762,007 bytes) from the
+  fork's own CDN — and assets.rs:19 states the fork is published on "the
+  app's CDN, not GitHub". A GitHub search for a kalsa llama.cpp fork /
+  "kalsa-server" returns **ZERO** repositories (GitHub API, 2026-09-26),
+  consistent with the CDN-only policy. Conclusion: the fork inherits
+  upstream's all-variants dynamic CPU backend; the pre-AVX2 fallback ships
+  in the box.
+
+## 8.3 The installed base
+
+Steam Hardware Survey (https://store.steampowered.com/hwsurvey, read live
+2026-09-26 — it does carry instruction-set rows):
+
+- "AVX2 95.40% +0.36%"
+- "FMA 95.59% +0.37%"
+- "AVX 97.23% +0.23%"
+- "AVX512F 23.90% +0.51%"
+- "SSE2 98.15% +0.13%"
+- OS: "Windows 11 64 bit 70.97%", "Windows 10 64 bit 22.90%".
+
+So **~95% of Windows gaming PCs have AVX2+FMA**, and AVX-512 is only ~24%
+(not a sensible requirement). The ~4.6% without AVX2 = Sandy/Ivy Bridge
+(2011–2013), AMD FX/piledriver-era, and the Atom/Celeron/Pentium Silver
+parts that lacked AVX for years — exactly the CPUs the sse42/sandybridge
+variants exist for. Reference floor: Microsoft ships Windows 11 only on
+"1 gigahertz (GHz) or faster with 2 or more cores on a compatible 64-bit
+processor" with a curated CPU list (microsoft.com windows-11-specifications,
+aka.ms/CPUlist); Microsoft "first announced that they would only support
+8th Generation of Intel processors and newer" (learn.microsoft.com hosted
+discussion, Oct 2021) — the de-facto Win11 floor is 8th-gen Intel / Zen+
+(2017+), all AVX2, mostly DDR4.
+
+## 8.4 Recommendation
+
+**1) Minimum supported CPU: yes, set it at Haswell (AVX2+FMA) — as a
+support and messaging floor, not as a crash line.** Reasons: (a) it
+matches upstream's `haswell` variant being a first-class target (8.2);
+(b) the survey says that excludes only ~4.6% of Windows PCs (8.3); (c)
+below AVX2 the app still runs via the bundled sse42/sandybridge variant —
+so gate with a **clear message** ("Your PC's CPU is below the supported
+level; answers will be very slow"), never an illegal-instruction crash;
+the fallback DLLs are already in the fork's zip (assets.rs:210).
+
+**2) Usable-speed floor is a different thing — and it is RAM, not CPU.**
+Decode on CPU follows bandwidth (8.1), so the real triage for a CPU-only
+machine is channels + DDR generation:
+
+| Machine (CPU-only) | Bandwidth (est.) | LFM2.5-2.6B Q8 (~2.7 GB/token) | gemma-4-E4B Q4 (~5.0 GB/token) |
+|---|---|---|---|
+| Haswell i5/i7, dual DDR3-1600 (2013–15) | 25.6 GB/s | **~5–6 tok/s (est.)** | **~2–3 tok/s (est.)** |
+| Skylake 6th-gen, dual DDR4-2666 | 42.6 GB/s | ~9–10 tok/s (est.) | ~4–5 tok/s (est.) |
+| Ryzen 5 5600 / 8th-gen+, dual DDR4-3200 | 51.2 GB/s | ~11–13 tok/s (est.) | ~5–7 tok/s (est.) |
+| Modern laptop, LPDDR5/DDR5-5600 | ~88 GB/s | ~20–25 tok/s (est.; publisher: "113 tok/s on an AMD Ryzen CPU" — DDR5 desktop, favorable setup) | ~10–11 tok/s (est.) |
+| Same machines, single-channel RAM | ≈ half of the above | ≈ half (est.) | ≈ half (est.) |
+
+Anchors for the estimates: dev.to's measured 9.42–11.93 t/s for a 7B Q6_K
+(~4.5 GB/token) at DDR5-4800→6200 on one CPU; the phone's 9 tok/s for
+Ling-tiny; Strix Halo's ~100%-of-bandwidth GPU efficiency as the upper
+bound and CPU efficiency at ~50–70% of bandwidth as the realistic band.
+
+**3) Product decisions this implies:**
+- On CPU-only machines, default to the **small dense/hybrid models**
+  (LFM2.5-2.6B class — noting its lfm1.0 licence issue from Part 7 — or
+  Ling-3.0-tiny for speed) and only offer gemma-4-E4B where RAM is
+  dual-channel DDR4 or better. E4B at ~3 tok/s (Haswell/DDR3 est.) is
+  below any chat threshold.
+- Requiring Windows 11-era CPUs (8th-gen+/Zen+) is the right line for
+  **marketing "fast answers"** — those machines are 100% AVX2 with DDR4
+  dual-channel minimum — but do not hard-require it: Win10 is still 22.9%
+  of the survey, and Haswell+DDR4 exists below it. Support AVX2, recommend
+  8th-gen+.
+- Prefill is compute-bound (8.1): on old CPUs, cap the context Kalsa
+  mounts by default (long prompts + AVX2-less prefill = minute-scale first
+  answers), and leave threads at physical-core count.
+- AVX-512 (23.9%): no action; the skylakex/icelake/zen4 variants in the
+  archive pick it up automatically for prefill when present.
+
+**Part 8 watch list:** a real Haswell/Skylake llama-bench run of
+LFM2.5-2.6B / gemma-4-E4B to replace the estimates above (none public);
+single-channel A/B tok/s data; Steam survey month-over-month AVX2 trend
+(+0.36% this reading); whether the fork ever publishes an x64 macOS build
+(deliberately absent today, assets.rs:195-202).
