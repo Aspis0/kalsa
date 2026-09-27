@@ -108,22 +108,32 @@ impl Invites {
     /// not counted: the day ending is not a loss.
     ///
     /// An unreadable file is an EMPTY set, never an error: nothing in it is
-    /// honoured, the next write replaces it atomically, and one bad file
-    /// cannot end the feature.
+    /// honoured, and `open` replaces the file at once — atomically, through
+    /// the same publish path as any other write — so the codes it held do
+    /// not sit on disk un-honoured until the owner happens to mint. A
+    /// replace that fails changes none of that: the set still comes back,
+    /// and the next write tries the disk again.
     pub fn open(path: &Path, now: SystemTime) -> (Self, bool) {
         let loaded = file::read(path, now);
-        (
-            Self {
-                path: path.to_path_buf(),
-                invites: loaded
-                    .invites
-                    .into_iter()
-                    .map(|(id, pairing)| Invite { id, pairing })
-                    .collect(),
-                next_id: loaded.next_id,
-            },
-            loaded.discarded,
-        )
+        let invites = Self {
+            path: path.to_path_buf(),
+            invites: loaded
+                .invites
+                .into_iter()
+                .map(|(id, pairing)| Invite { id, pairing })
+                .collect(),
+            next_id: loaded.next_id,
+        };
+        if loaded.discarded {
+            // The file holds invitations this build will not honour — codes
+            // nobody may use, sitting in the open. A refusal that leaves
+            // them on disk is only half a refusal, so the file becomes what
+            // came back from it. The write's failure is swallowed: `open`
+            // has no error left to give, the set in hand is the truth, and
+            // the next write reports its own if the disk still refuses.
+            let _ = invites.persist(None);
+        }
+        (invites, loaded.discarded)
     }
 
     /// One more invitation, alive for a day. The link is an iroh link: a

@@ -3,12 +3,14 @@
 //! Publication is atomic, in the spirit of `kalsa-download`'s publish: the
 //! bytes land in a sibling temp file — named for the target, so two targets
 //! can never share one — are flushed with `sync_all`, and only then is the
-//! temp renamed onto the credential's name, with the directory that rename
-//! landed in fsynced after it. A reader of the final path sees the old
-//! complete file or the new complete file, never a torn half; a crash
-//! mid-write leaves a temp that the next write replaces, never a credential
-//! wedged behind `AlreadyPaired`; and power loss cannot roll the name back
-//! to the file it pointed at before.
+//! temp renamed onto the credential's name. Where the filesystem can fsync
+//! a directory, the directory the rename landed in is fsynced after it, and
+//! power loss then cannot roll the name back to the file it pointed at
+//! before; where it cannot, the rename is only as durable as the filesystem
+//! makes it. A reader of the final path sees the old complete file or the
+//! new complete file, never a torn half; a crash mid-write leaves a temp
+//! that the next write replaces, never a credential wedged behind
+//! `AlreadyPaired`.
 //!
 //! Owner-only means two different machines here, and both are said plainly.
 //! On Unix the temp file is created `0600` — owner read and write, nothing

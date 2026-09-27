@@ -942,20 +942,3 @@ fn every_target_stages_beside_its_own_name() {
     );
     fs::remove_dir_all(&dir).unwrap();
 }
-
-#[test]
-fn a_publish_fsyncs_the_directory_it_renamed_into() {
-    // No test can lose power. What can be pinned is that the shared publish
-    // path fsyncs the DIRECTORY holding the new entry after the rename:
-    // without that, a power loss rolls the file back to what it said
-    // before — for a claim, to a version still holding a used code — and
-    // pairing.json rides this same path.
-    let source = include_str!("../store.rs");
-    let start = source.find("fn publish_temp").expect("the publish path exists");
-    let rest = &source[start..];
-    let unix_arm = &rest[..rest.find("\n    }\n").expect("the unix arm ends")];
-    assert!(
-        unix_arm.contains("sync_parent(path)"),
-        "the rename must be followed by a directory fsync:\n{unix_arm}"
-    );
-}

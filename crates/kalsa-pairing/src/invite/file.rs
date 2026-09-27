@@ -13,9 +13,10 @@
 //! invite this build could have minted, or whose square carries no node to
 //! dial is dropped on its own; a file that does not parse, names another
 //! version, or holds a square this build cannot read hands back nothing at
-//! all. The file itself is never rewritten by a read and never deleted by a
-//! refusal — the next legitimate write replaces it atomically, and nothing
-//! that failed to read is ever honoured again.
+//! all. A read publishes nothing: it is `Invites::open` that replaces a
+//! file it had to discard, at once and through the same atomic path, so the
+//! codes it held do not stay on disk waiting for an owner to mint — and
+//! nothing that failed to read is ever honoured.
 //!
 //! A claim leaves no record: the set writes the file without a ceremony the
 //! phone has claimed, so a restart can never hand a used code to a second
@@ -45,13 +46,14 @@ use super::INVITE_TTL;
 const FILE_VERSION: u8 = 2;
 
 /// How far a recorded deadline may sit beyond the window an invite could
-/// have been minted with before the record is refused. A few seconds of
-/// clock skew between the write and the read, and no more: a deadline
-/// further out than this build could ever have written is not a deadline
-/// this build wrote, and a reader that honoured it would be handing an
-/// attacker (or a clock that went backwards) a longer window than the
-/// owner ever granted.
-const CLOCK_SKEW: Duration = Duration::from_secs(5);
+/// have been minted with before the record is refused. An hour: a clock
+/// that steps backwards — an NTP correction after a resume, tens of
+/// seconds — must not cost the owner every invitation it holds, while a
+/// deadline further out than `INVITE_TTL` plus this hour is still not one
+/// this build wrote: a forged one stays bounded at 25 h. The record is
+/// dropped rather than clamped, so a tampered file cannot buy itself a new
+/// window at every load.
+const CLOCK_SKEW: Duration = Duration::from_secs(60 * 60);
 
 /// One invitation as the set hands it over and the file keeps it: the id
 /// the page lists, the deadline it counts down to, and the square's JSON as
@@ -90,9 +92,10 @@ pub(super) struct Loaded {
 
 /// Read the invitations back. This never fails: a file that cannot be
 /// honoured yields an EMPTY set, so one bad file cannot end the feature —
-/// nothing in it is ever honoured, and the next mint, cancel or claim
-/// replaces it. No file is an empty set — no links are out — which is the
-/// same answer the credential store gives for a store that is not there.
+/// nothing in it is ever honoured, and `Invites::open` replaces such a file
+/// at once through the same atomic publish path, so its codes do not sit on
+/// disk un-honoured. No file is an empty set — no links are out — which is
+/// the same answer the credential store gives for a store that is not there.
 pub(super) fn read(path: &Path, now: SystemTime) -> Loaded {
     let mut loaded = Loaded {
         invites: Vec::new(),
@@ -116,11 +119,19 @@ pub(super) fn read(path: &Path, now: SystemTime) -> Loaded {
         return loaded;
     }
     loaded.next_id = envelope.next_id;
+    // The furthest out a recorded deadline may sit: the window from here,
+    // plus the clock's tolerance. Both additions are checked — a `now` the
+    // clock cannot carry as far as a window is not a reader that may panic
+    // inside `open`, and it fails closed like any other record this build
+    // cannot honour.
+    let ceiling = now
+        .checked_add(INVITE_TTL)
+        .and_then(|deadline| deadline.checked_add(CLOCK_SKEW));
     for record in envelope.invites {
         if record.expires_at <= now {
             continue;
         }
-        if record.expires_at > now + INVITE_TTL + CLOCK_SKEW {
+        if ceiling.is_none_or(|ceiling| record.expires_at > ceiling) {
             loaded.discarded = true;
             continue;
         }

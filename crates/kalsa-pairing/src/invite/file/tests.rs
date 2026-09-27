@@ -246,6 +246,32 @@ fn an_invitation_whose_window_closed_is_dropped_on_read() {
 }
 
 #[test]
+fn a_clock_that_stepped_back_keeps_the_invitation_live() {
+    // NTP after a resume steps the clock backwards — tens of seconds, once
+    // in a while. A record minted at T and read at T - 10 min then carries a
+    // deadline further out than the window from here, but it is still a
+    // deadline this build wrote: the invitation comes back, and its link
+    // still opens. (Beyond the hour the file allows, it is dropped.)
+    let minted_at = start();
+    let path = scratch("clock-back");
+    let (mut invites, _) = Invites::open(&path, minted_at);
+    invites.mint(REACHABLE, Some(NODE), None, minted_at).unwrap();
+    let code = code_in(&path, 0);
+
+    let stepped_back = minted_at - Duration::from_secs(10 * 60);
+    let (mut reopened, discarded) = Invites::open(&path, stepped_back);
+    assert!(!discarded, "an ordinary clock step is not a discard");
+    assert_eq!(reopened.list().len(), 1, "the invitation is still live");
+    assert!(
+        matches!(
+            reopened.claim(&code, stepped_back + Duration::from_secs(1)),
+            Ok(ClaimResult::Claimed)
+        ),
+        "and its code still opens it"
+    );
+}
+
+#[test]
 fn an_unreadable_file_is_an_empty_set_not_a_dead_end() {
     // The feature survives its own file: nothing in it is honoured, the
     // owner is told something was discarded, and the very next write
@@ -265,6 +291,52 @@ fn an_unreadable_file_is_an_empty_set_not_a_dead_end() {
     let (reopened, discarded) = Invites::open(&path, now);
     assert!(!discarded, "the file the write left is a file this build reads");
     assert_eq!(reopened.list().len(), 1);
+}
+
+#[test]
+fn open_replaces_a_file_it_could_not_honour() {
+    // A file with a real code in it that this build will not read: the
+    // refusal is only half a refusal while those bytes sit on disk, so
+    // `open` replaces the file with the empty set it read — through the
+    // same atomic publish path as any other write.
+    let now = start();
+    let path = scratch("discard-replace");
+    let payload = square(now);
+    let value: serde_json::Value = serde_json::from_str(&payload).expect("the square");
+    let code = value["code"].as_str().expect("code").to_string();
+    let mut envelope = envelope(1, vec![record(0, now + INVITE_TTL, &payload)]);
+    envelope["v"] = serde_json::json!(FILE_VERSION + 1);
+    let written = serde_json::to_string(&envelope).unwrap();
+    assert!(written.contains(&code), "the fixture carries the code");
+    fs::write(&path, &written).unwrap();
+
+    let (set, discarded) = Invites::open(&path, now);
+    assert!(discarded, "the file was not honoured");
+    assert!(set.list().is_empty());
+
+    let on_disk = fs::read_to_string(&path).unwrap();
+    assert!(
+        !on_disk.contains(&code),
+        "the un-honoured code must be off disk: {on_disk}"
+    );
+    let (_, discarded) = Invites::open(&path, now);
+    assert!(!discarded, "and what is on disk is a file this build reads");
+}
+
+#[test]
+fn a_replace_that_cannot_happen_does_not_fail_open() {
+    // The target refuses to be replaced — it is a directory here — so the
+    // rewrite inside `open` fails. `open` still answers: the empty set it
+    // read and the fact that something was discarded, never an error the
+    // shell could not get past.
+    let now = start();
+    let path = scratch("replace-fails");
+    fs::create_dir_all(&path).unwrap();
+
+    let (set, discarded) = Invites::open(&path, now);
+    assert!(discarded, "the directory is not a file this build reads");
+    assert!(set.list().is_empty());
+    assert!(path.is_dir(), "and nothing replaced it");
 }
 
 #[test]
