@@ -265,3 +265,67 @@ One-copy retained 84.2% of the two-copy throughput in these diagnostic runs. The
 | Invalid bench-verbosity attempt | 63→63% | 36.6→36.6 C | 1→1 | 1 |
 
 The only failed command was the first scheduler diagnostic using `llama-bench -lv 5`; it exited 1 with `error: invalid parameter for argument: -lv` (`raw/phase-b/cause-sched-debug.log.gz`, line 11). `llama-bench` does not expose that option. The corrected `llama-perplexity -lv 5` run succeeded. A first OPTRACE-only b diagnostic exited 0 but emitted no `execute-op` lines; it was not used as proof and was repeated with `GGML_HEXAGON_VERBOSE=1`, confirming zero HTP matmuls. No crash occurred. Raw logs, summaries, pull records, and per-run gates are compressed beside this report under `raw/phase-b/` as `cause-*.log.gz`; `raw/phase-b/cause-commands.txt` records the exact binary arguments and the ineffective/failed diagnostics.
+
+## Follow-up — why the clean prefill timings differ from run 6
+
+The `49.3 s` two-copy and `58.5 s` one-copy values are the reciprocal of the
+`llama-bench` `pp1024` rates, not failed CPU runs: the exact commands in
+`raw/phase-b/cause-commands.txt:12-13` both use `-ngl 99 -dev HTP0:0`, but
+force `GGML_HEXAGON_MM_SELECT=1` and `-ub 128`. Their saved tables report
+`backend OpenCL,HTP`, `n_ubatch 128`, and `20.78` / `17.49 tok/s`
+(`cause-two-copy-clean-prefill.log.gz:11-13`,
+`cause-one-copy-clean-prefill.log.gz:11-13`; both summaries say `EXIT=0`).
+Separate verbose dispatch evidence for the same two-copy flags logs
+`HTP0 execute-op MUL_MAT ... hvx-flat` (for example,
+`cause-a-flat-dispatch.log.gz:18180`); the one-copy scheduler proof likewise
+shows direct HTP `hvx-flat` execution from `HTP0:0-HOST` inputs
+(`cause-sched-split.log.gz`). The timed logs themselves had tracing off, so
+they do not independently prove per-op dispatch, but their device/backend
+configuration plus matching dispatch proofs show these were intended as HTP
+flat-kernel arms, not CPU fallback.
+
+Run 6 instead used `llama-completion` with `-b 2048 -ub 1024` on the verified
+1,010-token file (`scratchpad/agents/qdc-heat-3way/arm.sh:104-110`); its NPU load proof records
+`n_batch=2048`, `n_ubatch=1024`, `HTP0 hwinfo ... hmx 1`, and matmuls labeled
+`hvx-tiled` (`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t3npu.load.log:274,
+1105,24771`). Source defaults `opt_mm_select=3` to “HMX -> Tiled -> Flat ->
+CPU” (`ggml-hexagon.cpp:97`); the measured completion command did not set
+`GGML_HEXAGON_MM_SELECT`, whereas the bench commands forced `1`, which disables
+HMX and tiled selection. Thus the ubatch is eight times larger in run 6, and
+the kernel selection differs. The run 6 completion log reports
+`prompt eval time = 1668.22 ms / 1010 tokens` and `offloaded 31/31 layers`
+(`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t3npu.log:130,187`); the matching CPU completion arm reports
+`10389.45 ms / 1010 tokens` and `offloaded 0/31`
+(`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t6cpu.log:131,205`).
+
+The fit messages do not explain the gap or indicate CPU fallback: run 6 warns
+`device HTP0 did not report memory; --fit will not use it` and
+`n_gpu_layers already set by user to 99, abort` (`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t3npu.log:8,15`), then
+explicitly loads `offloaded 31/31 layers to GPU` and allocates a 1525.87 MiB
+HTP0 model buffer (`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t3npu.log:130-132`). The CPU arm's analogous fit warning ends with
+user-set `n_gpu_layers ... 0` and its model reports `offloaded 0/31`
+(`scratchpad/agents/qdc-heat-3way/raw/s23-3way-6/s23-3way-6-t6cpu.log:18,130-133`). The clean `llama-bench` logs have no fit output;
+they are not `llama-perplexity` runs. `llama-perplexity` was used for the
+two-chunk KLD and scheduler investigations (`cause-commands.txt:5-11`), while
+the prefill rates came from `llama-bench -p 1024 -n 0`; run 6's measured prompt
+time came from `llama-completion` `common_perf_print`. These are different
+frontends/workloads, so their times are not a controlled benchmark comparison.
+
+Conclusion: the prior “clean” arms were misconfigured as comparators for run
+6: they intentionally measured flat-only HTP at ubatch 128, while run 6
+measured the default tiled/HMX ladder at ubatch 1024. They do not establish
+that the governor's normal HTP prefill regressed to ~50 seconds. The trace-off
+timings also lacked per-op proof within those exact timed invocations, so do
+not use them to claim a precise flat-vs-tiled speed ratio.
+
+**Verdict — PARK.** One-copy on Hexagon is currently incorrect: when HTP reads
+the `-HOST` weights, KLD explodes and top-token agreement is zero; whether the
+cause is q4_0 layout interpretation or cache/coherence remains unresolved.
+The cacheable RPCMEM decode arm measured 9.47 tok/s versus 14.07 tok/s for the
+CPU `--no-repack` baseline (1.49× slower; `cause-one-copy-cached-decode.log.gz:14`,
+`cause-cpu-no-repack-decode-clean.log.gz:14`). The memory saving alone does
+not justify advancing a broken path. If reopened, the cheapest discriminating
+experiment is a single synthetic q4_0 `MUL_MAT`, with the same flat kernel
+first reading copied HTP-buffer weights and then `-HOST` weights, comparing
+CPU/HTP outputs while toggling an explicit cache flush; this isolates
+layout/coherence before another full-model run.
