@@ -37,7 +37,10 @@ type Props = {
 
 /** The desk's allow-answer poll: one /props every 2 s, up to 3 minutes. */
 const CONFIRM_POLL_INTERVAL_MS = 2_000;
-const CONFIRM_POLL_CAP_MS = 180_000;
+/** One hard deadline for the confirmation, in-flight probe included. */
+const CONFIRM_DEADLINE_MS = 180_000;
+/** One probe may hang at most this long before it counts as unreachable. */
+const CONFIRM_PROBE_TIMEOUT_MS = 10_000;
 /** Consecutive transport failures before the unreachable line shows. */
 const CONFIRM_UNREACHABLE_AFTER = 3;
 
@@ -117,10 +120,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const startConfirmation = (paired: SavedPairingCredential) => {
     const signal = deskSignal();
     void pollForAllowance({
-      probe: pairedPropsProbe(paired, signal),
+      probe: pairedPropsProbe(paired),
       signal,
       intervalMs: CONFIRM_POLL_INTERVAL_MS,
-      capMs: CONFIRM_POLL_CAP_MS,
+      deadlineMs: CONFIRM_DEADLINE_MS,
+      perProbeTimeoutMs: CONFIRM_PROBE_TIMEOUT_MS,
       unreachableAfter: CONFIRM_UNREACHABLE_AFTER,
       onPhase: setConfirmPhase,
     }).then((outcome) => {

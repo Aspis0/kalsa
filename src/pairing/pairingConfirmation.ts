@@ -1,8 +1,8 @@
 /**
  * The phone's half of "Confirm on your computer": with the credential
  * already saved, poll GET /props against the paired door — on the same
- * road rules the chat uses — until the owner allows, the cap ends it, or
- * the screen goes away.
+ * road rules the chat uses — until the owner allows, one hard deadline,
+ * or the screen goes away.
  *
  * Desk vocabulary (kalsa-brain, final contract): 401 = no verdict yet
  * (refused and revoked are also 401 — only the deadline separates them);
@@ -34,11 +34,18 @@ export type ConfirmationOutcome =
   | { result: "aborted" };
 
 export type ConfirmationOptions = {
-  /** One GET /props against the paired door; rejects on transport errors. */
-  probe: () => Promise<ConfirmationResponse>;
+  /**
+   * One GET /props against the paired door. The signal it receives covers
+   * the caller's abort, the poll deadline and the per-probe timeout —
+   * aborting it shuts down whichever road's transport is in flight.
+   */
+  probe: (signal: AbortSignal) => Promise<ConfirmationResponse>;
   signal?: AbortSignal;
   intervalMs: number;
-  capMs: number;
+  /** One hard deadline for the whole poll, in-flight probe included. */
+  deadlineMs: number;
+  /** One probe may hang at most this long before it counts as unreachable. */
+  perProbeTimeoutMs: number;
   /** Consecutive transport failures before the unreachable line shows. */
   unreachableAfter: number;
   onPhase?: (phase: ConfirmationPhase) => void;
@@ -59,37 +66,72 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Probe until allowed or out of time. The first probe is immediate, each
- * phase is reported through onPhase (the screen shows/clears its lines
- * from there), and an aborted signal ends the poll with "aborted" — no
- * outcome for a screen that is gone.
+ * phase is reported through onPhase, and two clocks bound the loop: every
+ * probe gets its own timeout, and the deadline is checked BEFORE any
+ * verdict is accepted — a response that lands after it cannot pair the
+ * phone. Caller abort ends the poll with "aborted": no outcome for a
+ * screen that is gone.
  */
 export async function pollForAllowance(options: ConfirmationOptions): Promise<ConfirmationOutcome> {
-  const startedAt = Date.now();
-  // Read through a call: the abort flips while the probe is in flight.
-  const aborted = () => options.signal?.aborted === true;
+  if (options.signal?.aborted === true) return { result: "aborted" };
+  // One combined abort for everything the probe must stop for; the flags
+  // say which reason fired, because they choose different outcomes.
+  const pollAbort = new AbortController();
+  let callerAborted = false;
+  let deadlineFired = false;
+  const deadlineTimer = setTimeout(() => {
+    deadlineFired = true;
+    pollAbort.abort();
+  }, options.deadlineMs);
+  const onCallerAbort = () => {
+    callerAborted = true;
+    pollAbort.abort();
+  };
+  options.signal?.addEventListener("abort", onCallerAbort);
+  // Read through a call: the aborts flip while the probe is in flight.
+  const callerDone = () => callerAborted;
+  const deadlineDone = () => deadlineFired;
+
+  const runProbe = async (): Promise<ConfirmationVerdict | "unreachable"> => {
+    const probeAbort = new AbortController();
+    const onPollAbort = () => probeAbort.abort();
+    pollAbort.signal.addEventListener("abort", onPollAbort);
+    const probeTimer = setTimeout(() => probeAbort.abort(), options.perProbeTimeoutMs);
+    try {
+      return confirmationVerdict(await options.probe(probeAbort.signal));
+    } catch {
+      return "unreachable";
+    } finally {
+      clearTimeout(probeTimer);
+      pollAbort.signal.removeEventListener("abort", onPollAbort);
+    }
+  };
+
   let failures = 0;
   options.onPhase?.({ phase: "waiting" });
-  while (true) {
-    if (aborted()) return { result: "aborted" };
-    let verdict: ConfirmationVerdict | "unreachable";
-    try {
-      verdict = confirmationVerdict(await options.probe());
-    } catch {
-      verdict = "unreachable";
-    }
-    if (aborted()) return { result: "aborted" };
-    if (verdict === "allowed") return { result: "paired" };
-    if (verdict === "unreachable") {
-      failures += 1;
-      if (failures >= options.unreachableAfter) {
-        options.onPhase?.({ phase: "unreachable", failures });
+  try {
+    while (true) {
+      if (callerDone()) return { result: "aborted" };
+      if (deadlineDone()) return { result: "not_confirmed" };
+      const verdict = await runProbe();
+      // The deadline outranks any verdict: checked before it is accepted.
+      if (callerDone()) return { result: "aborted" };
+      if (deadlineDone()) return { result: "not_confirmed" };
+      if (verdict === "allowed") return { result: "paired" };
+      if (verdict === "unreachable") {
+        failures += 1;
+        if (failures >= options.unreachableAfter) {
+          options.onPhase?.({ phase: "unreachable", failures });
+        }
+      } else {
+        failures = 0;
+        options.onPhase?.({ phase: "waiting" });
       }
-    } else {
-      failures = 0;
-      options.onPhase?.({ phase: "waiting" });
+      await sleep(options.intervalMs, pollAbort.signal);
     }
-    if (Date.now() - startedAt >= options.capMs) return { result: "not_confirmed" };
-    await sleep(options.intervalMs, options.signal);
+  } finally {
+    clearTimeout(deadlineTimer);
+    options.signal?.removeEventListener("abort", onCallerAbort);
   }
 }
 
@@ -101,10 +143,9 @@ export async function pollForAllowance(options: ConfirmationOptions): Promise<Co
  */
 export function pairedPropsProbe(
   paired: SavedPairingCredential,
-  signal?: AbortSignal,
-): () => Promise<ConfirmationResponse> {
+): (signal?: AbortSignal) => Promise<ConfirmationResponse> {
   let road: DoorRoad | null = null;
-  return async () => {
+  return async (signal) => {
     road ??= await establishDoorRoad(paired, signal);
     const url = joinRemoteApiUrl(paired.doorUrl, "/props");
     const headers: Record<string, string> = { Accept: "application/json" };

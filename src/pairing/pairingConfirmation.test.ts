@@ -65,7 +65,8 @@ function poll(
   const outcome = pollForAllowance({
     probe,
     intervalMs: 1,
-    capMs: 60_000,
+    deadlineMs: 60_000,
+    perProbeTimeoutMs: 10_000,
     unreachableAfter: 3,
     onPhase: (phase) => phases.push(phase),
     ...overrides,
@@ -111,9 +112,9 @@ describe("polling the paired door until the owner answers", () => {
     expect(door).toHaveBeenCalledTimes(1);
   });
 
-  test("401 until the cap ends as not confirmed, the waiting phase all along", async () => {
+  test("401 until the deadline ends as not confirmed, the waiting phase all along", async () => {
     const door = fakeDoor([{ status: 401, bodyEmpty: false }]);
-    const { outcome, phases } = poll(door, { capMs: 15 });
+    const { outcome, phases } = poll(door, { deadlineMs: 15 });
 
     expect(await outcome).toEqual({ result: "not_confirmed" });
     expect(door.mock.calls.length).toBeGreaterThan(1);
@@ -140,6 +141,58 @@ describe("polling the paired door until the owner answers", () => {
     expect(door).toHaveBeenCalledTimes(1);
     expect(phases).toEqual([{ phase: "waiting" }]);
   });
+
+  test("the deadline aborts the in-flight probe and ends not confirmed", async () => {
+    const signals: AbortSignal[] = [];
+    const hangingProbe = (signal: AbortSignal) => {
+      signals.push(signal);
+      // A real probe rejects when its signal aborts (both roads do).
+      return new Promise<ConfirmationResponse>((_resolve, reject) => {
+        if (signal.aborted) reject(new Error("aborted"));
+        else signal.addEventListener("abort", () => reject(new Error("aborted")));
+      });
+    };
+    const { outcome } = poll(hangingProbe, {
+      deadlineMs: 25,
+      // Larger than the deadline: only the deadline may stop this probe.
+      perProbeTimeoutMs: 60_000,
+    });
+
+    expect(await outcome).toEqual({ result: "not_confirmed" });
+    expect(signals).toHaveLength(1);
+    expect(signals[0].aborted).toBe(true);
+  });
+
+  test("one hung probe times out alone and the poll keeps going", async () => {
+    let calls = 0;
+    const signals: AbortSignal[] = [];
+    const probe = (signal: AbortSignal) => {
+      calls += 1;
+      if (calls > 1) return Promise.resolve(OK_200);
+      signals.push(signal);
+      return new Promise<ConfirmationResponse>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("probe timeout")));
+      });
+    };
+    const { outcome } = poll(probe, { perProbeTimeoutMs: 20 });
+
+    expect(await outcome).toEqual({ result: "paired" });
+    expect(calls).toBe(2);
+    expect(signals).toHaveLength(1);
+    expect(signals[0].aborted).toBe(true);
+  });
+
+  test("a verdict landing after the deadline is not accepted", async () => {
+    // The probe ignores its signal on purpose: only the deadline's check
+    // before accepting the verdict stands between this 200 and a pairing.
+    const probe = () =>
+      new Promise<ConfirmationResponse>((resolve) => {
+        setTimeout(() => resolve(OK_200), 60);
+      });
+    const { outcome } = poll(probe, { deadlineMs: 10, perProbeTimeoutMs: 60_000 });
+
+    expect(await outcome).toEqual({ result: "not_confirmed" });
+  });
 });
 
 describe("the probe rides the paired door's road once", () => {
@@ -162,10 +215,10 @@ describe("the probe rides the paired door's road once", () => {
     establishMock.mockResolvedValue({ road: "https" });
     fetchForMock.mockReturnValue(fetcher);
     const controller = new AbortController();
-    const probe = pairedPropsProbe(PAIRED, controller.signal);
+    const probe = pairedPropsProbe(PAIRED);
 
-    const first = await probe();
-    const second = await probe();
+    const first = await probe(controller.signal);
+    const second = await probe(controller.signal);
 
     expect(first).toEqual({ status: 200, bodyEmpty: false });
     expect(second.status).toBe(200);
@@ -182,7 +235,7 @@ describe("the probe rides the paired door's road once", () => {
     expect(isBodyEmpty).not.toHaveBeenCalled();
   });
 
-  test("a 403 reads the body exactly once, to tell busy from unattributable", async () => {
+  test("a 403 reads the body exactly once, to tell busy from allowed", async () => {
     const isBodyEmpty = jest.fn(async () => false);
     const fetcher = jest.fn(async () => ({
       ok: false,
