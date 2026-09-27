@@ -1,0 +1,11 @@
+Top sampled main-thread symbols during Settings ×5:
+4.95% bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)
+3.84% void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)
+3.53% __ioctl
+1.78% NterpGetMethod
+1.66% art::mirror::Class::FindClassMethod(art::ObjPtr<art::mirror::DexCache>, unsigned int, art::PointerSize)
+1.51% artQuickToInterpreterBridge
+1.48% __kernel_clock_gettime
+1.47% syscall
+1.28% void art::StackVisitor::WalkStack<(art::StackVisitor::CountTransitions)0>(bool)
+1.18% write

@@ -1,0 +1,113 @@
+Current Battery Service state:
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: 0
+  Max charging voltage: 0
+  Charge counter: 3446250
+  status: 2
+  health: 2
+  present: true
+  level: 92
+  scale: 100
+  voltage: 4433
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: 0
+ The last voltage value sent via the battery changed broadcast: 4433
+  temperature: 319
+  technology: Li-ion
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+  batteryMiscEvent: 65536
+  batteryCurrentEvent: 1073741824
+  mSecPlugTypeSummary: 1
+  LED Charging: true
+  LED Low Battery: true
+  current now: 1502
+  charge counter: 3446250
+  Adaptive Fast Charging Settings: true
+  Super Fast Charging Settings: false
+FEATURE_WIRELESS_FAST_CHARGER_CONTROL: true
+  mWasUsedWirelessFastChargerPreviously: false
+  mWirelessFastChargingSettingsEnable: true
+LLB CAL: 
+LLB MAN: 20230406
+LLB CURRENT: YEAR2026M9D25
+LLB DIFF: 181
+SEC_FEATURE_BATTERY_FULL_CAPACITY: true
+  mFullCapacityEnable: false
+FEATURE_HICCUP_CONTROL: true
+FEATURE_SUPPORTED_DAILY_BOARD: false
+SEC_FEATURE_BATTERY_LIFE_EXTENDER: false
+SEC_FEATURE_USE_WIRELESS_POWER_SHARING: true
+ mProtectBatteryMode: 0
+ mProtectionThreshold: 80
+ mMaximumProtectionThreshold: 80
+ mLtcHighThreshold: 95
+ mLtcHighSocDuration: 10080
+ mLtcReleaseThreshold: 75
+[Not Battery Adaptive Protect Mode]
+  FEATURE_SAVE_BATTERY_CYCLE: true
+  FEATURE_FULL_BATTERY_CYCLE: false
+  battery IcAuthenticationResults: [false]
+  battery FirstUseDate: [20230620]
+  mSavedBatteryAsoc: [93]
+  mSavedBatteryUsage: [27573]
+  mSavedFullStatusDuration: unsupported
+
+[EventLogBuffer]
+09-25 16:32:16.185  android.intent.action.ACTION_POWER_DISCONNECTED
+09-25 16:32:16.189  Sending ACTION_WIRELESS_POWER_SHARING_ENABLED. enabled : false
+09-25 16:32:27.684  Sending ACTION_POPUP_BATTERY_DETERIORATION : 1
+09-26 00:03:43.585  android.intent.action.ACTION_POWER_CONNECTED
+09-26 01:01:54.094  android.intent.action.ACTION_POWER_DISCONNECTED
+09-26 01:01:55.014  android.intent.action.ACTION_POWER_CONNECTED
+09-26 09:19:11.250  android.intent.action.ACTION_POWER_DISCONNECTED
+09-26 09:19:12.303  android.intent.action.ACTION_POWER_CONNECTED
+09-26 09:22:41.514  android.intent.action.ACTION_POWER_DISCONNECTED
+09-26 18:41:39.015  android.intent.action.ACTION_POWER_CONNECTED
+09-26 20:32:44.246  android.intent.action.ACTION_POWER_DISCONNECTED
+09-27 07:50:40.666  android.intent.action.ACTION_POWER_CONNECTED
+09-27 08:17:17.192  android.intent.action.ACTION_POWER_DISCONNECTED
+09-27 08:17:18.275  android.intent.action.ACTION_POWER_CONNECTED
+
+[SleepChargingLogBuffer]
+
+[BattInfoLogBuffer]
+09-25 16:32:13.945  mBatteryType:0 ,mBatteryCount:1
+09-25 16:32:16.948  Final IcAuthenticationResults:[false]
+09-25 16:32:16.949  [SS][BattInfo]QrData efsValue:GH43-05138A+DL1W315AS+09139N    
+09-25 16:32:16.950  [SS][BattInfo]FirstUseDateData efsValue:20230620    
+09-25 16:32:16.950  [SS][BattInfo]AsocData efsValue:93    
+09-25 16:32:16.960  [SS][BattInfo]AsocData efsValue:93    
+09-25 16:32:16.961  [SS][BattInfo]DischargeLevelData efsValue:27453    
+
+[BattActionChangedLogBuffer]
+09-27 08:17:19.353  Sending ACTION_BATTERY_CHANGED: level:75, status:2, health:2, remain:1958, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4131, temperature:345, online:38, charging_status:0, cycle_count:0, current_avg:981, ps:false, hvc:true, current_event:0x40000004, mcc:0, mcv:0, cc:2823750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:17:28.449  Sending ACTION_BATTERY_CHANGED: level:75, status:2, health:2, remain:1947, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4300, temperature:345, online:38, charging_status:0, cycle_count:0, current_avg:2007, ps:false, hvc:true, current_event:0x40000004, mcc:0, mcv:0, cc:2823750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:17:34.485  Sending ACTION_BATTERY_CHANGED: level:75, status:2, health:2, remain:1940, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4288, temperature:345, online:38, charging_status:0, cycle_count:0, current_avg:2266, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2831250, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:18:01.613  Sending ACTION_BATTERY_CHANGED: level:76, status:2, health:2, remain:1911, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4304, temperature:343, online:38, charging_status:0, cycle_count:0, current_avg:2542, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2846250, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:18:47.650  Sending ACTION_BATTERY_CHANGED: level:77, status:2, health:2, remain:1864, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4326, temperature:341, online:38, charging_status:0, cycle_count:0, current_avg:2602, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2883750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:19:33.782  Sending ACTION_BATTERY_CHANGED: level:78, status:2, health:2, remain:1817, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4339, temperature:340, online:38, charging_status:0, cycle_count:0, current_avg:2588, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2917500, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:20:19.727  Sending ACTION_BATTERY_CHANGED: level:79, status:2, health:2, remain:1767, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4347, temperature:340, online:38, charging_status:0, cycle_count:0, current_avg:2575, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2955000, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:21:05.836  Sending ACTION_BATTERY_CHANGED: level:80, status:2, health:2, remain:1713, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4363, temperature:339, online:38, charging_status:0, cycle_count:0, current_avg:2598, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2988750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:21:57.123  Sending ACTION_BATTERY_CHANGED: level:81, status:2, health:2, remain:1662, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4340, temperature:341, online:38, charging_status:0, cycle_count:0, current_avg:2571, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3033750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:22:43.502  Sending ACTION_BATTERY_CHANGED: level:82, status:2, health:2, remain:1612, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4381, temperature:340, online:38, charging_status:0, cycle_count:0, current_avg:2598, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3071250, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:23:34.445  Sending ACTION_BATTERY_CHANGED: level:83, status:2, health:2, remain:1562, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4409, temperature:338, online:38, charging_status:0, cycle_count:0, current_avg:2696, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3105000, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:24:25.444  Sending ACTION_BATTERY_CHANGED: level:84, status:2, health:2, remain:1505, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4428, temperature:337, online:38, charging_status:0, cycle_count:0, current_avg:2710, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3146250, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:25:06.220  Sending ACTION_BATTERY_CHANGED: level:85, status:2, health:2, remain:1459, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4432, temperature:335, online:38, charging_status:0, cycle_count:0, current_avg:2616, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3180000, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:25:57.181  Sending ACTION_BATTERY_CHANGED: level:86, status:2, health:2, remain:1392, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4433, temperature:334, online:38, charging_status:0, cycle_count:0, current_avg:2453, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3217500, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:26:58.382  Sending ACTION_BATTERY_CHANGED: level:87, status:2, health:2, remain:1319, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4433, temperature:331, online:38, charging_status:0, cycle_count:0, current_avg:2239, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3258750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:27:49.343  Sending ACTION_BATTERY_CHANGED: level:88, status:2, health:2, remain:1259, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4432, temperature:330, online:38, charging_status:0, cycle_count:0, current_avg:2103, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3292500, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:29:00.724  Sending ACTION_BATTERY_CHANGED: level:89, status:2, health:2, remain:1184, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4433, temperature:327, online:38, charging_status:0, cycle_count:0, current_avg:1904, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3333750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:30:01.882  Sending ACTION_BATTERY_CHANGED: level:90, status:2, health:2, remain:1106, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4430, temperature:325, online:38, charging_status:0, cycle_count:0, current_avg:1746, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3367500, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:31:23.463  Sending ACTION_BATTERY_CHANGED: level:91, status:2, health:2, remain:1009, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4432, temperature:322, online:38, charging_status:0, cycle_count:0, current_avg:1585, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3408750, present:true, scale:100, technology:Li-ion, protection:0
+09-27 08:32:45.047  Sending ACTION_BATTERY_CHANGED: level:92, status:2, health:2, remain:918, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4433, temperature:319, online:38, charging_status:0, cycle_count:0, current_avg:1448, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3446250, present:true, scale:100, technology:Li-ion, protection:0
+
+mBatteryChangedConditionCounts:[14, 1, 1, 324, 12, 196, 200, 0, 0, 12, 11, 0, 10, 0, 0, 1, 25, 12, 0, 0, 0, 1]
+BatteryInfoBackUp
+  mSavedBatteryMaxTemp: 505
+  mSavedBatteryMaxCurrent: 4837
+  mSavedBatteryBsoh: 100.00

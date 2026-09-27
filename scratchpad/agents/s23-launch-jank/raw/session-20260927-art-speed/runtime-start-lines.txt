@@ -1,0 +1,1 @@
+301998:09-27 08:35:52.398  1057  1057 I com.kalsa.app: Late-enabling -Xcheck:jni

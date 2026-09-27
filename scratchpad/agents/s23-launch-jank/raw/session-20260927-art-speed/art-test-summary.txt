@@ -1,0 +1,31 @@
+S23 ART compile diagnosis; all values are diagnostic, on charger.
+ADB serial: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+Preflight: AC powered=true, 92%, battery temperature=31.9 C, traced=0.
+The device was Awake/unlocked before the measured scenarios and stayed so.
+
+Dexopt sequence:
+- Before: arm64 status=run-from-apk, reason=unknown, primary-abi.
+- `cmd package compile -m speed -f com.kalsa.app`: Success.
+- After command: arm64 status=verify, reason=cmdline, primary-abi.
+- `cmd package compile --reset com.kalsa.app`: Success.
+- After reset: arm64 status=verify, reason=install, primary-abi.
+The reset returned the package to its default verify filter, not the exact
+initial run-from-apk/unknown status string. No further compiler changes made.
+
+Scenario A (cold launch, 30 s): 10 frames, 5 janky (50.00%), p90/p99 42/42 ms.
+Scenario C (five Settings/back cycles): 54 frames, 25 janky (46.30%),
+p90/p99 85/93 ms.
+Scenario C simpleperf: `/system/bin/simpleperf`, 15.0013 s, 8,318 samples,
+0 lost; see c-settings/simpleperf-report.txt and main-top10.txt.
+Top sampled main symbols: art::interpreter::DoCall, ExecuteSwitchImplCpp,
+__ioctl, NterpGetMethod, Class::FindClassMethod, artQuickToInterpreterBridge,
+__kernel_clock_gettime, syscall, StackVisitor::WalkStack, write.
+Peak top threads A: mqt_v_native 811%, main 61.5%, pool 50%.
+Peak top threads C: main 38.4%, pool 23.0%, mqt_v_js 15.3%, HeapTaskDaemon 11.5%.
+
+Runtime evidence: package flags include DEBUGGABLE; process PID 1057
+`/proc/1057/cmdline` contains only `com.kalsa.app` (no explicit
+`-Xcheck:jni` argument); logcat says `Late-enabling -Xcheck:jni`; property
+`dalvik.vm.usejit=true`. The simpleperf record cmdline tags
+`app_type=debuggable`. Main-thread samples still contain ART interpreter
+dispatch and JNI checks.

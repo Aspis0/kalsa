@@ -1,0 +1,7 @@
+09-27 08:35:52.398 1057 1057 I com.kalsa.app: Late-enabling -Xcheck:jni
+Package flags from dumpsys package:
+flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+The process cmdline is `com.kalsa.app`; it does not expose -Xcheck:jni.
+Property: [dalvik.vm.usejit]: [true]
+simpleperf metadata: app_type=debuggable

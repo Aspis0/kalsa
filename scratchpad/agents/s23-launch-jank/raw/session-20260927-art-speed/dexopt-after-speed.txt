@@ -1,0 +1,11 @@
+Dexopt state:
+  [com.kalsa.app]
+    path: /data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==/base.apk
+      arm64: [status=verify] [reason=cmdline] [primary-abi]
+--
+    PU_DexoptTrigger:
+      Dexopt concurrency: 4
+      Dexopting: false
+    PU_Storage:
+    Stored PU state:
+    Stored SCPM state:

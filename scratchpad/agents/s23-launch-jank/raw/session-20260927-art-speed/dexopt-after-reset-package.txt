@@ -1,0 +1,486 @@
+Activity Resolver Table:
+  Full MIME Types:
+      application/pdf:
+        c9c4863 com.kalsa.app/.MainActivity filter 10107bf
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+        c9c4863 com.kalsa.app/.MainActivity filter cf29d5
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+      text/plain:
+        c9c4863 com.kalsa.app/.MainActivity filter f0309de
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+        c9c4863 com.kalsa.app/.MainActivity filter a86ae8c
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+
+  Base MIME Types:
+      text:
+        c9c4863 com.kalsa.app/.MainActivity filter f0309de
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+        c9c4863 com.kalsa.app/.MainActivity filter a86ae8c
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+      application:
+        c9c4863 com.kalsa.app/.MainActivity filter 10107bf
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+        c9c4863 com.kalsa.app/.MainActivity filter cf29d5
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+
+  Schemes:
+      kalsa:
+        c9c4863 com.kalsa.app/.MainActivity filter 8275519
+          Action: "android.intent.action.VIEW"
+          Category: "android.intent.category.DEFAULT"
+          Category: "android.intent.category.BROWSABLE"
+          Scheme: "kalsa"
+
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        c9c4863 com.kalsa.app/.MainActivity filter c2b2c60
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+  MIME Typed Actions:
+      android.intent.action.SEND:
+        c9c4863 com.kalsa.app/.MainActivity filter f0309de
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+        c9c4863 com.kalsa.app/.MainActivity filter 10107bf
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+      android.intent.action.SEND_MULTIPLE:
+        c9c4863 com.kalsa.app/.MainActivity filter a86ae8c
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+        c9c4863 com.kalsa.app/.MainActivity filter cf29d5
+          Action: "android.intent.action.SEND_MULTIPLE"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+
+Receiver Resolver Table:
+  Non-Data Actions:
+      android.intent.action.QUICKBOOT_POWERON:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      com.htc.intent.action.QUICKBOOT_POWERON:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      androidx.profileinstaller.action.SAVE_PROFILE:
+        8c076b6 com.kalsa.app/androidx.profileinstaller.ProfileInstallReceiver filter 523be8d
+          Action: "androidx.profileinstaller.action.SAVE_PROFILE"
+      expo.modules.notifications.NOTIFICATION_EVENT:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      androidx.profileinstaller.action.INSTALL_PROFILE:
+        8c076b6 com.kalsa.app/androidx.profileinstaller.ProfileInstallReceiver filter 4e22fb7
+          Action: "androidx.profileinstaller.action.INSTALL_PROFILE"
+      com.google.android.c2dm.intent.RECEIVE:
+        9362778 com.kalsa.app/com.google.firebase.iid.FirebaseInstanceIdReceiver filter ae58e51
+          Action: "com.google.android.c2dm.intent.RECEIVE"
+      androidx.profileinstaller.action.SKIP_FILE:
+        8c076b6 com.kalsa.app/androidx.profileinstaller.ProfileInstallReceiver filter d624324
+          Action: "androidx.profileinstaller.action.SKIP_FILE"
+      androidx.profileinstaller.action.BENCHMARK_OPERATION:
+        8c076b6 com.kalsa.app/androidx.profileinstaller.ProfileInstallReceiver filter 2554842
+          Action: "androidx.profileinstaller.action.BENCHMARK_OPERATION"
+      android.intent.action.BOOT_COMPLETED:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      android.intent.action.MY_PACKAGE_REPLACED:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      android.intent.action.REBOOT:
+        6b1e5ea com.kalsa.app/expo.modules.notifications.service.NotificationsService filter ac860db
+          Action: "android.intent.action.QUICKBOOT_POWERON"
+          Action: "com.htc.intent.action.QUICKBOOT_POWERON"
+          Action: "expo.modules.notifications.NOTIFICATION_EVENT"
+          Action: "android.intent.action.BOOT_COMPLETED"
+          Action: "android.intent.action.MY_PACKAGE_REPLACED"
+          Action: "android.intent.action.REBOOT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+
+Service Resolver Table:
+  Non-Data Actions:
+      com.google.firebase.MESSAGING_EVENT:
+        69ab689 com.kalsa.app/expo.modules.notifications.service.ExpoFirebaseMessagingService filter a73a68e
+          Action: "com.google.firebase.MESSAGING_EVENT"
+          mPriority=-1, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+        fd15eaf com.kalsa.app/com.google.firebase.messaging.FirebaseMessagingService filter 158d2bc
+          Action: "com.google.firebase.MESSAGING_EVENT"
+          mPriority=-500, mOrder=0, mHasStaticPartialTypes=false, mHasDynamicPartialTypes=false
+      com.google.android.gms.metadata.MODULE_DEPENDENCIES:
+        f601053 com.kalsa.app/com.google.android.gms.metadata.ModuleDependencies filter 4126d90
+          Action: "com.google.android.gms.metadata.MODULE_DEPENDENCIES"
+
+Preferred Activities User 0:
+  Full MIME Types:
+      application/pdf:
+        dfb9981 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+      text/plain:
+        ade4203 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+
+  Base MIME Types:
+      text:
+        ade4203 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+      application:
+        dfb9981 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+
+  MIME Typed Actions:
+      android.intent.action.SEND:
+        dfb9981 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "application/pdf"
+        ade4203 com.kalsa.app/.MainActivity
+         mMatch=0x600000 mAlways=false
+          Action: "android.intent.action.SEND"
+          Category: "android.intent.category.DEFAULT"
+          StaticType: "text/plain"
+
+Domain verification status:
+
+Permissions:
+  Permission [com.kalsa.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION] (9d14023):
+    sourcePackage=com.kalsa.app
+    uid=10347 gids=[] type=0 prot=signature
+    perm=PermissionInfo{c0e3a59 com.kalsa.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION}
+    flags=0x0
+
+Registered ContentProviders:
+  com.kalsa.app/com.google.mlkit.common.internal.MlKitInitProvider:
+    Provider{145f8fc com.kalsa.app/com.google.mlkit.common.internal.MlKitInitProvider}
+  com.kalsa.app/expo.modules.filesystem.FileSystemFileProvider:
+    Provider{b8ffb85 com.kalsa.app/expo.modules.filesystem.FileSystemFileProvider}
+  com.kalsa.app/com.google.firebase.provider.FirebaseInitProvider:
+    Provider{8cecdda com.kalsa.app/com.google.firebase.provider.FirebaseInitProvider}
+  com.kalsa.app/expo.modules.imagepicker.fileprovider.ImagePickerFileProvider:
+    Provider{362420b com.kalsa.app/expo.modules.imagepicker.fileprovider.ImagePickerFileProvider}
+  com.kalsa.app/expo.modules.clipboard.ClipboardFileProvider:
+    Provider{77a8e8 com.kalsa.app/expo.modules.clipboard.ClipboardFileProvider}
+  com.kalsa.app/com.canhub.cropper.CropFileProvider:
+    Provider{3d9cb01 com.kalsa.app/com.canhub.cropper.CropFileProvider}
+  com.kalsa.app/androidx.startup.InitializationProvider:
+    Provider{35beda6 com.kalsa.app/androidx.startup.InitializationProvider}
+  com.kalsa.app/com.reactnativecommunity.webview.RNCWebViewFileProvider:
+    Provider{4f0f3e7 com.kalsa.app/com.reactnativecommunity.webview.RNCWebViewFileProvider}
+  com.kalsa.app/expo.modules.sharing.SharingFileProvider:
+    Provider{926b94 com.kalsa.app/expo.modules.sharing.SharingFileProvider}
+
+ContentProvider Authorities:
+  [com.kalsa.app.mlkitinitprovider]:
+    Provider{145f8fc com.kalsa.app/com.google.mlkit.common.internal.MlKitInitProvider}
+      applicationInfo=ApplicationInfo{db52920 com.kalsa.app}
+  [com.kalsa.app.androidx-startup]:
+    Provider{35beda6 com.kalsa.app/androidx.startup.InitializationProvider}
+      applicationInfo=ApplicationInfo{76a72d9 com.kalsa.app}
+  [com.kalsa.app.fileprovider]:
+    Provider{4f0f3e7 com.kalsa.app/com.reactnativecommunity.webview.RNCWebViewFileProvider}
+      applicationInfo=ApplicationInfo{427349e com.kalsa.app}
+  [com.kalsa.app.SharingFileProvider]:
+    Provider{926b94 com.kalsa.app/expo.modules.sharing.SharingFileProvider}
+      applicationInfo=ApplicationInfo{6edbb7f com.kalsa.app}
+  [com.kalsa.app.firebaseinitprovider]:
+    Provider{8cecdda com.kalsa.app/com.google.firebase.provider.FirebaseInitProvider}
+      applicationInfo=ApplicationInfo{593b74c com.kalsa.app}
+  [com.kalsa.app.ClipboardFileProvider]:
+    Provider{77a8e8 com.kalsa.app/expo.modules.clipboard.ClipboardFileProvider}
+      applicationInfo=ApplicationInfo{2866395 com.kalsa.app}
+  [com.kalsa.app.ImagePickerFileProvider]:
+    Provider{362420b com.kalsa.app/expo.modules.imagepicker.fileprovider.ImagePickerFileProvider}
+      applicationInfo=ApplicationInfo{fcdfcaa com.kalsa.app}
+  [com.kalsa.app.FileSystemFileProvider]:
+    Provider{b8ffb85 com.kalsa.app/expo.modules.filesystem.FileSystemFileProvider}
+      applicationInfo=ApplicationInfo{32c909b com.kalsa.app}
+  [com.kalsa.app.cropper.fileprovider]:
+    Provider{3d9cb01 com.kalsa.app/com.canhub.cropper.CropFileProvider}
+      applicationInfo=ApplicationInfo{eafc38 com.kalsa.app}
+
+Key Set Manager:
+  [com.kalsa.app]
+      Signing KeySets: 80
+
+Packages:
+  Package [com.kalsa.app] (68d466f):
+    appId=10347
+    pkg=Package{3ea7671 com.kalsa.app}
+    codePath=/data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==
+    resourcePath=/data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==
+    legacyNativeLibraryDir=/data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==/lib
+    extractNativeLibs=false
+    primaryCpuAbi=arm64-v8a
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=1 minSdk=33 targetSdk=36
+    minExtensionVersions=[]
+    versionName=0.1.0
+    hiddenApiEnforcementPolicy=2
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=2
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PARTIALLY_DIRECT_BOOT_AWARE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    pageSizeCompat=0
+    queriesIntents=[Intent { act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=https:/... }, Intent { act=org.chromium.intent.action.PAY }, Intent { act=org.chromium.intent.action.IS_READY_TO_PAY }, Intent { act=org.chromium.intent.action.UPDATE_PAYMENT_DETAILS }, Intent { act=android.intent.action.OPEN_DOCUMENT_TREE }, Intent { act=android.intent.action.SEND dat=content://*/... typ=*/* }, Intent { act=android.intent.action.VIEW dat=content:/... }, Intent { act=android.intent.action.OPEN_DOCUMENT cat=[android.intent.category.DEFAULT,android.intent.category.OPENABLE] dat=content://*/... typ=*/* }, Intent { act=android.media.action.IMAGE_CAPTURE }, Intent { act=android.media.action.ACTION_VIDEO_CAPTURE }, Intent { act=android.intent.action.TTS_SERVICE }, Intent { act=androidx.camera.extensions.action.VENDOR_ACTION }, Intent { act=android.intent.action.GET_CONTENT cat=[android.intent.category.OPENABLE] dat=content://*/... typ=*/* }]
+    scannedAsStoppedSystemApp=false
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    usesOptionalLibraries:
+      androidx.camera.extensions.impl
+      androidx.window.extensions
+      androidx.window.sidecar
+    usesOptionalNativeLibraries:
+      libOpenCL.so
+      libcdsprpc.so
+    usesLibraryFiles:
+      /system/framework/sec_camerax_impl.jar
+      /system_ext/framework/androidx.window.extensions.jar
+      /system_ext/framework/androidx.window.sidecar.jar
+      libOpenCL.so
+      libcdsprpc.so
+    timeStamp=2026-09-26 22:15:29
+    lastUpdateTime=2026-09-26 22:15:30
+    installerPackageName=null
+    installerPackageUid=-1
+    initiatingPackageName=com.android.shell
+    originatingPackageName=null
+    category=manifest: -1, override: -1, by user: -1
+    packageSource=1
+    appMetadataFilePath=null
+    appMetadataSource=0
+    signatures=PackageSignatures{dd1edd7 version:2, signatures:[51ed3f60], past signatures:[]}
+    installPermissionsFixed=false
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privatePkgFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PARTIALLY_DIRECT_BOOT_AWARE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    apexModuleName=null
+    componentsDeclared=24
+    declared permissions:
+      com.kalsa.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION: prot=signature
+    requested permissions:
+      com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE
+      com.sonyericsson.home.permission.BROADCAST_BADGE
+      android.permission.READ_CALENDAR
+      android.permission.POST_NOTIFICATIONS
+      com.google.android.c2dm.permission.RECEIVE
+      android.permission.SYSTEM_ALERT_WINDOW
+      com.oppo.launcher.permission.WRITE_SETTINGS
+      me.everything.badger.permission.BADGE_COUNT_READ
+      com.kalsa.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+      com.anddoes.launcher.permission.UPDATE_COUNT
+      com.sec.android.provider.badge.permission.READ
+      me.everything.badger.permission.BADGE_COUNT_WRITE
+      com.huawei.android.launcher.permission.WRITE_SETTINGS
+      android.permission.RECEIVE_BOOT_COMPLETED
+      android.permission.INTERNET
+      android.permission.READ_EXTERNAL_STORAGE
+      android.permission.READ_APP_BADGE
+      com.majeur.launcher.permission.UPDATE_BADGE
+      android.permission.ACCESS_NETWORK_STATE
+      com.oppo.launcher.permission.READ_SETTINGS
+      android.permission.CAMERA
+      com.sonymobile.home.permission.PROVIDER_INSERT_BADGE
+      android.permission.WRITE_CALENDAR
+      com.huawei.android.launcher.permission.READ_SETTINGS
+      android.permission.USE_FINGERPRINT
+      com.sec.android.provider.badge.permission.WRITE
+      android.permission.WRITE_EXTERNAL_STORAGE
+      android.permission.VIBRATE
+      com.huawei.android.launcher.permission.CHANGE_BADGE
+      android.permission.USE_BIOMETRIC
+      com.htc.launcher.permission.UPDATE_SHORTCUT
+      android.permission.RECORD_AUDIO
+      com.htc.launcher.permission.READ_SETTINGS
+      android.permission.WAKE_LOCK
+    install permissions:
+      com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE: granted=true
+      com.google.android.c2dm.permission.RECEIVE: granted=true
+      com.kalsa.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION: granted=true
+      com.sec.android.provider.badge.permission.READ: granted=true
+      android.permission.RECEIVE_BOOT_COMPLETED: granted=true
+      android.permission.INTERNET: granted=true
+      android.permission.ACCESS_NETWORK_STATE: granted=true
+      android.permission.USE_FINGERPRINT: granted=true
+      android.permission.VIBRATE: granted=true
+      android.permission.USE_BIOMETRIC: granted=true
+      android.permission.WAKE_LOCK: granted=true
+    User 0: ceDataInode=95235 deDataInode=80412 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false quarantined=false
+      installReason=0
+      dataDir=/data/user/0/com.kalsa.app
+      firstInstallTime=2026-08-15 20:52:25
+      uninstallReason=0
+      gids=[3003]
+      runtime permissions:
+        android.permission.READ_CALENDAR: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.READ_EXTERNAL_STORAGE: granted=false, flags=[ REVOKE_WHEN_REQUESTED|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]
+        android.permission.CAMERA: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.WRITE_CALENDAR: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.WRITE_EXTERNAL_STORAGE: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]
+        android.permission.RECORD_AUDIO: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+  queries via component:
+    com.samsung.android.app.sharelive:
+      com.kalsa.app
+    com.samsung.android.bixby.agent:
+      com.kalsa.app
+    com.microsoft.skydrive:
+      com.kalsa.app
+    com.android.settings.intelligence:
+      com.kalsa.app
+    com.google.android.apps.accessibility.voiceaccess:
+      com.kalsa.app
+    com.google.android.as:
+      com.kalsa.app
+    com.google.android.as.oss:
+      com.kalsa.app
+    com.google.android.apps.messaging:
+      com.kalsa.app
+    com.google.android.youtube:
+      com.kalsa.app
+    com.google.android.apps.maps:
+      com.kalsa.app
+    com.verizon.mips.services:
+      com.kalsa.app
+    com.microsoft.office.outlook:
+      com.kalsa.app
+    com.kalsa.app:
+      com.google.android.documentsui
+      com.microsoft.skydrive
+      com.samsung.android.app.contacts
+      com.microsoft.appmanager
+      com.vcast.mediamanager
+      com.google.android.apps.messaging
+      com.google.android.googlequicksearchbox
+      com.google.android.apps.bard
+      com.android.chrome
+      com.google.android.gm
+      com.google.android.youtube
+      com.google.android.apps.maps
+      com.google.android.setupwizard
+      com.google.android.photopicker
+      com.samsung.android.app.notes
+      com.samsung.android.oneconnect
+      com.microsoft.office.officehubrow
+      com.microsoft.office.outlook
+      com.google.android.apps.docs
+      [com.termux.boot,com.termux.api,com.termux]
+  queryable via interaction:
+    User 0:
+      [com.skms.android.agent,com.sec.android.emergencylauncher,com.samsung.android.lool,com.sec.android.Cdfs,com.samsung.android.smartswitchassistant,com.samsung.sait.sohservice,com.samsung.android.fmm,com.sec.android.diagmonagent,com.sec.android.app.wlantest,com.samsung.vzwapiservice,com.sec.automation,com.samsung.android.knox.attestation,com.samsung.android.brightnessbackupservice,com.sec.bcservice,com.samsung.android.da.daagent,com.qti.snapdragon.qdcm_ff,com.samsung.gpuwatchapp,com.android.localtransport,com.samsung.android.app.dressroom,com.samsung.carrier.logcollector,com.sec.usbsettings,com.samsung.android.photoremasterservice,com.android.server.telecom,com.sem.factoryapp,com.samsung.InputEventApp,com.samsung.android.simagent,com.sec.android.app.personalization,com.sec.android.CcInfo,com.qualcomm.qti.services.systemhelper,com.sec.sve,com.sec.mhs.smarttethering,com.samsung.sdm,com.sec.imslogger,com.android.location.fused,com.sec.modem.settings,com.samsung.android.hdmapp,com.samsung.accessibility,android,com.samsung.android.cameraxservice,com.samsung.android.mdecservice,com.samsung.aasaservice,com.samsung.android.themecenter,com.sec.app.RilErrorNotifier,com.samsung.unifiedtp,com.android.dynsystem,com.samsung.android.dqagent,com.sec.android.app.setupwizard,com.sec.android.app.hwmoduletest,com.samsung.android.bbc.bbcagent,com.samsung.android.providers.factory,com.samsung.android.svcagent,com.samsung.android.smartface,com.sec.android.soagent,com.samsung.android.stickercenter,com.sec.facatfunction,com.samsung.android.aircommandmanager,com.sec.android.app.SecSetupWizard,com.samsung.android.vtcamerasettings,com.android.settings,com.sec.android.app.parser,com.samsung.ts43authservice,com.samsung.android.emergency,com.samsung.oda.service,com.android.keychain,com.sec.android.app.quicktool,com.samsung.android.motionphoto.app,com.samsung.android.app.esimkeystring,com.sec.android.app.factorykeystring,com.samsung.android.biometrics.app.setting,com.samsung.android.knox.zt.framework,com.sec.android.smartfpsadjuster,com.samsung.android.app.omcagent,com.samsung.android.bixby.wakeup,com.samsung.android.camerasdkservice,com.samsung.android.knox.pushmanager,com.sec.android.app.desktoplauncher,com.sec.android.iaft,com.sec.epdg,com.sec.factory.camera,com.android.providers.settings,com.samsung.euicc,com.samsung.android.forest,com.sec.android.app.servicemodeapp,com.samsung.android.vexfwk.service,com.android.inputdevices,com.samsung.android.wifi.ai,com.sec.android.sdhms,com.sec.android.app.RilPhoneNumberService,com.samsung.android.provider.filterprovider,com.samsung.android.knox.mpos,com.samsung.android.ese,com.samsung.android.globalpostprocmgr,com.samsung.SMT,com.sec.imsservice]:
+        com.kalsa.app
+      com.samsung.android.honeyboard:
+        com.kalsa.app
+      com.google.android.gms:
+        com.kalsa.app
+  queryable via uses-library:
+
+Dexopt state:
+  [com.kalsa.app]
+    path: /data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==/base.apk
+      arm64: [status=verify] [reason=install] [primary-abi]
+        [location is /data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==/oat/arm64/base.odex]
+
+SPEG state:
+  Event #2: 15-08-2026 20:52:28.654 Success com.kalsa.app took 2376 ms
+  Event #1: 11-08-2026 23:13:39.440 Success com.google.ai.edge.gallery took 2292 ms
+  Event #0: 05-08-2026 21:27:26.641 Success com.moe.adbboot took 2260 ms
+
+Profile utilization state:
+  Current state:
+    Version: 2.1.1
+    Start reason: boot-no-update
+    Start time: not started
+    Finish time: not finished
+    PU_StatusWatcher:
+      Initial thermal status: 0
+      Thermal status: 0
+      Screen off: false
+      Low battery: true
+    PU_DexoptTrigger:
+      Dexopt concurrency: 4
+      Dexopting: false
+    PU_Storage:
+    Stored PU state:
+    Stored SCPM state:
+      packages-9a07:
+        [                                            ]
+      disable-2bb4:
+        [                                            ]
+
+Compiler stats:
+  [com.kalsa.app]
+     base.apk - 759
+
+HeimdAllFS state:
+  [com.kalsa.app]
+    path: /data/app/~~twDYfe1Rpx7VA_7UzuJdXQ==/com.kalsa.app-7zdvCk6ElMCPKXsBuBLh2w==/base.apk
+    Compressed? False
+  [ Summary ]
+    # of packages: 1 / # of packages in DATA: 1 (1)
+    Compressed apks info - sum of orig size: 45973 / sum of compr size : 45973

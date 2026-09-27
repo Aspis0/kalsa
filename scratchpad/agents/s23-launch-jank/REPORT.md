@@ -173,3 +173,48 @@ on an existing response; the successful chunked typing was later cleared, but
 read-aloud may have overlapped that capture. The raw stream includes those
 attempts for audit; early c/d readings are not used above. Full logs and
 per-scenario captures are in `raw/session-20260927-diagnosis/`.
+
+## 2026-09-27 — ART speed compile test (diagnostic, on charger)
+
+The S23 remained on AC power for this diagnostic test. Battery was 92%,
+temperature 31.9 C, and `persist.traced.enable=0`; it was Awake/unlocked for
+the measured scenarios. No app data or settings were changed.
+
+| State / scenario | Dexopt status | Gfx result (diagnostic, on charger) |
+|---|---|---|
+| Before command | `run-from-apk`, `reason=unknown` | Prior diagnostic A: 68 frames, 5 janky (7.35%), p90/p99 12/150 ms; C: 47 frames, 19 janky (40.43%), 89/97 ms |
+| After `compile -m speed -f` | `verify`, `reason=cmdline` | A: 10 frames, 5 janky (50.00%), p90/p99 42/42 ms; C: 54 frames, 25 janky (46.30%), 85/93 ms |
+| After `compile --reset` | `verify`, `reason=install` | Default filter restored; status text differs from initial `run-from-apk` |
+
+Both compile commands returned `Success`. The requested `speed` compilation
+did **not** appear as a speed filter: while running both scenarios the package
+reported `status=verify reason=cmdline`, so this is not a valid speed-vs-
+uncompiled comparison. `--reset` succeeded and returned to the default verify
+filter, but the final dexopt status is not textually identical to the initial
+`run-from-apk/unknown` state. No further compiler changes were attempted.
+
+The cold-launch sample reached 50.00% janky across only 10 rendered frames.
+During the Settings/back ×5 sample, simpleperf recorded 8,318 samples in
+15.0013 s with 0 lost; top-10 sampled main-thread symbols are in
+`raw/session-20260927-art-speed/c-settings/main-top10.txt`. Leading symbols
+were `art::interpreter::DoCall` (4.95%), `ExecuteSwitchImplCpp` (3.84%),
+`__ioctl` (3.53%), and `NterpGetMethod` (1.78%). `ScopedCheck::CheckFieldAccess`
+also appears for the app main thread. Top snapshots showed `mqt_v_native`
+811% during cold launch; during Settings, main reached 38.4%, the ART pool
+23.0%, and `mqt_v_js` 15.3%.
+
+Runtime evidence points at the debuggable app: package flags contain
+`DEBUGGABLE`, and the fresh process logs:
+
+```text
+09-27 08:35:52.398 1057 1057 I com.kalsa.app: Late-enabling -Xcheck:jni
+```
+
+`dalvik.vm.usejit=true`; `/proc/1057/cmdline` contains only `com.kalsa.app`
+and does not expose `-Xcheck:jni`. The simpleperf metadata identifies
+`app_type=debuggable`. The main profile contains interpreter dispatch,
+`artQuickToInterpreterBridge`, and CheckJNI `ScopedCheck` work even after the
+speed command. This supports the debug-runtime explanation; the requested
+speed filter was not active for these captures. Raw commands, before/after
+dexopt dumps, process flags, gfxinfo, top, simpleperf, and logcat are in
+`raw/session-20260927-art-speed/`.
