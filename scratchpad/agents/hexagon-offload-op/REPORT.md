@@ -194,3 +194,74 @@ Each row gives pre/post battery, battery temperature, and thermal status; all ha
 Initial attempts exposed three harness/configuration errors before valid measurements: (1) the local gate script missed `]` and refused preflight before launching a binary; (2) a fresh `adb shell` lacked the exported library paths and `llama-bench` printed `llama_bench: error: failed to load model '/data/local/tmp/heat3way/ship.gguf'` (`EXIT=1`); (3) report command `-dev HTP0` was rejected with `error: invalid device: HTP0` and `error: invalid parameter for argument: -dev` (`EXIT=1`). The configured name is `HTP0:0`; the runner now exports the required environment on each shell. A successful `HTP0:0` run without `-v` exited 0 but produced zero dispatch lines, so it was invalidated and replaced by the trace-enabled run. These attempt messages are retained in `raw/phase-b/attempt_failures.log`.
 
 **Verdict:** one-copy preserved most of the instrumented HTP prefill throughput and substantially reduced process RSS, but it failed KLD catastrophically and made CPU decode 2.08× slower than today's `--no-repack` baseline. No corrected one-copy configuration was found in this phase; no process crashed. Raw verbose logs are compressed as `.log.gz` alongside the gate, summary, push, and RSS records.
+
+## Phase B follow-up — isolate one-copy correctness and decode cost
+
+S23 / SM8550, HTP v73; model `/data/local/tmp/heat3way/ship.gguf` SHA-256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`. All KLD arms used the same 4,096-token English fixture (`bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728`), `-c 512`, `--chunks 2`, and one CPU-only base (PPL 32.3370; base logits SHA-256 `5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f`). Every KLD binary command exited 0.
+
+### Correctness isolation
+
+| Arm | Configuration | Mean KLD | Max KLD | Same top token | PPL |
+|---|---|---:|---:|---:|---:|
+| a. Two-copy HTP, flat | Normal HTP buffer, `MM_SELECT=1` | 0.002788 | 0.032330 | 96.471% | 33.3748 |
+| b. CPU matmul on rpcmem | `HTP0:0-HOST`, offload threshold 2,147,483,647 | 0.001316 | 0.016001 | 97.647% | 32.5753 |
+| c. One-copy HTP | `HTP0:0-HOST`, threshold 32, `MM_SELECT=1` | 175,370,565.885071 | 255,755,840 | 0.000% | `inf` |
+
+Result: flat HTP matmuls on the regular HTP buffer are not the catastrophic failure; CPU matmuls reading the `-HOST` rpcmem weights also agree with the CPU base. The corruption appears only when HTP matmuls consume the host-buffer weights. This isolates the failing interaction to HTP reading the row-major host-buffer weight representation; these measurements do not identify whether the remaining fault is layout interpretation or cache/coherency.
+
+Dispatch was checked separately with verbose logs. Arm a executed 182 HTP `MUL_MAT` ops in its 64-token proof run. Arm b executed 558 HTP ops overall but **zero** HTP `MUL_MAT` ops with the very high threshold. Arm c's two-chunk scheduler trace contained 784 HTP `MUL_MAT` ops. Thus arm b exercises CPU matmul on rpcmem (although non-matmul ops can still run on HTP).
+
+The `-lv 5` plus `GGML_SCHED_DEBUG=1` split log for arm c showed 2,423 HTP splits with zero split inputs. There are no HTP `COPY`/`CONVERT` execution ops. The direct execution line is representative: `MUL_MAT ... | q4_0 x f32 -> f32 | ... | HTP0:0-HOST x HTP0:0-HOST -> HTP0:0 | hvx-flat`. HTP therefore sees q4_0 weights and f32 activations in the HTP host buffer directly; no scheduler copy/convert sits between `-HOST` and HTP. The ordinary-buffer flat proof instead reports HTP buffer sources (`HTP0:0 x HTP0:0`) and also gives plausible KLD.
+
+### Allocation flags and decode
+
+Engine allocation is the same shared RPCMEM block for both buft variants (`ggml-hexagon.cpp:542-548, 2031-2045`):
+
+```cpp
+base = (uint8_t *) rpcmem_alloc2(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, size);
+ggml_hexagon_shared_buffer * sbuf = new ggml_hexagon_shared_buffer(sess, size, false);
+```
+
+The actual Snapdragon SDK header `/opt/hexagon/6.6.0.0/incs/rpcmem.h:47-53,89,100-105` defines `RPCMEM_DEFAULT_FLAGS` as `ION_FLAG_CACHED` (fallback `1`), `RPCMEM_FLAG_CACHED` as that default, `RPCMEM_FLAG_UNCACHED` as `0`, and `RPCMEM_HEAP_ID_SYSTEM = 25`. Thus the allocation is cacheable, not CPU-uncached. Runtime logs say `rpcmem_alloc2 not found, falling back to rpcmem_alloc`, passing the same flags. `GGML_HEXAGON_HOSTBUF` only controls whether `get_host_buffer_type` returns the host type (`:6550-6555`, parsed at `:7221,7269`); it does not alter allocation flags. The host setter is plain memcpy (`:1988-1995`):
+
+```cpp
+memcpy((char *) tensor->data + offset, data, size);
+```
+
+The regular device setter marks quantized weights for tiled repack (`:1736-1753`), unlike `-HOST`.
+
+The decode benchmark used the current default cached allocation, no verbose/optrace, `-p 1 -n 64 -r 1`: rpcmem `-HOST` achieved **9.47 tok/s**, versus **14.07 tok/s** for CPU `--no-repack` in the paired clean run (1.49× slower). Thus the slowdown is not explained by an uncached rpcmem allocation; this was not a cached-vs-uncached A/B because the current engine has no flag override.
+
+### Clean prefill timings
+
+Verbose/optrace were off; each row is one benchmark repetition with `-p 1024`, same model and batch/ubatch settings:
+
+| Arm | Throughput | Approx. 1,024-token time |
+|---|---:|---:|
+| Two-copy, normal HTP buffer, flat | 20.78 tok/s | 49,278 ms |
+| One-copy, HTP host buffer, flat | 17.49 tok/s | 58,548 ms |
+
+One-copy retained 84.2% of the two-copy throughput in these diagnostic runs. The phone was unplugged; these are diagnostic, not energy measurements.
+
+### Gates, failures, and raw logs
+
+`run_guarded.sh` force-stopped `com.kalsa.app` before every binary run and recorded pre/post state. All completed commands remained Awake, unplugged, traced `0`, thermal status `<3`, battery temperature `<43 C`; battery stayed above 30%. Peak observed battery temperature was 39.6 C, peak thermal status 1, and final level 59%. Screen remains on. No app preferences were touched.
+
+| Run | Battery pre→post | Temp pre→post | Thermal pre→post | Exit |
+|---|---:|---:|---:|---:|
+| CPU base | 64→64% | 33.1→33.1 C | 0→0 | 0 |
+| a KLD | 64→64% | 34.6→35.6 C | 0→0 | 0 |
+| b KLD | 64→63% | 35.6→36.5 C | 0→0 | 0 |
+| c KLD | 63→63% | 36.5→38.2 C | 0→1 | 0 |
+| Scheduler `-lv 5` trace | 62→61% | 37.4→39.0 C | 1→1 | 0 |
+| Two-copy clean prefill | 61→61% | 39.0→38.7 C | 1→1 | 0 |
+| One-copy clean prefill | 61→60% | 38.8→39.5 C | 1→1 | 0 |
+| One-copy cached decode | 60→60% | 39.5→39.6 C | 1→1 | 0 |
+| CPU no-repack decode | 60→60% | 39.6→39.6 C | 1→1 | 0 |
+| a dispatch proof | 59→59% | 37.3→37.3 C | 1→1 | 0 |
+| b OPTRACE-only diagnostic | 59→59% | 37.3→37.3 C | 1→1 | 0 |
+| b verbose dispatch proof | 59→59% | 37.8→37.8 C | 1→1 | 0 |
+| Perplexity verbose trace | 63→62% | 36.6→37.7 C | 1→1 | 0 |
+| Invalid bench-verbosity attempt | 63→63% | 36.6→36.6 C | 1→1 | 1 |
+
+The only failed command was the first scheduler diagnostic using `llama-bench -lv 5`; it exited 1 with `error: invalid parameter for argument: -lv` (`raw/phase-b/cause-sched-debug.log.gz`, line 11). `llama-bench` does not expose that option. The corrected `llama-perplexity -lv 5` run succeeded. A first OPTRACE-only b diagnostic exited 0 but emitted no `execute-op` lines; it was not used as proof and was repeated with `GGML_HEXAGON_VERBOSE=1`, confirming zero HTP matmuls. No crash occurred. Raw logs, summaries, pull records, and per-run gates are compressed beside this report under `raw/phase-b/` as `cause-*.log.gz`; `raw/phase-b/cause-commands.txt` records the exact binary arguments and the ineffective/failed diagnostics.
