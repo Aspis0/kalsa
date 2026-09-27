@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { copyText } from "../lib/clipboard";
 import { invoke } from "../lib/tauri";
 import "./surfaces.css";
@@ -63,36 +63,53 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [linkFallback, setLinkFallback] = useState<string | null>(null);
+  // One link at a time: while a create is running the button is disabled,
+  // so a double press cannot mint two invitations.
+  const [creating, setCreating] = useState(false);
+  // The panel unmounts whenever the owner leaves the page and every action
+  // here awaits something first — the page's poll guards the same way: a
+  // reply that lands after the component is gone writes nothing.
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
 
   // The owner asks for a link. The command answers with the link itself,
   // which goes to the clipboard and nowhere else; the sentence that follows
-  // needs the moment THIS link dies, and only the list knows that — so the
-  // list is asked, and a link whose moment cannot be named is shown to
-  // select instead of the sentence being invented.
+  // names when THIS link dies, which only the list can say — and when the
+  // list cannot answer, the sentence names what is true of every link (one
+  // day) instead. The field is for a refused clipboard only, never for a
+  // successful copy.
   async function createInvite(): Promise<void> {
     setCommandError(null);
     setNotice(null);
     setLinkFallback(null);
+    setCreating(true);
     try {
       const link = await invoke<string>("brain_invite_create");
+      if (!live.current) return;
       if (await copyText(link)) {
         const listed = await invoke<InviteList>("brain_invite_list").catch(() => null);
+        if (!live.current) return;
         if (listed) onList(listed);
         const newest = listed ? newestInvite(listed.invites) : null;
-        if (newest) {
-          setNotice(
-            `Link copied. It works once, until ${untilTime(newest.expires_at)}. Send it only to the person you want to add.`,
-          );
-        } else {
-          setLinkFallback(link);
-        }
+        setNotice(
+          newest
+            ? `Link copied. It works once, until ${untilTime(newest.expires_at)}. Send it only to the person you want to add.`
+            : "Link copied. It works once, for one day. Send it only to the person you want to add.",
+        );
       } else {
         setLinkFallback(link);
       }
     } catch (error) {
       // The command's own words — no road, no room, could not save — shown
       // as they are, with nothing of the invitation inside them.
-      setCommandError(error instanceof Error ? error.message : String(error));
+      if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (live.current) setCreating(false);
     }
   }
 
@@ -106,11 +123,14 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
     void (async () => {
       try {
         const link = await invoke<string>("brain_invite_link", { id });
-        if (!(await copyText(link))) setLinkFallback(link);
+        if (!live.current) return;
+        if (!(await copyText(link))) {
+          if (live.current) setLinkFallback(link);
+        }
       } catch (error) {
         // The invitation is gone — spent, cancelled or expired. The command
         // says so in its own words, and the next list read drops the row.
-        setCommandError(error instanceof Error ? error.message : String(error));
+        if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
       }
     })();
   }
@@ -122,6 +142,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
     invoke("brain_invite_cancel", { id })
       .then(() => {
         // The row leaves at once; the next poll agrees with it.
+        if (!live.current) return;
         if (invites) {
           onList({
             ...invites,
@@ -129,21 +150,30 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
           });
         }
       })
-      .catch((error: unknown) =>
-        setCommandError(error instanceof Error ? error.message : String(error)),
-      );
+      .catch((error: unknown) => {
+        if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
+      });
   }
 
   const rows = invites?.invites ?? [];
   return (
     <>
       <div className="surface-actions">
-        <button type="button" className="btn-quiet" onClick={() => void createInvite()}>
+        <button
+          type="button"
+          className="btn-quiet"
+          disabled={creating}
+          onClick={() => void createInvite()}
+        >
           Invite by link
         </button>
       </div>
       {commandError ? <p className="surface-note">{commandError}</p> : null}
-      {notice ? <p className="surface-quiet">{notice}</p> : null}
+      {notice ? (
+        <p className="surface-quiet" aria-live="polite">
+          {notice}
+        </p>
+      ) : null}
       {linkFallback ? (
         <input
           className="surface-link"

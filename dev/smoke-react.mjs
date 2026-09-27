@@ -158,6 +158,15 @@ class FakeNode {
     this.dispatchEvent({ type: "focus", target: this, bubbles: false });
   }
 
+  select() {
+    // The textarea fallback selects its own text. The call has to exist so
+    // the throw lands where a real webview's would.
+  }
+
+  remove() {
+    if (this.parentNode) this.parentNode.removeChild(this);
+  }
+
   blur() {
     if (this.ownerDocument.activeElement === this) this.ownerDocument.activeElement = this.ownerDocument.body;
     this.dispatchEvent({ type: "blur", target: this, bubbles: false });
@@ -645,7 +654,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, disabledButtons, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -693,6 +702,19 @@ try {
       if (!all.includes(COULD_NOT_CHECK)) problems.push(`a page with no app to ask must say the check could not run: ${heading}`);
       if (buttons.length > 0) problems.push(`a page with no app to ask must offer no retry: ${heading}`);
     }
+    // A link is this page's secret and it may live in exactly one place on
+    // screen: the card's own fallback field, when the clipboard refused it.
+    // The WHOLE document is inspected, not just this card — a textarea the
+    // copy path left in the body, or text that rendered the link, counts —
+    // and every field holding a link must belong to this card.
+    const linkedFields = (values) =>
+      values.filter((value) => value.includes("kalsa.io")).length;
+    if (documentText.includes("kalsa.io")) {
+      problems.push(`a link is never rendered as text: ${heading}`);
+    }
+    if (linkedFields(documentFields) !== linkedFields(fallbackLinks)) {
+      problems.push(`a field outside the card holds a link: ${heading}`);
+    }
     // The invitation half of this page: the button the page can pair with,
     // the rows it draws, and the sentences this feature owns. Each rule is
     // tied to its own card, so a state cannot satisfy another state's check.
@@ -705,7 +727,6 @@ try {
       if (!inviteNames.every((name) => name.startsWith("Expires "))) problems.push(`each row says when it dies: ${heading}`);
       if (buttons.filter((text) => text === "Copy link").length !== 2) problems.push(`each row offers its link again: ${heading}`);
       if (buttons.filter((text) => text === "Cancel invite").length !== 2) problems.push(`each row can be taken back: ${heading}`);
-      if (all.includes("kalsa.io")) problems.push(`a link is never rendered as text: ${heading}`);
     }
     if (heading.includes("an invitation link is copied")) {
       if (!/Link copied\. It works once, until .+\. Send it only to the person you want to add\./.test(all)) {
@@ -716,6 +737,19 @@ try {
     if (heading.includes("an invitation cannot be made without the road")) {
       if (!all.includes("which is not open.")) problems.push(`the command's own words reach the page: ${heading}`);
       if (all.includes("Link copied.")) problems.push(`nothing was copied: ${heading}`);
+    }
+    if (heading.includes("the list goes quiet after the copy")) {
+      if (!all.includes("Link copied. It works once, for one day. Send it only to the person you want to add.")) {
+        problems.push(`a copy with no moment to name says the day: ${heading}`);
+      }
+      if (fallbackLinks.length > 0) {
+        problems.push(`a copy that worked never shows the link: ${heading}`);
+      }
+    }
+    if (heading.includes("an invitation is being made")) {
+      if (!disabledButtons.includes("Invite by link")) {
+        problems.push(`the button is held down while a link is being made: ${heading}`);
+      }
     }
     if (heading.includes("the clipboard refuses the link")) {
       if (all.includes("Link copied.")) problems.push(`a refused copy is not a copied link: ${heading}`);

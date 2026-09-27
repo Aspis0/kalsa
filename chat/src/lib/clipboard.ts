@@ -9,16 +9,26 @@ export async function copyText(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
+    const area = document.createElement("textarea");
+    // The field exists for the length of the attempt and not a moment
+    // longer: whatever this throws — no `select`, no `execCommand` — the
+    // `finally` empties it and takes it out of the document, so a refused
+    // copy never leaves the text sitting in the page.
     try {
-      const area = document.createElement("textarea");
       area.value = text;
       document.body.appendChild(area);
       area.select();
-      const ok = document.execCommand("copy");
-      area.remove();
-      return ok;
+      return document.execCommand("copy");
     } catch {
       return false;
+    } finally {
+      area.value = "";
+      try {
+        area.remove();
+      } catch {
+        // A document that refuses removal keeps an empty field, never the
+        // text: the value is already gone.
+      }
     }
   }
 }

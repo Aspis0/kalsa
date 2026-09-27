@@ -255,6 +255,13 @@ const scenarios = [
   ["Pairing", "an invitation cannot be made without the road", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateError: NO_ROAD, click: "Invite by link" }],
   ["Pairing", "the clipboard refuses the link", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [{ id: 4, expires_at: INVITE_SOON }] }, inviteLink: INVITE_LINK, clipboardFails: true, click: "Invite by link" }],
   ["Pairing", "earlier invitations could not be read", "devices", { pairing: pairedHouse(), invites: { discarded: true, invites: [] } }],
+  // The copy worked but the moment cannot be named: the list the panel asks
+  // for after the copy answers with nothing, so the sentence falls back to
+  // what is true of every link — and the link itself is never shown.
+  ["Pairing", "the list goes quiet after the copy", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [{ id: 5, expires_at: INVITE_SOON }] }, inviteLink: INVITE_LINK, inviteListGoesEmpty: true, click: "Invite by link" }],
+  // A create that has not answered: the button is held down, so a second
+  // press cannot mint a second invitation.
+  ["Pairing", "an invitation is being made", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateHangs: true, click: "Invite by link" }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
   // retry. And a read that rejects AFTER an answer must leave that answer on
@@ -289,10 +296,12 @@ let bridgeState = {};
 let eventHandlers = new Set();
 let propsReads = 0;
 let pairingReads = 0;
+let inviteListReads = 0;
 
 function installBridge() {
   propsReads = 0;
   pairingReads = 0;
+  inviteListReads = 0;
   globalThis.window.__TAURI__ = bridgeState.available === false
     ? undefined
     : {
@@ -312,8 +321,16 @@ function installBridge() {
               }
               return Promise.resolve(bridgeState.pairing ?? null);
             }
-            if (command === "brain_invite_list") return Promise.resolve(bridgeState.invites ?? null);
+            if (command === "brain_invite_list") {
+              // The list the panel asks for AFTER a copy: a read that goes
+              // quiet leaves the sentence with no moment to name.
+              if (bridgeState.inviteListGoesEmpty && inviteListReads++ > 0) {
+                return Promise.resolve({ discarded: false, invites: [] });
+              }
+              return Promise.resolve(bridgeState.invites ?? null);
+            }
             if (command === "brain_invite_create") {
+              if (bridgeState.inviteCreateHangs) return new Promise(() => {});
               return bridgeState.inviteCreateError
                 ? Promise.reject(bridgeState.inviteCreateError)
                 : Promise.resolve(bridgeState.inviteLink ?? INVITE_LINK);
@@ -348,6 +365,12 @@ function installBridge() {
     writeText: async () => {
       if (bridgeState.clipboardFails) throw new Error("the clipboard refused");
     },
+  };
+  // …and the road behind it fails too: this bench has no execCommand, and
+  // the fallback cards depend on that throw happening — the page then shows
+  // the field, and a copy that kept its text would be a leaked secret.
+  globalThis.document.execCommand = () => {
+    throw new TypeError("the bench has no execCommand");
   };
   globalThis.fetch = (url) => {
     if (!bridgeState.props || !String(url).endsWith("/props")) {
@@ -405,6 +428,7 @@ function extract(panel, heading, automatic = []) {
   const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
   const inviteEls = elements(panel, (el) => el.className === "surface-invite-name");
   const inputEls = elements(panel, (el) => el.tagName === "INPUT");
+  const disabledEls = buttonEls.filter((el) => el.disabled);
   const quietEls = elements(panel, (el) => el.className === "surface-quiet");
   return {
     heading,
@@ -424,6 +448,15 @@ function extract(panel, heading, automatic = []) {
     // The field a refused clipboard leaves behind, by value: this is the one
     // place a link may appear, and it is an input's, never a sentence's.
     fallbackLinks: inputEls.map((el) => String(el.value ?? "")),
+    disabledButtons: disabledEls.map(elementText),
+    // The WHOLE document, not just this card: a link the copy path left
+    // behind in the body, or in a field outside the card, must be visible
+    // to the rule that forbids it.
+    documentText: elementText(document.body),
+    documentFields: elements(
+      document.body,
+      (el) => el.tagName === "INPUT" || el.tagName === "TEXTAREA",
+    ).map((el) => String(el.value ?? "")),
     fresh: quietEls.map(elementText).find((text) => text.includes("this one is fresh")) ?? null,
     automatic,
   };
