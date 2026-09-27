@@ -2,26 +2,42 @@ import { isValidElement } from "react";
 
 import type { TranscriptProps } from "./transcriptTypes";
 
+// Keep prop classification exhaustive so new UI inputs cannot be silently ignored.
+const TRANSCRIPT_PROP_COMPARISON = {
+  messages: "messages",
+  empty: "empty",
+  insets: "insets",
+  onMessageLongPress: "identity",
+  onCopy: "identity",
+  onMiniappOpen: "identity",
+  translate: "identity",
+  speakingId: "identity",
+  onSpeak: "identity",
+  width: "identity",
+  height: "identity",
+  mode: "identity",
+  now: "identity",
+} satisfies Record<keyof TranscriptProps, "identity" | "messages" | "empty" | "insets">;
+
 export function transcriptPropsEqual(previous: TranscriptProps, next: TranscriptProps): boolean {
-  const prevMessages = previous.messages;
-  const nextMessages = next.messages;
-  return (
-    prevMessages.length === nextMessages.length &&
-    prevMessages.every((message, index) => message === nextMessages[index]) &&
-    sameEmptyContent(previous.empty, next.empty) &&
-    previous.insets.top === next.insets.top &&
-    previous.insets.bottom === next.insets.bottom &&
-    previous.onCopy === next.onCopy &&
-    previous.onMessageLongPress === next.onMessageLongPress &&
-    previous.onMiniappOpen === next.onMiniappOpen &&
-    previous.onSpeak === next.onSpeak &&
-    previous.speakingId === next.speakingId &&
-    previous.translate === next.translate &&
-    previous.width === next.width &&
-    previous.height === next.height &&
-    previous.mode === next.mode &&
-    previous.now === next.now
-  );
+  return (Object.keys(TRANSCRIPT_PROP_COMPARISON) as Array<keyof TranscriptProps>).every((key) => {
+    switch (TRANSCRIPT_PROP_COMPARISON[key]) {
+      case "identity":
+        return previous[key] === next[key];
+      case "messages":
+        return (
+          previous.messages.length === next.messages.length &&
+          previous.messages.every((message, index) => message === next.messages[index])
+        );
+      case "empty":
+        return sameEmptyContent(previous.empty, next.empty);
+      case "insets":
+        return (
+          previous.insets.top === next.insets.top &&
+          previous.insets.bottom === next.insets.bottom
+        );
+    }
+  });
 }
 
 function sameEmptyContent(previous: TranscriptProps["empty"], next: TranscriptProps["empty"]): boolean {
