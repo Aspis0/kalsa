@@ -245,7 +245,7 @@ One-copy retained 84.2% of the two-copy throughput in these diagnostic runs. The
 
 ### Gates, failures, and raw logs
 
-`run_guarded.sh` force-stopped `com.kalsa.app` before every binary run and recorded pre/post state. All completed commands remained Awake, unplugged, traced `0`, thermal status `<3`, battery temperature `<43 C`; battery stayed above 30%. Peak observed battery temperature was 39.6 C, peak thermal status 1, and final level 59%. Screen remains on. No app preferences were touched.
+`run_guarded.sh` force-stopped `com.kalsa.app` before every binary run and recorded pre/post state. All completed commands remained Awake, unplugged, traced `0`, thermal status `<3`, battery temperature `<43 C`; battery stayed above 30%. Peak observed battery temperature was 39.6 C, peak thermal status 1; the last run ended at 59%, and the final post-session read was 58% / 33.7 C / thermal 0. Screen remains Awake and on. No app preferences were touched.
 
 | Run | Battery pre→post | Temp pre→post | Thermal pre→post | Exit |
 |---|---:|---:|---:|---:|
