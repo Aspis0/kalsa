@@ -1373,3 +1373,21 @@ QDC boards only (`QDC_BOARD=1`): `configure_screen` records `default_input_metho
 restored after): I1 QDC CG → IME_CHECK read-back exact, 2 OK, IME restored, EXIT=0; I2 `DRY_IME_BROKEN=1` → read-back
 '' → `IME_CHECK_FAIL`, driver exit 3, IME restored; I3 local port 5037 → zero IME ops, 2 OK, EXIT=0; I4 SIGKILL at 45 s
 (IME off) → `restore.sh` rc=0, IME restored exactly.
+
+## QRD8750 S2 forced-127 (IME disabled) — QDC 850478, unit sa854547, serial 9aed338b — 4/4 OK
+
+GCGC, `PAIR_START=3`, same serial as the auto-cap failure (850223). Started 18:39:51, ended 20:15:29 (END `exit_0`).
+Battery stub 44.0 (logged only; QDC skin ≥ 46 rule, 99e28443). `IME_DISABLED` (Gboard), `IME_CHECK` read-back exact
+(`aB3 xY9 kalsa QDC t1`, cleared 0). Calibration N0=15, variant 1010, `DECODE_LEN_REF=127`; every arm 127 tokens,
+route applied, tools 0. Cooldown hit its 720 s cap before each arm (skin never reached 37.0). restore.sh rc=0; the
+device afterwards showed `default_input_method` = LatinIME and both IMEs enabled.
+
+| pair | arm | skin before→after | ΔT | prefill ms | decode tok/s |
+|---|---|---|---:|---:|---:|
+| 3 | G | 36.600→38.540 | 1.940 | 3446.8 | 25.88 |
+| 3 | C | 37.831→40.655 | 2.824 | 6674.3 | 24.76 |
+| 4 | G | 38.735→40.572 | 1.837 | 3432.0 | 26.10 |
+| 4 | C | 38.937→41.631 | 2.694 | 6760.3 | 24.67 |
+
+CPU−GPU: **P3 +0.884, P4 +0.857** (S1: P1 +0.349, P2 +0.358). QRD8750 four pairs complete, all CPU hotter.
+Minutes: QRD8750 837 → **741** (96 min). QRD8635 / QRD7675 Unavailable at 20:16.
