@@ -50,8 +50,19 @@ export function renderInline(
   nodes: readonly InlineNode[],
   context: InlineContext,
 ): React.ReactNode[] {
+  const cached = inlineOutput.get(nodes);
+  if (
+    cached &&
+    cached.color === context.color &&
+    cached.idPrefix === context.idPrefix &&
+    cached.sources === context.sources &&
+    cached.styles === context.styles &&
+    cached.t === context.t
+  ) {
+    return cached.output;
+  }
   const { color, idPrefix, sources, styles, t } = context;
-  return nodes.map((node, index) => {
+  const output = nodes.map((node, index) => {
     switch (node.type) {
       case "text":
         return (
@@ -146,4 +157,11 @@ export function renderInline(
         return null;
     }
   });
+  inlineOutput.set(nodes, { ...context, output });
+  return output;
 }
+
+const inlineOutput = new WeakMap<
+  readonly InlineNode[],
+  InlineContext & { output: React.ReactNode[] }
+>();

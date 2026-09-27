@@ -141,8 +141,26 @@ export function toTranscriptMessages(
   messages: readonly Message[],
   opts: MapperOptions,
 ): TranscriptMessage[] {
-  return messages.map((message) => toTranscriptMessage(message, opts));
+  return messages.map((message) => {
+    const tools = message.role === "assistant" ? opts.toolsById?.get(message.id) : undefined;
+    const cached = mappedMessages.get(message);
+    if (
+      cached &&
+      cached.thinkingStatus === opts.thinkingStatus &&
+      cached.tools === tools
+    ) {
+      return cached.transcript;
+    }
+    const transcript = toTranscriptMessage(message, opts);
+    mappedMessages.set(message, { thinkingStatus: opts.thinkingStatus, tools, transcript });
+    return transcript;
+  });
 }
+
+const mappedMessages = new WeakMap<
+  Message,
+  { thinkingStatus: string; tools: readonly { name: string }[] | undefined; transcript: TranscriptMessage }
+>();
 
 /**
  * The tool-name capture: the branch the old consumer never had. The bridge

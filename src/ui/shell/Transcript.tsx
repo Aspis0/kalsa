@@ -9,14 +9,15 @@
  * this file only places the boxes it returns.
  */
 import { ArrowDown } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 
 import { useLocale, type TranslateFn, type TranslationKey } from "../../i18n";
 import { modes } from "../../theme/design";
 import { TranscriptEdgeFade } from "./TranscriptEdgeFade";
 import { createTranscriptStyles } from "./TranscriptParts";
-import { Answer, UserTurn } from "./TranscriptTurns";
+import { TranscriptRow } from "./TranscriptRow";
+import { transcriptPropsEqual } from "./transcriptMemo";
 import {
   PROGRAMMATIC_SCROLL_GRACE_MS,
   duplicateMessageIds,
@@ -81,7 +82,7 @@ function dayLabel(createdAt: number, now: number, t: TranslateFn): string {
   return t("shell.transcript.onDateYear", { month, day, year });
 }
 
-export function Transcript({
+function TranscriptContent({
   messages,
   empty,
   insets,
@@ -268,45 +269,19 @@ export function Transcript({
                 <View style={styles.hairline} />
               </View>
             ) : null}
-            {message.role === "user" ? (
-              <UserTurn
-                colors={colors}
-                edited={message.edited}
-                id={message.id}
-                layout={layout}
-                onCopy={onCopy}
-                onLongPress={
-                  onMessageLongPress ? () => onMessageLongPress(message) : undefined
-                }
-                styles={styles}
-                text={message.text}
-                translate={translateFor(translate, message.id)}
-              />
-            ) : (
-              <Answer
-                caret={message.caret}
-                colors={colors}
-                ctas={message.ctas}
-                id={message.id}
-                labels={cloudLabels}
-                miniapp={message.miniapp}
-                onCopy={onCopy}
-                onLongPress={
-                  onMessageLongPress ? () => onMessageLongPress(message) : undefined
-                }
-                onMiniappOpen={onMiniappOpen}
-                onSpeak={onSpeak ? () => onSpeak(message.id, message.text) : undefined}
-                readingMeasure={layout.readingMeasure}
-                speaking={message.id === speakingId}
-                sources={message.sources}
-                stop={message.stop}
-                styles={styles}
-                text={message.text}
-                thinking={message.thinking}
-                tools={message.tools}
-                translate={translateFor(translate, message.id)}
-              />
-            )}
+            <TranscriptRow
+              colors={colors}
+              labels={cloudLabels}
+              layout={layout}
+              message={message}
+              onCopy={onCopy}
+              onMessageLongPress={onMessageLongPress}
+              onMiniappOpen={onMiniappOpen}
+              onSpeak={onSpeak}
+              speaking={message.id === speakingId}
+              styles={styles}
+              translate={translateFor(translate, message.id)}
+            />
           </View>
         );
       })}
@@ -334,3 +309,9 @@ export function Transcript({
     </View>
   );
 }
+
+export function Transcript(props: TranscriptProps) {
+  return <MemoizedTranscriptContent {...props} />;
+}
+
+const MemoizedTranscriptContent = memo(TranscriptContent, transcriptPropsEqual);

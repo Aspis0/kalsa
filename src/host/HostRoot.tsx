@@ -36,7 +36,7 @@ import { composerView } from "./composerView";
 import { shareConversationById } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
 import { HostLayout } from "./HostLayout";
-import { withMiniappOverlay, type HostOverlay } from "./hostOverlay";
+import { useMiniappOpen, type HostOverlay } from "./hostOverlay";
 
 export function HostRoot() {
   const { t, locale } = useLocale();
@@ -118,8 +118,8 @@ export function HostRoot() {
     setActiveOverlay,
   });
   touchedRef.current = actions.handleConversationTouched;
-
   const clearDraft = useCallback(() => setDraft(""), []);
+  const onMiniappOpen = useMiniappOpen(setActiveOverlay);
 
   // Share-in (D1 row 41): listener, pending flush, nonce merge — one hook,
   // ports only, now including the attach row a shared PDF lands in.
@@ -222,7 +222,7 @@ export function HostRoot() {
       arms={arms}
       attachments={attachments}
       actions={messageActions}
-      onMiniappOpen={(miniapp) => setActiveOverlay((previous) => withMiniappOverlay(previous, miniapp))}
+      onMiniappOpen={onMiniappOpen}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
       conv={conv}

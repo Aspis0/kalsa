@@ -14,6 +14,7 @@
  * file adds what hangs under a message itself: the translation block and,
  * under a user capsule, the edit badge.
  */
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
@@ -48,7 +49,7 @@ function useLongPressProps(onLongPress: (() => void) | undefined, label: string)
 /** The only boxed turn: tinted, right-aligned, no border, no tail, one radius.
  *  The capsule itself is the pressable — the controller made the bubble the
  *  long-press target rather than a wrapper around it. */
-export function UserTurn({
+function UserTurnView({
   colors,
   edited,
   id,
@@ -112,11 +113,13 @@ export function UserTurn({
   );
 }
 
+export const UserTurn = memo(UserTurnView);
+
 /** The answer is bare: serif ink on the page, full measure, no container, no
  *  tail. The cloud sits above it while that answer is still thinking, the tool
  *  rows sit between the two (what the answer stands on, §2.4), the copy chip
  *  follows the text, and the source chips close the entry below (§2.5). */
-export function Answer({
+function AnswerView({
   caret,
   colors,
   ctas,
@@ -283,3 +286,5 @@ export function Answer({
     </View>
   );
 }
+
+export const Answer = memo(AnswerView);

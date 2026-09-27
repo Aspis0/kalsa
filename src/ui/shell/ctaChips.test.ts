@@ -10,7 +10,7 @@ import { toTranscriptMessage } from "../../host/messageMapper";
 
 const read = (file: string): string => readFileSync(join(__dirname, file), "utf8");
 const TURNS = read("TranscriptTurns.tsx");
-const TRANSCRIPT = read("Transcript.tsx");
+const ROW = read("TranscriptRow.tsx");
 const TYPES = read("transcriptTypes.ts");
 
 /** Comments removed, so the prose saying "not a button" cannot pass the check. */
@@ -44,7 +44,7 @@ describe("the CTA renderer under the answer", () => {
   });
 
   it("the band hands the mapper's field to the answer, and the type carries it", () => {
-    expect(TRANSCRIPT).toContain("ctas={message.ctas}");
+    expect(ROW).toContain("ctas={message.ctas}");
     expect(TYPES).toContain("ctas?: readonly TranscriptCta[]");
   });
 

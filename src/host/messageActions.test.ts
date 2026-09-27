@@ -90,7 +90,7 @@ describe("the hold: 350 ms, and the gesture cannot fight the scroll view", () =>
     // The bound marker: the next component AFTER the hook. The chip row moved
     // to `TranscriptChips.tsx` (the seam that kept this file under its
     // ratchet), so the old `function CopyChip` bound no longer exists here.
-    const end = TURNS_CODE.indexOf("export function UserTurn", start);
+    const end = TURNS_CODE.indexOf("function UserTurnView", start);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
     const props = TURNS_CODE.slice(start, end);

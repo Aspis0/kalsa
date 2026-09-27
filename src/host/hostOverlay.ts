@@ -11,6 +11,7 @@
  * `messageMapper.ts`), so the kind is honest again; the reason stays here so
  * the next reader sees the deletion was reasoned, not lost.
  */
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { normalizeMiniapp } from "../domain/askAssistant";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 
@@ -42,4 +43,11 @@ export function withMiniappOverlay(previous: HostOverlay, raw: unknown): HostOve
   const miniapp = normalizeMiniapp(raw);
   if (!miniapp) return previous;
   return { kind: "miniapp", miniapp };
+}
+
+export function useMiniappOpen(setOverlay: Dispatch<SetStateAction<HostOverlay>>) {
+  return useCallback(
+    (miniapp: unknown) => setOverlay((previous) => withMiniappOverlay(previous, miniapp)),
+    [setOverlay],
+  );
 }

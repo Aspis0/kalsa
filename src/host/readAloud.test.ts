@@ -122,8 +122,9 @@ describe("the chip: speaks, stops, and is a real named box", () => {
     expect(SURFACE).toContain("onSpeak={actions.onSpeak}");
     expect(SURFACE).toContain("speakingId={actions.speakingId}");
     // Absent, not inert: the band draws no chip without the handler.
-    const band = readFileSync(join(__dirname, "..", "ui", "shell", "Transcript.tsx"), "utf8");
-    expect(stripComments(band)).toContain("onSpeak ? () => onSpeak(message.id, message.text) : undefined");
+    const band = readFileSync(join(__dirname, "..", "ui", "shell", "TranscriptRow.tsx"), "utf8");
+    expect(stripComments(band)).toContain("onSpeak={onSpeak ? onSpeakMessage : undefined}");
+    expect(stripComments(band)).toContain("() => onSpeak?.(message.id, message.text)");
   });
 });
 
