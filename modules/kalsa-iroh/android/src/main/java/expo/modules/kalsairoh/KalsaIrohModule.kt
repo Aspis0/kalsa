@@ -29,10 +29,7 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class KalsaIrohModule : Module() {
   companion object {
-    init {
-      // The JNI context hook and UniFFI's JNA binding use the same packaged .so.
-      System.loadLibrary("kalsa_iroh_mobile")
-    }
+    private var nativeLibraryLoaded = false
   }
 
   // Two pools, split by whether the call parks. Reads (and writes, which
@@ -160,6 +157,12 @@ class KalsaIrohModule : Module() {
     if (destroyed) throw IllegalStateException("the module is destroyed")
     val applicationContext = appContext.reactContext?.applicationContext
       ?: throw IllegalStateException("the Android context is not ready")
+    synchronized(KalsaIrohModule::class.java) {
+      if (!nativeLibraryLoaded) {
+        System.loadLibrary("kalsa_iroh_mobile")
+        nativeLibraryLoaded = true
+      }
+    }
     if (!nativeInstallAndroidContext(applicationContext)) throw AndroidContextInitializationException()
     val started = MobileBridge(File(applicationContext.filesDir, "iroh-node.key").path)
     val previous = synchronized(bridges) {

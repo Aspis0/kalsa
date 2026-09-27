@@ -39,6 +39,10 @@ fn install_android_context<'local>(
     unowned_env: &mut EnvUnowned<'local>,
     application_context: JObject<'local>,
 ) -> bool {
+    if android_context_is_initialized() {
+        return true;
+    }
+
     let outcome = unowned_env.with_env(|env| -> jni::errors::Result<bool> {
         let java_vm = match env.get_java_vm() {
             Ok(java_vm) => java_vm,
@@ -73,9 +77,13 @@ fn install_android_context<'local>(
                 clear_pending_exception(env);
                 Ok(())
             });
-            false
+            android_context_is_initialized()
         }
     }
+}
+
+fn android_context_is_initialized() -> bool {
+    catch_unwind(AssertUnwindSafe(ndk_context::android_context)).is_ok()
 }
 
 fn clear_pending_exception(env: &jni::Env<'_>) {
