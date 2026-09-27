@@ -13,10 +13,21 @@ set -euo pipefail
 export LC_ALL=C
 
 CELL="$(cd "$(dirname "$0")" && pwd)"
-usage() { echo "usage: d_run.sh <job_id>" >&2; }
-[ "$#" -eq 1 ] || { usage; exit 2; }
+usage() { echo "usage: d_run.sh <job_id> [deadline_minutes 20..110]" >&2; }
+[ "$#" -ge 1 ] && [ "$#" -le 2 ] || { usage; exit 2; }
 JOB="$1"
 case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2 ;; esac
+DEADLINE_MINUTES="${2:-60}"
+if [ -z "${DEADLINE_S:-}" ]; then
+  case "$DEADLINE_MINUTES" in ''|*[!0-9]*) echo "deadline_minutes must be an integer 20..110" >&2; exit 2 ;; esac
+  if [ "$DEADLINE_MINUTES" -lt 20 ] || [ "$DEADLINE_MINUTES" -gt 110 ]; then
+    echo "deadline_minutes must be 20..110" >&2; exit 2
+  fi
+fi
+# DEADLINE_S (seconds) overrides the minutes form — dry-run hook only.
+DEADLINE_S="${DEADLINE_S:-$((DEADLINE_MINUTES * 60))}"
+case "$DEADLINE_S" in ''|*[!0-9]*) echo "invalid DEADLINE_S" >&2; exit 2 ;; esac
+DEADLINE_EPOCH=$(( $(date +%s) + DEADLINE_S ))   # audit2 NEW-8: session deadline
 
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 ADB_PORT="${ADB_PORT:-5037}"
@@ -46,7 +57,7 @@ RAW="$CELL/raw/$JOB"
 mkdir -p "$RAW"
 RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"
 DRIVER_LOG="$RAW/driver.log"; ADB_LOG="$RAW/adb-exit.log"
-rm -f "$RAW/stop_request" "$END_MARKER" "$RAW/KILL_VERIFY_FAIL"
+rm -f "$RAW/stop_request" "$END_MARKER" "$RAW/KILL_VERIFY_FAIL" "$RAW/PGREP_SELFTEST_FAIL"
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'job=%s port=%s match_max=%s cool_target=%s\nstart_utc=%s\n' \
   "$JOB" "$ADB_PORT" "$MATCH_MAX" "$COOL_TARGET_C" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RAW/session.env"
@@ -79,18 +90,62 @@ SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""
 ARM_POLL_PID=0; CURRENT_CHILD_PID=0; END_WRITTEN=0; CLEANED=0; SIGNAL_NAME=""
 KILL_NEEDED=0   # 1 => abnormal end: kill the binary and VERIFY it is gone
 DRIVER_PID=$$   # the poll subshell exits when this parent is gone (SIGKILL)
+FINALIZED=0     # results.tsv `final` column written? (audit2 NEW-3)
 COOLDOWN_SECONDS=0; WARM_START=0
 
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
+
+deadline_check() {  # audit2 NEW-8: up to 30 device runs, bound the session
+  if [ "$(date +%s)" -ge "$DEADLINE_EPOCH" ]; then
+    log "DEADLINE_MET budget_s=$DEADLINE_S"
+    write_end deadline
+    exit 124
+  fi
+}
+
+# pgrep self-test (audit2 NEW-5 + owner mandate): BEFORE touching anything,
+# prove `pgrep -f` FINDS a process we started and can clean it up; abort the
+# session if it fails. If stop_lib.sh grows its own self-test (the parallel
+# agent), adopt it by name — ours is only defined when the library has none.
+if declare -F stop_lib_pgrep_selftest >/dev/null 2>&1; then
+  pgrep_selftest() { stop_lib_pgrep_selftest; }
+elif declare -F pgrep_selftest >/dev/null 2>&1; then
+  :  # the sourced implementation wins
+else
+  pgrep_selftest() {
+    local out=""
+    # The probe cmdline is assembled at runtime: nothing in THIS command line
+    # contains the literal the pgrep pattern searches for, so the wrapper
+    # sh -c can never self-match (the bracket trick is not enough here — the
+    # literal also appears in the spawn line itself).
+    out=$(adbT 30 -s "$SER" shell 'q="sleep 12"; q="$q""345"; "$q" & sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFTEST=FOUND; else echo PGREP_SELFTEST=MISS; fi; pkill -f "$q" >/dev/null 2>&1 || true; sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFCLEAN=STILL; else echo PGREP_SELFCLEAN=GONE; fi' 2>/dev/null | tr -d '\r') || out=""
+    case "$out" in
+      *PGREP_SELFTEST=FOUND*PGREP_SELFCLEAN=GONE*) log "PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)"; return 0 ;;
+      *)
+        log "PGREP_SELFTEST_FAIL out=[$(printf '%s' "$out" | tr '\n' '|')]"
+        printf 'PGREP_SELFTEST_FAIL out=%s\n' "$(printf '%s' "$out" | tr '\n' '|')" >> "$RAW/PGREP_SELFTEST_FAIL"
+        return 1 ;;
+    esac
+  }
+fi
 
 # kill_spec_verified <reason> — the ONLY kill path for this cell's binary, and
 # it verifies: pkill, then pgrep until gone (3 tries, 1 s apart). A surviving
 # process is written to $RAW/KILL_VERIFY_FAIL (loud) — never a silent kill.
 kill_spec_verified() {
-  local reason=$1 out="" verdict="" i=0
+  local reason=$1 out="" verdict="" probe="" i=0
   [ -n "$SER" ] || return 0
   out=$(adbT 15 -s "$SER" shell "pkill -f 'llama-speculative-simpl[e]'" 2>&1) || true
   printf 'reason=%s pkill_out=%s\n' "$reason" "$out" >> "$RAW/kill.log"
+  # audit2 NEW-5: health-probe pgrep first — a pgrep whose -f silently fails
+  # (busybox-style rc 1 on usage error) would make GONE a lie, so GONE is
+  # only accepted when a nonexistent-probe returns exactly PROBE=1.
+  probe=$(adbT 15 -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz >/dev/null 2>&1; echo PROBE=\$?" 2>/dev/null | tr -d '\r' | tail -1) || probe=""
+  if [ "$probe" != "PROBE=1" ]; then
+    log "KILL_VERIFY reason=$reason result=pgrep_broken probe=${probe:-empty}"
+    printf 'KILL_VERIFY_FAIL reason=%s result=pgrep_broken probe=%s\n' "$reason" "${probe:-empty}" >> "$RAW/KILL_VERIFY_FAIL"
+    return 1
+  fi
   while [ "$i" -lt 3 ]; do
     # one word back: GONE (rc 1 from pgrep), ALIVE (pids match), or
     # PGREP_BROKEN (tool missing/broken — NEVER treated as gone, that would
@@ -130,8 +185,12 @@ arm_poll_loop() {
   trap 'if [ -n "${CURRENT_CHILD_PID:-}" ] && [ "$CURRENT_CHILD_PID" -ne 0 ]; then kill "$CURRENT_CHILD_PID" 2>/dev/null || true; fi; exit 0' TERM INT HUP
   while :; do
     sleep "$POLL_S"
-    # parent liveness: a SIGKILLed driver must not leave this poll running
-    kill -0 "$DRIVER_PID" 2>/dev/null || exit 0
+    # parent liveness (audit2 NEW-2): a SIGKILLed driver must not leave the
+    # binary running unsupervised — this poll kills+verifies before exiting.
+    if ! kill -0 "$DRIVER_PID" 2>/dev/null; then
+      kill_spec_verified "parent_gone" || true
+      exit 0
+    fi
     live_readings || true
     hard_stops && continue
     kill_spec_verified "poll_stop" || true
@@ -156,6 +215,9 @@ cleanup() {
   if [ -f "$CELL/.restore-state" ]; then
     bash "$CELL/restore.sh" >> "$RAW/restore.log" 2>&1 || log "RESTORE_FAIL (see restore.log)"
   fi
+  # audit2 NEW-3: any exit that owns a results file leaves it at 18 columns
+  # (rows were born with `final=pending`; only SIGKILL can keep `pending`).
+  if [ "$FINALIZED" -eq 0 ]; then finalize_results void "" || true; fi
   if [ -n "$SIGNAL_NAME" ]; then write_end "signal_$SIGNAL_NAME"; else write_end "exit_$rc"; fi
 }
 on_signal() {
@@ -176,7 +238,11 @@ trap cleanup EXIT
 finish_stop() {
   local reason=unknown
   if [ -f "$RAW/stop_request" ]; then reason=$(tr -d '\r\n' < "$RAW/stop_request"); fi
-  kill_spec_verified "stop_$reason" || true   # stop_lib only pkills llama-completion
+  # NOTE (audit2 NEW-6): the sourced stop_lib also logs `KILL_VERIFIED ctx=…`
+  # when IT pkills `llama-completion` — a binary this cell never runs. Our
+  # verdict for OUR binary is always the `KILL_VERIFY reason=…` line below;
+  # rename/pattern change requested from the library's owner (REPORT.md).
+  kill_spec_verified "stop_$reason" || true
   log "SESSION_STOP reason=$reason"
   write_end "stop_$reason"
   exit 0
@@ -207,6 +273,7 @@ ensure_file() {
 cooldown_wait() {
   local label=$1 elapsed=0
   COOLDOWN_SECONDS=0; WARM_START=0
+  deadline_check
   while :; do
     live_readings || true
     hard_stops || finish_stop
@@ -224,7 +291,9 @@ cooldown_wait() {
   done
 }
 
-# finalize_results <matched|void> [tags]: append the `final` column.
+# finalize_results <matched|void> [tags]: SET the 18th column (`final`) in
+# place — never append (audit2 NEW-3: header and rows are born at 18 columns,
+# so early exits keep a stable schema; only a SIGKILL can leave `pending`).
 #   proof rows (attempt 0)                   -> proof
 #   OK + tag in the matched list             -> matched (the measurement rows)
 #   OK + not the final tag                   -> superseded (early attempts)
@@ -232,26 +301,30 @@ cooldown_wait() {
 #                                               OK row -> void_match
 finalize_results() {
   local mode=$1 tags="${2:-}" tmp="$RESULTS.tmp"
+  FINALIZED=1
+  [ -f "$RESULTS" ] || return 0
   awk -F'\t' -v OFS='\t' -v mode="$mode" -v tags="$tags" '
-    NR == 1 { print $0, "final"; next }
+    NR == 1 { if (NF < 18) $(NF + 1) = "final"; else $18 = "final"; print; next }
     {
       f = "void"
       if ($14 != "OK") f = "void"
       else if ($3 == 0) f = "proof"
-      else if ($14 == "OK") {
-        if (mode == "matched" && index(" " tags " ", " " $1 " ") > 0) f = "matched"
-        else if (mode == "matched") f = "superseded"
-        else f = "void_match"
-      }
-      print $0, f
+      else if (mode == "matched" && index(" " tags " ", " " $1 " ") > 0) f = "matched"
+      else if (mode == "matched") f = "superseded"
+      else f = "void_match"
+      if (NF < 18) $(NF + 1) = f; else $18 = f
+      print
     }' "$RESULTS" > "$tmp" && mv "$tmp" "$RESULTS"
 }
 
-write_row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"; }
+# 18 columns from creation: `final` is born as `pending` at row time and
+# REWRITTEN in place by finalize_results (audit2 NEW-3).
+write_row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" pending >> "$RESULTS"; }
 
 run_proof() {   # <arm> <index>: short -lv 5 run -> backend proof (never timed)
   local arm=$1 i=$2 tag="$1-p"
   local b_skin a_skin=""
+  deadline_check
   cooldown_wait "$tag"
   b_skin=$LIVE_SKIN
   start_arm_poll
@@ -281,6 +354,7 @@ run_proof() {   # <arm> <index>: short -lv 5 run -> backend proof (never timed)
 run_measure() { # <arm> <tag> <limit> <attempt_no> <index>: the timed turn
   local arm=$1 tag=$2 limit=$3 attempt_no=$4 i=$5
   local b_skin a_skin="" parsed=""
+  deadline_check
   cooldown_wait "$tag"
   b_skin=$LIVE_SKIN
   start_arm_poll
@@ -334,6 +408,9 @@ if [ -z "$SER" ]; then
 fi
 [ -n "$SER" ] || { log "NO_DEVICE port=$ADB_PORT"; exit 2; }
 adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "ADB_FAIL at wait-for-device"; exit 2; }
+# audit2 NEW-5 + owner mandate: pgrep must PROVE itself (find + clean a
+# process we started) before this session touches anything — abort on failure.
+if ! pgrep_selftest; then log "PGREP_SELFTEST_ABORT"; exit 4; fi
 # Audit B-2: a stale .restore-state means a previous run died before restore —
 # repair it FIRST (restore.sh removes it on success); never overwrite it.
 if [ -f "$CELL/.restore-state" ]; then
@@ -373,14 +450,19 @@ ensure_file "$PROMPT_FILE" "$D/prompt.txt" "$PROMPT_SHA" || exit 6
 stop_arm_poll
 if [ -f "$RAW/stop_request" ]; then finish_stop; fi
 safety_gate after_push || finish_stop
-adbT 120 -s "$SER" shell "cd $D && tar -xzf kit.tgz" >> "$RAW/setup.log" 2>&1 || { log "KIT_UNPACK_FAIL"; exit 5; }
-adbT 60 -s "$SER" shell "cd $D && sha256sum -c SHA256SUMS" >> "$RAW/setup.log" 2>&1 || { log "KIT_SUMS_FAIL"; exit 5; }
+# audit2 NEW-4: unpack + sums also run under the poll (up to ~2 min of writes)
+start_arm_poll
+adbT 120 -s "$SER" shell "cd $D && tar -xzf kit.tgz" >> "$RAW/setup.log" 2>&1 || { stop_arm_poll; log "KIT_UNPACK_FAIL"; exit 5; }
+adbT 60 -s "$SER" shell "cd $D && sha256sum -c SHA256SUMS" >> "$RAW/setup.log" 2>&1 || { stop_arm_poll; log "KIT_SUMS_FAIL"; exit 5; }
+stop_arm_poll
+if [ -f "$RAW/stop_request" ]; then finish_stop; fi
 log "KIT_AND_MODELS_VERIFIED"
 safety_gate setup || finish_stop
 log "SETUP_DONE skin=$LIVE_SKIN thermal=$LIVE_THERMAL_STATUS batt_temp=$LIVE_BATT_TEMP_TENTHS level=$LIVE_BATT_LEVEL plugged=$LIVE_PLUGGED untrusted=$BATTERY_UNTRUSTED"
 
-# 17 columns; the `final` column is appended by finalize_results at the end.
-printf 'tag\tarm\tattempt\tlimit\tn_predict\tover\tn_drafted\taccept\ttps\tcooldown_s\twarm_start\tskin_before\tskin_after\tstatus\tvoid\tproof\twall_s\n' > "$RESULTS"
+# 18 columns from creation: `final` starts as `pending`, finalize_results
+# rewrites it in place (audit2 NEW-3 — stable schema on every exit path).
+printf 'tag\tarm\tattempt\tlimit\tn_predict\tover\tn_drafted\taccept\ttps\tcooldown_s\twarm_start\tskin_before\tskin_after\tstatus\tvoid\tproof\twall_s\tfinal\n' > "$RESULTS"
 
 # ---- passes: proofs (5) -> probes (5) -> matched-N adjustments ----
 ARMS=(A B4 B8 C4 C8)
@@ -406,6 +488,7 @@ done
 match_state
 k=0
 while [ "$ALL_EQ" -eq 0 ] && [ "$k" -lt "$MATCH_MAX" ]; do
+  deadline_check
   k=$((k + 1))
   j=0
   for arm in "${ARMS[@]}"; do

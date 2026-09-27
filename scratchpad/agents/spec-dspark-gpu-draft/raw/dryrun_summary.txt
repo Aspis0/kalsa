@@ -22,6 +22,8 @@ PASS  happy B4 cpu-proof-order
 PASS  happy skin_before
 PASS  happy cooldown
 PASS  happy warm_start
+PASS  happy proof limit
+PASS  happy cols18
 PASS  happy proof-prefixed-placement
 PASS  happy measured-no-placement
 PASS  happy measured-prefix
@@ -61,6 +63,7 @@ PASS  thermal rows
 PASS  thermal void
 PASS  thermal killed-spec
 PASS  thermal kill-verified
+PASS  thermal cols18
 PASS  thermal restore-ran
 PASS  thermal timeout-restored
 PASS  thermal stayon-restored
@@ -113,6 +116,7 @@ PASS  timeout rows
 PASS  timeout void
 PASS  timeout kill-verified
 PASS  timeout killed-spec
+PASS  timeout cols18
 PASS  timeout restore-ran
 PASS  timeout timeout-restored
 PASS  timeout stayon-restored
@@ -140,6 +144,9 @@ PASS  sigkill state-left
 PASS  sigkill mutated-timeout
 PASS  sigkill mutated-stayon
 PASS  sigkill poll-died
+PASS  sigkill poll-kill-verify
+PASS  sigkill poll-pkill
+PASS  sigkill cols18
 PASS  sigkill restore rc
 PASS  sigkill timeout-restored
 PASS  sigkill stayon-restored
@@ -155,11 +162,42 @@ PASS  killfail rc
 PASS  killfail END
 PASS  killfail alive-recorded
 PASS  killfail marker
-== B-1: broken/missing pgrep -> KILL_VERIFY=pgrep_broken, never a silent gone ==
-PASS  pgrepbroken rc
-PASS  pgrepbroken END
-PASS  pgrepbroken recorded
-PASS  pgrepbroken marker
+== NEW-5: pgrep self-test fails at setup -> abort BEFORE any mutation ==
+PASS  selftestfail rc
+PASS  selftestfail END
+PASS  selftestfail marker
+PASS  selftestfail abort-log
+PASS  selftestfail untouched-timeout
+PASS  selftestfail no-state
+PASS  selftestfail rows
+== NEW-5: pgrep breaks AFTER the self-test -> kill verdict fails closed ==
+PASS  pgrepbreaklater rc
+PASS  pgrepbreaklater END
+PASS  pgrepbreaklater selftest-ok
+PASS  pgrepbreaklater recorded
+PASS  pgrepbreaklater marker
+== NEW-1: FAILED restore keeps .restore-state; the next run repairs it ==
+PASS  restorefail rc
+PASS  restorefail END
+PASS  restorefail state-kept
+PASS  restorefail keep-logged
+PASS  restorefail device-still-mutated
+PASS  restorefail2 rc
+PASS  restorefail2 END
+PASS  restorefail2 repaired-stale
+PASS  restorefail2 state-consumed
+PASS  restorefail2 timeout-final
+PASS  restorefail2 stayon-final
+== NEW-8: session deadline aborts with kill + restore + END=deadline ==
+PASS  deadline rc
+PASS  deadline END
+PASS  deadline kill-verified
+PASS  deadline rows
+PASS  deadline cols18
+PASS  deadline restore-ran
+PASS  deadline timeout-restored
+PASS  deadline stayon-restored
+PASS  deadline state-consumed
 
-SUMMARY pass=147 fail=0
+SUMMARY pass=182 fail=0
 EXIT=0

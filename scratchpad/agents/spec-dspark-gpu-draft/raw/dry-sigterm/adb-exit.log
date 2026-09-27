@@ -1,5 +1,6 @@
 rc=0 devices
 rc=0 -s fakes23 wait-for-device
+rc=0 -s fakes23 shell q=\"sleep\ 12\"\;\ q=\"\$q\"\"345\"\;\ \"\$q\"\ \&\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFTEST=FOUND\;\ else\ echo\ PGREP_SELFTEST=MISS\;\ fi\;\ pkill\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\ \|\|\ true\;\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFCLEAN=STILL\;\ else\ echo\ PGREP_SELFCLEAN=GONE\;\ fi
 rc=0 -s fakes23 shell getprop ro.soc.model
 rc=0 -s fakes23 shell settings get system screen_off_timeout
 rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
@@ -35,4 +36,5 @@ rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi

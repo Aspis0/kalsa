@@ -52,7 +52,14 @@ if [ "$STATE_PRESENT" -eq 1 ]; then
     ''|*[!0-9]*) echo "RESTORE_BAD_TIMEOUT value=$SCREEN_OFF_TIMEOUT" >&2; rc=1 ;;
     *) "$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || rc=1 ;;
   esac
-  rm -f "$CELL/.restore-state"
+  # audit2 NEW-1: consume the state ONLY when the restore actually succeeded —
+  # a failed restore stays retryable and the pre-run values must survive
+  # (otherwise the next run silently overwrites with the mutated values).
+  if [ "$rc" -eq 0 ]; then
+    rm -f "$CELL/.restore-state"
+  else
+    printf 'restore_failed_keep_state rc=%s (state kept for retry)\n' "$rc" >> "$RESTORE_LOG"
+  fi
 fi
 {
   printf 'restore %s serial=%s state=%s stayon_restored=%s screen_off_timeout=%s pkill=spec-simple rc=%s\n' \

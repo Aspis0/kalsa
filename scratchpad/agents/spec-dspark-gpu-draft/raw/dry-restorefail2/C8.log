@@ -1,0 +1,10 @@
+0.00.000.163 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.164 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.165 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 3536 MiB free
+0.00.900.001 I decoded  136 tokens in    8.000 seconds, speed:   17.000 t/s
+0.00.000.166 I n_draft   = 8
+0.00.000.167 I n_predict = 136
+0.00.000.168 I n_drafted = 408
+0.00.000.169 I n_accept  = 0
+0.00.000.170 I accept    = 39.000%
+EXIT=0

@@ -29,6 +29,9 @@
 #   DRY_NEVER_MATCH_ARM=<arm>   that arm always reports DRY_NEVER_MATCH_N
 #   DRY_NEVER_MATCH_N=N         (default 132) -> non-converging match
 #   DRY_KILL_FAIL=1             pkill does NOT kill: KILL_VERIFY must fail
+#   DRY_PGREP_BROKEN=1          pgrep self-test fails -> setup aborts (exit 4)
+#   DRY_PGREP_BREAK_AT=N        pgrep works for call #1 (self-test) then breaks
+#   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
 set -euo pipefail
 STATE="${FAKE_ADB_STATE:-/tmp/dspark-spec-fake}"
 DEV="$STATE/dev"
@@ -53,6 +56,18 @@ count_up() { local f="$STATE/$1"
   cat "$f"
 }
 pick() { if [ -n "${2:-}" ] && [ "$4" -ge "${1:-1}" ]; then printf '%s' "$2"; else printf '%s' "$3"; fi; }
+
+# pgrep_is_broken: shared counter over every pgrep-ish call (self-test,
+# health probe, verdict). DRY_PGREP_BROKEN=1 breaks them all (the self-test
+# must then abort the session); DRY_PGREP_BREAK_AT=N breaks call #N onwards
+# (self-test passes, a later verdict fails closed).
+pgrep_is_broken() {
+  local n
+  n=$(count_up pgrep_calls)
+  if [ "${DRY_PGREP_BROKEN:-0}" = 1 ]; then return 0; fi
+  if [ -n "${DRY_PGREP_BREAK_AT:-}" ] && [ "$n" -ge "$DRY_PGREP_BREAK_AT" ]; then return 0; fi
+  return 1
+}
 
 dump_battery() {
   local n temp lvl plug miss
@@ -169,9 +184,23 @@ run_arm() {
 handle_shell() {
   local cmd="$*"
   case "$cmd" in
-    # pgrep must precede any pkill branch (it never contains "pkill").
+    # pgrep self-test (d_run setup): FOUND + GONE, unless the fixture breaks
+    # pgrep from this very call onwards (counter shared with the verdict path).
+    *PGREP_SELFTEST*)
+      if pgrep_is_broken; then
+        echo PGREP_SELFTEST=MISS
+        echo PGREP_SELFCLEAN=STILL
+      else
+        echo PGREP_SELFTEST=FOUND
+        echo PGREP_SELFCLEAN=GONE
+      fi
+      exit 0 ;;
+    # audit2 NEW-5 health probe: only PROBE=1 licenses a GONE verdict.
+    *zzz_no_such_proc_zzz*)
+      if pgrep_is_broken; then echo PROBE_BROKEN; else echo PROBE=1; fi
+      exit 0 ;;
     *pgrep*)
-      if [ "${DRY_PGREP_BROKEN:-0}" = 1 ]; then echo PGREP_BROKEN; exit 0; fi
+      if pgrep_is_broken; then echo PGREP_BROKEN; exit 0; fi
       if [ -f "$STATE/proc_running" ]; then echo ALIVE; else echo GONE; fi
       exit 0 ;;
     *pkill*)
@@ -210,7 +239,15 @@ handle_shell() {
     *"getprop ro.soc.model"*) echo SM8550; exit 0 ;;
     *"settings get system screen_off_timeout"*) cat "$STATE/screen_timeout" 2>/dev/null || echo null; exit 0 ;;
     *"settings get global stay_on_while_plugged_in"*) cat "$STATE/stayon" 2>/dev/null || echo null; exit 0 ;;
-    *"settings put system screen_off_timeout"*) printf '%s\n' "${cmd##* }" > "$STATE/screen_timeout"; exit 0 ;;
+    *"settings put system screen_off_timeout"*)
+      v="${cmd##* }"
+      # DRY_RESTORE_PUT_FAIL=1 fails the RESTORE write only (never the setup
+      # mutation): audit2 NEW-1 fixture — a failed restore must keep the state.
+      if [ "${DRY_RESTORE_PUT_FAIL:-0}" = 1 ] && [ "$v" != "1800000" ]; then
+        echo "Error: settings put failed" >&2
+        exit 1
+      fi
+      printf '%s\n' "$v" > "$STATE/screen_timeout"; exit 0 ;;
     *"settings put global stay_on_while_plugged_in"*) printf '%s\n' "${cmd##* }" > "$STATE/stayon"; exit 0 ;;
     *"settings delete system screen_off_timeout"*) rm -f "$STATE/screen_timeout"; exit 0 ;;
     *"settings delete global stay_on_while_plugged_in"*) rm -f "$STATE/stayon"; exit 0 ;;

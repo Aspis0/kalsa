@@ -1,11 +1,12 @@
-[21:25:20] SESSION job=dry-sighup board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[21:25:20] GATE label=before_setup
-[21:25:21] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[21:25:21] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[21:25:22] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[21:25:22] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[21:25:22] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[21:25:22] GATE label=after_push
-[21:25:23] KIT_AND_MODELS_VERIFIED
-[21:25:23] GATE label=setup
-[21:25:23] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[22:09:13] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[22:09:14] SESSION job=dry-sighup board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[22:09:14] GATE label=before_setup
+[22:09:15] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:09:15] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[22:09:15] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[22:09:15] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[22:09:15] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[22:09:16] GATE label=after_push
+[22:09:17] KIT_AND_MODELS_VERIFIED
+[22:09:17] GATE label=setup
+[22:09:17] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0

@@ -13,6 +13,10 @@
 #   B-9  SIGHUP trapped like INT/TERM
 #   B-10 orphaned poll dies with a SIGKILLed parent; B-11 prefixed fake logs;
 #        B-12 model-order assert; ARM_TPS sanity (tps numeric in happy rows)
+# AUDIT2 (dd6bdb56 round 2): NEW-0 `-t 5` everywhere on device (proof limit 8
+# per NEW-7), NEW-1 failed restore keeps .restore-state, NEW-2 the poll
+# kills+verifies on parent death, NEW-3 stable 18-column schema, NEW-4 poll
+# over unpack, NEW-5 pgrep self-test + health probe, NEW-8 deadline.
 # Mac only; no device, no phone, no adb binary.
 set -euo pipefail
 CELL="$(cd "$(dirname "$0")" && pwd)"
@@ -89,6 +93,7 @@ rows_att_gt() { [ -f "$RAW/results.tsv" ] || { echo 0; return 0; }; awk -F'\t' -
 end_reason() { sed -n 's/^END reason=//p' "$RAW/END.txt" 2>/dev/null | tail -1; }
 colr() { awk -F'\t' -v t="$1" -v c="$2" '$1 == t { print $c }' "$RAW/results.tsv" 2>/dev/null; }
 fcount() { awk -F'\t' -v f="$1" 'NR > 1 && $18 == f { c++ } END { print c + 0 }' "$RAW/results.tsv" 2>/dev/null; }
+cols18_bad() { [ -f "$RAW/results.tsv" ] || { echo 0; return 0; }; awk -F'\t' 'NF != 18 { c++ } END { print c + 0 }' "$RAW/results.tsv"; }
 driver_log() { cat "$RAW/driver.log" 2>/dev/null; }
 dlog_has() { grep -q "$1" "$RAW/driver.log" 2>/dev/null; }
 assert_restore() {
@@ -126,6 +131,8 @@ has "happy B4 cpu-proof-order" "pre_place=24" "$(colr B4-p 16)"   # B-12: target
 eq "happy skin_before" 33.5 "$(colr A-p 12)"
 eq "happy cooldown" 0 "$(colr A-p 10)"
 eq "happy warm_start" 0 "$(colr A-p 11)"
+eq "happy proof limit" 8 "$(colr A-p 4)"                    # NEW-7: PROOF_N=8
+eq "happy cols18" 0 "$(cols18_bad)"                          # NEW-3 schema
 if grep -q ' D load_tensors: layer' "$RAW/A-p.log" 2>/dev/null; then pass "happy proof-prefixed-placement"; else fail "happy proof-prefixed-placement" "no ' D load_tensors' in A-p.log"; fi
 if [ "$(grep -c 'assigned to device' "$RAW/B8.log" 2>/dev/null || true)" = 0 ]; then pass "happy measured-no-placement"; else fail "happy measured-no-placement" "$(grep -m2 'assigned to device' "$RAW/B8.log")"; fi
 has "happy measured-prefix" " I n_predict = 136" "$(cat "$RAW/B8.log" 2>/dev/null || echo none)"
@@ -169,6 +176,7 @@ eq "thermal rows" 6 "$(rows)"             # 5 proofs + the stopped probe A
 eq "thermal void" stop_thermal_status "$(colr A 15)"
 has "thermal killed-spec" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
 has "thermal kill-verified" "KILL_VERIFY reason=stop_thermal_status result=gone" "$(driver_log)"
+eq "thermal cols18" 0 "$(cols18_bad)"                        # NEW-3: stop path keeps 18 cols
 assert_restore thermal
 
 echo "== owner stops, pre-push: battery >= 44.0 C / level <= 25 % / plugged / missing =="
@@ -220,6 +228,7 @@ eq "timeout rows" 5 "$(rows)"
 eq "timeout void" timeout "$(colr A-p 15)"
 has "timeout kill-verified" "KILL_VERIFY reason=timeout_A-p result=gone" "$(driver_log)"
 has "timeout killed-spec" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
+eq "timeout cols18" 0 "$(cols18_bad)"                        # NEW-3: void path keeps 18 cols
 assert_restore timeout
 
 echo "== B-1: SIGTERM mid-run -> kill verified, restore ran, exit 143 =="
@@ -247,6 +256,9 @@ n1=$(wc -l < "$STATE/therm_reads" 2>/dev/null | tr -d '[:space:]' || echo 0)
 sleep 2
 n2=$(wc -l < "$STATE/therm_reads" 2>/dev/null | tr -d '[:space:]' || echo 0)
 eq "sigkill poll-died" "$n1" "$n2"       # B-10: orphaned poll exited on parent liveness
+has "sigkill poll-kill-verify" "KILL_VERIFY reason=parent_gone" "$(driver_log)"   # NEW-2
+has "sigkill poll-pkill" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
+eq "sigkill cols18" 0 "$(cols18_bad)"                         # NEW-3 (SIGKILL: pending, but 18 cols)
 set +e
 env $(fixture_env) bash "$CELL/restore.sh" > "$RAW/manual_restore.txt" 2>&1
 RRC=$?
@@ -282,12 +294,51 @@ eq "killfail END" signal_TERM "$(end_reason)"
 has "killfail alive-recorded" "result=ALIVE" "$(driver_log)"
 if [ -f "$RAW/KILL_VERIFY_FAIL" ]; then pass "killfail marker"; else fail "killfail marker" "missing KILL_VERIFY_FAIL"; fi
 
-echo "== B-1: broken/missing pgrep -> KILL_VERIFY=pgrep_broken, never a silent gone =="
-signal_fixture -TERM pgrepbroken DRY_PROOF_SLEEP_S=4 DRY_PGREP_BROKEN=1
-eq "pgrepbroken rc" 143 "$RC"
-eq "pgrepbroken END" signal_TERM "$(end_reason)"
-has "pgrepbroken recorded" "result=pgrep_broken" "$(driver_log)"
-if [ -f "$RAW/KILL_VERIFY_FAIL" ]; then pass "pgrepbroken marker"; else fail "pgrepbroken marker" "missing KILL_VERIFY_FAIL"; fi
+echo "== NEW-5: pgrep self-test fails at setup -> abort BEFORE any mutation =="
+run_fixture selftestfail DRY_PGREP_BROKEN=1
+eq "selftestfail rc" 4 "$RC"
+eq "selftestfail END" exit_4 "$(end_reason)"
+if [ -f "$RAW/PGREP_SELFTEST_FAIL" ]; then pass "selftestfail marker"; else fail "selftestfail marker" "missing PGREP_SELFTEST_FAIL"; fi
+has "selftestfail abort-log" "PGREP_SELFTEST_ABORT" "$(driver_log)"
+eq "selftestfail untouched-timeout" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
+if [ -f "$CELL/.restore-state" ]; then fail "selftestfail no-state" "state written before self-test"; else pass "selftestfail no-state"; fi
+eq "selftestfail rows" 0 "$(rows)"
+
+echo "== NEW-5: pgrep breaks AFTER the self-test -> kill verdict fails closed =="
+signal_fixture -TERM pgrepbreaklater DRY_PROOF_SLEEP_S=4 DRY_PGREP_BREAK_AT=2
+eq "pgrepbreaklater rc" 143 "$RC"
+eq "pgrepbreaklater END" signal_TERM "$(end_reason)"
+has "pgrepbreaklater selftest-ok" "PGREP_SELFTEST ok" "$(driver_log)"
+has "pgrepbreaklater recorded" "result=pgrep_broken" "$(driver_log)"
+if [ -f "$RAW/KILL_VERIFY_FAIL" ]; then pass "pgrepbreaklater marker"; else fail "pgrepbreaklater marker" "missing KILL_VERIFY_FAIL"; fi
+
+echo "== NEW-1: FAILED restore keeps .restore-state; the next run repairs it =="
+run_fixture restorefail DRY_RESTORE_PUT_FAIL=1
+eq "restorefail rc" 0 "$RC"
+eq "restorefail END" exit_0 "$(end_reason)"
+if [ -f "$CELL/.restore-state" ]; then pass "restorefail state-kept"; else fail "restorefail state-kept" "state consumed despite failed restore"; fi
+has "restorefail keep-logged" "restore_failed_keep_state" "$(cat "$RAW/restore.log" 2>/dev/null || echo none)"
+eq "restorefail device-still-mutated" 1800000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
+set +e
+env $(fixture_env) bash "$CELL/d_run.sh" "dry-restorefail2" > "$CELL/raw/dryrun-restorefail2.log" 2>&1
+RC=$?
+set -e
+RAW="$CELL/raw/dry-restorefail2"
+eq "restorefail2 rc" 0 "$RC"
+eq "restorefail2 END" exit_0 "$(end_reason)"
+if grep -q "STALE_RESTORE state_present" "$RAW/driver.log" 2>/dev/null; then pass "restorefail2 repaired-stale"; else fail "restorefail2 repaired-stale" "$(head -3 "$RAW/driver.log" 2>/dev/null || echo missing)"; fi
+if [ -f "$CELL/.restore-state" ]; then fail "restorefail2 state-consumed" "still present"; else pass "restorefail2 state-consumed"; fi
+eq "restorefail2 timeout-final" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
+eq "restorefail2 stayon-final" 1 "$(cat "$STATE/stayon" 2>/dev/null || echo missing)"
+
+echo "== NEW-8: session deadline aborts with kill + restore + END=deadline =="
+run_fixture deadline DEADLINE_S=1
+eq "deadline rc" 124 "$RC"
+eq "deadline END" deadline "$(end_reason)"
+has "deadline kill-verified" "KILL_VERIFY" "$(driver_log)"
+eq "deadline rows" 0 "$(rows)"
+eq "deadline cols18" 0 "$(cols18_bad)"
+assert_restore deadline
 
 echo
 printf 'SUMMARY pass=%d fail=%d\n' "$PASS" "$FAIL"

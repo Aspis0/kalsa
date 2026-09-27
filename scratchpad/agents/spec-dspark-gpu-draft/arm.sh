@@ -23,9 +23,13 @@
 # are in any drafter step); the 30/8 floors of qdc-heat-3way target the
 # 33-layer model. dspark prints no `devices=[...]` SPC line (only
 # draft-simple/draft-mtp do: common/speculative.cpp:199/1381).
+# Threads: `-t 5` everywhere on device — owner decision, S23 app preset
+# `sd-8-gen2` decode5/prefill5 (kalsa/src/engine/deviceTuning.ts:217-219),
+# same as the sister cell's device arms since 5ba47a93 and as our host scripts.
 MIN_DRAFT_GPU_ASSIGN=5
 MIN_DRAFT_GPU_KERNELS=4
-PROOF_N=4   # short proof run: load + a few tokens, enough to dispatch kernels
+PROOF_N=8   # short proof run: load + a few drafter steps (audit2 NEW-7: the
+            # >=4-kernel floor is judged on a multi-step proof, not on 4 tokens)
 
 arm_is_gpu() { case "$1" in C*) return 0 ;; *) return 1 ;; esac; }
 
@@ -54,7 +58,7 @@ arm_cmd() {
     measure) : ;;
     *) return 1 ;;
   esac
-  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 8 -ngl 0%s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$D" "$D" "$envk" "$D" "$D" "$flags" "$D" "$limit" "$lv" "$D" "$tag" "$D" "$tag"
 }
 

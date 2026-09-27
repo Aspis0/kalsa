@@ -1,1 +1,1 @@
-[21:26:02] KILL_VERIFY reason=cleanup_rc0_sigTERM result=pgrep_broken — cannot verify, assuming ALIVE
+[21:43:53] KILL_VERIFY reason=cleanup_rc0_sigTERM result=pgrep_broken — cannot verify, assuming ALIVE

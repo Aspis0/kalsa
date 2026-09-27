@@ -1,7 +1,8 @@
-[21:23:49] SESSION job=dry-miss board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[21:23:49] GATE label=before_setup
-[21:23:49] STOP reason=missing_battery_temp
-[21:23:49] PKILL_UNVERIFIED ctx=stop_missing_battery_temp pgrep_rc=missing — remote llama-completion may still be running
-[21:23:49] KILL_VERIFY reason=stop_missing_battery_temp result=gone attempt=1
-[21:23:49] SESSION_STOP reason=missing_battery_temp
-[21:23:49] KILL_VERIFY reason=cleanup_rc0_signone result=gone attempt=1
+[22:07:40] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[22:07:40] SESSION job=dry-miss board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[22:07:40] GATE label=before_setup
+[22:07:40] STOP reason=missing_battery_temp
+[22:07:40] PKILL_UNVERIFIED ctx=stop_missing_battery_temp pgrep_rc=missing — remote llama-completion may still be running
+[22:07:40] KILL_VERIFY reason=stop_missing_battery_temp result=gone attempt=1
+[22:07:40] SESSION_STOP reason=missing_battery_temp
+[22:07:40] KILL_VERIFY reason=cleanup_rc0_signone result=gone attempt=1

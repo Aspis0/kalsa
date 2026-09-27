@@ -1,5 +1,6 @@
 rc=0 devices
 rc=0 -s fakes23 wait-for-device
+rc=0 -s fakes23 shell q=\"sleep\ 12\"\;\ q=\"\$q\"\"345\"\;\ \"\$q\"\ \&\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFTEST=FOUND\;\ else\ echo\ PGREP_SELFTEST=MISS\;\ fi\;\ pkill\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\ \|\|\ true\;\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFCLEAN=STILL\;\ else\ echo\ PGREP_SELFCLEAN=GONE\;\ fi
 rc=0 -s fakes23 shell getprop ro.soc.model
 rc=0 -s fakes23 shell settings get system screen_off_timeout
 rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
@@ -36,7 +37,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 4\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/A-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A-p.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/A-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A-p.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/A-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/A-p.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -44,7 +45,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 4\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/B4-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4-p.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/B4-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4-p.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/B4-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/B4-p.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -52,7 +53,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 4\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/B8-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B8-p.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/B8-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B8-p.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/B8-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/B8-p.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -60,7 +61,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 4\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/C4-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4-p.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/C4-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4-p.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/C4-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/C4-p.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -68,7 +69,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 4\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/C8-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C8-p.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/C8-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C8-p.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/C8-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/C8-p.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -76,7 +77,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/A.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/A.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/A.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/A.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -84,7 +85,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B4.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B4.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/B4.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/B4.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -92,7 +93,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B8.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B8.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B8.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B8.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/B8.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/B8.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -100,7 +101,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C4.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C4.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/C4.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/C4.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -108,7 +109,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C8.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C8.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 8\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C8.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C8.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/C8.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/C8.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -116,7 +117,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 135\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/A-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A-m1.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 135\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/A-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A-m1.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/A-m1.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/A-m1.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -124,7 +125,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 131\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B4-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4-m1.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 131\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/B4-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4-m1.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/B4-m1.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/B4-m1.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
@@ -132,7 +133,7 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 131\ --temp\ 0\ --top-k\ 1\ -t\ 8\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C4-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4-m1.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -devd\ GPUOpenCL\ -ngld\ 99\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 131\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/C4-m1.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/C4-m1.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/C4-m1.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-cooldown/C4-m1.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
