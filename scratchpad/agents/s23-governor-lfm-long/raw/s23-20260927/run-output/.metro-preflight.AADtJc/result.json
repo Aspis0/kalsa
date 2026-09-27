@@ -1,0 +1,27 @@
+{
+  "schema": "kalsa.metro-content-gate.v2",
+  "evidenceDir": "/tmp/s23-governor-lfm-long/run/.metro-preflight.AADtJc",
+  "requestedEvidenceDir": "/tmp/s23-governor-lfm-long/run/.metro-preflight.AADtJc",
+  "requestedUrl": null,
+  "expectedBundlePath": "assets/index.android.bundle",
+  "fuseboxEnabled": null,
+  "fetchedAt": "2026-09-27T16:59:32.847Z",
+  "partialBody": false,
+  "bundleBytes": 6364200,
+  "sha256": "359ca84f7cb35976ee6b520c1e15578a6fc72ae60f3acee6436808b2723133d1",
+  "bundleFormat": "hermes-bytecode",
+  "apkSha256": "cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc",
+  "installedApkHashes": [
+    {
+      "path": "/data/app/~~arnizyAQbIPp7-sk2wrD3Q==/com.kalsa.app-5562EMcv00ameAxlSRd--w==/base.apk",
+      "hash": "cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc"
+    }
+  ],
+  "httpStatus": null,
+  "responseMetadata": null,
+  "checks": null,
+  "error": null,
+  "ok": true,
+  "source": "embedded-apk",
+  "apk": "/Users/marco/kalsa-apks/ae64564d-debuggable/kalsa-apk-arm64-v8a-debuggable-ae64564d797d05238f24c6d3ac52beb17a2abb39/app-release.apk"
+}

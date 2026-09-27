@@ -1,0 +1,66 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 129738706 Realtime: 160426029
+
+** MEMINFO in pid 16007 [com.kalsa.app] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   322568   279528    43012    36032   323108   437948    60586   377361
+  Dalvik Heap    10867    10832        4      408    11344    35552    10976    24576
+ Dalvik Other    14756     6340        4      145    23536                           
+        Stack      840      820       20      476      844                           
+       Ashmem        5        4        0        0       92                           
+    Other dev       39        0       28        0      512                           
+     .so mmap    19257      184    16560      276    41320                           
+    .jar mmap     1802        0      148        0    24052                           
+    .apk mmap    24545      500    23836      312    25252                           
+    .ttf mmap       24        0       12        0       36                           
+    .dex mmap       30        0       12        0      884                           
+    .oat mmap      115        0       76        0     1096                           
+    .art mmap     5110     2896     1556     5062    16532                           
+   Other mmap    10669    10644        0        0    11372                           
+   EGL mtrack    40288    40288        0        0    40288                           
+    GL mtrack   424496   424496        0        0   424496                           
+      Unknown    12553    10700     1800     9136    13172                           
+        TOTAL   939811   787232    87068    51847   957936   473500    71562   401937
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15284                          27876
+         Native Heap:   279528                         323108
+                Code:    41360                         109488
+               Stack:      820                            844
+            Graphics:   464784                         464784
+       Private Other:    72524
+              System:    65511
+             Unknown:                                   31836
+ 
+           TOTAL PSS:   939811            TOTAL RSS:   957936       TOTAL SWAP PSS:    51847
+ 
+ Objects
+               Views:      277         ViewRootImpl:        1
+         AppContexts:        5           Activities:        1
+              Assets:       29        AssetManagers:        0
+       Local Binders:       39        Proxy Binders:       65
+       Parcel memory:       11         Parcel count:       34
+    Death Recipients:        0             WebViews:        0
+ 
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):     1626                            154
+ Other (nonmalloced):      107                             76
+   Bitmap (malloced):       26                            283
+ 
+ SQL
+         MEMORY_USED:      350
+  PAGECACHE_OVERFLOW:      289          MALLOC_SIZE:      776
+ 
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4      436             41   123    42     4  /data/user/0/com.kalsa.app/databases/RKStorage
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+            123            43           166  /data/user/0/com.kalsa.app/databases/RKStorage
