@@ -14,9 +14,11 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  BENCH_NATIVELOG_KEY,
   BENCH_ROUTE_KEY,
   BENCH_THINKING_KEY,
   formatBenchStatus,
+  getBenchNativeLogMirror,
   getEngineOverride,
   getThinkingMode,
   getToolChoiceMode,
@@ -459,6 +461,49 @@ describe("/bench eager_delay round-trip — the boot kick's bench wait", () => {
   test("an invalid token is refused and writes nothing", async () => {
     const reply = await tryHandleBenchCommand("/bench eager_delay soon");
     expect(reply).toContain('bench: invalid eager_delay "soon"');
+    expect(store.size).toBe(0);
+  });
+});
+
+describe("/bench nativelog round-trip — the KALSA_NATIVE mirror gate", () => {
+  const store = new Map<string, string>();
+
+  beforeEach(() => {
+    store.clear();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      async (key: string) => store.get(key) ?? null,
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation(
+      async (key: string, value: string) => {
+        store.set(key, value);
+      },
+    );
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation(
+      async (key: string) => {
+        store.delete(key);
+      },
+    );
+  });
+
+  test("on persists 1 and echoes in status", async () => {
+    const reply = await tryHandleBenchCommand("/bench nativelog on");
+    expect(reply).toContain("bench: nativelog=on (force-stop + relaunch to apply)");
+    expect(store.get(BENCH_NATIVELOG_KEY)).toBe("1");
+    await expect(formatBenchStatus()).resolves.toContain("nativelog=on");
+  });
+
+  test("off persists 0; absent reads off (WARN/ERROR only)", async () => {
+    await tryHandleBenchCommand("bench:nativelog on");
+    const reply = await tryHandleBenchCommand("/bench nativelog off");
+    expect(reply).toContain("bench: nativelog=off (force-stop + relaunch to apply)");
+    expect(store.get(BENCH_NATIVELOG_KEY)).toBe("0");
+    store.delete(BENCH_NATIVELOG_KEY);
+    await expect(getBenchNativeLogMirror()).resolves.toBe(false);
+  });
+
+  test("an invalid mode is refused and writes nothing", async () => {
+    const reply = await tryHandleBenchCommand("/bench nativelog maybe");
+    expect(reply).toContain('bench: invalid nativelog mode "maybe"');
     expect(store.size).toBe(0);
   });
 });

@@ -2,15 +2,21 @@ import { AppState, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
-  addNativeLogListener,
   initLlama,
-  toggleNativeLog,
   type ContextParams,
   type LlamaContext,
   type RNLlamaMessagePart,
   type RNLlamaOAICompatibleMessage,
   type TokenData,
 } from "llama.rn";
+import {
+  beginNativeLogEpoch,
+  clearNativeLogTail,
+  ensureNativeLogCapture,
+  logNativeTailOnFailure,
+  nativeLogForEpoch,
+  nativeLogSummary,
+} from "./nativeLogTail";
 
 import {
   getBenchNoRepack,
@@ -535,81 +541,7 @@ export function mintTurnId(): string {
   return String(++turnSeq);
 }
 
-// ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
-const NATIVE_LOG_CAP = 50;
-const nativeLogTail: string[] = [];
-const nativeLogEpochTail: Array<{ epoch: number; line: string }> = [];
-let nativeLogEpoch = 0;
-let nativeLogSetupDone = false;
-
-function beginNativeLogEpoch(): number {
-  nativeLogEpoch += 1;
-  return nativeLogEpoch;
-}
-
-function nativeLogForEpoch(epoch: number): string {
-  return nativeLogEpochTail
-    .filter((entry) => entry.epoch === epoch)
-    .map((entry) => entry.line)
-    .join("\n");
-}
-
-async function ensureNativeLogCapture(): Promise<void> {
-  if (nativeLogSetupDone) return;
-  try {
-    await toggleNativeLog(true);
-    addNativeLogListener((level, text) => {
-      const line = `${level} ${text}`;
-      nativeLogTail.push(line);
-      nativeLogEpochTail.push({ epoch: nativeLogEpoch, line });
-      if (nativeLogTail.length > NATIVE_LOG_CAP) {
-        nativeLogTail.splice(0, nativeLogTail.length - NATIVE_LOG_CAP);
-      }
-      if (nativeLogEpochTail.length > NATIVE_LOG_CAP) {
-        nativeLogEpochTail.splice(0, nativeLogEpochTail.length - NATIVE_LOG_CAP);
-      }
-      // Mirror to the console as it arrives, do not only buffer. The tail is
-      // read by rethrowWithNativeTail, which needs a caught error to exist —
-      // and a native LM_GGML_ABORT does not throw, it kills the process. The
-      // line ggml prints immediately before aborting is usually the whole
-      // diagnosis, and buffering it means it dies with the tail. That is not
-      // hypothetical: on 2026-08-23 the engine aborted in load_all_data on the
-      // Jelly and the reason was unrecoverable from the corpse.
-      console.log(`KALSA_NATIVE ${level} ${text}`);
-    });
-    // LAST, and that placement is the whole point. This flag used to be set
-    // BEFORE the try: if toggleNativeLog threw, the listener was never added,
-    // the catch swallowed it, and every later call short-circuited on a flag
-    // that promised a capture nobody had installed. The tail then stayed empty
-    // for the life of the process, so rethrowWithNativeTail enriched failures
-    // with nothing and the UI showed a bare "unable to initialize context".
-    //
-    // Cost of that, measured on 2026-08-19: llama printed
-    // "V cache quantization requires flash_attn" — the exact cause of a failing
-    // bench arm — and it never reached JS. The afternoon went to a wrong
-    // diagnosis (blamed GPU offload, then the low-memory killer) that one
-    // captured line would have ended. Setting it here means a failed setup is
-    // retried on the next init instead of being latched forever.
-    nativeLogSetupDone = true;
-  } catch {
-    // Logging must never break engine init — but it must not claim success
-    // either, so the flag above stays unset and the next init tries again.
-  }
-}
-
-/** Last few diagnostic native-log lines for UI / Error.message enrichment. */
-export function nativeLogSummary(): string {
-  const diagnosticRe = /error|fail|fallback|invalid|unable|unsupported|missing|magic|version/i;
-  const matched = nativeLogTail.filter((line) => diagnosticRe.test(line));
-  const slice = (matched.length > 0 ? matched : nativeLogTail).slice(-3);
-  const joined = slice.join(" | ");
-  return Array.from(joined).slice(0, 300).join("");
-}
-
-function logNativeTailOnFailure(): void {
-  console.log("[engine-init-native-tail]", nativeLogTail.join("\n"));
-}
-
+// ── llama.cpp native log tail: see ./nativeLogTail ─────────────────────────
 function withNativeTail(message: string): string {
   const summary = nativeLogSummary();
   return summary ? `${message} || native: ${summary}` : message;
@@ -2994,8 +2926,7 @@ async function disposeEngineLocked(opts?: {
     activeGovernorActive = false;
     activeGovernorForced = false;
     activeGovernorFallbackReason = "";
-    nativeLogTail.length = 0;
-    nativeLogEpochTail.length = 0;
+    clearNativeLogTail();
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;

@@ -9,6 +9,7 @@
  *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|moe=on,...|clear>
  *   /bench devmodels <on|off>
  *   /bench route <cpu|gpu|auto>
+ *   /bench nativelog <on|off>
  *   /bench eager_delay <0..30000|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
@@ -17,6 +18,7 @@
  *   bench:speculative none
  *   bench:engine moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon
  *   bench:route cpu|gpu|auto
+ *   bench:nativelog on
  *   bench:eager_delay 8000
  *   bench:show
  *
@@ -39,6 +41,7 @@
  * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
  * - kalsa.bench.route: "cpu" | "gpu" (next-turn prefill-route request; absent/"auto" → engine decides)
  * - kalsa.bench.eager_delay_ms: "0".."30000" (bench wait before the boot eager engine kick; absent/invalid = 0 = kick immediately)
+ * - kalsa.bench.nativelog: "1" mirrors llama.cpp INFO logs to the console too; absent/"0" = WARN/ERROR only (abort diagnostics)
  *
  * The app boot reads this once. Read failures reject so the boot path can
  * explicitly choose the production catalog and still render the app.
@@ -98,6 +101,33 @@ export async function setDevModelsEnabled(mode: string): Promise<boolean> {
   if (mode !== "on" && mode !== "off") return false;
   try {
     await AsyncStorage.setItem(BENCH_DEVMODELS_KEY, mode === "on" ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mirror gate for llama.cpp INFO logs (KALSA_NATIVE). Absent / invalid → off
+ * (WARN/ERROR only — the abort-diagnosis invariant); "1" mirrors INFO too.
+ * Read once per process at capture setup, so it applies at the next engine
+ * init / relaunch.
+ */
+export const BENCH_NATIVELOG_KEY = "kalsa.bench.nativelog";
+
+export async function getBenchNativeLogMirror(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(BENCH_NATIVELOG_KEY)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the mirror switch; the capture reads it at the next engine init. */
+export async function setBenchNativeLogMirror(mode: string): Promise<boolean> {
+  if (mode !== "on" && mode !== "off") return false;
+  try {
+    await AsyncStorage.setItem(BENCH_NATIVELOG_KEY, mode === "on" ? "1" : "0");
     return true;
   } catch {
     return false;
@@ -857,11 +887,12 @@ export async function formatBenchStatus(): Promise<string> {
   const threadsSrc = getThreadCountSource();
   const route = await readBenchRoute();
   const eagerDelayMs = await getBenchEagerDelayMs();
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, route=${route}, eager_delay_ms=${eagerDelayMs}, threads_src=${threadsSrc}`;
+  const nativelog = await getBenchNativeLogMirror();
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, route=${route}, eager_delay_ms=${eagerDelayMs}, nativelog=${nativelog ? "on" : "off"}, threads_src=${threadsSrc}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench route <cpu|gpu|auto> | bench:route <cpu|gpu|auto> | /bench eager_delay <0..30000|clear> | bench:eager_delay <0..30000|clear> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench route <cpu|gpu|auto> | bench:route <cpu|gpu|auto> | /bench nativelog <on|off> | bench:nativelog <on|off> | /bench eager_delay <0..30000|clear> | bench:eager_delay <0..30000|clear> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -929,6 +960,14 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     const ok = await setDevModelsEnabled(arg);
     if (!ok) return "bench: failed to write devmodels mode";
     return `bench: devmodels=${arg} (force-stop + relaunch to apply)`;
+  }
+
+  if (sub === "nativelog") {
+    if (arg !== "on" && arg !== "off") return `bench: invalid nativelog mode "${arg}". ${BENCH_USAGE}`;
+    const ok = await setBenchNativeLogMirror(arg);
+    if (!ok) return "bench: failed to write nativelog mode";
+    // The capture reads the pref once per process, before it arms the listener.
+    return `bench: nativelog=${arg} (force-stop + relaunch to apply)`;
   }
 
   if (sub === "route") {
