@@ -132,7 +132,10 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
     // recommendation comes through the relief axis, and says so.
     match choose(&input(8, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(
+                selection.justification,
+                Justification::Relief { same_class: true }
+            );
             assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
             assert_eq!(selection.display_name, "Liquid LFM 2.5");
             assert_eq!(selection.quant, "Q8_0", "the tier's own file");
@@ -233,7 +236,10 @@ fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
     // which second of the day the question is asked.
     match choose(&input_with_phone(8, Some(true))) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(
+                selection.justification,
+                Justification::Relief { same_class: true }
+            );
             assert_eq!(
                 selection.plain_reason,
                 "This is about as good as what your phone already runs, but doing the \
@@ -572,10 +578,55 @@ fn a_phone_without_parameter_counts_is_never_offered_capability() {
     match choose(&input_with_phone_model(16, model)) {
         Decision::Pick(selection) => {
             assert_eq!(selection.repo, "google/gemma-4-E4B-it");
-            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(
+                selection.justification,
+                // 4.98 GB of weights against a 2.83 GB phone: offered for
+                // relief, and not a same-class model by any reading.
+                Justification::Relief { same_class: false }
+            );
         }
         other => panic!("expected a relief pick, got {other:?}"),
     }
+}
+
+#[test]
+fn a_much_bigger_relief_pick_does_not_claim_to_be_about_as_good() {
+    // The reported symptom: the only phone client sends parameters: null,
+    // so capability and expected-but-unmeasured are both out of reach and
+    // relief is the only justification on offer — and on this machine it
+    // carries the 20.61 GiB Qwen MoE past a 1.6 GB phone. Relief is still
+    // what earns the offer, and the row it leads to must not change; only
+    // the words must fit the two sizes.
+    let model = PhoneModel {
+        weights_bytes: 1_593_894_944,
+        parameters: None,
+        measured_tokens_per_second: None,
+        battery_powered: Some(true),
+    };
+    let selected = match choose(&input_with_phone_model(32, model)) {
+        Decision::Pick(selection) => selection,
+        other => panic!("expected a relief pick, got {other:?}"),
+    };
+    assert_eq!(selected.repo, "Qwen/Qwen3.6-35B-A3B");
+    assert_eq!(selected.quant, "Q4_K_M");
+    assert_eq!(selected.justification, Justification::Relief { same_class: false });
+    // The band read in the other direction: the phone's own size divided by
+    // the band still leaves this row far behind it.
+    assert!(
+        selected.weights_bytes as f64 > 1_593_894_944f64 / SAME_CLASS_BAND,
+        "the fixture must be past the class, or the test says nothing"
+    );
+    assert_eq!(
+        selected.plain_reason,
+        "This is a much bigger model than your phone runs. We have not measured \
+         whether it is better, but doing the work here keeps the heat and the \
+         battery drain off your phone."
+    );
+    assert!(
+        !selected.plain_reason.contains("about as good as"),
+        "the reported symptom: {}",
+        selected.plain_reason
+    );
 }
 
 #[test]

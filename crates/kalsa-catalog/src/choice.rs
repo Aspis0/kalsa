@@ -227,11 +227,18 @@ pub enum CapabilityBasis {
 pub enum Justification {
     /// A strong claim, carrying the evidence that supports it.
     Capability(CapabilityBasis),
-    /// The model is comparable to the phone's, and it is offered only because
-    /// the device runs on battery: every token generated on the PC is one the
-    /// phone did not generate. `MINIMUM_TOKENS_PER_SECOND` still applies — a
-    /// comparable model that crawls is a worse experience, not relief.
-    Relief,
+    /// Offered only because the device runs on battery: every token
+    /// generated on the PC is one the phone did not generate, and
+    /// `MINIMUM_TOKENS_PER_SECOND` still applies — relief is not a licence
+    /// to offer a crawl. `same_class` says how the two sizes sit, and it
+    /// picks the words, never the selection.
+    Relief {
+        /// The candidate is within the phone's own class — the selection
+        /// band read in the other direction, [`SAME_CLASS_BAND`] — so
+        /// "about as good as" is true of it. Above that, the candidate is a
+        /// much bigger model and the sentence must say so.
+        same_class: bool,
+    },
     /// The numbers point clearly toward stronger — the total parameter bar is
     /// cleared, above the size regime where the literature warns the
     /// comparison reverses — but nothing citable settles a MoE against a
@@ -263,13 +270,21 @@ fn justification(candidate: &Candidate, phone: &PhoneModel) -> Option<Justificat
     if expected_but_unmeasured(candidate, phone) {
         return Some(Justification::ExpectedButUnmeasured);
     }
-    // Relief is for a device that runs on battery, and only within the
-    // phone's own class: every token generated on this machine is one the
-    // phone did not generate, which is the whole of the exchange.
+    // Relief is for a device that runs on battery, and never for a
+    // candidate below the phone's own class floor: every token generated on
+    // this machine is one the phone did not generate, which is the whole of
+    // the exchange. The floor says nothing about how far ABOVE it the
+    // candidate sits, and the words must not pretend otherwise.
     if phone.battery_powered == Some(true)
         && candidate.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
     {
-        return Some(Justification::Relief);
+        // The same band, read the other way. The gate above decides whether
+        // relief is offered at all; this decides which honest words it
+        // earns — past phone / band the candidate is a much bigger model,
+        // and "about as good as" would be a size claim the bytes contradict.
+        let same_class =
+            candidate.entry.weights_bytes as f64 <= phone.weights_bytes as f64 / SAME_CLASS_BAND;
+        return Some(Justification::Relief { same_class });
     }
     None
 }

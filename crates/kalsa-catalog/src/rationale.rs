@@ -39,9 +39,18 @@ pub(crate) fn plain_reason(justification: Justification) -> String {
              this computer."
                 .to_string()
         }
-        Justification::Relief => {
+        // The relief words follow the two sizes, and the selection did not
+        // move: the band's floor already decided this candidate is worth
+        // offering, and only the size claim is at stake.
+        Justification::Relief { same_class: true } => {
             "This is about as good as what your phone already runs, but doing the work \
              here keeps the heat and the battery drain off your phone."
+                .to_string()
+        }
+        Justification::Relief { same_class: false } => {
+            "This is a much bigger model than your phone runs. We have not measured \
+             whether it is better, but doing the work here keeps the heat and the \
+             battery drain off your phone."
                 .to_string()
         }
     }
@@ -150,10 +159,17 @@ pub(crate) fn details(
              it will be measured on this machine before it is called an upgrade."
                 .to_string()
         }
-        Justification::Relief => {
+        Justification::Relief { same_class: true } => {
             "It is offered for relief rather than capability: the model is comparable to \
              what your phone already runs, and doing the work here keeps the heat and the \
              battery drain off a phone that is on battery."
+                .to_string()
+        }
+        Justification::Relief { same_class: false } => {
+            "It is offered for relief rather than capability: the model is much bigger \
+             than what your phone runs — bigger without a measurement is not better — \
+             and doing the work here keeps the heat and the battery drain off a phone \
+             that is on battery."
                 .to_string()
         }
     });
@@ -290,7 +306,11 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let text = details(&chosen, &input, &phone, budget, Justification::Relief);
+        // What justification() decides for this fixture: 2.81 GiB against a
+        // 2.83 GB phone sits inside the class, so the comparable wording is
+        // the honest one here.
+        let justification = Justification::Relief { same_class: true };
+        let text = details(&chosen, &input, &phone, budget, justification);
         assert!(text.contains("Memory is an estimate"), "{text}");
         assert!(text.contains("has not been measured yet"), "{text}");
         assert!(text.contains("per token was assumed"), "{text}");
