@@ -1,0 +1,1 @@
+raw/s23-calib-1/calib/report.txt was not produced. The session aborted in setup at the pgrep self-test before entering calibration. No model load, proof run, measured turn, or heat arm was started.

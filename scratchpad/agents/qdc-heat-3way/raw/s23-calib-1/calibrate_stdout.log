@@ -1,0 +1,11 @@
+[23:33:59] SESSION job=s23-calib-1 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=1800000
+[23:34:00] DEVICE_LIST_OK
+[23:34:02] KIT_PRESENT ship.gguf
+[23:34:02] KIT_PRESENT prompt.txt
+[23:34:32] BATTERY_SENSOR_TRUSTED dumpsys=261,263 sysfs=,
+[23:34:32] GATE label=setup
+[23:34:32] SETUP_DONE skin0=28.0 battery_untrusted=0 htp_floor=0.86 source=prior
+[23:34:34] PGREP_SELFTEST_FAIL health_probe_rc=0
+[23:34:34] PGREP_SELFTEST_ABORT (audit2 NEW-4: kill verification impossible on this phone)
+[23:34:34] RESTORE_FAIL (see restore.sh output)
+[23:34:34] KILL_RECORDED_END (restore could not verify the kill; keeping rc=4)

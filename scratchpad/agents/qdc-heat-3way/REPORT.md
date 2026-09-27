@@ -523,3 +523,29 @@ trace or explicit repack event to identify the exact native operation. Each
 retained PID-filtered log has exactly 2 `KALSA_NATIVE` lines. The original
 full logcat dumps were not retained, so the total number of all mirror lines
 in either 30-second window cannot be recovered.
+
+### S23 three-way attempt — calibration stopped in setup
+
+Preflight passed on the pinned endpoint
+`adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp`: unplugged, 93% charge,
+25.9 C battery, thermal 0, `persist.traced.enable=0`, no `llama|bench`
+process, and Kalsa force-stopped. The initially dozing/locked display was
+woken and unlocked before the driver started. The kit hashes and model/prompt
+presence checks passed; `--list-devices` passed. No model load or backend
+proof began.
+
+Calibration stopped at setup's pgrep self-test. The driver recorded
+`PGREP_SELFTEST_FAIL health_probe_rc=0` and
+`END reason=exit_4_kill_unverified`; its control probe expected the
+nonexistent-process health check to return 1. The cleanup check repeated the
+same false positive (`RESTORE_LLAMA_UNVERIFIED probe_rc=0 gone_rc=1`). As
+required, the heat run was not started. `raw/s23-calib-1/calib/report.txt`
+and `calib.ok` were not produced; no C/G/N proof tokens, placement
+fingerprints, or pinned floor are available.
+
+The driver ran restore, but its return was 1 due to that pgrep health result.
+I restored the original absent `screen_off_timeout` setting manually (verified
+as `null`), confirmed `stay_on_while_plugged_in=0`, then left the screen Awake
+and unlocked. Post-restore: unplugged, 92%, 26.6 C battery, thermal 0, traced
+0, Kalsa absent, and no `llama|bench` process. Preflight, failure, and
+post-restore evidence are in `raw/s23-calib-1/`.

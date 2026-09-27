@@ -1,0 +1,3 @@
+Command: cd scratchpad/agents/qdc-heat-3way && ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_PORT=5037 CALIBRATE=1 ./d_run.sh s23-calib-1
+Captured stdout/stderr: /tmp/s23calib.log
+Exit: 4
