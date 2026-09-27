@@ -1,0 +1,1 @@
+No calibration buf= placement values were emitted. CPU load failed before model loading with a remote shell syntax error; the calibration report contains no backend proofs or placement fingerprint. No buf=? value was observed because no buf= lines were produced.

@@ -1,0 +1,12 @@
+[23:55:57] SESSION job=s23-calib-2 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[23:55:58] DEVICE_LIST_OK
+[23:56:00] KIT_PRESENT ship.gguf
+[23:56:00] KIT_PRESENT prompt.txt
+[23:56:31] BATTERY_SENSOR_TRUSTED dumpsys=261,263 sysfs=,
+[23:56:31] GATE label=setup
+[23:56:31] SETUP_DONE skin0=27.7 battery_untrusted=0 htp_floor=0.86 source=prior
+[23:56:32] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[23:56:34] SAMPLER_LAUNCHED pid=93375
+[23:56:34] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
+[23:56:34] CALIB_START backend=cpu tag=s23-calib-2-calcpu
+[23:56:35] CALIB_FAIL backend=cpu load_rc=1

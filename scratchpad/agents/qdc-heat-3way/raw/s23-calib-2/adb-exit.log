@@ -1,0 +1,28 @@
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp wait-for-device
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell getprop ro.soc.model
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell settings get system screen_off_timeout
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell settings get global stay_on_while_plugged_in
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell input keyevent KEYCODE_WAKEUP
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell svc power stayon true
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell settings put system screen_off_timeout 1800000
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell mkdir\ -p\ /data/local/tmp/heat3way\ /data/local/tmp/heat3way/heat\ \&\&\ rm\ -f\ /data/local/tmp/heat3way/heat/stop\ /data/local/tmp/heat3way/heat/samples.txt\ /data/local/tmp/heat3way/\*.log
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell cd\ /data/local/tmp/heat3way\ \&\&\ sha256sum\ -c\ SHA256SUMS
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell sha256sum\ /data/local/tmp/heat3way/bin/llama-completion
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ --list-devices
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell sha256sum\ /data/local/tmp/heat3way/ship.gguf
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell sha256sum\ /data/local/tmp/heat3way/prompt.txt
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/smp.sh /data/local/tmp/heat3way/heat/smp.sh
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys battery
+rc=1 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys thermalservice
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys battery
+rc=1 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys thermalservice
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys thermalservice
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys battery
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell q=\"sleep\ 47\"\"31\"\;\ \$q\ \>/dev/null\ 2\>\&1\ \&\ sleep\ 1\;\ pgrep\ -f\ \"\$q\"\;\ echo\ ALIVE_RC=\$\?\;\ pgrep\ -f\ \'\[z\]zz_no_such_proc_zzz\'\;\ echo\ HEALTH_RC=\$\?\;\ pkill\ -f\ \"\$q\"\;\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ echo\ GONE_RC=\$\?
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys thermalservice
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell dumpsys battery
+rc=1 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ \&\&\ export\ GGML_HEXAGON_VERBOSE=1\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -p\ \"\ \"\ -n\ 4\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --perf\ --simple-io\ --no-display-prompt\ -lv\ 5\ -ngl\ 0\ \>\ /data/local/tmp/heat3way/s23-calib-2-calcpu.load.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/s23-calib-2-calcpu.load.log\;\ exit\ \$rc
+rc=1 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp pull /data/local/tmp/heat3way/s23-calib-2-calcpu.load.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/s23-calib-2/s23-calib-2-calcpu.load.log
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell touch\ /data/local/tmp/heat3way/heat/stop

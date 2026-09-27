@@ -629,3 +629,25 @@ as `null`), confirmed `stay_on_while_plugged_in=0`, then left the screen Awake
 and unlocked. Post-restore: unplugged, 92%, 26.6 C battery, thermal 0, traced
 0, Kalsa absent, and no `llama|bench` process. Preflight, failure, and
 post-restore evidence are in `raw/s23-calib-1/`.
+
+### S23 three-way retry — calibration load command failed
+
+Preflight on the fixed endpoint `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp`
+passed: unplugged, 92%, thermal 0, traced 0, Kalsa force-stopped, no
+`llama|bench` process, display Awake/unlocked. The corrected pgrep self-test
+passed. Kit hashes, model/prompt presence checks, device listing, and sampler
+startup passed.
+
+Calibration stopped on the first CPU load phase:
+`/system/bin/sh: syntax error: unexpected '&&'` in
+`raw/s23-calib-2/s23-calib-2-calcpu.load_shell.txt`. The driver recorded
+`END reason=calib_fail_load_cpu` (exit 3). It emitted no calibration proof,
+token counts, or `buf=` placement values; there was no `buf=?` line. The
+calibration report contains only its header and prior floor. Per the stop
+rule, `s23-3way-2` was not run.
+
+Restore completed successfully (`kill_check=verified rc=0`). Final checks:
+unplugged, 92%, 26.4 C battery, thermal 0, traced 0, Kalsa absent, no
+`llama|bench` process, `screen_off_timeout=null`, stay-on 0, display Awake and
+unlocked. Raw preflight, calibration, restore, and final-state evidence is in
+`raw/s23-calib-2/`.
