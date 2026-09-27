@@ -13,7 +13,7 @@ campaign changes: engagement gate, governor+env per-turn fields, stop line).
 - Pre-flight self-tests, both must exit 0:
   ```sh
   npm run harness:campaign > /tmp/rt.log 2>&1; echo "EXIT=$?"; tail -3 /tmp/rt.log      # expect EXIT=0, "selftest ok"
-  bash scripts/campaign/selftest_defects.sh > /tmp/rd.log 2>&1; echo "EXIT=$?"; tail -3 /tmp/rd.log   # expect EXIT=0, "passed=73 failed=0" (the runner also runs this suite via harness:campaign; ~9 min total)
+  bash scripts/campaign/selftest_defects.sh > /tmp/rd.log 2>&1; echo "EXIT=$?"; tail -3 /tmp/rd.log   # expect EXIT=0, "passed=74 failed=0" (the runner also runs this suite via harness:campaign; ~9 min total)
   ```
 - Device endpoint must match the config exactly: `campaigns/t20c.json` declares
   `"device": "192.168.1.152:43089"`. Connect so that `adb devices` lists that
