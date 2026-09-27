@@ -136,6 +136,26 @@ describe("PairingSession delivery-token lifecycle", () => {
     expect(bytesToHex(randomBytes.mock.results[0].value)).toBe("0a".repeat(16));
   });
 
+  test("the session's signal reaches the fetcher's init on claim and complete", async () => {
+    const controller = new AbortController();
+    const signals: (AbortSignal | undefined)[] = [];
+    const fetcher: PairingFetch = async (_url, init) => {
+      signals.push(init.signal);
+      return init.body.includes('"code"') ? response(200) : response(200, seal);
+    };
+    const session = new PairingSession({
+      deskUrl: "https://computer.example:8443",
+      square,
+      phone,
+      fetcher,
+      randomBytes: random(0xc0),
+      signal: controller.signal,
+    });
+
+    await expect(session.begin()).resolves.toEqual(new Uint8Array(32).fill(0xab));
+    expect(signals).toEqual([controller.signal, controller.signal]);
+  });
+
   test("diagnostics carry only fingerprints: the mac and the sealed credential, never the token or payload", async () => {
     const diagnostics: unknown[] = [];
     const bodies: string[] = [];

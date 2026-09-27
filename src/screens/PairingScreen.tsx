@@ -188,13 +188,15 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // wire and failure stages either way. This is also what the saved
       // credential records as pairedVia: the road the ceremony rode.
       const useIrohDesk = chooseRoad(square.node, irohModulePresent).road === "iroh";
+      const signal = deskSignal();
       const session = retryingCompletion
         ? existing
         : new PairingSession({
             deskUrl,
             square,
             phone: declarationForModel(currentModelId),
-            fetcher: useIrohDesk ? createDeskPairingFetch(square.node, deskSignal()) : undefined,
+            signal,
+            fetcher: useIrohDesk ? createDeskPairingFetch(square.node, signal) : undefined,
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
               : undefined,
@@ -207,6 +209,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
         setState("refused");
         return;
       }
+      // Back was pressed while the ceremony ran: the screen owns nothing
+      // anymore — least of all a credential saved behind the user's back.
+      if (signal.aborted) return;
       // The paired URL, credential, node and pairing road are the active
       // door configuration — the road decides what fallbacks exist later.
       try {

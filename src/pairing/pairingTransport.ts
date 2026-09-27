@@ -20,6 +20,8 @@ export type PairingRequestInit = {
   method: "POST";
   headers: Record<string, string>;
   body: string;
+  /** The screen's signal: leaving it aborts the HTTPS fetch mid-flight. */
+  signal?: AbortSignal;
 };
 
 export type PairingFetch = (url: string, init: PairingRequestInit) => Promise<PairingResponse>;
@@ -59,6 +61,8 @@ export type PairingSessionOptions = {
   phone: PairingPhoneDeclaration;
   fetcher?: PairingFetch;
   randomBytes?: RandomBytes;
+  /** Aborting this stops the ceremony's HTTPS requests in flight. */
+  signal?: AbortSignal;
   onDiagnostic?: (record: PairingDiagnostic) => void;
 };
 
@@ -88,6 +92,7 @@ export async function postPairingJson(
   url: string,
   body: string,
   fetcher: PairingFetch = globalThis.fetch as PairingFetch,
+  signal?: AbortSignal,
 ): Promise<
   | { ok: true; response: PairingResponse }
   | { ok: false; reason: "request_too_large" | "network" }
@@ -108,6 +113,7 @@ export async function postPairingJson(
         "Content-Length": String(contentLength),
       },
       body,
+      ...(signal ? { signal } : {}),
     });
     return { ok: true, response };
   } catch {
@@ -190,7 +196,12 @@ export class PairingSession {
       this.finished = true;
       return null;
     }
-    const claim = await postPairingJson(claimUrl, `{"code":"${this.options.square.code}"}`, this.fetcher);
+    const claim = await postPairingJson(
+      claimUrl,
+      `{"code":"${this.options.square.code}"}`,
+      this.fetcher,
+      this.options.signal,
+    );
     if (!claim.ok) {
       logPairingFail(claim.reason === "request_too_large" ? "request_too_large" : "claim_network", null);
       this.finished = true;
@@ -226,7 +237,7 @@ export class PairingSession {
         mac_hex: mac,
       });
       const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
-      const result = await postPairingJson(this.completeUrl, body, this.fetcher);
+      const result = await postPairingJson(this.completeUrl, body, this.fetcher, this.options.signal);
       if (!result.ok) {
         logPairingFail(result.reason === "request_too_large" ? "request_too_large" : "complete_network", null);
         this.completeRetryPending = true;

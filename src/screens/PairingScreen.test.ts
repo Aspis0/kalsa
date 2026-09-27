@@ -768,6 +768,45 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("leaving the screen aborts the https ceremony — nothing is saved after Back", async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    let resolveComplete!: (value: Response) => void;
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      signals.push(init?.signal as AbortSignal | undefined);
+      if (url.endsWith("/pair/claim")) {
+        return Promise.resolve({ status: 200, json: async () => ({}) } as Response);
+      }
+      return new Promise((resolve) => {
+        resolveComplete = resolve;
+      });
+    }) as typeof fetch;
+
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The claim went out carrying the screen's signal; complete is in flight.
+    expect(signals).toHaveLength(2);
+    expect(signals[0]).toBeDefined();
+    expect(signals[0]?.aborted).toBe(false);
+
+    await act(async () => {
+      renderer.unmount();
+    });
+    // Back aborts the in-flight https request at its source.
+    expect(signals[1]?.aborted).toBe(true);
+
+    // The complete resolves only now — after Back: no credential is saved.
+    await act(async () => {
+      resolveComplete({ status: 200, json: async () => SEAL } as Response);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(saveCredentialMock).not.toHaveBeenCalled();
+  });
+
   test.each([
     ["code", "43".repeat(16)],
     ["nonce", "44".repeat(32)],
