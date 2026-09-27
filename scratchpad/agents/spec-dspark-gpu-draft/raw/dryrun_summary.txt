@@ -25,6 +25,9 @@ PASS  happy warm_start
 PASS  happy proof limit
 PASS  happy cols18
 PASS  happy no-npu
+PASS  happy ctx-values
+PASS  happy ctx-values-C4
+PASS  happy no-fit-probe
 PASS  happy proof-prefixed-placement
 PASS  happy measured-no-placement
 PASS  happy measured-prefix
@@ -357,6 +360,18 @@ PASS  segv restore-ran
 PASS  segv timeout-restored
 PASS  segv stayon-restored
 PASS  segv state-consumed
+== audit9: a train-ctx (128000) run is voided ctx_mismatch ==
+PASS  ctxbad rc
+PASS  ctxbad END
+PASS  ctxbad rows
+PASS  ctxbad void-A
+PASS  ctxbad proof-values
+PASS  ctxbad matched
+PASS  ctxbad no-success
+PASS  ctxbad restore-ran
+PASS  ctxbad timeout-restored
+PASS  ctxbad stayon-restored
+PASS  ctxbad state-consumed
 == audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) ==
 PASS  flagbad rc
 PASS  flagbad names the flag
@@ -366,4 +381,4 @@ PASS  flagok rc (selective)
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=333 fail=0
+SUMMARY pass=347 fail=0

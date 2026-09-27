@@ -146,6 +146,11 @@ eq "happy proof limit" 8 "$(colr A-p 4)"                    # NEW-7: PROOF_N=8
 eq "happy cols18" 0 "$(cols18_bad)"                          # NEW-3 schema
 # audit8: with `-dev none` pinned, no log may mention the NPU at all
 if grep -q "HTP0\|ggml-hex" "$RAW"/*.log 2>/dev/null; then fail "happy no-npu" "$(grep -l "HTP0\|ggml-hex" "$RAW"/*.log | head -2)"; else pass "happy no-npu"; fi
+# audit9: BOTH contexts (target + drafter) at the configured 2048, and
+# `-fit off` removed the extra-model probe from every log
+eq "happy ctx-values" "2048 2048 " "$(awk '/llama_context: n_ctx / && !/n_ctx_seq/{printf "%s ", $NF}' "$RAW/B8.log" 2>/dev/null)"
+eq "happy ctx-values-C4" "2048 2048 " "$(awk '/llama_context: n_ctx / && !/n_ctx_seq/{printf "%s ", $NF}' "$RAW/C4.log" 2>/dev/null)"
+if grep -aq "getting device memory data for the extra model" "$RAW"/*.log 2>/dev/null; then fail "happy no-fit-probe" "$(grep -al "getting device memory data" "$RAW"/*.log | head -1)"; else pass "happy no-fit-probe"; fi
 if grep -q ' D load_tensors: layer' "$RAW/A-p.log" 2>/dev/null; then pass "happy proof-prefixed-placement"; else fail "happy proof-prefixed-placement" "no ' D load_tensors' in A-p.log"; fi
 if [ "$(grep -c 'assigned to device' "$RAW/B8.log" 2>/dev/null || true)" = 0 ]; then pass "happy measured-no-placement"; else fail "happy measured-no-placement" "$(grep -m2 'assigned to device' "$RAW/B8.log")"; fi
 has "happy measured-prefix" " I n_predict = 136" "$(cat "$RAW/B8.log" 2>/dev/null || echo none)"
@@ -524,6 +529,17 @@ eq "segv void-A" crash_sig11 "$(colr A-p 15)"   # rc 139 = 128 + signal 11 (SIGS
 eq "segv rc-recorded" 139 "$(colr A-p 16)"   # abnormal rows carry the rc in the proof col
 has "segv kill-verified" "KILL_VERIFY reason=abn_A-p result=gone" "$(driver_log)"
 assert_restore segv
+
+echo "== audit9: a train-ctx (128000) run is voided ctx_mismatch =="
+run_fixture ctxbad DRY_CTX_MISMATCH=1
+eq "ctxbad rc" 3 "$RC"
+eq "ctxbad END" match_void "$(end_reason)"
+eq "ctxbad rows" 5 "$(rows)"            # proofs voided before any turn ran
+eq "ctxbad void-A" ctx_mismatch "$(colr A-p 15)"
+has "ctxbad proof-values" "128000" "$(colr A-p 16)"   # n_ctx=128000,128000 want=2048
+eq "ctxbad matched" 0 "$(fcount matched)"
+not_has "ctxbad no-success" "MATCH ok" "$(driver_log)"
+assert_restore ctxbad
 
 echo "== audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) =="
 FB=/tmp/dspark-dry-flagbad

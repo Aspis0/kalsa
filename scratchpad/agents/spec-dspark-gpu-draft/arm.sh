@@ -30,6 +30,15 @@ MIN_DRAFT_GPU_ASSIGN=5
 MIN_DRAFT_GPU_KERNELS=4
 PROOF_N=8   # short proof run: load + a few drafter steps (audit2 NEW-7: the
             # >=4-kernel floor is judged on a multi-step proof, not on 4 tokens)
+# audit9: the context every arm must run at. The S23 run 2 had NO -c, so both
+# contexts came out at the train ctx 128000 (2 GB target KV; the drafter on the
+# GPU then failed an 8000 MiB OpenCL allocation, raw/s23-dspark-3/C4-p.log:818,
+# 863, 2303). The drafter has NO ctx flag of its own in f25f0c1c5 —
+# common/speculative.cpp:2550 `cparams.n_ctx = llama_n_ctx(ctx_tgt);` — so one
+# `-c` pins BOTH contexts. 2048 matches cell A (`-c 2048 -b 2048 -ub 1024`)
+# and fits prompt 77 + worst decoded 136 = 213 tokens with a 10x margin.
+CTX_SIZE=2048
+            # >=4-kernel floor is judged on a multi-step proof, not on 4 tokens)
 
 arm_is_gpu() { case "$1" in C*) return 0 ;; *) return 1 ;; esac; }
 
@@ -60,6 +69,7 @@ arm_flags() {
 arm_cmd() {
   local tag=$1 arm=$2 limit=$3 mode=$4 flags lv envk
   flags=$(arm_flags "$arm") || return 1
+  flags="$flags -c $CTX_SIZE -b 2048 -ub 1024 -fit off"   # audit9 (see CTX_SIZE)
   lv=""; envk=""
   case "$mode" in
     proof)   lv=" -lv 5"; envk="export GGML_OPENCL_LOG_KERNELS=1 && " ;;
@@ -102,12 +112,34 @@ arm_htp_leak() {
   awk '/using device HTP0/ || /ggml-hex:.*failed to open session/{n++} END{exit !(n>0)}' "$1"
 }
 
+# arm_ctx_check <log>: prints `ok` / `mismatch:<values>` / `none` for the
+# `llama_context: n_ctx` lines (verbatim shape src/llama-context.cpp:308
+# "%s: n_ctx                 = %u"); the seq/batch variants are excluded by
+# requiring spaces between `n_ctx` and `=`. Both models print it at -lv 4/5
+# and the drafter copies the target's value (common/speculative.cpp:2550).
+arm_ctx_check() {
+  [ -f "$1" ] || { echo none; return 0; }
+  awk -v want="$CTX_SIZE" '
+    /llama_context: n_ctx[ ]+=/ {
+      n++; v = $NF; vals = vals (vals ? "," : "") v
+      if ((v + 0) != (want + 0)) bad = 1
+    }
+    END {
+      if (n == 0) print "none"
+      else if (bad) print "mismatch:" vals
+      else print "ok"
+    }' "$1"
+}
+
 # arm_rc_reason <rc> <log>: classify an abnormal arm exit — content beats the
 # code: an HTP leak is the root cause even when it crashes (rc 139); signal
 # exits (>=128, incl. 139) are crash_sig<N>; the alarm paths 124/142 stay
 # `timeout` (142 = our own SIGALRM on the adb client, not a device signal).
 arm_rc_reason() {
   if arm_htp_leak "$2"; then echo htp_leak; return 0; fi
+  # audit9: a present-but-wrong context outranks the raw code; `none` does
+  # NOT (a partial timeout log never printed it -> timeout/crash stands).
+  case "$(arm_ctx_check "$2")" in mismatch:*) echo ctx_mismatch; return 0 ;; esac
   if [ "$1" = "124" ] || [ "$1" = "142" ]; then echo timeout; return 0; fi
   if [ "$1" -ge 128 ]; then echo "crash_sig$(( $1 - 128 ))"; return 0; fi
   echo "adb_fail_$1"
@@ -118,7 +150,7 @@ arm_rc_reason() {
 # draft-load marker, otherwise the post-marker split measures the wrong model.
 arm_parse_proof() {
   local tag=$1 arm=$2
-  local logf="$RAW/$tag.log" exit_line="" pre="" post=""
+  local logf="$RAW/$tag.log" exit_line="" pre="" post="" ctxv=""
   local pre_place=0 gpu_assign=0 cpu_assign=0 kernels=0
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   [ -f "$logf" ] || return 0
@@ -129,6 +161,14 @@ arm_parse_proof() {
     ARM_PROOF="htp_line=1"
     return 0
   fi
+  # audit9: every context must be CTX_SIZE — run 2 ran both models at the
+  # train ctx 128000 (2 GB target KV, drafter GPU OOM); at -lv 4/5 the INFO
+  # line always exists, so missing = format drift (fail closed).
+  ctxv=$(arm_ctx_check "$logf")
+  case "$ctxv" in
+    none) ARM_VOID=ctx_mismatch; ARM_PROOF="n_ctx_lines=0 want=$CTX_SIZE"; return 0 ;;
+    mismatch:*) ARM_VOID=ctx_mismatch; ARM_PROOF="n_ctx=${ctxv#mismatch:} want=$CTX_SIZE"; return 0 ;;
+  esac
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
   # audit6: a conversation/interactive run is not data — completion prints this
@@ -180,7 +220,7 @@ arm_parse_proof() {
 # row instead of letting the primary metric vanish under status=OK.
 arm_parse_measure() {
   local tag=$1 arm=$2 limit=$3
-  local logf="$RAW/$tag.log" exit_line="" speed="" n_dec=""
+  local logf="$RAW/$tag.log" exit_line="" speed="" n_dec="" ctxv=""
   local marker="" post="" turn_buf=0 turn_off=0
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   ARM_N=na; ARM_OVER=na; ARM_DRAFTED=na; ARM_ACCEPT=na; ARM_TPS=na
@@ -191,6 +231,12 @@ arm_parse_measure() {
     ARM_PROOF="htp_line=1"
     return 0
   fi
+  # audit9: same ctx gate as the proof parse (both models at CTX_SIZE).
+  ctxv=$(arm_ctx_check "$logf")
+  case "$ctxv" in
+    none) ARM_VOID=ctx_mismatch; ARM_PROOF="n_ctx_lines=0 want=$CTX_SIZE"; return 0 ;;
+    mismatch:*) ARM_VOID=ctx_mismatch; ARM_PROOF="n_ctx=${ctxv#mismatch:} want=$CTX_SIZE"; return 0 ;;
+  esac
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
   # audit6: same banner gate as the proof parse — an interactive run exits 0

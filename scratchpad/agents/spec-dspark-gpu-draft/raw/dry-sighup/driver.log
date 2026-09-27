@@ -1,13 +1,13 @@
-[03:33:34] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[03:33:34] SESSION job=dry-sighup board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[03:33:34] GATE label=before_setup
-[03:33:36] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[03:33:36] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[03:33:36] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[03:33:36] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[03:33:36] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[03:33:37] GATE label=after_push
-[03:33:38] KIT_AND_MODELS_VERIFIED
-[03:33:38] GATE label=setup
-[03:33:38] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[03:33:39] KILL_VERIFY reason=cleanup_rc0_sigHUP result=gone attempt=1
+[04:16:49] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[04:16:49] SESSION job=dry-sighup board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[04:16:49] GATE label=before_setup
+[04:16:50] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[04:16:50] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[04:16:50] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[04:16:50] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[04:16:50] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[04:16:51] GATE label=after_push
+[04:16:52] KIT_AND_MODELS_VERIFIED
+[04:16:52] GATE label=setup
+[04:16:52] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[04:16:54] KILL_VERIFY reason=cleanup_rc0_sigHUP result=gone attempt=1

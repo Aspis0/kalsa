@@ -1,28 +1,28 @@
-[03:33:14] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[03:33:15] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[03:33:15] GATE label=before_setup
-[03:33:16] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[03:33:16] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[03:33:16] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[03:33:16] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[03:33:16] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[03:33:17] GATE label=after_push
-[03:33:18] KIT_AND_MODELS_VERIFIED
-[03:33:18] GATE label=setup
-[03:33:18] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[03:33:19] KILL_VERIFY reason=abn_A-p result=gone attempt=1
-[03:33:19] PROOF_ABNORMAL arm=A rc=142 void=timeout
-[03:33:19] GATE label=post_A-p
-[03:33:21] KILL_VERIFY reason=abn_B4-p result=gone attempt=1
-[03:33:21] PROOF_ABNORMAL arm=B4 rc=142 void=timeout
-[03:33:21] GATE label=post_B4-p
-[03:33:22] KILL_VERIFY reason=abn_B8-p result=gone attempt=1
-[03:33:22] PROOF_ABNORMAL arm=B8 rc=142 void=timeout
-[03:33:22] GATE label=post_B8-p
-[03:33:23] KILL_VERIFY reason=abn_C4-p result=gone attempt=1
-[03:33:23] PROOF_ABNORMAL arm=C4 rc=142 void=timeout
-[03:33:23] GATE label=post_C4-p
-[03:33:25] KILL_VERIFY reason=abn_C8-p result=gone attempt=1
-[03:33:25] PROOF_ABNORMAL arm=C8 rc=142 void=timeout
-[03:33:25] GATE label=post_C8-p
-[03:33:25] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID
+[04:16:29] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[04:16:29] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[04:16:29] GATE label=before_setup
+[04:16:30] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[04:16:31] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[04:16:31] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[04:16:31] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[04:16:31] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[04:16:32] GATE label=after_push
+[04:16:33] KIT_AND_MODELS_VERIFIED
+[04:16:33] GATE label=setup
+[04:16:33] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[04:16:34] KILL_VERIFY reason=abn_A-p result=gone attempt=1
+[04:16:34] PROOF_ABNORMAL arm=A rc=142 void=timeout
+[04:16:34] GATE label=post_A-p
+[04:16:35] KILL_VERIFY reason=abn_B4-p result=gone attempt=1
+[04:16:35] PROOF_ABNORMAL arm=B4 rc=142 void=timeout
+[04:16:35] GATE label=post_B4-p
+[04:16:37] KILL_VERIFY reason=abn_B8-p result=gone attempt=1
+[04:16:37] PROOF_ABNORMAL arm=B8 rc=142 void=timeout
+[04:16:37] GATE label=post_B8-p
+[04:16:38] KILL_VERIFY reason=abn_C4-p result=gone attempt=1
+[04:16:38] PROOF_ABNORMAL arm=C4 rc=142 void=timeout
+[04:16:38] GATE label=post_C4-p
+[04:16:39] KILL_VERIFY reason=abn_C8-p result=gone attempt=1
+[04:16:39] PROOF_ABNORMAL arm=C8 rc=142 void=timeout
+[04:16:39] GATE label=post_C8-p
+[04:16:39] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID

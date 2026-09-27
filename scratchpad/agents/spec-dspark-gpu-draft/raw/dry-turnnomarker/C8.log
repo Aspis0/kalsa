@@ -3,12 +3,22 @@
 0.00.000.140 I load_tensors: offloaded 0/31 layers to GPU
 0.00.000.141 I load_tensors:          CPU model buffer size =   206.07 MiB
 0.00.000.142 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.900.010 I llama_context: n_ctx                 = 2048
+0.00.900.011 I llama_context: n_ctx_seq             = 2048
+0.00.900.012 I llama_context: n_batch               = 2048
+0.00.900.013 I llama_context: n_ubatch              = 1024
+0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
 0.00.000.143 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
 0.00.000.144 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
 0.00.000.145 I load_tensors: offloading output layer to GPU
 0.00.000.146 I load_tensors: offloading 4 repeating layers to GPU
 0.00.000.147 I load_tensors: offloaded 6/6 layers to GPU
 0.00.000.148 I load_tensors:       OpenCL model buffer size =   340.00 MiB
+0.00.900.010 I llama_context: n_ctx                 = 2048
+0.00.900.011 I llama_context: n_ctx_seq             = 2048
+0.00.900.012 I llama_context: n_batch               = 2048
+0.00.900.013 I llama_context: n_ubatch              = 1024
+0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
 0.00.900.001 I decoded  136 tokens in    8.000 seconds, speed:   17.000 t/s
 0.00.000.149 I n_draft   = 8
 0.00.000.150 I n_predict = 136

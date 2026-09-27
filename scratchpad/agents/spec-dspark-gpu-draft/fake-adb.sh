@@ -32,6 +32,8 @@
 #   DRY_HTP_LEAK=1              HTP0/session-failure lines in BOTH logs of a
 #                               PINNED command (rc stays 0 -> parse gate)
 #   DRY_TURN_HTP=1              same, TURN log only (proof stays clean)
+#   DRY_CTX_MISMATCH=1          emit n_ctx=128000 (train ctx) even with -c
+#                               (audit9 gate coverage)
 #   DRY_PGREP_BROKEN=1          pgrep self-test fails -> setup aborts (exit 4)
 #   DRY_PGREP_BREAK_AT=N        pgrep works for call #1 (self-test) then breaks
 #   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
@@ -132,6 +134,18 @@ Current cooling devices from HAL:
 EOF
 }
 
+# emit_ctx_block: the real llama_context / llama_kv_cache INFO lines, formats
+# verbatim from src/llama-context.cpp:308-311 and src/llama-kv-cache.cpp:324
+# (as seen in raw/s23-dspark-3/A-p.log:818-821,863); values come from the
+# command's -c/-b/-ub (audit9: no -c meant the train ctx 128000).
+emit_ctx_block() {
+  printf '0.00.900.010 I llama_context: n_ctx                 = %u\n' "$c"
+  printf '0.00.900.011 I llama_context: n_ctx_seq             = %u\n' "$c"
+  printf '0.00.900.012 I llama_context: n_batch               = %u\n' "$b"
+  printf '0.00.900.013 I llama_context: n_ubatch              = %u\n' "$ub"
+  printf '0.00.900.020 I llama_kv_cache: size = %7.2f MiB (%6u cells, %3d layers, %2u/%u seqs), K (f16): %7.2f MiB, V (f16): %7.2f MiB\n' "$kv" "$c" 8 1 1 "$kvk" "$kvk"
+}
+
 # run_arm <cmd>: synthesize the pulled llama-speculative-simple log.
 # Overshoot model: A -> +1; spec arms -> nmax+1, EXCEPT adjustment attempts
 # under DRY_JITTER (= nmax) and DRY_NEVER_MATCH_ARM (fixed N, non-converging).
@@ -142,7 +156,7 @@ EOF
 # `-no-cnv`/`--no-conversation`, common/arg.cpp:1899-1900) or a flag that
 # belongs to another binary (`-no-cnv`, `-cnv`, `-st` are completion-only and
 # spec-simple would reject them too) must never pass the dry-run silently.
-KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-dev$|^-devd$|^-lv$'
+KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-dev$|^-devd$|^-c$|^-b$|^-ub$|^-fit$|^-lv$'
 run_arm() {
   local cmd=$1 tag limit nmax n i k kernels o n_predict dpn drafted accept rc gpu=0
   local badf
@@ -182,6 +196,18 @@ run_arm() {
   esac
   dpn=$n_predict
   if [ "${DRY_N_DECODED_MISMATCH:-0}" = 1 ]; then dpn=$((n_predict + 7)); fi
+  # audit9: context/batch values follow the command; a missing -c (run 2 / the
+  # old command) means the train ctx 128000, and DRY_CTX_MISMATCH forces it so
+  # the ctx gate can be exercised with a pinned command.
+  c=$(printf '%s\n' "$cmd" | sed -n 's#.* -c \([0-9][0-9]*\) .*#\1#p')
+  b=$(printf '%s\n' "$cmd" | sed -n 's#.* -b \([0-9][0-9]*\) .*#\1#p')
+  ub=$(printf '%s\n' "$cmd" | sed -n 's#.* -ub \([0-9][0-9]*\) .*#\1#p')
+  [ -n "$c" ] || c=128000
+  [ -n "$b" ] || b=2048
+  [ -n "$ub" ] || ub=512
+  if [ "${DRY_CTX_MISMATCH:-0}" = 1 ]; then c=128000; fi
+  kv=$(awk -v c="$c" 'BEGIN{printf "%.2f", c/64}')       # real: 128000 -> 2000.00 MiB
+  kvk=$(awk -v c="$c" 'BEGIN{printf "%.2f", c/128}')     # real: 128000 -> 1000.00 MiB
   rc="${DRY_ARM_RC:-0}"
   # mode: `-lv 5` = proof run, anything else with `-lv` = measured turn (-lv 4).
   mode=measure
@@ -222,6 +248,17 @@ run_arm() {
       lg I "load_tensors: offloaded 0/31 layers to GPU"
       lg I "load_tensors:          CPU model buffer size =   206.07 MiB"
       lg I "load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB"
+    fi
+    # audit9: target context block + fit-probe lines; only for a pinned run
+    # (an unpinned run crashes before the context is ever printed) and only
+    # at -lv 4+ (LLAMA_LOG_INFO), exactly like the real logs.
+    if [ "$unpinned" -eq 0 ] && printf '%s' "$cmd" | grep -q -- '-lv '; then
+      emit_ctx_block
+      if ! printf '%s' "$cmd" | grep -q -- '-fit off'; then
+        printf '0.00.900.030 I operator(): getting device memory data for the extra model at a context size of %u:\n' "$c"
+        printf '0.00.900.040 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)\n'
+        printf '0.00.900.050 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model\n'
+      fi
     fi
     if printf '%s' "$cmd" | grep -q -- '-lv 5'; then
       i=0; while [ "$i" -lt 24 ]; do printf '0.00.%03d.%03d D load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$((50 + i))" "$i" "$i"; i=$((i + 1)); done
@@ -270,6 +307,11 @@ run_arm() {
         fi
         lg I "load_tensors:          CPU model buffer size =   340.00 MiB"
       fi
+    fi
+    # audit9: the DRAFTER's own context (common/speculative.cpp:2550 copies
+    # the target's) — second block, same values, after the marker.
+    if printf '%s' "$cmd" | grep -q -- '-lv '; then
+      emit_ctx_block
     fi
     if printf '%s' "$cmd" | grep -q -- '-lv '; then
       if [ "$mode" = measure ] && [ "${DRY_TURN_DISABLED:-0}" = 1 ]; then
