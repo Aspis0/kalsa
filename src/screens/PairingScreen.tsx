@@ -13,6 +13,7 @@ import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
 import { chooseRoad, isValidNodeHex } from "../remote/road";
 import { irohModulePresent } from "../remote/irohBridge";
 import { logPairingFail } from "../pairing/pairingFailLog";
+import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import {
   savePairingCredential,
   type SavedPairingCredential,
@@ -238,6 +239,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
           node: square.node,
           pairedVia: useIrohDesk ? "iroh" : "https",
         });
+        // A new desk makes the stored computer-model id meaningless: clear
+        // it in the same breath the credential is saved (same stage if the
+        // write fails — a save of the pairing's config failed).
+        await setRemoteServerModelId("");
       } catch {
         logPairingFail("save", null);
         setState("refused");

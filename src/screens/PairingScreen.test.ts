@@ -52,6 +52,12 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   savePairingCredential: jest.fn(),
 }));
 
+// A completed pairing hands the stored computer-model id back to the
+// remote settings — the spy stands in for that write.
+jest.mock("../engine/remote/remoteSettings", () => ({
+  setRemoteServerModelId: jest.fn(async () => undefined),
+}));
+
 // A square may carry a valid node; the screen asks the real module whether
 // the iroh road exists, and the default in jest must stay "no" — the road
 // gate itself is covered in road.test. Tests that take the iroh road flip
@@ -102,6 +108,7 @@ import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { Keyboard } from "react-native";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
+import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import { irohModulePresent, openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";
 import { PairingScreen } from "./PairingScreen";
@@ -691,6 +698,20 @@ describe("PairingScreen", () => {
     expect(bodies[1]).toContain('"battery_powered":true');
     expect(bodies[1]).not.toContain('"weights_bytes":0');
     expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children).toBe("pairing.waiting");
+    await act(async () => renderer.unmount());
+  });
+
+  test("a completed pairing clears the stored computer-model id", async () => {
+    installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // A new desk makes the old id meaningless: the ceremony wipes it.
+    expect(setRemoteServerModelId).toHaveBeenCalledWith("");
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     await act(async () => renderer.unmount());
   });
 

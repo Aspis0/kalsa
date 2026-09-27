@@ -32,7 +32,8 @@ import {
   getRemoteTemperature,
   setRemoteContextSize,
   setRemoteConfigChangedHook,
-  validateServedModel,
+  adoptRemoteServerModelId,
+  resolveServedModel,
 } from "./remoteSettings";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
@@ -166,16 +167,23 @@ export async function testRemoteConnection(): Promise<{
         };
       }
     }
-    const invalid = validateServedModel(configured, ids);
-    if (invalid) {
+    const decision = resolveServedModel(configured, ids);
+    if (decision.kind === "adopt") {
+      // The desk serves exactly one id: it IS the model (a path today, an
+      // alias later). Persisting what THIS probe saw must not trip the
+      // config-changed hook — the init in flight would supersede itself.
+      await adoptRemoteServerModelId(decision.modelId);
+      return { ok: true, modelId: decision.modelId, models: ids };
+    }
+    if (decision.kind === "error") {
       return {
         ok: false,
         modelId: configured || null,
         models: ids,
-        error: invalid,
+        error: decision.code,
       };
     }
-    return { ok: true, modelId: configured, models: ids };
+    return { ok: true, modelId: decision.modelId, models: ids };
   } catch (err) {
     return {
       ok: false,
@@ -205,13 +213,15 @@ export async function initRemoteEngine(
   }
   ready = true;
   activeId = REMOTE_COMPUTER_MODEL_ID;
-  const serverId = probe.modelId || getRemoteServerModelId();
+  // Deliberately no serverModelId here: the desk's id can be a file path
+  // naming its user, and no log line may carry it — KALSA_ROAD,
+  // KALSA_PAIRING_FAIL and telemetry all stay id-free (the telemetry
+  // categories only map KNOWN registry ids, src/telemetry/pure.ts:87).
   console.log(
     "remote.brain.init",
     JSON.stringify({
       ok: true,
       modelId: activeId,
-      serverModelId: serverId,
     }),
   );
   return { effectiveNCtx: getRemoteContextSize() };

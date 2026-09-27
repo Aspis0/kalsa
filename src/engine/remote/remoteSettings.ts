@@ -1,7 +1,9 @@
 /**
  * Remote-brain prefs. Backend defaults to local (zero regression).
  * URL has no built-in default — the user must set their computer's address.
- * Server model-id is required and is never inferred from /v1/models[0].
+ * Server model-id is a stored value, checked against /v1/models — and a
+ * desk serving exactly one id adopts that id when the stored one is empty
+ * or stale (resolveServedModel); never a guess among several.
  * The default values live in remoteDefaults (pure) and are re-exported here.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -95,17 +97,31 @@ export function getRemoteContextSize(): number {
   return ctxCache;
 }
 
-/** Null if ok; otherwise an error code. Empty served list skips membership check. */
-export function validateServedModel(
+export type ServedModelDecision =
+  | { kind: "ok"; modelId: string }
+  | { kind: "adopt"; modelId: string }
+  | { kind: "error"; code: "remote_brain_model_required" | "remote_brain_model_missing" };
+
+/**
+ * What to do with the stored id against what the desk serves. A desk
+ * serving exactly ONE id is authoritative: an empty or stale stored id
+ * adopts it — the id may be a path on the desk user's machine, so it is
+ * stored and shown, never logged. Several served ids keep membership
+ * checking: a mismatch is the user's to fix, never a guess among many.
+ */
+export function resolveServedModel(
   configured: string,
   servedIds: string[],
-): string | null {
+): ServedModelDecision {
   const id = configured.trim();
-  if (!id) return "remote_brain_model_required";
-  if (servedIds.length > 0 && !servedIds.includes(id)) {
-    return "remote_brain_model_missing";
+  if (servedIds.length === 1 && servedIds[0] !== id) {
+    return { kind: "adopt", modelId: servedIds[0] };
   }
-  return null;
+  if (!id) return { kind: "error", code: "remote_brain_model_required" };
+  if (servedIds.length > 0 && !servedIds.includes(id)) {
+    return { kind: "error", code: "remote_brain_model_missing" };
+  }
+  return { kind: "ok", modelId: id };
 }
 
 export function normalizeUrl(raw: string): string {
@@ -179,6 +195,19 @@ export async function setRemoteServerModelId(id: string): Promise<void> {
   const next = id.trim();
   const changed = serverModelCache !== next;
   if (changed) onRemoteConfigChanged?.();
+  await commit(serverModelCache, next, (value) => {
+    serverModelCache = value;
+  }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, value));
+}
+
+/**
+ * Persist the id THE PROBE saw: the same desk the engine is talking to,
+ * so — unlike a user edit — it must not trip onRemoteConfigChanged: that
+ * hook would mark the very init that discovered the id as superseded.
+ */
+export async function adoptRemoteServerModelId(id: string): Promise<void> {
+  const next = id.trim();
+  if (serverModelCache === next) return;
   await commit(serverModelCache, next, (value) => {
     serverModelCache = value;
   }, (value) => AsyncStorage.setItem(REMOTE_BRAIN_MODEL_KEY, value));

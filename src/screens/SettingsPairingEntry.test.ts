@@ -75,7 +75,11 @@ jest.mock("../engine/engineBackend", () => ({
 jest.mock("../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(async () => null),
 }));
-jest.mock("../engine/remote/remoteSettings", () => ({ getRemoteBrainUrl: jest.fn(() => "") }));
+jest.mock("../engine/remote/remoteSettings", () => ({
+  getRemoteBrainUrl: jest.fn(() => ""),
+  // PairingScreen imports this one; no ceremony runs in this file.
+  setRemoteServerModelId: jest.fn(async () => undefined),
+}));
 jest.mock("../search", () => ({
   getActiveProviderId: jest.fn(async () => "exa"),
   getSecret: jest.fn(async () => null),

@@ -33,27 +33,41 @@ import {
   REMOTE_BRAIN_MODEL_KEY,
   REMOTE_BRAIN_URL_KEY,
   setEngineBackendMode,
-  validateServedModel,
+  resolveServedModel,
 } from "./remoteSettings";
 
-describe("validateServedModel", () => {
-  test("requires a configured id", () => {
-    expect(validateServedModel("", ["ornith"])).toBe("remote_brain_model_required");
-    expect(validateServedModel("  ", [])).toBe("remote_brain_model_required");
+describe("resolveServedModel", () => {
+  test("a stale id with exactly one served id adopts it, whatever its shape", () => {
+    expect(resolveServedModel("stale-id", ["/Users/somebody/Qwen3.6.gguf"])).toEqual({
+      kind: "adopt",
+      modelId: "/Users/somebody/Qwen3.6.gguf",
+    });
+    expect(resolveServedModel("", ["ornith"])).toEqual({ kind: "adopt", modelId: "ornith" });
+    expect(resolveServedModel("  ", ["ornith"])).toEqual({ kind: "adopt", modelId: "ornith" });
   });
 
-  test("rejects an id not on the server", () => {
-    expect(validateServedModel("nope", ["ornith", "other"])).toBe(
-      "remote_brain_model_missing",
-    );
+  test("a stale id with two served ids is the missing-model error", () => {
+    expect(resolveServedModel("nope", ["ornith", "other"])).toEqual({
+      kind: "error",
+      code: "remote_brain_model_missing",
+    });
   });
 
-  test("accepts a matching id", () => {
-    expect(validateServedModel("ornith", ["ornith"])).toBeNull();
+  test("an empty id with several served ids keeps the required error", () => {
+    expect(resolveServedModel("", ["a", "b"])).toEqual({
+      kind: "error",
+      code: "remote_brain_model_required",
+    });
+    expect(resolveServedModel("  ", [])).toEqual({
+      kind: "error",
+      code: "remote_brain_model_required",
+    });
   });
 
-  test("skips membership when the server list is empty", () => {
-    expect(validateServedModel("ornith", [])).toBeNull();
+  test("a matching id is accepted as-is, and an empty served list never forces adoption", () => {
+    expect(resolveServedModel("ornith", ["ornith"])).toEqual({ kind: "ok", modelId: "ornith" });
+    expect(resolveServedModel("ornith", ["ornith", "other"])).toEqual({ kind: "ok", modelId: "ornith" });
+    expect(resolveServedModel("ornith", [])).toEqual({ kind: "ok", modelId: "ornith" });
   });
 });
 
