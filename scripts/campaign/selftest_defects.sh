@@ -1073,7 +1073,7 @@ vout="$(node "$HERE/verdict.mjs" "$VRUN" --turns 2 2>&1)"
 vrc=$?
 # The align count is the regression guard: keying on the inner "op" field finds
 # no payload (the brace precedes it) and reports 0 of 0, which PASSES vacuously.
-if printf '%s' "$vout" | grep -q '1 of 2 aligns land on 0'; then
+if grep -q '1 of 2 aligns land on 0' <<<"$vout"; then
   ok "verdict parses window_align through the outer marker (1 of 2)"
 else
   bad "verdict lost the aligns (vacuous pass regression)"
@@ -1094,7 +1094,7 @@ cp "$VRUN/T20C/c1-V1.jsonl" "$VBARE/T20C/c1-V1.jsonl"
 # `node ... | grep -q` pipeline inherits that 1 and sends the `if` to else even
 # when grep matched.
 vbout="$(node "$HERE/verdict.mjs" "$VBARE" --turns 2 2>&1 || true)"
-if printf '%s' "$vbout" | grep -q 'UNVERIFIABLE'; then
+if grep -q 'UNVERIFIABLE' <<<"$vbout"; then
   ok "verdict refuses to score truncation on a build that cannot report it"
 else
   bad "verdict scored truncation vacuously on an uninstrumented run"
@@ -1187,22 +1187,22 @@ printf '%s\n' '{"arm":"T20C","i":1,"intent":"chat-1","assistant":"a"}' > "$SRUN/
 sout="$(node "$HERE/verdict.mjs" "$SRUN" --turns 1 2>&1 || true)"
 
 printf '\n== (f) the run-cost report is asserted, not just printed ==\n'
-if printf '%s' "$sout" | grep -qF '16s prefill (10s of it prewarm) / 16s decode (prefill 50%)'; then
+if grep -qF '16s prefill (10s of it prewarm) / 16s decode (prefill 50%)' <<<"$sout"; then
   ok "spend: prewarm prefill is counted, and named separately"
 else
   bad "spend: prefill split wrong: $(printf '%s' "$sout" | grep -F 'prefill vs decode')"
 fi
-if printf '%s' "$sout" | grep -qF '400 tok in 4s, turn after the slide reported no prefill counters'; then
+if grep -qF '400 tok in 4s, turn after the slide reported no prefill counters' <<<"$sout"; then
   ok "spend: one turn pays one slide, and -1 is refused as a measurement"
 else
   bad "spend: slide bill wrong: $(printf '%s' "$sout" | grep -F 're-prefill after')"
 fi
-if printf '%s' "$sout" | grep -q 'tok in -0s'; then
+if grep -q 'tok in -0s' <<<"$sout"; then
   bad "spend: the -1 sentinel printed as a measurement"
 else
   ok "spend: no negative bill reached the report"
 fi
-if printf '%s' "$sout" | grep -qF '10.00 -> 5.00 (-50%)'; then
+if grep -qF '10.00 -> 5.00 (-50%)' <<<"$sout"; then
   ok "spend: decode decay skips the turn with no rate"
 else
   bad "spend: decay wrong: $(printf '%s' "$sout" | grep -F 'decode tok/s')"
@@ -1487,7 +1487,13 @@ readings_case() {
     export ANDROID_SERIAL=fake:5555
     source "$REPO/scripts/device-env.sh"
     source "$HERE/recovery.sh"
-    reset() { CAMPAIGN_READ_KIND=""; CAMPAIGN_READ_STREAK=0; CAMPAIGN_READINGS_DEAD=""; }
+    reset() {
+      CAMPAIGN_STREAK_PLUGGED=0
+      CAMPAIGN_STREAK_THERMAL_STATUS=0
+      CAMPAIGN_STREAK_BATTERY_TEMP=0
+      CAMPAIGN_STREAK_LEVEL=0
+      CAMPAIGN_READINGS_DEAD=""
+    }
     fail=0
 
     # 1) thermal status: three unavailable statuses must stop the run
@@ -1541,6 +1547,39 @@ readings_case() {
 }
 
 readings_case
+
+# Per-sensor streaks: two sensors alternating invalid must still die when
+# ONE of them reaches 3 consecutive reads (a single shared slot resets on
+# every switch and never reaches the cap — the red that proved this bug).
+readings_alternating_case() {
+  local out="$WORK/readings-alt" rc
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    source "$HERE/recovery.sh"
+    fail=0
+    campaign_reading_invalid plugged
+    campaign_reading_invalid thermal-status
+    campaign_reading_invalid plugged
+    campaign_reading_invalid thermal-status
+    if campaign_readings_dead; then
+      echo "died while both sensors were still at 2/3"
+      fail=1
+    fi
+    campaign_reading_invalid plugged # plugged reaches 3 while thermal-status sits at 2
+    campaign_readings_dead || { echo "alternating sensors never died at 3 consecutive reads each"; fail=1; }
+    exit "$fail"
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "two alternating invalid sensors keep per-sensor streaks and die at 3 each"
+  else
+    bad "alternating-sensor streak wrong (rc=$rc)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readings_alternating_case
 
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

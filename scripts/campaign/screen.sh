@@ -8,12 +8,18 @@
 
 campaign_screen_verify() {
   local power focus
+  # case/herestring, never `printf "$x" | grep -q`: under pipefail an
+  # early-closing grep -q hands printf a SIGPIPE (141) on any dump larger
+  # than the pipe buffer — the check would fail at random.
   power=$(adb shell dumpsys power </dev/null 2>/dev/null | tr -d '\r') || return 1
-  printf '%s\n' "$power" | grep -q 'mWakefulness=Awake' || return 1
+  case "$power" in
+    *mWakefulness=Awake*) ;;
+    *) return 1 ;;
+  esac
   focus=$(adb shell dumpsys window </dev/null 2>/dev/null | tr -d '\r') || focus=""
-  if ! printf '%s\n' "$focus" | grep -q 'mCurrentFocus=.*com.kalsa.app'; then
+  if ! grep -q 'mCurrentFocus=.*com.kalsa.app' <<<"$focus"; then
     focus=$(adb shell dumpsys activity activities </dev/null 2>/dev/null | tr -d '\r') || return 1
-    printf '%s\n' "$focus" | grep -q 'topResumedActivity=.*com.kalsa.app' || return 1
+    grep -q 'topResumedActivity=.*com.kalsa.app' <<<"$focus" || return 1
   fi
   return 0
 }
@@ -24,6 +30,9 @@ campaign_screen_wake() {
   # alone is not enough, so the keyguard must go too.
   adb shell input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1 || return 1
   adb shell wm dismiss-keyguard </dev/null >/dev/null 2>&1 || true
+  # singleTask: the installed S23 app reports launchMode=2 in dumpsys
+  # activity activities, so am start REUSES the running instance — it
+  # foregrounds without restarting, mid-conversation included.
   adb shell am start -n "$PKG/.MainActivity" </dev/null >/dev/null 2>&1 || return 1
   local t=0 wait_s="${CAMPAIGN_SCREEN_WAKE_WAIT_S:-10}"
   case "$wait_s" in ''|*[!0-9]*|0) wait_s=10 ;; esac

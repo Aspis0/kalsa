@@ -124,7 +124,7 @@ charging_or_status2() {
     return 2
   fi
   [ -n "$d" ] || return 2
-  if printf '%s\n' "$d" | grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true'; then return 0; fi
+  if grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true' <<<"$d"; then return 0; fi
   st=$(printf '%s\n' "$d" | awk '/^[[:space:]]*status:/ {print $2; exit}')
   case "$st" in
     2|5|6|7|8|9) return 0 ;;

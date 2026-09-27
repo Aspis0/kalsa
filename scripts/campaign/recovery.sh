@@ -25,29 +25,48 @@ CAMPAIGN_THERMAL_COOLDOWN_STEP_S="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
 CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
 
 # Fail-closed readings (owner rule): an unreadable thermal status, battery
-# temperature, battery level or plugged reading is an INVALID read; the 3rd
-# CONSECUTIVE invalid read of the same sensor stops the run — the same
-# three-strikes shape as the charge monitor. A valid read of that sensor
-# resets its streak (a healthy battery must not mask a dead thermal sensor);
+# temperature, battery level or plugged reading is an INVALID read. Every
+# SENSOR keeps its OWN streak of consecutive invalid reads, so alternating
+# unreadable sensors still each die at 3 (a single shared slot resets on
+# every switch and never reaches the cap). A valid read clears only its own
+# sensor's streak — a healthy battery must not mask a dead thermal sensor;
 # once dead, the run never comes back (campaign_readings_dead gates
 # campaign_thermal_should_hard_abort and campaign_thermal_should_pause).
-CAMPAIGN_READ_KIND=""
-CAMPAIGN_READ_STREAK=0
+CAMPAIGN_STREAK_PLUGGED=0
+CAMPAIGN_STREAK_THERMAL_STATUS=0
+CAMPAIGN_STREAK_BATTERY_TEMP=0
+CAMPAIGN_STREAK_LEVEL=0
 CAMPAIGN_READINGS_DEAD=""
 
 campaign_reading_invalid() {
-  local kind="$1"
-  if [ "$CAMPAIGN_READ_KIND" = "$kind" ]; then
-    CAMPAIGN_READ_STREAK=$((CAMPAIGN_READ_STREAK + 1))
-  else
-    CAMPAIGN_READ_KIND="$kind"
-    CAMPAIGN_READ_STREAK=1
-  fi
+  local kind="$1" streak
+  case "$kind" in
+    plugged)
+      CAMPAIGN_STREAK_PLUGGED=$((CAMPAIGN_STREAK_PLUGGED + 1))
+      streak=$CAMPAIGN_STREAK_PLUGGED
+      ;;
+    thermal-status)
+      CAMPAIGN_STREAK_THERMAL_STATUS=$((CAMPAIGN_STREAK_THERMAL_STATUS + 1))
+      streak=$CAMPAIGN_STREAK_THERMAL_STATUS
+      ;;
+    battery-temp)
+      CAMPAIGN_STREAK_BATTERY_TEMP=$((CAMPAIGN_STREAK_BATTERY_TEMP + 1))
+      streak=$CAMPAIGN_STREAK_BATTERY_TEMP
+      ;;
+    level)
+      CAMPAIGN_STREAK_LEVEL=$((CAMPAIGN_STREAK_LEVEL + 1))
+      streak=$CAMPAIGN_STREAK_LEVEL
+      ;;
+    *)
+      log "invalid reading: unknown sensor '$kind' — not counted" >&2
+      return 0
+      ;;
+  esac
   # >&2 is load-bearing: campaign_thermal_hard_abort_reason prints its
   # reason on stdout for $(...) capture — a log line there would BECOME the
   # abort reason. Same trap the pre-existing "power state unknown" log dodges.
-  log "invalid reading ($kind): ${CAMPAIGN_READ_STREAK}/3 consecutive" >&2
-  if [ "$CAMPAIGN_READ_STREAK" -ge 3 ]; then
+  log "invalid reading ($kind): $streak/3 consecutive" >&2
+  if [ "$streak" -ge 3 ]; then
     CAMPAIGN_READINGS_DEAD="unreadable $kind x3"
     log "INVALID READINGS: $CAMPAIGN_READINGS_DEAD — stopping the run; it will not resume" >&2
   fi
@@ -55,11 +74,13 @@ campaign_reading_invalid() {
 }
 
 campaign_reading_valid() {
-  local kind="${1:-}"
-  if [ -z "$kind" ] || [ "$CAMPAIGN_READ_KIND" = "$kind" ]; then
-    CAMPAIGN_READ_KIND=""
-    CAMPAIGN_READ_STREAK=0
-  fi
+  case "${1:-}" in
+    plugged) CAMPAIGN_STREAK_PLUGGED=0 ;;
+    thermal-status) CAMPAIGN_STREAK_THERMAL_STATUS=0 ;;
+    battery-temp) CAMPAIGN_STREAK_BATTERY_TEMP=0 ;;
+    level) CAMPAIGN_STREAK_LEVEL=0 ;;
+    *) ;;
+  esac
   return 0
 }
 
@@ -271,9 +292,9 @@ campaign_thermal_is_plugged() {
     dump=$(adb shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' || true)
   fi
   [ -n "$dump" ] || { printf '%s\n' unknown; return 0; }
-  if printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true'; then
+  if grep -qE '(AC|USB|Wireless|Dock) powered:[[:space:]]*true' <<<"$dump"; then
     printf '%s\n' true
-  elif printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless|Dock) powered:'; then
+  elif grep -qE '(AC|USB|Wireless|Dock) powered:' <<<"$dump"; then
     printf '%s\n' false
   else
     printf '%s\n' unknown

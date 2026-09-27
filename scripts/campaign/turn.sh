@@ -9,11 +9,11 @@ campaign_charging_now() {
     printf '%s\n' false
     return 2
   fi
-  if ! printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless) powered:[[:space:]]*(true|false)'; then
+  if ! grep -qE '(AC|USB|Wireless) powered:[[:space:]]*(true|false)' <<<"$dump"; then
     printf '%s\n' false
     return 2
   fi
-  if printf '%s\n' "$dump" | grep -qE '(AC|USB|Wireless) powered:[[:space:]]*true'; then
+  if grep -qE '(AC|USB|Wireless) powered:[[:space:]]*true' <<<"$dump"; then
     echo true
   else
     echo false
@@ -112,7 +112,7 @@ _campaign_composer_has() {
   local needle="$1" ui landed
   ui=$(device_dump_ui_retry </dev/null) || return 1
   landed=$(device_composer_from_ui "$ui")
-  [ -n "$landed" ] && printf '%s' "$landed" | LC_ALL=C grep -qF "$needle"
+  [ -n "$landed" ] && LC_ALL=C grep -qF "$needle" <<<"$landed"
 }
 
 # After kalsa://share, engine may dispose. Pronto can stay on-screen (stale).

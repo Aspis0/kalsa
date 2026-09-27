@@ -36,6 +36,17 @@ _unhandled() {
 
 _mode() { cat "$F/mode" 2>/dev/null || printf '%s\n' marker-turn1; }
 
+# ≥128 KiB of filler AFTER the reply's match line (realistic dump size):
+# a `printf \"$x\" | grep -q` fed this dies of SIGPIPE under pipefail —
+# grep closes on the first match while the writer still has ~128 KiB to
+# push — so the harness's no-pipe checks are proven against real sizes.
+_dump_pad() {
+  if [ ! -f "$F/dump-pad.txt" ]; then
+    python3 -c "print('padding padding padding padding padding padding padding padding padding padding line\\n' * 1600, end='')" > "$F/dump-pad.txt"
+  fi
+  cat "$F/dump-pad.txt"
+}
+
 _battery_dump() {
   local mode reads temp
   mode=$(_mode)
@@ -90,6 +101,7 @@ _battery_dump() {
       else
         cat
       fi
+  _dump_pad
 }
 
 _thermal_dump() {
@@ -114,6 +126,7 @@ _screen_dump() {
     awake) printf '  mWakefulness=Awake\n' ;;
     *) printf '  mWakefulness=Dozing\n' ;; # dozing AND stuck both read Dozing
   esac
+  _dump_pad
 }
 
 _window_dump() {
@@ -121,6 +134,7 @@ _window_dump() {
     other) printf '  mCurrentFocus=Window{abc123 u0 com.other.app/.MainActivity}\n' ;;
     *) printf '  mCurrentFocus=Window{abc123 u0 com.kalsa.app/com.kalsa.app.MainActivity}\n' ;;
   esac
+  _dump_pad
 }
 
 _activity_dump() {
@@ -128,6 +142,7 @@ _activity_dump() {
     other) printf '    topResumedActivity=ActivityRecord{abc123 u0 com.other.app/.MainActivity}\n' ;;
     *) printf '    topResumedActivity=ActivityRecord{abc123 u0 com.kalsa.app/com.kalsa.app.MainActivity}\n' ;;
   esac
+  _dump_pad
 }
 
 _screen_wake() {

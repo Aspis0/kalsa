@@ -128,7 +128,9 @@ PY
 SERIAL="${CAMPAIGN_SERIAL:-$(python3 -c 'import json,sys
 print(json.load(open(sys.argv[1]))["device"])' "$CONFIG" 2>/dev/null || echo "192.168.1.82:34037")}"
 device_lost() {
-  adb devices 2>/dev/null | grep -q "$SERIAL.*device"
+  local devices
+  devices=$(adb devices 2>/dev/null)
+  grep -q "$SERIAL.*device" <<<"$devices"
 }
 
 log "resilient launcher: out=$OUT (serial $SERIAL)"
