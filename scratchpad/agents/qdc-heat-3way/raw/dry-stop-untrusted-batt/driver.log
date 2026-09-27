@@ -1,18 +1,19 @@
-[21:35:15] SESSION job=dry-stop-untrusted-batt board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[21:35:15] KIT_UNPACK_PUSH
-[21:35:15] DEVICE_LIST_OK
-[21:35:15] KIT_PUSH ship.gguf sha_before=absent
-[21:35:15] KIT_PUSH prompt.txt sha_before=absent
-[21:35:16] BATTERY_SENSOR_UNTRUSTED why=frozen_reading temp=310,310 skin_delta=0.700
-[21:35:16] GATE label=setup
-[21:35:16] SETUP_DONE skin0=34.2 battery_untrusted=1
-[21:35:16] SAMPLER_LAUNCHED pid=68296
-[21:35:16] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-untrusted-batt-t1cpu
-[21:35:16] LOAD_PHASE turn=1 wall_s=0 skin 34.2->34.2 pagein_cold=1
-[21:35:16] SAMPLER_PAUSED (measured turn excluded from the 1 Hz series)
-[21:35:17] SAMPLER_LAUNCHED pid=68506
-[21:35:17] SAMPLER_RESUMED
-[21:35:17] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=ngl=0 htp=1 thr=5 proof=cpu_no_offload fp=ngl=0 htp=1 thr=5
-[21:35:17] STOP reason=battery_temp
-[21:35:17] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
-[21:35:17] SESSION_STOP reason=battery_temp
+[22:41:03] SESSION job=dry-stop-untrusted-batt board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[22:41:03] KIT_UNPACK_PUSH
+[22:41:03] DEVICE_LIST_OK
+[22:41:03] KIT_PUSH ship.gguf sha_before=absent
+[22:41:03] KIT_PUSH prompt.txt sha_before=absent
+[22:41:04] BATTERY_SENSOR_UNTRUSTED why=frozen_reading temp=310,310 skin_delta=0.700
+[22:41:04] GATE label=setup
+[22:41:04] SETUP_DONE skin0=34.2 battery_untrusted=1 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:41:05] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:41:05] SAMPLER_LAUNCHED pid=17253
+[22:41:05] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-untrusted-batt-t1cpu
+[22:41:05] LOAD_PHASE turn=1 wall_s=0 skin 34.2->34.2 pagein_cold=1
+[22:41:06] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[22:41:06] SAMPLER_LAUNCHED pid=17599
+[22:41:06] SAMPLER_RESUMED
+[22:41:06] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
+[22:41:06] STOP reason=battery_temp
+[22:41:06] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
+[22:41:06] SESSION_STOP reason=battery_temp

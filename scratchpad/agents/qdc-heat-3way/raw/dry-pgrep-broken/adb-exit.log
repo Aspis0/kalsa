@@ -1,0 +1,32 @@
+rc=0 devices
+rc=0 -s fakes23 wait-for-device
+rc=0 -s fakes23 shell getprop ro.soc.model
+rc=0 -s fakes23 shell settings get system screen_off_timeout
+rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
+rc=0 -s fakes23 shell input keyevent KEYCODE_WAKEUP
+rc=0 -s fakes23 shell svc power stayon true
+rc=0 -s fakes23 shell settings put system screen_off_timeout 1800000
+rc=0 -s fakes23 shell mkdir\ -p\ /data/local/tmp/heat3way\ /data/local/tmp/heat3way/heat\ \&\&\ rm\ -f\ /data/local/tmp/heat3way/heat/stop\ /data/local/tmp/heat3way/heat/samples.txt\ /data/local/tmp/heat3way/\*.log
+rc=1 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ sha256sum\ -c\ SHA256SUMS
+rc=0 -s fakes23 push /Users/marco/kalsa-qdc/npu-step0-v73/npu-kit-f25f0c1c5.tgz /data/local/tmp/heat3way/kit.tgz
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ tar\ -xzf\ kit.tgz\ \&\&\ rm\ -f\ kit.tgz
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ sha256sum\ -c\ SHA256SUMS
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/bin/llama-completion
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ --list-devices
+rc=1 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/ship.gguf
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf /data/local/tmp/heat3way/ship.gguf
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/ship.gguf
+rc=1 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/PROMPT.txt /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/smp.sh /data/local/tmp/heat3way/heat/smp.sh
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\;\ echo\ PGREP_RC=\$\?
+rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop

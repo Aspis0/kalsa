@@ -17,13 +17,14 @@ eq "six cpu prefill" 45000.00 "$(col 1 22)"
 eq "six gpu prefill" 14000.00 "$(col 2 22)"
 eq "six npu prefill" 18000.00 "$(col 3 22)"
 has "six cpu proof" cpu_no_offload "$(col 1 25)"
-has "six cpu fingerprint" "fp=ngl=0 htp=1 thr=5" "$(col 1 25)"
+has "six cpu fingerprint (placement)" "fp=buf=CPU off=0/33 thr=5" "$(col 1 25)"
 has "six gpu proof assign" gpu_assigned_lines= "$(col 2 25)"
 has "six gpu proof kernels" "kernels=" "$(col 2 25)"
-has "six gpu fingerprint" "fp=ngl=99 htp=0 thr=5" "$(col 2 25)"
+has "six gpu fingerprint (placement)" "fp=buf=GPUOpenCL off=33/33 thr=5" "$(col 2 25)"
 has "six npu proof arch" "arch=v73" "$(col 3 25)"
 has "six npu proof ops" "htp_ops=1200" "$(col 3 25)"
-has "six npu fingerprint" "fp=ngl=99 htp=1 thr=5" "$(col 3 25)"
+has "six npu fingerprint (placement)" "fp=buf=HTP0 off=33/33 thr=5" "$(col 3 25)"
+has "six npu scaled floor" "min=4" "$(col 3 25)"    # NEW-1: ceil(0.86 x 4 proof tokens)
 eq "six skin_before" 33.5 "$(col 1 14)"
 eq "six load_skin_before A8" 33.5 "$(col 1 11)"
 eq "six load_skin_after A8" 33.5 "$(col 1 12)"
@@ -32,8 +33,10 @@ eq "six pagein_cold arm2" 0 "$(col 2 13)"
 ne "six load_wall_s" na "$(col 1 10)"
 eq "six samples.txt" yes "$([ -f "$RAW/samples.txt" ] && echo yes || echo no)"
 eq "six list-devices" yes "$([ -f "$RAW/list_devices.txt" ] && echo yes || echo no)"
-has "six sampler-paused A11" "SAMPLER_PAUSED" "$(cat "$RAW/driver.log")"
+has "six sampler-paused A11 NEW-6" "SAMPLER_PAUSE_CONFIRMED" "$(cat "$RAW/driver.log")"
 has "six sampler-resumed A11" "SAMPLER_RESUMED" "$(cat "$RAW/driver.log")"
+has "six pgrep selftest NEW-4" "PGREP_SELFTEST_OK" "$(cat "$RAW/driver.log")"
+has "six floor source (until calibrated)" "source=prior(no calib.ok" "$(cat "$RAW/driver.log")"
 count_is "six single sampler header" 1 "H zones" "$RAW/samples.txt"
 # 1 initial launch + one resume per measured turn (6 arms) — A-11 in action
 count_is "six sampler launches" 7 "H sampler_start" "$RAW/samples.txt"
@@ -59,12 +62,12 @@ eq "nohtp void_reason" no_htp_proof "$(col 1 5)"
 eq "nohtp backend" npu "$(col 1 2)"
 assert_restore nohtp
 
-echo "== fixture: execute-op below the 1000 floor voids the N proof run (A6) =="
-run_fixture htp-low NN DRY_HTP_OPS=5
+echo "== fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) =="
+run_fixture htp-low NN DRY_HTP_OPS=2
 eq "htplow rc" 0 "$RC"
 eq "htplow rows" 1 "$(rows)"
 eq "htplow void_reason" htp_ops_low "$(col 1 5)"
-eq "htplow proof count" "htp_ops=5" "$(col 1 25)"
+has "htplow scaled proof count" "htp_ops=2 min=4" "$(col 1 25)"
 assert_end htplow method_void_htp_ops_low
 assert_restore htp-low
 
@@ -101,12 +104,13 @@ eq "nocpu void_reason" no_cpu_proof "$(col 1 5)"
 assert_end nocpu method_void_no_cpu_proof
 assert_restore nocpu
 
-echo "== fixture: turn fingerprint differs from the proof run -> backend_mismatch =="
-run_fixture backend-mismatch GC DRY_TURN_FP_NGL=0
+echo "== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) =="
+run_fixture backend-mismatch GC DRY_TURN_FP_BUF=CPU
 eq "bfp rc" 0 "$RC"
 eq "bfp rows" 1 "$(rows)"
 eq "bfp void_reason" backend_mismatch "$(col 1 5)"
-has "bfp proof carries both" "fp_proof=ngl=99" "$(col 1 25)"
+has "bfp turn says CPU" "fp_turn=buf=CPU" "$(col 1 25)"
+has "bfp proof says GPUOpenCL" "fp_proof=buf=GPUOpenCL" "$(col 1 25)"
 assert_end bfp method_void_backend_mismatch
 assert_restore backend-mismatch
 
@@ -118,6 +122,14 @@ eq "nfp void_reason" no_fingerprint "$(col 1 5)"
 assert_end nfp method_void_no_fingerprint
 assert_restore no-fingerprint
 
+echo "== fixture: kernel-disable line in the TURN log voids it too (NEW-3) =="
+run_fixture turn-disabled GC DRY_TURN_DISABLED=1
+eq "tdis rc" 0 "$RC"
+eq "tdis rows" 1 "$(rows)"
+eq "tdis void_reason" turn_backend_disabled "$(col 1 5)"
+assert_end tdis method_void_turn_backend_disabled
+assert_restore turn-disabled
+
 echo "== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) =="
 run_fixture warm-start CG DRY_SKIN_AT=1 DRY_SKIN_AFTER=38 COOL_MAX_S=2
 eq "warm rc" 0 "$RC"
@@ -128,4 +140,29 @@ eq "warm warm_start" 1 "$(col 1 6)"
 eq "warm cooldown_s" 2 "$(col 1 7)"
 eq "warm skin_before recorded" 38 "$(col 1 14)"
 assert_restore warm
+
+echo "== fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) =="
+run_fixture calibrate CGN CALIBRATE=1
+eq "cal rc" 0 "$RC"
+assert_end cal calibrated
+eq "cal no heat rows" absent "$([ -f "$RAW/results.tsv" ] && echo present || echo absent)"
+eq "cal report written" yes "$([ -f "$RAW/calib/report.txt" ] && echo yes || echo no)"
+has "cal proof stats cpu" "CALIB backend=cpu phase=proof" "$(cat "$RAW/calib/report.txt")"
+has "cal proof stats npu (ops+tokens)" "tokens=4 proof=htp_ops=1200" "$(cat "$RAW/calib/report.txt")"
+has "cal turn fingerprint cpu" "CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5" "$(cat "$RAW/calib/report.txt")"
+has "cal candidate buffer line" "cand=buf|" "$(cat "$RAW/calib/report.txt")"
+has "cal candidate fit line" "cand=fit|" "$(cat "$RAW/calib/report.txt")"
+has "cal candidate device line" "cand=device|" "$(cat "$RAW/calib/report.txt")"
+eq "cal logs moved into calib/" yes "$([ -f "$RAW/calib/dry-calibrate-calcpu.log" ] && echo yes || echo no)"
+eq "cal floor pinned (0.5 x 1200/4)" "htp_ops_floor_per_tok=150.0000" "$(grep '^htp_ops_floor_per_tok=' "$CELL/calib.ok" 2>/dev/null)"
+assert_restore cal
+
+echo "== fixture: production reads the PINNED floor from calib.ok =="
+run_fixture pinned-floor NN seed_calib_ok DRY_HTP_OPS=500
+eq "pin rc" 0 "$RC"
+assert_end pin method_void_htp_ops_low
+eq "pin rows" 1 "$(rows)"
+has "pin floor came from calib.ok" "source=calib.ok" "$(cat "$RAW/driver.log")"
+has "pin scaled min=600" "htp_ops=500 min=600" "$(col 1 25)"
+assert_restore pinned-floor
 

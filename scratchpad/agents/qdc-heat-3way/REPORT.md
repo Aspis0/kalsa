@@ -54,26 +54,33 @@ measured window is prefill+decode only. The app has no NPU route
 
 ## Files (one responsibility each)
 
-- `d_run.sh` (366) — session orchestration: args/order validation, prep,
-  gates, proof+turn loop, rows, END, restore. *Declared:* slightly over the
-  ~350 indicative — kept whole because splitting it now would move lines only
-  to satisfy a number.
+- `d_run.sh` (365) — session orchestration: args/order validation, the
+  proof+turn loop, rows, END, restore. *Declared:* still over the ~350
+  indicative after the setup split; what remains is the loop itself.
+- `setup.sh` (72) — pre-arm device setup: prior restore, state, trap
+  arming, mutations, kit+trust+gate, the pgrep self-test, sampler launch.
+- `calibrate.sh` (113) — the CALIBRATE=1 loop: proof + short run per
+  backend, candidate-lines report, pinned execute-op floor.
 - `stop_lib.sh` (107) — live readings, numeric fail-closed checks, hard
   stops, `request_stop` + verified `kill_remote_llama` (sourced; DSpark will
   source it too).
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (254) — proof-run and turn commands, run/pull, fingerprint, the
-  two parses (thresholds on the -lv 5 log, perf+fingerprint on the turn log).
-- `sampler.sh` (41) — sampler lifecycle incl. the A-11 pause/resume.
-- `restore.sh` (73) — undo every device change (standalone-capable, kill-verified).
+- `arm.sh` (300) — proof-run and turn commands, run/pull, shared perf parse,
+  placement fingerprint, the two parses (scaled NEW-1 floor, turn-side
+  negative).
+- `sampler.sh` (66) — sampler lifecycle incl. the A-11 pause with NEW-6
+  device-exit confirmation.
+- `restore.sh` (82) — undo every device change (standalone-capable,
+  health-probed + kill-marker per NEW-4/NEW-5).
 - `smp.sh` (36) — on-device 1 s thermal sampler (append-only).
-- `dryrun-adb.sh` (299) — fake adb with reading/log/kill/adb-failure knobs.
-- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (79, runner helpers) +
-  `dryrun-core.sh` (131) + `dryrun-stops.sh` (100) + `dryrun-paths.sh` (84) —
-  fixture matrix split by topic.
-- `PREREG.md`, `REPORT.md`, `AUDIT-dd6bdb56.md` (committed with Round 4).
+- `dryrun-adb.sh` (353 — declared, ~350 indicative) — fake adb with
+  reading/log/kill/pgrep/adb-failure knobs.
+- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (83) + `dryrun-core.sh`
+  (168) + `dryrun-stops.sh` (110) + `dryrun-paths.sh` (97) — fixture matrix
+  split by topic (~34 fixtures, 259 assertions).
+- `PREREG.md` (320), `REPORT.md`, `AUDIT-dd6bdb56.md`, `AUDIT2-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
 
@@ -256,6 +263,51 @@ only); sampler pause/resume timing on device; HUP delivery during a bare
 `sleep` (bounded by one sleep quantum, same caveat as the qdc driver). The
 G/N split of the fingerprint therefore rests on two source-level assumptions
 stated here and exercised only by the fake until run 2.
+
+## Round 5 — hostile audit2 dd6bdb56: all NEW findings closed (2026-09-26)
+
+`AUDIT2-dd6bdb56.md` committed with this round (it confirms all 16 previous
+findings closed and raises NEW-1..NEW-8: the new gates were guesses the fake
+satisflies with constants). Owner decisions applied: a **device
+CALIBRATION mode** (the phone runs it first), thresholds/fingerprints fixed
+from real logs, `-t 5` unchanged.
+
+| # | disposition | fix (file:line) + fixture |
+|---|---|---|
+| NEW-1 CONFIRMED (blocker: flat 1000 vs a 4-token proof) | **Fixed**: the execute-op threshold is now `ceil(floor × proof_tokens)` with the proof run carrying `--perf` so its exact token count is read from its own log. Floor arithmetic (in `arm.sh:44-49`): priors q57 1764/1024 = **1.72 ops/token** (lowest), q58 3.35, q51 20.2 ⇒ collapse gate = half the lowest = **0.86/token**; a 4-token proof needs ≥ 4 lines, not 1000. `CALIBRATE=1` then PINS `calib.ok htp_ops_floor_per_tok = 0.5 × measured` and production prefers the pin (`d_run.sh:105-114`, logged `source=calib.ok` vs `source=prior(no calib.ok …)`) | `arm.sh:94-101` (`--perf`), `arm.sh:243-257` (scaled check, `min=` in the proof column); fixtures `htp-low` (ops=2 vs min=4), `pinned-floor` (seeded 150 → min=600), `six` (`min=4`) |
+| NEW-2 CONFIRMED (fingerprint never device-verified) | **Fixed by the calibration mode**: `CALIBRATE=1` runs proof + short measured run (n=16, production flags/verbosity) per backend with all stops live, writes NO heat rows, and prints per backend the proof counts (execute-op + tokens, OpenCL assign/kernels) and EVERY candidate line family of the measured log — fit, device, system_info, buffer sizes, disabled — into `raw/<job>/calib/report.txt` (logs moved to `calib/`) | `calibrate.sh` (whole file, called at `d_run.sh:253-257`); fixture `calibrate` (END `calibrated`, no results.tsv, candidates present, floor pinned 150.0000) |
+| NEW-3 CONFIRMED (fit line = intent, not placement; turn unchecked) | **Fixed**: the fingerprint components are now PLACEMENT — `buf=` from `… model buffer size` lines, `off=` from `offloaded N/M layers`, `thr=` (`arm.sh:189-201`) — and the fit line left the gate (it stays a printed candidate). Source check, quoted: `src/llama-model.cpp:1852` `LLAMA_LOG_INFO("%s: %12s model buffer size = %8.2f MiB\n", …)` and `:1846` `offloaded %d/%d layers` are INFO ⇒ NOT visible at default (`common/common.cpp:396` + `get_verbosity(INFO)=TRACE(4) > thold(3)`; run-1 log grep = 0) ⇒ **the measured turn now runs `-lv 4`** (`arm.sh:86`), which admits INFO and still hides DEBUG/per-op (A-2 intact, PREREG amendment #6). The turn ALSO gets the negative check: `kernel set failed … device disabled` (WARN/ERROR, any verbosity) → VOID `turn_backend_disabled` (`arm.sh:280-286`) | fixtures `backend-mismatch` (`DRY_TURN_FP_BUF=CPU` = silent fallback → `fp_turn=buf=CPU` vs `fp_proof=buf=GPUOpenCL`), `turn-disabled` (`arm.sh:281-285`), `no-fingerprint` |
+| NEW-4 CONFIRMED (broken pgrep answering 1) | **Fixed**: setup self-test BEFORE any load — health probe (missing pattern must answer 1), alive probe (a `sleep 4731` we started must be FOUND), gone probe (after pkill must answer 1); any failure → `PGREP_SELFTEST_ABORT`, exit 4, no arm ever loads. Only after this does `RC=1 mean gone` get trusted. `restore.sh` (which can run standalone) has its own PROBE/GONE health check | `setup.sh:6-24` (selftest), called `setup.sh:70`; `restore.sh:51-63`; fixture `pgrep-broken` (RC=4, END `exit_4_kill_unverified`, no `*.load.log`, restore loud rc=1) |
+| NEW-5 CONFIRMED (restore loud but no marker) | **Fixed**: restore writes `$RAW/kill_unverified` when it cannot verify, and `cleanup` runs AFTER restore, so a plain-success end becomes `END kill_unverified` + **exit 3** (or `exit_<rc>_kill_unverified` keeping a nonzero rc); the final `write_end exit_0` moved out of the main path into cleanup | `restore.sh:55-63`, `d_run.sh:155-171`, end-flow `d_run.sh:376-383`; fixture `restore-late` (RC=3, `END kill_unverified`, marker present, restore rc=1) |
+| NEW-6 CONFIRMED (pause not synced with device exit) | **Fixed**: `sampler_pause` reads a baseline stamp, touches the marker, then waits (≤6 s) for the device loop's own `H sampler_done` stamp before declaring the window quiet; only then kills the host client; unconfirmed pauses are logged loudly | `sampler.sh:17-49`; fixture `six` (`SAMPLER_PAUSE_CONFIRMED`); fixture `kill-unverified`/`stop-midarm` exercise the same path |
+| NEW-7 CONFIRMED (unregistered order restriction) | **Registered**: PREREG amendment #8 — even-length orders of {CG, GC, NN}; `CC` and `CGNGCN` deliberately rejected (no within-pair contrast / unregistered NG,CN pairs); calibration bypasses pairs | `PREREG.md` second amendment pass #8; fixture `A-13` unchanged |
+| NEW-8 CONFIRMED (unregistered session cost) | **Registered**: PREREG amendment #9 — +1 full model load per arm (proof run) ≈ +3–11 min for 6 arms; expected session 45–75 min vs default deadline 100; calibration ≈ 5–12 min | `PREREG.md` second amendment pass #9 |
+
+**Fingerprint components (stated):** `buf=<backend names from model-buffer-size
+lines>`, `off=<n>/<m> layers to GPU`, `thr=<n_threads>` — all INFO-level in the
+proof (`-lv 5`) and in the turn (`-lv 4`), all missing → `?` → fail-closed
+`no_fingerprint`, inequality → `backend_mismatch`.
+
+**Commands (this round):** `bash -n` on 16 scripts → 0;
+`./dryrun.sh > /tmp/dryrun_r5_FINAL.log 2>&1; echo EXIT=$?` → **EXIT=0,
+PASS=259 FAIL=0** (log copied to `raw/dryrun-final-run.log`). Intermediate:
+209/15 harness-only issues while landing the round (two wrong assertion
+expectations of my own — the calibration run correctly cannot show
+`source=calib.ok` before it writes the pin, and a broken-pgrep restore must
+rc=1), plus one real typo caught by instrumentation (`screen_off_timeout`
+filename in an assert while the fake stores `screen_timeout`).
+
+**Not verified (round 5):** whether the REAL S23 kit at `-lv 4` actually
+emits the buffer/offload lines (the source says INFO⇒needs 4 and run-1
+proves default shows none — calibrate's `cand=buf|` lines are the instrument
+that settles it; if they are absent the gate fails closed with
+`no_fingerprint` and the next round pins whatever IS there); whether
+`-p " "` yields exactly 1 prompt token on device (threshold scales off the
+READ count, so any value works — but calibrate reports it); whether
+`adb shell sh -c 'sleep … &'` survives the shell exit on this device (the
+alive probe fails loudly if not); toybox `pgrep -f` behavior (now self-tested
+before every session); real per-backend ops/token vs the 0.86 prior (the pin
+replaces it after calibrate).
 
 ## Declared, not touched
 

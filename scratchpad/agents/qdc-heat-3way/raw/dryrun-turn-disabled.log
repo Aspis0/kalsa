@@ -1,0 +1,17 @@
+[22:40:34] SESSION job=dry-turn-disabled board=S23-v73 soc=SM8550 serial=fakes23 order=GC stayon_saved=null timeout_saved=60000
+[22:40:34] KIT_UNPACK_PUSH
+[22:40:34] DEVICE_LIST_OK
+[22:40:34] KIT_PUSH ship.gguf sha_before=absent
+[22:40:34] KIT_PUSH prompt.txt sha_before=absent
+[22:40:35] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:40:35] GATE label=setup
+[22:40:35] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:40:36] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:40:36] SAMPLER_LAUNCHED pid=8345
+[22:40:36] ARM_START turn=1 backend=gpu pair=1 tag=dry-turn-disabled-t1gpu
+[22:40:36] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[22:40:37] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[22:40:37] SAMPLER_LAUNCHED pid=8630
+[22:40:37] SAMPLER_RESUMED
+[22:40:37] ARM_END turn=1 status=VOID void=turn_backend_disabled prefill_ms=14000.00 inload_ms=9876.50 fp_turn=na proof=gpu_assigned_lines=33 kernels=12 tokens=4
+[22:40:37] STOP_METHOD_VOID turn=1 backend=gpu reason=turn_backend_disabled

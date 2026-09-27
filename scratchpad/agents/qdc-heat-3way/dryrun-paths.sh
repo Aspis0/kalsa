@@ -61,6 +61,19 @@ eq "fsoc rc" 2 "$RC"
 has "fsoc ADB_FAIL logged" "ADB_FAIL soc_read" "$(cat "$RAW/driver.log")"
 assert_no_end fsoc
 
+echo "== fixture NEW-4: broken pgrep aborts before any load =="
+run_fixture pgrep-broken CG DRY_PGREP_BROKEN=1
+eq "pgb rc" 4 "$RC"
+has "pgb selftest failed" "PGREP_SELFTEST_FAIL" "$(cat "$RAW/driver.log")"
+assert_end pgb exit_4_kill_unverified
+eq "pgb no load ran" absent "$([ -f "$RAW/dry-pgrep-broken-t1cpu.load.log" ] && echo present || echo absent)"
+eq "pgb no turn ran" absent "$([ -f "$RAW/dry-pgrep-broken-t1cpu.log" ] && echo present || echo absent)"
+# restore runs but CANNOT verify the kill on a broken pgrep: loud rc=1 +
+# marker (which is exactly what gave us END exit_4_kill_unverified above).
+eq "pgb restore rc loud" 1 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.log" 2>/dev/null | tail -1)"
+has "pgb restore unverified" "RESTORE_LLAMA_UNVERIFIED" "$(cat "$RAW/restore_run.log" 2>/dev/null)"
+eq "pgb timeout-restored" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
+
 echo "== fixture A-5: SIGHUP (SSH drop) restores the device =="
 STATE="/tmp/qdc-heat3way-fake-sighup"
 rm -rf "$STATE" "$CELL/raw/dry-sighup"

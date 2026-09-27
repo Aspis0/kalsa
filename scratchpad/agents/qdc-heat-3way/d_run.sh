@@ -33,7 +33,10 @@ validate_order() {
   done
   return 0
 }
-validate_order || { echo "arm_order must be even-length pairs from {CG, GC, NN} (registered pairs, e.g. CGNNGC)" >&2; exit 2; }
+# Calibration mode runs backends once each, not pairs — skip the pair rule.
+if [ "${CALIBRATE:-0}" != 1 ]; then
+  validate_order || { echo "arm_order must be even-length pairs from {CG, GC, NN} (registered pairs, e.g. CGNNGC)" >&2; exit 2; }
+fi
 case "$DEADLINE_MINUTES" in ''|*[!0-9]*) echo "deadline_minutes must be an integer 20..110" >&2; exit 2;; esac
 [ "$DEADLINE_MINUTES" -ge 20 ] && [ "$DEADLINE_MINUTES" -le 110 ] || { echo "deadline_minutes must be an integer 20..110" >&2; exit 2; }
 ADB_PORT="${ADB_PORT:-5037}"
@@ -83,6 +86,10 @@ source "$CELL/kit.sh"
 source "$CELL/arm.sh"
 # shellcheck source=sampler.sh
 source "$CELL/sampler.sh"
+# shellcheck source=calibrate.sh
+source "$CELL/calibrate.sh"
+# shellcheck source=setup.sh
+source "$CELL/setup.sh"
 
 SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""; FIRST_SKIN_C=""
 ARM_POLL_PID=0; CURRENT_CHILD_PID=0
@@ -92,6 +99,19 @@ COOLDOWN_SECONDS=0; WARM_START=0
 # prompt eval: -n 127 -> 126, -n 64 -> 63, device-confirmed). DECODE_N is
 # arm.sh's own -n value — derived, never a second hardcoded number.
 DECODE_EXPECT=$((DECODE_N - 1))
+# NEW-1 floor: the PINNED value from CALIBRATE=1 (calib.ok) when it exists,
+# else the prior derived from the repo's own priors (arm.sh HTP_FLOOR_PRIOR,
+# arithmetic in its header). Audit2: priors apply only "until calibrated".
+HTP_FLOOR_PER_TOKEN=""; HTP_FLOOR_SOURCE="prior"
+if [ -f "$CELL/calib.ok" ]; then
+  _floor=$(sed -n 's/^htp_ops_floor_per_tok=//p' "$CELL/calib.ok" | tail -1)
+  case "$_floor" in ''|*[!0-9.]*|.) ;; *) HTP_FLOOR_PER_TOKEN="$_floor"; HTP_FLOOR_SOURCE="calib.ok" ;; esac
+fi
+if [ -z "$HTP_FLOOR_PER_TOKEN" ]; then
+  HTP_FLOOR_PER_TOKEN="$HTP_FLOOR_PRIOR"
+  if [ -f "$CELL/calib.ok" ]; then HTP_FLOOR_SOURCE="prior(calib.ok unparsable)"
+  else HTP_FLOOR_SOURCE="prior(no calib.ok — run CALIBRATE=1 first)"; fi
+fi
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
@@ -133,6 +153,21 @@ cleanup() {
   if [ -n "$SER" ]; then
     bash "$CELL/restore.sh" >> "$RAW/restore_run.log" 2>&1 || log "RESTORE_FAIL (see restore.sh output)"
   fi
+  # NEW-5 (audit2): restore itself may discover the remote llama still alive
+  # (it writes $RAW/kill_unverified) — that outranks a plain success END, and
+  # by running AFTER restore we can still own the END and the exit status.
+  # A nonzero original rc keeps its own reason and gains the suffix, so the
+  # pgrep-broken setup abort still reports exit_4, not a generic kill end.
+  if [ -f "$RAW/kill_unverified" ] && [ "$END_WRITTEN" -eq 0 ]; then
+    if [ "$rc" -ne 0 ]; then
+      log "KILL_RECORDED_END (restore could not verify the kill; keeping rc=$rc)"
+      write_end "exit_${rc}_kill_unverified"
+      exit "$rc"
+    fi
+    log "KILL_UNVERIFIED_END (restore found the remote llama-completion still alive)"
+    write_end kill_unverified
+    exit 3
+  fi
   if [ -n "$SIGNAL_NAME" ]; then write_end "signal_$SIGNAL_NAME"; else write_end "exit_$rc"; fi
 }
 on_signal() {
@@ -173,52 +208,9 @@ method_void_guard() {
   exit 0
 }
 
-# ---- session setup (pre-mutation: nothing is changed before the state file
-# exists and the traps below are armed) ----
-SER="${ADB_SERIAL:-$(adbT 60 devices | awk 'NR > 1 && $2 == "device" { print $1; exit }' | tr -d '\r' || true)}"
-[ -n "$SER" ] || { log "NO_DEVICE port=$ADB_PORT"; exit 2; }
-adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WAIT_FOR_DEVICE_FAIL"; exit 2; }
-# A-6/A-8: an earlier run's .restore-state is CONSUMED here (restore first),
-# never blindly deleted — after a SIGKILL the stale state is the only record
-# of the pre-run values, and overwriting it with mutated values would strand
-# the device at 1800000/3 on the next restore. Refuse to continue if that
-# restore fails; only after success may this run write its own fresh state.
-if [ -f "$CELL/.restore-state" ]; then
-  log "PRIOR_RESTORE .restore-state from an earlier run"
-  bash "$CELL/restore.sh" >> "$RAW/prior_restore.log" 2>&1 \
-    || { log "PRIOR_RESTORE_FAIL (see prior_restore.log); refusing to continue over unrestored state"; exit 3; }
-fi
-prompt_verify || { log "PROMPT_IDENTITY_FAIL"; exit 6; }
-SOC=$(adbT 30 -s "$SER" shell getprop ro.soc.model | tr -d '\r') || { log "ADB_FAIL soc_read"; exit 2; }
-case "$SOC" in
-  SM8550) BOARD=S23-v73 ;;
-  *) log "UNSUPPORTED_SOC=$SOC (this kit ships only the v73 DSP skel)"; exit 6 ;;
-esac
-# A-7: default to null like STAYON — an empty read must not strand the
-# restore in RESTORE_BAD_TIMEOUT with the phone left at 1800000.
-SCREEN_OFF_TIMEOUT=$(adbT 30 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || { log "ADB_FAIL timeout_get"; exit 2; }
-[ -n "$SCREEN_OFF_TIMEOUT" ] || SCREEN_OFF_TIMEOUT=null
-STAYON=$(adbT 30 -s "$SER" shell settings get global stay_on_while_plugged_in | tr -d '\r') || { log "ADB_FAIL stayon_get"; exit 2; }
-[ -n "$STAYON" ] || STAYON=null
-printf 'SER=%s\nSCREEN_OFF_TIMEOUT=%s\nSTAYON=%s\nJOB=%s\n' "$SER" "$SCREEN_OFF_TIMEOUT" "$STAYON" "$JOB" > "$CELL/.restore-state"
-# Traps armed AFTER the state write and BEFORE the first mutation — so a
-# failure between here and any device change is restored (A-5: HUP included;
-# an SSH drop must not leave the phone at 1800000/3 without restore).
-trap 'on_signal INT 2' INT
-trap 'on_signal TERM 15' TERM
-trap 'on_signal HUP 1' HUP
-trap cleanup EXIT
-DEADLINE_EPOCH=$(( $(date +%s) + DEADLINE_MINUTES * 60 ))
-adbT 30 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "$RAW/setup.log" 2>&1 || true
-adbT 30 -s "$SER" shell svc power stayon true >> "$RAW/setup.log" 2>&1 || true
-adbT 30 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$RAW/setup.log" 2>&1 || true
-log "SESSION job=$JOB board=$BOARD soc=$SOC serial=$SER order=$ARM_ORDER stayon_saved=$STAYON timeout_saved=$SCREEN_OFF_TIMEOUT"
-kit_setup || { log "KIT_SETUP_FAIL"; exit 5; }
-battery_trust_check || { log "BATTERY_TRUST_READ_FAIL"; exit 3; }
-safety_gate setup || finish_stop
-FIRST_SKIN_C="$LIVE_SKIN"
-log "SETUP_DONE skin0=$FIRST_SKIN_C battery_untrusted=$BATTERY_UNTRUSTED"
-launch_sampler
+# Session setup lives in setup.sh (one responsibility: pre-arm device setup,
+# incl. the NEW-4 pgrep self-test and trap arming before the first mutation).
+session_setup
 
 # ---- per-arm waits and background safety poll ----
 cooldown_wait() {
@@ -256,6 +248,13 @@ arm_poll_loop() {
   done
 }
 start_arm_poll() { arm_poll_loop & ARM_POLL_PID=$!; }
+
+# Calibration mode (audit2 NEW-1/NEW-2, owner decision): the phone runs this
+# FIRST — proof + short measured run per backend, all stops live, no heat
+# rows, a candidate-lines report and a pinned execute-op floor instead.
+if [ "${CALIBRATE:-0}" = 1 ]; then
+  calibrate_run
+fi
 
 write_row() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"
@@ -361,6 +360,6 @@ ok_rows=$(awk -F'\t' 'NR>1 && $4=="OK"' "$RESULTS" | wc -l | tr -d '[:space:]')
 all_rows=$(awk 'NR>1' "$RESULTS" | wc -l | tr -d '[:space:]')
 log "DONE order=$ARM_ORDER rows=$all_rows ok=$ok_rows results=$RESULTS"
 printf 'end_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RAW/session.env"
-kill_unverified_end || true
-write_end exit_0
+# The final END is written by cleanup AFTER restore has run, so an
+# unkillable llama discovered there can still own it (NEW-5).
 exit 0

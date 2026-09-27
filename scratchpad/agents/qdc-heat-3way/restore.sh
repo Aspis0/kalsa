@@ -44,14 +44,23 @@ rc=0
 "$ADB_BIN" -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
 pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 # A3: bracketed so the wrapping `sh -c` carrying this very pattern is not
-# matched and killed by its own pkill. A-4: the kill is VERIFIED — pgrep RC=1
-# (gone) is the only pass; still-running or tool-missing fails the restore
-# loudly instead of pretending the phone is clean.
-llama_rc=$("$ADB_BIN" -s "$SER" shell "pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo PGREP_RC=\$?" 2>/dev/null | tr -d '\r' || true)
-case "$llama_rc" in
-  *PGREP_RC=1*) ;;
-  *) echo "RESTORE_LLAMA_STILL_RUNNING pgrep=[$llama_rc]" >&2; rc=1 ;;
-esac
+# matched and killed by its own pkill. A-4/NEW-4: the verdict is only trusted
+# after this session's pgrep self-test (d_run pgrep_selftest) AND restore's
+# own health probe below: GONE is accepted only when pgrep answers 1 for a
+# missing pattern (a busybox-style pgrep that answers 1 on usage errors must
+# not be read as "process gone").
+probe=$("$ADB_BIN" -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz; echo PROBE=\$?; pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo GONE=\$?" 2>/dev/null | tr -d '\r' || true)
+probe_rc=$(printf '%s\n' "$probe" | sed -n 's/.*PROBE=\([0-9][0-9]*\).*/\1/p' | tail -1)
+gone_rc=$(printf '%s\n' "$probe" | sed -n 's/.*GONE=\([0-9][0-9]*\).*/\1/p' | tail -1)
+if [ "$probe_rc" = 1 ] && [ "$gone_rc" = 1 ]; then
+  :
+else
+  echo "RESTORE_LLAMA_UNVERIFIED probe_rc=${probe_rc:-missing} gone_rc=${gone_rc:-missing}" >&2
+  rc=1
+  # NEW-5: the marker (not only the message) is what makes the session END
+  # reflect this — d_run's cleanup reads $RAW/kill_unverified.
+  if [ -n "$JOB" ] && [ -d "$CELL/raw/$JOB" ]; then : > "$CELL/raw/$JOB/kill_unverified"; fi
+fi
 if [ "$STATE_PRESENT" -eq 1 ]; then
   # A13: put back exactly what was read before the mutation (d_run.sh's
   # `svc power stayon true` overwrites this global with 3).

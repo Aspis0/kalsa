@@ -28,6 +28,11 @@ rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\;\ echo\ PGREP_RC=\$\?
+rc=0 -s fakes23 shell sh\ -c\ \'sleep\ 4731\ \>/dev/null\ 2\>\&1\ \&\'
+rc=0 -s fakes23 shell pgrep\ -f\ \'sleep\ 4731\'\;\ echo\ PGREP_RC=\$\?
+rc=0 -s fakes23 shell pkill\ -f\ \'sleep\ 4731\'
+rc=0 -s fakes23 shell pgrep\ -f\ \'sleep\ 4731\'\;\ echo\ PGREP_RC=\$\?
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop

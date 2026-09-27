@@ -28,14 +28,22 @@ rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\;\ echo\ PGREP_RC=\$\?
+rc=0 -s fakes23 shell sh\ -c\ \'sleep\ 4731\ \>/dev/null\ 2\>\&1\ \&\'
+rc=0 -s fakes23 shell pgrep\ -f\ \'sleep\ 4731\'\;\ echo\ PGREP_RC=\$\?
+rc=0 -s fakes23 shell pkill\ -f\ \'sleep\ 4731\'
+rc=0 -s fakes23 shell pgrep\ -f\ \'sleep\ 4731\'\;\ echo\ PGREP_RC=\$\?
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ \&\&\ export\ GGML_HEXAGON_VERBOSE=1\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -p\ \"\ \"\ -n\ 4\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --no-perf\ --simple-io\ --no-display-prompt\ -lv\ 5\ -ngl\ 0\ \>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ \&\&\ export\ GGML_HEXAGON_VERBOSE=1\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -p\ \"\ \"\ -n\ 4\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --perf\ --simple-io\ --no-display-prompt\ -lv\ 5\ -ngl\ 0\ \>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.load.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-stop-skinfb/dry-stop-skinfb-t1cpu.load.log
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell grep\ -c\ \'H\ sampler_done\'\ /data/local/tmp/heat3way/heat/samples.txt
 rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop
-rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -f\ /data/local/tmp/heat3way/prompt.txt\ -n\ 127\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --perf\ --simple-io\ --no-display-prompt\ -ngl\ 0\ \>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell grep\ -c\ \'H\ sampler_done\'\ /data/local/tmp/heat3way/heat/samples.txt
+rc=0 -s fakes23 shell grep\ -c\ \'H\ sampler_done\'\ /data/local/tmp/heat3way/heat/samples.txt
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -f\ /data/local/tmp/heat3way/prompt.txt\ -n\ 127\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --perf\ --simple-io\ --no-display-prompt\ -lv\ 4\ -ngl\ 0\ \>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/heat3way/dry-stop-skinfb-t1cpu.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-stop-skinfb/dry-stop-skinfb-t1cpu.log
 rc=0 -s fakes23 shell rm\ -f\ /data/local/tmp/heat3way/heat/stop
 rc=0 -s fakes23 shell dumpsys thermalservice

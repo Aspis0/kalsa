@@ -1,5 +1,7 @@
 0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+load_tensors:         HTP0 model buffer size =  1182.09 MiB
+load_tensors: offloaded 33/33 layers to GPU
 0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 llama_model_loader: loaded meta data with 1145 tokens from /data/local/tmp/heat3way/ship.gguf
 llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
@@ -40,7 +42,6 @@ ggml-hex: Hexagon Arch version v73
 ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
 ggml-hex: HTP0 execute-op MUL_MAT|node_0 x weight -> out|a|b|c|d|e|f|g|flags 0x0
 ggml-hex: HTP0 execute-op MUL_MAT|node_1 x weight -> out|a|b|c|d|e|f|g|flags 0x0
-ggml-hex: HTP0 execute-op MUL_MAT|node_2 x weight -> out|a|b|c|d|e|f|g|flags 0x0
-ggml-hex: HTP0 execute-op MUL_MAT|node_3 x weight -> out|a|b|c|d|e|f|g|flags 0x0
-ggml-hex: HTP0 execute-op MUL_MAT|node_4 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+1.17.377.170 I common_perf_print: prompt eval time =      88.88 ms /     1 tokens (   88.88 ms per token,    11.25 tokens per second)
+1.17.377.172 I common_perf_print:        eval time =     420.00 ms /     3 runs   (  140.00 ms per token,     7.14 tokens per second)
 EXIT=0

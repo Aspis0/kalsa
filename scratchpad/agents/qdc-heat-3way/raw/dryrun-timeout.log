@@ -1,18 +1,19 @@
-[21:35:57] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[21:35:57] KIT_UNPACK_PUSH
-[21:35:57] DEVICE_LIST_OK
-[21:35:58] KIT_PUSH ship.gguf sha_before=absent
-[21:35:58] KIT_PUSH prompt.txt sha_before=absent
-[21:35:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[21:35:59] GATE label=setup
-[21:35:59] SETUP_DONE skin0=33.5 battery_untrusted=0
-[21:35:59] SAMPLER_LAUNCHED pid=75612
-[21:35:59] ARM_START turn=1 backend=cpu pair=1 tag=dry-timeout-t1cpu
-[21:36:00] ARM_TIMEOUT backend=cpu rc=142 -> killing remote llama-completion
-[21:36:00] KILL_VERIFIED ctx=arm_timeout_cpu (no llama-completion remains)
-[21:36:00] ARM_LOAD_FAIL turn=1 rc=142
-[21:36:00] ARM_START turn=2 backend=gpu pair=1 tag=dry-timeout-t2gpu
-[21:36:01] ARM_TIMEOUT backend=gpu rc=142 -> killing remote llama-completion
-[21:36:01] KILL_VERIFIED ctx=arm_timeout_gpu (no llama-completion remains)
-[21:36:01] ARM_LOAD_FAIL turn=2 rc=142
-[21:36:01] DONE order=CG rows=2 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-timeout/results.tsv
+[22:41:54] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[22:41:54] KIT_UNPACK_PUSH
+[22:41:54] DEVICE_LIST_OK
+[22:41:54] KIT_PUSH ship.gguf sha_before=absent
+[22:41:54] KIT_PUSH prompt.txt sha_before=absent
+[22:41:55] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:41:55] GATE label=setup
+[22:41:55] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:41:55] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:41:55] SAMPLER_LAUNCHED pid=27614
+[22:41:55] ARM_START turn=1 backend=cpu pair=1 tag=dry-timeout-t1cpu
+[22:41:56] ARM_TIMEOUT backend=cpu rc=142 -> killing remote llama-completion
+[22:41:56] KILL_VERIFIED ctx=arm_timeout_cpu (no llama-completion remains)
+[22:41:56] ARM_LOAD_FAIL turn=1 rc=142
+[22:41:56] ARM_START turn=2 backend=gpu pair=1 tag=dry-timeout-t2gpu
+[22:41:57] ARM_TIMEOUT backend=gpu rc=142 -> killing remote llama-completion
+[22:41:57] KILL_VERIFIED ctx=arm_timeout_gpu (no llama-completion remains)
+[22:41:57] ARM_LOAD_FAIL turn=2 rc=142
+[22:41:57] DONE order=CG rows=2 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-timeout/results.tsv

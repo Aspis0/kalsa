@@ -19,6 +19,9 @@ seed_stale() { # A2: stale stop_request + END from a previous run of this job
   printf 'END reason=stop_fake\n' > "$CELL/raw/dry-$name/END.txt"
 }
 seed_stayon() { printf '1\n' > "$STATE/stay_on_while_plugged_in"; }
+seed_calib_ok() { # pinned floor from a (fake) calibration: 0.5 x 1200 ops / 4 tok
+  printf 'htp_ops_floor_per_tok=150.0000\nmeasured_npu_ops=1200\nmeasured_npu_tokens=4\n' > "$CELL/calib.ok"
+}
 seed_prior_restore() { # A-6: previous run SIGKILLed — state holds pre-run
   # values, the fake device still holds the mutations.
   printf 'SER=fakes23\nSCREEN_OFF_TIMEOUT=60000\nSTAYON=1\nJOB=dry-prevrun\n' > "$CELL/.restore-state"
@@ -35,9 +38,10 @@ run_fixture() {
   STATE="/tmp/qdc-heat3way-fake-$name"
   rm -rf "$STATE" "$CELL/raw/dry-$name"
   mkdir -p "$STATE" "$CELL/raw"
-  # Fixture isolation for A-6: the driver must CONSUME a stale state, so each
-  # fixture starts with none unless it seeds one on purpose.
-  rm -f "$CELL/.restore-state"
+  # Fixture isolation for A-6/NEW-1: the driver must CONSUME a stale state
+  # and a stale calib.ok must not leak between fixtures, so each fixture
+  # starts with none unless it seeds one on purpose.
+  rm -f "$CELL/.restore-state" "$CELL/calib.ok"
   [ -z "$seed" ] || "$seed" "$name"
   set +e
   # POLL_S intentionally NOT set here: fixtures run the PRODUCTION cadence

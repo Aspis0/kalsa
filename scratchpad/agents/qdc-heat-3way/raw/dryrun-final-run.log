@@ -13,13 +13,14 @@ PASS  six cpu prefill
 PASS  six gpu prefill
 PASS  six npu prefill
 PASS  six cpu proof
-PASS  six cpu fingerprint
+PASS  six cpu fingerprint (placement)
 PASS  six gpu proof assign
 PASS  six gpu proof kernels
-PASS  six gpu fingerprint
+PASS  six gpu fingerprint (placement)
 PASS  six npu proof arch
 PASS  six npu proof ops
-PASS  six npu fingerprint
+PASS  six npu fingerprint (placement)
+PASS  six npu scaled floor
 PASS  six skin_before
 PASS  six load_skin_before A8
 PASS  six load_skin_after A8
@@ -28,8 +29,10 @@ PASS  six pagein_cold arm2
 PASS  six load_wall_s
 PASS  six samples.txt
 PASS  six list-devices
-PASS  six sampler-paused A11
+PASS  six sampler-paused A11 NEW-6
 PASS  six sampler-resumed A11
+PASS  six pgrep selftest NEW-4
+PASS  six floor source (until calibrated)
 PASS  six single sampler header
 PASS  six sampler launches
 PASS  six restore-ran
@@ -48,11 +51,11 @@ PASS  nohtp void_reason
 PASS  nohtp backend
 PASS  nohtp restore-ran
 PASS  nohtp timeout-restored
-== fixture: execute-op below the 1000 floor voids the N proof run (A6) ==
+== fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) ==
 PASS  htplow rc
 PASS  htplow rows
 PASS  htplow void_reason
-PASS  htplow proof count
+PASS  htplow scaled proof count
 PASS  htplow END
 PASS  htp-low restore-ran
 PASS  htp-low timeout-restored
@@ -85,11 +88,12 @@ PASS  nocpu void_reason
 PASS  nocpu END
 PASS  nocpu restore-ran
 PASS  nocpu timeout-restored
-== fixture: turn fingerprint differs from the proof run -> backend_mismatch ==
+== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
 PASS  bfp rc
 PASS  bfp rows
 PASS  bfp void_reason
-PASS  bfp proof carries both
+PASS  bfp turn says CPU
+PASS  bfp proof says GPUOpenCL
 PASS  bfp END
 PASS  backend-mismatch restore-ran
 PASS  backend-mismatch timeout-restored
@@ -100,6 +104,13 @@ PASS  nfp void_reason
 PASS  nfp END
 PASS  no-fingerprint restore-ran
 PASS  no-fingerprint timeout-restored
+== fixture: kernel-disable line in the TURN log voids it too (NEW-3) ==
+PASS  tdis rc
+PASS  tdis rows
+PASS  tdis void_reason
+PASS  tdis END
+PASS  turn-disabled restore-ran
+PASS  turn-disabled timeout-restored
 == fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
 PASS  warm rc
 PASS  warm END
@@ -110,6 +121,29 @@ PASS  warm cooldown_s
 PASS  warm skin_before recorded
 PASS  warm restore-ran
 PASS  warm timeout-restored
+== fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) ==
+PASS  cal rc
+PASS  cal END
+PASS  cal no heat rows
+PASS  cal report written
+PASS  cal proof stats cpu
+PASS  cal proof stats npu (ops+tokens)
+PASS  cal turn fingerprint cpu
+PASS  cal candidate buffer line
+PASS  cal candidate fit line
+PASS  cal candidate device line
+PASS  cal logs moved into calib/
+PASS  cal floor pinned (0.5 x 1200/4)
+PASS  cal restore-ran
+PASS  cal timeout-restored
+== fixture: production reads the PINNED floor from calib.ok ==
+PASS  pin rc
+PASS  pin END
+PASS  pin rows
+PASS  pin floor came from calib.ok
+PASS  pin scaled min=600
+PASS  pinned-floor restore-ran
+PASS  pinned-floor timeout-restored
 == fixture: stop thermal_status >= 3 (injected at first gate) ==
 PASS  st rc
 PASS  st END
@@ -173,6 +207,14 @@ PASS  kuv restore loud
 PASS  kuv restore rc
 PASS  kuv timeout-restored
 PASS  kuv pgrep probed
+== fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 ==
+PASS  rla rc
+PASS  rla END
+PASS  rla rows-ok
+PASS  rla marker written
+PASS  rla restore message
+PASS  rla restore rc
+PASS  rla timeout-restored
 == fixture A-10/A-3: production 15 s poll cadence during the load phase ==
 PASS  pcad rc
 PASS  pcad END
@@ -233,6 +275,15 @@ PASS  fdv no-END (pre-trap exit)
 PASS  fsoc rc
 PASS  fsoc ADB_FAIL logged
 PASS  fsoc no-END (pre-trap exit)
+== fixture NEW-4: broken pgrep aborts before any load ==
+PASS  pgb rc
+PASS  pgb selftest failed
+PASS  pgb END
+PASS  pgb no load ran
+PASS  pgb no turn ran
+PASS  pgb restore rc loud
+PASS  pgb restore unverified
+PASS  pgb timeout-restored
 == fixture A-5: SIGHUP (SSH drop) restores the device ==
 PASS  hup rc
 PASS  hup END
@@ -240,4 +291,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=213 FAIL=0
+dryrun summary: PASS=259 FAIL=0

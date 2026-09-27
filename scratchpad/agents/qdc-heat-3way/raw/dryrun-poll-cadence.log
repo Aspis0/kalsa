@@ -1,13 +1,14 @@
-[21:35:28] SESSION job=dry-poll-cadence board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[21:35:28] KIT_UNPACK_PUSH
-[21:35:28] DEVICE_LIST_OK
-[21:35:28] KIT_PUSH ship.gguf sha_before=absent
-[21:35:28] KIT_PUSH prompt.txt sha_before=absent
-[21:35:30] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[21:35:30] GATE label=setup
-[21:35:30] SETUP_DONE skin0=33.5 battery_untrusted=0
-[21:35:30] SAMPLER_LAUNCHED pid=71204
-[21:35:30] ARM_START turn=1 backend=cpu pair=1 tag=dry-poll-cadence-t1cpu
-[21:35:45] STOP reason=battery_temp
-[21:35:45] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
-[21:35:55] SESSION_STOP reason=battery_temp
+[22:41:22] SESSION job=dry-poll-cadence board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[22:41:22] KIT_UNPACK_PUSH
+[22:41:22] DEVICE_LIST_OK
+[22:41:22] KIT_PUSH ship.gguf sha_before=absent
+[22:41:22] KIT_PUSH prompt.txt sha_before=absent
+[22:41:24] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:41:24] GATE label=setup
+[22:41:24] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:41:24] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:41:24] SAMPLER_LAUNCHED pid=21903
+[22:41:24] ARM_START turn=1 backend=cpu pair=1 tag=dry-poll-cadence-t1cpu
+[22:41:39] STOP reason=battery_temp
+[22:41:39] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
+[22:41:49] SESSION_STOP reason=battery_temp

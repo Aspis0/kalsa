@@ -75,6 +75,40 @@ explicitly superseded here.
    `dryrun.sh` exercises it at the production cadence (fixture
    `poll-cadence`).
 
+### Second amendment pass — 2026-09-26, hostile audit2 dd6bdb56 (still before any valid arm)
+
+6. **Measured-turn verbosity is `-lv 4`, not the default 3** (audit2
+   NEW-2/NEW-3: the fingerprint must prove PLACEMENT). Source check at
+   f25f0c1c5: every placement line is `LLAMA_LOG_INFO` —
+   `src/llama-model.cpp:1852` `LLAMA_LOG_INFO("%s: %12s model buffer size =
+   %8.2f MiB\n", …)` (→ `CPU`/`GPUOpenCL`/`HTP0 model buffer size`), `:1846`
+   `offloaded %d/%d layers`; `common/common.cpp:396` routes libllama logs
+   through the filtered callback and `common/log.cpp` maps INFO to TRACE(4)
+   > default thold(3) — so at true default NONE exist (run-1's committed log:
+   `grep -c "buffer size\|load_tensors\|offload" = 0`). `-lv 4` admits INFO
+   and still hides DEBUG/per-op output, so amendment #1's real goal (no
+   per-op cost in the window) stands. `CALIBRATE=1` prints the candidates the
+   phone actually produces and is the first thing the phone runs.
+7. **Execute-op floor scales with the proof's token count** (audit2 NEW-1):
+   `threshold = ceil(floor × proof_tokens)` with `floor = 0.86 ops/token` =
+   half of the lowest prior (q57 1764/1024 = 1.72; q58 3.35; q51 20.2) — a
+   4-token proof needs ≥ 4 lines, not the turn-1018-sized flat 1000. After
+   `CALIBRATE=1` the pinned measured floor in `calib.ok` (0.5 × measured
+   ops/token) replaces the prior; production logs `source=…` either way.
+8. **Order restriction registered** (audit2 NEW-7): accepted orders are
+   even-length sequences of the registered pairs {CG, GC, NN} — `CC` (a
+   single-backend rerun has no within-pair contrast) and `CGNGCN` (pairs
+   NG/CN are not registered contrasts) are deliberately rejected by
+   `validate_order`; calibration mode (`CALIBRATE=1`) bypasses pairs because
+   it runs each backend exactly once.
+9. **Session cost** (audit2 NEW-8): each production arm now pays ONE extra
+   full model load (the proof run ≈ load of 1.6 GB + 4 tokens ≈ 30–110 s on
+   this board), i.e. +6 loads ≈ +3–11 min over the previous shape; expected
+   production session ≈ 45–75 min with the default `DEADLINE_MINUTES=100`
+   (worst case still bounded by the deadline check inside cooldown).
+   `CALIBRATE=1` itself ≈ 3 × (load + 4-token proof + 16-token run) + gates
+   ≈ 5–12 min.
+
 ## Why this cell exists
 
 The app exposes `bench:route cpu|gpu|auto` only (`src/bench/benchConfig.ts:18`),

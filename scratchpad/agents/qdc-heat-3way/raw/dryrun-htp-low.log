@@ -1,13 +1,14 @@
-[21:34:46] SESSION job=dry-htp-low board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
-[21:34:46] KIT_UNPACK_PUSH
-[21:34:46] DEVICE_LIST_OK
-[21:34:46] KIT_PUSH ship.gguf sha_before=absent
-[21:34:46] KIT_PUSH prompt.txt sha_before=absent
-[21:34:47] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[21:34:47] GATE label=setup
-[21:34:47] SETUP_DONE skin0=33.5 battery_untrusted=0
-[21:34:47] SAMPLER_LAUNCHED pid=58177
-[21:34:47] ARM_START turn=1 backend=npu pair=1 tag=dry-htp-low-t1npu
-[21:34:47] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[21:34:47] PROOF_VOID turn=1 backend=npu reason=htp_ops_low proof=htp_ops=5 fp_proof=ngl=99 htp=1 thr=5
-[21:34:47] STOP_METHOD_VOID turn=1 backend=npu reason=htp_ops_low
+[22:40:19] SESSION job=dry-htp-low board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
+[22:40:19] KIT_UNPACK_PUSH
+[22:40:19] DEVICE_LIST_OK
+[22:40:19] KIT_PUSH ship.gguf sha_before=absent
+[22:40:19] KIT_PUSH prompt.txt sha_before=absent
+[22:40:20] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:40:20] GATE label=setup
+[22:40:20] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:40:20] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:40:20] SAMPLER_LAUNCHED pid=2839
+[22:40:20] ARM_START turn=1 backend=npu pair=1 tag=dry-htp-low-t1npu
+[22:40:20] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[22:40:20] PROOF_VOID turn=1 backend=npu reason=htp_ops_low proof=htp_ops=2 min=4 tokens=4 fp_proof=buf=HTP0 off=33/33 thr=5
+[22:40:20] STOP_METHOD_VOID turn=1 backend=npu reason=htp_ops_low

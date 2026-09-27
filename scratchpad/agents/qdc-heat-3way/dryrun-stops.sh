@@ -72,10 +72,20 @@ has "kuv loud log" "PKILL_UNVERIFIED" "$(cat "$RAW/driver.log")"
 # The session exit is 3 AND the restore reports the unkillable process: with
 # DRY_PKILL_NOOP the pkill genuinely cannot clear the arm, so restore.sh must
 # fail loudly (rc=1), not pretend the phone is clean.
-has "kuv restore loud" "RESTORE_LLAMA_STILL_RUNNING" "$(cat "$RAW/restore_run.log" 2>/dev/null)"
+has "kuv restore loud" "RESTORE_LLAMA_UNVERIFIED" "$(cat "$RAW/restore_run.log" 2>/dev/null)"
 eq "kuv restore rc" 1 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.log" 2>/dev/null | tail -1)"
 eq "kuv timeout-restored" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 eq "kuv pgrep probed" yes "$([ -f "$STATE/pgrep.log" ] && echo yes || echo no)"
+
+echo "== fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 =="
+run_fixture restore-late CG DRY_PKILL_NOOP=1
+eq "rla rc" 3 "$RC"
+assert_end rla kill_unverified
+eq "rla rows-ok" "" "$(all_ok)"
+eq "rla marker written" yes "$([ -f "$RAW/kill_unverified" ] && echo yes || echo no)"
+has "rla restore message" "RESTORE_LLAMA_UNVERIFIED" "$(cat "$RAW/restore_run.log" 2>/dev/null)"
+eq "rla restore rc" 1 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.log" 2>/dev/null | tail -1)"
+eq "rla timeout-restored" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 
 echo "== fixture A-10/A-3: production 15 s poll cadence during the load phase =="
 run_fixture poll-cadence CG DRY_ARM_SLEEP_S=25 DRY_BATT_TEMP_AT=9 DRY_BATT_TEMP_AFTER=445

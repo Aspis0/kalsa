@@ -1,0 +1,14 @@
+[22:40:49] SESSION job=dry-pinned-floor board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
+[22:40:49] KIT_UNPACK_PUSH
+[22:40:49] DEVICE_LIST_OK
+[22:40:49] KIT_PUSH ship.gguf sha_before=absent
+[22:40:49] KIT_PUSH prompt.txt sha_before=absent
+[22:40:50] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:40:50] GATE label=setup
+[22:40:50] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=150.0000 source=calib.ok
+[22:40:50] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:40:50] SAMPLER_LAUNCHED pid=12602
+[22:40:50] ARM_START turn=1 backend=npu pair=1 tag=dry-pinned-floor-t1npu
+[22:40:50] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[22:40:50] PROOF_VOID turn=1 backend=npu reason=htp_ops_low proof=htp_ops=500 min=600 tokens=4 fp_proof=buf=HTP0 off=33/33 thr=5
+[22:40:50] STOP_METHOD_VOID turn=1 backend=npu reason=htp_ops_low

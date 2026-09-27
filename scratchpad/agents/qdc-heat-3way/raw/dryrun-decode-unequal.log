@@ -1,16 +1,17 @@
-[21:36:01] SESSION job=dry-decode-unequal board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[21:36:01] KIT_UNPACK_PUSH
-[21:36:02] DEVICE_LIST_OK
-[21:36:02] KIT_PUSH ship.gguf sha_before=absent
-[21:36:02] KIT_PUSH prompt.txt sha_before=absent
-[21:36:03] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[21:36:03] GATE label=setup
-[21:36:03] SETUP_DONE skin0=33.5 battery_untrusted=0
-[21:36:03] SAMPLER_LAUNCHED pid=76417
-[21:36:03] ARM_START turn=1 backend=cpu pair=1 tag=dry-decode-unequal-t1cpu
-[21:36:03] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[21:36:03] SAMPLER_PAUSED (measured turn excluded from the 1 Hz series)
-[21:36:03] SAMPLER_LAUNCHED pid=76734
-[21:36:03] SAMPLER_RESUMED
-[21:36:03] ARM_END turn=1 status=VOID void=decode_len prefill_ms=45000.00 inload_ms=9876.50 fp_turn=ngl=0 htp=1 thr=5 proof=cpu_no_offload fp=ngl=0 htp=1 thr=5
-[21:36:03] STOP_UNEQUAL_DECODE got=125 want=126 n=127
+[22:41:58] SESSION job=dry-decode-unequal board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[22:41:58] KIT_UNPACK_PUSH
+[22:41:58] DEVICE_LIST_OK
+[22:41:58] KIT_PUSH ship.gguf sha_before=absent
+[22:41:58] KIT_PUSH prompt.txt sha_before=absent
+[22:41:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[22:41:59] GATE label=setup
+[22:41:59] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[22:41:59] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
+[22:41:59] SAMPLER_LAUNCHED pid=28637
+[22:41:59] ARM_START turn=1 backend=cpu pair=1 tag=dry-decode-unequal-t1cpu
+[22:41:59] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[22:42:00] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[22:42:00] SAMPLER_LAUNCHED pid=28940
+[22:42:00] SAMPLER_RESUMED
+[22:42:01] ARM_END turn=1 status=VOID void=decode_len prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
+[22:42:01] STOP_UNEQUAL_DECODE got=125 want=126 n=127
