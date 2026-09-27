@@ -11,6 +11,10 @@ STOP=/data/local/tmp/heat3way/heat/stop
 # measured turn, and a resumed sampler must not truncate the series — d_run's
 # kit_setup sweeps samples.txt once per session instead.
 echo "H sampler_start $(date +%s)" >> "$OUT"
+# A-N3 (audit3): hard lifetime bound — a SIGKILLed/cable-lost driver must not
+# leave a 1 Hz dumpsys loop on the phone for hours; the next session's sweep
+# (kit_setup) is no longer the only thing that can stop it.
+MAX_EPOCH=$(( $(date +%s) + 14400 ))
 ZONES=""
 for z in /sys/class/thermal/thermal_zone*; do
   t=$(cat "$z/type" 2>/dev/null) || continue
@@ -19,7 +23,7 @@ for z in /sys/class/thermal/thermal_zone*; do
   esac
 done
 echo "H zones:$ZONES" >> "$OUT"
-while [ ! -f "$STOP" ]; do
+while [ ! -f "$STOP" ] && [ "$(date +%s)" -lt "$MAX_EPOCH" ]; do
   line="Z $(date +%s)"
   for zt in $ZONES; do
     z=${zt%%:*}; t=${zt#*:}
@@ -33,4 +37,5 @@ while [ ! -f "$STOP" ]; do
   echo "S $(date +%s) $s" >> "$OUT"
   sleep 1
 done
+if [ ! -f "$STOP" ]; then echo "H sampler_expired $(date +%s)" >> "$OUT"; fi
 echo "H sampler_done $(date +%s)" >> "$OUT"

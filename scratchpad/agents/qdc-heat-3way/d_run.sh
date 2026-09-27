@@ -58,6 +58,9 @@ HEAT_TMP=$D/heat
 KIT_TGZ="$HOME/kalsa-qdc/npu-step0-v73/npu-kit-f25f0c1c5.tgz"
 MODEL="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf"
 MODEL_SHA=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+# npu-kit-f25f0c1c5.tgz archive sha (STEP0-V73-PREP.md; re-verified locally
+# 2026-09-26) — binds calib.ok to this exact kit (audit3 A-N6).
+KIT_SHA=dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea
 PROMPT_FILE="$CELL/PROMPT.txt"
 PROMPT_META="$CELL/PROMPT.meta"
 PROMPT_SHA=$(awk '{print $1}' "$PROMPT_META")
@@ -68,10 +71,12 @@ RAW="$CELL/raw/$JOB"
 mkdir -p "$RAW"
 RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"
 DRIVER_LOG="$RAW/driver.log"; ADB_LOG="$RAW/adb-exit.log"
-# A2: a stale stop_request or END.txt from an earlier run of this job id must
-# not survive into this session — a stale stop_request would void the first
-# arm, a stale END would outlive a crash and misreport the outcome.
-rm -f "$RAW/stop_request" "$END_MARKER"
+# A2 + audit3 A-N2: a stale stop_request, END.txt OR kill_unverified marker
+# from an earlier run of this job id must not survive into this session — a
+# stale stop_request would void the first arm, a stale END would outlive a
+# crash, and a stale kill_unverified would turn a clean run into rc 3 with a
+# message about a process that was never there.
+rm -f "$RAW/stop_request" "$END_MARKER" "$RAW/kill_unverified"
 : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'job=%s order=%s deadline_min=%s port=%s\nstart_utc=%s\n' \
   "$JOB" "$ARM_ORDER" "$DEADLINE_MINUTES" "$ADB_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RAW/session.env"
@@ -90,6 +95,8 @@ source "$CELL/sampler.sh"
 source "$CELL/calibrate.sh"
 # shellcheck source=setup.sh
 source "$CELL/setup.sh"
+# shellcheck source=pin.sh
+source "$CELL/pin.sh"
 
 SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""; FIRST_SKIN_C=""
 ARM_POLL_PID=0; CURRENT_CHILD_PID=0
@@ -99,19 +106,9 @@ COOLDOWN_SECONDS=0; WARM_START=0
 # prompt eval: -n 127 -> 126, -n 64 -> 63, device-confirmed). DECODE_N is
 # arm.sh's own -n value — derived, never a second hardcoded number.
 DECODE_EXPECT=$((DECODE_N - 1))
-# NEW-1 floor: the PINNED value from CALIBRATE=1 (calib.ok) when it exists,
-# else the prior derived from the repo's own priors (arm.sh HTP_FLOOR_PRIOR,
-# arithmetic in its header). Audit2: priors apply only "until calibrated".
-HTP_FLOOR_PER_TOKEN=""; HTP_FLOOR_SOURCE="prior"
-if [ -f "$CELL/calib.ok" ]; then
-  _floor=$(sed -n 's/^htp_ops_floor_per_tok=//p' "$CELL/calib.ok" | tail -1)
-  case "$_floor" in ''|*[!0-9.]*|.) ;; *) HTP_FLOOR_PER_TOKEN="$_floor"; HTP_FLOOR_SOURCE="calib.ok" ;; esac
-fi
-if [ -z "$HTP_FLOOR_PER_TOKEN" ]; then
-  HTP_FLOOR_PER_TOKEN="$HTP_FLOOR_PRIOR"
-  if [ -f "$CELL/calib.ok" ]; then HTP_FLOOR_SOURCE="prior(calib.ok unparsable)"
-  else HTP_FLOOR_SOURCE="prior(no calib.ok — run CALIBRATE=1 first)"; fi
-fi
+# The pin (calib.ok) is resolved by pin.sh once log() exists: HTP_FLOOR_PER_TOKEN
+# and HTP_FLOOR_SOURCE are set there (prior until CALIBRATE=1 pins a bound,
+# board- and kit-matched value).
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
@@ -210,6 +207,9 @@ method_void_guard() {
 
 # Session setup lives in setup.sh (one responsibility: pre-arm device setup,
 # incl. the NEW-4 pgrep self-test and trap arming before the first mutation).
+# Calibration rewrites the pin, so it must run even when the old one is
+# invalid (kit/board swap) — skip consumption, not production (audit3 A-N6).
+if [ "${CALIBRATE:-0}" != 1 ]; then resolve_calib_pin; fi
 session_setup
 
 # ---- per-arm waits and background safety poll ----
@@ -257,9 +257,9 @@ if [ "${CALIBRATE:-0}" = 1 ]; then
 fi
 
 write_row() {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$RESULTS"
 }
-printf 'pair\tbackend\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\ttail_s\twall_s\tload_wall_s\tload_skin_before\tload_skin_after\tpagein_cold\tskin_before\tskin_after\tbatt_temp_before\tbatt_temp_after\tbatt_level\tplugged\tthermal_status\tprompt_n\tprefill_ms\tdecode_runs\tdecode_tps\tproof\n' > "$RESULTS"
+printf 'pair\tbackend\tturn\tstatus\tvoid_reason\twarm_start\tcooldown_s\ttail_s\twall_s\tload_wall_s\tload_skin_before\tload_skin_after\tpagein_cold\tskin_before\tskin_after\tbatt_temp_before\tbatt_temp_after\tbatt_level\tplugged\tthermal_status\tprompt_n\tprefill_ms\tdecode_runs\tdecode_tps\tproof\tsampler\n' > "$RESULTS"
 
 # ---- arms ----
 TURN=0
@@ -288,12 +288,12 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
   if [ -f "$RAW/stop_request" ]; then
     stop_reason=$(tr -d '\r\n' < "$RAW/stop_request")
     write_row "$PAIR" "$backend" "$TURN" VOID "stop_$stop_reason" "$WARM_START" "$COOLDOWN_SECONDS" na na \
-      "$ARM_LOAD_WALL_S" "$B_SKIN" na "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na
+      "$ARM_LOAD_WALL_S" "$B_SKIN" na "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na na
     finish_stop
   fi
   if [ "$ARM_LOAD_RC" -ne 0 ]; then
     write_row "$PAIR" "$backend" "$TURN" VOID load_fail "$WARM_START" "$COOLDOWN_SECONDS" na na \
-      "$ARM_LOAD_WALL_S" "$B_SKIN" na "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na
+      "$ARM_LOAD_WALL_S" "$B_SKIN" na "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na na na
     log "ARM_LOAD_FAIL turn=$TURN rc=$ARM_LOAD_RC"
     stop_arm_poll
     kill_unverified_end || true      # a runaway orphan must not be followed by another arm
@@ -308,7 +308,7 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
   arm_parse_proof "$tag" "$backend"
   if [ "$ARM_STATUS" != OK ]; then
     write_row "$PAIR" "$backend" "$TURN" "$ARM_STATUS" "$ARM_VOID" "$WARM_START" "$COOLDOWN_SECONDS" na na \
-      "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na "$ARM_PROOF"
+      "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na "$ARM_PROOF" na
     log "PROOF_VOID turn=$TURN backend=$backend reason=$ARM_VOID proof=$ARM_PROOF fp_proof=$ARM_PROOF_FP"
     method_void_guard "$TURN" "$backend"
   fi
@@ -319,7 +319,7 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
   if [ -f "$RAW/stop_request" ]; then
     stop_reason=$(tr -d '\r\n' < "$RAW/stop_request")
     write_row "$PAIR" "$backend" "$TURN" VOID "stop_$stop_reason" "$WARM_START" "$COOLDOWN_SECONDS" na "$ARM_WALL_S" \
-      "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na "$ARM_PROOF"
+      "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" na "$B_BATT" na "$B_LVL" "$B_PLUG" "$B_TH" na na na na "$ARM_PROOF" "$SAMPLER_STATE"
     finish_stop
   fi
   if [ "$TAIL_S" -gt 0 ]; then sleep "$TAIL_S"; fi
@@ -342,7 +342,7 @@ for ((i=0; i<${#ARM_ORDER}; i++)); do
   fi
   write_row "$PAIR" "$backend" "$TURN" "$ARM_STATUS" "$ARM_VOID" "$WARM_START" "$COOLDOWN_SECONDS" "$TAIL_S" "$ARM_WALL_S" \
     "$ARM_LOAD_WALL_S" "$B_SKIN" "$LOAD_SKIN_A" "$PAGEIN_COLD" "$B_SKIN" "$A_SKIN" "$B_BATT" "$A_BATT" "$B_LVL" "$B_PLUG" "$B_TH" \
-    "$ARM_PROMPT_N" "$ARM_PREFILL_MS" "$ARM_RUNS" "$ARM_DECODE_TPS" "$ARM_PROOF"
+    "$ARM_PROMPT_N" "$ARM_PREFILL_MS" "$ARM_RUNS" "$ARM_DECODE_TPS" "$ARM_PROOF" "$SAMPLER_STATE"
   log "ARM_END turn=$TURN status=$ARM_STATUS void=$ARM_VOID prefill_ms=$ARM_PREFILL_MS inload_ms=$ARM_INLOAD_MS fp_turn=$ARM_TURN_FP proof=$ARM_PROOF"
   if [ "$decode_stop" -eq 1 ]; then
     log "STOP_UNEQUAL_DECODE got=$ARM_RUNS want=$DECODE_EXPECT n=$DECODE_N"

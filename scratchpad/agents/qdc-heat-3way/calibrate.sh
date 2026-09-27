@@ -22,6 +22,9 @@
 # live_readings/hard_stops, log, write_end, RAW/CELL/JOB/DECODE_N, floor vars.
 
 # Print every candidate fingerprint line of a measured log, family-tagged.
+# fit/htpwarn are INFORMATIONAL only (audit3 dead-code note): the gate
+# deliberately excludes the fit line (intent, not placement — see arm.sh
+# arm_fingerprint); device/sys/buf/off/disabled include the gate's families.
 calib_candidates() {
   awk '
     /n_gpu_layers already set by user|failed to fit params/ { print "fit|" $0; next }
@@ -35,13 +38,13 @@ calib_candidates() {
 }
 
 calibrate_run() {
-  local b tag line cands npu_ops="" npu_tokens=""
+  local b tag line cands fp buf npu_ops="" npu_tokens="" BUF_GPU="" BUF_NPU=""
   local report="$RAW/calib/report.txt"
   mkdir -p "$RAW/calib"
   {
     printf 'qdc-heat-3way calibration job=%s utc=%s production_decode_n=%s short_n=16\n' \
       "$JOB" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$DECODE_N"
-    printf 'htp_floor_prior_per_tok=%s (NEW-1: half of the lowest prior q57 1764/1024=1.72 ops/token; replaced by the measured pin below after this run)\n' "$HTP_FLOOR_PRIOR"
+    printf 'htp_floor_in_effect=%s source=%s (prior=%s; NEW-1 half-lowest-prior q57 1764/1024=1.72; this run replaces it with the measured pin)\n' "$HTP_FLOOR_PER_TOKEN" "$HTP_FLOOR_SOURCE" "$HTP_FLOOR_PRIOR"
   } > "$report"
   log "CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)"
   for b in cpu gpu npu; do
@@ -62,10 +65,18 @@ calibrate_run() {
     fi
     live_readings || true
     hard_stops || { stop_arm_poll; finish_stop; }
-    arm_parse_proof "$tag" "$b"   # stats only: calibration reports gates, it does not apply them
+    arm_parse_proof "$tag" "$b"
     line=$(printf 'CALIB backend=%s phase=proof status=%s void=%s tokens=%s proof=%s fp=%s' \
       "$b" "$ARM_STATUS" "$ARM_VOID" "$PROOF_TOKENS" "$ARM_PROOF" "$ARM_PROOF_FP")
     log "$line"; printf '%s\n' "$line" >> "$report"
+    # audit3 A-N9 (BLOCKER): calibration certifies only PROVEN backends —
+    # otherwise END=calibrated would launch heat arms into a known void.
+    if [ "$ARM_STATUS" != OK ]; then
+      log "CALIB_VOID backend=$b reason=$ARM_VOID — refusing to certify an unproven backend; no calib.ok"
+      printf 'CALIB_VOID backend=%s reason=%s (no calib.ok written)\n' "$b" "$ARM_VOID" >> "$report"
+      write_end "calib_void_$b"
+      exit 3
+    fi
     if [ "$b" = npu ]; then
       npu_ops=$(printf '%s' "$ARM_PROOF" | sed -n 's/.*htp_ops=\([0-9][0-9]*\).*/\1/p')
       npu_tokens="$PROOF_TOKENS"
@@ -81,8 +92,11 @@ calibrate_run() {
       exit 3
     fi
     stop_arm_poll
-    line=$(printf 'CALIB backend=%s phase=turn fp=%s' "$b" "$(arm_fingerprint "$RAW/$tag.log")")
+    fp=$(arm_fingerprint "$RAW/$tag.log")
+    line=$(printf 'CALIB backend=%s phase=turn fp=%s' "$b" "$fp")
     log "$line"; printf '%s\n' "$line" >> "$report"
+    buf=$(printf '%s' "$fp" | sed -n 's/.*buf=\([^ ]*\).*/\1/p')
+    case "$b" in gpu) BUF_GPU="$buf" ;; npu) BUF_NPU="$buf" ;; esac
     cands=$(calib_candidates "$RAW/$tag.log")
     if [ -n "$cands" ]; then
       printf '%s\n' "$cands" | sed "s/^/CALIB backend=$b cand=/" >> "$report"
@@ -92,6 +106,16 @@ calibrate_run() {
     # Evidence lives under calib/ from here on.
     mv "$RAW/$tag".* "$RAW/calib/" 2>/dev/null || true
   done
+  # audit3 A-N8: buf is the only G↔N separator (the off line says "GPU" for
+  # HTP too, llama-model.cpp:1845) — prove the two names differ BEFORE
+  # production trusts proof↔turn equality to mean "same backend".
+  line=$(printf 'CALIB buf_gpu=%s buf_npu=%s (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)' "${BUF_GPU:-na}" "${BUF_NPU:-na}")
+  log "$line"; printf '%s\n' "$line" >> "$report"
+  if [ -n "${BUF_GPU:-}" ] && [ -n "${BUF_NPU:-}" ] && [ "$BUF_GPU" != "?" ] && [ "$BUF_NPU" != "?" ] && [ "$BUF_GPU" = "$BUF_NPU" ]; then
+    log "CALIB_FAIL buf_collision gpu=$BUF_GPU npu=$BUF_NPU — fingerprint cannot tell G from N on this kit"
+    write_end calib_buf_collision
+    exit 3
+  fi
   # NEW-1 pin: measured floor = half the observed ops/token on the N proof
   # (same 50% rationale as the prior). Without N numbers there is no pin and
   # calibration is a failure, not a maybe.
@@ -105,6 +129,9 @@ calibrate_run() {
   {
     printf 'htp_ops_floor_per_tok=%s\n' "$floor"
     printf 'measured_npu_ops=%s\nmeasured_npu_tokens=%s\n' "$npu_ops" "$npu_tokens"
+    # audit3 A-N6: bind the pin to this board and this kit — pin.sh refuses
+    # any mismatch before a production arm runs.
+    printf 'serial=%s\nsoc=%s\nmodel_sha=%s\nkit_sha=%s\n' "$SER" "$SOC" "$MODEL_SHA" "$KIT_SHA"
     printf 'calibrated_utc=%s\njob=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$JOB"
   } > "$CELL/calib.ok"
   log "CALIB_DONE floor_htp_ops_per_tok=$floor (measured $npu_ops ops / $npu_tokens tokens; pinned in calib.ok)"

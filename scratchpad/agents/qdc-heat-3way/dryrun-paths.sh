@@ -8,6 +8,7 @@ assert_end stale exit_0
 eq "stale rows" 2 "$(rows)"
 eq "stale first row OK" OK "$(col 1 4)"
 eq "stale stop_request gone" absent "$([ -f "$RAW/stop_request" ] && echo present || echo absent)"
+eq "stale kill marker gone (A-N2)" absent "$([ -f "$RAW/kill_unverified" ] && echo present || echo absent)"
 assert_restore stale
 
 echo "== fixture A3/A-4: arm timeout kills the remote orphan (verified) =="
@@ -74,11 +75,27 @@ eq "pgb restore rc loud" 1 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.lo
 has "pgb restore unverified" "RESTORE_LLAMA_UNVERIFIED" "$(cat "$RAW/restore_run.log" 2>/dev/null)"
 eq "pgb timeout-restored" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 
+echo "== fixture A-N6: a pin from another board refuses the session =="
+run_fixture calib-pin-mismatch CG seed_calib_mismatch
+eq "cpm rc" 9 "$RC"
+has "cpm mismatch logged" "CALIB_PIN_MISMATCH" "$(cat "$RAW/driver.log")"
+assert_no_end cpm
+eq "cpm no load ran" absent "$([ -f "$RAW/dry-calib-pin-mismatch-t1cpu.load.log" ] && echo present || echo absent)"
+
+echo "== fixture A-N5a: an out-of-band pin rate refuses the session pre-device =="
+run_fixture calib-pin-badrate CG seed_calib_badrate
+eq "cpr rc" 9 "$RC"
+has "cpr invalid logged" "CALIB_PIN_INVALID why=floor_rate_out_of_band" "$(cat "$RAW/driver.log")"
+assert_no_end cpr
+eq "cpr never touched the device" absent "$([ -f "$RAW/wait_for_device.txt" ] && echo present || echo absent)"
+
 echo "== fixture A-5: SIGHUP (SSH drop) restores the device =="
 STATE="/tmp/qdc-heat3way-fake-sighup"
 rm -rf "$STATE" "$CELL/raw/dry-sighup"
 mkdir -p "$STATE" "$CELL/raw"
-rm -f "$CELL/.restore-state"
+# Fixture isolation (this block bypasses run_fixture): no stale state AND no
+# leftover pin — the pin fixtures before this one leave their seeds behind.
+rm -f "$CELL/.restore-state" "$CELL/calib.ok"
 set +e
 env ADB_BIN="$CELL/dryrun-adb.sh" FAKE_ADB_STATE="$STATE" ADB_PORT=5037 \
     COOL_POLL_S=1 TAIL_S=0 SAMPLER_WAIT_S=0 BATT_TRUST_INTERVAL_S=1 \

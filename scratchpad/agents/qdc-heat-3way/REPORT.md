@@ -55,32 +55,33 @@ measured window is prefill+decode only. The app has no NPU route
 ## Files (one responsibility each)
 
 - `d_run.sh` (365) — session orchestration: args/order validation, the
-  proof+turn loop, rows, END, restore. *Declared:* still over the ~350
-  indicative after the setup split; what remains is the loop itself.
-- `setup.sh` (72) — pre-arm device setup: prior restore, state, trap
-  arming, mutations, kit+trust+gate, the pgrep self-test, sampler launch.
-- `calibrate.sh` (113) — the CALIBRATE=1 loop: proof + short run per
-  backend, candidate-lines report, pinned execute-op floor.
-- `stop_lib.sh` (107) — live readings, numeric fail-closed checks, hard
-  stops, `request_stop` + verified `kill_remote_llama` (sourced; DSpark will
-  source it too).
+  proof+turn loop, 26-column rows, END, restore. *Declared:* over the ~350
+  indicative (pre-existing shape since Round 4; shuffling it now would move
+  lines only for the number).
+- `setup.sh` (79) — pre-arm device setup: prior restore, state, trap arming,
+  mutations, kit+trust+gate, the single-session pgrep self-test, sampler.
+- `pin.sh` (62) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
+  model/kit binding, board binding) or exit 9.
+- `calibrate.sh` (140) — CALIBRATE=1 loop: proof + short run per backend,
+  candidate report, VOID-proof refusal, G/N buf-collision check, pinned floor.
+- `stop_lib.sh` (107) — live readings, fail-closed numeric checks, hard
+  stops, `request_stop` + verified `kill_remote_llama` (sourced; DSpark too).
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (300) — proof-run and turn commands, run/pull, shared perf parse,
-  placement fingerprint, the two parses (scaled NEW-1 floor, turn-side
-  negative).
-- `sampler.sh` (66) — sampler lifecycle incl. the A-11 pause with NEW-6
-  device-exit confirmation.
-- `restore.sh` (82) — undo every device change (standalone-capable,
-  health-probed + kill-marker per NEW-4/NEW-5).
-- `smp.sh` (36) — on-device 1 s thermal sampler (append-only).
-- `dryrun-adb.sh` (353 — declared, ~350 indicative) — fake adb with
-  reading/log/kill/pgrep/adb-failure knobs.
-- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (83) + `dryrun-core.sh`
-  (168) + `dryrun-stops.sh` (110) + `dryrun-paths.sh` (97) — fixture matrix
-  split by topic (~34 fixtures, 259 assertions).
-- `PREREG.md` (320), `REPORT.md`, `AUDIT-dd6bdb56.md`, `AUDIT2-dd6bdb56.md`.
+- `arm.sh` (308) — proof-run and turn commands, run/pull, shared perf parse,
+  fingerprint (with the `off`-is-a-count note), the two parses.
+- `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
+  row column), resume, stop.
+- `restore.sh` (84) — undo every device change (standalone-capable,
+  health-probed kill with a `kill_check=` verdict field).
+- `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
+- `dryrun-adb.sh` (361 — declared, ~350 indicative) — fake adb with
+  reading/log/kill/pgrep/sampler knobs.
+- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (96) + `dryrun-core.sh`
+  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (114) — fixture matrix
+  split by topic (38 fixtures, 293 assertions).
+- `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
 
@@ -308,6 +309,44 @@ READ count, so any value works — but calibrate reports it); whether
 alive probe fails loudly if not); toybox `pgrep -f` behavior (now self-tested
 before every session); real per-backend ops/token vs the 0.86 prior (the pin
 replaces it after calibrate).
+
+## Round 6 — hostile audit3 dd6bdb56: 2 BLOCKER + 3 HIGH + every accepted MEDIUM closed (2026-09-27)
+
+`AUDIT3-dd6bdb56.md` committed with this round. Cell A verdict was NO on two
+demonstrated false session verdicts plus three HIGHs; everything below is
+fixed in this session, no sub-agents, no phone.
+
+| # | disposition | fix (file:line) + fixture |
+|---|---|---|
+| BLOCKER A-N9 (calibration certifies VOID proofs) | **Fixed**: `arm_parse_proof` result is now checked after its report line — a VOID proof writes `CALIB_VOID backend=<b> reason=<r>` to the report, `END calib_void_<b>`, **rc 3**, and exits BEFORE the pin is written | `calibrate.sh:73-80`; fixture `calibrate-void` (`CALIBRATE=1 DRY_NO_CPU_PROOF=1` → rc 3, `END calib_void_cpu`, no `calib.ok`, no `results.tsv`) — this fixture exits 0 (calibrated) before the fix |
+| BLOCKER A-N2 (stale kill_unverified poisons a clean run) | **Fixed**: the marker joins the start sweep | `d_run.sh:75-79`; `dryrun-lib.sh:15-21` `seed_stale` now seeds it; fixture `stale` asserts rc 0 + `END exit_0` + marker absent (pre-fix: rc 3 + `END kill_unverified`, as the audit demonstrated) |
+| HIGH A-N3 (1 Hz sampler survives SIGKILL) | **Fixed**: device-side hard bound — `MAX_EPOCH = now + 14400` (4 h) in the loop condition, expiry stamps `H sampler_expired` before the done stamp | `smp.sh:14-17,26,36-37`; *not dry-runnable* — the fake models its own 300-iteration cap; only a real SIGKILL on the board can prove the bound (declared below) |
+| HIGH A-N6 (pin not bound to board/kit) | **Fixed**: pin now carries `serial/soc/model_sha/kit_sha`; `pin.sh` refuses missing keys, out-of-band rate or model/kit mismatch (exit 9, pre-device), `setup.sh` refuses a board mismatch once SER+SOC are known (exit 9, pre-mutation); `calib.ok` added to `.gitignore` | `pin.sh:19-62`, `setup.sh:50-52`, `calibrate.sh:131-138`, `.gitignore`; fixtures `calib-pin-mismatch` (rc 9, no END, no load), `calib-pin-badrate` (rc 9 before any adb call — `wait_for_device.txt` absent), `calibrate` asserts the written keys |
+| HIGH A-N4 (self-test SIGHUP race + orphan) | **Fixed**: spawn + alive + health + kill + gone in ONE adb session, so the pkill always runs before any host-side verdict and the victim cannot die between sessions; the pattern is assembled at runtime (`q="sleep 47""31"`) so our own shell cmdline never contains it (self-match trap) | `setup.sh:6-25`; fixture `pgrep-broken` still exits 4 with no load (the fake answers the sequence keyed on `ALIVE_RC`, `dryrun-adb.sh:270-280`) |
+| MEDIUM A-N5 (floor useless at 4 tokens / fake invents 1200) | **Fixed the two actionable parts**: (a) pin rate must sit in **[0.5, 25] ops/token** or the session refuses pre-device; (b) the fake's execute-op count now scales with its proof tokens (`default 80 = 4 × 20`, inside the band) instead of a constant 1200 — `htp_ops=1200`/pin150 (7.4× the highest observed rate) are gone from every fixture | `pin.sh:31-37`, `dryrun-adb.sh:131`; fixtures `calib-pin-badrate`, `htp-low` (2 vs min 4), `pinned-floor` (20 vs min 40), `calibrate` (pin 10.0000) |
+| MEDIUM A-N7 (unconfirmed pause indistinguishable from clean) | **Fixed**: 26th column `sampler` = `ok`/`unconfirmed`/`na`, set by the pause itself; PREREG schema amended (#10) | `sampler.sh:9-12,22,42,52`, `d_run.sh:260-262` + rows `:322,345`; fixtures `six` (col26=ok) and `sampler-unconfirmed` (`DRY_SAMPLER_NO_DONE` → `SAMPLER_PAUSE_UNCONFIRMED` + col26=unconfirmed, rows still OK — validity recorded, not silently clean) |
+| MEDIUM A-N8 (`off` does not separate G from N) | **Fixed**: calibration now prints `CALIB buf_gpu=… buf_npu=…` and FAILS on a collision (`END calib_buf_collision`, rc 3); the arm.sh comment now says `off` is a layer count whose literal reads "GPU" for HTP too and that identity comes from the -lv 5 thresholds | `calibrate.sh:108-118`, `arm.sh:182-196`; fixtures `buf-collision` (`DRY_TURN_FP_BUF=GPUOpenCL` → rc 3) and `calibrate` asserts the comparison line |
+| LOW A-N10 (two cosmetic report contradictions) | **Fixed**: calibrate header prints the floor IN EFFECT + source (not always the prior); the `off` reword is the A-N8 comment; `fit`/`htpwarn` families labelled informational in `calib_candidates` (the gate excludes fit by design) | `calibrate.sh:44-47,24-27`, `arm.sh:182-196` |
+| LOW (restore rc mixes two causes) | **Fixed**: the restore line now carries `kill_check=verified|unverified` as its own field next to `rc=` | `restore.sh:79-84` (existing `state=1 .*rc=0` assertions unaffected) |
+| LOW (host `pkill -f` cross-session) | **REJECTED** — the pattern is this cell's unique device dir (`/data/local/tmp/heat3way`), so a cross-kill needs two concurrent sessions on the SAME cell, which the protocol forbids (one session per cell at a time); a second pattern would only weaken the match | one line, here |
+| A-N5 second clause (`tokens ≥ 16` or a second sample) | **REJECTED** — the production proof is structurally `-p " " -n 4` (≤5 tokens), so ≥16 would void every legitimate pin, and a second calibration sample triples the cost the [0.5,25] band already covers | one line, here |
+| dead-code notes (`arm.sh n` unvalidated, `SAMPLER_PAUSED` not reset) | **Fixed**: numeric guard on `n` (`arm.sh:86`), `SAMPLER_PAUSED=0` in `stop_sampler` (`sampler.sh:59`) | — |
+
+**Commands (this round):** `bash -n` on 17 scripts → 0;
+`./dryrun.sh > /tmp/dr6.log 2>&1; echo EXIT=$?` → first EXIT=1 (6 fails:
+my own assertion looked for `CALIB_VOID` in the report before it was written
+there, and the bespoke SIGHUP block had no pin isolation — a seeded
+bad-rate pin from the previous fixture aborted it with rc 9), then
+`./dryrun.sh > /tmp/dr6b.log 2>&1; echo EXIT=$?` → **EXIT=0, PASS=293
+FAIL=0** (log copied to `raw/dryrun-final-run.log`).
+
+**Not verified (round 6):** the 4 h sampler bound is device-side shell — the
+fake has its own iteration cap, so only a real SIGKILL on the board proves
+it; the single-session self-test's SIGHUP/self-match behavior on real adbd
+(assembly verified by reading, execution only against the fake); the real
+`buf` strings for G and N (calibration prints them — `buf_collision` only
+fires if they agree); pin keys against a real (non-fake) calibration run;
+`DRY_SAMPLER_NO_DONE` models the unconfirmed path, not the device timing.
 
 ## Declared, not touched
 

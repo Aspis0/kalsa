@@ -1,0 +1,4 @@
+qdc-heat-3way calibration job=dry-calibrate-void utc=2026-09-27T03:20:10Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; this run replaces it with the measured pin)
+CALIB backend=cpu phase=proof status=VOID void=no_cpu_proof tokens=4 proof=na fp=buf=CPU off=0/33 thr=5
+CALIB_VOID backend=cpu reason=no_cpu_proof (no calib.ok written)

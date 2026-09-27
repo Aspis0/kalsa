@@ -31,7 +31,11 @@
 #   DRY_FAIL_DEVICES=1     `adb devices` exits 1 (A-9 fixture)
 #   DRY_FAIL_SOC=1         getprop exits 7 (A-9 fixture)
 #   DRY_NO_HTP_PROOF=1     omit Hexagon Arch + execute-op lines from N logs
-#   DRY_HTP_OPS=N          execute-op line count (default 1200, A6 floor 1000)
+#   DRY_HTP_OPS=N          execute-op line count (default 80 = 4 proof tokens
+#       x 20 ops/token, inside the [0.5,25] sanity band — audit3 A-N5: the
+#       fake must scale with the proof's tokens, not invent 1200)
+#   DRY_SAMPLER_NO_DONE=1  the device loop exits WITHOUT its H sampler_done
+#       stamp — proves the unconfirmed-pause column (audit3 A-N7)
 #   DRY_NO_GPU_PROOF=1     omit GPUOpenCL assignment + kernel lines from G logs
 #   DRY_GPU_KERNELS=N      GGML_OPENCL_LOG_KERNELS line count (default 12, A6 floor 8)
 #   DRY_GPU_DISABLED=1     append the kernel-build-failed/device-disabled line
@@ -122,7 +126,9 @@ emit_npu_block() { # dispatch evidence (A6: >= 1000 execute-op lines + arch)
   if [ "${DRY_NO_HTP_PROOF:-0}" != 1 ]; then
     printf 'ggml-hex: Hexagon Arch version v73\n'
     printf 'ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB\n'
-    local n="${DRY_HTP_OPS:-1200}" j=0
+    # 80 = the structural proof tokens (1 prompt + 3 eval runs for -n 4)
+    # x 20 ops/token — inside the [0.5,25] sanity band (audit3 A-N5b).
+    local n="${DRY_HTP_OPS:-80}" j=0
     while [ "$j" -lt "$n" ]; do
       printf 'ggml-hex: HTP0 execute-op MUL_MAT|node_%d x weight -> out|a|b|c|d|e|f|g|flags 0x0\n' "$j"
       j=$((j + 1))
@@ -230,7 +236,9 @@ run_sampler() {
     i=$((i + 1))
     sleep 1
   done
-  echo "H sampler_done $(date +%s)" >> "$out"
+  if [ "${DRY_SAMPLER_NO_DONE:-0}" != 1 ]; then
+    echo "H sampler_done $(date +%s)" >> "$out"
+  fi
   echo "fake sampler exited iterations=$i"
   exit 0
 }
@@ -259,6 +267,17 @@ handle_shell() {
       health_rc=1
       if [ "${DRY_PGREP_BROKEN:-0}" = 1 ]; then health_rc=0; fi
       case "$cmd" in
+        *ALIVE_RC*)
+          # audit3 A-N4: setup's self-test is ONE adb session — spawn, alive,
+          # health, kill and gone all happen inside it; emulate the sequence
+          # (the victim never outlives the call). Matched on ALIVE_RC because
+          # the victim pattern is assembled at runtime in the real command.
+          : > "$DEV/sleep4731"
+          printf '47310\nALIVE_RC=0\n'
+          if [ "$health_rc" = 1 ]; then printf 'HEALTH_RC=1\n'; else printf 'HEALTH_RC=0\n'; fi
+          rm -f "$DEV/sleep4731"
+          printf 'GONE_RC=1\n'
+          exit 0 ;;
         *zzz_no_such_proc_zzz*llama-completio*)
           # restore's combined probe: PROBE=health, then pkill effect, GONE=
           printf 'PROBE=%s\n' "$health_rc"
@@ -268,12 +287,6 @@ handle_shell() {
           else
             printf '4242\nGONE=0\n'
           fi
-          exit 0 ;;
-        *zzz_no_such_proc_zzz*)
-          if [ "$health_rc" = 1 ]; then printf 'PGREP_RC=1\n'; else printf '4242\nPGREP_RC=0\n'; fi
-          exit 0 ;;
-        *"sleep 4731"*)
-          if [ -f "$DEV/sleep4731" ]; then printf '47310\nPGREP_RC=0\n'; else printf 'PGREP_RC=1\n'; fi
           exit 0 ;;
       esac
       # session llama kill probe
@@ -285,13 +298,8 @@ handle_shell() {
       exit 0 ;;
     *pkill*)
       printf '%s\n' "$cmd" >> "$STATE/pkill.log"
-      case "$cmd" in
-        *"sleep 4731"*) rm -f "$DEV/sleep4731"; exit 0 ;;   # self-test victim, never NOOP
-      esac
       if [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then : > "$STATE/llama_killed"; fi
       exit 0 ;;
-    # self-test victim start (NEW-4): keep it alive until pkilled
-    *"sleep 4731"*) : > "$DEV/sleep4731"; exit 0 ;;
     # NEW-6: sampler_pause polls for the device loop's exit stamp
     *sampler_done*)
       if [ -f "$DEV/samples.txt" ]; then grep -c 'H sampler_done' "$DEV/samples.txt" || true; else echo 0; fi

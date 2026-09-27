@@ -2,3 +2,7 @@
 # written before the first device mutation and deleted at the next session
 # start. Not in git (same rule as qdc-heat-per-backend).
 .restore-state
+# Device-specific calibration pin (serial/soc/model/kit + floor) written by
+# CALIBRATE=1 — must never be committed: every clone would read a pin that
+# belongs to one board and one kit (audit3 A-N6).
+calib.ok

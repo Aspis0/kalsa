@@ -1,0 +1,125 @@
+0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+load_tensors:         HTP0 model buffer size =  1182.09 MiB
+load_tensors: offloaded 33/33 layers to GPU
+0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
+llama_model_loader: loaded meta data with 1145 tokens from /data/local/tmp/heat3way/ship.gguf
+llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+load_tensors: layer   0 assigned to device HTP0, is_swa = 0
+load_tensors: layer   1 assigned to device HTP0, is_swa = 0
+load_tensors: layer   2 assigned to device HTP0, is_swa = 0
+load_tensors: layer   3 assigned to device HTP0, is_swa = 0
+load_tensors: layer   4 assigned to device HTP0, is_swa = 0
+load_tensors: layer   5 assigned to device HTP0, is_swa = 0
+load_tensors: layer   6 assigned to device HTP0, is_swa = 0
+load_tensors: layer   7 assigned to device HTP0, is_swa = 0
+load_tensors: layer   8 assigned to device HTP0, is_swa = 0
+load_tensors: layer   9 assigned to device HTP0, is_swa = 0
+load_tensors: layer  10 assigned to device HTP0, is_swa = 0
+load_tensors: layer  11 assigned to device HTP0, is_swa = 0
+load_tensors: layer  12 assigned to device HTP0, is_swa = 0
+load_tensors: layer  13 assigned to device HTP0, is_swa = 0
+load_tensors: layer  14 assigned to device HTP0, is_swa = 0
+load_tensors: layer  15 assigned to device HTP0, is_swa = 0
+load_tensors: layer  16 assigned to device HTP0, is_swa = 0
+load_tensors: layer  17 assigned to device HTP0, is_swa = 0
+load_tensors: layer  18 assigned to device HTP0, is_swa = 0
+load_tensors: layer  19 assigned to device HTP0, is_swa = 0
+load_tensors: layer  20 assigned to device HTP0, is_swa = 0
+load_tensors: layer  21 assigned to device HTP0, is_swa = 0
+load_tensors: layer  22 assigned to device HTP0, is_swa = 0
+load_tensors: layer  23 assigned to device HTP0, is_swa = 0
+load_tensors: layer  24 assigned to device HTP0, is_swa = 0
+load_tensors: layer  25 assigned to device HTP0, is_swa = 0
+load_tensors: layer  26 assigned to device HTP0, is_swa = 0
+load_tensors: layer  27 assigned to device HTP0, is_swa = 0
+load_tensors: layer  28 assigned to device HTP0, is_swa = 0
+load_tensors: layer  29 assigned to device HTP0, is_swa = 0
+load_tensors: layer  30 assigned to device HTP0, is_swa = 0
+load_tensors: layer  31 assigned to device HTP0, is_swa = 0
+load_tensors: layer  32 assigned to device HTP0, is_swa = 0
+ggml-hex: Hexagon Arch version v73
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 execute-op MUL_MAT|node_0 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_1 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_2 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_3 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_4 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_5 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_6 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_7 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_8 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_9 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_10 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_11 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_12 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_13 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_14 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_15 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_16 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_17 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_18 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_19 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_20 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_21 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_22 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_23 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_24 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_25 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_26 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_27 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_28 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_29 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_30 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_31 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_32 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_33 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_34 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_35 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_36 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_37 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_38 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_39 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_40 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_41 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_42 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_43 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_44 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_45 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_46 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_47 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_48 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_49 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_50 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_51 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_52 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_53 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_54 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_55 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_56 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_57 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_58 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_59 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_60 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_61 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_62 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_63 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_64 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_65 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_66 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_67 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_68 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_69 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_70 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_71 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_72 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_73 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_74 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_75 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_76 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_77 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_78 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|node_79 x weight -> out|a|b|c|d|e|f|g|flags 0x0
+1.17.377.170 I common_perf_print: prompt eval time =      88.88 ms /     1 tokens (   88.88 ms per token,    11.25 tokens per second)
+1.17.377.172 I common_perf_print:        eval time =     420.00 ms /     3 runs   (  140.00 ms per token,     7.14 tokens per second)
+EXIT=0

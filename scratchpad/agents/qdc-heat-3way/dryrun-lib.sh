@@ -12,15 +12,28 @@ ne() { if [ "$2" != "$3" ]; then pass "$1"; else fail "$1" "expected NOT [$2]"; 
 has() { case "$3" in *"$2"*) pass "$1" ;; *) fail "$1" "missing [$2] in [$(printf '%s' "$3" | head -c 200)]" ;; esac; }
 count_is() { eq "$1" "$2" "$(grep -c "$3" "$4" 2>/dev/null || true)"; }
 
-seed_stale() { # A2: stale stop_request + END from a previous run of this job
+seed_stale() { # A2 + audit3 A-N2: stale stop_request, END AND kill marker
   local name="$1"
   mkdir -p "$CELL/raw/dry-$name"
   printf 'fake\n' > "$CELL/raw/dry-$name/stop_request"
   printf 'END reason=stop_fake\n' > "$CELL/raw/dry-$name/END.txt"
+  printf 'stale\n' > "$CELL/raw/dry-$name/kill_unverified"
 }
 seed_stayon() { printf '1\n' > "$STATE/stay_on_while_plugged_in"; }
-seed_calib_ok() { # pinned floor from a (fake) calibration: 0.5 x 1200 ops / 4 tok
-  printf 'htp_ops_floor_per_tok=150.0000\nmeasured_npu_ops=1200\nmeasured_npu_tokens=4\n' > "$CELL/calib.ok"
+# Pins for fixtures: valid keys + in-band rate (0.5 <= 10 <= 25), bound to the
+# fake board (serial=fakes23, soc=SM8550) and the real model/kit hashes.
+seed_calib_ok() {
+  printf 'htp_ops_floor_per_tok=10.0000\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=80\nmeasured_npu_tokens=4\n' \
+    'a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03' \
+    'dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea' > "$CELL/calib.ok"
+}
+seed_calib_mismatch() { # audit3 A-N6: pin from another board
+  seed_calib_ok
+  sed -i '' 's/^serial=.*/serial=otherboard/' "$CELL/calib.ok"
+}
+seed_calib_badrate() { # audit3 A-N5a: rate outside [0.5,25] ops/token
+  seed_calib_ok
+  sed -i '' 's/^htp_ops_floor_per_tok=.*/htp_ops_floor_per_tok=999.0000/' "$CELL/calib.ok"
 }
 seed_prior_restore() { # A-6: previous run SIGKILLed — state holds pre-run
   # values, the fake device still holds the mutations.

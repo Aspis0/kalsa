@@ -87,6 +87,16 @@ has "rla restore message" "RESTORE_LLAMA_UNVERIFIED" "$(cat "$RAW/restore_run.lo
 eq "rla restore rc" 1 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.log" 2>/dev/null | tail -1)"
 eq "rla timeout-restored" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 
+echo "== fixture A-N7: an unconfirmed sampler pause is flagged in the row =="
+run_fixture sampler-unconfirmed CG DRY_SAMPLER_NO_DONE=1
+eq "spc rc" 0 "$RC"
+assert_end spc exit_0
+eq "spc rows" 2 "$(rows)"
+has "spc unconfirmed logged" "SAMPLER_PAUSE_UNCONFIRMED" "$(cat "$RAW/driver.log")"
+eq "spc row flag" unconfirmed "$(col 1 26)"
+eq "spc turns still OK (validity recorded, not silently clean)" "" "$(all_ok)"
+assert_restore spc
+
 echo "== fixture A-10/A-3: production 15 s poll cadence during the load phase =="
 run_fixture poll-cadence CG DRY_ARM_SLEEP_S=25 DRY_BATT_TEMP_AT=9 DRY_BATT_TEMP_AFTER=445
 eq "pcad rc" 0 "$RC"

@@ -1,0 +1,1 @@
+[23:21:50] CALIB_PIN_MISMATCH serial=fakes23 soc=SM8550 pin_serial=otherboard pin_soc=SM8550 — this pin belongs to another board, recalibrate here

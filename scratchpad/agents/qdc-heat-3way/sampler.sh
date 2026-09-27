@@ -7,6 +7,9 @@
 # Deps provided by d_run.sh: adbT, log, ADB_BIN, SER, RAW, HEAT_TMP,
 # SAMPLER_WAIT_S.
 SAMPLER_PID=0; SAMPLER_PAUSED=0
+# A-N7 (audit3): what the LAST measured turn saw — "na" until a pause runs,
+# then "ok" (device-confirmed exit) or "unconfirmed"; row col 26 carries it.
+SAMPLER_STATE="na"
 
 launch_sampler() {
   "$ADB_BIN" -s "$SER" shell "sh $HEAT_TMP/smp.sh" >> "$RAW/sampler.log" 2>&1 &
@@ -15,7 +18,8 @@ launch_sampler() {
   log "SAMPLER_LAUNCHED pid=$SAMPLER_PID"
 }
 sampler_pause() {
-  [ "$SAMPLER_PID" -ne 0 ] || return 0
+  # Nothing running = quiet window, but record it as ok so the row is honest.
+  [ "$SAMPLER_PID" -ne 0 ] || { SAMPLER_STATE=ok; return 0; }
   # NEW-6 (audit2): the marker — not the client kill — is what ends the device
   # loop; it may be inside a dumpsys + sleep 1, so wait for its exit stamp
   # (smp.sh writes "H sampler_done" when the loop ends) BEFORE trusting the
@@ -35,6 +39,7 @@ sampler_pause() {
       kill "$SAMPLER_PID" 2>/dev/null || true
       wait "$SAMPLER_PID" 2>/dev/null || true
       SAMPLER_PID=0; SAMPLER_PAUSED=1
+      SAMPLER_STATE=ok
       log "SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)"
       return 0
     fi
@@ -44,6 +49,7 @@ sampler_pause() {
   kill "$SAMPLER_PID" 2>/dev/null || true
   wait "$SAMPLER_PID" 2>/dev/null || true
   SAMPLER_PID=0; SAMPLER_PAUSED=1
+  SAMPLER_STATE=unconfirmed
   log "SAMPLER_PAUSE_UNCONFIRMED (no sampler_done stamp in 6 s — device loop may still run into the turn)"
   return 0
 }
@@ -56,6 +62,7 @@ sampler_resume() {
 }
 stop_sampler() {
   [ -n "$SER" ] || return 0
+  SAMPLER_PAUSED=0
   adbT 30 -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
   if [ "$SAMPLER_PID" -ne 0 ]; then
     kill "$SAMPLER_PID" 2>/dev/null || true

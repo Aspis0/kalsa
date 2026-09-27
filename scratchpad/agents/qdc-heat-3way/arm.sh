@@ -82,6 +82,8 @@ arm_proof_env() {
 # `-lv 4` for the INFO-level placement lines quoted in the header.
 arm_remote_cmd() {
   local backend="$1" tag="$2" n="${3:-$DECODE_N}" flags
+  # Never feed a non-numeric n to %d (audit3 dead-code note).
+  case "$n" in ''|*[!0-9]*) n="$DECODE_N" ;; esac
   flags=$(arm_backend_flags "$backend") || return 1
   printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 %s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$(arm_env)" "$D" "$D" "$n" "$flags" "$D" "$tag" "$D" "$tag"
@@ -177,15 +179,21 @@ arm_perf_parse() {
   return 0
 }
 
-# PLACEMENT fingerprint at the turn's -lv 4 (audit2 NEW-2/NEW-3): components
-# say WHERE the work lives, not what was requested —
+# Fingerprint at the turn's -lv 4 (audit2 NEW-2/NEW-3): proof↔turn
+# CONSISTENCY of placement evidence, not a backend name tag —
 #   buf = backend names from `… <NAME> model buffer size = … MiB`
-#         (llama-model.cpp:1852, LLAMA_LOG_INFO ⇒ visible at -lv >= 4),
-#   off = `offloaded <n>/<m> layers to GPU` (llama-model.cpp:1846, INFO),
+#         (llama-model.cpp:1852, LLAMA_LOG_INFO ⇒ visible at -lv >= 4); this
+#         is the only component that separates G from N,
+#   off = `offloaded <n>/<m> layers to GPU` (llama-model.cpp:1846, INFO) — a
+#         LAYER COUNT: the literal says "GPU" even for -dev HTP0 and gives the
+#         same value for G and N (audit3 A-N8), so it can only confirm that
+#         turn placement equals proof placement,
 #   thr = system_info n_threads (flag check, tool INFO).
-# The requested `-ngl` fit line is deliberately NOT a component (intent, not
-# placement — NEW-3); it is still printed by calibrate as a candidate.
-# Missing pieces print `?` and fail closed on both sides.
+# Backend IDENTITY comes from the thresholds on the -lv 5 proof log
+# (arm_parse_proof), never from these. The requested `-ngl` fit line is
+# deliberately NOT a component (intent, not placement — NEW-3); calibrate
+# prints it as an informational candidate. Missing pieces print `?` and fail
+# closed on both sides.
 arm_fingerprint() {
   local logf="$1" buf="" off="" thr=""
   if [ -f "$logf" ]; then

@@ -50,11 +50,13 @@ pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 # missing pattern (a busybox-style pgrep that answers 1 on usage errors must
 # not be read as "process gone").
 probe=$("$ADB_BIN" -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz; echo PROBE=\$?; pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo GONE=\$?" 2>/dev/null | tr -d '\r' || true)
+KILL_CHECK=verified
 probe_rc=$(printf '%s\n' "$probe" | sed -n 's/.*PROBE=\([0-9][0-9]*\).*/\1/p' | tail -1)
 gone_rc=$(printf '%s\n' "$probe" | sed -n 's/.*GONE=\([0-9][0-9]*\).*/\1/p' | tail -1)
 if [ "$probe_rc" = 1 ] && [ "$gone_rc" = 1 ]; then
   :
 else
+  KILL_CHECK=unverified
   echo "RESTORE_LLAMA_UNVERIFIED probe_rc=${probe_rc:-missing} gone_rc=${gone_rc:-missing}" >&2
   rc=1
   # NEW-5: the marker (not only the message) is what makes the session END
@@ -76,7 +78,7 @@ if [ "$STATE_PRESENT" -eq 1 ]; then
   esac
 fi
 {
-  printf 'restore %s serial=%s state=%s stayon_restored=%s screen_off_timeout=%s sampler=stopped llama=pkill rc=%s\n' \
-    "$(date '+%F %T')" "$SER" "$STATE_PRESENT" "$STAYON" "${SCREEN_OFF_TIMEOUT:-na}" "$rc"
+  printf 'restore %s serial=%s state=%s stayon_restored=%s screen_off_timeout=%s sampler=stopped kill_check=%s rc=%s\n' \
+    "$(date '+%F %T')" "$SER" "$STATE_PRESENT" "$STAYON" "${SCREEN_OFF_TIMEOUT:-na}" "$KILL_CHECK" "$rc"
 } >> "$RESTORE_LOG"
 exit "$rc"

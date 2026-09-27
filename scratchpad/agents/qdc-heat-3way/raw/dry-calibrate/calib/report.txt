@@ -1,5 +1,5 @@
-qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T02:40:47Z production_decode_n=127 short_n=16
-htp_floor_prior_per_tok=0.86 (NEW-1: half of the lowest prior q57 1764/1024=1.72 ops/token; replaced by the measured pin below after this run)
+qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T03:20:08Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; this run replaces it with the measured pin)
 CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
 CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5
 CALIB backend=cpu cand=fit|0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort
@@ -16,7 +16,7 @@ CALIB backend=gpu cand=buf|load_tensors:    GPUOpenCL model buffer size =  1182.
 CALIB backend=gpu cand=off|load_tensors: offloaded 33/33 layers to GPU
 CALIB backend=gpu cand=sys|0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 CALIB backend=gpu cand=device|llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free
-CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=1200 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
+CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
 CALIB backend=npu phase=turn fp=buf=HTP0 off=33/33 thr=5
 CALIB backend=npu cand=fit|0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 CALIB backend=npu cand=htpwarn|0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
@@ -24,3 +24,4 @@ CALIB backend=npu cand=buf|load_tensors:         HTP0 model buffer size =  1182.
 CALIB backend=npu cand=off|load_tensors: offloaded 33/33 layers to GPU
 CALIB backend=npu cand=sys|0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 CALIB backend=npu cand=device|llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+CALIB buf_gpu=GPUOpenCL buf_npu=HTP0 (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)

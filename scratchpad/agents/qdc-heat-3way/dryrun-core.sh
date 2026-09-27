@@ -22,7 +22,7 @@ has "six gpu proof assign" gpu_assigned_lines= "$(col 2 25)"
 has "six gpu proof kernels" "kernels=" "$(col 2 25)"
 has "six gpu fingerprint (placement)" "fp=buf=GPUOpenCL off=33/33 thr=5" "$(col 2 25)"
 has "six npu proof arch" "arch=v73" "$(col 3 25)"
-has "six npu proof ops" "htp_ops=1200" "$(col 3 25)"
+has "six npu proof ops" "htp_ops=80" "$(col 3 25)"
 has "six npu fingerprint (placement)" "fp=buf=HTP0 off=33/33 thr=5" "$(col 3 25)"
 has "six npu scaled floor" "min=4" "$(col 3 25)"    # NEW-1: ceil(0.86 x 4 proof tokens)
 eq "six skin_before" 33.5 "$(col 1 14)"
@@ -34,6 +34,8 @@ ne "six load_wall_s" na "$(col 1 10)"
 eq "six samples.txt" yes "$([ -f "$RAW/samples.txt" ] && echo yes || echo no)"
 eq "six list-devices" yes "$([ -f "$RAW/list_devices.txt" ] && echo yes || echo no)"
 has "six sampler-paused A11 NEW-6" "SAMPLER_PAUSE_CONFIRMED" "$(cat "$RAW/driver.log")"
+eq "six sampler state (A-N7)" ok "$(col 1 26)"
+eq "six sampler state on last turn" ok "$(col 6 26)"
 has "six sampler-resumed A11" "SAMPLER_RESUMED" "$(cat "$RAW/driver.log")"
 has "six pgrep selftest NEW-4" "PGREP_SELFTEST_OK" "$(cat "$RAW/driver.log")"
 has "six floor source (until calibrated)" "source=prior(no calib.ok" "$(cat "$RAW/driver.log")"
@@ -148,21 +150,40 @@ assert_end cal calibrated
 eq "cal no heat rows" absent "$([ -f "$RAW/results.tsv" ] && echo present || echo absent)"
 eq "cal report written" yes "$([ -f "$RAW/calib/report.txt" ] && echo yes || echo no)"
 has "cal proof stats cpu" "CALIB backend=cpu phase=proof" "$(cat "$RAW/calib/report.txt")"
-has "cal proof stats npu (ops+tokens)" "tokens=4 proof=htp_ops=1200" "$(cat "$RAW/calib/report.txt")"
+has "cal proof stats npu (ops+tokens)" "tokens=4 proof=htp_ops=80" "$(cat "$RAW/calib/report.txt")"
 has "cal turn fingerprint cpu" "CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate buffer line" "cand=buf|" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate fit line" "cand=fit|" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate device line" "cand=device|" "$(cat "$RAW/calib/report.txt")"
 eq "cal logs moved into calib/" yes "$([ -f "$RAW/calib/dry-calibrate-calcpu.log" ] && echo yes || echo no)"
-eq "cal floor pinned (0.5 x 1200/4)" "htp_ops_floor_per_tok=150.0000" "$(grep '^htp_ops_floor_per_tok=' "$CELL/calib.ok" 2>/dev/null)"
+eq "cal floor pinned (0.5 x 80/4)" "htp_ops_floor_per_tok=10.0000" "$(grep '^htp_ops_floor_per_tok=' "$CELL/calib.ok" 2>/dev/null)"
+has "cal pin bound to board/kit (A-N6)" "serial=fakes23" "$(cat "$CELL/calib.ok")"
+has "cal buf printed for G/N (A-N8)" "CALIB buf_gpu=GPUOpenCL buf_npu=HTP0" "$(cat "$RAW/calib/report.txt")"
 assert_restore cal
 
+echo "== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) =="
+run_fixture calibrate-void CGN CALIBRATE=1 DRY_NO_CPU_PROOF=1
+eq "cav rc" 3 "$RC"
+assert_end cav calib_void_cpu
+eq "cav no calib.ok" absent "$([ -f "$CELL/calib.ok" ] && echo present || echo absent)"
+eq "cav no heat rows" absent "$([ -f "$RAW/results.tsv" ] && echo present || echo absent)"
+has "cav void reported" "CALIB_VOID backend=cpu reason=no_cpu_proof" "$(cat "$RAW/calib/report.txt")"
+assert_restore cav
+
+echo "== fixture A-N8: G/N buffer-name collision fails calibration =="
+run_fixture buf-collision CGN CALIBRATE=1 DRY_TURN_FP_BUF=GPUOpenCL
+eq "bcol rc" 3 "$RC"
+assert_end bcol calib_buf_collision
+eq "bcol no calib.ok" absent "$([ -f "$CELL/calib.ok" ] && echo present || echo absent)"
+has "bcol collision logged" "CALIB_FAIL buf_collision" "$(cat "$RAW/driver.log")"
+assert_restore bcol
+
 echo "== fixture: production reads the PINNED floor from calib.ok =="
-run_fixture pinned-floor NN seed_calib_ok DRY_HTP_OPS=500
+run_fixture pinned-floor NN seed_calib_ok DRY_HTP_OPS=20
 eq "pin rc" 0 "$RC"
 assert_end pin method_void_htp_ops_low
 eq "pin rows" 1 "$(rows)"
 has "pin floor came from calib.ok" "source=calib.ok" "$(cat "$RAW/driver.log")"
-has "pin scaled min=600" "htp_ops=500 min=600" "$(col 1 25)"
+has "pin scaled min=40" "htp_ops=20 min=40" "$(col 1 25)"
 assert_restore pinned-floor
 

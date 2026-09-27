@@ -4,19 +4,23 @@
 # mutations, kit+trust+gate, the NEW-4 pgrep self-test, sampler launch.
 # Called once by d_run.sh as session_setup; exits the driver on any failure.
 pgrep_selftest() {
-  local out probe
-  out=$(adbT 15 -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz; echo PGREP_RC=\$?" 2>/dev/null || true)
-  probe=$(printf '%s\n' "$out" | sed -n 's/.*PGREP_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
-  if [ "$probe" != 1 ]; then log "PGREP_SELFTEST_FAIL health_probe_rc=${probe:-missing}"; return 1; fi
-  adbT 15 -s "$SER" shell "sh -c 'sleep 4731 >/dev/null 2>&1 &'" >/dev/null 2>&1 || true
-  out=$(adbT 15 -s "$SER" shell "pgrep -f 'sleep 4731'; echo PGREP_RC=\$?" 2>/dev/null || true)
-  probe=$(printf '%s\n' "$out" | sed -n 's/.*PGREP_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
-  if [ "$probe" != 0 ]; then log "PGREP_SELFTEST_FAIL alive_probe_rc=${probe:-missing} (pgrep could not find a live process)"; return 1; fi
-  adbT 15 -s "$SER" shell "pkill -f 'sleep 4731'" >/dev/null 2>&1 || true
-  out=$(adbT 15 -s "$SER" shell "pgrep -f 'sleep 4731'; echo PGREP_RC=\$?" 2>/dev/null || true)
-  probe=$(printf '%s\n' "$out" | sed -n 's/.*PGREP_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
-  if [ "$probe" != 1 ]; then log "PGREP_SELFTEST_FAIL kill_probe_rc=${probe:-missing} (sleep still visible after pkill)"; return 1; fi
-  log "PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)"
+  # audit3 A-N4: spawn + alive + health + kill + gone in ONE adb session
+  # (setup.sh round-2 used three: a cross-session SIGHUP could kill the
+  # victim between calls — false FAIL on a healthy phone — and an early
+  # alive-failure returned before the pkill, orphaning the sleep). The pattern
+  # is assembled at runtime (`q="sleep 47""31"`) so neither pgrep/pkill nor
+  # our own shell cmdline contains the contiguous victim string — the same
+  # self-match trap the bracket pattern solves elsewhere. With one session
+  # the pkill ALWAYS runs before we read a result.
+  local out alive health gone
+  out=$(adbT 30 -s "$SER" shell "q=\"sleep 47\"\"31\"; \$q >/dev/null 2>&1 & sleep 1; pgrep -f \"\$q\"; echo ALIVE_RC=\$?; pgrep -f 'zzz_no_such_proc_zzz'; echo HEALTH_RC=\$?; pkill -f \"\$q\"; pgrep -f \"\$q\" >/dev/null 2>&1; echo GONE_RC=\$?" 2>/dev/null || true)
+  alive=$(printf '%s\n' "$out" | sed -n 's/.*ALIVE_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
+  health=$(printf '%s\n' "$out" | sed -n 's/.*HEALTH_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
+  gone=$(printf '%s\n' "$out" | sed -n 's/.*GONE_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
+  if [ "$health" != 1 ]; then log "PGREP_SELFTEST_FAIL health_probe_rc=${health:-missing}"; return 1; fi
+  if [ "$alive" != 0 ]; then log "PGREP_SELFTEST_FAIL alive_probe_rc=${alive:-missing} (victim not found inside its own adb session)"; return 1; fi
+  if [ "$gone" != 1 ]; then log "PGREP_SELFTEST_FAIL kill_probe_rc=${gone:-missing} (victim still visible after pkill)"; return 1; fi
+  log "PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)"
   return 0
 }
 
@@ -43,6 +47,9 @@ case "$SOC" in
   SM8550) BOARD=S23-v73 ;;
   *) log "UNSUPPORTED_SOC=$SOC (this kit ships only the v73 DSP skel)"; exit 6 ;;
 esac
+# audit3 A-N6: the pin must belong to THIS board — checked once SER+SOC are
+# known, still before any mutation (pre-trap abort, no END, like NO_DEVICE).
+check_calib_pin_board
 # A-7: default to null like STAYON — an empty read must not strand the
 # restore in RESTORE_BAD_TIMEOUT with the phone left at 1800000.
 SCREEN_OFF_TIMEOUT=$(adbT 30 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r') || { log "ADB_FAIL timeout_get"; exit 2; }

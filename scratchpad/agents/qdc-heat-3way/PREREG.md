@@ -109,6 +109,22 @@ explicitly superseded here.
    `CALIBRATE=1` itself ≈ 3 × (load + 4-token proof + 16-token run) + gates
    ≈ 5–12 min.
 
+### Third amendment pass — 2026-09-26, audit3 dd6bdb56 (still before any valid arm)
+
+10. **Results schema: 26th column `sampler`** (audit3 A-N7): `ok` when the
+    device-confirmed sampler pause held, `unconfirmed` when the device loop
+    did not stamp its exit (the measured window may contain 1 Hz load —
+    discard or flag those rows), `na` when no turn was measured.
+11. **calib.ok is bound and validated** (A-N6/A-N5a): it carries serial, soc,
+    model_sha, kit_sha and a floor rate that must sit in [0.5, 25] ops/token;
+    any mismatch or out-of-band rate aborts with exit 9 (recalibrate), and
+    calibration itself refuses to certify a VOID proof (`END
+    calib_void_<backend>`, rc 3, no pin) or a G/N buffer-name collision
+    (`END calib_buf_collision`). The file is git-ignored (device-specific).
+12. **On-device sampler hard bound**: 4 h (`smp.sh` MAX_EPOCH) — a
+    SIGKILLed driver cannot leave a 1 Hz dumpsys loop on the phone
+    indefinitely; expiry stamps `H sampler_expired` (audit3 A-N3).
+
 ## Why this cell exists
 
 The app exposes `bench:route cpu|gpu|auto` only (`src/bench/benchConfig.ts:18`),
@@ -201,10 +217,11 @@ three backends on one binary, so all three arms run there.
 - **Sampling**: on-device 1 s sampler (`smp.sh`): all `cpu*`/`gpuss*` sysfs
   zones + HAL skin (`Current temperatures from HAL` section only), epoch on
   every line; series pulled to `raw/<job>/samples.txt`.
-- **Recorded per arm (25 columns)**: pair, backend, turn, status/void_reason,
+- **Recorded per arm (26 columns)**: pair, backend, turn, status/void_reason,
   warm_start, cooldown_s, tail_s, wall_s, load_wall_s, load_skin_before,
   load_skin_after, pagein_cold, skin/battery/thermal before→after, prompt_n,
-  prefill_ms, decode_runs, decode_tps, proof.
+  prefill_ms, decode_runs, decode_tps, proof, sampler (`ok` /
+  `unconfirmed` / `na`, amendment 10).
 
 ## Order bias (registered; audit f2ee97f4 A9, before any run)
 

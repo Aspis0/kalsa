@@ -1,24 +1,24 @@
-[22:42:05] PRIOR_RESTORE .restore-state from an earlier run
-[22:42:05] SESSION job=dry-prior-restore board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=1 timeout_saved=60000
-[22:42:05] KIT_UNPACK_PUSH
-[22:42:05] DEVICE_LIST_OK
-[22:42:06] KIT_PUSH ship.gguf sha_before=absent
-[22:42:06] KIT_PUSH prompt.txt sha_before=absent
-[22:42:07] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[22:42:07] GATE label=setup
-[22:42:07] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[22:42:07] PGREP_SELFTEST_OK (health/alive/gone probes passed — kill verification trusted this session)
-[22:42:07] SAMPLER_LAUNCHED pid=31139
-[22:42:07] ARM_START turn=1 backend=cpu pair=1 tag=dry-prior-restore-t1cpu
-[22:42:07] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[22:42:08] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[22:42:08] SAMPLER_LAUNCHED pid=31423
-[22:42:08] SAMPLER_RESUMED
-[22:42:08] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
-[22:42:08] ARM_START turn=2 backend=gpu pair=1 tag=dry-prior-restore-t2gpu
-[22:42:08] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[22:42:10] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[22:42:10] SAMPLER_LAUNCHED pid=31786
-[22:42:10] SAMPLER_RESUMED
-[22:42:10] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=GPUOpenCL off=33/33 thr=5 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
-[22:42:10] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-prior-restore/results.tsv
+[23:21:44] PRIOR_RESTORE .restore-state from an earlier run
+[23:21:44] SESSION job=dry-prior-restore board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=1 timeout_saved=60000
+[23:21:44] KIT_UNPACK_PUSH
+[23:21:44] DEVICE_LIST_OK
+[23:21:44] KIT_PUSH ship.gguf sha_before=absent
+[23:21:44] KIT_PUSH prompt.txt sha_before=absent
+[23:21:45] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[23:21:45] GATE label=setup
+[23:21:45] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[23:21:45] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[23:21:45] SAMPLER_LAUNCHED pid=65834
+[23:21:45] ARM_START turn=1 backend=cpu pair=1 tag=dry-prior-restore-t1cpu
+[23:21:45] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[23:21:46] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[23:21:47] SAMPLER_LAUNCHED pid=66366
+[23:21:47] SAMPLER_RESUMED
+[23:21:47] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
+[23:21:47] ARM_START turn=2 backend=gpu pair=1 tag=dry-prior-restore-t2gpu
+[23:21:47] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[23:21:48] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[23:21:48] SAMPLER_LAUNCHED pid=67022
+[23:21:48] SAMPLER_RESUMED
+[23:21:48] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=GPUOpenCL off=33/33 thr=5 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
+[23:21:48] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-prior-restore/results.tsv

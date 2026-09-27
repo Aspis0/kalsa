@@ -30,6 +30,8 @@ PASS  six load_wall_s
 PASS  six samples.txt
 PASS  six list-devices
 PASS  six sampler-paused A11 NEW-6
+PASS  six sampler state (A-N7)
+PASS  six sampler state on last turn
 PASS  six sampler-resumed A11
 PASS  six pgrep selftest NEW-4
 PASS  six floor source (until calibrated)
@@ -133,15 +135,32 @@ PASS  cal candidate buffer line
 PASS  cal candidate fit line
 PASS  cal candidate device line
 PASS  cal logs moved into calib/
-PASS  cal floor pinned (0.5 x 1200/4)
+PASS  cal floor pinned (0.5 x 80/4)
+PASS  cal pin bound to board/kit (A-N6)
+PASS  cal buf printed for G/N (A-N8)
 PASS  cal restore-ran
 PASS  cal timeout-restored
+== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) ==
+PASS  cav rc
+PASS  cav END
+PASS  cav no calib.ok
+PASS  cav no heat rows
+PASS  cav void reported
+PASS  cav restore-ran
+PASS  cav timeout-restored
+== fixture A-N8: G/N buffer-name collision fails calibration ==
+PASS  bcol rc
+PASS  bcol END
+PASS  bcol no calib.ok
+PASS  bcol collision logged
+PASS  bcol restore-ran
+PASS  bcol timeout-restored
 == fixture: production reads the PINNED floor from calib.ok ==
 PASS  pin rc
 PASS  pin END
 PASS  pin rows
 PASS  pin floor came from calib.ok
-PASS  pin scaled min=600
+PASS  pin scaled min=40
 PASS  pinned-floor restore-ran
 PASS  pinned-floor timeout-restored
 == fixture: stop thermal_status >= 3 (injected at first gate) ==
@@ -215,6 +234,15 @@ PASS  rla marker written
 PASS  rla restore message
 PASS  rla restore rc
 PASS  rla timeout-restored
+== fixture A-N7: an unconfirmed sampler pause is flagged in the row ==
+PASS  spc rc
+PASS  spc END
+PASS  spc rows
+PASS  spc unconfirmed logged
+PASS  spc row flag
+PASS  spc turns still OK (validity recorded, not silently clean)
+PASS  spc restore-ran
+PASS  spc timeout-restored
 == fixture A-10/A-3: production 15 s poll cadence during the load phase ==
 PASS  pcad rc
 PASS  pcad END
@@ -229,6 +257,7 @@ PASS  stale END
 PASS  stale rows
 PASS  stale first row OK
 PASS  stale stop_request gone
+PASS  stale kill marker gone (A-N2)
 PASS  stale restore-ran
 PASS  stale timeout-restored
 == fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
@@ -284,6 +313,16 @@ PASS  pgb no turn ran
 PASS  pgb restore rc loud
 PASS  pgb restore unverified
 PASS  pgb timeout-restored
+== fixture A-N6: a pin from another board refuses the session ==
+PASS  cpm rc
+PASS  cpm mismatch logged
+PASS  cpm no-END (pre-trap exit)
+PASS  cpm no load ran
+== fixture A-N5a: an out-of-band pin rate refuses the session pre-device ==
+PASS  cpr rc
+PASS  cpr invalid logged
+PASS  cpr no-END (pre-trap exit)
+PASS  cpr never touched the device
 == fixture A-5: SIGHUP (SSH drop) restores the device ==
 PASS  hup rc
 PASS  hup END
@@ -291,4 +330,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=259 FAIL=0
+dryrun summary: PASS=293 FAIL=0
