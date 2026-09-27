@@ -771,3 +771,30 @@ full logs, and buffer summary are in `raw/s23-calib-3/`.
 Restore completed (`kill_check=verified rc=0`). Final readings: unplugged,
 90%, 30.1 C battery, thermal 0, traced 0, Kalsa absent, no `llama|bench`
 process, timeout restored to `null`, stay-on 0, display Awake/unlocked.
+
+### S23 three-way run 4 — calibration passed, heat pin rejected
+
+Preflight passed on the fixed TLS serial: unplugged, 89%, thermal 0, traced
+0, Kalsa force-stopped, no `llama|bench` process, screen Awake/unlocked.
+Calibration ended `calibrated` (exit 0):
+
+| Backend | Proof / tokens | Arch | HTP ops / minimum | Placement fingerprint |
+|---|---|---|---:|---|
+| CPU | OK / 13 | n/a | n/a | `buf=CPU,CPU_REPACK off=0/31 thr=5` |
+| GPU | OK / 13; 62 assignments, 15 kernels | n/a | n/a | `buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5` |
+| NPU | OK / 13 | v73 (session URI) | 1675 / 12 | `buf=CPU,HTP0 off=31/31 thr=5` |
+
+Calibration pinned `htp_ops_floor_per_tok=64.4231` (1675 / 13). The heat
+command exited 9 before session setup with
+`CALIB_PIN_INVALID why=floor_rate_out_of_band(64.4231)`; the driver accepts
+only 0.5–25. Therefore the heat job has no END marker and zero arms: no
+per-arm status, temperatures, throughput, fingerprint-match or sampler
+values exist. No retry was made. The calib buffer values are CPU
+206.07 MiB + CPU_REPACK 1511.20 MiB; GPU CPU 205.08 + CPU_REPACK 205.08 +
+OpenCL 1307.20 MiB; NPU CPU 205.08 + HTP0 1525.87 MiB.
+
+Calibration restore verified (`kill_check=verified rc=0`). Final checks after
+the refused heat start: unplugged, 88%, 28.9 C battery, thermal 0, traced 0,
+Kalsa absent, no `llama|bench` process, timeout `null`, stay-on 0, screen
+Awake/unlocked. Raw calibration, pin snapshot, heat refusal, and final state
+are in `raw/s23-calib-4/` and `raw/s23-3way-4/`.

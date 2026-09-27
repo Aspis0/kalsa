@@ -1,0 +1,1978 @@
+POWER MANAGER (dumpsys power)
+
+Power Manager State:
+  Settings power_manager_constants:
+    no_cached_wake_locks=true
+  mDirty=0x0
+  mWakefulness=Awake
+  mWakefulnessChanging=false
+  mIsPowered=false
+  mPlugType=0
+  mBatteryLevel=89
+  mDreamsBatteryLevelDrain=0
+  mDockState=0
+  mStayOn=false
+  mProximityPositive=false
+  mBootCompleted=true
+  mSystemReady=true
+  mEnhancedDischargeTimeElapsed=0
+  mLastEnhancedDischargeTimeUpdatedElapsed=0
+  mEnhancedDischargePredictionIsPersonalized=false
+  mUseAutoSuspend=true
+  mHalAutoSuspendModeEnabled=false
+  mHalInteractiveModeEnabled=true
+  mWakeLockSummary=0x1
+  mNotifyLongScheduled=+36s618ms
+  mNotifyLongDispatched=-35s406ms
+  mNotifyLongNextCheck=(none)
+  mRequestWaitForNegativeProximity=false
+  mInterceptedPowerKeyForProximity=false
+  mInterceptedKeyForProximity=false
+  mSandmanScheduled=false
+  mBatteryLevelLow=false
+  mLightDeviceIdleMode=false
+  mDeviceIdleMode=false
+  mDeviceIdleWhitelist=[1000, 1001, 2000, 5006, 5022, 5025, 5026, 5250, 5278, 10046, 10047, 10049, 10055, 10057, 10063, 10065, 10066, 10067, 10073, 10079, 10080, 10083, 10086, 10087, 10090, 10091, 10093, 10098, 10099, 10100, 10102, 10104, 10105, 10108, 10110, 10111, 10113, 10114, 10118, 10119, 10120, 10121, 10122, 10123, 10125, 10127, 10128, 10129, 10132, 10135, 10142, 10144, 10147, 10152, 10157, 10159, 10161, 10162, 10164, 10166, 10180, 10182, 10187, 10191, 10208, 10218, 10221, 10225, 10227, 10230, 10231, 10263, 10269, 10289, 10294, 10296, 10297, 10298, 10299, 10300, 10310, 10344, 10345]
+  mDeviceIdleTempWhitelist=[]
+  mLowPowerStandbyActive=false
+  mLastWakeTime=103669890 (533 ms ago)
+  mLastSleepTime=103156615 (513808 ms ago)
+  mLastSleepReason=timeout
+  mLastGlobalWakeTimeRealtime=116325299 (in 12654876 ms)
+  mLastGlobalSleepTimeRealtime=114681154 (in 11010731 ms)
+  mLastInteractivePowerHintTime=103670185 (238 ms ago)
+  mLastScreenBrightnessBoostTime=0 (103670423 ms ago)
+  mScreenBrightnessBoostInProgress=false
+  mDefaultDisplayReadyByProximity=true
+  mHoldingWakeLockSuspendBlocker=true
+  mHoldingDisplaySuspendBlocker=true
+
+Settings and Configuration:
+  mDecoupleHalAutoSuspendModeFromDisplayConfig=true
+  mDecoupleHalInteractiveModeFromDisplayConfig=true
+  mWakeUpWhenPluggedOrUnpluggedConfig=true
+  mWakeUpWhenPluggedOrUnpluggedInTheaterModeConfig=false
+  mTheaterModeEnabled=false
+  mKeepDreamingWhenUnplugging=false
+  mSuspendWhenScreenOffDueToProximityConfig=true
+  mDreamsSupportedConfig=true
+  mDreamsEnabledByDefaultConfig=false
+  mDreamsActivatedOnSleepByDefaultConfig=false
+  mDreamsActivatedOnDockByDefaultConfig=true
+  mDreamsActivatedWhilePosturedByDefaultConfig=false
+  mDreamsEnabledOnBatteryConfig=false
+  mDreamsBatteryLevelMinimumWhenPoweredConfig=-1
+  mDreamsBatteryLevelMinimumWhenNotPoweredConfig=15
+  mDreamsBatteryLevelDrainCutoffConfig=5
+  mDreamsEnabledSetting=false
+  mDreamsActivateOnSleepSetting=true
+  mDreamsActivateOnDockSetting=false
+  mDreamsActivateWhilePosturedSetting=false
+  mDozeAfterScreenOff=true
+  mBrightWhenDozingConfig=false
+  mMinimumScreenOffTimeoutConfig=3000
+  mMaximumScreenDimDurationConfig=20000
+  mMaximumScreenDimRatioConfig=0.333
+  mAttentiveTimeoutConfig=-1
+  mAttentiveTimeoutSetting=-1
+  mAttentiveWarningDurationConfig=30000
+  mScreenOffTimeoutSetting=15000
+  mSleepTimeoutSetting=-1
+  mMaximumScreenOffTimeoutFromDeviceAdmin=9223372036854775807 (enforced=false)
+  mStayOnWhilePluggedInSetting=0
+  mUserActivityTimeoutOverrideFromWindowManager=-1
+  mUserActivityTimeoutForDexOverrideFromWindowManager=-1
+  mUserInactiveOverrideFromWindowManager=false
+  mDozeScreenStateOverrideFromDreamManager=1
+  mDrawWakeLockOverrideFromSidekick=false
+  mDozeScreenBrightnessOverrideFromDreamManager=-1
+  mUseNormalBrightnessForDoze=false
+  mScreenBrightnessMinimum=0.0
+  mScreenBrightnessMaximum=1.0
+  mScreenBrightnessDefault=0.5019608
+  mDoubleTapWakeEnabled=false
+  mForegroundProfile=0
+  mUserId=0
+  mLastWakeUpReason: 4
+  mOutdoorModeSetting: false
+  mAutoBrightnessLowerLimit=-1
+  mAutoBrightnessUpperLimit=-1
+  mLastAutoBrightnessLimitTime=0
+  mAutoBrightnessLimitLastCaller=
+  SEC_FEATURE_USE_GED_DOZE: true
+  SEC_FEATURE_SEAMLESS_AOD: false
+  SEC_FEATURE_WA_WAITING_AOD_WHEN_WAKINGUP_FROM_DOZE: true
+  SEC_FEATURE_WAKEUP_WHEN_PLUG_CHANGED: true
+  SEC_FEATURE_AOD_LOOK_CHARGING_UI: false
+  mAodMode: true
+  mShouldWaitForTransitionToAodUi: false
+  SEC_FEATURE_DEX_DUAL_VIEW: true
+  SEC_FEATURE_FOLD_COVER_DISPLAY: false
+  SEC_FEATURE_FLIP_COVER_DISPLAY: false
+  SEC_FEATURE_FLIP_LARGE_COVER_DISPLAY: false
+  SEC_FEATURE_DUAL_DISPLAY: false
+  SEC_FEATURE_ENSURE_TRANSITION_TO_DOZING: false
+
+Attentive timeout: -1 ms
+Sleep timeout: -1 ms
+Screen off timeout: 15000 ms
+Screen dim duration: 4995 ms
+Screen dim duration override: -1 ms
+SQD Screen dim duration override: -1 ms
+Screen off timeout for DeX: 600000 ms
+
+Smart Stay:
+  mSmartStayEnabledSetting: false
+Smart Stay:
+  USE_SMART_STAY: true
+  mSmartStayEnabled: false
+  SmartStayDelay: 2750
+  mFaceDetectRequested: false
+  PREVENT_BAD_CURRENT_CONSUMPTION: true
+
+Wakelock Blacklist App id: size=0
+
+UID states (changing=false changed=false):
+  UID 1000:   ACTIVE  count=2 state=0
+  UID 1001:   ACTIVE  count=0 state=0
+  UID 1002:   ACTIVE  count=0 state=0
+  UID 1027:   ACTIVE  count=0 state=0
+  UID 1068:   ACTIVE  count=0 state=0
+  UID 1073:   ACTIVE  count=0 state=0
+  UID 5006: INACTIVE  count=0 state=8
+  UID 5009: INACTIVE  count=0 state=19
+  UID 5013:   ACTIVE  count=0 state=5
+  UID u0a49:   ACTIVE  count=0 state=0
+  UID u0a54: INACTIVE  count=0 state=19
+  UID u0a67: INACTIVE  count=0 state=19
+  UID u0a79: INACTIVE  count=0 state=19
+  UID u0a90: INACTIVE  count=0 state=10
+  UID u0a98: INACTIVE  count=0 state=19
+  UID u0a107: INACTIVE  count=0 state=19
+  UID u0a108: INACTIVE  count=0 state=19
+  UID u0a114: INACTIVE  count=0 state=19
+  UID u0a119: INACTIVE  count=0 state=19
+  UID u0a125:   ACTIVE  count=0 state=6
+  UID u0a127:   ACTIVE  count=0 state=5
+  UID u0a145: INACTIVE  count=0 state=19
+  UID u0a153:   ACTIVE  count=0 state=2
+  UID u0a156: INACTIVE  count=0 state=19
+  UID u0a202:   ACTIVE  count=0 state=7
+  UID u0a206: INACTIVE  count=0 state=19
+  UID u0a221: INACTIVE  count=0 state=8
+  UID u0a222: INACTIVE  count=0 state=19
+  UID u0a232: INACTIVE  count=0 state=19
+  UID u0a245:   ACTIVE  count=0 state=0
+  UID u0a246:   ACTIVE  count=0 state=0
+  UID u0a252:   ACTIVE  count=0 state=5
+  UID u0a255: INACTIVE  count=0 state=19
+  UID u0a260: INACTIVE  count=0 state=19
+  UID u0a261: INACTIVE  count=0 state=19
+  UID u0a262:   ACTIVE  count=1 state=5
+  UID u0a263:   ACTIVE  count=1 state=3
+  UID u0a264:   ACTIVE  count=0 state=3
+  UID u0a272: INACTIVE  count=0 state=19
+  UID u0a289:   ACTIVE  count=0 state=0
+  UID u0a292:   ACTIVE  count=0 state=0
+  UID u0a294: INACTIVE  count=0 state=10
+  UID u0a297:   ACTIVE  count=0 state=0
+  UID u0a298: INACTIVE  count=0 state=19
+  UID u0a312:   ACTIVE  count=0 state=3
+  UID u0a319:   ACTIVE  count=0 state=0
+  UID u0a321: INACTIVE  count=0 state=19
+  UID u0a323:   ACTIVE  count=0 state=5
+  UID u0a326: INACTIVE  count=0 state=10
+
+Looper state:
+  Looper (PowerManagerService, tid 61) {bc27231}
+    (MessageQueue is using Concurrent implementation)
+    State: android.os.MessageQueue$TimedParkStateNode@153c41e
+    PriorityQueue Messages: 
+    AsyncPriorityQueue Messages: 
+    Message 1: { when=+2s764ms callback=com.android.server.power.PowerManagerService$6 target=android.os.Handler }
+    Message 2: { when=+9s767ms what=1 target=android.os.Handler }
+    Message 3: { when=+36s618ms what=4 target=android.os.Handler }
+    (Total messages: 4, polling=true, quitting=false)
+Clear Cover:
+  mIsCoverClosed: false
+  mlastUpdateCoverStateReason: isCoverClosedBySysfs called on closed = false
+  mlastUpdateCoverStateTime: = -1 (103670424 ms ago)
+  mFeatureCoverSysfs: true
+  mCoverType: -1 at 21738 (103648685 ms ago)
+  mlastUpdateCoverTypeReason: setCoverType = -1
+  mScreenBrightnessForClearCoverConfig=0.4156863
+  mBrightnessLimitByCoverConfig: -1
+Master Brightness Limit:
+  mMasterBrightnessLowerLimit: -1
+  mMasterBrightnessUpperLimit: 612
+  mMasterBrightnessLimitLastCaller:  (uid: 1000 pid: 5635)
+  mMasterBrightnessLimitPeriod: 200
+  mMasterBrightnessLimitRunning: false
+  mLastRequestedLimitationOfBrightness: 612
+  mTargetBrightnessForLimit : 612
+HDR Brightness Limit
+  mHdrBrightnessUpperLimit: -1
+  mLastRequestedLimitationOfHdrBrightness: 485
+  mTargetBrightnessForHdrLimit: 0
+  mHdrBrightnessLimitRunning: false
+  mHdrBrightnessLimitPeriod: 0
+HDR Brightness Limit Locks: size=0
+
+SEC_USE_FACTORY_BINARY: false
+
+Wake Locks: size=4
+  PARTIAL_WAKE_LOCK                 'deviceidle_maint' ACQ=-499ms (uid=1000 pid=2548 displayId=0 lock=c55473)
+  PARTIAL_WAKE_LOCK                 '*job*e/@androidx.work.systemjobscheduler@com.sec.android.daemonapp/androidx.work.impl.background.systemjob.SystemJobService' ACQ=-317ms (uid=1000 pid=2548 ws=WorkSource{ chains=WorkChain{(10221), (1000, JobScheduler)}} displayId=0 lock=25a1e7c)
+  PARTIAL_WAKE_LOCK                 'SyncManager: Scheduling in parallel' ACQ=-285ms (uid=10262 pid=14681 displayId=0 lock=590f305)
+  PARTIAL_WAKE_LOCK                 '*gms_scheduler*/com.google.android.gms/.phenotype.service.sync.PhenotypeConfigurator' ACQ=-248ms (uid=10263 pid=13806 ws=WorkSource{10263 com.google.android.gms} displayId=0 lock=3a12f5a)
+
+Suspend Blockers: size=5
+  PowerManagerService.Booting: ref count=0 []
+  PowerManagerService.WakeLocks: ref count=1 [unknown: (09-27 00:50:47.445)]
+  PowerManagerService.Display: ref count=1 [holding display: (09-27 00:50:47.416)]
+  PowerManagerService.Broadcasts: ref count=0 []
+  PowerManagerService.WirelessChargerDetector: ref count=0 []
+
+Display Power: com.android.server.power.PowerManagerService$3@39fd4ff
+
+mFreezingScreenBrightness: false
+
+PowerHistorian:
+  WakeLock Release History:
+
+  DisplayGroup History:
+
+  WakeUp History:
+  [1]   09-26 09:34:58.627 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [2]   09-26 09:36:03.268 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [3]   09-26 09:36:08.268 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [4]   09-26 09:36:39.621 1000  0  ON  application                              com.sec.android.app.launcher
+  [5]   09-26 09:36:44.630 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [6]   09-26 09:38:09.775 1000  0  ON  power_button                             com.sec.android.app.launcher
+  [7]   09-26 10:00:39.070 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [8]   09-26 12:33:39.260 10049 0  ON  double_tap                               com.sec.android.app.launcher
+  [9]   09-26 12:33:55.590 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [10]  09-26 13:24:45.154 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [11]  09-26 13:28:46.934 1000  0  OFF timeout                                  com.android.chrome
+  [12]  09-26 13:30:58.924 1000  0  ON  wake_key                                 com.android.chrome
+  [13]  09-26 13:41:31.510 1000  0  OFF timeout                                  com.android.chrome
+  [14]  09-26 13:45:36.635 1000  0  ON  wake_key                                 com.android.chrome
+  [15]  09-26 13:53:26.619 1000  0  OFF timeout                                  com.android.chrome
+  [16]  09-26 13:56:34.763 1000  0  ON  wake_key                                 com.android.chrome
+  [17]  09-26 14:04:17.322 1000  0  OFF timeout                                  com.android.chrome
+  [18]  09-26 14:13:10.089 1000  0  ON  wake_key                                 com.android.chrome
+  [19]  09-26 14:17:28.275 1000  0  OFF timeout                                  com.android.chrome
+  [20]  09-26 14:20:43.843 2000  0  ON  unknown                                  com.android.chrome
+  [21]  09-26 14:31:49.750 1000  0  OFF timeout                                  com.kalsa.app
+  [22]  09-26 14:32:58.719 2000  0  ON  unknown                                  com.android.chrome
+  [23]  09-26 14:42:15.876 1000  0  OFF timeout                                  com.kalsa.app
+  [24]  09-26 14:44:41.156 2000  0  ON  unknown                                  com.android.chrome
+  [25]  09-26 14:59:34.569 1000  0  OFF timeout                                  com.kalsa.app
+  [26]  09-26 15:00:30.439 2000  0  ON  unknown                                  com.android.chrome
+  [27]  09-26 15:19:12.477 1000  0  OFF timeout                                  com.kalsa.app
+  [28]  09-26 16:17:35.585 1000  0  ON  wake_key                                 com.android.chrome
+  [29]  09-26 16:17:40.586 1000  0  OFF timeout                                  com.android.chrome
+  [30]  09-26 16:18:51.846 1000  0  ON  wake_key                                 com.android.chrome
+  [31]  09-26 16:18:56.848 1000  0  OFF timeout                                  com.android.chrome
+  [32]  09-26 16:24:53.366 1000  0  ON  tap                                      com.android.chrome
+  [33]  09-26 16:26:11.686 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [34]  09-26 16:29:55.870 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [35]  09-26 16:30:00.880 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [36]  09-26 16:32:34.471 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [37]  09-26 16:32:40.094 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [38]  09-26 16:33:21.155 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [39]  09-26 16:33:26.685 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [40]  09-26 16:33:38.623 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [41]  09-26 16:33:43.623 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [42]  09-26 16:34:40.338 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [43]  09-26 16:34:45.345 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [44]  09-26 16:35:05.063 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [45]  09-26 16:35:10.067 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [46]  09-26 16:39:10.485 1000  0  ON  power_button                             com.sec.android.app.launcher
+  [47]  09-26 16:40:34.890 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [48]  09-26 16:46:43.936 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [49]  09-26 16:46:48.936 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [50]  09-26 16:47:51.925 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [51]  09-26 17:17:52.264 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [52]  09-26 17:17:53.228 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [53]  09-26 17:47:53.247 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [54]  09-26 17:47:56.586 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [55]  09-26 18:17:56.627 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [56]  09-26 18:17:58.922 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [57]  09-26 18:21:34.896 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [58]  09-26 18:41:45.609 1000  0  ON  power_button                             com.sec.android.app.launcher
+  [59]  09-26 18:41:50.612 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [60]  09-26 20:32:44.282 1000  0  ON  plugged_in                               com.sec.android.app.launcher
+  [61]  09-26 20:33:01.508 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [62]  09-26 20:34:18.824 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [63]  09-26 20:35:28.675 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [64]  09-26 20:35:28.840 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [65]  09-26 20:35:43.852 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [66]  09-26 22:15:20.810 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [67]  09-26 22:39:08.315 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [68]  09-26 22:39:08.470 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [69]  09-26 22:39:23.484 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [70]  09-26 23:32:07.643 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [71]  09-26 23:32:23.039 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [72]  09-26 23:32:27.701 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [73]  09-26 23:32:42.724 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [74]  09-26 23:33:33.528 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [75]  09-26 23:35:27.837 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [76]  09-26 23:35:28.067 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [77]  09-26 23:35:43.148 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [78]  09-26 23:55:39.656 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [79]  09-26 23:55:54.932 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [80]  09-26 23:55:55.108 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [81]  09-26 23:56:36.078 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [82]  09-26 23:56:36.786 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [83]  09-26 23:56:51.801 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [84]  09-26 23:56:53.513 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [85]  09-26 23:57:08.525 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [86]  09-26 23:57:10.279 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [87]  09-26 23:57:25.285 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [88]  09-26 23:57:26.993 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [89]  09-26 23:57:41.996 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [90]  09-27 00:19:23.227 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [91]  09-27 00:22:15.217 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [92]  09-27 00:22:18.081 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [93]  09-27 00:22:33.089 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [94]  09-27 00:22:34.673 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [95]  09-27 00:22:49.683 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [96]  09-27 00:22:51.478 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [97]  09-27 00:23:06.489 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [98]  09-27 00:23:08.256 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+  [99]  09-27 00:23:23.268 1000  0  OFF timeout                                  com.sec.android.app.launcher
+  [100] 09-27 00:50:47.415 1000  0  ON  wake_key                                 com.sec.android.app.launcher
+
+  AutomaticBrightness History:
+  [1]   09-25 16:32:15.333 ShortTermModel: reset data, change configuration
+
+  BrightnessReason History:
+  [1]   09-25 16:32:15.333 override[128]
+  [2]   09-25 16:32:17.685 manual[0]
+
+screen on profiler V2: 58
+[  0][09-26 00:56:30.312][T: 178]  [Caller: 6] [WMS:  0] [DSL: 9] [Panel:153] [Frame: -1]
+[  1][09-26 09:19:11.285][T: 206]  [Caller: 1] [WMS:125] [DSL: 0] [Panel:186] [Frame: -1]
+[  2][09-26 09:22:41.544][T: 155]  [Caller: 1] [WMS:  0] [DSL: 0] [Panel:141] [Frame: -1]
+[  3][09-26 09:24:05.281][T: 203]  [Caller: 8] [WMS: 84] [DSL: 0] [Panel:180] [Frame: -1]
+[  4][09-26 09:26:53.551][T: 198]  [Caller: 1] [WMS:119] [DSL: 0] [Panel:186] [Frame: -1]
+[  5][09-26 09:30:49.111][T: 202]  [Caller: 3] [WMS: 67] [DSL: 0] [Panel:179] [Frame: -1]
+[  6][09-26 09:31:19.433][T: 209]  [Caller: 3] [WMS: 77] [DSL: 1] [Panel:189] [Frame: -1]
+[  7][09-26 09:32:13.373][T: 199]  [Caller: 3] [WMS: 61] [DSL: 0] [Panel:179] [Frame: -1]
+[  8][09-26 09:32:43.590][T: 200]  [Caller: 2] [WMS: 74] [DSL: 0] [Panel:180] [Frame: -1]
+[  9][09-26 09:34:01.320][T: 200]  [Caller: 4] [WMS: 80] [DSL: 0] [Panel:185] [Frame: -1]
+[ 10][09-26 09:34:18.170][T: 197]  [Caller: 4] [WMS: 72] [DSL: 1] [Panel:181] [Frame: -1]
+[ 11][09-26 09:34:52.492][T: 194]  [Caller: 3] [WMS: 55] [DSL: 1] [Panel:180] [Frame: -1]
+[ 12][09-26 09:36:03.266][T: 201]  [Caller: 4] [WMS: 73] [DSL: 0] [Panel:182] [Frame: -1]
+[ 13][09-26 09:36:39.622][T: 213]  [Caller: 2] [WMS: 88] [DSL: 0] [Panel:176] [Frame: -1]
+[ 14][09-26 09:38:09.775][T: 206]  [Caller:10] [WMS: 76] [DSL: 0] [Panel:182] [Frame: -1]
+[ 15][09-26 12:33:39.260][T: 187]  [Caller: 0] [WMS:  0] [DSL: 3] [Panel:174] [Frame: -1]
+[ 16][09-26 13:24:45.153][T: 199]  [Caller: 3] [WMS:136] [DSL: 0] [Panel:178] [Frame: -1]
+[ 17][09-26 13:30:58.923][T: 203]  [Caller: 4] [WMS: 99] [DSL: 1] [Panel:188] [Frame: -1]
+[ 18][09-26 13:45:36.634][T: 215]  [Caller: 3] [WMS: 79] [DSL: 1] [Panel:186] [Frame: -1]
+[ 19][09-26 13:56:34.762][T: 207]  [Caller: 5] [WMS: 93] [DSL: 0] [Panel:189] [Frame: -1]
+[ 20][09-26 14:13:10.087][T: 212]  [Caller: 3] [WMS:104] [DSL: 0] [Panel:184] [Frame: -1]
+[ 21][09-26 14:20:43.843][T: 203]  [Caller: 0] [WMS:102] [DSL: 1] [Panel:189] [Frame: -1]
+[ 22][09-26 14:32:58.717][T: 228]  [Caller: 1] [WMS:124] [DSL: 1] [Panel:186] [Frame: -1]
+[ 23][09-26 14:44:41.154][T: 212]  [Caller: 0] [WMS:159] [DSL: 1] [Panel:190] [Frame: -1]
+[ 24][09-26 15:00:30.439][T: 228]  [Caller: 0] [WMS:146] [DSL: 3] [Panel:186] [Frame: -1]
+[ 25][09-26 16:17:35.585][T: 208]  [Caller: 2] [WMS:118] [DSL: 1] [Panel:184] [Frame: -1]
+[ 26][09-26 16:18:51.845][T: 196]  [Caller: 3] [WMS: 76] [DSL: 1] [Panel:178] [Frame: -1]
+[ 27][09-26 16:24:53.365][T: 287]  [Caller: 9] [WMS:229] [DSL: 3] [Panel:235] [Frame: -1]
+[ 28][09-26 16:29:55.869][T: 211]  [Caller: 1] [WMS:125] [DSL: 0] [Panel:189] [Frame: -1]
+[ 29][09-26 16:32:34.471][T: 394]  [Caller: 6] [WMS: 91] [DSL: 1] [Panel:177] [Frame: -1]
+[ 30][09-26 16:33:21.155][T: 381]  [Caller: 3] [WMS: 76] [DSL: 0] [Panel:178] [Frame: -1]
+[ 31][09-26 16:33:38.622][T: 199]  [Caller: 2] [WMS: 64] [DSL: 1] [Panel:180] [Frame: -1]
+[ 32][09-26 16:34:40.336][T: 195]  [Caller: 2] [WMS: 62] [DSL: 0] [Panel:179] [Frame: -1]
+[ 33][09-26 16:35:05.063][T: 195]  [Caller: 1] [WMS: 78] [DSL: 1] [Panel:176] [Frame: -1]
+[ 34][09-26 16:39:10.481][T: 480]  [Caller:10] [WMS:  0] [DSL: 0] [Panel:216] [Frame: -1]
+[ 35][09-26 16:46:43.932][T: 201]  [Caller: 4] [WMS: 92] [DSL: 0] [Panel:177] [Frame: -1]
+[ 36][09-26 16:47:51.921][T: 220]  [Caller: 1] [WMS: 55] [DSL:11] [Panel:185] [Frame: -1]
+[ 37][09-26 17:17:53.223][T: 712]  [Caller: 1] [WMS:706] [DSL: 0] [Panel:195] [Frame: -1]
+[ 38][09-26 17:47:56.585][T: 525]  [Caller: 1] [WMS:521] [DSL: 1] [Panel:181] [Frame: -1]
+[ 39][09-26 18:17:58.922][T: 947]  [Caller: 2] [WMS:940] [DSL: 0] [Panel:177] [Frame: -1]
+[ 40][09-26 18:41:45.609][T: 170]  [Caller: 7] [WMS:  0] [DSL: 0] [Panel:137] [Frame: -1]
+[ 41][09-26 20:32:44.282][T: 190]  [Caller: 1] [WMS: 95] [DSL: 0] [Panel:175] [Frame: -1]
+[ 42][09-26 20:34:18.823][T: 195]  [Caller: 2] [WMS: 74] [DSL: 1] [Panel:180] [Frame: -1]
+[ 44][09-26 22:15:20.809][T: 201]  [Caller: 1] [WMS:131] [DSL: 0] [Panel:180] [Frame: -1]
+[ 46][09-26 23:32:07.641][T: 245]  [Caller: 3] [WMS:102] [DSL: 1] [Panel:190] [Frame: -1]
+[ 47][09-26 23:32:27.700][T: 208]  [Caller: 2] [WMS: 90] [DSL: 0] [Panel:178] [Frame: -1]
+[ 48][09-26 23:33:33.527][T: 192]  [Caller: 2] [WMS: 88] [DSL: 0] [Panel:179] [Frame: -1]
+[ 50][09-26 23:55:39.656][T: 229]  [Caller: 1] [WMS:225] [DSL: 1] [Panel:188] [Frame: -1]
+[ 52][09-26 23:56:36.785][T: 182]  [Caller: 0] [WMS:110] [DSL: 1] [Panel:176] [Frame: -1]
+[ 53][09-26 23:56:53.512][T: 203]  [Caller: 1] [WMS: 86] [DSL: 0] [Panel:176] [Frame: -1]
+[ 54][09-26 23:57:10.278][T: 203]  [Caller: 2] [WMS: 81] [DSL: 0] [Panel:179] [Frame: -1]
+[ 55][09-26 23:57:26.991][T: 221]  [Caller: 5] [WMS: 76] [DSL: 2] [Panel:192] [Frame: -1]
+[ 56][09-27 00:19:23.227][T: 203]  [Caller: 1] [WMS:138] [DSL: 1] [Panel:185] [Frame: -1]
+[ 57][09-27 00:22:18.079][T: 216]  [Caller: 1] [WMS:103] [DSL: 0] [Panel:184] [Frame: -1]
+[ 58][09-27 00:22:34.672][T: 192]  [Caller: 3] [WMS: 92] [DSL: 1] [Panel:181] [Frame: -1]
+[ 59][09-27 00:22:51.476][T: 214]  [Caller: 2] [WMS: 75] [DSL: 0] [Panel:180] [Frame: -1]
+[ 60][09-27 00:23:08.256][T: 200]  [Caller: 1] [WMS: 84] [DSL: 0] [Panel:182] [Frame: -1]
+[ 61][09-27 00:50:47.413][T: 192]  [Caller: 0] [WMS:112] [DSL: 2] [Panel:177] [Frame: -1]
+
+screen off profiler V2: 58
+[OFF][  0][09-25 16:32:34.966][T: 536]  [Caller: 0] [Cfp:177] [Cfa:351] [Panel:161]
+[OFF][  1][09-26 03:49:28.238][T: 407]  [Caller: 0] [Cfp: 42] [Cfa:349] [Panel:188]
+[OFF][  2][09-26 09:19:27.325][T: 418]  [Caller: 1] [Cfp: 42] [Cfa:368] [Panel:154]
+[OFF][  3][09-26 09:22:46.546][T: 351]  [Caller: 0] [Cfp: 21] [Cfa:328] [Panel:159]
+[OFF][  4][09-26 09:24:10.279][T: 378]  [Caller: 0] [Cfp: 17] [Cfa:357] [Panel:159]
+[OFF][  5][09-26 09:26:58.557][T: 380]  [Caller: 0] [Cfp: 22] [Cfa:356] [Panel:156]
+[OFF][  6][09-26 09:30:54.114][T: 359]  [Caller: 0] [Cfp: 16] [Cfa:332] [Panel:157]
+[OFF][  7][09-26 09:31:24.436][T: 358]  [Caller: 0] [Cfp: 21] [Cfa:334] [Panel:161]
+[OFF][  8][09-26 09:32:18.377][T: 357]  [Caller: 0] [Cfp: 20] [Cfa:333] [Panel:156]
+[OFF][  9][09-26 09:32:48.595][T: 349]  [Caller: 0] [Cfp: 20] [Cfa:327] [Panel:152]
+[OFF][ 10][09-26 09:34:06.322][T: 355]  [Caller: 0] [Cfp: 22] [Cfa:331] [Panel:149]
+[OFF][ 11][09-26 09:34:23.170][T: 357]  [Caller: 0] [Cfp: 19] [Cfa:335] [Panel:159]
+[OFF][ 12][09-26 09:34:58.626][T: 362]  [Caller: 0] [Cfp: 21] [Cfa:339] [Panel:156]
+[OFF][ 13][09-26 09:36:08.266][T: 362]  [Caller: 0] [Cfp: 22] [Cfa:336] [Panel:160]
+[OFF][ 14][09-26 09:36:44.624][T: 356]  [Caller: 0] [Cfp: 17] [Cfa:336] [Panel:159]
+[OFF][ 15][09-26 10:00:39.069][T: 373]  [Caller: 1] [Cfp: 29] [Cfa:334] [Panel:155]
+[OFF][ 16][09-26 12:33:55.588][T: 406]  [Caller: 0] [Cfp: 39] [Cfa:357] [Panel:147]
+[OFF][ 17][09-26 13:28:46.931][T: 408]  [Caller: 0] [Cfp: 55] [Cfa:347] [Panel:172]
+[OFF][ 18][09-26 13:41:31.502][T: 403]  [Caller: 0] [Cfp: 43] [Cfa:352] [Panel:161]
+[OFF][ 19][09-26 13:53:26.618][T: 369]  [Caller: 0] [Cfp: 27] [Cfa:334] [Panel:155]
+[OFF][ 20][09-26 14:04:17.320][T: 410]  [Caller: 0] [Cfp: 40] [Cfa:366] [Panel:154]
+[OFF][ 21][09-26 14:17:28.265][T: 443]  [Caller: 1] [Cfp: 44] [Cfa:385] [Panel:179]
+[OFF][ 22][09-26 14:31:49.748][T: 401]  [Caller: 0] [Cfp: 51] [Cfa:340] [Panel:179]
+[OFF][ 23][09-26 14:42:15.872][T: 441]  [Caller: 2] [Cfp: 79] [Cfa:340] [Panel:143]
+[OFF][ 24][09-26 14:59:34.541][T: 422]  [Caller: 1] [Cfp: 76] [Cfa:335] [Panel:169]
+[OFF][ 25][09-26 15:19:12.474][T: 403]  [Caller: 1] [Cfp: 56] [Cfa:340] [Panel:225]
+[OFF][ 26][09-26 16:17:40.585][T: 355]  [Caller: 0] [Cfp: 15] [Cfa:336] [Panel:162]
+[OFF][ 27][09-26 16:18:56.844][T: 357]  [Caller: 0] [Cfp: 16] [Cfa:336] [Panel:155]
+[OFF][ 28][09-26 16:26:11.682][T: 433]  [Caller: 4] [Cfp: 80] [Cfa:338] [Panel:155]
+[OFF][ 29][09-26 16:30:00.870][T: 357]  [Caller: 1] [Cfp: 23] [Cfa:331] [Panel:151]
+[OFF][ 30][09-26 16:32:40.093][T: 358]  [Caller: 0] [Cfp: 18] [Cfa:337] [Panel:154]
+[OFF][ 31][09-26 16:33:26.684][T: 355]  [Caller: 0] [Cfp: 18] [Cfa:331] [Panel:157]
+[OFF][ 32][09-26 16:33:43.622][T: 376]  [Caller: 0] [Cfp: 16] [Cfa:358] [Panel:158]
+[OFF][ 33][09-26 16:34:45.341][T: 352]  [Caller: 0] [Cfp: 23] [Cfa:326] [Panel:157]
+[OFF][ 34][09-26 16:35:10.064][T: 358]  [Caller: 0] [Cfp: 19] [Cfa:337] [Panel:156]
+[OFF][ 35][09-26 16:40:34.888][T: 379]  [Caller: 1] [Cfp: 36] [Cfa:337] [Panel:155]
+[OFF][ 36][09-26 16:46:48.933][T: 360]  [Caller: 0] [Cfp: 20] [Cfa:337] [Panel:159]
+[OFF][ 37][09-26 17:17:52.257][T: 431]  [Caller: 0] [Cfp: 46] [Cfa:356] [Panel:260]
+[OFF][ 38][09-26 17:47:53.243][T: 453]  [Caller: 1] [Cfp: 49] [Cfa:378] [Panel:147]
+[OFF][ 39][09-26 18:17:56.606][T: 427]  [Caller: 0] [Cfp: 48] [Cfa:375] [Panel:143]
+[OFF][ 40][09-26 18:21:34.889][T: 429]  [Caller: 0] [Cfp: 33] [Cfa:392] [Panel:152]
+[OFF][ 41][09-26 18:41:50.605][T: 354]  [Caller: 0] [Cfp: 20] [Cfa:332] [Panel:154]
+[OFF][ 42][09-26 20:33:01.506][T: 407]  [Caller: 1] [Cfp: 35] [Cfa:366] [Panel:167]
+[OFF][ 44][09-26 20:35:43.847][T: 393]  [Caller: 0] [Cfp: 46] [Cfa:344] [Panel:177]
+[OFF][ 46][09-26 22:39:23.481][T: 390]  [Caller: 0] [Cfp: 45] [Cfa:334] [Panel:174]
+[OFF][ 47][09-26 23:32:23.034][T: 428]  [Caller: 1] [Cfp: 46] [Cfa:377] [Panel:169]
+[OFF][ 48][09-26 23:32:42.708][T: 412]  [Caller: 0] [Cfp: 35] [Cfa:360] [Panel:180]
+[OFF][ 50][09-26 23:35:43.147][T: 436]  [Caller: 0] [Cfp: 46] [Cfa:385] [Panel:158]
+[OFF][ 52][09-26 23:56:36.076][T: 430]  [Caller: 1] [Cfp: 36] [Cfa:389] [Panel:151]
+[OFF][ 53][09-26 23:56:51.799][T: 379]  [Caller: 1] [Cfp: 40] [Cfa:329] [Panel:169]
+[OFF][ 54][09-26 23:57:08.522][T: 391]  [Caller: 0] [Cfp: 43] [Cfa:341] [Panel:153]
+[OFF][ 55][09-26 23:57:25.283][T: 420]  [Caller: 0] [Cfp: 42] [Cfa:371] [Panel:162]
+[OFF][ 56][09-26 23:57:41.992][T: 433]  [Caller: 1] [Cfp: 47] [Cfa:379] [Panel:164]
+[OFF][ 57][09-27 00:22:15.215][T: 434]  [Caller: 4] [Cfp: 41] [Cfa:374] [Panel:163]
+[OFF][ 58][09-27 00:22:33.086][T: 423]  [Caller: 0] [Cfp: 44] [Cfa:368] [Panel:152]
+[OFF][ 59][09-27 00:22:49.673][T: 391]  [Caller: 0] [Cfp: 48] [Cfa:335] [Panel:156]
+[OFF][ 60][09-27 00:23:06.486][T: 386]  [Caller: 0] [Cfp: 43] [Cfa:339] [Panel:158]
+[OFF][ 61][09-27 00:23:23.265][T: 394]  [Caller: 0] [Cfp: 55] [Cfa:330] [Panel:167]
+
+Battery saving stats:
+  Battery Saver is currently: OFF
+    Times full enabled: 0
+    Times adaptive enabled: 0
+  
+  Drain stats:
+                     Battery saver OFF                          ON
+  NonDoze NonIntr:     51m    161mAh(  4%)    186.1mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:    242m   2591mAh( 69%)    641.1mAh/h          0m      0mAh(  0%)      0.0mAh/h
+  Deep    NonIntr:    517m    472mAh( 15%)     54.8mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:      0m     41mAh(  0%)  29094.8mAh/h          0m      0mAh(  0%)      0.0mAh/h
+  Light   NonIntr:    454m    371mAh( 10%)     49.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:      1m     33mAh(  1%)   1144.7mAh/h          0m      0mAh(  0%)      0.0mAh/h
+
+Battery saver policy (*NOTE* they only apply when battery saver is ON):
+  Settings: battery_saver_constants
+    value: 
+  Settings: (overlay)
+    value: 
+  DeviceConfig: battery_saver
+    location_mode: 
+  mAccessibilityEnabled=false
+  mAutomotiveProjectionActive=false
+  mPolicyLevel=0
+  
+  Policy 'default full'
+    advertise_is_enabled=true
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=true
+    defer_keyvalue_backup=true
+    enable_firewall=true
+    enable_datasaver=false
+    disable_launch_boost=true
+    enable_brightness_adjustment=true
+    adjust_brightness_factor=0.9
+    location_mode=1
+    force_all_apps_standby=true
+    force_background_check=true
+    disable_optional_sensors=true
+    disable_aod=true
+    soundtrigger_mode=1
+    enable_quick_doze=true
+    enable_night_mode=false
+  
+  Policy 'current full'
+    advertise_is_enabled=true
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=true
+    defer_keyvalue_backup=true
+    enable_firewall=true
+    enable_datasaver=false
+    disable_launch_boost=true
+    enable_brightness_adjustment=true
+    adjust_brightness_factor=0.9
+    location_mode=1
+    force_all_apps_standby=true
+    force_background_check=true
+    disable_optional_sensors=true
+    disable_aod=true
+    soundtrigger_mode=1
+    enable_quick_doze=true
+    enable_night_mode=false
+  
+  Policy 'default adaptive'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+  
+  Policy 'current adaptive'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+  
+  Policy 'effective'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+
+Battery saver state machine:
+  Enabled=false
+    full=false
+    adaptive=false
+  mState=1
+  mLastChangedIntReason=0
+  mLastChangedStrReason=null
+  mBootCompleted=true
+  mSettingsLoaded=true
+  mBatteryStatusSet=true
+  mIsPowered=false
+  mBatteryLevel=89
+  mIsBatteryLevelLow=false
+  mSettingAutomaticBatterySaver=0
+  mSettingBatterySaverEnabled=false
+  mSettingBatterySaverEnabledSticky=false
+  mSettingBatterySaverStickyAutoDisableEnabled=true
+  mSettingBatterySaverStickyAutoDisableThreshold=90
+  mSettingBatterySaverTriggerThreshold=0
+  mBatterySaverStickyBehaviourDisabled=false
+  mBatterySaverTurnedOffNotificationEnabled=true
+  mDynamicPowerSavingsDefaultDisableThreshold=80
+  mDynamicPowerSavingsDisableThreshold=80
+  mDynamicPowerSavingsEnableBatterySaver=false
+  mLastAdaptiveBatterySaverChangedExternallyElapsed=0
+AttentionDetector:
+ mIsSettingEnabled=false
+ mMaxExtensionMillis=900000
+ mPreDimCheckDurationMillis=2000
+ mEffectivePostDimTimeout=0
+ mLastUserActivityTime(excludingAttention)=103670185
+ mAttentionServiceSupported=false
+ mRequested=false
+
+Profile power states: size=0
+
+SuspendBlockerMonitor:
+    [Global]
+      mEvents = 0x8 ( SOME_GROUPS )
+    CallBack History = 2
+[09-25 16:32:17.685] [    [0]vrr ramp animation] [ACQ]
+[09-25 16:32:18.105] [    [0]vrr ramp animation] [REL]
+
+
+    [Group] Id = 0
+      mEvents = 0x10 ( BRIGHT_OR_DIM )
+
+Display Group User Activity:
+  displayGroupId=0
+  userActivitySummary=0x1
+  lastUserActivityTime=103670185 (240 ms ago)
+  lastUserActivityTimeNoChangeLights=17848 (103652577 ms ago)
+  mWakeLockSummary=0x1
+
+Wireless Charger Detector State:
+  mGravitySensor={Sensor name="gravity  Non-wakeup", vendor="QTI", version=1, type=9, maxRange=156.91, resolution=0.01, power=0.515, minDelay=5000}
+  mPoweredWirelessly=false
+  mAtRest=false
+  mRestX=0.0, mRestY=0.0, mRestZ=0.0
+  mDetectionInProgress=false
+  mDetectionStartTime=0 (never)
+  mMustUpdateRestPosition=false
+  mTotalSamples=0
+  mMovingSamples=0
+  mFirstSampleX=0.0, mFirstSampleY=0.0, mFirstSampleZ=0.0
+  mLastSampleX=0.0, mLastSampleY=0.0, mLastSampleZ=0.0
+Notifier:
+Partial Wakelock Log:
+Wake Lock Log
+  09-25 16:32:32.445 - 1000 (System) - ACQ VK_WakeLock (partial)
+  09-25 17:34:37.725 - 10264 (com.google.android.googlequicksearchbox) - ACQ Icing (partial)
+  09-25 20:35:46.611 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.a.j.NegotiationService (partial)
+  09-26 00:35:00.864 - 10264 (com.google.android.googlequicksearchbox) - ACQ Icing (partial)
+  09-26 02:01:05.534 - 5009 (com.samsung.android.scpm,...) - ACQ *alarm* (partial)
+  09-26 02:23:29.682 - 5004 (com.samsung.storyservice,...) - ACQ *alarm* (partial)
+  09-26 02:59:35.921 - 5009 (com.samsung.android.scpm,...) - ACQ *alarm* (partial)
+  09-26 03:28:21.066 - 5004 (com.samsung.storyservice,...) - ACQ *alarm* (partial)
+  09-26 14:03:52.798 - 10264 (com.google.android.googlequicksearchbox) - ACQ Icing (partial)
+  09-26 15:12:26.665 - 10266 (com.google.android.apps.tachyon) - ACQ *alarm* (partial)
+  09-26 16:17:39.027 - 10269 (com.google.android.syncadapters.calendar) - ACQ *job*r/@androidx.work.systemjobscheduler@com.google.android.syncadapters.calendar/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-26 16:25:34.932 - 1000 (System) - ACQ VK_WakeLock (partial)
+  09-26 17:54:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:54:26.520 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:55:00.014 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:56:00.011 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:57:00.004 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:58:00.011 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 17:59:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:00:00.001 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:01:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:02:00.013 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:03:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:04:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:05:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:06:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:07:00.015 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:08:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:09:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:10:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:11:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:11:56.862 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:12:00.001 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:13:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:14:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:14:09.656 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:15:00.004 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:15:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:16:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:17:00.010 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:18:00.001 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:19:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:20:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:21:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:23:35.684 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:23:53.291 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:27:01.021 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:29:13.635 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:41:45.635 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:42:00.590 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:42:18.160 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:43:00.613 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:44:00.634 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:45:00.647 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:46:00.670 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:47:00.684 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:48:00.697 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:49:00.717 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:50:00.741 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:51:00.761 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:52:00.785 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:53:00.805 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:54:00.828 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:55:00.842 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:56:00.857 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:57:00.870 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:58:00.886 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 18:59:00.904 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:00:00.931 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:01:00.959 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:02:00.979 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:03:01.001 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:04:00.013 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:05:00.024 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:06:00.033 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:07:00.043 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:07:00.592 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.t.s.SpamListSyncTaskService (partial)
+  09-26 19:08:00.072 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:09:00.090 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:10:00.105 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:11:00.135 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:12:00.148 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:13:00.162 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:14:00.177 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:15:00.193 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:16:00.210 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:17:00.233 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:17:51.157 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:17:51.211 - 10262 (com.google.android.apps.messaging) - ACQ bugle_datamodel_executor_wakelock (partial)
+  09-26 19:18:00.249 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:19:00.269 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:20:00.281 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:20:00.306 - 10086 (com.sec.android.app.samsungapps) - ACQ *job*r/com.sec.android.app.samsungapps/.jobscheduling.PollJobService (partial)
+  09-26 19:21:00.297 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:22:00.311 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:23:00.330 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:24:00.346 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:25:00.362 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:26:00.385 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:27:00.407 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:28:00.422 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:29:00.447 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:30:00.461 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:31:08.241 - 10049 (com.samsung.android.app.aodservice,...) - ACQ charging_info (draw)
+  09-26 19:31:18.466 - 10049 (com.samsung.android.app.aodservice,...) - ACQ charging_info (draw)
+  09-26 19:43:00.674 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:43:23.099 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:44:00.717 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:45:00.747 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:46:00.767 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:47:00.789 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:48:00.819 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 19:49:00.093 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:32:21.235 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:33:00.013 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:34:18.857 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:35:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:37:44.601 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:41:00.178 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:50:58.311 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:51:01.594 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 20:51:29.486 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 21:06:44.600 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 21:09:32.997 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 21:37:44.625 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 21:37:44.660 - 1000 (System) - ACQ AnyMotionDetector (partial)
+  09-26 22:14:02.162 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:15:20.834 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:15:27.823 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:15:30.378 - 10049 (com.samsung.android.app.aodservice,...) - ACQ *job*r/com.samsung.android.app.routines/.domainmodel.metadata.impl.MetadataLoaderJobService (partial)
+  09-26 22:15:43.023 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:15:55.740 - 10261 (com.android.vending) - ACQ *job*r/com.android.vending/com.google.android.finsky.scheduler.process.mainimpl.PhoneskyJobServiceMain (partial)
+  09-26 22:16:00.003 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:17:00.012 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:18:00.004 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:19:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:20:00.010 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:20:23.241 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:21:00.011 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:22:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:23:00.003 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:24:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:25:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:25:06.130 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:26:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:27:00.013 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:27:23.884 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:28:00.021 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:29:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:30:00.003 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:30:12.962 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:31:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:32:00.003 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:32:09.355 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:32:24.887 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:32:25.647 - 1073 (com.google.android.networkstack.tethering,...) - ACQ *alarm* (partial)
+  09-26 22:32:31.967 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:33:00.012 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:33:39.116 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:34:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:34:55.526 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:35:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:36:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:37:00.007 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:37:00.049 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:38:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:38:48.499 - 10119 (com.samsung.android.scs) - ACQ *job*r/com.samsung.android.scs/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-26 22:39:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:39:28.513 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:41:24.298 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:41:34.368 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 22:44:15.168 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:01:34.377 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:10:24.297 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:14:11.709 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:16:16.496 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:32:07.698 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:32:11.194 - 10255 (com.google.android.partnersetup) - ACQ *alarm* (partial)
+  09-26 23:32:11.322 - 10255 (com.google.android.partnersetup) - ACQ *alarm* (partial)
+  09-26 23:32:34.380 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:33:33.546 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:34:00.004 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:35:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:37:43.923 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:37:44.103 - 10263 (com.google.android.gms) - ACQ Icing (partial)
+  09-26 23:37:44.148 - 10263 (com.google.android.gms) - ACQ Icing (partial)
+  09-26 23:38:01.476 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:42:00.030 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:55:39.687 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:55:39.689 - 1000 (System) - ACQ deviceidle_maint (partial)
+  09-26 23:55:42.828 - 1000 (System) - ACQ *job*r/com.sec.android.diagmonagent/.dma.service.SRJobService (partial)
+  09-26 23:55:57.451 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:55:57.851 - 10221 (com.sec.android.daemonapp) - ACQ *job*r/@androidx.work.systemjobscheduler@com.sec.android.daemonapp/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-26 23:56:00.001 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:57:00.009 - 1000 (System) - ACQ *alarm* (partial)
+  09-26 23:57:42.695 - 1000 (System) - ACQ dream:doze (doze)
+  09-26 23:59:42.772 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:00:00.008 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:00:00.187 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:00:00.205 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:00:10.023 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:03:03.311 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:03:03.311 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:03:03.311 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:03:03.314 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:03:03.314 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:03:03.314 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:04:00.609 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:04:00.614 - 1000 (System) - ACQ NetworkStats (partial)
+  09-27 00:04:00.629 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:04:00.632 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:04:00.634 - 1000 (System) - REL NetworkStats
+  09-27 00:04:00.637 - 1000 (System) - REL *alarm*
+  09-27 00:11:52.783 - 10263 (com.google.android.gms) - ACQ GCM_READ (partial)
+  09-27 00:11:52.785 - 10263 (com.google.android.gms) - ACQ GCM_WORK (partial)
+  09-27 00:11:52.786 - 10263 (com.google.android.gms) - REL GCM_READ
+  09-27 00:11:52.791 - 10263 (com.google.android.gms) - REL GCM_WORK
+  09-27 00:19:23.245 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:19:23.245 - 1000 (System) - ACQ deviceidle_maint (partial)
+  09-27 00:19:23.247 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:19:23.247 - 1000 (System) - REL motion_service
+  09-27 00:19:23.268 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.268 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.268 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.270 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:19:23.272 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.273 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.273 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.274 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.274 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.275 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.281 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:19:23.295 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.296 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.296 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.297 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.298 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.298 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.307 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.307 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:19:23.309 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:19:23.309 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:19:23.315 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:19:23.322 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:19:23.323 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.323 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.330 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.332 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.333 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.333 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.336 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.336 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.337 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.340 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:19:23.362 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.363 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.363 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.365 - 10263 (com.google.android.gms) - REL *alarm*
+  09-27 00:19:23.378 - 1000 (System) - REL *telephony-radio*
+  09-27 00:19:23.378 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.379 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.379 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.379 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.379 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.398 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:19:23.432 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.g.s.BackgroundSyncGmsTaskService (partial)
+  09-27 00:19:23.440 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:19:23.447 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.448 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:19:23.448 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.448 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.450 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.451 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.451 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.452 - 1000 (System) - REL *telephony-radio*
+  09-27 00:19:23.452 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.452 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.483 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.483 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.484 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.501 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:19:23.501 - 1000 (System) - REL dream:doze
+  09-27 00:19:23.507 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:19:23.508 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:19:23.508 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:19:23.513 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.513 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.513 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.515 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:19:23.523 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:19:23.525 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:19:23.526 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:19:23.529 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.529 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.530 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.533 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.535 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.535 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.544 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.544 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.546 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.551 - 10263 (com.google.android.gms) - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-27 00:19:23.552 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.553 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.553 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.557 - 10263 (com.google.android.gms) - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-27 00:19:23.560 - 10263 (com.google.android.gms) - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-27 00:19:23.568 - 10263 (com.google.android.gms) - ACQ IntentOp:.p.p.UserPresentIntentOperation (partial)
+  09-27 00:19:23.573 - 10263 (com.google.android.gms) - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-27 00:19:23.582 - 10263 (com.google.android.gms) - REL IntentOp:.p.p.UserPresentIntentOperation
+  09-27 00:19:23.582 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:19:23.583 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.583 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.584 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.586 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.588 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:19:23.588 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.588 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.602 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.602 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.603 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.612 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.618 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.618 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.626 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.626 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:19:23.628 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:19:23.685 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:19:23.829 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.g.s.BackgroundSyncGmsTaskService
+  09-27 00:19:23.831 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:19:23.842 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:19:23.843 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:19:23.851 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/c.g.a.c.s.ContextManagerLogsUploadBoundService (partial)
+  09-27 00:19:23.851 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:19:23.858 - 10263 (com.google.android.gms) - ACQ CMWakeLock (partial)
+  09-27 00:19:23.859 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/c.g.a.c.s.ContextManagerLogsUploadBoundService
+  09-27 00:19:23.860 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:19:23.861 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:19:23.862 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:19:23.863 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:19:23.869 - 10263 (com.google.android.gms) - REL CMWakeLock
+  09-27 00:19:26.386 - 1000 (System) - ACQ *job*r/android/com.android.server.notification.NotificationHistoryJobService (partial)
+  09-27 00:19:26.394 - 1000 (System) - ACQ *job*r/android/com.android.server.notification.NotificationHistoryJobService (partial)
+  09-27 00:19:26.397 - 1000 (System) - REL *job*r/android/com.android.server.notification.NotificationHistoryJobService
+  09-27 00:19:26.398 - 10049 (com.samsung.android.app.aodservice,...) - ACQ *job*r/com.samsung.android.app.routines/.domainmodel.service.SALoggingJobService (partial)
+  09-27 00:19:26.398 - 10049 (com.samsung.android.app.aodservice,...) - ACQ *job*r/com.samsung.android.app.routines/.domainmodel.service.SALoggingJobService (partial)
+  09-27 00:19:26.403 - 10049 (com.samsung.android.app.aodservice,...) - REL *job*r/com.samsung.android.app.routines/.domainmodel.service.SALoggingJobService
+  09-27 00:19:26.409 - 1000 (System) - REL *job*r/android/com.android.server.notification.NotificationHistoryJobService
+  09-27 00:19:26.654 - 10049 (com.samsung.android.app.aodservice,...) - REL *job*r/com.samsung.android.app.routines/.domainmodel.service.SALoggingJobService
+  09-27 00:19:28.378 - 1000 (System) - REL deviceidle_maint
+  09-27 00:19:49.823 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:19:49.832 - 10263 (com.google.android.gms) - REL *alarm*
+  09-27 00:20:00.015 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:20:00.016 - 1000 (System) - REL *alarm*
+  09-27 00:20:15.530 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:20:15.537 - 1000 (System) - REL *alarm*
+  09-27 00:20:15.546 - 1000 (System) - ACQ *job*r/com.samsung.euicc/.lpaService.NotificationJobService (partial)
+  09-27 00:20:15.565 - 1000 (System) - ACQ *job*r/com.samsung.euicc/.lpaService.NotificationJobService (partial)
+  09-27 00:20:15.574 - 1000 (System) - REL *job*r/com.samsung.euicc/.lpaService.NotificationJobService
+  09-27 00:20:15.583 - 1000 (System) - REL *job*r/com.samsung.euicc/.lpaService.NotificationJobService
+  09-27 00:20:23.729 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.730 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.730 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.768 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.768 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.768 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.776 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.776 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.776 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.820 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.821 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.821 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.825 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.825 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.825 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.833 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.833 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.833 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.843 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.844 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.844 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.873 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.873 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.874 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.877 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.878 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.878 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.903 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.903 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.903 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.905 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.906 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.906 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.914 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.914 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.914 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.923 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.923 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.923 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.949 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.949 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.950 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.953 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.954 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.954 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.968 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.969 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.969 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.971 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.972 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.972 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.979 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:20:23.979 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:20:23.979 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:21:00.004 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:21:00.005 - 1000 (System) - REL *alarm*
+  09-27 00:21:19.778 - 10262 (com.google.android.apps.messaging) - ACQ *alarm* (partial)
+  09-27 00:21:19.778 - 10262 (com.google.android.apps.messaging) - REL *alarm*
+  09-27 00:21:19.779 - 10262 (com.google.android.apps.messaging) - ACQ *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:21:19.779 - 10262 (com.google.android.apps.messaging) - ACQ *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:21:19.780 - 10262 (com.google.android.apps.messaging) - REL *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:21:19.802 - 10262 (com.google.android.apps.messaging) - ACQ SyncManager: Scheduling in parallel (partial)
+  09-27 00:21:19.802 - 10262 (com.google.android.apps.messaging) - ACQ SyncManager: Syncing (partial)
+  09-27 00:21:19.804 - 10262 (com.google.android.apps.messaging) - REL SyncManager: Syncing
+  09-27 00:21:19.812 - 10262 (com.google.android.apps.messaging) - REL *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:21:19.876 - 10262 (com.google.android.apps.messaging) - REL SyncManager: Scheduling in parallel
+  09-27 00:21:32.310 - 1000 (System) - ACQ NetworkStats (partial)
+  09-27 00:21:32.323 - 1000 (System) - REL NetworkStats
+  09-27 00:21:33.627 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:21:33.627 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:21:33.627 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:21:33.640 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:21:33.640 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:21:33.641 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:00.005 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:22:00.006 - 1000 (System) - REL *alarm*
+  09-27 00:22:13.635 - 1000 (System) - ACQ NetworkStats (partial)
+  09-27 00:22:13.647 - 1000 (System) - REL NetworkStats
+  09-27 00:22:15.676 - 1000 (System) - ACQ ActivityManager-Sleep (partial)
+  09-27 00:22:15.724 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:15.733 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.733 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.733 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.737 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.737 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.737 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.740 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.740 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.740 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.741 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.741 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.741 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.755 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:15.761 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.761 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.763 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.763 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:15.764 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.766 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:15.776 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.777 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.777 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.778 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.778 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:15.778 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:15.785 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:15.785 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:15.804 - 1000 (System) - REL ActivityManager-Sleep
+  09-27 00:22:15.864 - 1000 (System) - ACQ dream:dream (partial)
+  09-27 00:22:15.900 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:15.908 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:15.929 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Scrims (draw)
+  09-27 00:22:15.961 - 1000 (System) - ACQ dream:doze (doze)
+  09-27 00:22:15.968 - 10049 (com.samsung.android.app.aodservice,...) - ACQ AOD_EnsureWorkingTime (draw)
+  09-27 00:22:15.977 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:15.979 - 1000 (System) - REL dream:dream
+  09-27 00:22:15.986 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:15.988 - 1000 (System) - REL motion_service
+  09-27 00:22:15.990 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:15.990 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:16.031 - 10049 (com.samsung.android.app.aodservice,...) - REL Scrims
+  09-27 00:22:16.050 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:16.054 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:16.068 - 1000 (System) - ACQ WifiSuspend (partial)
+  09-27 00:22:16.077 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:22:16.088 - 1000 (System) - REL WifiSuspend
+  09-27 00:22:17.478 - 10049 (com.samsung.android.app.aodservice,...) - REL AOD_EnsureWorkingTime
+  09-27 00:22:18.116 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:18.116 - 1000 (System) - REL motion_service
+  09-27 00:22:18.147 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:18.148 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:18.150 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.150 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.150 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.151 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:18.152 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.153 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.153 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.154 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.154 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.156 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.163 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.163 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:18.164 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.164 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.166 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.167 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.167 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:18.167 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.167 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.168 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:18.177 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.177 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.178 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:18.179 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.186 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.186 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.187 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.188 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.189 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.189 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.191 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.191 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.192 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.193 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:18.194 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.195 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.195 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.202 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.202 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.203 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.203 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.204 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.204 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.213 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.214 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.214 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.218 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.218 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.219 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.221 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.221 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.221 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.235 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.235 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.235 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.235 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:18.236 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.236 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:18.298 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:18.349 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:18.349 - 1000 (System) - REL dream:doze
+  09-27 00:22:18.350 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:18.383 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:18.384 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:18.386 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:18.390 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:18.487 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:22:33.518 - 1000 (System) - ACQ ActivityManager-Sleep (partial)
+  09-27 00:22:33.543 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:33.550 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.550 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.550 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.552 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.552 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.552 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.552 - 1000 (System) - REL ActivityManager-Sleep
+  09-27 00:22:33.553 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.553 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.554 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.554 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.554 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.554 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.555 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.555 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.555 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.556 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.556 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:33.556 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:33.564 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.564 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.564 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.565 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:33.565 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.565 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:33.566 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:33.566 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:33.573 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:33.684 - 1000 (System) - ACQ dream:dream (partial)
+  09-27 00:22:33.702 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:33.711 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:33.725 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Scrims (draw)
+  09-27 00:22:33.749 - 1000 (System) - ACQ dream:doze (doze)
+  09-27 00:22:33.753 - 10049 (com.samsung.android.app.aodservice,...) - ACQ AOD_EnsureWorkingTime (draw)
+  09-27 00:22:33.759 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:33.759 - 1000 (System) - REL dream:dream
+  09-27 00:22:33.767 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:33.768 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:33.770 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:33.770 - 1000 (System) - REL motion_service
+  09-27 00:22:33.801 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:33.802 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:33.809 - 1000 (System) - ACQ WifiSuspend (partial)
+  09-27 00:22:33.824 - 1000 (System) - REL WifiSuspend
+  09-27 00:22:33.832 - 10049 (com.samsung.android.app.aodservice,...) - REL Scrims
+  09-27 00:22:33.859 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:22:34.704 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:34.704 - 1000 (System) - REL motion_service
+  09-27 00:22:34.709 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:34.713 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.714 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.714 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.715 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.716 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.716 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.720 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.720 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.720 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.721 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.721 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.721 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.722 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.723 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.723 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.723 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:34.724 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.725 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:34.726 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:34.727 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:34.732 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:34.736 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:34.748 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:34.759 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.760 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.760 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.769 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.769 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:34.770 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:34.865 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:34.909 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:34.910 - 1000 (System) - REL dream:doze
+  09-27 00:22:34.910 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:34.942 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:34.949 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:34.950 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:34.953 - 10049 (com.samsung.android.app.aodservice,...) - REL AOD_EnsureWorkingTime
+  09-27 00:22:34.953 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:35.051 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:22:50.078 - 1000 (System) - ACQ ActivityManager-Sleep (partial)
+  09-27 00:22:50.115 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:50.120 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.121 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.121 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.124 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.125 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.125 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.126 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.126 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.127 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.130 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.130 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:50.130 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:50.137 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.137 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.137 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.139 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.139 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:50.139 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:50.139 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:50.139 - 1000 (System) - REL ActivityManager-Sleep
+  09-27 00:22:50.140 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:50.142 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:50.256 - 1000 (System) - ACQ dream:dream (partial)
+  09-27 00:22:50.278 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:50.289 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:50.304 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Scrims (draw)
+  09-27 00:22:50.329 - 1000 (System) - ACQ dream:doze (doze)
+  09-27 00:22:50.334 - 10049 (com.samsung.android.app.aodservice,...) - ACQ AOD_EnsureWorkingTime (draw)
+  09-27 00:22:50.340 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:50.341 - 1000 (System) - REL dream:dream
+  09-27 00:22:50.343 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:50.344 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:50.354 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:50.354 - 1000 (System) - REL motion_service
+  09-27 00:22:50.399 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:50.400 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:50.403 - 1000 (System) - ACQ WifiSuspend (partial)
+  09-27 00:22:50.406 - 10049 (com.samsung.android.app.aodservice,...) - REL Scrims
+  09-27 00:22:50.416 - 1000 (System) - REL WifiSuspend
+  09-27 00:22:50.439 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:22:51.521 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:22:51.521 - 1000 (System) - REL motion_service
+  09-27 00:22:51.529 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.529 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.529 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.530 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.530 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:22:51.530 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.530 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.532 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.532 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.532 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.532 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.533 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.533 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.536 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.536 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.537 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.537 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:22:51.537 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:22:51.538 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.538 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:51.540 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:22:51.540 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:22:51.551 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.551 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.552 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.552 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:22:51.564 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.565 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.565 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.572 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:22:51.584 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.584 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.585 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.592 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.592 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:22:51.592 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:22:51.692 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:51.733 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:51.734 - 1000 (System) - REL dream:doze
+  09-27 00:22:51.734 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:22:51.756 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:51.756 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:22:51.765 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:22:51.768 - 10049 (com.samsung.android.app.aodservice,...) - REL AOD_EnsureWorkingTime
+  09-27 00:22:51.769 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:22:51.866 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:23:00.006 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:23:00.007 - 1000 (System) - REL *alarm*
+  09-27 00:23:06.888 - 1000 (System) - ACQ ActivityManager-Sleep (partial)
+  09-27 00:23:06.923 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:23:06.927 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.927 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.927 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.932 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.934 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.934 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.938 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.938 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.938 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.938 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.939 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.939 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.940 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.941 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.941 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.942 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.942 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.942 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.943 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.943 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.943 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.947 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.947 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:06.947 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:06.950 - 1000 (System) - REL ActivityManager-Sleep
+  09-27 00:23:06.951 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.951 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.952 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.953 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:06.956 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.956 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:06.956 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:06.956 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:06.956 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:23:07.062 - 1000 (System) - ACQ dream:dream (partial)
+  09-27 00:23:07.087 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:23:07.093 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:23:07.103 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Scrims (draw)
+  09-27 00:23:07.122 - 1000 (System) - ACQ dream:doze (doze)
+  09-27 00:23:07.126 - 10049 (com.samsung.android.app.aodservice,...) - ACQ AOD_EnsureWorkingTime (draw)
+  09-27 00:23:07.131 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:23:07.132 - 1000 (System) - REL dream:dream
+  09-27 00:23:07.148 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:23:07.151 - 1000 (System) - REL motion_service
+  09-27 00:23:07.158 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:07.161 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:07.189 - 1000 (System) - ACQ WifiSuspend (partial)
+  09-27 00:23:07.196 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:23:07.197 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:23:07.201 - 1000 (System) - REL WifiSuspend
+  09-27 00:23:07.204 - 10049 (com.samsung.android.app.aodservice,...) - REL Scrims
+  09-27 00:23:07.230 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:23:08.287 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:23:08.287 - 1000 (System) - REL motion_service
+  09-27 00:23:08.306 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:23:08.307 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.307 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.307 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.309 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.312 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.312 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.312 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.313 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.313 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.314 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:23:08.315 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:23:08.316 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:08.317 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.318 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.318 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.319 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.320 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.320 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.321 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.321 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:08.322 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:08.326 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:08.342 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:23:08.353 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.353 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.354 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.361 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.361 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:08.361 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:08.459 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:23:08.504 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:23:08.505 - 1000 (System) - REL dream:doze
+  09-27 00:23:08.505 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:23:08.536 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:08.536 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:23:08.539 - 10049 (com.samsung.android.app.aodservice,...) - REL AOD_EnsureWorkingTime
+  09-27 00:23:08.540 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:23:08.542 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:08.638 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:23:23.682 - 1000 (System) - ACQ ActivityManager-Sleep (partial)
+  09-27 00:23:23.719 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:23:23.735 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.735 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.735 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.736 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.737 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.737 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.738 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.739 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.739 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.740 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.741 - 1000 (System) - REL ActivityManager-Sleep
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.741 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:23:23.742 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.743 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:23:23.749 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.749 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.749 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.750 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:23.751 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:23:23.752 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.752 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:23:23.752 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:23:23.753 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:23:23.875 - 1000 (System) - ACQ dream:dream (partial)
+  09-27 00:23:23.904 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:23:23.913 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:23:23.929 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Scrims (draw)
+  09-27 00:23:23.950 - 1000 (System) - ACQ dream:doze (doze)
+  09-27 00:23:23.952 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:23.953 - 10049 (com.samsung.android.app.aodservice,...) - ACQ AOD_EnsureWorkingTime (draw)
+  09-27 00:23:23.954 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:23:23.959 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:23:23.959 - 1000 (System) - REL dream:dream
+  09-27 00:23:23.966 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:23:23.967 - 1000 (System) - REL motion_service
+  09-27 00:23:24.016 - 1000 (System) - ACQ WifiSuspend (partial)
+  09-27 00:23:24.021 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:23:24.031 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:23:24.032 - 10049 (com.samsung.android.app.aodservice,...) - REL Scrims
+  09-27 00:23:24.036 - 1000 (System) - REL WifiSuspend
+  09-27 00:23:24.059 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:23:25.464 - 10049 (com.samsung.android.app.aodservice,...) - REL AOD_EnsureWorkingTime
+  09-27 00:23:28.303 - 10049 (com.samsung.android.app.aodservice,...) - ACQ *alarm* (partial)
+  09-27 00:23:28.320 - 10049 (com.samsung.android.app.aodservice,...) - ACQ show keyguard (partial)
+  09-27 00:23:28.322 - 10049 (com.samsung.android.app.aodservice,...) - REL *alarm*
+  09-27 00:23:28.330 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:23:28.357 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:23:28.364 - 10049 (com.samsung.android.app.aodservice,...) - REL show keyguard
+  09-27 00:25:24.013 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:25:24.042 - 1000 (System) - ACQ deviceidle_going_idle (partial)
+  09-27 00:25:24.053 - 1000 (System) - REL *alarm*
+  09-27 00:25:24.086 - 1000 (System) - REL deviceidle_going_idle
+  09-27 00:26:38.462 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:26:38.463 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:26:38.463 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:26:38.474 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:26:38.474 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:26:38.474 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:26:38.969 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:38.970 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:26:38.970 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:38.978 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:26:38.978 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:38.980 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:26:42.151 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:42.152 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:26:42.152 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:42.156 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:26:42.156 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:26:42.157 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:29:00.285 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:29:00.287 - 1000 (System) - REL *alarm*
+  09-27 00:29:06.460 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:29:06.461 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:29:06.461 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:29:06.467 - 1000 (System) - REL *telephony-radio*
+  09-27 00:29:06.467 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:29:06.467 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:21.240 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:32:21.244 - 1000 (System) - ACQ deviceidle_maint (partial)
+  09-27 00:32:21.268 - 10127 (com.samsung.android.smartsuggestions) - REL *alarm*
+  09-27 00:32:21.299 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:21.326 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService (partial)
+  09-27 00:32:21.339 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:21.350 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.350 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:21.350 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.354 - 1000 (System) - REL *telephony-radio*
+  09-27 00:32:21.357 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.358 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:21.375 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService
+  09-27 00:32:21.377 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:21.390 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:21.392 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:21.409 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.410 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:21.410 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.415 - 1000 (System) - REL *telephony-radio*
+  09-27 00:32:21.415 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:21.416 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:21.416 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService (partial)
+  09-27 00:32:21.437 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:21.997 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService
+  09-27 00:32:21.999 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.003 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:22.004 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.027 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-27 00:32:22.044 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:22.062 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-27 00:32:22.063 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.068 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:22.069 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.090 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.a.a.b.a.GcmTaskService (partial)
+  09-27 00:32:22.109 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:22.116 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.a.a.b.a.GcmTaskService
+  09-27 00:32:22.117 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.118 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:22.119 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:32:22.122 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:32:24.307 - 10255 (com.google.android.partnersetup) - ACQ *job*r/com.google.android.partnersetup/.InstalledAppJobService (partial)
+  09-27 00:32:24.311 - 10255 (com.google.android.partnersetup) - ACQ *job*r/com.google.android.partnersetup/.InstalledAppJobService (partial)
+  09-27 00:32:24.324 - 10255 (com.google.android.partnersetup) - REL *job*r/com.google.android.partnersetup/.InstalledAppJobService
+  09-27 00:32:24.415 - 10260 (com.google.android.apps.turbo) - ACQ *job*r/com.google.android.apps.turbo/com.google.android.libraries.smartbattery.appusage.library.InferAppBucketsJob (partial)
+  09-27 00:32:24.416 - 10260 (com.google.android.apps.turbo) - ACQ *job*r/com.google.android.apps.turbo/com.google.android.libraries.smartbattery.appusage.library.InferAppBucketsJob (partial)
+  09-27 00:32:24.422 - 10260 (com.google.android.apps.turbo) - REL *job*r/com.google.android.apps.turbo/com.google.android.libraries.smartbattery.appusage.library.InferAppBucketsJob
+  09-27 00:32:24.422 - 1000 (System) - ACQ *job*r/android/com.android.server.notification.NotificationHistoryJobService (partial)
+  09-27 00:32:24.425 - 1000 (System) - ACQ *job*r/android/com.android.server.notification.NotificationHistoryJobService (partial)
+  09-27 00:32:24.426 - 1000 (System) - REL *job*r/android/com.android.server.notification.NotificationHistoryJobService
+  09-27 00:32:24.427 - 10255 (com.google.android.partnersetup) - REL *job*r/com.google.android.partnersetup/.InstalledAppJobService
+  09-27 00:32:24.440 - 1000 (System) - REL *job*r/android/com.android.server.notification.NotificationHistoryJobService
+  09-27 00:32:24.836 - 10263 (com.google.android.gms) - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-27 00:32:24.864 - 10263 (com.google.android.gms) - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-27 00:32:24.890 - 10263 (com.google.android.gms) - ACQ Icing (partial)
+  09-27 00:32:24.900 - 10263 (com.google.android.gms) - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-27 00:32:24.944 - 10263 (com.google.android.gms) - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-27 00:32:24.978 - 1000 (System) - ACQ *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:32:24.979 - 1000 (System) - ACQ *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:32:24.981 - 1000 (System) - REL *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:32:25.022 - 1000 (System) - REL *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:32:25.032 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.032 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.032 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.060 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.060 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.061 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.085 - 10263 (com.google.android.gms) - REL Icing
+  09-27 00:32:25.089 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.090 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.090 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.104 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.104 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.104 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.105 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.105 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.105 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.109 - 10260 (com.google.android.apps.turbo) - REL *job*r/com.google.android.apps.turbo/com.google.android.libraries.smartbattery.appusage.library.InferAppBucketsJob
+  09-27 00:32:25.113 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.113 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.114 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.123 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.123 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.123 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.149 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.149 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.150 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.154 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.154 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.155 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.168 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.168 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.172 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.174 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.174 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.184 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.202 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:25.202 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:32:25.204 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:32:26.302 - 1000 (System) - ACQ deviceidle_going_idle (partial)
+  09-27 00:32:26.303 - 1000 (System) - REL deviceidle_maint
+  09-27 00:32:26.332 - 1000 (System) - REL deviceidle_going_idle
+  09-27 00:32:42.208 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:32:42.216 - 1000 (System) - ACQ NetworkStats (partial)
+  09-27 00:32:42.226 - 1000 (System) - REL NetworkStats
+  09-27 00:32:42.228 - 10263 (com.google.android.gms) - ACQ CMWakeLock (partial)
+  09-27 00:32:42.255 - 10298 (com.securityandprivacy.android.verizon.vms) - REL *alarm*
+  09-27 00:32:42.256 - 10263 (com.google.android.gms) - REL CMWakeLock
+  09-27 00:35:34.366 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.366 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.366 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.397 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.398 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.399 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.404 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.405 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.405 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.453 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.454 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.455 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.756 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.756 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.756 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.767 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.767 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.767 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.784 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.784 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.784 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.817 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.817 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.818 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.825 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.826 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.826 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.852 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:34.853 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:34.854 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:35.978 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:35.981 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:35.981 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:35.992 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:35.992 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:35.992 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.005 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.006 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.006 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.035 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.036 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.037 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.044 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.045 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.045 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.063 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.063 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.065 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.067 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.068 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.068 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.079 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:35:36.079 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:35:36.080 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:40:43.167 - 10263 (com.google.android.gms) - ACQ GCM_READ (partial)
+  09-27 00:40:43.172 - 10263 (com.google.android.gms) - ACQ GCM_WORK (partial)
+  09-27 00:40:43.173 - 10263 (com.google.android.gms) - REL GCM_READ
+  09-27 00:40:43.180 - 10263 (com.google.android.gms) - REL GCM_WORK
+  09-27 00:40:43.186 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:40:43.189 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:40:43.191 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:40:43.193 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:43:14.450 - 10263 (com.google.android.gms) - ACQ CMWakeLock (partial)
+  09-27 00:43:14.455 - 10263 (com.google.android.gms) - REL CMWakeLock
+  09-27 00:45:42.653 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:45:42.654 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:45:42.654 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:45:42.660 - 1000 (System) - REL *telephony-radio*
+  09-27 00:45:42.660 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:45:42.661 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:49:40.567 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:49:40.569 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:49:40.569 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:49:40.578 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:49:40.578 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:49:40.579 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.446 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.446 - 1000 (System) - ACQ *alarm* (partial)
+  09-27 00:50:47.447 - 1000 (System) - ACQ deviceidle_maint (partial)
+  09-27 00:50:47.448 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.448 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.449 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:50:47.450 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.451 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.451 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.454 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.454 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.456 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.458 - 1000 (System) - ACQ motion_service (partial)
+  09-27 00:50:47.458 - 1000 (System) - REL motion_service
+  09-27 00:50:47.461 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:50:47.471 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.471 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.471 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.472 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:50:47.472 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.473 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:50:47.479 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ RILJ_ACK_WL (partial)
+  09-27 00:50:47.479 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.479 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.482 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.482 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-sem-radio* (partial)
+  09-27 00:50:47.482 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.482 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.482 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-sem-radio*
+  09-27 00:50:47.485 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.489 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:50:47.489 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:50:47.490 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:50:47.491 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.495 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.495 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.496 - 10221 (com.sec.android.daemonapp) - REL *alarm*
+  09-27 00:50:47.501 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.501 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.503 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.504 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.505 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.506 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.510 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.510 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.510 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.516 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.517 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:50:47.518 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.518 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.536 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.536 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.536 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.537 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.537 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.538 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.539 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.540 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.540 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.559 - 10127 (com.samsung.android.smartsuggestions) - ACQ *job*r/com.samsung.android.smartsuggestions/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.560 - 10127 (com.samsung.android.smartsuggestions) - ACQ *job*r/com.samsung.android.smartsuggestions/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.567 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.g.HeartbeatAlarm$ConnectionInfoPersistService (partial)
+  09-27 00:50:47.569 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.569 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.571 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.574 - 10127 (com.samsung.android.smartsuggestions) - REL *job*r/com.samsung.android.smartsuggestions/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.575 - 10262 (com.google.android.apps.messaging) - ACQ *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.576 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.578 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.578 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.579 - 10262 (com.google.android.apps.messaging) - ACQ *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.581 - 1000 (System) - REL *telephony-radio*
+  09-27 00:50:47.581 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.583 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.585 - 10262 (com.google.android.apps.messaging) - REL *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.586 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.587 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.587 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.593 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:50:47.611 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.611 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.611 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.613 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:50:47.615 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.617 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.617 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.623 - 1000 (System) - ACQ *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.624 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.624 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.625 - 1000 (System) - ACQ *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.625 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.628 - 1000 (System) - REL *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.629 - 10221 (com.sec.android.daemonapp) - ACQ *job*e/@androidx.work.systemjobscheduler@com.sec.android.daemonapp/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.629 - 10221 (com.sec.android.daemonapp) - ACQ *job*e/@androidx.work.systemjobscheduler@com.sec.android.daemonapp/androidx.work.impl.background.systemjob.SystemJobService (partial)
+  09-27 00:50:47.630 - 10221 (com.sec.android.daemonapp) - REL *job*e/@androidx.work.systemjobscheduler@com.sec.android.daemonapp/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.637 - 10263 (com.google.android.gms) - REL *gms_scheduler*/c.g.a.g/.g.HeartbeatAlarm$ConnectionInfoPersistService
+  09-27 00:50:47.639 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:50:47.640 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:50:47.641 - 1000 (System) - REL dream:doze
+  09-27 00:50:47.641 - 10049 (com.samsung.android.app.aodservice,...) - ACQ dream:service:handler (partial)
+  09-27 00:50:47.642 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.643 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.643 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.643 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.644 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.644 - 1000 (System) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.647 - 1000 (System) - REL *telephony-radio*
+  09-27 00:50:47.647 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.647 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.661 - 10262 (com.google.android.apps.messaging) - ACQ SyncManager: Scheduling in parallel (partial)
+  09-27 00:50:47.669 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:50:47.669 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*:internal (partial)
+  09-27 00:50:47.670 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.670 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.673 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.677 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.677 - 10262 (com.google.android.apps.messaging) - ACQ SyncManager: Syncing (partial)
+  09-27 00:50:47.678 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.679 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.679 - 10049 (com.samsung.android.app.aodservice,...) - ACQ Doze (draw)
+  09-27 00:50:47.681 - 10049 (com.samsung.android.app.aodservice,...) - REL dream:service:handler
+  09-27 00:50:47.682 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:50:47.684 - 10127 (com.samsung.android.smartsuggestions) - REL *job*r/com.samsung.android.smartsuggestions/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.698 - 10263 (com.google.android.gms) - ACQ *gms_scheduler*/c.g.a.g/.p.s.s.PhenotypeConfigurator (partial)
+  09-27 00:50:47.699 - 1000 (System) - REL *job*r/@androidx.work.systemjobscheduler@com.samsung.euicc/androidx.work.impl.background.systemjob.SystemJobService
+  09-27 00:50:47.700 - 1001 (com.samsung.sec.android.application.csc,...) - REL RILJ_ACK_WL
+  09-27 00:50:47.706 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.706 - 1001 (com.samsung.sec.android.application.csc,...) - ACQ *telephony-radio* (partial)
+  09-27 00:50:47.707 - 1001 (com.samsung.sec.android.application.csc,...) - REL *telephony-radio*
+  09-27 00:50:47.716 - 10263 (com.google.android.gms) - REL *gms_scheduler*:internal
+  09-27 00:50:47.732 - 1027 (com.samsung.android.nfc,...) - ACQ NfcService:mRoutingWakeLock (partial)
+  09-27 00:50:47.739 - 10263 (com.google.android.gms) - ACQ CallbackRunner (partial)
+  09-27 00:50:47.740 - 10263 (com.google.android.gms) - REL CallbackRunner
+  09-27 00:50:47.746 - 1027 (com.samsung.android.nfc,...) - REL NfcService:mRoutingWakeLock
+  09-27 00:50:47.766 - 10263 (com.google.android.gms) - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-27 00:50:47.775 - 10263 (com.google.android.gms) - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-27 00:50:47.780 - 10049 (com.samsung.android.app.aodservice,...) - REL Doze
+  09-27 00:50:47.785 - 10263 (com.google.android.gms) - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-27 00:50:47.795 - 10263 (com.google.android.gms) - ACQ IntentOp:.p.p.UserPresentIntentOperation (partial)
+  09-27 00:50:47.799 - 10263 (com.google.android.gms) - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-27 00:50:47.811 - 10263 (com.google.android.gms) - REL IntentOp:.p.p.UserPresentIntentOperation
+  09-27 00:50:47.915 - 10262 (com.google.android.apps.messaging) - REL SyncManager: Syncing
+  09-27 00:50:47.937 - 10262 (com.google.android.apps.messaging) - REL *job*r/@androidx.work.systemjobscheduler@com.google.android.apps.messaging/androidx.work.impl.background.systemjob.SystemJobService
+  -
+  Events: 1254, Time-Resets: 48
+  Buffer, Bytes used: 3066
+  Tag Database: size(64), entries: 64, Bytes used: 7020
+
+Full Wakelock Log:
+Wake Lock Log
+  09-25 16:32:17.042 - 1000 (System) - ACQ WindowManager/displayId:0 (screen-bright,on-after-release)
+  09-25 16:32:19.963 - 1000 (System) - REL WindowManager/displayId:0
+  -
+  Events: 2, Time-Resets: 1
+  Buffer, Bytes used: 14
+  Tag Database: size(16), entries: 1, Bytes used: 202
+
+
+Wakefulness Session Observer:
+default timeout: 15000
+override timeout: -1
+  Wakefulness Session Power Group powerGroupId: 0
+    current wakefulness: 1
+    current user activity event: 2
+    current user activity duration: 272
+    previous user activity event: 0
+    previous user activity duration: 579002
+    is in override timeout: false
+    mIsInteractive: true
+    current screen policy: 3
+    current screen policy duration: 543
+    previous screen policy: 1
+    past screen policy duration: 512595
+
+AmbientDisplaySuppressionController:
+ ambientDisplaySuppressed=false
+ mSuppressionTokens={}
+
+Low Power Standby Controller:
+  mIsActive=false
+  mIsEnabled=false
+  mSupportedConfig=false
+  mEnabledByDefaultConfig=false
+  mStandbyTimeoutConfig=0
+  mEnableCustomPolicy=false
+  Allowed UIDs=[]
+  
+  UID allowed reasons:
+
+ScreenTimeoutOverridePolicy:
+  mScreenTimeoutOverrideConfig=-1
+  mLastAutoReleaseReason=-1
+PowerManagerFlags:
+ enable_early_screen_timeout_detector:                 true (def:true)
+ improve_wakelock_latency:                             true (def:true)
+ per_display_wake_by_touch:                            true (def:true)
+ framework_wakelock_info:                              false (def:false)
+ move_wsc_logging_to_notifier:                         true (def:true)
+ wakelock_attribution_via_workchain:                   true (def:true)
+ disable_frozen_process_wakelocks:                     false (def:false)

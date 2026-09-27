@@ -1,0 +1,1 @@
+/data/local/tmp/heat3way/s23-calib-4-calgpu.log: 1 file pulled, 0 skipped. 0.4 MB/s (18723 bytes in 0.040s)
