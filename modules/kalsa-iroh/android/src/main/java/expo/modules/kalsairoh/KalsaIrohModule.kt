@@ -55,7 +55,10 @@ class KalsaIrohModule : Module() {
     Name("KalsaIroh")
 
     AsyncFunction("startBridge") { promise: Promise ->
-      run(control, promise, "startBridge") { startBridgeAtFilesDir() }
+      run(control, promise, "startBridge") {
+        startBridgeAtFilesDir()
+        null
+      }
     }
 
     AsyncFunction("nodeId") { promise: Promise ->
@@ -144,21 +147,26 @@ class KalsaIrohModule : Module() {
     )
     if (code == "KALSA_IROH_OTHER") {
       try {
-        Log.w("KalsaIroh", "operation=$operation causes=${throwableClassChain(error)}")
+        Log.w("KalsaIroh", unexpectedDiagnostic(operation, error))
       } catch (_: Throwable) {
       }
     }
   }
 
-  private fun throwableClassChain(error: Throwable): String {
+  private fun unexpectedDiagnostic(operation: String, error: Throwable): String {
     val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
     val classes = mutableListOf<String>()
     var current: Throwable? = error
+    var root = error
+    var nativeVariant: String? = null
     while (current != null && classes.size < 16 && seen.add(current)) {
+      root = current
       classes.add(current.javaClass.name)
+      if (current is IrohMobileException) nativeVariant = current.javaClass.simpleName
       current = current.cause
     }
-    return classes.joinToString(" -> ")
+    val variant = nativeVariant?.let { " native_variant=$it" } ?: ""
+    return "operation=$operation root=${root.javaClass.name}$variant causes=${classes.joinToString(" -> ")}"
   }
 
   private fun rejectionCode(error: Throwable): String = when (error) {
