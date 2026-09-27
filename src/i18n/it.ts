@@ -468,6 +468,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     submit: "Avvia il collegamento",
     working: "Collegamento…",
     scanHint: "Inquadra il codice mostrato da Kalsa desktop per iniziare.",
+    withHost: "Collegamento con {host}…",
     manual: "Inserisci i dettagli manualmente",
     manualHide: "Nascondi i dettagli manuali",
     doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",

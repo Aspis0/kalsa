@@ -17,4 +17,9 @@ describe("pairing copy", () => {
     expect(it.pairing.waiting).toBe("Conferma sul computer");
     expect(en.pairing.waiting).toBe("Confirm on your computer");
   });
+
+  test("a tailnet ceremony names its host in the status, in both catalogues", () => {
+    expect(en.pairing.withHost).toBe("Pairing with {host}…");
+    expect(it.pairing.withHost).toBe("Collegamento con {host}…");
+  });
 });

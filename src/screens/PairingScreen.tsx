@@ -91,6 +91,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const [showManual, setShowManual] = useState(false);
   const [state, setState] = useState<"ready" | "refused" | "waiting" | "paired" | "not-confirmed">("ready");
   const [confirmPhase, setConfirmPhase] = useState<ConfirmationPhase>({ phase: "waiting" });
+  /** The host a tailnet scan resolved — named in the status until an outcome. */
+  const [pairHost, setPairHost] = useState<string | null>(null);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   // The typed address is Start's one blocking input: without a door the
   // ceremony cannot even name who to ask. (A missing phone model is not a
@@ -151,6 +153,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const update = (key: keyof PairingFields, value: string) => {
     sessionRef.current = null;
     setState("ready");
+    setPairHost(null);
     setFields((current) => ({ ...current, [key]: value }));
   };
 
@@ -180,6 +183,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // completion retry for the previous one. Only a run that passed its
       // guards gets here, so a rejected scan never drops that session.
       if (scanned) sessionRef.current = null;
+      // A tailnet-derived address was never typed, never confirmed: say
+      // whose host this claim goes to, and keep saying it through the wait.
+      if (scanned) {
+        setPairHost(scannedUrls ? new URL(doorUrl).host : null);
+      }
       const square = scanned ?? fields;
       const existing = sessionRef.current;
       const retryingCompletion = existing?.needsCompletionRetry() === true;
@@ -255,21 +263,26 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
     void run(square);
   };
 
-  const status: { testID: string; text: string; error: boolean } = busy
-    ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
-    // The reason renders either here (details collapsed) or next to the
-    // disabled button inside the form — never both: one placement per view.
-    : !doorReady && !showManual
-      ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
-      : state === "refused"
-        ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
-        : state === "paired"
-          ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
-          : state === "not-confirmed"
-            ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
-            : state === "waiting"
-              ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
-              : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
+  const status: { testID: string; text: string; error: boolean } =
+    // The named host outranks the generic waiting words for as long as it
+    // applies (busy and confirmation); an outcome (refused/paired/…) wins.
+    pairHost !== null && (busy || state === "waiting")
+      ? { testID: "pairing.withHost", text: t("pairing.withHost", { host: pairHost }), error: false }
+      : busy
+        ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
+        // The reason renders either here (details collapsed) or next to the
+        // disabled button inside the form — never both: one placement per view.
+        : !doorReady && !showManual
+          ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
+          : state === "refused"
+            ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+            : state === "paired"
+              ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
+              : state === "not-confirmed"
+                ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
+                : state === "waiting"
+                  ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
+                  : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 60, backgroundColor: colors.page }}>

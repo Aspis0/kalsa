@@ -473,6 +473,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     submit: "Start pairing",
     working: "Pairing…",
     scanHint: "Scan the code shown by Kalsa desktop to start pairing.",
+    withHost: "Pairing with {host}…",
     manual: "Enter details manually",
     manualHide: "Hide manual details",
     doorRequired: "Set your computer's address on this phone before pairing.",

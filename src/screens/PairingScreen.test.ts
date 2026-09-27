@@ -370,7 +370,11 @@ describe("PairingScreen", () => {
       tailnet,
       { node, pairedVia: "iroh" },
     );
-    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    // The claim went to a scanned host, never a typed one: the status names
+    // it through the whole confirmation wait.
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
+      .toBe("pairing.withHost");
+    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 
@@ -407,7 +411,9 @@ describe("PairingScreen", () => {
       "https://paired.example.ts.net",
       { node: "", pairedVia: "https" },
     );
-    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
+      .toBe("pairing.withHost");
+    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 
