@@ -1,0 +1,1 @@
+Host-side postflight log redirection used a mistyped output path; zsh could not create the file and the adb gate command did not run. Wrapper exit: 1. The immediate corrected postflight command is recorded in handoff_p2_htp_postflight.log (Awake, 35.5 C, thermal status 0, traced 0).

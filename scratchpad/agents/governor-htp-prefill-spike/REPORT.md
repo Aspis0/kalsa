@@ -97,3 +97,31 @@ Timing diagnostici (prefill ms / commit ms / decode tok/s):
 **Avvisi/failure:** la traccia HTP riporta a `raw/handoff_htp.log:120` errore URI fisico `0x14` con fallback alla sessione CDSP singola; la run continua e termina `EXIT=0`. La prima compilazione del test fallì per nove riferimenti fuori scope ad `after_decode` (`raw/build_android_handoff_long_first_failure.log:216-243`); corretto il riferimento, la build Android finale termina `EXIT=0` (`raw/build_android_handoff_long_final.log`). Nessun errore o crash nei log delle due run.
 
 Dettagli per turno: HTP `raw/handoff_htp.log:346-349`; OpenCL `raw/handoff_opencl.log:364-367`. Gate pre/post, push, hash, comandi, exit code e log build sono in `raw/handoff_*` e `raw/build_android_handoff_long*`.
+
+## Follow-up: handoff variance across three prompts
+
+**Verdict: EQUIVALENT** under the requested noise-band rule. For each backend, the displayed aggregate is the arithmetic mean of its three per-prompt results. HTP's mean agreement (99.306%) is within OpenCL's prompt range (97.917–100.000%); HTP's mean KLD (0.000853797) is within OpenCL's range (0.000570516–0.001282568). The earlier single-prompt comparison is superseded by this three-prompt result.
+
+Each valid run used the same fixed English prompt for both backends, a fresh CPU-only reference, three prefill/commit/decode turns, 64 generated tokens per turn, then one rewind. Initial prompts were at least 1,000 tokens. KLD is `D_KL(CPU || governor)` at each decoded step. Divergence and KLD-maximum steps are zero-based.
+
+| Prompt | Backend | Initial tokens | Agreement | First divergence | KLD mean | KLD max (step) | Commit bytes / expected |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Town and river | HTP0 | 1,058 | 98.438% | 21 | 0.000966242 | 0.035463605 (26) | 21,741,568 / 21,741,568 |
+| Town and river | OpenCL | 1,058 | 97.917% | 124 | 0.000951171 | 0.011445271 (103) | 21,741,568 / 21,741,568 |
+| Kelp forest ecology | HTP0 | 1,080 | 99.479% | 81 | 0.001073102 | 0.026378194 (90) | 22,102,016 / 22,102,016 |
+| Kelp forest ecology | OpenCL | 1,080 | 98.958% | 46 | 0.001282568 | 0.017739885 (46) | 22,102,016 / 22,102,016 |
+| Stellar spectroscopy | HTP0 | 1,083 | 100.000% | none | 0.000522046 | 0.012413194 (86) | 22,151,168 / 22,151,168 |
+| Stellar spectroscopy | OpenCL | 1,083 | 100.000% | none | 0.000570516 | 0.015553234 (85) | 22,151,168 / 22,151,168 |
+
+| Backend | Mean agreement | Mean KLD | Prompt agreement range | Prompt mean-KLD range |
+|---|---:|---:|---:|---:|
+| HTP0 | 99.306% | 0.000853797 | 98.438–100.000% | 0.000522046–0.001073102 |
+| OpenCL | 98.958% | 0.000934752 | 97.917–100.000% | 0.000570516–0.001282568 |
+
+The former maxima `0.035463605` (HTP) and `0.011445271` (OpenCL) reproduce on the original town prompt. HTP peaks at decoded step 26, five steps after its first divergence at step 21. OpenCL peaks at step 103, 21 steps before its first divergence at step 124. Neither peak is at the divergence step. Across the six runs, no process crashed; all six reported `rewind=PASS` and committed bytes equal to expected bytes.
+
+**Device gates:** all six valid runs had Awake pre- and postflight, app force-stopped, and `persist.traced.enable=0`. Battery temperature stayed below 38.3 °C; thermal status stayed at or below 1 (required `<3`). The final postflight remained Awake. The screen was left on. Detailed per-run gate captures are in the matching `raw/handoff_p*_*_preflight.log` and `postflight.log` files.
+
+**Build and artifacts:** Android rebuild exit 0 (`raw/build_android_handoff_variance.log`); final binary SHA-256 `09fb336414d050929bc8ec33d395a89298ea9b72e8bbcc6e8bd63547a06102bc`; device copy matched. Model SHA-256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`. Each run exited 0; complete stdout/stderr and per-turn diagnostic timings are in `raw/handoff_p1_htp.log`, `raw/handoff_p1_opencl.log`, `raw/handoff_p2_htp.log`, `raw/handoff_p2_opencl.log`, `raw/handoff_p3_htp.log`, and `raw/handoff_p3_opencl.log`.
+
+**Discarded attempts / command failure:** the first prompt-1 pair used a slightly shortened paragraph (1,042 initial tokens); these successful but non-matching runs were excluded and retained as `raw/handoff_p1_*_prompt_variant.log`. After restoring the exact original prompt, both prompt-1 runs were repeated and match the earlier metrics. One postflight collection wrapper failed with exit 1 due to a mistyped host output path; the immediate corrected gate capture passed and is recorded in `raw/handoff_p2_htp_postflight.log`, with the wrapper error in `raw/handoff_p2_htp_postflight_collection_failure.log`.

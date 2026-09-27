@@ -1,0 +1,3 @@
+[1/2] Building CXX object tests/CMakeFiles/test-governor-v0-handoff-long.dir/test-governor-v0-handoff-long.cpp.o
+[2/2] Linking CXX executable bin/test-governor-v0-handoff-long
+BUILD_EXIT=0
