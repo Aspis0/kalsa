@@ -285,20 +285,32 @@ impl Invites {
     /// rule, and no stranger's guess ends a claim. A ceremony that pairs
     /// leaves the set: its invitation is spent, and the file has not held
     /// it since the claim.
+    ///
+    /// The answer carries the deadline the ceremony ran under — the link's
+    /// own window — so the shell can retain the sealed response for a retry
+    /// no longer than the link that authorised it.
     pub fn complete(
         &mut self,
         declaration: PhoneDeclaration,
         now: SystemTime,
-    ) -> Result<(Handshake, PairingSeal), CompleteError> {
+    ) -> Result<(SystemTime, Handshake, PairingSeal), CompleteError> {
         for index in 0..self.invites.len() {
             if !matches!(self.invites[index].pairing, Pairing::Claimed(_)) {
                 continue;
             }
+            // Read before the ceremony is consumed: once it completes, the
+            // state carries no window any more.
+            let Some(expires_at) = self.invites[index].pairing.expires_at() else {
+                // A claimed ceremony always has one; without it this is not
+                // a window to finish inside, so it is passed over with
+                // nothing consumed on the way.
+                continue;
+            };
             let outcome = self.invites[index].pairing.complete(declaration.clone(), now);
             match outcome {
-                Ok(done) => {
+                Ok((handshake, seal)) => {
                     self.invites.remove(index);
-                    return Ok(done);
+                    return Ok((expires_at, handshake, seal));
                 }
                 // Entropy is reachable only AFTER the MAC verified, so this
                 // is the ceremony the declaration is for. It stays claimed

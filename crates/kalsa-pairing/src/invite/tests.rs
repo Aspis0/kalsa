@@ -260,10 +260,13 @@ fn the_claimed_ceremony_finishes_through_the_set() {
 
     // Two ceremonies are claimed at once; the MAC decides which one the
     // declaration belongs to, and the set does not have to be told.
-    let (handshake, seal) = invites
+    let (expires_at, handshake, seal) = invites
         .complete(declares(&right), now + Duration::from_secs(2))
         .expect("the second ceremony verifies");
     let _ = handshake;
+    // The deadline the ceremony ran under is the link's own window: a
+    // retained seal may not outlive it.
+    assert_eq!(expires_at, now + INVITE_TTL, "the link's window, not the clock's");
     // The seal is keyed on that square alone: the other link's code and
     // nonce must not open it.
     assert!(seal.open(&right.0, &right.1).is_some());
@@ -271,10 +274,11 @@ fn the_claimed_ceremony_finishes_through_the_set() {
     // The one that paired leaves the set; the other claim is still alive.
     assert_eq!(invites.list().len(), 1);
 
-    let (handshake, seal) = invites
+    let (expires_at, handshake, seal) = invites
         .complete(declares(&left), now + Duration::from_secs(3))
         .expect("the first ceremony verifies when its turn comes");
     let _ = handshake;
+    assert_eq!(expires_at, now + INVITE_TTL);
     assert!(seal.open(&left.0, &left.1).is_some());
     assert!(invites.list().is_empty());
 }
