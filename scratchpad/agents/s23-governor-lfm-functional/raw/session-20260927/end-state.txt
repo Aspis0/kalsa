@@ -1,0 +1,7 @@
+  mWakefulness=Awake
+  mIsPowered=true
+  mStayOn=false
+  mIsPowered=true
+  mCurrentFocus=Window{12ae646 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+  mFocusedApp=ActivityRecord{178302141 u0 com.kalsa.app/.MainActivity t61}
+    isKeyguardShowing=false
