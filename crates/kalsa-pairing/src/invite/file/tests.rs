@@ -2,9 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use super::{read, write, Record};
+use super::{read, write, Record, FILE_VERSION};
 use crate::ceremony::{ClaimResult, Pairing};
-use crate::error::InviteError;
 use crate::invite::{Invites, INVITE_TTL};
 
 const REACHABLE: &str = "http://127.0.0.1:8134";
@@ -29,6 +28,15 @@ fn square(now: SystemTime) -> String {
         .expect("an offer has a QR")
 }
 
+/// The same square without a road behind it — the shape this build never
+/// mints, and must never honour either.
+fn square_off_road(now: SystemTime, node: Option<&str>) -> String {
+    Pairing::offer(REACHABLE, node, None, now, INVITE_TTL)
+        .expect("the ceremony offers")
+        .qr_payload()
+        .expect("an offer has a QR")
+}
+
 /// The code the file is holding for one invitation: the same string the
 /// link hands a phone, read here from the file itself because this file's
 /// subject is what the disk keeps.
@@ -41,12 +49,34 @@ fn code_in(path: &Path, index: usize) -> String {
     payload["code"].as_str().expect("code").to_string()
 }
 
+/// One hand-written record, in the shape the file keeps.
+fn record(id: u32, expires_at: SystemTime, payload: &str) -> serde_json::Value {
+    let since_epoch = expires_at
+        .duration_since(UNIX_EPOCH)
+        .expect("a deadline after the epoch");
+    serde_json::json!({
+        "id": id,
+        "expires_at": {
+            "secs_since_epoch": since_epoch.as_secs(),
+            "nanos_since_epoch": since_epoch.subsec_nanos(),
+        },
+        "payload": payload,
+    })
+}
+
+/// A hand-written envelope, in this build's version.
+fn envelope(next_id: u32, records: Vec<serde_json::Value>) -> serde_json::Value {
+    serde_json::json!({ "v": FILE_VERSION, "next_id": next_id, "invites": records })
+}
+
 #[test]
 fn no_file_is_an_empty_set() {
     // No links are out. The absence of the file is the answer, the way the
     // credential store's absence means "no phone is paired" — not an error
     // the shell has to tell apart from a broken disk.
-    assert!(read(&scratch("absent"), start()).unwrap().is_empty());
+    let loaded = read(&scratch("absent"), start());
+    assert!(loaded.invites.is_empty());
+    assert!(!loaded.discarded, "nothing was there to discard");
 }
 
 #[test]
@@ -57,6 +87,7 @@ fn the_file_keeps_the_square_byte_for_byte() {
     let expires_at = now + INVITE_TTL;
     write(
         &path,
+        1,
         vec![Record {
             id: 0,
             expires_at,
@@ -76,36 +107,115 @@ fn the_file_keeps_the_square_byte_for_byte() {
     // And the ceremony it rebuilds carries the same square: re-encoding the
     // restored offer gives back the string the link was built from, field
     // for field, character for character.
-    let restored = read(&path, now + Duration::from_secs(1)).unwrap();
-    assert_eq!(restored.len(), 1);
-    assert_eq!(restored[0].0, 0);
-    assert_eq!(restored[0].1.expires_at(), Some(expires_at));
-    assert_eq!(restored[0].1.qr_payload().unwrap(), payload);
+    let loaded = read(&path, now + Duration::from_secs(1));
+    assert_eq!(loaded.invites.len(), 1);
+    assert_eq!(loaded.invites[0].0, 0);
+    assert_eq!(loaded.invites[0].1.expires_at(), Some(expires_at));
+    assert_eq!(loaded.invites[0].1.qr_payload().unwrap(), payload);
+    assert!(!loaded.discarded);
 }
 
 #[test]
-fn a_record_the_ceremony_cannot_read_refuses_the_file() {
+fn a_record_the_ceremony_cannot_read_is_not_honoured() {
     // A payload that is not a square this build understands — no code, no
     // nonce — would rebuild an invitation that could pair with nobody. The
-    // whole file is refused, and nothing in it is deleted.
+    // whole file hands back nothing, and nothing in it is deleted.
     let now = start();
     let path = scratch("not-a-square");
-    fs::write(&path, serde_json::to_string(&envelope(now, r#"{"v":3}"#)).unwrap()).unwrap();
-    assert!(matches!(read(&path, now), Err(InviteError::Corrupt(_))));
+    fs::write(&path, serde_json::to_string(&envelope(1, vec![record(0, now + INVITE_TTL, r#"{"v":3}"#)])).unwrap())
+        .unwrap();
+    let loaded = read(&path, now);
+    assert!(loaded.invites.is_empty(), "nothing from it is honoured");
+    assert!(loaded.discarded);
     assert!(path.exists(), "a failed read never destroys the file");
 }
 
 #[test]
 fn an_envelope_of_another_version_is_refused() {
     // A version this build does not read is not a file it may half
-    // understand: the records of a future format must not be taken for
+    // understand: the records of another format must not be taken for
     // today's.
     let now = start();
     let path = scratch("version");
-    let mut value = envelope(now, &square(now));
-    value["v"] = serde_json::json!(2);
+    let mut value = envelope(1, vec![record(0, now + INVITE_TTL, &square(now))]);
+    value["v"] = serde_json::json!(FILE_VERSION + 1);
     fs::write(&path, serde_json::to_string(&value).unwrap()).unwrap();
-    assert!(matches!(read(&path, now), Err(InviteError::Corrupt(_))));
+    let loaded = read(&path, now);
+    assert!(loaded.invites.is_empty());
+    assert!(loaded.discarded);
+    assert!(path.exists());
+}
+
+#[test]
+fn a_deadline_this_build_could_not_have_written_is_dropped() {
+    // The window is a day: a record whose deadline sits further out than an
+    // invite could have been minted with is not a deadline this build wrote,
+    // and honouring it would be handing the file a longer window than the
+    // owner ever granted. It is dropped on its own — the record beside it
+    // still comes back — and the file says so.
+    let now = start();
+    let path = scratch("overlong");
+    write(
+        &path,
+        3,
+        vec![
+            Record {
+                id: 0,
+                expires_at: now + Duration::from_secs(48 * 60 * 60),
+                payload: square(now),
+            },
+            Record {
+                id: 1,
+                expires_at: now + INVITE_TTL,
+                payload: square(now),
+            },
+        ],
+    )
+    .unwrap();
+
+    let loaded = read(&path, now);
+    assert_eq!(loaded.invites.len(), 1, "only the honest deadline came back");
+    assert_eq!(loaded.invites[0].0, 1);
+    assert!(loaded.discarded, "the other record was not honoured");
+    assert!(path.exists());
+}
+
+#[test]
+fn a_square_without_a_usable_node_is_dropped() {
+    // This build mints no invite without an iroh node to dial, so a record
+    // carrying neither an id nor an empty one is not one it wrote: the
+    // phone would get a code and no road. Both shapes are dropped
+    // individually, and the record with a node is untouched.
+    let now = start();
+    let path = scratch("no-node");
+    write(
+        &path,
+        4,
+        vec![
+            Record {
+                id: 0,
+                expires_at: now + INVITE_TTL,
+                payload: square_off_road(now, None),
+            },
+            Record {
+                id: 1,
+                expires_at: now + INVITE_TTL,
+                payload: square_off_road(now, Some("")),
+            },
+            Record {
+                id: 2,
+                expires_at: now + INVITE_TTL,
+                payload: square(now),
+            },
+        ],
+    )
+    .unwrap();
+
+    let loaded = read(&path, now);
+    assert_eq!(loaded.invites.len(), 1, "only the square with a road came back");
+    assert_eq!(loaded.invites[0].0, 2);
+    assert!(loaded.discarded);
+    assert!(path.exists());
 }
 
 #[test]
@@ -114,6 +224,7 @@ fn an_invitation_whose_window_closed_is_dropped_on_read() {
     let path = scratch("expired");
     write(
         &path,
+        1,
         vec![Record {
             id: 3,
             expires_at: now + INVITE_TTL,
@@ -122,16 +233,68 @@ fn an_invitation_whose_window_closed_is_dropped_on_read() {
     )
     .unwrap();
 
-    assert_eq!(
-        read(&path, now + INVITE_TTL - Duration::from_secs(1))
-            .unwrap()
-            .len(),
-        1
-    );
+    let one_second_left = read(&path, now + INVITE_TTL - Duration::from_secs(1));
+    assert_eq!(one_second_left.invites.len(), 1);
+    assert!(!one_second_left.discarded, "the day ending is not a discard");
+
     // The deadline itself: the day is up and the record is not read back.
     // The file is left as it was — a read publishes nothing.
-    assert!(read(&path, now + INVITE_TTL).unwrap().is_empty());
+    let over = read(&path, now + INVITE_TTL);
+    assert!(over.invites.is_empty());
+    assert!(!over.discarded);
     assert!(path.exists());
+}
+
+#[test]
+fn an_unreadable_file_is_an_empty_set_not_a_dead_end() {
+    // The feature survives its own file: nothing in it is honoured, the
+    // owner is told something was discarded, and the very next write
+    // replaces the file — after which the same file reads clean.
+    let now = start();
+    let path = scratch("dead-end");
+    fs::write(&path, b"this is not an invite file").unwrap();
+
+    let (mut invites, discarded) = Invites::open(&path, now);
+    assert!(discarded, "the owner may need to know earlier links are gone");
+    assert!(invites.list().is_empty());
+
+    assert!(
+        invites.mint(REACHABLE, Some(NODE), None, now).is_ok(),
+        "one bad file must not stop the next invitation"
+    );
+    let (reopened, discarded) = Invites::open(&path, now);
+    assert!(!discarded, "the file the write left is a file this build reads");
+    assert_eq!(reopened.list().len(), 1);
+}
+
+#[test]
+fn an_id_is_spent_for_as_long_as_the_file_lives() {
+    // A stale row must never come to name a different, live invitation, so
+    // an id is not recycled when the record holding it goes: the counter
+    // rides the file, in this process and across a restart alike.
+    let now = start();
+    let path = scratch("counter");
+    let (mut invites, _) = Invites::open(&path, now);
+    let first = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
+    invites.cancel(first).unwrap();
+    let second = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
+    assert_ne!(second, first, "a cancelled id is spent, not free");
+    assert!(
+        invites.link(first).is_none(),
+        "the old row's link must find nothing, not a new invitation"
+    );
+
+    // With every record gone the file holds nothing but its counter — and
+    // the counter is what the next id comes from, never a fresh zero.
+    invites.cancel(second).unwrap();
+    drop(invites);
+    let (mut reopened, _) = Invites::open(&path, now);
+    assert!(reopened.list().is_empty());
+    assert_eq!(
+        reopened.mint(REACHABLE, Some(NODE), None, now).unwrap(),
+        second + 1,
+        "the file's own counter, not a fresh zero"
+    );
 }
 
 #[test]
@@ -139,13 +302,13 @@ fn an_unclaimed_invitation_survives_a_restart() {
     let now = start();
     let path = scratch("restart");
     {
-        let mut invites = Invites::open(&path, now).unwrap();
+        let (mut invites, _) = Invites::open(&path, now);
         invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     }
     let code = code_in(&path, 0);
 
     // The set is gone; only the file is left, which is what a restart means.
-    let mut reopened = Invites::open(&path, now + Duration::from_secs(60)).unwrap();
+    let (mut reopened, _) = Invites::open(&path, now + Duration::from_secs(60));
     assert_eq!(reopened.list().len(), 1);
     assert_eq!(
         reopened.list()[0].1,
@@ -164,7 +327,7 @@ fn an_unclaimed_invitation_survives_a_restart() {
 fn a_claimed_invitation_is_gone_before_anything_restarts() {
     let now = start();
     let path = scratch("claimed-gone");
-    let mut invites = Invites::open(&path, now).unwrap();
+    let (mut invites, _) = Invites::open(&path, now);
     invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let code = code_in(&path, 0);
 
@@ -175,7 +338,7 @@ fn a_claimed_invitation_is_gone_before_anything_restarts() {
     // The claim wrote the file BEFORE it answered, so the next start has
     // never heard of this code: a restart cannot hand a used link to a
     // second phone.
-    let mut reopened = Invites::open(&path, now + Duration::from_secs(2)).unwrap();
+    let (mut reopened, _) = Invites::open(&path, now + Duration::from_secs(2));
     assert!(reopened.list().is_empty());
     // The code the phone already used is refused, not resurrected: nothing
     // in the file remembers it, and nothing re-mints it.
@@ -189,10 +352,10 @@ fn a_claimed_invitation_is_gone_before_anything_restarts() {
 fn an_expired_invitation_is_not_read_back() {
     let now = start();
     let path = scratch("expired-gone");
-    let mut invites = Invites::open(&path, now).unwrap();
+    let (mut invites, _) = Invites::open(&path, now);
     invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
 
-    let reopened = Invites::open(&path, now + INVITE_TTL).unwrap();
+    let (reopened, _) = Invites::open(&path, now + INVITE_TTL);
     assert!(reopened.list().is_empty(), "the day was up");
 }
 
@@ -205,6 +368,7 @@ fn the_invite_file_is_owner_only() {
     let path = scratch("mode");
     write(
         &path,
+        1,
         vec![Record {
             id: 0,
             expires_at: now + INVITE_TTL,
@@ -217,22 +381,4 @@ fn the_invite_file_is_owner_only() {
     // already handed out are nobody else's to read.
     let mode = fs::metadata(&path).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
-}
-
-/// The envelope a hand-written test file wears, with one record in it.
-fn envelope(now: SystemTime, payload: &str) -> serde_json::Value {
-    let expires_at = (now + INVITE_TTL)
-        .duration_since(UNIX_EPOCH)
-        .expect("a deadline after the epoch");
-    serde_json::json!({
-        "v": 1,
-        "invites": [{
-            "id": 0,
-            "expires_at": {
-                "secs_since_epoch": expires_at.as_secs(),
-                "nanos_since_epoch": expires_at.subsec_nanos(),
-            },
-            "payload": payload,
-        }],
-    })
 }

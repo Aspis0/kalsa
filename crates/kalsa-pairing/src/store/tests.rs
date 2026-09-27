@@ -6,7 +6,7 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use super::{
     add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
     forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
-    replace, temp_path, Delivery, DeviceKind, StoreError, HOST_LABEL,
+    publish_json, replace, temp_path, Delivery, DeviceKind, StoreError, HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -903,4 +903,59 @@ fn a_waiting_phone_stays_waiting_when_a_different_device_is_forgotten_or_added()
     assert!(!by_id(host.id).waiting, "the host stays allowed throughout");
     assert!(!by_id(later.id).waiting, "a freshly added phone is allowed");
     fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn every_target_stages_beside_its_own_name() {
+    let dir = scratch("temp-names");
+    // Two different files: `pairing` and `pairing.json`. Staging both in
+    // one temp — the target's extension swapped for `tmp` — meant the bytes
+    // written for one could be renamed onto the other, a credential landing
+    // in whichever file the second publish was aimed at. And a target whose
+    // own name ends in `.tmp` used to be its own temp: publishing it would
+    // have truncated it first.
+    assert_ne!(
+        temp_path(&dir.join("pairing")),
+        temp_path(&dir.join("pairing.json"))
+    );
+    assert_ne!(
+        temp_path(&dir.join("pairing.json.tmp")),
+        dir.join("pairing.json.tmp")
+    );
+
+    // The hazard itself: bytes staged for one target, then a publish to the
+    // other. The publish stages beside ITS OWN name and leaves the first
+    // target's temp exactly where it was.
+    let staged = temp_path(&dir.join("pairing"));
+    fs::write(&staged, b"staged for the other file").unwrap();
+    let target = dir.join("pairing.json");
+    publish_json(&serde_json::json!({"who": "the json file"}), &target).unwrap();
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        r#"{"who":"the json file"}"#,
+        "the second publish must write its own document"
+    );
+    assert_eq!(
+        fs::read_to_string(&staged).unwrap(),
+        "staged for the other file",
+        "the other target's staging file must be untouched"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_publish_fsyncs_the_directory_it_renamed_into() {
+    // No test can lose power. What can be pinned is that the shared publish
+    // path fsyncs the DIRECTORY holding the new entry after the rename:
+    // without that, a power loss rolls the file back to what it said
+    // before — for a claim, to a version still holding a used code — and
+    // pairing.json rides this same path.
+    let source = include_str!("../store.rs");
+    let start = source.find("fn publish_temp").expect("the publish path exists");
+    let rest = &source[start..];
+    let unix_arm = &rest[..rest.find("\n    }\n").expect("the unix arm ends")];
+    assert!(
+        unix_arm.contains("sync_parent(path)"),
+        "the rename must be followed by a directory fsync:\n{unix_arm}"
+    );
 }

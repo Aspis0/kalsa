@@ -151,11 +151,11 @@ impl Error for StoreError {
     }
 }
 
-/// Why an invitation could not be minted, kept, or read back. Two kinds of
-/// failure, said apart: a refusal to mint, where nothing exists and the
-/// owner may simply try again, and the invite file — which holds the codes
-/// behind links the owner has already handed out, so it is either read
-/// exactly or not at all.
+/// Why an invitation could not be minted, kept, or written. A file that
+/// cannot be read is not one of these: the reader hands back an empty set
+/// instead (`Invites::open`), so every error here is either a refusal to
+/// mint — nothing exists, the owner may try again — or a write that did not
+/// land.
 #[derive(Debug)]
 pub enum InviteError {
     /// The ceremony would not go on the table: no entropy, or a deadline
@@ -164,18 +164,13 @@ pub enum InviteError {
     /// A link is an iroh link: without this computer's node id a phone that
     /// scans it has a code and no road to dial. Refused, never defaulted.
     NoNode,
-    /// The set is at its cap — ten live invitations, or an id space the file
-    /// has already handed out — so no new invite can be minted. Nothing is
-    /// evicted: an owner who wants a new link cancels one first.
+    /// The set is at its cap — ten invitations offered and unclaimed, or an
+    /// id space the file has already handed out — so no new invite can be
+    /// minted. Nothing is evicted: an owner who wants a new link cancels
+    /// one first.
     Full,
-    /// The invite file could not be written or read.
+    /// The invite file could not be written.
     Io(std::io::Error),
-    /// The invite file's own JSON failed to encode or parse.
-    Serde(serde_json::Error),
-    /// The file violates its own structure: an envelope version this build
-    /// does not read, a payload missing the fields the ceremony is keyed
-    /// on. The tag is static and no file content is echoed back.
-    Corrupt(&'static str),
 }
 
 impl fmt::Display for InviteError {
@@ -190,8 +185,6 @@ impl fmt::Display for InviteError {
                 "invitation: this computer already has as many invitations as it can hold",
             ),
             Self::Io(e) => write!(f, "invite file: {e}"),
-            Self::Serde(e) => write!(f, "invite file: {e}"),
-            Self::Corrupt(tag) => write!(f, "invite file is corrupt: {tag}"),
         }
     }
 }
@@ -201,8 +194,7 @@ impl Error for InviteError {
         match self {
             Self::Offer(e) => Some(e),
             Self::Io(e) => Some(e),
-            Self::Serde(e) => Some(e),
-            Self::NoNode | Self::Full | Self::Corrupt(_) => None,
+            Self::NoNode | Self::Full => None,
         }
     }
 }

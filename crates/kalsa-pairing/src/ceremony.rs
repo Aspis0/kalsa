@@ -168,6 +168,12 @@ impl Pairing {
     /// working. `None` when any hex field is not the hex this ceremony
     /// writes: a file half understood must not become an offer that would
     /// pair with nobody.
+    ///
+    /// What this takes on trust is the deadline and the node id — so the
+    /// invite reader checks both before it gets here: a deadline further
+    /// out than an invite could have been minted with, and a square with no
+    /// node to dial, are dropped there and never rebuilt. An offer from
+    /// this function is therefore always one this build could have written.
     pub(crate) fn restore(
         reachable: &str,
         code: &str,
@@ -192,11 +198,16 @@ impl Pairing {
     /// Does this offer hold the code that was presented? No transition:
     /// the invite set asks this first because `claim` consumes what it
     /// matches, and the set has to know which ceremony a claim belongs to
-    /// before it touches the file. The window is answered here too — an
-    /// offer whose deadline has passed is one this code no longer opens.
+    /// before it touches the file.
+    ///
+    /// The compare runs FIRST, always — even on an offer whose deadline has
+    /// passed — and the window is checked on the result: skipping the
+    /// constant-time compare for expired offers would make the time this
+    /// function takes say whether an offer is still alive, which is one bit
+    /// more than a code-guesser is owed.
     pub(crate) fn matches_offer(&self, presented: &str, now: SystemTime) -> bool {
         match self {
-            Self::Offered(offer) => now < offer.expires_at && offer.code.matches_hex(presented),
+            Self::Offered(offer) => offer.code.matches_hex(presented) && now < offer.expires_at,
             _ => false,
         }
     }

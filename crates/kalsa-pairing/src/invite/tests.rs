@@ -72,7 +72,7 @@ fn declares(square: &(String, String, String, Option<String>)) -> PhoneDeclarati
 #[test]
 fn a_claim_consumes_only_the_invitation_it_matches() {
     let now = start();
-    let mut invites = Invites::open(&scratch("two-invites"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("two-invites"), now);
     let first = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let second = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let (code, ..) = square_of(&link_of(&invites, first));
@@ -99,7 +99,7 @@ fn a_claim_consumes_only_the_invitation_it_matches() {
 #[test]
 fn a_wrong_code_consumes_nothing() {
     let now = start();
-    let mut invites = Invites::open(&scratch("wrong-code"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("wrong-code"), now);
     let first = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let second = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let (code, ..) = square_of(&link_of(&invites, first));
@@ -126,7 +126,7 @@ fn a_wrong_code_consumes_nothing() {
 #[test]
 fn an_invitation_lives_exactly_one_day() {
     let now = start();
-    let mut invites = Invites::open(&scratch("one-day"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("one-day"), now);
     let doomed = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let last_second = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let (code, ..) = square_of(&link_of(&invites, doomed));
@@ -159,7 +159,7 @@ fn an_invitation_lives_exactly_one_day() {
 #[test]
 fn the_eleventh_invitation_is_refused_and_nothing_is_evicted() {
     let now = start();
-    let mut invites = Invites::open(&scratch("cap"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("cap"), now);
     let mut minted = Vec::new();
     for _ in 0..MAX_INVITES {
         minted.push(invites.mint(REACHABLE, Some(NODE), None, now).unwrap());
@@ -181,9 +181,34 @@ fn the_eleventh_invitation_is_refused_and_nothing_is_evicted() {
 }
 
 #[test]
+fn a_claimed_ceremony_does_not_hold_a_slot() {
+    // Ten ON THE TABLE is the cap. A ceremony the phone has already claimed
+    // is not on the table: it left the file at its claim and leaves the set
+    // when it completes or expires, so it holds no slot of the ten and the
+    // owner can keep minting.
+    let now = start();
+    let (mut invites, _) = Invites::open(&scratch("cap-claimed"), now);
+    for _ in 0..MAX_INVITES {
+        invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
+    }
+    let claimed = invites.list()[0].0;
+    let (code, ..) = square_of(&link_of(&invites, claimed));
+    assert!(matches!(
+        invites.claim(&code, now + Duration::from_secs(1)),
+        Ok(ClaimResult::Claimed)
+    ));
+
+    assert_eq!(invites.list().len(), MAX_INVITES, "nine offered and one claimed");
+    assert!(
+        invites.mint(REACHABLE, Some(NODE), None, now).is_ok(),
+        "a claimed ceremony must not hold one of the ten"
+    );
+}
+
+#[test]
 fn minting_without_a_node_is_refused() {
     let now = start();
-    let mut invites = Invites::open(&scratch("no-node"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("no-node"), now);
 
     // A link whose phone has no node to dial would carry a code and no
     // road: refused, not minted half working.
@@ -203,7 +228,7 @@ fn minting_without_a_node_is_refused() {
 #[test]
 fn cancelling_takes_the_link_down() {
     let now = start();
-    let mut invites = Invites::open(&scratch("cancel"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("cancel"), now);
     let id = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let (code, ..) = square_of(&link_of(&invites, id));
 
@@ -221,7 +246,7 @@ fn cancelling_takes_the_link_down() {
 #[test]
 fn the_claimed_ceremony_finishes_through_the_set() {
     let now = start();
-    let mut invites = Invites::open(&scratch("complete"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("complete"), now);
     let first = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let second = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let left = square_of(&link_of(&invites, first));
@@ -255,9 +280,28 @@ fn the_claimed_ceremony_finishes_through_the_set() {
 }
 
 #[test]
+fn a_claim_never_takes_an_invitation_out_of_the_set() {
+    // The claim writes the file BEFORE the ceremony answers, so an
+    // invitation taken out of the set on the way would be one the file no
+    // longer has: if the ceremony then did not take the code, the owner's
+    // link would be gone with nothing said. No behaviour test can reach
+    // that branch — the set matched this same code a moment earlier — so
+    // the shape is pinned where it is written: `claim` removes nothing
+    // from `self.invites`; the invitation is either claimed in place or
+    // written back before an answer leaves the method.
+    let source = include_str!("../invite.rs");
+    let start = source.find("pub fn claim").expect("the set has a claim");
+    let rest = &source[start..];
+    let body = &rest[..rest.find("\n    }").expect("the claim's own closing brace")];
+    for removal in ["remove(", "pop(", "retain(", "drain"] {
+        assert!(!body.contains(removal), "`claim` must not take an invitation out of the set: {removal}\n{body}");
+    }
+}
+
+#[test]
 fn the_debug_of_a_set_prints_no_code() {
     let now = start();
-    let mut invites = Invites::open(&scratch("debug"), now).unwrap();
+    let (mut invites, _) = Invites::open(&scratch("debug"), now);
     let first = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let (code, nonce, _, _) = square_of(&link_of(&invites, first));
@@ -279,7 +323,7 @@ fn the_debug_of_a_set_prints_no_code() {
 fn the_link_round_trips_to_the_square_json() {
     let now = start();
     let path = scratch("link");
-    let mut invites = Invites::open(&path, now).unwrap();
+    let (mut invites, _) = Invites::open(&path, now);
     let id = invites.mint(REACHABLE, Some(NODE), None, now).unwrap();
     let link = link_of(&invites, id);
 

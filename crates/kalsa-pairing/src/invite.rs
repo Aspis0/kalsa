@@ -49,10 +49,12 @@ mod tests;
 /// of the owner's exposure — after it, the code is dead wherever it went.
 const INVITE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// The technical cap on invitations alive at once. Ten links is enough for
-/// a person to hand around and few enough that a forgotten tab cannot keep
-/// a door open indefinitely; an eleventh mint is refused, never a silent
-/// eviction of the oldest.
+/// The technical cap on invitations still ON THE TABLE at once — offered
+/// and unclaimed. Ten links is enough for a person to hand around and few
+/// enough that a forgotten tab cannot keep a door open indefinitely; an
+/// eleventh mint is refused, never a silent eviction of the oldest. A
+/// ceremony the phone has already claimed holds no slot: it left the file
+/// at its claim and leaves the set when it completes or expires.
 const MAX_INVITES: usize = 10;
 
 /// Where a link puts its payload: the origin the phone opens, then the
@@ -72,6 +74,10 @@ struct Invite {
 pub struct Invites {
     path: PathBuf,
     invites: Vec<Invite>,
+    /// The id the next mint takes. It rides the file and only moves
+    /// forward, so an id is never handed out twice while the file lives —
+    /// see [`Invites::take_id`].
+    next_id: u32,
 }
 
 // Written by hand and printing ids and deadlines only. The ceremonies hold
@@ -94,19 +100,30 @@ impl fmt::Debug for Invites {
 
 impl Invites {
     /// The owner's invitations as they stood: every one still inside its
-    /// window, rebuilt from the file exactly as it was written, and none
-    /// at all where there is no file. Expired records are dropped here and
-    /// the file is left as it is — a read has no business publishing, and
-    /// the next mint, cancel or claim writes the set it actually holds.
-    pub fn open(path: &Path, now: SystemTime) -> Result<Self, InviteError> {
-        let entries = file::read(path, now)?;
-        Ok(Self {
-            path: path.to_path_buf(),
-            invites: entries
-                .into_iter()
-                .map(|(id, pairing)| Invite { id, pairing })
-                .collect(),
-        })
+    /// window, rebuilt from the file exactly as it was written. The second
+    /// answer says whether the file held invitations this build did NOT
+    /// bring back — unreadable, another version, or a record the window and
+    /// node rules refused — which is all step 2 needs if it has to tell the
+    /// owner that earlier links are gone. Records that merely expired are
+    /// not counted: the day ending is not a loss.
+    ///
+    /// An unreadable file is an EMPTY set, never an error: nothing in it is
+    /// honoured, the next write replaces it atomically, and one bad file
+    /// cannot end the feature.
+    pub fn open(path: &Path, now: SystemTime) -> (Self, bool) {
+        let loaded = file::read(path, now);
+        (
+            Self {
+                path: path.to_path_buf(),
+                invites: loaded
+                    .invites
+                    .into_iter()
+                    .map(|(id, pairing)| Invite { id, pairing })
+                    .collect(),
+                next_id: loaded.next_id,
+            },
+            loaded.discarded,
+        )
     }
 
     /// One more invitation, alive for a day. The link is an iroh link: a
@@ -121,7 +138,12 @@ impl Invites {
         tailnet: Option<&str>,
         now: SystemTime,
     ) -> Result<u32, InviteError> {
-        if self.invites.len() >= MAX_INVITES {
+        let outstanding = self
+            .invites
+            .iter()
+            .filter(|invite| matches!(invite.pairing, Pairing::Offered(_)))
+            .count();
+        if outstanding >= MAX_INVITES {
             return Err(InviteError::Full);
         }
         let node = node
@@ -129,9 +151,9 @@ impl Invites {
             .ok_or(InviteError::NoNode)?;
         let pairing = Pairing::offer(reachable, Some(node), tailnet, now, INVITE_TTL)
             .map_err(InviteError::Offer)?;
-        let id = self.next_id()?;
+        let id = self.take_id()?;
         self.invites.push(Invite { id, pairing });
-        if let Err(error) = self.persist() {
+        if let Err(error) = self.persist(None) {
             // The file kept the set it had, so the set keeps it too: an
             // invite the disk never saw must not be on the table here.
             self.invites.pop();
@@ -172,7 +194,7 @@ impl Invites {
             return Ok(());
         };
         let cancelled = self.invites.remove(index);
-        if let Err(error) = self.persist() {
+        if let Err(error) = self.persist(None) {
             // The file kept the invitation, so the set keeps it: the owner
             // asked for a cancellation this disk would contradict.
             self.invites.insert(index, cancelled);
@@ -191,6 +213,11 @@ impl Invites {
     /// restart must never bring a used code back. A write that fails leaves
     /// the invitation live in memory and on disk alike and reports the
     /// file, never a success the disk would contradict on the next start.
+    ///
+    /// From a claim that succeeds, the ceremony is MEMORY-ONLY: the file no
+    /// longer holds it, so a restart drops it and the phone needs a new
+    /// link. One use wins over a link that outlives this process — which is
+    /// the trade the whole method exists to make.
     pub fn claim(&mut self, presented: &str, now: SystemTime) -> Result<ClaimResult, InviteError> {
         // Every live invitation is compared, not just up to the first hit:
         // how long this walk takes must not say which one (if any) matched.
@@ -203,30 +230,30 @@ impl Invites {
         let Some(index) = matched else {
             return Ok(ClaimResult::Rejected);
         };
-        let mut invite = self.invites.remove(index);
-        if let Err(error) = self.persist() {
-            self.invites.insert(index, invite);
-            return Err(error);
-        }
+        let id = self.invites[index].id;
+        self.persist(Some(id))?;
         if matches!(
-            invite.pairing.claim(presented, now),
+            self.invites[index].pairing.claim(presented, now),
             ClaimResult::Claimed
         ) {
-            self.invites.insert(index, invite);
             return Ok(ClaimResult::Claimed);
         }
-        // The file has already lost this invitation, so it must not come
-        // back through memory either — whatever the ceremony said about it,
-        // it is off the table, and the phone is told the same single thing
-        // it is told for every other miss.
+        // The set matched this code a moment ago, so this arm is not meant
+        // to be reachable — and it still must not cost the owner an
+        // invitation: the file has lost it, so the file is told it is back
+        // on the table, memory and disk agree again, and the phone is
+        // answered like any other miss.
+        self.persist(None)?;
         Ok(ClaimResult::Rejected)
     }
 
-    /// Retire every invitation whose window has closed. Nothing lingers to
-    /// be shown as "expired": a dead invitation leaves the list, stops
-    /// matching a code, and is dropped from the file. Only a dying OFFER
-    /// writes — a claim left the disk at claim time, so there is nothing
-    /// there to remove.
+    /// Retire every invitation whose window has closed — a claim that never
+    /// finishes included: its window is the offer's, it holds no slot, and
+    /// once it is dead nothing here needs it for. Nothing lingers to be
+    /// shown as "expired": a dead invitation leaves the list, stops matching
+    /// a code, and is dropped from the file. Only a dying OFFER writes — a
+    /// claim left the disk at claim time, so there is nothing there to
+    /// remove.
     pub fn expire_if_due(&mut self, now: SystemTime) -> Result<(), InviteError> {
         let mut dropped_offer = false;
         self.invites.retain_mut(|invite| {
@@ -237,7 +264,7 @@ impl Invites {
             alive
         });
         if dropped_offer {
-            self.persist()?;
+            self.persist(None)?;
         }
         Ok(())
     }
@@ -275,15 +302,18 @@ impl Invites {
     }
 
     /// The invitations the file is written from: every offer still on the
-    /// table, as the square's own JSON. A claimed ceremony is not among
-    /// them — this write is what takes a claim off the disk, which is why
-    /// `claim` calls it before it answers.
-    fn persist(&self) -> Result<(), InviteError> {
+    /// table, as the square's own JSON, plus the id counter. A claimed
+    /// ceremony is not among them and never can be — the file stopped
+    /// holding it at its claim, which is why a claimed invitation exists
+    /// only in this process's memory until it completes or expires.
+    /// `except` is how the claim's own write names the invitation the phone
+    /// has matched while it is still an offer here.
+    fn persist(&self, except: Option<u32>) -> Result<(), InviteError> {
         let records = self
             .invites
             .iter()
             .filter_map(|invite| {
-                if !matches!(invite.pairing, Pairing::Offered(_)) {
+                if Some(invite.id) == except || !matches!(invite.pairing, Pairing::Offered(_)) {
                     return None;
                 }
                 Some(file::Record {
@@ -293,22 +323,21 @@ impl Invites {
                 })
             })
             .collect();
-        file::write(&self.path, records)
+        file::write(&self.path, self.next_id, records)
     }
 
-    /// One above the highest id in the set as it stands now: unique within
-    /// the set, not forever — a cancelled or expired invitation's id is
-    /// free again, and the page is holding a list it asked for anyway. The
-    /// id space itself is finite, and the last id in it is refused rather
-    /// than handed out twice: the file must always be able to name the
-    /// invitation after it.
-    fn next_id(&self) -> Result<u32, InviteError> {
-        self.invites
-            .iter()
-            .map(|invite| invite.id)
-            .max()
-            .map_or(Ok(0), |highest| {
-                highest.checked_add(1).ok_or(InviteError::Full)
-            })
+    /// The next id, once. It comes from the counter the file carries, not
+    /// from the records that happen to have survived a read: an id is never
+    /// handed out twice while this file lives, so a stale row's [`link`]
+    /// finds nothing rather than a different, live invitation. The counter
+    /// only moves forward, and the id space running out is the one mint it
+    /// refuses — [`InviteError::Full`] again, because no new invitation can
+    /// be named.
+    ///
+    /// [`link`]: Invites::link
+    fn take_id(&mut self) -> Result<u32, InviteError> {
+        let id = self.next_id;
+        self.next_id = id.checked_add(1).ok_or(InviteError::Full)?;
+        Ok(id)
     }
 }

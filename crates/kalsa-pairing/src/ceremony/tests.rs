@@ -502,3 +502,25 @@ fn no_rendering_carries_a_secret() {
         );
     }
 }
+
+#[test]
+fn the_compare_runs_even_when_the_window_has_closed() {
+    // The deadline must not be consulted before the code: skipping the
+    // constant-time compare for an expired offer would make the time this
+    // function takes say whether the offer is still alive — one bit more
+    // than a code-guesser is owed. Both orders answer the same, so no
+    // behaviour test can see which one runs; the order is pinned where it
+    // is written.
+    let source = include_str!("../ceremony.rs");
+    let start = source.find("fn matches_offer").expect("the set asks this");
+    let rest = &source[start..];
+    let body = &rest[..rest.find("\n    }").expect("the function's own closing brace")];
+    let compare = body.find("matches_hex").expect("the compare is in the body");
+    let window = body
+        .find("now < offer.expires_at")
+        .expect("the window is in the body");
+    assert!(
+        compare < window,
+        "the code must be compared before the window is consulted:\n{body}"
+    );
+}

@@ -1,11 +1,14 @@
 //! The credential store: the handshake result, on disk, owner-only.
 //!
 //! Publication is atomic, in the spirit of `kalsa-download`'s publish: the
-//! bytes land in a sibling temp file, are flushed with `sync_all`, and only
-//! then is the temp renamed onto the credential's name — a reader of the
-//! final path sees the old complete file or the new complete file, never a
-//! torn half, and a crash mid-write leaves a temp that the next write
-//! replaces, never a credential wedged behind `AlreadyPaired`.
+//! bytes land in a sibling temp file — named for the target, so two targets
+//! can never share one — are flushed with `sync_all`, and only then is the
+//! temp renamed onto the credential's name, with the directory that rename
+//! landed in fsynced after it. A reader of the final path sees the old
+//! complete file or the new complete file, never a torn half; a crash
+//! mid-write leaves a temp that the next write replaces, never a credential
+//! wedged behind `AlreadyPaired`; and power loss cannot roll the name back
+//! to the file it pointed at before.
 //!
 //! Owner-only means two different machines here, and both are said plainly.
 //! On Unix the temp file is created `0600` — owner read and write, nothing
@@ -563,23 +566,26 @@ fn write_records(records: &[StoredDeviceRecord], path: &Path) -> Result<(), Stor
 /// rather than growing a second one whose permissions could drift apart
 /// from the credential's.
 pub(crate) fn publish_json(value: &impl Serialize, path: &Path) -> std::io::Result<()> {
-    write_temp(value, path).map_err(|error| match error {
-        StoreError::Serde(error) => std::io::Error::other(error),
-        // The write path fails on the file or on encoding this crate just
-        // built, and `Io` is the file. The store's own refusals belong to
-        // the paths that read first; this one does not read.
-        error => std::io::Error::other(error),
-    })?;
+    write_temp(value, path).map_err(std::io::Error::other)?;
     publish_temp(&temp_path(path), path)
 }
 
 fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
-        return fs::rename(temp, path).map_err(|e| {
+        fs::rename(temp, path).map_err(|e| {
             let _ = fs::remove_file(temp);
             e
-        });
+        })?;
+        // The file's bytes were synced before the rename; the rename itself
+        // is on disk only once the DIRECTORY holding it is. A power loss in
+        // between rolls the file back to whatever it said before — for a
+        // claim, to a version still holding a used code. The failure of this
+        // last step is not reported: the rename has already happened, and a
+        // caller told its write failed would roll back a memory state the
+        // file has already moved past.
+        sync_parent(path);
+        Ok(())
     }
     #[cfg(windows)]
     {
@@ -612,9 +618,34 @@ fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
     }
 }
 
-/// The sibling name the bytes land in before publication.
+/// The sibling name the bytes land in before publication: the target's own
+/// FULL name with `.tmp` appended. The extension is deliberately not
+/// replaced — that mapping is not one-to-one: `pairing` and
+/// `pairing.json` both used to stage in `pairing.tmp`, so one document
+/// could be renamed onto the other, and a target already named `*.tmp` was
+/// its own temp (publishing it would have truncated it first).
 fn temp_path(path: &Path) -> PathBuf {
-    path.with_extension("tmp")
+    let Some(name) = path.file_name() else {
+        // Nothing to extend: a path that cannot name a file. Joining keeps
+        // the temp off the target itself.
+        return path.join(".tmp");
+    };
+    let mut temp = name.to_os_string();
+    temp.push(".tmp");
+    path.with_file_name(temp)
+}
+
+/// fsync the directory an entry was just renamed into, so the rename is
+/// durable. Opening a directory is how unix syncs one; there is no
+/// directory handle to fsync on Windows, where `MoveFileExW` is called with
+/// `MOVEFILE_WRITE_THROUGH` instead (see [`publish_temp`]).
+#[cfg(unix)]
+fn sync_parent(path: &Path) {
+    let parent = match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    let _ = fs::File::open(parent).and_then(|directory| directory.sync_all());
 }
 
 #[cfg(unix)]
@@ -763,15 +794,17 @@ fn current_user_sid() -> std::io::Result<String> {
 /// store does not demand the file be legible to accept it.
 ///
 /// The credential lives in TWO places after a crashed write: the store and
-/// its sibling temp. Both go, because this is the one operation whose
-/// entire promise is that the secret is gone. A file that was never there
-/// is success; a file that exists and cannot be removed is a failure to
-/// discard, and saying `Ok` there would be this function lying about the
-/// only thing it promises.
+/// its sibling temp — plus, for a crash under the temp name this build
+/// inherited, that same temp under its earlier spelling. All of them go,
+/// because this is the one operation whose entire promise is that the
+/// secret is gone. A file that was never there is success; a file that
+/// exists and cannot be removed is a failure to discard, and saying `Ok`
+/// there would be this function lying about the only thing it promises.
 pub fn forget(path: &Path) -> Result<(), StoreError> {
     let store = discard(path);
     let temp = discard(&temp_path(path));
-    store.and(temp)
+    let earlier = discard(&path.with_extension("tmp"));
+    store.and(temp).and(earlier)
 }
 
 /// Removes one file. Already gone is success; present but unremovable is
