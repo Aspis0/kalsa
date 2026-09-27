@@ -1,0 +1,12 @@
+{"depth": 10, "seed": 1, "pass": true, "prompt_tokens": 4488, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**.\n\nVuoi che continui a raccontarti la storia dei Promessi Sposi?"}
+{"depth": 25, "seed": 1, "pass": true, "prompt_tokens": 11351, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 50, "seed": 1, "pass": true, "prompt_tokens": 22669, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 75, "seed": 1, "pass": true, "prompt_tokens": 33834, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 100, "seed": 1, "pass": true, "prompt_tokens": 44467, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 120, "seed": 1, "pass": true, "prompt_tokens": 52997, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 10, "seed": 2, "pass": true, "prompt_tokens": 4529, "refusal": false, "answer": "Il tuo cane si chiama Pablo."}
+{"depth": 25, "seed": 2, "pass": true, "prompt_tokens": 11113, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**.\n\nVuoi che continui a raccontarti la storia dei *Promessi Sposi*?"}
+{"depth": 50, "seed": 2, "pass": true, "prompt_tokens": 22363, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 75, "seed": 2, "pass": true, "prompt_tokens": 33596, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 100, "seed": 2, "pass": true, "prompt_tokens": 44732, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
+{"depth": 120, "seed": 2, "pass": true, "prompt_tokens": 53671, "refusal": false, "answer": "Il tuo cane si chiama **Pablo**."}
