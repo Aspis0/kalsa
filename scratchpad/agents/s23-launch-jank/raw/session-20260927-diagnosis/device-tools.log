@@ -1,0 +1,8 @@
+/system/bin/simpleperf
+simpleperf I command.cpp:262] Simpleperf version 1.build.S911USQS6EYL1
+priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+com.kalsa.app/.MainActivity
+Physical size: 1080x2340
+Physical density: 480
+      topResumedActivity=ActivityRecord{241150874 u0 com.sec.android.app.launcher/.activities.LauncherActivity t15}
+Failed to write while dumping service activity: Broken pipe

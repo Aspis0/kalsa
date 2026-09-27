@@ -1,0 +1,85 @@
+Applications Graphics Acceleration Info:
+Uptime: 115422585 Realtime: 143047028
+
+** Graphics info for pid 16346 [com.kalsa.app] **
+
+Stats since: 115404908270350ns
+Total frames rendered: 1010
+Janky frames: 44 (4.36%)
+Janky frames (legacy): 44 (4.36%)
+50th percentile: 6ms
+90th percentile: 13ms
+95th percentile: 28ms
+99th percentile: 950ms
+Number Missed Vsync: 5
+Number High input latency: 1698
+Number Slow UI thread: 11
+Number Slow bitmap uploads: 0
+Number Slow issue draw commands: 38
+Number Frame deadline missed: 44
+Number Frame deadline missed (legacy): 1
+HISTOGRAM: 5ms=469 6ms=299 7ms=58 8ms=26 9ms=16 10ms=17 11ms=12 12ms=9 13ms=7 14ms=8 15ms=6 16ms=5 17ms=1 18ms=0 19ms=0 20ms=4 21ms=2 22ms=2 23ms=2 24ms=2 25ms=2 26ms=6 27ms=0 28ms=7 29ms=2 30ms=2 31ms=1 32ms=8 34ms=9 36ms=5 38ms=0 40ms=0 42ms=0 44ms=0 46ms=0 48ms=0 53ms=0 57ms=0 61ms=0 65ms=0 69ms=0 73ms=1 77ms=0 81ms=1 85ms=0 89ms=0 93ms=1 97ms=0 101ms=0 105ms=0 109ms=0 113ms=0 117ms=1 121ms=0 125ms=1 129ms=0 133ms=0 150ms=4 200ms=1 250ms=0 300ms=0 350ms=0 400ms=0 450ms=0 500ms=0 550ms=0 600ms=0 650ms=0 700ms=0 750ms=0 800ms=0 850ms=2 900ms=0 950ms=3 1000ms=2 1050ms=4 1100ms=0 1150ms=0 1200ms=0 1250ms=0 1300ms=0 1350ms=0 1400ms=0 1450ms=0 1500ms=0 1550ms=0 1600ms=0 1650ms=0 1700ms=0 1750ms=0 1800ms=2 1850ms=0 1900ms=0 1950ms=0 2000ms=0 2050ms=0 2100ms=0 2150ms=0 2200ms=0 2250ms=0 2300ms=0 2350ms=0 2400ms=0 2450ms=0 2500ms=0 2550ms=0 2600ms=0 2650ms=0 2700ms=0 2750ms=0 2800ms=0 2850ms=0 2900ms=0 2950ms=0 3000ms=0 3050ms=0 3100ms=0 3150ms=0 3200ms=0 3250ms=0 3300ms=0 3350ms=0 3400ms=0 3450ms=0 3500ms=0 3550ms=0 3600ms=0 3650ms=0 3700ms=0 3750ms=0 3800ms=0 3850ms=0 3900ms=0 3950ms=0 4000ms=0 4050ms=0 4100ms=0 4150ms=0 4200ms=0 4250ms=0 4300ms=0 4350ms=0 4400ms=0 4450ms=0 4500ms=0 4550ms=0 4600ms=0 4650ms=0 4700ms=0 4750ms=0 4800ms=0 4850ms=0 4900ms=0 4950ms=0
+50th gpu percentile: 2ms
+90th gpu percentile: 7ms
+95th gpu percentile: 25ms
+99th gpu percentile: 4950ms
+GPU HISTOGRAM: 1ms=179 2ms=415 3ms=126 4ms=155 5ms=14 6ms=16 7ms=14 8ms=8 9ms=5 10ms=2 11ms=4 12ms=1 13ms=0 14ms=0 15ms=0 16ms=0 17ms=4 18ms=0 19ms=3 20ms=2 21ms=3 22ms=4 23ms=2 24ms=2 25ms=6 4950ms=45
+
+Pipeline=Skia (OpenGL)
+Memory policy:
+  Max surface area: 2527200
+  Max resource usage: 121.31MB (x48)
+  Background retention: 50% (altUiHidden = true)
+  GPU Context timeout: 10
+Contexts: 2 (stopped = 1)
+CPU Caches:
+  Glyph Cache: 661.72 KB (1 entry)
+  Glyph Count: 75 
+Total CPU memory usage:
+  677604 bytes, 661.72 KB (0.00 bytes is purgeable)
+GPU Caches:
+  Other:
+    TextBlobCache: 1.55 MB (1 entry)
+    Buffer Object: 2.05 KB (2 entries)
+  Image:
+    Texture: 8.55 MB (71 entries)
+  Scratch:
+    Buffer Object: 78.00 KB (2 entries)
+    Texture: 4.50 MB (3 entries)
+Total GPU memory usage:
+  15389144 bytes, 14.68 MB (8.97 MB is purgeable)
+
+GraphicBufferAllocator buffers:
+            Handle |         Size |     W (Stride) x H | Layers |   Format |      Usage | Requestor
+0xb400007be62a5600 |  9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39
+0xb400007be62c2d80 |  9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39
+0xb400007be62c2e00 |  9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39
+0xb400007be62f4c00 |  9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39
+Total allocated by GraphicBufferAllocator (estimate): 39780.00 KB
+Imported gralloc buffers:
++ name:VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39, id:13338, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x0, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39, id:13337, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x0, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39, id:13336, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x0, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]@6aa4cbe#39(BLAST Consumer)39, id:13335, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x0, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
+Total imported by gralloc: 40288.00KiB
+
+Profile data in ms:
+
+	com.kalsa.app/com.kalsa.app.MainActivity/android.view.ViewRootImpl@850d29e (visibility=0)
+View hierarchy:
+
+  com.kalsa.app/com.kalsa.app.MainActivity/android.view.ViewRootImpl@850d29e
+  81 views, 159.48 kB of render nodes
+
+
+Total ViewRootImpl   : 1
+Total attached Views : 81
+Total RenderNode     : 159.48 kB (used) / 524.54 kB (capacity)
+
+Total STB frames rendered : 0
+  ProcessConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.84 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+  Application ResourcesConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.84 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}

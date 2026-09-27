@@ -1,0 +1,80 @@
+Usage: simpleperf record [options] [--] [command [command-args]]
+       Gather sampling information of running [command]. And -a/-p/-t option
+       can be used to change target of sampling information.
+       The default options are: -e cpu-cycles -f 4000 -o perf.data.
+Select monitored threads:
+-a     System-wide collection. Use with --exclude-perf to exclude samples for
+       simpleperf process.
+--app package_name    Profile the process of an Android application.
+                      On non-rooted devices, the app must be debuggable,
+                      because we use run-as to switch to the app's context.
+-p pid_or_process_name_regex1,pid_or_process_name_regex2,...
+                      Record events on existing processes. Processes are searched either by pid
+                      or process name regex. Mutually exclusive with -a.
+-t tid1,tid2,... Record events on existing threads. Mutually exclusive with -a.
+
+Select monitored event types:
+-e event1[:modifier1],event2[:modifier2],...
+             Select a list of events to record. An event can be:
+               1) an event name listed in `simpleperf list`;
+               2) a raw PMU event in rN format. N is a hex number.
+                  For example, r1b selects event number 0x1b.
+               3) a kprobe event added by --kprobe option.
+               4) a uprobe event added by --uprobe option.
+             Modifiers can be added to define how the event should be
+             monitored. Possible modifiers are:
+                u - monitor user space events only
+                k - monitor kernel space events only
+--group event1[:modifier],event2[:modifier2],...
+             Similar to -e option. But events specified in the same --group
+             option are monitored as a group, and scheduled in and out at the
+             same time.
+--trace-offcpu   Generate samples when threads are scheduled off cpu.
+                 Similar to "-c 1 -e sched:sched_switch".
+--kprobe kprobe_event1,kprobe_event2,...
+             Add kprobe events during recording. The kprobe_event format is in
+             Documentation/trace/kprobetrace.rst in the kernel. Examples:
+               'p:myprobe do_sys_openat2 $arg2:string'   - add event kprobes:myprobe
+               'r:myretprobe do_sys_openat2 $retval:s64' - add event kprobes:myretprobe
+--uprobe uprobe_event1,uprobe_event2,...
+             Add uprobe events during recording. The uprobe_event format is in
+             Documentation/trace/uprobetracer.rst in the kernel. Examples:
+               'p:myprobe /system/lib64/libc.so:0x1000'
+                   - add event uprobes:myprobe
+               'r:myretprobe /system/lib64/libc.so:0x1000'
+                   - add event uprobes:myretprobe
+--add-counter event1,event2,...     Add additional event counts in record samples. For example,
+                                    we can use `-e cpu-cycles --add-counter instructions` to
+                                    get samples for cpu-cycles event, while having instructions
+                                    event count for each sample.
+
+Select monitoring options:
+-f freq      Set event sample frequency. It means recording at most [freq]
+             samples every second. For non-tracepoint events, the default
+             option is -f 4000. A -f/-c option affects all event types
+             following it until meeting another -f/-c option. For example,
+             for "-f 1000 -e cpu-cycles -c 1 -e sched:sched_switch", cpu-cycles
+             has sample freq 1000, sched:sched_switch event has sample period 1.
+-c count     Set event sample period. It means recording one sample when
+             [count] events happen. For tracepoint events, the default option
+             is -c 1.
+--call-graph fp | dwarf[,<dump_stack_size>]
+             Enable call graph recording. Use frame pointer or dwarf debug
+             frame as the method to parse call graph in stack.
+             Default is no call graph. Default dump_stack_size with -g is 65528.
+-g           Same as '--call-graph dwarf'.
+--clockid clock_id      Generate timestamps of samples using selected clock.
+                        Possible values are: realtime, monotonic,
+                        monotonic_raw, boottime, perf. If supported, default
+                        is monotonic, otherwise is perf.
+--cpu cpu_item1,cpu_item2,...  Monitor events on selected cpus. cpu_item can be a number like
+                               1, or a range like 0-3. A --cpu option affects all event types
+                               following it until meeting another --cpu option.
+--delay    time_in_ms   Wait time_in_ms milliseconds before recording samples.
+--duration time_in_sec  Monitor for time_in_sec seconds instead of running
+                        [command]. Here time_in_sec may be any positive
+                        floating point number.
+-j branch_filter1,branch_filter2,...
+             Enable taken branch stack sampling. Each sample captures a series
+             of consecutive taken branches.
+             The following filters are defined:

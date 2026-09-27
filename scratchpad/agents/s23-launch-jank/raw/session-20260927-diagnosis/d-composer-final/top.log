@@ -1,0 +1,639 @@
+Threads: 58 total,   1 running,  57 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6160972K used,  1082772K free,     3844K buffers
+ Swap:  4194300K total,  1331296K used,  2863004K free,  1986884K cached
+800%cpu 119%user  27%nice 254%sys 338%idle  35%iow  19%irq   8%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16352 u0_a347      29   9  17G 311M 133M R 23.0   4.3   0:02.29 Jit thread pool com.kalsa.app
+16346 u0_a347      10 -10  17G 311M 133M D 23.0   4.3   0:48.82 com.kalsa.app   com.kalsa.app
+16373 u0_a347      10 -10  17G 311M 133M S  3.8   4.3   0:10.36 RenderThread    com.kalsa.app
+21388 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.00 AsyncTask #16   com.kalsa.app
+21230 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.00 RenderThread    com.kalsa.app
+21228 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.06 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 311M 133M S  0.0   4.3   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.10 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.00 SurfaceSyncGrou com.kalsa.app
+16387 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:11.12 ncFunctionQueue com.kalsa.app
+16389 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 311M 133M S  0.0   4.3   0:00.00 queued-work-loo com.kalsa.app
+16382 u0_a347      10 -10  17G 311M 133M S  0.0   4.3   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 311M 133M S  0.0   4.3   0:00.26 hwuiTask1       com.kalsa.app
+16381 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:05.90 hades           com.kalsa.app
+16383 u0_a347      18  -2  17G 311M 133M S  0.0   4.3   0:00.22 hwuiTask0       com.kalsa.app
+16377 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.19 pool-5-thread-1 com.kalsa.app
+16378 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   3:21.35 mqt_v_js        com.kalsa.app
+16379 u0_a347      16  -4  17G 311M 133M S  0.0   4.3   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 311M 133M S  0.0   4.3   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.21 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.07 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 311M 133M S  0.0   4.3   0:00.02 binder:16346_1  com.kalsa.app
+16350 u0_a347       0 -20  17G 311M 133M S  0.0   4.3   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 311M 133M S  0.0   4.3   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 311M 133M S  0.0   4.3   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 311M 133M S  0.0   4.3   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 311M 133M S  0.0   4.3   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 311M 133M S  0.0   4.3   0:00.51 HeapTaskDaemon  com.kalsa.app
+16351 u0_a347       0 -20  17G 311M 133M S  0.0   4.3   0:00.00 ADB-JDWP Connec com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6250064K used,   993680K free,     3844K buffers
+ Swap:  4194300K total,  1329760K used,  2864540K free,  2038464K cached
+800%cpu  50%user   4%nice  58%sys 673%idle   0%iow  12%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16373 u0_a347      10 -10  17G 316M 137M S 23.0   4.4   0:10.58 RenderThread    com.kalsa.app
+16346 u0_a347      10 -10  17G 316M 137M S 19.2   4.4   0:49.16 com.kalsa.app   com.kalsa.app
+24618 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21229 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21228 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16387 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16389 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16382 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16381 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16383 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16377 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16378 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   3:21.49 mqt_v_js        com.kalsa.app
+16379 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.22 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16359 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16360 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_2  com.kalsa.app
+16351 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:02.43 Jit thread pool com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6255816K used,   987928K free,     3844K buffers
+ Swap:  4194300K total,  1329504K used,  2864796K free,  2039500K cached
+800%cpu  31%user   0%nice  77%sys 681%idle   0%iow   8%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 316M 137M S  7.6   4.4   0:49.38 com.kalsa.app   com.kalsa.app
+16373 u0_a347      10 -10  17G 316M 137M S  3.8   4.4   0:10.67 RenderThread    com.kalsa.app
+24618 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21229 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21228 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16387 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16389 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16382 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16381 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16383 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16377 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16378 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   3:21.67 mqt_v_js        com.kalsa.app
+16379 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16359 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16360 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_2  com.kalsa.app
+16351 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6260352K used,   983392K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2039956K cached
+800%cpu  30%user   4%nice  41%sys 715%idle   0%iow   7%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 316M 137M S  3.7   4.4   0:49.54 com.kalsa.app   com.kalsa.app
+24618 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21228 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16454 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16455 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16389 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16387 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16386 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16384 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16383 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16382 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16381 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16379 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16378 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   3:21.74 mqt_v_js        com.kalsa.app
+16377 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16376 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16373 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:10.71 RenderThread    com.kalsa.app
+16370 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.08 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16356 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+16351 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6265592K used,   978152K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2040492K cached
+800%cpu  27%user   0%nice  69%sys 688%idle   0%iow  12%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 316M 137M S  7.6   4.4   0:49.62 com.kalsa.app   com.kalsa.app
+16409 u0_a347      20   0  17G 316M 137M S  3.8   4.4   0:00.10 binder:16346_4  com.kalsa.app
+16373 u0_a347      10 -10  17G 316M 137M S  3.8   4.4   0:10.72 RenderThread    com.kalsa.app
+24618 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21228 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16414 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16415 u0_a347      30  10  17G 316M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16406 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16389 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16387 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16385 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16383 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16381 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16382 u0_a347      10 -10  17G 316M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 316M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16378 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   3:21.74 mqt_v_js        com.kalsa.app
+16377 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16379 u0_a347      16  -4  17G 316M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.08 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 316M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16351 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 316M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 316M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 316M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6266268K used,   977476K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2041636K cached
+800%cpu  19%user   0%nice  54%sys 712%idle   0%iow  12%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 317M 137M S 11.5   4.4   0:49.73 com.kalsa.app   com.kalsa.app
+16373 u0_a347      10 -10  17G 317M 137M S  3.8   4.4   0:10.74 RenderThread    com.kalsa.app
+24618 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21229 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21228 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.11 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16387 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16389 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16382 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16381 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16383 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16377 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16378 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   3:21.74 mqt_v_js        com.kalsa.app
+16379 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16359 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16360 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.09 binder:16346_2  com.kalsa.app
+16351 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6266284K used,   977460K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2041848K cached
+800%cpu  15%user   0%nice  35%sys 738%idle   0%iow  12%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 317M 137M S 11.5   4.4   0:49.86 com.kalsa.app   com.kalsa.app
+24618 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21228 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16454 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16455 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.11 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16389 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16387 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16386 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16384 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16383 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16382 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16381 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16379 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16378 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   3:21.74 mqt_v_js        com.kalsa.app
+16377 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16376 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16373 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:10.77 RenderThread    com.kalsa.app
+16370 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.09 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16356 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+16351 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6268972K used,   974772K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2042780K cached
+800%cpu  26%user   4%nice  41%sys 711%idle   0%iow  11%irq   7%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 317M 137M S  3.7   4.4   0:49.96 com.kalsa.app   com.kalsa.app
+24618 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21228 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16454 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16455 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.11 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16389 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16387 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16386 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16384 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16383 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16382 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16381 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16379 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16378 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   3:21.75 mqt_v_js        com.kalsa.app
+16377 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16376 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16373 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:10.79 RenderThread    com.kalsa.app
+16370 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.09 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16356 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:02.45 Jit thread pool com.kalsa.app
+16351 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6269976K used,   973768K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2043108K cached
+800%cpu  31%user   0%nice  54%sys 704%idle   4%iow   8%irq   0%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 317M 137M S  3.8   4.4   0:50.08 com.kalsa.app   com.kalsa.app
+24618 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21228 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21229 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16454 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16455 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.11 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16389 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16387 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16386 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16384 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16383 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16382 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16381 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16379 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16378 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   3:21.75 mqt_v_js        com.kalsa.app
+16377 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16376 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16373 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:10.80 RenderThread    com.kalsa.app
+16370 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16360 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.09 binder:16346_2  com.kalsa.app
+16359 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16356 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:02.46 Jit thread pool com.kalsa.app
+16351 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+Threads: 59 total,   0 running,  59 sleeping,   0 stopped,   0 zombie
+  Mem:  7243744K total,  6270872K used,   972872K free,     3844K buffers
+ Swap:  4194300K total,  1329248K used,  2865052K free,  2043712K cached
+800%cpu  15%user   0%nice  50%sys 723%idle   0%iow   8%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+16346 u0_a347      10 -10  17G 317M 137M S  7.6   4.4   0:50.21 com.kalsa.app   com.kalsa.app
+16373 u0_a347      10 -10  17G 317M 137M S  3.8   4.4   0:10.81 RenderThread    com.kalsa.app
+24618 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 InteractionJank com.kalsa.app
+21388 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 AsyncTask #16   com.kalsa.app
+21229 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21227 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21226 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21228 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21230 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.00 RenderThread    com.kalsa.app
+21223 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+21091 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoDecodeExe com.kalsa.app
+18659 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.07 binder:16346_7  com.kalsa.app
+18309 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoDecodeExe com.kalsa.app
+18308 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoIoBoundEx com.kalsa.app
+17195 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.14 binder:16346_6  com.kalsa.app
+16856 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16471 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 AdrenoOsLib     com.kalsa.app
+16470 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.41 AdrenoOsLib     com.kalsa.app
+16455 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16453 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.45 mqt_v_native    com.kalsa.app
+16454 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16451 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16452 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16448 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:04.54 mqt_v_native    com.kalsa.app
+16449 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:01.17 mqt_v_native    com.kalsa.app
+16450 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 mqt_v_native    com.kalsa.app
+16415 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.01 FrescoIoBoundEx com.kalsa.app
+16414 u0_a347      30  10  17G 317M 137M S  0.0   4.4   0:00.00 FrescoLightWeig com.kalsa.app
+16409 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.11 binder:16346_4  com.kalsa.app
+16406 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.00 hades           com.kalsa.app
+16405 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 finitionBuilder com.kalsa.app
+16395 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.31 binder:16346_5  com.kalsa.app
+16391 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 SurfaceSyncGrou com.kalsa.app
+16387 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:11.12 ncFunctionQueue com.kalsa.app
+16389 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16388 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.00 DefaultDispatch com.kalsa.app
+16386 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.01 Expo JNI deallo com.kalsa.app
+16385 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.00 queued-work-loo com.kalsa.app
+16382 u0_a347      10 -10  17G 317M 137M S  0.0   4.4   0:00.02 TracingMuxer    com.kalsa.app
+16384 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.26 hwuiTask1       com.kalsa.app
+16381 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:05.90 hades           com.kalsa.app
+16383 u0_a347      18  -2  17G 317M 137M S  0.0   4.4   0:00.23 hwuiTask0       com.kalsa.app
+16377 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.19 pool-5-thread-1 com.kalsa.app
+16378 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   3:21.75 mqt_v_js        com.kalsa.app
+16379 u0_a347      16  -4  17G 317M 137M S  0.0   4.4   0:00.10 mqt_v_native    com.kalsa.app
+16376 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.10 HybridData Dest com.kalsa.app
+16370 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:00.53 Profile Saver   com.kalsa.app
+16362 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.23 binder:16346_4  com.kalsa.app
+16361 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_3  com.kalsa.app
+16359 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.02 binder:16346_1  com.kalsa.app
+16360 u0_a347      20   0  17G 317M 137M S  0.0   4.4   0:00.09 binder:16346_2  com.kalsa.app
+16351 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 ADB-JDWP Connec com.kalsa.app
+16350 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 perfetto_hprof_ com.kalsa.app
+16349 u0_a347       0 -20  17G 317M 137M S  0.0   4.4   0:00.00 Signal Catcher  com.kalsa.app
+16356 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.00 FinalizerWatchd com.kalsa.app
+16355 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.01 FinalizerDaemon com.kalsa.app
+16354 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.04 ReferenceQueueD com.kalsa.app
+16353 u0_a347      24   4  17G 317M 137M S  0.0   4.4   0:00.51 HeapTaskDaemon  com.kalsa.app
+16352 u0_a347      29   9  17G 317M 137M S  0.0   4.4   0:02.46 Jit thread pool com.kalsa.app

@@ -90,3 +90,86 @@ B3 09-26 22:38:06.701   786   817 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1"
 Final cleanup acknowledged `bench:eager_delay clear`, force-stopped Kalsa,
 restored `screen_off_timeout=null`, and left the display Awake/unlocked.
 End readings: unplugged, 94%, 31.5 C, thermal 0, traced 0.
+
+## 2026-09-27 — interaction diagnosis (diagnostic, on charger)
+
+The S23 was intentionally charging for this diagnostic session. The display
+was kept Awake and unlocked; `persist.traced.enable` remained 0. No app data
+was cleared and no Android or app settings were changed. The installed
+debuggable `c6e0b3a9` build was already present. All values below are
+diagnostic, on charger; they are not benchmark results.
+
+| Scenario | Frames / janky | p90 / p99 | App skipped-frame events / frames | App Davey! | App GC / pause |
+|---|---:|---:|---:|---:|---:|
+| (a) cold launch, idle 30 s | 68 / 5 (7.35%) | 12 / 150 ms | 0 / 0 | 0 | 0 |
+| (b) loaded, chat-list scroll 20 s | 2166 / 15 (0.69%) | 12 / 14 ms | 0 / 0 | 0 | 0 |
+| (c) Settings/back ×5 | 47 / 19 (40.43%) | 89 / 97 ms | 0 / 0 | 0 | 0 |
+| (d) composer typing, then cleared | 141 / 14 (9.93%) | 10 / 19 ms | 0 / 0 | 0 | 0 |
+| (e) send `Say only: ok`, in-stream capture | 1010 / 44 (4.36%) | 13 / 950 ms | 15 / 1388 | 22 | 1 / 2.548 ms paused |
+
+For (e), a separate post-completion `gfxinfo` read a few minutes later showed
+1929 frames, 71 janky (3.68%), p90 13 ms, p99 950 ms; it includes that extra
+idle period and is not the table window. The app-PID GC line reports `total
+58.795ms`, of which the two reported pauses sum to 2.548 ms. No GC or app-PID
+skipped-frame events were seen in (a)–(d). `OpenGLRenderer` slow-frame lines:
+0.
+
+The sampled top-thread peaks were: (a) main 92.3%, Jit 84.6%,
+`mqt_v_native` 88.8%; (b) RenderThread 48.1%, main 30.7%, `mqt_v_js` 7.6%,
+`pool` 7.6%; (e) `mqt_v_native` 75.0%, main 50.0%, RenderThread 26.9%,
+`mqt_v_js` 23.0%, `ncFunctionQueue` 7.6%. `mqt_v_js` is the Hermes JS thread
+seen by `top`/simpleperf. The raw 10-symbol lists for main, JS, ART Jit, and
+`mqt_v_native` in (b) and (e) are in
+`raw/session-20260927-diagnosis/symbols-by-thread.txt`.
+
+The profiler was the S23's `/system/bin/simpleperf` (`1.build.S911USQS6EYL1`),
+not an NDK host binary. Both 15-second records succeeded: scroll had 44,716
+samples and 0 lost; streaming had 46,531 and 3 lost. Main-thread samples in
+(b)/(e) were led by `write`, `syscall`, ART interpreter dispatch, and JNI
+bridges. JS-thread samples were low-rate Hermes/React work. Jit-thread samples
+were mostly clock/syscall and ART JIT bookkeeping/compilation symbols; Jit
+was not the dominant sampled thread in either profile. During (e),
+`mqt_v_native` was dominated by `__ioctl`, `__memmove_aarch64_simd`,
+`mmap64`, `munmap`, and `llama_vocab::impl::load`.
+
+The captured PID (16346) emitted 1,578 `KALSA_*` lines in (a), 50.3 lines/s,
+and 2,005 in (e), 57.7 lines/s (1,994 were `KALSA_NATIVE`). Across the capture
+the highest one-second bin was 1,102 `KALSA_NATIVE` lines at 08:16:03. That
+burst immediately preceded the main-thread frame warnings. Example lines:
+
+```text
+09-27 08:16:05.378 16346 18659 I HWUI: Davey! duration=970ms; ...
+09-27 08:16:05.379 16346 16346 I Choreographer: Skipped 107 frames! The application may be doing too much work on its main thread.
+09-27 08:16:18.498 16346 16378 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14395.649,"promptN":1660,...}'
+09-27 08:16:26.178 16346 16378 I ReactNativeJS: KALSA_TELEMETRY {"tokensPredicted":73,"predictedMs":7155.704,"predictedPerSecond":10.2016517,"prompt_n":13,...}
+```
+
+Across logcat records timestamped from 07:56 onward: 23 device-wide
+Choreographer skipped-frame lines, 40 Davey lines, 149 GC lines, 1,528
+ActivityManager lines, and 9 lowmemorykiller lines. These include other PIDs;
+within app PID 16346 there was only the one GC above. The early buffer before
+07:56 was excluded from these session counts.
+
+ART `dumpsys package` reports `arm64: [status=run-from-apk] [reason=unknown]
+[primary-abi] [location is error]`; it gives no compiler filter. The requested
+`cmd package dump-profiles com.kalsa.app` completed and flushed/saved the
+profile. No compilation command changed ART state. The `run-from-apk` result
+means there is no reported AOT dexopt artifact; JIT activity is visible in
+the simpleperf symbols.
+
+Best-supported hypothesis: native model prewarm/inference work and the
+`KALSA_NATIVE` log-mirror burst are overwhelming the UI pipeline together.
+The 1,102-lines/s burst is followed by 1,388 skipped frames and 22 Daveys
+during (e), while `mqt_v_native` reaches 75% in sampled top and simpleperf
+shows model-load/memory/syscall work there. Main-thread samples show bridge,
+interpreter, and writes; the Jit samples do not explain the stream stall by
+themselves. This is correlation from one diagnostic session, not proof that
+logging alone causes the stutter.
+
+Capture caveats: the first (c) navigation attempt used the wrong coordinates;
+only the final capture with five verified Settings/back transitions is in
+the table. The first (d) touch missed the composer and activated read-aloud
+on an existing response; the successful chunked typing was later cleared, but
+read-aloud may have overlapped that capture. The raw stream includes those
+attempts for audit; early c/d readings are not used above. Full logs and
+per-scenario captures are in `raw/session-20260927-diagnosis/`.

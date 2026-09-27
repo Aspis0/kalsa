@@ -1,0 +1,81 @@
+[b-scroll]
+com.kalsa.app:
+  1.73% __kernel_clock_gettime
+  1.30% bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)
+  1.22% write
+  1.22% void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)
+  1.08% artQuickToInterpreterBridge
+  0.99% __ioctl
+  0.95% syscall
+  0.81% artQuickGenericJniTrampoline
+  0.51% NterpGetMethod
+  0.51% void art::StackVisitor::WalkStack<(art::StackVisitor::CountTransitions)0>(bool)
+mqt_v_js:
+  0.16% void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)
+  0.14% libreactnative.so[+2c9594]
+  0.13% bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)
+  0.12% __epoll_pwait
+  0.11% je_free
+  0.10% libreactnative.so[+2ce944]
+  0.09% facebook::react::ShadowNodeFamily::getAncestors(facebook::react::ShadowNode const&) const
+  0.08% read
+  0.07% artQuickGenericJniTrampoline
+  0.07% __kernel_clock_gettime
+Jit thread pool:
+  0.21% __kernel_clock_gettime
+  0.19% syscall
+  0.04% art::MemMapArenaPool::TrimMaps()
+  0.03% mspace_malloc
+  0.03% art::RegisterAllocatorLinearScan::AllocateRegistersInternal()
+  0.03% art::CumulativeLogger::AddLogger(art::TimingLogger const&)
+  0.03% @plt
+  0.02% art::OptimizingCompiler::JitCompile(art::Thread*, art::jit::JitCodeCache*, art::jit::JitMemoryRegion*, art::ArtMethod*, art::CompilationKind, art::jit::JitLogger*)
+  0.02% je_free
+  0.02% art::jit::JitCodeCache::NotifyCompilationOf(art::ArtMethod*, art::Thread*, art::CompilationKind, bool)
+mqt_v_native:
+  no samples
+[e-stream]
+com.kalsa.app:
+  1.12% write
+  1.02% syscall
+  0.62% void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)
+  0.55% __ioctl
+  0.52% artQuickToInterpreterBridge
+  0.48% bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)
+  0.46% artQuickGenericJniTrampoline
+  0.33% art::(anonymous namespace)::ScopedCheck::Check(art::ScopedObjectAccess&, bool, char const*, art::(anonymous namespace)::JniValueType*) (.__uniq.99033978352804627313491551960229047428)
+  0.27% void art::StackVisitor::WalkStack<(art::StackVisitor::CountTransitions)0>(bool)
+  0.25% je_free
+mqt_v_js:
+  0.07% writev
+  0.04% libhermesvm.so[+1a2d34]
+  0.03% read
+  0.03% libhermesvm.so[+1b1840]
+  0.03% libhermesvm.so[+1a19c0]
+  0.03% libhermesvm.so[+1a2d60]
+  0.02% libhermesvm.so[+1a1d28]
+  0.02% __memmove_aarch64_simd
+  0.02% getuid
+  0.02% libhermesvm.so[+1ab400]
+Jit thread pool:
+  0.28% __kernel_clock_gettime
+  0.15% syscall
+  0.08% art::MemMapArenaPool::TrimMaps()
+  0.05% art::jit::JitCodeCache::NotifyCompilationOf(art::ArtMethod*, art::Thread*, art::CompilationKind, bool)
+  0.04% je_free
+  0.03% __aarch64_cas4_acq
+  0.03% art::Mutex::ExclusiveLock(art::Thread*)
+  0.03% je_malloc
+  0.02% art::annotations::HasDeadReferenceSafeAnnotation(art::DexFile const&, art::dex::ClassDef const&)
+  0.02% art::jit::JitThreadPool::FetchFrom(std::__1::deque<art::ArtMethod*, std::__1::allocator<art::ArtMethod*>>&, art::CompilationKind)
+mqt_v_native:
+  14.93% __ioctl
+  12.60% __memmove_aarch64_simd
+  10.64% mmap64
+  1.12% munmap
+  0.74% llama_vocab::impl::load(llama_model_loader&, LLM_KV const&)
+  0.65% librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so[+738b60]
+  0.45% __memset_aarch64
+  0.42% librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so[+738b28]
+  0.35% librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so[+5e04f8]
+  0.33% @plt
