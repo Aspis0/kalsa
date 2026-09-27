@@ -1,1 +1,1 @@
-DEADLINE_S is dry-run-only (refusing with the real adb)
+DEADLINE_S is dry-run-only (refusing without FAKE_ADB_STATE)

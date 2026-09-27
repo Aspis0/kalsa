@@ -12,8 +12,5 @@ rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-completio\[n\]\'
 rc=0 -s fakes23 shell pgrep\ -f\ \'llama-completio\[n\]\'\;\ echo\ PGREP_RC=\$\?
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
-rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
-rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi
-rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
-rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zz\[z\]\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi

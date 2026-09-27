@@ -1,4 +1,7 @@
-0.00.000.097 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.188 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.189 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.190 I load_tensors: offloaded 0/25 layers to GPU
+0.00.000.191 I load_tensors: CPU model buffer size = 1594.00 MiB
 0.00.050.000 D load_tensors: layer   0 assigned to device CPU, is_swa = 0
 0.00.051.001 D load_tensors: layer   1 assigned to device CPU, is_swa = 0
 0.00.052.002 D load_tensors: layer   2 assigned to device CPU, is_swa = 0
@@ -23,16 +26,20 @@
 0.00.071.021 D load_tensors: layer  21 assigned to device CPU, is_swa = 0
 0.00.072.022 D load_tensors: layer  22 assigned to device CPU, is_swa = 0
 0.00.073.023 D load_tensors: layer  23 assigned to device CPU, is_swa = 0
-0.00.000.098 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.192 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.193 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.194 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.195 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.196 I load_tensors: CPU model buffer size = 356.00 MiB
 0.00.300.000 D load_tensors: layer   0 assigned to device CPU, is_swa = 0
 0.00.301.001 D load_tensors: layer   1 assigned to device CPU, is_swa = 0
 0.00.302.002 D load_tensors: layer   2 assigned to device CPU, is_swa = 0
 0.00.303.003 D load_tensors: layer   3 assigned to device CPU, is_swa = 0
 0.00.304.004 D load_tensors: layer   4 assigned to device CPU, is_swa = 0
 0.00.900.001 I decoded    9 tokens in    8.000 seconds, speed:    1.125 t/s
-0.00.000.099 I n_draft   = 0
-0.00.000.100 I n_predict = 9
-0.00.000.101 I n_drafted = 0
-0.00.000.102 I n_accept  = 0
-0.00.000.103 I accept    = nan%
+0.00.000.197 I n_draft   = 0
+0.00.000.198 I n_predict = 9
+0.00.000.199 I n_drafted = 0
+0.00.000.200 I n_accept  = 0
+0.00.000.201 I accept    = nan%
 EXIT=0

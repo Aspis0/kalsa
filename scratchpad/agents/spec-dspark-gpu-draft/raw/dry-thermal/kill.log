@@ -1,3 +1,2 @@
 reason=poll_stop pkill_out=
 reason=stop_thermal_status pkill_out=
-reason=cleanup_rc0_signone pkill_out=

@@ -17,6 +17,10 @@
 # per NEW-7), NEW-1 failed restore keeps .restore-state, NEW-2 the poll
 # kills+verifies on parent death, NEW-3 stable 18-column schema, NEW-4 poll
 # over unpack, NEW-5 pgrep self-test + health probe, NEW-8 deadline.
+# AUDIT4 (round 4): N-B2 turn-side backend evidence (fixture turndisabled),
+# N-B1 FAKE_ADB_STATE-gated DEADLINE_S (deadlines-guard2), N-B4 ADB_PORT
+# validation (port-guard), item-3 pgrep self-match modelled in the fake (the
+# kill-verified fixtures go red with a plain-literal probe), N-B3 END suffix.
 # Mac only; no device, no phone, no adb binary.
 set -euo pipefail
 CELL="$(cd "$(dirname "$0")" && pwd)"
@@ -136,6 +140,10 @@ eq "happy cols18" 0 "$(cols18_bad)"                          # NEW-3 schema
 if grep -q ' D load_tensors: layer' "$RAW/A-p.log" 2>/dev/null; then pass "happy proof-prefixed-placement"; else fail "happy proof-prefixed-placement" "no ' D load_tensors' in A-p.log"; fi
 if [ "$(grep -c 'assigned to device' "$RAW/B8.log" 2>/dev/null || true)" = 0 ]; then pass "happy measured-no-placement"; else fail "happy measured-no-placement" "$(grep -m2 'assigned to device' "$RAW/B8.log")"; fi
 has "happy measured-prefix" " I n_predict = 136" "$(cat "$RAW/B8.log" 2>/dev/null || echo none)"
+# audit4 N-B2: the measured turn must carry its OWN backend evidence at -lv 4
+if grep -q "model buffer size" "$RAW/B8.log" 2>/dev/null; then pass "happy turn-info-admitted"; else fail "happy turn-info-admitted" "no placement INFO in the measured turn log"; fi
+if grep -Eq "offloaded [1-9][0-9]*/[0-9]+ layers to GPU" "$RAW/C4.log" 2>/dev/null; then pass "happy turn-gpu-offload"; else fail "happy turn-gpu-offload" "no >0 GPU offload line in the C4 turn"; fi
+if grep -Eq "offloaded [1-9][0-9]*/[0-9]+ layers to GPU" "$RAW/B8.log" 2>/dev/null; then fail "happy turn-cpu-no-offload" "B8 turn offloaded the drafter to GPU"; else pass "happy turn-cpu-no-offload"; fi
 has "happy EXIT-unprefixed" "EXIT=0" "$(cat "$RAW/B8.log" 2>/dev/null || echo none)"
 if [ "$(grep -c '^GGML_OPENCL_LOG_KERNELS:' "$RAW/C4-p.log" 2>/dev/null || true)" = 6 ]; then pass "happy kernels-unprefixed-6"; else fail "happy kernels-unprefixed-6" "count=$(grep -c '^GGML_OPENCL_LOG_KERNELS:' "$RAW/C4-p.log" 2>/dev/null || echo 0)"; fi
 has "happy kit-verified" "KIT_AND_MODELS_VERIFIED" "$(driver_log)"
@@ -290,16 +298,16 @@ eq "rerun stayon-final" 1 "$(cat "$STATE/stayon" 2>/dev/null || echo missing)"
 echo "== B-1: pkill that does NOT kill -> KILL_VERIFY=ALIVE recorded loudly =="
 signal_fixture -TERM killfail DRY_PROOF_SLEEP_S=4 DRY_KILL_FAIL=1
 eq "killfail rc" 143 "$RC"
-eq "killfail END" signal_TERM "$(end_reason)"
+eq "killfail END" signal_TERM_kill_unverified "$(end_reason)"   # N-B3: unverifiable kill must be visible in END
 has "killfail alive-recorded" "result=ALIVE" "$(driver_log)"
 if [ -f "$RAW/KILL_VERIFY_FAIL" ]; then pass "killfail marker"; else fail "killfail marker" "missing KILL_VERIFY_FAIL"; fi
 
 echo "== NEW-5: pgrep self-test fails at setup -> abort BEFORE any mutation =="
 run_fixture selftestfail DRY_PGREP_BROKEN=1
 eq "selftestfail rc" 4 "$RC"
-eq "selftestfail END" exit_4 "$(end_reason)"
 if [ -f "$RAW/PGREP_SELFTEST_FAIL" ]; then pass "selftestfail marker"; else fail "selftestfail marker" "missing PGREP_SELFTEST_FAIL"; fi
 has "selftestfail abort-log" "PGREP_SELFTEST_ABORT" "$(driver_log)"
+eq "selftestfail END" exit_4_kill_unverified "$(end_reason)"   # N-B3: cleanup's kill fails here too
 eq "selftestfail untouched-timeout" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 if [ -f "$CELL/.restore-state" ]; then fail "selftestfail no-state" "state written before self-test"; else pass "selftestfail no-state"; fi
 eq "selftestfail rows" 0 "$(rows)"
@@ -307,7 +315,7 @@ eq "selftestfail rows" 0 "$(rows)"
 echo "== NEW-5: pgrep breaks AFTER the self-test -> kill verdict fails closed =="
 signal_fixture -TERM pgrepbreaklater DRY_PROOF_SLEEP_S=4 DRY_PGREP_BREAK_AT=2
 eq "pgrepbreaklater rc" 143 "$RC"
-eq "pgrepbreaklater END" signal_TERM "$(end_reason)"
+eq "pgrepbreaklater END" signal_TERM_kill_unverified "$(end_reason)"   # N-B3
 has "pgrepbreaklater selftest-ok" "PGREP_SELFTEST ok" "$(driver_log)"
 has "pgrepbreaklater recorded" "result=pgrep_broken" "$(driver_log)"
 if [ -f "$RAW/KILL_VERIFY_FAIL" ]; then pass "pgrepbreaklater marker"; else fail "pgrepbreaklater marker" "missing KILL_VERIFY_FAIL"; fi
@@ -378,7 +386,48 @@ has "deadlines-guard msg" "dry-run-only" "$(cat "$CELL/raw/dryrun-deadlines-guar
 if [ -f "$CELL/.restore-state" ]; then fail "deadlines-guard no-side-effect" "state written"; else pass "deadlines-guard no-side-effect"; fi
 if [ -d "$CELL/raw/dry-deadlines-guard" ]; then fail "deadlines-guard no-raw" "RAW created before the guard"; else pass "deadlines-guard no-raw"; fi
 
+echo "== audit4 N-B1: DEADLINE_S refused for ANY adb outside the fake (path-independent) =="
+rm -rf "$CELL/raw/dry-deadlines-guard2"   # stale from a pre-fix run: the guard creates no RAW
+set +e
+env ADB_BIN=/nonexistent/adb DEADLINE_S=1 bash "$CELL/d_run.sh" dry-deadlines-guard2 > "$CELL/raw/dryrun-deadlines-guard2.log" 2>&1
+RC=$?
+set -e
+eq "deadlines-guard2 rc" 2 "$RC"
+has "deadlines-guard2 msg" "dry-run-only" "$(cat "$CELL/raw/dryrun-deadlines-guard2.log" 2>/dev/null || echo none)"
+if [ -d "$CELL/raw/dry-deadlines-guard2" ]; then fail "deadlines-guard2 no-raw" "RAW created (guard did not fire)"; else pass "deadlines-guard2 no-raw"; fi
+if [ -f "$CELL/.restore-state" ]; then fail "deadlines-guard2 no-state" "state written"; else pass "deadlines-guard2 no-state"; fi
+
+echo "== audit4 N-B4: ADB_PORT outside 5037/6037/6039 refused before any device call =="
+rm -rf "$CELL/raw/dry-port-guard"         # stale from a pre-fix run: the guard creates no RAW
+set +e
+env ADB_PORT=5038 bash "$CELL/d_run.sh" dry-port-guard > "$CELL/raw/dryrun-port-guard.log" 2>&1
+RC=$?
+set -e
+eq "port-guard rc" 2 "$RC"
+has "port-guard msg" "ADB_PORT must be" "$(cat "$CELL/raw/dryrun-port-guard.log" 2>/dev/null || echo none)"
+if [ -d "$CELL/raw/dry-port-guard" ]; then fail "port-guard no-raw" "RAW created"; else pass "port-guard no-raw"; fi
+if [ -f "$CELL/.restore-state" ]; then fail "port-guard no-state" "state written"; else pass "port-guard no-state"; fi
+
+echo "== audit4 N-B2: a disabled backend in the TURN voids the row (the proof was fine) =="
+run_fixture turndisabled DRY_TURN_DISABLED=1
+eq "turndisabled rc" 3 "$RC"
+eq "turndisabled END" match_void "$(end_reason)"
+eq "turndisabled rows" 10 "$(rows)"       # 5 proofs + 5 probes, every turn voided
+eq "turndisabled void-A" turn_backend_disabled "$(colr A 15)"
+eq "turndisabled proof-A-status" OK "$(colr A-p 14)"   # proof passed: the silent case
+eq "turndisabled proof-A-final" proof "$(colr A-p 18)"
+eq "turndisabled matched" 0 "$(fcount matched)"
+not_has "turndisabled no-success" "MATCH ok" "$(driver_log)"
+assert_restore turndisabled
+
 echo
+echo "== audit4-adj: fake adb sh -n-checked every shell command of every fixture =="
+synbad=$(ls /tmp/dspark-dry-*/shell_syntax_errors.log 2>/dev/null | head -5 || true)
+if [ -z "$synbad" ]; then
+  pass "shell-syntax all-fixtures"
+else
+  fail "shell-syntax all-fixtures" "$synbad: $(head -3 $(echo "$synbad" | head -1) 2>/dev/null | tr '\n' ' ')"
+fi
 printf 'SUMMARY pass=%d fail=%d\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
 exit 0

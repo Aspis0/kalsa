@@ -21,6 +21,9 @@ case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2 ;; esac
 ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
 ADB_PORT="${ADB_PORT:-5037}"
 export ADB_BIN ADB_PORT ANDROID_ADB_SERVER_PORT="$ADB_PORT"
+# audit4 N-B4: restore.sh refuses these ports too — validating here means a
+# bad port dies before the device is ever touched (mirrors cell A).
+case "$ADB_PORT" in 5037|6037|6039) ;; *) echo "ADB_PORT must be 5037, 6037, or 6039" >&2; exit 2 ;; esac
 
 DEADLINE_MINUTES="${2:-60}"
 if [ -z "${DEADLINE_S:-}" ]; then
@@ -29,10 +32,11 @@ if [ -z "${DEADLINE_S:-}" ]; then
     echo "deadline_minutes must be 20..110" >&2; exit 2
   fi
 fi
-# DEADLINE_S (seconds) overrides the minutes form — dry-run hook only, so it
-# is refused with the real adb (audit3 B-low: no unvalidated range bypass).
-if [ -n "${DEADLINE_S:-}" ] && [ "$ADB_BIN" = "/opt/homebrew/bin/adb" ]; then
-  echo "DEADLINE_S is dry-run-only (refusing with the real adb)" >&2
+# DEADLINE_S (seconds) overrides the minutes form — a dry-run hook, gated on
+# the FAKE's capability marker, not on an adb path string (audit4 N-B1: any
+# other real adb path slipped through the old predicate).
+if [ -n "${DEADLINE_S:-}" ] && [ -z "${FAKE_ADB_STATE:-}" ]; then
+  echo "DEADLINE_S is dry-run-only (refusing without FAKE_ADB_STATE)" >&2
   exit 2
 fi
 DEADLINE_S="${DEADLINE_S:-$((DEADLINE_MINUTES * 60))}"
@@ -95,6 +99,8 @@ source "$CELL/arm.sh"
 SER=""; SCREEN_OFF_TIMEOUT=""; STAYON=""
 ARM_POLL_PID=0; CURRENT_CHILD_PID=0; END_WRITTEN=0; CLEANED=0; SIGNAL_NAME=""
 KILL_NEEDED=0   # 1 => abnormal end: kill the binary and VERIFY it is gone
+KILL_FAILED=0   # 1 => a kill could not be verified -> END gets a suffix (N-B3)
+KILL_ATTEMPTED=0 # first attempt owns the verdict; cleanup does not repeat it
 DRIVER_PID=$$   # the poll subshell exits when this parent is gone (SIGKILL)
 FINALIZED=0     # results.tsv `final` column written? (audit2 NEW-3)
 COOLDOWN_SECONDS=0; WARM_START=0
@@ -141,13 +147,17 @@ fi
 kill_spec_verified() {
   local reason=$1 out="" verdict="" probe="" i=0
   [ -n "$SER" ] || return 0
+  KILL_ATTEMPTED=1
   out=$(adbT 15 -s "$SER" shell "pkill -f 'llama-speculative-simpl[e]'" 2>&1) || true
   printf 'reason=%s pkill_out=%s\n' "$reason" "$out" >> "$RAW/kill.log"
-  # audit2 NEW-5: health-probe pgrep first — a pgrep whose -f silently fails
-  # (busybox-style rc 1 on usage error) would make GONE a lie, so GONE is
-  # only accepted when a nonexistent-probe returns exactly PROBE=1.
-  probe=$(adbT 15 -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz >/dev/null 2>&1; echo PROBE=\$?" 2>/dev/null | tr -d '\r' | tail -1) || probe=""
+  # audit2 NEW-5 + audit4 item-3: health-probe pgrep first — a pgrep whose -f
+  # silently fails (busybox-style rc 1) would make GONE a lie, AND a plain
+  # literal here would match this very command's `sh -c` cmdline (proven on
+  # the S23 tonight), giving a false RC=0; the bracketed pattern leaves no
+  # plain literal in this string, so only a real victim can match.
+  probe=$(adbT 15 -s "$SER" shell "pgrep -f zzz_no_such_proc_zz[z] >/dev/null 2>&1; echo PROBE=\$?" 2>/dev/null | tr -d '\r' | tail -1) || probe=""
   if [ "$probe" != "PROBE=1" ]; then
+    KILL_FAILED=1
     log "KILL_VERIFY reason=$reason result=pgrep_broken probe=${probe:-empty}"
     printf 'KILL_VERIFY_FAIL reason=%s result=pgrep_broken probe=%s\n' "$reason" "${probe:-empty}" >> "$RAW/KILL_VERIFY_FAIL"
     return 1
@@ -166,10 +176,12 @@ kill_spec_verified() {
     i=$((i + 1))
   done
   if [ "$verdict" = "PGREP_BROKEN" ]; then
+    KILL_FAILED=1
     log "KILL_VERIFY reason=$reason result=pgrep_broken — cannot verify, assuming ALIVE"
     printf 'KILL_VERIFY_FAIL reason=%s result=pgrep_broken\n' "$reason" >> "$RAW/KILL_VERIFY_FAIL"
     return 1
   fi
+  KILL_FAILED=1
   log "KILL_VERIFY reason=$reason result=ALIVE"
   printf 'KILL_VERIFY_FAIL reason=%s result=ALIVE\n' "$reason" >> "$RAW/KILL_VERIFY_FAIL"
   return 1
@@ -206,12 +218,14 @@ arm_poll_loop() {
 start_arm_poll() { arm_poll_loop & ARM_POLL_PID=$!; }
 
 cleanup() {
-  local rc=$?
+  local rc=$? endr=""
   [ "$CLEANED" -eq 0 ] || return 0
   CLEANED=1
   stop_arm_poll
   # Audit B-1: EVERY abnormal exit kills the binary and verifies the kill.
-  if [ -n "$SER" ]; then
+  # KILL_ATTEMPTED: stop/timeout paths already produced their verdict (and
+  # its reason label) — repeating it would only duplicate the verdict lines.
+  if [ -n "$SER" ] && [ "$KILL_ATTEMPTED" -eq 0 ]; then
     if [ "$rc" -ne 0 ] || [ -n "$SIGNAL_NAME" ] || [ "$KILL_NEEDED" -eq 1 ] || [ -f "$RAW/stop_request" ]; then
       kill_spec_verified "cleanup_rc${rc}_sig${SIGNAL_NAME:-none}" || true
     fi
@@ -224,7 +238,15 @@ cleanup() {
   # audit2 NEW-3: any exit that owns a results file leaves it at 18 columns
   # (rows were born with `final=pending`; only SIGKILL can keep `pending`).
   if [ "$FINALIZED" -eq 0 ]; then finalize_results void "" || true; fi
-  if [ -n "$SIGNAL_NAME" ]; then write_end "signal_$SIGNAL_NAME"; else write_end "exit_$rc"; fi
+  # audit4 N-B3: END may predate the kill verdict (deadline, match_void, stop)
+  # — rewrite it with the suffix so END.txt alone shows the failed kill.
+  if [ "$KILL_FAILED" -eq 1 ] && [ -f "$END_MARKER" ]; then
+    endr=$(sed -n 's/^END reason=//p' "$END_MARKER" | tail -1)
+    case "$endr" in ''|*_kill_unverified) ;; *) printf 'END reason=%s_kill_unverified\n' "$endr" > "$END_MARKER" ;; esac
+  fi
+  if [ -n "$SIGNAL_NAME" ]; then endr="signal_$SIGNAL_NAME"; else endr="exit_$rc"; fi
+  [ "$KILL_FAILED" -eq 0 ] || endr="${endr}_kill_unverified"
+  write_end "$endr"
 }
 on_signal() {
   SIGNAL_NAME="$1"
@@ -242,15 +264,17 @@ trap 'on_signal HUP 1' HUP     # audit B-9
 trap cleanup EXIT
 
 finish_stop() {
-  local reason=unknown
-  if [ -f "$RAW/stop_request" ]; then reason=$(tr -d '\r\n' < "$RAW/stop_request"); fi
+  local reason=unknown endr="stop_unknown"
+  if [ -f "$RAW/stop_request" ]; then reason=$(tr -d '\r\n' < "$RAW/stop_request"); endr="stop_$reason"; fi
   # NOTE (audit2 NEW-6): the sourced stop_lib also logs `KILL_VERIFIED ctx=…`
   # when IT pkills `llama-completion` — a binary this cell never runs. Our
   # verdict for OUR binary is always the `KILL_VERIFY reason=…` line below;
   # rename/pattern change requested from the library's owner (REPORT.md).
   kill_spec_verified "stop_$reason" || true
-  log "SESSION_STOP reason=$reason"
-  write_end "stop_$reason"
+  # audit4 N-B3: an unverifiable kill must be visible to an END.txt reader.
+  [ "$KILL_FAILED" -eq 0 ] || endr="${endr}_kill_unverified"
+  log "SESSION_STOP reason=$reason kill_failed=$KILL_FAILED"
+  write_end "$endr"
   exit 0
 }
 

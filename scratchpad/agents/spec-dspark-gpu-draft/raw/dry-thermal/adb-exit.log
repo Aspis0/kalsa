@@ -70,13 +70,10 @@ rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-completio\[n\]\'
 rc=0 -s fakes23 shell pgrep\ -f\ \'llama-completio\[n\]\'\;\ echo\ PGREP_RC=\$\?
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
-rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zz\[z\]\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi
-rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ \>\ /data/local/tmp/dspark-spec/A.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A.log\;\ exit\ \$rc
+rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 127\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 4\ \>\ /data/local/tmp/dspark-spec/A.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A.log\;\ exit\ \$rc
 rc=0 -s fakes23 pull /data/local/tmp/dspark-spec/A.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-thermal/A.log
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
-rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
-rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi
-rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
-rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
+rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zz\[z\]\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi

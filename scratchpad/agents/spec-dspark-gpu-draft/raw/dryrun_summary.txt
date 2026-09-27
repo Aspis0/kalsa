@@ -27,6 +27,9 @@ PASS  happy cols18
 PASS  happy proof-prefixed-placement
 PASS  happy measured-no-placement
 PASS  happy measured-prefix
+PASS  happy turn-info-admitted
+PASS  happy turn-gpu-offload
+PASS  happy turn-cpu-no-offload
 PASS  happy EXIT-unprefixed
 PASS  happy kernels-unprefixed-6
 PASS  happy kit-verified
@@ -164,9 +167,9 @@ PASS  killfail alive-recorded
 PASS  killfail marker
 == NEW-5: pgrep self-test fails at setup -> abort BEFORE any mutation ==
 PASS  selftestfail rc
-PASS  selftestfail END
 PASS  selftestfail marker
 PASS  selftestfail abort-log
+PASS  selftestfail END
 PASS  selftestfail untouched-timeout
 PASS  selftestfail no-state
 PASS  selftestfail rows
@@ -228,5 +231,30 @@ PASS  deadlines-guard rc
 PASS  deadlines-guard msg
 PASS  deadlines-guard no-side-effect
 PASS  deadlines-guard no-raw
+== audit4 N-B1: DEADLINE_S refused for ANY adb outside the fake (path-independent) ==
+PASS  deadlines-guard2 rc
+PASS  deadlines-guard2 msg
+PASS  deadlines-guard2 no-raw
+PASS  deadlines-guard2 no-state
+== audit4 N-B4: ADB_PORT outside 5037/6037/6039 refused before any device call ==
+PASS  port-guard rc
+PASS  port-guard msg
+PASS  port-guard no-raw
+PASS  port-guard no-state
+== audit4 N-B2: a disabled backend in the TURN voids the row (the proof was fine) ==
+PASS  turndisabled rc
+PASS  turndisabled END
+PASS  turndisabled rows
+PASS  turndisabled void-A
+PASS  turndisabled proof-A-status
+PASS  turndisabled proof-A-final
+PASS  turndisabled matched
+PASS  turndisabled no-success
+PASS  turndisabled restore-ran
+PASS  turndisabled timeout-restored
+PASS  turndisabled stayon-restored
+PASS  turndisabled state-consumed
 
-SUMMARY pass=209 fail=0
+== audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
+PASS  shell-syntax all-fixtures
+SUMMARY pass=233 fail=0

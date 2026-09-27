@@ -1,9 +1,16 @@
-0.00.000.141 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.142 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.274 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.275 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.276 I load_tensors: offloaded 0/25 layers to GPU
+0.00.000.277 I load_tensors: CPU model buffer size = 1594.00 MiB
+0.00.000.278 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.279 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.280 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.281 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.282 I load_tensors: CPU model buffer size = 356.00 MiB
 0.00.900.001 I decoded  132 tokens in    8.000 seconds, speed:   16.500 t/s
-0.00.000.143 I n_draft   = 4
-0.00.000.144 I n_predict = 132
-0.00.000.145 I n_drafted = 264
-0.00.000.146 I n_accept  = 0
-0.00.000.147 I accept    = 56.000%
+0.00.000.283 I n_draft   = 4
+0.00.000.284 I n_predict = 132
+0.00.000.285 I n_drafted = 264
+0.00.000.286 I n_accept  = 0
+0.00.000.287 I accept    = 56.000%
 EXIT=0

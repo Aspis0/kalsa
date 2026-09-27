@@ -1,0 +1,17 @@
+0.00.000.103 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.104 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.105 I load_tensors: offloaded 0/25 layers to GPU
+0.00.000.106 I load_tensors: CPU model buffer size = 1594.00 MiB
+0.00.000.107 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.108 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.109 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.110 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.111 I load_tensors: CPU model buffer size = 356.00 MiB
+0.00.000.112 W ggml_opencl: kernel set failed to build on 'kernel_00' (driver 'Adreno'); device disabled, ops stay on CPU
+0.00.900.001 I decoded  136 tokens in    8.000 seconds, speed:   17.000 t/s
+0.00.000.113 I n_draft   = 8
+0.00.000.114 I n_predict = 136
+0.00.000.115 I n_drafted = 408
+0.00.000.116 I n_accept  = 0
+0.00.000.117 I accept    = 39.000%
+EXIT=0

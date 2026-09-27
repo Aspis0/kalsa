@@ -34,6 +34,9 @@
 #   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
 #   DRY_N_DECODED_MISMATCH=1    the `decoded <N>` line disagrees with
 #                               `n_predict = <N>` (audit3 count cross-check)
+#   DRY_TURN_DISABLED=1          the TURN log carries the OpenCL
+#                               `kernel set failed … device disabled` line
+#                               (audit4 N-B2 silent-failure model)
 set -euo pipefail
 STATE="${FAKE_ADB_STATE:-/tmp/dspark-spec-fake}"
 DEV="$STATE/dev"
@@ -149,14 +152,40 @@ run_arm() {
   dpn=$n_predict
   if [ "${DRY_N_DECODED_MISMATCH:-0}" = 1 ]; then dpn=$((n_predict + 7)); fi
   rc="${DRY_ARM_RC:-0}"
+  # mode: `-lv 5` = proof run, anything else with `-lv` = measured turn (-lv 4).
+  mode=measure
+  case "$cmd" in *"-lv 5"*) mode=proof ;; esac
   {
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
+    # LLAMA_LOG_INFO placement lines: hidden at default, admitted at -lv 4
+    # (host-measured matrix, audit4) — emitted only when the cmd carries -lv.
+    if printf '%s' "$cmd" | grep -q -- '-lv '; then
+      lg I "load_tensors: offloading 0 repeating layers to GPU"
+      lg I "load_tensors: offloaded 0/25 layers to GPU"
+      lg I "load_tensors: CPU model buffer size = 1594.00 MiB"
+    fi
     if printf '%s' "$cmd" | grep -q -- '-lv 5'; then
       i=0; while [ "$i" -lt 24 ]; do printf '0.00.%03d.%03d D load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$((50 + i))" "$i" "$i"; i=$((i + 1)); done
     fi
     lg I "common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'"
     if [ "$gpu" = 1 ]; then
       lg I "llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 3536 MiB free"
+    fi
+    lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
+    if printf '%s' "$cmd" | grep -q -- '-lv '; then
+      if [ "$gpu" = 1 ]; then
+        lg I "load_tensors: offloading 4 repeating layers to GPU"
+        lg I "load_tensors: offloaded 6/6 layers to GPU"
+        lg I "load_tensors: GPUOpenCL model buffer size = 356.00 MiB"
+      else
+        lg I "load_tensors: offloading 0 repeating layers to GPU"
+        lg I "load_tensors: offloaded 0/6 layers to GPU"
+        lg I "load_tensors: CPU model buffer size = 356.00 MiB"
+      fi
+      # audit4 N-B2: the silent-failure line belongs to the TURN, not the proof
+      if [ "$mode" = measure ] && [ "${DRY_TURN_DISABLED:-0}" = 1 ]; then
+        lg W "ggml_opencl: kernel set failed to build on 'kernel_00' (driver 'Adreno'); device disabled, ops stay on CPU"
+      fi
     fi
     if printf '%s' "$cmd" | grep -q -- '-lv 5'; then
       if [ "$gpu" = 1 ]; then
@@ -186,7 +215,19 @@ run_arm() {
 }
 
 handle_shell() {
-  local cmd="$*"
+  local cmd="$*" err=""
+  # audit4-adj (cell A died on an assembled `&& &&`): syntax-check every
+  # command string BEFORE answering it — a broken command must fail its
+  # fixture loudly (exit 64 + log), never be silently absorbed by a case
+  # branch or an `|| true` in the driver.
+  if ! err=$(sh -n -c "$cmd" 2>&1); then
+    {
+      printf 'CMD: %s\n' "$cmd"
+      printf 'ERR: %s\n' "$err"
+    } >> "$STATE/shell_syntax_errors.log"
+    printf 'fake-adb: shell syntax error: %s\n' "$err" >&2
+    exit 64
+  fi
   case "$cmd" in
     # pgrep self-test (d_run setup): FOUND + GONE, unless the fixture breaks
     # pgrep from this very call onwards (counter shared with the verdict path).
@@ -199,9 +240,15 @@ handle_shell() {
         echo PGREP_SELFCLEAN=GONE
       fi
       exit 0 ;;
-    # audit2 NEW-5 health probe: only PROBE=1 licenses a GONE verdict.
-    *zzz_no_such_proc_zzz*)
+    # audit4 item-3 self-match model: pgrep -f run inside adb shell "…" sees
+    # its OWN sh -c cmdline. Bracketed pattern = safe (PROBE=1); a PLAIN
+    # literal in the same command string matches the wrapper (RC=0) — proven
+    # on the S23 tonight, so the plain branch answers PROBE=0.
+    *"zzz_no_such_proc_zz[z]"*)
       if pgrep_is_broken; then echo PROBE_BROKEN; else echo PROBE=1; fi
+      exit 0 ;;
+    *zzz_no_such_proc_zzz*)
+      if pgrep_is_broken; then echo PROBE_BROKEN; else echo PROBE=0; fi
       exit 0 ;;
     *pgrep*)
       if pgrep_is_broken; then echo PGREP_BROKEN; exit 0; fi

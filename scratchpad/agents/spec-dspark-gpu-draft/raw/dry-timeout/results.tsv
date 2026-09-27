@@ -2,5 +2,5 @@ tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	cooldown_s	warm_start	
 A-p	A	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
 B4-p	B4	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
 B8-p	B8	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
-C4-p	C4	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
+C4-p	C4	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	2	void
 C8-p	C8	0	8	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void

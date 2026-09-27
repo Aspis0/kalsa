@@ -48,14 +48,19 @@ arm_flags() {
 
 # arm_cmd <tag> <arm> <limit> <mode>: full remote shell command.
 #   mode=proof   -> `-lv 5` + GGML_OPENCL_LOG_KERNELS=1 (placement + dispatch)
-#   mode=measure -> default verbosity, no kernel env (clean timed window)
+#   mode=measure -> `-lv 4`, no kernel env: admits the LLAMA_LOG_INFO
+#                    placement lines the turn must prove itself with (audit4
+#                    N-B2, same level as cell A's turn) while still hiding
+#                    DEBUG/per-op output — the timed window stays clean
+#                    (audit B-5 upheld; host matrix: default == -lv 3 admits
+#                    none of them, -lv 4 admits INFO, DEBUG needs -lv 5)
 arm_cmd() {
   local tag=$1 arm=$2 limit=$3 mode=$4 flags lv envk
   flags=$(arm_flags "$arm") || return 1
   lv=""; envk=""
   case "$mode" in
     proof)   lv=" -lv 5"; envk="export GGML_OPENCL_LOG_KERNELS=1 && " ;;
-    measure) : ;;
+    measure) lv=" -lv 4" ;;
     *) return 1 ;;
   esac
   printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
@@ -77,6 +82,13 @@ arm_run() {
   adbT 60 -s "$SER" pull "$D/$tag.log" "$RAW/$tag.log" >> "$RAW/${tag}_pull.txt" 2>&1 || true
 }
 
+# draft_marker_line <log>: the unique line separating the target's load from
+# the drafter's — everything after it belongs to the second model (order is
+# asserted by arm_parse_proof before anything is counted).
+draft_marker_line() {
+  awk '/common_speculative_init_result: loading draft model/{print NR; exit}' "$1"
+}
+
 # arm_parse_proof <tag> <arm>: the -lv 5 run. Sets ARM_STATUS/ARM_VOID/ARM_PROOF.
 # Order assert (audit B-12): the target must have placement lines BEFORE the
 # draft-load marker, otherwise the post-marker split measures the wrong model.
@@ -89,7 +101,7 @@ arm_parse_proof() {
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
   local marker
-  marker=$(awk '/common_speculative_init_result: loading draft model/{print NR; exit}' "$logf")
+  marker=$(draft_marker_line "$logf")
   [ -n "$marker" ] || { ARM_VOID=no_draft_marker; return 0; }
   [ "$marker" -gt 1 ] || { ARM_VOID=model_order_unknown; return 0; }
   pre=$(head -n "$((marker - 1))" "$logf")
@@ -130,6 +142,7 @@ arm_parse_proof() {
 arm_parse_measure() {
   local tag=$1 arm=$2 limit=$3
   local logf="$RAW/$tag.log" exit_line="" speed="" n_dec=""
+  local marker="" post="" turn_buf=0 turn_off=0
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   ARM_N=na; ARM_OVER=na; ARM_DRAFTED=na; ARM_ACCEPT=na; ARM_TPS=na
   [ -f "$logf" ] || return 0
@@ -153,6 +166,39 @@ arm_parse_measure() {
     ARM_VOID=count_mismatch
     ARM_PROOF="decoded=$n_dec n_predict=$ARM_N"
     return 0
+  fi
+  # audit4 N-B2: the measured PROCESS must prove its own backend — the proof
+  # run is a different process and cannot vouch for this turn. Same negative
+  # check as cell A's turn_backend_disabled, plus placement evidence that only
+  # -lv 4 admits: buffer lines must exist, the drafter's segment must offload
+  # to GPU exactly when this arm says so.
+  if awk '/kernel set failed to build|device disabled/{n++} END{exit !(n>0)}' "$logf"; then
+    ARM_VOID=turn_backend_disabled
+    ARM_PROOF="disabled_line_in_turn=1 n_predict=$ARM_N"
+    return 0
+  fi
+  marker=$(draft_marker_line "$logf")
+  [ -n "$marker" ] || { ARM_VOID=turn_no_marker; return 0; }
+  post=$(tail -n +"$((marker + 1))" "$logf")
+  turn_buf=$(printf '%s\n' "$post" | awk 'index($0, "model buffer size") {n++} END{print n+0}')
+  turn_off=$(printf '%s\n' "$post" | awk '$0 ~ ("offloaded [1-9][0-9]*/[0-9]+ layers to GPU") {n++} END{print n+0}')
+  if [ "$turn_buf" -lt 1 ]; then
+    ARM_VOID=turn_no_placement
+    ARM_PROOF="buffer_lines=$turn_buf off_gpu=$turn_off (needs -lv 4)"
+    return 0
+  fi
+  if arm_is_gpu "$arm"; then
+    if [ "$turn_off" -lt 1 ]; then
+      ARM_VOID=turn_placement_mismatch
+      ARM_PROOF="buffer_lines=$turn_buf off_gpu=$turn_off"
+      return 0
+    fi
+  else
+    if [ "$turn_off" -gt 0 ]; then
+      ARM_VOID=turn_gpu_leak
+      ARM_PROOF="buffer_lines=$turn_buf off_gpu=$turn_off"
+      return 0
+    fi
   fi
   ARM_OVER=$((ARM_N - limit))
   if [ "$arm" = A ] && [ "$ARM_DRAFTED" != 0 ]; then

@@ -1,14 +1,13 @@
-[23:21:12] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[23:21:13] SESSION job=dry-push board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[23:21:13] GATE label=before_setup
-[23:21:14] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[23:21:15] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[23:21:15] STOP reason=battery_temp
-[23:21:15] PKILL_UNVERIFIED ctx=stop_battery_temp pgrep_rc=missing — remote llama-completion may still be running
-[23:21:15] KILL_VERIFY reason=poll_stop result=gone attempt=1
-[23:21:16] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[23:21:17] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[23:21:18] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[23:21:18] KILL_VERIFY reason=stop_battery_temp result=gone attempt=1
-[23:21:18] SESSION_STOP reason=battery_temp
-[23:21:18] KILL_VERIFY reason=cleanup_rc0_signone result=gone attempt=1
+[00:11:40] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[00:11:40] SESSION job=dry-push board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[00:11:40] GATE label=before_setup
+[00:11:41] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:11:42] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[00:11:42] STOP reason=battery_temp
+[00:11:42] PKILL_UNVERIFIED ctx=stop_battery_temp pgrep_rc=missing — remote llama-completion may still be running
+[00:11:42] KILL_VERIFY reason=poll_stop result=gone attempt=1
+[00:11:43] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[00:11:44] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[00:11:46] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[00:11:46] KILL_VERIFY reason=stop_battery_temp result=gone attempt=1
+[00:11:46] SESSION_STOP reason=battery_temp kill_failed=0
