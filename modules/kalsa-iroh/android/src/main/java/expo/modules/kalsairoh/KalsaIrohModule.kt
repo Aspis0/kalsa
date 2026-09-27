@@ -137,21 +137,24 @@ class KalsaIrohModule : Module() {
 
   private fun reject(promise: Promise, operation: String, error: Throwable, message: String) {
     val code = rejectionCode(error)
-    if (code == "KALSA_IROH_OTHER") {
-      Log.w("KalsaIroh", "operation=$operation causes=${throwableClassChain(error)}")
-    }
     promise.reject(
       code,
       message,
       null,
     )
+    if (code == "KALSA_IROH_OTHER") {
+      try {
+        Log.w("KalsaIroh", "operation=$operation causes=${throwableClassChain(error)}")
+      } catch (_: Throwable) {
+      }
+    }
   }
 
   private fun throwableClassChain(error: Throwable): String {
     val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
     val classes = mutableListOf<String>()
     var current: Throwable? = error
-    while (current != null && seen.add(current)) {
+    while (current != null && classes.size < 16 && seen.add(current)) {
       classes.add(current.javaClass.name)
       current = current.cause
     }
