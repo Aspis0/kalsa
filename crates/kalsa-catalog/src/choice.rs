@@ -567,12 +567,12 @@ pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<R
 pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 
 /// The owner's one exception to [`QUICK_SPEED_ADVANTAGE`], and the line it
-/// hangs on: machines with this much RAM (32 GiB) are roomy. On a roomy
-/// machine the second card is the full-precision LFM file whenever it is
-/// faster than the pick at all — the higher-quality file is worth showing
-/// there even without the usual margin — and the file is offered only
-/// there: below this line it would out-rank the smaller rows as a pick
-/// while being the wrong suggestion for the machine.
+/// hangs on: machines with this much RAM (32 GiB) are roomy. When the
+/// ordinary bar finds no second card, a roomy machine gets the
+/// full-precision LFM file instead whenever it is faster than the pick at
+/// all — the higher-quality file is worth showing there even without the
+/// usual margin — and the file is offered only at or above this line:
+/// below it the Q8 file is the LFM row on offer.
 pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
 
 /// The row this exception is about: LiquidAI's full-precision (F16) file of
@@ -584,10 +584,10 @@ pub fn full_precision_file(entry: &ModelEntry) -> bool {
 
 /// The second option: the most model this machine runs at least
 /// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being
-/// offered — with one exception first: on a machine at or above
-/// [`ROOMY_RAM_BYTES`] the full-precision LFM file takes the card whenever
-/// it is faster than the pick at all (see the constant). `None` when
-/// nothing does — one honest option beats two that feel the same.
+/// offered. `None` when nothing does — one honest option beats two that
+/// feel the same — except as the last word on a roomy machine: when the
+/// bar finds nothing, the full-precision LFM file takes the card if it is
+/// faster than the pick at all (see [`ROOMY_RAM_BYTES`]).
 ///
 /// It is held to the bar of the row it sits beside, which is
 /// [`justification`]: a phone-free first option is the largest that runs well
@@ -606,37 +606,41 @@ pub fn full_precision_file(entry: &ModelEntry) -> bool {
 /// small row outrank a floor under a big one.
 pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<RunnableRow> {
     let answer = runnable_on(input).ok()?;
-    // The owner's exception, before the bar: on a roomy machine the
-    // full-precision file is the second card whenever it beats the pick's
-    // speed at all, even without [`QUICK_SPEED_ADVANTAGE`] — a big machine
-    // gets the higher-quality file as its fast option. The row must be on
-    // the menu (the roomy rule already kept it off small machines) and
-    // strictly faster than the pick, so it can never pair with itself.
-    if input.ram_bytes >= ROOMY_RAM_BYTES {
-        if let Some(full) = answer
-            .remaining
-            .iter()
-            .filter(|candidate| full_precision_file(candidate.entry))
-            .max_by_key(|candidate| candidate.entry.weights_bytes)
-        {
-            if full.decode.floor() > than.floor() {
-                return Some(row(full, answer.budget));
-            }
-        }
-    }
+    let justified = |candidate: &Candidate| match input.phone {
+        Some(phone) => justification(candidate, &phone).is_some(),
+        None => true,
+    };
     let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
     let quick = answer
         .remaining
         .iter()
         .filter(|candidate| candidate.decode.floor() >= wanted)
-        .filter(|candidate| match input.phone {
-            Some(phone) => justification(candidate, &phone).is_some(),
-            None => true,
-        })
+        .filter(|candidate| justified(candidate))
         // The most model that still clears the bar, never merely the
         // smallest: a toy is not an option.
-        .max_by_key(|candidate| candidate.entry.weights_bytes)?;
-    Some(row(quick, answer.budget))
+        .max_by_key(|candidate| candidate.entry.weights_bytes);
+    if let Some(quick) = quick {
+        return Some(row(quick, answer.budget));
+    }
+    // The owner's exception, as the fallback the rule says it is: only
+    // when the ordinary bar found no second card does a roomy machine get
+    // the full-precision file — whenever it beats the pick's speed at all,
+    // without [`QUICK_SPEED_ADVANTAGE`]. The row must be on the menu (the
+    // roomy rule already kept it off small machines), strictly faster than
+    // the pick so it can never pair with itself, and answer the same
+    // justification bar any second card would.
+    if input.ram_bytes >= ROOMY_RAM_BYTES {
+        let full = answer
+            .remaining
+            .iter()
+            .filter(|candidate| full_precision_file(candidate.entry))
+            .filter(|candidate| justified(candidate))
+            .max_by_key(|candidate| candidate.entry.weights_bytes)?;
+        if full.decode.floor() > than.floor() {
+            return Some(row(full, answer.budget));
+        }
+    }
+    None
 }
 
 /// A candidate as a page needs it. The usable-entry gate already guarantees
