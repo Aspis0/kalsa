@@ -57,3 +57,17 @@ The readiness gate then did not advance. `scripts/device-share-send.sh` `device_
 | None | No turn started | — | — | — | — | Yes at exit | — |
 
 The interrupt teardown completed: screen timeout remains 2147483647, display Awake, keyguard dismissed, Kalsa foreground; unplugged, battery 57% / 30.3 C, traced 0, no llama/bench process. No `kalsa.bench.thermo` write. Full preflight, driver, logcat, test output, gate repro and cleanup evidence are under `raw/s23-governor-long-577867c0/`.
+
+## Manual governor smoke — stopped at thermal status 3 (2026-09-27)
+
+Manual app interaction only; no harness, no timing benchmark, and no write to `kalsa.bench.thermo`. The S23 was unplugged, screen Awake and Kalsa foreground before and after each sent turn. `logcat -b all -v threadtime` ran throughout capture; complete captures are gzip-compressed in `raw/manual-smoke/`. `verbatim-lines.txt` contains 29 unmodified matching lines from the successful model reload through the smoke: 5 `KALSA_GOVERNOR*`, 3 `KALSA_TELEMETRY`, 13 `KALSA_PREWARM`, 0 `KALSA_THERMAL*`, 0 `KALSA_GPU_FALLBACK*`, and 8 `KALSA_NATIVE*`.
+
+The app initially had a dead-load marker (`KALSA_PREWARM op=skip reason=not_ready`). I used the in-app Retry control; it emitted `KALSA_GOVERNOR_PLAN ... gpu_fit=Fit` and `KALSA_PREWARM op=done` before any turn. This was a UI recovery, not an app-data/settings edit.
+
+| Turn | Prompt | Route (prefill / decode) | Prefill ms | Decode tok/s (diagnostic; debuggable APK) | Android thermal status; battery temp; skin; battery | Answer |
+|---|---|---|---:|---:|---|---|
+| 1 | Short arithmetic | GPU / CPU | 4,177.624 | 10.43 | 0; 30.3→30.1 °C; 30.9→32.4 °C; 56→55% | Yes: 17×6=102 with a short calculation. |
+| 2 | Medium, 45-minute preparation schedule | GPU / CPU | 948.156 | 12.38 | 0; 32.6→31.6 °C; 32.8→34.5 °C; 55→54% | Partly: totalled 45 minutes, but allocated the final 15 minutes to joining the meeting, leaving little preparation time. |
+| 3 | Long event-planning prompt, 587 words; `prompt_n=981` | GPU / CPU | 10,358.639 | 9.98 | 0→3; 33.6→41.6 °C; 34.7→41.1 °C; 54→51% | Mostly: coherent plan honoring the stated family/accessibility constraints, though overlong. |
+
+All three governor records show `route_push=applied`, `route_mismatch=null`, `engine_prefill=GPU`, `engine_decode=CPU`, `fit=Fit`, `failed=false`, and GPU actual route chunks. Turn 3's telemetry completed at 15:25:33; the subsequent sensor sample showed Android `Thermal Status: 3` and skin sensor status 3. I stopped there: only 3 of 5 turns were sent, despite battery remaining above the 45% floor. No fourth or fifth turn was attempted. The Governor's logged state remained `FAST`; Android thermal status is reported separately. No thermal-performance conclusion is drawn from this diagnostic smoke. Raw prompts, UI snapshots, power/thermal state, telemetry and verbatim fixtures are in `raw/manual-smoke/`.
