@@ -1803,5 +1803,103 @@ readiness_release_form_case() {
 
 readiness_release_form_case
 
+# ── a tool continuation keeps the turn open until its final round ───────────
+# Baseline raw (raw/baseline-before-thermal-20260927, turn 1): round 0 ended
+# with telemetry + KALSA_TOOLCALL{executed:1} at 16:42:10, then 133 s of tool
+# until round 1 + KALSA_GOVERNOR at 16:44:33. The old wait collected at round
+# 0 — the JSONL row was assistant "#", telemetry round 0 only, KALSA_GOVERNOR:[]
+# (REPORT "S23 pre-thermal baseline"). The five logcat lines below are
+# VERBATIM; the final assistant text is shaped (the bug prevented the real
+# one from ever being captured).
+tool_continuation_case() {
+  local out="$WORK/tool-cont" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_ROOT="$HERE" CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+    export COMPACTION_VAL=ciswire
+    # shellcheck source=../../scripts/ci-lib.sh
+    source "$REPO/scripts/ci-lib.sh"
+    # shellcheck source=../../scripts/device-share-send.sh
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=60000
+    CAMPAIGN_TELEMETRY_GAP_MS=120000
+    CAMPAIGN_POLL_MS=500
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    # Round 0: one partial assistant "#" in the store (the collected row's text).
+    python3 - "$FAKE_DEV/fake/live.json" <<'MSG'
+import json, sys
+json.dump([{"role": "user", "text": "domanda"}, {"role": "assistant", "text": "#"}], open(sys.argv[1], "w"))
+MSG
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '09-27 16:42:10.870 18337 18368 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":0,"tokensCached":2303,"tokensEvaluated":1943,"tokensPredicted":359,"draftTokens":0,"draftAccepted":0,"promptMs":17038.508,"predictedMs":31011.363999999998,"predictedPerSecond":11.576401476568398,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":1943,"ciswireFlags":1}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '09-27 16:42:10.885 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["write_note"]}' >> "$FAKE_DEV/fake/stream.txt"
+    # The late continuation (133 s on device, 2 s here): final message, round 1
+    # telemetry + toolcall, and the turn-ending KALSA_GOVERNOR line.
+    (
+      sleep 2
+      python3 - "$FAKE_DEV/fake/live.json" <<'MSG'
+import json, sys
+json.dump([{"role": "user", "text": "domanda"}, {"role": "assistant", "text": "Risposta finale completa con la nota."}], open(sys.argv[1], "w"))
+MSG
+      db_put_messages "$FAKE_DEV/fake/live.json"
+      printf '%s\n' '09-27 16:44:33.975 18337 18368 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":1,"tokensCached":3609,"tokensEvaluated":2126,"tokensPredicted":1482,"draftTokens":0,"draftAccepted":0,"promptMs":2332.741,"predictedMs":140586.572,"predictedPerSecond":10.541547310791533,"contextFull":false,"interrupted":false,"truncated":false,"tool":"write_note","prompt_n":186,"ciswireFlags":1}' >> "$FAKE_DEV/fake/stream.txt"
+      printf '%s\n' '09-27 16:44:33.975 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":1,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}' >> "$FAKE_DEV/fake/stream.txt"
+      printf '%s\n' '09-27 16:44:33.978 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"GPU","engine_decode":"CPU","commit_bytes":28164608,"commit_ms":8.459,"prefill_ms":2332.741,"prefill_chunks":"2+128+56","prefill_ctx_ngl":99,"forced":false,"thermal_state":"FAST","thermo_source":"battery","fit":"Fit","fallback_reason":"","failed":false,"failure_reason":"","attempt":1,"turnId":"1","route_requested":"auto","route_mode":"auto","route_push":"applied","route_mismatch":null,"route_chunks":[{"index":0,"requested":"auto","actual":"gpu","tokens":2,"prefill_ms":359,"forced":false},{"index":1,"requested":"auto","actual":"gpu","tokens":128,"prefill_ms":1276,"forced":false},{"index":2,"requested":"auto","actual":"gpu","tokens":56,"prefill_ms":696,"forced":false}],"route_chunks_dropped":0,"route_chunks_truncated":false}' >> "$FAKE_DEV/fake/stream.txt"
+    ) >/dev/null 2>&1 &
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    wait >/dev/null 2>&1 || true
+    # Collect only after the wait returned: the record must carry BOTH rounds,
+    # both toolcalls and the turn-ending governor line.
+    node "$HERE/config.mjs" --telemetry-schema "$REPO/campaigns/t20c.json" "$OUT/.telemetry-schema.json" >/dev/null || exit 7
+    printf '%s\n' '{"intent":"tool-continuation","user":"domanda","probes":[]}' > "$OUT/.turn-script.json"
+    campaign_collect_file "$out/.slice.txt" "$FAKE_DEV/fake/live.json" false "$out/rec.json" || exit 8
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  local status
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  local verdict
+  verdict=$(python3 - "$out/rec.json" <<'REC'
+import json, sys
+
+try:
+    rec = json.load(open(sys.argv[1], encoding="utf-8"))
+except OSError:
+    print("missing-record")
+    raise SystemExit(0)
+tel = rec.get("telemetry", {}).get("KALSA_TELEMETRY", [])
+gov = rec.get("telemetry", {}).get("KALSA_GOVERNOR", [])
+tools = rec.get("telemetry", {}).get("KALSA_TOOLCALL", [])
+ok = (
+    [t.get("round") for t in tel] == [0, 1]
+    and len(gov) == 1
+    and gov[0].get("thermal_state") == "FAST"
+    and [t.get("executed") for t in tools] == [1, 0]
+    and rec.get("assistant") == "Risposta finale completa con la nota."
+)
+print("ok" if ok else f"rounds={[t.get('round') for t in tel]} gov={len(gov)} tools={[t.get('executed') for t in tools]} assistant={rec.get('assistant')!r}")
+REC
+)
+  if [ "$rc" -eq 0 ] && [ "$status" = "ok" ] \
+     && grep -q "tool round pending" "$out/log.txt" \
+     && [ "$verdict" = ok ]; then
+    ok "tool continuation: wait held through the tool round and the record carries both rounds + KALSA_GOVERNOR (verbatim baseline lines)"
+  else
+    bad "tool continuation wrong (rc=$rc status=$status verdict=$verdict)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_continuation_case
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

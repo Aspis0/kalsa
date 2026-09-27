@@ -11,12 +11,13 @@ const COMPACTION_KEY = "kalsa.context.compaction";
 const BOOL_OK = new Set(["0", "1"]);
 
 /**
- * Governor rows merged into every T20C-family telemetry schema: route
- * (engine_prefill/engine_decode/route_push/route_chunks[].actual), prefill
- * ms, the pause/retry/kill family and the thermal lines. Timing fields are
- * stamped invalid while charging, like the other measured keys.
+ * Per-turn evidence rows merged into every campaign telemetry schema, beyond
+ * what the config declares: the governor family (route / prefill ms /
+ * pause-retry-kill / thermal), the per-round KALSA_TOOLCALL (which round ran
+ * a tool — the turn-wait gate keys on it), and the thermal-cooling lines.
+ * Timing fields are stamped invalid while charging, like the other keys.
  */
-export const GOVERNOR_TELEMETRY = [
+export const EXTRA_TELEMETRY = [
   { prefix: "KALSA_GOVERNOR_PLAN" },
   { prefix: "KALSA_GOVERNOR", timingInvalidOnCharge: ["prefill_ms", "commit_ms"] },
   { prefix: "KALSA_GOVERNOR_PAUSE" },
@@ -27,12 +28,13 @@ export const GOVERNOR_TELEMETRY = [
   { prefix: "KALSA_GOVERNOR_THERMO" },
   { prefix: "KALSA_THERMAL_COOLING", timingInvalidOnCharge: ["waitedMs", "generationMs"] },
   { prefix: "KALSA_GPU_FALLBACK" },
+  { prefix: "KALSA_TOOLCALL" },
 ];
 
 /** The campaign's telemetry[] plus the governor rows, deduplicated by prefix. */
 export function mergedTelemetry(cfg) {
   const seen = new Set((cfg.telemetry || []).map((s) => s.prefix));
-  return [...(cfg.telemetry || []), ...GOVERNOR_TELEMETRY.filter((s) => !seen.has(s.prefix))];
+  return [...(cfg.telemetry || []), ...EXTRA_TELEMETRY.filter((s) => !seen.has(s.prefix))];
 }
 
 export function loadCampaign(file) {

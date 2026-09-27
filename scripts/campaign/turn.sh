@@ -249,12 +249,53 @@ print(len(asst[-1]) if asst else 0)
 # Liveness (the hang watchdog) is NOT the completion marker: see
 # campaign_progress_fingerprint above.
 # Sets CAMPAIGN_TURN_STATUS=ok|interrupted|timeout|hang|pid-death|adb-drop
+# The LAST KALSA_TOOLCALL in this turn's slice decides whether the turn is
+# over: KALSA_TELEMETRY is emitted PER ROUND (baseline raw: round 0 at
+# 16:42:10.870, round 1 at 16:44:33.975), and every round also emits one
+# KALSA_TOOLCALL (LlamaService emitToolCallTelemetry; toolCallTelemetry.ts
+# field `executed`). executed > 0 means a tool ran and a continuation round
+# will follow; executed 0 is the final round (the branch that also emits
+# KALSA_GOVERNOR). "absent" = no line yet for this round.
+# Prints pending | final | absent; never throws.
+campaign_turn_tool_state() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+
+needle = "KALSA_TOOLCALL "
+last = None
+try:
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            at = line.rfind(needle)
+            if at < 0:
+                continue
+            brace = line.find("{", at)
+            end = line.rfind("}")
+            if brace < 0 or end <= brace:
+                continue
+            try:
+                obj = json.loads(line[brace:end + 1])
+            except ValueError:
+                continue
+            if isinstance(obj, dict):
+                last = obj
+except OSError:
+    pass
+if last is None:
+    print("absent")
+else:
+    print("pending" if int(last.get("executed", 0) or 0) > 0 else "final")
+PY
+}
+
 campaign_wait_turn() {
   local prev="${1:?}" dest="${2:?}" offset="${3:-0}"
   local timeout_ms="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
   local gap_ms="${CAMPAIGN_TELEMETRY_GAP_MS:-1800000}"
   local poll_ms="${CAMPAIGN_POLL_MS:-5000}"
   local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
+  local telemetry_seen_at="" pending_logged="" tool_state
   start=$(python3 -c 'import time; print(int(time.time()*1000))')
   last_progress="$start"
   last_health=0
@@ -306,9 +347,37 @@ campaign_wait_turn() {
           CAMPAIGN_TURN_STATUS="interrupted"
           return 0
         fi
-        CAMPAIGN_TURN_STATUS="ok"
-        return 0
+        # The first telemetry is NOT the turn: a tool round continues it.
+        # Baseline raw: round-0 telemetry + KALSA_TOOLCALL{executed:1} at
+        # 16:42:10, round-1 pair + KALSA_GOVERNOR only at 16:44:33 — the old
+        # check collected right there and wrote a one-char answer with half
+        # the telemetry (REPORT: assistant "#", KALSA_GOVERNOR:[]). Wait while
+        # the latest KALSA_TOOLCALL says a tool ran; only executed 0 (or no
+        # toolcall line at all, once the telemetry has aged past the ~15 ms
+        # emission gap) ends the turn.
+        tool_state=$(campaign_turn_tool_state "$dest")
+        if [ "$tool_state" = "pending" ]; then
+          if [ "$tool_state" != "$pending_logged" ]; then
+            log "tool round pending — waiting for the continuation"
+            pending_logged="$tool_state"
+          fi
+        elif [ "$tool_state" = "absent" ]; then
+          [ -n "$telemetry_seen_at" ] || telemetry_seen_at=$now
+          if [ $((now - telemetry_seen_at)) -lt 1500 ]; then
+            : # TELEMETRY precedes its KALSA_TOOLCALL — keep polling
+          else
+            CAMPAIGN_TURN_STATUS="ok"
+            return 0
+          fi
+        else
+          CAMPAIGN_TURN_STATUS="ok"
+          return 0
+        fi
+      else
+        telemetry_seen_at=""
       fi
+    else
+      telemetry_seen_at=""
     fi
 
     if [ "$elapsed" -ge "$timeout_ms" ]; then

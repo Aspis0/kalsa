@@ -14,7 +14,7 @@ import {
   loadScript,
   conversationsPerVariant,
   mergedTelemetry,
-  GOVERNOR_TELEMETRY,
+  EXTRA_TELEMETRY,
 } from "./config.mjs";
 import {
   applySchema,
@@ -216,6 +216,7 @@ for (const p of [
   "KALSA_GOVERNOR_FALLBACK_RETRY",
   "KALSA_GOVERNOR_FAILED",
   "KALSA_THERMAL_COOLING",
+  "KALSA_TOOLCALL",
 ]) {
   check(govPrefixes.includes(p), `telemetry schema includes ${p}`);
 }
@@ -250,7 +251,7 @@ try {
   );
   check(
     miniCli.status === 0 &&
-      JSON.parse(readFileSync(miniOut, "utf8")).length === 1 + GOVERNOR_TELEMETRY.length,
+      JSON.parse(readFileSync(miniOut, "utf8")).length === 1 + EXTRA_TELEMETRY.length,
     `schema CLI accepts a partial config (status=${miniCli.status})`,
   );
 } finally {
