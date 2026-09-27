@@ -17,6 +17,16 @@ impl ServerArgs {
             "--model".to_string(),
             self.model_path.display().to_string(),
         ];
+        // Without this, `/v1/models` answers with the path — username over
+        // the wire, changing with every model — and the door relays it to
+        // paired phones. One rule for every file: the stem.
+        if let Some(stem) = self
+            .model_path
+            .file_stem()
+            .or_else(|| self.model_path.file_name())
+        {
+            argv.extend(["--alias".to_string(), stem.to_string_lossy().into_owned()]);
+        }
         if let Some(threads) = self.threads {
             // The same count as `--threads` for prefill: past the plateau
             // extra threads buy no throughput, so a bigger prefill burst is
@@ -312,6 +322,43 @@ mod tests {
         // The literal `"1"`, not `CTX_CHECKPOINTS`: asserting the constant
         // is a tautology that stays green when it becomes `"12"`.
         assert_eq!(rendered_value(&argv, "--ctx-checkpoints"), "1", "{argv:?}");
+    }
+
+    /// The id the engine lists is the file's stem: no directory (the
+    /// listing is relayed to paired phones), stable for a pinned file, and
+    /// two files of one model never answer the same id.
+    #[test]
+    fn the_alias_is_the_file_stem_and_never_a_path() {
+        let served = ServerArgs {
+            model_path: PathBuf::from("/models/LFM2.5-2.6B-Q8_0.gguf"),
+            ..some_args()
+        };
+        let served_argv = served.argv();
+        let q8 = rendered_value(&served_argv, "--alias");
+        assert_eq!(q8, "LFM2.5-2.6B-Q8_0");
+        assert!(!q8.contains('/') && !q8.contains('\\'), "{q8}");
+
+        // An override path, directories and all: the stem only.
+        let over = ServerArgs {
+            model_path: PathBuf::from("/Users/x/models/foo-Q4.gguf"),
+            ..some_args()
+        };
+        let over_argv = over.argv();
+        assert_eq!(rendered_value(&over_argv, "--alias"), "foo-Q4");
+
+        // One model, two files — the LFM Q8 and F16 rows — different ids.
+        let f16 = ServerArgs {
+            model_path: PathBuf::from("/models/LFM2.5-2.6B-F16.gguf"),
+            ..some_args()
+        };
+        let f16_argv = f16.argv();
+        assert_ne!(rendered_value(&f16_argv, "--alias"), q8);
+
+        // The measurer strips caller aliases before adding its own nonce
+        // (kalsa-tune's `without_aliases`), so the production flag never
+        // doubles up in a tuned lifetime — one value in one argv here.
+        let mut aliases = served_argv.iter().filter(|arg| *arg == "--alias");
+        assert!(aliases.next().is_some() && aliases.next().is_none());
     }
 
     /// The slot count is data now: whatever the field holds is what the
