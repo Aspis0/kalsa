@@ -69,6 +69,12 @@ describe("resolveServedModel", () => {
     expect(resolveServedModel("ornith", ["ornith", "other"])).toEqual({ kind: "ok", modelId: "ornith" });
     expect(resolveServedModel("ornith", [])).toEqual({ kind: "ok", modelId: "ornith" });
   });
+
+  test("duplicated and untrimmed served ids count as a single id", () => {
+    expect(resolveServedModel("stored", ["m", "m"])).toEqual({ kind: "adopt", modelId: "m" });
+    expect(resolveServedModel("", [" m "])).toEqual({ kind: "adopt", modelId: "m" });
+    expect(resolveServedModel("m", ["m ", "m"])).toEqual({ kind: "ok", modelId: "m" });
+  });
 });
 
 describe("backend cache writes", () => {

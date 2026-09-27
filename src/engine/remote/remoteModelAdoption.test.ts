@@ -26,7 +26,7 @@ import {
   setRemoteBrainUrl,
   setRemoteServerModelId,
 } from "./remoteSettings";
-import { testRemoteConnection } from "./RemoteEngine";
+import { initRemoteEngine, testRemoteConnection } from "./RemoteEngine";
 
 const STALE = "philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx";
 /** The desk's single id today: a full path on the desk user's machine. */
@@ -34,6 +34,7 @@ const ONE_SERVED = ["/Users/somebody/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"];
 
 const hadFetch = "fetch" in globalThis;
 const originalFetch = (globalThis as { fetch: typeof fetch }).fetch;
+let log: jest.SpyInstance;
 
 function serveModels(ids: string[]): void {
   (globalThis as { fetch: typeof fetch }).fetch = (async (input: RequestInfo | URL) => {
@@ -69,7 +70,7 @@ describe("the stored id against the served list", () => {
     });
     await setRemoteBrainUrl("https://desktop.example");
     await setRemoteServerModelId(STALE);
-    jest.spyOn(console, "log").mockImplementation(() => undefined);
+    log = jest.spyOn(console, "log").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -107,5 +108,36 @@ describe("the stored id against the served list", () => {
       getItem: (key: string) => Promise<string | null>;
     };
     await expect(asyncStorage.getItem(REMOTE_BRAIN_MODEL_KEY)).resolves.toBe(STALE);
+  });
+
+  test("the same served id twice counts as one — the single-id adoption survives", async () => {
+    serveModels([ONE_SERVED[0], ONE_SERVED[0]]);
+
+    const probe = await testRemoteConnection();
+
+    expect(probe).toMatchObject({ ok: true, modelId: ONE_SERVED[0] });
+    expect(probe.models).toEqual([ONE_SERVED[0]]);
+  });
+
+  test("a served id with padding is trimmed before it is adopted", async () => {
+    serveModels([`  ${ONE_SERVED[0]}  `]);
+
+    const probe = await testRemoteConnection();
+
+    expect(probe).toMatchObject({ ok: true, modelId: ONE_SERVED[0] });
+    expect(getRemoteServerModelId()).toBe(ONE_SERVED[0]);
+  });
+
+  test("the init log line carries no served or stored model id", async () => {
+    serveModels([ONE_SERVED[0]]);
+
+    await initRemoteEngine("", "kalsa-remote", { locale: "en" });
+
+    const initLines = log.mock.calls.filter((call) => call[0] === "remote.brain.init");
+    expect(initLines).toHaveLength(1);
+    const payload = String(initLines[0][1]);
+    expect(payload).not.toContain(ONE_SERVED[0]);
+    expect(payload).not.toContain(STALE);
+    expect(JSON.parse(payload)).not.toHaveProperty("serverModelId");
   });
 });

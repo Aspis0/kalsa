@@ -114,11 +114,16 @@ export function resolveServedModel(
   servedIds: string[],
 ): ServedModelDecision {
   const id = configured.trim();
-  if (servedIds.length === 1 && servedIds[0] !== id) {
-    return { kind: "adopt", modelId: servedIds[0] };
+  // Trimmed and deduplicated here too: the comparison must see
+  // ["m","m"] and [" m "] as the single id "m", whatever the source did.
+  const served = [
+    ...new Set(servedIds.map((entry) => entry.trim()).filter((entry) => entry.length > 0)),
+  ];
+  if (served.length === 1 && served[0] !== id) {
+    return { kind: "adopt", modelId: served[0] };
   }
   if (!id) return { kind: "error", code: "remote_brain_model_required" };
-  if (servedIds.length > 0 && !servedIds.includes(id)) {
+  if (served.length > 0 && !served.includes(id)) {
     return { kind: "error", code: "remote_brain_model_missing" };
   }
   return { kind: "ok", modelId: id };

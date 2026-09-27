@@ -154,8 +154,19 @@ export async function testRemoteConnection(): Promise<{
     let ids: string[] = [];
     if (models.ok) {
       const data = (models.body as { data?: Array<{ id?: string }> } | null)?.data;
+      // Trimmed and deduplicated at the source: ["m","m"] or [" m "] must
+      // count as ONE id, or a duplicate list defeats the single-id adoption
+      // and the stale-id bug survives.
       ids = Array.isArray(data)
-        ? data.map((row) => row?.id).filter((id): id is string => typeof id === "string" && id.length > 0)
+        ? [
+            ...new Set(
+              data
+                .map((row) => row?.id)
+                .filter((id): id is string => typeof id === "string")
+                .map((id) => id.trim())
+                .filter((id) => id.length > 0),
+            ),
+          ]
         : [];
     } else {
       const health = await jsonGet(base, "/health", token, doorFetch, probe.signal);
