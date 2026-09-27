@@ -1,0 +1,3 @@
+ACTION_VIEW kalsa://share?text=Ho%2045%20minuti%20per%20prepararmi%20a%20una%20riunione%20online%3A%20devo%20controllare%20la%20connessione%20e%20i%20documenti%2C%20preparare%20tre%20punti%20da%20discutere%2C%20fare%20una%20pausa%20breve%20e%20collegarmi%20puntuale.%20Proponi%20una%20scaletta%20realistica%20in%20quattro%20blocchi%20con%20la%20durata%20di%20ciascuno%3B%20la%20somma%20deve%20essere%2045%20minuti.#n=manual2
+Starting: Intent { act=android.intent.action.VIEW dat=kalsa://share/... }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.

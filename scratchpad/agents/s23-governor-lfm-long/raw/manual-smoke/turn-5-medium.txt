@@ -1,0 +1,1 @@
+Trasforma il piano dell’evento in una checklist di cinque voci per il coordinatore. Per ogni voce indica chi se ne occupa e quando va verificata; non aggiungere compiti incompatibili con i vincoli descritti.

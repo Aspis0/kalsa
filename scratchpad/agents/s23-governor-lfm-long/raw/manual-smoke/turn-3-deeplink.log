@@ -1,0 +1,3 @@
+ACTION_VIEW encoded_chars=5267 prompt_chars=3767
+Starting: Intent { act=android.intent.action.VIEW dat=kalsa://share/... }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.

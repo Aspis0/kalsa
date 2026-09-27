@@ -1,0 +1,10 @@
+raw capture: logcat-all.txt.gz; full unfiltered adb logcat -b all -v threadtime output
+extraction starts at: 09-27 15:14:18.981 30516 30547 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4321.19,"bench_norepack_forced":null}
+lines emitted verbatim: 29
+KALSA_GOVERNOR*: 5
+KALSA_TELEMETRY: 3
+KALSA_PREWARM: 13
+KALSA_THERMAL*: 0
+KALSA_GPU_FALLBACK: 0
+KALSA_NATIVE*: 8
+last raw line: 09-27 15:27:04.234  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
