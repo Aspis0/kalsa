@@ -159,3 +159,16 @@ Red→green: with the knobs and fixtures but no gate → `/tmp/drB6_red.log`, **
 ## Still unverified (device-side)
 
 `pgrep -f` support on the S23 toybox (if absent, the driver reports `pgrep_broken` loudly instead of passing), real `dumpsys` formats beyond what the committed S23 logs show, `-devd GPUOpenCL` parse/offload, all tok/s/acceptance/proof counts, cooldown behaviour on real skin, `battery_trust.sh` verdict on this board. Host speeds at `-t 5` were noisy run-to-run (B4 at −n 127: 37–51 t/s across limits) and are explicitly not used as evidence in `PLAN.md`.
+
+
+## S23 DSpark run 1 — pre-arm self-test abort
+
+Preflight passed on the fixed TLS endpoint: unplugged, battery 75% / 29.0 C,
+thermal 0, traced 0, Kalsa absent, no llama/bench process, display Awake and
+unlocked. The raw-log scan had no `Running in interactive mode` matches. The
+driver stopped before kit/model push and before any proof or measured arm:
+`PGREP_SELFTEST=MISS`, `PGREP_SELFCLEAN=GONE`, `PGREP_SELFTEST_ABORT`; cleanup
+verified its kill probe as gone. `END reason=exit_4`, process exit 4. No arm
+rows or drafter placement, acceptance, speed, or per-arm skin values exist.
+No restore state was created. Evidence is in `raw/s23-dspark-1/`; no retry was
+made.

@@ -1,0 +1,2 @@
+Command: rg -a -n "Running in interactive mode" scratchpad/agents/spec-dspark-gpu-draft/raw
+Result: no raw-log matches before run (rg exit 1).

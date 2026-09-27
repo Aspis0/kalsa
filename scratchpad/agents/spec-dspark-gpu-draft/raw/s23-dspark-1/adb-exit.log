@@ -1,0 +1,5 @@
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp wait-for-device
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell q=\"sleep\ 12\"\;\ q=\"\$q\"\"345\"\;\ \"\$q\"\ \&\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFTEST=FOUND\;\ else\ echo\ PGREP_SELFTEST=MISS\;\ fi\;\ pkill\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\ \|\|\ true\;\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFCLEAN=STILL\;\ else\ echo\ PGREP_SELFCLEAN=GONE\;\ fi
+rc=1 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell pgrep\ -f\ zzz_no_such_proc_zz\[z\]\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
+rc=0 -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi

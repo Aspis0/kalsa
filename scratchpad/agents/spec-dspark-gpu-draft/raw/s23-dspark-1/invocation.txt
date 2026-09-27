@@ -1,0 +1,1 @@
+ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_PORT=5037 ./d_run.sh s23-dspark-1 100 > /tmp/s23dspark.log 2>&1; echo EXIT=4
