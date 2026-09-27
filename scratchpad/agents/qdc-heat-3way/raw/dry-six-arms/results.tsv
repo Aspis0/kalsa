@@ -4,4 +4,4 @@ pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	load_wa
 2	npu	3	OK	na	0	0	0	0	0	33.5	33.5	0	33.5	33.5	310	310	88	false	0	1018	18000.00	126	13.89	htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5	ok
 2	npu	4	OK	na	0	0	0	0	0	33.5	33.5	0	33.5	33.5	310	310	88	false	0	1018	18000.00	126	13.89	htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5	ok
 3	gpu	5	OK	na	0	0	0	0	0	33.5	33.5	0	33.5	33.5	310	310	88	false	0	1018	14000.00	126	13.89	gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5	ok
-3	cpu	6	OK	na	0	0	0	1	0	33.5	33.5	0	33.5	33.5	310	310	88	false	0	1018	45000.00	126	13.89	cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5	ok
+3	cpu	6	OK	na	0	0	0	0	0	33.5	33.5	0	33.5	33.5	310	310	88	false	0	1018	45000.00	126	13.89	cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5	ok

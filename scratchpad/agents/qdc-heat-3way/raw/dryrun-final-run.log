@@ -191,6 +191,18 @@ PASS  pin floor came from calib.ok
 PASS  pin scaled min=40
 PASS  pinned-floor restore-ran
 PASS  pinned-floor timeout-restored
+== fixture: the REAL calib4 rate 64.4231 is accepted and applied ==
+PASS  calib-pin-real shell-syntax
+PASS  cpr2 rc
+PASS  cpr2 END
+PASS  cpr2 rows
+PASS  cpr2 all-OK
+PASS  cpr2 pin accepted
+PASS  cpr2 board ok
+PASS  cpr2 no PIN_INVALID
+PASS  cpr2 pinned floor applied (ceil(64.4231x4)=258)
+PASS  cpr2 restore-ran
+PASS  cpr2 timeout-restored
 == fixture: stop thermal_status >= 3 (injected at first gate) ==
 PASS  stop-thermal shell-syntax
 PASS  st rc
@@ -372,6 +384,12 @@ PASS  calib-pin-badrate shell-syntax
 PASS  cpr rc
 PASS  cpr invalid logged
 PASS  cpr no-END (pre-trap exit)
+== fixture A-N5a (lower edge): rate 0.1 refused ==
+PASS  calib-pin-badrate-low shell-syntax
+PASS  cprlo rc
+PASS  cprlo invalid logged
+PASS  cprlo no-END (pre-trap exit)
+PASS  cprlo never touched the device
 PASS  cpr never touched the device
 == fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
 PASS  no-selfmatch shell-syntax
@@ -391,4 +409,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=352 FAIL=0
+dryrun summary: PASS=368 FAIL=0

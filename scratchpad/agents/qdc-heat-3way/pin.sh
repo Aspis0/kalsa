@@ -32,7 +32,15 @@ resolve_calib_pin() {
     why="missing_keys"
   elif ! awk -v v="$floor" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}'; then
     why="floor_not_numeric"
-  elif ! awk -v v="$floor" 'BEGIN{exit !(v+0 >= 0.5 && v+0 <= 25)}'; then
+  elif ! awk -v v="$floor" 'BEGIN{exit !(v+0 >= 0.5 && v+0 <= 500)}'; then
+    # Band rationale (amendment 13): the old [0.5, 25] ceiling came from the
+    # 1024-token batched PREFILL priors (q57 1.72 .. q51 20.2 ops/token —
+    # graph dispatches amortised over the batch). The proof SHAPE is 1 prompt
+    # batch + a few decode STEPS, and every step re-dispatches the whole
+    # graph: measured on this board at calib4 = 128.85 ops/token (pin 64.4231
+    # = half of it). 500 = ~4x that measured decode-shape rate; with the pin
+    # already bound to serial/SoC/model/kit, the band only exists to catch
+    # garbage, and a wrong 25-ceiling refused a VALID pin (heat run, exit 9).
     why="floor_rate_out_of_band($floor)"
   elif [ "$model_sha" != "$MODEL_SHA" ]; then
     why="model_sha_mismatch"

@@ -116,7 +116,8 @@ explicitly superseded here.
     did not stamp its exit (the measured window may contain 1 Hz load —
     discard or flag those rows), `na` when no turn was measured.
 11. **calib.ok is bound and validated** (A-N6/A-N5a): it carries serial, soc,
-    model_sha, kit_sha and a floor rate that must sit in [0.5, 25] ops/token;
+    model_sha, kit_sha and a floor rate that must sit in [0.5, 500] ops/token
+    (band rationale and the measured value: amendment 13);
     any mismatch or out-of-band rate aborts with exit 9 (recalibrate), and
     calibration itself refuses to certify a VOID proof (`END
     calib_void_<backend>`, rc 3, no pin) or a G/N buffer-name collision
@@ -124,6 +125,21 @@ explicitly superseded here.
 12. **On-device sampler hard bound**: 4 h (`smp.sh` MAX_EPOCH) — a
     SIGKILLed driver cannot leave a 1 Hz dumpsys loop on the phone
     indefinitely; expiry stamps `H sampler_expired` (audit3 A-N3).
+
+### Fourth amendment pass — 2026-09-27, after calibration 4 on the S23 (heat run still pending)
+
+13. **Measured proof-shape rate 128.85 ops/token; band widened to [0.5, 500]**
+    Calibration 4 completed (`END calibrated`): the NPU proof ran 1675
+    execute-op over 13 tokens = **128.85 ops/token**, pinned floor **64.4231**
+    (= 0.5 × 128.85). The old ceiling 25 came from the 1024-token batched
+    PREFILL priors (q57 1.72 … q51 20.2 — dispatches amortised over the
+    batch); the proof shape is 1 prompt batch + 3 decode STEPS and every step
+    re-dispatches the whole graph, so ~129 ops/token is expected on this
+    shape. Band = **[0.5, 500]** (~4× the measured rate; the band only has to
+    catch garbage — the pin is already bound to serial/SoC/model/kit). The
+    first heat run was refused pre-setup with
+    `floor_rate_out_of_band(64.4231)` (exit 9): that was the band's bug, not
+    the pin's. Fixtures: 5000 and 0.1 must still refuse, 64.4231 must pass.
 
 ## Why this cell exists
 

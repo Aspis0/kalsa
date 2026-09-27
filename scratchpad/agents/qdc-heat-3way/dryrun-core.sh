@@ -217,3 +217,15 @@ has "pin floor came from calib.ok" "source=calib.ok" "$(cat "$RAW/driver.log")"
 has "pin scaled min=40" "htp_ops=20 min=40" "$(col 1 25)"
 assert_restore pinned-floor
 
+echo "== fixture: the REAL calib4 rate 64.4231 is accepted and applied =="
+run_fixture calib-pin-real NN seed_calib_real DRY_HTP_OPS=300
+eq "cpr2 rc" 0 "$RC"
+assert_end cpr2 exit_0
+eq "cpr2 rows" 2 "$(rows)"
+eq "cpr2 all-OK" "" "$(all_ok)"
+has "cpr2 pin accepted" "source=calib.ok" "$(cat "$RAW/driver.log")"
+has "cpr2 board ok" "CALIB_PIN_BOARD_OK" "$(cat "$RAW/driver.log")"
+count_is "cpr2 no PIN_INVALID" 0 "CALIB_PIN_INVALID" "$RAW/driver.log"
+has "cpr2 pinned floor applied (ceil(64.4231x4)=258)" "htp_ops=300 min=258" "$(col 1 25)"
+assert_restore cpr2
+

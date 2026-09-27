@@ -5,6 +5,26 @@
 
 CELL="$(cd "$(dirname "$0")" && pwd)"
 PASS=0; FAIL=0; RAW=""; RC=0; STATE=""
+# The REAL device pin (luna reuses it — owner: do not touch) survives the
+# matrix byte-identically: the first run_fixture backs it up, every fixture
+# controls calib.ok only inside its own run, and the EXIT trap restores the
+# real pin (or removes a fixture-created one, so no fake pin is ever left).
+CALIB_REAL_BAK=""
+preserve_real_calib_pin() {
+  [ -z "$CALIB_REAL_BAK" ] || return 0
+  [ -f "$CELL/calib.ok" ] || return 0
+  CALIB_REAL_BAK=$(mktemp)
+  cp "$CELL/calib.ok" "$CALIB_REAL_BAK"
+}
+restore_real_calib_pin() {
+  if [ -n "$CALIB_REAL_BAK" ] && [ -f "$CALIB_REAL_BAK" ]; then
+    cp "$CALIB_REAL_BAK" "$CELL/calib.ok"
+    rm -f "$CALIB_REAL_BAK"
+  else
+    rm -f "$CELL/calib.ok"
+  fi
+}
+trap restore_real_calib_pin EXIT
 pass() { PASS=$((PASS + 1)); printf 'PASS  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); printf 'FAIL  %s -- %s\n' "$1" "$2"; }
 eq() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1" "expected=[$2] got=[$3]"; fi; }
@@ -31,9 +51,19 @@ seed_calib_mismatch() { # audit3 A-N6: pin from another board
   seed_calib_ok
   sed -i '' 's/^serial=.*/serial=otherboard/' "$CELL/calib.ok"
 }
-seed_calib_badrate() { # audit3 A-N5a: rate outside [0.5,25] ops/token
+seed_calib_badrate() { # A-N5a upper: 5000 > band ceiling 500
   seed_calib_ok
-  sed -i '' 's/^htp_ops_floor_per_tok=.*/htp_ops_floor_per_tok=999.0000/' "$CELL/calib.ok"
+  sed -i '' 's/^htp_ops_floor_per_tok=.*/htp_ops_floor_per_tok=5000.0000/' "$CELL/calib.ok"
+}
+seed_calib_badrate_low() { # A-N5a lower: 0.1 < band floor 0.5
+  seed_calib_ok
+  sed -i '' 's/^htp_ops_floor_per_tok=.*/htp_ops_floor_per_tok=0.1000/' "$CELL/calib.ok"
+}
+seed_calib_real() { # the REAL calib4 values (64.4231 = 0.5 x 128.85 = 0.5 x 1675/13),
+  # with the fixture board's identity keys (real serial would trip the board check).
+  printf 'htp_ops_floor_per_tok=64.4231\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=1675\nmeasured_npu_tokens=13\n' \
+    'a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03' \
+    'dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea' > "$CELL/calib.ok"
 }
 seed_prior_restore() { # A-6: previous run SIGKILLed — state holds pre-run
   # values, the fake device still holds the mutations.
@@ -54,6 +84,7 @@ run_fixture() {
   # Fixture isolation for A-6/NEW-1: the driver must CONSUME a stale state
   # and a stale calib.ok must not leak between fixtures, so each fixture
   # starts with none unless it seeds one on purpose.
+  preserve_real_calib_pin
   rm -f "$CELL/.restore-state" "$CELL/calib.ok"
   [ -z "$seed" ] || "$seed" "$name"
   set +e

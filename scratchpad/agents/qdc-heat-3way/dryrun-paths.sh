@@ -87,6 +87,13 @@ run_fixture calib-pin-badrate CG seed_calib_badrate
 eq "cpr rc" 9 "$RC"
 has "cpr invalid logged" "CALIB_PIN_INVALID why=floor_rate_out_of_band" "$(cat "$RAW/driver.log")"
 assert_no_end cpr
+
+echo "== fixture A-N5a (lower edge): rate 0.1 refused =="
+run_fixture calib-pin-badrate-low CG seed_calib_badrate_low
+eq "cprlo rc" 9 "$RC"
+has "cprlo invalid logged" "CALIB_PIN_INVALID why=floor_rate_out_of_band" "$(cat "$RAW/driver.log")"
+assert_no_end cprlo
+eq "cprlo never touched the device" absent "$([ -f "$RAW/wait_for_device.txt" ] && echo present || echo absent)"
 eq "cpr never touched the device" absent "$([ -f "$RAW/wait_for_device.txt" ] && echo present || echo absent)"
 
 echo "== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) =="

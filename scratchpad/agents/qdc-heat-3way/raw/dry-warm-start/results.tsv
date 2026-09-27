@@ -1,3 +1,3 @@
 pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	load_wall_s	load_skin_before	load_skin_after	pagein_cold	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	thermal_status	prompt_n	prefill_ms	decode_runs	decode_tps	proof	sampler
 1	cpu	1	OK	na	1	2	0	0	0	38	38	1	38	38	310	310	88	false	0	1018	45000.00	126	13.89	cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5	ok
-1	gpu	2	OK	na	1	2	0	0	0	38	38	0	38	38	310	310	88	false	0	1018	14000.00	126	13.89	gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5	ok
+1	gpu	2	OK	na	1	2	0	1	0	38	38	0	38	38	310	310	88	false	0	1018	14000.00	126	13.89	gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5	ok

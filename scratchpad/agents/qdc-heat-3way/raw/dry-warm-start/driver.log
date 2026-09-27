@@ -1,25 +1,25 @@
-[00:46:02] SESSION job=dry-warm-start board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[00:46:02] KIT_UNPACK_PUSH
-[00:46:02] DEVICE_LIST_OK
-[00:46:02] KIT_PUSH ship.gguf sha_before=absent
-[00:46:02] KIT_PUSH prompt.txt sha_before=absent
-[00:46:03] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:46:03] GATE label=setup
-[00:46:03] SETUP_DONE skin0=38 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[00:46:03] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:46:03] SAMPLER_LAUNCHED pid=16653
-[00:46:03] ARM_START turn=1 backend=cpu pair=1 tag=dry-warm-start-t1cpu
-[00:46:05] COOLDOWN_CAP skin=38 waited_s=2 (run anyway, warm_start=1)
-[00:46:05] LOAD_PHASE turn=1 wall_s=0 skin 38->38 pagein_cold=1
-[00:46:06] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:46:06] SAMPLER_LAUNCHED pid=18101
-[00:46:06] SAMPLER_RESUMED
-[00:46:07] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
-[00:46:07] ARM_START turn=2 backend=gpu pair=1 tag=dry-warm-start-t2gpu
-[00:46:09] COOLDOWN_CAP skin=38 waited_s=2 (run anyway, warm_start=1)
-[00:46:09] LOAD_PHASE turn=2 wall_s=0 skin 38->38 pagein_cold=0
-[00:46:10] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:46:10] SAMPLER_LAUNCHED pid=19698
-[00:46:10] SAMPLER_RESUMED
-[00:46:10] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
-[00:46:10] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-warm-start/results.tsv
+[00:58:40] SESSION job=dry-warm-start board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:58:40] KIT_UNPACK_PUSH
+[00:58:40] DEVICE_LIST_OK
+[00:58:40] KIT_PUSH ship.gguf sha_before=absent
+[00:58:40] KIT_PUSH prompt.txt sha_before=absent
+[00:58:41] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:58:41] GATE label=setup
+[00:58:41] SETUP_DONE skin0=38 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[00:58:41] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[00:58:41] SAMPLER_LAUNCHED pid=58898
+[00:58:41] ARM_START turn=1 backend=cpu pair=1 tag=dry-warm-start-t1cpu
+[00:58:44] COOLDOWN_CAP skin=38 waited_s=2 (run anyway, warm_start=1)
+[00:58:44] LOAD_PHASE turn=1 wall_s=0 skin 38->38 pagein_cold=1
+[00:58:45] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[00:58:45] SAMPLER_LAUNCHED pid=59648
+[00:58:45] SAMPLER_RESUMED
+[00:58:45] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[00:58:45] ARM_START turn=2 backend=gpu pair=1 tag=dry-warm-start-t2gpu
+[00:58:47] COOLDOWN_CAP skin=38 waited_s=2 (run anyway, warm_start=1)
+[00:58:47] LOAD_PHASE turn=2 wall_s=0 skin 38->38 pagein_cold=0
+[00:58:48] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[00:58:49] SAMPLER_LAUNCHED pid=60545
+[00:58:49] SAMPLER_RESUMED
+[00:58:49] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[00:58:49] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-warm-start/results.tsv

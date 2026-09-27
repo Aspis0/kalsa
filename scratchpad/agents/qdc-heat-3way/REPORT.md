@@ -60,7 +60,7 @@ measured window is prefill+decode only. The app has no NPU route
   lines only for the number).
 - `setup.sh` (80) — pre-arm device setup: prior restore, state, trap arming,
   mutations, kit+trust+gate, the single-session pgrep self-test, sampler.
-- `pin.sh` (62) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
+- `pin.sh` (70) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
   model/kit binding, board binding) or exit 9.
 - `calibrate.sh` (140) — CALIBRATE=1 loop: proof + short run per backend,
   candidate report, VOID-proof refusal, G/N buf-collision check, pinned floor.
@@ -80,9 +80,10 @@ measured window is prefill+decode only. The app has no NPU route
   reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, a
   `dash -n` syntax check on every shell string, and the real f25 log shapes
   (buffer sets, verbatim hexagon lines).
-- `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (103) + `dryrun-core.sh`
-  (219) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (129) — fixture matrix
-  split by topic (40 fixtures, 352 assertions).
+- `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (134, incl. the real-pin
+  backup/restore) + `dryrun-core.sh` (231) + `dryrun-stops.sh` (120) +
+  `dryrun-paths.sh` (136) — fixture matrix split by topic (42 fixtures, 368
+  assertions).
 - `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
@@ -522,6 +523,40 @@ from run 3 but its `handle` value is run-3 device-specific (informational,
 never parsed); whether older-kit logs still carry `Hexagon Arch version` at
 that exact wording rests on the STEP0-era captures, not this kit; `dash -n`
 remains a POSIX parser, not Android's shell.
+
+## Round 10 — the band refused a VALID pin; calib4 measured 128.85 ops/token (2026-09-27)
+
+Calibration 4 on the S23 passed (`END calibrated`, NPU `arch v73`,
+`htp_ops=1675` over 13 tokens → 128.85 ops/token, pinned 64.4231 = 0.5 ×).
+The heat run was then refused pre-setup with exit 9
+`floor_rate_out_of_band(64.4231)` — **the band was wrong, not the pin**: the
+old [0.5, 25] ceiling came from 1024-token batched-PREFILL priors (q57 1.72 …
+q51 20.2 ops/token, dispatches amortised over the batch), while the proof
+shape is 1 prompt batch + 3 decode STEPS each re-dispatching the whole graph
+(~129 ops/token expected on this shape).
+
+| fix (file:line) | what |
+|---|---|
+| `pin.sh:35-44` | band → **[0.5, 500]** (~4× the measured decode-shape rate; garbage-only check — the pin is already bound to serial/SoC/model/kit), with the WHY spelled out in the comment (prefill-batch priors vs per-step dispatch) |
+| `PREREG.md:129-145` | fourth amendment pass #13 records the measured **128.85** (pin 64.4231 = 0.5×), the old ceiling's provenance, the new [0.5, 500] band and the refused heat run |
+| `dryrun-lib.sh:8-27,44` | the REAL cell pin survives the matrix byte-identically: first `run_fixture` backs it up, each fixture controls `calib.ok` only inside its own run, an EXIT trap restores the real pin (or removes a fixture-created one — no fake pin ever left) |
+| `dryrun-paths.sh:91-96` + `dryrun-core.sh:220-231` | fixtures: **5000** (upper) and **0.1** (lower) still refused with `CALIB_PIN_INVALID why=floor_rate_out_of_band` rc 9 pre-device; **64.4231 accepted and applied** — `source=calib.ok`, `CALIB_PIN_BOARD_OK`, `htp_ops=300 min=258` (= ceil(64.4231×4 proof tokens)), rows 2 OK, END `exit_0` |
+
+**The real `calib.ok` was not touched** (luna reuses it): sha256 before the
+dry-run `6bfff2b9d9615c41db52cca5784d2f4c7056d9f6f3106af2fcdf79bcf2f9cdf1`,
+identical after (`shasum -a 256 calib.ok` both quoted above); it is
+git-ignored, so nothing device-specific is committed either.
+
+**Commands (this round):** `bash -n` on all scripts → **EXIT=0**;
+`./dryrun.sh > /tmp/dr10.log 2>&1; echo "EXIT=$?"` → **EXIT=0, PASS=368
+FAIL=0** (log `raw/dryrun-final-run.log`); `shasum -a 256 calib.ok` before/after
+→ identical `6bfff2b9…f9cdf1`.
+
+**Not verified (round 10):** the 500 ceiling rests on a single board and a
+single proof shape — a genuinely broken pin between 64.4231 and 500 would
+pass the band (the pin's serial/SoC/model/kit binding is the backstop);
+the backup/restore of the real pin is proven by sha equality on this dry-run
+only; the refused heat run itself was not re-attempted (no phone).
 
 ## Declared, not touched
 
