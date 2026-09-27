@@ -1236,12 +1236,35 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
 // a small one.
 
 #[test]
-fn the_roomy_exception_only_applies_when_the_bar_found_no_second_card() {
-    // The owner's correction: the ordinary rule asks first and its answer
-    // is kept. At 64 GiB / 800 GB/s the1.5x bar clears for the 35B MoE, so
-    // the card is Qwen3.6 — even though the roomy full-precision file is
-    // faster there. Order the exception first and this becomes the F16
-    // card: that is the mutation this test turns red.
+fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
+    // The owner's table, as rules. Same family → swapped: at 32/400 the
+    // bar finds the Q8 file (72.4 against 1.5 x 39.9) and the full-
+    // precision file — faster than the pick (measured 56.19) — replaces
+    // it, so the card reads F16. Remove the family check and this stays
+    // Q8_0; order the exception before the bar at 64/800 and that case
+    // flips below: either mutation turns this red.
+    let roomy = ChoiceInput {
+        bandwidth_bytes_per_second: 400.0e9,
+        ..input(32, false)
+    };
+    let first = largest_that_runs_well(&roomy).expect("a 32 GiB machine runs something");
+    assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
+    let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
+    let q8 = kalsa_catalog::usable()
+        .find(|row| row.entry().quant == "Q8_0")
+        .expect("the Q8 file is on the menu");
+    assert!(
+        decode_prediction(q8, &roomy).floor() >= wanted,
+        "the premise: the bar found the same-family card, {:?}",
+        decode_prediction(q8, &roomy).floor()
+    );
+    let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
+    assert_eq!(quick.entry.quant, "F16");
+    assert!(quick.decode.floor() > first.decode.floor(), "faster than the pick");
+
+    // Different model → the bar's answer stays. At 64/800 the bar clears
+    // for the 35B MoE, and the F16 file — faster than the pick as well —
+    // does not displace another model.
     let fast = ChoiceInput {
         bandwidth_bytes_per_second: 800.0e9,
         ..input(64, false)
@@ -1251,20 +1274,23 @@ fn the_roomy_exception_only_applies_when_the_bar_found_no_second_card() {
     let quick = quicker_alternative(&fast, &first.decode).expect("a second card");
     assert_eq!(quick.entry.repo, "Qwen/Qwen3.6-35B-A3B");
 
-    // The same keeper rule at 32 GiB / 400: the bar admits the Q8 file
-    // (72.4 against 1.5 x 39.9), so the card is Q8_0 and not the
-    // full-precision file that sits under the bar (measured 56.19).
-    let roomy = ChoiceInput {
-        bandwidth_bytes_per_second: 400.0e9,
-        ..input(32, false)
+    // Same on the 24 GB card: the bar finds Gemma 26B, and the roomy
+    // full-precision file (faster than the pick) still does not swap in —
+    // it outranks its own family, not other models.
+    let card = ChoiceInput {
+        backend: Backend::DiscreteGpu {
+            vram_bytes: Some(24 * GIB),
+        },
+        bandwidth_bytes_per_second: 1000.0e9,
+        ..input(64, false)
     };
-    let first = largest_that_runs_well(&roomy).expect("a 32 GiB machine runs something");
-    assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
-    let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.quant, "Q8_0");
+    let first = largest_that_runs_well(&card).expect("the card runs something");
+    assert_eq!(first.entry.repo, "Qwen/Qwen3.8-27B");
+    let quick = quicker_alternative(&card, &first.decode).expect("a second card");
+    assert_eq!(quick.entry.repo, "google/gemma-4-26B-A4B-it");
 
-    // And below the roomy line nothing moves either: 16 GiB keeps the Q8
-    // card beside the 12B.
+    // And below the roomy line the exception has no say: 16/200 keeps the
+    // Q8 card beside the 12B.
     let small = metal(16, 200.0e9);
     let first = largest_that_runs_well(&small).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&small, &first.decode).expect("a second card");
