@@ -94,6 +94,7 @@ source "$CAMPAIGN_ROOT/recovery.sh"
 source "$CAMPAIGN_ROOT/turn.sh"
 source "$CAMPAIGN_ROOT/nativeLog.sh"
 source "$CAMPAIGN_ROOT/oneTurn.sh"
+source "$CAMPAIGN_ROOT/screen.sh"
 source "$CAMPAIGN_ROOT/metroPreflight.sh"
 source "$CAMPAIGN_ROOT/governor.sh"
 
@@ -202,9 +203,8 @@ run_should_stop() {
   fi
   local lvl
   lvl=$(battery_level_now)
-  case "$lvl" in ''|*[!0-9]*) return 1 ;; esac
-  if [ "$lvl" -le "$BATTERY_FLOOR" ]; then
-    stop_reason="battery level $lvl <= floor $BATTERY_FLOOR — stopping before an unplanned shutdown mid-prefill"
+  if campaign_level_should_stop "$lvl" "$BATTERY_FLOOR"; then
+    stop_reason="$CAMPAIGN_STOP_REASON"
     return 0
   fi
   return 1
@@ -308,9 +308,12 @@ device_thermal_gate
 [ "${THERMAL_STATUS_AT_TURN:-unknown}" != unknown ] || die "thermal preflight refused: thermal status unreadable"
 log "thermal preflight status=${THERMAL_STATUS_AT_TURN:-unknown} battery_deci=${THERMAL_BATTERY_DECI_AT_TURN:-unknown}"
 device_keepawake_begin
+# Owner rule (screen ON): pin the timeout at max and drop the keyguard now;
+# keepawake just set its own shorter value, we override it after it.
+campaign_screen_pin_timeout || die "screen: could not pin screen_off_timeout=2147483647"
 campaign_logcat_start "$OUT/logcat.txt"
 MON_PID=""
-trap 'campaign_native_log_restore || true; campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; _device_session_restore' EXIT
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; campaign_session_restore_keep_screen_timeout' EXIT
 
 charging_monitor &
 MON_PID=$!
@@ -388,7 +391,7 @@ log "--- end engine init lines ---"
 # at turn 19. The plan lands when the model finishes loading; wait for it.
 log "--- governor engagement ---"
 governor_plan_json=""
-if campaign_governor_wait_plan "$OUT/logcat.txt" "${CAMPAIGN_GOVERNOR_PLAN_WAIT_S:-90}" > "$OUT/.governor-plan.json"; then
+if campaign_governor_wait_plan "$OUT/logcat.txt" "${CAMPAIGN_GOVERNOR_PLAN_WAIT_S:-180}" > "$OUT/.governor-plan.json"; then
   governor_plan_json="$(tr -d '\n' < "$OUT/.governor-plan.json")"
 fi
 governor_pref="$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.governor.enabled';" 2>/dev/null | tr -d '[:space:]')" || governor_pref=""
@@ -407,7 +410,12 @@ for i in $(seq 1 20); do
   user=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["turns"][int(sys.argv[2])]["user"])' \
     "$SCRIPT" "$((i - 1))")
   log "=== turn $i begins ==="
-  if ! campaign_one_turn "$i" "$user"; then
+  screen_rc=0
+  campaign_screen_turn "$OUT/${CAMPAIGN_ARM_ID}/${CAMPAIGN_CONV_ID}.jsonl" "$i" \
+    "${CAMPAIGN_SCREEN_REDO_CAP:-3}" campaign_one_turn "$i" "$user" || screen_rc=$?
+  if [ "$screen_rc" -eq 1 ]; then
+    die "screen rule: turn $i never became awake+focused after ${CAMPAIGN_SCREEN_REDO_CAP:-3} attempts"
+  elif [ "$screen_rc" -ne 0 ]; then
     log "WARN: turn $i failed — continuing loop"
     rc=1
   fi

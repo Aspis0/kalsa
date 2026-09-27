@@ -21,6 +21,7 @@ source "$_HERE/recovery.sh"
 source "$_HERE/turn.sh"
 source "$_HERE/nativeLog.sh"
 source "$_HERE/oneTurn.sh"
+source "$_HERE/screen.sh"
 source "$_HERE/phase0.sh"
 source "$_HERE/metroPreflight.sh"
 # The shared gate records discoverable evidence in metro-gate-evidence.txt.
@@ -140,8 +141,11 @@ campaign_metro_preflight
 campaign_ensure_device || die "device missing (serial=$ANDROID_SERIAL) — refusing to fake jsonl"
 [ "$(campaign_adb_state)" = "device" ] || die "adb get-state is not device"
 device_keepawake_begin
+# Owner rule (screen ON): pin the timeout at max and drop the keyguard now
+# (keepawake just set its own shorter value — we override it after it).
+campaign_screen_pin_timeout || die "screen: could not pin screen_off_timeout=2147483647"
 campaign_logcat_start "$OUT/logcat.txt"
-trap 'campaign_native_log_restore || true; campaign_logcat_stop; device_termux_wakelock_restore; _device_session_restore' EXIT
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; device_termux_wakelock_restore; campaign_session_restore_keep_screen_timeout' EXIT
 
 campaign_arm_begin() {
   campaign_write_flags
@@ -165,7 +169,14 @@ campaign_run_script_turns() {
     # conversation: return 1 so mode_run skips the profile write and the next
     # pass resumes from this exact turn. The old `|| true` silently burned
     # turns — c1-B completed 2/24 (the bug that pollutes profiles).
-    campaign_one_turn "$i" "$user" || return 1
+    screen_rc=0
+    campaign_screen_turn "$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.jsonl" "$i" \
+      "${CAMPAIGN_SCREEN_REDO_CAP:-3}" campaign_one_turn "$i" "$user" || screen_rc=$?
+    if [ "$screen_rc" -eq 1 ]; then
+      die "screen rule: turn $i never became awake+focused after ${CAMPAIGN_SCREEN_REDO_CAP:-3} attempts"
+    elif [ "$screen_rc" -ne 0 ]; then
+      return 1
+    fi
   done
 }
 
@@ -178,7 +189,9 @@ campaign_run_script_intents() {
     case ",$want," in
       *",$intent,"*)
         user=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["turns"][int(sys.argv[2])]["user"])' "$SCRIPT" "$((i - 1))")
-        campaign_one_turn "$i" "$user"
+        campaign_screen_turn "$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.jsonl" "$i" \
+          "${CAMPAIGN_SCREEN_REDO_CAP:-3}" campaign_one_turn "$i" "$user" ||
+          die "screen rule: turn $i not valid after ${CAMPAIGN_SCREEN_REDO_CAP:-3} attempts"
         ;;
     esac
   done <<EOF

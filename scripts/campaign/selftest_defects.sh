@@ -50,6 +50,11 @@ fail=0
 ok() { printf 'PASS: %s\n' "$1"; pass=$((pass + 1)); }
 bad() { printf 'FAIL: %s\n' "$1"; fail=$((fail + 1)); }
 
+# Screen-ON rule states (the fake answers wake for dozing, never for stuck).
+screen_doze() { printf '%s\n' dozing > "$FAKE_DEV/fake/screen"; }
+screen_unfocus() { printf '%s\n' other > "$FAKE_DEV/fake/focus"; }
+screen_stuck() { printf '%s\n' stuck > "$FAKE_DEV/fake/screen"; }
+
 cleanup() {
   pkill -f "$WORK" >/dev/null 2>&1 || true
   rm -rf "$WORK"
@@ -88,6 +93,8 @@ fake_reset() {
   temperature: $temp
 EOF
   printf '%s\n' 'Thermal Status: 0' > "$FAKE_DEV/fake/thermalservice.txt"
+  printf '%s\n' awake > "$FAKE_DEV/fake/screen"
+  printf '%s\n' kalsa > "$FAKE_DEV/fake/focus"
   cat > "$FAKE_DEV/fake/stream.txt" <<'EOF'
 09-16 12:00:00.000 4242 4243 I ReactNativeJS: KALSA_CTX_FLOOR n_ctx=8192
 09-16 12:00:00.010 4242 4243 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"fake","nGpuLayers":0}
@@ -1346,6 +1353,194 @@ governor_engagement_case() {
 }
 
 governor_engagement_case
+
+# Pref OFF → the fake app logs no KALSA_GOVERNOR_PLAN (like the real one)
+# and the engagement gate refuses; pref ON → the plan appears and verifies.
+governor_pref_off_case() {
+  local out="$WORK/gov-pref-off" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    source "$HERE/governor.sh"
+    adb shell am start -n com.kalsa.app/.MainActivity </dev/null >/dev/null 2>&1 || exit 1
+    if campaign_governor_wait_plan "$FAKE_DEV/fake/stream.txt" 1 >/dev/null; then
+      echo "pref off but a plan was logged"; exit 2
+    fi
+    campaign_governor_verify "" "" && { echo "gate accepted a pref-off device"; exit 3; }
+    sqlite3 "$FAKE_DEV/databases/RKStorage" \
+      "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.governor.enabled','1');" || exit 4
+    adb shell am start -n com.kalsa.app/.MainActivity </dev/null >/dev/null 2>&1 || exit 5
+    plan=$(campaign_governor_wait_plan "$FAKE_DEV/fake/stream.txt" 6) || { echo "no plan after pref on"; exit 6; }
+    campaign_governor_verify "$plan" 1 || exit 7
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "pref off logs no plan and the gate dies; pref on logs a verifiable Fit plan"
+  else
+    bad "governor pref-off fake-device case failed (rc=$rc)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+governor_pref_off_case
+
+# ── the screen-ON rule: Awake+focused counts, anything else redos ───────────
+screen_pass_case() {
+  local out="$WORK/screen-pass" jsonl rc lines
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  jsonl="$out/turn.jsonl"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    export PKG=com.kalsa.app ANDROID_SERIAL=fake:5555
+    source "$HERE/screen.sh"
+    fake_turn() { printf '{"i":1,"assistant":"ok"}\n' >> "$jsonl"; }
+    campaign_screen_verify || exit 11
+    campaign_screen_turn "$jsonl" 1 3 fake_turn
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  lines=$(wc -l < "$jsonl" 2>/dev/null | tr -d ' ')
+  if [ "$rc" -eq 0 ] && [ "${lines:-0}" = 1 ] && ! grep -q recovery "$jsonl"; then
+    ok "Awake+focused turn passes the screen rule and is counted once"
+  else
+    bad "Awake+focused turn failed (rc=$rc lines=${lines:-0})"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+screen_pass_case
+
+# A dozing turn is invalidated (recovery=screen-invalid: verdict never counts
+# it), the phone is woken + foregrounded, and the same turn is redone once.
+screen_redo_case() {
+  local out="$WORK/screen-redo" jsonl rc runs
+  fake_reset marker-turn1
+  screen_doze; screen_unfocus
+  rm -rf "$out"; mkdir -p "$out"
+  jsonl="$out/turn.jsonl"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    export PKG=com.kalsa.app ANDROID_SERIAL=fake:5555 CAMPAIGN_SCREEN_WAKE_WAIT_S=2
+    source "$HERE/screen.sh"
+    fake_turn() {
+      runs=$((runs + 1))
+      printf '{"i":1,"assistant":"answer"}\n' >> "$jsonl"
+      if [ "$runs" -eq 1 ]; then
+        printf '%s\n' dozing > "$FAKE_DEV/fake/screen"
+        printf '%s\n' other > "$FAKE_DEV/fake/focus"
+      fi
+      printf '%s\n' "$runs" > "$out/runs.txt"
+    }
+    runs=0
+    campaign_screen_turn "$jsonl" 1 3 fake_turn
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  runs=$(cat "$out/runs.txt" 2>/dev/null || printf 0)
+  if [ "$rc" -eq 0 ] && [ "$runs" = 2 ] \
+     && [ "$(grep -c screen-invalid "$jsonl")" = 1 ] \
+     && [ "$(wc -l < "$jsonl" | tr -d ' ')" = 2 ] \
+     && [ "$(cat "$FAKE_DEV/fake/screen")" = awake ] \
+     && [ "$(cat "$FAKE_DEV/fake/focus")" = kalsa ]; then
+    ok "dozing turn invalidated (screen-invalid) and redone; phone woken and foregrounded"
+  else
+    bad "screen redo wrong (rc=$rc runs=$runs)"
+    cat "$jsonl" 2>/dev/null | sed 's/^/   | /'; tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+screen_redo_case
+
+# A device whose wake never takes must hit the cap and die — the turn that
+# was running when it failed is never counted either.
+screen_stuck_case() {
+  local out="$WORK/screen-stuck" jsonl rc
+  fake_reset marker-turn1
+  screen_stuck
+  rm -rf "$out"; mkdir -p "$out"
+  jsonl="$out/turn.jsonl"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    export PKG=com.kalsa.app ANDROID_SERIAL=fake:5555 CAMPAIGN_SCREEN_WAKE_WAIT_S=1
+    source "$HERE/screen.sh"
+    fake_turn() { printf '{"i":1,"assistant":"never"}\n' >> "$jsonl"; }
+    campaign_screen_turn "$jsonl" 1 2 fake_turn
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 1 ] && grep -q "SCREEN REFUSED" "$out/log.txt" && [ ! -s "$jsonl" ]; then
+    ok "a phone that stays not-Awake hits the redo cap and dies, without counting"
+  else
+    bad "screen cap did not die (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+screen_stuck_case
+
+# ── fail-closed readings: 3 consecutive unreadable reads of one sensor stop ─
+readings_case() {
+  local out="$WORK/readings" rc
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    log() { printf '%s\n' "$*"; }
+    die() { printf 'DIE: %s\n' "$*"; exit 9; }
+    export ANDROID_SERIAL=fake:5555
+    source "$REPO/scripts/device-env.sh"
+    source "$HERE/recovery.sh"
+    reset() { CAMPAIGN_READ_KIND=""; CAMPAIGN_READ_STREAK=0; CAMPAIGN_READINGS_DEAD=""; }
+    fail=0
+
+    # 1) thermal status: three unavailable statuses must stop the run
+    reset
+    printf '%s\n' 'Thermal Status: unavailable' > "$FAKE_DEV/fake/thermalservice.txt"
+    calls=0
+    while [ "$calls" -lt 3 ]; do campaign_thermal_should_pause >/dev/null; calls=$((calls + 1)); done
+    campaign_readings_dead || { echo "status did not kill"; fail=1; }
+    campaign_thermal_should_pause >/dev/null || { echo "dead status does not pause"; fail=1; }
+
+    # 2) battery temperature: three unreadable temps (status healthy) must stop
+    reset
+    printf '%s\n' 'Thermal Status: 0' > "$FAKE_DEV/fake/thermalservice.txt"
+    grep -v 'temperature:' "$FAKE_DEV/fake/battery.txt" > "$FAKE_DEV/fake/battery.txt.new" \
+      && mv "$FAKE_DEV/fake/battery.txt.new" "$FAKE_DEV/fake/battery.txt"
+    calls=0
+    while [ "$calls" -lt 3 ]; do campaign_thermal_should_pause >/dev/null; calls=$((calls + 1)); done
+    campaign_readings_dead || { echo "battery-temp did not kill"; fail=1; }
+    campaign_thermal_should_pause >/dev/null || { echo "dead temp does not pause"; fail=1; }
+
+    # 3) plugged: the real reader over a dump with no power lines, 3 strikes
+    reset
+    fake_reset thermal-unknown-power
+    calls=0
+    while [ "$calls" -lt 3 ]; do campaign_thermal_hard_abort_reason >/dev/null 2>&1; calls=$((calls + 1)); done
+    campaign_readings_dead || { echo "plugged did not kill"; fail=1; }
+    campaign_thermal_should_hard_abort || { echo "dead plugged does not hard-abort"; fail=1; }
+    case "$CAMPAIGN_THERMAL_HARD_ABORT_REASON" in unreadable\ plugged*) ;; *) echo "reason not plugged: ${CAMPAIGN_THERMAL_HARD_ABORT_REASON:-EMPTY}"; fail=1 ;; esac
+
+    # 4) level: the shared T20C arm stops at the 3rd unreadable level
+    reset
+    r=0; campaign_level_should_stop unreadable 25 && r=1
+    [ "$r" -eq 0 ] || { echo "1st unreadable level stopped early"; fail=1; }
+    r=0; campaign_level_should_stop unreadable 25 && r=1
+    [ "$r" -eq 0 ] || { echo "2nd unreadable level stopped early"; fail=1; }
+    campaign_level_should_stop unreadable 25 || { echo "3rd unreadable level did not stop"; fail=1; }
+    case "$CAMPAIGN_STOP_REASON" in unreadable*) ;; *) echo "level reason wrong: ${CAMPAIGN_STOP_REASON:-EMPTY}"; fail=1 ;; esac
+    reset
+    campaign_level_should_stop 90 25 && { echo "90% stopped"; fail=1; }
+    campaign_level_should_stop 20 25 || { echo "20% did not stop"; fail=1; }
+
+    exit "$fail"
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "thermal status, battery temp, level and plugged each stop at 3 consecutive invalid reads"
+  else
+    bad "fail-closed readings case failed (rc=$rc)"
+    tail -12 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readings_case
 
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

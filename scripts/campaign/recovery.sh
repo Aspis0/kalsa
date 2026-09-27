@@ -24,6 +24,72 @@ CAMPAIGN_THERMAL_RISING_SAMPLES="${CAMPAIGN_THERMAL_RISING_SAMPLES:-3}"
 CAMPAIGN_THERMAL_COOLDOWN_STEP_S="${CAMPAIGN_THERMAL_COOLDOWN_STEP_S:-60}"
 CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-7200}"
 
+# Fail-closed readings (owner rule): an unreadable thermal status, battery
+# temperature, battery level or plugged reading is an INVALID read; the 3rd
+# CONSECUTIVE invalid read of the same sensor stops the run — the same
+# three-strikes shape as the charge monitor. A valid read of that sensor
+# resets its streak (a healthy battery must not mask a dead thermal sensor);
+# once dead, the run never comes back (campaign_readings_dead gates
+# campaign_thermal_should_hard_abort and campaign_thermal_should_pause).
+CAMPAIGN_READ_KIND=""
+CAMPAIGN_READ_STREAK=0
+CAMPAIGN_READINGS_DEAD=""
+
+campaign_reading_invalid() {
+  local kind="$1"
+  if [ "$CAMPAIGN_READ_KIND" = "$kind" ]; then
+    CAMPAIGN_READ_STREAK=$((CAMPAIGN_READ_STREAK + 1))
+  else
+    CAMPAIGN_READ_KIND="$kind"
+    CAMPAIGN_READ_STREAK=1
+  fi
+  # >&2 is load-bearing: campaign_thermal_hard_abort_reason prints its
+  # reason on stdout for $(...) capture — a log line there would BECOME the
+  # abort reason. Same trap the pre-existing "power state unknown" log dodges.
+  log "invalid reading ($kind): ${CAMPAIGN_READ_STREAK}/3 consecutive" >&2
+  if [ "$CAMPAIGN_READ_STREAK" -ge 3 ]; then
+    CAMPAIGN_READINGS_DEAD="unreadable $kind x3"
+    log "INVALID READINGS: $CAMPAIGN_READINGS_DEAD — stopping the run; it will not resume" >&2
+  fi
+  return 0
+}
+
+campaign_reading_valid() {
+  local kind="${1:-}"
+  if [ -z "$kind" ] || [ "$CAMPAIGN_READ_KIND" = "$kind" ]; then
+    CAMPAIGN_READ_KIND=""
+    CAMPAIGN_READ_STREAK=0
+  fi
+  return 0
+}
+
+campaign_readings_dead() {
+  [ -n "${CAMPAIGN_READINGS_DEAD:-}" ]
+}
+
+# The battery-level stop arm shared with the T20C runner: an unreadable level
+# counts as an invalid read (the 3rd consecutive one kills the run), a level
+# at or below the floor stops the run with CAMPAIGN_STOP_REASON set.
+campaign_level_should_stop() {
+  local lvl="$1" floor="$2"
+  case "$lvl" in
+    ''|*[!0-9]*)
+      campaign_reading_invalid "level"
+      if campaign_readings_dead; then
+        CAMPAIGN_STOP_REASON="$CAMPAIGN_READINGS_DEAD"
+        return 0
+      fi
+      return 1
+      ;;
+  esac
+  campaign_reading_valid "level"
+  if [ "$lvl" -le "$floor" ]; then
+    CAMPAIGN_STOP_REASON="battery level $lvl <= floor $floor — stopping before an unplanned shutdown mid-prefill"
+    return 0
+  fi
+  return 1
+}
+
 campaign_connect() {
   local serial="${1:-$CAMPAIGN_SERIAL}" attempt delay
   delay=2
@@ -148,6 +214,9 @@ campaign_relaunch_or_reinstall() {
 
 campaign_thermal_should_pause() {
   local st bt
+  # Dead readings pause (so the cooldown path runs) and that path dies
+  # through campaign_thermal_should_hard_abort's own dead check.
+  if campaign_readings_dead; then return 0; fi
   # The hard-abort condition must imply the pause condition: status 3/4 on an
   # unplugged phone must enter cooldown so the owner's stop line is reachable.
   # Check it first: an unreadable thermal status must not swallow its battery arm.
@@ -156,8 +225,9 @@ campaign_thermal_should_pause() {
   fi
   st=$(device_thermal_status)
   case "$st" in
-    ''|unknown|*[!0-9]*) return 1 ;;
+    ''|unknown|*[!0-9]*) campaign_reading_invalid "thermal-status"; return 1 ;;
   esac
+  campaign_reading_valid "thermal-status"
   # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (T20C sets
   # 42 in run-t20c.sh:32; the 45 default here only applies if nothing sets it)
   # or a critical system
@@ -166,8 +236,9 @@ campaign_thermal_should_pause() {
   [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ] && return 0
   bt=$(device_battery_temp_c)
   case "$bt" in
-    ''|unknown|*[!0-9.]*) return 1 ;;
+    ''|unknown|*[!0-9.]*) campaign_reading_invalid "battery-temp"; return 1 ;;
   esac
+  campaign_reading_valid "battery-temp"
   python3 -c "exit(0 if float('$bt') > $CAMPAIGN_THERMAL_MAX_C else 1)"
 }
 
@@ -180,13 +251,15 @@ campaign_thermal_still_hot() {
   local st bt
   st=$(device_thermal_status)
   case "$st" in
-    ''|unknown|*[!0-9]*) return 0 ;;
+    ''|unknown|*[!0-9]*) campaign_reading_invalid "thermal-status"; return 0 ;;
   esac
+  campaign_reading_valid "thermal-status"
   [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ] && return 0
   bt=$(device_battery_temp_c)
   case "$bt" in
-    ''|*[!0-9.]) return 0 ;;
+    ''|*[!0-9.]) campaign_reading_invalid "battery-temp"; return 0 ;;
   esac
+  campaign_reading_valid "battery-temp"
   python3 -c "exit(0 if float('$bt') > $CAMPAIGN_THERMAL_MAX_C else 1)"
 }
 
@@ -211,16 +284,21 @@ campaign_thermal_hard_abort_reason() {
   local plugged st bt
   plugged=$(campaign_thermal_is_plugged)
   if [ "$plugged" = unknown ]; then
+    # An unknown power state used to decline the arms and continue: it is an
+    # invalid reading like any other (3rd consecutive stops the run).
+    campaign_reading_invalid "plugged"
     st=$(device_thermal_status)
     bt=$(device_battery_temp_c)
     log "THERMAL HARD ABORT unavailable: power state unknown; declining unplugged status/battery stop arms (thermal status=${st:-unknown}, battery=${bt:-unknown}°C)" >&2
     return 1
   fi
+  campaign_reading_valid "plugged"
   [ "$plugged" = false ] || return 1
   st=$(device_thermal_status)
   case "$st" in
-    ''|unknown|*[!0-9]*) ;;
+    ''|unknown|*[!0-9]*) campaign_reading_invalid "thermal-status" ;;
     *)
+      campaign_reading_valid "thermal-status"
       if [ "$st" -ge "$CAMPAIGN_THERMAL_HARD_ABORT_STATUS" ]; then
         printf 'unplugged thermal status %s >= %s' "$st" "$CAMPAIGN_THERMAL_HARD_ABORT_STATUS"
         return 0
@@ -229,8 +307,9 @@ campaign_thermal_hard_abort_reason() {
   esac
   bt=$(device_battery_temp_c)
   case "$bt" in
-    ''|unknown|*[!0-9.]*) return 1 ;;
+    ''|unknown|*[!0-9.]*) campaign_reading_invalid "battery-temp"; return 1 ;;
   esac
+  campaign_reading_valid "battery-temp"
   if python3 - "$bt" "$CAMPAIGN_THERMAL_HARD_ABORT_C" <<'PY'
 import sys
 sys.exit(0 if float(sys.argv[1]) >= float(sys.argv[2]) else 1)
@@ -244,6 +323,13 @@ PY
 
 campaign_thermal_should_hard_abort() {
   local reason
+  # Fail closed first: three consecutive unreadable readings stop the run no
+  # matter what the sensors would have said.
+  if campaign_readings_dead; then
+    CAMPAIGN_THERMAL_HARD_ABORT_REASON="$CAMPAIGN_READINGS_DEAD"
+    log "THERMAL HARD ABORT: $CAMPAIGN_THERMAL_HARD_ABORT_REASON — stopping the unplugged run; it will not resume"
+    return 0
+  fi
   reason=$(campaign_thermal_hard_abort_reason) || return 1
   CAMPAIGN_THERMAL_HARD_ABORT_REASON="$reason"
   log "THERMAL HARD ABORT: $reason — stopping the unplugged run; it will not resume"
@@ -274,6 +360,7 @@ campaign_thermal_cooldown_wait() {
     step="$overshoot"
   fi
   previous_bt=$(device_battery_temp_c)
+  case "$previous_bt" in ''|unknown|*[!0-9.]*) campaign_reading_invalid "battery-temp" ;; *) campaign_reading_valid "battery-temp" ;; esac
   log "RECOVERY reason=thermal — pause (battery > ${CAMPAIGN_THERMAL_MAX_C}°C or status >= $CAMPAIGN_THERMAL_PAUSE; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=${overshoot}s)"
   [ "$stop_app" = yes ] && campaign_force_stop
   campaign_thermal_should_hard_abort && return 1
@@ -282,6 +369,7 @@ campaign_thermal_cooldown_wait() {
     waited=$((waited + step))
     campaign_thermal_should_hard_abort && return 1
     bt=$(device_battery_temp_c)
+    case "$bt" in ''|unknown|*[!0-9.]*) campaign_reading_invalid "battery-temp" ;; *) campaign_reading_valid "battery-temp" ;; esac
     trend=steady
     if [ "$previous_bt" != unknown ] && [ "$bt" != unknown ]; then
       if ! trend=$(campaign_thermal_trend "$bt" "$previous_bt"); then
@@ -303,6 +391,10 @@ campaign_thermal_cooldown_wait() {
       fi
       if [ "$rising_samples" -ge "$CAMPAIGN_THERMAL_RISING_SAMPLES" ]; then
         plugged=$(campaign_thermal_is_plugged)
+        case "$plugged" in
+          unknown) campaign_reading_invalid "plugged" ;;
+          *) campaign_reading_valid "plugged" ;;
+        esac
         if [ "$plugged" = false ]; then
           CAMPAIGN_THERMAL_HARD_ABORT_REASON="unplugged battery kept rising for ${rising_samples} consecutive samples after the ${overshoot}s overshoot window (readings:${rising_readings})"
           log "THERMAL HARD ABORT: $CAMPAIGN_THERMAL_HARD_ABORT_REASON — stopping the unplugged run; it will not resume"

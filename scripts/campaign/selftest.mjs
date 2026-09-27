@@ -962,9 +962,31 @@ check(
 
 const shFlags = bash([path.join(here, "flags.sh"), "--selftest"]);
 check(shFlags.status === 0, `flags.sh --selftest exit=${shFlags.status} ${shFlags.stderr}`);
-for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "nativeLog.sh", "phase0.sh", "oneTurn.sh", "governor.sh", "run-t20c.sh", "selftest_defects.sh", "selftest_fakedevice.sh", "../device-share-send.sh"]) {
+for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "nativeLog.sh", "phase0.sh", "oneTurn.sh", "governor.sh", "screen.sh", "run-t20c.sh", "selftest_defects.sh", "selftest_fakedevice.sh", "../device-share-send.sh"]) {
   const r = bash(["-n", path.join(here, f)]);
   check(r.status === 0, `bash -n ${f} exit=${r.status} ${r.stderr}`);
+}
+
+// The T20C runner's owner rules: screen-ON gate around every turn, the
+// timeout pinned at max with no restore at exit, the governor plan wait.
+const runner = readFileSync(path.join(here, "run-t20c.sh"), "utf8");
+check(runner.includes("campaign_screen_turn "), "turn loop runs under the screen rule");
+check(runner.includes("campaign_screen_pin_timeout"), "run start pins the screen timeout");
+check(runner.includes("campaign_session_restore_keep_screen_timeout"), "exit trap never restores the timeout (owner rule)");
+check(runner.includes("CAMPAIGN_GOVERNOR_PLAN_WAIT_S:-180"), "governor plan wait defaults to 180 s");
+check(readFileSync(path.join(here, "screen.sh"), "utf8").includes("mWakefulness=Awake"), "screen rule reads mWakefulness=Awake");
+
+// Behavioural coverage for the shell harness (fake device): screen rule,
+// fail-closed readings, governor gate incl. the pref-off case. Without this
+// spawn a green unit suite could hide a red shell suite.
+const defectsRun = spawnSync("bash", [path.join(here, "selftest_defects.sh")], { encoding: "utf8" });
+if (defectsRun.status === 0) {
+  const tally = (defectsRun.stdout || "").split("\n").filter((l) => l.startsWith("passed=")).pop() || "";
+  console.log(`ok: selftest_defects.sh ${tally}`);
+} else {
+  console.error(`FAIL: selftest_defects.sh exit=${defectsRun.status}`);
+  console.error(((defectsRun.stdout || "") + (defectsRun.stderr || "")).split("\n").slice(-30).join("\n"));
+  failed += 1;
 }
 
 if (failed) {

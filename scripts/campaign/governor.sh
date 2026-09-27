@@ -3,8 +3,6 @@
 # launch whose load gate reads it, then prove engagement from that load's
 # own KALSA_GOVERNOR_PLAN line. The pref alone proves nothing — a device
 # whose fit is not Fit keeps the pref set and runs CPU-only.
-set -uo pipefail
-
 GOVERNOR_PREF_KEY="kalsa.governor.enabled"
 
 # Must run BEFORE the launch that loads the model: the load gate reads the

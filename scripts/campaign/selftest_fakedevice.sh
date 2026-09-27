@@ -102,6 +102,40 @@ _thermal_dump() {
   fi
 }
 
+# Screen-ON fixtures: $F/screen (awake|dozing|stuck) and $F/focus
+# (kalsa|other). A stuck device never answers the wake — the screen rule's
+# cap must reach its die. Absent files default to awake/kalsa so modes that
+# predate the screen rule keep working.
+_screen_state() { cat "$F/screen" 2>/dev/null || printf 'awake'; }
+_focus_state() { cat "$F/focus" 2>/dev/null || printf 'kalsa'; }
+
+_screen_dump() {
+  case "$(_screen_state)" in
+    awake) printf '  mWakefulness=Awake\n' ;;
+    *) printf '  mWakefulness=Dozing\n' ;; # dozing AND stuck both read Dozing
+  esac
+}
+
+_window_dump() {
+  case "$(_focus_state)" in
+    other) printf '  mCurrentFocus=Window{abc123 u0 com.other.app/.MainActivity}\n' ;;
+    *) printf '  mCurrentFocus=Window{abc123 u0 com.kalsa.app/com.kalsa.app.MainActivity}\n' ;;
+  esac
+}
+
+_activity_dump() {
+  case "$(_focus_state)" in
+    other) printf '    topResumedActivity=ActivityRecord{abc123 u0 com.other.app/.MainActivity}\n' ;;
+    *) printf '    topResumedActivity=ActivityRecord{abc123 u0 com.kalsa.app/com.kalsa.app.MainActivity}\n' ;;
+  esac
+}
+
+_screen_wake() {
+  # Dozing answers KEYCODE_WAKEUP; stuck does not (the cap must die).
+  if [ "$(_screen_state)" = "dozing" ]; then printf 'awake' > "$F/screen"; fi
+  return 0
+}
+
 # Consume the one-shot crash flag: the app was alive for the send and dead at
 # the next poll. In `vanish` mode the crash also loses the turn's messages.
 app_pid() {
@@ -249,6 +283,9 @@ case "${1:-}" in
         ;;
       "dumpsys battery") _battery_dump ;;
       "dumpsys thermalservice") _thermal_dump ;;
+      "dumpsys power") _screen_dump ;;
+      "dumpsys window") _window_dump ;;
+      "dumpsys activity activities") _activity_dump ;;
       "dumpsys deviceidle whitelist"*) : ;;
       "settings get system screen_off_timeout") printf '%s\n' null ;;
       "settings get global stay_on_while_plugged_in") printf '%s\n' 0 ;;
@@ -292,15 +329,20 @@ PY
           fi
         fi
         ;;
+      "input keyevent KEYCODE_WAKEUP") _screen_wake ;;
       "input "*) : ;;
       "am force-stop"*) : > "$F/pid" ;;
       "am start -n "*)
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
+        # Bringing Kalsa to the front is what makes it the focused app.
+        printf 'kalsa' > "$F/focus"
         _append "09-16 12:00:00.000  $(cat "$F/pid")  4243 I ReactNativeJS: $CAMPAIGN_STARTUP_MARKER"
-        # The T20C runner's engagement gate refuses any launch whose load
-        # plan never arrives: a fake phone running this app boots its
-        # governor, so every launch logs a Fit plan like the real device.
-        _append "09-16 12:00:00.100  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_GOVERNOR_PLAN {\"gpu_fit\":\"Fit\",\"decode_repack\":false,\"required_mib_with_repack\":4518.12,\"required_mib_without_repack\":2998.06,\"available_mib\":4006.86,\"bench_norepack_forced\":null}"
+        # Like the real app: the load emits KALSA_GOVERNOR_PLAN only while
+        # kalsa.governor.enabled is on. A pref-off launch logs no plan, and
+        # the engagement gate must die on it.
+        if [ "$(sqlite3 "$DEV/databases/RKStorage" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.governor.enabled';" 2>/dev/null)" = "1" ]; then
+          _append "09-16 12:00:00.100  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_GOVERNOR_PLAN {\"gpu_fit\":\"Fit\",\"decode_repack\":false,\"required_mib_with_repack\":4518.12,\"required_mib_without_repack\":2998.06,\"available_mib\":4006.86,\"bench_norepack_forced\":null}"
+        fi
         ;;
       "am start -a android.intent.action.VIEW"*) _share_intent "$s" ;;
       "cmd statusbar collapse"|"wm dismiss-keyguard") : ;;
