@@ -318,7 +318,7 @@ that the governor's normal HTP prefill regressed to ~50 seconds. The trace-off
 timings also lacked per-op proof within those exact timed invocations, so do
 not use them to claim a precise flat-vs-tiled speed ratio.
 
-**Verdict — PARK.** One-copy on Hexagon is currently incorrect: when HTP reads
+**Previous phase verdict — PARK (superseded below).** One-copy on Hexagon is currently incorrect: when HTP reads
 the `-HOST` weights, KLD explodes and top-token agreement is zero; whether the
 cause is q4_0 layout interpretation or cache/coherence remains unresolved.
 The cacheable RPCMEM decode arm measured 9.47 tok/s versus 14.07 tok/s for the
@@ -329,3 +329,155 @@ experiment is a single synthetic q4_0 `MUL_MAT`, with the same flat kernel
 first reading copied HTP-buffer weights and then `-HOST` weights, comparing
 CPU/HTP outputs while toggling an explicit cache flush; this isolates
 layout/coherence before another full-model run.
+
+## Host-only follow-up — unpark one-copy and isolate corruption
+
+No device was accessed in this follow-up. The three prior controls remain
+distinct: CPU-on-rpcmem was numerically sound, flat HTP on the normal device
+buffer was numerically sound, and HTP on `-HOST` failed catastrophically.
+
+### Code evidence and current leading cause
+
+Both buffer types allocate from `RPCMEM_HEAP_ID_SYSTEM` with
+`RPCMEM_DEFAULT_FLAGS` by default (`ggml-hexagon.cpp:547-549`); the SDK defines
+the system heap as non-contiguous system memory, default flags as cached, and
+uncached as flag `0` (`rpcmem.h:47-53,89,100-105`, quoted in the allocation
+section above). The device-buffer `set_tensor` marks quantized weight tensors
+REPACK and calls `repack_tensor_tiled` for a full write
+(`ggml-hexagon.cpp:1742-1759`). The `-HOST` setter instead wrote the source
+bytes directly by `memcpy` (`:1994-2017` before this experiment patch). Neither
+setter had a host-side DMA-BUF/FastRPC cache sync call. The firmware's
+`htp_tensor_flush_all` tracks and flushes DSP dirty output ranges
+(`htp/htp-tensor.c:322-350`); it is not a CPU-to-DSP flush after model loading.
+So the evidence does **not** support a host-only missing sync call in the
+normal buffer path; a cache-policy/coherency effect remains testable, but is
+not the leading explanation.
+
+The setter difference is explicit (`ggml-hexagon.cpp:1742-1759` versus the
+pre-patch HOST setter at `:1994-1995`):
+
+```cpp
+if (ggml_backend_buffer_get_usage(buffer) == GGML_BACKEND_BUFFER_USAGE_WEIGHTS) {
+    extra->flags |= GGML_HEXAGON_TENSOR_WEIGHT;
+    if (ggml_hexagon_is_repack_type(tensor->type)) {
+        extra->flags |= GGML_HEXAGON_TENSOR_REPACK;
+    }
+}
+if (offset == 0 && size == ggml_nbytes(tensor) && extra->shadow_buf.empty()) {
+    repack_tensor_tiled(tensor, data, size);
+}
+// HOST before the experiment patch:
+memcpy((char *) tensor->data + offset, data, size);
+```
+
+The layout evidence is direct. HTP tensor descriptors select either padded
+tiled shape/strides or the original tensor shape/strides from the REPACK flag
+(`ggml-hexagon.cpp:2297-2313`). For Q4_0 flat matmul, the backend selects
+`hvx_mm_2d_repacked_q4_0_flat` or `hvx_mv_2d_repacked_q4_0_flat`
+(`htp/matmul-ops.c:1521-1540`; the fused path selects
+`hvx_mm_nx_2d_repacked_q4_0_flat` at `:4283-4289`). Normal device weights are
+repacked and marked; `-HOST` stores raw GGUF Q4_0 bytes and, by default, carries
+the original strides into an HTP kernel that assumes its repacked Q4_0 layout.
+That mismatch is the leading cause. The separate `-HOST` padding allocation
+does not itself transform the bytes.
+
+Descriptor and kernel code confirm the expected representation:
+`ggml-hexagon.cpp:2297-2313` chooses the tensor shape and row stride, and
+`htp/matmul-ops.c:1526-1540` selects the flat Q4_0 functions:
+
+```cpp
+if (is_repack) {
+    h.ne[0] = hex_round_up(t->ne[0], 32);
+    h.ne[1] = hex_round_up(t->ne[1], 32);
+    h.nb[1] = ggml_hexagon_tiled_row_size(t->type, h.ne[0]);
+} else {
+    h.ne[0] = t->ne[0]; h.ne[1] = t->ne[1];
+    h.nb[1] = t->nb[1];
+}
+case HTP_TYPE_Q4_0: matmul_job_func = hvx_mm_2d_repacked_q4_0_flat; break;
+```
+
+### Android diagnostic patches
+
+On `spike/hexagon-offload-op`, commit
+`0a5c782317d48746099b0e5e2f52ed6050606a5f`, `ggml-hexagon.cpp` now has three
+opt-in experiments, all disabled by default:
+
+- `GGML_HEXAGON_HOSTBUF_FLUSH=1` brackets the `-HOST` setter write with
+  `DMA_BUF_IOCTL_SYNC START|WRITE` and `END|WRITE`. Either ioctl failure aborts
+  with an errno line, so a passing KLD result cannot hide unsupported sync.
+- `GGML_HEXAGON_HOSTBUF_UNCACHED=1` allocates only the `-HOST` rpcmem buffer
+  using `RPCMEM_FLAG_UNCACHED` and logs the selected flags under
+  `GGML_HEXAGON_VERBOSE=1`.
+- `GGML_HEXAGON_HOSTBUF_REPACK=1` repacks full quantized tensor writes into the
+  tiled Q4 layout and sets the HTP REPACK descriptor flag. This is a layout
+  diagnostic only: the CPU decode cannot read these repacked host weights.
+
+All three modes require `GGML_HEXAGON_HOSTBUF=1`, `GGML_HEXAGON_MM_SELECT=1`,
+and threshold 32. Compare each two-chunk KLD against the existing CPU base;
+also require `HTP_MUL_MAT > 0` in each log. A fix is supported if sync or
+uncached allocation restores KLD while raw layout stays unchanged. A KLD
+recovery only with the repack experiment points to layout. These runs are not
+executed here because the S23 is occupied by the governor session.
+
+### RPCMEM sequential-read probe
+
+The existing allocator uses heap ID 25 (system, non-contiguous) and flags 1
+(`RPCMEM_DEFAULT_FLAGS`, cacheable); it does not request TCM or the small
+contiguous heap (`ggml-hexagon.cpp:547-549`; SDK `rpcmem.h:89,100-105`). The
+engine maps the fd into FastRPC with `fastrpc_mmap` (`ggml-hexagon.cpp:578-582`).
+That proves the requested heap and flag, not the CPU's effective mapping
+attribute or page backing. The new `hexagon-rpcmem-bench` compares sequential
+reads from a 256 MiB page-aligned `posix_memalign` allocation and a 256 MiB
+rpcmem allocation, seven passes each. It prints median GB/s, the rpcmem fd,
+`/proc/self/smaps` page-size/THP fields for both mappings, and whether
+`MADV_HUGEPAGE` was accepted for malloc. Compare `AnonHugePages` and page
+sizes to test the THP/TLB hypothesis; compare read GB/s to identify a large
+effective bandwidth gap. Heap 25 rules out the specifically requested TCM and
+contiguous heaps, but not a driver-specific mapping attribute; `/proc/self/smaps`
+does not directly prove cacheability.
+
+### Android build and exact commands for the next S23 slot
+
+Android build used the Snapdragon toolchain image and build directory from
+`spec-dspark-gpu-draft/KIT-BUILD.md`, targeting `llama-perplexity` and
+`hexagon-rpcmem-bench`. Final incremental build exited `0`; raw output is
+`raw/host-fix/build_android_final.log`. Both artifacts are AArch64 Android PIE
+binaries. SHA-256: `llama-perplexity`
+`97027ce93a078f91fb2e067cc6196fae049996a758b3a0aa9f87c79d047508db`,
+`hexagon-rpcmem-bench`
+`7a6fe525933db503ca0722a1e0f596c54e2a455f0894c931d58ebc45f367c82e`.
+An intermediate incremental link was intentionally stopped (EXIT=137) after
+adding the REPACK weight metadata; the final build includes that change and
+exited 0. No ADB commands were run.
+
+```sh
+docker run --rm --volume /Users/marco/Projects/kalsallama-wt-oom:/workspace --workdir /workspace --platform linux/amd64 -u 501:20 ghcr.io/snapdragon-toolchain/arm64-android:v0.7 bash -c 'cmake --build /workspace/build-s23-step0-v73 --target llama-perplexity hexagon-rpcmem-bench -j6' > /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/hexagon-offload-op/raw/host-fix/build_android_final.log 2>&1; echo EXIT=$?
+```
+
+Push only after the owner returns the S23:
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/llama-perplexity /data/local/tmp/govhtp/bin/
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/hexagon-rpcmem-bench /data/local/tmp/govhtp/bin/
+```
+
+Each KLD command uses the same two-chunk fixture and CPU logits base from the
+isolation run. Preflight/postflight device gates and force-stop remain required
+for every binary invocation; none was performed in this host-only phase.
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 && GGML_HEXAGON_HOSTBUF_FLUSH=1 ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -ot ".*=HTP0:0-HOST" -lm none --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence > /data/local/tmp/govhtp/host-flush-kld.log 2>&1; rc=$?; echo EXIT=$rc; grep -c "HTP0 execute-op MUL_MAT" /data/local/tmp/govhtp/host-flush-kld.log; tail -5 /data/local/tmp/govhtp/host-flush-kld.log'
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_HOSTBUF_UNCACHED=1 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 && ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -ot ".*=HTP0:0-HOST" -lm none --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence > /data/local/tmp/govhtp/host-uncached-kld.log 2>&1; rc=$?; echo EXIT=$rc; grep -c "HTP0 execute-op MUL_MAT" /data/local/tmp/govhtp/host-uncached-kld.log; tail -5 /data/local/tmp/govhtp/host-uncached-kld.log'
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_HOSTBUF_REPACK=1 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 && ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -ot ".*=HTP0:0-HOST" -lm none --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence > /data/local/tmp/govhtp/host-repack-kld.log 2>&1; rc=$?; echo EXIT=$rc; grep -c "HTP0 execute-op MUL_MAT" /data/local/tmp/govhtp/host-repack-kld.log; tail -5 /data/local/tmp/govhtp/host-repack-kld.log'
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'cd /data/local/tmp/govhtp && LD_LIBRARY_PATH=/vendor/lib64:/data/local/tmp/govhtp/lib ./bin/hexagon-rpcmem-bench 268435456 7 > /data/local/tmp/govhtp/rpcmem-bandwidth.log 2>&1; rc=$?; echo EXIT=$rc; tail -5 /data/local/tmp/govhtp/rpcmem-bandwidth.log'
+```
+
+**Current verdict: CONTINUE fixing.** The source points first to a Q4_0
+representation mismatch, while the build also supplies isolated cache-sync and
+uncached controls plus a host-vs-rpcmem read-bandwidth probe. The next device
+session should run flush, uncached, then repack KLD and the one-minute memory
+probe. If repack alone restores KLD, the production fix needs an HTP kernel for
+raw row-major Q4_0 or a per-operation repack scratch; it must not rewrite the
+shared host weights because CPU decode reads their original layout. Promote
+only the mechanism that restores KLD and preserves the CPU consumer contract.

@@ -1,0 +1,4 @@
+[1/3] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/ggml-hexagon.cpp.o
+[2/3] Linking CXX static library ggml/src/ggml-hexagon/libggml-hexagon.a
+[3/3] Linking CXX executable bin/llama-perplexity
+EXIT=0
