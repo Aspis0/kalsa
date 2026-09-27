@@ -30,6 +30,51 @@ change; the old values are stated, not silently overwritten (A4).
   `stop_lib.sh` + local `battery_trust.sh` whose mismatch test needs two
   concordant samples (A15); fixtures for A1/A2/A3/A7 (+A5/A6) in dryrun (A16).
 
+## Pre-run amendments — 2026-09-26, hostile audit dd6bdb56 + owner decisions (still before any valid arm)
+
+Config/protocol changes only; the prediction sections below stand unless
+explicitly superseded here.
+
+1. **Backend proof moves to a short proof run in the load phase** (owner
+   decision on A-1/A-2): before every measured turn, the load phase runs the
+   same model/backend flags with a few tokens (`-p " " -n 4
+   --ignore-eos --seed 1 --temp 0 --no-perf`), at `-lv 5` with
+   `GGML_HEXAGON_VERBOSE=1` and `GGML_OPENCL_LOG_KERNELS=1` **only there**.
+   All proof thresholds stay as audited (N ≥ 1000 execute-op, G ≥ 30
+   assignments + ≥ 8 dispatched kernels + zero disabled lines, C ≥ 1 CPU
+   assignment + zero offload leak — evaluated on that proof log, where the
+   DEBUG/INFO lines exist). The **measured turn runs at default verbosity**
+   with only `LD_LIBRARY_PATH`/`ADSP_LIBRARY_PATH`/`GGML_HEXAGON_NDEV=1` (no
+   per-op output inside the measured window) and is voided
+   (`backend_mismatch`) if its default-level fingerprint differs from the
+   proof run's. **Fingerprint lines (stated, all WARN/tool-level = present at
+   default `-lv 3`)**: (a) `common_fit_params: … n_gpu_layers already set by
+   user to <N>` (C: 0, G/N: 99), (b) presence of
+   `common_get_device_memory_data_impl: device HTP0 did not report memory`
+   (C/N: present, G: absent — device scope of `-dev`), (c)
+   `system_info: n_threads = <N>`. A turn log missing any component is voided
+   `no_fingerprint` (fail closed).
+2. **CPU threads = 5, all three arms** (owner decision): the app's S23
+   preset is `sd-8-gen2 → decodeThreads 5 / prefillThreads 5`
+   (`kalsa/src/engine/deviceTuning.ts:217-219`); the CLI arm now uses
+   `-t 5` for the host threads of C, G and N alike, default poll. This is a
+   config choice (the CPU-speed diagnosis was invalidated by the app being
+   resident on the board), not a measurement outcome.
+3. **Equal-decode gate = N−1** (A-12, device-evidenced): `decode_runs` must
+   equal `DECODE_N - 1` (126 for `-n 127`; `-n 64 → 63` confirmed). This
+   supersedes the "decode_runs must be 127" wording of the round-1/2
+   sections below; the superseded wording stays visible for the record.
+4. **Sampler paused during the measured turn** (A-11): the 1 Hz on-device
+   sampler (`dumpsys thermalservice` + sysfs reads on the same SoC) stops
+   before `llama-completion`'s measured turn and resumes right after it; the
+   series covers setup/cooldown/load/tail, not the measured window.
+   `skin_before`/`skin_after` remain direct host reads.
+5. **Poll cadence bound** (A-10): production `POLL_S = 15`; worst-case
+   threshold-to-stop latency = 15 s + 2 adb round trips ≈ 17–20 s of
+   continued full-load computation. Registered as the accepted bound;
+   `dryrun.sh` exercises it at the production cadence (fixture
+   `poll-cadence`).
+
 ## Why this cell exists
 
 The app exposes `bench:route cpu|gpu|auto` only (`src/bench/benchConfig.ts:18`),
@@ -38,6 +83,9 @@ through the app. The CLI kit (`npu-spec-verify`, engine `f25f0c1c5`) has all
 three backends on one binary, so all three arms run there.
 
 ## Method (fixed before measurement)
+
+> Where a dated amendment block above conflicts with the sections below
+> (proof phase, `-t 5`, env split, gate N−1), the amendment governs.
 
 - **Device**: Galaxy S23 (SM-S911U, SM8550, Adreno 740, Hexagon v73), local adb,
   **unplugged** (project rule: never benchmark while charging — the driver's

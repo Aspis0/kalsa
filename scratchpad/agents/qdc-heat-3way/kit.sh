@@ -6,6 +6,20 @@
 #
 # Artifact identities come from npu-spec-verify/STEP0-V73-PREP.md (kit archive
 # sha, engine f25f0c1c5) and qdc-heat-per-backend/PROMPT.meta (frozen prompt).
+#
+# prompt_verify (A15b): pins the LOCAL prompt copy to PROMPT.meta before
+# anything else runs; kit_setup below pins the pushed copy to the same sha,
+# and the turn reads that pushed file with -f — one verified artifact on
+# both ends. No prompt text travels through the shell.
+prompt_verify() {
+  local sha bytes
+  [ -f "$PROMPT_FILE" ] || return 1
+  sha=$(/usr/bin/shasum -a 256 "$PROMPT_FILE" | awk '{print $1}')
+  bytes=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
+  [ "$sha" = "$PROMPT_SHA" ] || return 1
+  [ "$bytes" = "$PROMPT_BYTES" ] || return 1
+  return 0
+}
 
 kit_file_sha() {
   # `|| true` inside the substitution: a missing file makes remote sha256sum
@@ -32,7 +46,7 @@ kit_setup() {
   # A10: sweep every previous run's device-side logs first — arm logs are
   # named <job>-<tag>.log and pulled by name, so a stale file from another
   # session must not exist to be pulled as this session's evidence.
-  adbT 30 -s "$SER" shell "mkdir -p $D $HEAT_TMP && rm -f $HEAT_TMP/stop $D/*.log" >> "$RAW/setup.log" 2>&1 \
+  adbT 30 -s "$SER" shell "mkdir -p $D $HEAT_TMP && rm -f $HEAT_TMP/stop $HEAT_TMP/samples.txt $D/*.log" >> "$RAW/setup.log" 2>&1 \
     || { log "MKDIR_FAIL"; return 1; }
   # Kit: SHA256SUMS lives in the archive root, so its presence+pass is the
   # unpacked-kit identity check (same trick as npu-spec-verify's d_run.sh).
@@ -46,7 +60,7 @@ kit_setup() {
   # Backend-name preflight: every later arm is keyed on these exact names
   # (`-dev GPUOpenCL`, `-dev HTP0`), so a kit whose list differs must stop the
   # session here, not void six arms one by one.
-  if ! adbT 60 -s "$SER" shell "cd $D && export LD_LIBRARY_PATH=$D/lib && export ADSP_LIBRARY_PATH=$D/lib && export GGML_HEXAGON_NDEV=1 && export GGML_HEXAGON_VERBOSE=1 && ./bin/llama-completion --list-devices" > "$RAW/list_devices.txt" 2>&1; then
+  if ! adbT 60 -s "$SER" shell "cd $D && export LD_LIBRARY_PATH=$D/lib && export ADSP_LIBRARY_PATH=$D/lib && export GGML_HEXAGON_NDEV=1 && ./bin/llama-completion --list-devices" > "$RAW/list_devices.txt" 2>&1; then
     log "LIST_DEVICES_CALL_FAIL"
     return 1
   fi

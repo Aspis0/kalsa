@@ -12,11 +12,19 @@
 #   DRY_BATT_STUB=1        battery temp pinned to the QDC 25.0 C stub, sysfs
 #       mirrors dumpsys so battery_trust.sh takes the stub branch
 #   DRY_ARM_SLEEP_S        fake llama-completion wall time (load + turn)
-#   DRY_NO_CPU_PROOF=1     omit the `assigned to device CPU` lines from C
-#       logs — models a real default-verbosity log (those lines are
-#       LLAMA_LOG_DEBUG in f25, absent from run 1's raw log; proof decision pending)
+#   DRY_NO_CPU_PROOF=1     omit the `assigned to device CPU` lines from the C
+#       proof run (models a log without them; the proof now reads the -lv 5
+#       load-phase log, arm.sh arm_parse_proof)
 #   DRY_DECODE_RUNS        runs in the perf eval line (default 126 = N-1 of
 #       -n 127; the first token comes from the prompt eval — run-1 evidence)
+#   DRY_TURN_FP_NGL=<n>    override the fit line's ngl in the MEASURED TURN
+#       only — proves the backend_mismatch fingerprint gate
+#   DRY_TURN_NO_FP=1       omit all fingerprint lines from the turn log —
+#       proves the fail-closed no_fingerprint gate
+#   DRY_PKILL_NOOP=1       pkill does not kill: pgrep keeps answering "still
+#       running" — proves the kill-verification path (A-4)
+#   DRY_FAIL_DEVICES=1     `adb devices` exits 1 (A-9 fixture)
+#   DRY_FAIL_SOC=1         getprop exits 7 (A-9 fixture)
 #   DRY_NO_HTP_PROOF=1     omit Hexagon Arch + execute-op lines from N logs
 #   DRY_HTP_OPS=N          execute-op line count (default 1200, A6 floor 1000)
 #   DRY_NO_GPU_PROOF=1     omit GPUOpenCL assignment + kernel lines from G logs
@@ -126,10 +134,10 @@ emit_cpu_block() { # discovery lines mirror the real A.log: -ngl 0 still lists
     while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
   fi
 }
-run_arm() { # synthesizes the pulled llama-completion log (turn or load phase)
+run_arm() { # synthesizes the pulled llama-completion log (proof/load phase or turn)
   if [ "${DRY_ARM_SLEEP_S:-0}" -gt 0 ]; then sleep "$DRY_ARM_SLEEP_S"; fi
-  local tag backend prefill prompt_n block
-  # redirect target now carries the job id: heat3way/<job>-t1cpu[.load].log
+  local tag backend prefill prompt_n phase ngl fit_ngl fp_lines
+  # redirect target carries the job id: heat3way/<job>-t1cpu[.load].log
   tag=$(printf '%s\n' "$cmd" | sed -n 's#.*heat3way/\([A-Za-z0-9._-]*\.log\) 2>&1.*#\1#p')
   [ -n "$tag" ] || tag=unparsed.log
   case "$cmd" in
@@ -137,29 +145,57 @@ run_arm() { # synthesizes the pulled llama-completion log (turn or load phase)
     *GPUOpenCL*) backend=gpu; prefill=14000 ;;
     *) backend=cpu; prefill=45000 ;;
   esac
+  phase=turn
+  case "$cmd" in *--no-perf*) phase=load ;; esac
+  ngl=99
+  case "$cmd" in *"-ngl 0"*) ngl=0 ;; esac
+  # Default-level fingerprint, byte-shaped like the real run-1 log: fit line
+  # (W), HTP0-memory warning (W; absent when -dev excludes HTP0 = G arm),
+  # system_info threads (tool INFO). Same in both phases unless a DRY_TURN_*
+  # knob injects the gate cases.
+  fit_ngl="$ngl"
+  if [ "$phase" = turn ] && [ -n "${DRY_TURN_FP_NGL:-}" ]; then fit_ngl="$DRY_TURN_FP_NGL"; fi
+  fp_lines=""
+  if ! { [ "$phase" = turn ] && [ "${DRY_TURN_NO_FP:-0}" = 1 ]; }; then
+    # NOTE: $(printf '…\n') strips the trailing newline — join with explicit
+    # $'\n' or the three fingerprint lines collapse into one.
+    fp_lines=$(printf '0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to %s, abort' "$fit_ngl")
+    if [ "$backend" != gpu ]; then
+      fp_lines="${fp_lines}"$'\n'"$(printf '0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it')"
+    fi
+    fp_lines="${fp_lines}"$'\n'"$(printf '0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1')"
+  fi
   prompt_n="${DRY_PROMPT_N:-1018}"
-  case "$backend" in
-    cpu) block=$(emit_cpu_block) ;;
-    gpu) block=$(emit_gpu_block) ;;
-    npu) block=$(emit_npu_block) ;;
-  esac
   {
-    printf 'llama_model_loader: loaded meta data with %s tokens from /data/local/tmp/heat3way/ship.gguf\n' "$((prompt_n + 127))"
-    printf '%s\n' "$block"
-    # A1 round 2: `<ts> <level> ` before the label — prefix strings copied
-    # byte-for-byte from the committed run log
-    # raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:47-50.
-    printf '1.17.377.180 I common_perf_print:        load time = %10.2f ms\n' 9876.5
-    printf '1.17.377.184 I common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$prefill" "$prompt_n" 44.20 22.62
-    printf '1.17.377.201 I common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' 9071 "${DRY_DECODE_RUNS:-126}" 71.43 14.00
-    printf '1.17.377.214 I common_perf_print:       total time = %10.2f ms / %5d tokens\n' 54876.5 "$((prompt_n + 127))"
+    if [ -n "$fp_lines" ]; then printf '%s\n' "$fp_lines"; fi
+    if [ "$phase" = load ]; then
+      # Proof run (-lv 5, --no-perf): the verbose block lives HERE only (A-2).
+      printf 'llama_model_loader: loaded meta data with %s tokens from /data/local/tmp/heat3way/ship.gguf\n' "$((prompt_n + 127))"
+      case "$backend" in
+        cpu) emit_cpu_block ;;
+        gpu) emit_gpu_block ;;
+        npu) emit_npu_block ;;
+      esac
+    else
+      # Measured turn at default verbosity: perf lines only, real prefixes
+      # byte-identical to raw/s23-cli-heat-20260926 t1cpu.log:47-50.
+      printf '1.17.377.180 I common_perf_print:        load time = %10.2f ms\n' 9876.5
+      printf '1.17.377.184 I common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$prefill" "$prompt_n" 44.20 22.62
+      printf '1.17.377.201 I common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' 9071 "${DRY_DECODE_RUNS:-126}" 71.43 14.00
+      printf '1.17.377.214 I common_perf_print:       total time = %10.2f ms / %5d tokens\n' 54876.5 "$((prompt_n + 127))"
+    fi
     printf 'EXIT=%s\n' "${DRY_ARM_RC:-0}"
   } > "$DEV/$tag"
   exit "${DRY_ARM_RC:-0}"
 }
 run_sampler() {
   local out="$DEV/samples.txt" i=0
-  echo "H zones: /sys/class/thermal/thermal_zone0:cpu-0 /sys/class/thermal/thermal_zone5:gpuss-0" > "$out"
+  # Append-safe (A-11): a resumed sampler must not truncate the series; the
+  # header is written once, each launch stamps H sampler_start.
+  if [ ! -f "$out" ]; then
+    echo "H zones: /sys/class/thermal/thermal_zone0:cpu-0 /sys/class/thermal/thermal_zone5:gpuss-0" > "$out"
+  fi
+  echo "H sampler_start $(date +%s)" >> "$out"
   while [ ! -f "$DEV/stop_marker" ] && [ "$i" -lt 300 ]; do
     compute "$(read_n)"
     s="$SKIN_VAL"
@@ -190,9 +226,22 @@ handle_shell() {
     *"sha256sum"*llama-completion*)
       if [ -f "$STATE/kit_unpacked" ]; then echo "790e38986321ff244535d297fbe66fc7d025454a07c5db904554e40dd4846109  bin/llama-completion"; exit 0; fi
       echo "sha256sum: no such file" >&2; exit 1 ;;
-    # pkill MUST precede the bare llama-completion arm branch: even the
-    # bracketed pattern `llama-completio[n]` contains the substring.
-    *pkill*) printf '%s\n' "$cmd" >> "$STATE/pkill.log"; exit 0 ;;
+    # pgrep BEFORE pkill: the combined restore probe contains both names;
+    # the standalone pkill (no pgrep) falls through to the next branch.
+    # A-4: pkill alone proves nothing — the RC from pgrep is the verdict.
+    *pgrep*)
+      printf '%s\n' "$cmd" >> "$STATE/pgrep.log"
+      if [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then : > "$STATE/llama_killed"; fi
+      if [ -f "$STATE/llama_killed" ] && [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then
+        printf 'PGREP_RC=1\n'
+      else
+        printf '4242\nPGREP_RC=0\n'
+      fi
+      exit 0 ;;
+    *pkill*)
+      printf '%s\n' "$cmd" >> "$STATE/pkill.log"
+      if [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then : > "$STATE/llama_killed"; fi
+      exit 0 ;;
     *--list-devices*)
       printf 'Available devices:\n  GPUOpenCL: QUALCOMM Adreno(TM) (3536 MiB, 2512 MiB free)\n  HTP0: Hexagon (0 MiB, 0 MiB free)\n'
       exit 0 ;;
@@ -202,7 +251,9 @@ handle_shell() {
     *dumpsys\ thermalservice*) dump_thermals; exit 0 ;;
     *dumpsys\ battery*) dump_battery; exit 0 ;;
     *power_supply/battery/temp*) compute "$(read_n)"; echo "$TEMP_VAL"; exit 0 ;;
-    *getprop*) echo SM8550; exit 0 ;;
+    *getprop*)
+      if [ "${DRY_FAIL_SOC:-0}" = 1 ]; then echo "error: device offline" >&2; exit 7; fi
+      echo SM8550; exit 0 ;;
     *"settings get system screen_off_timeout"*) cat "$STATE/screen_timeout" 2>/dev/null || echo 60000; exit 0 ;;
     *"settings get global stay_on_while_plugged_in"*) cat "$STATE/stay_on_while_plugged_in" 2>/dev/null || echo null; exit 0 ;;
     *"settings put system screen_off_timeout"*) printf '%s\n' "${cmd##* }" > "$STATE/screen_timeout"; exit 0 ;;
@@ -225,6 +276,7 @@ verb="${1:-}"
 [ $# -gt 0 ] && shift
 case "$verb" in
   devices)
+    if [ "${DRY_FAIL_DEVICES:-0}" = 1 ]; then echo "adb: no devices/emulators found" >&2; exit 1; fi
     printf 'List of devices attached\n%s\tdevice\n' "${FAKE_SERIAL:-fakes23}"
     exit 0 ;;
   get-state) echo device; exit 0 ;;

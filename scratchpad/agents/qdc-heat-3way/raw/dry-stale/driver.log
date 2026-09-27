@@ -1,13 +1,22 @@
-[17:12:48] SESSION job=dry-stale board=S23-v73 soc=SM8550 serial=fakes23 order=C stayon_saved=null timeout_saved=60000
-[17:12:48] KIT_UNPACK_PUSH
-[17:12:48] DEVICE_LIST_OK
-[17:12:48] KIT_PUSH ship.gguf sha_before=absent
-[17:12:48] KIT_PUSH prompt.txt sha_before=absent
-[17:12:49] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[17:12:49] GATE label=setup
-[17:12:50] SETUP_DONE skin0=33.5 battery_untrusted=0
-[17:12:50] SAMPLER_LAUNCHED pid=93025
-[17:12:50] ARM_START turn=1 backend=cpu pair=1 tag=dry-stale-t1cpu
-[17:12:50] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[17:12:50] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 proof=cpu_no_offload
-[17:12:50] DONE order=C rows=1 ok=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-stale/results.tsv
+[21:35:55] SESSION job=dry-stale board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[21:35:55] KIT_UNPACK_PUSH
+[21:35:55] DEVICE_LIST_OK
+[21:35:55] KIT_PUSH ship.gguf sha_before=absent
+[21:35:55] KIT_PUSH prompt.txt sha_before=absent
+[21:35:56] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:35:56] GATE label=setup
+[21:35:56] SETUP_DONE skin0=33.5 battery_untrusted=0
+[21:35:56] SAMPLER_LAUNCHED pid=74324
+[21:35:56] ARM_START turn=1 backend=cpu pair=1 tag=dry-stale-t1cpu
+[21:35:57] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[21:35:57] SAMPLER_PAUSED (measured turn excluded from the 1 Hz series)
+[21:35:57] SAMPLER_LAUNCHED pid=74574
+[21:35:57] SAMPLER_RESUMED
+[21:35:57] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=ngl=0 htp=1 thr=5 proof=cpu_no_offload fp=ngl=0 htp=1 thr=5
+[21:35:57] ARM_START turn=2 backend=gpu pair=1 tag=dry-stale-t2gpu
+[21:35:57] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[21:35:57] SAMPLER_PAUSED (measured turn excluded from the 1 Hz series)
+[21:35:57] SAMPLER_LAUNCHED pid=74848
+[21:35:57] SAMPLER_RESUMED
+[21:35:57] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=ngl=99 htp=0 thr=5 proof=gpu_assigned_lines=33 kernels=12 fp=ngl=99 htp=0 thr=5
+[21:35:57] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-stale/results.tsv

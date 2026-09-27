@@ -25,7 +25,7 @@ measured window is prefill+decode only. The app has no NPU route
 
 | # | finding | fix (file:line) |
 |---|---|---|
-| A1 | parser prefix `llama_perf_context_print:` does not exist in the kit | `arm.sh:135-137` — matches `common_perf_print:`, field indices $6/$9, $5/$8, $5(load) kept; format verified in-tree at f25f0c1c5 `common/sampling.cpp:573-576`, no log prefix (`common/log.cpp:174`); the fake now generates lines from that exact format (`dryrun-adb.sh:141-144`) |
+| A1 | parser prefix `llama_perf_context_print:` does not exist in the kit | `arm.sh:135-137` — matches `common_perf_print:`, field indices $6/$9, $5/$8, $5(load) kept; format verified in-tree at f25f0c1c5 `common/sampling.cpp:573-576`, no log prefix (`common/log.cpp:174`); the fake now generates lines from that exact format (`dryrun-adb.sh:141-144`) **[SUPERSEDED by Round 3 + Round 4: the kit DOES prefix every line `<ts> <level> ` — that log-prefix claim was wrong; the parser now matches the label token anywhere and indexes relatively (`arm.sh:211-231`), and the fake copies the prefixed lines byte-for-byte from the committed run log]** |
 | A2 | stale `stop_request`/`END.txt` never removed | `d_run.sh:55-58` — rm before anything reads them; fixture `dryrun.sh:211` seeds both and proves `END exit_0` + OK row + file gone |
 | A3 | `pkill -f llama-completion` self-match; orphan on timeout | `stop_lib.sh:59` and `restore.sh:48` — pattern `llama-completio[n]`; `arm.sh:77-81,94,109` — rc ≥124 (142=SIGALRM, verified) → `arm_kill_orphan`; fixture `dryrun.sh:220` (ARM_TIMEOUT_S=1 + sleeping fake) |
 | A4 | CPU prefill 45 s contradicted its own priors | `PREREG.md` §1 rederived with arithmetic: C 45,000→**15,000** [8k–45k] (pp4 52.9 t/s ⇒ ≤19.2 s; app 10.1–11.2 s ⇒ 12–17 s; q58 39.3 s upper), G 14,000→**13,500** (1018/75.4=13.5 s), N 18,000→**12,000** (q58 9.7 s floor, npu-spec 47.1 s ceiling); dated amendment block names old values + audit id |
@@ -54,16 +54,26 @@ measured window is prefill+decode only. The app has no NPU route
 
 ## Files (one responsibility each)
 
-- `d_run.sh` (324) — session orchestration: args, prep, gates, load+turn loop, rows, END, restore.
-- `stop_lib.sh` (86) — live readings, numeric fail-closed checks, hard stops, `request_stop` (sourced; DSpark will source it too).
+- `d_run.sh` (366) — session orchestration: args/order validation, prep,
+  gates, proof+turn loop, rows, END, restore. *Declared:* slightly over the
+  ~350 indicative — kept whole because splitting it now would move lines only
+  to satisfy a number.
+- `stop_lib.sh` (107) — live readings, numeric fail-closed checks, hard
+  stops, `request_stop` + verified `kill_remote_llama` (sourced; DSpark will
+  source it too).
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
-- `kit.sh` (62) — push and byte-verify kit/model/prompt/sampler, remote-log sweep, backend-name preflight.
-- `arm.sh` (193) — build/run/parse one arm (load phase + measured turn, thresholds).
-- `restore.sh` (67) — undo every device change (standalone-capable).
-- `smp.sh` (33) — on-device 1 s thermal sampler.
-- `dryrun-adb.sh` (239) — fake adb with reading/log-injection knobs.
-- `dryrun.sh` (243) — 18 fixtures + assertions.
-- `PREREG.md` (238), `REPORT.md`.
+- `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
+  sampler, remote-log+samples sweep, backend-name preflight.
+- `arm.sh` (254) — proof-run and turn commands, run/pull, fingerprint, the
+  two parses (thresholds on the -lv 5 log, perf+fingerprint on the turn log).
+- `sampler.sh` (41) — sampler lifecycle incl. the A-11 pause/resume.
+- `restore.sh` (73) — undo every device change (standalone-capable, kill-verified).
+- `smp.sh` (36) — on-device 1 s thermal sampler (append-only).
+- `dryrun-adb.sh` (299) — fake adb with reading/log/kill/adb-failure knobs.
+- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (79, runner helpers) +
+  `dryrun-core.sh` (131) + `dryrun-stops.sh` (100) + `dryrun-paths.sh` (84) —
+  fixture matrix split by topic.
+- `PREREG.md`, `REPORT.md`, `AUDIT-dd6bdb56.md` (committed with Round 4).
 
 ## Dry-run proof (Mac, fake adb)
 
@@ -75,7 +85,7 @@ bash -n d_run.sh restore.sh dryrun.sh dryrun-adb.sh stop_lib.sh battery_trust.sh
 
 | fixture | injection | asserted outcome |
 |---|---|---|
-| `six-arms` (seed stayon=1) | none | rc 0; **6 rows**, cpu gpu npu npu gpu cpu; pairs 1 1 2 2 3 3; all OK; **real `common_perf_print:` prefix parses** (A1); prompt_n 1018, runs 127; prefill 45000/14000/18000; proofs `cpu_no_offload`, `gpu_assigned_lines=33 kernels=12`, `htp_ops=1200 arch=v73`; load cols 33.5/33.5 + `inload_ms=9876.50` logged; pagein 1→0; stayon restored to 1; restore; no unknown shell cmd |
+| `six-arms` (seed stayon=1) | none | rc 0; **6 rows**, cpu gpu npu npu gpu cpu; pairs 1 1 2 2 3 3; all OK; **real `common_perf_print:` prefix parses** (A1); prompt_n 1018, runs **126** (the “127” written here in round 2 was the pre-Round-3 gate, superseded by the device-evidenced N−1 rule); prefill 45000/14000/18000; proofs `cpu_no_offload`, `gpu_assigned_lines=33 kernels=12`, `htp_ops=1200 arch=v73` (Round 4: proof from the -lv 5 load-phase run, plus `fp=` fingerprint and sampler pause/resume — see Round 4); load cols 33.5/33.5 + `inload_ms=9876.50` logged; pagein 1→0; stayon restored to 1; restore; no unknown shell cmd |
 | `no-htp` / `htp-low` | 0 / 5 execute-op lines | VOID `no_htp_proof` / `htp_ops_low` (proof=htp_ops=5) |
 | `no-gpu` / `gpu-exec-low` / `gpu-disabled` | no placement / 3 kernels / disabled line | VOID `no_gpu_proof` / `gpu_exec_low` / `gpu_disabled` |
 | `warm-start` | skin 38 from read 1 | cap waits 2 s, `warm_start=1`, `cooldown_s=2`, `skin_before=38` recorded, arms still run (owner's no-cool-start-gate rule) |
@@ -139,7 +149,7 @@ its decision comes separately).
 
 | defect | evidence | fix |
 |---|---|---|
-| **1. parser anchored fields at `$1/$6`** — on the device every line carries `<ts> <level> ` before the label, so every perf value came back empty → `run_fail` → luna's fail-fast guard stopped the session | `raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:48` — `1.17.377.184 I common_perf_print: prompt eval time =   10947.50 ms /  1018 tokens` | `arm.sh:142-166` — locate the `common_perf_print:` TOKEN anywhere in the line and index fields relative to it (value at label+5/+4, counts at +8/+7); works for prefixed AND bare lines. The old header claim "log prefix off (common/log.cpp:174)" was refuted and rewritten (`arm.sh:13-20`). The fake now emits lines with byte-identical prefixes copied from that committed raw log (`dryrun-adb.sh:149-155`), asserted by `dryrun.sh:74` (`I common_perf_print:`) plus the parsed values |
+| **1. parser anchored fields at `$1/$6`** — on the device every line carries `<ts> <level> ` before the label, so every perf value came back empty → `run_fail` → luna's fail-fast guard stopped the session | `raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log:48` — `1.17.377.184 I common_perf_print: prompt eval time =   10947.50 ms /  1018 tokens` | `arm.sh:211-231` — locate the `common_perf_print:` TOKEN anywhere in the line and index fields relative to it (value at label+5/+4, counts at +8/+7); works for prefixed AND bare lines. The old header claim "log prefix off (common/log.cpp:174)" was refuted (the header now documents the prefix in its two-phase design block). The fake now emits lines with byte-identical prefixes copied from that committed raw log (`dryrun-adb.sh:181-185`), asserted by `dryrun-core.sh:12` (`I common_perf_print:`) plus the parsed values |
 | **2. gate hard-required 127 runs** — `-n 127` structurally yields **126** eval runs (the first token comes from the prompt eval); `-n 64 → 63` device-confirmed | `raw/s23-cli-diag-20260926` (63 for -n 64) and run 1's `126 runs` | `arm.sh:41-46` — `DECODE_N` is the single source (feeds the `-n %d` flag at `arm.sh:68`); `d_run.sh:78` — gate derives `DECODE_EXPECT=$((DECODE_N - 1))`; stop log now carries `want=… n=…`. No second hardcoded number |
 
 Fixtures (`./dryrun.sh > /tmp/... 2>&1; echo EXIT=$?` → **EXIT=0, PASS=155,
@@ -176,6 +186,76 @@ changed in this commit.
 
 `PREREG.md` is locked (post-run): its "decode_runs must be 127" is superseded
 by the device-evidenced N-1 rule; recorded here, not edited there.
+
+## Round 4 — hostile audit dd6bdb56, all findings fixed (2026-09-26)
+
+`AUDIT-dd6bdb56.md` is committed with this round. Owner decisions applied as
+stated below; no thread/poll-speed flags were touched beyond the ordered
+`-t 5` preset. One note for Rounds 2–3: the fixture matrix was split by topic
+(this round), so earlier `dryrun.sh:<n>` references now live in
+`dryrun-{lib,core,stops,paths}.sh`. Rows written in earlier rounds keep the
+line numbers of their own round — Round 4 reordered the setup block and split
+`arm_parse` into proof/turn, so current locations for those are the ones in
+the table below.
+
+| # | disposition | fix (file:line) + fixture |
+|---|---|---|
+| A-1 CONFIRMED (blocker) | **Fixed per owner decision**: the backend proof runs in the load phase at `-lv 5` (few tokens: `-p " " -n 4`), where `LLAMA_LOG_DEBUG`/`GGML_LOG_DEBUG` exist; the measured turn runs at default verbosity with NONE of the verbose env | proof cmd `arm.sh:78-84`, proof env `arm.sh:62-65`, thresholds evaluated on the proof log `arm.sh:143-195`, gate before the turn `d_run.sh:309-315` (a void proof never pays for the big run); turn env `arm.sh:57-60` = LD/ADSP/`GGML_HEXAGON_NDEV` only. Fixtures: every proof fixture now voids pre-turn; `six-arms` asserts **0 proof lines in the turn log** and 33 assignment lines in the load log |
+| A-2 PLAUSIBLE (verbose inside the window) | **Fixed**: `GGML_HEXAGON_VERBOSE=1` + `GGML_OPENCL_LOG_KERNELS=1` live only in `arm_proof_env` (`arm.sh:62-65`); the turn carries neither — no per-op fprintf can bias the N `eval time` | same fixtures as A-1; `kit.sh` preflight also dropped `GGML_HEXAGON_VERBOSE` |
+| A-3 CONFIRMED (load phase unpollled) | **Fixed**: the poll starts before `arm_load` and stops after the turn (or at the load-fail/stop exits) | `d_run.sh:285`, stop paths `d_run.sh:285-315`; fixture `poll-cadence` (`dryrun-stops.sh`) — the stop lands DURING the load phase (row `stop_battery_temp` with `tail_s=na`) |
+| A-4 CONFIRMED (pkill never verified) | **Fixed**: `kill_remote_llama` pkills then probes with `pgrep`; only `PGREP_RC=1` (gone) passes; any other RC (still running, or tool missing = 127) writes `$RAW/kill_unverified`, logs `PKILL_UNVERIFIED`, and every end path turns it into `END …_kill_unverified` with **exit 3**; `restore.sh` fails with `RESTORE_LLAMA_STILL_RUNNING` instead of pretending | `stop_lib.sh:69-86`, `d_run.sh:150-166` (+ load-fail path `d_run.sh:300`, final end `d_run.sh:364`), `restore.sh:50-56`. Fixtures `kill-unverified` (session rc=3, restore rc=1) and `timeout` (`KILL_VERIFIED`, rc=0) |
+| A-5 CONFIRMED (no HUP trap) | **Fixed**: `trap 'on_signal HUP 1' HUP`, armed with the others right after the state write | `d_run.sh:209`; fixture `sighup` — HUP at t≈8 s mid-load → `END signal_HUP`, rc=129, restore rc=0, stop marker left for the sampler |
+| A-6 CONFIRMED (stale state destroyed) | **Fixed**: no `rm` of `.restore-state`; a leftover state is CONSUMED by a prior `restore.sh` run before this run reads/mutates, and the session aborts loudly if that restore fails; only then is fresh state written | `d_run.sh:184-190`; fixture `prior-restore` — mutated fake device (1800000/3) + stale state (60000/1) → final device 60000/1, fresh state captured pristine |
+| A-7 CONFIRMED (empty timeout read) | **Fixed**: `SCREEN_OFF_TIMEOUT` defaults to `null` like STAYON | `d_run.sh:197-199` |
+| A-8 CONFIRMED (comment/order lie) | **Fixed**: traps are armed AFTER the state write and BEFORE the first mutation — the rm-before-trap comment is gone because the rm itself is gone | `d_run.sh:202-210` |
+| A-9 CONFIRMED (unguarded adbT) | **Fixed**: devices/SOC/settings-read failures log `NO_DEVICE` / `ADB_FAIL …` and exit 2 instead of dying with a raw rc; guards on `d_run.sh:178,192,198,200` | fixtures `fail-devices` (rc=2, `NO_DEVICE`, no END) and `fail-soc` (rc=2, `ADB_FAIL soc_read`, no END) |
+| A-10 CONFIRMED (cadence untested/unregistered) | **Fixed**: fixture runs the PRODUCTION `POLL_S=15` and measures ARM_START→STOP (observed **15 s**, asserted 13..40); PREREG amendment #5 registers the bound (15 s + 2 adb RTT ≈ 17–20 s under load) | `dryrun-stops.sh` fixture `poll-cadence`; `PREREG.md` amendments block |
+| A-11 CONFIRMED (sampler inside the window) | **Fixed**: the sampler pauses before `arm_run` and resumes right after; `smp.sh` is append-only so a resume cannot truncate the series; the session-start sweep clears `samples.txt`; PREREG amendment #4 registers it | pause/resume `d_run.sh:316,318` + `sampler.sh:17-31`; `smp.sh:10-13`; `kit.sh:35`. Fixture `six-arms`: `SAMPLER_PAUSED`+`SAMPLER_RESUMED` logged, 1 `H zones` header, 7 `H sampler_start` (1 + 6 resumes) |
+| A-12 CONFIRMED (PREREG says 127, code 126) | **Fixed**: dated amendment inside `PREREG.md` supersedes the “must be 127” wording (N−1, device-evidenced) | `PREREG.md` pre-run amendments #3 |
+| A-13 CONFIRMED (pair decorative) | **Fixed**: `validate_order` requires even length and every pair ∈ {CG, GC, NN} (the registered pairs) — `CGN` and `CCCC` exit 2 before any adb call | `d_run.sh:27-36`; fixture `A-13` in `dryrun-core.sh`; every fixture converted to a registered order |
+| A-14 CONFIRMED (self-contradictory ledger) | **Fixed**: the Round-2 A1 row and six-arms row are corrected/superseded in place (this section + the markers above) | this REPORT, rows for A1 and `six-arms` |
+| A-15 CONFIRMED (CPU proof unfalsifiable) | **Fixed by A-1**: the positive check (`assigned to device CPU` ≥ 1) and the leak check both run on the `-lv 5` proof log, where those lines exist — a default log can no longer trivially pass either | `arm.sh:157-166`; fixture `no-cpu` (knob omits them → `no_cpu_proof`, `END method_void_no_cpu_proof`) |
+| A-16 CONFIRMED (REFUTED by the audit itself) | **No change needed**: `^GGML_OPENCL_LOG_KERNELS:` is correctly anchored — the source is a direct `fprintf(stderr…)` inside `enqueue_ndrange_kernel`, not the logger (audit's own verdict) | fixture `gpu-exec-low`/`six-arms` keep proving the anchor |
+
+**Fingerprint lines (stated, as the owner required)** — all three exist at
+the default `-lv 3` because they are WARN or tool-level INFO (run-1 evidence):
+
+1. `common_fit_params: … n_gpu_layers already set by user to <N>` — C: `0`,
+   G/N: `99` (the -ngl value);
+2. presence of `common_get_device_memory_data_impl: device HTP0 did not
+   report memory` — C/N present, G absent (the `-dev` device scope);
+3. `system_info: n_threads = <N>` — must equal the arm's `-t 5`.
+
+The turn's fingerprint must equal the proof run's (`arm_fingerprint`,
+`arm.sh:130-140`): inequality → VOID `backend_mismatch`, any missing
+component on either side → VOID `no_fingerprint` (fail closed). Both values
+are written into the `proof` column.
+
+**Owner decisions recorded in PREREG (pre-run amendments block):** proof-run
+architecture (#1), CPU/host threads `-t 5` from the app's S23 preset
+`deviceTuning.ts:217-219` for all three arms with default poll — a config
+choice, the CPU-speed diagnosis having been invalidated by the resident app
+(#2), gate N−1 (#3), sampler pause (#4), poll bound (#5).
+
+**Commands (this round):** `bash -n` on 10 scripts → 0;
+`./dryrun.sh > /tmp/dryrun_r4_split.log 2>&1; echo EXIT=$?` → **EXIT=0,
+PASS=213 FAIL=0** (log copied to `raw/dryrun-final-run.log`; per-fixture
+`raw/dryrun-<name>.log`). Intermediate runs this round: 209/3 (three wrong
+harness assertions — sampler-launch count 1+6 arms, restore rc=1 is the
+CORRECT loud outcome for `kill-unverified`, and a two-field vs three-field
+typo), then 213/0; two fake-emitter bugs caught by artifact inspection
+(command substitution ate the fingerprint newlines).
+
+**Not verified (round 4):** the real kit's fit line for `-ngl 99` (fingerprint
+component 1 assumes `…user to 99`, mirroring run 1's `…user to 0`); the real
+G-arm HTP0-warning scoping (component 2 assumes `-dev GPUOpenCL` excludes
+HTP0 from the fit query); toybox `pgrep -f` availability on the S23 (if
+missing, `PGREP_RC` never equals 1 → every kill fails CLOSED, loudly);
+`-lv 5` unlocking the DEBUG lines on this kit (STEP0 diagnostic evidence
+only); sampler pause/resume timing on device; HUP delivery during a bare
+`sleep` (bounded by one sleep quantum, same caveat as the qdc driver). The
+G/N split of the fingerprint therefore rests on two source-level assumptions
+stated here and exercised only by the fake until run 2.
 
 ## Declared, not touched
 

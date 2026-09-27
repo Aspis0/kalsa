@@ -1,2 +1,2 @@
 pair	backend	turn	status	void_reason	warm_start	cooldown_s	tail_s	wall_s	load_wall_s	load_skin_before	load_skin_after	pagein_cold	skin_before	skin_after	batt_temp_before	batt_temp_after	batt_level	plugged	thermal_status	prompt_n	prefill_ms	decode_runs	decode_tps	proof
-1	npu	1	VOID	htp_ops_low	0	0	0	0	0	33.5	33.5	1	33.5	33.5	310	310	88	false	0	1018	18000.00	126	13.89	htp_ops=5
+1	npu	1	VOID	htp_ops_low	0	0	na	na	0	33.5	33.5	1	33.5	na	310	na	88	false	0	na	na	na	na	htp_ops=5

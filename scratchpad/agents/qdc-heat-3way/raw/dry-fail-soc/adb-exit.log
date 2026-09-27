@@ -1,0 +1,3 @@
+rc=0 devices
+rc=0 -s fakes23 wait-for-device
+rc=7 -s fakes23 shell getprop ro.soc.model

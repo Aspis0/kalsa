@@ -1,0 +1,16 @@
+[21:34:54] SESSION job=dry-backend-mismatch board=S23-v73 soc=SM8550 serial=fakes23 order=GC stayon_saved=null timeout_saved=60000
+[21:34:54] KIT_UNPACK_PUSH
+[21:34:54] DEVICE_LIST_OK
+[21:34:54] KIT_PUSH ship.gguf sha_before=absent
+[21:34:54] KIT_PUSH prompt.txt sha_before=absent
+[21:34:56] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:34:56] GATE label=setup
+[21:34:56] SETUP_DONE skin0=33.5 battery_untrusted=0
+[21:34:56] SAMPLER_LAUNCHED pid=61482
+[21:34:56] ARM_START turn=1 backend=gpu pair=1 tag=dry-backend-mismatch-t1gpu
+[21:34:56] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[21:34:56] SAMPLER_PAUSED (measured turn excluded from the 1 Hz series)
+[21:34:56] SAMPLER_LAUNCHED pid=61673
+[21:34:56] SAMPLER_RESUMED
+[21:34:56] ARM_END turn=1 status=VOID void=backend_mismatch prefill_ms=14000.00 inload_ms=9876.50 fp_turn=ngl=0 htp=0 thr=5 proof=fp_turn=ngl=0 htp=0 thr=5 fp_proof=ngl=99 htp=0 thr=5
+[21:34:56] STOP_METHOD_VOID turn=1 backend=gpu reason=backend_mismatch

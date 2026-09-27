@@ -1,13 +1,13 @@
-[17:12:18] SESSION job=dry-gpu-disabled board=S23-v73 soc=SM8550 serial=fakes23 order=G stayon_saved=null timeout_saved=60000
-[17:12:18] KIT_UNPACK_PUSH
-[17:12:18] DEVICE_LIST_OK
-[17:12:18] KIT_PUSH ship.gguf sha_before=absent
-[17:12:18] KIT_PUSH prompt.txt sha_before=absent
-[17:12:19] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[17:12:19] GATE label=setup
-[17:12:20] SETUP_DONE skin0=33.5 battery_untrusted=0
-[17:12:20] SAMPLER_LAUNCHED pid=86061
-[17:12:20] ARM_START turn=1 backend=gpu pair=1 tag=dry-gpu-disabled-t1gpu
-[17:12:20] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[17:12:20] ARM_END turn=1 status=VOID void=gpu_disabled prefill_ms=14000.00 inload_ms=9876.50 proof=gpu_assigned_lines=33 kernels=12
-[17:12:20] STOP_METHOD_VOID turn=1 backend=gpu reason=gpu_disabled
+[21:34:51] SESSION job=dry-gpu-disabled board=S23-v73 soc=SM8550 serial=fakes23 order=GC stayon_saved=null timeout_saved=60000
+[21:34:51] KIT_UNPACK_PUSH
+[21:34:51] DEVICE_LIST_OK
+[21:34:51] KIT_PUSH ship.gguf sha_before=absent
+[21:34:51] KIT_PUSH prompt.txt sha_before=absent
+[21:34:52] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:34:52] GATE label=setup
+[21:34:52] SETUP_DONE skin0=33.5 battery_untrusted=0
+[21:34:52] SAMPLER_LAUNCHED pid=60137
+[21:34:52] ARM_START turn=1 backend=gpu pair=1 tag=dry-gpu-disabled-t1gpu
+[21:34:52] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[21:34:52] PROOF_VOID turn=1 backend=gpu reason=gpu_disabled proof=gpu_assigned_lines=33 kernels=12 fp_proof=ngl=99 htp=0 thr=5
+[21:34:52] STOP_METHOD_VOID turn=1 backend=gpu reason=gpu_disabled

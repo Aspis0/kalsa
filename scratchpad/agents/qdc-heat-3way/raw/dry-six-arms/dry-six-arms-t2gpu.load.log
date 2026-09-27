@@ -1,3 +1,5 @@
+0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 llama_model_loader: loaded meta data with 1145 tokens from /data/local/tmp/heat3way/ship.gguf
 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free
 ggml_opencl: default device: QUALCOMM Adreno(TM) 740 (OpenCL 2.0)
@@ -46,8 +48,4 @@ GGML_OPENCL_LOG_KERNELS: kernel_08
 GGML_OPENCL_LOG_KERNELS: kernel_09
 GGML_OPENCL_LOG_KERNELS: kernel_10
 GGML_OPENCL_LOG_KERNELS: kernel_11
-1.17.377.180 I common_perf_print:        load time =    9876.50 ms
-1.17.377.184 I common_perf_print: prompt eval time =   14000.00 ms /  1018 tokens (   44.20 ms per token,    22.62 tokens per second)
-1.17.377.201 I common_perf_print:        eval time =    9071.00 ms /   126 runs   (   71.43 ms per token,    14.00 tokens per second)
-1.17.377.214 I common_perf_print:       total time =   54876.50 ms /  1145 tokens
 EXIT=0

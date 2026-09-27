@@ -1,13 +1,18 @@
-[17:12:50] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=C stayon_saved=null timeout_saved=60000
-[17:12:50] KIT_UNPACK_PUSH
-[17:12:50] DEVICE_LIST_OK
-[17:12:50] KIT_PUSH ship.gguf sha_before=absent
-[17:12:50] KIT_PUSH prompt.txt sha_before=absent
-[17:12:51] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[17:12:51] GATE label=setup
-[17:12:51] SETUP_DONE skin0=33.5 battery_untrusted=0
-[17:12:51] SAMPLER_LAUNCHED pid=93603
-[17:12:51] ARM_START turn=1 backend=cpu pair=1 tag=dry-timeout-t1cpu
-[17:12:52] ARM_TIMEOUT backend=cpu rc=142 -> killing remote llama-completion
-[17:12:53] ARM_LOAD_FAIL turn=1 rc=142
-[17:12:53] DONE order=C rows=1 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-timeout/results.tsv
+[21:35:57] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[21:35:57] KIT_UNPACK_PUSH
+[21:35:57] DEVICE_LIST_OK
+[21:35:58] KIT_PUSH ship.gguf sha_before=absent
+[21:35:58] KIT_PUSH prompt.txt sha_before=absent
+[21:35:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:35:59] GATE label=setup
+[21:35:59] SETUP_DONE skin0=33.5 battery_untrusted=0
+[21:35:59] SAMPLER_LAUNCHED pid=75612
+[21:35:59] ARM_START turn=1 backend=cpu pair=1 tag=dry-timeout-t1cpu
+[21:36:00] ARM_TIMEOUT backend=cpu rc=142 -> killing remote llama-completion
+[21:36:00] KILL_VERIFIED ctx=arm_timeout_cpu (no llama-completion remains)
+[21:36:00] ARM_LOAD_FAIL turn=1 rc=142
+[21:36:00] ARM_START turn=2 backend=gpu pair=1 tag=dry-timeout-t2gpu
+[21:36:01] ARM_TIMEOUT backend=gpu rc=142 -> killing remote llama-completion
+[21:36:01] KILL_VERIFIED ctx=arm_timeout_gpu (no llama-completion remains)
+[21:36:01] ARM_LOAD_FAIL turn=2 rc=142
+[21:36:01] DONE order=CG rows=2 ok=0 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-timeout/results.tsv

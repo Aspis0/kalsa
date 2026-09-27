@@ -44,8 +44,14 @@ rc=0
 "$ADB_BIN" -s "$SER" shell "touch $HEAT_TMP/stop" >/dev/null 2>&1 || true
 pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 # A3: bracketed so the wrapping `sh -c` carrying this very pattern is not
-# matched and killed by its own pkill.
-"$ADB_BIN" -s "$SER" shell "pkill -f 'llama-completio[n]'" >/dev/null 2>&1 || true
+# matched and killed by its own pkill. A-4: the kill is VERIFIED — pgrep RC=1
+# (gone) is the only pass; still-running or tool-missing fails the restore
+# loudly instead of pretending the phone is clean.
+llama_rc=$("$ADB_BIN" -s "$SER" shell "pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo PGREP_RC=\$?" 2>/dev/null | tr -d '\r' || true)
+case "$llama_rc" in
+  *PGREP_RC=1*) ;;
+  *) echo "RESTORE_LLAMA_STILL_RUNNING pgrep=[$llama_rc]" >&2; rc=1 ;;
+esac
 if [ "$STATE_PRESENT" -eq 1 ]; then
   # A13: put back exactly what was read before the mutation (d_run.sh's
   # `svc power stayon true` overwrites this global with 3).

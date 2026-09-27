@@ -1,0 +1,43 @@
+rc=0 devices
+rc=0 -s fakes23 wait-for-device
+rc=0 -s fakes23 shell getprop ro.soc.model
+rc=0 -s fakes23 shell settings get system screen_off_timeout
+rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
+rc=0 -s fakes23 shell input keyevent KEYCODE_WAKEUP
+rc=0 -s fakes23 shell svc power stayon true
+rc=0 -s fakes23 shell settings put system screen_off_timeout 1800000
+rc=0 -s fakes23 shell mkdir\ -p\ /data/local/tmp/heat3way\ /data/local/tmp/heat3way/heat\ \&\&\ rm\ -f\ /data/local/tmp/heat3way/heat/stop\ /data/local/tmp/heat3way/heat/samples.txt\ /data/local/tmp/heat3way/\*.log
+rc=1 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ sha256sum\ -c\ SHA256SUMS
+rc=0 -s fakes23 push /Users/marco/kalsa-qdc/npu-step0-v73/npu-kit-f25f0c1c5.tgz /data/local/tmp/heat3way/kit.tgz
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ tar\ -xzf\ kit.tgz\ \&\&\ rm\ -f\ kit.tgz
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ sha256sum\ -c\ SHA256SUMS
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/bin/llama-completion
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ --list-devices
+rc=1 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/ship.gguf
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf /data/local/tmp/heat3way/ship.gguf
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/ship.gguf
+rc=1 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/PROMPT.txt /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 shell sha256sum\ /data/local/tmp/heat3way/prompt.txt
+rc=0 -s fakes23 push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/smp.sh /data/local/tmp/heat3way/heat/smp.sh
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ \&\&\ export\ GGML_HEXAGON_VERBOSE=1\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -p\ \"\ \"\ -n\ 4\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --no-perf\ --simple-io\ --no-display-prompt\ -lv\ 5\ -dev\ GPUOpenCL\ -ngl\ 99\ \>\ /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.load.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.load.log\;\ exit\ \$rc
+rc=0 -s fakes23 pull /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.load.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-no-fingerprint/dry-no-fingerprint-t1gpu.load.log
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop
+rc=0 -s fakes23 shell cd\ /data/local/tmp/heat3way\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ ADSP_LIBRARY_PATH=/data/local/tmp/heat3way/lib\ \&\&\ export\ GGML_HEXAGON_NDEV=1\ \&\&\ ./bin/llama-completion\ -m\ /data/local/tmp/heat3way/ship.gguf\ -lm\ none\ -f\ /data/local/tmp/heat3way/prompt.txt\ -n\ 127\ --ignore-eos\ --seed\ 1\ --temp\ 0\ -c\ 2048\ -b\ 2048\ -ub\ 1024\ -t\ 5\ -fa\ 1\ --no-warmup\ --perf\ --simple-io\ --no-display-prompt\ -dev\ GPUOpenCL\ -ngl\ 99\ \>\ /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.log\;\ exit\ \$rc
+rc=0 -s fakes23 pull /data/local/tmp/heat3way/dry-no-fingerprint-t1gpu.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-no-fingerprint/dry-no-fingerprint-t1gpu.log
+rc=0 -s fakes23 shell rm\ -f\ /data/local/tmp/heat3way/heat/stop
+rc=0 -s fakes23 shell dumpsys thermalservice
+rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell touch\ /data/local/tmp/heat3way/heat/stop

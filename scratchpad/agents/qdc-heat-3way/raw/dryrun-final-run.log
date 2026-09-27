@@ -1,4 +1,4 @@
-== fixture: six-arms (order CGNNGC, happy path, seeded stayon=1) ==
+== fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
 PASS  six rc
 PASS  six END
 PASS  six rows
@@ -13,10 +13,13 @@ PASS  six cpu prefill
 PASS  six gpu prefill
 PASS  six npu prefill
 PASS  six cpu proof
+PASS  six cpu fingerprint
 PASS  six gpu proof assign
 PASS  six gpu proof kernels
+PASS  six gpu fingerprint
 PASS  six npu proof arch
 PASS  six npu proof ops
+PASS  six npu fingerprint
 PASS  six skin_before
 PASS  six load_skin_before A8
 PASS  six load_skin_after A8
@@ -25,11 +28,18 @@ PASS  six pagein_cold arm2
 PASS  six load_wall_s
 PASS  six samples.txt
 PASS  six list-devices
+PASS  six sampler-paused A11
+PASS  six sampler-resumed A11
+PASS  six single sampler header
+PASS  six sampler launches
 PASS  six restore-ran
 PASS  six timeout-restored
 PASS  six stayon-restored
 PASS  six no-unknown-shell
-== fixture: missing HTP proof voids the N arm (A6) ==
+== fixture A-13: unregistered/odd orders are rejected ==
+PASS  odd order CGN rejected
+PASS  unregistered pair CC rejected
+== fixture: missing HTP proof voids the N proof run (A6) ==
 PASS  nohtp rc
 PASS  nohtp END
 PASS  nohtp rows
@@ -38,7 +48,7 @@ PASS  nohtp void_reason
 PASS  nohtp backend
 PASS  nohtp restore-ran
 PASS  nohtp timeout-restored
-== fixture: execute-op below the 1000 floor voids the N arm (A6) ==
+== fixture: execute-op below the 1000 floor voids the N proof run (A6) ==
 PASS  htplow rc
 PASS  htplow rows
 PASS  htplow void_reason
@@ -46,7 +56,7 @@ PASS  htplow proof count
 PASS  htplow END
 PASS  htp-low restore-ran
 PASS  htp-low timeout-restored
-== fixture: missing GPU placement evidence voids the G arm (A6) ==
+== fixture: missing GPU placement evidence voids the G proof run (A6) ==
 PASS  nogpu rc
 PASS  nogpu rows
 PASS  nogpu status
@@ -54,20 +64,42 @@ PASS  nogpu void_reason
 PASS  nogpu END
 PASS  nogpu restore-ran
 PASS  nogpu timeout-restored
-== fixture: GPU kernel-dispatch below the 8 floor voids the G arm (A6) ==
+== fixture: GPU kernel-dispatch below the 8 floor voids the G proof run (A6) ==
 PASS  gpuex rc
 PASS  gpuex rows
 PASS  gpuex void_reason
 PASS  gpuex END
 PASS  gpu-exec-low restore-ran
 PASS  gpu-exec-low timeout-restored
-== fixture: kernel-build failure line voids the G arm (A6) ==
+== fixture: kernel-build failure line voids the G proof run (A6) ==
 PASS  gpudis rc
 PASS  gpudis rows
 PASS  gpudis void_reason
 PASS  gpudis END
 PASS  gpu-disabled restore-ran
 PASS  gpu-disabled timeout-restored
+== fixture: CPU placement proof absent in the proof run (A15) ==
+PASS  nocpu rc
+PASS  nocpu rows
+PASS  nocpu void_reason
+PASS  nocpu END
+PASS  nocpu restore-ran
+PASS  nocpu timeout-restored
+== fixture: turn fingerprint differs from the proof run -> backend_mismatch ==
+PASS  bfp rc
+PASS  bfp rows
+PASS  bfp void_reason
+PASS  bfp proof carries both
+PASS  bfp END
+PASS  backend-mismatch restore-ran
+PASS  backend-mismatch timeout-restored
+== fixture: turn log without fingerprint -> no_fingerprint (fail closed) ==
+PASS  nfp rc
+PASS  nfp rows
+PASS  nfp void_reason
+PASS  nfp END
+PASS  no-fingerprint restore-ran
+PASS  no-fingerprint timeout-restored
 == fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
 PASS  warm rc
 PASS  warm END
@@ -125,13 +157,30 @@ PASS  sunb rows
 PASS  sunb untrusted verdict
 PASS  sunb restore-ran
 PASS  sunb timeout-restored
-== fixture: stop fires mid-arm (background poll) ==
+== fixture: stop fires mid-arm (background poll, POLL_S=1) ==
 PASS  smid rc
 PASS  smid END
 PASS  smid rows
 PASS  smid row voided by stop
 PASS  smid restore-ran
 PASS  smid timeout-restored
+== fixture A-4: pkill that does not kill -> loud kill_unverified end ==
+PASS  kuv rc
+PASS  kuv END
+PASS  kuv rows
+PASS  kuv loud log
+PASS  kuv restore loud
+PASS  kuv restore rc
+PASS  kuv timeout-restored
+PASS  kuv pgrep probed
+== fixture A-10/A-3: production 15 s poll cadence during the load phase ==
+PASS  pcad rc
+PASS  pcad END
+PASS  pcad rows
+PASS  pcad row is the load-phase stop
+PASS  pcad stop latency 15s >= POLL_S(15)-slack
+PASS  poll-cadence restore-ran
+PASS  poll-cadence timeout-restored
 == fixture A2: stale stop_request + END cleared at session start ==
 PASS  stale rc
 PASS  stale END
@@ -140,13 +189,15 @@ PASS  stale first row OK
 PASS  stale stop_request gone
 PASS  stale restore-ran
 PASS  stale timeout-restored
-== fixture A3: arm timeout kills the remote orphan ==
+== fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
 PASS  tmo rc
 PASS  tmo END
 PASS  tmo rows
 PASS  tmo void_reason
 PASS  tmo orphan-kill logged
+PASS  tmo kill verified
 PASS  tmo bracketed pkill
+PASS  tmo pgrep probed
 PASS  tmo restore-ran
 PASS  tmo timeout-restored
 == fixture A7: unequal decode voids the row and stops the session ==
@@ -166,12 +217,27 @@ PASS  decder status
 PASS  decder runs accepted
 PASS  decder restore-ran
 PASS  decder timeout-restored
-== fixture: CPU placement proof absent — models a default-verbosity log ==
-PASS  nocpu rc
-PASS  nocpu rows
-PASS  nocpu void_reason
-PASS  nocpu END
-PASS  nocpu restore-ran
-PASS  nocpu timeout-restored
+== fixture A-6: stale .restore-state is consumed (prior restore), not clobbered ==
+PASS  prs rc
+PASS  prs END
+PASS  prs prior restore log
+PASS  prs fresh state captured pristine
+PASS  prs final timeout pristine
+PASS  prs final stayon pristine
+PASS  prior-restore restore-ran
+PASS  prior-restore timeout-restored
+== fixture A-9: adb failures log loudly instead of dying raw ==
+PASS  fdv rc
+PASS  fdv NO_DEVICE logged
+PASS  fdv no-END (pre-trap exit)
+PASS  fsoc rc
+PASS  fsoc ADB_FAIL logged
+PASS  fsoc no-END (pre-trap exit)
+== fixture A-5: SIGHUP (SSH drop) restores the device ==
+PASS  hup rc
+PASS  hup END
+PASS  hup restore-ran
+PASS  hup timeout-restored
+PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=155 FAIL=0
+dryrun summary: PASS=213 FAIL=0

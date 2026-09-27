@@ -50,13 +50,34 @@ require_numeric() {
 
 # request_stop <reason>: the only stop channel. Writes $RAW/stop_request so
 # the background poll (a subshell) can report a stop the driver would never
-# otherwise see, and kills a running arm. The bracket in the pattern (A3):
-# without it `pkill -f llama-completion` matches the wrapping `sh -c` that
-# carries the same string and kills the killer's own shell.
+# otherwise see, and kills+VERIFIES the remote arm (A-4: pkill's rc alone is
+# worthless — toybox returned EXIT=1 with no match on a real board once
+# (raw/s23-app-stutter-20260926/commands.log:34), so kill_remote_llama probes
+# with pgrep afterwards and records $RAW/kill_unverified on failure; the
+# bracket in both patterns prevents self-match).
 request_stop() {
   printf '%s\n' "$1" > "$RAW/stop_request"
   log "STOP reason=$1"
-  adbT 15 -s "$SER" shell "pkill -f 'llama-completio[n]'" >/dev/null 2>&1 || true
+  kill_remote_llama "stop_$1" || true
+}
+
+# kill_remote_llama <ctx>: return 0 only if NO llama-completion process is
+# left on the device. pgrep must answer: RC=1 means gone (verified), RC=0
+# means still running (kill_unverified marker + loud log), any other RC
+# (127 = tool missing) also fails closed — we never claim a verified kill we
+# could not observe.
+kill_remote_llama() {
+  local ctx="$1" out prc
+  adbT 15 -s "$SER" shell "pkill -f 'llama-completio[n]'" >> "$RAW/pkill.log" 2>&1 || true
+  out=$(adbT 15 -s "$SER" shell "pgrep -f 'llama-completio[n]'; echo PGREP_RC=\$?" 2>/dev/null || true)
+  prc=$(printf '%s\n' "$out" | sed -n 's/.*PGREP_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
+  if [ "$prc" = "1" ]; then
+    log "KILL_VERIFIED ctx=$ctx (no llama-completion remains)"
+    return 0
+  fi
+  log "PKILL_UNVERIFIED ctx=$ctx pgrep_rc=${prc:-missing} — remote llama-completion may still be running"
+  : > "$RAW/kill_unverified"
+  return 1
 }
 
 # hard_stops: returns 1 after requesting a stop, 0 when all readings pass.

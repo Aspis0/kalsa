@@ -7,7 +7,10 @@
 # cell pushes to its own device dir) is a copy, not a source.
 OUT=/data/local/tmp/heat3way/heat/samples.txt
 STOP=/data/local/tmp/heat3way/heat/stop
-: > "$OUT"
+# Append-only (A-11): the driver pauses and resumes the sampler around each
+# measured turn, and a resumed sampler must not truncate the series — d_run's
+# kit_setup sweeps samples.txt once per session instead.
+echo "H sampler_start $(date +%s)" >> "$OUT"
 ZONES=""
 for z in /sys/class/thermal/thermal_zone*; do
   t=$(cat "$z/type" 2>/dev/null) || continue
