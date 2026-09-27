@@ -1,47 +1,47 @@
-[00:58:09] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
-[00:58:09] KIT_UNPACK_PUSH
-[00:58:09] DEVICE_LIST_OK
-[00:58:09] KIT_PUSH ship.gguf sha_before=absent
-[00:58:09] KIT_PUSH prompt.txt sha_before=absent
-[00:58:10] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:58:10] GATE label=setup
-[00:58:11] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[00:58:11] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:58:11] SAMPLER_LAUNCHED pid=47887
-[00:58:11] ARM_START turn=1 backend=cpu pair=1 tag=dry-six-arms-t1cpu
-[00:58:11] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[00:58:12] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:12] SAMPLER_LAUNCHED pid=48379
-[00:58:12] SAMPLER_RESUMED
-[00:58:12] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
-[00:58:12] ARM_START turn=2 backend=gpu pair=1 tag=dry-six-arms-t2gpu
-[00:58:12] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:58:13] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:13] SAMPLER_LAUNCHED pid=48836
-[00:58:13] SAMPLER_RESUMED
-[00:58:13] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
-[00:58:13] ARM_START turn=3 backend=npu pair=2 tag=dry-six-arms-t3npu
-[00:58:14] LOAD_PHASE turn=3 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:58:15] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:15] SAMPLER_LAUNCHED pid=49235
-[00:58:15] SAMPLER_RESUMED
-[00:58:15] ARM_END turn=3 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
-[00:58:15] ARM_START turn=4 backend=npu pair=2 tag=dry-six-arms-t4npu
-[00:58:15] LOAD_PHASE turn=4 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:58:16] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:16] SAMPLER_LAUNCHED pid=49636
-[00:58:16] SAMPLER_RESUMED
-[00:58:16] ARM_END turn=4 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
-[00:58:16] ARM_START turn=5 backend=gpu pair=3 tag=dry-six-arms-t5gpu
-[00:58:17] LOAD_PHASE turn=5 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:58:18] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:18] SAMPLER_LAUNCHED pid=50292
-[00:58:18] SAMPLER_RESUMED
-[00:58:18] ARM_END turn=5 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
-[00:58:18] ARM_START turn=6 backend=cpu pair=3 tag=dry-six-arms-t6cpu
-[00:58:18] LOAD_PHASE turn=6 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:58:19] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:58:19] SAMPLER_LAUNCHED pid=50711
-[00:58:19] SAMPLER_RESUMED
-[00:58:19] ARM_END turn=6 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
-[00:58:19] DONE order=CGNNGC rows=6 ok=6 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-six-arms/results.tsv
+[01:38:47] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[01:38:47] KIT_UNPACK_PUSH
+[01:38:47] DEVICE_LIST_OK
+[01:38:47] KIT_PUSH ship.gguf sha_before=absent
+[01:38:47] KIT_PUSH prompt.txt sha_before=absent
+[01:38:49] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:38:49] GATE label=setup
+[01:38:49] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[01:38:49] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:38:49] SAMPLER_LAUNCHED pid=33251
+[01:38:49] ARM_START turn=1 backend=cpu pair=1 tag=dry-six-arms-t1cpu
+[01:38:49] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[01:38:50] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:50] SAMPLER_LAUNCHED pid=34006
+[01:38:50] SAMPLER_RESUMED
+[01:38:50] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[01:38:50] ARM_START turn=2 backend=gpu pair=1 tag=dry-six-arms-t2gpu
+[01:38:50] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:38:51] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:51] SAMPLER_LAUNCHED pid=34644
+[01:38:51] SAMPLER_RESUMED
+[01:38:51] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[01:38:51] ARM_START turn=3 backend=npu pair=2 tag=dry-six-arms-t3npu
+[01:38:52] LOAD_PHASE turn=3 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:38:53] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:53] SAMPLER_LAUNCHED pid=35279
+[01:38:53] SAMPLER_RESUMED
+[01:38:53] ARM_END turn=3 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[01:38:53] ARM_START turn=4 backend=npu pair=2 tag=dry-six-arms-t4npu
+[01:38:53] LOAD_PHASE turn=4 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:38:54] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:54] SAMPLER_LAUNCHED pid=35986
+[01:38:54] SAMPLER_RESUMED
+[01:38:54] ARM_END turn=4 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[01:38:54] ARM_START turn=5 backend=gpu pair=3 tag=dry-six-arms-t5gpu
+[01:38:55] LOAD_PHASE turn=5 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:38:56] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:56] SAMPLER_LAUNCHED pid=36905
+[01:38:56] SAMPLER_RESUMED
+[01:38:56] ARM_END turn=5 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[01:38:56] ARM_START turn=6 backend=cpu pair=3 tag=dry-six-arms-t6cpu
+[01:38:56] LOAD_PHASE turn=6 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:38:57] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:38:57] SAMPLER_LAUNCHED pid=37641
+[01:38:57] SAMPLER_RESUMED
+[01:38:57] ARM_END turn=6 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[01:38:57] DONE order=CGNNGC rows=6 ok=6 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-six-arms/results.tsv

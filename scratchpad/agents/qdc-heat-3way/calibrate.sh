@@ -132,6 +132,7 @@ calibrate_run() {
     # audit3 A-N6: bind the pin to this board and this kit — pin.sh refuses
     # any mismatch before a production arm runs.
     printf 'serial=%s\nsoc=%s\nmodel_sha=%s\nkit_sha=%s\n' "$SER" "$SOC" "$MODEL_SHA" "$KIT_SHA"
+    printf 'prompt_mode=raw\n'
     printf 'calibrated_utc=%s\njob=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$JOB"
   } > "$CELL/calib.ok"
   log "CALIB_DONE floor_htp_ops_per_tok=$floor (measured $npu_ops ops / $npu_tokens tokens; pinned in calib.ok)"

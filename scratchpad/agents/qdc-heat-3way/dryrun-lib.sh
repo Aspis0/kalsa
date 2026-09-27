@@ -43,7 +43,7 @@ seed_stayon() { printf '1\n' > "$STATE/stay_on_while_plugged_in"; }
 # Pins for fixtures: valid keys + in-band rate (0.5 <= 10 <= 25), bound to the
 # fake board (serial=fakes23, soc=SM8550) and the real model/kit hashes.
 seed_calib_ok() {
-  printf 'htp_ops_floor_per_tok=10.0000\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=80\nmeasured_npu_tokens=4\n' \
+  printf 'htp_ops_floor_per_tok=10.0000\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=80\nmeasured_npu_tokens=4\nprompt_mode=raw\n' \
     'a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03' \
     'dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea' > "$CELL/calib.ok"
 }
@@ -61,7 +61,7 @@ seed_calib_badrate_low() { # A-N5a lower: 0.1 < band floor 0.5
 }
 seed_calib_real() { # the REAL calib4 values (64.4231 = 0.5 x 128.85 = 0.5 x 1675/13),
   # with the fixture board's identity keys (real serial would trip the board check).
-  printf 'htp_ops_floor_per_tok=64.4231\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=1675\nmeasured_npu_tokens=13\n' \
+  printf 'htp_ops_floor_per_tok=64.4231\nserial=fakes23\nsoc=SM8550\nmodel_sha=%s\nkit_sha=%s\nmeasured_npu_ops=1675\nmeasured_npu_tokens=13\nprompt_mode=raw\n' \
     'a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03' \
     'dccf0865753557eb76e253af0157cb53a70346978ea48184fdf0cd884424c7ea' > "$CELL/calib.ok"
 }

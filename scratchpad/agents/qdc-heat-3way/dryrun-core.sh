@@ -11,16 +11,21 @@ if [ -f "$REAL/s23-calib-3-calnpu.load.log" ]; then
   # mv); cpu/gpu were moved into calib/ by the completed loop iterations.
   RAW="$REAL"
   arm_parse_proof "s23-calib-3-calnpu" npu
-  eq "real npu proof status" OK "$ARM_STATUS"
+  # The REAL calib logs are interactive (run-3 era, pre -no-cnv): the new gate
+  # must void them, while ARM_PROOF keeps the real counts.
+  eq "real npu proof status" VOID "$ARM_STATUS"
+  eq "real npu void reason" interactive_mode "$ARM_VOID"
   has "real npu arch=v73 from session uri" "arch=v73" "$ARM_PROOF"
   has "real npu execute-op count (device)" "htp_ops=1675" "$ARM_PROOF"
   has "real npu scaled min (13 tok x 0.86 -> 12)" "min=12" "$ARM_PROOF"
   RAW="$REAL/calib"
   arm_parse_proof "s23-calib-3-calcpu" cpu
-  eq "real cpu proof status" OK "$ARM_STATUS"
+  eq "real cpu proof status" VOID "$ARM_STATUS"
+  eq "real cpu void reason" interactive_mode "$ARM_VOID"
   has "real cpu proof counts (device)" "cpu_no_offload tokens=13" "$ARM_PROOF"
   arm_parse_proof "s23-calib-3-calgpu" gpu
-  eq "real gpu proof status" OK "$ARM_STATUS"
+  eq "real gpu proof status" VOID "$ARM_STATUS"
+  eq "real gpu void reason" interactive_mode "$ARM_VOID"
   has "real gpu proof counts (device)" "gpu_assigned_lines=62 kernels=15" "$ARM_PROOF"
   RAW="$RAW_SAVE"
   eq "real cpu fp proof == turn" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calcpu.load.log")" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calcpu.log")"
@@ -135,6 +140,15 @@ eq "nocpu rows" 1 "$(rows)"
 eq "nocpu void_reason" no_cpu_proof "$(col 1 5)"
 assert_end nocpu method_void_no_cpu_proof
 assert_restore nocpu
+
+echo "== fixture: an interactive/conversational log voids (S23 run 5) =="
+run_fixture interactive-mode CG DRY_INTERACTIVE=1
+eq "imode rc" 0 "$RC"
+eq "imode rows" 1 "$(rows)"
+eq "imode status" VOID "$(col 1 4)"
+eq "imode void_reason" interactive_mode "$(col 1 5)"
+assert_end imode method_void_interactive_mode
+assert_restore imode
 
 echo "== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) =="
 run_fixture backend-mismatch GC DRY_TURN_FP_BUF=CPU

@@ -141,6 +141,32 @@ explicitly superseded here.
     `floor_rate_out_of_band(64.4231)` (exit 9): that was the band's bug, not
     the pin's. Fixtures: 5000 and 0.1 must still refuse, 64.4231 must pass.
 
+### Fifth amendment pass — 2026-09-27, after heat run 5 hung in conversation mode (44395c94)
+
+14. **Conversation mode disabled (`-no-cnv`), stdin from `/dev/null`; the
+    measured prompt is RAW text.** The build auto-enables conversation mode
+    from the GGUF chat template (`tools/completion/completion.cpp:170-175`,
+    hint "(disable it with -no-cnv)"), which sets `interactive_first`
+    (`completion.cpp:365-376`) and waits on stdin — run 5's 127-token turn
+    hung to the 900 s timeout, and every earlier log (calibration included)
+    carried `== Running in interactive mode. ==`. Both phases now pass
+    `-no-cnv` (`common/arg.cpp:1899-1906`) and `</dev/null`; any proof or
+    turn log containing `Running in interactive mode` is VOID
+    `interactive_mode`. **Which prompt the heat question needs: RAW** — this
+    cell compares backends on one frozen byte-identical `-f` file across
+    C/G/N, so raw text is the right object as long as all three arms are
+    identical (they are: same file, same flags); chat templating adds
+    engine-side wrapping whose only effect here would be extra identical
+    work plus the interactive hang. App-path rows (templated) are NOT
+    comparable to these — never mix them.
+15. **Recalibration required.** The current pin was measured on TEMPLATED
+    proofs (proof `prompt eval = 10 tokens` + 3 runs = 13 tokens, calib-4
+    raw logs); raw proofs are `1 + 3 ≈ 4` tokens, so the pinned rate's token
+    basis changes. `calib.ok` now REQUIRES `prompt_mode=raw`
+    (`pin.sh:31-38`): the existing pin lacks the key → refused with
+    `missing_keys` (exit 9) until `CALIBRATE=1` is re-run — the file itself
+    is left untouched for the record.
+
 ## Why this cell exists
 
 The app exposes `bench:route cpu|gpu|auto` only (`src/bench/benchConfig.ts:18`),

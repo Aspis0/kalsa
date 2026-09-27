@@ -1,11 +1,14 @@
 == fixture: parsers against the COMMITTED real S23 calib logs (run 3, ecf70a63) ==
 PASS  real npu proof status
+PASS  real npu void reason
 PASS  real npu arch=v73 from session uri
 PASS  real npu execute-op count (device)
 PASS  real npu scaled min (13 tok x 0.86 -> 12)
 PASS  real cpu proof status
+PASS  real cpu void reason
 PASS  real cpu proof counts (device)
 PASS  real gpu proof status
+PASS  real gpu void reason
 PASS  real gpu proof counts (device)
 PASS  real cpu fp proof == turn
 PASS  real gpu fp proof == turn
@@ -110,6 +113,15 @@ PASS  nocpu void_reason
 PASS  nocpu END
 PASS  nocpu restore-ran
 PASS  nocpu timeout-restored
+== fixture: an interactive/conversational log voids (S23 run 5) ==
+PASS  interactive-mode shell-syntax
+PASS  imode rc
+PASS  imode rows
+PASS  imode status
+PASS  imode void_reason
+PASS  imode END
+PASS  imode restore-ran
+PASS  imode timeout-restored
 == fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
 PASS  backend-mismatch shell-syntax
 PASS  bfp rc
@@ -409,4 +421,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=368 FAIL=0
+dryrun summary: PASS=379 FAIL=0

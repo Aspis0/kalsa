@@ -1,10 +1,10 @@
-[00:59:09] SESSION job=dry-stop-plugged board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[00:59:09] KIT_UNPACK_PUSH
-[00:59:09] DEVICE_LIST_OK
-[00:59:09] KIT_PUSH ship.gguf sha_before=absent
-[00:59:09] KIT_PUSH prompt.txt sha_before=absent
-[00:59:10] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:59:10] GATE label=setup
-[00:59:10] STOP reason=plugged
-[00:59:10] KILL_VERIFIED ctx=stop_plugged (no llama-completion remains)
-[00:59:10] SESSION_STOP reason=plugged
+[01:39:49] SESSION job=dry-stop-plugged board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[01:39:49] KIT_UNPACK_PUSH
+[01:39:49] DEVICE_LIST_OK
+[01:39:49] KIT_PUSH ship.gguf sha_before=absent
+[01:39:49] KIT_PUSH prompt.txt sha_before=absent
+[01:39:50] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:39:50] GATE label=setup
+[01:39:50] STOP reason=plugged
+[01:39:50] KILL_VERIFIED ctx=stop_plugged (no llama-completion remains)
+[01:39:50] SESSION_STOP reason=plugged

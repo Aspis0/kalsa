@@ -1,24 +1,24 @@
-[00:58:58] CALIB_PIN_BOARD_OK serial=fakes23 soc=SM8550
-[00:58:58] SESSION job=dry-calib-pin-real board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
-[00:58:58] KIT_UNPACK_PUSH
-[00:58:58] DEVICE_LIST_OK
-[00:58:58] KIT_PUSH ship.gguf sha_before=absent
-[00:58:58] KIT_PUSH prompt.txt sha_before=absent
-[00:58:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:58:59] GATE label=setup
-[00:58:59] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=64.4231 source=calib.ok
-[00:58:59] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:58:59] SAMPLER_LAUNCHED pid=65331
-[00:58:59] ARM_START turn=1 backend=npu pair=1 tag=dry-calib-pin-real-t1npu
-[00:58:59] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[00:59:00] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:59:00] SAMPLER_LAUNCHED pid=65705
-[00:59:00] SAMPLER_RESUMED
-[00:59:01] ARM_END turn=1 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=300 min=258 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
-[00:59:01] ARM_START turn=2 backend=npu pair=1 tag=dry-calib-pin-real-t2npu
-[00:59:01] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:59:02] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:59:02] SAMPLER_LAUNCHED pid=66113
-[00:59:02] SAMPLER_RESUMED
-[00:59:02] ARM_END turn=2 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=300 min=258 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
-[00:59:02] DONE order=NN rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calib-pin-real/results.tsv
+[01:39:38] CALIB_PIN_BOARD_OK serial=fakes23 soc=SM8550
+[01:39:38] SESSION job=dry-calib-pin-real board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
+[01:39:38] KIT_UNPACK_PUSH
+[01:39:38] DEVICE_LIST_OK
+[01:39:38] KIT_PUSH ship.gguf sha_before=absent
+[01:39:38] KIT_PUSH prompt.txt sha_before=absent
+[01:39:39] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:39:39] GATE label=setup
+[01:39:39] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=64.4231 source=calib.ok
+[01:39:39] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:39:39] SAMPLER_LAUNCHED pid=55739
+[01:39:39] ARM_START turn=1 backend=npu pair=1 tag=dry-calib-pin-real-t1npu
+[01:39:39] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[01:39:41] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:39:41] SAMPLER_LAUNCHED pid=56057
+[01:39:41] SAMPLER_RESUMED
+[01:39:41] ARM_END turn=1 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=300 min=258 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[01:39:41] ARM_START turn=2 backend=npu pair=1 tag=dry-calib-pin-real-t2npu
+[01:39:41] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:39:42] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:39:42] SAMPLER_LAUNCHED pid=56634
+[01:39:42] SAMPLER_RESUMED
+[01:39:42] ARM_END turn=2 status=OK void=na prefill_ms=18000.00 inload_ms=9876.50 fp_turn=buf=CPU,HTP0 off=31/31 thr=5 proof=htp_ops=300 min=258 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[01:39:42] DONE order=NN rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calib-pin-real/results.tsv

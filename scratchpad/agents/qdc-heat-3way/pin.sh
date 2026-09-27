@@ -28,8 +28,13 @@ resolve_calib_pin() {
   soc=$(sed -n 's/^soc=//p' "$CELL/calib.ok" | tail -1)
   model_sha=$(sed -n 's/^model_sha=//p' "$CELL/calib.ok" | tail -1)
   kit_sha=$(sed -n 's/^kit_sha=//p' "$CELL/calib.ok" | tail -1)
-  if [ -z "$floor" ] || [ -z "$serial" ] || [ -z "$soc" ] || [ -z "$model_sha" ] || [ -z "$kit_sha" ]; then
+  prompt_mode=$(sed -n 's/^prompt_mode=//p' "$CELL/calib.ok" | tail -1)
+  if [ -z "$floor" ] || [ -z "$serial" ] || [ -z "$soc" ] || [ -z "$model_sha" ] || [ -z "$kit_sha" ] || [ -z "$prompt_mode" ]; then
+    # prompt_mode is required since -no-cnv (run 5): a pin without it was
+    # measured on TEMPLATED proofs and must be re-pinned by CALIBRATE=1.
     why="missing_keys"
+  elif [ "$prompt_mode" != raw ]; then
+    why="prompt_mode_not_raw($prompt_mode)"
   elif ! awk -v v="$floor" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}'; then
     why="floor_not_numeric"
   elif ! awk -v v="$floor" 'BEGIN{exit !(v+0 >= 0.5 && v+0 <= 500)}'; then

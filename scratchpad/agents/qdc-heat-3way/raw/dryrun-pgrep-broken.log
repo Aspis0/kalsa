@@ -1,12 +1,12 @@
-[01:00:37] SESSION job=dry-pgrep-broken board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[01:00:37] KIT_UNPACK_PUSH
-[01:00:37] DEVICE_LIST_OK
-[01:00:37] KIT_PUSH ship.gguf sha_before=absent
-[01:00:37] KIT_PUSH prompt.txt sha_before=absent
-[01:00:38] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[01:00:38] GATE label=setup
-[01:00:38] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[01:00:38] PGREP_SELFTEST_FAIL health_probe_rc=0
-[01:00:39] PGREP_SELFTEST_ABORT (audit2 NEW-4: kill verification impossible on this phone)
-[01:00:39] RESTORE_FAIL (see restore.sh output)
-[01:00:39] KILL_RECORDED_END (restore could not verify the kill; keeping rc=4)
+[01:41:17] SESSION job=dry-pgrep-broken board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[01:41:17] KIT_UNPACK_PUSH
+[01:41:18] DEVICE_LIST_OK
+[01:41:18] KIT_PUSH ship.gguf sha_before=absent
+[01:41:18] KIT_PUSH prompt.txt sha_before=absent
+[01:41:19] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:41:19] GATE label=setup
+[01:41:19] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[01:41:19] PGREP_SELFTEST_FAIL health_probe_rc=0
+[01:41:19] PGREP_SELFTEST_ABORT (audit2 NEW-4: kill verification impossible on this phone)
+[01:41:19] RESTORE_FAIL (see restore.sh output)
+[01:41:19] KILL_RECORDED_END (restore could not verify the kill; keeping rc=4)

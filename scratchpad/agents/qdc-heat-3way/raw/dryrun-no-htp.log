@@ -1,14 +1,14 @@
-[00:58:20] SESSION job=dry-no-htp board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
-[00:58:20] KIT_UNPACK_PUSH
-[00:58:20] DEVICE_LIST_OK
-[00:58:20] KIT_PUSH ship.gguf sha_before=absent
-[00:58:20] KIT_PUSH prompt.txt sha_before=absent
-[00:58:21] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:58:21] GATE label=setup
-[00:58:21] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[00:58:21] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:58:21] SAMPLER_LAUNCHED pid=51414
-[00:58:21] ARM_START turn=1 backend=npu pair=1 tag=dry-no-htp-t1npu
-[00:58:21] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[00:58:21] PROOF_VOID turn=1 backend=npu reason=no_htp_proof proof=htp_ops=0 min=4 tokens=4 fp_proof=buf=CPU,HTP0 off=31/31 thr=5
-[00:58:21] STOP_METHOD_VOID turn=1 backend=npu reason=no_htp_proof
+[01:38:58] SESSION job=dry-no-htp board=S23-v73 soc=SM8550 serial=fakes23 order=NN stayon_saved=null timeout_saved=60000
+[01:38:58] KIT_UNPACK_PUSH
+[01:38:58] DEVICE_LIST_OK
+[01:38:58] KIT_PUSH ship.gguf sha_before=absent
+[01:38:58] KIT_PUSH prompt.txt sha_before=absent
+[01:38:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:38:59] GATE label=setup
+[01:38:59] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[01:38:59] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:38:59] SAMPLER_LAUNCHED pid=38582
+[01:38:59] ARM_START turn=1 backend=npu pair=1 tag=dry-no-htp-t1npu
+[01:38:59] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[01:38:59] PROOF_VOID turn=1 backend=npu reason=no_htp_proof proof=htp_ops=0 min=4 tokens=4 fp_proof=buf=CPU,HTP0 off=31/31 thr=5
+[01:38:59] STOP_METHOD_VOID turn=1 backend=npu reason=no_htp_proof

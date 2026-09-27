@@ -1,4 +1,4 @@
-qdc-heat-3way calibration job=dry-buf-collision utc=2026-09-27T04:58:55Z production_decode_n=127 short_n=16
+qdc-heat-3way calibration job=dry-buf-collision utc=2026-09-27T05:39:35Z production_decode_n=127 short_n=16
 htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; this run replaces it with the measured pin)
 CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
 CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=0/31 thr=5

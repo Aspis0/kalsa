@@ -35,6 +35,20 @@
 # `-n %d` is fed by DECODE_N (N-1 eval runs, device-evidenced: -n 127 → 126,
 # -n 64 → 63, s23-cli-heat/s23-cli-diag raw logs).
 #
+# Conversation mode (S23 run 5, 44395c94): the build AUTO-ENABLES it from the
+# GGUF chat template — `tools/completion/completion.cpp:170-175` ("auto enable
+# conversation mode if chat template is available ... disable it with -no-cnv"),
+# which sets `interactive_first` (`completion.cpp:365-376`) and then WAITS ON
+# STDIN; every log so far (calibration included) carries
+# `== Running in interactive mode. ==` and run 5's 127-token turn hung to the
+# 900 s timeout. Flag: `common/arg.cpp:1899-1906` `{"-no-cnv",
+# "--no-conversation"}` — help: "interactive mode is also enabled (default:
+# auto enabled if chat template is available)"; its handler sets
+# COMMON_CONVERSATION_MODE_DISABLED, so no template and no stdin wait.
+# BOTH phases pass `-no-cnv` and read stdin from /dev/null (belt and
+# suspenders: no future mode can block on input); any proof or turn log
+# containing `Running in interactive mode` is VOID `interactive_mode`.
+#
 # Prompt identity (A15b): the turn reads THE verified file `-f $D/prompt.txt`,
 # whose sha256 kit.sh checks against PROMPT.meta — verified copy = used copy.
 
@@ -90,7 +104,7 @@ arm_remote_cmd() {
   # Never feed a non-numeric n to %d (audit3 dead-code note).
   case "$n" in ''|*[!0-9]*) n="$DECODE_N" ;; esac
   flags=$(arm_backend_flags "$backend") || return 1
-  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 %s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 --no-cnv -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 %s > %s/%s.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$(arm_env)" "$D" "$D" "$n" "$flags" "$D" "$tag" "$D" "$tag"
 }
 
@@ -101,7 +115,7 @@ arm_remote_cmd() {
 arm_load_cmd() {
   local backend="$1" tag="$2" flags
   flags=$(arm_backend_flags "$backend") || return 1
-  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 %s > %s/%s.load.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.load.log; exit $rc' \
+  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 --no-cnv -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 %s > %s/%s.load.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.load.log; exit $rc' \
     "$(arm_proof_env)" "$D" "$flags" "$D" "$tag" "$D" "$tag"
 }
 
@@ -219,7 +233,7 @@ arm_parse_proof() {
   local tag="$1"
   local backend="$2"
   local logf="$RAW/$tag.load.log"
-  local exit_line="" gpu_assign=0 gpu_kernels=0 htp_ops=0 floor min_ops tokens arch=""
+  local exit_line="" gpu_assign=0 gpu_kernels=0 htp_ops=0 floor min_ops tokens arch="" interactive=0
   ARM_STATUS=VOID; ARM_VOID=proof_run_fail; ARM_PROOF=na; ARM_PROOF_FP="?"; PROOF_TOKENS=na
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
@@ -229,6 +243,14 @@ arm_parse_proof() {
     ARM_VOID=proof_run_fail; return 0     # NEW-1 needs an exact token count
   fi
   PROOF_TOKENS=$((ARM_PROMPT_N + ARM_RUNS))
+  # Run 5 class (conversation auto-enabled, stdin wait): recorded, but
+  # checked AFTER the thresholds so ARM_PROOF still carries the REAL counts
+  # (calib reports and the real-log fixture read them) — and interactive
+  # always beats OK below. A threshold void in the same run wins earlier
+  # (either reason voids; the counts stay in ARM_PROOF either way).
+  if awk '/Running in interactive mode/{f=1} END{exit !f}' "$logf"; then
+    interactive=1
+  fi
   ARM_PROOF_FP=$(arm_fingerprint "$logf")
   case "$ARM_PROOF_FP" in *"=?"*) ARM_VOID=no_fingerprint; return 0 ;; esac
   case "$backend" in
@@ -286,6 +308,10 @@ arm_parse_proof() {
       fi
       ARM_PROOF="htp_ops=$htp_ops min=$min_ops arch=$arch" ;;
   esac
+  if [ "$interactive" = 1 ]; then
+    ARM_VOID=interactive_mode
+    return 0
+  fi
   ARM_STATUS=OK; ARM_VOID=na
   return 0
 }
@@ -303,6 +329,10 @@ arm_parse_turn() {
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
+  # Run 5 class (same rule as the proof): interactive logs are invalid runs.
+  if awk '/Running in interactive mode/{f=1} END{exit !f}' "$logf"; then
+    ARM_VOID=interactive_mode; return 0
+  fi
   arm_perf_parse "$logf"
   # Both perf numbers ARE the turn: missing = truncated/perf-less = run_fail.
   [ "$ARM_PREFILL_MS" != na ] || return 0

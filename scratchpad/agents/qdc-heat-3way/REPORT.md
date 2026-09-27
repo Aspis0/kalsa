@@ -60,7 +60,7 @@ measured window is prefill+decode only. The app has no NPU route
   lines only for the number).
 - `setup.sh` (80) — pre-arm device setup: prior restore, state, trap arming,
   mutations, kit+trust+gate, the single-session pgrep self-test, sampler.
-- `pin.sh` (70) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
+- `pin.sh` (75) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
   model/kit binding, board binding) or exit 9.
 - `calibrate.sh` (140) — CALIBRATE=1 loop: proof + short run per backend,
   candidate report, VOID-proof refusal, G/N buf-collision check, pinned floor.
@@ -69,22 +69,22 @@ measured window is prefill+decode only. The app has no NPU route
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (330) — proof-run and turn commands, run/pull, shared perf parse,
+- `arm.sh` (360 — declared, over the ~350 indicative: proof/turn cmds, two parses, gates; splitting would move lines only for the number) — proof-run and turn commands, run/pull, shared perf parse,
   fingerprint (with the `off`-is-a-count note), the two parses.
 - `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
   row column), resume, stop.
 - `restore.sh` (88) — undo every device change (standalone-capable,
   health-probed kill with a `kill_check=` verdict field).
 - `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
-- `dryrun-adb.sh` (422 — declared, over the ~350 indicative) — fake adb with
+- `dryrun-adb.sh` (431 — declared, over the ~350 indicative) — fake adb with
   reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, a
   `dash -n` syntax check on every shell string, and the real f25 log shapes
   (buffer sets, verbatim hexagon lines).
 - `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (134, incl. the real-pin
-  backup/restore) + `dryrun-core.sh` (231) + `dryrun-stops.sh` (120) +
-  `dryrun-paths.sh` (136) — fixture matrix split by topic (42 fixtures, 368
+  backup/restore) + `dryrun-core.sh` (245) + `dryrun-stops.sh` (120) +
+  `dryrun-paths.sh` (136) — fixture matrix split by topic (43 fixtures, 379
   assertions).
-- `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
+- `PREREG.md` (379), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
 
@@ -557,6 +557,83 @@ single proof shape — a genuinely broken pin between 64.4231 and 500 would
 pass the band (the pin's serial/SoC/model/kit binding is the backstop);
 the backup/restore of the real pin is proven by sha equality on this dry-run
 only; the refused heat run itself was not re-attempted (no phone).
+
+## Round 11 — run 5 hung in conversation mode; raw prompt + interactive gate (44395c94, 2026-09-27)
+
+Run 5 (CPU) hit `ARM_TIMEOUT` 900 s / rc 142 → `END method_void_run_fail`
+(kill verified, restore fine). Cause: llama-completion AUTO-ENABLED
+conversation mode from the GGUF chat template, templated the prompt as a
+user turn, generated, then **waited on stdin**. Every log so far —
+calibration included — carries the interactive lines
+(`grep -c 'interactive mode'` = 2 per log: `interactive mode on.` +
+`== Running in interactive mode. ==`); the short runs happened to exit 0.
+
+**Source quotes (engine f25f0c1c5):**
+- `tools/completion/completion.cpp:170-175`: `// auto enable conversation
+  mode if chat template is available` → `LOG_INF("… enabling conversation
+  mode (disable it with -no-cnv)")`.
+- `common/arg.cpp:1899-1906`: `{"-cnv", "--conversation"},
+  {"-no-cnv", "--no-conversation"}` — help: `"… interactive mode is also
+  enabled (default: auto enabled if chat template is available)"`, handler
+  sets `COMMON_CONVERSATION_MODE_DISABLED`.
+- `tools/completion/completion.cpp:365-376`: `if (params.conversation_mode)
+  { … params.interactive_first = true; }` → with `-no-cnv` the stdin wait is
+  never armed. (The real log itself hints it: `"(disable it with -no-cnv)"`.)
+- Real gated line: `0.03.371.770 I == Running in interactive mode. ==`.
+
+| fix (file:line) | what |
+|---|---|
+| `arm.sh:107` (turn), `arm.sh:118` (proof) | `--no-cnv` in BOTH remote commands **and** `</dev/null` on their stdin — no current or future mode can block on input |
+| `arm.sh:332-335` (turn, fail-fast) and `arm.sh:246-253,311-314` (proof, deferred past the thresholds so `ARM_PROOF` still carries the real counts) | gate: any proof/turn log containing `Running in interactive mode` → VOID `interactive_mode`; the turn gates before perf, the proof gates last so calib reports keep counts (either reason voids a doubly-bad log) |
+| `dryrun-adb.sh:43,216-221` | knob `DRY_INTERACTIVE=1` emits the two real lines (run-5 shapes) in both phases |
+| `dryrun-core.sh:144-151` | fixture `interactive-mode`: rc 0, rows 1, VOID `interactive_mode`, `END method_void_interactive_mode` — **RED on the old gate, GREEN after** |
+| `pin.sh:31-38`, `calibrate.sh:135`, `dryrun-lib.sh` seeds | `prompt_mode=raw` is a required pin key: the existing pin (templated proofs) lacks it → refused `missing_keys` exit 9 → **recalibration forced**, file untouched |
+| `PREREG.md` amendments #14–#15 | raw vs templated prompt for the heat question + the recalibration requirement |
+
+**PREREG position (as the coordinator framed it):** RAW is the right object
+for this question — one frozen byte-identical `-f` file across C/G/N, all
+three arms identical, so a backend-heat comparison is valid; templated
+app-path rows stay incomparable and must never be mixed in.
+
+**Item 5 — what else interactive mode changed in the real logs parsers
+relied on (`raw/s23-calib-4/calib/*`, `raw/s23-3way-5/*`):**
+- **Proof token count**: `prompt eval … / 10 tokens` + `3 runs` = **13**
+  (the templated `" "` = 10 tokens; raw will be 1 + 3 ≈ 4) → the pinned
+  rate's basis changes → **recalibration is required** (now enforced by
+  `prompt_mode=raw`).
+- **Turn count**: calib-4 turns show `prompt eval … / 1018 tokens` and
+  `eval … / 15 runs` for `-n 16` — exactly the raw count and N−1, so the
+  templating did not change the `-f` file's eval count (1018 was also the
+  app's raw chunk count); the post-`-no-cnv` count must be re-observed but
+  all three arms share it either way.
+- **Perf lines**: present, prefixed, parse unchanged (round-9/10 fixtures
+  still pass on those logs) — `interactive_mode` is the only new verdict.
+- **N−1 held** in interactive runs too (15/16, 126/127), and `fp/thr/off/
+  buffer` are backend facts untouched by the mode — no other parser input
+  moved.
+
+**Red → green, quoted exit codes:**
+```
+# fixture + fake knob, OLD arm.sh (no gate):
+./dryrun.sh > /tmp/dr11-red.log 2>&1; echo "EXIT=$?"
+EXIT=1   PASS=372 FAIL=4     (raw/dryrun-interactive-red.log; imode rows/status/void/END red)
+# after -no-cnv + </dev/null + gates + prompt_mode pin:
+./dryrun.sh > /tmp/dr11-green2.log 2>&1; echo "EXIT=$?"
+EXIT=0   PASS=379 FAIL=0      (raw/dryrun-final-run.log)
+bash -n on every script → 0
+```
+One miss-step recorded: the first run after the fake edit executed WITHOUT
+the new fixture (python anchor typo → fixture never added) and its EXIT=0
+was vacuous — caught by the script's own assertion failure, fixture added,
+red re-run properly.
+
+**Not verified (round 11):** `-no-cnv` on the real build (flag + hint are in
+the source and in the real log, but never executed on the board); that the
+post-fix logs are interactive-free (the void path is fixture-proven, absence
+unproven until run 6); `</dev/null` behavior on adbd; the real templated pin
+refusal (fixtures seed it; the real `calib.ok` sha is unchanged
+`6bfff2b9…f9cdf1`); whether turn `prompt_n` stays 1018 after the fix
+(observed 1018 while templated — re-observe).
 
 ## Declared, not touched
 

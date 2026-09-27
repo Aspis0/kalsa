@@ -40,6 +40,9 @@
 #   DRY_GPU_KERNELS=N      GGML_OPENCL_LOG_KERNELS line count (default 12, A6 floor 8)
 #   DRY_GPU_DISABLED=1     append the kernel-build-failed/device-disabled line
 #   DRY_PROMPT_N           prompt token count in the perf line (default 1018)
+#   DRY_INTERACTIVE=1       the log carries the conversational/interactive
+#       lines the real build printed for every run (run 5's hang) — proves
+#       the interactive_mode gate
 #   DRY_ARM_RC             remote exit code of load/turn (default 0)
 # The dumpsys call counter counts ONLY gate/trust live reads; the 1 s sampler
 # peeks at the current value without advancing it (a real sampler would move
@@ -210,6 +213,12 @@ run_arm() { # synthesizes the pulled llama-completion log (proof/load phase or t
   fi
   prompt_n="${DRY_PROMPT_N:-1018}"
   {
+    if [ "${DRY_INTERACTIVE:-0}" = 1 ]; then
+      # Verbatim shapes from s23-3way-5 (run 5): conversation auto-enabled
+      # from the GGUF chat template, then it waits for stdin.
+      printf '0.07.917.510 I == Running in interactive mode. ==\n'
+      printf '0.07.917.751 I llama_completion: interactive mode on.\n'
+    fi
     printf '%s\n' "$cand_lines"
     if [ -n "$fp_part" ]; then printf '%s\n' "$fp_part"; fi
     if [ "$phase" = load ]; then

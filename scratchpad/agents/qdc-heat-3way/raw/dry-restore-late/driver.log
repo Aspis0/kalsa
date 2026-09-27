@@ -1,25 +1,25 @@
-[00:59:30] SESSION job=dry-restore-late board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[00:59:30] KIT_UNPACK_PUSH
-[00:59:30] DEVICE_LIST_OK
-[00:59:30] KIT_PUSH ship.gguf sha_before=absent
-[00:59:30] KIT_PUSH prompt.txt sha_before=absent
-[00:59:31] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:59:31] GATE label=setup
-[00:59:31] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[00:59:31] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:59:31] SAMPLER_LAUNCHED pid=74435
-[00:59:31] ARM_START turn=1 backend=cpu pair=1 tag=dry-restore-late-t1cpu
-[00:59:31] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[00:59:33] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:59:33] SAMPLER_LAUNCHED pid=74757
-[00:59:33] SAMPLER_RESUMED
-[00:59:33] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
-[00:59:33] ARM_START turn=2 backend=gpu pair=1 tag=dry-restore-late-t2gpu
-[00:59:33] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
-[00:59:34] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[00:59:34] SAMPLER_LAUNCHED pid=75150
-[00:59:34] SAMPLER_RESUMED
-[00:59:34] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
-[00:59:34] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-restore-late/results.tsv
-[00:59:34] RESTORE_FAIL (see restore.sh output)
-[00:59:34] KILL_UNVERIFIED_END (restore found the remote llama-completion still alive)
+[01:40:10] SESSION job=dry-restore-late board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[01:40:10] KIT_UNPACK_PUSH
+[01:40:10] DEVICE_LIST_OK
+[01:40:10] KIT_PUSH ship.gguf sha_before=absent
+[01:40:10] KIT_PUSH prompt.txt sha_before=absent
+[01:40:11] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:40:11] GATE label=setup
+[01:40:11] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[01:40:12] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:40:12] SAMPLER_LAUNCHED pid=64889
+[01:40:12] ARM_START turn=1 backend=cpu pair=1 tag=dry-restore-late-t1cpu
+[01:40:12] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[01:40:13] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:40:13] SAMPLER_LAUNCHED pid=65200
+[01:40:13] SAMPLER_RESUMED
+[01:40:13] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK off=0/31 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[01:40:13] ARM_START turn=2 backend=gpu pair=1 tag=dry-restore-late-t2gpu
+[01:40:13] LOAD_PHASE turn=2 wall_s=0 skin 33.5->33.5 pagein_cold=0
+[01:40:14] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:40:14] SAMPLER_LAUNCHED pid=65832
+[01:40:14] SAMPLER_RESUMED
+[01:40:14] ARM_END turn=2 status=OK void=na prefill_ms=14000.00 inload_ms=9876.50 fp_turn=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[01:40:14] DONE order=CG rows=2 ok=2 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-restore-late/results.tsv
+[01:40:15] RESTORE_FAIL (see restore.sh output)
+[01:40:15] KILL_UNVERIFIED_END (restore found the remote llama-completion still alive)
