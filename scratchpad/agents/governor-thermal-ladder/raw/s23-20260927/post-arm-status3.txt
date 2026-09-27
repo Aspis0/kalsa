@@ -1,0 +1,13 @@
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 35
+  temperature: 425
+  current now: -296
+Thermal Status: 3
+	Temperature{mValue=42.5, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=41.5, mType=3, mName=SKIN, mStatus=3}
+	Temperature{mValue=42.5, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=41.5, mType=3, mName=SKIN, mStatus=3}
+  mWakefulness=Awake
+  mCurrentFocus=Window{a72643f u0 com.kalsa.app/com.kalsa.app.MainActivity}

@@ -1,0 +1,21 @@
+===BATTERY===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 31
+  temperature: 316
+  current now: -182
+===THERMAL===
+Thermal Status: 0
+	Temperature{mValue=31.6, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.8, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=31.6, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.8, mType=3, mName=SKIN, mStatus=0}
+===TRACE===
+0
+===PROCESSES===
+===POWER===
+  mWakefulness=Awake
+===FOCUS===
+  mCurrentFocus=Window{a72643f u0 com.kalsa.app/com.kalsa.app.MainActivity}
+Failed to write while dumping service window: Broken pipe

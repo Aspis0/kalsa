@@ -1,0 +1,42 @@
+=== BATTERY ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 41
+  voltage: 3804
+  temperature: 309
+  current now: -215
+=== THERMAL ===
+Thermal Status: 0
+	Temperature{mValue=30.9, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.3, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=30.9, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.3, mType=3, mName=SKIN, mStatus=0}
+=== TRACE ===
+0
+=== PROC ===
+=== APP ===
+u0_a347      27501  1599   15413736 273312 0                   0 S com.kalsa.app
+=== POWER ===
+  mWakefulness=Awake
+Display Power: com.android.server.power.PowerManagerService$3@39fd4ff
+=== FOCUS ===
+  mCurrentFocus=Window{3dab2cb u0 com.kalsa.app/com.kalsa.app.MainActivity}
+  mFocusedApp=ActivityRecord{46281999 u0 com.kalsa.app/.MainActivity t75}
+=== TIMEOUT ===
+2147483647
+=== GOV LOG ===
+09-27 16:40:10.383 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+09-27 16:40:10.603 18337 18368 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4474.9,"bench_norepack_forced":null}
+09-27 16:40:16.468 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+09-27 16:40:16.476 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+09-27 16:40:30.760 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14263.686,"promptN":1660,"hash":"3677660334"}'
+09-27 16:40:30.765 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'
+09-27 16:40:54.733 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-27 16:41:22.710 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-27 16:42:38.399 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-27 16:44:33.978 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"GPU","engine_decode":"CPU","commit_bytes":28164608,"commit_ms":8.459,"prefill_ms":2332.741,"prefill_chunks":"2+128+56","prefill_ctx_ngl":99,"forced":false,"thermal_state":"FAST","thermo_source":"battery","fit":"Fit","fallback_reason":"","failed":false,"failure_reason":"","attempt":1,"turnId":"1","route_requested":"auto","route_mode":"auto","route_push":"applied","route_mismatch":null,"route_chunks":[{"index":0,"requested":"auto","actual":"gpu","tokens":2,"prefill_ms":359,"forced":false},{"index":1,"requested":"auto","actual":"gpu","tokens":128,"prefill_ms":1276,"forced":false},{"index":2,"requested":"auto","actual":"gpu","tokens":56,"prefill_ms":696,"forced":false}],"route_chunks_dropped":0,"route_chunks_truncated":false}
+09-27 16:44:42.227 27335 27361 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+09-27 16:44:42.367 27335 27361 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4466.74,"bench_norepack_forced":null}
+09-27 16:44:45.225 27501 27533 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'

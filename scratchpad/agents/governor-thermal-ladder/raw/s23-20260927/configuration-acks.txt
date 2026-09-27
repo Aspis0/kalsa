@@ -1,0 +1,10 @@
+bench:show before route:
+bench: thinking=default, format=none, speculative=default, engine=default, route=auto, eager_delay_ms=0, nativelog=off, threads_src=capacity
+
+GPU route set:
+bench: thinking=default, format=none, speculative=default, engine=default, route=auto, eager_delay_ms=0, nativelog=off, threads_src=capacity
+bench: route=gpu (next turn, no reload)
+
+route reset:
+bench: route=auto (next turn, no reload)
+
