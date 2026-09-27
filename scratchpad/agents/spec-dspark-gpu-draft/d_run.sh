@@ -17,6 +17,11 @@ usage() { echo "usage: d_run.sh <job_id> [deadline_minutes 20..110]" >&2; }
 [ "$#" -ge 1 ] && [ "$#" -le 2 ] || { usage; exit 2; }
 JOB="$1"
 case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2 ;; esac
+
+ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
+ADB_PORT="${ADB_PORT:-5037}"
+export ADB_BIN ADB_PORT ANDROID_ADB_SERVER_PORT="$ADB_PORT"
+
 DEADLINE_MINUTES="${2:-60}"
 if [ -z "${DEADLINE_S:-}" ]; then
   case "$DEADLINE_MINUTES" in ''|*[!0-9]*) echo "deadline_minutes must be an integer 20..110" >&2; exit 2 ;; esac
@@ -24,14 +29,15 @@ if [ -z "${DEADLINE_S:-}" ]; then
     echo "deadline_minutes must be 20..110" >&2; exit 2
   fi
 fi
-# DEADLINE_S (seconds) overrides the minutes form — dry-run hook only.
+# DEADLINE_S (seconds) overrides the minutes form — dry-run hook only, so it
+# is refused with the real adb (audit3 B-low: no unvalidated range bypass).
+if [ -n "${DEADLINE_S:-}" ] && [ "$ADB_BIN" = "/opt/homebrew/bin/adb" ]; then
+  echo "DEADLINE_S is dry-run-only (refusing with the real adb)" >&2
+  exit 2
+fi
 DEADLINE_S="${DEADLINE_S:-$((DEADLINE_MINUTES * 60))}"
 case "$DEADLINE_S" in ''|*[!0-9]*) echo "invalid DEADLINE_S" >&2; exit 2 ;; esac
 DEADLINE_EPOCH=$(( $(date +%s) + DEADLINE_S ))   # audit2 NEW-8: session deadline
-
-ADB_BIN="${ADB_BIN:-/opt/homebrew/bin/adb}"
-ADB_PORT="${ADB_PORT:-5037}"
-export ADB_BIN ADB_PORT ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 
 # Tunables (env-overridable; the dry-run lowers every wait).
 POLL_S="${POLL_S:-15}"
@@ -273,8 +279,10 @@ ensure_file() {
 cooldown_wait() {
   local label=$1 elapsed=0
   COOLDOWN_SECONDS=0; WARM_START=0
-  deadline_check
   while :; do
+    # audit3 B-N1: checked on EVERY iteration — a cold board can spin here for
+    # COOL_MAX_S=720 and the budget must bite inside that wait, not once before it.
+    deadline_check
     live_readings || true
     hard_stops || finish_stop
     if awk -v s="$LIVE_SKIN" -v t="$COOL_TARGET_C" 'BEGIN{exit !(s+0 <= t+0)}'; then
@@ -301,9 +309,10 @@ cooldown_wait() {
 #                                               OK row -> void_match
 finalize_results() {
   local mode=$1 tags="${2:-}" tmp="$RESULTS.tmp"
-  FINALIZED=1
-  [ -f "$RESULTS" ] || return 0
-  awk -F'\t' -v OFS='\t' -v mode="$mode" -v tags="$tags" '
+  [ -f "$RESULTS" ] || { FINALIZED=1; return 0; }   # nothing to finalize
+  # audit3 B-N2: FINALIZED is set only after awk+mv really rewrote the file —
+  # a failed rewrite keeps the flag 0 so the attempt is never reported done.
+  if awk -F'\t' -v OFS='\t' -v mode="$mode" -v tags="$tags" '
     NR == 1 { if (NF < 18) $(NF + 1) = "final"; else $18 = "final"; print; next }
     {
       f = "void"
@@ -314,7 +323,12 @@ finalize_results() {
       else f = "void_match"
       if (NF < 18) $(NF + 1) = f; else $18 = f
       print
-    }' "$RESULTS" > "$tmp" && mv "$tmp" "$RESULTS"
+    }' "$RESULTS" > "$tmp" && mv "$tmp" "$RESULTS"; then
+    FINALIZED=1
+  else
+    rm -f "$tmp" 2>/dev/null || true
+  fi
+  return 0
 }
 
 # 18 columns from creation: `final` is born as `pending` at row time and

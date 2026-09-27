@@ -36,9 +36,8 @@ rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=142 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 0\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/A-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/A-p.log\;\ exit\ \$rc
-rc=0 -s fakes23 shell dumpsys thermalservice
 rc=1 -s fakes23 pull /data/local/tmp/dspark-spec/A-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-timeout/A-p.log
-rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
 rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi
@@ -47,9 +46,8 @@ rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=142 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ export\ LD_LIBRARY_PATH=/data/local/tmp/dspark-spec/lib\ \&\&\ export\ GGML_OPENCL_LOG_KERNELS=1\ \&\&\ ./bin/llama-speculative-simple\ -m\ /data/local/tmp/dspark-spec/ship.gguf\ -md\ /data/local/tmp/dspark-spec/draft.gguf\ --spec-type\ draft-dspark\ --spec-draft-n-max\ 4\ -ngld\ 0\ -f\ /data/local/tmp/dspark-spec/prompt.txt\ -n\ 8\ --temp\ 0\ --top-k\ 1\ -t\ 5\ -ngl\ 0\ -lv\ 5\ \>\ /data/local/tmp/dspark-spec/B4-p.log\ 2\>\&1\;\ rc=\$\?\;\ echo\ EXIT=\$rc\ \>\>\ /data/local/tmp/dspark-spec/B4-p.log\;\ exit\ \$rc
-rc=0 -s fakes23 shell dumpsys thermalservice
 rc=1 -s fakes23 pull /data/local/tmp/dspark-spec/B4-p.log /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/spec-dspark-gpu-draft/raw/dry-timeout/B4-p.log
-rc=0 -s fakes23 shell dumpsys battery
+rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell pkill\ -f\ \'llama-speculative-simpl\[e\]\'
 rc=0 -s fakes23 shell pgrep\ -f\ zzz_no_such_proc_zzz\ \>/dev/null\ 2\>\&1\;\ echo\ PROBE=\$\?
 rc=0 -s fakes23 shell if\ pgrep\ -f\ \'llama-speculative-simpl\[e\]\'\ \>/dev/null\ 2\>\&1\;\ then\ echo\ ALIVE\;\ elif\ \[\ \$\?\ -eq\ 1\ \]\;\ then\ echo\ GONE\;\ else\ echo\ PGREP_BROKEN\;\ fi

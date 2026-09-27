@@ -129,7 +129,7 @@ arm_parse_proof() {
 # row instead of letting the primary metric vanish under status=OK.
 arm_parse_measure() {
   local tag=$1 arm=$2 limit=$3
-  local logf="$RAW/$tag.log" exit_line="" speed=""
+  local logf="$RAW/$tag.log" exit_line="" speed="" n_dec=""
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   ARM_N=na; ARM_OVER=na; ARM_DRAFTED=na; ARM_ACCEPT=na; ARM_TPS=na
   [ -f "$logf" ] || return 0
@@ -142,6 +142,18 @@ arm_parse_measure() {
   speed=$(awk '/ decoded .* tokens in .* speed: /{for(i=1;i<=NF;i++) if ($i=="speed:") print $(i+1)}' "$logf" | tail -1)
   ARM_TPS=$speed
   case "$ARM_TPS" in ''|*[!0-9.]*) ARM_VOID=no_stats; ARM_TPS=na; return 0 ;; esac
+  # audit3 (round-1 low, still open): the real log carries the count twice —
+  # `decoded <N> tokens …` and `n_predict = <N>`; a format drift that loses or
+  # alters one of them must void the row instead of passing on a single N.
+  n_dec=$(awk '/ decoded .* tokens in .* speed: /{for(i=1;i<=NF;i++) if ($i=="decoded") print $(i+1)}' "$logf" | tail -1)
+  case "$n_dec" in
+    ''|*[!0-9]*) ARM_VOID=count_mismatch; ARM_PROOF="decoded=${n_dec:-missing} n_predict=$ARM_N"; return 0 ;;
+  esac
+  if [ "$n_dec" != "$ARM_N" ]; then
+    ARM_VOID=count_mismatch
+    ARM_PROOF="decoded=$n_dec n_predict=$ARM_N"
+    return 0
+  fi
   ARM_OVER=$((ARM_N - limit))
   if [ "$arm" = A ] && [ "$ARM_DRAFTED" != 0 ]; then
     ARM_VOID=spec_actually_drafted

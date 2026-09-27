@@ -340,6 +340,44 @@ eq "deadline rows" 0 "$(rows)"
 eq "deadline cols18" 0 "$(cols18_bad)"
 assert_restore deadline
 
+echo "== audit3 B-N1: deadline bites INSIDE a long cooldown, before any arm runs =="
+run_fixture deadlinecool DEADLINE_S=8 COOL_TARGET_C=37.0 COOL_MAX_S=30 COOL_POLL_S=1 DRY_SKIN_AFTER=38.5
+eq "deadlinecool rc" 124 "$RC"
+eq "deadlinecool END" deadline "$(end_reason)"
+eq "deadlinecool rows" 0 "$(rows)"        # fired inside the wait: no proof may have run
+if dlog_has "COOLDOWN_CAP"; then fail "deadlinecool beat-cap" "cap fired before the deadline"; else pass "deadlinecool beat-cap"; fi
+sr=$(grep -c 'live skin' "$RAW/safety.log" 2>/dev/null || true)
+# 3 setup gates + >=1 cooldown iteration: the run_proof pre-check passed and
+# the expiry landed INSIDE the wait (reads=3 would mean the deadline hit before
+# the cooldown started — not the case under test). With the old pre-loop-only
+# check this fixture fails: the cooldown would spin to the cap and run a proof.
+if [ "${sr:-0}" -ge 4 ]; then pass "deadlinecool spun-in-cooldown reads=$sr"; else fail "deadlinecool spun-in-cooldown" "safety_reads=${sr:-0}, need >=4"; fi
+has "deadlinecool kill-verified" "KILL_VERIFY" "$(driver_log)"
+assert_restore deadlinecool
+
+echo "== audit3: decoded <N> vs n_predict = <N> cross-check voids the row =="
+run_fixture countmismatch DRY_N_DECODED_MISMATCH=1
+eq "countmismatch rc" 3 "$RC"
+eq "countmismatch END" match_void "$(end_reason)"
+eq "countmismatch rows" 10 "$(rows)"      # 5 proofs + 5 probes, every probe voided
+eq "countmismatch void-A" count_mismatch "$(colr A 15)"
+eq "countmismatch void-B4" count_mismatch "$(colr B4 15)"
+eq "countmismatch final-void" 5 "$(fcount void)"            # the 5 probes; proofs stay final=proof
+eq "countmismatch final-proof" 5 "$(fcount proof)"
+eq "countmismatch matched-tag" 0 "$(fcount matched)"
+not_has "countmismatch no-success" "MATCH ok" "$(driver_log)"
+assert_restore countmismatch
+
+echo "== audit3: DEADLINE_S is refused with the real adb (dry-run-only hook) =="
+set +e
+env -u ADB_BIN DEADLINE_S=1 bash "$CELL/d_run.sh" dry-deadlines-guard > "$CELL/raw/dryrun-deadlines-guard.log" 2>&1
+RC=$?
+set -e
+eq "deadlines-guard rc" 2 "$RC"
+has "deadlines-guard msg" "dry-run-only" "$(cat "$CELL/raw/dryrun-deadlines-guard.log" 2>/dev/null || echo none)"
+if [ -f "$CELL/.restore-state" ]; then fail "deadlines-guard no-side-effect" "state written"; else pass "deadlines-guard no-side-effect"; fi
+if [ -d "$CELL/raw/dry-deadlines-guard" ]; then fail "deadlines-guard no-raw" "RAW created before the guard"; else pass "deadlines-guard no-raw"; fi
+
 echo
 printf 'SUMMARY pass=%d fail=%d\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1

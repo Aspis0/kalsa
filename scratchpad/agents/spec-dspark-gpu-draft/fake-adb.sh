@@ -32,6 +32,8 @@
 #   DRY_PGREP_BROKEN=1          pgrep self-test fails -> setup aborts (exit 4)
 #   DRY_PGREP_BREAK_AT=N        pgrep works for call #1 (self-test) then breaks
 #   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
+#   DRY_N_DECODED_MISMATCH=1    the `decoded <N>` line disagrees with
+#                               `n_predict = <N>` (audit3 count cross-check)
 set -euo pipefail
 STATE="${FAKE_ADB_STATE:-/tmp/dspark-spec-fake}"
 DEV="$STATE/dev"
@@ -118,7 +120,7 @@ EOF
 # Overshoot model: A -> +1; spec arms -> nmax+1, EXCEPT adjustment attempts
 # under DRY_JITTER (= nmax) and DRY_NEVER_MATCH_ARM (fixed N, non-converging).
 run_arm() {
-  local cmd=$1 tag limit nmax n i k kernels o n_predict drafted accept rc gpu=0
+  local cmd=$1 tag limit nmax n i k kernels o n_predict dpn drafted accept rc gpu=0
   tag=$(printf '%s\n' "$cmd" | grep -o 'dspark-spec/[A-Za-z0-9._-]*\.log' | head -1 | sed 's#.*/##; s#\.log$##') || tag=""
   [ -n "$tag" ] || tag=unparsed.log
   limit=$(printf '%s\n' "$cmd" | sed -n 's#.* -n \([0-9][0-9]*\) .*#\1#p')
@@ -144,6 +146,8 @@ run_arm() {
     4) drafted=$((n_predict * 2)); accept="56.000%" ;;
     *) drafted=$((n_predict * 3)); accept="39.000%" ;;
   esac
+  dpn=$n_predict
+  if [ "${DRY_N_DECODED_MISMATCH:-0}" = 1 ]; then dpn=$((n_predict + 7)); fi
   rc="${DRY_ARM_RC:-0}"
   {
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
@@ -168,7 +172,7 @@ run_arm() {
         i=0; while [ "$i" -lt 5 ]; do printf '0.00.%03d.%03d D load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$((300 + i))" "$i" "$i"; i=$((i + 1)); done
       fi
     fi
-    printf '0.00.900.001 I decoded %4d tokens in %8.3f seconds, speed: %8.3f t/s\n' "$n_predict" 8.0 \
+    printf '0.00.900.001 I decoded %4d tokens in %8.3f seconds, speed: %8.3f t/s\n' "$dpn" 8.0 \
       "$(awk -v n="$n_predict" 'BEGIN{printf "%.3f", n / 8.0}')"
     lg I "n_draft   = $nmax"
     lg I "n_predict = $n_predict"

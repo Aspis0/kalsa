@@ -198,6 +198,35 @@ PASS  deadline restore-ran
 PASS  deadline timeout-restored
 PASS  deadline stayon-restored
 PASS  deadline state-consumed
+== audit3 B-N1: deadline bites INSIDE a long cooldown, before any arm runs ==
+PASS  deadlinecool rc
+PASS  deadlinecool END
+PASS  deadlinecool rows
+PASS  deadlinecool beat-cap
+PASS  deadlinecool spun-in-cooldown reads=7
+PASS  deadlinecool kill-verified
+PASS  deadlinecool restore-ran
+PASS  deadlinecool timeout-restored
+PASS  deadlinecool stayon-restored
+PASS  deadlinecool state-consumed
+== audit3: decoded <N> vs n_predict = <N> cross-check voids the row ==
+PASS  countmismatch rc
+PASS  countmismatch END
+PASS  countmismatch rows
+PASS  countmismatch void-A
+PASS  countmismatch void-B4
+PASS  countmismatch final-void
+PASS  countmismatch final-proof
+PASS  countmismatch matched-tag
+PASS  countmismatch no-success
+PASS  countmismatch restore-ran
+PASS  countmismatch timeout-restored
+PASS  countmismatch stayon-restored
+PASS  countmismatch state-consumed
+== audit3: DEADLINE_S is refused with the real adb (dry-run-only hook) ==
+PASS  deadlines-guard rc
+PASS  deadlines-guard msg
+PASS  deadlines-guard no-side-effect
+PASS  deadlines-guard no-raw
 
-SUMMARY pass=182 fail=0
-EXIT=0
+SUMMARY pass=209 fail=0
