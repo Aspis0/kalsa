@@ -148,10 +148,14 @@ arm_parse_measure() {
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
-  ARM_N=$(awk '/n_predict = /{v=$NF} END{print v}' "$logf")
+  # Stats-block shapes, end-anchored (AUDIT5 item-4): the real S23 logs also
+  # carry llama-completion's `generate: … n_predict = 16, n_keep = 1`, which
+  # the unanchored pattern would match ($NF=1 = garbage). The `$` pins the
+  # stats-block line (`… I n_predict = <N>`) that only llama-speculative-simple prints.
+  ARM_N=$(awk '/n_predict = [0-9]+$/{v=$NF} END{print v}' "$logf")
   case "$ARM_N" in ''|*[!0-9]*) ARM_VOID=no_stats; return 0 ;; esac
-  ARM_DRAFTED=$(awk '/n_drafted = /{v=$NF} END{print v}' "$logf")
-  ARM_ACCEPT=$(awk '/accept    = /{v=$NF} END{print v}' "$logf")
+  ARM_DRAFTED=$(awk '/n_drafted = [0-9]+$/{v=$NF} END{print v}' "$logf")
+  ARM_ACCEPT=$(awk '/accept    = .*%$/{v=$NF} END{print v}' "$logf")
   speed=$(awk '/ decoded .* tokens in .* speed: /{for(i=1;i<=NF;i++) if ($i=="speed:") print $(i+1)}' "$logf" | tail -1)
   ARM_TPS=$speed
   case "$ARM_TPS" in ''|*[!0-9.]*) ARM_VOID=no_stats; ARM_TPS=na; return 0 ;; esac
@@ -181,14 +185,22 @@ arm_parse_measure() {
   [ -n "$marker" ] || { ARM_VOID=turn_no_marker; return 0; }
   post=$(tail -n +"$((marker + 1))" "$logf")
   turn_buf=$(printf '%s\n' "$post" | awk 'index($0, "model buffer size") {n++} END{print n+0}')
-  turn_off=$(printf '%s\n' "$post" | awk '$0 ~ ("offloaded [1-9][0-9]*/[0-9]+ layers to GPU") {n++} END{print n+0}')
+  # AUDIT5 N-C1: turn_off is the offloaded-LAYER COUNT (max N of
+  # `offloaded N/M layers to GPU`), not a line count — the same rule as the
+  # proof (all dflash layers = MIN_DRAFT_GPU_ASSIGN), so a partial offload
+  # (e.g. 3/6) voids a C arm instead of passing it as a mixed C4 row.
+  turn_off=$(printf '%s\n' "$post" | awk '
+    $0 ~ /offloaded [1-9][0-9]*\/[0-9]+ layers to GPU/ {
+      s = $0; sub(/^.*offloaded /, "", s); sub(/\/.*/, "", s)
+      if (s + 0 > m) m = s + 0
+    } END { print m + 0 }')
   if [ "$turn_buf" -lt 1 ]; then
     ARM_VOID=turn_no_placement
     ARM_PROOF="buffer_lines=$turn_buf off_gpu=$turn_off (needs -lv 4)"
     return 0
   fi
   if arm_is_gpu "$arm"; then
-    if [ "$turn_off" -lt 1 ]; then
+    if [ "$turn_off" -lt "$MIN_DRAFT_GPU_ASSIGN" ]; then
       ARM_VOID=turn_placement_mismatch
       ARM_PROOF="buffer_lines=$turn_buf off_gpu=$turn_off"
       return 0

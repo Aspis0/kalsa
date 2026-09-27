@@ -1,54 +1,54 @@
-[00:12:01] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[00:12:01] SESSION job=dry-cooldown board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[00:12:01] GATE label=before_setup
-[00:12:02] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:12:02] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[00:12:03] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[00:12:03] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[00:12:03] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[00:12:03] GATE label=after_push
-[00:12:05] KIT_AND_MODELS_VERIFIED
-[00:12:05] GATE label=setup
-[00:12:05] SETUP_DONE skin=38.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[00:12:06] COOLDOWN_CAP label=A-p skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:07] GATE label=post_A-p
-[00:12:07] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[00:12:08] COOLDOWN_CAP label=B4-p skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:09] GATE label=post_B4-p
-[00:12:09] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[00:12:10] COOLDOWN_CAP label=B8-p skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:11] GATE label=post_B8-p
-[00:12:12] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[00:12:13] COOLDOWN_CAP label=C4-p skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:14] GATE label=post_C4-p
-[00:12:14] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[00:12:15] COOLDOWN_CAP label=C8-p skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:16] GATE label=post_C8-p
-[00:12:16] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[00:12:17] COOLDOWN_CAP label=A skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:18] GATE label=post_A
-[00:12:19] ARM_DONE tag=A limit=127 n=128 status=OK void=na accept=nan% tps=16.000
-[00:12:20] COOLDOWN_CAP label=B4 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:21] GATE label=post_B4
-[00:12:21] ARM_DONE tag=B4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
-[00:12:22] COOLDOWN_CAP label=B8 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:23] GATE label=post_B8
-[00:12:23] ARM_DONE tag=B8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
-[00:12:24] COOLDOWN_CAP label=C4 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:25] GATE label=post_C4
-[00:12:26] ARM_DONE tag=C4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
-[00:12:27] COOLDOWN_CAP label=C8 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:28] GATE label=post_C8
-[00:12:28] ARM_DONE tag=C8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
-[00:12:29] COOLDOWN_CAP label=A-m1 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:30] GATE label=post_A-m1
-[00:12:30] ARM_DONE tag=A-m1 limit=135 n=136 status=OK void=na accept=nan% tps=17.000
-[00:12:31] COOLDOWN_CAP label=B4-m1 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:32] GATE label=post_B4-m1
-[00:12:33] ARM_DONE tag=B4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
-[00:12:34] COOLDOWN_CAP label=C4-m1 skin=38.5 waited_s=1 (running warm, flagged)
-[00:12:35] GATE label=post_C4-m1
-[00:12:35] ARM_DONE tag=C4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
-[00:12:35] GATE label=post_session
-[00:12:35] MATCH ok n=136 arms=5 (final=matched rows are the measurement)
-[00:12:35] SESSION_DONE
+[00:44:58] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[00:44:58] SESSION job=dry-cooldown board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[00:44:58] GATE label=before_setup
+[00:44:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:44:59] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[00:44:59] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[00:44:59] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[00:44:59] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[00:45:00] GATE label=after_push
+[00:45:01] KIT_AND_MODELS_VERIFIED
+[00:45:01] GATE label=setup
+[00:45:01] SETUP_DONE skin=38.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[00:45:02] COOLDOWN_CAP label=A-p skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:03] GATE label=post_A-p
+[00:45:04] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[00:45:05] COOLDOWN_CAP label=B4-p skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:06] GATE label=post_B4-p
+[00:45:06] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[00:45:07] COOLDOWN_CAP label=B8-p skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:08] GATE label=post_B8-p
+[00:45:08] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[00:45:09] COOLDOWN_CAP label=C4-p skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:10] GATE label=post_C4-p
+[00:45:10] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[00:45:12] COOLDOWN_CAP label=C8-p skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:13] GATE label=post_C8-p
+[00:45:13] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[00:45:14] COOLDOWN_CAP label=A skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:15] GATE label=post_A
+[00:45:15] ARM_DONE tag=A limit=127 n=128 status=OK void=na accept=nan% tps=16.000
+[00:45:16] COOLDOWN_CAP label=B4 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:17] GATE label=post_B4
+[00:45:17] ARM_DONE tag=B4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[00:45:19] COOLDOWN_CAP label=B8 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:20] GATE label=post_B8
+[00:45:20] ARM_DONE tag=B8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[00:45:21] COOLDOWN_CAP label=C4 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:22] GATE label=post_C4
+[00:45:22] ARM_DONE tag=C4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[00:45:23] COOLDOWN_CAP label=C8 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:24] GATE label=post_C8
+[00:45:24] ARM_DONE tag=C8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[00:45:26] COOLDOWN_CAP label=A-m1 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:27] GATE label=post_A-m1
+[00:45:27] ARM_DONE tag=A-m1 limit=135 n=136 status=OK void=na accept=nan% tps=17.000
+[00:45:28] COOLDOWN_CAP label=B4-m1 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:29] GATE label=post_B4-m1
+[00:45:29] ARM_DONE tag=B4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
+[00:45:30] COOLDOWN_CAP label=C4-m1 skin=38.5 waited_s=1 (running warm, flagged)
+[00:45:31] GATE label=post_C4-m1
+[00:45:31] ARM_DONE tag=C4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
+[00:45:31] GATE label=post_session
+[00:45:31] MATCH ok n=136 arms=5 (final=matched rows are the measurement)
+[00:45:31] SESSION_DONE

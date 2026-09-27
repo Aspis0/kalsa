@@ -21,6 +21,9 @@
 # N-B1 FAKE_ADB_STATE-gated DEADLINE_S (deadlines-guard2), N-B4 ADB_PORT
 # validation (port-guard), item-3 pgrep self-match modelled in the fake (the
 # kill-verified fixtures go red with a plain-literal probe), N-B3 END suffix.
+# AUDIT5: N-C1 partial-offload turn gate (turnpartial), one fixture per turn
+# gate (turnnomarker/turnnoplace/turnleak), dash syntax check, real-log shape
+# check (shape_check.sh).
 # Mac only; no device, no phone, no adb binary.
 set -euo pipefail
 CELL="$(cd "$(dirname "$0")" && pwd)"
@@ -419,6 +422,49 @@ eq "turndisabled proof-A-final" proof "$(colr A-p 18)"
 eq "turndisabled matched" 0 "$(fcount matched)"
 not_has "turndisabled no-success" "MATCH ok" "$(driver_log)"
 assert_restore turndisabled
+
+echo "== AUDIT5 N-C2: turn_no_marker / turn_no_placement each have a fixture =="
+run_fixture turnnomarker DRY_TURN_NO_MARKER=1
+eq "turnnomarker rc" 3 "$RC"
+eq "turnnomarker END" match_void "$(end_reason)"
+eq "turnnomarker rows" 10 "$(rows)"        # 5 proofs + 5 probes, all turns voided
+eq "turnnomarker void-A" turn_no_marker "$(colr A 15)"
+eq "turnnomarker proof-A" OK "$(colr A-p 14)"
+eq "turnnomarker matched" 0 "$(fcount matched)"
+assert_restore turnnomarker
+
+run_fixture turnnoplace DRY_TURN_NO_PLACEMENT=1
+eq "turnnoplace rc" 3 "$RC"
+eq "turnnoplace END" match_void "$(end_reason)"
+eq "turnnoplace rows" 10 "$(rows)"
+eq "turnnoplace void-A" turn_no_placement "$(colr A 15)"
+eq "turnnoplace proof-A" OK "$(colr A-p 14)"
+eq "turnnoplace matched" 0 "$(fcount matched)"
+assert_restore turnnoplace
+
+echo "== AUDIT5 N-C1: a PARTIAL drafter offload (3/6) must not pass as C4 =="
+run_fixture turnpartial DRY_TURN_PARTIAL=1
+eq "turnpartial rc" 3 "$RC"
+eq "turnpartial END" match_void "$(end_reason)"
+eq "turnpartial rows" 12 "$(rows)"        # 5 proofs + 5 probes + A-m1 + B4-m1 (C voided -> never matched)
+eq "turnpartial void-C4" turn_placement_mismatch "$(colr C4 15)"
+eq "turnpartial void-C8" turn_placement_mismatch "$(colr C8 15)"
+eq "turnpartial proof-C4" OK "$(colr C4-p 14)"
+eq "turnpartial A-ok" OK "$(colr A 14)"
+eq "turnpartial matched" 0 "$(fcount matched)"
+assert_restore turnpartial
+
+echo "== AUDIT5 N-C2: turn_gpu_leak — an A/B turn that offloads the drafter =="
+run_fixture turnleak DRY_TURN_GPU_LEAK=1
+eq "turnleak rc" 3 "$RC"
+eq "turnleak END" match_void "$(end_reason)"
+eq "turnleak rows" 11 "$(rows)"           # 5 proofs + 5 probes + C4-m1 (A/B voided)
+eq "turnleak void-A" turn_gpu_leak "$(colr A 15)"
+eq "turnleak void-B8" turn_gpu_leak "$(colr B8 15)"
+eq "turnleak proof-A" OK "$(colr A-p 14)"
+eq "turnleak C4-ok" OK "$(colr C4 14)"
+eq "turnleak matched" 0 "$(fcount matched)"
+assert_restore turnleak
 
 echo
 echo "== audit4-adj: fake adb sh -n-checked every shell command of every fixture =="

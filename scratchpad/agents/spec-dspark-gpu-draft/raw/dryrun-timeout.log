@@ -1,28 +1,28 @@
-[00:13:21] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[00:13:21] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[00:13:21] GATE label=before_setup
-[00:13:22] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:13:22] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[00:13:22] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[00:13:22] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[00:13:22] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[00:13:23] GATE label=after_push
-[00:13:24] KIT_AND_MODELS_VERIFIED
-[00:13:24] GATE label=setup
-[00:13:24] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[00:13:26] KILL_VERIFY reason=timeout_A-p result=gone attempt=1
-[00:13:26] PROOF_TIMEOUT arm=A rc=142
-[00:13:26] GATE label=post_A-p
-[00:13:27] KILL_VERIFY reason=timeout_B4-p result=gone attempt=1
-[00:13:27] PROOF_TIMEOUT arm=B4 rc=142
-[00:13:27] GATE label=post_B4-p
-[00:13:28] KILL_VERIFY reason=timeout_B8-p result=gone attempt=1
-[00:13:28] PROOF_TIMEOUT arm=B8 rc=142
-[00:13:28] GATE label=post_B8-p
-[00:13:30] KILL_VERIFY reason=timeout_C4-p result=gone attempt=1
-[00:13:30] PROOF_TIMEOUT arm=C4 rc=142
-[00:13:30] GATE label=post_C4-p
-[00:13:31] KILL_VERIFY reason=timeout_C8-p result=gone attempt=1
-[00:13:31] PROOF_TIMEOUT arm=C8 rc=142
-[00:13:31] GATE label=post_C8-p
-[00:13:31] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID
+[00:46:17] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[00:46:17] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[00:46:17] GATE label=before_setup
+[00:46:18] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:46:19] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[00:46:19] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[00:46:19] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[00:46:19] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[00:46:20] GATE label=after_push
+[00:46:21] KIT_AND_MODELS_VERIFIED
+[00:46:21] GATE label=setup
+[00:46:21] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[00:46:22] KILL_VERIFY reason=timeout_A-p result=gone attempt=1
+[00:46:22] PROOF_TIMEOUT arm=A rc=142
+[00:46:22] GATE label=post_A-p
+[00:46:23] KILL_VERIFY reason=timeout_B4-p result=gone attempt=1
+[00:46:23] PROOF_TIMEOUT arm=B4 rc=142
+[00:46:23] GATE label=post_B4-p
+[00:46:24] KILL_VERIFY reason=timeout_B8-p result=gone attempt=1
+[00:46:24] PROOF_TIMEOUT arm=B8 rc=142
+[00:46:24] GATE label=post_B8-p
+[00:46:26] KILL_VERIFY reason=timeout_C4-p result=gone attempt=1
+[00:46:26] PROOF_TIMEOUT arm=C4 rc=142
+[00:46:26] GATE label=post_C4-p
+[00:46:27] KILL_VERIFY reason=timeout_C8-p result=gone attempt=1
+[00:46:27] PROOF_TIMEOUT arm=C8 rc=142
+[00:46:27] GATE label=post_C8-p
+[00:46:27] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID

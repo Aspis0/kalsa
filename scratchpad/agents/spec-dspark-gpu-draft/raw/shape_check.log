@@ -1,0 +1,25 @@
+== shapes the parsers depend on, vs the real S23 logs ==
+draft-load marker                                  NOT-IN-LOGS (llama-speculative-simple only; host-verified in raw/calib_armA127.log)
+assigned-to-device (proof -lv5 / turn -lv4)        MATCH (62/62 present at -lv 5, 0 at -lv 4)
+assigned variants CPU/GPUOpenCL                    MATCH
+model buffer size at -lv 4 (turns)                 MATCH (2 cpu, 3 gpu — -lv 4 admits INFO on the S23)
+offloaded N/M regex vs real (31-layer ship)        MATCH (0/31 excluded, 31/31 accepted, cpu turn has none)
+offloading output/repeating lines                  MATCH
+using device GPUOpenCL (turn -lv 4)                MATCH (1)
+GGML_OPENCL_LOG_KERNELS unprefixed                 MATCH (15 with env in load, 0 in turns, line bare)
+kernel set failed | device disabled                ABSENT-HEALTHY (shape from ggml-opencl.cpp:7255 source)
+n_predict hardening vs generate: line              MATCH (unanchored=1 would misparse, hardened=0)
+stats-block n_predict = <N>$                       MATCH on host engine log (NOT-IN-S23: spec-simple only)
+decoded <N> tokens … speed:                      MATCH on host engine log (NOT-IN-S23: llama-completion does not print it)
+EXIT=<rc> bare line                                MATCH
+logger prefix <h>.<m>.<s>.<ms> <L>                 MATCH (216 lines)
+n_threads / common_perf_print lines                INFO — present (2/8); B parses neither (n_threads=5 confirms -t 5 on device)
+non-UTF-8 lines in source logs                     6 (parsers run on these files below)
+parsers survive binary logs                        MATCH (proof -> no_draft_marker, measure -> no_stats; both expected for a non-spec log)
+fake offload shapes ⊆ real                       MATCH (       3 normalized shapes)
+fake buffer shapes ⊆ real                        MATCH (       3 normalized shapes)
+fake assigned shapes ⊆ real                      MATCH
+fake using-device shape ⊆ real                   MATCH
+fake kernel-line prefix == real                    MATCH (both bare, unprefixed)
+
+SHAPE_CHECK pass=0-failures

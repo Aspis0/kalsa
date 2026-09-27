@@ -1,3 +1,3 @@
 restore_failed_keep_state rc=1 (state kept for retry)
-restore 2026-09-27 00:14:44 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=1
-restore 2026-09-27 00:14:44 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 00:47:40 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=1
+restore 2026-09-27 00:47:40 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0

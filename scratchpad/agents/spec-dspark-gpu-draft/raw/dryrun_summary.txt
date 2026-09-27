@@ -254,7 +254,54 @@ PASS  turndisabled restore-ran
 PASS  turndisabled timeout-restored
 PASS  turndisabled stayon-restored
 PASS  turndisabled state-consumed
+== AUDIT5 N-C2: turn_no_marker / turn_no_placement each have a fixture ==
+PASS  turnnomarker rc
+PASS  turnnomarker END
+PASS  turnnomarker rows
+PASS  turnnomarker void-A
+PASS  turnnomarker proof-A
+PASS  turnnomarker matched
+PASS  turnnomarker restore-ran
+PASS  turnnomarker timeout-restored
+PASS  turnnomarker stayon-restored
+PASS  turnnomarker state-consumed
+PASS  turnnoplace rc
+PASS  turnnoplace END
+PASS  turnnoplace rows
+PASS  turnnoplace void-A
+PASS  turnnoplace proof-A
+PASS  turnnoplace matched
+PASS  turnnoplace restore-ran
+PASS  turnnoplace timeout-restored
+PASS  turnnoplace stayon-restored
+PASS  turnnoplace state-consumed
+== AUDIT5 N-C1: a PARTIAL drafter offload (3/6) must not pass as C4 ==
+PASS  turnpartial rc
+PASS  turnpartial END
+PASS  turnpartial rows
+PASS  turnpartial void-C4
+PASS  turnpartial void-C8
+PASS  turnpartial proof-C4
+PASS  turnpartial A-ok
+PASS  turnpartial matched
+PASS  turnpartial restore-ran
+PASS  turnpartial timeout-restored
+PASS  turnpartial stayon-restored
+PASS  turnpartial state-consumed
+== AUDIT5 N-C2: turn_gpu_leak — an A/B turn that offloads the drafter ==
+PASS  turnleak rc
+PASS  turnleak END
+PASS  turnleak rows
+PASS  turnleak void-A
+PASS  turnleak void-B8
+PASS  turnleak proof-A
+PASS  turnleak C4-ok
+PASS  turnleak matched
+PASS  turnleak restore-ran
+PASS  turnleak timeout-restored
+PASS  turnleak stayon-restored
+PASS  turnleak state-consumed
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=233 fail=0
+SUMMARY pass=277 fail=0

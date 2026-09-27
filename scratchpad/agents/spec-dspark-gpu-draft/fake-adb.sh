@@ -5,14 +5,14 @@
 # state dir, with reading injection so dryrun.sh can prove every stop, kill and
 # restore. No device, no phone, no adb binary.
 #
-# Format fidelity (audit B-11): every LOGGER line is prefixed
-# `<h>.<mm>.<ss>.<ms> <L> ` byte-shape taken from the committed S23 log
-# qdc-heat-3way/raw/s23-cli-heat-20260926/s23-cli-heat-20260926-t1cpu.log
-# (`1.17.377.180 I common_perf_print: ...`) and from a host -lv 5 run
-# (`0.00.223.310 D load_tensors: ...`). `GGML_OPENCL_LOG_KERNELS:` (fprintf)
-# and the shell-appended `EXIT=` line are deliberately UNPREFIXED, as on the
-# real device. Placement lines are emitted ONLY for `-lv 5` commands (proof
-# runs): a measured turn gets no debug lines, exactly like the device.
+# Format fidelity (audit B-11, audit5 item-4): every LOGGER line is prefixed
+# `<h>.<mm>.<ss>.<ms> <L> ` — byte-shape confirmed against the real f25f0c1c5
+# S23 logs (qdc-heat-3way/raw/s23-calib-3/calib: `0.00.429.043 I …`,
+# `0.00.325.939 D …`); placement/offload/buffer/device lines are copied
+# verbatim from them. `GGML_OPENCL_LOG_KERNELS:` (fprintf) and the
+# shell-appended `EXIT=` line are deliberately UNPREFIXED, as on the real
+# device. Placement lines are emitted ONLY for `-lv 5` (DEBUG) / `-lv 4`+
+# (INFO) commands — a measured turn never gets DEBUG.
 #
 # Knobs (exported by dryrun.sh):
 #   DRY_<X>_AT / DRY_<X>_AFTER  reading X takes AFTER from call # AT onward
@@ -37,6 +37,12 @@
 #   DRY_TURN_DISABLED=1          the TURN log carries the OpenCL
 #                               `kernel set failed … device disabled` line
 #                               (audit4 N-B2 silent-failure model)
+#   DRY_TURN_NO_MARKER=1         the TURN log lacks the draft-load marker
+#   DRY_TURN_NO_PLACEMENT=1      the TURN log lacks ALL INFO placement lines
+#                               (AUDIT5 N-C2: "does -lv 4 admit them?")
+#   DRY_TURN_PARTIAL=1           a C turn offloads only 3/6 drafter layers
+#                               (AUDIT5 N-C1 partial-offload gate)
+#   DRY_TURN_GPU_LEAK=1          an A/B turn offloads 3/6 drafter layers
 set -euo pipefail
 STATE="${FAKE_ADB_STATE:-/tmp/dspark-spec-fake}"
 DEV="$STATE/dev"
@@ -155,34 +161,57 @@ run_arm() {
   # mode: `-lv 5` = proof run, anything else with `-lv` = measured turn (-lv 4).
   mode=measure
   case "$cmd" in *"-lv 5"*) mode=proof ;; esac
+  # AUDIT5 N-C2 turn knobs (measure logs only — the proof run must stay intact).
+  local no_place=0 no_marker=0
+  if [ "$mode" = measure ]; then
+    if [ "${DRY_TURN_NO_PLACEMENT:-0}" = 1 ]; then no_place=1; fi
+    if [ "${DRY_TURN_NO_MARKER:-0}" = 1 ]; then no_marker=1; fi
+  fi
   {
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
-    # LLAMA_LOG_INFO placement lines: hidden at default, admitted at -lv 4
-    # (host-measured matrix, audit4) — emitted only when the cmd carries -lv.
-    if printf '%s' "$cmd" | grep -q -- '-lv '; then
+    # INFO placement lines: hidden at default, admitted at -lv 4. Shapes and
+    # values below are copied verbatim from the real f25f0c1c5 S23 logs
+    # (qdc-heat-3way/raw/s23-calib-3/calib, same ship model): the target pair
+    # is byte-identical to calcpu.log; the drafter's `6` denominators are
+    # source-derived (5 dflash layers + 1) and declared UNVERIFIED.
+    if printf '%s' "$cmd" | grep -q -- '-lv ' && [ "$no_place" -eq 0 ]; then
       lg I "load_tensors: offloading 0 repeating layers to GPU"
-      lg I "load_tensors: offloaded 0/25 layers to GPU"
-      lg I "load_tensors: CPU model buffer size = 1594.00 MiB"
+      lg I "load_tensors: offloaded 0/31 layers to GPU"
+      lg I "load_tensors:          CPU model buffer size =   206.07 MiB"
+      lg I "load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB"
     fi
     if printf '%s' "$cmd" | grep -q -- '-lv 5'; then
       i=0; while [ "$i" -lt 24 ]; do printf '0.00.%03d.%03d D load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$((50 + i))" "$i" "$i"; i=$((i + 1)); done
     fi
-    lg I "common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'"
+    if [ "$no_marker" -eq 0 ]; then
+      lg I "common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'"
+    fi
     if [ "$gpu" = 1 ]; then
-      lg I "llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 3536 MiB free"
+      lg I "llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free"
     fi
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
-    if printf '%s' "$cmd" | grep -q -- '-lv '; then
+    if printf '%s' "$cmd" | grep -q -- '-lv ' && [ "$no_place" -eq 0 ]; then
       if [ "$gpu" = 1 ]; then
+        lg I "load_tensors: offloading output layer to GPU"
         lg I "load_tensors: offloading 4 repeating layers to GPU"
-        lg I "load_tensors: offloaded 6/6 layers to GPU"
-        lg I "load_tensors: GPUOpenCL model buffer size = 356.00 MiB"
+        if [ "$mode" = measure ] && [ "${DRY_TURN_PARTIAL:-0}" = 1 ]; then
+          lg I "load_tensors: offloaded 3/6 layers to GPU"   # AUDIT5 N-C1 partial offload
+        else
+          lg I "load_tensors: offloaded 6/6 layers to GPU"
+        fi
+        lg I "load_tensors:       OpenCL model buffer size =   340.00 MiB"
       else
         lg I "load_tensors: offloading 0 repeating layers to GPU"
-        lg I "load_tensors: offloaded 0/6 layers to GPU"
-        lg I "load_tensors: CPU model buffer size = 356.00 MiB"
+        if [ "$mode" = measure ] && [ "${DRY_TURN_GPU_LEAK:-0}" = 1 ]; then
+          lg I "load_tensors: offloading 2 repeating layers to GPU"
+          lg I "load_tensors: offloaded 3/6 layers to GPU"   # AUDIT5 N-C2 leak
+        else
+          lg I "load_tensors: offloaded 0/6 layers to GPU"
+        fi
+        lg I "load_tensors:          CPU model buffer size =   340.00 MiB"
       fi
-      # audit4 N-B2: the silent-failure line belongs to the TURN, not the proof
+    fi
+    if printf '%s' "$cmd" | grep -q -- '-lv '; then
       if [ "$mode" = measure ] && [ "${DRY_TURN_DISABLED:-0}" = 1 ]; then
         lg W "ggml_opencl: kernel set failed to build on 'kernel_00' (driver 'Adreno'); device disabled, ops stay on CPU"
       fi
@@ -216,11 +245,12 @@ run_arm() {
 
 handle_shell() {
   local cmd="$*" err=""
-  # audit4-adj (cell A died on an assembled `&& &&`): syntax-check every
-  # command string BEFORE answering it — a broken command must fail its
+  # audit4-adj (cell A died on an assembled `&& &&`), AUDIT5 N-C7: syntax-check
+  # every command string with dash (POSIX, closest to the device's mksh —
+  # cell A does the same) BEFORE answering it — a broken command must fail its
   # fixture loudly (exit 64 + log), never be silently absorbed by a case
   # branch or an `|| true` in the driver.
-  if ! err=$(sh -n -c "$cmd" 2>&1); then
+  if ! err=$(/bin/dash -n -c "$cmd" 2>&1); then
     {
       printf 'CMD: %s\n' "$cmd"
       printf 'ERR: %s\n' "$err"
