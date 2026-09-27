@@ -12,7 +12,7 @@
 
 import { canSendAuthorization, joinRemoteApiUrl } from "../engine/remote/remoteUrl";
 import type { SavedPairingCredential } from "./pairingCredentialStore";
-import { doorFetchFor, establishDoorRoad, type DoorRoad } from "../remote/doorRoad";
+import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../remote/doorRoad";
 
 export type ConfirmationResponse = { status: number; bodyEmpty: boolean };
 
@@ -139,18 +139,24 @@ export async function pollForAllowance(options: ConfirmationOptions): Promise<Co
  * The probe itself: one GET /props with the new credential on the paired
  * door's road. The road is established once and reused; a failed
  * establishment is retried on the next tick (its KALSA_ROAD line is the
- * door road's contract, one per attempt).
+ * door road's contract, one per attempt). The DoorFetch closure is built
+ * exactly once per poll: a fresh one would restart from the road's
+ * already-consumed firstTunnel, replaying a closed tunnel every tick.
  */
 export function pairedPropsProbe(
   paired: SavedPairingCredential,
 ): (signal?: AbortSignal) => Promise<ConfirmationResponse> {
   let road: DoorRoad | null = null;
+  let fetcher: DoorFetch | null = null;
   return async (signal) => {
-    road ??= await establishDoorRoad(paired, signal);
+    if (road === null || fetcher === null) {
+      road = await establishDoorRoad(paired, signal);
+      fetcher = doorFetchFor(road);
+    }
     const url = joinRemoteApiUrl(paired.doorUrl, "/props");
     const headers: Record<string, string> = { Accept: "application/json" };
     if (canSendAuthorization(url)) headers.Authorization = `Bearer ${paired.credential}`;
-    const response = await doorFetchFor(road)(url, { method: "GET", headers, signal });
+    const response = await fetcher(url, { method: "GET", headers, signal });
     return {
       status: response.status,
       // Only the 403 case needs the body, and only it may read it.
