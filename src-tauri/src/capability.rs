@@ -967,8 +967,8 @@ mod tests {
 
     /// The fixture machine at a bandwidth where the 16 GiB tier has
     /// both a pick and a second option: at the fixture's 80 GB/s the 12B
-    /// predicts under its small-dense line and nothing clears twice
-    /// whatever is left.
+    /// predicts under its small-dense line and nothing clears the bar
+    /// beside whatever is left.
     fn pair_machine() -> Measurement {
         Measurement {
             decode_bytes_per_second: Some(150.0e9),

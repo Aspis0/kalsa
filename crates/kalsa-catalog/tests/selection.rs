@@ -864,8 +864,8 @@ fn a_machine_the_probe_could_not_measure_is_not_guessed_at() {
 fn the_second_option_is_clearly_faster_and_smaller_than_the_first() {
     // 16 GiB on the Metal path at 200 GB/s: the biggest row that runs well
     // is the dense 12B (16.6 tok/s, over its small-dense line), and the LFM
-    // file clears twice that — the pair this section is about. At the dev
-    // machine's 85 GB/s the 12B sits under its line and there is no pair
+    // file clears the bar beside it — the pair this section is about. At the
+    // dev machine's 85 GB/s the 12B sits under its line and there is no pair
     // to ask for.
     let machine = metal(16, 200.0e9);
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
@@ -889,15 +889,20 @@ fn the_second_option_is_clearly_faster_and_smaller_than_the_first() {
 #[test]
 fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
     // "Fast" alone would hand the owner the tiniest thing on the menu. The
-    // rule is the most model that still clears the speed bar, so no row
-    // bigger than the pick may also clear it.
+    // rule is the most model that still clears the speed bar, so among the
+    // rows this machine can offer — fitting ones, which is all
+    // `quicker_alternative` ever sees — none bigger than the quick pick may
+    // also clear it.
     let machine = metal(16, 200.0e9);
     let first = largest_that_runs_well(&machine).expect("a pick");
     let quick = quicker_alternative(&machine, &first.decode).expect("a second option");
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
+    let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
     for usable in kalsa_catalog::usable() {
         let row = usable.entry();
-        if row.weights_bytes > quick.entry.weights_bytes {
+        let fits_here =
+            footprint_bytes(row, CHOOSER_CONTEXT_TOKENS).total_bytes() <= budget;
+        if row.weights_bytes > quick.entry.weights_bytes && fits_here {
             assert!(
                 kalsa_catalog::decode_prediction(usable, &machine).floor() < wanted,
                 "{} is bigger than the quick pick and also fast enough",

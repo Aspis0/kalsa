@@ -560,11 +560,11 @@ pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<R
     Some(row(candidate, answer.budget))
 }
 
-/// How much faster the quick option must decode before it is worth offering
-/// at all. Below this the two rows feel the same on the machine that will run
-/// them, and the page would be asking the owner to choose between a model and
-/// itself.
-pub const QUICK_SPEED_ADVANTAGE: f64 = 2.0;
+/// How much faster the second option must decode before a second card is
+/// worth showing: half again as fast. Below that the two rows feel the same
+/// on the machine that will run them, and the page would be asking the owner
+/// to choose between a model and itself.
+pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 
 /// The second option: the most model this machine runs at least
 /// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being offered.
