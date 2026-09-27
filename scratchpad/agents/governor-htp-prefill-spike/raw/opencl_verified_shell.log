@@ -1,0 +1,5 @@
+PREFLIGHT thermal=0 battery_tenths_c=284 traced=0
+PID=11194
+EXIT=1
+RSS_PEAK_KB=2567648
+ADB_EXIT=0

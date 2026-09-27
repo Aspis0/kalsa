@@ -1,0 +1,5 @@
+EXIT=1
+[1/2] Building CXX object tests/CMakeFiles/test-governor-v0-hybrid.dir/test-governor-v0-hybrid.cpp.o
+FAILED: tests/CMakeFiles/test-governor-v0-hybrid.dir/test-governor-v0-hybrid.cpp.o
+/workspace/tests/test-governor-v0-hybrid.cpp:228:83: error: use of undeclared identifier 'model'
+/workspace/tests/test-governor-v0-hybrid.cpp:229:75: error: use of undeclared identifier 'model'

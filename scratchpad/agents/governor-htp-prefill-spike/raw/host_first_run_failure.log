@@ -1,0 +1,8 @@
+EXIT=1
+[stderr] governor-hybrid-rewind: WRONG STATE max_abs_diff=4.485e-01
+[stdout] governor_v0_hybrid_staged=PASS v_gets=8 graphs=8
+governor_hybrid_prefill device=CPU turn=1 tokens=8 elapsed_ms=185.571 diagnostic=1
+governor_hybrid_prefill device=CPU turn=2 tokens=7 elapsed_ms=202.542 diagnostic=1
+governor_v0_hybrid_stats commits=3 bytes=1392640 expected_bytes=1392640 us=597
+governor_v0_hybrid=PASS turns=2 generated=4
+governor_hybrid_rewind device=CPU p=12 trim_ok=1 max_abs_diff=4.485e-01 top1_agreement=1/1 commit_bytes=557056 commit_us=176

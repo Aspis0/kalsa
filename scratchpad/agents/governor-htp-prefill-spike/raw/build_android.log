@@ -1,0 +1,5 @@
+[1/2] Building CXX object tests/CMakeFiles/test-governor-v0-hybrid.dir/test-governor-v0-hybrid.cpp.o
+/workspace/tests/test-governor-v0-hybrid.cpp:243:7: warning: unused variable 'g_dbg_partial_eq' [-Wunused-variable]
+  243 | int (*g_dbg_partial_eq)(llama_context *, llama_context *) = nullptr;
+      |       ^~~~~~~~~~~~~~~~
+1 warning generated.

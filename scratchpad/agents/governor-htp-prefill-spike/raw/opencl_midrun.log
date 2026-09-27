@@ -1,0 +1,19 @@
+Thermal Status: 0
+  temperature: 289
+0
+8605
+llama_context: n_outputs_max         = 76
+llama_context: n_outputs_max_per_seq = 1
+llama_context: n_ctx_seq (256) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+llama_context:        CPU  output buffer size =     0.49 MiB
+llama_kv_cache: the V embeddings have different sizes across layers and FA is not enabled - padding V cache to 512
+llama_kv_cache:        CPU KV buffer size =     4.00 MiB
+llama_kv_cache: size =    4.00 MiB (   256 cells,   8 layers,  1/1 seqs), K (f16):    2.00 MiB, V (f16):    2.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 64
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 64
+llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB, P (f32):    0.00 MiB
+sched_reserve: reserving ...
+resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+resolve_fused_ops: fused DeepSeek V4 HC comb enabled

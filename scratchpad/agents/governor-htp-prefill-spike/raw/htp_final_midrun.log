@@ -1,0 +1,14 @@
+Thermal Status: 0
+  temperature: 284
+0
+  PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS
+ 9672 shell        20   0 7.8G 1.1G 966M R 44.8  17.0   0:10.79 test-governor-v0-hybrid
+ 9547 shell        20   0 2.0G 2.5M 2.3M S  3.4   0.0   0:00.23 sh -c input keyevent KEYCODE_WAKEUP; svc power stayon true; am force-stop com.kalsa.app; thermal=$(dumpsys thermalservice | sed -n "s/^Thermal Status: //p" | head -1); temp=$(dumpsys battery | sed -n "/Current Battery Service state/,/temperature:/p" | sed -n "s/.*temperature: \([0-9][0-9]*\).*/\1/p" | tail -1); traced=$(getprop persist.traced.enable); echo PREFLIGHT thermal=$thermal battery_tenths_c=$temp traced=$traced; [ -n "$thermal" ] && [ "$thermal" -lt 3 ] && [ -n "$temp" ] && [ "$temp" -lt 430 ] && [ "$traced" = 0 ] || exit 91; cd /data/local/tmp/govhtp || exit 90; export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 KALSA_HYBRID_GGUF=/data/local/tmp/heat3way/ship.gguf KALSA_PREFILL_DEVICE=HTP0; ./test-governor-v0-hybrid > htp-final.log 2>&1 & pid=$!; echo PID=$pid; peak=0; while :; do state=$(awk "{print \$3}" /proc/$pid/stat 2>/dev/null); [ -z "$state" ] && break; [ "$state" = Z ] && break; rss=$(awk "/VmRSS:/ {print \$2}" /proc/$pid/status 2>/dev/null); if [ -n "$rss" ] && [ "$rss" -gt "$peak" ]; then peak=$rss; fi; sleep 0.2; done; wait $pid; rc=$?; echo EXIT=$rc; echo RSS_PEAK_KB=$peak; exit 0
+resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+resolve_fused_ops: fused DeepSeek V4 HC post enabled
+sched_reserve:        CPU compute buffer size =    16.53 MiB
+sched_reserve: graph nodes  = 1054
+sched_reserve: graph splits = 1
+sched_reserve: reserve took 2.20 ms, sched copies = 1
+governor-hybrid-rewind: WRONG STATE max_abs_diff=5.133e-01
