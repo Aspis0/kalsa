@@ -22,6 +22,7 @@ import {
   stampTimingInvalid,
   isChargingFromDump,
   parseEnvDump,
+  parsePrefixedLines,
 } from "./telemetryParse.mjs";
 import { extractProfile, profileJsonl } from "../responseProfile.mjs";
 import {
@@ -966,6 +967,39 @@ for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "w
   const r = bash(["-n", path.join(here, f)]);
   check(r.status === 0, `bash -n ${f} exit=${r.status} ${r.stderr}`);
 }
+
+// Verbatim device lines, debuggable S23 APK: React Native quotes a
+// multi-arg console.log, single-string templates stay unquoted — BOTH must
+// parse or the per-turn records go silently empty. Provenance:
+// s23-governor-lfm-long/raw/s23-governor-long-577867c0/campaign/logcat.txt
+// (PREWARM quoted, PLAN unquoted) and s23-governor-lfm-functional/
+// raw/session-20260927/logcat.txt (GOVERNOR, TELEMETRY unquoted).
+const RAW_PREWARM_QUOTED = `09-27 15:05:47.444 29885 29913 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14265.905,"promptN":1660,"hash":"3677660334"}'`;
+const RAW_GOVERNOR = `1788575461.271 14661 14689 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"CPU","engine_decode":"CPU","commit_bytes":0,"commit_ms":0,"thermal_state":"FAST","thermo_source":"bench-skin","fit":"Fit","fallback_reason":""}`;
+const RAW_TELEMETRY = `1788571052.754 10811 10838 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":1397,"tokensEvaluated":1329,"tokensPredicted":67,"draftTokens":0,"draftAccepted":0,"promptMs":42731.590000000004,"predictedMs":2753.25,"predictedPerSecond":24.334876963588485,"contextFull":false,"interrupted":false}`;
+const RAW_PLAN = `09-27 15:07:57.162 30336 30363 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4285,"bench_norepack_forced":null}`;
+
+const quotedRows = parsePrefixedLines(RAW_PREWARM_QUOTED, "KALSA_PREWARM");
+check(
+  quotedRows.length === 1 && quotedRows[0].op === "done" && quotedRows[0].promptMs === 14265.905,
+  "quoted debuggable line parses (verbatim KALSA_PREWARM)",
+);
+check(
+  parsePrefixedLines(RAW_GOVERNOR, "KALSA_GOVERNOR")[0]?.engine_prefill === "CPU",
+  "unquoted KALSA_GOVERNOR parses (verbatim device line)",
+);
+check(
+  parsePrefixedLines(RAW_TELEMETRY, "KALSA_TELEMETRY")[0]?.predictedPerSecond === 24.334876963588485,
+  "unquoted KALSA_TELEMETRY parses (verbatim device line)",
+);
+check(
+  parsePrefixedLines(RAW_PLAN, "KALSA_GOVERNOR_PLAN")[0]?.gpu_fit === "Fit",
+  "unquoted KALSA_GOVERNOR_PLAN parses (verbatim device line)",
+);
+check(
+  parsePrefixedLines(RAW_PLAN, "KALSA_GOVERNOR").length === 0,
+  "prefix boundary: a PLAN line never counts as a GOVERNOR row",
+);
 
 // The T20C runner's owner rules: screen-ON gate around every turn, the
 // timeout pinned at max with no restore at exit, the governor plan wait.

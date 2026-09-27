@@ -30,18 +30,24 @@ campaign_governor_wait_plan() {
       plan_json=$(python3 - "$file" <<'PY'
 import json, sys
 
-needle = "KALSA_GOVERNOR_PLAN "
+# Two wire forms: single-string template (what the emitter does today —
+# unquoted in the S23 raw) and React Native's quoted multi-arg render
+# ('KALSA_GOVERNOR_PLAN', '{...}'), accepted so an emitter change cannot
+# silently kill the gate.
+NEEDLE = "KALSA_GOVERNOR_PLAN "
+QUOTED = "'KALSA_GOVERNOR_PLAN', '"
 last = None
 with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
     for line in fh:
-        at = line.rfind(needle)
+        at = max(line.rfind(NEEDLE), line.rfind(QUOTED))
         if at < 0:
             continue
         brace = line.find("{", at)
-        if brace < 0:
+        end = line.rfind("}")
+        if brace < 0 or end <= brace:
             continue
         try:
-            payload = json.loads(line[brace:].strip())
+            payload = json.loads(line[brace:end + 1])
         except ValueError:
             continue  # a truncated logcat line is not a plan
         if isinstance(payload, dict):

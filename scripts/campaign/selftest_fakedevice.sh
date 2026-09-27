@@ -378,10 +378,13 @@ PY
           _append "09-16 12:00:00.100  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_GOVERNOR_PLAN {\"gpu_fit\":\"Fit\",\"decode_repack\":false,\"required_mib_with_repack\":4518.12,\"required_mib_without_repack\":2998.06,\"available_mib\":4006.86,\"bench_norepack_forced\":null}"
         fi
         # A loaded app finishes its prewarm; the readiness gate is this log
-        # line for THIS launch (offset captured before am start). no-prewarm
-        # models a dead/refused load: no line ever arrives.
+        # line for THIS launch (offset captured before am start). Emitted in
+        # the DEBUGGABLE wire form the S23 really produces — React Native
+        # quotes a multi-arg console.log (verbatim raw/s23-governor-long-
+        # 577867c0/matcher-repro.txt) — since only debuggable APKs run here.
+        # no-prewarm models a dead/refused load: no line ever arrives.
         if [ ! -f "$F/no-prewarm" ]; then
-          _append "09-16 12:00:00.200  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_PREWARM {\"op\":\"done\",\"promptMs\":42,\"promptN\":1,\"hash\":\"fake\"}"
+          _append "09-16 12:00:00.200  $(cat "$F/pid")  4243 I ReactNativeJS: 'KALSA_PREWARM', '{\"op\":\"done\",\"promptMs\":14265.905,\"promptN\":1660,\"hash\":\"3677660334\"}'"
         fi
         ;;
       "am start -a android.intent.action.VIEW"*) _share_intent "$s" ;;

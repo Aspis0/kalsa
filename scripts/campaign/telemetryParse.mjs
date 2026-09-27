@@ -8,11 +8,27 @@ export const CISWIRE_FLAG_COMPACTION = 1;
 
 export function parsePrefixedLines(text, prefix) {
   const needle = `${prefix} `;
+  // React Native renders a multi-argument console.log quoted: 'TAG', '{json}'
+  // (verbatim S23, debuggable APK: 'KALSA_PREWARM', '{"op":"done",...}').
+  // The quoted needle wins whenever present — a JSON value could contain the
+  // release needle, never the reverse.
+  // The needle stops BEFORE the payload's opening quote so the wrapping
+  // quotes stay inside `payload` and get stripped below.
+  const quotedNeedle = `'${prefix}', `;
   const out = [];
   for (const line of String(text).split(/\r?\n/)) {
-    const i = line.lastIndexOf(needle);
-    if (i < 0) continue;
-    const payload = line.slice(i + needle.length).trim();
+    const q = line.lastIndexOf(quotedNeedle);
+    let payload;
+    if (q >= 0) {
+      payload = line.slice(q + quotedNeedle.length).trim();
+      if (payload.length >= 2 && payload.startsWith("'") && payload.endsWith("'")) {
+        payload = payload.slice(1, -1);
+      }
+    } else {
+      const i = line.lastIndexOf(needle);
+      if (i < 0) continue;
+      payload = line.slice(i + needle.length).trim();
+    }
     if (!payload) continue;
     try {
       const obj = JSON.parse(payload);

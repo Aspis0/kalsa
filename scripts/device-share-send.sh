@@ -52,9 +52,14 @@ device_ready_log_seen() {
   slice=$(tail -c "+$((offset + 1))" "$file" 2>/dev/null || true)
   [ -n "$slice" ] || return 1
   # One line must carry both markers; the emitter puts op first
-  # (LlamaService logPrewarm({op:"done", ...})). Herestring, never a pipe
+  # (LlamaService logPrewarm({op:"done", ...})). TWO wire forms, both seen on
+  # the S23 (debuggable APK): React Native renders a multi-arg console.log
+  # quoted — verbatim raw/s23-governor-long-577867c0 matcher-repro.txt:
+  #   09-27 15:05:47.444 29885 29913 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14265.905,"promptN":1660,"hash":"3677660334"}'
+  # while a single-string template logs unquoted. Herestring, never a pipe
   # into grep -q: an early-closing grep hands the writer a SIGPIPE.
-  grep -qF 'KALSA_PREWARM {"op":"done"' <<<"$slice"
+  grep -qF 'KALSA_PREWARM {"op":"done"' <<<"$slice" \
+    || grep -qF "'KALSA_PREWARM', '{\"op\":\"done\"" <<<"$slice"
 }
 
 # A dead load leaves the composer disabled; the XML must show an enabled one.

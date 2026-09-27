@@ -98,9 +98,12 @@ EOF
   # S23 pre-run value: equal to ci-lib's KA ceiling, so keepawake's pure
   # restore decision takes its DELETE branch unless the harness overrides it.
   printf '%s\n' 86400000 > "$FAKE_DEV/fake/settings-timeout"
+  # The NATIVE_VARIANT line is VERBATIM device evidence (S23 raw,
+  # s23-governor-long-577867c0/campaign/logcat.txt): single-string emitters
+  # log unquoted even on a debuggable APK.
   cat > "$FAKE_DEV/fake/stream.txt" <<'EOF'
 09-16 12:00:00.000 4242 4243 I ReactNativeJS: KALSA_CTX_FLOOR n_ctx=8192
-09-16 12:00:00.010 4242 4243 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"fake","nGpuLayers":0}
+09-27 15:05:33.096 29885 29913 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
 09-16 12:00:00.020 4242 4243 I llama_context: n_ctx = 8192
 EOF
   cat > "$FAKE_DEV/fake/ui.xml" <<'EOF'
@@ -1353,6 +1356,13 @@ governor_engagement_case() {
     printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"available_mib":4006.86}' > "$out/fit.txt"
     plan=$(campaign_governor_wait_plan "$out/fit.txt" 6) || exit 1
     campaign_governor_verify "$plan" 1 || exit 1
+    # React Native's quoted multi-arg render of the same plan must parse too
+    # (defects:1194 precedent: this is how a multi-arg console.log reaches logcat).
+    cat > "$out/quoted-plan.txt" <<'EOF'
+09-27 15:07:57.162 30336 30363 I ReactNativeJS: 'KALSA_GOVERNOR_PLAN', '{"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4285,"bench_norepack_forced":null}'
+EOF
+    qplan=$(campaign_governor_wait_plan "$out/quoted-plan.txt" 6) || exit 5
+    campaign_governor_verify "$qplan" 1 || exit 6
     campaign_governor_verify "$plan" 0 && exit 1
     printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit"}' > "$out/nofit.txt"
     nofit=$(campaign_governor_wait_plan "$out/nofit.txt" 6) || exit 1
@@ -1764,6 +1774,34 @@ marker_load_died_case() {
 }
 
 marker_load_died_case
+
+# A release build (or any single-string emitter) logs the same event as one
+# unquoted string — the gate must keep accepting that form too.
+readiness_release_form_case() {
+  local out="$WORK/ready-release" rc
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/no-prewarm"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, this stub keeps the assertion honest.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_launch || exit 2
+    printf '%s\n' '09-16 12:00:05.000 4242 4243 I ReactNativeJS: KALSA_PREWARM {"op":"done","promptMs":42.5,"promptN":1,"hash":"release-form"}' >> "$FAKE_DEV/fake/stream.txt"
+    campaign_wait_ready || exit 3
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ] && grep -q 'ready after' "$out/log.txt"; then
+    ok "readiness also accepts the unquoted release form of op=done"
+  else
+    bad "release-form prewarm did not satisfy the gate (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_release_form_case
 
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
