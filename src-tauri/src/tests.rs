@@ -3103,7 +3103,7 @@ fn the_desk_opens_the_invite_file_once_at_startup() {
     std::fs::write(dir.join("invites.json"), b"{\"v\":1,\"invites\":[]}").unwrap();
 
     let desk = pairing::Desk::new(file.clone());
-    let listed = serde_json::to_value(desk.invites().list()).unwrap();
+    let listed = serde_json::to_value(desk.invites().list(SystemTime::now())).unwrap();
     assert_eq!(
         listed["discarded"].as_bool(),
         Some(true),
@@ -3113,7 +3113,12 @@ fn the_desk_opens_the_invite_file_once_at_startup() {
 
     // The rewrite was startup's and it happened: a second desk finds a file
     // this build reads and has nothing to report.
-    let again = serde_json::to_value(pairing::Desk::new(file).invites().list()).unwrap();
+    let again = serde_json::to_value(
+        pairing::Desk::new(file)
+            .invites()
+            .list(SystemTime::now()),
+    )
+    .unwrap();
     assert_eq!(again["discarded"].as_bool(), Some(false));
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -3144,7 +3149,7 @@ fn an_invitation_seal_is_retained_under_the_link_own_deadline() {
         &code,
         &nonce,
         &reachable,
-        Some(&node),
+        Some(node),
         kalsa_catalog::PhoneModel {
             weights_bytes: 2_000_000_000,
             parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
@@ -3189,6 +3194,107 @@ fn an_invitation_seal_is_retained_under_the_link_own_deadline() {
     assert!(
         drift < Duration::from_secs(1),
         "the link's own deadline, to the second the store keeps: {stored:?}"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_second_completion_does_not_spend_the_first_phones_retry() {
+    // Two invitations, two completions, and the first phone's response
+    // never landed — no transport here, so nothing acknowledges, which is
+    // exactly the state a dropped write leaves. The retained seal is the
+    // store's, one per device, so B's pairing must not spend A's retry: A
+    // gets ITS seal back, B's still works, and a token no device earned
+    // gets nothing — which the transport answers with the one 403.
+    let (dir, desk) = scratch_invite_desk("two-retries");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    let _ = desk.read(true, address, None, None, start);
+    let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let phone = || kalsa_catalog::PhoneModel {
+        weights_bytes: 2_000_000_000,
+        parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+        measured_tokens_per_second: Some(9.0),
+        battery_powered: Some(true),
+    };
+    let square = |link: &str| square_of_link(link);
+
+    // Guest A claims an invitation, completes, and its response is dropped.
+    let link_a = desk
+        .invites()
+        .create(address, Some(node), None, start)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code_a, nonce_a, reachable_a, _) = square(&link_a);
+    assert!(desk.claim(&code_a, start + Duration::from_secs(1)));
+    let declaration_a = kalsa_pairing::PhoneDeclaration::sign(
+        &code_a,
+        &nonce_a,
+        &reachable_a,
+        Some(node),
+        phone(),
+    )
+    .expect("A signs");
+    let retry_a = declaration_a
+        .sign_again(&code_a, &nonce_a, &reachable_a, Some(node), phone())
+        .expect("A may retry with the same token");
+    assert!(
+        desk.complete(declaration_a, start + Duration::from_secs(2)).is_some(),
+        "A pairs"
+    );
+
+    // Guest B completes behind A — the pairing that used to overwrite A's
+    // only chance at its seal.
+    let link_b = desk
+        .invites()
+        .create(address, Some(node), None, start)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code_b, nonce_b, reachable_b, _) = square(&link_b);
+    assert!(desk.claim(&code_b, start + Duration::from_secs(3)));
+    let declaration_b = kalsa_pairing::PhoneDeclaration::sign(
+        &code_b,
+        &nonce_b,
+        &reachable_b,
+        Some(node),
+        phone(),
+    )
+    .expect("B signs");
+    let retry_b = declaration_b
+        .sign_again(&code_b, &nonce_b, &reachable_b, Some(node), phone())
+        .expect("B may retry with the same token");
+    assert!(
+        desk.complete(declaration_b, start + Duration::from_secs(4)).is_some(),
+        "B pairs behind A"
+    );
+
+    // A's retry: ITS seal, keyed on A's square — not B's, and not a 403.
+    let served = desk
+        .complete(retry_a, start + Duration::from_secs(5))
+        .expect("A's retry is served after B's pairing");
+    assert!(served.open(&code_a, &nonce_a).is_some(), "A gets ITS seal");
+    assert!(served.open(&code_b, &nonce_b).is_none(), "and not B's");
+
+    // B's retry still works after A collected its own.
+    let served_b = desk
+        .complete(retry_b, start + Duration::from_secs(6))
+        .expect("B's retry is served");
+    assert!(served_b.open(&code_b, &nonce_b).is_some());
+
+    // A token no device ever earned — a fresh declaration, signed but never
+    // completed — reaches no seal: the transport turns this `None` into the
+    // same 403 every other refusal gets.
+    let stranger = kalsa_pairing::PhoneDeclaration::sign(
+        &code_a,
+        &nonce_a,
+        &reachable_a,
+        Some(node),
+        phone(),
+    )
+    .expect("A stranger signs too");
+    assert!(
+        desk.complete(stranger, start + Duration::from_secs(7)).is_none(),
+        "a token nothing holds gets nothing"
     );
     let _ = std::fs::remove_dir_all(dir);
 }

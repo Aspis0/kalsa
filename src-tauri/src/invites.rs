@@ -106,9 +106,13 @@ impl InviteSet {
 
     /// What the page draws: every invitation's id and deadline, plus the
     /// startup flag. Neither a code nor a link is in this answer, and none
-    /// can be added without the page asking for a link by id.
-    pub(crate) fn list(&self) -> InviteListDto {
-        let inner = self.lock();
+    /// can be added without the page asking for a link by id. The day is
+    /// swept first, so a list never carries an invitation whose window has
+    /// closed — the desk's poll sweeps too, but this call does not wait
+    /// for it.
+    pub(crate) fn list(&self, now: SystemTime) -> InviteListDto {
+        let mut inner = self.lock();
+        let _ = inner.invites.expire_if_due(now);
         InviteListDto {
             discarded: inner.discarded,
             invites: inner
@@ -143,8 +147,12 @@ impl InviteSet {
     /// The link for an id the page already showed, so the owner can copy it
     /// again. `None` when that invitation is gone — spent, cancelled or
     /// expired — and the page says which of those it cannot know: gone.
-    pub(crate) fn link(&self, id: u32) -> Option<String> {
-        self.lock().invites.link(id)
+    /// The day is swept first for the same reason `list` sweeps it: a link
+    /// handed out a moment after its window closed would be a lie.
+    pub(crate) fn link(&self, id: u32, now: SystemTime) -> Option<String> {
+        let mut inner = self.lock();
+        let _ = inner.invites.expire_if_due(now);
+        inner.invites.link(id)
     }
 
     /// The owner takes an invitation back: its code stops working at once.
@@ -241,7 +249,7 @@ pub(crate) async fn brain_invite_create(
 /// threw a file away. No code and no link is in this answer.
 #[tauri::command]
 pub(crate) fn brain_invite_list(desk: State<Desk>) -> InviteListDto {
-    desk.desk.invites().list()
+    desk.desk.invites().list(SystemTime::now())
 }
 
 /// The link for an id the page is showing, so the owner can copy it again
@@ -250,7 +258,7 @@ pub(crate) fn brain_invite_list(desk: State<Desk>) -> InviteListDto {
 pub(crate) fn brain_invite_link(desk: State<Desk>, id: u32) -> Result<String, String> {
     desk.desk
         .invites()
-        .link(id)
+        .link(id, SystemTime::now())
         .ok_or_else(|| "That invitation is no longer valid.".to_string())
 }
 

@@ -549,7 +549,7 @@ fn every_refusal_is_the_one_403_the_square_gives() {
         .expect("the set is writable")
         .expect("an invitation carries a link");
     let (code, ..) = square_of(&link);
-    let id = serde_json::to_value(desk.invites().list()).unwrap()["invites"][0]["id"]
+    let id = serde_json::to_value(desk.invites().list(now)).unwrap()["invites"][0]["id"]
         .as_u64()
         .expect("an id") as u32;
     desk.invites().cancel(id).expect("the owner cancels");
@@ -591,7 +591,7 @@ fn an_invitation_cannot_claim_while_the_desk_is_not_serving() {
     assert_eq!(response, REFUSAL, "no serving desk, no pairing");
     // A refused claim consumes nothing: the invitation is still out.
     assert_eq!(
-        serde_json::to_value(desk.invites().list()).unwrap()["invites"]
+        serde_json::to_value(desk.invites().list(now)).unwrap()["invites"]
             .as_array()
             .expect("a list")
             .len(),

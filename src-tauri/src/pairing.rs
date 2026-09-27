@@ -75,11 +75,12 @@ enum State {
     /// person would call a name, because the MAC binds what is declared and
     /// nobody has declared one yet. The page already says "your phone" when
     /// it is given nothing, which is true; a name made up here would not be.
-    Paired {
-        phone: PhoneModel,
-        /// Retained so a lost HTTP response can be retried idempotently.
-        pending: Option<PendingDelivery>,
-    },
+    ///
+    /// The sealed response each phone is still owed lives in the STORE
+    /// beside that phone's device, not here: one slot in memory would be
+    /// spent by the next completion, and the phone whose response it was
+    /// could then never collect it.
+    Paired { phone: PhoneModel },
     /// The ceremony finished and the credential could not be written. A
     /// replayed credential lands here too, on purpose: it must never become
     /// an owner-facing question about a phone it is not.
@@ -91,35 +92,6 @@ enum State {
     /// The listener died after startup. Pairing is disabled until restart;
     /// silently drawing another square would make the QR lie.
     ServiceUnavailable,
-}
-
-struct PendingDelivery {
-    delivery_token: String,
-    seal: PairingSeal,
-    expires_at: SystemTime,
-}
-
-impl PendingDelivery {
-    fn from_store(delivery: kalsa_pairing::store::Delivery) -> Option<Self> {
-        Some(Self {
-            delivery_token: delivery.token().to_string(),
-            seal: delivery.seal().clone(),
-            expires_at: delivery.expires_at()?,
-        })
-    }
-
-    fn as_store_delivery(&self) -> Option<kalsa_pairing::store::Delivery> {
-        kalsa_pairing::store::Delivery::new(
-            &self.delivery_token,
-            self.seal.clone(),
-            self.expires_at,
-        )
-    }
-
-    fn token_matches(&self, presented: &str) -> bool {
-        self.as_store_delivery()
-            .is_some_and(|delivery| delivery.token_matches(presented))
-    }
 }
 
 /// The live ceremony, shared between the Tauri commands and the listener
@@ -239,18 +211,10 @@ impl Desk {
             Ok(devices) => match devices
                 .iter()
                 .find(|device| device.kind == DeviceKind::Phone)
-                .and_then(|device| {
-                    device
-                        .handshake
-                        .phone
-                        .map(|phone| (phone, device.delivery.clone()))
-                }) {
-                Some((phone, delivery)) => {
-                    let pending = delivery
-                        .and_then(PendingDelivery::from_store)
-                        .filter(|pending| SystemTime::now() < pending.expires_at);
-                    State::Paired { phone, pending }
-                }
+                .and_then(|device| device.handshake.phone) {
+                // The phone is the snapshot; what it is still owed is read
+                // from the store on every read (`house`), never cached here.
+                Some(phone) => State::Paired { phone },
                 None => State::Idle,
             },
             Err(_) => State::StoreUnavailable,
@@ -332,7 +296,8 @@ impl Desk {
         // is swallowed — the next tick, and the next real write, try again.
         self.invites.expire_if_due(now);
         if self.listener_failed.load(Ordering::SeqCst) {
-            return dto(&State::ServiceUnavailable, self.stored_devices());
+            let (devices, owed) = self.house(now);
+            return dto(&State::ServiceUnavailable, devices, owed);
         }
         if serving {
             self.serving.store(true, Ordering::SeqCst);
@@ -359,16 +324,27 @@ impl Desk {
             State::Idle => *state = Self::fresh(reachable, node, tailnet, now, None, None),
             State::Live { .. } => {}
         }
-        let devices = self.stored_devices();
-        dto(&state, devices)
+        let (devices, owed) = self.house(now);
+        dto(&state, devices, owed)
     }
 
-    /// The house, as the page may read it: every stored device's id, label
-    /// and capability sentence. Empty when the store cannot be read — the
-    /// failed state says that in its own words.
-    fn stored_devices(&self) -> Vec<PairedDeviceDto> {
-        kalsa_pairing::store::load_devices(&self.file)
-            .unwrap_or_default()
+    /// The house, as the page may read it — every stored device's id, label
+    /// and capability sentence — and whether any phone is still owed its
+    /// sealed response, both from ONE read of the store. The second is per
+    /// device: every completion keeps its delivery beside its own device, so
+    /// a second phone's pairing cannot hide the first one's outstanding
+    /// response, and a restart shows exactly what the disk holds. Empty when
+    /// the store cannot be read — the failed state says that in its own
+    /// words, and nothing is owed that cannot be read.
+    fn house(&self, now: SystemTime) -> (Vec<PairedDeviceDto>, bool) {
+        let devices = kalsa_pairing::store::load_devices(&self.file).unwrap_or_default();
+        let owed = devices.iter().any(|device| {
+            device
+                .delivery
+                .as_ref()
+                .is_some_and(|delivery| delivery.expires_at().is_some_and(|at| now < at))
+        });
+        let rows = devices
             .into_iter()
             .map(|device| PairedDeviceDto {
                 id: device.id,
@@ -379,7 +355,8 @@ impl Desk {
                 phone: device.handshake.phone.map_or_else(String::new, phone_label),
                 waiting: device.waiting,
             })
-            .collect()
+            .collect();
+        (rows, owed)
     }
 
     /// The store this desk reads and writes. The shell needs the path to put
@@ -539,19 +516,12 @@ impl Desk {
                 &delivery_token,
             );
         }
-        if let State::Paired { pending, .. } = &mut *state {
-            let Some(delivery) = pending.as_ref() else {
-                return None;
-            };
-            if now >= delivery.expires_at {
-                let token = delivery.delivery_token.clone();
-                *pending = None;
-                let _ = kalsa_pairing::store::clear_delivery(&self.file, &token);
-                return None;
-            }
-            return declaration
-                .delivery_token_matches(&delivery.delivery_token)
-                .then(|| delivery.seal.clone());
+        // A phone retrying a response it never received: the seal is in the
+        // store under the token that earned it, one per device, so a later
+        // completion — a second invitation, a second square — can never
+        // spend this one's retry, and a restart serves it the same way.
+        if let Some(delivery) = self.retained_delivery(&delivery_token, now) {
+            return Some(delivery.seal().clone());
         }
         let State::Live { pairing, .. } = &mut *state else {
             return None;
@@ -566,10 +536,15 @@ impl Desk {
     /// response retained under THAT ceremony's deadline (a link's seal can
     /// never outlive the link that authorised it), and the phone stored
     /// WAITING, so the owner's Allow is what admits it. Every failure lands
-    /// in `CouldNotSave`: no ceremony is left half-consumed, no phone is
-    /// admitted without the owner, and no owner-facing question is invented
-    /// — including for a replayed credential, which is a refusal and not a
-    /// choice between two phones.
+    /// in `CouldNotSave`: no phone is admitted without the owner, and no
+    /// owner-facing question is invented — including for a replayed
+    /// credential, which is a refusal and not a choice between two phones.
+    ///
+    /// What a failure costs, said plainly because the ceremony is already
+    /// over when this runs: `complete` consumed it on either road, so the
+    /// write's failure spends it. The square's road draws another square on
+    /// the next poll; an invitation's link is spent with nothing to retry,
+    /// and the owner must not be told that trying again will bring it back.
     fn store_completed(
         file: &Path,
         state: &mut State,
@@ -578,11 +553,8 @@ impl Desk {
         expires_at: SystemTime,
         delivery_token: &str,
     ) -> Option<PairingSeal> {
-        let pending = PendingDelivery {
-            delivery_token: delivery_token.to_string(),
-            seal: seal.clone(),
-            expires_at,
-        };
+        let delivery =
+            kalsa_pairing::store::Delivery::new(delivery_token, seal.clone(), expires_at)?;
         // The label is assigned HERE, locally — the pairing protocol
         // deliberately carries no name. It is numbered after the id the
         // store will mint, by the same never-reuse rule the store mints ids
@@ -606,7 +578,6 @@ impl Desk {
         // The delivery rides the add: the store keeps the sealed response,
         // so a crash before the phone's retry is answered by the retry path
         // for EVERY device, the way it always was for the first.
-        let delivery = pending.as_store_delivery().ok_or(State::CouldNotSave).ok()?;
         match kalsa_pairing::store::add_device_with_delivery(file, &label, &handshake, delivery) {
             Ok(_) => {
                 let Some(phone) = handshake.phone else {
@@ -616,10 +587,7 @@ impl Desk {
                     *state = State::CouldNotSave;
                     return None;
                 };
-                *state = State::Paired {
-                    phone,
-                    pending: Some(pending),
-                };
+                *state = State::Paired { phone };
                 Some(seal)
             }
             // Every refusal consumes the ceremony without an owner-facing
@@ -638,23 +606,45 @@ impl Desk {
     /// token is the one that response went to, so the store copy is cleared
     /// in EVERY desk state: a late ack - the owner retried and another phone
     /// completed between the write and this call - must not be dropped for
-    /// arriving after the state moved on. The in-memory pending goes
-    /// whenever it matches the token, whether or not the store clear
-    /// succeeded: an unreadable store must not put the seal back in reach.
-    /// The write-FAILED case never gets here (the transport does not
-    /// acknowledge a response it did not write), so the phone's retry path
-    /// is untouched.
+    /// arriving after the state moved on. The store is the only holder now,
+    /// which is what makes that possible: the clear is keyed by token, so it
+    /// spends exactly the response that was written and never another's,
+    /// whether or not some other phone completed in between. The write-FAILED
+    /// case never gets here (the transport does not acknowledge a response it
+    /// did not write), so the phone's retry path is untouched.
     pub(crate) fn acknowledge(&self, delivery_token: &str) {
-        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        // The state lock is this desk's single-writer gate for the STORE:
+        // this clear is a read-modify-write, and on a worker thread it must
+        // not race the read-modify-write of a completion on another one.
+        let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let _ = kalsa_pairing::store::clear_delivery(&self.file, delivery_token);
-        if let State::Paired { pending, .. } = &mut *state {
-            if pending
-                .as_ref()
-                .is_some_and(|saved| saved.token_matches(delivery_token))
-            {
-                *pending = None;
-            }
-        }
+    }
+
+    /// The seal a phone is retrying for, read from the store: one delivery
+    /// beside each device that earned one, so a later completion never
+    /// spends an earlier phone's retry and a restart serves it too. An
+    /// expired delivery is cleared here, exactly as the single slot in
+    /// memory used to clear it — and nothing is served for a token no
+    /// device holds.
+    fn retained_delivery(
+        &self,
+        presented: &str,
+        now: SystemTime,
+    ) -> Option<kalsa_pairing::store::Delivery> {
+        let devices = kalsa_pairing::store::load_devices(&self.file).ok()?;
+        devices
+            .into_iter()
+            .filter_map(|device| device.delivery)
+            .find(|delivery| delivery.token_matches(presented))
+            .and_then(|delivery| {
+                let expires_at = delivery.expires_at()?;
+                if now >= expires_at {
+                    let _ = kalsa_pairing::store::clear_delivery(&self.file, presented);
+                    None
+                } else {
+                    Some(delivery)
+                }
+            })
     }
 
     /// The owner explicitly discards an unreadable store so pairing can
@@ -708,7 +698,7 @@ impl Desk {
 
 /// The desk as the page reads it. `claiming` is a live ceremony a phone has
 /// already claimed: the square is gone from the screen because it is spent.
-fn dto(state: &State, devices: Vec<PairedDeviceDto>) -> PairingDto {
+fn dto(state: &State, devices: Vec<PairedDeviceDto>, delivery_pending: bool) -> PairingDto {
     let empty = PairingDto {
         kind: "pairing",
         state: "idle",
@@ -741,11 +731,11 @@ fn dto(state: &State, devices: Vec<PairedDeviceDto>) -> PairingDto {
                 ..empty
             },
         },
-        State::Paired { phone, pending } => PairingDto {
+        State::Paired { phone } => PairingDto {
             state: "paired",
             phone: Some(phone_label(*phone)),
             devices,
-            delivery_pending: pending.is_some(),
+            delivery_pending,
             ..empty
         },
         State::CouldNotSave => PairingDto {
@@ -1073,10 +1063,9 @@ mod tests {
     }
 
     /// A LATE ack: between writing A's response and acknowledging it, the
-    /// owner retries and phone B completes, so the desk's state no longer
-    /// holds A's pending. The ack must still clear A's store record - and
-    /// only A's: B's delivery survives, and a fresh desk rebuilds no pending
-    /// for A.
+    /// owner retries and phone B completes. The ack must still clear A's
+    /// store record - and only A's: B's delivery survives, and a fresh desk
+    /// reports exactly that — B's as owed, nothing of A's.
     #[test]
     fn a_late_acknowledgement_still_clears_its_own_delivery() {
         let file = scratch("late-ack");
@@ -1089,9 +1078,9 @@ mod tests {
         let first_token = first.delivery_token().to_string();
         assert!(desk.complete(first, now).is_some(), "phone A pairs");
 
-        // The ack lands in the gap: the owner has retried (the desk is
-        // Live again) and phone B has not completed yet, so the in-memory
-        // state holds nothing of A's.
+        // The ack lands in the gap: the owner has already retried (the desk
+        // is Live again) and phone B has not completed yet, so A's response
+        // is the one this ack has to find — in the store, by its token.
         desk.retry(true, "http://127.0.0.1:1", None, None, now);
         desk.acknowledge(&first_token);
 
@@ -1117,12 +1106,16 @@ mod tests {
         );
         // B completes AFTER the ack here, so B's delivery cannot speak to
         // the ack's selectivity - that is the next test's subject. What this
-        // half shows is the restart: nothing is rebuilt for A.
+        // half shows is the restart: A's cleared record stays cleared (the
+        // assertion above reads the store, and a restart writes nothing),
+        // and the one response the page is owed is B's — the flag is read
+        // per device, not from a single slot that B's pairing would have
+        // overwritten.
         let fresh = Desk::new(file.clone());
         let dto = serde_json::to_value(fresh.read(true, "http://127.0.0.1:1", None, None, now)).unwrap();
         assert_eq!(
-            dto["delivery_pending"], false,
-            "a restart must not rebuild A's acknowledged delivery"
+            dto["delivery_pending"], true,
+            "B's response is still owed; nothing of A's is, its record is cleared above"
         );
         let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
@@ -1169,12 +1162,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
 
-    /// An ack against an UNREADABLE store: the response was written, which
-    /// is what an ack means, so the in-memory pending must go even though
-    /// the store copy could not be cleared - and complete must not serve
-    /// that seal again to a matching token.
+    /// An ack against an UNREADABLE store, and a retry after it. The store
+    /// is the only holder of a retained response now, so a store this reader
+    /// refuses holds nothing it can hand back — not to the ack (its clear
+    /// fails with everything else here) and not to the phone: no seal is
+    /// reachable, however the ack went.
     #[test]
-    fn an_acknowledgement_spends_the_pending_even_when_the_store_cannot_be_read() {
+    fn an_unreadable_store_serves_no_seal_after_an_ack() {
         let file = scratch("ack-unreadable");
         kalsa_pairing::store::enrol_host(&file).unwrap();
         let desk = Desk::new(file.clone());
@@ -1208,7 +1202,7 @@ mod tests {
         desk.acknowledge(&token);
         assert!(
             desk.complete(replay, now).is_none(),
-            "the in-memory pending must be spent even though the store clear failed"
+            "an unreadable store serves no seal again, whichever way the ack went"
         );
         let _ = std::fs::remove_dir_all(file.parent().expect("scratch dir"));
     }
