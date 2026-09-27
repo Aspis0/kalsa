@@ -45,7 +45,9 @@
 # "--no-conversation"}` — help: "interactive mode is also enabled (default:
 # auto enabled if chat template is available)"; its handler sets
 # COMMON_CONVERSATION_MODE_DISABLED, so no template and no stdin wait.
-# BOTH phases pass `-no-cnv` and read stdin from /dev/null (belt and
+# BOTH phases pass `--no-conversation` (the LONG form: common/arg.cpp:1900
+# accepts only `-no-cnv` / `--no-conversation` — `--no-cnv` is not an alias)
+# and read stdin from /dev/null (belt and
 # suspenders: no future mode can block on input); any proof or turn log
 # containing `Running in interactive mode` is VOID `interactive_mode`.
 #
@@ -104,7 +106,7 @@ arm_remote_cmd() {
   # Never feed a non-numeric n to %d (audit3 dead-code note).
   case "$n" in ''|*[!0-9]*) n="$DECODE_N" ;; esac
   flags=$(arm_backend_flags "$backend") || return 1
-  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 --no-cnv -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 %s > %s/%s.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -f %s/prompt.txt -n %d --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 %s > %s/%s.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$(arm_env)" "$D" "$D" "$n" "$flags" "$D" "$tag" "$D" "$tag"
 }
 
@@ -115,7 +117,7 @@ arm_remote_cmd() {
 arm_load_cmd() {
   local backend="$1" tag="$2" flags
   flags=$(arm_backend_flags "$backend") || return 1
-  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 --no-cnv -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 %s > %s/%s.load.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.load.log; exit $rc' \
+  printf '%s./bin/llama-completion -m %s/ship.gguf -lm none -p " " -n 4 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 5 %s > %s/%s.load.log 2>&1 </dev/null; rc=$?; echo EXIT=$rc >> %s/%s.load.log; exit $rc' \
     "$(arm_proof_env)" "$D" "$flags" "$D" "$tag" "$D" "$tag"
 }
 

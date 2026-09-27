@@ -75,9 +75,13 @@ seed_prior_restore() { # A-6: previous run SIGKILLed — state holds pre-run
 run_fixture() {
   # arg3 (optional, no `=`): seed-function name, called after the state wipe
   # and before d_run; everything else is a DRY_*/tuning env assignment.
-  local name="$1" order="$2" seed=""
+  local name="$1" order="$2" seed="" expect_bad=0 a
   shift 2
   if [ "$#" -gt 0 ] && [[ "$1" != *=* ]]; then seed="$1"; shift; fi
+  # EXPECT_BAD_FLAG travels as a child env knob — read it from OUR args too.
+  for a in "$@"; do
+    if [ "$a" = "EXPECT_BAD_FLAG=1" ]; then expect_bad=1; fi
+  done
   STATE="/tmp/qdc-heat3way-fake-$name"
   rm -rf "$STATE" "$CELL/raw/dry-$name"
   mkdir -p "$STATE" "$CELL/raw"
@@ -103,6 +107,16 @@ run_fixture() {
     fail "$name shell-syntax" "$(head -2 "$STATE/shell_syntax_error.log" | tr '\n' ' ')"
   else
     pass "$name shell-syntax"
+  fi
+  # And no invalid long option may have reached an arm command (the fake
+  # rejects them like common/arg.cpp); EXPECT_BAD_FLAG=1 opts in for the
+  # fixture that proves the rejector itself.
+  if [ "$expect_bad" = 1 ]; then
+    eq "$name bad-flag rejected" yes "$([ -f "$STATE/bad_flag.log" ] && echo yes || echo no)"
+  elif [ -f "$STATE/bad_flag.log" ]; then
+    fail "$name bad-flag" "$(head -1 "$STATE/bad_flag.log")"
+  else
+    pass "$name bad-flag"
   fi
 }
 rows() { awk 'NR > 1' "$RAW/results.tsv" 2>/dev/null | wc -l | tr -d '[:space:]'; }

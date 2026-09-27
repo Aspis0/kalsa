@@ -143,14 +143,16 @@ explicitly superseded here.
 
 ### Fifth amendment pass — 2026-09-27, after heat run 5 hung in conversation mode (44395c94)
 
-14. **Conversation mode disabled (`-no-cnv`), stdin from `/dev/null`; the
+14. **Conversation mode disabled (`--no-conversation`), stdin from `/dev/null`; the
     measured prompt is RAW text.** The build auto-enables conversation mode
     from the GGUF chat template (`tools/completion/completion.cpp:170-175`,
     hint "(disable it with -no-cnv)"), which sets `interactive_first`
     (`completion.cpp:365-376`) and waits on stdin — run 5's 127-token turn
     hung to the 900 s timeout, and every earlier log (calibration included)
     carried `== Running in interactive mode. ==`. Both phases now pass
-    `-no-cnv` (`common/arg.cpp:1899-1906`) and `</dev/null`; any proof or
+    `--no-conversation` (`common/arg.cpp:1899-1906` lists `-no-cnv` /
+    `--no-conversation`; `--no-cnv` is NOT an alias and would be rejected)
+    and `</dev/null`; any proof or
     turn log containing `Running in interactive mode` is VOID
     `interactive_mode`. **Which prompt the heat question needs: RAW** — this
     cell compares backends on one frozen byte-identical `-f` file across

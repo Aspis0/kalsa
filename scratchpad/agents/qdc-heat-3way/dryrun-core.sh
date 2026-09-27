@@ -11,7 +11,7 @@ if [ -f "$REAL/s23-calib-3-calnpu.load.log" ]; then
   # mv); cpu/gpu were moved into calib/ by the completed loop iterations.
   RAW="$REAL"
   arm_parse_proof "s23-calib-3-calnpu" npu
-  # The REAL calib logs are interactive (run-3 era, pre -no-cnv): the new gate
+  # The REAL calib logs are interactive (run-3 era, pre --no-conversation): the new gate
   # must void them, while ARM_PROOF keeps the real counts.
   eq "real npu proof status" VOID "$ARM_STATUS"
   eq "real npu void reason" interactive_mode "$ARM_VOID"
@@ -149,6 +149,14 @@ eq "imode status" VOID "$(col 1 4)"
 eq "imode void_reason" interactive_mode "$(col 1 5)"
 assert_end imode method_void_interactive_mode
 assert_restore imode
+
+echo "== fixture: an injected invalid long option is rejected like the real parser =="
+run_fixture bad-flag CG DRY_BAD_FLAG=1 EXPECT_BAD_FLAG=1
+eq "bflag rc" 0 "$RC"
+eq "bflag rows" 2 "$(rows)"
+eq "bflag void_reason" load_fail "$(col 1 5)"
+assert_end bflag exit_0
+assert_restore bad-flag
 
 echo "== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) =="
 run_fixture backend-mismatch GC DRY_TURN_FP_BUF=CPU

@@ -16,6 +16,7 @@ PASS  real cpu extractor keeps CPU_REPACK
 PASS  real npu buf placement carries HTP0
 == fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
 PASS  six-arms shell-syntax
+PASS  six-arms bad-flag
 PASS  six rc
 PASS  six END
 PASS  six rows
@@ -63,6 +64,7 @@ PASS  odd order CGN rejected
 PASS  unregistered pair CC rejected
 == fixture: missing HTP proof voids the N proof run (A6) ==
 PASS  no-htp shell-syntax
+PASS  no-htp bad-flag
 PASS  nohtp rc
 PASS  nohtp END
 PASS  nohtp rows
@@ -73,6 +75,7 @@ PASS  nohtp restore-ran
 PASS  nohtp timeout-restored
 == fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) ==
 PASS  htp-low shell-syntax
+PASS  htp-low bad-flag
 PASS  htplow rc
 PASS  htplow rows
 PASS  htplow void_reason
@@ -82,6 +85,7 @@ PASS  htp-low restore-ran
 PASS  htp-low timeout-restored
 == fixture: missing GPU placement evidence voids the G proof run (A6) ==
 PASS  no-gpu shell-syntax
+PASS  no-gpu bad-flag
 PASS  nogpu rc
 PASS  nogpu rows
 PASS  nogpu status
@@ -91,6 +95,7 @@ PASS  nogpu restore-ran
 PASS  nogpu timeout-restored
 == fixture: GPU kernel-dispatch below the 8 floor voids the G proof run (A6) ==
 PASS  gpu-exec-low shell-syntax
+PASS  gpu-exec-low bad-flag
 PASS  gpuex rc
 PASS  gpuex rows
 PASS  gpuex void_reason
@@ -99,6 +104,7 @@ PASS  gpu-exec-low restore-ran
 PASS  gpu-exec-low timeout-restored
 == fixture: kernel-build failure line voids the G proof run (A6) ==
 PASS  gpu-disabled shell-syntax
+PASS  gpu-disabled bad-flag
 PASS  gpudis rc
 PASS  gpudis rows
 PASS  gpudis void_reason
@@ -107,6 +113,7 @@ PASS  gpu-disabled restore-ran
 PASS  gpu-disabled timeout-restored
 == fixture: CPU placement proof absent in the proof run (A15) ==
 PASS  no-cpu shell-syntax
+PASS  no-cpu bad-flag
 PASS  nocpu rc
 PASS  nocpu rows
 PASS  nocpu void_reason
@@ -115,6 +122,7 @@ PASS  nocpu restore-ran
 PASS  nocpu timeout-restored
 == fixture: an interactive/conversational log voids (S23 run 5) ==
 PASS  interactive-mode shell-syntax
+PASS  interactive-mode bad-flag
 PASS  imode rc
 PASS  imode rows
 PASS  imode status
@@ -122,8 +130,18 @@ PASS  imode void_reason
 PASS  imode END
 PASS  imode restore-ran
 PASS  imode timeout-restored
+== fixture: an injected invalid long option is rejected like the real parser ==
+PASS  bad-flag shell-syntax
+PASS  bad-flag bad-flag rejected
+PASS  bflag rc
+PASS  bflag rows
+PASS  bflag void_reason
+PASS  bflag END
+PASS  bad-flag restore-ran
+PASS  bad-flag timeout-restored
 == fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
 PASS  backend-mismatch shell-syntax
+PASS  backend-mismatch bad-flag
 PASS  bfp rc
 PASS  bfp rows
 PASS  bfp void_reason
@@ -134,6 +152,7 @@ PASS  backend-mismatch restore-ran
 PASS  backend-mismatch timeout-restored
 == fixture: turn log without fingerprint -> no_fingerprint (fail closed) ==
 PASS  no-fingerprint shell-syntax
+PASS  no-fingerprint bad-flag
 PASS  nfp rc
 PASS  nfp rows
 PASS  nfp void_reason
@@ -142,6 +161,7 @@ PASS  no-fingerprint restore-ran
 PASS  no-fingerprint timeout-restored
 == fixture: kernel-disable line in the TURN log voids it too (NEW-3) ==
 PASS  turn-disabled shell-syntax
+PASS  turn-disabled bad-flag
 PASS  tdis rc
 PASS  tdis rows
 PASS  tdis void_reason
@@ -150,6 +170,7 @@ PASS  turn-disabled restore-ran
 PASS  turn-disabled timeout-restored
 == fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
 PASS  warm-start shell-syntax
+PASS  warm-start bad-flag
 PASS  warm rc
 PASS  warm END
 PASS  warm rows
@@ -161,6 +182,7 @@ PASS  warm restore-ran
 PASS  warm timeout-restored
 == fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) ==
 PASS  calibrate shell-syntax
+PASS  calibrate bad-flag
 PASS  cal rc
 PASS  cal END
 PASS  cal no heat rows
@@ -179,6 +201,7 @@ PASS  cal restore-ran
 PASS  cal timeout-restored
 == fixture BLOCKER1: calibration refuses a VOID proof (A-N9) ==
 PASS  calibrate-void shell-syntax
+PASS  calibrate-void bad-flag
 PASS  cav rc
 PASS  cav END
 PASS  cav no calib.ok
@@ -188,6 +211,7 @@ PASS  cav restore-ran
 PASS  cav timeout-restored
 == fixture A-N8: G/N buffer-name collision fails calibration ==
 PASS  buf-collision shell-syntax
+PASS  buf-collision bad-flag
 PASS  bcol rc
 PASS  bcol END
 PASS  bcol no calib.ok
@@ -196,6 +220,7 @@ PASS  bcol restore-ran
 PASS  bcol timeout-restored
 == fixture: production reads the PINNED floor from calib.ok ==
 PASS  pinned-floor shell-syntax
+PASS  pinned-floor bad-flag
 PASS  pin rc
 PASS  pin END
 PASS  pin rows
@@ -205,6 +230,7 @@ PASS  pinned-floor restore-ran
 PASS  pinned-floor timeout-restored
 == fixture: the REAL calib4 rate 64.4231 is accepted and applied ==
 PASS  calib-pin-real shell-syntax
+PASS  calib-pin-real bad-flag
 PASS  cpr2 rc
 PASS  cpr2 END
 PASS  cpr2 rows
@@ -217,6 +243,7 @@ PASS  cpr2 restore-ran
 PASS  cpr2 timeout-restored
 == fixture: stop thermal_status >= 3 (injected at first gate) ==
 PASS  stop-thermal shell-syntax
+PASS  stop-thermal bad-flag
 PASS  st rc
 PASS  st END
 PASS  st rows
@@ -225,6 +252,7 @@ PASS  st timeout-restored
 PASS  st stayon deleted
 == fixture: stop battery_temp >= 44.0 C (fires after arm 1, trusted) ==
 PASS  stop-batt-temp shell-syntax
+PASS  stop-batt-temp bad-flag
 PASS  sbtemp rc
 PASS  sbtemp END
 PASS  sbtemp rows
@@ -234,6 +262,7 @@ PASS  sbtemp restore-ran
 PASS  sbtemp timeout-restored
 == fixture: stop battery_level <= 25 % ==
 PASS  stop-level shell-syntax
+PASS  stop-level bad-flag
 PASS  slvl rc
 PASS  slvl END
 PASS  slvl rows
@@ -241,6 +270,7 @@ PASS  slvl restore-ran
 PASS  slvl timeout-restored
 == fixture: stop plugged ==
 PASS  stop-plugged shell-syntax
+PASS  stop-plugged bad-flag
 PASS  spl rc
 PASS  spl END
 PASS  spl rows
@@ -248,6 +278,7 @@ PASS  spl restore-ran
 PASS  spl timeout-restored
 == fixture: stop missing_skin (fail-closed missing reading) ==
 PASS  stop-missing shell-syntax
+PASS  stop-missing bad-flag
 PASS  smis rc
 PASS  smis END
 PASS  smis rows
@@ -255,6 +286,7 @@ PASS  smis restore-ran
 PASS  smis timeout-restored
 == fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
 PASS  stop-skinfb shell-syntax
+PASS  stop-skinfb bad-flag
 PASS  sskin rc
 PASS  sskin END
 PASS  sskin rows
@@ -263,6 +295,7 @@ PASS  sskin restore-ran
 PASS  sskin timeout-restored
 == fixture A5: untrusted battery still stops on 44.5 C (never disarmed) ==
 PASS  stop-untrusted-batt shell-syntax
+PASS  stop-untrusted-batt bad-flag
 PASS  sunb rc
 PASS  sunb END
 PASS  sunb rows
@@ -271,6 +304,7 @@ PASS  sunb restore-ran
 PASS  sunb timeout-restored
 == fixture: stop fires mid-arm (background poll, POLL_S=1) ==
 PASS  stop-midarm shell-syntax
+PASS  stop-midarm bad-flag
 PASS  smid rc
 PASS  smid END
 PASS  smid rows
@@ -279,6 +313,7 @@ PASS  smid restore-ran
 PASS  smid timeout-restored
 == fixture A-4: pkill that does not kill -> loud kill_unverified end ==
 PASS  kill-unverified shell-syntax
+PASS  kill-unverified bad-flag
 PASS  kuv rc
 PASS  kuv END
 PASS  kuv rows
@@ -289,6 +324,7 @@ PASS  kuv timeout-restored
 PASS  kuv pgrep probed
 == fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 ==
 PASS  restore-late shell-syntax
+PASS  restore-late bad-flag
 PASS  rla rc
 PASS  rla END
 PASS  rla rows-ok
@@ -298,6 +334,7 @@ PASS  rla restore rc
 PASS  rla timeout-restored
 == fixture A-N7: an unconfirmed sampler pause is flagged in the row ==
 PASS  sampler-unconfirmed shell-syntax
+PASS  sampler-unconfirmed bad-flag
 PASS  spc rc
 PASS  spc END
 PASS  spc rows
@@ -308,6 +345,7 @@ PASS  spc restore-ran
 PASS  spc timeout-restored
 == fixture A-10/A-3: production 15 s poll cadence during the load phase ==
 PASS  poll-cadence shell-syntax
+PASS  poll-cadence bad-flag
 PASS  pcad rc
 PASS  pcad END
 PASS  pcad rows
@@ -317,6 +355,7 @@ PASS  poll-cadence restore-ran
 PASS  poll-cadence timeout-restored
 == fixture A2: stale stop_request + END cleared at session start ==
 PASS  stale shell-syntax
+PASS  stale bad-flag
 PASS  stale rc
 PASS  stale END
 PASS  stale rows
@@ -327,6 +366,7 @@ PASS  stale restore-ran
 PASS  stale timeout-restored
 == fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
 PASS  timeout shell-syntax
+PASS  timeout bad-flag
 PASS  tmo rc
 PASS  tmo END
 PASS  tmo rows
@@ -339,6 +379,7 @@ PASS  tmo restore-ran
 PASS  tmo timeout-restored
 == fixture A7: unequal decode voids the row and stops the session ==
 PASS  decode-unequal shell-syntax
+PASS  decode-unequal bad-flag
 PASS  dec rc
 PASS  dec END
 PASS  dec rows
@@ -349,6 +390,7 @@ PASS  dec restore-ran
 PASS  dec timeout-restored
 == fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) ==
 PASS  decode-derived shell-syntax
+PASS  decode-derived bad-flag
 PASS  decder rc
 PASS  decder END
 PASS  decder rows
@@ -358,6 +400,7 @@ PASS  decder restore-ran
 PASS  decder timeout-restored
 == fixture A-6: stale .restore-state is consumed (prior restore), not clobbered ==
 PASS  prior-restore shell-syntax
+PASS  prior-restore bad-flag
 PASS  prs rc
 PASS  prs END
 PASS  prs prior restore log
@@ -368,15 +411,18 @@ PASS  prior-restore restore-ran
 PASS  prior-restore timeout-restored
 == fixture A-9: adb failures log loudly instead of dying raw ==
 PASS  fail-devices shell-syntax
+PASS  fail-devices bad-flag
 PASS  fdv rc
 PASS  fdv NO_DEVICE logged
 PASS  fdv no-END (pre-trap exit)
 PASS  fail-soc shell-syntax
+PASS  fail-soc bad-flag
 PASS  fsoc rc
 PASS  fsoc ADB_FAIL logged
 PASS  fsoc no-END (pre-trap exit)
 == fixture NEW-4: broken pgrep aborts before any load ==
 PASS  pgrep-broken shell-syntax
+PASS  pgrep-broken bad-flag
 PASS  pgb rc
 PASS  pgb selftest failed
 PASS  pgb END
@@ -387,17 +433,20 @@ PASS  pgb restore unverified
 PASS  pgb timeout-restored
 == fixture A-N6: a pin from another board refuses the session ==
 PASS  calib-pin-mismatch shell-syntax
+PASS  calib-pin-mismatch bad-flag
 PASS  cpm rc
 PASS  cpm mismatch logged
 PASS  cpm no-END (pre-trap exit)
 PASS  cpm no load ran
 == fixture A-N5a: an out-of-band pin rate refuses the session pre-device ==
 PASS  calib-pin-badrate shell-syntax
+PASS  calib-pin-badrate bad-flag
 PASS  cpr rc
 PASS  cpr invalid logged
 PASS  cpr no-END (pre-trap exit)
 == fixture A-N5a (lower edge): rate 0.1 refused ==
 PASS  calib-pin-badrate-low shell-syntax
+PASS  calib-pin-badrate-low bad-flag
 PASS  cprlo rc
 PASS  cprlo invalid logged
 PASS  cprlo no-END (pre-trap exit)
@@ -405,6 +454,7 @@ PASS  cprlo never touched the device
 PASS  cpr never touched the device
 == fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
 PASS  no-selfmatch shell-syntax
+PASS  no-selfmatch bad-flag
 PASS  nsm rc
 PASS  nsm END
 PASS  nsm rows
@@ -421,4 +471,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=379 FAIL=0
+dryrun summary: PASS=428 FAIL=0

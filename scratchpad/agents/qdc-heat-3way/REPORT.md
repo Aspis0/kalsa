@@ -69,21 +69,21 @@ measured window is prefill+decode only. The app has no NPU route
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (360 — declared, over the ~350 indicative: proof/turn cmds, two parses, gates; splitting would move lines only for the number) — proof-run and turn commands, run/pull, shared perf parse,
+- `arm.sh` (362 — declared, over the ~350 indicative: proof/turn cmds, two parses, gates; splitting would move lines only for the number) — proof-run and turn commands, run/pull, shared perf parse,
   fingerprint (with the `off`-is-a-count note), the two parses.
 - `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
   row column), resume, stop.
 - `restore.sh` (88) — undo every device change (standalone-capable,
   health-probed kill with a `kill_check=` verdict field).
 - `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
-- `dryrun-adb.sh` (431 — declared, over the ~350 indicative) — fake adb with
+- `dryrun-adb.sh` (448 — declared, over the ~350 indicative) — fake adb with
   reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, a
   `dash -n` syntax check on every shell string, and the real f25 log shapes
   (buffer sets, verbatim hexagon lines).
-- `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (134, incl. the real-pin
-  backup/restore) + `dryrun-core.sh` (245) + `dryrun-stops.sh` (120) +
-  `dryrun-paths.sh` (136) — fixture matrix split by topic (43 fixtures, 379
-  assertions).
+- `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (148, incl. real-pin
+  backup/restore + bad-flag assertion) + `dryrun-core.sh` (253) +
+  `dryrun-stops.sh` (120) + `dryrun-paths.sh` (136) — fixture matrix split by
+  topic (44 fixtures, 428 assertions).
 - `PREREG.md` (379), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
@@ -583,7 +583,7 @@ calibration included — carries the interactive lines
 
 | fix (file:line) | what |
 |---|---|
-| `arm.sh:107` (turn), `arm.sh:118` (proof) | `--no-cnv` in BOTH remote commands **and** `</dev/null` on their stdin — no current or future mode can block on input |
+| `arm.sh:107` (turn), `arm.sh:118` (proof) | `--no-conversation` (LONG form — `common/arg.cpp:1900` accepts only `-no-cnv` / `--no-conversation`, a double-dashed short name is no alias; `--no-cnv` would be rejected) in BOTH remote commands **and** `</dev/null` on their stdin — no current or future mode can block on input |
 | `arm.sh:332-335` (turn, fail-fast) and `arm.sh:246-253,311-314` (proof, deferred past the thresholds so `ARM_PROOF` still carries the real counts) | gate: any proof/turn log containing `Running in interactive mode` → VOID `interactive_mode`; the turn gates before perf, the proof gates last so calib reports keep counts (either reason voids a doubly-bad log) |
 | `dryrun-adb.sh:43,216-221` | knob `DRY_INTERACTIVE=1` emits the two real lines (run-5 shapes) in both phases |
 | `dryrun-core.sh:144-151` | fixture `interactive-mode`: rc 0, rows 1, VOID `interactive_mode`, `END method_void_interactive_mode` — **RED on the old gate, GREEN after** |
@@ -604,7 +604,7 @@ relied on (`raw/s23-calib-4/calib/*`, `raw/s23-3way-5/*`):**
 - **Turn count**: calib-4 turns show `prompt eval … / 1018 tokens` and
   `eval … / 15 runs` for `-n 16` — exactly the raw count and N−1, so the
   templating did not change the `-f` file's eval count (1018 was also the
-  app's raw chunk count); the post-`-no-cnv` count must be re-observed but
+  app's raw chunk count); the post-`--no-conversation` count must be re-observed but
   all three arms share it either way.
 - **Perf lines**: present, prefixed, parse unchanged (round-9/10 fixtures
   still pass on those logs) — `interactive_mode` is the only new verdict.
@@ -617,7 +617,7 @@ relied on (`raw/s23-calib-4/calib/*`, `raw/s23-3way-5/*`):**
 # fixture + fake knob, OLD arm.sh (no gate):
 ./dryrun.sh > /tmp/dr11-red.log 2>&1; echo "EXIT=$?"
 EXIT=1   PASS=372 FAIL=4     (raw/dryrun-interactive-red.log; imode rows/status/void/END red)
-# after -no-cnv + </dev/null + gates + prompt_mode pin:
+# after --no-conversation + </dev/null + gates + prompt_mode pin:
 ./dryrun.sh > /tmp/dr11-green2.log 2>&1; echo "EXIT=$?"
 EXIT=0   PASS=379 FAIL=0      (raw/dryrun-final-run.log)
 bash -n on every script → 0
@@ -627,13 +627,49 @@ the new fixture (python anchor typo → fixture never added) and its EXIT=0
 was vacuous — caught by the script's own assertion failure, fixture added,
 red re-run properly.
 
-**Not verified (round 11):** `-no-cnv` on the real build (flag + hint are in
+**Not verified (round 11):** `--no-conversation` on the real build (flag + hint are in
 the source and in the real log, but never executed on the board); that the
 post-fix logs are interactive-free (the void path is fixture-proven, absence
 unproven until run 6); `</dev/null` behavior on adbd; the real templated pin
 refusal (fixtures seed it; the real `calib.ok` sha is unchanged
 `6bfff2b9…f9cdf1`); whether turn `prompt_n` stays 1018 after the fix
 (observed 1018 while templated — re-observe).
+
+## Round 12 — `--no-cnv` is not an alias; the fake now parses flags (2026-09-27)
+
+Bug in `727b56b6`: both remote commands passed `--no-cnv`, but
+`common/arg.cpp:1899-1900` lists `{"-no-cnv", "--no-conversation"}` — a
+double-dashed SHORT name is not an alias, so the real binary would reject it
+as an invalid argument (the same misspelling would have killed run 6 at
+load).
+
+| fix (file:line) | what |
+|---|---|
+| `arm.sh:109` (turn), `arm.sh:120` (proof) | `--no-conversation` (long, unambiguous) in both commands |
+| `arm.sh:48-51`, `PREREG.md:146,153-155`, `REPORT.md` round-11 rows, `pin.sh:33`, `dryrun-core.sh:14` | every prose/comment spelling of what the CODE passes corrected to `--no-conversation`; the source quotes of `-no-cnv` and the arg table itself stay verbatim (they are quotes, not commands) |
+| `dryrun-adb.sh:169-186` | the fake now rejects unknown long options against (a slice of) the real arg list before anything loads: an INVALID list containing `--no-cnv`, plus `DRY_BAD_FLAG=1` to inject a miss so the rejector stays exercised; rejection = `REJECTED_FLAG` in `$STATE/bad_flag.log` + `error: unrecognized option` + rc 2 (real-parser shape) |
+| `dryrun-lib.sh:110-121` | every fixture asserts that NO invalid option reached an arm (`EXPECT_BAD_FLAG=1` opts in); fixture `bad-flag` (`dryrun-core.sh:153-160`) proves the rejector itself: injected miss → rows `load_fail`, log present |
+| `dryrun-core.sh` comments | era renamed to `pre --no-conversation` |
+
+**Red → green, quoted exit codes:**
+
+```
+# old arm.sh (--no-cnv) + rejecting fake:
+./dryrun.sh > /tmp/dr12-red.log 2>&1; echo "EXIT=$?"
+EXIT=1   PASS=287 FAIL=141      (raw/dryrun-flag-red.log)
+         six-arms bad-flag FAIL quoting the exact `… --no-cnv -c 2048 …` command
+# after --no-conversation:
+./dryrun.sh > /tmp/dr12-green2.log 2>&1; echo "EXIT=$?"
+EXIT=0   PASS=428 FAIL=0         (raw/dryrun-final-run.log)
+bash -n on every script → 0
+```
+
+**Not verified (round 12):** the real binary's exact rejection behavior for
+`--no-cnv` (exit code and message) — the source proves it is absent from the
+table; the fake models it as rc 2 + `error: unrecognized option`. The INVALID
+list carries this one alias by design (extend as misses are found, same way
+`common/arg.cpp` is the authority); `--no-conversation` itself has still
+never been executed on the board.
 
 ## Declared, not touched
 

@@ -40,6 +40,8 @@
 #   DRY_GPU_KERNELS=N      GGML_OPENCL_LOG_KERNELS line count (default 12, A6 floor 8)
 #   DRY_GPU_DISABLED=1     append the kernel-build-failed/device-disabled line
 #   DRY_PROMPT_N           prompt token count in the perf line (default 1018)
+#   DRY_BAD_FLAG=1          inject an invalid long option into every arm
+#       command — proves the arg-rejector (real parser: no --no-cnv)
 #   DRY_INTERACTIVE=1       the log carries the conversational/interactive
 #       lines the real build printed for every run (run 5's hang) — proves
 #       the interactive_mode gate
@@ -165,6 +167,21 @@ emit_cpu_block() { # discovery lines mirror the real A.log: -ngl 0 still lists
   fi
 }
 run_arm() { # synthesizes the pulled llama-completion log (proof/load phase or turn)
+  # Reject unknown long options the way the real parser does, BEFORE anything
+  # loads: common/arg.cpp:1899-1900 lists {"-no-cnv", "--no-conversation"} —
+  # a double-dashed SHORT name is not an alias, so `--no-cnv` is an invalid
+  # option. The list mirrors that table (extend it when another miss is found);
+  # DRY_BAD_FLAG injects a miss so the rejector itself stays exercised.
+  local bad=0 opt
+  for opt in --no-cnv; do
+    case "$cmd" in *"$opt"*) bad=1 ;; esac
+  done
+  if [ "${DRY_BAD_FLAG:-0}" = 1 ]; then bad=1; fi
+  if [ "$bad" = 1 ]; then
+    printf 'REJECTED_FLAG --no-cnv (valid spellings: -no-cnv, --no-conversation) cmd=%s\n' "$cmd" >> "$STATE/bad_flag.log"
+    echo "error: unrecognized option '--no-cnv'" >&2
+    exit 2
+  fi
   if [ "${DRY_ARM_SLEEP_S:-0}" -gt 0 ]; then sleep "$DRY_ARM_SLEEP_S"; fi
   local tag backend prefill prompt_n phase ngl fit_ngl cand_lines fp_part buf_name
   # redirect target carries the job id: heat3way/<job>-t1cpu[.load].log

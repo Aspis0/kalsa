@@ -1,0 +1,1 @@
+fake-adb: cannot stat '/data/local/tmp/heat3way/dry-bad-flag-t2gpu.load.log': No such file or directory

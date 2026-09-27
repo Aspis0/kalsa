@@ -1,16 +1,16 @@
-[01:40:04] SESSION job=dry-kill-unverified board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[01:40:04] KIT_UNPACK_PUSH
-[01:40:04] DEVICE_LIST_OK
-[01:40:04] KIT_PUSH ship.gguf sha_before=absent
-[01:40:04] KIT_PUSH prompt.txt sha_before=absent
-[01:40:06] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[01:40:06] GATE label=setup
-[01:40:06] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[01:40:06] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[01:40:06] SAMPLER_LAUNCHED pid=63658
-[01:40:06] ARM_START turn=1 backend=cpu pair=1 tag=dry-kill-unverified-t1cpu
-[01:40:08] STOP reason=battery_temp
-[01:40:08] PKILL_UNVERIFIED ctx=stop_battery_temp pgrep_rc=0 — remote llama-completion may still be running
-[01:40:10] SESSION_STOP reason=battery_temp
-[01:40:10] KILL_UNVERIFIED_END (remote llama-completion may still be running on the device)
-[01:40:10] RESTORE_FAIL (see restore.sh output)
+[01:54:29] SESSION job=dry-kill-unverified board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[01:54:29] KIT_UNPACK_PUSH
+[01:54:29] DEVICE_LIST_OK
+[01:54:29] KIT_PUSH ship.gguf sha_before=absent
+[01:54:29] KIT_PUSH prompt.txt sha_before=absent
+[01:54:31] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[01:54:31] GATE label=setup
+[01:54:31] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[01:54:31] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:54:31] SAMPLER_LAUNCHED pid=43464
+[01:54:31] ARM_START turn=1 backend=cpu pair=1 tag=dry-kill-unverified-t1cpu
+[01:54:33] STOP reason=battery_temp
+[01:54:33] PKILL_UNVERIFIED ctx=stop_battery_temp pgrep_rc=0 — remote llama-completion may still be running
+[01:54:35] SESSION_STOP reason=battery_temp
+[01:54:35] KILL_UNVERIFIED_END (remote llama-completion may still be running on the device)
+[01:54:35] RESTORE_FAIL (see restore.sh output)

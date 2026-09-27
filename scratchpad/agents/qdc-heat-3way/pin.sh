@@ -30,7 +30,7 @@ resolve_calib_pin() {
   kit_sha=$(sed -n 's/^kit_sha=//p' "$CELL/calib.ok" | tail -1)
   prompt_mode=$(sed -n 's/^prompt_mode=//p' "$CELL/calib.ok" | tail -1)
   if [ -z "$floor" ] || [ -z "$serial" ] || [ -z "$soc" ] || [ -z "$model_sha" ] || [ -z "$kit_sha" ] || [ -z "$prompt_mode" ]; then
-    # prompt_mode is required since -no-cnv (run 5): a pin without it was
+    # prompt_mode is required since --no-conversation (run 5): a pin without it was
     # measured on TEMPLATED proofs and must be re-pinned by CALIBRATE=1.
     why="missing_keys"
   elif [ "$prompt_mode" != raw ]; then
