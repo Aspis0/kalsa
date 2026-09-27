@@ -1,0 +1,1 @@
+/data/local/tmp/dspark-spec/A0b-m1.log: 1 file pulled, 0 skipped. 0.4 MB/s (15483 bytes in 0.035s)

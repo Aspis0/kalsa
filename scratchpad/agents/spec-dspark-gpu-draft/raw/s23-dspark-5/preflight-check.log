@@ -1,0 +1,11 @@
+        mInputRestricted=false
+  mWakefulness=Dozing
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 65
+  temperature: 259
+  Capacity level: -1
+0
+Thermal Status: 0
+PROCESSES_CLEAR

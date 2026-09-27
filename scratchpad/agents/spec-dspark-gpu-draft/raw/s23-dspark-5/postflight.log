@@ -1,0 +1,14 @@
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 62
+  temperature: 320
+traced=0
+Thermal Status: 0
+  mWakefulness=Awake
+        mInputRestricted=false
+0
+PROCESSES_CLEAR
+Deleted 1 rows
+null
+0

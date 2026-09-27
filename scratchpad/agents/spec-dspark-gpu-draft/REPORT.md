@@ -277,3 +277,43 @@ The skin peak column is the highest safety sample bounded by that row's
 start/end gates. `END reason=exit_0`, driver exit 0; restore verified `rc=0`,
 sampler stopped, screen timeout and stay-on returned to saved values. Raw
 logs and context evidence are in `raw/s23-dspark-4/`.
+
+
+## S23 DSpark run 5 — plain baseline bracket and matched-N completed
+
+Preflight on the pinned TLS serial: unplugged, battery 65% / 26.0 C, thermal
+0, traced 0, battery sensor trusted, Kalsa and llama/bench absent. The screen
+was initially dozing; it was woken and unlocked before the run. A host wakeup
+loop kept the display awake through the session. Afterward: unplugged, battery
+62% / 32.0 C, thermal 0, traced 0, no llama/bench/Kalsa process; screen was
+awake/unlocked at postflight. The driver's restore returned stay-on to 0; the
+original absent screen timeout was restored to `null` after the driver (its
+saved preflight state was the temporary 1800000 ms timeout used to keep the
+display awake).
+
+All seven proof rows passed (CPU drafter 0/6 GPU; OpenCL drafter 6/6 GPU and
+19 kernels on C arms). `MATCH ok n=136 arms=7`; every final row is matched,
+void reason `na`. The two plain completion rows use the `common_perf_print:
+eval time` metric; speculative rows use the driver's `decoded ... speed`
+metric. The raw logs retain both superseded N=126 baselines and matched-N
+reruns.
+
+| Final arm | Status / void | Drafter placement | n_drafted / n_accept / accept | Decode t/s | Skin start / peak C |
+|---|---|---|---:|---:|---:|
+| A0-m1 | matched / na | Plain CPU; no drafter | — | 23.63 | 33.3 / 33.9 |
+| A-m1 | matched / na | CPU, 0/6 GPU | 0 / 0 / nan% | 17.136 | 33.9 / 34.2 |
+| B4-m1 | matched / na | CPU, 0/6 GPU | 161 / 95 / 59.006% | 21.137 | 34.2 / 34.6 |
+| B8 | matched / na | CPU, 0/6 GPU | 253 / 104 / 41.107% | 18.353 | 32.1 / 32.3 |
+| C4-m1 | matched / na | OpenCL, 6/6 GPU | 165 / 94 / 56.970% | 9.511 | 34.6 / 34.7 |
+| C8 | matched / na | OpenCL, 6/6 GPU | 253 / 104 / 41.107% | 9.568 | 32.7 / 33.2 |
+| A0b-m1 | matched / na | Plain CPU; no drafter | — | 23.50 | 34.6 / 34.7 |
+
+A0 and A0b's initial equal-N=126 eval lines were 24.52 and 23.98 t/s
+respectively (A0b − A0 = −0.54 t/s, −2.2%). At matched N=136 their eval
+lines were 23.63 and 23.50 t/s (−0.13 t/s, −0.6%). Skin peaks use the maximum
+live safety sample during each winning arm window (`safety.log`), not just
+its ending gate sample.
+
+`END reason=exit_0`, driver exit 0; restore completed `rc=0`; no stop fired.
+The command, preflight/postflight, driver output, arm logs, sampler, and restore
+evidence are in `raw/s23-dspark-5/`.

@@ -1,0 +1,1 @@
+/data/local/tmp/dspark-spec/B8-p.log: 1 file pulled, 0 skipped. 2.2 MB/s (128024 bytes in 0.057s)

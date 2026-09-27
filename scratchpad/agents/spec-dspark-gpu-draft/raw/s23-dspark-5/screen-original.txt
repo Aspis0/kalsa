@@ -1,0 +1,2 @@
+original_screen_off_timeout=null
+original_stay_on_while_plugged_in=0

@@ -1,0 +1,10 @@
+===POWER===
+  mWakefulness=Awake
+===KEYGUARD===
+        mInputRestricted=false
+===BATTERY===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 65
+  temperature: 260
