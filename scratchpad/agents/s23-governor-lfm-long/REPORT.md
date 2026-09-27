@@ -71,3 +71,21 @@ The app initially had a dead-load marker (`KALSA_PREWARM op=skip reason=not_read
 | 3 | Long event-planning prompt, 587 words; `prompt_n=981` | GPU / CPU | 10,358.639 | 9.98 | 0→3; 33.6→41.6 °C; 34.7→41.1 °C; 54→51% | Mostly: coherent plan honoring the stated family/accessibility constraints, though overlong. |
 
 All three governor records show `route_push=applied`, `route_mismatch=null`, `engine_prefill=GPU`, `engine_decode=CPU`, `fit=Fit`, `failed=false`, and GPU actual route chunks. Turn 3's telemetry completed at 15:25:33; the subsequent sensor sample showed Android `Thermal Status: 3` and skin sensor status 3. I stopped there: only 3 of 5 turns were sent, despite battery remaining above the 45% floor. No fourth or fifth turn was attempted. The Governor's logged state remained `FAST`; Android thermal status is reported separately. No thermal-performance conclusion is drawn from this diagnostic smoke. Raw prompts, UI snapshots, power/thermal state, telemetry and verbatim fixtures are in `raw/manual-smoke/`.
+
+## Battery-only governor baseline before platform-status response — 2026-09-27
+
+The requested preflight passed: unplugged, battery 46%, battery 28.0 °C, Android thermal status 0, traced 0, screen Awake/unlocked, Kalsa foreground, and no llama/bench process. The installed APK was `ae64564d` with SHA-256 `cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc`; provenance gate passed. Both host suites passed (`harness:campaign` EXIT 0, `passed=83 failed=0`; standalone defects EXIT 0, `passed=83 failed=0`). No app or harness files were edited.
+
+The app worktree advanced from the coordinator's `e2c92faf` to `373dbbfa` while preparing. I checked the diff: `scripts/campaign` and `campaigns/t20c.json` are unchanged from `e2c92faf`. The intervening platform-SEVERE app change (`19368426`) was not in the installed `ae64564d` APK, so the device run remained the requested pre-change build. The TLS endpoint and effective config are saved under `raw/baseline-before-thermal-20260927/`.
+
+**Outcome:** one user-prompt row was collected; Android thermal status reached 3 (SEVERE) at the turn-2 send gate, before turn 2 was sent or prefetched. The exact stop was `thermal hard abort turn 2: unplugged thermal status 3 >= 3` (`runner.log`, EXIT=1). Battery remained above both the 40% start floor and 25% stop floor; no charging or 44 °C battery stop fired.
+
+| Turn / phase | Route; prompt_n; prefill ms; decode tok/s | Governor state | Android status / battery temp / level |
+|---|---|---|---|
+| 1, first completion round | Route not present in the round-0 log; prompt_n=1943, 17,038.508 ms, 11.58 tok/s | Not present in the round-0 record | Collected env: status 0, battery 35.8 °C, 44% |
+| 1, delayed tool continuation (`write_note`) | Actual GPU prefill / CPU decode; prompt_n=186, 2,332.741 ms, 10.54 tok/s | `FAST`, `thermo_source=battery`, Fit | Governor line arrived at 16:44:33; the next send was then stopped by Android status 3 |
+| 2, send gate | No prompt delivered; no prefill | — | Status 3; hard-abort stop |
+
+`KALSA_GOVERNOR` for turn 1 confirms actual GPU chunks `2+128+56`, CPU decode, `thermal_state:"FAST"`, and no failure. However, it arrived after the campaign had written the turn-1 JSONL row and advanced: that row has `assistant:"#"`, only telemetry round 0, and `KALSA_GOVERNOR:[]`. The raw logcat later contains telemetry round 1 and the governor line. Thus the runtime reached the thermal stop after one submitted prompt, but the turn JSONL is incomplete and the assistant answer is not a verified completed answer; treat the exact turn-count result as a diagnostic baseline with this harness bookkeeping defect noted.
+
+Battery temperature rose from 28.0 °C at preflight to 31.0 °C after model load, 35.8 °C at the collected turn-1 row, then through 37.5, 38.8, 39.9 and 40.9 °C (last BatteryDump sample at 16:44:29). The status-3 abort occurred after that sample; the post-stop read, after cooling, was battery 36.4 °C, Android status 1, level 42%. Full samples, runner output, JSONL, filtered battery curve, pre/post state and test logs are in `raw/baseline-before-thermal-20260927/`. Screen finalization confirmed Awake, Kalsa foreground, timeout `2147483647`; traced remained 0.

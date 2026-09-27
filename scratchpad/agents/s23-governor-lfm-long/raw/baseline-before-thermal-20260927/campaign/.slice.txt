@@ -1,0 +1,498 @@
+09-27 16:40:54.710  2548  5262 W ActivityTaskManager: callingPackage for (uid=2000, pid=18575) has no WPC
+09-27 16:40:54.712  2548  5262 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+09-27 16:40:54.712  2548  5262 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+09-27 16:40:54.713  2548  5262 W BLASTSyncEngine: setSyncMethod, id=463, method=0, caller=com.android.server.wm.TransitionController.moveToCollecting:91 com.android.server.wm.TransitionController.createAndStartCollecting:109 com.android.server.wm.ActivityStarter.executeRequest:3606 
+09-27 16:40:54.720  5036  5036 E pageboostd: Received HALT command code 2
+09-27 16:40:54.721 18337 18337 W unknown:BridgelessReact: ReactHost{0}.onHostPause(activity)
+09-27 16:40:54.721 18337 18337 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostPause()
+09-27 16:40:54.724 18337 18337 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+09-27 16:40:54.724 18337 18337 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+09-27 16:40:54.733 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-27 16:40:54.752  2548 19852 W FillRequestEventLogger: Shouldn't be logging AutofillFillRequestReported again for same event
+09-27 16:40:54.752  2548 19852 W FillResponseEventLogger: Shouldn't be logging AutofillFillRequestReported again for same event
+09-27 16:40:54.752  2548 19852 W PresentationStatsEventLogger: Empty dataset. Autofill ignoring log
+09-27 16:40:54.752  2548 19852 W AutofillInlineSuggestionsRequestSession: Never received an InlineSuggestionsRequest from the IME for 1073741824@451917116
+09-27 16:40:54.755  2548  4238 W PresentationStatsEventLogger: Bad view state for: -1, state: ViewState: [id=1073741824@441468090, state:1000, currentValue:android.view.autofill.AutofillValue@33ba7fbe]
+09-27 16:40:54.760  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:54.835 18581 18581 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+09-27 16:40:54.838 18581 18581 I AndroidRuntime: Using default boot image
+09-27 16:40:54.838 18581 18581 I AndroidRuntime: Leaving lock profiling enabled
+09-27 16:40:54.897 18581 18581 W app_process: ClassLoaderContext shared library size mismatch. Expected=2, found=0 (PCL[]{PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[])
+09-27 16:40:54.897 18581 18581 W app_process: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[]{PCL[/system/framework/android.test.runner.jar*1555405057]#PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[/system/framework/android.test.runner.jar*1555405057])
+09-27 16:40:54.907 18581 18581 E SemDvfsManager_JNI: SemDvfsManager: registerfunction enter
+09-27 16:40:54.907 18581 18581 E SemAffinityControl: SemAffinityControl: registerfunction enter
+09-27 16:40:54.914 18581 18581 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+09-27 16:40:54.920 18581 18581 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+09-27 16:40:54.921 18581 18581 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+09-27 16:40:54.923  2548  6104 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:40:54.928  2548  6104 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:40:54.928  2548  4238 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:40:54.930  2548  4941 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:40:55.105  1804  1912 E HWComposer: getLuts: getLuts failed for display 4630947059332006275: UNSUPPORTED (8)
+09-27 16:40:55.194  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:55.194  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:55.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541655
+09-27 16:40:55.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:40:55.954 18581 18581 W AccessibilityNodeInfoDumper: Fetch time: 13ms
+09-27 16:40:55.956  2548  5262 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:40:55.958 18581 18598 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:40:55.958 18581 18581 D AndroidRuntime: Shutting down VM
+09-27 16:40:55.958 18581 18590 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:40:55.959  2548  4941 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:40:55.959 18581 18591 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:40:55.960  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:55.961  2548  5262 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:40:56.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541656
+09-27 16:40:56.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:40:56.262  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:56.262  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:56.948  2548  3757 W DeviceStorageMonitorService: updateBroadcasts(/data) oldLevel:0, newLevel:0, seq:1
+09-27 16:40:56.949  2548  3757 W DeviceStorageMonitorService: updateBroadcasts_filenode(/data) fn_oldLevel:0, fn_newLevel:0, seq:1
+09-27 16:40:57.228  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541657
+09-27 16:40:57.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:40:57.995  1751  1793 E BatteryDump: !@new_battery_dump : 3814,-81,100,100,45,312,290,325,312,0,320,394,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3834,4496,980,0,
+09-27 16:40:58.038  3987  3987 W View    : requestLayout() improperly called by com.android.systemui.qs.SecQSGradationDrawableView{103ff0f V.E...... ......ID 0,0-1080,354 #7f0a0a16 app:id/qs_gradation_view} during layout: running second layout pass
+09-27 16:40:58.038  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b045b9c V.E...... ......I. 0,0-1080,2340 #2} during layout: running second layout pass
+09-27 16:40:58.038  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b6cb9a5 V.E...... ......ID 0,153-1080,2196 #7f0a0a14 app:id/qs_frame} during layout: running second layout pass
+09-27 16:40:58.040  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:40:58.062  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:58.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541658
+09-27 16:40:58.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:40:58.314  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:58.314  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:40:59.228  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541659
+09-27 16:40:59.234  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:00.052  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:41:00.073  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:00.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541660
+09-27 16:41:00.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:00.325  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:00.325  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:00.635  2548  3176 E Watchdog: !@Sync: 4751 heap(MB): 105 / 132 FD: 1156 [2026-09-27 16:41:00.635]
+09-27 16:41:01.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541661
+09-27 16:41:01.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:02.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541662
+09-27 16:41:02.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:03.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541663
+09-27 16:41:03.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:04.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541664
+09-27 16:41:04.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:05.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541665
+09-27 16:41:05.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:06.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541666
+09-27 16:41:06.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:06.346  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:716 scan: address_manager_registered_
+09-27 16:41:06.346  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:768 stop_scan: stop_scan
+09-27 16:41:06.347  4204  5271 W bt_shim_scanner: system/main/shim/le_scanning_manager.cc:365 SetScanParameters: Set scan params scan_int_1m : 585, scan_win_1m : 30, Duty : 5.13% | scan_int_coded : 0, scan_win_coded : 0, Duty : nan%
+09-27 16:41:06.356  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:732 start_scan: start_scan
+09-27 16:41:06.356  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:735 start_scan: Register address manager
+09-27 16:41:07.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541667
+09-27 16:41:07.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:08.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541668
+09-27 16:41:08.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:09.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541669
+09-27 16:41:09.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:09.666 18613 18613 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:10.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541670
+09-27 16:41:10.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:10.746  2548  4237 W CAE     : registerCallback(ContextAwareService.java:188) - [regi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:41:10.746  2548  4237 W CAE     : registerCallback(ContextAwareService.java:195) - [regi 04]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:10.746  2548  4237 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:10.746  2548  4237 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:41:10.757  2548  4237 W CAE     : registerCallback(ContextAwareService.java:209) - [regi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:41:10.757  2548  4237 E SemContext.CaeProvider: setAttribute() : attribute is null!
+09-27 16:41:10.758  2548  4237 E SensorService: BigData:Pakage) 5 already enabled. 
+09-27 16:41:10.868  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:716 scan: address_manager_registered_
+09-27 16:41:10.868  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:768 stop_scan: stop_scan
+09-27 16:41:10.868  4204  5271 W bt_shim_scanner: system/main/shim/le_scanning_manager.cc:365 SetScanParameters: Set scan params scan_int_1m : 3120, scan_win_1m : 160, Duty : 5.13% | scan_int_coded : 0, scan_win_coded : 0, Duty : nan%
+09-27 16:41:10.878  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:732 start_scan: start_scan
+09-27 16:41:10.878  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:735 start_scan: Register address manager
+09-27 16:41:11.017  2548  5262 W CAE     : unregisterCallback(ContextAwareService.java:230) - [unregi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:41:11.017  2548  5262 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:11.017  2548  5262 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:41:11.023  2548  5262 W CAE     : unregisterCallback(ContextAwareService.java:251) - [unregi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:41:11.040  4204  5075 E BluetoothRemoteDevices: Remote class is UNCATEGORIZED
+09-27 16:41:11.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541671
+09-27 16:41:11.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:12.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541672
+09-27 16:41:12.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:12.683  2548  5262 E SensorService: BigData:Pakage) 5 already disabled. 
+09-27 16:41:13.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541673
+09-27 16:41:13.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:14.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541674
+09-27 16:41:14.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:15.228  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541675
+09-27 16:41:15.234  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:16.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541676
+09-27 16:41:16.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:17.230  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541677
+09-27 16:41:17.237  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:18.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541678
+09-27 16:41:18.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:18.235 18618 18618 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+09-27 16:41:18.238 18618 18618 I AndroidRuntime: Using default boot image
+09-27 16:41:18.238 18618 18618 I AndroidRuntime: Leaving lock profiling enabled
+09-27 16:41:18.291 18618 18618 W app_process: ClassLoaderContext shared library size mismatch. Expected=2, found=0 (PCL[]{PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[])
+09-27 16:41:18.291 18618 18618 W app_process: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[]{PCL[/system/framework/android.test.runner.jar*1555405057]#PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[/system/framework/android.test.runner.jar*1555405057])
+09-27 16:41:18.301 18618 18618 E SemDvfsManager_JNI: SemDvfsManager: registerfunction enter
+09-27 16:41:18.301 18618 18618 E SemAffinityControl: SemAffinityControl: registerfunction enter
+09-27 16:41:18.307 18618 18618 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+09-27 16:41:18.311 18618 18618 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+09-27 16:41:18.312 18618 18618 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+09-27 16:41:18.313  2548  4237 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:18.317  2548  4237 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:18.323  2548  5059 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:18.326  2548  5059 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:18.333  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:18.586  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:18.586  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:18.936  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:716 scan: address_manager_registered_
+09-27 16:41:18.936  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:768 stop_scan: stop_scan
+09-27 16:41:18.937  4204  5271 W bt_shim_scanner: system/main/shim/le_scanning_manager.cc:365 SetScanParameters: Set scan params scan_int_1m : 585, scan_win_1m : 30, Duty : 5.13% | scan_int_coded : 0, scan_win_coded : 0, Duty : nan%
+09-27 16:41:18.947  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:732 start_scan: start_scan
+09-27 16:41:18.947  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:735 start_scan: Register address manager
+09-27 16:41:19.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541679
+09-27 16:41:19.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:19.342 18618 18618 W AccessibilityNodeInfoDumper: Fetch time: 10ms
+09-27 16:41:19.343  2548  5262 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:19.345 18618 18634 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:19.345 18618 18627 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:19.346 18618 18618 D AndroidRuntime: Shutting down VM
+09-27 16:41:19.346 18618 18629 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:19.348  2548  5262 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:19.349  2548  5262 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:19.388  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:19.644  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:19.644  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:20.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541680
+09-27 16:41:20.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:20.361 18640 18640 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+09-27 16:41:20.364 18640 18640 I AndroidRuntime: Using default boot image
+09-27 16:41:20.364 18640 18640 I AndroidRuntime: Leaving lock profiling enabled
+09-27 16:41:20.418 18640 18640 W app_process: ClassLoaderContext shared library size mismatch. Expected=2, found=0 (PCL[]{PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[])
+09-27 16:41:20.419 18640 18640 W app_process: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[]{PCL[/system/framework/android.test.runner.jar*1555405057]#PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[/system/framework/android.test.runner.jar*1555405057])
+09-27 16:41:20.428 18640 18640 E SemDvfsManager_JNI: SemDvfsManager: registerfunction enter
+09-27 16:41:20.428 18640 18640 E SemAffinityControl: SemAffinityControl: registerfunction enter
+09-27 16:41:20.434 18640 18640 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+09-27 16:41:20.439 18640 18640 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+09-27 16:41:20.439 18640 18640 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+09-27 16:41:20.441  2548  5262 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:20.445  2548  5262 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:20.446  2548  5262 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:20.449  2548  4238 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:20.491  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:20.739  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:20.739  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:21.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541681
+09-27 16:41:21.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:21.488 18640 18640 W AccessibilityNodeInfoDumper: Fetch time: 18ms
+09-27 16:41:21.493  2548  4941 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+09-27 16:41:21.497 18640 18658 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:21.498 18640 18640 D AndroidRuntime: Shutting down VM
+09-27 16:41:21.498 18640 18649 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:21.498 18640 18651 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+09-27 16:41:21.499  2548  6104 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:21.501  2548  4941 W WindowManager: Cannot find window which accessibility connection is added to
+09-27 16:41:21.542  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:21.798  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:21.798  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:22.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541682
+09-27 16:41:22.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:22.513  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:22.575 18672 18672 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:22.626 18675 18675 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-27 16:41:22.629  2548  4941 E ThermalManagerService$ThermalHalWrapper: Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-27 16:41:22.629  2548  4941 E ThermalManagerService$ThermalHalWrapper: Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-27 16:41:22.667 18678 18678 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:22.710 18337 18368 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-27 16:41:22.713  2548  4941 W PresentationStatsEventLogger: Bad view state for: -1, state: ViewState: [id=1073741824@441468090, state:5008, currentValue:android.view.autofill.AutofillValue@1, candidateSaveValue:android.view.autofill.AutofillValue@33ba7fbe]
+09-27 16:41:22.714 18337 18368 I ReactNativeJS: KALSA_DIGEST {"durationMs":0,"corpusSize":0,"selectedCount":0,"ciswireFlags":1}
+09-27 16:41:22.717 18337 18368 I ReactNativeJS: KALSA_WINDOW {"turnId":"1","kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":0,"textEst":345,"measuredCharsPerToken":null,"windowTokens":345}
+09-27 16:41:22.718 18337 18368 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+09-27 16:41:22.731 18337 18368 I ReactNativeJS: KALSA_NATIVE info set_embeddings: value = 0
+09-27 16:41:22.735 18337 18415 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1943 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000078b1ffd900
+09-27 16:41:22.777 18683 18683 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-27 16:41:22.780  2548  4941 E ThermalManagerService$ThermalHalWrapper: Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-27 16:41:22.781  2548  4941 E ThermalManagerService$ThermalHalWrapper: Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-27 16:41:22.833 18686 18686 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:23.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541683
+09-27 16:41:23.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:23.436  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:716 scan: address_manager_registered_
+09-27 16:41:23.436  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:768 stop_scan: stop_scan
+09-27 16:41:23.436  4204  5271 W bt_shim_scanner: system/main/shim/le_scanning_manager.cc:365 SetScanParameters: Set scan params scan_int_1m : 3120, scan_win_1m : 160, Duty : 5.13% | scan_int_coded : 0, scan_win_coded : 0, Duty : nan%
+09-27 16:41:23.444  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:732 start_scan: start_scan
+09-27 16:41:23.444  4204  4669 W bluetooth: system/gd/hci/le_scanning_manager.cc:735 start_scan: Register address manager
+09-27 16:41:23.471  4204  5075 E BluetoothRemoteDevices: Remote class is UNCATEGORIZED
+09-27 16:41:23.611  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:23.611  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:24.093  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:24.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541684
+09-27 16:41:24.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:25.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541685
+09-27 16:41:25.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:25.661  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:25.661  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:25.827  1804  2100 E HWComposer: getLuts: getLuts failed for display 4630947059332006275: UNSUPPORTED (8)
+09-27 16:41:25.829  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:26.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541686
+09-27 16:41:26.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:26.677  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:26.677  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:26.753  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:27.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541687
+09-27 16:41:27.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:28.041 18755 18755 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-27 16:41:28.045  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-27 16:41:28.048  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-27 16:41:28.106 18758 18758 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:28.148  1751  1793 E BatteryDump: !@new_battery_dump : 3689,-2073,100,100,45,307,291,358,307,0,322,325,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3833,4487,980,0,
+09-27 16:41:28.167 18761 18761 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-27 16:41:28.170  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-27 16:41:28.170  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-27 16:41:28.170  3987  3987 W View    : requestLayout() improperly called by com.android.systemui.qs.SecQSGradationDrawableView{103ff0f V.E...... ......ID 0,0-1080,354 #7f0a0a16 app:id/qs_gradation_view} during layout: running second layout pass
+09-27 16:41:28.170  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b045b9c V.E...... ......I. 0,0-1080,2340 #2} during layout: running second layout pass
+09-27 16:41:28.170  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b6cb9a5 V.E...... ......ID 0,153-1080,2196 #7f0a0a14 app:id/qs_frame} during layout: running second layout pass
+09-27 16:41:28.171  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:41:28.220 18765 18765 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:28.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541688
+09-27 16:41:28.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:28.329 18768 18768 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-27 16:41:28.333  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-27 16:41:28.333  2548  4237 E ThermalManagerService$ThermalHalWrapper: Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-27 16:41:28.385 18771 18771 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:29.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541689
+09-27 16:41:29.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:30.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541690
+09-27 16:41:30.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:30.645  2548  3176 E Watchdog: !@Sync: 4752 heap(MB): 114 / 132 FD: 1157 [2026-09-27 16:41:30.644]
+09-27 16:41:30.749  2548  4941 W CAE     : registerCallback(ContextAwareService.java:188) - [regi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:41:30.750  2548  4941 W CAE     : registerCallback(ContextAwareService.java:195) - [regi 04]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:30.750  2548  4941 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:30.750  2548  4941 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:41:30.757  2548  4941 W CAE     : registerCallback(ContextAwareService.java:209) - [regi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:41:30.757  2548  4941 E SemContext.CaeProvider: setAttribute() : attribute is null!
+09-27 16:41:30.758  2548  4941 E SensorService: BigData:Pakage) 5 already enabled. 
+09-27 16:41:30.760  2548  6104 E SensorService: BigData:Pakage) 5 already disabled. 
+09-27 16:41:31.012  2548  6104 W CAE     : unregisterCallback(ContextAwareService.java:230) - [unregi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:41:31.012  2548  6104 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:41:31.012  2548  6104 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:41:31.019  2548  6104 W CAE     : unregisterCallback(ContextAwareService.java:251) - [unregi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:41:31.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541691
+09-27 16:41:31.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:31.922  1730  1975 W SDM     : HWCBufferSyncHandler::SyncWait: sync_wait fd = 34, timeout = 1000 ms, err = 62 : Timer expired
+09-27 16:41:32.009  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:32.009  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:32.091  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:32.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541692
+09-27 16:41:32.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:33.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541693
+09-27 16:41:33.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:34.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541694
+09-27 16:41:34.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:35.213  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:35.213  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:35.219  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:35.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541695
+09-27 16:41:35.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:35.913  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:35.913  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:35.965  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:36.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541696
+09-27 16:41:36.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:37.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541697
+09-27 16:41:37.234  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:37.658  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:37.658  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:37.664  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:38.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541698
+09-27 16:41:38.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:38.916  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:38.916  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:38.999  1730  1975 W SDM     : HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-27 16:41:39.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541699
+09-27 16:41:39.232  1794  1809 E HeatmapThread: !@Entered the read from path function
+09-27 16:41:39.233  1794  1809 E HeatmapThread: !@Read Extended_heatmap from efs is: 29547 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1087 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 828 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 861 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 905 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 889 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 924 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1062 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1105 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1196 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 977 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3960 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5178 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 16001 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10455 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9611 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9684 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7603 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2579 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1968 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1476 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1328 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 152 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 191 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 167 0 0 0 0 0 0 0
+09-27 16:41:39.233  1794  1809 E HeatmapThread: !@Write Extended Heatmap to efs is: 29547 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1087 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 828 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 861 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 905 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 889 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 924 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1062 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1105 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1196 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 977 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3960 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5178 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 16001 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10455 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9611 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9685 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7603 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2579 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1968 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1476 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1328 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 152 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 191 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 167 0 0 0 0 0 0 0 
+09-27 16:41:39.234  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:39.773 18863 18863 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:41:40.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541700
+09-27 16:41:40.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:41.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541701
+09-27 16:41:41.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:42.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541702
+09-27 16:41:42.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:43.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541703
+09-27 16:41:43.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:44.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541704
+09-27 16:41:44.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:45.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541705
+09-27 16:41:45.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:46.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541706
+09-27 16:41:46.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:47.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541707
+09-27 16:41:47.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:48.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541708
+09-27 16:41:48.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:49.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541709
+09-27 16:41:49.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:50.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541710
+09-27 16:41:50.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:51.228  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541711
+09-27 16:41:51.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:52.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541712
+09-27 16:41:52.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:53.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541713
+09-27 16:41:53.236  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:54.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541714
+09-27 16:41:54.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:55.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541715
+09-27 16:41:55.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:56.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541716
+09-27 16:41:56.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:56.728  1804  1912 E HWComposer: getLuts: getLuts failed for display 4630947059332006275: UNSUPPORTED (8)
+09-27 16:41:57.048  2548  3757 W DeviceStorageMonitorService: updateBroadcasts(/data) oldLevel:0, newLevel:0, seq:1
+09-27 16:41:57.048  2548  3757 W DeviceStorageMonitorService: updateBroadcasts_filenode(/data) fn_oldLevel:0, fn_newLevel:0, seq:1
+09-27 16:41:57.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541717
+09-27 16:41:57.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:58.228  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541718
+09-27 16:41:58.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:41:58.317  1751  1793 E BatteryDump: !@new_battery_dump : 3624,-2340,100,100,45,334,293,431,334,0,318,358,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3831,4433,980,0,
+09-27 16:41:58.346  3987  3987 W View    : requestLayout() improperly called by com.android.systemui.qs.SecQSGradationDrawableView{103ff0f V.E...... ......ID 0,0-1080,354 #7f0a0a16 app:id/qs_gradation_view} during layout: running second layout pass
+09-27 16:41:58.346  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b045b9c V.E...... ......I. 0,0-1080,2340 #2} during layout: running second layout pass
+09-27 16:41:58.347  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b6cb9a5 V.E...... ......ID 0,153-1080,2196 #7f0a0a14 app:id/qs_frame} during layout: running second layout pass
+09-27 16:41:58.348  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:41:59.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541719
+09-27 16:41:59.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:00.022  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:42:00.036  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:42:00.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541720
+09-27 16:42:00.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:00.660  2548  3176 E Watchdog: !@Sync: 4753 heap(MB): 120 / 132 FD: 1157 [2026-09-27 16:42:00.660]
+09-27 16:42:00.759  2548  4941 W CAE     : registerCallback(ContextAwareService.java:188) - [regi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:42:00.759  2548  4941 W CAE     : registerCallback(ContextAwareService.java:195) - [regi 04]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:00.759  2548  4941 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:00.760  2548  4941 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:42:00.770  2548  4941 W CAE     : registerCallback(ContextAwareService.java:209) - [regi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:42:00.770  2548  4941 E SemContext.CaeProvider: setAttribute() : attribute is null!
+09-27 16:42:00.776  2548  4941 E SensorService: BigData:Pakage) 5 already enabled. 
+09-27 16:42:01.002 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 124902 (`</think>`)
+09-27 16:42:01.034  2548  4941 W CAE     : unregisterCallback(ContextAwareService.java:230) - [unregi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:42:01.034  2548  4941 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:01.034  2548  4941 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:42:01.044  2548  4941 W CAE     : unregisterCallback(ContextAwareService.java:251) - [unregi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:42:01.096 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar triggered on token 124905 (`<|tool_call_start|>`)
+09-27 16:42:01.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541721
+09-27 16:42:01.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:02.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541722
+09-27 16:42:02.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:02.685  2548  4941 E SensorService: BigData:Pakage) 5 already disabled. 
+09-27 16:42:03.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541723
+09-27 16:42:03.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:04.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541724
+09-27 16:42:04.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:05.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541725
+09-27 16:42:05.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:06.229  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541726
+09-27 16:42:06.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:07.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541727
+09-27 16:42:07.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:07.278  4204  5075 E BluetoothRemoteDevices: Remote class is UNCATEGORIZED
+09-27 16:42:08.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541728
+09-27 16:42:08.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:09.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541729
+09-27 16:42:09.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:09.886 20473 20473 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-27 16:42:10.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541730
+09-27 16:42:10.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:10.870 18337 18368 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":0,"tokensCached":2303,"tokensEvaluated":1943,"tokensPredicted":359,"draftTokens":0,"draftAccepted":0,"promptMs":17038.508,"predictedMs":31011.363999999998,"predictedPerSecond":11.576401476568398,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":1943,"ciswireFlags":1}
+09-27 16:42:10.885 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["write_note"]}
+09-27 16:42:10.908 18337 18368 I ReactNativeJS: KALSA_NATIVE info set_embeddings: value = 0
+09-27 16:42:10.942 18337 18412 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=2303 text_tokens=2126 n_common=1942 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000078b1ffd900
+09-27 16:42:10.942 18337 18412 W RNLlama : loadPrompt:556 KALSA_KVDIVERGE n_common=1942 shared_lo=1934 embd_hi=1954 text_hi=1954
+09-27 16:42:10.942 18337 18412 W RNLlama : loadPrompt:583 KALSA_KVDIVERGE ids shared=[2978 23427 22 124900 207 124899 63514 207 ] embd=[124901 597 4695 355 13564 374 5124 10163 374 267 229 31 ] text=[124905 67 22155 4704 1675 95116 7536 74657 15214 4249 451 22307 ] shared_txt=[ della stagione.<|im_end|>
+09-27 16:42:10.942 18337 18412 W RNLlama : <|im_start|>assistant
+09-27 16:42:10.942 18337 18412 W RNLlama : ] embd_txt=[<think>The user is asking for travel advice for a 7] text_txt=[<|tool_call_start|>[write_note(title='Viaggio Portogallo]
+09-27 16:42:10.942 18337 18412 W RNLlama : loadPrompt:652 KALSA_KVREUSE checkpoint n_past=1940 prompt=2126 n_common=1942
+09-27 16:42:11.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541731
+09-27 16:42:11.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:12.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541732
+09-27 16:42:12.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:13.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541733
+09-27 16:42:13.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:14.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541734
+09-27 16:42:14.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:15.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541735
+09-27 16:42:15.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:16.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541736
+09-27 16:42:16.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:17.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541737
+09-27 16:42:17.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:18.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541738
+09-27 16:42:18.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:19.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541739
+09-27 16:42:19.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:20.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541740
+09-27 16:42:20.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:20.511 18337 18349 W System  : A resource failed to call close. 
+09-27 16:42:20.760  2548  6104 W CAE     : registerCallback(ContextAwareService.java:188) - [regi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:42:20.760  2548  6104 W CAE     : registerCallback(ContextAwareService.java:195) - [regi 04]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:20.760  2548  6104 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:20.760  2548  6104 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:42:20.772  2548  6104 W CAE     : registerCallback(ContextAwareService.java:209) - [regi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:42:20.772  2548  6104 E SemContext.CaeProvider: setAttribute() : attribute is null!
+09-27 16:42:20.774  2548  6104 E SensorService: BigData:Pakage) 5 already enabled. 
+09-27 16:42:20.806  2548  6104 E SensorService: BigData:Pakage) 5 already disabled. 
+09-27 16:42:21.028  2548  5059 W CAE     : unregisterCallback(ContextAwareService.java:230) - [unregi 01] Mutex is locked for TEST_FLAT_MOTION
+09-27 16:42:21.028  2548  5059 W CAE     : getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@5866ac9
+09-27 16:42:21.028  2548  5059 W CAE     : getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@7c74ad0
+09-27 16:42:21.036  2548  5059 W CAE     : unregisterCallback(ContextAwareService.java:251) - [unregi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-27 16:42:21.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541741
+09-27 16:42:21.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:22.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541742
+09-27 16:42:22.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:23.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541743
+09-27 16:42:23.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:24.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541744
+09-27 16:42:24.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:25.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541745
+09-27 16:42:25.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:26.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541746
+09-27 16:42:26.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:26.808  1804  2100 E HWComposer: getLuts: getLuts failed for display 4630947059332006275: UNSUPPORTED (8)
+09-27 16:42:27.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541747
+09-27 16:42:27.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:28.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541748
+09-27 16:42:28.230  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:28.481  1751  1793 E BatteryDump: !@new_battery_dump : 3626,-2375,100,100,44,358,295,465,358,0,338,431,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3827,4373,980,0,
+09-27 16:42:28.491  3987  3987 W AODAlarmTimer_HIDE_CHARGING_INFO_TIMER: stop : not yet started 
+09-27 16:42:28.522  3987  3987 W View    : requestLayout() improperly called by com.android.systemui.qs.SecQSGradationDrawableView{103ff0f V.E...... ......ID 0,0-1080,354 #7f0a0a16 app:id/qs_gradation_view} during layout: running second layout pass
+09-27 16:42:28.523  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b045b9c V.E...... ......I. 0,0-1080,2340 #2} during layout: running second layout pass
+09-27 16:42:28.524  3987  3987 W View    : requestLayout() improperly called by android.widget.FrameLayout{b6cb9a5 V.E...... ......ID 0,153-1080,2196 #7f0a0a14 app:id/qs_frame} during layout: running second layout pass
+09-27 16:42:28.525  3987  3987 W RefactorFlag: New code path expects SceneContainerFlag to be enabled.
+09-27 16:42:29.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541749
+09-27 16:42:29.233  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:30.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541750
+09-27 16:42:30.232  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:30.668  2548  3176 E Watchdog: !@Sync: 4754 heap(MB): 127 / 132 FD: 1159 [2026-09-27 16:42:30.668]
+09-27 16:42:31.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541751
+09-27 16:42:31.231  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:31.367 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 124902 (`</think>`)
+09-27 16:42:31.452 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11 (`#`)
+09-27 16:42:31.552 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19489 (` Vi`)
+09-27 16:42:31.639 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15214 (`aggio`)
+09-27 16:42:31.731 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4249 (` Port`)
+09-27 16:42:31.817 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 451 (`og`)
+09-27 16:42:31.903 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22307 (`allo`)
+09-27 16:42:31.990 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+09-27 16:42:32.077 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 31 (`7`)
+09-27 16:42:32.167 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 50256 (` giorni`)
+09-27 16:42:32.227  1794  1809 E HeatmapThread: ECT Thread time in milliseconds: 1790541752
+09-27 16:42:32.229  1794  1809 E HeatmapThread: !@ CAM New BSOH: 100
+09-27 16:42:32.254 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 748 (` –`)
+09-27 16:42:32.345 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+09-27 16:42:32.429 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 33 (`9`)
+09-27 16:42:32.516 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28224 (` settembre`)
+09-27 16:42:32.605 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8 (`
+09-27 16:42:32.605 18337 18368 I ReactNativeJS: 
+09-27 16:42:32.605 18337 18368 I ReactNativeJS: `)
+09-27 16:42:32.694 18337 18368 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 45 (`E`)

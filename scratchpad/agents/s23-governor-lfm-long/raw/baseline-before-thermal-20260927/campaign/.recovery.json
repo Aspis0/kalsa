@@ -1,0 +1,1 @@
+{"i": 2, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal-hard-abort: unplugged thermal status 3 >= 3", "retried": false, "scores": null}

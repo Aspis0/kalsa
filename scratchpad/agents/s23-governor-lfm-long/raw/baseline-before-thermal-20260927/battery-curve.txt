@@ -1,0 +1,33 @@
+Battery-temperature samples (exact BatteryDump source lines follow):
+09-27 16:40:27.832  1751  1793 E BatteryDump: !@new_battery_dump : 3694,-1580,100,100,45,310,289,394,310,0,315,314,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3835,4504,980,0,
+09-27 16:40:57.995  1751  1793 E BatteryDump: !@new_battery_dump : 3814,-81,100,100,45,312,290,325,312,0,320,394,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3834,4496,980,0,
+09-27 16:41:28.148  1751  1793 E BatteryDump: !@new_battery_dump : 3689,-2073,100,100,45,307,291,358,307,0,322,325,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3833,4487,980,0,
+09-27 16:41:58.317  1751  1793 E BatteryDump: !@new_battery_dump : 3624,-2340,100,100,45,334,293,431,334,0,318,358,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3831,4433,980,0,
+09-27 16:42:28.481  1751  1793 E BatteryDump: !@new_battery_dump : 3626,-2375,100,100,44,358,295,465,358,0,338,431,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3827,4373,980,0,
+09-27 16:42:58.633  1751  1793 E BatteryDump: !@new_battery_dump : 3640,-2157,100,100,43,375,298,480,375,0,364,465,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3824,4316,980,0,
+09-27 16:43:28.780  1751  1793 E BatteryDump: !@new_battery_dump : 3646,-2303,100,100,43,388,302,492,388,0,385,480,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3822,4261,980,0,
+09-27 16:43:58.936  1751  1793 E BatteryDump: !@new_battery_dump : 3649,-2181,100,100,42,399,307,501,399,0,399,492,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3819,4208,980,0,
+09-27 16:44:29.090  1751  1793 E BatteryDump: !@new_battery_dump : 3655,-2749,100,100,42,409,312,510,409,0,411,501,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,276,3817,4157,980,0,
+
+Campaign battery samples:
+[ci] battery level=46 temp=28.0C charging=false
+[ci] battery level=45 temp=31.0C charging=false
+[ci] battery level=44 temp=35.8C charging=false
+
+Preflight and post-stop battery dumpsys temperature/level:
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-battery.txt:  level: 42
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-battery.txt:  temperature: 364
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-battery.txt:  level: 46
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-battery.txt:  temperature: 280
+
+Preflight and post-stop Android thermal status/temperatures:
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-thermal.txt:Thermal Status: 1
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-thermal.txt:	Temperature{mValue=36.4, mType=2, mName=BAT, mStatus=0}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-thermal.txt:	Temperature{mValue=36.5, mType=3, mName=SKIN, mStatus=1}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-thermal.txt:	Temperature{mValue=36.4, mType=2, mName=BAT, mStatus=0}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/post-thermal.txt:	Temperature{mValue=36.5, mType=3, mName=SKIN, mStatus=1}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-thermal.txt:Thermal Status: 0
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-thermal.txt:	Temperature{mValue=28.0, mType=2, mName=BAT, mStatus=0}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-thermal.txt:	Temperature{mValue=29.1, mType=3, mName=SKIN, mStatus=0}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-thermal.txt:	Temperature{mValue=28.0, mType=2, mName=BAT, mStatus=0}
+scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/preflight-thermal.txt:	Temperature{mValue=29.1, mType=3, mName=SKIN, mStatus=0}

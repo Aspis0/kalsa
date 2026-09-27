@@ -1,0 +1,9 @@
+js provenance apk-sha256=cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc installed=/data/app/~~arnizyAQbIPp7-sk2wrD3Q==/com.kalsa.app-5562EMcv00ameAxlSRd--w==/base.apk:cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc
+js provenance source=embedded-apk reason=assets/index.android.bundle is present in the verified installed APK
+metro gate evidence=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/.metro-preflight.KR2two
+metro gate requested-url=embedded://assets/index.android.bundle
+metro gate HTTP=none bytes=6364200 sha256=359ca84f7cb35976ee6b520c1e15578a6fc72ae60f3acee6436808b2723133d1
+metro gate bundle-format=hermes-bytecode
+metro gate content-inspection=not-possible reason=Hermes bytecode is binary; source-text protocol checks cannot inspect it
+metro gate identity=PASS means the device runs exactly this APK; it does not mean any protocol code was verified
+metro gate result=PASS

@@ -1,0 +1,278 @@
+
+> kalsa@0.1.0 harness:campaign
+> node scripts/campaign/selftest.mjs
+
+ok: 8 arms
+ok: compaction literals
+ok: 4 ciswire arms
+ok: no compaction=on
+ok: runOrder random
+ok: variant A PHASE0 sentinel
+ok: variant B empty params
+ok: thermalPause>=3
+ok: reject compaction on
+ok: reject compaction 1
+ok: reject compaction true
+ok: accept anchored
+ok: accept off
+ok: accept ciswire
+ok: omitted ciswireFlags → 0
+ok: ciswireFlagsOf missing → 0
+ok: ciswireFlagsOf present
+ok: timingValid false when charging
+ok: promptMs stamped invalid
+ok: AC charging
+ok: not charging
+ok: guard loud: TELEMETRY GUARD FAIL: ciswireFlags=0 bit0=0 declared compaction bit=1
+ok: interrupted turn permits missing telemetry
+ok: profile hedge + per100
+ok: profile echo
+ok: profile drift EN vs IT
+ok: numeric absent-from-context
+ok: 15 primary contrasts
+ok: Holm first α=0.05/15
+ok: holmAlphas rank1
+ok: floors PENDING_PHASE0
+ok: binary σ=0.082
+ok: recall σ=0.35
+ok: script intent plant-fact
+ok: script intent filler
+ok: script intent echo-probe
+ok: script intent recall-probe
+ok: script intent cite-probe
+ok: script intent drift-probe
+ok: script intent web-request
+ok: script intent calendar-request
+ok: script intent degrade-probe
+ok: 24 turns
+ok: 4–6 planted facts
+ok: ≥1 web-request
+ok: ≥3 calendar
+ok: ≥2 calendar overlap planted fact
+ok: drift EN+FR
+ok: early+late recall
+ok: script-dry 3 turns
+ok: unshuffled cells are monotone (control)
+ok: shuffle seed=42 not monotone
+ok: arm×variant cells
+ok: conversationsPerVariant=3 (want 3)
+ok: 8×2×3=48 conv
+ok: Z80_HOLM_FIRST=3.777
+ok: delta80(1,24)=0.8088677271346657
+ok: holm pooled 1.09σ
+ok: holm variant 1.54σ
+ok: Z80_A05
+ok: scores.recall.hits=1
+ok: hedgeCount=2
+ok: telemetry schema includes KALSA_GOVERNOR_PLAN
+ok: telemetry schema includes KALSA_GOVERNOR
+ok: telemetry schema includes KALSA_GOVERNOR_PAUSE
+ok: telemetry schema includes KALSA_GOVERNOR_FALLBACK_RETRY
+ok: telemetry schema includes KALSA_GOVERNOR_FAILED
+ok: telemetry schema includes KALSA_THERMAL_COOLING
+ok: no duplicate telemetry prefixes
+ok: --telemetry-schema CLI status=0 out=ok
+ok: written schema merges governor and base rows
+ok: schema CLI accepts a partial config (status=0)
+ok: route actual recorded
+ok: route backends recorded
+ok: prefill ms recorded
+ok: governor pause recorded
+ok: cooling battery temp recorded
+ok: decode tok/s recorded
+ok: env snapshot: {"thermalStatus":1,"skinC":36.4,"battTempC":41.2,"batteryLevel":77,"plugged":false}
+ok: answer text kept for scoring
+ok: empty env dump parses to nulls
+ok: scoring a governor turn (recall hits=1)
+ok: response_profile scores a governor turn
+ok: no campaign source writes kalsa.bench.thermo (none)
+ok: battery stop floor is 25
+ok: governor pref written before launch
+ok: governor verified from the load plan before turn 1
+ok: hard abort armed in the turn stop loop
+ok: engagement reads gpu_fit from the plan
+ok: profileJsonl lexicon hedgeCount>0
+ok: profile --lexicon exit=0
+ok: floors status=FROM_R1
+ok: floors n=2
+ok: resume skips c1-B
+ok: resume checkpoint hole at c2-B turn 11
+ok: later cell is new
+ok: resume prior-cell hole is invalid from turn 1
+ok: resume dry checkpoint starts every cell new
+ok: resume rejects missing root
+ok: resume rejects invalid root
+ok: Metro gate rejects missing revision marker
+ok: Metro gate rejects missing in-flight semantics
+ok: Metro gate rejects stale idle symbols
+ok: Metro gate rejects stale expiry symbol
+ok: Metro gate accepts marker and post-fix semantics
+ok: startup marker source is shared by logcat and gate
+ok: App startup marker is emitted unguarded, so a release APK can be identified
+ok: gate has no hidden Metro host assumption
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-no-url-OSPMLG
+metro gate requested-url=none
+metro gate HTTP=none bytes=none sha256=none
+metro gate result=FAIL
+metro gate error=CAMPAIGN_METRO_BUNDLE_URL is required: no Metro host is configured in the repository or environment
+ok: missing Metro URL fails closed with an explicit host message
+ok: missing Metro URL result is persisted
+ok: virtual-entry URL contains the complete device option set including lazy=true
+ok: Fusebox bundle URL contains both device Fusebox options
+ok: virtual-entry URL permits the complete Expo rewrite option set
+ok: gate accepts base, Fusebox, and Expo-rewritten virtual-entry variants
+ok: gate rejects Expo rewrite engine-only fixture
+ok: gate rejects Expo rewrite bytecode-only fixture
+ok: gate rejects Expo rewrite engine-and-profile fixture
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-PPKjWU
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=200 bytes=172 sha256=7d623f60a151449e6e42edb562b41fca768541c46e0136b3df5d3efc2f757c7b
+metro gate bundle-mode=unminified
+metro gate checks=marker,forbidden-stale-symbols,in-flight-semantics
+metro gate marker=present
+metro gate in-flight-semantics=present
+metro gate forbidden-stale-symbols=absent
+metro gate result=PASS
+ok: Metro gate valid fixture result=true
+ok: Metro gate valid fixture exact Android bundle URL
+ok: Metro gate valid fixture bundle hash persisted
+ok: Metro gate valid fixture verification result persisted
+ok: Metro gate valid fixture does not persist raw bundle
+ok: Metro gate valid fixture hashes raw wire bytes and counts raw bytes
+ok: Metro gate valid fixture evidence is bounded to checks and excerpts
+ok: Metro gate valid fixture persists observable response rewrite metadata
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-tlJFJR
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=200 bytes=193 sha256=8dbb7caf1fcc642f59c4d033948f90ffd795728c689c9e90e88410233bb855f0
+metro gate bundle-mode=unknown
+metro gate checks=marker,forbidden-stale-symbols
+metro gate marker=present
+metro gate in-flight-semantics=missing
+metro gate forbidden-stale-symbols=present
+metro gate result=FAIL
+metro gate error=served bundle failed the content checks
+ok: Metro gate stale fixture result=false
+ok: Metro gate stale fixture exact Android bundle URL
+ok: Metro gate stale fixture bundle hash persisted
+ok: Metro gate stale fixture verification result persisted
+ok: Metro gate stale fixture does not persist raw bundle
+ok: Metro gate stale fixture hashes raw wire bytes and counts raw bytes
+ok: Metro gate stale fixture evidence is bounded to checks and excerpts
+ok: Metro gate stale fixture persists observable response rewrite metadata
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-wrong-url-TtpSTf
+metro gate requested-url=http://fixture.invalid:8081/not-the-android-debug-bundle
+metro gate HTTP=none bytes=none sha256=none
+metro gate result=FAIL
+metro gate error=bundle URL must use the exact Expo virtual entry path: /.expo/.virtual-metro-entry.bundle
+ok: Metro gate rejects a non-exact bundle URL
+ok: Metro gate records wrong-URL failure
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-old-entry-3j6MZe
+metro gate requested-url=http://fixture.invalid:8081/node_modules/expo/AppEntry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=none bytes=none sha256=none
+metro gate result=FAIL
+metro gate error=bundle URL must use the exact Expo virtual entry path: /.expo/.virtual-metro-entry.bundle
+ok: gate rejects the old AppEntry sibling variant
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-http500-wuzVt8
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=500 bytes=14 sha256=eda70e1f98a272c0db9af4c1f600f31cb72c666f7b71ea26ad022a6771d4b939
+metro gate bundle-mode=unknown
+metro gate checks=marker,forbidden-stale-symbols
+metro gate marker=missing
+metro gate in-flight-semantics=missing
+metro gate forbidden-stale-symbols=absent
+metro gate result=FAIL
+metro gate error=bundle request returned HTTP 500
+ok: Metro gate rejects HTTP 500
+ok: HTTP 500 result is persisted
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-network-fGvuCA
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=none bytes=none sha256=none
+metro gate result=FAIL
+metro gate error=connect ECONNREFUSED fixture
+ok: connection refusal fails closed
+ok: connection refusal result is persisted
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-abort-zrcqZb
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=200 bytes=4 sha256=d2ad9277baaee14856d20ec2b21f87a0cb8a7f86c6ef090fd5a082b1e85135ac
+metro gate bundle-mode=unknown
+metro gate checks=marker,forbidden-stale-symbols
+metro gate marker=missing
+metro gate in-flight-semantics=missing
+metro gate forbidden-stale-symbols=absent
+metro gate result=FAIL
+metro gate error=bundle response aborted before end
+ok: mid-stream abort preserves partial-byte evidence
+ok: mid-stream abort result is persisted
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-deadline-4Vssam
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=200 bytes=4 sha256=d2ad9277baaee14856d20ec2b21f87a0cb8a7f86c6ef090fd5a082b1e85135ac
+metro gate bundle-mode=unknown
+metro gate checks=marker,forbidden-stale-symbols
+metro gate marker=missing
+metro gate in-flight-semantics=missing
+metro gate forbidden-stale-symbols=absent
+metro gate result=FAIL
+metro gate error=bundle request exceeded total deadline of 30 ms
+ok: total deadline settles and fails partial body
+ok: deadline partial-body result is persisted
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-overwrite-idqEoE.failure-1790540239546-15678-0
+metro gate result=FAIL
+metro gate error=refusing to overwrite existing evidence: /var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-overwrite-idqEoE/bundle.sha256
+ok: overwrite refusal fails in a unique sibling
+ok: overwrite refusal preserves existing evidence
+ok: overwrite refusal writes bounded failure evidence
+metro gate evidence=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T/kalsa-metro-gate-response-error-84CmRa
+metro gate requested-url=http://fixture.invalid:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.kalsa.app&modulesOnly=false&runModule=true
+metro gate HTTP=200 bytes=4 sha256=d2ad9277baaee14856d20ec2b21f87a0cb8a7f86c6ef090fd5a082b1e85135ac
+metro gate bundle-mode=unknown
+metro gate checks=marker,forbidden-stale-symbols
+metro gate marker=missing
+metro gate in-flight-semantics=missing
+metro gate forbidden-stale-symbols=absent
+metro gate result=FAIL
+metro gate error=fixture response error
+ok: response error fails with partial evidence
+ok: response error result is persisted
+ok: share PID fixture rejects empty and changed PID cases
+ok: share intent and send check the launch PID before device actions
+ok: campaign launch polls until delayed PID then verifies marker status=0 stderr=""
+ok: campaign launch fails on PID timeout without marker verification
+ok: logcat startup marker rejects wrong PID and accepts launched PID
+ok: campaign gate runs before device access and records discoverable evidence
+ok: campaign launch records the PID only after marker proof
+ok: collector ciswire no-tel exit=2
+ok: resume.mjs missing args exit=2
+ok: failed producer not silent stdout="CAUGHT:7\n"
+ok: flags.sh --selftest exit=0 REJECT compaction=on (must be off|anchored|ciswire; on/1/true → anchored, not ciswire)
+REJECT compaction=1 (must be off|anchored|ciswire; on/1/true → anchored, not ciswire)
+REJECT compaction=true (must be off|anchored|ciswire; on/1/true → anchored, not ciswire)
+
+ok: bash -n supervisor.sh exit=0 
+ok: bash -n flags.sh exit=0 
+ok: bash -n conversation.sh exit=0 
+ok: bash -n logcat.sh exit=0 
+ok: bash -n watchdog.sh exit=0 
+ok: bash -n recovery.sh exit=0 
+ok: bash -n turn.sh exit=0 
+ok: bash -n nativeLog.sh exit=0 
+ok: bash -n phase0.sh exit=0 
+ok: bash -n oneTurn.sh exit=0 
+ok: bash -n governor.sh exit=0 
+ok: bash -n screen.sh exit=0 
+ok: bash -n run-t20c.sh exit=0 
+ok: bash -n selftest_defects.sh exit=0 
+ok: bash -n selftest_fakedevice.sh exit=0 
+ok: bash -n ../device-share-send.sh exit=0 
+ok: quoted debuggable line parses (verbatim KALSA_PREWARM)
+ok: unquoted KALSA_GOVERNOR parses (verbatim device line, route fields intact)
+ok: unquoted KALSA_TELEMETRY parses (verbatim device line)
+ok: unquoted KALSA_GOVERNOR_PLAN parses (verbatim device line)
+ok: prefix boundary: a PLAN line never counts as a GOVERNOR row
+ok: turn loop runs under the screen rule
+ok: run start pins the screen timeout
+ok: exit trap ends every path screen-safe (owner rule)
+ok: INT/TERM route through the EXIT trap
+ok: governor plan wait defaults to 180 s
+ok: screen rule reads mWakefulness=Awake
+ok: selftest_defects.sh passed=83 failed=0
+selftest ok

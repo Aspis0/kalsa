@@ -1,0 +1,99 @@
+[ci] JavaScript provenance gate passed; evidence=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/.metro-preflight.KR2two
+ok
+[ci] T20C rerun2 start serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign
+[ci] battery preflight floor=enforced level=46 temp=28.0C charging=false
+[ci] battery level=46 temp=28.0C charging=false
+[ci] DEVICE IDENTITY: model=SM-S911U serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp (matches CAMPAIGN_EXPECT_MODEL)
+[ci] thermal preflight status=0 battery_deci=280
+[ci] keep-awake: saved screen_off_timeout=2147483647
+[ci] keep-awake: saved stay_on_while_plugged_in=15
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] screen: timeout pinned to 2147483647 (saved: 86400000), keyguard dismissed — no restore at exit
+[ci] logcat pid=77206 file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/logcat.txt
+[ci] charging monitor pid=77207 (30s poll)
+[ci] arm begin: flags->ciswire, wipe chat, launch
+[ci] flags: force-stop com.kalsa.app before governor pref write
+[ci] governor pref: kalsa.governor.enabled=1 written before launch
+[ci] share preflight: launch PID changed or missing (expected=none current=none); relaunching
+[ci] startup marker present for PID 16703: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 16703
+[ci] ready after 25s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] share-send attempt 1/3: bench:nativelog on
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2070
+[ci] share-send: submitted prev=9 count=10
+[ci] startup marker present for PID 17272: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 17272
+[ci] ready after 25s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] share-send attempt 1/3: bench:show
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2070
+[ci] share-send: submitted prev=10 count=11
+[ci] native log mirror verified on via bench:show
+[ci] flags: force-stop com.kalsa.app before sql_write
+[ci] flags readback ok compaction=ciswire memory=0 toolhelp=0 web.enabled=0 device.tools=0 calendar.tools=0
+[ci] conversation: wipe chat+compactor+summary+memory.facts (app stopped)
+[ci] logcat pid=79726 file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/logcat.txt
+[ci] logcat cleared at arm start
+[ci] startup marker present for PID 18337: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 18337
+[ci] ready after 25s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] battery level=45 temp=31.0C charging=false
+[ci] --- hot flags readback (app running) ---
+kalsa.ciswire.toolhelp=0
+kalsa.context.compaction=ciswire
+kalsa.context.compaction.choice=1
+kalsa.locale=it
+kalsa.memory.enabled=0
+kalsa.model.id=lfm2.5-2.6b
+[ci] kalsa.bench.toolchoice=ABSENT (ABSENT = auto = app-default tools ON; this run writes no toolchoice)
+[ci] --- end hot flags readback ---
+[ci] --- engine init lines ---
+ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+llama_context: n_ctx                 = 8192
+[ci] --- end engine init lines ---
+[ci] --- governor engagement ---
+[ci] governor readback: kalsa.governor.enabled=1 plan={"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4474.9,"bench_norepack_forced":null}
+[ci] governor verified: kalsa.governor.enabled=1 gpu_fit=Fit plan={"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4474.9,"bench_norepack_forced":null}
+[ci] --- end governor engagement ---
+[ci] === turn 1 begins ===
+[ci] turn 1 send: [Argomento 1: Viaggio in Portogallo] Sto organizzando con due amici un viaggio i
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine: no dispose in 20s, tapping
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2070
+[ci] engine started the turn try=1 t=3s — send landed (DB copy may lag)
+[ci] health device 18337 0 elapsed=65ms
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/T20C/c1-V1.jsonl
+[ci] turn 1 collected charging=false
+[ci] battery level=44 temp=35.8C charging=false
+[ci] === turn 2 begins ===
+[ci] turn 2 send: [Argomento 2: Fotosintesi] Mia nipote di tredici anni mi ha chiesto come fa una 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] turn 2 send aborted by thermal — cooldown then retry
+[ci] RECOVERY reason=thermal — pause (battery > 42°C or status >= 5; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=120s)
+[ci] THERMAL HARD ABORT: unplugged thermal status 3 >= 3 — stopping the unplugged run; it will not resume
+{"i": 2, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal-hard-abort: unplugged thermal status 3 >= 3", "retried": false, "scores": null}
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/baseline-before-thermal-20260927/campaign/T20C/c1-V1.jsonl
+[ci] FATAL: thermal hard abort turn 2: unplugged thermal status 3 >= 3
+[ci] native log teardown: restoring previous preference
+[ci] startup marker present for PID 27335: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 27335
+[ci] keep-awake: restored screen_off_timeout=2147483647 (was 86400000)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: restored stay_on_while_plugged_in=15
+[ci] keep-awake: force-stop com.kalsa.app
+[ci] keep-awake: stay_on_while_plugged_in=15
+[ci] keep-awake: screen_off_timeout=2147483647
+[ci] screen finalize: screen_off_timeout=2147483647
+[ci] screen finalize: Awake + keyguard dismissed + Kalsa foreground
+[ci] screen finalize: readback screen_off_timeout=2147483647
+EXIT=1
