@@ -405,6 +405,9 @@ try {
     "A phone is connecting right now",
     "This computer now works with",
     "will appear here in a moment",
+    // The first pairing read is still in flight: there is nothing to retry
+    // and no failure to report yet.
+    "Checking for your phone…",
     "Looking at what this computer",
     "Finding the version of the engine",
     "can take a minute",
@@ -627,6 +630,7 @@ try {
   }
 
   const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
+  const CHECKING = "Checking for your phone…";
   const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";
   const REPAIR_PRIMARY = "Pair another phone";
   const CANCEL_PRIMARY = "Cancel";
@@ -652,6 +656,19 @@ try {
       problems.push(`a several-phone house must be described as a house, not by one of its phones: ${heading}`);
     }
     if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
+    // "No answer yet" is not "the check failed": the first read can take
+    // seconds, so while it has not settled the page says it is checking and
+    // offers nothing to retry, and a read that rejects AFTER an answer leaves
+    // that answer on screen instead of replacing it with the failure.
+    if (heading.includes("the first read has not answered yet")) {
+      if (sentence.trim() !== CHECKING) problems.push(`the page waiting on its first read must say it is checking: ${heading}`);
+      if (buttons.length > 0) problems.push(`the page waiting on its first read must offer nothing to retry: ${heading}`);
+      if (all.includes("could not check")) problems.push(`an unanswered first read must not read as a failed check: ${heading}`);
+    }
+    if (heading.includes("a later pairing read fails")) {
+      if (!sentence.includes("now works with")) problems.push(`a read that rejects must keep the answer already on screen: ${heading}`);
+      if (all.includes("could not check")) problems.push(`a rejecting read must not draw the failure sentence over an answer: ${heading}`);
+    }
     // The approval gate: a waiting phone's row says so and offers the two
     // owner decisions.
     if (heading.includes("waits for the owner's OK")) {

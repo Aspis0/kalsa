@@ -150,6 +150,21 @@ function tailscaleNote(
   return `Run for Tailscale: ${commands}. ${where}${moved}`;
 }
 
+// What this page knows: still waiting on the first read, an answer to draw,
+// or a read that failed with nothing behind it. The first read takes seconds
+// (two Tailscale CLI calls), so "no answer yet" must not be drawn as "the
+// check failed".
+type Answer =
+  | { status: "checking" }
+  | { status: "answered"; state: PairingState }
+  | { status: "failed" };
+
+// A read that rejects keeps what this page already knows — a poll failing
+// mid-session must not blank a square that is on screen. With no answer to
+// keep there is only the failure.
+const keepOrFail = (previous: Answer): Answer =>
+  previous.status === "answered" ? previous : { status: "failed" };
+
 interface DevicesSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
@@ -159,18 +174,21 @@ interface DevicesSurfaceProps {
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
-  const [state, setState] = useState<PairingState | null>(null);
+  const [answer, setAnswer] = useState<Answer>({ status: "checking" });
 
   const refresh = useCallback(async (): Promise<void> => {
-    let next: PairingState | null = null;
-    if (available()) {
-      try {
-        next = await invoke<PairingState>("brain_pairing");
-      } catch {
-        next = null; // unknown, not idle
-      }
+    // No Tauri here: nothing can be asked, so the page says the check could
+    // not run rather than waiting on a command that never starts.
+    if (!available()) {
+      setAnswer(keepOrFail);
+      return;
     }
-    setState(next);
+    try {
+      const next = await invoke<PairingState>("brain_pairing");
+      setAnswer(next ? { status: "answered", state: next } : { status: "failed" });
+    } catch {
+      setAnswer(keepOrFail);
+    }
   }, []);
 
   useEffect(() => {
@@ -221,11 +239,16 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   let onAlt: () => void = () => {};
   let devices: PairedDevice[] = [];
 
-  if (!state) {
+  if (answer.status === "checking") {
+    // Still the first read: say so plainly and offer no retry — there is
+    // nothing to retry yet, and "could not check" would be false.
+    sentence = "Checking for your phone…";
+  } else if (answer.status === "failed") {
     onAction = () => void refresh();
     sentence = "This page could not check whether a phone is connected. Trying again usually works.";
     button = "Try again";
   } else {
+    const state = answer.state;
     switch (state.state) {
       case "idle":
         onAction = () => onNavigate("server");

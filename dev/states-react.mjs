@@ -227,6 +227,12 @@ const scenarios = [
   ["Pairing", "the connection could not be saved", "devices", { pairing: pairingDto("failed", { failure: "could-not-save" }) }],
   ["Pairing", "the existing phone connection could not be read", "devices", { pairing: pairingDto("failed", { failure: "could-not-read" }) }],
   ["Pairing", "the local pairing service stopped", "devices", { pairing: pairingDto("failed", { failure: "service-unavailable" }) }],
+  // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
+  // is a state of its own: the page says it is checking and offers nothing to
+  // retry. And a read that rejects AFTER an answer must leave that answer on
+  // screen — the poll is what would otherwise blank the square.
+  ["Pairing", "the first read has not answered yet", "devices", { pairingSilent: true }],
+  ["Pairing", "a later pairing read fails and the answer stands", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), pairingFailsAfter: true, waitMs: 3000 }],
   // The first page's arms: each state through setupArm — the mapping App
   // runs — so a scenario pins the mapping AND the words the page that fixes
   // that arm already shows. Titles carry the arm; smoke-react checks both.
@@ -244,16 +250,27 @@ const scenarios = [
 let bridgeState = {};
 let eventHandlers = new Set();
 let propsReads = 0;
+let pairingReads = 0;
 
 function installBridge() {
   propsReads = 0;
+  pairingReads = 0;
   globalThis.window.__TAURI__ = bridgeState.available === false
     ? undefined
     : {
         core: {
           invoke(command) {
             if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
-            if (command === "brain_pairing") return Promise.resolve(bridgeState.pairing ?? null);
+            if (command === "brain_pairing") {
+              // Two shapes a real first open takes: a read that has not
+              // answered yet (it awaits two Tailscale CLI calls), and reads
+              // that start failing once an answer is already on screen.
+              if (bridgeState.pairingSilent) return new Promise(() => {});
+              if (bridgeState.pairingFailsAfter && pairingReads++ > 0) {
+                return Promise.reject(new Error("stub: the pairing read rejected"));
+              }
+              return Promise.resolve(bridgeState.pairing ?? null);
+            }
             if (command === "brain_advanced") return Promise.resolve(bridgeState.advanced ?? null);
             // The host's credential the page keeps in memory. A stub value:
             // nothing in these states talks to a door.
