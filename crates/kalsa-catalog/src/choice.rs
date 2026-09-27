@@ -15,7 +15,7 @@
 use kalsa_probe::Backend;
 
 use crate::candidate::{candidate, Candidate, Prediction};
-use crate::footprint::{memory_budget, Footprint, MemoryBudget};
+use crate::footprint::{memory_budget, Footprint, MemoryBudget, GIB};
 use crate::licence::Licence;
 use crate::manifest::{self, DenseEquivalent, ModelEntry};
 use crate::parameters::Parameters;
@@ -566,9 +566,28 @@ pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<R
 /// to choose between a model and itself.
 pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 
+/// The owner's one exception to [`QUICK_SPEED_ADVANTAGE`], and the line it
+/// hangs on: machines with this much RAM (32 GiB) are roomy. On a roomy
+/// machine the second card is the full-precision LFM file whenever it is
+/// faster than the pick at all — the higher-quality file is worth showing
+/// there even without the usual margin — and the file is offered only
+/// there: below this line it would out-rank the smaller rows as a pick
+/// while being the wrong suggestion for the machine.
+pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
+
+/// The row this exception is about: LiquidAI's full-precision (F16) file of
+/// LFM2.5-2.6B. Named by repo and quant rather than by size so the rule
+/// cannot drift onto whichever row happens to be biggest.
+pub fn full_precision_file(entry: &ModelEntry) -> bool {
+    entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "F16"
+}
+
 /// The second option: the most model this machine runs at least
-/// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being offered.
-/// `None` when nothing does — one honest option beats two that feel the same.
+/// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being
+/// offered — with one exception first: on a machine at or above
+/// [`ROOMY_RAM_BYTES`] the full-precision LFM file takes the card whenever
+/// it is faster than the pick at all (see the constant). `None` when
+/// nothing does — one honest option beats two that feel the same.
 ///
 /// It is held to the bar of the row it sits beside, which is
 /// [`justification`]: a phone-free first option is the largest that runs well
@@ -587,6 +606,24 @@ pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 /// small row outrank a floor under a big one.
 pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<RunnableRow> {
     let answer = runnable_on(input).ok()?;
+    // The owner's exception, before the bar: on a roomy machine the
+    // full-precision file is the second card whenever it beats the pick's
+    // speed at all, even without [`QUICK_SPEED_ADVANTAGE`] — a big machine
+    // gets the higher-quality file as its fast option. The row must be on
+    // the menu (the roomy rule already kept it off small machines) and
+    // strictly faster than the pick, so it can never pair with itself.
+    if input.ram_bytes >= ROOMY_RAM_BYTES {
+        if let Some(full) = answer
+            .remaining
+            .iter()
+            .filter(|candidate| full_precision_file(candidate.entry))
+            .max_by_key(|candidate| candidate.entry.weights_bytes)
+        {
+            if full.decode.floor() > than.floor() {
+                return Some(row(full, answer.budget));
+            }
+        }
+    }
     let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
     let quick = answer
         .remaining
@@ -690,6 +727,14 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         }
         if provably_too_slow(&candidate.decode) {
             too_slow.push(candidate);
+            continue;
+        }
+        // The roomy-machine rule: the full-precision file is not on this
+        // machine's menu at all below [`ROOMY_RAM_BYTES`] — it fits and
+        // clears its speed line, but as a pick it would shove the smaller
+        // rows aside on a machine that should be seeing them, and the Q8
+        // file is the LFM row down there.
+        if full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES {
             continue;
         }
         // The dense speed floor: where this machine cannot drive a dense

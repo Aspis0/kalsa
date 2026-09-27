@@ -846,6 +846,84 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
         },
     },
+    // ── LiquidAI LFM2.5-2.6B, the full-precision file, same repo and commit ──
+    // F16, and why not BF16: M1/M2 have no hardware BF16 and llama.cpp
+    // emulates it, so F16 is the full-precision file that is actually fast.
+    // Measured 2026-09-26 on the owner's M1 Max (llama-bench, fork b10950,
+    // flash-attention on, q8_0 KV): BF16 tg128 50.8/48.1 at depth 8192,
+    // F16 56.2/52.7, Q8_0 81.0/75.2 — the tables are
+    // docs/quiz-2026-09-26/speed-bench-LFM2.5-2.6B-*.md, and this row
+    // carries its own F16 rate below. `curl -sIL` on the resolve URL
+    // returned exactly the `x-linked-size` 5_403_158_528 and the
+    // `x-linked-etag` below, at the same commit as the Q8 file.
+    //
+    // Same header — same repo, same commit — so the derivations are the
+    // same ones: `general.architecture` `lfm2` (llama-arch.cpp:127 at
+    // b10950); `lfm2.attention.head_count_kv` is per layer (30 entries,
+    // 22 zeros, 8 eights), so 8 of the 30 blocks hold attention with 8 KV
+    // heads each, and `attention.key_length`/`value_length` are absent —
+    // the engine defaults them to n_embd / n_head = 2048 / 32 = 64
+    // (llama-model.cpp:1344-1349 at b10950): 8 x 8 x (64 + 64) = 8_192
+    // elements a token, 8_704 bytes at the q8_0 cache the launcher pins
+    // (34 per 32). The other 22 blocks are shortconv-recurrent
+    // (src/models/lfm2.cpp:12) and hold a per-slot F32 conv state of
+    // 22 x 4_096 x 4 = 360_448 B (llama-hparams.cpp:216).
+    //
+    // Licence `lfm1.0` (this repo's own LICENSE): §1 — `"Threshold" shall
+    // mean annual revenue of 10 million United States dollars ($10,000,000)
+    // or more` — and §5 conditions commercial use on staying under it, with
+    // a Qualified Non-Profit's non-commercial use exempt. Trained context
+    // 131_072; sampling per LiquidAI's README "Generation parameters":
+    // temperature 0.1, top_k 50, repetition penalty 1.1 (no top_p
+    // published).
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "LiquidAI/LFM2.5-2.6B",
+            display_name: "Liquid LFM 2.5",
+            last_modified: "2026-09-22T20:42:43.000Z",
+            licence: Licence::Conditional {
+                id: "lfm1.0",
+                condition: "commercial use only for entities under $10M annual revenue",
+            },
+            parameters: Parameters::dense(2_697_198_592),
+            quant: "F16",
+            weights_bytes: 5_403_158_528,
+            mmproj_bytes: None,
+            kv_bytes_per_token: Some(8_704),
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 360_448,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            // The row's own rate, on the path it decodes on; the bandwidth
+            // is what keeps it on that machine class (see MeasuredDecode).
+            measured_decode: Some(MeasuredDecode {
+                tokens_per_second: 56.19,
+                backend: Backend::Metal,
+                bandwidth_bytes_per_second: 400.0e9,
+                measured_on: "M1 Max (llama-bench, fork b10950, flash-attention, q8_0 KV \
+                              cache, tg128; 52.71 at depth 8192), 2026-09-26",
+            }),
+            trained_context_tokens: Some(131_072),
+            stale: None,
+            // LiquidAI's README, "Generation parameters": temperature 0.1,
+            // top_k 50, repetition penalty 1.1 — no top_p is published, so
+            // that field stays None. Same values as the Q8 row: same model.
+            sampling: Sampling {
+                temperature: Some(0.1),
+                top_p: None,
+                top_k: Some(50),
+                repeat_penalty: Some(1.1),
+            },
+        },
+        source: GgufSource {
+            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
+            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
+            file: "LFM2.5-2.6B-F16.gguf",
+            bytes: 5_403_158_528,
+            sha256: "e041c231351185eb390f9c417d3bfd1815869a50a8589f3f86e5b9add3c529f1",
+        },
+    },
     // ── Alibaba Qwen 3.8-27B, verified against the Hugging Face API on 2026-09-26 ──
     // The dense 27B, at unsloth's UD-Q4_K_M — the file the research pinned:
     // 16_464_440_224 bytes, commit

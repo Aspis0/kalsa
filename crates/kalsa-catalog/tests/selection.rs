@@ -1230,3 +1230,74 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
         "the too-slow bucket must not read as the no-fit bucket: {explanation}"
     );
 }
+
+// ── the full-precision file ────────────────────────────────────────────────
+// LiquidAI's F16 file: the roomy-machine second card, and never the pick on
+// a small one.
+
+#[test]
+fn on_a_roomy_machine_the_full_precision_file_is_the_second_card_when_it_is_faster() {
+    // The owner's exception to the speed bar, in its honest case: on a
+    // 32 GiB / 400 GB/s machine the pick is the 35B MoE (predicted 39.9)
+    // and the F16 file measures 56.2 on exactly this class of machine —
+    // faster than the pick, but under 1.5x it (59.9), so without the
+    // exception the card would go to the Q8 file instead.
+    let machine = ChoiceInput {
+        bandwidth_bytes_per_second: 400.0e9,
+        ..input(32, false)
+    };
+    let first = largest_that_runs_well(&machine).expect("a 32 GiB machine runs something");
+    assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
+    let quick = quicker_alternative(&machine, &first.decode).expect("a second card");
+    assert_eq!(quick.entry.quant, "F16");
+    assert!(
+        quick.decode.floor() > first.decode.floor(),
+        "faster than the pick: {:?} vs {:?}",
+        quick.decode.floor(),
+        first.decode.floor()
+    );
+    assert!(
+        quick.decode.floor() < first.decode.floor() * QUICK_SPEED_ADVANTAGE,
+        "under the usual bar, so the exception is what admits it — remove the \
+         exception and this becomes the Q8 card"
+    );
+
+    // Below the roomy line the exception is off: the 16 GiB pair is the
+    // 12B with the Q8 file, as it was before.
+    let small = metal(16, 200.0e9);
+    let first = largest_that_runs_well(&small).expect("a 16 GiB machine runs something");
+    let quick = quicker_alternative(&small, &first.decode).expect("a second card");
+    assert_eq!(quick.entry.quant, "Q8_0");
+}
+
+#[test]
+fn the_full_precision_file_is_not_the_first_card_below_the_roomy_line() {
+    // The F16 file is bigger than the Gemma 4 E4B and clears its speed
+    // line at 100 GB/s, so without the roomy-machine rule the pick at
+    // 16 GiB would BE the LFM full-precision file. The premise is asserted
+    // so the rule cannot be praised for a coincidence.
+    let sixteen = metal(16, 100.0e9);
+    let budget = kalsa_catalog::memory_budget(sixteen.backend, sixteen.ram_bytes);
+    let f16 = kalsa_catalog::usable()
+        .find(|row| row.entry().quant == "F16")
+        .expect("the full-precision file is on the menu");
+    assert!(
+        footprint_bytes(f16.entry(), CHOOSER_CONTEXT_TOKENS).total_bytes()
+            <= budget.usable_bytes,
+        "the premise: F16 fits a 16 GiB machine"
+    );
+    assert!(
+        decode_prediction(f16, &sixteen).floor() >= MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
+        "the premise: F16 clears its speed line at 100 GB/s, {:?}",
+        decode_prediction(f16, &sixteen).floor()
+    );
+    let pick = largest_that_runs_well(&sixteen).expect("a 16 GiB machine runs something");
+    assert_eq!(
+        pick.entry.repo,
+        "google/gemma-4-E4B-it",
+        "the row the owner expects on a small machine — the rule, not luck"
+    );
+    // And at 8 GiB, where F16 does not even fit, the pick is the Q8 file.
+    let pick = largest_that_runs_well(&metal(8, 100.0e9)).expect("an 8 GiB machine runs something");
+    assert_eq!(pick.entry.quant, "Q8_0");
+}

@@ -91,7 +91,7 @@ fn print_tier(tier: u64, base: ChoiceInput) {
             } = &selection.download;
             println!("  download: {url}");
             println!("            {bytes} bytes, sha256 {sha256}");
-            Some(selection.repo)
+            Some((selection.repo, selection.quant, selection.weights_bytes))
         }
         Decision::Refuse(refusal) => {
             println!(
@@ -102,15 +102,21 @@ fn print_tier(tier: u64, base: ChoiceInput) {
         }
     };
     println!("other rows:");
-    for row in rows.iter().filter(|row| Some(row.entry.repo) != winner) {
+    // The whole row is the identity, not the repo alone: two files of one
+    // model (Q8_0 and F16) are separate menu entries, and hiding both
+    // because one of them won would hide the other's verdict too.
+    for row in rows
+        .iter()
+        .filter(|row| Some((row.entry.repo, row.entry.quant, row.entry.weights_bytes)) != winner)
+    {
         println!(
             "  - {} | {} | weights={} | footprint={} | {} | {}",
             row.entry.repo,
             row.entry.quant,
             gibs(row.entry.weights_bytes),
             gibs(row.footprint.total_bytes()),
-            offering(row, budget),
-            rejection(row, budget)
+            offering(row, budget, input.ram_bytes),
+            rejection(row, budget, input.ram_bytes)
         );
     }
 }
@@ -120,10 +126,16 @@ fn print_tier(tier: u64, base: ChoiceInput) {
 /// speed floor, a file to fetch. `offered` means on this machine's menu —
 /// the pick is one of them, chosen by preference, which is a separate
 /// question with its own sentence below.
-fn offering(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> &'static str {
+fn offering(
+    row: &RowAssessment,
+    budget: kalsa_catalog::MemoryBudget,
+    ram_bytes: u64,
+) -> &'static str {
     if matches!(row.standing, Standing::Excluded { .. })
         || row.footprint.total_bytes() > budget.usable_bytes
         || row.too_slow
+        || (kalsa_catalog::full_precision_file(row.entry)
+            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES)
         || !has_a_file(row.entry)
     {
         return "withheld";
@@ -140,13 +152,18 @@ fn has_a_file(entry: &kalsa_catalog::ModelEntry) -> bool {
     kalsa_catalog::DOWNLOADABLE.iter().any(|row| row.model.repo == entry.repo)
 }
 
-fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> String {
+fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget, ram_bytes: u64) -> String {
     let mut reasons = Vec::new();
     if let Standing::Excluded { reason } = row.standing {
         reasons.push(format!("excluded by manifest: {reason}"));
     } else {
         if row.footprint.total_bytes() > budget.usable_bytes {
             reasons.push(format!("too big for {}", gibs(budget.usable_bytes)));
+        }
+        if kalsa_catalog::full_precision_file(row.entry)
+            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES
+        {
+            reasons.push("roomy machines only: the full-precision file (32 GiB of RAM)".to_string());
         }
         if row.too_slow {
             reasons.push("too slow: predicted range is below 3.0 tok/s".to_string());

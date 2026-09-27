@@ -61,9 +61,11 @@ pub use choice::{
     capability_basis, choose, largest_that_runs_well, quicker_alternative, runnable_row,
     CapabilityBasis,
     ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
-    dense_speed_floor, CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO, LARGE_DENSE_PARAMETERS,
+    dense_speed_floor, full_precision_file, CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO,
+    LARGE_DENSE_PARAMETERS,
     LARGE_MOE_TOTAL_PARAMETERS, MINIMUM_DENSE_TOKENS_PER_SECOND,
-    MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
+    MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE, ROOMY_RAM_BYTES,
+    SAME_CLASS_BAND,
 };
 pub use footprint::{
     fits, footprint_bytes, memory_budget, usable_bytes, Footprint, MemoryBudget, GIB,

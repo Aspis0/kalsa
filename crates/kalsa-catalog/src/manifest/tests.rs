@@ -240,6 +240,7 @@ fn every_row_has_a_name_a_person_can_say() {
             // above bans the quantisation from it, and the card tells the
             // two apart by the file's size.
             ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
+            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
             ("Qwen/Qwen3.8-27B", "Alibaba Qwen 3.8"),
         ]
     );
@@ -278,6 +279,7 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
+            "LiquidAI/LFM2.5-2.6B-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
         ]
@@ -343,10 +345,14 @@ fn a_source_serves_its_exact_file_at_its_commit() {
         .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
         .map(|row| row.source.url())
         .collect();
-    assert_eq!(urls.len(), 1, "the row carries one pinned file");
+    assert_eq!(urls.len(), 2, "the row's two files are pinned");
     assert_eq!(
         urls[0],
         "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
+    );
+    assert_eq!(
+        urls[1],
+        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-F16.gguf"
     );
 }
 
@@ -367,6 +373,7 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("google/gemma-4-12B-it", 7_662_533_088),
             ("LiquidAI/LFM2.5-2.6B", 2_874_779_648),
+            ("LiquidAI/LFM2.5-2.6B", 5_403_158_528),
             ("Qwen/Qwen3.8-27B", 16_464_440_224),
         ]
     );
