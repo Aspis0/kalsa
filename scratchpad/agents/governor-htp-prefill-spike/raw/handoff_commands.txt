@@ -1,0 +1,16 @@
+Device serial: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+Model: /data/local/tmp/heat3way/ship.gguf
+Binary: /data/local/tmp/govhtp/bin/test-governor-v0-handoff-long
+Common environment:
+  LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib
+  ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib
+  GGML_HEXAGON_NDEV=1
+  KALSA_HYBRID_GGUF=/data/local/tmp/heat3way/ship.gguf
+
+HTP0 run (app force-stopped after preflight gate):
+  KALSA_PREFILL_DEVICE=HTP0 ./bin/test-governor-v0-handoff-long
+  EXIT=0 (raw/handoff_htp.log)
+
+OpenCL run (app force-stopped after preflight gate):
+  KALSA_PREFILL_DEVICE=GPUOpenCL ./bin/test-governor-v0-handoff-long
+  EXIT=0 (raw/handoff_opencl.log)

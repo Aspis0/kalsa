@@ -1,0 +1,6 @@
+Host build-s23-step0-v73/bin/test-governor-v0-handoff-long:
+d69b897008ebd1558bbb63e6af1ca9b7408393169c65571ea9a8f7ab7c286ac6
+Device /data/local/tmp/govhtp/bin/test-governor-v0-handoff-long:
+d69b897008ebd1558bbb63e6af1ca9b7408393169c65571ea9a8f7ab7c286ac6
+Model /data/local/tmp/heat3way/ship.gguf:
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03

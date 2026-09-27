@@ -1,0 +1,5 @@
+Android final target build: EXIT=0
+Push test binary: EXIT=0
+HTP0 long governor handoff: EXIT=0
+OpenCL long governor handoff: EXIT=0
+Postflight/final device state: EXIT=0

@@ -71,3 +71,29 @@ Statistiche dalle righe `Mean PPL(Q)`, `Mean KLD`, `99.0% KLD`, `Maximum KLD` e 
 **Artefatti e comandi:** build Android `llama-perplexity` con la ricetta Snapdragon, `EXIT=0` (`raw/build_android_perplexity.log`); binario SHA-256 `7941260c5941c37600d9be5df75c9286a22736b44510ea6353b5f6895d9a5eaa`; fixture SHA-256 `bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728`. Comandi, exit code, log completi, pre/post gate e output HTP sono nei file `raw/kld_*`, con fixture `raw/kld_english_fixture.txt`. Nessuna modifica engine necessaria; nessun push.
 
 I comandi completi e gli exit code sono trascritti in `raw/kld_commands.txt`; i log dei quattro run sono `raw/kld_cpu_base.log`, `raw/kld_opencl.log`, `raw/kld_htp.log` e `raw/kld_cpu_check.log`.
+
+## Follow-up: handoff governor lungo su S23
+
+PASS richiesto: HTP non peggiore di OpenCL sia per agreement sia per KLD, nessun crash e byte commit identici al conteggio atteso. **Esito complessivo: FAIL**, perché il KLD HTP è più alto; nonostante ciò, entrambe le run sono terminate senza crash e i byte commit coincidono.
+
+Per ogni backend il processo ha creato un riferimento CPU fresco e confrontato 3 turni sulla stessa sequenza teacher-forced: prompt iniziale di 1.058 token, altri prompt di 15 e 16 token, 64 token generati per turno (192 step), più un rewind al checkpoint dopo il secondo turno. Agreement usa l’argmax CPU e governor a ogni step sul medesimo prefisso; KLD è `D_KL(CPU || governor)` sugli stessi logits.
+
+| Prefill | Agreement | Prima divergenza (indice 0-based) | KLD medio | KLD max | Commit |
+|---|---:|---:|---:|---:|---:|
+| HTP0 | `98.438%` | `21` | `0.000966242` | `0.035463605` | `5`, `21,741,568/21,741,568` byte |
+| OpenCL | `97.917%` | `124` | `0.000951171` | `0.011445271` | `5`, `21,741,568/21,741,568` byte |
+
+HTP supera OpenCL in agreement, ma il KLD medio è maggiore di circa 1.6% e il massimo è circa 3.1 volte quello OpenCL: non passa quindi il criterio “no worse” su KLD. `rewind=PASS` per entrambi.
+
+Timing diagnostici (prefill ms / commit ms / decode tok/s):
+
+| Run | Turno 1 | Turno 2 | Turno 3 |
+|---|---:|---:|---:|
+| HTP0 | `3485.857 / 2.994 / 16.730` | `270.370 / 0.736 / 16.640` | `308.135 / 0.758 / 16.508` |
+| OpenCL | `11873.238 / 3.187 / 16.314` | `593.873 / 0.713 / 15.878` | `589.803 / 0.720 / 15.577` |
+
+**Gate:** HTP Awake `27.7→30.2 °C`, OpenCL Awake `32.1→34.0 °C`; thermal status `0` per entrambe, `persist.traced.enable=0`, `com.kalsa.app` force-stopped. Exit `0` per ciascuna run. Schermo finale Awake; display e stay-on lasciati intatti. GGUF SHA-256 confermato: `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`; binario test host/device `d69b897008ebd1558bbb63e6af1ca9b7408393169c65571ea9a8f7ab7c286ac6`.
+
+**Avvisi/failure:** la traccia HTP riporta a `raw/handoff_htp.log:120` errore URI fisico `0x14` con fallback alla sessione CDSP singola; la run continua e termina `EXIT=0`. La prima compilazione del test fallì per nove riferimenti fuori scope ad `after_decode` (`raw/build_android_handoff_long_first_failure.log:216-243`); corretto il riferimento, la build Android finale termina `EXIT=0` (`raw/build_android_handoff_long_final.log`). Nessun errore o crash nei log delle due run.
+
+Dettagli per turno: HTP `raw/handoff_htp.log:346-349`; OpenCL `raw/handoff_opencl.log:364-367`. Gate pre/post, push, hash, comandi, exit code e log build sono in `raw/handoff_*` e `raw/build_android_handoff_long*`.
