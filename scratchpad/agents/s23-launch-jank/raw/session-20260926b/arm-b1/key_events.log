@@ -1,0 +1,11 @@
+09-26 22:25:08.631 26853 26853 I S23_LAUNCH_JANK: B1_LAUNCH
+09-26 22:25:10.398 26873 26902 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+09-26 22:25:15.401 26873 26902 I ReactNativeJS: 'KALSA_EAGER', '{"modelId":"lfm2.5-2.6b","generation":0,"delay_ms":5000,"since_launch_ms":5237}'
+09-26 22:25:15.823 26873 26902 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+09-26 22:25:16.611 26873 26902 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 31/31 layers to GPU
+09-26 22:25:21.681 26873 26902 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+09-26 22:25:21.753 26873 26902 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 0/31 layers to GPU
+09-26 22:25:22.011 26873 26902 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+09-26 22:25:22.017 26873 26902 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+09-26 22:25:36.358 26873 26902 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14316.126,"promptN":1660,"hash":"3677660334"}'
+09-26 22:25:36.363 26873 26902 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'

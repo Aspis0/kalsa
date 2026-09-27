@@ -1,0 +1,18 @@
+09-26 22:37:10.073   762   762 I S23_LAUNCH_JANK: B3_LAUNCH
+09-26 22:37:10.358  2548  3930 I ActivityTaskManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.kalsa.app/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+09-26 22:37:10.383  2548  3181 I ActivityManager: Start proc 786:com.kalsa.app/u0a347 for next-top-activity {com.kalsa.app/com.kalsa.app.MainActivity}
+09-26 22:37:10.880  2548  3170 I ActivityTaskManager: Displayed com.kalsa.app/.MainActivity for user 0: +537ms
+09-26 22:37:11.628   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+09-26 22:37:16.641   786   817 I ReactNativeJS: 'engine.eagerInit', '{"modelId":"lfm2.5-2.6b","generation":0}'
+09-26 22:37:16.641   786   817 I ReactNativeJS: 'KALSA_EAGER', '{"modelId":"lfm2.5-2.6b","generation":0,"delay_ms":5000,"since_launch_ms":5304}'
+09-26 22:37:17.022   786   817 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+09-26 22:37:17.723   786   817 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 31/31 layers to GPU
+09-26 22:37:22.557   786   817 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+09-26 22:37:22.628   786   817 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 0/31 layers to GPU
+09-26 22:37:22.924   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+09-26 22:37:22.942   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+09-26 22:37:37.270   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14277.104,"promptN":1660,"hash":"3677660334"}'
+09-26 22:37:37.284   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'
+09-26 22:37:57.153  1633  1633 I S23_TTFT: B3_SEND
+09-26 22:37:57.319   786   817 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+09-26 22:38:06.701   786   817 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":0,"tokensCached":2354,"tokensEvaluated":2319,"tokensPredicted":34,"draftTokens":0,"draftAccepted":0,"promptMs":6464.547,"predictedMs":2768.612,"predictedPerSecond":12.28052179214711,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":659}

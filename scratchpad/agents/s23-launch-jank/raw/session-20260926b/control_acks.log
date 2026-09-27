@@ -1,0 +1,7 @@
+Initial A preference (before A1): command='bench:eager_delay clear'; ack='bench: eager_delay_ms=0'; source=preflight/ui_ack.xml
+B1 preference: command='bench:eager_delay 5000'; ack='bench: eager_delay_ms=5000 (force-stop + relaunch to apply)'; source=arm-a1/setting_b_ack.xml
+A2 preference: command='bench:eager_delay clear'; ack='bench: eager_delay_ms=0'; source=arm-b1-valid/setting_a2_ack.xml
+B2 preference: command='bench:eager_delay 5000'; ack='bench: eager_delay_ms=5000 (force-stop + relaunch to apply)'; source=arm-a2/setting_b2_ack.xml
+A3 preference: command='bench:eager_delay clear'; ack='bench: eager_delay_ms=0'; source=arm-b2/setting_a3_ack.xml
+B3 preference: command='bench:eager_delay 5000'; ack='bench: eager_delay_ms=5000 (force-stop + relaunch to apply)'; source=arm-a3/setting_b3_ack.xml
+Final clear: command='bench:eager_delay clear'; ack='bench: eager_delay_ms=0'; source=arm-b3/final_clear_ack.xml

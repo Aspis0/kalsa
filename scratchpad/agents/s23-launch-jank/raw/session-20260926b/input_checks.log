@@ -1,0 +1,6 @@
+A1 valid prompt: composer_text='Reply with one word: ok'; source=arm-a1/prompt_ui_correct.xml
+B1: composer_text='Reply with one word: ok'; source=arm-b1-valid/prompt_ui.xml
+A2: composer_text='Reply with one word: ok'; source=arm-a2/prompt_ui.xml
+B2: composer_text='Reply with one word: ok'; source=arm-b2/prompt_ui.xml
+A3: composer_text='Reply with one word: ok'; source=arm-a3/prompt_ui.xml
+B3: composer_text='Reply with one word: ok'; source=arm-b3/prompt_ui.xml
