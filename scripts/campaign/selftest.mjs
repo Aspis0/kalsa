@@ -972,7 +972,8 @@ for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "w
 const runner = readFileSync(path.join(here, "run-t20c.sh"), "utf8");
 check(runner.includes("campaign_screen_turn "), "turn loop runs under the screen rule");
 check(runner.includes("campaign_screen_pin_timeout"), "run start pins the screen timeout");
-check(runner.includes("campaign_session_restore_keep_screen_timeout"), "exit trap never restores the timeout (owner rule)");
+check(runner.includes("campaign_screen_finalize"), "exit trap ends every path screen-safe (owner rule)");
+check(runner.includes("trap 'exit 130' INT TERM"), "INT/TERM route through the EXIT trap");
 check(runner.includes("CAMPAIGN_GOVERNOR_PLAN_WAIT_S:-180"), "governor plan wait defaults to 180 s");
 check(readFileSync(path.join(here, "screen.sh"), "utf8").includes("mWakefulness=Awake"), "screen rule reads mWakefulness=Awake");
 

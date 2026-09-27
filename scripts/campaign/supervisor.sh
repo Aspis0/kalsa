@@ -137,15 +137,22 @@ LEXICON_PATH="$REPO/${LEXICON_REL:-campaigns/ciswire/lexicon.json}"
 
 log "supervisor mode=$MODE serial=$ANDROID_SERIAL pkg=$PKG out=$OUT"
 
+# Owner rule (screen ON): arm the exit guarantee before anything touches
+# the phone (keepawake below REPLACES the trap; re-armed right after it).
+trap campaign_screen_finalize EXIT
+trap 'exit 130' INT TERM
+
 campaign_metro_preflight
 campaign_ensure_device || die "device missing (serial=$ANDROID_SERIAL) — refusing to fake jsonl"
 [ "$(campaign_adb_state)" = "device" ] || die "adb get-state is not device"
 device_keepawake_begin
+# keepawake REPLACED the EXIT trap with its own restore (which would delete
+# the timeout): re-arm the full screen-safe trap before the pin can die.
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; device_termux_wakelock_restore; campaign_screen_finalize' EXIT
 # Owner rule (screen ON): pin the timeout at max and drop the keyguard now
 # (keepawake just set its own shorter value — we override it after it).
 campaign_screen_pin_timeout || die "screen: could not pin screen_off_timeout=2147483647"
 campaign_logcat_start "$OUT/logcat.txt"
-trap 'campaign_native_log_restore || true; campaign_logcat_stop; device_termux_wakelock_restore; campaign_session_restore_keep_screen_timeout' EXIT
 
 campaign_arm_begin() {
   campaign_write_flags
@@ -301,6 +308,7 @@ mode_run() {
   done
 }
 
+campaign_load_dead_preflight || die "load-dead marker preflight failed"
 campaign_native_log_setup
 
 case "$MODE" in

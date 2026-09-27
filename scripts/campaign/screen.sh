@@ -121,8 +121,8 @@ campaign_screen_turn() {
 # keyguard down — with the keyguard showing, WindowManager forces a 5 s
 # user-activity timeout (mUserActivityTimeoutOverrideFromWindowManager=5000),
 # so the long timeout alone is not enough. NOT restored at exit (owner rule
-# as of today): campaign_session_restore_keep_screen_timeout re-pins the max
-# after the generic session restore writes the old value back.
+# as of today): campaign_screen_finalize re-pins the max after the generic
+# session restore writes the old value back — see its comment below.
 campaign_screen_pin_timeout() {
   local saved
   saved=$(adb shell settings get system screen_off_timeout </dev/null 2>/dev/null | tr -d '\r') || saved=""
@@ -134,9 +134,29 @@ campaign_screen_pin_timeout() {
   return 0
 }
 
-campaign_session_restore_keep_screen_timeout() {
+# The exit guarantee (owner rule): EVERY exit path — success, die, early
+# die, signal — ends at timeout 2147483647, Awake, keyguard down, Kalsa in
+# the foreground, and nothing ever DELETES the setting. keepawake's restore
+# would delete it: its pure decision deletes when the saved value equals
+# KA_SCREEN_TIMEOUT_MS (the S23 run saved 86400000 from a prior run and
+# logged "deleted screen_off_timeout (leak: ...)"), so tell it the saved
+# value IS the max — its decision becomes `put 2147483647`. Teardown also
+# force-stops Kalsa (the S23 phone ended Dozing with the shade focused), so
+# the wake + foreground runs AFTER the restore, never before.
+campaign_screen_finalize() {
+  _KA_SCREEN_TIMEOUT_SAVED=2147483647
   _device_session_restore || true
-  # Owner rule: the max timeout STAYS after the run — re-pin whatever the
-  # generic restore just wrote back.
-  adb shell settings put system screen_off_timeout 2147483647 </dev/null >/dev/null 2>&1 || true
+  if adb shell settings put system screen_off_timeout 2147483647 </dev/null >/dev/null 2>&1; then
+    log "screen finalize: screen_off_timeout=2147483647"
+  else
+    log "screen finalize: WARNING could not set screen_off_timeout=2147483647"
+  fi
+  if campaign_screen_wake; then
+    log "screen finalize: Awake + keyguard dismissed + Kalsa foreground"
+  else
+    log "screen finalize: WARNING not awake/focused at exit"
+  fi
+  local timeout
+  timeout=$(adb shell settings get system screen_off_timeout </dev/null 2>/dev/null | tr -d '\r') || timeout=unreadable
+  log "screen finalize: readback screen_off_timeout=${timeout:-unreadable}"
 }

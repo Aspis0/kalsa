@@ -95,6 +95,9 @@ EOF
   printf '%s\n' 'Thermal Status: 0' > "$FAKE_DEV/fake/thermalservice.txt"
   printf '%s\n' awake > "$FAKE_DEV/fake/screen"
   printf '%s\n' kalsa > "$FAKE_DEV/fake/focus"
+  # S23 pre-run value: equal to ci-lib's KA ceiling, so keepawake's pure
+  # restore decision takes its DELETE branch unless the harness overrides it.
+  printf '%s\n' 86400000 > "$FAKE_DEV/fake/settings-timeout"
   cat > "$FAKE_DEV/fake/stream.txt" <<'EOF'
 09-16 12:00:00.000 4242 4243 I ReactNativeJS: KALSA_CTX_FLOOR n_ctx=8192
 09-16 12:00:00.010 4242 4243 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"fake","nGpuLayers":0}
@@ -103,6 +106,7 @@ EOF
   cat > "$FAKE_DEV/fake/ui.xml" <<'EOF'
 <hierarchy>
 <node class="android.widget.TextView" text="Pronto" bounds="[0,0][10,10]"/>
+<node class="android.widget.EditText" text="Ask a question…" enabled="true" bounds="[0,100][900,200]"/>
 <node class="android.widget.Button" text="Send" bounds="[900,2000][1000,2100]"/>
 </hierarchy>
 EOF
@@ -565,6 +569,19 @@ run_campaign_case() {
     ok "$mode campaign teardown restored the previously absent nativelog preference"
   else
     bad "$mode campaign teardown left nativelog=$restored_pref instead of ABSENT"
+  fi
+  # Owner end-state on EVERY exit path (die-before-turn-1 included: this
+  # case dies in native log setup, the exact S23 failure): timeout at max,
+  # the setting NEVER deleted, Kalsa back in the foreground after teardown.
+  local exit_timeout exit_focus
+  exit_timeout=$(cat "$FAKE_DEV/fake/settings-timeout" 2>/dev/null || printf null)
+  exit_focus=$(cat "$FAKE_DEV/fake/focus" 2>/dev/null || printf unknown)
+  if [ "$exit_timeout" = 2147483647 ] \
+     && [ ! -e "$FAKE_DEV/fake/settings-timeout-deleted" ] \
+     && [ "$exit_focus" = kalsa ]; then
+    ok "$mode exit ends screen-safe: timeout=2147483647, never deleted, Kalsa foreground"
+  else
+    bad "$mode exit screen state: timeout=$exit_timeout deleted=$([ -e "$FAKE_DEV/fake/settings-timeout-deleted" ] && printf yes || printf no) focus=$exit_focus"
   fi
   if [ "$mode" != native-log-off ]; then
     printf '   jsonl: %s\n' "$(jsonl_reason "$out/T20C/c1-V1.jsonl" 2 already-landed-skip-send >/dev/null 2>&1 && printf ok || printf 'no already-landed row')"
@@ -1580,6 +1597,173 @@ readings_alternating_case() {
 }
 
 readings_alternating_case
+
+# ── readiness gate: KALSA_PREWARM op=done since THIS launch + composer ─────
+# The gate is a log API, not the model-sheet "Ready" label (the main screen
+# never shows it: S23 2026-09-27, op=done at 21 s, label gate timed out).
+# The five sources stay INLINE in each subshell: `source` inside a function
+# scopes device-share's `readonly _SHARE_*_LABELS=(...)` to that function and
+# the arrays vanish when it returns (bash: readonly acts declare-like here).
+READINESS_SOURCES='source "$REPO/scripts/device-share-send.sh"
+  source "$HERE/logcat.sh"
+  source "$HERE/watchdog.sh"
+  source "$HERE/flags.sh"
+  source "$HERE/conversation.sh"'
+
+readiness_env() {
+  export BENCH_TARGET=device PKG=com.kalsa.app OUT="$1" MODEL_ID=lfm2.5-2.6b
+  export CAMPAIGN_LOGCAT_FILE="$FAKE_DEV/fake/stream.txt" CAMPAIGN_READY_TIMEOUT="${2:-10}"
+  export ANDROID_SERIAL=fake:5555
+}
+
+readiness_fresh_case() {
+  local out="$WORK/ready-fresh" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, and this die must be a stub so
+    # the assertion sees the message + a deterministic code, not die's capture.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 10
+    campaign_launch || exit 2
+    campaign_wait_ready || exit 3
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ] && grep -q 'ready after' "$out/log.txt"; then
+    ok "readiness passes on this launch's KALSA_PREWARM op=done + enabled composer"
+  else
+    bad "fresh readiness failed (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_fresh_case
+
+# A prewarm done from the PREVIOUS launch sits before this launch's offset:
+# it must never satisfy the gate (the fake refuses the fresh line).
+readiness_stale_case() {
+  local out="$WORK/ready-stale" rc
+  fake_reset marker-turn1
+  printf '%s\n' '09-16 11:59:59.000 4242 4243 I ReactNativeJS: KALSA_PREWARM {"op":"done","promptMs":1,"promptN":1,"hash":"stale"}' >> "$FAKE_DEV/fake/stream.txt"
+  : > "$FAKE_DEV/fake/no-prewarm"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, and this die must be a stub so
+    # the assertion sees the message + a deterministic code, not die's capture.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_launch || exit 2
+    if campaign_wait_ready; then exit 3; fi
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "readiness refuses a stale prewarm line from a previous launch"
+  else
+    bad "stale prewarm line satisfied the gate (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_stale_case
+
+# The log line alone is not enough: the composer must be enabled in the XML.
+readiness_composer_disabled_case() {
+  local out="$WORK/ready-disabled" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, and this die must be a stub so
+    # the assertion sees the message + a deterministic code, not die's capture.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_launch || exit 2
+    cat > "$FAKE_DEV/fake/ui.xml" <<'EOF'
+<hierarchy>
+<node class="android.widget.TextView" text="Pronto" bounds="[0,0][10,10]"/>
+<node class="android.widget.EditText" text="Ask a question…" enabled="false" bounds="[0,100][900,200]"/>
+</hierarchy>
+EOF
+    if campaign_wait_ready; then exit 3; fi
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "readiness refuses a disabled composer even with the log line"
+  else
+    bad "disabled composer passed the gate (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_composer_disabled_case
+
+# ── dead-load marker: preflight reads/clears loudly, re-death dies ────────
+# Product safety net src/engine/loadMarker.ts: key kalsa.load.dead.<modelId>,
+# value "1"; a marker that outlived its process refuses the next load.
+marker_preflight_case() {
+  local out="$WORK/marker-preflight" rc
+  fake_reset marker-turn1
+  sqlite3 "$FAKE_DEV/databases/RKStorage" \
+    "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.load.dead.lfm2.5-2.6b','1');"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, and this die must be a stub so
+    # the assertion sees the message + a deterministic code, not die's capture.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_load_dead_preflight || exit 2
+    [ -z "$(sqlite3 "$FAKE_DEV/databases/RKStorage" \
+      "SELECT value FROM catalystLocalStorage WHERE key='kalsa.load.dead.lfm2.5-2.6b';" 2>/dev/null)" ] || exit 3
+    grep -q '"load_dead_marker_cleared": true' "$OUT/run-record.json" || exit 4
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ] && grep -q 'LOAD DEAD MARKER' "$out/log.txt"; then
+    ok "dead-load marker: preflight logs loudly, clears it and records load_dead_marker_cleared=true"
+  else
+    bad "dead-load marker preflight wrong (rc=$rc)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+marker_preflight_case
+
+# After a cleared marker the load must produce a prewarm done inside the
+# cap; a re-dead load dies with "model load died" and a logcat snapshot.
+marker_load_died_case() {
+  local out="$WORK/marker-load-died" rc
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/no-prewarm"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    # After the sources: ci-lib owns log/die, and this die must be a stub so
+    # the assertion sees the message + a deterministic code, not die's capture.
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    export CAMPAIGN_LOAD_DEAD_MARKER_CLEARED=1
+    campaign_launch || exit 2
+    campaign_wait_ready
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 7 ] \
+     && grep -q 'model load died' "$out/log.txt" \
+     && [ -s "$out/model-load-died.logcat" ]; then
+    ok "a re-dead load dies with 'model load died' and a logcat snapshot"
+  else
+    bad "re-dead load did not die correctly (rc=$rc)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+marker_load_died_case
 
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

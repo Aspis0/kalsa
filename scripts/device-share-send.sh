@@ -37,6 +37,36 @@ readonly _SHARE_RELOAD_LABELS=("Tap to reload" "Tocca per ricaricare")
 readonly _SHARE_READY_LABELS=("Ready" "Pronto")
 readonly _SHARE_PLACEHOLDERS=("Ask a question…" "Fai una domanda…")
 
+# Readiness is a LOG API plus an enabled composer, not a _SHARE_READY_LABELS
+# match: "Ready"/"Pronto" lives only inside the model sheet when it is open
+# and the main screen never shows it (S23 2026-09-27: KALSA_PREWARM op=done
+# arrived at 21 s, the label gate still timed out at 240 s). The line must
+# come from THIS launch: the caller captured the logcat byte offset before
+# `am start` (campaign_launch stores _CAMPAIGN_LAUNCH_LOG_OFFSET), so a
+# stale op=done from the previous launch sits before the offset and cannot
+# satisfy the gate. The labels stay for the reload banner wait below and for
+# the harnesses that source this file without a campaign logcat.
+device_ready_log_seen() {
+  local offset="${1:-0}" file="${CAMPAIGN_LOGCAT_FILE:-}" slice
+  [ -n "$file" ] && [ -f "$file" ] || return 1
+  slice=$(tail -c "+$((offset + 1))" "$file" 2>/dev/null || true)
+  [ -n "$slice" ] || return 1
+  # One line must carry both markers; the emitter puts op first
+  # (LlamaService logPrewarm({op:"done", ...})). Herestring, never a pipe
+  # into grep -q: an early-closing grep hands the writer a SIGPIPE.
+  grep -qF 'KALSA_PREWARM {"op":"done"' <<<"$slice"
+}
+
+# A dead load leaves the composer disabled; the XML must show an enabled one.
+device_composer_enabled() {
+  local ui
+  ui=$(device_dump_ui_retry </dev/null) || return 1
+  # awk over the split nodes reads every line (no early-exit SIGPIPE).
+  printf '%s\n' "$ui" | tr '>' '\n' | awk '
+    /class="android.widget.EditText"/ { if ($0 ~ /enabled="true"/) found = 1 }
+    END { exit found ? 0 : 1 }'
+}
+
 device_share_encode() {
   python3 -c '
 import sys, urllib.parse

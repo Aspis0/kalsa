@@ -98,6 +98,13 @@ source "$CAMPAIGN_ROOT/screen.sh"
 source "$CAMPAIGN_ROOT/metroPreflight.sh"
 source "$CAMPAIGN_ROOT/governor.sh"
 
+# Owner rule (screen ON): arm the exit guarantee BEFORE anything touches
+# the phone — every die from here on ends screen-safe. keepawake_begin
+# below REPLACES the EXIT trap with its own restore, so the full trap is
+# re-armed there (the last trap wins); INT/TERM route through the EXIT trap.
+trap campaign_screen_finalize EXIT
+trap 'exit 130' INT TERM
+
 command -v campaign_metro_preflight >/dev/null 2>&1 || die "Metro gate unavailable: campaign_metro_preflight is not defined"
 campaign_metro_preflight
 
@@ -308,12 +315,15 @@ device_thermal_gate
 [ "${THERMAL_STATUS_AT_TURN:-unknown}" != unknown ] || die "thermal preflight refused: thermal status unreadable"
 log "thermal preflight status=${THERMAL_STATUS_AT_TURN:-unknown} battery_deci=${THERMAL_BATTERY_DECI_AT_TURN:-unknown}"
 device_keepawake_begin
+# keepawake just REPLACED the EXIT trap with its own restore, which DELETEs
+# screen_off_timeout here (saved == KA ceiling — the S23 failure): re-arm the
+# FULL trap before the pin can die, so every later path ends screen-safe.
+MON_PID=""
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; campaign_screen_finalize' EXIT
 # Owner rule (screen ON): pin the timeout at max and drop the keyguard now;
 # keepawake just set its own shorter value, we override it after it.
 campaign_screen_pin_timeout || die "screen: could not pin screen_off_timeout=2147483647"
 campaign_logcat_start "$OUT/logcat.txt"
-MON_PID=""
-trap 'campaign_native_log_restore || true; campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; campaign_session_restore_keep_screen_timeout' EXIT
 
 charging_monitor &
 MON_PID=$!
@@ -360,6 +370,7 @@ log "arm begin: flags->ciswire, wipe chat, launch"
 # The pref must be in storage BEFORE the launch whose load gate reads it;
 # a post-load write would satisfy the readback and change nothing.
 campaign_governor_enable || die "governor pref: could not write $GOVERNOR_PREF_KEY=1"
+campaign_load_dead_preflight || die "load-dead marker preflight failed"
 campaign_native_log_setup
 campaign_arm_begin
 battery_line

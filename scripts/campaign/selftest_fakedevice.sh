@@ -17,6 +17,9 @@
 #   composer     text the share put in the EditText ("" when the share missed)
 #   pending_turn turn armed by a share, fired as KALSA_THINKING by `input tap`
 #   telemetry.line  the KALSA_TELEMETRY line appended on turn 1 (marker-turn1)
+#   no-prewarm      flag file: launches append no KALSA_PREWARM op=done (a
+#                   refused/dead load) so the readiness gate must fail on it
+#   settings-timeout  system screen_off_timeout value (stateful get/put/delete)
 set -uo pipefail
 
 DEV="${FAKE_DEV:?FAKE_DEV must point at the fake device root}"
@@ -200,7 +203,7 @@ text = sys.argv[2].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;
 open(sys.argv[1], "w", encoding="utf-8").write(
     '<hierarchy>'
     '<node class="android.widget.TextView" text="Pronto" bounds="[0,0][10,10]"/>'
-    '<node class="android.widget.EditText" text="%s" bounds="[0,100][900,200]"/>'
+    '<node class="android.widget.EditText" text="%s" enabled="true" bounds="[0,100][900,200]"/>'
     '<node class="android.widget.Button" text="Send" bounds="[900,2000][1000,2100]"/>'
     '</hierarchy>\n' % text
 )
@@ -302,9 +305,20 @@ case "${1:-}" in
       "dumpsys window") _window_dump ;;
       "dumpsys activity activities") _activity_dump ;;
       "dumpsys deviceidle whitelist"*) : ;;
-      "settings get system screen_off_timeout") printf '%s\n' null ;;
+      "settings get system screen_off_timeout")
+        if [ -f "$F/settings-timeout" ]; then cat "$F/settings-timeout"; else printf '%s\n' null; fi
+        ;;
       "settings get global stay_on_while_plugged_in") printf '%s\n' 0 ;;
       "settings get secure default_input_method") printf '%s\n' null ;;
+      "settings put system screen_off_timeout "*)
+        printf '%s\n' "${s##*screen_off_timeout }" > "$F/settings-timeout"
+        ;;
+      "settings delete system screen_off_timeout")
+        # The owner rule forbids this path: the marker proves teardown never
+        # deleted the setting (the S23 failure deleted it).
+        rm -f "$F/settings-timeout"
+        : > "$F/settings-timeout-deleted"
+        ;;
       "settings put "*|"settings delete "*) : ;;
       "ime "*) : ;;
       "input tap "*)
@@ -346,7 +360,12 @@ PY
         ;;
       "input keyevent KEYCODE_WAKEUP") _screen_wake ;;
       "input "*) : ;;
-      "am force-stop"*) : > "$F/pid" ;;
+      "am force-stop"*)
+        : > "$F/pid"
+        # Teardown leaves the app off-screen — nothing keeps focus until
+        # somebody foregrounds it again (s23 post-exit: NotificationShade).
+        printf 'other' > "$F/focus"
+        ;;
       "am start -n "*)
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
         # Bringing Kalsa to the front is what makes it the focused app.
@@ -357,6 +376,12 @@ PY
         # the engagement gate must die on it.
         if [ "$(sqlite3 "$DEV/databases/RKStorage" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.governor.enabled';" 2>/dev/null)" = "1" ]; then
           _append "09-16 12:00:00.100  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_GOVERNOR_PLAN {\"gpu_fit\":\"Fit\",\"decode_repack\":false,\"required_mib_with_repack\":4518.12,\"required_mib_without_repack\":2998.06,\"available_mib\":4006.86,\"bench_norepack_forced\":null}"
+        fi
+        # A loaded app finishes its prewarm; the readiness gate is this log
+        # line for THIS launch (offset captured before am start). no-prewarm
+        # models a dead/refused load: no line ever arrives.
+        if [ ! -f "$F/no-prewarm" ]; then
+          _append "09-16 12:00:00.200  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_PREWARM {\"op\":\"done\",\"promptMs\":42,\"promptN\":1,\"hash\":\"fake\"}"
         fi
         ;;
       "am start -a android.intent.action.VIEW"*) _share_intent "$s" ;;
