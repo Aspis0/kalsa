@@ -35,6 +35,17 @@ const config = {
     permissions: ["android.permission.RECORD_AUDIO", "android.permission.READ_CALENDAR"],
     intentFilters: [
       {
+        action: "VIEW",
+        autoVerify: true,
+        category: ["BROWSABLE", "DEFAULT"],
+        data: [{ scheme: "https", host: "kalsa.io", path: "/pair" }],
+      },
+      {
+        action: "VIEW",
+        category: ["BROWSABLE", "DEFAULT"],
+        data: [{ scheme: "kalsa", host: "pair" }],
+      },
+      {
         action: "SEND",
         category: ["DEFAULT"],
         data: [{ mimeType: "text/plain" }],

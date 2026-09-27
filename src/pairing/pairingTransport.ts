@@ -5,7 +5,7 @@ import {
   phoneMacHex,
   type PairingPhoneDeclaration,
 } from "./pairingWire";
-import { logPairingFail } from "./pairingFailLog";
+import { logPairingFail, type PairingFailStage } from "./pairingFailLog";
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_HEAD_BYTES = 8 * 1024;
@@ -64,6 +64,7 @@ export type PairingSessionOptions = {
   /** Aborting this stops the ceremony's HTTPS requests in flight. */
   signal?: AbortSignal;
   onDiagnostic?: (record: PairingDiagnostic) => void;
+  onFailure?: (stage: PairingFailStage) => void;
 };
 
 function secureRandomBytes(length: number): Uint8Array {
@@ -144,11 +145,11 @@ export class PairingSession {
     try {
       bytes = random(DELIVERY_TOKEN_BYTES);
     } catch {
-      logPairingFail("random", null);
+      this.reportFailure("random", null);
       throw new Error("secure random source unavailable");
     }
     if (bytes.length !== DELIVERY_TOKEN_BYTES) {
-      logPairingFail("random", null);
+      this.reportFailure("random", null);
       throw new Error("invalid random source");
     }
     this.deliveryToken = bytesToHex(bytes);
@@ -160,6 +161,15 @@ export class PairingSession {
       this.options.onDiagnostic?.(record);
     } catch {
       // Diagnostics must never change the pairing outcome.
+    }
+  }
+
+  private reportFailure(stage: PairingFailStage, status: number | null): void {
+    logPairingFail(stage, status);
+    try {
+      this.options.onFailure?.(stage);
+    } catch {
+      // Failure reporting must never change the pairing outcome.
     }
   }
 
@@ -183,7 +193,7 @@ export class PairingSession {
         phone: this.options.phone,
       });
     } catch {
-      logPairingFail("validate", null);
+      this.reportFailure("validate", null);
       this.finished = true;
       return null;
     }
@@ -192,7 +202,7 @@ export class PairingSession {
       this.completeUrl = pairUrl(this.options.deskUrl, "complete");
       claimUrl = pairUrl(this.options.deskUrl, "claim");
     } catch {
-      logPairingFail("claim_url", null);
+      this.reportFailure("claim_url", null);
       this.finished = true;
       return null;
     }
@@ -203,12 +213,12 @@ export class PairingSession {
       this.options.signal,
     );
     if (!claim.ok) {
-      logPairingFail(claim.reason === "request_too_large" ? "request_too_large" : "claim_network", null);
+      this.reportFailure(claim.reason === "request_too_large" ? "request_too_large" : "claim_network", null);
       this.finished = true;
       return null;
     }
     if (claim.response.status !== 200) {
-      logPairingFail("claim_status", claim.response.status);
+      this.reportFailure("claim_status", claim.response.status);
       this.finished = true;
       return null;
     }
@@ -239,7 +249,7 @@ export class PairingSession {
       const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
       const result = await postPairingJson(this.completeUrl, body, this.fetcher, this.options.signal);
       if (!result.ok) {
-        logPairingFail(result.reason === "request_too_large" ? "request_too_large" : "complete_network", null);
+        this.reportFailure(result.reason === "request_too_large" ? "request_too_large" : "complete_network", null);
         this.completeRetryPending = true;
         return null;
       }
@@ -248,7 +258,7 @@ export class PairingSession {
       this.finished = true;
       this.completeRetryPending = false;
       if (response.status !== 200) {
-        logPairingFail("complete_status", response.status);
+        this.reportFailure("complete_status", response.status);
         if (retryingAfterTimeout && response.status === 403) {
           this.logDiagnostic({
             event: "pairing.retry_refused_after_timeout",
@@ -262,18 +272,18 @@ export class PairingSession {
       try {
         seal = await response.json();
       } catch {
-        logPairingFail("seal", response.status);
+        this.reportFailure("seal", response.status);
         return null;
       }
       if (!isSeal(seal)) {
-        logPairingFail("seal", response.status);
+        this.reportFailure("seal", response.status);
         return null;
       }
       let credential: Uint8Array;
       try {
         credential = openCredentialSeal(key, nonce, seal.credential_ciphertext, seal.mac);
       } catch {
-        logPairingFail("seal", response.status);
+        this.reportFailure("seal", response.status);
         return null;
       }
       this.logDiagnostic({
@@ -287,7 +297,7 @@ export class PairingSession {
       // — the same input problem begin() validated — and the attempt still
       // owes its one stage line. The ambiguous lost-response outcome is the
       // complete_network branch above, not this catch.
-      logPairingFail("validate", null);
+      this.reportFailure("validate", null);
       if (!this.finished) this.completeRetryPending = true;
       return null;
     }

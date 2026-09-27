@@ -19,7 +19,8 @@
  * gated on Settings open (there is NO boot-time rescan in either app) and
  * re-run when `modelState` moves, writing UP into the download host's map.
  */
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Linking } from "react-native";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { AccountScreen } from "../screens/AccountScreen";
 import { ProScreen } from "../screens/ProScreen";
@@ -51,6 +52,8 @@ import { HostMiniappSheet } from "./HostMiniappSheet";
 import { HostConversations } from "./HostConversations";
 import type { HostDrawerProps } from "./HostDrawer";
 import type { createConversationActions } from "./conversationActions";
+import { createPairingLinkDeduper, parsePairingInvite } from "../pairing/pairingInvite";
+import type { PairingSquare } from "../pairing/pairingTransport";
 
 export interface OverlaysProps {
   overlay: HostOverlay;
@@ -144,6 +147,27 @@ export function HostOverlays(props: OverlaysProps) {
   } = props;
   const { t } = useLocale();
   const { fontScaleId } = useLabTheme<{ fontScaleId: string }>();
+  const [pairingInvite, setPairingInvite] = useState<PairingSquare | null>(null);
+  const shouldProcessLink = useRef(createPairingLinkDeduper()).current;
+
+  useEffect(() => {
+    let mounted = true;
+    const processLink = (url: string) => {
+      if (!shouldProcessLink(url)) return;
+      const result = parsePairingInvite(url);
+      if (!result.ok) return;
+      setPairingInvite(result.square);
+      setOverlay({ kind: "settings" });
+    };
+    const subscription = Linking.addEventListener("url", ({ url }) => processLink(url));
+    void Linking.getInitialURL().then((url) => {
+      if (mounted && url) processLink(url);
+    }).catch(() => undefined);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [setOverlay, shouldProcessLink]);
 
   // When Settings opens, scan which models are fully on disk — once per open
   // AND on every state change while open, the controller's deps
@@ -179,6 +203,8 @@ export function HostOverlays(props: OverlaysProps) {
   if (overlay?.kind === "settings") {
     return (
       <SettingsScreen
+        initialPairingInvite={pairingInvite}
+        onDismissPairingInvite={() => setPairingInvite(null)}
         webToolsEnabled={webToolsEnabled}
         onToggleWebTools={toggleWebTools}
         onBack={() => {

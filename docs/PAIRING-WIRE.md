@@ -77,8 +77,10 @@ in order:
    candidate must be a large MoE with total ≥ 1.4 × the phone's total (`IMPROVEMENT_RATIO`, :68-77 — its own
    docs say the byte version of this bar *pretended*).
 3. **Relief** (:237-242) — needs **`battery_powered == true`** and a candidate whose `weights_bytes` is at
-   least 0.85 × the phone's (`SAME_CLASS_BAND`, :85-91). **This is the only place `weights_bytes` enters**, and
-   it is a floor that stops "relief" from being a downgrade.
+   least 0.85 × the phone's (`SAME_CLASS_BAND`, :85-91). This floor still makes the same selection and stops
+   "relief" from being a downgrade. The same band read in reverse controls only the wording: a candidate at
+   most `phone / 0.85` is "about as good as" the phone's model; above that it is described as a much bigger
+   model, with no claim that it is better without measurement.
 
 Consequences, and the second one matters for tomorrow's run:
 
