@@ -30,12 +30,15 @@ campaign_store_turn() {
 campaign_recover_status() {
   local status="${1:?}"
   case "$status" in
-    timeout|hang)
+    timeout|hang|toolround)
       # A timeout/hang is usually a lost engine (zombie: app alive but
       # activeModel null / jsReady false). Restoring the KV context alone does
       # NOT reload the model — only relaunching the app does. So mirror the
       # pid-death path: pull the DB, relaunch/reinstall, wait ready. This is
-      # what breaks the infinite hang loop.
+      # what breaks the infinite hang loop. A lost tool continuation
+      # (toolround) shares it: the engine holds a half-built turn and only a
+      # relaunch gives the resend a clean engine — the distinct status still
+      # lands in the RECOVERY record and the run log.
       campaign_pull_db "$OUT/db-before-restart" || die "RKStorage pull failed turn $CAMPAIGN_TURN_I"
       campaign_relaunch_or_reinstall || die "reinstall/relaunch failed turn $CAMPAIGN_TURN_I"
       campaign_wait_ready || die "ready timeout after $status turn $CAMPAIGN_TURN_I"

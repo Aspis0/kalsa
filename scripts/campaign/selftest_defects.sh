@@ -1901,5 +1901,143 @@ REC
 
 tool_continuation_case
 
+# ── the tool gate's knobs: quiet window, round bound, both wire forms ───────
+# Quiet window: explicit and poll-aware — max(1500, 2 x poll), env override.
+toolcall_quiet_ms_case() {
+  local got_q got_p got_d got_o
+  got_q=$(CAMPAIGN_POLL_MS=1000 bash -c 'log(){ :; }; source "$0"; campaign_toolcall_quiet_ms' "$HERE/turn.sh")
+  got_p=$(CAMPAIGN_POLL_MS=500 bash -c 'log(){ :; }; source "$0"; campaign_toolcall_quiet_ms' "$HERE/turn.sh")
+  got_d=$(CAMPAIGN_POLL_MS=5000 bash -c 'log(){ :; }; source "$0"; campaign_toolcall_quiet_ms' "$HERE/turn.sh")
+  got_o=$(CAMPAIGN_POLL_MS=1000 CAMPAIGN_TOOLCALL_QUIET_MS=250 bash -c 'log(){ :; }; source "$0"; campaign_toolcall_quiet_ms' "$HERE/turn.sh")
+  if [ "$got_q" = 2000 ] && [ "$got_p" = 1500 ] && [ "$got_d" = 10000 ] && [ "$got_o" = 250 ]; then
+    ok "quiet window = max(1500, 2 x poll), env override wins (1000→2000, 500→1500, 5000→10000, override→250)"
+  else
+    bad "quiet window wrong: q=$got_q p=$got_p d=$got_d o=$got_o"
+  fi
+}
+
+toolcall_quiet_ms_case
+
+# Both wire forms of KALSA_TOOLCALL parse (shared dual-needle pattern).
+tool_state_forms_case() {
+  local out="$WORK/tool-forms" unquoted quoted pending_q rc
+  rm -rf "$out"; mkdir -p "$out"
+  printf '%s\n' '09-27 16:42:10.885 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"executed":1}' > "$out/unquoted.txt"
+  printf '%s\n' "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":2,\"executed\":0}'" > "$out/quoted.txt"
+  printf '%s\n' "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":3,\"executed\":1}'" > "$out/quoted-pending.txt"
+  (
+    log() { :; }
+    source "$HERE/turn.sh"
+    u=$(campaign_turn_tool_state "$out/unquoted.txt")
+    q=$(campaign_turn_tool_state "$out/quoted.txt")
+    qp=$(campaign_turn_tool_state "$out/quoted-pending.txt")
+    a=$(campaign_turn_tool_state "$out/nonexistent.txt")
+    [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] && [ "$a" = "absent" ]
+  )
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "tool state parses both wire forms: unquoted pending, quoted final/pending, absent"
+  else
+    bad "tool state wire forms wrong (rc=$rc)"
+  fi
+}
+
+tool_state_forms_case
+
+# A continuation that never arrives ends the turn as toolround at the bound,
+# with its own log line — never the 45-min turn timeout.
+tool_round_lost_case() {
+  local out="$WORK/tool-lost" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=60000
+    CAMPAIGN_TELEMETRY_GAP_MS=120000
+    CAMPAIGN_POLL_MS=500
+    CAMPAIGN_TOOL_ROUND_MAX_MS=1500
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    make_messages "$FAKE_DEV/fake/live.json" 1 8
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '09-16 12:00:10.000 4242 4243 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensPredicted":10}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '09-16 12:00:10.010 4242 4243 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"executed":1}' >> "$FAKE_DEV/fake/stream.txt"
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    wrc=$?
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    exit "$wrc"
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  local status
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -ne 0 ] && [ "$status" = "toolround" ] \
+     && grep -q "tool continuation lost: round 0 pending for 1500ms" "$out/log.txt"; then
+    ok "a lost continuation ends the turn as toolround at CAMPAIGN_TOOL_ROUND_MAX_MS, with its own log"
+  else
+    bad "lost continuation wrong (rc=$rc status=$status)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_round_lost_case
+
+# The bound restarts per pending round: healthy multi-tool turns (round N
+# pending → round N+1 pending → final) are never killed by an earlier round.
+tool_round_rotating_case() {
+  local out="$WORK/tool-rotating" rc
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=60000
+    CAMPAIGN_TELEMETRY_GAP_MS=120000
+    CAMPAIGN_POLL_MS=500
+    CAMPAIGN_TOOL_ROUND_MAX_MS=800
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    make_messages "$FAKE_DEV/fake/live.json" 1 8
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '09-16 12:00:10.000 4242 4243 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensPredicted":10}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '09-16 12:00:10.010 4242 4243 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"executed":1}' >> "$FAKE_DEV/fake/stream.txt"
+    (
+      sleep 0.8
+      printf '%s\n' '09-16 12:00:11.000 4242 4243 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":1,"executed":1}' >> "$FAKE_DEV/fake/stream.txt"
+      sleep 0.8
+      printf '%s\n' '09-16 12:00:12.000 4242 4243 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":0}' >> "$FAKE_DEV/fake/stream.txt"
+    ) >/dev/null 2>&1 &
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    wait >/dev/null 2>&1 || true
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  local status
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -eq 0 ] && [ "$status" = "ok" ] \
+     && ! grep -q "tool continuation lost" "$out/log.txt"; then
+    ok "rotating tool rounds restart the bound: multi-tool turn completes, never toolround"
+  else
+    bad "rotating tool rounds wrong (rc=$rc status=$status)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_round_rotating_case
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

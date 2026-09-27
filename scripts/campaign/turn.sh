@@ -248,7 +248,7 @@ print(len(asst[-1]) if asst else 0)
 # An interrupted bubble completes the turn without requiring count/telemetry.
 # Liveness (the hang watchdog) is NOT the completion marker: see
 # campaign_progress_fingerprint above.
-# Sets CAMPAIGN_TURN_STATUS=ok|interrupted|timeout|hang|pid-death|adb-drop
+# Sets CAMPAIGN_TURN_STATUS=ok|interrupted|timeout|hang|pid-death|adb-drop|toolround
 # The LAST KALSA_TOOLCALL in this turn's slice decides whether the turn is
 # over: KALSA_TELEMETRY is emitted PER ROUND (baseline raw: round 0 at
 # 16:42:10.870, round 1 at 16:44:33.975), and every round also emits one
@@ -262,12 +262,18 @@ campaign_turn_tool_state() {
 import json
 import sys
 
-needle = "KALSA_TOOLCALL "
+# Two wire forms, the shared dual-needle pattern (parsePrefixedLines in
+# telemetryParse.mjs, governor.sh): React Native renders a multi-argument
+# console.log quoted — 'KALSA_TOOLCALL', '{...}' — and a single needle would
+# read "absent" forever on it, truncating every turn at round 0. The needle
+# stops BEFORE the payload's opening quote so the JSON slices cleanly.
+NEEDLE = "KALSA_TOOLCALL "
+QUOTED = "'KALSA_TOOLCALL', "
 last = None
 try:
     with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            at = line.rfind(needle)
+            at = max(line.rfind(NEEDLE), line.rfind(QUOTED))
             if at < 0:
                 continue
             brace = line.find("{", at)
@@ -285,8 +291,31 @@ except OSError:
 if last is None:
     print("absent")
 else:
-    print("pending" if int(last.get("executed", 0) or 0) > 0 else "final")
+    executed = int(last.get("executed", 0) or 0)
+    if executed > 0:
+        round_no = last.get("round", -1)
+        print("pending %d" % (round_no if isinstance(round_no, int) else -1))
+    else:
+        print("final")
 PY
+}
+
+# How long an "absent" tool state must sit before the turn may complete:
+# explicit and poll-aware (the supervisor takes its poll from the config, so
+# a fixed 1500 ms would give a 1000 ms poll a different, unexamined window),
+# default max(1500, 2 x poll ms) so at least two polls cross the telemetry →
+# KALSA_TOOLCALL emission gap (~15 ms on device, baseline raw .870/.885).
+# CAMPAIGN_TOOLCALL_QUIET_MS overrides (tests, tight loops).
+campaign_toolcall_quiet_ms() {
+  local poll_ms="${CAMPAIGN_POLL_MS:-5000}" quiet
+  case "$poll_ms" in ''|*[!0-9]*|0) poll_ms=5000 ;; esac
+  quiet=$((poll_ms * 2))
+  if [ "$quiet" -lt 1500 ]; then quiet=1500; fi
+  case "${CAMPAIGN_TOOLCALL_QUIET_MS:-}" in
+    ''|*[!0-9]*) ;;
+    *) quiet="$CAMPAIGN_TOOLCALL_QUIET_MS" ;;
+  esac
+  printf '%s\n' "$quiet"
 }
 
 campaign_wait_turn() {
@@ -296,6 +325,10 @@ campaign_wait_turn() {
   local poll_ms="${CAMPAIGN_POLL_MS:-5000}"
   local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
   local telemetry_seen_at="" pending_logged="" tool_state
+  local toolcall_quiet_ms current_round pending_round="" pending_since=0
+  local tool_round_max_ms="${CAMPAIGN_TOOL_ROUND_MAX_MS:-600000}"
+  case "$tool_round_max_ms" in ''|*[!0-9]*) tool_round_max_ms=600000 ;; esac
+  toolcall_quiet_ms=$(campaign_toolcall_quiet_ms)
   start=$(python3 -c 'import time; print(int(time.time()*1000))')
   last_progress="$start"
   last_health=0
@@ -356,23 +389,38 @@ campaign_wait_turn() {
         # toolcall line at all, once the telemetry has aged past the ~15 ms
         # emission gap) ends the turn.
         tool_state=$(campaign_turn_tool_state "$dest")
-        if [ "$tool_state" = "pending" ]; then
-          if [ "$tool_state" != "$pending_logged" ]; then
-            log "tool round pending — waiting for the continuation"
-            pending_logged="$tool_state"
-          fi
-        elif [ "$tool_state" = "absent" ]; then
-          [ -n "$telemetry_seen_at" ] || telemetry_seen_at=$now
-          if [ $((now - telemetry_seen_at)) -lt 1500 ]; then
-            : # TELEMETRY precedes its KALSA_TOOLCALL — keep polling
-          else
+        case "$tool_state" in
+          pending\ *)
+            current_round="${tool_state##* }"
+            if [ "$current_round" != "$pending_round" ]; then
+              # A NEW pending round restarts the bound: healthy multi-tool
+              # turns keep producing toolcalls and must never be killed.
+              pending_round="$current_round"
+              pending_since=$now
+            elif [ $((now - pending_since)) -ge "$tool_round_max_ms" ]; then
+              log "tool continuation lost: round $current_round pending for ${tool_round_max_ms}ms — ending the turn"
+              CAMPAIGN_TURN_STATUS="toolround"
+              return 1
+            fi
+            if [ "$tool_state" != "$pending_logged" ]; then
+              log "tool round pending — waiting for the continuation"
+              pending_logged="$tool_state"
+            fi
+            ;;
+          absent)
+            [ -n "$telemetry_seen_at" ] || telemetry_seen_at=$now
+            if [ $((now - telemetry_seen_at)) -lt "$toolcall_quiet_ms" ]; then
+              : # TELEMETRY precedes its KALSA_TOOLCALL — keep polling
+            else
+              CAMPAIGN_TURN_STATUS="ok"
+              return 0
+            fi
+            ;;
+          *)
             CAMPAIGN_TURN_STATUS="ok"
             return 0
-          fi
-        else
-          CAMPAIGN_TURN_STATUS="ok"
-          return 0
-        fi
+            ;;
+        esac
       else
         telemetry_seen_at=""
       fi
