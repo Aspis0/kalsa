@@ -2,6 +2,7 @@ package expo.modules.kalsairoh
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -10,6 +11,8 @@ import uniffi.kalsa_iroh_mobile.IrohMobileException
 import uniffi.kalsa_iroh_mobile.MobileBridge
 import uniffi.kalsa_iroh_mobile.Tunnel
 import java.io.File
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -52,15 +55,15 @@ class KalsaIrohModule : Module() {
     Name("KalsaIroh")
 
     AsyncFunction("startBridge") { promise: Promise ->
-      run(control, promise) { startBridgeAtFilesDir() }
+      run(control, promise, "startBridge") { startBridgeAtFilesDir() }
     }
 
     AsyncFunction("nodeId") { promise: Promise ->
-      run(control, promise) { currentBridge().nodeId() }
+      run(control, promise, "nodeId") { currentBridge().nodeId() }
     }
 
     AsyncFunction("openTunnel") { nodeHex: String, lane: String, promise: Promise ->
-      run(control, promise) {
+      run(control, promise, "openTunnel") {
         val target = when (lane) {
           "door" -> Lane.DOOR
           "desk" -> Lane.DESK
@@ -80,21 +83,21 @@ class KalsaIrohModule : Module() {
     }
 
     AsyncFunction("write") { id: Double, base64: String, timeoutMs: Double, promise: Promise ->
-      run(parking, promise) {
+      run(parking, promise, "write") {
         tunnel(id.toLong())
           .write(Base64.decode(base64, Base64.NO_WRAP), timeoutMs.toUInt())
       }
     }
 
     AsyncFunction("read") { id: Double, max: Double, timeoutMs: Double, promise: Promise ->
-      run(parking, promise) {
+      run(parking, promise, "read") {
         val bytes = tunnel(id.toLong()).read(max.toUInt(), timeoutMs.toUInt())
         Base64.encodeToString(bytes, Base64.NO_WRAP)
       }
     }
 
     AsyncFunction("shutdown") { id: Double, promise: Promise ->
-      run(control, promise) {
+      run(control, promise, "shutdown") {
         // Removed whether or not it was open: a shut-down handle is gone.
         tunnels.remove(id.toLong())?.shutdown()
       }
@@ -117,25 +120,42 @@ class KalsaIrohModule : Module() {
   }
 
   /** Run one blocking native call on `pool`, resolving or rejecting the promise. */
-  private fun run(pool: ExecutorService, promise: Promise, body: () -> Any?) {
+  private fun run(pool: ExecutorService, promise: Promise, operation: String, body: () -> Any?) {
     try {
       pool.execute {
         try {
           promise.resolve(body())
         } catch (e: Throwable) {
-          // The interface's reject takes all three; the message is the
-          // crate's own (never key material) or a class name.
-          promise.reject(
-            rejectionCode(e),
-            e.message ?: e::class.simpleName ?: "native error",
-            null,
-          )
+          reject(promise, operation, e, e.message ?: e::class.simpleName ?: "native error")
         }
       }
     } catch (e: Throwable) {
       // The pool is shut down or saturated beyond its queue: the call never ran.
-      promise.reject(rejectionCode(e), e.message ?: "could not submit the native call", null)
+      reject(promise, operation, e, e.message ?: "could not submit the native call")
     }
+  }
+
+  private fun reject(promise: Promise, operation: String, error: Throwable, message: String) {
+    val code = rejectionCode(error)
+    if (code == "KALSA_IROH_OTHER") {
+      Log.w("KalsaIroh", "operation=$operation causes=${throwableClassChain(error)}")
+    }
+    promise.reject(
+      code,
+      message,
+      null,
+    )
+  }
+
+  private fun throwableClassChain(error: Throwable): String {
+    val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    val classes = mutableListOf<String>()
+    var current: Throwable? = error
+    while (current != null && seen.add(current)) {
+      classes.add(current.javaClass.name)
+      current = current.cause
+    }
+    return classes.joinToString(" -> ")
   }
 
   private fun rejectionCode(error: Throwable): String = when (error) {
