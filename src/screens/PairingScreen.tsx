@@ -91,8 +91,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const [showManual, setShowManual] = useState(false);
   const [state, setState] = useState<"ready" | "refused" | "waiting" | "paired" | "not-confirmed">("ready");
   const [confirmPhase, setConfirmPhase] = useState<ConfirmationPhase>({ phase: "waiting" });
-  /** The host a tailnet scan resolved — named in the status until an outcome. */
-  const [pairHost, setPairHost] = useState<string | null>(null);
+  /** The hosts a tailnet scan resolved: where the claim posts (desk, with
+   *  its port) and where the confirmation polls (door) — named in the status
+   *  while that phase lasts. */
+  const [pairHosts, setPairHosts] = useState<{ claim: string; confirm: string } | null>(null);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   // The typed address is Start's one blocking input: without a door the
   // ceremony cannot even name who to ask. (A missing phone model is not a
@@ -153,7 +155,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const update = (key: keyof PairingFields, value: string) => {
     sessionRef.current = null;
     setState("ready");
-    setPairHost(null);
+    setPairHosts(null);
     setFields((current) => ({ ...current, [key]: value }));
   };
 
@@ -187,10 +189,15 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // completion retry for the previous one. Only a run that passed its
       // guards gets here, so a rejected scan never drops that session.
       if (scanned) sessionRef.current = null;
-      // A tailnet-derived address was never typed, never confirmed: say
-      // whose host this claim goes to, and keep saying it through the wait.
+      // A tailnet-derived address was never typed, never confirmed: name
+      // the host the traffic ACTUALLY goes to — the desk (:8443) while the
+      // claim runs, the door while the confirmation polls it.
       if (scanned) {
-        setPairHost(scanned.tailnet ? new URL(doorUrl).host : null);
+        setPairHosts(
+          scanned.tailnet
+            ? { claim: new URL(deskUrl).host, confirm: new URL(doorUrl).host }
+            : null,
+        );
       }
       const square = scanned ?? fields;
       const existing = sessionRef.current;
@@ -270,9 +277,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
     void run(square);
   };
 
+  // Which host names the current phase: the desk (port included) while
+  // claiming, the door while waiting; an outcome outranks the name.
+  const pairHost = pairHosts === null ? null : busy ? pairHosts.claim : pairHosts.confirm;
   const status: { testID: string; text: string; error: boolean } =
-    // The named host outranks the generic waiting words for as long as it
-    // applies (busy and confirmation); an outcome (refused/paired/…) wins.
     pairHost !== null && (busy || state === "waiting")
       ? { testID: "pairing.withHost", text: t("pairing.withHost", { host: pairHost }), error: false }
       : busy

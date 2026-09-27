@@ -460,6 +460,53 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("the status names the desk host while claiming and the door host while waiting", async () => {
+    let resolveClaim!: (value: Response) => void;
+    let resolveComplete!: (value: Response) => void;
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/pair/claim")) {
+        return new Promise<Response>((resolve) => {
+          resolveClaim = resolve;
+        });
+      }
+      return new Promise<Response>((resolve) => {
+        resolveComplete = resolve;
+      });
+    }) as typeof fetch;
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+        tailnet: "https://paired.example.ts.net",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Claiming: the traffic goes to the desk, port included — the line says so.
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
+      .toBe("Pairing with paired.example.ts.net:8443…");
+
+    await act(async () => {
+      resolveClaim({ status: 200, json: async () => ({}) } as Response);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      resolveComplete({ status: 200, json: async () => SEAL } as Response);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Waiting: the confirmation polls the door, no port — the line follows.
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
+      .toBe("Pairing with paired.example.ts.net…");
+    await act(async () => renderer.unmount());
+  });
+
   test("a second scan without a tailnet resets the addresses to the configured prefill", async () => {
     const { urls } = installFetch(200);
     const renderer = await render();
