@@ -95,13 +95,13 @@ describe("iroh dial diagnostic", () => {
     ["KALSA_IROH_NO_MODULE", "no_module"],
     ["KALSA_IROH_LINKAGE", "linkage"],
     ["KALSA_IROH_INVALID_NODE_HEX", "invalid_node"],
-    ["KALSA_IROH_TRANSPORT", "connect_refused"],
-    ["KALSA_IROH_IO", "other"],
-    ["KALSA_IROH_ENTROPY", "other"],
-    ["KALSA_IROH_KEY_CORRUPT", "other"],
-    ["KALSA_IROH_CONFIG", "other"],
-    ["KALSA_IROH_CLOSED", "other"],
-    ["KALSA_IROH_ASYNC_CONTEXT", "other"],
+    ["KALSA_IROH_TRANSPORT", "transport"],
+    ["KALSA_IROH_IO", "io"],
+    ["KALSA_IROH_ENTROPY", "entropy"],
+    ["KALSA_IROH_KEY_CORRUPT", "key_corrupt"],
+    ["KALSA_IROH_CONFIG", "config"],
+    ["KALSA_IROH_CLOSED", "closed"],
+    ["KALSA_IROH_ASYNC_CONTEXT", "async_context"],
     ["KALSA_IROH_OTHER", "other"],
   ])("maps code %s to %s", (code, reason) => {
     expect(irohDialReason({ code, message: "raw error is ignored" })).toBe(reason);
@@ -131,7 +131,7 @@ describe("iroh dial diagnostic", () => {
     const code = "pairing-code-secret";
     const nonce = "pairing-nonce-secret";
     const rawError = "private native error";
-    logIrohDial("desk", NODE, "connect_refused", 123.4);
+    logIrohDial("desk", NODE, "transport", 123.4);
 
     expect(log).toHaveBeenCalledTimes(1);
     const [tag, serialized] = log.mock.calls[0] as [string, string];
@@ -141,7 +141,7 @@ describe("iroh dial diagnostic", () => {
       road: "iroh",
       lane: "desk",
       stage: "dial",
-      reason: "connect_refused",
+      reason: "transport",
       ms: 123,
       node8: NODE.slice(0, 8),
     });

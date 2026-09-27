@@ -22,7 +22,13 @@ export type IrohDialReason =
   | "no_module"
   | "linkage"
   | "invalid_node"
-  | "connect_refused"
+  | "transport"
+  | "io"
+  | "entropy"
+  | "key_corrupt"
+  | "config"
+  | "closed"
+  | "async_context"
   | "other";
 
 export const IROH_DIAL_ERROR_REASONS = {
@@ -31,13 +37,13 @@ export const IROH_DIAL_ERROR_REASONS = {
   KALSA_IROH_NO_MODULE: "no_module",
   KALSA_IROH_LINKAGE: "linkage",
   KALSA_IROH_INVALID_NODE_HEX: "invalid_node",
-  KALSA_IROH_TRANSPORT: "connect_refused",
-  KALSA_IROH_IO: "other",
-  KALSA_IROH_ENTROPY: "other",
-  KALSA_IROH_KEY_CORRUPT: "other",
-  KALSA_IROH_CONFIG: "other",
-  KALSA_IROH_CLOSED: "other",
-  KALSA_IROH_ASYNC_CONTEXT: "other",
+  KALSA_IROH_TRANSPORT: "transport",
+  KALSA_IROH_IO: "io",
+  KALSA_IROH_ENTROPY: "entropy",
+  KALSA_IROH_KEY_CORRUPT: "key_corrupt",
+  KALSA_IROH_CONFIG: "config",
+  KALSA_IROH_CLOSED: "closed",
+  KALSA_IROH_ASYNC_CONTEXT: "async_context",
   KALSA_IROH_OTHER: "other",
 } as const satisfies Record<string, IrohDialReason>;
 
