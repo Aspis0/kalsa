@@ -282,6 +282,60 @@ pub(super) fn echoing_upstream() -> (u16, Arc<AtomicBool>, thread::JoinHandle<()
     (port, stop, thread)
 }
 
+/// An upstream that answers every request with the JSON a test hands it, as
+/// `llama-server` frames /props: Content-Length, or chunked when the test
+/// asks, with the origin echo the engine sends.
+pub(super) fn json_upstream(
+    body: String,
+    chunked: bool,
+) -> (u16, Arc<AtomicBool>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let stop = Arc::new(AtomicBool::new(false));
+    let thread = {
+        let stop = Arc::clone(&stop);
+        thread::spawn(move || {
+            listener.set_nonblocking(true).unwrap();
+            while !stop.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        let mut stream = stream;
+                        stream.set_nonblocking(false).unwrap();
+                        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+                        let mut head = Vec::new();
+                        if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
+                            continue;
+                        }
+                        let origin = header_values(&head, "origin").pop().unwrap_or_default();
+                        let framing = if chunked {
+                            format!(
+                                "Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:X}\r\n{body}\r\n0\r\n\r\n",
+                                body.len()
+                            )
+                        } else {
+                            format!(
+                                "Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                                body.len()
+                            )
+                        };
+                        let answer = format!(
+                            "HTTP/1.1 200 OK\r\nServer: llama.cpp\r\n\
+                             Access-Control-Allow-Origin: {origin}\r\n\
+                             Content-Type: application/json\r\n{framing}"
+                        );
+                        let _ = stream.write_all(answer.as_bytes());
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+    (port, stop, thread)
+}
+
 /// An upstream that answers every request with the head and the body a test
 /// hands it, whatever the request said. The head arrives as bytes, so a test
 /// chooses exactly which CORS lines the upstream sends.

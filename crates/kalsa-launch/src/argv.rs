@@ -19,14 +19,14 @@ impl ServerArgs {
         ];
         // Without this, `/v1/models` answers with the path — username over
         // the wire, changing with every model — and the door relays it to
-        // paired phones. One rule for every file: the stem.
-        if let Some(stem) = self
+        // paired phones. One rule for every file: the stem, and the fixed
+        // `kalsa-model` when there is none — the id must never vanish.
+        let alias = self
             .model_path
             .file_stem()
-            .or_else(|| self.model_path.file_name())
-        {
-            argv.extend(["--alias".to_string(), stem.to_string_lossy().into_owned()]);
-        }
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("kalsa-model");
+        argv.extend(["--alias".to_string(), alias.to_string()]);
         if let Some(threads) = self.threads {
             // The same count as `--threads` for prefill: past the plateau
             // extra threads buy no throughput, so a bigger prefill burst is
@@ -359,6 +359,19 @@ mod tests {
         // doubles up in a tuned lifetime — one value in one argv here.
         let mut aliases = served_argv.iter().filter(|arg| *arg == "--alias");
         assert!(aliases.next().is_some() && aliases.next().is_none());
+    }
+
+    #[test]
+    fn a_path_without_a_stem_still_gets_an_alias() {
+        let stemless = ServerArgs {
+            // A trailing slash is not a stemless path — Rust reads
+            // "/models/" as the component "models" — so the degenerate case
+            // is the empty path.
+            model_path: PathBuf::from(""),
+            ..some_args()
+        };
+        let argv = stemless.argv();
+        assert_eq!(rendered_value(&argv, "--alias"), "kalsa-model");
     }
 
     /// The slot count is data now: whatever the field holds is what the

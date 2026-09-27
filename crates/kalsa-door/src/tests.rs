@@ -20,6 +20,7 @@ mod paging_cadence_tick;
 mod paging_invalidate;
 mod paging_panel;
 mod paging_route;
+mod props;
 mod paging_support;
 mod paging_sweep;
 mod revocation;
@@ -51,6 +52,7 @@ fn credential() -> String {
     let mut pairing = Pairing::offer(
         "http://127.0.0.1:8131",
         None,
+        None, // no tailnet: this fixture pairs over the plain loopback offer
         now,
         Duration::from_secs(60),
     )

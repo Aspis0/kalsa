@@ -8,6 +8,7 @@ use std::io::Read;
 use std::net::TcpStream;
 use std::time::Instant;
 
+use crate::chunk::Dechunker;
 use crate::PATIENCE;
 
 pub(super) const MAX_HEAD: usize = 32 * 1024;
@@ -156,6 +157,104 @@ pub(super) fn client_head(upstream: &[u8]) -> Vec<u8> {
     }
     out.extend_from_slice(b"Connection: close\r\n\r\n");
     with_origin_vary(&out)
+}
+
+/// A rewritten answer is small — a props body and a chat template — and the
+/// frame that says otherwise is refused rather than allocated.
+const MAX_BODY: usize = 8 * 1024 * 1024;
+
+/// A complete upstream body for an answer the door will rewrite: framed by
+/// Content-Length or by chunks. Any other framing is refused — the caller
+/// must either rewrite the body or answer with an error, never relay bytes
+/// it did not read.
+pub(super) fn read_body(
+    stream: &mut TcpStream,
+    head: &Head,
+    deadline: Instant,
+) -> std::io::Result<Vec<u8>> {
+    if head.chunked {
+        arm_read_timeout(stream, deadline)?;
+        let mut dechunker = Dechunker::new();
+        let mut out = Vec::new();
+        let mut buffer = [0u8; 16 * 1024];
+        loop {
+            let read = stream.read(&mut buffer)?;
+            if read == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "the chunked body ended before its last chunk",
+                ));
+            }
+            dechunker
+                .feed(&buffer[..read], &mut out)
+                .map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, "a malformed chunk")
+                })?;
+            if out.len() > MAX_BODY {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "the upstream body is too large to rewrite",
+                ));
+            }
+            if dechunker.is_done() {
+                return Ok(out);
+            }
+        }
+    }
+    let length = content_length(&head.raw)?;
+    if length > MAX_BODY {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the upstream body is too large to rewrite",
+        ));
+    }
+    arm_read_timeout(stream, deadline)?;
+    let mut out = vec![0u8; length];
+    stream.read_exact(&mut out)?;
+    Ok(out)
+}
+
+/// The one `Content-Length` the head declares: two of them (or one that is
+/// not a number) is refused rather than guessed at.
+fn content_length(raw: &[u8]) -> std::io::Result<usize> {
+    let text_end = raw.len() - 4;
+    let mut found: Option<usize> = None;
+    for line in raw[..text_end].split(|byte| *byte == b'\n') {
+        let line = strip_cr(line);
+        let Some(colon) = line.iter().position(|byte| *byte == b':') else {
+            continue;
+        };
+        if !line[..colon].eq_ignore_ascii_case(b"content-length") {
+            continue;
+        }
+        if found.is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "two content-lengths in one head",
+            ));
+        }
+        let text = String::from_utf8_lossy(&line[colon + 1..]);
+        found = Some(text.trim().parse::<usize>().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "a content-length that is not a number")
+        })?);
+    }
+    found.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "the body declares no length",
+        )
+    })
+}
+
+/// The body with the machine's model path out of it: the same JSON, every
+/// field but that one. `None` when the bytes are not a JSON object — the
+/// caller answers with an error instead, because leaking the path is worse
+/// than a failed answer.
+pub(super) fn without_model_path(body: &[u8]) -> Option<Vec<u8>> {
+    let mut value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let object = value.as_object_mut()?;
+    object.remove("model_path");
+    serde_json::to_vec(&value).ok()
 }
 
 /// The one header the door adds to a head it relays.

@@ -13,9 +13,11 @@ getrandom = "0.3"
 # The per-device cache salt: a labeled SHA-256 of the credential, derived
 # once when the entry is built and never stored or printed anywhere.
 sha2 = "0.10"
+# The door rewrites the upstream's /props JSON before relaying it — the
+# model path leaves the machine and every other field stays.
+serde_json = "1"
 
 [dev-dependencies]
 # The test mints the same public handshake credential the desktop stores.
 kalsa-catalog = { path = "../kalsa-catalog" }
 kalsa-pairing = { path = "../kalsa-pairing" }
-serde_json = "1"

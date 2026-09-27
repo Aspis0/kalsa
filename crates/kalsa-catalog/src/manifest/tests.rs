@@ -463,3 +463,25 @@ fn every_download_row_carries_the_context_its_header_declares() {
         );
     }
 }
+
+#[test]
+fn every_usable_file_stem_is_distinct() {
+    // The stem is the id the engine lists (`--alias`, rendered from the
+    // served path): two rows with the same stem would answer the same id on
+    // one machine, and the second file's model would be unreachable by name.
+    let mut stems: Vec<String> = DOWNLOADABLE
+        .iter()
+        .map(|row| {
+            std::path::Path::new(row.source.file)
+                .file_stem()
+                .expect("a gguf file has a stem")
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    assert_eq!(stems.len(), DOWNLOADABLE.len());
+    stems.sort();
+    let before = stems.len();
+    stems.dedup();
+    assert_eq!(stems.len(), before, "two rows share a file stem: {stems:?}");
+}

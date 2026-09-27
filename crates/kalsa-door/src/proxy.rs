@@ -250,9 +250,12 @@ pub(super) fn handle(
     let body_length = head.body_length;
     // Read before `seal` consumes the head: the disk tier's clock marks this
     // slot when a generation passes, and only a generation can make the
-    // slot's state differ from the file that holds it. `/props`, `/health` and
-    // the model listing are forwarded by the same path and change nothing.
+    // slot's state differ from the file that holds it. `/health` and the
+    // model listing are forwarded by the same path and change nothing;
+    // `/props` is rewritten below — its answer names this machine's model
+    // path, and this path's clients include paired phones.
     let completion = is_completion(&head.target);
+    let props = is_props(&head.target);
     // `seal` consumes the head, and the answers after it — the revocation
     // refusal, the upstream-failure 502, the busy 503 — are written with the
     // request's origin still in hand, so it leaves the head here.
@@ -315,6 +318,28 @@ pub(super) fn handle(
             return;
         }
         if !upstream_head.event_stream {
+            if props {
+                // The rewrite, or its refusal, as one answer: a body that
+                // will not parse is answered with the upstream failure —
+                // never the raw bytes, because a leak is worse than a
+                // failed /props.
+                let answer = match read_props(&mut upstream, &upstream_head, deadline) {
+                    Ok(body) => {
+                        let mut bytes = response::client_head(&upstream_head.raw);
+                        bytes.extend(body);
+                        bytes
+                    }
+                    Err(()) => upstream_failure_response(origin.as_deref()),
+                };
+                if write_with_deadline(&mut client, &answer, deadline).is_err() {
+                    return;
+                }
+                drop(gate);
+                if let Some(observer) = observer {
+                    observer(&answer);
+                }
+                return;
+            }
             // The upstream's own bytes, plus the vary a browser needs and
             // the upstream does not send; nothing else is added to them.
             let relayed = response::with_origin_vary(&upstream_head.raw);
@@ -357,6 +382,26 @@ pub(super) fn handle(
 /// Serves a `Last-Event-ID`: the missed events first, then the live tail —
 /// or the honest refusal when the answer is gone. The asking device was
 /// already identified by the bearer scan; the job answers to that device.
+/// `/props` by the same rule as [`is_completion`]: a suffix, not an
+/// equality — the webview's `/props` and a phone's `/v1/props` are the one
+/// request, and either may carry a query string.
+fn is_props(target: &[u8]) -> bool {
+    let path = target.split(|byte| *byte == b'?').next().unwrap_or(target);
+    path.ends_with(b"/props")
+}
+
+/// The /props body with this machine's model path out of it. `Err` when the
+/// bytes are not a JSON object: the caller answers with the upstream
+/// failure instead of relaying anything.
+fn read_props(
+    upstream: &mut TcpStream,
+    head: &response::Head,
+    deadline: Instant,
+) -> Result<Vec<u8>, ()> {
+    let body = response::read_body(upstream, head, deadline).map_err(|_| ())?;
+    response::without_model_path(&body).ok_or(())
+}
+
 fn resume(
     client: &mut TcpStream,
     registry: &Registry,
