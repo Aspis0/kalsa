@@ -1,0 +1,19 @@
+[00:19:37] SESSION job=s23-calib-3 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[00:19:38] DEVICE_LIST_OK
+[00:19:40] KIT_PRESENT ship.gguf
+[00:19:40] KIT_PRESENT prompt.txt
+[00:20:10] BATTERY_SENSOR_TRUSTED dumpsys=259,262 sysfs=,
+[00:20:11] GATE label=setup
+[00:20:11] SETUP_DONE skin0=27.7 battery_untrusted=0 htp_floor=0.86 source=prior
+[00:20:12] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[00:20:14] SAMPLER_LAUNCHED pid=53026
+[00:20:14] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
+[00:20:14] CALIB_START backend=cpu tag=s23-calib-3-calcpu
+[00:21:19] CALIB backend=cpu phase=proof status=OK void=na tokens=13 proof=cpu_no_offload tokens=13 fp=buf=CPU,REPACK off=0/31 thr=5
+[00:21:43] CALIB backend=cpu phase=turn fp=buf=CPU,REPACK off=0/31 thr=5
+[00:21:43] CALIB_START backend=gpu tag=s23-calib-3-calgpu
+[00:21:51] CALIB backend=gpu phase=proof status=OK void=na tokens=13 proof=gpu_assigned_lines=62 kernels=15 tokens=13 fp=buf=CPU,OpenCL,REPACK off=31/31 thr=5
+[00:22:08] CALIB backend=gpu phase=turn fp=buf=CPU,OpenCL,REPACK off=31/31 thr=5
+[00:22:08] CALIB_START backend=npu tag=s23-calib-3-calnpu
+[00:22:14] CALIB backend=npu phase=proof status=VOID void=no_htp_proof tokens=13 proof=htp_ops=1675 min=12 fp=buf=CPU,HTP0 off=31/31 thr=5
+[00:22:14] CALIB_VOID backend=npu reason=no_htp_proof — refusing to certify an unproven backend; no calib.ok

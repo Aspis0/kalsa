@@ -1,0 +1,5 @@
+Placement fingerprints reported by calibration:
+CPU: buf=CPU,REPACK off=0/31 thr=5
+GPU: buf=CPU,OpenCL,REPACK off=31/31 thr=5
+NPU: buf=CPU,HTP0 off=31/31 thr=5
+The NPU proof log contains CPU model buffer=205.08 MiB and HTP0 model buffer=1525.87 MiB. NPU produced 1675 HTP0 execute-op lines but no Hexagon Arch version line, so the proof is VOID no_htp_proof. No buf=? value was emitted.

@@ -688,3 +688,28 @@ unplugged, 92%, 26.4 C battery, thermal 0, traced 0, Kalsa absent, no
 `llama|bench` process, `screen_off_timeout=null`, stay-on 0, display Awake and
 unlocked. Raw preflight, calibration, restore, and final-state evidence is in
 `raw/s23-calib-2/`.
+
+### S23 three-way retry 3 — NPU calibration proof void
+
+Preflight passed on the fixed TLS endpoint: unplugged, 91%, 25.9 C battery,
+thermal 0, traced 0, Kalsa force-stopped, no `llama|bench` process, and screen
+Awake/unlocked. The corrected pgrep self-test passed. Calibration completed
+CPU and GPU proof/short-turn phases, then stopped on the NPU proof with
+`END reason=calib_void_npu` (exit 3). No `calib.ok` was written and the
+six-arm heat job was not run.
+
+| Backend | Proof status / tokens | Proof counts | Placement fingerprint and buffers |
+|---|---|---|---|
+| CPU | OK / 13 | `cpu_no_offload` | `buf=CPU,REPACK off=0/31 thr=5`; CPU 206.07 MiB, CPU_REPACK 1511.20 MiB |
+| GPU | OK / 13 | 62 GPUOpenCL assignments, 15 kernels | `buf=CPU,OpenCL,REPACK off=31/31 thr=5`; CPU 205.08 MiB, CPU_REPACK 205.08 MiB, OpenCL 1307.20 MiB |
+| NPU | VOID `no_htp_proof` / 13 | 1675 HTP0 execute-op lines; no `Hexagon Arch version` line | `buf=CPU,HTP0 off=31/31 thr=5`; CPU 205.08 MiB, HTP0 1525.87 MiB |
+
+No calibration buffer fingerprint was `?`; all three `buf=` values are
+listed above. NPU met its execute-op count (minimum 12) but failed the
+separate Hexagon architecture proof. The effective floor was the prior
+0.86 ops/token; no device-pinned floor was produced. The calibration report,
+full logs, and buffer summary are in `raw/s23-calib-3/`.
+
+Restore completed (`kill_check=verified rc=0`). Final readings: unplugged,
+90%, 30.1 C battery, thermal 0, traced 0, Kalsa absent, no `llama|bench`
+process, timeout restored to `null`, stay-on 0, display Awake/unlocked.

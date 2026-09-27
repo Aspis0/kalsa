@@ -1,0 +1,5 @@
+Command: cd scratchpad/agents/qdc-heat-3way && ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_PORT=5037 CALIBRATE=1 ./d_run.sh s23-calib-3
+Captured stdout/stderr: /tmp/s23calib3.log
+Exit: 3
+END: calib_void_npu; calibration refused to pin because NPU proof was void.
+Heat command: NOT RUN because END was not calibrated.
