@@ -22,7 +22,7 @@ Key driver lines:
 [ci] native log teardown: restoring previous preference
 ```
 
-This is a readiness/protocol failure before the turn loop, not a thermal, battery, or charging stop. The APK provenance gate passed. It was the expected debuggable `ae64564d` APK (SHA-256 `cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc`), `run-as` worked, and the governor preference was written before launch.
+This is a readiness/protocol failure before the turn loop, not a thermal, battery, or charging stop. The APK provenance gate passed. It was the expected debuggable `ae64564d` APK (SHA-256 `cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc`), `run-as` worked, and the governor preference was written before launch. Because the APK is debuggable, any tok/s would be diagnostic only; this attempt recorded none.
 
 ## Preflight and cleanup
 
