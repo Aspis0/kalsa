@@ -95,6 +95,7 @@ source "$CAMPAIGN_ROOT/turn.sh"
 source "$CAMPAIGN_ROOT/nativeLog.sh"
 source "$CAMPAIGN_ROOT/oneTurn.sh"
 source "$CAMPAIGN_ROOT/metroPreflight.sh"
+source "$CAMPAIGN_ROOT/governor.sh"
 
 command -v campaign_metro_preflight >/dev/null 2>&1 || die "Metro gate unavailable: campaign_metro_preflight is not defined"
 campaign_metro_preflight
@@ -109,7 +110,10 @@ CAMPAIGN_CONV_ID="c1-V1"
 
 # --- delta 1: charging gate -------------------------------------------------
 CHARGING_FLAG="$OUT/.STOP-CHARGING"
-BATTERY_FLOOR=8   # stop and report at/above this little left — a dead phone mid-prefill is another destroyed run
+# The owner's unplugged stop line: refuse to continue at 25% — an unplugged
+# 20-turn governor run must end on the floor, not on an empty battery
+# mid-prefill (the old8 was a dead-phone line, far below the stop line).
+BATTERY_FLOOR=25
 CAMPAIGN_MIN_BATTERY_LEVEL="${CAMPAIGN_MIN_BATTERY_LEVEL:-85}"
 rm -f "$CHARGING_FLAG"
 
@@ -168,6 +172,13 @@ stop_reason=""
 CHARGING_UNREADABLE_READS=0
 run_should_stop() {
   local charge_rc
+  # The owner's unplugged stop line lives in recovery.sh (thermal status >= 3
+  # or battery >= 44°C, unplugged only — never written as bench.thermo).
+  # Checked first so a phone BETWEEN turns still stops before SEVERE.
+  if campaign_thermal_should_hard_abort; then
+    stop_reason="thermal hard abort: $CAMPAIGN_THERMAL_HARD_ABORT_REASON"
+    return 0
+  fi
   if [ -f "$CHARGING_FLAG" ]; then
     stop_reason="phone back on charge mid-run (AC/USB/Wireless/Dock powered, or status 2 or >=5)"
     return 0
@@ -199,8 +210,8 @@ run_should_stop() {
   return 1
 }
 
-python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["telemetry"], open(sys.argv[2],"w"))' \
-  "$CONFIG" "$OUT/.telemetry-schema.json" || die "T20C preflight: could not write telemetry schema"
+node "$CAMPAIGN_ROOT/config.mjs" --telemetry-schema "$CONFIG" "$OUT/.telemetry-schema.json" \
+  || die "T20C preflight: could not write telemetry schema"
 
 battery_line() {
   local d l t c charge_rc
@@ -343,6 +354,9 @@ campaign_abort_turn() {
 }
 
 log "arm begin: flags->ciswire, wipe chat, launch"
+# The pref must be in storage BEFORE the launch whose load gate reads it;
+# a post-load write would satisfy the readback and change nothing.
+campaign_governor_enable || die "governor pref: could not write $GOVERNOR_PREF_KEY=1"
 campaign_native_log_setup
 campaign_arm_begin
 battery_line
@@ -367,6 +381,21 @@ grep -m1 "KALSA_NATIVE_VARIANT" "$OUT/logcat.txt" | sed 's/^[^I]*I //' || true
 grep -m1 -oE "llama_context: *n_ctx[^,]*" "$OUT/logcat.txt" || true
 grep -m1 -oE "n_ctx_per_seq[^,]*" "$OUT/logcat.txt" || true
 log "--- end engine init lines ---"
+
+# --- governor engagement gate (before turn 1) --------------------------------
+# The pref alone proves nothing: a device whose load plan is not Fit keeps
+# the pref set and runs CPU-only. Refuse to start instead of discovering it
+# at turn 19. The plan lands when the model finishes loading; wait for it.
+log "--- governor engagement ---"
+governor_plan_json=""
+if campaign_governor_wait_plan "$OUT/logcat.txt" "${CAMPAIGN_GOVERNOR_PLAN_WAIT_S:-90}" > "$OUT/.governor-plan.json"; then
+  governor_plan_json="$(tr -d '\n' < "$OUT/.governor-plan.json")"
+fi
+governor_pref="$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.governor.enabled';" 2>/dev/null | tr -d '[:space:]')" || governor_pref=""
+log "governor readback: $GOVERNOR_PREF_KEY=${governor_pref:-UNREADABLE} plan=${governor_plan_json:-ABSENT}"
+campaign_governor_verify "$governor_plan_json" "$governor_pref" \
+  || die "governor not engaged before turn 1 — refusing to start (no gpu_fit Fit plan or pref not set)"
+log "--- end governor engagement ---"
 
 rc=0
 for i in $(seq 1 20); do

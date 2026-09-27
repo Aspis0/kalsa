@@ -1318,5 +1318,34 @@ native_log_off_refusal_case() {
 
 native_log_off_refusal_case
 
+# Governor engagement gate (S23 governor run): the Fit plan is accepted only
+# with pref=1; pref=0, a NoFit plan and a missing plan must all refuse.
+governor_engagement_case() {
+  local out="$WORK/governor" rc plan nofit
+  mkdir -p "$out"
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    source "$HERE/governor.sh"
+    printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"available_mib":4006.86}' > "$out/fit.txt"
+    plan=$(campaign_governor_wait_plan "$out/fit.txt" 6) || exit 1
+    campaign_governor_verify "$plan" 1 || exit 1
+    campaign_governor_verify "$plan" 0 && exit 1
+    printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit"}' > "$out/nofit.txt"
+    nofit=$(campaign_governor_wait_plan "$out/nofit.txt" 6) || exit 1
+    campaign_governor_verify "$nofit" 1 && exit 1
+    campaign_governor_wait_plan "$out/absent.txt" 1 && exit 1
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "governor gate accepts Fit+pref1 and refuses pref0, NoFit and a missing plan"
+  else
+    bad "governor engagement gate wrong (rc=$rc)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+governor_engagement_case
+
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

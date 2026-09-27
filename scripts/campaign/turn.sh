@@ -332,6 +332,20 @@ campaign_wait_turn() {
   done
 }
 
+# One per-turn device snapshot feeding the record's `env` block: battery and
+# thermalservice dumps are where temperature, level, power state, Android
+# thermal status and the skin sensor live — no app log line carries them.
+# Always writes the file (headers at minimum): a partial dump parses to nulls.
+campaign_env_snapshot() {
+  local dest="${1:?}"
+  {
+    printf '== dumpsys battery ==\n'
+    adb shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' || true
+    printf '== dumpsys thermalservice ==\n'
+    adb shell dumpsys thermalservice </dev/null 2>/dev/null | tr -d '\r' || true
+  } > "$dest"
+}
+
 campaign_collect_file() {
   local slice="$1" messages="$2" charging="$3" out="$4"
   local compaction="${COMPACTION_VAL:-off}" interrupted=false
@@ -350,6 +364,7 @@ campaign_collect_file() {
     --turn "${CAMPAIGN_TURN_I:-0}" \
     --script "$OUT/.turn-script.json" \
     --telemetry "$tel_schema" \
+    --env-dump "$OUT/.turn-env.txt" \
     --interrupted "$interrupted" \
     --out "$out" \
     ${CAMPAIGN_RETRIED:+--retried}; then
@@ -373,6 +388,7 @@ json.dump({
   "event": "COLLECT_FAIL",
   "user": users[-1] if users else "",
   "assistant": asst[-1] if asst else "",
+  "env": None,
   "telemetry": {},
   "charging": sys.argv[6] == "true",
   "timingValid": False,

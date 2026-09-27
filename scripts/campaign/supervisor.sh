@@ -120,8 +120,8 @@ if [ -z "${PHASE0_WINBUDGET:-}" ]; then
 fi
 export PHASE0_WINBUDGET
 
-python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["telemetry"], open(sys.argv[2],"w"))' \
-  "$CONFIG" "$OUT/.telemetry-schema.json"
+node "$CAMPAIGN_ROOT/config.mjs" --telemetry-schema "$CONFIG" "$OUT/.telemetry-schema.json" \
+  || die "could not write telemetry schema"
 
 CAMPAIGN_CONFIG_APK=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("apk") or "")' "$CONFIG")
 export CAMPAIGN_CONFIG_APK

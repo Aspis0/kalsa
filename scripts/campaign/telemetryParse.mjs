@@ -49,6 +49,32 @@ export function isChargingFromDump(dump) {
   return /(?:AC|USB|Wireless) powered:\s*true/i.test(t);
 }
 
+/**
+ * Per-turn device environment from the two dumpsys blobs (battery and
+ * thermalservice) the harness snapshots at turn end: battery temperature,
+ * level, power state, Android thermal status and the skin sensor live
+ * here — no app log line carries them. Every field is null when its line
+ * is absent (fake devices and partial dumps included).
+ */
+export function parseEnvDump(text) {
+  const t = String(text || "");
+  const batt = /(?:^|\n)\s*temperature:\s*(\d+)\s*(?:\n|$)/.exec(t);
+  const level = /(?:^|\n)\s*level:\s*(\d+)\s*(?:\n|$)/.exec(t);
+  const status = /Thermal Status:\s*(\d+)/.exec(t);
+  const skinBlock = /Temperature\{[^}]*mName=SKIN[^}]*\}/.exec(t);
+  const skin = skinBlock ? /mValue=([0-9.]+)/.exec(skinBlock[0]) : null;
+  let plugged = null;
+  if (/(?:AC|USB|Wireless|Dock) powered:\s*true/i.test(t)) plugged = true;
+  else if (/(?:AC|USB|Wireless|Dock) powered:/i.test(t)) plugged = false;
+  return {
+    thermalStatus: status ? Number(status[1]) : null,
+    skinC: skin ? Number(skin[1]) : null,
+    battTempC: batt ? Number(batt[1]) / 10 : null,
+    batteryLevel: level ? Number(level[1]) : null,
+    plugged,
+  };
+}
+
 export function stampTimingInvalid(obj, charging, keys) {
   if (!charging) {
     return { ...obj, timingValid: true };

@@ -80,6 +80,7 @@ campaign_finish_turn() {
     log "turn $CAMPAIGN_TURN_I charging state unreadable — recording timing invalid"
   fi
   rec="$OUT/.turn.json"
+  campaign_env_snapshot "$OUT/.turn-env.txt"
   campaign_collect_file "$slice" "$OUT/.messages.json" "$charging" "$rec"
   campaign_score_record "$rec"
   campaign_store_turn "$rec"

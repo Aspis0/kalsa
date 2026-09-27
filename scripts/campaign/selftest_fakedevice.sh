@@ -297,6 +297,10 @@ PY
       "am start -n "*)
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
         _append "09-16 12:00:00.000  $(cat "$F/pid")  4243 I ReactNativeJS: $CAMPAIGN_STARTUP_MARKER"
+        # The T20C runner's engagement gate refuses any launch whose load
+        # plan never arrives: a fake phone running this app boots its
+        # governor, so every launch logs a Fit plan like the real device.
+        _append "09-16 12:00:00.100  $(cat "$F/pid")  4243 I ReactNativeJS: KALSA_GOVERNOR_PLAN {\"gpu_fit\":\"Fit\",\"decode_repack\":false,\"required_mib_with_repack\":4518.12,\"required_mib_without_repack\":2998.06,\"available_mib\":4006.86,\"bench_norepack_forced\":null}"
         ;;
       "am start -a android.intent.action.VIEW"*) _share_intent "$s" ;;
       "cmd statusbar collapse"|"wm dismiss-keyguard") : ;;

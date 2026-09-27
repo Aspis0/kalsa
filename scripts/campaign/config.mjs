@@ -3,12 +3,37 @@
  * off|anchored|ciswire are a silent wrong-regime trap (parseContextMode
  * maps on/1/true/missing → anchored). Reject them here.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export const COMPACTION_OK = new Set(["off", "anchored", "ciswire"]);
 const COMPACTION_KEY = "kalsa.context.compaction";
 const BOOL_OK = new Set(["0", "1"]);
+
+/**
+ * Governor rows merged into every T20C-family telemetry schema: route
+ * (engine_prefill/engine_decode/route_push/route_chunks[].actual), prefill
+ * ms, the pause/retry/kill family and the thermal lines. Timing fields are
+ * stamped invalid while charging, like the other measured keys.
+ */
+export const GOVERNOR_TELEMETRY = [
+  { prefix: "KALSA_GOVERNOR_PLAN" },
+  { prefix: "KALSA_GOVERNOR", timingInvalidOnCharge: ["prefill_ms", "commit_ms"] },
+  { prefix: "KALSA_GOVERNOR_PAUSE" },
+  { prefix: "KALSA_GOVERNOR_FALLBACK" },
+  { prefix: "KALSA_GOVERNOR_FALLBACK_RETRY" },
+  { prefix: "KALSA_GOVERNOR_FAILED" },
+  { prefix: "KALSA_GOVERNOR_RUNTIME_FALLBACK" },
+  { prefix: "KALSA_GOVERNOR_THERMO" },
+  { prefix: "KALSA_THERMAL_COOLING", timingInvalidOnCharge: ["waitedMs", "generationMs"] },
+  { prefix: "KALSA_GPU_FALLBACK" },
+];
+
+/** The campaign's telemetry[] plus the governor rows, deduplicated by prefix. */
+export function mergedTelemetry(cfg) {
+  const seen = new Set((cfg.telemetry || []).map((s) => s.prefix));
+  return [...(cfg.telemetry || []), ...GOVERNOR_TELEMETRY.filter((s) => !seen.has(s.prefix))];
+}
 
 export function loadCampaign(file) {
   const raw = readFileSync(file, "utf8");
@@ -113,6 +138,18 @@ export function loadLexicon(file) {
 if (process.argv[1] && process.argv[1].endsWith("config.mjs")) {
   if (process.argv[2] === "--n-per-variant") {
     process.stdout.write(`${conversationsPerVariant(loadCampaign(process.argv[3]))}\n`);
+  } else if (process.argv[2] === "--telemetry-schema") {
+    // One writer for every runner: the governor rows must reach the
+    // per-turn record no matter which entry point launched the campaign.
+    // Deliberately NOT loadCampaign: the synthetic fixtures (and the old
+    // python line) hand this step a partial config — validation is the
+    // runners' own preflight, not this write's job.
+    const raw = JSON.parse(readFileSync(process.argv[3], "utf8"));
+    if (!Array.isArray(raw.telemetry)) {
+      throw new Error(`${process.argv[3]}: telemetry[] required`);
+    }
+    writeFileSync(process.argv[4], JSON.stringify(mergedTelemetry(raw)));
+    process.stdout.write("ok\n");
   } else {
     loadCampaign(process.argv[2]);
     process.stdout.write("ok\n");

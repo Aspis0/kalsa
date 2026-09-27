@@ -11,6 +11,7 @@ import {
   stampTimingInvalid,
   hasToolRounds,
   isChargingFromDump,
+  parseEnvDump,
 } from "./telemetryParse.mjs";
 
 
@@ -62,6 +63,9 @@ export function collectTurn(opts) {
     user,
     assistant,
     transcript: { user, assistant },
+    // Device environment at turn end: thermal status, skin, battery temp,
+    // level and power state — parsed from the harness's dumpsys snapshot.
+    env: opts.env || parseEnvDump(""),
     telemetry: telemetryStamped,
     charging,
     // A turn carrying any tool round is VOID, never an abort. Charging keeps
@@ -98,6 +102,7 @@ function parseArgs(argv) {
     else if (a === "--messages") o.messages = argv[++i];
     else if (a === "--charging") o.charging = argv[++i] === "true";
     else if (a === "--battery-dump") o.batteryDump = argv[++i];
+    else if (a === "--env-dump") o.envDump = argv[++i];
     else if (a === "--arm-compaction") o.compaction = argv[++i];
     else if (a === "--arm") o.armId = argv[++i];
     else if (a === "--variant") o.variantId = argv[++i];
@@ -124,12 +129,16 @@ function main(argv) {
   const telemetry = a.telemetry ? JSON.parse(readFileSync(a.telemetry, "utf8")) : [];
   const script = a.script ? JSON.parse(readFileSync(a.script, "utf8")) : null;
   const declared = a.compaction === "ciswire" ? 1 : 0;
+  const env = a.envDump && existsSync(a.envDump)
+    ? parseEnvDump(readFileSync(a.envDump, "utf8"))
+    : parseEnvDump("");
   const rec = collectTurn({
     logText,
     messages,
     charging,
     telemetry,
     script,
+    env,
     i: a.i,
     armId: a.armId,
     variantId: a.variantId,

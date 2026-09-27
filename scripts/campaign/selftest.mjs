@@ -4,16 +4,24 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
-import { loadCampaign, validateCampaign, loadScript, conversationsPerVariant } from "./config.mjs";
+import {
+  loadCampaign,
+  validateCampaign,
+  loadScript,
+  conversationsPerVariant,
+  mergedTelemetry,
+  GOVERNOR_TELEMETRY,
+} from "./config.mjs";
 import {
   applySchema,
   ciswireFlagsOf,
   stampTimingInvalid,
   isChargingFromDump,
+  parseEnvDump,
 } from "./telemetryParse.mjs";
 import { extractProfile, profileJsonl } from "../responseProfile.mjs";
 import {
@@ -197,6 +205,141 @@ const fakeTurn = {
 const scores = runScorers(scorers, fakeTurn);
 check((scores.recall?.hits || 0) > 0, `scores.recall.hits=${scores.recall?.hits}`);
 check((scores.response_profile?.hedgeCount || 0) > 0, `hedgeCount=${scores.response_profile?.hedgeCount}`);
+
+// --- governor evidence lands in the per-turn record, and scoring survives it
+const govPrefixes = mergedTelemetry(cfg).map((s) => s.prefix);
+for (const p of [
+  "KALSA_GOVERNOR_PLAN",
+  "KALSA_GOVERNOR",
+  "KALSA_GOVERNOR_PAUSE",
+  "KALSA_GOVERNOR_FALLBACK_RETRY",
+  "KALSA_GOVERNOR_FAILED",
+  "KALSA_THERMAL_COOLING",
+]) {
+  check(govPrefixes.includes(p), `telemetry schema includes ${p}`);
+}
+check(new Set(govPrefixes).size === govPrefixes.length, "no duplicate telemetry prefixes");
+
+const schemaTmp = mkdtempSync(path.join(os.tmpdir(), "kalsa-schema-"));
+try {
+  const schemaFile = path.join(schemaTmp, "s.json");
+  const cli = spawnSync(
+    "node",
+    [path.join(here, "config.mjs"), "--telemetry-schema", path.join(repo, "campaigns/t20c.json"), schemaFile],
+    { encoding: "utf8" },
+  );
+  check(
+    cli.status === 0 && cli.stdout.trim() === "ok",
+    `--telemetry-schema CLI status=${cli.status} out=${cli.stdout.trim()}`,
+  );
+  const written = JSON.parse(readFileSync(schemaFile, "utf8"));
+  check(
+    written.some((s) => s.prefix === "KALSA_GOVERNOR") && written.some((s) => s.prefix === "KALSA_TELEMETRY"),
+    "written schema merges governor and base rows",
+  );
+  // The defects fixtures hand this step a partial config on purpose (the old
+  // python line never validated); a validator here re-broke those cases once.
+  const mini = path.join(schemaTmp, "mini.json");
+  writeFileSync(mini, JSON.stringify({ telemetry: [{ prefix: "KALSA_TELEMETRY" }] }));
+  const miniOut = path.join(schemaTmp, "mini-schema.json");
+  const miniCli = spawnSync(
+    "node",
+    [path.join(here, "config.mjs"), "--telemetry-schema", mini, miniOut],
+    { encoding: "utf8" },
+  );
+  check(
+    miniCli.status === 0 &&
+      JSON.parse(readFileSync(miniOut, "utf8")).length === 1 + GOVERNOR_TELEMETRY.length,
+    `schema CLI accepts a partial config (status=${miniCli.status})`,
+  );
+} finally {
+  rmSync(schemaTmp, { recursive: true, force: true });
+}
+
+const GOV_LOG = [
+  'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false}',
+  'I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"GPU","engine_decode":"CPU","prefill_ms":412.5,"commit_ms":4.8,"thermal_state":"FAST","thermo_source":"battery","fit":"Fit","failed":false,"attempt":1,"route_push":"applied","route_mismatch":null,"route_chunks":[{"index":0,"requested":"auto","actual":"gpu","tokens":102,"prefill_ms":412}]}',
+  'I ReactNativeJS: KALSA_GOVERNOR_PAUSE {"turnId":"1","round":0,"reason":"thermal"}',
+  'I ReactNativeJS: KALSA_THERMAL_COOLING {"turnId":"1","round":0,"phase":"enter","waitedMs":5000,"generationMs":900,"batt_temp_tenths_c":412,"outcome":"ok"}',
+  'I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","tokensPredicted":90,"predictedPerSecond":12.5,"promptMs":800,"ciswireFlags":1}',
+].join("\n");
+const ENV_DUMP = [
+  "== dumpsys battery ==",
+  "  level: 77",
+  "  temperature: 412",
+  "  AC powered: false",
+  "  USB powered: false",
+  "== dumpsys thermalservice ==",
+  "  Thermal Status: 1",
+  "  Temperature{mValue=36.4, mType=3, mName=SKIN, mStatus=0}",
+].join("\n");
+const govRec = collectTurn({
+  logText: GOV_LOG,
+  telemetry: mergedTelemetry(cfg),
+  declaredCompactionBit: 1,
+  charging: false,
+  env: parseEnvDump(ENV_DUMP),
+  script: { probes: ["Elisabetta"], intent: "recall-probe" },
+  messages: [
+    { role: "user", text: "Come mi chiamo?" },
+    { role: "assistant", text: "Forse ti chiami Elisabetta, credo." },
+  ],
+  i: 1,
+  armId: "T20C",
+  variantId: "V1",
+  convId: "c1-V1",
+});
+check(govRec.telemetry.KALSA_GOVERNOR?.[0]?.route_chunks?.[0]?.actual === "gpu", "route actual recorded");
+check(
+  govRec.telemetry.KALSA_GOVERNOR?.[0]?.engine_prefill === "GPU" &&
+    govRec.telemetry.KALSA_GOVERNOR?.[0]?.engine_decode === "CPU",
+  "route backends recorded",
+);
+check(govRec.telemetry.KALSA_GOVERNOR?.[0]?.prefill_ms === 412.5, "prefill ms recorded");
+check(govRec.telemetry.KALSA_GOVERNOR_PAUSE?.length === 1, "governor pause recorded");
+check(govRec.telemetry.KALSA_THERMAL_COOLING?.[0]?.batt_temp_tenths_c === 412, "cooling battery temp recorded");
+check(govRec.telemetry.KALSA_TELEMETRY?.slice(-1)[0]?.predictedPerSecond === 12.5, "decode tok/s recorded");
+check(
+  govRec.env &&
+    govRec.env.thermalStatus === 1 &&
+    govRec.env.skinC === 36.4 &&
+    govRec.env.battTempC === 41.2 &&
+    govRec.env.batteryLevel === 77 &&
+    govRec.env.plugged === false,
+  `env snapshot: ${JSON.stringify(govRec.env)}`,
+);
+check(govRec.assistant.includes("Elisabetta"), "answer text kept for scoring");
+check(
+  parseEnvDump("").thermalStatus === null && parseEnvDump("").plugged === null,
+  "empty env dump parses to nulls",
+);
+const govScores = runScorers(scorers, govRec);
+check((govScores.recall?.hits || 0) > 0, `scoring a governor turn (recall hits=${govScores.recall?.hits})`);
+check(typeof govScores.response_profile?.hedgeCount === "number", "response_profile scores a governor turn");
+
+// The run must never write the bench thermo key (owner stop line); the
+// selftests themselves are excluded so this needle stays out of its own scan.
+const campaignSources = readdirSync(here).filter(
+  (f) => (f.endsWith(".sh") || f.endsWith(".mjs")) && !f.startsWith("selftest"),
+);
+const thermoWrites = campaignSources.filter((f) =>
+  readFileSync(path.join(here, f), "utf8").includes("kalsa.bench.thermo"),
+);
+check(
+  thermoWrites.length === 0,
+  `no campaign source writes kalsa.bench.thermo (${thermoWrites.join(",") || "none"})`,
+);
+
+// The T20C runner's refusal lines: floor, governor write+verify, hard abort.
+const runT20c = readFileSync(path.join(here, "run-t20c.sh"), "utf8");
+check(runT20c.includes("BATTERY_FLOOR=25"), "battery stop floor is 25");
+check(runT20c.includes("campaign_governor_enable ||"), "governor pref written before launch");
+check(runT20c.includes("campaign_governor_verify"), "governor verified from the load plan before turn 1");
+check(runT20c.includes("campaign_thermal_should_hard_abort"), "hard abort armed in the turn stop loop");
+check(
+  readFileSync(path.join(here, "governor.sh"), "utf8").includes("\"gpu_fit\""),
+  "engagement reads gpu_fit from the plan",
+);
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "kalsa-harness-"));
 try {
@@ -819,7 +962,7 @@ check(
 
 const shFlags = bash([path.join(here, "flags.sh"), "--selftest"]);
 check(shFlags.status === 0, `flags.sh --selftest exit=${shFlags.status} ${shFlags.stderr}`);
-for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "nativeLog.sh", "phase0.sh", "oneTurn.sh", "run-t20c.sh", "selftest_defects.sh", "selftest_fakedevice.sh", "../device-share-send.sh"]) {
+for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "nativeLog.sh", "phase0.sh", "oneTurn.sh", "governor.sh", "run-t20c.sh", "selftest_defects.sh", "selftest_fakedevice.sh", "../device-share-send.sh"]) {
   const r = bash(["-n", path.join(here, f)]);
   check(r.status === 0, `bash -n ${f} exit=${r.status} ${r.stderr}`);
 }
