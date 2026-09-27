@@ -151,6 +151,7 @@ import {
   resumeWhileCooling,
   type CoolingLoopOptions,
 } from "./thermalResume";
+import { createPlatformPauseGate, readPlatformThermalStatus } from "./platformPauseGate";
 import {
   governorPauseLogLine,
   thermalCoolingLogLine,
@@ -1775,6 +1776,7 @@ async function emitGovernorTelemetry(
   turnId: string,
   turnAttempt: number,
   completionResult: unknown,
+  pauseSource: "battery" | "platform" | null,
 ): Promise<void> {
   if (!activeGovernorAttempted) return;
   try {
@@ -1783,6 +1785,10 @@ async function emitGovernorTelemetry(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "getGovernorStats",
     );
+    // Beside the battery-derived thermal_state: the platform severity the
+    // phone actually reports (0-6 Android ladder), null when unreadable
+    // (fail-open — the hard gate's contract).
+    const platformStatus = await readPlatformThermalStatus();
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
         engine_prefill: stats.engine_prefill,
@@ -1796,6 +1802,7 @@ async function emitGovernorTelemetry(
         prefill_ctx_ngl: stats.prefill_ctx_ngl,
         forced: activeGovernorForced,
         thermal_state: stats.thermal_state,
+        platform_status: platformStatus,
         thermo_source: thermoSource,
         fit: activeGovernorFit ?? "Unknown",
         fallback_reason: activeGovernorFallbackReason,
@@ -1804,6 +1811,9 @@ async function emitGovernorTelemetry(
         // completion error the binding raises.
         failed: Boolean(stats.failure_reason),
         failure_reason: stats.failure_reason,
+        // The last pause this turn came from: the battery policy or the
+        // platform gate; null when neither paused it.
+        pause_source: pauseSource,
         // Route evidence: this send's attempt, the join id, the mode THIS
         // turn actually pushed (null + route_push when it did not apply),
         // and the validated per-chunk facts (dropped counts malformed ones).
@@ -4796,6 +4806,10 @@ export async function streamAssistantTurn(
       // Structured error results and thrown failures do not overwrite a prior success.
       const toolAttribution = new ToolAttributionTracker();
       let governorThermoSource: GovernorThermoSnapshot["thermo_source"] = "battery";
+      // Which source paused this turn's completion last: the engine's battery
+      // policy or the platform gate. Turn-scoped — emitted on the KALSA_GOVERNOR
+      // line and dropped with the turn.
+      let governorPauseSource: "battery" | "platform" | null = null;
       const thermoLogState = { invalidLogged: false };
 
       // HIGH-3 (Jelly): 2B models often ignore system "prefer document_chat" and
@@ -4934,40 +4948,55 @@ export async function streamAssistantTurn(
       // listener — only the logged round differs.
       const coolingRound = <T,>(
         roundForLog: number,
-        attempt: () => Promise<T>,
-      ): CoolingLoopOptions<T> => ({
-        attempt,
-        signal,
-        isStopped: () => finished || aborted || disposing || engine !== context,
-        refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
-        onCooling: (phase, detail) => {
-          if (phase === "start" || phase === "end") {
-            try {
-              console.log(
-                thermalCoolingLogLine({
-                  turnId,
-                  round: roundForLog,
-                  phase: phase === "start" ? "enter" : "exit",
-                  detail,
-                }),
-              );
-            } catch {
-              // telemetry must never throw
+        runAttempt: () => Promise<T>,
+      ): CoolingLoopOptions<T> => {
+        const platformGate = createPlatformPauseGate(readPlatformThermalStatus);
+        return {
+          attempt: async () => {
+            // Platform gate inside the loop's attempt: SEVERE refuses the
+            // completion and the engine's OWN thermal-paused shape enters the
+            // unchanged cooling loop; the engine's thermal result is the
+            // battery source. Prefill routing is not touched here.
+            if (await platformGate.shouldPauseNow()) {
+              governorPauseSource = "platform";
+              return { pause_reason: "thermal" } as unknown as T;
             }
-          }
-          if (finished || aborted) return;
-          if (phase === "start") {
-            clearPrefillDeadline();
-            callbacks.onStatus?.({ label: strings.chat.coolingStatus });
-          } else if (phase === "wait") {
-            clearPrefillDeadline();
-            callbacks.onStatus?.({ label: strings.chat.coolingStatus });
-          } else if (phase === "resume") {
-            armPrefillDeadline();
-            callbacks.onStatus?.({ label: statusLabel });
-          }
-        },
-      });
+            const result = await runAttempt();
+            if (pauseReasonOf(result) === "thermal") governorPauseSource = "battery";
+            return result;
+          },
+          signal,
+          isStopped: () => finished || aborted || disposing || engine !== context,
+          refreshThermo: () => refreshGovernorBeforeCompletion(engine, thermoLogState),
+          onCooling: (phase, detail) => {
+            if (phase === "start" || phase === "end") {
+              try {
+                console.log(
+                  thermalCoolingLogLine({
+                    turnId,
+                    round: roundForLog,
+                    phase: phase === "start" ? "enter" : "exit",
+                    detail,
+                  }),
+                );
+              } catch {
+                // telemetry must never throw
+              }
+            }
+            if (finished || aborted) return;
+            if (phase === "start") {
+              clearPrefillDeadline();
+              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+            } else if (phase === "wait") {
+              clearPrefillDeadline();
+              callbacks.onStatus?.({ label: strings.chat.coolingStatus });
+            } else if (phase === "resume") {
+              armPrefillDeadline();
+              callbacks.onStatus?.({ label: statusLabel });
+            }
+          },
+        };
+      };
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
         if (round > 0) {
@@ -5239,7 +5268,7 @@ export async function streamAssistantTurn(
         if (!toolCallingEnabled || !toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
-          await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult);
+          await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult, governorPauseSource);
           if (benchSampling === "greedy") {
             console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
           }
@@ -5678,7 +5707,7 @@ export async function streamAssistantTurn(
       ) {
         assembleOutcome = markAssembleOutcome(assembleOutcome, "completed");
       }
-      await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult);
+      await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult, governorPauseSource);
       if (benchSampling === "greedy") {
         console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
       }

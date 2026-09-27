@@ -42,9 +42,9 @@ export const THERMAL_STATE_CRITICAL = 3;
  * True when an Android `getCurrentThermalStatus()` value has reached the
  * platform CRITICAL severity or worse (CRITICAL / EMERGENCY / SHUTDOWN).
  *
- * Anything below CRITICAL (NONE=0, PERCEPTIBLE=1, SEVERE=2) does NOT gate —
- * those are throttling / reduction signals, not a total block. Unknown /
- * out-of-range values are not gated (fail open).
+ * Anything below CRITICAL (NONE=0, LIGHT=1, MODERATE=2, SEVERE=3) does NOT
+ * gate — those are throttling / reduction signals, not a total block.
+ * Unknown / out-of-range values are not gated (fail open).
  */
 export function isAndroidThermalHardGated(status: number): boolean {
   return Number.isInteger(status) && status >= THERMAL_STATUS_CRITICAL;

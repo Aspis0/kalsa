@@ -8,7 +8,9 @@
  * governorPauseLog.ts: this file pins that the turn file holds no raw
  * emitter, that each EMISSION SITE logs exactly once per event (a built
  * line logged twice is the audit's green mutation), and that the builders
- * themselves only build. Source pins on purpose: LlamaService has no
+ * themselves only build. The platform pause gate (both completions gated on
+ * the platform status, KALSA_GOVERNOR's platform_status/pause_source) is
+ * pinned here too for the same reason. Source pins on purpose: LlamaService has no
  * runtime harness; payload and per-event cardinality are pinned in
  * governorPauseLog.test.ts, the emitEngineError → onError path stays the
  * declared F5 gap.
@@ -102,4 +104,22 @@ test("every utility completion detects a pause through the shared helper, as a c
     ...noComments.matchAll(/if\s*\(\s*utilityGovernorPause\(result, "(\w+)"\)\)/g),
   ].map((match) => match[1] ?? "");
   expect(guardedSites.sort()).toEqual(["completeOnce", "extractMemory", "translate"]);
+});
+
+test("both turn completion sites gate the attempt on the platform status", () => {
+  // One shared construction inside coolingRound serves the round and the
+  // tool fallback: SEVERE refuses the attempt with the engine's own
+  // thermal-paused shape, and the turn's pause source names battery vs
+  // platform for the governor line.
+  expect(noComments.match(/createPlatformPauseGate\(/g)).toHaveLength(1);
+  expect(noComments.match(/platformGate\.shouldPauseNow\(\)/g)).toHaveLength(1);
+  expect(noComments.match(/governorPauseSource = "platform"/g)).toHaveLength(1);
+  expect(noComments.match(/governorPauseSource = "battery"/g)).toHaveLength(1);
+});
+
+test("the KALSA_GOVERNOR line carries the platform status and the pause source", () => {
+  expect(noComments.match(/platform_status: platformStatus/g)).toHaveLength(1);
+  expect(noComments.match(/pause_source: pauseSource/g)).toHaveLength(1);
+  // Both emit sites hand the turn's source in.
+  expect(noComments.match(/lastCompletionResult, governorPauseSource\)/g)).toHaveLength(2);
 });
