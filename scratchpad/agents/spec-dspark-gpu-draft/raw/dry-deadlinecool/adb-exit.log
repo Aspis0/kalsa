@@ -1,6 +1,6 @@
 rc=0 devices
 rc=0 -s fakes23 wait-for-device
-rc=0 -s fakes23 shell q=\"sleep\ 12\"\;\ q=\"\$q\"\"345\"\;\ \"\$q\"\ \&\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFTEST=FOUND\;\ else\ echo\ PGREP_SELFTEST=MISS\;\ fi\;\ pkill\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\ \|\|\ true\;\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFCLEAN=STILL\;\ else\ echo\ PGREP_SELFCLEAN=GONE\;\ fi
+rc=0 -s fakes23 shell n=12345\;\ q=\"sleep\ \$n\"\;\ sleep\ \"\$n\"\ \&\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFTEST=FOUND\;\ else\ echo\ PGREP_SELFTEST=MISS\;\ fi\;\ pkill\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\ \|\|\ true\;\ sleep\ 1\;\ if\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ then\ echo\ PGREP_SELFCLEAN=STILL\;\ else\ echo\ PGREP_SELFCLEAN=GONE\;\ fi
 rc=0 -s fakes23 shell getprop ro.soc.model
 rc=0 -s fakes23 shell settings get system screen_off_timeout
 rc=0 -s fakes23 shell settings get global stay_on_while_plugged_in
@@ -31,10 +31,6 @@ rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ tar\ -xzf\ kit.tgz
 rc=0 -s fakes23 shell cd\ /data/local/tmp/dspark-spec\ \&\&\ sha256sum\ -c\ SHA256SUMS
-rc=0 -s fakes23 shell dumpsys thermalservice
-rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell dumpsys thermalservice
-rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice

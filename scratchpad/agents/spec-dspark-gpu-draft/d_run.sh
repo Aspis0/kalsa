@@ -132,11 +132,13 @@ elif declare -F pgrep_selftest >/dev/null 2>&1; then
 else
   pgrep_selftest() {
     local out=""
-    # The probe cmdline is assembled at runtime: nothing in THIS command line
-    # contains the literal the pgrep pattern searches for, so the wrapper
-    # sh -c can never self-match (the bracket trick is not enough here — the
-    # literal also appears in the spawn line itself).
-    out=$(adbT 30 -s "$SER" shell 'q="sleep 12"; q="$q""345"; "$q" & sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFTEST=FOUND; else echo PGREP_SELFTEST=MISS; fi; pkill -f "$q" >/dev/null 2>&1 || true; sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFCLEAN=STILL; else echo PGREP_SELFCLEAN=GONE; fi' 2>/dev/null | tr -d '\r') || out=""
+    # Two traps, both proven on the S23 (run aaeeae16): (1) the victim spawn
+    # must NOT be a quoted "$q" — quoted, the shell looks for ONE command
+    # literally named `sleep 12345`, spawns nothing, and the self-test dies
+    # as MISS; `sleep "$n"` spawns for real. (2) `n`/`$q` keep the contiguous
+    # literal `sleep 12345` OUT of this command line, so pgrep's own sh -c
+    # can never self-match (audit4 item-3).
+    out=$(adbT 30 -s "$SER" shell 'n=12345; q="sleep $n"; sleep "$n" & sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFTEST=FOUND; else echo PGREP_SELFTEST=MISS; fi; pkill -f "$q" >/dev/null 2>&1 || true; sleep 1; if pgrep -f "$q" >/dev/null 2>&1; then echo PGREP_SELFCLEAN=STILL; else echo PGREP_SELFCLEAN=GONE; fi' 2>/dev/null | tr -d '\r') || out=""
     case "$out" in
       *PGREP_SELFTEST=FOUND*PGREP_SELFCLEAN=GONE*) log "PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)"; return 0 ;;
       *)

@@ -155,6 +155,7 @@ has "happy EXIT-unprefixed" "EXIT=0" "$(cat "$RAW/B8.log" 2>/dev/null || echo no
 if [ "$(grep -c '^GGML_OPENCL_LOG_KERNELS:' "$RAW/C4-p.log" 2>/dev/null || true)" = 6 ]; then pass "happy kernels-unprefixed-6"; else fail "happy kernels-unprefixed-6" "count=$(grep -c '^GGML_OPENCL_LOG_KERNELS:' "$RAW/C4-p.log" 2>/dev/null || echo 0)"; fi
 has "happy kit-verified" "KIT_AND_MODELS_VERIFIED" "$(driver_log)"
 has "happy battery-trusted" "BATTERY_SENSOR_TRUSTED" "$(driver_log)"
+has "happy selftest-ok" "PGREP_SELFTEST ok" "$(driver_log)"   # audit7: the string is EXECUTED, not modelled
 for f in kit.tgz ship.gguf draft.gguf prompt.txt; do
   has "happy pushed $f" "$f" "$(cat "$STATE/push.log" 2>/dev/null || echo none)"
 done

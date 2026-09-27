@@ -1,7 +1,7 @@
-[02:13:05] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[02:13:05] SESSION job=dry-level board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[02:13:05] GATE label=before_setup
-[02:13:05] STOP reason=battery_level
-[02:13:05] PKILL_UNVERIFIED ctx=stop_battery_level pgrep_rc=missing — remote llama-completion may still be running
-[02:13:06] KILL_VERIFY reason=stop_battery_level result=gone attempt=1
-[02:13:06] SESSION_STOP reason=battery_level kill_failed=0
+[02:43:34] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[02:43:34] SESSION job=dry-level board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[02:43:34] GATE label=before_setup
+[02:43:34] STOP reason=battery_level
+[02:43:34] PKILL_UNVERIFIED ctx=stop_battery_level pgrep_rc=missing — remote llama-completion may still be running
+[02:43:34] KILL_VERIFY reason=stop_battery_level result=gone attempt=1
+[02:43:34] SESSION_STOP reason=battery_level kill_failed=0

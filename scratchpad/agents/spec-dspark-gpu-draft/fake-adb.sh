@@ -293,20 +293,23 @@ handle_shell() {
       if pgrep_is_broken; then
         echo PGREP_SELFTEST=MISS
         echo PGREP_SELFCLEAN=STILL
-      else
-        echo PGREP_SELFTEST=FOUND
-        echo PGREP_SELFCLEAN=GONE
+        exit 0
       fi
+      # audit7: EXECUTE the real string under dash instead of pattern-matching
+      # it — a spawn that fails for real (the quoted-"$q" trap: the shell
+      # looks for ONE command literally named `sleep 12345`, spawns nothing)
+      # must surface as PGREP_SELFTEST=MISS straight from the shell.
+      /bin/dash -c "$cmd" || true
       exit 0 ;;
-    # audit4 item-3 self-match model: pgrep -f run inside adb shell "…" sees
-    # its OWN sh -c cmdline. Bracketed pattern = safe (PROBE=1); a PLAIN
-    # literal in the same command string matches the wrapper (RC=0) — proven
-    # on the S23 tonight, so the plain branch answers PROBE=0.
-    *"zzz_no_such_proc_zz[z]"*)
-      if pgrep_is_broken; then echo PROBE_BROKEN; else echo PROBE=1; fi
-      exit 0 ;;
-    *zzz_no_such_proc_zzz*)
-      if pgrep_is_broken; then echo PROBE_BROKEN; else echo PROBE=0; fi
+    # audit7: the health probe is EXECUTED for real under dash (no hand model
+    # left): the answer comes from this Mac's own pgrep. Bracketed → PROBE=1
+    # on host AND device (the only form the driver sends); a plain literal
+    # self-matches on the S23's toybox (proven, run aaeeae16 class) though
+    # macOS pgrep does not reproduce it — either way the bracketed probe is
+    # unaffected. Knob precedence keeps DRY_PGREP_*.
+    *zzz_no_such_proc*)
+      if pgrep_is_broken; then echo PROBE_BROKEN; exit 0; fi
+      /bin/dash -c "$cmd" || true
       exit 0 ;;
     *pgrep*)
       if pgrep_is_broken; then echo PGREP_BROKEN; exit 0; fi

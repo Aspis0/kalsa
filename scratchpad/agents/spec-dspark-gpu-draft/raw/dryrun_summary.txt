@@ -34,6 +34,7 @@ PASS  happy EXIT-unprefixed
 PASS  happy kernels-unprefixed-6
 PASS  happy kit-verified
 PASS  happy battery-trusted
+PASS  happy selftest-ok
 PASS  happy pushed kit.tgz
 PASS  happy pushed ship.gguf
 PASS  happy pushed draft.gguf
@@ -206,7 +207,7 @@ PASS  deadlinecool rc
 PASS  deadlinecool END
 PASS  deadlinecool rows
 PASS  deadlinecool beat-cap
-PASS  deadlinecool spun-in-cooldown reads=7
+PASS  deadlinecool spun-in-cooldown reads=5
 PASS  deadlinecool kill-verified
 PASS  deadlinecool restore-ran
 PASS  deadlinecool timeout-restored
@@ -332,4 +333,4 @@ PASS  flagok rc (selective)
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=302 fail=0
+SUMMARY pass=303 fail=0
