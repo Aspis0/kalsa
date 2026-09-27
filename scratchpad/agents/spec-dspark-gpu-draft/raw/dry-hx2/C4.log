@@ -1,0 +1,19 @@
+0.00.000.125 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.126 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.127 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.128 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.129 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.000.130 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.131 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+0.00.000.132 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.133 I load_tensors: offloading output layer to GPU
+0.00.000.134 I load_tensors: offloading 4 repeating layers to GPU
+0.00.000.135 I load_tensors: offloaded 6/6 layers to GPU
+0.00.000.136 I load_tensors:       OpenCL model buffer size =   340.00 MiB
+0.00.900.001 I decoded  132 tokens in    8.000 seconds, speed:   16.500 t/s
+0.00.000.137 I n_draft   = 4
+0.00.000.138 I n_predict = 132
+0.00.000.139 I n_drafted = 264
+0.00.000.140 I n_accept  = 0
+0.00.000.141 I accept    = 56.000%
+EXIT=0

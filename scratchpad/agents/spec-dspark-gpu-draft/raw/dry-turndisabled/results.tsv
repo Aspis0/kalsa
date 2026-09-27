@@ -1,9 +1,9 @@
 tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	cooldown_s	warm_start	skin_before	skin_after	status	void	proof	wall_s	final
 A-p	A	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	0	proof
-B4-p	B4	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	0	proof
+B4-p	B4	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	1	proof
 B8-p	B8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	0	proof
 C4-p	C4	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	0	proof
-C8-p	C8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	1	proof
+C8-p	C8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	0	proof
 A	A	1	127	128	na	0	nan%	16.000	0	0	33.5	33.5	VOID	turn_backend_disabled	disabled_line_in_turn=1 n_predict=128	0	void
 B4	B4	1	127	132	na	264	56.000%	16.500	0	0	33.5	33.5	VOID	turn_backend_disabled	disabled_line_in_turn=1 n_predict=132	0	void
 B8	B8	1	127	136	na	408	39.000%	17.000	0	0	33.5	33.5	VOID	turn_backend_disabled	disabled_line_in_turn=1 n_predict=136	0	void

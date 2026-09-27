@@ -1,0 +1,47 @@
+0.00.000.017 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.018 I == Running in interactive mode. ==
+0.00.000.019 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.020 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.021 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.022 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.050.000 D load_tensors: layer   0 assigned to device CPU, is_swa = 0
+0.00.051.001 D load_tensors: layer   1 assigned to device CPU, is_swa = 0
+0.00.052.002 D load_tensors: layer   2 assigned to device CPU, is_swa = 0
+0.00.053.003 D load_tensors: layer   3 assigned to device CPU, is_swa = 0
+0.00.054.004 D load_tensors: layer   4 assigned to device CPU, is_swa = 0
+0.00.055.005 D load_tensors: layer   5 assigned to device CPU, is_swa = 0
+0.00.056.006 D load_tensors: layer   6 assigned to device CPU, is_swa = 0
+0.00.057.007 D load_tensors: layer   7 assigned to device CPU, is_swa = 0
+0.00.058.008 D load_tensors: layer   8 assigned to device CPU, is_swa = 0
+0.00.059.009 D load_tensors: layer   9 assigned to device CPU, is_swa = 0
+0.00.060.010 D load_tensors: layer  10 assigned to device CPU, is_swa = 0
+0.00.061.011 D load_tensors: layer  11 assigned to device CPU, is_swa = 0
+0.00.062.012 D load_tensors: layer  12 assigned to device CPU, is_swa = 0
+0.00.063.013 D load_tensors: layer  13 assigned to device CPU, is_swa = 0
+0.00.064.014 D load_tensors: layer  14 assigned to device CPU, is_swa = 0
+0.00.065.015 D load_tensors: layer  15 assigned to device CPU, is_swa = 0
+0.00.066.016 D load_tensors: layer  16 assigned to device CPU, is_swa = 0
+0.00.067.017 D load_tensors: layer  17 assigned to device CPU, is_swa = 0
+0.00.068.018 D load_tensors: layer  18 assigned to device CPU, is_swa = 0
+0.00.069.019 D load_tensors: layer  19 assigned to device CPU, is_swa = 0
+0.00.070.020 D load_tensors: layer  20 assigned to device CPU, is_swa = 0
+0.00.071.021 D load_tensors: layer  21 assigned to device CPU, is_swa = 0
+0.00.072.022 D load_tensors: layer  22 assigned to device CPU, is_swa = 0
+0.00.073.023 D load_tensors: layer  23 assigned to device CPU, is_swa = 0
+0.00.000.023 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.024 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.025 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.026 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.027 I load_tensors:          CPU model buffer size =   340.00 MiB
+0.00.300.000 D load_tensors: layer   0 assigned to device CPU, is_swa = 0
+0.00.301.001 D load_tensors: layer   1 assigned to device CPU, is_swa = 0
+0.00.302.002 D load_tensors: layer   2 assigned to device CPU, is_swa = 0
+0.00.303.003 D load_tensors: layer   3 assigned to device CPU, is_swa = 0
+0.00.304.004 D load_tensors: layer   4 assigned to device CPU, is_swa = 0
+0.00.900.001 I decoded   13 tokens in    8.000 seconds, speed:    1.625 t/s
+0.00.000.028 I n_draft   = 4
+0.00.000.029 I n_predict = 13
+0.00.000.030 I n_drafted = 26
+0.00.000.031 I n_accept  = 0
+0.00.000.032 I accept    = 56.000%
+EXIT=0

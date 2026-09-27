@@ -40,17 +40,20 @@ fi
 [ -n "$SER" ] || { echo "RESTORE_NO_DEVICE port=$ADB_PORT" >&2; exit 2; }
 rc=0
 # Bracketed so the wrapping sh -c carrying this pattern cannot self-match.
-"$ADB_BIN" -s "$SER" shell "pkill -f 'llama-speculative-simpl[e]'" >/dev/null 2>&1 || true
+# stdin from /dev/null on every remote shell call (audit6): this file calls
+# adb directly (not through adbT), and remote stdin must be EOF so an
+# interactive binary can never wait on a TTY here either.
+"$ADB_BIN" -s "$SER" shell "pkill -f 'llama-speculative-simpl[e]'" </dev/null >/dev/null 2>&1 || true
 if [ "$STATE_PRESENT" -eq 1 ]; then
   case "$STAYON" in
-    null) "$ADB_BIN" -s "$SER" shell settings delete global stay_on_while_plugged_in >/dev/null 2>&1 || rc=1 ;;
+    null) "$ADB_BIN" -s "$SER" shell settings delete global stay_on_while_plugged_in </dev/null >/dev/null 2>&1 || rc=1 ;;
     ''|*[!0-9]*) echo "RESTORE_BAD_STAYON value=$STAYON" >&2; rc=1 ;;
-    *) "$ADB_BIN" -s "$SER" shell settings put global stay_on_while_plugged_in "$STAYON" >/dev/null 2>&1 || rc=1 ;;
+    *) "$ADB_BIN" -s "$SER" shell settings put global stay_on_while_plugged_in "$STAYON" </dev/null >/dev/null 2>&1 || rc=1 ;;
   esac
   case "$SCREEN_OFF_TIMEOUT" in
-    null) "$ADB_BIN" -s "$SER" shell settings delete system screen_off_timeout >/dev/null 2>&1 || rc=1 ;;
+    null) "$ADB_BIN" -s "$SER" shell settings delete system screen_off_timeout </dev/null >/dev/null 2>&1 || rc=1 ;;
     ''|*[!0-9]*) echo "RESTORE_BAD_TIMEOUT value=$SCREEN_OFF_TIMEOUT" >&2; rc=1 ;;
-    *) "$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || rc=1 ;;
+    *) "$ADB_BIN" -s "$SER" shell settings put system screen_off_timeout "$SCREEN_OFF_TIMEOUT" </dev/null >/dev/null 2>&1 || rc=1 ;;
   esac
   # audit2 NEW-1: consume the state ONLY when the restore actually succeeded —
   # a failed restore stays retryable and the pre-run values must survive

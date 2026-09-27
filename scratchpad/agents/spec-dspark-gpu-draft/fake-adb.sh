@@ -43,6 +43,10 @@
 #   DRY_TURN_PARTIAL=1           a C turn offloads only 3/6 drafter layers
 #                               (AUDIT5 N-C1 partial-offload gate)
 #   DRY_TURN_GPU_LEAK=1          an A/B turn offloads 3/6 drafter layers
+#   DRY_TURN_INTERACTIVE=1       the TURN log carries `== Running in
+#                                interactive mode. ==` (audit6 gate)
+#   DRY_PROOF_INTERACTIVE=1      same, in the PROOF log
+# Audit6b: KNOWN_SPEC_FLAGS above rejects unknown/misspelled flags (exit 65).
 set -euo pipefail
 STATE="${FAKE_ADB_STATE:-/tmp/dspark-spec-fake}"
 DEV="$STATE/dev"
@@ -128,8 +132,26 @@ EOF
 # run_arm <cmd>: synthesize the pulled llama-speculative-simple log.
 # Overshoot model: A -> +1; spec arms -> nmax+1, EXCEPT adjustment attempts
 # under DRY_JITTER (= nmax) and DRY_NEVER_MATCH_ARM (fixed N, non-converging).
+#
+# Flag allowlist (audit6b): every flag the driver may pass to
+# llama-speculative-simple. Anything else is REJECTED (exit 65 +
+# shell_bad_flags.log) — a misspelling (`--no-cnv`; the real spelling is
+# `-no-cnv`/`--no-conversation`, common/arg.cpp:1899-1900) or a flag that
+# belongs to another binary (`-no-cnv`, `-cnv`, `-st` are completion-only and
+# spec-simple would reject them too) must never pass the dry-run silently.
+KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-devd$|^-lv$'
 run_arm() {
   local cmd=$1 tag limit nmax n i k kernels o n_predict dpn drafted accept rc gpu=0
+  local badf
+  badf=$(printf '%s\n' "$cmd" | tr ' ' '\n' | grep -E '^--?[A-Za-z0-9]' | grep -v -E "$KNOWN_SPEC_FLAGS" || true)
+  if [ -n "$badf" ]; then
+    {
+      printf 'CMD: %s\n' "$cmd"
+      printf 'BAD: %s\n' "$(printf '%s' "$badf" | tr '\n' ' ')"
+    } >> "$STATE/shell_bad_flags.log"
+    printf 'fake-adb: unknown flag(s): %s\n' "$(printf '%s' "$badf" | tr '\n' ' ')" >&2
+    exit 65
+  fi
   tag=$(printf '%s\n' "$cmd" | grep -o 'dspark-spec/[A-Za-z0-9._-]*\.log' | head -1 | sed 's#.*/##; s#\.log$##') || tag=""
   [ -n "$tag" ] || tag=unparsed.log
   limit=$(printf '%s\n' "$cmd" | sed -n 's#.* -n \([0-9][0-9]*\) .*#\1#p')
@@ -169,6 +191,12 @@ run_arm() {
   fi
   {
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
+    # audit6: completion's interactive banner (tools/completion/completion.cpp:484)
+    # — knobbed per run kind so BOTH parse gates get a red fixture.
+    if { [ "$mode" = measure ] && [ "${DRY_TURN_INTERACTIVE:-0}" = 1 ]; } || \
+       { [ "$mode" = proof ] && [ "${DRY_PROOF_INTERACTIVE:-0}" = 1 ]; }; then
+      lg I "== Running in interactive mode. =="
+    fi
     # INFO placement lines: hidden at default, admitted at -lv 4. Shapes and
     # values below are copied verbatim from the real f25f0c1c5 S23 logs
     # (qdc-heat-3way/raw/s23-calib-3/calib, same ship model): the target pair

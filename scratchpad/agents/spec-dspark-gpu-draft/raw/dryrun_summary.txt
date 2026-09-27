@@ -301,7 +301,35 @@ PASS  turnleak restore-ran
 PASS  turnleak timeout-restored
 PASS  turnleak stayon-restored
 PASS  turnleak state-consumed
+== audit6: an interactive/conversation TURN is voided (proof was fine) ==
+PASS  interactiveturn rc
+PASS  interactiveturn END
+PASS  interactiveturn rows
+PASS  interactiveturn void-A
+PASS  interactiveturn proof-A
+PASS  interactiveturn matched
+PASS  interactiveturn restore-ran
+PASS  interactiveturn timeout-restored
+PASS  interactiveturn stayon-restored
+PASS  interactiveturn state-consumed
+== audit6: an interactive PROOF voids the arm before it is ever measured ==
+PASS  interactiveproof rc
+PASS  interactiveproof END
+PASS  interactiveproof rows
+PASS  interactiveproof void-A
+PASS  interactiveproof matched
+PASS  interactiveproof no-success
+PASS  interactiveproof restore-ran
+PASS  interactiveproof timeout-restored
+PASS  interactiveproof stayon-restored
+PASS  interactiveproof state-consumed
+== audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) ==
+PASS  flagbad rc
+PASS  flagbad names the flag
+PASS  flagbad recorded
+PASS  flagbad no-log
+PASS  flagok rc (selective)
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=277 fail=0
+SUMMARY pass=302 fail=0

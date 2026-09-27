@@ -1,1 +1,1 @@
-[00:47:15] KILL_VERIFY reason=cleanup_rc0_sigTERM result=ALIVE
+[02:15:25] KILL_VERIFY reason=cleanup_rc0_sigTERM result=ALIVE

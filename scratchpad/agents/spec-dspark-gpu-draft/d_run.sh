@@ -76,10 +76,16 @@ log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$DRIVER_LOG"; }
 
 # Timeout wrapper (stop_lib's adbT contract): perl alarm interrupts on INT/TERM;
 # rc >= 124 means the remote process may be orphaned (kill_spec_verified runs).
+# stdin from /dev/null for EVERY adb call (audit6): adb forwards its stdin to
+# the remote shell, and a TTY there lets an interactive binary wait forever
+# (proven on the S23: cell A's completion turn hung to its 900 s timeout).
+# This covers every remote binary of this driver — including the strings
+# sourced from stop_lib/battery_trust — without editing them; restore.sh
+# calls adb directly and redirects its own stdin.
 adbT() {
   local seconds="$1" rc argline="" arg
   shift
-  /usr/bin/perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" "$ADB_BIN" "$@" &
+  /usr/bin/perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" "$ADB_BIN" "$@" < /dev/null &
   CURRENT_CHILD_PID=$!
   wait "$CURRENT_CHILD_PID"
   rc=$?

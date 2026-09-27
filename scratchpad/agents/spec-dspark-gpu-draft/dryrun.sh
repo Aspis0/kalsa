@@ -27,6 +27,10 @@
 # Mac only; no device, no phone, no adb binary.
 set -euo pipefail
 CELL="$(cd "$(dirname "$0")" && pwd)"
+# Test hygiene: an aborted earlier dry-run may have left a .restore-state
+# behind; the fixtures own their own state lifecycle (rerun2 tests the stale
+# repair explicitly), so a cross-invocation leftover must not contaminate them.
+rm -f "$CELL/.restore-state"
 PASS=0; FAIL=0; RAW=""; RC=0; STATE=""; BG_PID=""
 pass() { PASS=$((PASS + 1)); printf 'PASS  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); printf 'FAIL  %s -- %s\n' "$1" "$2"; }
@@ -285,6 +289,9 @@ if wait_for "$STATE/proc_running" 15; then
   set +e
   kill -9 "$BG_PID" 2>/dev/null
   wait "$BG_PID" 2>/dev/null
+  # phase-1's fake arm is orphaned and shares THIS state dir with phase 2 —
+  # its late write raced phase 2's pull (truncated A-p.log). Reap it first.
+  pkill -f "$CELL/fake-adb.sh" 2>/dev/null
   set -e
 fi
 set +e
@@ -465,6 +472,46 @@ eq "turnleak proof-A" OK "$(colr A-p 14)"
 eq "turnleak C4-ok" OK "$(colr C4 14)"
 eq "turnleak matched" 0 "$(fcount matched)"
 assert_restore turnleak
+
+echo "== audit6: an interactive/conversation TURN is voided (proof was fine) =="
+run_fixture interactiveturn DRY_TURN_INTERACTIVE=1
+eq "interactiveturn rc" 3 "$RC"
+eq "interactiveturn END" match_void "$(end_reason)"
+eq "interactiveturn rows" 10 "$(rows)"     # 5 proofs OK + 5 turns voided
+eq "interactiveturn void-A" interactive_mode "$(colr A 15)"
+eq "interactiveturn proof-A" OK "$(colr A-p 14)"
+eq "interactiveturn matched" 0 "$(fcount matched)"
+assert_restore interactiveturn
+
+echo "== audit6: an interactive PROOF voids the arm before it is ever measured =="
+run_fixture interactiveproof DRY_PROOF_INTERACTIVE=1
+eq "interactiveproof rc" 3 "$RC"
+eq "interactiveproof END" match_void "$(end_reason)"
+eq "interactiveproof rows" 5 "$(rows)"     # proof-only: arms dead, no turns ran
+eq "interactiveproof void-A" interactive_mode "$(colr A-p 15)"
+eq "interactiveproof matched" 0 "$(fcount matched)"
+not_has "interactiveproof no-success" "MATCH ok" "$(driver_log)"
+assert_restore interactiveproof
+
+echo "== audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) =="
+FB=/tmp/dspark-dry-flagbad
+rm -rf "$FB"; mkdir -p "$FB"
+BADCMD=$(D=/data/local/tmp/dspark-spec; . "$CELL/arm.sh" >/dev/null 2>&1; arm_cmd flagbad A 8 measure | sed 's/ -lv 4/ -lv 4 --no-cnv/')
+CLEANCMD=$(D=/data/local/tmp/dspark-spec; . "$CELL/arm.sh" >/dev/null 2>&1; arm_cmd flagok A 8 measure)
+set +e
+env FAKE_ADB_STATE="$FB" "$CELL/fake-adb.sh" -s fake shell "$BADCMD" > "$CELL/raw/dryrun-flagbad.log" 2>&1
+RC=$?
+set -e
+eq "flagbad rc" 65 "$RC"
+has "flagbad names the flag" "--no-cnv" "$(cat "$CELL/raw/dryrun-flagbad.log" 2>/dev/null || echo none)"
+has "flagbad recorded" "--no-cnv" "$(cat "$FB/shell_bad_flags.log" 2>/dev/null || echo none)"
+if [ -f "$FB/dev/flagbad.log" ]; then fail "flagbad no-log" "fake answered anyway"; else pass "flagbad no-log"; fi
+set +e
+env FAKE_ADB_STATE="$FB" "$CELL/fake-adb.sh" -s fake shell "$CLEANCMD" > "$CELL/raw/dryrun-flagok.log" 2>&1
+RC2=$?
+set -e
+eq "flagok rc (selective)" 0 "$RC2"
+rm -rf "$FB"
 
 echo
 echo "== audit4-adj: fake adb sh -n-checked every shell command of every fixture =="

@@ -63,7 +63,7 @@ arm_cmd() {
     measure) lv=" -lv 4" ;;
     *) return 1 ;;
   esac
-  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1 < /dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$D" "$D" "$envk" "$D" "$D" "$flags" "$D" "$limit" "$lv" "$D" "$tag" "$D" "$tag"
 }
 
@@ -100,6 +100,14 @@ arm_parse_proof() {
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
+  # audit6: a conversation/interactive run is not data — completion prints this
+  # banner (tools/completion/completion.cpp:484) and then waits on stdin; even
+  # a short one that exits 0 must not become a proof/turn row.
+  if awk '/Running in interactive mode/{n++} END{exit !(n>0)}' "$logf"; then
+    ARM_VOID=interactive_mode
+    ARM_PROOF="interactive_line=1"
+    return 0
+  fi
   local marker
   marker=$(draft_marker_line "$logf")
   [ -n "$marker" ] || { ARM_VOID=no_draft_marker; return 0; }
@@ -148,6 +156,13 @@ arm_parse_measure() {
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
+  # audit6: same banner gate as the proof parse — an interactive run exits 0
+  # when it is short, and hangs to the timeout when it is not.
+  if awk '/Running in interactive mode/{n++} END{exit !(n>0)}' "$logf"; then
+    ARM_VOID=interactive_mode
+    ARM_PROOF="interactive_line=1"
+    return 0
+  fi
   # Stats-block shapes, end-anchored (AUDIT5 item-4): the real S23 logs also
   # carry llama-completion's `generate: … n_predict = 16, n_keep = 1`, which
   # the unanchored pattern would match ($NF=1 = garbage). The `$` pins the

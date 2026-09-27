@@ -45,6 +45,21 @@ regenerate `SHA256SUMS`, tar outside the repo, keep the sums in this cell):
 #           lib/libggml.so, lib/libggml-htp-v73.so, SHA256SUMS (8 entries, raw/kit_SHA256SUMS.txt)
 ```
 
+## llama-completion ships in the kit but this cell NEVER runs it — conversation warning
+
+every arm (A included) is `llama-speculative-simple` (`arm.sh arm_cmd`); `bin/llama-completion` is only in the
+kit for parity with npu-spec-verify. If anyone ever runs it by hand on the S23, remember (f25f0c1c5):
+
+- `common/arg.cpp:1899-1907`: `{-cnv, --conversation}` / `{-no-cnv, --no-conversation}` — "interactive mode is
+  also enabled", "default: auto enabled if chat template is available". Also `-st/--single-turn`
+  (`:1909-1914`, exits after one turn when the prompt is predefined).
+- The S23 trap (cell A, `raw/s23-3way-5/s23-3way-5-t1cpu.log:204,214`): the GGUF chat template auto-enables
+  conversation (`tools/completion/completion.cpp:170-177`, log `… chat template is available, enabling
+  conversation mode (disable it with -no-cnv)`), templating kicks in at `:250`, and the process then prints
+  `:413 interactive mode on.` / `:484 == Running in interactive mode. ==` and waits on stdin → 900 s timeout.
+- So: always pass `-no-cnv` (or `-st`) and redirect stdin (`</dev/null`) — the driver already does the latter
+  at the adbT transport, and both parses void any log containing `Running in interactive mode` (`interactive_mode`).
+
 ## Host smoke build (same commit, CPU/OpenCL-off host build, scratch dir reused)
 
 ```sh

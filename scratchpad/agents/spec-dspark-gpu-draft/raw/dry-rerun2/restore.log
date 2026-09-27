@@ -22,3 +22,10 @@ restore 2026-09-27 00:14:11 serial=fakes23 state=1 stayon_restored=1 screen_off_
 restore 2026-09-27 00:22:26 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
 restore 2026-09-27 00:39:48 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
 restore 2026-09-27 00:47:07 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 01:28:20 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 01:36:01 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 01:43:41 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 01:49:20 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 01:58:15 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 02:07:12 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
+restore 2026-09-27 02:15:16 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0
