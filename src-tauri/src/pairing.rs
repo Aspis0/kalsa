@@ -30,7 +30,7 @@ use std::time::{Duration, SystemTime};
 
 use kalsa_catalog::PhoneModel;
 use kalsa_pairing::store::DeviceKind;
-use kalsa_pairing::{Pairing, PairingSeal, PhoneDeclaration, StoreError};
+use kalsa_pairing::{Handshake, Pairing, PairingSeal, PhoneDeclaration, StoreError};
 use serde::Serialize;
 
 /// How long a square is good for. Long enough to pick the phone up and point
@@ -130,6 +130,10 @@ pub(crate) struct Desk {
     file: PathBuf,
     serving: AtomicBool,
     listener_failed: AtomicBool,
+    /// The invitations this app has out. Opened here — once, before the
+    /// transport serves — because opening rewrites a file it could not
+    /// honour, and two opens would be two writers over one disk.
+    invites: crate::invites::InviteSet,
 }
 
 /// What the Devices surface reads, polled. The field names and vocabulary are
@@ -211,11 +215,13 @@ impl Desk {
     /// running.
     pub(crate) fn new(file: PathBuf) -> Self {
         let state = Self::state_from_store(&file);
+        let invites = crate::invites::InviteSet::open(&file);
         Self {
             state: Mutex::new(state),
             file,
             serving: AtomicBool::new(false),
             listener_failed: AtomicBool::new(false),
+            invites,
         }
     }
 
@@ -319,6 +325,12 @@ impl Desk {
         tailnet: Option<&str>,
         now: SystemTime,
     ) -> PairingDto {
+        // The page's poll is the clock for the invitations as much as for
+        // the square: a link whose day ended leaves the set here, on the
+        // same tick that retires an expired square. The write behind that
+        // can fail and this read must still answer the page, so its error
+        // is swallowed — the next tick, and the next real write, try again.
+        self.invites.expire_if_due(now);
         if self.listener_failed.load(Ordering::SeqCst) {
             return dto(&State::ServiceUnavailable, self.stored_devices());
         }
@@ -463,14 +475,31 @@ impl Desk {
         *state = Self::fresh(reachable, node, tailnet, now, refreshed, previous);
     }
 
+    /// The invitations this desk speaks for. The transport reaches them
+    /// through [`Desk::claim`] and [`Desk::complete`]; the page's commands
+    /// come here. The desk takes this set's lock only INSIDE its own state
+    /// lock — the order every store write already follows — and a caller
+    /// from the page takes it alone.
+    pub(crate) fn invites(&self) -> &crate::invites::InviteSet {
+        &self.invites
+    }
+
     /// A phone presents the code from the square. Nothing is returned but
     /// whether the ceremony moved: the proof comes next, and a claim that
     /// says more than "go on" is a claim that can be probed.
     pub(crate) fn claim(&self, code: &str, now: SystemTime) -> bool {
+        // One gate for both roads: no serving desk, no pairing of any kind.
         if !self.is_serving() {
             return false;
         }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        // The invitation is asked FIRST, and its miss falls through to the
+        // square: the owner may be away from the screen, so a live link must
+        // not depend on a square being on it — the desk only has to be
+        // serving. Both roads answer the one uniform way the wire requires.
+        if self.invites.claim(code, now) {
+            return true;
+        }
         let State::Live { pairing, .. } = &mut *state else {
             return false;
         };
@@ -493,6 +522,23 @@ impl Desk {
             return None;
         }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let delivery_token = declaration.delivery_token().to_string();
+        // The invitation's ceremony is asked FIRST: the MAC decides whether
+        // this declaration was signed from a link, and a miss falls through
+        // — to the retained seal below for a retry, and then to the square.
+        // Both roads end in the same two answers: the seal, or the one 403.
+        if let Some((expires_at, handshake, seal)) =
+            self.invites.complete(declaration.clone(), now)
+        {
+            return Self::store_completed(
+                &self.file,
+                &mut state,
+                handshake,
+                seal,
+                expires_at,
+                &delivery_token,
+            );
+        }
         if let State::Paired { pending, .. } = &mut *state {
             let Some(delivery) = pending.as_ref() else {
                 return None;
@@ -510,11 +556,30 @@ impl Desk {
         let State::Live { pairing, .. } = &mut *state else {
             return None;
         };
-        let delivery_token = declaration.delivery_token().to_string();
         let expires_at = pairing.expires_at()?;
         let (handshake, seal) = pairing.complete(declaration, now).ok()?;
+        Self::store_completed(&self.file, &mut state, handshake, seal, expires_at, &delivery_token)
+    }
+
+    /// One completed ceremony — the invitation's or the square's — added to
+    /// the house the same way: the label the store mints beside, the sealed
+    /// response retained under THAT ceremony's deadline (a link's seal can
+    /// never outlive the link that authorised it), and the phone stored
+    /// WAITING, so the owner's Allow is what admits it. Every failure lands
+    /// in `CouldNotSave`: no ceremony is left half-consumed, no phone is
+    /// admitted without the owner, and no owner-facing question is invented
+    /// — including for a replayed credential, which is a refusal and not a
+    /// choice between two phones.
+    fn store_completed(
+        file: &Path,
+        state: &mut State,
+        handshake: Handshake,
+        seal: PairingSeal,
+        expires_at: SystemTime,
+        delivery_token: &str,
+    ) -> Option<PairingSeal> {
         let pending = PendingDelivery {
-            delivery_token,
+            delivery_token: delivery_token.to_string(),
             seal: seal.clone(),
             expires_at,
         };
@@ -525,7 +590,7 @@ impl Desk {
         // assumption both sides already make): a minted number is never
         // handed out twice, so no two devices can carry the same label,
         // however many devices leave.
-        let stored = kalsa_pairing::store::load_devices(&self.file).unwrap_or_default();
+        let stored = kalsa_pairing::store::load_devices(file).unwrap_or_default();
         let next_id = stored
             .iter()
             .map(|device| device.id)
@@ -542,12 +607,7 @@ impl Desk {
         // so a crash before the phone's retry is answered by the retry path
         // for EVERY device, the way it always was for the first.
         let delivery = pending.as_store_delivery().ok_or(State::CouldNotSave).ok()?;
-        match kalsa_pairing::store::add_device_with_delivery(
-            &self.file,
-            &label,
-            &handshake,
-            delivery,
-        ) {
+        match kalsa_pairing::store::add_device_with_delivery(file, &label, &handshake, delivery) {
             Ok(_) => {
                 let Some(phone) = handshake.phone else {
                     // A completed ceremony always declares a phone, and a

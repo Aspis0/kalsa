@@ -50,3 +50,8 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Memory",
     "Win32_System_SystemInformation",
 ] }
+
+[dev-dependencies]
+# The test's own road from a link back to the code inside it: the page never
+# sees a code, so only a test ever decodes one.
+base64 = "0.22"

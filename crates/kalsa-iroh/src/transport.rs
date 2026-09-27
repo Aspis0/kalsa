@@ -381,8 +381,10 @@ impl Transport {
             // before anything is forwarded.
             let (target, budgets) = if connection.alpn() == DESK_ALPN {
                 // The desk lane is open to anyone who knows the node id;
-                // the gate is the desk's own — a 128-bit one-time code in a
-                // two-minute window, one uniform refusal — not this tunnel.
+                // the gate is the desk's own — a 128-bit one-time code, two
+                // minutes for the square on screen and a day for a
+                // shareable invitation, one claim each and the owner's Allow
+                // after — one uniform refusal, not this tunnel.
                 (desk, &desk_budgets)
             } else if connection.alpn() == ALPN {
                 (Some(door), &door_budgets)

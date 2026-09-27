@@ -111,12 +111,14 @@ impl BridgeConfig {
     /// actually bound (it falls back to a random one), never the
     /// preferred-port constant. Opening this lane makes the ceremony
     /// reachable to anyone who knows the node id; what gates that is the
-    /// desk's own — a 128-bit one-time code in a two-minute window, one
-    /// uniform refusal for every rejection — not this tunnel.
+    /// desk's own — a 128-bit one-time code, two minutes for the square on
+    /// screen and a day for a shareable invitation, one claim each and the
+    /// owner's Allow before a phone is admitted, one uniform refusal for
+    /// every rejection — not this tunnel.
     /// Known denial, declared: six free identities at `STREAMS_PER_PEER` (2)
     /// hold all twelve desk sockets and the owner's correct claim then reads
-    /// 403; the fix is to open this lane only while an offer is live
-    /// (QR on screen, 120 s).
+    /// 403; the fix is to open this lane only while an offer is live — a
+    /// QR on screen (120 s) or an invitation still valid (24 h).
     pub fn with_desk(mut self, desk: SocketAddr) -> Self {
         self.desk = Some(desk);
         self

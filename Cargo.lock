@@ -2567,6 +2567,7 @@ dependencies = [
 name = "kalsa-brain"
 version = "0.0.1"
 dependencies = [
+ "base64 0.22.1",
  "kalsa-catalog",
  "kalsa-door",
  "kalsa-download",

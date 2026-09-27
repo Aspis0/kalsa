@@ -17,6 +17,7 @@ mod failure;
 mod files;
 mod first_run;
 mod instance;
+mod invites;
 mod legacy_choice;
 mod measurement;
 mod metrics;
@@ -1855,6 +1856,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_allow_device,
             brain_pairing_forget,
             brain_host_credential,
+            invites::brain_invite_create,
+            invites::brain_invite_list,
+            invites::brain_invite_link,
+            invites::brain_invite_cancel,
             web::brain_web_search,
             web::brain_web_fetch,
             web::brain_web_stop,

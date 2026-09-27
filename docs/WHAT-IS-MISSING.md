@@ -134,13 +134,16 @@ cleanly instead of hanging. A phone with the node id from the square can now
 
 What the lane opens is gated only by the desk itself, and that is worth
 saying plainly: while the road is on, anyone who knows the node id can reach
-the ceremony's two endpoints. Wrong code, absent offer, spent completion —
-one uniform 403, the session unchanged by a miss; the protection is the
-128-bit one-time code inside its two-minute window, compared in constant
-time, not the tunnel. No lockout exists, and none was added: the attempts
+the ceremony's two endpoints. Wrong code, absent offer, spent completion, a
+cancelled link, a desk that is not serving — one uniform 403, the session
+unchanged by a miss; the protection is the 128-bit one-time code, compared
+in constant time, never the tunnel. Two windows carry those codes: the
+square on screen lives two minutes, an invitation lives a day, and each
+code is good for one claim either way — after which the owner's Allow is
+what admits the phone. No lockout exists, and none was added: the attempts
 are bounded in throughput by the desk's acceptor (four workers, an
-eight-deep queue, twelve sockets), not in count, and 2^128 guesses against a
-two-minute window is not the threat being managed.
+eight-deep queue, twelve sockets), not in count, and 2^128 guesses against
+either window is not the threat being managed.
 
 **A known denial, declared rather than fixed for the alpha.** The desk's
 acceptor holds twelve sockets — `MAX_CONNECTIONS = WORKERS (4) + QUEUE (8)`

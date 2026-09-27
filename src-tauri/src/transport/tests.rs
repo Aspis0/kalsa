@@ -6,6 +6,8 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use kalsa_catalog::{Parameters, PhoneModel};
 use kalsa_pairing::PhoneDeclaration;
 
@@ -33,6 +35,32 @@ fn phone() -> PhoneModel {
         measured_tokens_per_second: Some(11.5),
         battery_powered: Some(true),
     }
+}
+
+/// The node id an invitation's link carries: a link without one is not
+/// minted, so every invite test has one to put behind its road.
+const NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+
+/// The wire's one refusal, byte for byte: `PAIRING-WIRE`'s rule that every
+/// failure — wrong code, spent code, cancelled link, no serving desk — is
+/// indistinguishable to the phone.
+const REFUSAL: &str = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+/// The four values a phone takes out of a link — code, nonce, address, node
+/// id — read the way a phone reads them: base64url behind the `#`.
+fn square_of(link: &str) -> (String, String, String, String) {
+    let encoded = link
+        .strip_prefix("https://kalsa.io/pair#")
+        .expect("the link wears its origin");
+    let json =
+        String::from_utf8(URL_SAFE_NO_PAD.decode(encoded).expect("base64url")).expect("json");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("the square");
+    (
+        value["code"].as_str().expect("code").to_string(),
+        value["nonce"].as_str().expect("nonce").to_string(),
+        value["reachable"].as_str().expect("reachable").to_string(),
+        value["node"].as_str().expect("node").to_string(),
+    )
 }
 
 fn setup(name: &str) -> (Arc<Desk>, Listener, String, String, String, String) {
@@ -437,4 +465,138 @@ fn falls_back_to_a_random_port_when_the_preferred_one_is_taken() {
         !on_preferred,
         "a fallback listener must not claim to be on the preferred port"
     );
+}
+
+#[test]
+fn an_invite_claims_completes_over_the_wire_and_stores_the_phone_waiting() {
+    let (desk, listener, address, _code, _nonce, _reachable) = setup("invite");
+    let now = SystemTime::now();
+    let link = desk
+        .invites()
+        .create(&address, Some(NODE), None, now)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code, nonce, reachable, node) = square_of(&link);
+
+    // The claim, over the wire the square has always used: an invitation's
+    // code is a code like any other, and it answers the same 200.
+    let claim = serde_json::json!({ "code": code });
+    let response = request(&address, "POST", "/pair/claim", &claim.to_string());
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+
+    // The proof, signed from the link the way a phone signs what it opened.
+    let declaration = PhoneDeclaration::sign(&code, &nonce, &reachable, Some(&node), phone())
+        .expect("the phone can sign what its link carried");
+    let complete = serde_json::to_string(&declaration).unwrap();
+    let response = request(&address, "POST", "/pair/complete", &complete);
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    let seal: kalsa_pairing::PairingSeal = serde_json::from_str(body(&response)).unwrap();
+    assert!(
+        seal.open(&code, &nonce).is_some(),
+        "the seal belongs to this link's square"
+    );
+
+    // The house takes the phone the square's way: stored, WAITING, with the
+    // owner's Allow as the only thing that admits it.
+    let dto = serde_json::to_value(desk.read(true, &address, None, None, now)).unwrap();
+    let devices = dto["devices"].as_array().expect("the house is listed");
+    let row = devices
+        .iter()
+        .find(|device| device["kind"] == "phone")
+        .expect("a phone was stored");
+    assert_eq!(
+        row["waiting"].as_bool(),
+        Some(true),
+        "the owner's Allow stays mandatory"
+    );
+    // Which the catalog honours: a waiting phone is not this computer's
+    // phone, until Allow says it is.
+    assert!(
+        desk.phone().unwrap().is_none(),
+        "the catalog is handed nothing before Allow"
+    );
+    let id = row["id"].as_u64().expect("an id") as u32;
+    desk.allow_device(id).expect("the owner presses Allow");
+    assert!(desk.phone().unwrap().is_some());
+
+    // The response landed, so the retained seal is spent — the same
+    // acknowledgement the square's response gets. (The seal's own deadline
+    // is the link's; that one is the desk's test, where no response can
+    // spend it.)
+    assert_eq!(
+        dto["delivery_pending"].as_bool(),
+        Some(false),
+        "the response was written, so nothing is retained"
+    );
+    listener.shutdown();
+}
+
+#[test]
+fn every_refusal_is_the_one_403_the_square_gives() {
+    let (desk, listener, address, _code, _nonce, _reachable) = setup("refusals");
+    let now = SystemTime::now();
+
+    // A wrong code, refused while the square is on the table: the square's
+    // own answer.
+    let wrong = serde_json::json!({ "code": "0".repeat(32) });
+    let from_square = request(&address, "POST", "/pair/claim", &wrong.to_string());
+
+    // The same answer for an invitation's code the owner took back: the
+    // invitation road invents no response of its own.
+    let link = desk
+        .invites()
+        .create(&address, Some(NODE), None, now)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code, ..) = square_of(&link);
+    let id = serde_json::to_value(desk.invites().list()).unwrap()["invites"][0]["id"]
+        .as_u64()
+        .expect("an id") as u32;
+    desk.invites().cancel(id).expect("the owner cancels");
+    let from_invite = request(
+        &address,
+        "POST",
+        "/pair/claim",
+        &serde_json::json!({ "code": code }).to_string(),
+    );
+
+    assert_eq!(from_square, REFUSAL, "the square's refusal, as specified");
+    assert_eq!(from_invite, REFUSAL, "and the invitation's is those bytes");
+    assert_eq!(from_square, from_invite, "every failure is byte-identical");
+    listener.shutdown();
+}
+
+#[test]
+fn an_invitation_cannot_claim_while_the_desk_is_not_serving() {
+    // A desk that has never reported a running server. The gate at the top
+    // of Desk::claim covers both roads — no serving desk, no pairing of any
+    // kind — and the invitation's own code gets the bytes a wrong one gets.
+    let desk = Arc::new(Desk::new(scratch("not-serving")));
+    let listener = serve_on(desk.clone(), 0).expect("listener");
+    let address = listener.address().to_string();
+    let now = SystemTime::now();
+    let link = desk
+        .invites()
+        .create(&address, Some(NODE), None, now)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code, ..) = square_of(&link);
+
+    let response = request(
+        &address,
+        "POST",
+        "/pair/claim",
+        &serde_json::json!({ "code": code }).to_string(),
+    );
+    assert_eq!(response, REFUSAL, "no serving desk, no pairing");
+    // A refused claim consumes nothing: the invitation is still out.
+    assert_eq!(
+        serde_json::to_value(desk.invites().list()).unwrap()["invites"]
+            .as_array()
+            .expect("a list")
+            .len(),
+        1,
+        "the gate burned no invitation"
+    );
+    listener.shutdown();
 }

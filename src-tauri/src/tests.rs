@@ -3017,3 +3017,178 @@ fn the_door_is_not_raised_while_a_walk_finishes() {
     assert!(!door_may_raise(true), "the speed check keeps its slot");
     assert!(door_may_raise(false), "no walk: the door may rise");
 }
+
+/// A scratch desk: a pairing file in a directory of its own, with nothing
+/// stored beside it, so the desk starts unpaired with a square to draw.
+fn scratch_invite_desk(name: &str) -> (PathBuf, pairing::Desk) {
+    let dir =
+        std::env::temp_dir().join(format!("kalsa-brain-invite-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("scratch");
+    let file = dir.join(PAIRING_FILE);
+    (dir, pairing::Desk::new(file))
+}
+
+/// The four values a phone takes out of an invitation's link — code, nonce,
+/// address, node id — read the way a phone reads them: base64url behind the
+/// `#`. Test-only: the page never sees a code, which is the whole point of
+/// the assertions that use this.
+fn square_of_link(link: &str) -> (String, String, String, String) {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+    let encoded = link
+        .strip_prefix("https://kalsa.io/pair#")
+        .expect("the link wears its origin");
+    let json =
+        String::from_utf8(URL_SAFE_NO_PAD.decode(encoded).expect("base64url")).expect("json");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("the square");
+    (
+        value["code"].as_str().expect("code").to_string(),
+        value["nonce"].as_str().expect("nonce").to_string(),
+        value["reachable"].as_str().expect("reachable").to_string(),
+        value["node"].as_str().expect("node").to_string(),
+    )
+}
+
+#[test]
+fn an_invitation_outlives_the_square_that_is_off_the_screen() {
+    // The owner is away: the square's two minutes are up and the page has
+    // not polled a fresh one. The link is a day old, so the desk — which
+    // only has to be serving — takes the link's code and still refuses the
+    // square's: one gate, two roads, each with its own honest answer.
+    let (dir, desk) = scratch_invite_desk("outlives");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    // The poll that starts serving and mints the square, at `start`.
+    let _ = desk.read(true, address, None, None, start);
+    let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let link = desk
+        .invites()
+        .create(address, Some(node), None, start)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let invite_code = square_of_link(&link).0;
+    let square_code = {
+        let payload = desk.test_square().expect("the square is on the table");
+        let value: serde_json::Value = serde_json::from_str(&payload).expect("json");
+        value["code"].as_str().expect("code").to_string()
+    };
+
+    // The square's own two minutes, plus a minute of nobody polling.
+    let later = start + Duration::from_secs(120) + Duration::from_secs(60);
+    assert!(
+        desk.claim(&invite_code, later),
+        "the link is a day old: it still opens"
+    );
+    assert!(
+        !desk.claim(&square_code, later),
+        "the square is two minutes old: it does not"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_desk_opens_the_invite_file_once_at_startup() {
+    // The file beside pairing.json holds a code this build will not honour.
+    // Opening it rewrites it, so it happens exactly once — at startup,
+    // before the transport serves — and the flag it leaves behind is the
+    // one brain_invite_list hands the page.
+    let dir = std::env::temp_dir().join(format!(
+        "kalsa-brain-invite-opened-once-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("scratch");
+    let file = dir.join(PAIRING_FILE);
+    std::fs::write(dir.join("invites.json"), b"{\"v\":1,\"invites\":[]}").unwrap();
+
+    let desk = pairing::Desk::new(file.clone());
+    let listed = serde_json::to_value(desk.invites().list()).unwrap();
+    assert_eq!(
+        listed["discarded"].as_bool(),
+        Some(true),
+        "what brain_invite_list tells the page"
+    );
+    assert_eq!(listed["invites"].as_array().unwrap().len(), 0);
+
+    // The rewrite was startup's and it happened: a second desk finds a file
+    // this build reads and has nothing to report.
+    let again = serde_json::to_value(pairing::Desk::new(file).invites().list()).unwrap();
+    assert_eq!(again["discarded"].as_bool(), Some(false));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn an_invitation_seal_is_retained_under_the_link_own_deadline() {
+    // The retained seal is what a phone's retry reads after a lost response.
+    // For a square it is bound to the square's window; for an invitation it
+    // must be bound to the LINK's — a retry may not outlive the invitation
+    // that authorised it. Driven through the desk rather than the transport,
+    // because a response that lands spends the retention, and that spending
+    // is the transport's own test.
+    let (dir, desk) = scratch_invite_desk("seal");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    let _ = desk.read(true, address, None, None, start);
+    let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let link = desk
+        .invites()
+        .create(address, Some(node), None, start)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code, nonce, reachable, linked) = square_of_link(&link);
+    assert_eq!(linked, node, "the link carries the road it dials");
+
+    assert!(desk.claim(&code, start + Duration::from_secs(1)));
+    let declaration = kalsa_pairing::PhoneDeclaration::sign(
+        &code,
+        &nonce,
+        &reachable,
+        Some(&node),
+        kalsa_catalog::PhoneModel {
+            weights_bytes: 2_000_000_000,
+            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: Some(9.0),
+            battery_powered: Some(true),
+        },
+    )
+    .expect("the phone can sign what its link carried");
+    let seal = desk
+        .complete(declaration, start + Duration::from_secs(2))
+        .expect("the ceremony completes");
+    assert!(
+        seal.open(&code, &nonce).is_some(),
+        "the seal belongs to this link's square"
+    );
+
+    // Nothing answered over a socket here, so the seal is still retained —
+    // under the invitation's own deadline, one day from its mint.
+    let dto = serde_json::to_value(desk.read(true, address, None, None, start)).unwrap();
+    assert_eq!(dto["delivery_pending"].as_bool(), Some(true));
+    let stored = kalsa_pairing::store::load_devices(desk.file()).expect("the store reloads");
+    let phone = stored
+        .iter()
+        .find(|device| device.kind == DeviceKind::Phone)
+        .expect("the phone is stored");
+    let delivery = phone
+        .delivery
+        .as_ref()
+        .expect("the seal is retained for a retry");
+    // The store keeps whole seconds, so the deadline comes back to the
+    // second — never later than the link that authorised it, and never a
+    // fresh window of its own.
+    let link_deadline = start + Duration::from_secs(24 * 60 * 60);
+    let stored = delivery.expires_at().expect("the seal carries a deadline");
+    assert!(
+        stored <= link_deadline,
+        "the seal must not outlive the link: {stored:?} is after {link_deadline:?}"
+    );
+    let drift = link_deadline
+        .duration_since(stored)
+        .expect("guarded by the assertion above");
+    assert!(
+        drift < Duration::from_secs(1),
+        "the link's own deadline, to the second the store keeps: {stored:?}"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
