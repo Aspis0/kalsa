@@ -1,0 +1,25 @@
+Device: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+Common environment for model runs:
+  cd /data/local/tmp/govhtp
+  LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib
+  ADSP_LIBRARY_PATH=/data/local/tmp/govhtp/lib
+  GGML_HEXAGON_NDEV=1
+Model: /data/local/tmp/heat3way/ship.gguf
+Input: /data/local/tmp/govhtp/input/kld_english_fixture.txt
+Context/batch: -c 512 -b 512 -ub 512
+
+CPU logits base, run first:
+  ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 512 -ngl 0 --kl-divergence-base /data/local/tmp/govhtp/input/cpu-base.logits
+  EXIT=0 (raw/kld_cpu_base.log)
+
+OpenCL comparison:
+  ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 512 -ngl 99 -dev GPUOpenCL --kl-divergence-base /data/local/tmp/govhtp/input/cpu-base.logits --kl-divergence
+  EXIT=0 (raw/kld_opencl.log)
+
+HTP0 comparison (add GGML_HEXAGON_VERBOSE=1 and -lv 5):
+  ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 512 -ngl 99 -dev HTP0 -lv 5 --kl-divergence-base /data/local/tmp/govhtp/input/cpu-base.logits --kl-divergence
+  EXIT=0 (raw/kld_htp.log)
+
+CPU noise floor:
+  ./bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 512 -ngl 0 --kl-divergence-base /data/local/tmp/govhtp/input/cpu-base.logits --kl-divergence
+  EXIT=0 (raw/kld_cpu_check.log)

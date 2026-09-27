@@ -49,3 +49,25 @@ Il log HTP conferma Arch v73, sessione CDSP e placement 31/31 layer, con buffer 
 - Schermo/timeout ripristinati allo stato precedente (Dozing, timeout non impostato, stay-on 0); app lasciata ferma e tracing 0 (`raw/device_restore.log`, `raw/final_device_state.log`). Jelly non toccato.
 
 Comandi/esiti completi e ogni log d’errore sono in `raw/`. Un primo host build fallì per due riferimenti residui a `model` (`host_first_build_failure.log`); il primo host run differì per parametri di contesto non uniformi (`host_first_run_failure.log`); entrambi furono corretti prima del run host finale. Il primo wrapper Docker Android rimase senza exit dopo il link; il rebuild conclusivo ha restituito exit 0. Un errore di redirezione nel wrapper che annotava il pull OpenCL è registrato in `opencl_verified_pull_driver_note.txt`; il pull stesso è riuscito.
+
+## Follow-up: KLD lungo e prova dispatch HTP
+
+S23 SM8550, ship GGUF SHA-256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`. Fixture inglese fisso: 3.976 parole (un blocco di 497 parole ripetuto otto volte), almeno 4.096 token processati (8 chunk completi), `-c 512 -b 512 -ub 512`. La base logits CPU è stata generata per prima, PPL `34.897176`, poi usata invariata per i tre confronti.
+
+| Run | KLD medio | KLD p99 | KLD max | Same top token | PPL |
+|---|---:|---:|---:|---:|---:|
+| OpenCL (`-ngl 99 -dev GPUOpenCL`) | `0.001876` | `0.017737` | `0.197002` | `97.696%` | `35.300884` |
+| HTP0 (`-ngl 99 -dev HTP0`) | `0.001686` | `0.015966` | `0.146281` | `97.892%` | `35.233910` |
+| CPU floor (`-ngl 0`) | `0.000000` | `0.000039` | `0.000051` | `100.000%` | `34.897181` |
+
+Statistiche dalle righe `Mean PPL(Q)`, `Mean KLD`, `99.0% KLD`, `Maximum KLD` e `Same top p` rispettivamente in `raw/kld_opencl.log:22,30-33,59`, `raw/kld_htp.log:45312,45320-23,45349` e `raw/kld_cpu_check.log:22,30-33,59`. Il valore di PPL base viene da `raw/kld_cpu_base.log:14`. Il controllo CPU riproduce la base entro il rumore di quantizzazione del file logits; i risultati OpenCL e HTP hanno KLD molto più basso del singolo scarto assoluto riportato dal test governor. Queste run perplexity confrontano logits del modello su chunk lunghi; non esercitano `commit_side` e da sole non attestano l’handoff KV/stato del governor.
+
+**Dispatch HTP provato:** `raw/kld_htp.log` contiene 1.089 righe `HTP0 execute-op MUL_MAT`; per esempio la riga 33287 esegue `blk.0.shortconv.in_proj.weight` (`q4_0 x f32 -> f32`) con placement `HTP0 x HTP0 -> HTP0`, backend `hvx-tiled`. La traccia include anche le altre proiezioni dei layer e le operazioni dei chunk successivi; `-lv 5` e `GGML_HEXAGON_VERBOSE=1` erano attivi.
+
+**Gate per run:** tutte e quattro le esecuzioni (base CPU, OpenCL, HTP0, CPU floor) hanno letture Awake prima e dopo. Thermal status è rimasto `0`, `persist.traced.enable=0`; temperatura batteria pre/post: CPU base `26.8/31.2 °C`, OpenCL `32.2/33.7 °C`, HTP0 `33.7/32.9 °C`, CPU floor `32.9/35.9 °C`. Tutti i comandi binari hanno `EXIT=0`; app force-stopped prima di ogni run. Telefono unplugged. Non ho cambiato display o stay-on e il controllo finale resta Awake.
+
+**Avvisi/fallback registrati:** `raw/kld_htp.log:271` non ottiene l’URI fisico HTP (`error 0x14`) e ripiega sulla session URI CDSP singola; seguono gli `execute-op` HTP e metriche complete. `raw/kld_htp.log:14906` segnala che il fit memoria fallisce perché `n_gpu_layers=99` è imposto e interrompe il fit automatico. Lo stesso warning di fit con `n_gpu_layers=0` appare in `raw/kld_cpu_base.log:4` e `raw/kld_cpu_check.log:4`; entrambe le run CPU terminano e producono tutti i risultati. Non ho trovato altri errori nelle tre run di confronto.
+
+**Artefatti e comandi:** build Android `llama-perplexity` con la ricetta Snapdragon, `EXIT=0` (`raw/build_android_perplexity.log`); binario SHA-256 `7941260c5941c37600d9be5df75c9286a22736b44510ea6353b5f6895d9a5eaa`; fixture SHA-256 `bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728`. Comandi, exit code, log completi, pre/post gate e output HTP sono nei file `raw/kld_*`, con fixture `raw/kld_english_fixture.txt`. Nessuna modifica engine necessaria; nessun push.
+
+I comandi completi e gli exit code sono trascritti in `raw/kld_commands.txt`; i log dei quattro run sono `raw/kld_cpu_base.log`, `raw/kld_opencl.log`, `raw/kld_htp.log` e `raw/kld_cpu_check.log`.

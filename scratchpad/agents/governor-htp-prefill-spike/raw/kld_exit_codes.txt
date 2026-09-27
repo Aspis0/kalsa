@@ -1,0 +1,8 @@
+Android build llama-perplexity: EXIT=0
+Push binary: EXIT=0
+Push fixture: EXIT=0
+CPU logits base: EXIT=0
+OpenCL KL-divergence: EXIT=0
+HTP0 KL-divergence: EXIT=0
+CPU noise-floor KL-divergence: EXIT=0
+Device final-state/hash check: EXIT=0

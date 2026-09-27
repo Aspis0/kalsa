@@ -1,0 +1,5 @@
+  mWakefulness=Awake
+  temperature: 312
+Thermal Status: 0
+0
+-rw-rw-rw- 1 shell shell 498M 2026-09-27 10:52 /data/local/tmp/govhtp/input/cpu-base.logits

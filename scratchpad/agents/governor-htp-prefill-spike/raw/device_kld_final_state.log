@@ -1,0 +1,7 @@
+  mWakefulness=Awake
+  temperature: 331
+Thermal Status: 0
+0
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /data/local/tmp/heat3way/ship.gguf
+7941260c5941c37600d9be5df75c9286a22736b44510ea6353b5f6895d9a5eaa  /data/local/tmp/govhtp/bin/llama-perplexity
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  /data/local/tmp/govhtp/input/kld_english_fixture.txt

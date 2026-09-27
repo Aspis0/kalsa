@@ -1,0 +1,15 @@
+0.00.205.775 W DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+0.00.205.868 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+0.00.602.430 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+0.00.666.528 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort
+0.03.673.720 I cmn          init: llama threadpool init, n_threads = 8
+0.15.578.287 I 
+0.15.578.421 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.15.580.871 I perplexity: saving all logits to /data/local/tmp/govhtp/input/cpu-base.logits
+0.15.580.880 I perplexity: tokenizing the input ..
+0.15.583.023 I perplexity: tokenization took 2.14 ms
+0.15.583.051 I perplexity: calculating perplexity over 8 chunks, n_ctx=512, batch_size=512, n_seq=1
+0.78 minutes
+0.21.593.568 I perplexity: 5.98 seconds per pass - ETA [1]36.1393,[2]32.3370,[3]30.6070,[4]33.0806,[5]32.3362,[6]40.3266,[7]34.5900,[8]34.8972,
+1.04.719.938 I Final estimate: PPL = 34.8972 +/- 2.62572
+
