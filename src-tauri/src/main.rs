@@ -1186,11 +1186,15 @@ async fn brain_test(
     else {
         return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
     };
-    let entries: Vec<_> = [model, quicker]
+    let mut entries: Vec<_> = [model, quicker]
         .into_iter()
         .flatten()
         .filter_map(|option| option.id.as_deref().and_then(startup::row_for_token))
         .collect();
+    // One card per model name: the pick list shows a name and a size, and
+    // two rows sharing a name — the same model at two compressions — would
+    // render as the same card twice.
+    entries.dedup_by(|a, b| a.display_name == b.display_name);
     tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, &runtime_root))
         .await
         .map_err(|_| "The check did not finish. Trying again usually works.".to_string())

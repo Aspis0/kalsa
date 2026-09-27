@@ -757,31 +757,6 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
 }
 
 #[test]
-fn a_row_whose_cache_is_still_assumed_admits_it() {
-    // The 96 KiB constant is a guess, and the working must say so wherever it
-    // is still doing the arithmetic. Qwen3.6's was read from its file, so the
-    // row that carries the admission is a smaller one.
-    match choose(&input(16, true)) {
-        Decision::Pick(selection) => {
-            let row = kalsa_catalog::usable()
-                .find(|usable| usable.entry().repo == selection.repo)
-                .expect("the pick is on the menu");
-            assert!(
-                row.entry().kv_bytes_per_token.is_none(),
-                "{} no longer assumes its cache; point this test at one that does",
-                selection.repo
-            );
-            assert!(
-                selection.details.contains("has not been measured yet"),
-                "the assumed cache size must be admitted: {}",
-                selection.details
-            );
-        }
-        other => panic!("expected a pick, got {other:?}"),
-    }
-}
-
-#[test]
 fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
     match choose(&input(32, true)) {
         Decision::Pick(selection) => {
@@ -839,11 +814,14 @@ fn a_machine_the_probe_could_not_measure_is_not_guessed_at() {
 
 #[test]
 fn the_second_option_is_clearly_faster_and_smaller_than_the_first() {
-    let machine = input(64, false);
-    let first = largest_that_runs_well(&machine).expect("a 64 GiB machine runs something");
-    assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
+    // 16 GiB: the biggest row that runs well is the dense 12B, and the LFM
+    // file clears twice its predicted floor — the pair this section is
+    // about.
+    let machine = input(16, false);
+    let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
+    assert_eq!(first.entry.repo, "google/gemma-4-12B-it");
     let quick =
-        quicker_alternative(&machine, &first.decode).expect("something beats a 35B MoE on speed");
+        quicker_alternative(&machine, &first.decode).expect("something beats the pick on speed");
     assert!(
         quick.entry.weights_bytes < first.entry.weights_bytes,
         "the quick option is the smaller of the two"
@@ -863,7 +841,7 @@ fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
     // "Fast" alone would hand the owner the tiniest thing on the menu. The
     // rule is the most model that still clears the speed bar, so no row
     // bigger than the pick may also clear it.
-    let machine = input(64, false);
+    let machine = input(16, false);
     let first = largest_that_runs_well(&machine).expect("a pick");
     let quick = quicker_alternative(&machine, &first.decode).expect("a second option");
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
@@ -920,7 +898,7 @@ fn a_refused_machine_offers_no_second_option_either() {
     // is 12.6B — so the walk refuses the machine outright.
     let machine = ChoiceInput {
         backend: Backend::Metal,
-        bandwidth_bytes_per_second: 140.0e9,
+        bandwidth_bytes_per_second: 220.0e9,
         ..input_with_phone_model(16, nine_billion_phone(Some(false)))
     };
     assert_eq!(refusal(&machine).0, RefusalReason::NothingBetter);
@@ -928,10 +906,10 @@ fn a_refused_machine_offers_no_second_option_either() {
     // Liquid LFM 2.5 is the row the speed bar admits: 2.69B dense, which
     // earns none of the three justifications — no published dense
     // equivalent to compare, no mixture to expect (and under the 10B total
-    // either way), and no relief from a phone on the wall socket. It clears
-    // the speed bar easily (51.9 against 20.4 tok/s), so the bar was never
-    // what stopped it: it is a row the walk would not start, and it is not
-    // offered here.
+    // either way), and no relief from a phone on the wall socket. At 220 GB/s
+    // it clears the speed bar (44.2 against the measured 20.4), so the bar
+    // was never what stopped it: it is a row the walk would not start, and
+    // it is not offered here.
     let than = largest_that_runs_well(&machine)
         .expect("a 16 GiB machine runs something")
         .decode;

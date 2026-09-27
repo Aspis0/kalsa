@@ -61,7 +61,8 @@ pub use choice::{
     capability_basis, choose, largest_that_runs_well, quicker_alternative, runnable_row,
     CapabilityBasis,
     ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
-    IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
+    CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS, QUICK_SPEED_ADVANTAGE,
+    SAME_CLASS_BAND,
 };
 pub use footprint::{
     fits, footprint_bytes, memory_budget, usable_bytes, Footprint, MemoryBudget, GIB,

@@ -14,6 +14,7 @@
 use kalsa_catalog::{
     capability_basis, choose, footprint_bytes, largest_that_runs_well, memory_budget,
     quicker_alternative, Backend, ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB,
+    CHOOSER_CONTEXT_TOKENS,
 };
 
 fn main() {
@@ -175,7 +176,9 @@ fn configured() -> Result<ChoiceInput, String> {
         bandwidth_bytes_per_second: 80.0e9,
         bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
-        context_tokens: 8192,
+        // The chooser's window: what the pick has to fit, not the launch's
+        // own default. `--ctx` overrides it to ask what another window does.
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
         phone: Some(PhoneModel {
             weights_bytes: 2_834_975_040,
             parameters: None,

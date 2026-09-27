@@ -318,7 +318,16 @@ pub const CATALOG: &[ModelEntry] = &[
         quant: "Q4_K_M",
         weights_bytes: gigabytes(3, 22),
         mmproj_bytes: None,
-        kv_bytes_per_token: None,
+        // The growing half, read 2026-09-26 from Google's own QAT file
+        // (`google/gemma-4-E2B-it-qat-q4_0-gguf@675cff42`, file
+        // `gemma-4-E2B_q4_0-it.gguf`) — this row still carries no pinned file
+        // of its own, which is why the window geometry stays `None`: the
+        // pattern there is four windowed then one full (7 full of 35),
+        // `shared_kv_layers 20` gives `n_layer_kv_from_start = 15`, so only
+        // 3 of those full layers hold KV, `head_count_kv 1`,
+        // `key/value_length 512`. Per tensor: 3 x 1 x 512 = 1536 elements =
+        // 1632 bytes at q8_0 (34 per 32), K and V both: 3264 bytes a token.
+        kv_bytes_per_token: Some(3_264),
         // Same `gemma4` family as E4B, so its cache is a sliding-window pool
         // with a shared-KV pattern too — but this row has no pinned file, so
         // there is no header to read `sliding_window`, the pattern or
@@ -412,23 +421,19 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // The vision projector ships beside it (1.11 GiB) and is not
             // fetched: nothing here sends the model an image.
             mmproj_bytes: None,
-            // Hybrid attention, so no single per-token figure is honest —
-            // the same shape as Gemma 4 12B. From this file's own header:
-            // `block_count 30`, `sliding_window_pattern` five windowed layers
-            // then one full, repeated, `head_count_kv [8,…,2,…]`,
-            // `key/value_length 512` full and 256 windowed, `sliding_window
-            // 1024`. So the cache is 5 x 2 x (512+512) = 10 KiB per token that
-            // grows, plus 25 x 8 x 512 x 1024 = 100 MiB that never does. The
-            // shared 96 KiB constant therefore over-counts the growing term by
-            // about ten times. It does NOT cover the fixed 100 MiB: 96 KiB x n
-            // passes 100 MiB + 10 KiB x n only at n = 1191, and the chooser
-            // prices at a single token, so below that the assumption is short.
-            // The flag stays false because the shortfall is capped at that
-            // 100 MiB while the budget's margin is never below 3 GiB
-            // (`footprint::MARGIN_FLOOR_BYTES`), thirty times the gap. Said
-            // out loud: "it over-counts, so it is safe" was true of the
-            // growing half and silent about the other one.
-            kv_bytes_per_token: None,
+            // The growing half, from this file's own header (read by range
+            // request 2026-09-26): `block_count 30`, `sliding_window_pattern`
+            // five windowed layers then one full, repeated — 5 full layers,
+            // all under `n_layer_kv_from_start = 30 - 0` (shared_kv_layers
+            // 0, so every layer keeps its KV) — `head_count_kv 2` on those
+            // full layers, `key/value_length 512`. Per tensor:
+            // 5 x 2 x 512 = 5120 elements = 5440 bytes at the q8_0 the app
+            // pins (34 bytes per 32), K and V both: 10_880 bytes a token.
+            // The shared 96 KiB constant over-counts it by about nine times;
+            // the fixed half (25 windowed x 8 x (256 + 256) = 102_400
+            // elements a cell, 100 MiB at saturation) sits in `slot_cache`
+            // below, so the two halves never double-charge each other.
+            kv_bytes_per_token: Some(10_880),
             // The windowed pool this arithmetic prices, from the header read
             // recorded in the comment above: 25 windowed layers x 8 KV heads
             // x (256 + 256) = 102_400 K+V elements per cell, window 1024.
@@ -480,7 +485,15 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             quant: "Q4_K_M",
             weights_bytes: 4_977_171_584,
             mmproj_bytes: None,
-            kv_bytes_per_token: None,
+            // The growing half, from THIS pinned file's header (read by
+            // range request 2026-09-26): `shared_kv_layers 18` gives
+            // `n_layer_kv_from_start = 24`, so layers 0..23 hold KV — among
+            // them 4 full layers (the pattern is five windowed then one
+            // full), `head_count_kv 2`, `key/value_length 512`. Per tensor:
+            // 4 x 2 x 512 = 4096 elements = 4352 bytes at the q8_0 the app
+            // pins (34 bytes per 32), K and V both: 8704 bytes a token. The
+            // fixed SWA half is measured below, in `slot_cache`.
+            kv_bytes_per_token: Some(8_704),
             // A FOURTH sliding-window row, and the one the header alone gets
             // wrong. Header (`unsloth/gemma-4-E4B-it-GGUF@bfc15c38`, read
             // 2026-09-21): `gemma4.block_count 42`,
@@ -597,19 +610,20 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             quant: "Q4_K_M",
             weights_bytes: 7_662_533_088,
             mmproj_bytes: None,
-            // Measured 2026-09-17 on the machine this catalog is developed
-            // on: the cache is iswa and NOT flat per token — 34+255 MiB at
-            // context 4096, 136+255 MiB at 16384 (q8_0) — so no single
-            // per-token figure is honest; see the doc above. 255 MiB of
-            // that is fixed and the rest grows, so 96 KiB per token
-            // over-counts the growing half from the first token and covers
-            // the fixed half only past a context of about 2985. The chooser
-            // prices at ONE token, so there the assumption is short — by at
-            // most 255 MiB, against a margin never below 3 GiB
-            // (`footprint::MARGIN_FLOOR_BYTES`). That is why the flag is
-            // false. "At the contexts the chooser funds (>= 4096)" was the
-            // wrong reason: the chooser funds none of them.
-            kv_bytes_per_token: None,
+            // The GROWING half only: the fixed SWA half sits in
+            // `slot_cache` below, so the two halves never double-charge
+            // each other. From THIS pinned file's header (read by range
+            // request 2026-09-26): `sliding_window_pattern` five windowed
+            // then one full — 8 full layers of 48, `shared_kv_layers 0` so
+            // every layer keeps its KV — `head_count_kv 1` on those full
+            // layers, `key/value_length 512`. Per tensor: 8 x 1 x 512 = 4096
+            // elements = 4352 bytes at the q8_0 the app pins (34 bytes per
+            // 32), K and V both: 8704 bytes a token. The owner's own engine
+            // log of this file agrees to the byte — `--ctx-size 65536
+            // --cache-type-k q8_0 --cache-type-v q8_0` reported
+            // "K (q8_0): 272.00 MiB, V (q8_0): 272.00 MiB" over 65536 cells,
+            // which is 4352 bytes each.
+            kv_bytes_per_token: Some(8_704),
             // The windowed pool this arithmetic prices, from THIS pinned
             // file's header (read 2026-09-21): `gemma4.block_count 48`,
             // `gemma4.attention.sliding_window_pattern` five windowed then
@@ -644,11 +658,11 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     },
     // ── LiquidAI LFM2.5-2.6B, verified against the Hugging Face API on 2026-09-26 ──
     // The same model the phone app ships, pinned at commit
-    // `e7caca5d835a3901a8e0d63e94009429bafafdfc`, two files of one row each:
-    // the same weights at two compressions, so a small machine gets Q4_K_M
-    // and a machine with room gets the less compressed Q8_0. The chooser
-    // takes the biggest that runs (`largest_that_runs_well`), so Q8_0 wins
-    // wherever it fits and Q4_K_M covers what it does not.
+    // `e7caca5d835a3901a8e0d63e94009429bafafdfc`, one file: Q8_0, the less
+    // compressed quant the owner wants on PCs. At 2.87 GB of weights it still
+    // fits the 8 GB tier with room to spare at the chooser's 65_536-token
+    // window (about 3.95 GiB of footprint against a 5.0 GiB budget), so the
+    // smaller compression earns no tier of its own.
     //
     // `general.architecture` was read from THIS pinned file's own GGUF
     // header by range-requesting its first bytes: `lfm2` — found in
@@ -664,60 +678,10 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // Threshold`, (b) commercial use by an entity that exceeds it `is not
     // licensed under this Agreement`, (c) the Threshold does not apply to a
     // Qualified Non-Profit's non-commercial or research use.
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-2.6B",
-            display_name: "Liquid LFM 2.5",
-            last_modified: "2026-09-22T20:42:43.000Z",
-            licence: Licence::Conditional {
-                id: "lfm1.0",
-                condition: "commercial use only for entities under $10M annual revenue",
-            },
-            parameters: Parameters::dense(2_697_198_592),
-            quant: "Q4_K_M",
-            weights_bytes: 1_674_455_040,
-            mmproj_bytes: None,
-            // From THIS pinned file's header: `lfm2.attention.head_count_kv`
-            // is per layer — 30 entries, 22 zeros and 8 eights — so 8 of the
-            // 30 blocks hold attention, with 8 KV heads each.
-            // `attention.key_length` / `value_length` are ABSENT from the
-            // header, and the engine defaults them to n_embd / n_head =
-            // 2048 / 32 = 64 (llama-model.cpp:1344-1349 at b10950, where the
-            // default is set before the key is looked up). So:
-            // 8 x 8 x (64 + 64) = 8_192 elements per token, one byte each at
-            // the q8_0 cache the launcher pins — a tenth of the shared
-            // 96 KiB assumption, which therefore errs safe for this row.
-            kv_bytes_per_token: Some(8_192),
-            // The hybrid half: 22 of the 30 blocks are shortconv-recurrent
-            // (`src/models/lfm2.cpp:12` at b10950:
-            // `hparams.is_recr_impl[il] = hparams.n_head_kv(il) == 0`) and
-            // hold no per-token KV. Their conv history is per slot: F32, one
-            // row per sequence, `n_embd x (l_cache - 1)` elements
-            // (`llama-hparams.cpp:216` at b10950), read here as
-            // `lfm2.embedding_length 2048` and `lfm2.shortconv.l_cache 3` —
-            // 22 x 4_096 x 4 = 360_448 B per slot at every context.
-            slot_cache: SlotCache::Recurrent {
-                bytes_per_slot: 360_448,
-            },
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(131_072),
-            stale: None,
-        },
-        source: GgufSource {
-            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
-            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
-            file: "LFM2.5-2.6B-Q4_K_M.gguf",
-            bytes: 1_674_455_040,
-            sha256: "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
-        },
-    },
-    // The same row at Q8_0: same repo, same commit, same header — only the
-    // file, its size and its digest differ, and each was read back from the
-    // response headers: `x-linked-size` 2_874_779_648, `x-linked-etag` the
-    // sha256 below. The licence, the per-token cache and the per-slot term
-    // are the Q4_K_M row's, derived from that header.
+    // `curl -sIL` on the resolve URL returned exactly the `x-linked-size`
+    // 2_874_779_648 and the `x-linked-etag` below. The licence, the
+    // per-token cache and the per-slot term come from the header, derived
+    // under the Q4_K_M row's comment above.
     DownloadableEntry {
         model: ModelEntry {
             repo: "LiquidAI/LFM2.5-2.6B",
@@ -747,6 +711,69 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "LFM2.5-2.6B-Q8_0.gguf",
             bytes: 2_874_779_648,
             sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
+        },
+    },
+    // ── Alibaba Qwen 3.8-27B, verified against the Hugging Face API on 2026-09-26 ──
+    // The dense 27B, at unsloth's UD-Q4_K_M — the file the research pinned:
+    // 16_464_440_224 bytes, commit
+    // `4ca720788d1e01f1bff70c033e0d0028fd02e502`. `curl -sIL` on the resolve
+    // URL returned exactly the `x-linked-size` and `x-linked-etag` below.
+    //
+    // `general.architecture` was read from THIS pinned file's own header by
+    // range request: `qwen35` — in llama-arch.cpp at b10950,
+    // `{ LLM_ARCH_QWEN35, "qwen35" }` line 41, the same family as Qwen
+    // 3.5/3.6, so the fork knows it.
+    //
+    // The header's own facts: `block_count 65` with `nextn_predict_layers 1`
+    // (so `n_layer() = 64` — the MTP head is excluded, and the engine's
+    // layer filters say so: `filter_attn`/`filter_recr` both test
+    // `il < n_layer()`), `full_attention_interval 4`
+    // (`src/models/qwen35.cpp:17-21`: recurrent unless `(i + 1) % 4 == 0`)
+    // → 48 Gated-DeltaNet layers and 16 full-attention layers, and
+    // `head_count_kv 4`, `key/value_length 256`, `ssm.conv_kernel 4`,
+    // `ssm.state_size 128`, `ssm.group_count 16`, `ssm.inner_size 6144`,
+    // `context_length 262144`.
+    //
+    // The growing half is the 16 attention layers at the q8_0 the app pins
+    // (34 bytes per 32): 16 x 4 x 256 = 16_384 elements a tensor = 17_408
+    // bytes, K and V both: 34_816 bytes a token. The GDN layers hold no
+    // per-token KV; their state is per slot: R + S = (4 - 1) x (6144 +
+    // 2 x 16 x 128) + 128 x 6144 = 817_152 F32 elements a layer
+    // (`llama-hparams.cpp:229,257`), one row per sequence — 48 x 817_152 x 4
+    // = 156_893_184 B per slot at every context. The vision projector ships
+    // beside the weights and is not fetched: nothing here sends the model an
+    // image.
+    //
+    // Apache-2.0 from the repo's card and the header's own `general.license`.
+    // It reaches a page only where this machine can still drive it: the big
+    // dense line in `choice.rs` keeps a row like this off a machine that
+    // would decode it below 20 tok/s — the owner's M1 Max measures about 7.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "Qwen/Qwen3.8-27B",
+            display_name: "Alibaba Qwen 3.8",
+            last_modified: "2026-08-20T12:04:25.000Z",
+            licence: Licence::Open("apache-2.0"),
+            parameters: Parameters::dense(27_781_427_952),
+            quant: "Q4_K_M",
+            weights_bytes: 16_464_440_224,
+            mmproj_bytes: None,
+            kv_bytes_per_token: Some(34_816),
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 156_893_184,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(262_144),
+            stale: None,
+        },
+        source: GgufSource {
+            repo: "unsloth/Qwen3.8-27B-GGUF",
+            commit: "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+            file: "Qwen3.8-27B-UD-Q4_K_M.gguf",
+            bytes: 16_464_440_224,
+            sha256: "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
         },
     },
 ];

@@ -667,25 +667,24 @@ mod tests {
 
     #[test]
     fn the_context_fits_after_the_chat_reserve_and_never_one_token_into_it() {
-        // Liquid LFM 2.5 (1_674_455_040 bytes) on a 5.55 GB CPU machine:
-        // the margin leaves 2_329_783_648 bytes, minus the weights and
-        // 512 MiB of compute buffers. The sleeping-chat reserve takes a
-        // quarter of what is left, and the row's own per-slot conv state
-        // (360_448 bytes, charged before a single token) comes out next:
-        // the rest, at the row's own measured 8192 bytes a token, buys
-        // 10 708 whole tokens. The machine could fund a 10 709th; the
-        // reserve PLUS the state is what stops it, and that boundary is what
-        // the last assertions pin. `fits` prices only the flat per-token
-        // cache, so it cannot show this boundary; it is left as a weak
-        // sanity check only.
+        // Liquid LFM 2.5 (the Q8_0 file, 2_874_779_648 bytes) on a 6.7 GB
+        // CPU machine: the margin leaves 3_478_774_528 bytes, minus the
+        // weights and 512 MiB of compute buffers. The sleeping-chat reserve
+        // takes a quarter of what is left, and the row's own per-slot conv
+        // state (360_448 bytes, charged before a single token) comes out
+        // next: the rest, at the row's own 8192 bytes a token, buys 6101
+        // whole tokens. The machine could fund a 6102nd; the reserve PLUS
+        // the state is what stops it, and that boundary is what the last
+        // assertions pin. `fits` prices only the flat per-token cache, so it
+        // cannot show this boundary; it is left as a weak sanity check only.
         let model = shipped_row(LFM);
-        let budget = memory_budget(Backend::Cpu, 5_550_000_000);
+        let budget = memory_budget(Backend::Cpu, 6_700_000_000);
         let per_token = model
             .kv_bytes_per_token
             .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 10_708);
+        assert_eq!(launched.args.context_tokens, 6_101);
         assert!(fits(model, launched.args.context_tokens, &budget));
         let state = slot_cache_bytes(
             model,
@@ -1038,15 +1037,15 @@ mod tests {
     /// carry the same context and this goes RED.
     ///
     /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 3993
-    /// tokens at q8_0 on 6 GiB, below its 131_072-token trained cap, so the
-    /// cap does not bind and the halving is visible: 92_415 at q8_0 and
-    /// 46_207 at f16, which is `92_415 / 2` floored. The row's F32 per-slot
+    /// tokens at q8_0 on 7 GiB, below its 131_072-token trained cap, so the
+    /// cap does not bind and the halving is visible: 80_826 at q8_0 and
+    /// 40_413 at f16, which is `80_826 / 2` floored. The row's F32 per-slot
     /// conv state is charged first and does NOT double with the cache type,
     /// so the equality is the floored one the assertion states.
     #[test]
     fn the_cache_type_halves_the_context_the_budget_funds() {
         let model = shipped_row(LFM);
-        let budget = memory_budget(Backend::Cpu, 6 * GIB);
+        let budget = memory_budget(Backend::Cpu, 7 * GIB);
         let q8_0_input = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
         let f16_input = LaunchInput {
             kv_cache: KvCache::F16,
@@ -1059,11 +1058,11 @@ mod tests {
         // The plan takes the chat default where the budget funds more of it,
         // and the budget's own smaller figure where it does not.
         assert_eq!(q8_0.args.context_tokens, 65_536);
-        assert_eq!(f16.args.context_tokens, 46_207);
+        assert_eq!(f16.args.context_tokens, 40_413);
         let q8_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
         let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
-        assert_eq!(q8_funded, 92_415);
-        assert_eq!(f16_funded, 46_207);
+        assert_eq!(q8_funded, 80_826);
+        assert_eq!(f16_funded, 40_413);
         assert_eq!(
             f16_funded,
             q8_funded / 2,

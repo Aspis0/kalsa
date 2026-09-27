@@ -65,6 +65,13 @@ pub struct ChoiceInput {
     pub phone: Option<PhoneModel>,
 }
 
+/// The context the desktop pick is priced at, everywhere the chooser is
+/// asked: 65_536 tokens, the chat default this product launches with. One
+/// machine serves several users, so a model that only holds a small window
+/// is not a suggestion — a row must FIT at 65_536 tokens to be offered, and
+/// the cache that window costs is part of every footprint measured here.
+pub const CHOOSER_CONTEXT_TOKENS: u64 = 65_536;
+
 /// The PC must beat the phone, not match it. The bar is a proxy, and says so:
 /// what would replace it is a bake-off on the user's own machine, which the
 /// plan names as the arbiter and which nothing in this repo builds yet. A constant that
@@ -81,6 +88,19 @@ pub const IMPROVEMENT_RATIO: f64 = 1.4;
 /// courtesy tier, in reverse. Applied to the *low* end of the predicted range, so
 /// a candidate is only proposed when even its pessimistic case is usable.
 pub const MINIMUM_TOKENS_PER_SECOND: f64 = 3.0;
+
+/// Below this a big dense row is not offered at all — a separate, higher
+/// line than [`MINIMUM_TOKENS_PER_SECOND`], and only for the big dense rows
+/// ([`LARGE_DENSE_PARAMETERS`]): one machine serves several users, and a
+/// dense model this machine can barely drive is not a suggestion however
+/// well it benches. The owner's M1 Max decodes a dense 27B at about 7 tok/s;
+/// the prediction says so before the row reaches the page.
+pub const MINIMUM_DENSE_TOKENS_PER_SECOND: f64 = 20.0;
+
+/// What counts as a big dense row for [`MINIMUM_DENSE_TOKENS_PER_SECOND`]:
+/// dense — never a mixture, which is judged by its total and active split,
+/// not by this line — and at least this many parameters.
+pub const LARGE_DENSE_PARAMETERS: u64 = 20_000_000_000;
 
 /// Two candidates whose weights are within this band of one another are the same
 /// class: taking the faster one costs the user no quality. This is how the
@@ -476,8 +496,11 @@ pub struct RunnableRow {
     pub download: DownloadPlan,
 }
 
-/// The largest catalog row this machine can actually run: it fits the budget
-/// and even its pessimistic speed clears the usability floor. No phone is
+/// The catalog row this machine should run, phone or no phone: it fits the
+/// budget at [`CHOOSER_CONTEXT_TOKENS`] and even its pessimistic speed
+/// clears the usability floor — the biggest such row, unless a big dense row
+/// that cleared [`MINIMUM_DENSE_TOKENS_PER_SECOND`] is among them, which is
+/// the smarter answer and takes the first card. No phone is
 /// involved, because "what can this computer run" does not need one — the
 /// phone decides whether the computer is an *upgrade*, which is [`choose`].
 /// `Err` exactly when `choose` would refuse without ever reaching the
@@ -486,10 +509,22 @@ pub struct RunnableRow {
 /// the caller that cannot start still owes the owner a reason.
 pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusal> {
     let answer = runnable_on(input)?;
+    // The big dense row that cleared its line is the smarter answer and is
+    // shown as the first card; the biggest row beside it becomes the second
+    // option, measured against whatever is shown (`quicker_alternative`).
+    // With no big dense row qualifying, the biggest row that runs well is
+    // the pick, as always.
     let chosen = answer
         .remaining
         .iter()
+        .filter(|candidate| big_dense(candidate.entry))
         .max_by_key(|candidate| candidate.entry.weights_bytes)
+        .or_else(|| {
+            answer
+                .remaining
+                .iter()
+                .max_by_key(|candidate| candidate.entry.weights_bytes)
+        })
         .expect("runnable_on answers remaining only when it is not empty");
     Ok(row(chosen, answer.budget))
 }
@@ -646,6 +681,14 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
             too_slow.push(candidate);
             continue;
         }
+        // The big dense line: where this machine cannot drive a 20B+ dense
+        // row at 20 tok/s, the row is not offered at all — not as a pick,
+        // not as a second option, and not as somebody else's stored choice.
+        if big_dense(candidate.entry)
+            && candidate.decode.floor() < MINIMUM_DENSE_TOKENS_PER_SECOND
+        {
+            continue;
+        }
         remaining.push(candidate);
     }
     if remaining.is_empty() {
@@ -677,6 +720,13 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
 /// A probe number we can compute with: positive and not a NaN.
 fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
+}
+
+/// Whether a row is a big dense model under [`MINIMUM_DENSE_TOKENS_PER_SECOND`]:
+/// dense — never a mixture, whose total and active split are judged by the
+/// capability rules instead — and at least [`LARGE_DENSE_PARAMETERS`].
+fn big_dense(entry: &ModelEntry) -> bool {
+    !entry.parameters.is_mixture() && entry.parameters.total().count() >= LARGE_DENSE_PARAMETERS
 }
 
 /// Whether a decode prediction by itself proves a candidate too slow to

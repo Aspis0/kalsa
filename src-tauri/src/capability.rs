@@ -17,12 +17,11 @@ use serde::Serialize;
 use kalsa_catalog::{
     choose, decode_prediction, largest_that_runs_well, memory_budget, quicker_alternative, rows,
     runnable_row, usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction,
-    RefusalReason, RunnableRow, Selection,
+    RefusalReason, RunnableRow, Selection, CHOOSER_CONTEXT_TOKENS,
 };
 use kalsa_launch::{funded_context, DEFAULT_PARALLEL};
 use kalsa_probe::{Backend, Measurement};
 
-use crate::startup::CHOOSER_CONTEXT_TOKENS;
 
 /// The phone-free pick's sentence, written for that path: there is no
 /// justification to report, because no comparison was ever made. The true
@@ -53,14 +52,15 @@ The one above is the more capable of the two.";
 
 /// The conversation length every speed on this page is priced at.
 ///
-/// [`CHOOSER_CONTEXT_TOKENS`] is 1 on purpose, and must stay 1: it decides
-/// *which* row, and pricing the cache there excludes nothing. But the cache is
-/// re-read on every token, so it costs speed as well as memory, and a figure
-/// quoted with an empty cache is the best case the owner will see once — at
-/// the first word of the first conversation. This is the figure after a real
-/// exchange, and the card says which length it is, because the honest answer
-/// is that the speed falls as the conversation grows rather than that it is
-/// one number.
+/// [`CHOOSER_CONTEXT_TOKENS`] — 65_536, the window a row must fit to be
+/// offered at all — is what decides *which* row appears here, and pricing
+/// the cache there excludes nothing the engine will pay for that row. But
+/// the cache is re-read on every token, so it costs speed as well as memory,
+/// and a figure quoted at the launch window is the best case the owner will
+/// see once — at the first word of the first conversation. This is the
+/// figure after a real exchange, and the card says which length it is,
+/// because the honest answer is that the speed falls as the conversation
+/// grows rather than that it is one number.
 ///
 /// It is a CEILING, not the figure: see [`shown_context`]. Quoting a speed at
 /// 8192 tokens on a row the machine funds 1645 tokens of is a number nobody
@@ -74,7 +74,7 @@ const SPEED_CONTEXT_TOKENS: u64 = 8192;
 /// model was trained for, so this cannot label a row with a window it never
 /// had, and it answers PER SLOT: the card prices one device, and the engine
 /// gives one device `1/parallel` of the flag. `None` there means the row fits
-/// with nothing left for a cache at all; the chooser's own one token is then
+/// with nothing left for a cache at all; the chooser's own window is then
 /// the only context there is.
 fn shown_context(entry: &ModelEntry, usable_bytes: u64, parallel: u32) -> u64 {
     funded_context(entry, usable_bytes, parallel)
@@ -728,14 +728,14 @@ mod tests {
         // the measurements: slower or equal drops the speed claim and says
         // only what stays true — the size.
         let root = records_root("quicker-reason");
-        let first = dto(&measured(Backend::Cpu), 32 * GIB, None, false, &root);
+        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
             ..
         } = first
         else {
-            panic!("a 32 GiB machine has both options");
+            panic!("a 16 GiB machine has both options");
         };
         assert!(
             second.reason.contains("faster"),
@@ -773,7 +773,7 @@ mod tests {
             kalsa_tune::record::save(&root, digest, &record).expect("file the record");
         }
 
-        let again = dto(&measured(Backend::Cpu), 32 * GIB, None, false, &root);
+        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -930,12 +930,12 @@ mod tests {
         // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
         // The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
-            dto(&measured(Backend::Cpu), 32 * GIB, None, true, &records_root("largest"))
+            dto(&measured(Backend::Cpu), 16 * GIB, None, true, &records_root("largest"))
         else {
             panic!("a measured machine answers Measured");
         };
-        let pick = model.expect("a 32 GiB machine runs something");
-        let second = quicker.expect("a 32 GiB machine has something faster");
+        let pick = model.expect("a 16 GiB machine runs something");
+        let second = quicker.expect("a 16 GiB machine has something faster");
 
         assert!(
             pick.details.contains("largest"),

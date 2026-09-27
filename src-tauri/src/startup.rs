@@ -27,6 +27,7 @@ use std::time::Duration;
 
 use kalsa_catalog::{
     memory_budget, rows, usable, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
+    CHOOSER_CONTEXT_TOKENS,
 };
 use kalsa_download::{default_roots, download};
 // The cheap first pass over stores that name blobs by digest; find_local
@@ -51,16 +52,6 @@ pub(crate) const READY_TIMEOUT: Duration = Duration::from_secs(600);
 /// Long enough for a clean unload, short enough that closing the window is not
 /// a hang: the supervisor escalates to SIGKILL after the second one.
 const STOP_GRACE: Duration = Duration::from_secs(2);
-/// The context the chooser prices each candidate's cache at. It must exclude
-/// nothing: priced at 8192 it refused rows the machine funds at a smaller
-/// context — Granite 4 Tiny funds 3993 tokens on an 8 GiB machine (6112
-/// before the sleeping-chat reserve was carved out, 4584 before its own
-/// per-slot recurrent state was priced), and at
-/// 8192 the tier was handed to a smaller row. The context that actually runs
-/// is `kalsa_launch::plan`'s, derived for the chosen row from the same
-/// budget and re-checked against it; a row that cannot fund even one token
-/// is refused there, with words.
-pub(crate) const CHOOSER_CONTEXT_TOKENS: u64 = 1;
 /// The context a development run starts with. The developer pinned the model
 /// and owns its bytes, so this is a convenience, not a budgeted decision —
 /// the product path never uses it.
@@ -2265,7 +2256,7 @@ mod tests {
         // geometry against the real budget. Liquid LFM 2.5 on 8 GiB funds
         // up to its trained 131_072 at q8_0, and the launch takes the
         // automatic chat default — 65_536 — with the plan's own cache roof
-        // of 752 MiB. The flags are still the launch
+        // of 466 MiB. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
         let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
@@ -2291,7 +2282,7 @@ mod tests {
         );
         assert_eq!(
             rendered_value(&config.server.argv, "--cache-ram"),
-            "752",
+            "466",
             "{joined}"
         );
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
@@ -2467,8 +2458,9 @@ mod tests {
     }
 
     /// A machine that cannot fund the enrolled family keeps the smaller
-    /// number and says so: Liquid LFM 2.5 on 5.5 GB of RAM funds one slot
-    /// above the 4096-token floor, and two slots would each land below it.
+    /// number and says so: Liquid LFM 2.5 (the Q8_0 file) on 6.7 GB of RAM
+    /// funds one 6101-token slot, and two slots would each get about 3050 —
+    /// under the 4096-token floor.
     /// The plan stays at one seat; the door then refuses the second device
     /// with words.
     #[test]
@@ -2478,7 +2470,7 @@ mod tests {
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 5_505_000_000,
+            ram_bytes: 6_700_000_000,
         };
         let fork = engine_dir("seats-unfunded", Some(b"a module carrying x-kalsa-slot inside"));
         let config = planned_config_with_overrides(
@@ -2721,12 +2713,13 @@ mod tests {
 
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
-        // Liquid LFM 2.5 on 7 GiB of CPU funds its trained 131_072 tokens
-        // at q8_0 and 95_359 at f16: the halved per-token price is what
-        // moves the f16 maximum. 131_072 fits the q8_0 cache and not the
-        // f16 one — choosing f16 must refuse it, not start a server whose
-        // f16 cache would oversubscribe the machine. If the guard read the
-        // q8_0 maximum instead of the chosen cache's, this would be accepted.
+        // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 7 GiB of CPU funds
+        // 65_536 tokens at q8_0 and 40_413 at f16: the halved per-token
+        // price is what moves the f16 maximum. 65_536 fits the q8_0 cache
+        // and not the f16 one — choosing f16 must refuse it, not start a
+        // server whose f16 cache would oversubscribe the machine. If the
+        // guard read the q8_0 maximum instead of the chosen cache's, this
+        // would be accepted.
         let row = rows()
             .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
@@ -2747,13 +2740,13 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides {
-                context_tokens: Some(131_072),
+                context_tokens: Some(65_536),
                 idle_unload_seconds: Some(600),
                 kv_cache: Some(KvCache::F16),
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("131072 is beyond the f16 funded maximum of 95359");
+        .expect_err("65536 is beyond the f16 funded maximum of 40413");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -2761,9 +2754,25 @@ mod tests {
         // The refusal must carry the figure and the cache it was funded
         // for: the owner is told what to choose below, not just that the
         // request was too large.
+        // The other half of the premise: the same window fits q8_0.
+        let fits_q8 = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            TEST_REASON.to_string(),
+            TEST_SHA256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("65536 fits the q8_0 cache");
+        assert_eq!(fits_q8.info.args.context_tokens, 65_536);
         let spoken = crate::failure::words(&err);
         assert!(
-            spoken.contains("95359"),
+            spoken.contains("40413"),
             "the refusal must name the funded maximum: {spoken}"
         );
         assert!(

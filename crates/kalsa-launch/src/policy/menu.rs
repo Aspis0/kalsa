@@ -94,23 +94,25 @@ const OFFERS: &[Offer] = &[
         swa: false,
         measured_kv: true,
     },
-    // SWA, assumed KV (`sliding_window_pattern` in the row's own comment).
+    // SWA, at the row's own header figure (`sliding_window_pattern` in the
+    // row's comment): the trained 262 144 binds every slot count now that
+    // the growing half is priced from the header instead of the 96 KiB guess.
     Offer {
         name: "Google Gemma 4 26B",
         n1: (262_144, Bind::Trained),
-        n2: (151_296, Bind::Memory),
-        n4: (74_752, Bind::Memory),
+        n2: (262_144, Bind::Trained),
+        n4: (262_144, Bind::Trained),
         swa: true,
-        measured_kv: false,
+        measured_kv: true,
     },
-    // SWA ("iswa and NOT flat per token"), assumed KV.
+    // SWA ("iswa and NOT flat per token"), at the row's own header figure.
     Offer {
         name: "Google Gemma 4 12B",
         n1: (131_072, Bind::Trained),
         n2: (131_072, Bind::Trained),
-        n4: (90_880, Bind::Memory),
+        n4: (131_072, Bind::Trained),
         swa: true,
-        measured_kv: false,
+        measured_kv: true,
     },
     // SWA, assumed KV — and the row whose header alone over-states it by 75%:
     // `shared_kv_layers 18` leaves 20 windowed layers holding KV, MEASURED at
@@ -119,9 +121,9 @@ const OFFERS: &[Offer] = &[
         name: "Google Gemma 4 E4B",
         n1: (131_072, Bind::Trained),
         n2: (131_072, Bind::Trained),
-        n4: (100_352, Bind::Memory),
+        n4: (131_072, Bind::Trained),
         swa: true,
-        measured_kv: false,
+        measured_kv: true,
     },
     // The smallest shipped row, at its own per-token figure (8192 bytes,
     // read from its header) plus its 360 448-byte conv state a slot: the
@@ -312,8 +314,8 @@ fn the_sliding_window_rows_carry_their_per_slot_term() {
         let planned =
             plan(&device_input(ServerBackend::Metal, budget, entry, 4)).expect("fundable");
         assert!(
-            planned.memory.kv_per_token_assumed,
-            "{}: the SWA rows are priced on the assumption",
+            !planned.memory.kv_per_token_assumed,
+            "{}: the SWA rows carry their own per-token figure",
             offer.name
         );
         let term = slot_cache_bytes(
@@ -323,9 +325,12 @@ fn the_sliding_window_rows_carry_their_per_slot_term() {
             u64::from(crate::args::UBATCH),
         );
         assert!(term > 0, "{}: the per-slot term vanished", offer.name);
+        let per_token = entry
+            .kv_bytes_per_token
+            .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
         assert_eq!(
             planned.memory.kv_cache_bytes,
-            planned.args.context_tokens * ASSUMED_KV_BYTES_PER_TOKEN + term * 4,
+            planned.args.context_tokens * per_token + term * 4,
             "{}: the flat cache plus the replication is not what was reported",
             offer.name
         );

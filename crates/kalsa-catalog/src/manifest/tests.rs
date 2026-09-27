@@ -73,6 +73,9 @@ fn a_row_the_assumption_undercounts_is_offerable_only_through_its_measured_cache
     // assumption is known wrong for it; the measured figure opens the door;
     // removing the measurement closes it again.
     let mut row = DOWNLOADABLE[0].model;
+    // Every shipped row carries its own per-token figure today, so the
+    // fixture takes it away — the gate is about a row with no measurement.
+    row.kv_bytes_per_token = None;
     assert!(row.is_usable(), "the row starts on the menu");
     row.kv_assumption_undercounts = true;
     assert!(!row.is_usable());
@@ -232,7 +235,7 @@ fn every_row_has_a_name_a_person_can_say() {
             // above bans the quantisation from it, and the card tells the
             // two apart by the file's size.
             ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
-            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
+            ("Qwen/Qwen3.8-27B", "Alibaba Qwen 3.8"),
         ]
     );
 }
@@ -271,7 +274,7 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
-            "LiquidAI/LFM2.5-2.6B-GGUF",
+            "unsloth/Qwen3.8-27B-GGUF",
         ]
     );
 }
@@ -335,13 +338,9 @@ fn a_source_serves_its_exact_file_at_its_commit() {
         .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
         .map(|row| row.source.url())
         .collect();
-    assert_eq!(urls.len(), 2, "both compressions are pinned");
+    assert_eq!(urls.len(), 1, "the row carries one pinned file");
     assert_eq!(
         urls[0],
-        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q4_K_M.gguf"
-    );
-    assert_eq!(
-        urls[1],
         "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
     );
 }
@@ -362,8 +361,8 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("google/gemma-4-12B-it", 7_662_533_088),
-            ("LiquidAI/LFM2.5-2.6B", 1_674_455_040),
             ("LiquidAI/LFM2.5-2.6B", 2_874_779_648),
+            ("Qwen/Qwen3.8-27B", 16_464_440_224),
         ]
     );
 }
@@ -403,23 +402,20 @@ fn dense_equivalents_carry_only_published_comparisons() {
 
 #[test]
 fn the_lfm_row_is_usable_and_carries_its_condition() {
-    let lfm: Vec<_> = DOWNLOADABLE
+    let lfm = DOWNLOADABLE
         .iter()
-        .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
-        .collect();
-    assert_eq!(lfm.len(), 2, "both compressions are pinned");
-    for row in lfm {
-        assert!(
-            row.model.is_usable(),
-            "a condition on the shipper is not a refusal of the row"
-        );
-        assert_eq!(row.model.licence.refusal(), None);
-        assert_eq!(row.model.licence.id(), "lfm1.0");
-        assert_eq!(
-            row.model.licence.condition(),
-            Some("commercial use only for entities under $10M annual revenue"),
-        );
-    }
+        .find(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
+        .expect("the LFM row is pinned");
+    assert!(
+        lfm.model.is_usable(),
+        "a condition on the shipper is not a refusal of the row"
+    );
+    assert_eq!(lfm.model.licence.refusal(), None);
+    assert_eq!(lfm.model.licence.id(), "lfm1.0");
+    assert_eq!(
+        lfm.model.licence.condition(),
+        Some("commercial use only for entities under $10M annual revenue"),
+    );
     assert!(usable().any(|entry| entry.entry().repo == "LiquidAI/LFM2.5-2.6B"));
 }
 

@@ -28,9 +28,9 @@ use std::time::Instant;
 const ROW: (&str, &str, &str, u64, &str) = (
     "LiquidAI/LFM2.5-2.6B-GGUF",
     "e7caca5d835a3901a8e0d63e94009429bafafdfc",
-    "LFM2.5-2.6B-Q4_K_M.gguf",
-    1_674_455_040,
-    "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+    "LFM2.5-2.6B-Q8_0.gguf",
+    2_874_779_648,
+    "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
 );
 
 /// Where the first leg is killed: far enough in that resuming is real work,
@@ -38,7 +38,7 @@ const ROW: (&str, &str, &str, u64, &str) = (
 const INTERRUPT_AT: u64 = 512 * 1024 * 1024;
 
 #[test]
-#[ignore = "moves ~1.7 GB over the network; set KALSA_BRAIN_REAL_DOWNLOAD=1"]
+#[ignore = "moves ~2.9 GB over the network; set KALSA_BRAIN_REAL_DOWNLOAD=1"]
 fn a_catalog_row_downloads_resumes_and_verifies_for_real() {
     if std::env::var_os("KALSA_BRAIN_REAL_DOWNLOAD").is_none() {
         eprintln!("skip: set KALSA_BRAIN_REAL_DOWNLOAD=1 to move gigabytes over the network");
