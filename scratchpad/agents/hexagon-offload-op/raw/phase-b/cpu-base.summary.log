@@ -1,0 +1,6 @@
+EXIT=0
+1.26.119.884 I common_memory_breakdown_print: |   - Host                            |                  280 =   206 +       8 +      65                |
+1.26.119.885 I common_memory_breakdown_print: |   - CPU_REPACK                      |                 1511 =  1511 +       0 +       0                |
+1.26.119.923 D ~llama_context:     OpenCL compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+1.26.119.924 D ~llama_context:     HTP0:0 compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+1.26.119.926 D ~llama_context:        CPU compute buffer size is  65.6284 MiB, matches expectation of  65.6284 MiB

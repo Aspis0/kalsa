@@ -1,0 +1,17 @@
+1e754c1af2645d4b21990a55b4ec0e93622685dcb7ac7a5b7659b27b9140c374  /data/local/tmp/govhtp/bin/llama-bench
+1be32fb7300a4de1ce4f3a5a076e2e0485b9483542f1aedbb6ae2b97fc25c41d  /data/local/tmp/govhtp/bin/llama-perplexity
+ad74da314fd333cd48e206147df01636bab5e04d5d9386b4ba52a7c8a868bd4b  /data/local/tmp/govhtp/lib/libggml-base.so
+f6ac8a6c6cf423edc5bf349288106d699417e577181b8ee695755fabe68418b2  /data/local/tmp/govhtp/lib/libggml-cpu.so
+5cb2d1ee3838fbc18800a966c13043dbd4639c8d845d4794a9a335d1f792da99  /data/local/tmp/govhtp/lib/libggml.so
+6c3267b1bc75ebabd186ed12452df46306aef942c564c53311dc3c585323fe6a  /data/local/tmp/govhtp/lib/libggml-opencl.so
+e923c96fb3c502daab3d2a2d6c59c0fd3c9cfb6f6b04d89faa32cf1a33975d8a  /data/local/tmp/govhtp/lib/libggml-hexagon.so
+c4375579f6b2850bcd56b701a3f8a3738e016c5ff44ee31cee54ef480652355d  /data/local/tmp/govhtp/lib/libggml-htp-v73.so
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  /data/local/tmp/govhtp/input/kld_english_fixture.txt
+  mWakefulness=Awake
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 79
+  temperature: 298
+Thermal Status: 0
+0

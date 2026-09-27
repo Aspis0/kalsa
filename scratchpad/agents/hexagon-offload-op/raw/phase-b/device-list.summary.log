@@ -1,0 +1,6 @@
+EXIT=0
+ggml-hex: Hexagon Arch version v73
+ggml-hex: device 0: HTP0:0 (phys=0, virt=0, domain=cdsp:3)
+Available devices:
+  GPUOpenCL: QUALCOMM Adreno(TM) (3536 MiB, 2512 MiB free)
+  HTP0:0: Hexagon (0 MiB, 0 MiB free)

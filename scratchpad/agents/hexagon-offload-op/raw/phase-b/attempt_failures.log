@@ -1,0 +1,20 @@
+Phase B failed attempts. Every failed preflight/run retained screen Awake and passed unplugged, battery, thermal, and traced gates unless stated.
+
+1. Gate-runner syntax error; no binary started. Runner exit was 30:
+mWakefulness=Awake AC=false USB=false Wireless=false battery=79 temperature_tenths_C=297 thermal_status=0 traced=0
+/system/bin/sh: [: missing ]
+PREFLIGHT_GATE_FAIL=two-copy-prefill
+
+2. First binary attempt used a fresh adb shell without the library path exports. Binary exit was 1:
+ggml-hex: Hexagon Arch version v73
+ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)
+llama_bench: error: failed to load model '/data/local/tmp/heat3way/ship.gguf'
+
+3. After exports were added, the report's device alias was rejected. Binary exit was 1:
+ggml-hex: device 0: HTP0:0 (phys=0, virt=0, domain=cdsp:3)
+error: invalid device: HTP0
+error: invalid parameter for argument: -dev
+
+4. A run with device HTP0:0 but without `-v` exited 0; its log had zero `execute-op MUL_MAT` lines. Dispatch proof therefore failed, and that timing was excluded. The corrected trace-enabled run had 2,864 HTP MUL_MAT lines.
+
+No corrected binary run crashed. One-copy KLD exited 0 but failed numerical correctness; see the Phase B report and `one-copy-kld.log.gz`.

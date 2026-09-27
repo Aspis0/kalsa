@@ -1,0 +1,6 @@
+EXIT=0 RSS_peak_kB=1829412
+~llama_context:     OpenCL compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+~llama_context:     HTP0:0 compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+~llama_context:        CPU compute buffer size is  32.7830 MiB, matches expectation of  32.7830 MiB
+
+build: unknown (0)

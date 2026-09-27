@@ -1,0 +1,7 @@
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/libggml-base.so: 1 file pushed, 0 skipped. 91.1 MB/s (7647960 bytes in 0.080s)
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/libggml-cpu.so: 1 file pushed, 0 skipped. 74.5 MB/s (4828464 bytes in 0.062s)
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/libggml.so: 1 file pushed, 0 skipped. 404.1 MB/s (392864 bytes in 0.001s)
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/libggml-opencl.so: 1 file pushed, 0 skipped. 69.3 MB/s (14157624 bytes in 0.195s)
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/bin/libggml-hexagon.so: 1 file pushed, 0 skipped. 79.1 MB/s (6903016 bytes in 0.083s)
+/Users/marco/Projects/kalsallama-wt-oom/build-s23-step0-v73/ggml/src/ggml-hexagon/libggml-htp-v73.so: 1 file pushed, 0 skipped. 55.5 MB/s (810920 bytes in 0.014s)
+6 files pushed, 0 skipped. 63.4 MB/s (34740848 bytes in 0.523s)

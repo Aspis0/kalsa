@@ -1,0 +1,6 @@
+EXIT=0 RSS_peak_kB=79340
+ggml-hex: HTP0:0 release ref on buffer: base 0x7140888000 size 1063436288 fd 21
+ggml-hex: HTP0:0 unmapped buffer: base 0x71208d2000 size 536567808 fd 22
+ggml-hex: HTP0:0 release ref on buffer: base 0x71208d2000 size 536567808 fd 22
+
+build: unknown (0)

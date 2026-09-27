@@ -1,0 +1,6 @@
+EXIT=0
+ggml-hex: HTP0:0 release ref on buffer: base 0x75ab944000 size 1063436288 fd 21
+ggml-hex: HTP0:0 unmapped buffer: base 0x758b98e000 size 536567808 fd 22
+ggml-hex: HTP0:0 release ref on buffer: base 0x758b98e000 size 536567808 fd 22
+
+build: unknown (0)
