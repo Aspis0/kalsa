@@ -155,7 +155,11 @@ describe("the iroh road through RemoteEngine", () => {
     expect(deltas.join("")).toBe("ciao mondo");
 
     // The paired credential left the phone exactly on the iroh wire.
-    expect((openIrohTunnel as jest.Mock).mock.calls).toEqual([
+    // The (node, lane) pairs — the third argument is the operation's
+    // signal, which equality on a patched AbortSignal cannot digest.
+    expect(
+      (openIrohTunnel as jest.Mock).mock.calls.map((call: unknown[]) => call.slice(0, 2)),
+    ).toEqual([
       [NODE, "door"],
       [NODE, "door"],
       [NODE, "door"],

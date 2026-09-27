@@ -276,5 +276,9 @@ describe("the door road fallback through RemoteEngine", () => {
 });
 
 function openTunnelMockCalls(): unknown[][] {
-  return (openIrohTunnel as jest.Mock).mock.calls as unknown[][];
+  // (node, lane) pairs only: the signal rides as the third argument and a
+  // patched AbortSignal cannot go through jest's deep equality.
+  return ((openIrohTunnel as jest.Mock).mock.calls as unknown[][]).map((call) =>
+    call.slice(0, 2),
+  );
 }

@@ -49,16 +49,63 @@ function ensureStarted(module: IrohModule): Promise<void> {
 }
 
 /**
+ * The native dial has no deadline of its own: race it against the caller's
+ * signal — which carries the confirmation poll's deadline, its per-probe
+ * timeout and the screen's abort. Settle-once: an aborted dial rejects at
+ * once, and a handle the native side lands after that is shut down, never
+ * handed out.
+ */
+function raceDial(
+  dial: () => Promise<number>,
+  signal: AbortSignal | undefined,
+  module: IrohModule,
+): Promise<number> {
+  if (signal === undefined) return dial();
+  if (signal.aborted === true) return Promise.reject(new Error("dial aborted"));
+  return new Promise<number>((resolve, reject) => {
+    let settled = false;
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      reject(new Error("dial aborted"));
+    };
+    signal.addEventListener("abort", onAbort);
+    dial().then(
+      (id) => {
+        if (settled) {
+          void module.tunnelShutdown(id);
+          return;
+        }
+        settled = true;
+        signal.removeEventListener("abort", onAbort);
+        resolve(id);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
  * Dial `nodeHex` on `lane`; the returned tunnel owns one remote connection
  * and is closed by `shutdown()` (idempotent). Every failure — no module,
  * no bridge, unreachable desktop — rejects, and the caller decides what a
- * rejection means for its road.
+ * rejection means for its road. `signal` races the dial as described above.
  */
-export async function openIrohTunnel(nodeHex: string, lane: IrohLane): Promise<IrohTunnel> {
+export async function openIrohTunnel(
+  nodeHex: string,
+  lane: IrohLane,
+  signal?: AbortSignal,
+): Promise<IrohTunnel> {
   const module = loadModule();
   if (module === null) throw new Error("iroh module unavailable");
   await ensureStarted(module);
-  const id = await module.openTunnel(nodeHex, lane);
+  const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);
   let closed = false;
   return {
     write: (bytes, timeoutMs) => module.tunnelWrite(id, uint8ArrayToBase64(bytes), timeoutMs),

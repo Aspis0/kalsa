@@ -26,8 +26,9 @@ export type DoorRoad =
       node: string;
       /** The establishment connect; the operation's first request rides it. */
       firstTunnel: IrohTunnel;
-      /** A fresh door tunnel for a later request of the same operation. */
-      openTunnel: () => Promise<IrohTunnel>;
+      /** A fresh door tunnel for a later request of the same operation; the
+       *  signal races its native dial (which has no deadline of its own). */
+      openTunnel: (signal?: AbortSignal) => Promise<IrohTunnel>;
     };
 
 /** The pairing facts a road decision needs; RemoteDoorConfig satisfies it. */
@@ -70,9 +71,18 @@ export async function establishDoorRoad(
     return { road: "https" };
   }
   let firstTunnel: IrohTunnel;
+  // The signalless dial stays a two-argument call: the native race only
+  // exists when there is something to race against.
+  const dialDoor = (signal?: AbortSignal) =>
+    signal === undefined
+      ? openIrohTunnel(choice.node, "door")
+      : openIrohTunnel(choice.node, "door", signal);
   try {
-    firstTunnel = await openIrohTunnel(choice.node, "door");
+    firstTunnel = await dialDoor(signal);
   } catch {
+    // An aborted dial is the operation ending, not a road verdict: no
+    // KALSA_ROAD line, no fallback decision.
+    if (aborted()) throw abortedError();
     if (door.pairedVia === "https") {
       logRoadDecision("https", "connect_failed", choice.node);
       return { road: "https" };
@@ -90,7 +100,7 @@ export async function establishDoorRoad(
     road: "iroh",
     node: choice.node,
     firstTunnel,
-    openTunnel: () => openIrohTunnel(choice.node, "door"),
+    openTunnel: (signal) => dialDoor(signal),
   };
 }
 
@@ -122,7 +132,7 @@ export function doorFetchFor(road: DoorRoad): DoorFetch {
   }
   let pending: IrohTunnel | null = road.firstTunnel;
   return async (url, init) => {
-    const tunnel = pending ?? (await road.openTunnel());
+    const tunnel = pending ?? (await road.openTunnel(init.signal));
     pending = null;
     return fetchJsonOverTunnel(tunnel, url, init, {
       timeoutMs: PROBE_JSON_TIMEOUT_MS,

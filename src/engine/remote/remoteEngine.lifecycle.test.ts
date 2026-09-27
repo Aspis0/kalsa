@@ -1211,7 +1211,9 @@ describe("RemoteEngine lifecycle", () => {
 
     // Each operation made exactly one iroh connect attempt, then one HTTPS
     // attempt against the paired URL — never a mid-request switch.
-    expect((openIrohTunnel as jest.Mock).mock.calls).toEqual([[node, "door"], [node, "door"]]);
+    expect(
+      (openIrohTunnel as jest.Mock).mock.calls.map((call: unknown[]) => call.slice(0, 2)),
+    ).toEqual([[node, "door"], [node, "door"]]);
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       "https://desktop.tailnet.ts.net:9443/props",
       "https://desktop.tailnet.ts.net:9443/v1/models",
