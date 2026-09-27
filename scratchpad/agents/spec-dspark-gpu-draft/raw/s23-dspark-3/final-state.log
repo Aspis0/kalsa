@@ -1,0 +1,21 @@
+===BATTERY===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  level: 71
+  temperature: 296
+===TRACED===
+0
+===THERMAL===
+Thermal Status: 0
+===PROCESSES===
+===KALSA===
+===POWER===
+  mWakefulness=Dozing
+  mIsPowered=false
+  mPlugType=0
+  mIsPowered=false
+===RESTORED_SETTINGS===
+null
+0

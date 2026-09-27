@@ -1,0 +1,8 @@
+bin/llama-completion: OK
+bin/llama-speculative-simple: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml-hexagon.so: OK
+lib/libggml-htp-v73.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml.so: OK

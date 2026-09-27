@@ -1,0 +1,1 @@
+ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_PORT=5037 ./d_run.sh s23-dspark-3 100 > /tmp/s23dspark3.log 2>&1; echo EXIT=130 (stopped after C4 proof failure)

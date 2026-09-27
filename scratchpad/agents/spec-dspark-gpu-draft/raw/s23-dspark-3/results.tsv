@@ -1,0 +1,5 @@
+tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	cooldown_s	warm_start	skin_before	skin_after	status	void	proof	wall_s	final
+A-p	A	0	8	na	na	na	na	na	0	0	28.0	30.3	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68	23	proof
+B4-p	B4	0	8	na	na	na	na	na	0	0	30.3	31.7	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68	20	proof
+B8-p	B8	0	8	na	na	na	na	na	0	0	31.7	33.3	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68	25	proof
+C4-p	C4	0	8	na	na	na	na	na	0	0	33.3	33.3	VOID	run_fail	na	11	void

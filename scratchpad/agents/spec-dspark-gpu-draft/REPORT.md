@@ -207,3 +207,28 @@ peak per proof is not separable from the safety poll (session-wide observed
 skin max 29.6 C). `END reason=signal_INT`, wrapper exit 130. Restore verified
 `rc=0`, settings returned to timeout=null / stay-on=0. No retry. Raw logs:
 `raw/s23-dspark-2/`.
+
+
+## S23 DSpark run 3 — CPU proofs pass; C4 proof OOM
+
+Preflight passed on the fixed TLS endpoint: unplugged, 73% / 26.1 C, thermal
+0, traced 0, Kalsa and llama/bench absent; screen Awake/unlocked. The updated
+self-test passed. All logs in `raw/s23-dspark-3/` were scanned: no Hexagon
+backend strings and no interactive-mode banner. Historical `s23-dspark-2`
+logs do contain the old HTP0 / ggml-hex session-init failure.
+
+The driver completed proof-only arms A, B4, B8. C4 loaded all 6/6 drafter
+layers on OpenCL, then failed graph reservation with an 8000 MiB OpenCL
+allocation error (`EXIT=1`, row VOID `run_fail`). The job was interrupted at
+that first failing proof; C8 and all matched measurement arms were not run.
+The proof logs' short-run statistics are not matched-arm measurements:
+A 0 drafted / 0 accepted / nan% (zero drafted), decode 13.587 t/s; B4
+20 / 6 / 30.000%, 4.321 t/s; B8 21 / 8 / 38.095%, 11.569 t/s. CPU drafter
+proofs assigned 6 layers to CPU and offloaded 0/6 to GPU. Skin start / peak
+sampled during each proof: A 28.0 / 30.3 C; B4 30.3 / 31.7 C; B8 31.7 /
+33.3 C; C4 33.3 / 33.3 C. The C4 drafter reached OpenCL 6/6 before its
+allocation failure; no decoded-token metrics exist for it.
+
+`END reason=signal_INT`, wrapper exit 130; restore verified `rc=0` and
+settings returned to their prior values. Raw evidence is in
+`raw/s23-dspark-3/`; no retry was made.

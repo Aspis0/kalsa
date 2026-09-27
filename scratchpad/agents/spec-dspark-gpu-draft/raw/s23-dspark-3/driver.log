@@ -1,0 +1,21 @@
+[03:40:54] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[03:40:56] SESSION job=s23-dspark-3 board=S23 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp timeout_saved=null stayon_saved=0
+[03:40:56] GATE label=before_setup
+[03:41:26] BATTERY_SENSOR_TRUSTED dumpsys=263,264 sysfs=,
+[03:41:27] PUSH_SKIP /data/local/tmp/dspark-spec/kit.tgz sha_ok
+[03:41:29] PUSH_SKIP /data/local/tmp/dspark-spec/ship.gguf sha_ok
+[03:41:29] PUSH_SKIP /data/local/tmp/dspark-spec/draft.gguf sha_ok
+[03:41:29] PUSH_SKIP /data/local/tmp/dspark-spec/prompt.txt sha_ok
+[03:41:41] GATE label=after_push
+[03:41:57] KIT_AND_MODELS_VERIFIED
+[03:41:57] GATE label=setup
+[03:41:57] SETUP_DONE skin=28.0 thermal=0 batt_temp=266 level=72 plugged=false untrusted=0
+[03:42:28] GATE label=post_A-p
+[03:42:28] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68
+[03:42:59] GATE label=post_B4-p
+[03:42:59] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68
+[03:43:29] GATE label=post_B8-p
+[03:43:30] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=68
+[03:43:45] GATE label=post_C4-p
+[03:43:45] PROOF_DONE arm=C4 status=VOID void=run_fail proof=na
+[03:44:01] KILL_VERIFY reason=cleanup_rc0_sigINT result=gone attempt=1
