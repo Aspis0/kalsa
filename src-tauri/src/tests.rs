@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn the_pick_list_deduplicates_rows_by_token_across_the_whole_list() {
+    // The two cards the page shows come from two different answers, and
+    // nothing stops them from naming the same row — the duplicate must be
+    // caught anywhere in the list, not only between neighbours: here the
+    // repeat is third, with another row in between.
+    let lfm = kalsa_catalog::rows()
+        .find(|entry| entry.display_name == "Liquid LFM 2.5")
+        .expect("the LFM row is in the catalog");
+    let qwen = kalsa_catalog::rows()
+        .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
+        .expect("the Qwen row is in the catalog");
+    let rows = unique_rows(vec![lfm, qwen, lfm]);
+    let names: Vec<_> = rows.iter().map(|entry| entry.display_name).collect();
+    assert_eq!(names, ["Liquid LFM 2.5", "Alibaba Qwen 3.6"]);
+    // And a distinct row with the same shape of identity survives: the token
+    // covers repo, name, quant and bytes, so nothing else is dropped.
+    let qwen38 = kalsa_catalog::rows()
+        .find(|entry| entry.repo == "Qwen/Qwen3.8-27B")
+        .expect("the dense row is in the catalog");
+    let rows = unique_rows(vec![qwen, qwen38]);
+    assert_eq!(rows.len(), 2);
+}
+
+#[test]
 fn the_window_is_allowed_to_hear_the_walk() {
     // Tauri v2 grants nothing by default. With no capability file the
     // event bus is simply dead: `listen` returns a promise that never

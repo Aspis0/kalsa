@@ -89,13 +89,21 @@ pub const IMPROVEMENT_RATIO: f64 = 1.4;
 /// a candidate is only proposed when even its pessimistic case is usable.
 pub const MINIMUM_TOKENS_PER_SECOND: f64 = 3.0;
 
-/// Below this a big dense row is not offered at all — a separate, higher
-/// line than [`MINIMUM_TOKENS_PER_SECOND`], and only for the big dense rows
-/// ([`LARGE_DENSE_PARAMETERS`]): one machine serves several users, and a
-/// dense model this machine can barely drive is not a suggestion however
-/// well it benches. The owner's M1 Max decodes a dense 27B at about 7 tok/s;
-/// the prediction says so before the row reaches the page.
+/// The dense speed floor for a dense row at or above
+/// [`LARGE_DENSE_PARAMETERS`] — the top of one rule, not a rule of its own:
+/// a dense row is held to a speed scaled by how much of its file each token
+/// pays for ([`dense_speed_floor`]), and 20 tok/s is what the big end asks.
+/// One machine serves several users, and a dense model this machine can
+/// barely drive is not a suggestion however well it benches: the owner's
+/// M1 Max decodes a dense 27B at about 7 tok/s, and the prediction says so
+/// before the row reaches the page.
 pub const MINIMUM_DENSE_TOKENS_PER_SECOND: f64 = 20.0;
+
+/// The dense speed floor for a dense row below [`LARGE_DENSE_PARAMETERS`].
+/// The same rule as [`MINIMUM_DENSE_TOKENS_PER_SECOND`], sized smaller
+/// because each token reads a smaller file — but still a floor: 5 tok/s is
+/// what the owner measured and called "totalmente inusabile".
+pub const MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND: f64 = 10.0;
 
 /// What counts as a big dense row for [`MINIMUM_DENSE_TOKENS_PER_SECOND`]:
 /// dense — never a mixture, which is judged by its total and active split,
@@ -513,11 +521,14 @@ pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusa
     // shown as the first card; the biggest row beside it becomes the second
     // option, measured against whatever is shown (`quicker_alternative`).
     // With no big dense row qualifying, the biggest row that runs well is
-    // the pick, as always.
+    // the pick, as always. The line identifies the class: only a dense row
+    // at the big end HAS this line, and it already cleared it to be here.
     let chosen = answer
         .remaining
         .iter()
-        .filter(|candidate| big_dense(candidate.entry))
+        .filter(|candidate| {
+            dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
+        })
         .max_by_key(|candidate| candidate.entry.weights_bytes)
         .or_else(|| {
             answer
@@ -681,13 +692,17 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
             too_slow.push(candidate);
             continue;
         }
-        // The big dense line: where this machine cannot drive a 20B+ dense
-        // row at 20 tok/s, the row is not offered at all — not as a pick,
-        // not as a second option, and not as somebody else's stored choice.
-        if big_dense(candidate.entry)
-            && candidate.decode.floor() < MINIMUM_DENSE_TOKENS_PER_SECOND
-        {
-            continue;
+        // The dense speed floor: where this machine cannot drive a dense
+        // row at the line its size sets, the row is not offered at all —
+        // not as a pick, not as a second option, and not as somebody else's
+        // stored choice. It lands in `too_slow` with the rows the reading
+        // floor refuses, so a refusal names its speed instead of losing it
+        // (and the "smallest one needs N" sentence never sees an empty set).
+        if let Some(line) = dense_speed_floor(candidate.entry) {
+            if candidate.decode.floor() < line {
+                too_slow.push(candidate);
+                continue;
+            }
         }
         remaining.push(candidate);
     }
@@ -722,11 +737,21 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
-/// Whether a row is a big dense model under [`MINIMUM_DENSE_TOKENS_PER_SECOND`]:
-/// dense — never a mixture, whose total and active split are judged by the
-/// capability rules instead — and at least [`LARGE_DENSE_PARAMETERS`].
-fn big_dense(entry: &ModelEntry) -> bool {
-    !entry.parameters.is_mixture() && entry.parameters.total().count() >= LARGE_DENSE_PARAMETERS
+/// The dense speed floor a row must clear to be offered at all: the big
+/// line ([`MINIMUM_DENSE_TOKENS_PER_SECOND`]) at or above
+/// [`LARGE_DENSE_PARAMETERS`], the small line
+/// ([`MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND`]) below it, and `None` for a
+/// mixture — those read only their active share, and the plain
+/// [`MINIMUM_TOKENS_PER_SECOND`] floor judges them like every other row.
+pub fn dense_speed_floor(entry: &ModelEntry) -> Option<f64> {
+    if entry.parameters.is_mixture() {
+        return None;
+    }
+    Some(if entry.parameters.total().count() >= LARGE_DENSE_PARAMETERS {
+        MINIMUM_DENSE_TOKENS_PER_SECOND
+    } else {
+        MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND
+    })
 }
 
 /// Whether a decode prediction by itself proves a candidate too slow to

@@ -97,18 +97,18 @@ const SEEDED = [
 const MODEL = {
   id: "0f3e5d7c9b1a2468",
   name: "Liquid LFM 2.5",
-  quant: "Q4_K_M",
-  weights_bytes: 4_000_000_000,
-  context_tokens: 4584,
+  quant: "Q8_0",
+  weights_bytes: 2_874_779_648,
+  context_tokens: 65_536,
   speed_context_tokens: 8192,
   speed: { shape: "range", low: 12, high: 21 },
   measured: null,
   reason: "This is a clear step up from what your phone runs: a bigger, stronger model.",
   details:
     "budget 12.75 GiB of 17.0 GiB — 4.25 GiB kept for the system\n" +
-    "weights 3.7 GiB at Q4_K_M, inside that with room for the cache\n" +
+    "weights 2.7 GiB at Q8_0, inside that with room for the cache\n" +
     "bandwidth 110 GB/s measured on the processor: a floor, not the Metal figure\n" +
-    "speed 12–21 tokens/s, predicted from that floor and 3.7 GiB of weights",
+    "speed 12–21 tokens/s, predicted from that floor and 2.7 GiB of weights",
 };
 
 // The same row on a machine that cannot fund a window: weights plus the 512 MiB
@@ -295,7 +295,7 @@ const STATES = [
     presence: "Kalsa checks your computer and suggests a model.",
     brainTest: {
       options: [
-        { id: MODEL.id, name: MODEL.name, weights_bytes: 3_700_000_000, on_disk: false },
+        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.weights_bytes, on_disk: false },
         { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.weights_bytes, on_disk: true },
       ],
       refusal: null,
@@ -712,16 +712,16 @@ async function main() {
       await page.click(".first-run-start");
       await mustText(page, "Checking your computer…", `${fixture.name} checking`);
       await shot(page, "shots/78-brain-checking.png");
-      for (const words of ["Pick a model", "Smarter answers.", "Faster answers.", "3.7 GB download", "Already on your computer", "Show details"]) {
+      for (const words of ["Pick a model", "Smarter answers.", "Faster answers.", "2.9 GB download", "Already on your computer", "Show details"]) {
         await mustText(page, words, `${fixture.name} pick: ${words}`);
       }
       const pickText = await page.locator(".first-run-pick").innerText();
-      for (const hidden of ["tokens/s", "Q4_K_M", "Memory"]) {
+      for (const hidden of ["tokens/s", "Q8_0", "Memory"]) {
         if (pickText.includes(hidden)) failures.push(`${fixture.name}: the pick shows "${hidden}" outside Show details`);
       }
       await shot(page, "shots/79-brain-pick.png");
       await page.getByRole("button", { name: "Use this" }).first().click();
-      await mustText(page, "Download 3.7 GB?", `${fixture.name} confirm`);
+      await mustText(page, "Download 2.9 GB?", `${fixture.name} confirm`);
       await mustText(page, `Kalsa needs this file to run ${MODEL.name}.`, `${fixture.name} confirm sentence`);
       await shot(page, "shots/80-brain-confirm.png");
       await page.getByRole("button", { name: "Download" }).click();
@@ -735,10 +735,10 @@ async function main() {
             handler({ event: "brain_progress", id: 8, payload: step });
           }
         }, payload);
-      await deliver({ kind: "model_bytes", done: 0, total: 3_700_000_000 });
-      await deliver({ kind: "model_bytes", done: 1_200_000_000, total: 3_700_000_000 });
+      await deliver({ kind: "model_bytes", done: 0, total: MODEL.weights_bytes });
+      await deliver({ kind: "model_bytes", done: 1_200_000_000, total: MODEL.weights_bytes });
       await mustText(page, "Downloading…", `${fixture.name} downloading`);
-      await mustText(page, "1.2 of 3.7 GB", `${fixture.name} download bytes`);
+      await mustText(page, "1.2 of 2.9 GB", `${fixture.name} download bytes`);
       await shot(page, "shots/81-brain-download.png");
       await deliver({ kind: "tuning", done: 1, total: 4 });
       await mustText(page, "Finding the best settings for your computer…", `${fixture.name} tuning`);

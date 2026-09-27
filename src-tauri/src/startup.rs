@@ -1211,6 +1211,18 @@ mod tests {
         }
     }
 
+    /// The fixture machine where two rows run on 16 GiB: at the plain
+    /// fixture's 80 GB/s the small-dense line leaves only the LFM file
+    /// runnable, and a stored choice needs a row to differ from.
+    fn two_row_machine() -> Machine {
+        let mut measurement = measured(80.0e9, Backend::Cpu);
+        measurement.decode_bytes_per_second = Some(150.0e9);
+        Machine {
+            measurement,
+            ram_bytes: 16 * 1024 * 1024 * 1024,
+        }
+    }
+
     fn scratch(name: &str) -> PathBuf {
         let dir =
             std::env::temp_dir().join(format!("kalsa-brain-startup-{name}-{}", std::process::id()));
@@ -1393,7 +1405,7 @@ mod tests {
         // What the owner picked, not what the catalog would have picked. The
         // row is smaller than the automatic one on purpose: a test that
         // happens to agree with the automatic answer proves nothing.
-        let machine = machine(Backend::Cpu);
+        let machine = two_row_machine();
         let (automatic, chosen) = a_smaller_row_that_runs(&machine);
         assert_ne!(automatic.display_name, chosen.display_name);
 
@@ -1415,7 +1427,7 @@ mod tests {
         // Consent names the row, not the token's existence: the row about to
         // be placed must be the row the owner picked, and no other pair
         // consents — not another row, not nothing stored.
-        let machine = machine(Backend::Cpu);
+        let machine = two_row_machine();
         let (automatic, chosen) = a_smaller_row_that_runs(&machine);
         assert!(
             consented(Some(&model_token(chosen)), chosen),
@@ -2216,41 +2228,45 @@ mod tests {
     }
 
     #[test]
-    fn the_chooser_does_not_exclude_a_model_the_machine_funds_at_a_smaller_context() {
-        // At 16 GiB the rows around 4–7 GiB fund thousands of tokens each;
-        // priced at 8192 the chooser must not refuse every one of them and
-        // hand the tier to the smallest row on the menu. The pick must come
-        // from what the machine funds.
+    fn a_row_that_cannot_fund_the_sixty_four_k_window_is_not_offered() {
+        // The chooser prices every candidate at its own window — 65_536 —
+        // so a row the machine cannot fund at that window is not offered at
+        // all, however well it funds a smaller one: the pick comes from rows
+        // that hold the window they will be served at. At 11 GiB the dense
+        // 12B funds 8192 tokens and not 65_536, and the tier goes to the
+        // row that funds the window — never to the smallest row on the menu
+        // just because it fits. The bandwidth is the fixture's raised to
+        // 150 GB/s so the row that does fund the window also clears its
+        // speed line: the window is the only thing deciding here.
+        let mut measurement = measured(80.0e9, Backend::Cpu);
+        measurement.decode_bytes_per_second = Some(150.0e9);
         let machine = Machine {
-            measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 16 * 1024 * 1024 * 1024,
+            measurement,
+            ram_bytes: 11 * 1024 * 1024 * 1024,
         };
-        let phone = PhoneModel {
-            weights_bytes: 2_200_000_000,
-            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
-            measured_tokens_per_second: None,
-            battery_powered: Some(true),
-        };
-        let (plan, row, reason) =
-            choose_model(ServerBackend::Cpu, &machine, Some(phone), None).expect("the tier is not empty");
-        assert_ne!(
-            reason, PHONE_FREE_REASON,
-            "a paired phone means a comparison was made, so the reason is the\
-             comparison's own words"
-        );
-        assert!(!reason.is_empty(), "the comparison must say something");
-        let smallest = kalsa_catalog::usable()
-            .min_by_key(|entry| entry.entry().weights_bytes)
-            .expect("the catalog carries downloadable rows")
-            .entry();
+        let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
+        let twelve = rows()
+            .find(|entry| entry.repo == "google/gemma-4-12B-it")
+            .expect("the row is in the catalog");
         assert!(
-            row.weights_bytes > smallest.weights_bytes,
-            "the tier went to {} when bigger funded rows exist",
-            row.display_name
+            kalsa_catalog::footprint_bytes(twelve, 8_192).total_bytes() <= budget.usable_bytes
+                && kalsa_catalog::footprint_bytes(twelve, CHOOSER_CONTEXT_TOKENS).total_bytes()
+                    > budget.usable_bytes,
+            "the premise: this machine funds the 12B at a smaller window, \
+             not at the chooser's"
         );
-        // The plan and the row travel together by construction now — the
-        // model step answers with the file its own row pins — so the plan
-        // still names a real, pinned file.
+        let (plan, row, reason) =
+            choose_model(ServerBackend::Cpu, &machine, None, None).expect("the tier is not empty");
+        assert_ne!(
+            row.repo,
+            "google/gemma-4-12B-it",
+            "a row that cannot fund the window is not offered"
+        );
+        assert_eq!(row.repo, "google/gemma-4-E4B-it");
+        assert_eq!(reason, PHONE_FREE_REASON, "no phone, so the phone-free words");
+        // The plan and the row travel together by construction — the model
+        // step answers with the file its own row pins — so the plan still
+        // names a real, pinned file.
         assert!(plan.bytes > 0 && !plan.url.is_empty(), "{:?}", plan.url);
     }
 
@@ -2463,7 +2479,7 @@ mod tests {
 
     /// A machine that cannot fund the enrolled family keeps the smaller
     /// number and says so: Liquid LFM 2.5 (the Q8_0 file) on 6.7 GB of RAM
-    /// funds one 6101-token slot, and two slots would each get about 3050 —
+    /// funds one 5742-token slot, and two slots would each get about 2871 —
     /// under the 4096-token floor.
     /// The plan stays at one seat; the door then refuses the second device
     /// with words.
@@ -2718,7 +2734,7 @@ mod tests {
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
         // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 7 GiB of CPU funds
-        // 65_536 tokens at q8_0 and 40_413 at f16: the halved per-token
+        // 65_536 tokens at q8_0 and 38_035 at f16: the halved per-token
         // price is what moves the f16 maximum. 65_536 fits the q8_0 cache
         // and not the f16 one — choosing f16 must refuse it, not start a
         // server whose f16 cache would oversubscribe the machine. If the
@@ -2750,7 +2766,7 @@ mod tests {
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("65536 is beyond the f16 funded maximum of 40413");
+        .expect_err("65536 is beyond the f16 funded maximum of 38035");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -2776,7 +2792,7 @@ mod tests {
         assert_eq!(fits_q8.info.args.context_tokens, 65_536);
         let spoken = crate::failure::words(&err);
         assert!(
-            spoken.contains("40413"),
+            spoken.contains("38035"),
             "the refusal must name the funded maximum: {spoken}"
         );
         assert!(

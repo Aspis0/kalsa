@@ -1186,15 +1186,13 @@ async fn brain_test(
     else {
         return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
     };
-    let mut entries: Vec<_> = [model, quicker]
-        .into_iter()
-        .flatten()
-        .filter_map(|option| option.id.as_deref().and_then(startup::row_for_token))
-        .collect();
-    // One card per model name: the pick list shows a name and a size, and
-    // two rows sharing a name — the same model at two compressions — would
-    // render as the same card twice.
-    entries.dedup_by(|a, b| a.display_name == b.display_name);
+    let entries = unique_rows(
+        [model, quicker]
+            .into_iter()
+            .flatten()
+            .filter_map(|option| option.id.as_deref().and_then(startup::row_for_token))
+            .collect(),
+    );
     tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, &runtime_root))
         .await
         .map_err(|_| "The check did not finish. Trying again usually works.".to_string())
@@ -2022,6 +2020,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     Ok(())
+}
+
+/// One card per row: the pick list is keyed by the model token — repo,
+/// name, quant, bytes — so the same row arriving twice cannot render as two
+/// cards. The check covers the whole list, not only neighbours: how the
+/// rows are ordered is not something the list owns.
+fn unique_rows(
+    entries: Vec<&'static kalsa_catalog::ModelEntry>,
+) -> Vec<&'static kalsa_catalog::ModelEntry> {
+    let mut seen = std::collections::HashSet::new();
+    entries
+        .into_iter()
+        .filter(|entry| seen.insert(startup::model_token(entry)))
+        .collect()
 }
 
 #[cfg(test)]

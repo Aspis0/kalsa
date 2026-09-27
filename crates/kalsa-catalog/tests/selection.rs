@@ -4,9 +4,11 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, largest_that_runs_well, quicker_alternative,
-    usable_bytes, Backend, CapabilityBasis, ChoiceInput, Decision, Justification, Parameters,
-    PhoneModel, Prediction, RefusalReason, DOWNLOADABLE, GIB, LARGE_MOE_TOTAL_PARAMETERS,
+    capability_basis, choose, decode_prediction, dense_speed_floor, footprint_bytes,
+    largest_that_runs_well, quicker_alternative, usable_bytes, Backend, CapabilityBasis,
+    ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
+    DOWNLOADABLE, GIB, CHOOSER_CONTEXT_TOKENS, LARGE_MOE_TOTAL_PARAMETERS,
+    MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
     QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };
 
@@ -24,8 +26,10 @@ fn phone(battery_powered: Option<bool>) -> PhoneModel {
     }
 }
 
-/// Numbers from the probe on the development machine, so the arithmetic in the
-/// expectations is the arithmetic the product would do.
+/// Numbers from the probe on the development machine, at the product's own
+/// pricing window: the chooser prices every candidate at
+/// [`CHOOSER_CONTEXT_TOKENS`], so the arithmetic in the expectations is the
+/// arithmetic the product would do.
 fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
     ChoiceInput {
         backend: Backend::Cpu,
@@ -33,8 +37,18 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
         bandwidth_bytes_per_second: 85.0e9,
         bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
-        context_tokens: 8192,
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
         phone: phone_known.then_some(phone(Some(true))),
+    }
+}
+
+/// The same fixture on the Metal path at a stated bandwidth: the small-dense
+/// line bites differently per bandwidth, so the tests that care ask here.
+fn metal(ram_gib: u64, bandwidth: f64) -> ChoiceInput {
+    ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: bandwidth,
+        ..input(ram_gib, false)
     }
 }
 
@@ -99,12 +113,12 @@ fn refusal(input: &ChoiceInput) -> (RefusalReason, String) {
 #[test]
 fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
     // The premise: nothing that fits admits a capability claim against the
-    // phone's reported parameters — the two rows that fit here are the two
-    // compressions of one dense 2.69B model, under the phone's own 4B.
+    // phone's reported parameters — the one row that fits here is the dense
+    // 2.69B at its only compression, under the phone's own 4B.
     let usable = usable_bytes(8 * GIB);
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
-        if footprint_bytes(entry, 8192).total_bytes() <= usable {
+        if footprint_bytes(entry, CHOOSER_CONTEXT_TOKENS).total_bytes() <= usable {
             assert!(
                 capability_basis(entry.parameters, entry.dense_equivalent, Some(PHONE_PARAMS))
                     .is_none(),
@@ -121,7 +135,7 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
             assert_eq!(selection.justification, Justification::Relief);
             assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
             assert_eq!(selection.display_name, "Liquid LFM 2.5");
-            assert_eq!(selection.quant, "Q8_0", "the bigger file wins the tier");
+            assert_eq!(selection.quant, "Q8_0", "the tier's own file");
             assert!(
                 selection.details.contains("relief"),
                 "{}",
@@ -187,22 +201,25 @@ fn every_pick_carries_its_pinned_plan() {
 fn sixteen_gigabytes_picks_a_downloadable_row_whose_plan_matches_its_row() {
     // The old winner here was a research-table row — a model the app could
     // name but never fetch — and the MoE it later picked is owner-rejected
-    // now. The tier's winner is the biggest downloadable row, and the pick
-    // carries the file, size and digest verified against the pinned commit.
+    // now. The tier's winner is the biggest downloadable row that clears
+    // its own speed line — at this machine's 85 GB/s the 12B predicts 7.1
+    // tok/s, under the small-dense 10, so the tier goes to the E4B — and
+    // the pick carries the file, size and digest verified against the
+    // pinned commit.
     match choose(&input(16, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
             assert_eq!(
                 selection.justification,
                 Justification::Capability(CapabilityBasis::Parameters)
             );
             let plan = &selection.download;
-            assert!(plan.url.ends_with("/gemma-4-12B-it-Q4_K_M.gguf"), "{}", plan.url);
-            assert!(plan.url.contains("/resolve/2ae7d41be21ca62de00a2d320ee9cec50daa3aa6/"));
-            assert_eq!(plan.bytes, 7_662_533_088);
+            assert!(plan.url.ends_with("/gemma-4-E4B-it-Q4_K_M.gguf"), "{}", plan.url);
+            assert!(plan.url.contains("/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/"));
+            assert_eq!(plan.bytes, 4_977_171_584);
             assert_eq!(
                 plan.sha256,
-                "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509"
+                "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87"
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -277,14 +294,15 @@ fn capability_does_not_need_a_battery() {
 #[test]
 fn a_small_card_is_not_bypassed_by_the_system_ram() {
     // 32 GiB of RAM would fit the 20.6 GiB MoE; the 5 GiB card gives a
-    // 2 GiB budget, and the smallest row in the catalog needs 2.1 GiB at
-    // 8192, so nothing fits. The machine is refused — a model sized to its
+    // 2 GiB budget, and the smallest row in the catalog needs 3.7 GiB at
+    // the chooser's 65_536-token window, so nothing fits. The machine is refused — a model sized to its
     // RAM would spill across both memories, and the spill is a loss.
     let biggest_on_ram = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
         .expect("the 35B row exists");
     assert!(
-        footprint_bytes(biggest_on_ram, 8192).total_bytes() <= usable_bytes(32 * GIB),
+        footprint_bytes(biggest_on_ram, CHOOSER_CONTEXT_TOKENS).total_bytes()
+            <= usable_bytes(32 * GIB),
         "the RAM alone would have allowed the 35B row, which is what makes this test real"
     );
     let (reason, explanation) = refusal(&pc(32, Some(5)));
@@ -294,10 +312,11 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
 
 #[test]
 fn a_model_that_would_spill_is_never_offered() {
-    // The card holds 9 GiB; the RAM alone would hold rows three times
+    // The card holds 12 GiB; the RAM alone would hold rows three times
     // bigger. Only what fits the card entirely is a candidate, and the
-    // biggest class that fits wins: Gemma is the dense 12B row, even though
-    // it decodes more slowly than the MoE it displaced.
+    // biggest class that fits AND clears its row's speed line wins: at this
+    // machine's bandwidth the dense 12B sits under its 10 tok/s line, so
+    // the pick is the Gemma 4 E4B.
     let machine = pc(32, Some(12));
     match choose(&machine) {
         Decision::Pick(selection) => {
@@ -305,7 +324,7 @@ fn a_model_that_would_spill_is_never_offered() {
                 selection.repo, "Qwen/Qwen3.6-35B-A3B",
                 "the 35B row does not fit the card and must not be offered"
             );
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
             assert!(
                 selection.footprint.total_bytes() <= selection.budget.usable_bytes,
                 "the pick fits the chosen budget entirely"
@@ -420,52 +439,28 @@ fn a_measured_decode_is_what_counts() {
 
 #[test]
 fn a_measured_decode_belongs_to_the_machine_it_was_measured_on() {
-    // The rate above is a fact about a 400 GB/s M1 Max. On a 100 GB/s Metal
-    // machine — an M1/M2 base — the same row is predicted like any other:
-    // the M1 Max's 20.44 must not travel, and the range the prediction
-    // makes is what the card shows.
-    let base = ChoiceInput {
-        backend: Backend::Metal,
-        bandwidth_bytes_per_second: 100.0e9,
-        ..input(16, true)
-    };
-    match choose(&base) {
-        Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
-            assert!(
-                !matches!(selection.decode, Prediction::Measured { .. }),
-                "the M1 Max's measurement must not reach a 100 GB/s machine: {:?}",
-                selection.decode
-            );
-            assert!(
-                selection.decode.floor() < 20.44,
-                "the speed is no longer the measured 20.44: {:?}",
-                selection.decode
-            );
-            assert!(
-                selection.details.contains("tokens per second"),
-                "the prediction is said in its own words: {}",
-                selection.details
-            );
-        }
-        other => panic!("expected a pick, got {other:?}"),
-    }
+    // The rate above is a fact about a 400 GB/s M1 Max. Asked of the row
+    // directly — the pick at 100 GB/s is decided by the small-dense line
+    // as well, so the row is the honest subject here — the figure at
+    // 100 GB/s is a prediction: the M1 Max's 20.44 must not travel.
+    let twelve = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "google/gemma-4-12B-it")
+        .expect("the measured row is on the menu");
+    let slow = decode_prediction(twelve, &metal(16, 100.0e9));
+    assert!(
+        !matches!(slow, Prediction::Measured { .. }),
+        "the M1 Max's measurement must not reach a 100 GB/s machine: {slow:?}"
+    );
+    assert!(slow.floor() < 20.44, "the speed is no longer 20.44: {:?}", slow.floor());
+    assert!(slow.floor() > 0.0, "the prediction still has a figure: {slow:?}");
 
     // And the band: a machine a quarter away from the measured bandwidth
     // still counts as the machine the rate was taken on.
-    let near = ChoiceInput {
-        backend: Backend::Metal,
-        bandwidth_bytes_per_second: 300.0e9,
-        ..input(16, true)
-    };
-    match choose(&near) {
-        Decision::Pick(selection) => assert!(
-            matches!(selection.decode, Prediction::Measured { .. }),
-            "300 GB/s is within a quarter of the M1 Max's 400: {:?}",
-            selection.decode
-        ),
-        other => panic!("expected a pick, got {other:?}"),
-    }
+    let near = decode_prediction(twelve, &metal(16, 300.0e9));
+    assert!(
+        matches!(near, Prediction::Measured { .. }),
+        "300 GB/s is within a quarter of the M1 Max's 400: {near:?}"
+    );
 }
 
 #[test]
@@ -570,7 +565,7 @@ fn a_phone_without_parameter_counts_is_never_offered_capability() {
     };
     match choose(&input_with_phone_model(16, model)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
             assert_eq!(selection.justification, Justification::Relief);
         }
         other => panic!("expected a relief pick, got {other:?}"),
@@ -639,12 +634,15 @@ fn the_plain_reason_speaks_the_readers_language() {
 }
 
 #[test]
-fn sixteen_gigabytes_takes_the_biggest_downloadable_row_that_fits() {
+fn sixteen_gigabytes_takes_the_biggest_row_that_fits_and_clears_its_line() {
     // The MoEs this tier used to pick were removed from the manifest as
-    // stale, so the biggest fitting downloadable row is the dense Gemma
-    // 12B. What the tier must never do is hand the tier back to a
-    // research-only row — pinned by the research test below.
-    assert_eq!(chosen(&input(16, true)), "google/gemma-4-12B-it");
+    // stale. The biggest fitting downloadable row used to be the dense
+    // Gemma 12B — it still fits, but at this machine's 85 GB/s it predicts
+    // 7.1 tok/s, under the small-dense line, so the tier goes to the
+    // biggest row that clears it: the E4B. What the tier must never do is
+    // hand it back to a research-only row — pinned by the research test
+    // below.
+    assert_eq!(chosen(&input(16, true)), "google/gemma-4-E4B-it");
     assert!(kalsa_catalog::usable()
         .any(|entry| entry.entry().repo == "google/gemma-4-12B-it"));
 }
@@ -673,18 +671,15 @@ fn thirty_two_gigabytes_takes_the_twenty_gigabyte_moe_and_its_pinned_plan() {
             // machine, and the arithmetic is worth spelling out: 3/35 of
             // 22_134_528_992 bytes is 1_897_245_342 of active bytes; x2.06
             // (the measured MoE correction) is 3_908_325_404; plus the
-            // 8192-token cache at the 96 KiB assumption is 4_713_631_772
-            // bytes of traffic. At this test's 85 GB/s CPU-path measurement
-            // the floor takes the 0.7 sustained share of it:
-            // 1/(0.001504 + 4_713_631_772/59_500_000_000) = 12.39 tok/s.
-            // The old `> 20` threshold scored 21.3 — by a hair — only
-            // because active-bytes-only traffic under-counted, which is
-            // exactly what the owner's measurements falsified: this row
-            // decoded at ~45 tok/s on a 197 GB/s machine, so at 85 GB/s the
-            // calibrated point is 17.6 and the floor is 12.4. Still more
-            // than three times the usability line.
+            // 65_536-token cache at this row's own 40_960 bytes is
+            // 2_684_354_560 bytes of traffic. At this test's 85 GB/s
+            // CPU-path measurement the floor takes the 0.7 sustained share
+            // of it: 1/(0.001504 + 6_592_679_964/59_500_000_000) = 8.9
+            // tok/s. A mixture is held to the plain 3 tok/s line, not to
+            // the dense floors — it reads 3 of its 35 billion parameters a
+            // token — so 8.9 clears it by nearly three times.
             assert!(
-                selection.decode.floor() > 10.0,
+                selection.decode.floor() > 3.0,
                 "the tier must offer a usable pick, got {}",
                 selection.decode.floor()
             );
@@ -789,7 +784,7 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
         .find(|entry| entry.repo == "google/gemma-4-E2B-it")
         .expect("the research row is in the catalog");
     assert!(
-        footprint_bytes(e2b, 8192).total_bytes() <= usable_bytes(8 * GIB),
+        footprint_bytes(e2b, CHOOSER_CONTEXT_TOKENS).total_bytes() <= usable_bytes(8 * GIB),
         "the research row does fit, which is what makes this test meaningful"
     );
     let pick = chosen(&input(8, true));
@@ -823,8 +818,10 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
             assert!(why.contains("mixture of experts"), "{why}");
             // This row's per-token cache was read from its own GGUF header
             // (manifest.rs), so there is no assumption left to admit — and
-            // admitting one that is not being made would be its own lie. The
-            // admission is asserted where it is still true, below.
+            // admitting one that is not being made would be its own lie. No
+            // shipped row is on the assumption any more; the sentence itself
+            // stays live and is asserted on a fixture row in
+            // `rationale::tests`.
             assert!(
                 !why.contains("has not been measured yet"),
                 "a measured cache must not claim to be assumed: {why}"
@@ -865,10 +862,12 @@ fn a_machine_the_probe_could_not_measure_is_not_guessed_at() {
 
 #[test]
 fn the_second_option_is_clearly_faster_and_smaller_than_the_first() {
-    // 16 GiB: the biggest row that runs well is the dense 12B, and the LFM
-    // file clears twice its predicted floor — the pair this section is
-    // about.
-    let machine = input(16, false);
+    // 16 GiB on the Metal path at 200 GB/s: the biggest row that runs well
+    // is the dense 12B (16.6 tok/s, over its small-dense line), and the LFM
+    // file clears twice that — the pair this section is about. At the dev
+    // machine's 85 GB/s the 12B sits under its line and there is no pair
+    // to ask for.
+    let machine = metal(16, 200.0e9);
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
     assert_eq!(first.entry.repo, "google/gemma-4-12B-it");
     let quick =
@@ -892,7 +891,7 @@ fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
     // "Fast" alone would hand the owner the tiniest thing on the menu. The
     // rule is the most model that still clears the speed bar, so no row
     // bigger than the pick may also clear it.
-    let machine = input(16, false);
+    let machine = metal(16, 200.0e9);
     let first = largest_that_runs_well(&machine).expect("a pick");
     let quick = quicker_alternative(&machine, &first.decode).expect("a second option");
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
@@ -1115,7 +1114,7 @@ fn a_mixture_that_fits_beats_the_dense_row_it_displaces() {
         bandwidth_bytes_per_second: 183.0e9,
         bandwidth_is_lower_bound: false,
         compute_flops_per_second: 135.0e9,
-        context_tokens: 8192,
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
         phone: None,
     };
     let chosen = largest_that_runs_well(&machine).expect("a 24 GiB Mac runs something");
@@ -1136,5 +1135,93 @@ fn a_mixture_that_fits_beats_the_dense_row_it_displaces() {
         "the mixture is not faster: {:.1} against {:.1}",
         chosen.decode.floor(),
         dense_speed.ceiling()
+    );
+}
+
+// ── the dense speed floor ──────────────────────────────────────────────────
+// One rule at both ends: a dense row must clear the line its size sets, and
+// a row that does not is withheld — but reported, with its own numbers.
+
+#[test]
+fn the_dense_speed_floor_is_one_rule_at_both_ends() {
+    assert_eq!(MINIMUM_DENSE_TOKENS_PER_SECOND, 20.0);
+    assert_eq!(MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, 10.0);
+    let row = |repo: &str| {
+        kalsa_catalog::rows()
+            .find(|entry| entry.repo == repo)
+            .expect("row exists")
+    };
+    assert_eq!(dense_speed_floor(row("Qwen/Qwen3.8-27B")), Some(20.0));
+    assert_eq!(dense_speed_floor(row("google/gemma-4-12B-it")), Some(10.0));
+    assert_eq!(dense_speed_floor(row("google/gemma-4-E4B-it")), Some(10.0));
+    assert_eq!(
+        dense_speed_floor(row("Qwen/Qwen3.6-35B-A3B")),
+        None,
+        "a mixture reads its active share and is judged by the plain floor"
+    );
+}
+
+#[test]
+fn a_big_dense_row_is_refused_where_it_cannot_drive_its_line_and_taken_where_it_can() {
+    // Qwen3.8-27B predicts 14.6–21.3 tok/s on a 64 GiB / 400 GB/s machine:
+    // its floor is under the big-dense line, so the tier is the MoE alone.
+    // At 800 GB/s the floor clears 20 and the dense row takes the first card.
+    let slow = ChoiceInput {
+        bandwidth_bytes_per_second: 400.0e9,
+        ..input(64, false)
+    };
+    let pick = largest_that_runs_well(&slow).expect("a 64 GiB machine runs something");
+    assert_eq!(pick.entry.repo, "Qwen/Qwen3.6-35B-A3B");
+    let qwen38 = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "Qwen/Qwen3.8-27B")
+        .expect("the dense row is on the menu");
+    assert!(
+        decode_prediction(qwen38, &slow).floor() < MINIMUM_DENSE_TOKENS_PER_SECOND,
+        "{:?}",
+        decode_prediction(qwen38, &slow).floor()
+    );
+
+    let fast = ChoiceInput {
+        bandwidth_bytes_per_second: 800.0e9,
+        ..input(64, false)
+    };
+    let pick = largest_that_runs_well(&fast).expect("a 64 GiB machine runs something");
+    assert_eq!(pick.entry.repo, "Qwen/Qwen3.8-27B");
+    assert!(
+        decode_prediction(qwen38, &fast).floor() >= MINIMUM_DENSE_TOKENS_PER_SECOND,
+        "{:?}",
+        decode_prediction(qwen38, &fast).floor()
+    );
+}
+
+#[test]
+fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
+    // The owner's line: 5 tok/s is "totalmente inusabile", so a dense row
+    // under twenty billion parameters must predict at least 10. At 16 GiB /
+    // 100 GB/s the 12B predicts 8.4–12.1 — under it — and the tier goes to
+    // the E4B (12.4, clear of its line); at 200 GB/s the 12B predicts 16.6
+    // and takes the tier back.
+    let slow = metal(16, 100.0e9);
+    let pick = largest_that_runs_well(&slow).expect("a 16 GiB machine runs something");
+    assert_eq!(pick.entry.repo, "google/gemma-4-E4B-it");
+    let fast = metal(16, 200.0e9);
+    let pick = largest_that_runs_well(&fast).expect("a 16 GiB machine runs something");
+    assert_eq!(pick.entry.repo, "google/gemma-4-12B-it");
+
+    // And a gated row is reported, not lost: at 40 GB/s the 8 GiB tier's
+    // only fitting row (the LFM file, ~8 tok/s) is under its line, and the
+    // refusal states its speed — not the "smallest one needs N bytes"
+    // sentence an empty bucket would give.
+    let tier = metal(8, 40.0e9);
+    let refusal = match largest_that_runs_well(&tier) {
+        Err(refusal) => refusal,
+        Ok(pick) => panic!("{} is under its line and was offered anyway", pick.entry.repo),
+    };
+    assert_eq!(refusal.reason, RefusalReason::NothingFastEnough);
+    let explanation = refusal.explanation;
+    assert!(explanation.contains("tokens per second"), "{explanation}");
+    assert!(
+        !explanation.contains("smallest one in the catalog needs"),
+        "the too-slow bucket must not read as the no-fit bucket: {explanation}"
     );
 }

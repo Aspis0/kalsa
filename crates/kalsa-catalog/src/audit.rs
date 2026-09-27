@@ -5,6 +5,7 @@
 //! research record and gated rows remain visible with their manifest reason.
 
 use crate::candidate::candidate;
+use crate::choice::dense_speed_floor;
 use crate::choice::ChoiceInput;
 use crate::choice::MINIMUM_TOKENS_PER_SECOND;
 use crate::footprint::{footprint_bytes, Footprint};
@@ -21,6 +22,12 @@ pub struct RowAssessment {
     /// research rows have no identified file, so they have no prediction.
     pub decode: Option<Prediction>,
     pub too_slow: bool,
+    /// The dense speed floor this row must clear to be offered — 20 tok/s
+    /// at or above twenty billion parameters, 10 below, and `None` for a
+    /// mixture, which the plain reading floor judges. The report needs it
+    /// beside the prediction: a row withheld by this line is withheld for
+    /// its shape, not for being old or uninteresting.
+    pub dense_line: Option<f64>,
 }
 
 /// Inspect every row without changing which rows choose considers.
@@ -42,6 +49,7 @@ pub fn inspect(input: &ChoiceInput) -> Vec<RowAssessment> {
                 footprint: footprint_bytes(entry, input.context_tokens),
                 decode,
                 too_slow,
+                dense_line: dense_speed_floor(entry),
             }
         })
         .collect()

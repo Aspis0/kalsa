@@ -66,8 +66,8 @@ fn a_zero_slot_count_is_clamped_to_one_slot() {
 /// where it does not. The engine's division by one is exact, so aligning
 /// would trade tokens the engine pads back for nothing. Liquid LFM 2.5 (the
 /// Q8_0 file) on a 6.7 GB machine is the small machine the existing suite
-/// already pins — its 6101 tokens (after its 360 448-byte per-slot conv
-/// state) are below the default, so they stay 6101 — and the on-disk big row
+/// already pins — its 5742 tokens (after its 360 448-byte per-slot conv
+/// state) are below the default, so they stay 5742 — and the on-disk big row
 /// is what the app actually runs, where the automatic figure moves
 /// 262 144 → 65 536.
 #[test]
@@ -75,11 +75,11 @@ fn one_slot_is_still_todays_number() {
     let lfm = shipped_row("Liquid LFM 2.5");
     let small = memory_budget(Backend::Cpu, 6_700_000_000);
     let one = plan(&device_input(ServerBackend::Cpu, small, lfm, 1)).expect("fundable");
-    assert_eq!(one.args.context_tokens, 6_101);
+    assert_eq!(one.args.context_tokens, 5_742);
     assert_eq!(one.args.parallel, 1);
     assert_eq!(
         funded_context(lfm, small.usable_bytes, 1),
-        Some(6_101),
+        Some(5_742),
         "the preview reads the same window as the one-slot plan"
     );
 
@@ -113,16 +113,16 @@ fn the_automatic_context_is_the_chat_default_or_the_machines_own_figure() {
         "the intended change: this argv used to say 262144\n{line}"
     );
 
-    // A 6.7 GB machine funds 6101 and must keep getting 6101: the default
+    // A 6.7 GB machine funds 5742 and must keep getting 5742: the default
     // is a cap, never a promise the memory cannot keep.
     let lfm = shipped_row("Liquid LFM 2.5");
     let small = memory_budget(Backend::Cpu, 6_700_000_000);
     let automatic =
         plan(&device_input(ServerBackend::Cpu, small, lfm, 1)).expect("fundable");
-    assert_eq!(automatic.args.context_tokens, 6_101);
+    assert_eq!(automatic.args.context_tokens, 5_742);
     assert_eq!(
         funded_maximum(&device_input(ServerBackend::Cpu, small, lfm, 1)),
-        Some(6_101),
+        Some(5_742),
         "the maximum is the machine's own figure, not the default"
     );
 }
@@ -253,7 +253,7 @@ fn a_zero_trained_length_is_refused_at_every_slot_count() {
 
 /// THE floor refusal, and the only test of the floor: a machine that cannot
 /// give every slot 4096 tokens refuses rather than serving a smaller slot.
-/// Liquid LFM 2.5 (the Q8_0 file) on a 6.7 GB machine funds 6101 in total,
+/// Liquid LFM 2.5 (the Q8_0 file) on a 6.7 GB machine funds 5742 in total,
 /// so four slots would get about 1525 — below the 4096 a slot needs for a
 /// real conversation (`docs/MULTI-DEVICE-SHAPE.md` §4).
 #[test]
@@ -261,7 +261,7 @@ fn a_budget_that_cannot_floor_four_slots_is_refused() {
     let model = shipped_row("Liquid LFM 2.5");
     let budget = memory_budget(Backend::Cpu, 6_700_000_000);
     let one = plan(&device_input(ServerBackend::Cpu, budget, model, 1)).expect("one slot fits");
-    assert_eq!(one.args.context_tokens, 6_101);
+    assert_eq!(one.args.context_tokens, 5_742);
     assert!(
         one.args.context_tokens / 4 < MIN_CONTEXT_TOKENS_PER_SLOT,
         "the budget must be short of the floor for four slots"

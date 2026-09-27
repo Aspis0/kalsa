@@ -2,9 +2,11 @@
 //! model that can actually be downloaded.
 //!
 //! Rows arrive from the Hugging Face API (`lastModified`, `cardData.license`)
-//! and are never edited from memory. The refused rows stay in the research
-//! table on purpose: they were evaluated, and the next reader deserves to
-//! know why they are not in the running instead of redoing the work.
+//! and are never edited from memory. A row that loses its place — refused, or
+//! superseded by a better one — is REMOVED from both tables, and the row, the
+//! file and the reason live in `docs/RESEARCH-MODELS-2026-09-26.md` instead:
+//! these tables hold what is in the running, the research note holds what was
+//! ruled out and why, so the next reader does not redo the work.
 //!
 //! Two tables, and the split is the point. [`CATALOG`] is the research
 //! record: rows whose weights were sized on paper and whose file was never
@@ -335,6 +337,13 @@ pub const CATALOG: &[ModelEntry] = &[
         repo: "google/gemma-4-E2B-it",
         display_name: "Google Gemma 4 E2B",
         last_modified: "2026-07-20",
+        // Apache-2.0, checked two ways on 2026-09-26: every Gemma 4 file
+        // header carries `general.license: apache-2.0` with
+        // `general.license.link = https://ai.google.dev/gemma/docs/gemma_4_license`,
+        // which redirects to Google's own Apache License 2.0 page
+        // (ai.google.dev/gemma/apache_2 — "Apache License, Version 2.0,
+        // January 2004"), and Hugging Face's card field agrees
+        // (`cardData.license = apache-2.0`).
         licence: Licence::Open("apache-2.0"),
         // Dense, despite Google reporting 2.3B "effective" against 5.1B
         // physical: the effective count is Gemma's per-layer embeddings, not
@@ -442,6 +451,10 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // ── Google Gemma 4 26B-A4B, verified 2026-09-18 ────────────────────────
     // Google's own quantisation-aware training build, not a post-training
     // quantisation of it: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, apache-2.0
+    // (apache-2.0, as the file's own `general.license` says — and Google's
+    // `general.license.link` resolves to Google's Apache 2.0 page,
+    // ai.google.dev/gemma/apache_2, while the HF card field reads
+    // `apache-2.0`; both read 2026-09-26)
     // and `gated: false` from the repo's API record. `general.architecture`
     // read from the pinned file's own header is `gemma4`, found in
     // llama-arch.cpp at b10950 — quoting that file, `{ LLM_ARCH_GEMMA4,
@@ -754,15 +767,17 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // The same model the phone app ships, pinned at commit
     // `e7caca5d835a3901a8e0d63e94009429bafafdfc`, one file: Q8_0, the less
     // compressed quant the owner wants on PCs. At 2.87 GB of weights it still
-    // fits the 8 GB tier with room to spare at the chooser's 65_536-token
-    // window (about 3.95 GiB of footprint against a 5.0 GiB budget), so the
-    // smaller compression earns no tier of its own.
+    // fits the 8 GB tier at the chooser's 65_536-token window — 3.71 GiB of
+    // footprint (weights + 512 MiB of compute buffers + 65_536 tokens at
+    // 8_704 bytes) against a 5.0 GiB budget — so the smaller compression
+    // earns no tier of its own.
     //
     // `general.architecture` was read from THIS pinned file's own GGUF
     // header by range-requesting its first bytes: `lfm2` — found in
     // llama-arch.cpp at b10950, quoting that file:
     // `{ LLM_ARCH_LFM2, "lfm2" }` line 127. `curl -sIL` on the resolve URL
-    // returned exactly the `x-linked-size` and `x-linked-etag` below.
+    // returned exactly the `x-linked-size` 2_874_779_648 and the
+    // `x-linked-etag` below.
     //
     // Licence `lfm1.0` (read from this repo's own LICENSE), as a condition
     // and not a refusal: §1 Definitions — `"Threshold" shall mean annual
@@ -772,10 +787,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // Threshold`, (b) commercial use by an entity that exceeds it `is not
     // licensed under this Agreement`, (c) the Threshold does not apply to a
     // Qualified Non-Profit's non-commercial or research use.
-    // `curl -sIL` on the resolve URL returned exactly the `x-linked-size`
-    // 2_874_779_648 and the `x-linked-etag` below. The licence, the
-    // per-token cache and the per-slot term come from the header, derived
-    // under the Q4_K_M row's comment above.
     DownloadableEntry {
         model: ModelEntry {
             repo: "LiquidAI/LFM2.5-2.6B",
@@ -789,7 +800,25 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             quant: "Q8_0",
             weights_bytes: 2_874_779_648,
             mmproj_bytes: None,
-            kv_bytes_per_token: Some(8_192),
+            // From THIS pinned file's header: `lfm2.attention.head_count_kv`
+            // is per layer — 30 entries, 22 zeros and 8 eights — so 8 of the
+            // 30 blocks hold attention, with 8 KV heads each.
+            // `attention.key_length` / `value_length` are ABSENT from the
+            // header, and the engine defaults them to n_embd / n_head =
+            // 2048 / 32 = 64 (llama-model.cpp:1344-1349 at b10950, where the
+            // default is set before the key is looked up). So:
+            // 8 x 8 x (64 + 64) = 8_192 elements a token — 8_704 bytes at
+            // the q8_0 cache the launcher pins (34 bytes per 32 elements,
+            // the same 34/32 every other row is priced in).
+            kv_bytes_per_token: Some(8_704),
+            // The hybrid half: 22 of the 30 blocks are shortconv-recurrent
+            // (`src/models/lfm2.cpp:12` at b10950:
+            // `hparams.is_recr_impl[il] = hparams.n_head_kv(il) == 0`) and
+            // hold no per-token KV. Their conv history is per slot: F32, one
+            // row per sequence, `n_embd x (l_cache - 1)` elements
+            // (`llama-hparams.cpp:216` at b10950), read here as
+            // `lfm2.embedding_length 2048` and `lfm2.shortconv.l_cache 3` —
+            // 22 x 4_096 x 4 = 360_448 B per slot at every context.
             slot_cache: SlotCache::Recurrent {
                 bytes_per_slot: 360_448,
             },

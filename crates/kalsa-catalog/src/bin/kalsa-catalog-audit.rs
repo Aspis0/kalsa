@@ -1,7 +1,8 @@
 //! Print the catalog's choice and every row it leaves behind at memory tiers.
 //!
 //! Defaults describe a CPU machine with a paired, battery-powered dense 4B
-//! phone, 80 GB/s bandwidth, 100 GFLOP/s compute and an 8192-token context.
+//! phone, 80 GB/s bandwidth, 100 GFLOP/s compute and the chooser's own
+//! 65_536-token pricing window.
 //! Use --tiers and the other flags to inspect a different machine.
 //!
 //! ```text
@@ -100,17 +101,43 @@ fn print_tier(tier: u64, base: ChoiceInput) {
             None
         }
     };
-    println!("rejected rows:");
+    println!("other rows:");
     for row in rows.iter().filter(|row| Some(row.entry.repo) != winner) {
         println!(
-            "  - {} | {} | weights={} | footprint={} | {}",
+            "  - {} | {} | weights={} | footprint={} | {} | {}",
             row.entry.repo,
             row.entry.quant,
             gibs(row.entry.weights_bytes),
             gibs(row.footprint.total_bytes()),
+            offering(row, budget),
             rejection(row, budget)
         );
     }
+}
+
+/// The menu's own gates, in the order the chooser applies them: manifest
+/// standing, fit at the pricing window, the reading floor, the row's dense
+/// speed floor, a file to fetch. `offered` means on this machine's menu —
+/// the pick is one of them, chosen by preference, which is a separate
+/// question with its own sentence below.
+fn offering(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> &'static str {
+    if matches!(row.standing, Standing::Excluded { .. })
+        || row.footprint.total_bytes() > budget.usable_bytes
+        || row.too_slow
+        || !has_a_file(row.entry)
+    {
+        return "withheld";
+    }
+    if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
+        if decode.floor() < line {
+            return "withheld";
+        }
+    }
+    "offered"
+}
+
+fn has_a_file(entry: &kalsa_catalog::ModelEntry) -> bool {
+    kalsa_catalog::DOWNLOADABLE.iter().any(|row| row.model.repo == entry.repo)
 }
 
 fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> String {
@@ -123,6 +150,14 @@ fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget) -> String
         }
         if row.too_slow {
             reasons.push("too slow: predicted range is below 3.0 tok/s".to_string());
+        }
+        if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
+            if decode.floor() < line {
+                reasons.push(format!(
+                    "dense speed floor: predicts {floor:.1} tok/s, needs {line:.0}",
+                    floor = decode.floor()
+                ));
+            }
         }
         if reasons.is_empty() {
             reasons.push("not selected by the chooser's preference".to_string());

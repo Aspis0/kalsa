@@ -137,8 +137,9 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     // The correction is clamped at the whole file: a router can make a token
     // read more than its active share, but not more bytes than the model
     // has. Nothing on today's menu reaches that ceiling — the widest share is
-    // Phi-mini-MoE's 2.4 of 7.6 billion, and 0.32 x 2.06 is 0.65 of the file
-    // — so the clamp is a bound on the correction rather than a working part
+    // Google Gemma 4 26B's 3.8 of 25.2 billion active, and 0.15 x 2.06 is
+    // 0.31 of the file — so the clamp is a bound on the correction rather
+    // than a working part
     // of it. It stays because 2.06 is one machine's mean over four models,
     // not a law: a row whose active share went above 1/2.06 would otherwise
     // be charged for weights that do not exist, and the closer to dense it

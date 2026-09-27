@@ -1,4 +1,4 @@
-use kalsa_catalog::{Backend, ChoiceInput, Parameters, PhoneModel, GIB};
+use kalsa_catalog::{Backend, ChoiceInput, Parameters, PhoneModel, CHOOSER_CONTEXT_TOKENS, GIB};
 
 const DEFAULT_TIERS: &[u64] = &[8, 16, 32, 64];
 const PHONE_WEIGHTS: u64 = 2_834_975_040;
@@ -20,7 +20,7 @@ impl Config {
             bandwidth_bytes_per_second: 80.0e9,
             bandwidth_is_lower_bound: false,
             compute_flops_per_second: 100.0e9,
-            context_tokens: 8192,
+            context_tokens: CHOOSER_CONTEXT_TOKENS,
             phone: Some(PhoneModel {
                 weights_bytes: PHONE_WEIGHTS,
                 parameters: Some(Parameters::dense(4_000_000_000)),

@@ -254,9 +254,10 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
 /// above the 8192 MiB binary default it was meant to cap. Now the roof is
 /// carved first and the context takes the rest.
 ///
-/// Per shipped row, context before → after the amendment (Metal, measured
-/// through `plan`): Qwen 3.5 16 GiB 94 917 → 71 188; Granite 4 Tiny 32 GiB
-/// 213 642 → 160 232; Qwen 3.5 64 GiB 488 133 → 422 597. The lost tokens were never usable: a context
+/// Per row measured at the time (Metal, through `plan`): Qwen 3.5 16 GiB
+/// 94 917 → 71 188; Qwen 3.5 64 GiB 488 133 → 422 597 — the rows then in
+/// the table, two of them since removed, and the arithmetic unchanged. The
+/// lost tokens were never usable: a context
 /// ten times the model's training length is funded arithmetic, not memory
 /// anyone's conversation reaches. The roof itself is bounded by the chats
 /// it serves, never by the machine's size (see
@@ -675,8 +676,8 @@ mod tests {
         // weights and 512 MiB of compute buffers. The sleeping-chat reserve
         // takes a quarter of what is left, and the row's own per-slot conv
         // state (360_448 bytes, charged before a single token) comes out
-        // next: the rest, at the row's own 8192 bytes a token, buys 6101
-        // whole tokens. The machine could fund a 6102nd; the reserve PLUS
+        // next: the rest, at the row's own 8704 bytes a token, buys 5742
+        // whole tokens. The machine could fund a 5743rd; the reserve PLUS
         // the state is what stops it, and that boundary is what the last
         // assertions pin. `fits` prices only the flat per-token cache, so it
         // cannot show this boundary; it is left as a weak sanity check only.
@@ -687,7 +688,7 @@ mod tests {
             .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
         let launched = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the model is fundable");
-        assert_eq!(launched.args.context_tokens, 6_101);
+        assert_eq!(launched.args.context_tokens, 5_742);
         assert!(fits(model, launched.args.context_tokens, &budget));
         let state = slot_cache_bytes(
             model,
@@ -1039,10 +1040,10 @@ mod tests {
     /// the cache type stopped reaching the arithmetic, both plans would
     /// carry the same context and this goes RED.
     ///
-    /// Row and budget: Granite 4 Tiny on 8 GiB of CPU. The memory funds 3993
-    /// tokens at q8_0 on 7 GiB, below its 131_072-token trained cap, so the
-    /// cap does not bind and the halving is visible: 80_826 at q8_0 and
-    /// 40_413 at f16, which is `80_826 / 2` floored. The row's F32 per-slot
+    /// Row and budget: Liquid LFM 2.5 (the Q8_0 file) on 7 GiB of CPU. The
+    /// memory funds 76_071 tokens at q8_0, below its 131_072-token trained
+    /// cap, so the cap does not bind and the halving is visible: 76_071 at
+    /// q8_0 and 38_035 at f16, which is `76_071 / 2` floored. The row's F32 per-slot
     /// conv state is charged first and does NOT double with the cache type,
     /// so the equality is the floored one the assertion states.
     #[test]
@@ -1061,11 +1062,11 @@ mod tests {
         // The plan takes the chat default where the budget funds more of it,
         // and the budget's own smaller figure where it does not.
         assert_eq!(q8_0.args.context_tokens, 65_536);
-        assert_eq!(f16.args.context_tokens, 40_413);
+        assert_eq!(f16.args.context_tokens, 38_035);
         let q8_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
         let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
-        assert_eq!(q8_funded, 80_826);
-        assert_eq!(f16_funded, 40_413);
+        assert_eq!(q8_funded, 76_071);
+        assert_eq!(f16_funded, 38_035);
         assert_eq!(
             f16_funded,
             q8_funded / 2,

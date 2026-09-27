@@ -311,13 +311,14 @@ pub(crate) fn dto(
     };
     // Against the row on the page, not against the biggest that fits: with a
     // phone paired those can differ, and "faster" has to mean faster than
-    // what the owner is looking at.
-    let shown_input = ChoiceInput {
-        context_tokens: SPEED_CONTEXT_TOKENS,
-        ..input
-    };
+    // what the owner is looking at. The FIT is the chooser's own question and
+    // is asked at [`CHOOSER_CONTEXT_TOKENS`] — the window the pick itself
+    // must hold — while `prediction` is the pick's speed as SHOWN, priced at
+    // [`SPEED_CONTEXT_TOKENS`], which is the only part that window still
+    // touches: the second card is tested at the product's window and quoted
+    // at the conversation length its number is labelled with.
     let quicker = decode
-        .and_then(|prediction| quicker_alternative(&shown_input, &prediction))
+        .and_then(|prediction| quicker_alternative(&input, &prediction))
         .map(|row| {
             let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
             let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
@@ -728,7 +729,7 @@ mod tests {
         // the measurements: slower or equal drops the speed claim and says
         // only what stays true — the size.
         let root = records_root("quicker-reason");
-        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let first = dto(&pair_machine(), 16 * GIB, None, false, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -773,7 +774,7 @@ mod tests {
             kalsa_tune::record::save(&root, digest, &record).expect("file the record");
         }
 
-        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let again = dto(&pair_machine(), 16 * GIB, None, false, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -930,7 +931,7 @@ mod tests {
         // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
         // The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
-            dto(&measured(Backend::Cpu), 16 * GIB, None, true, &records_root("largest"))
+            dto(&pair_machine(), 16 * GIB, None, true, &records_root("largest"))
         else {
             panic!("a measured machine answers Measured");
         };
@@ -961,6 +962,17 @@ mod tests {
                     option.details
                 );
             }
+        }
+    }
+
+    /// The fixture machine at a bandwidth where the 16 GiB tier has
+    /// both a pick and a second option: at the fixture's 80 GB/s the 12B
+    /// predicts under its small-dense line and nothing clears twice
+    /// whatever is left.
+    fn pair_machine() -> Measurement {
+        Measurement {
+            decode_bytes_per_second: Some(150.0e9),
+            ..measured(Backend::Cpu)
         }
     }
 

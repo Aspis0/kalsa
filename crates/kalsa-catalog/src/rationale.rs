@@ -261,6 +261,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_assumed_cache_is_admitted_in_the_sentence() {
+        // Every shipped row carries its own per-token figure now, so the
+        // admission needs a fixture: the research row with no measurement,
+        // built through the same candidate the chooser builds, must say what
+        // was assumed and what the window costs. The pick tests promise this
+        // sentence never appears on a measured row; without this test nothing
+        // proves it still appears at all.
+        let entry = crate::manifest::CATALOG
+            .iter()
+            .find(|row| row.repo == "Qwen/Qwen3.5-4B")
+            .expect("a research row with no measured cache");
+        let usable = crate::manifest::UsableEntry::for_test(entry);
+        let input = ChoiceInput {
+            backend: crate::Backend::Cpu,
+            ram_bytes: 16 * GIB,
+            bandwidth_bytes_per_second: 85.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: 8_192,
+            phone: None,
+        };
+        let chosen = crate::candidate::candidate(usable, &input);
+        let budget = crate::footprint::memory_budget(input.backend, input.ram_bytes);
+        let phone = PhoneModel {
+            weights_bytes: 2_834_975_040,
+            parameters: Some(crate::parameters::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: None,
+            battery_powered: Some(true),
+        };
+        let text = details(&chosen, &input, &phone, budget, Justification::Relief);
+        assert!(text.contains("Memory is an estimate"), "{text}");
+        assert!(text.contains("has not been measured yet"), "{text}");
+        assert!(text.contains("per token was assumed"), "{text}");
+    }
+
+    #[test]
     fn a_floor_prints_words_and_a_range_prints_its_band() {
         // The shape is decided by the type, not by the caller picking a
         // formatter: one render, and a floor can never wear a figure —
