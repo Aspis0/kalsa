@@ -1,1 +1,1 @@
-[16:55:46] SCREEN_RESTORED timeout=60000 stayon=1
+restore 2026-09-26 21:23:47 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 pkill=spec-simple rc=0

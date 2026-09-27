@@ -1,6 +1,6 @@
-tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	status	void	proof	wall_s
-A	A	1	127	na	na	na	na	na	VOID	timeout	142	1
-B4	B4	1	127	na	na	na	na	na	VOID	timeout	142	1
-B8	B8	1	127	na	na	na	na	na	VOID	timeout	142	1
-C4	C4	1	127	na	na	na	na	na	VOID	timeout	142	1
-C8	C8	1	127	na	na	na	na	na	VOID	timeout	142	1
+tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	cooldown_s	warm_start	skin_before	skin_after	status	void	proof	wall_s	final
+A-p	A	0	4	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
+B4-p	B4	0	4	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
+B8-p	B8	0	4	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
+C4-p	C4	0	4	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void
+C8-p	C8	0	4	na	na	na	na	na	0	0	33.5	na	VOID	timeout	142	1	void

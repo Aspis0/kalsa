@@ -1,0 +1,11 @@
+[21:25:58] SESSION job=dry-pgrepbroken board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[21:25:58] GATE label=before_setup
+[21:25:59] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:25:59] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[21:25:59] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[21:26:00] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[21:26:00] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[21:26:00] GATE label=after_push
+[21:26:00] KIT_AND_MODELS_VERIFIED
+[21:26:00] GATE label=setup
+[21:26:01] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0

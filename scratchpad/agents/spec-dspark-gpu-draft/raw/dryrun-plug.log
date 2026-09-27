@@ -1,4 +1,7 @@
-[16:55:47] SESSION job=dry-plug board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[16:55:47] GATE label=before_setup
-[16:55:47] STOP reason=plugged
-[16:55:47] SESSION_STOP reason=plugged
+[21:23:48] SESSION job=dry-plug board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[21:23:48] GATE label=before_setup
+[21:23:49] STOP reason=plugged
+[21:23:49] PKILL_UNVERIFIED ctx=stop_plugged pgrep_rc=missing — remote llama-completion may still be running
+[21:23:49] KILL_VERIFY reason=stop_plugged result=gone attempt=1
+[21:23:49] SESSION_STOP reason=plugged
+[21:23:49] KILL_VERIFY reason=cleanup_rc0_signone result=gone attempt=1

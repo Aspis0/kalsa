@@ -1,0 +1,44 @@
+[21:24:23] SESSION job=dry-jitter board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[21:24:23] GATE label=before_setup
+[21:24:24] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:24:24] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[21:24:24] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[21:24:24] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[21:24:24] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[21:24:25] GATE label=after_push
+[21:24:25] KIT_AND_MODELS_VERIFIED
+[21:24:25] GATE label=setup
+[21:24:25] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[21:24:26] GATE label=post_A-p
+[21:24:27] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[21:24:28] GATE label=post_B4-p
+[21:24:28] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[21:24:29] GATE label=post_B8-p
+[21:24:29] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[21:24:30] GATE label=post_C4-p
+[21:24:30] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[21:24:31] GATE label=post_C8-p
+[21:24:32] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[21:24:33] GATE label=post_A
+[21:24:33] ARM_DONE tag=A limit=127 n=128 status=OK void=na accept=nan% tps=16.000
+[21:24:34] GATE label=post_B4
+[21:24:34] ARM_DONE tag=B4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[21:24:35] GATE label=post_B8
+[21:24:35] ARM_DONE tag=B8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[21:24:36] GATE label=post_C4
+[21:24:37] ARM_DONE tag=C4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[21:24:38] GATE label=post_C8
+[21:24:38] ARM_DONE tag=C8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[21:24:39] GATE label=post_A-m1
+[21:24:39] ARM_DONE tag=A-m1 limit=135 n=136 status=OK void=na accept=nan% tps=17.000
+[21:24:40] GATE label=post_B4-m1
+[21:24:40] ARM_DONE tag=B4-m1 limit=131 n=135 status=OK void=na accept=56.000% tps=16.875
+[21:24:41] GATE label=post_C4-m1
+[21:24:41] ARM_DONE tag=C4-m1 limit=131 n=135 status=OK void=na accept=56.000% tps=16.875
+[21:24:43] GATE label=post_B4-m2
+[21:24:43] ARM_DONE tag=B4-m2 limit=132 n=136 status=OK void=na accept=56.000% tps=17.000
+[21:24:44] GATE label=post_C4-m2
+[21:24:44] ARM_DONE tag=C4-m2 limit=132 n=136 status=OK void=na accept=56.000% tps=17.000
+[21:24:44] GATE label=post_session
+[21:24:44] MATCH ok n=136 arms=5 (final=matched rows are the measurement)
+[21:24:44] SESSION_DONE

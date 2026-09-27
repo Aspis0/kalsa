@@ -1,0 +1,2 @@
+reason=stop_missing_battery_temp pkill_out=
+reason=cleanup_rc0_signone pkill_out=

@@ -2,8 +2,9 @@
 # Host calibration for the DSpark arms' PLAN predictions: prompt EOG check,
 # the n_max=0 no-speculation control (arm A), acceptance priors for n_max 4
 # and 8 on the frozen PROMPT.txt, and overshoot stability at two limits
-# (the matched-N method's assumption). CPU only, engine f25f0c1c5, greedy.
-# One run per case; prints one summary line per case.
+# (the matched-N method's assumption). CPU only, engine f25f0c1c5, greedy,
+# `-t 5` = S23 app preset (3-way decision after audit dd6bdb56); `-ngld 0`
+# mirrors the device drafter flags. One run per case; one summary line each.
 set -euo pipefail
 
 CELL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +25,7 @@ run() {
   local tag=$1 n_max=$2 limit=$3 log="$RAW/calib_$1.log"
   local rc=0
   "$BIN" -m "$TARGET" -md "$DRAFT" --spec-type draft-dspark --spec-draft-n-max "$n_max" \
-    -f "$PROMPT" -n "$limit" --temp 0 --top-k 1 -t 8 -ngl 0 > "$log" 2>&1 || rc=$?
+    -f "$PROMPT" -n "$limit" --temp 0 --top-k 1 -t 5 -ngl 0 -ngld 0 > "$log" 2>&1 || rc=$?
   local n_pred n_draft n_acc acc speed
   n_pred=$(awk '/n_predict = /{v=$NF} END{print v}' "$log")
   n_draft=$(awk '/n_drafted = /{v=$NF} END{print v}' "$log")
@@ -51,3 +52,8 @@ run armB8_127 8 127
 # B1/B6: overshoot at a second limit (matched-N iteration assumes it is stable).
 run armB4_63 4 63
 run armB8_63 8 63
+# B6: matched-N convergence on the host (PLAN: probes A=128, B4=132, B8=136
+# -> A@135 and B4@131 both land on 136; B4@123 shows the downward shift).
+run armA_135 0 135
+run armB4_131 4 131
+run armB4_123 4 123

@@ -1,42 +1,45 @@
 warning: no usable GPU found, --gpu-layers option will be ignored
 warning: one possible reason is that llama.cpp was compiled without GPU support
 warning: consult docs/build.md for compilation instructions
-0.00.368.625 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
-0.00.380.098 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
-0.01.183.129 I cmn          init: llama threadpool init, n_threads = 8
-0.01.281.366 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
-0.01.776.111 W create_memory: not sharing cells: the other context's memory is of another class
-0.01.975.099 I speculative decoding will use checkpoints (context does not support partial sequence removal)
+warning: no usable GPU found, --gpu-layers-draft option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.480.801 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
+0.00.502.067 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.01.379.217 I cmn          init: llama threadpool init, n_threads = 5
+0.01.460.596 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
+0.02.043.546 W create_memory: not sharing cells: the other context's memory is of another class
+0.02.273.421 I speculative decoding will use checkpoints (context does not support partial sequence removal)
 
 
-<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.01.975.231 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
-0.01.975.232 I common_speculative_impl_draft_dflash: - n_max=0, n_min=0, p_min=0.00
-0.01.975.232 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
+<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.02.273.564 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
+0.02.273.565 I common_speculative_impl_draft_dflash: - n_max=0, n_min=0, p_min=0.00
+0.02.273.566 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
  adding new details in every paragraph. Keep writing continuously without stopping, adding new details in every paragraph. Repeat the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week.
 
 The instructions are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions 1-4 are contradictory. Instructions
 
-0.05.411.968 I encoded   77 tokens in    0.245 seconds, speed:  314.514 t/s
-0.05.411.969 I decoded  128 tokens in    3.192 seconds, speed:   40.101 t/s
-0.05.411.969 I 
-0.05.411.969 I n_draft   = 0
-0.05.411.969 I n_predict = 128
-0.05.411.974 I n_drafted = 0
-0.05.411.974 I n_accept  = 0
-0.05.411.975 I accept    = nan%
-0.05.411.975 I 
-0.05.411.975 I draft:
+0.06.392.571 I encoded   77 tokens in    0.478 seconds, speed:  161.188 t/s
+0.06.392.572 I decoded  128 tokens in    3.641 seconds, speed:   35.152 t/s
+0.06.392.572 I 
+0.06.392.572 I n_draft   = 0
+0.06.392.572 I n_predict = 128
+0.06.392.573 I n_drafted = 0
+0.06.392.573 I n_accept  = 0
+0.06.392.573 I accept    = nan%
+0.06.392.573 I 
+0.06.392.573 I draft:
 
-0.05.411.981 I 
-0.05.411.982 I target:
+0.06.392.581 I 
+0.06.392.581 I target:
 
-0.05.411.982 I common_perf_print:    sampling time =      10.39 ms
-0.05.411.983 I common_perf_print:    samplers time =       6.10 ms /   128 tokens
-0.05.411.983 I common_perf_print:        load time =     821.05 ms
-0.05.411.984 I common_perf_print: prompt eval time =      41.27 ms /    78 tokens (    0.53 ms per token,  1890.04 tokens per second)
-0.05.411.985 I common_perf_print:        eval time =    1957.73 ms /   128 runs   (   15.29 ms per token,    65.38 tokens per second)
-0.05.411.985 I common_perf_print:       total time =    4130.65 ms /   206 tokens
-0.05.411.986 I common_perf_print: unaccounted time =    2121.26 ms /  51.4 %      (total - sampling - prompt eval - eval) / (total)
-0.05.411.986 I common_perf_print:    graphs reused =        128
+0.06.392.582 I common_perf_print:    sampling time =      12.28 ms
+0.06.392.582 I common_perf_print:    samplers time =       7.04 ms /   128 tokens
+0.06.392.583 I common_perf_print:        load time =     873.41 ms
+0.06.392.584 I common_perf_print: prompt eval time =      59.26 ms /    78 tokens (    0.76 ms per token,  1316.21 tokens per second)
+0.06.392.584 I common_perf_print:        eval time =    3046.91 ms /   128 runs   (   23.80 ms per token,    42.01 tokens per second)
+0.06.392.585 I common_perf_print:       total time =    4932.02 ms /   206 tokens
+0.06.392.585 I common_perf_print: unaccounted time =    1813.57 ms /  36.8 %      (total - sampling - prompt eval - eval) / (total)
+0.06.392.585 I common_perf_print:    graphs reused =        128
 
 

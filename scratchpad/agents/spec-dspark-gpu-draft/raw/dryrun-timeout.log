@@ -1,32 +1,28 @@
-[16:55:48] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[16:55:48] GATE label=before_setup
-[16:55:48] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[16:55:48] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[16:55:48] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[16:55:48] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[16:55:48] KIT_AND_MODELS_VERIFIED
-[16:55:48] GATE label=setup
-[16:55:48] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false
-[16:55:48] GATE label=pre_A
-[16:55:49] ARM_KILL_ORPHAN tag=A
-[16:55:49] ARM_TIMEOUT tag=A rc=142
-[16:55:49] GATE label=post_A
-[16:55:49] GATE label=pre_B4
-[16:55:50] ARM_KILL_ORPHAN tag=B4
-[16:55:50] ARM_TIMEOUT tag=B4 rc=142
-[16:55:50] GATE label=post_B4
-[16:55:50] GATE label=pre_B8
-[16:55:52] ARM_KILL_ORPHAN tag=B8
-[16:55:52] ARM_TIMEOUT tag=B8 rc=142
-[16:55:52] GATE label=post_B8
-[16:55:52] GATE label=pre_C4
-[16:55:53] ARM_KILL_ORPHAN tag=C4
-[16:55:53] ARM_TIMEOUT tag=C4 rc=142
-[16:55:53] GATE label=post_C4
-[16:55:53] GATE label=pre_C8
-[16:55:54] ARM_KILL_ORPHAN tag=C8
-[16:55:54] ARM_TIMEOUT tag=C8 rc=142
-[16:55:54] GATE label=post_C8
-[16:55:54] MATCH void n_star=0
-[16:55:54] GATE label=post_session
-[16:55:54] SESSION_DONE
+[21:25:07] SESSION job=dry-timeout board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[21:25:07] GATE label=before_setup
+[21:25:08] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[21:25:08] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[21:25:08] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[21:25:08] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[21:25:08] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[21:25:09] GATE label=after_push
+[21:25:09] KIT_AND_MODELS_VERIFIED
+[21:25:09] GATE label=setup
+[21:25:09] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[21:25:10] KILL_VERIFY reason=timeout_A-p result=gone attempt=1
+[21:25:10] PROOF_TIMEOUT arm=A rc=142
+[21:25:10] GATE label=post_A-p
+[21:25:12] KILL_VERIFY reason=timeout_B4-p result=gone attempt=1
+[21:25:12] PROOF_TIMEOUT arm=B4 rc=142
+[21:25:12] GATE label=post_B4-p
+[21:25:13] KILL_VERIFY reason=timeout_B8-p result=gone attempt=1
+[21:25:13] PROOF_TIMEOUT arm=B8 rc=142
+[21:25:13] GATE label=post_B8-p
+[21:25:14] KILL_VERIFY reason=timeout_C4-p result=gone attempt=1
+[21:25:14] PROOF_TIMEOUT arm=C4 rc=142
+[21:25:14] GATE label=post_C4-p
+[21:25:16] KILL_VERIFY reason=timeout_C8-p result=gone attempt=1
+[21:25:16] PROOF_TIMEOUT arm=C8 rc=142
+[21:25:16] GATE label=post_C8-p
+[21:25:16] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID
+[21:25:16] KILL_VERIFY reason=cleanup_rc3_signone result=gone attempt=1

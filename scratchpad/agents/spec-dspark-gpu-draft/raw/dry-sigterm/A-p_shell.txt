@@ -1,0 +1,1 @@
+[21:25:20] KILL_VERIFY reason=cleanup_rc0_sigTERM result=gone attempt=1

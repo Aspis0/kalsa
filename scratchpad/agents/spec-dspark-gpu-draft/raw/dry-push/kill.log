@@ -1,0 +1,3 @@
+reason=poll_stop pkill_out=
+reason=stop_battery_temp pkill_out=
+reason=cleanup_rc0_signone pkill_out=

@@ -1,0 +1,9 @@
+0.00.000.082 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.083 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.900.001 I decoded  132 tokens in    8.000 seconds, speed:   16.500 t/s
+0.00.000.084 I n_draft   = 4
+0.00.000.085 I n_predict = 132
+0.00.000.086 I n_drafted = 264
+0.00.000.087 I n_accept  = 0
+0.00.000.088 I accept    = 56.000%
+EXIT=0

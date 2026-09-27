@@ -1,39 +1,42 @@
 warning: no usable GPU found, --gpu-layers option will be ignored
 warning: one possible reason is that llama.cpp was compiled without GPU support
 warning: consult docs/build.md for compilation instructions
-0.00.374.585 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
-0.00.388.783 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
-0.01.190.485 I cmn          init: llama threadpool init, n_threads = 8
-0.01.272.546 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
-0.01.771.558 W create_memory: not sharing cells: the other context's memory is of another class
+warning: no usable GPU found, --gpu-layers-draft option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.461.355 E llama_init_from_model: failed to initialize the context: dflash requires ctx_other to be set (this warning is normal during memory fitting)
+0.00.482.674 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.01.380.540 I cmn          init: llama threadpool init, n_threads = 5
+0.01.464.245 I common_speculative_init_result: loading draft model '/Users/marco/kalsa-models/mac/LFM2.5-2.6B-DSpark-Q8_0.gguf'
+0.02.001.096 W create_memory: not sharing cells: the other context's memory is of another class
 
 
-<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.01.937.522 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
-0.01.937.526 I common_speculative_impl_draft_dflash: - n_max=3, n_min=0, p_min=0.00
-0.01.937.527 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
+<|startoftext|>Write a detailed first-person travel diary about a week-long hiking trip along a rugged coastline. For each day of the week, describe the weather, the quality of the light, the plants and birds encountered, the simple food cooked at camp, the people met on the trail, and the thoughts that came while walking. Keep writing continuously without stopping, adding new details in every paragraph.0.02.164.930 I common_speculative_impl_draft_dflash: adding speculative implementation 'draft-dspark'
+0.02.164.932 I common_speculative_impl_draft_dflash: - n_max=3, n_min=0, p_min=0.00
+0.02.164.933 I common_speculative_impl_draft_dflash: - block_size=9, mask_token_id=125017, n_extract=5, sample_from_anchor=true
  adding new details in every paragraph. Keep writing continuously without stopping, adding new details in every paragraph. Repeat the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week repeating the sequence of the days of the week.
 
-0.03.326.225 I encoded   77 tokens in    0.368 seconds, speed:  209.360 t/s
-0.03.326.225 I decoded   66 tokens in    1.021 seconds, speed:   64.647 t/s
-0.03.326.225 I 
-0.03.326.226 I n_draft   = 3
-0.03.326.226 I n_predict = 66
-0.03.326.226 I n_drafted = 70
-0.03.326.226 I n_accept  = 42
-0.03.326.226 I accept    = 60.000%
-0.03.326.227 I 
-0.03.326.227 I draft:
+0.03.852.325 I encoded   77 tokens in    0.401 seconds, speed:  192.084 t/s
+0.03.852.326 I decoded   66 tokens in    1.287 seconds, speed:   51.300 t/s
+0.03.852.326 I 
+0.03.852.326 I n_draft   = 3
+0.03.852.326 I n_predict = 66
+0.03.852.326 I n_drafted = 70
+0.03.852.327 I n_accept  = 42
+0.03.852.327 I accept    = 60.000%
+0.03.852.327 I 
+0.03.852.327 I draft:
 
-0.03.326.234 I 
-0.03.326.234 I target:
+0.03.852.336 I 
+0.03.852.336 I target:
 
-0.03.326.235 I common_perf_print:    sampling time =       5.13 ms
-0.03.326.235 I common_perf_print:    samplers time =       3.02 ms /    66 tokens
-0.03.326.235 I common_perf_print:        load time =     803.71 ms
-0.03.326.237 I common_perf_print: prompt eval time =     443.56 ms /   170 tokens (    2.61 ms per token,   383.27 tokens per second)
-0.03.326.238 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
-0.03.326.240 I common_perf_print:       total time =    2053.72 ms /   171 tokens
-0.03.326.241 I common_perf_print: unaccounted time =    1605.04 ms /  78.2 %      (total - sampling - prompt eval - eval) / (total)
-0.03.326.241 I common_perf_print:    graphs reused =         21
+0.03.852.336 I common_perf_print:    sampling time =       5.39 ms
+0.03.852.337 I common_perf_print:    samplers time =       3.22 ms /    66 tokens
+0.03.852.337 I common_perf_print:        load time =     897.34 ms
+0.03.852.338 I common_perf_print: prompt eval time =     682.24 ms /   170 tokens (    4.01 ms per token,   249.18 tokens per second)
+0.03.852.339 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
+0.03.852.339 I common_perf_print:       total time =    2388.13 ms /   171 tokens
+0.03.852.340 I common_perf_print: unaccounted time =    1700.50 ms /  71.2 %      (total - sampling - prompt eval - eval) / (total)
+0.03.852.340 I common_perf_print:    graphs reused =         21
 
 

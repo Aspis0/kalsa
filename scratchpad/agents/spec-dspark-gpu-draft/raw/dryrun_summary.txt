@@ -1,60 +1,165 @@
-== fixture: happy path — probes + matched-N, sha-verified push, restore ==
+== happy: proofs + probes + matched-N, prefixed logs, no debug in measured turns ==
 PASS  happy rc
 PASS  happy END
 PASS  happy rows
-PASS  happy probe arms
+PASS  happy rows attempt0
+PASS  happy rows attempt1
+PASS  happy rows attempt>1
 PASS  happy probe N
 PASS  happy matched N
 PASS  happy match-gate
 PASS  happy all-OK
+PASS  happy final proof
+PASS  happy final matched
+PASS  happy final superseded
+PASS  happy final void
 PASS  happy A no-spec
+PASS  happy B8 tps
 PASS  happy C4 gpu-proof
 PASS  happy C4 kernel-proof
 PASS  happy B4 cpu-proof
+PASS  happy B4 cpu-proof-order
+PASS  happy skin_before
+PASS  happy cooldown
+PASS  happy warm_start
+PASS  happy proof-prefixed-placement
+PASS  happy measured-no-placement
+PASS  happy measured-prefix
+PASS  happy EXIT-unprefixed
+PASS  happy kernels-unprefixed-6
 PASS  happy kit-verified
+PASS  happy battery-trusted
 PASS  happy pushed kit.tgz
 PASS  happy pushed ship.gguf
 PASS  happy pushed draft.gguf
 PASS  happy pushed prompt.txt
-PASS  happy no pkill
-PASS  happy screen-restored
+PASS  happy no-kill-verify
+PASS  happy only-restore-pkill
+PASS  happy restore-pkill-target
+PASS  happy restore-ran
 PASS  happy timeout-restored
 PASS  happy stayon-restored
+PASS  happy state-consumed
 PASS  happy no-unknown-shell
-== fixture: battery >= 44.0 C stops BEFORE the push ==
-PASS  batt rc
-PASS  batt END
-PASS  batt rows
-PASS  batt no-push
-== fixture: thermal >= 3 stops MID-ARM and kills the binary ==
+== B-8: battery sensor untrusted (dumpsys != sysfs twice) arms the skin stop ==
+PASS  untrusted rc
+PASS  untrusted END
+PASS  untrusted verdict
+PASS  untrusted armed
+PASS  untrusted file
+== B-7: stop DURING the multi-GB push window (poll active), before unpack ==
+PASS  push rc
+PASS  push END
+PASS  push stop-file
+PASS  push no-unpack
+PASS  push kill-verified
+PASS  push rows
+== B-1: thermal stop mid-probe-arm + verified kill ==
 PASS  thermal rc
 PASS  thermal END
 PASS  thermal rows
 PASS  thermal void
 PASS  thermal killed-spec
-PASS  thermal screen-restored
+PASS  thermal kill-verified
+PASS  thermal restore-ran
 PASS  thermal timeout-restored
 PASS  thermal stayon-restored
-== fixture: level <= 25 % stops ==
+PASS  thermal state-consumed
+== owner stops, pre-push: battery >= 44.0 C / level <= 25 % / plugged / missing ==
+PASS  batt rc
+PASS  batt END
+PASS  batt rows
+PASS  batt no-push
+PASS  batt kill-verified
 PASS  level rc
 PASS  level END
 PASS  level rows
-== fixture: plugged stops ==
 PASS  plug rc
 PASS  plug END
 PASS  plug rows
-== fixture: missing battery temp fails closed ==
 PASS  miss rc
 PASS  miss END
 PASS  miss rows
-== fixture: arm timeout orphans the remote process -> kill + VOID ==
+== B-4: cooldown caps at COOL_MAX_S and flags warm_start + skin columns ==
+PASS  cooldown rc
+PASS  cooldown END
+PASS  cooldown warm row
+PASS  cooldown waited row
+PASS  cooldown skin row
+PASS  cooldown match
+== B-6: jittered overshoot still converges inside MATCH_MAX ==
+PASS  jitter rc
+PASS  jitter END
+PASS  jitter rows
+PASS  jitter second-round tag
+PASS  jitter match
+PASS  jitter final matched
+== B-3: non-converging arm -> END=match_void, exit 3, final=void_match ==
+PASS  matchvoid rc
+PASS  matchvoid END
+PASS  matchvoid rows
+PASS  matchvoid matched-tag
+PASS  matchvoid void_match-tag
+PASS  matchvoid proof-tag
+PASS  matchvoid no-success-log
+PASS  matchvoid restore-ran
+PASS  matchvoid timeout-restored
+PASS  matchvoid stayon-restored
+PASS  matchvoid state-consumed
+== B-1: timeout kills AND verifies; void session not success ==
 PASS  timeout rc
 PASS  timeout END
 PASS  timeout rows
 PASS  timeout void
+PASS  timeout kill-verified
 PASS  timeout killed-spec
-PASS  timeout screen-restored
+PASS  timeout restore-ran
 PASS  timeout timeout-restored
 PASS  timeout stayon-restored
+PASS  timeout state-consumed
+== B-1: SIGTERM mid-run -> kill verified, restore ran, exit 143 ==
+PASS  sigterm rc
+PASS  sigterm END
+PASS  sigterm kill-verified
+PASS  sigterm binary-dead
+PASS  sigterm restore-ran
+PASS  sigterm timeout-restored
+PASS  sigterm stayon-restored
+PASS  sigterm state-consumed
+== B-9: SIGHUP mid-run -> same kill+restore, exit 129 ==
+PASS  sighup rc
+PASS  sighup END
+PASS  sighup kill-verified
+PASS  sighup restore-ran
+PASS  sighup timeout-restored
+PASS  sighup stayon-restored
+PASS  sighup state-consumed
+== B-2: SIGKILL leaves state; standalone restore.sh repairs; poll dies with parent ==
+PASS  sigkill rc
+PASS  sigkill state-left
+PASS  sigkill mutated-timeout
+PASS  sigkill mutated-stayon
+PASS  sigkill poll-died
+PASS  sigkill restore rc
+PASS  sigkill timeout-restored
+PASS  sigkill stayon-restored
+PASS  sigkill state-consumed
+== B-2: re-run after SIGKILL repairs stale state (no clobber, ends at original values) ==
+PASS  rerun rc
+PASS  rerun END
+PASS  rerun repaired-stale
+PASS  rerun timeout-final
+PASS  rerun stayon-final
+== B-1: pkill that does NOT kill -> KILL_VERIFY=ALIVE recorded loudly ==
+PASS  killfail rc
+PASS  killfail END
+PASS  killfail alive-recorded
+PASS  killfail marker
+== B-1: broken/missing pgrep -> KILL_VERIFY=pgrep_broken, never a silent gone ==
+PASS  pgrepbroken rc
+PASS  pgrepbroken END
+PASS  pgrepbroken recorded
+PASS  pgrepbroken marker
 
-SUMMARY pass=51 fail=0
+SUMMARY pass=147 fail=0
+EXIT=0

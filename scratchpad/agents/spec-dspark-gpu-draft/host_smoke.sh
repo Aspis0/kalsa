@@ -3,7 +3,9 @@
 # Engine: kalsallama @ f25f0c1c5 (worktree /Users/marco/Projects/kalsallama-wt-oom,
 # host build build/bin). Target LFM2.5-2.6B QAD-Q4_0 on CPU, draft DSpark Q8_0 on CPU,
 # --spec-type draft-dspark, greedy, -n 64, PROMPT = the cell's frozen PROMPT.txt
-# (identical to PLAN.md and every device arm — audit B7). Writes output to stdout.
+# (identical to PLAN.md and every device arm — audit B7). Host threads `-t 5`
+# (S23 app preset, 3-way decision after audit dd6bdb56); `-ngld 0` mirrors the
+# device A/B drafter flags so a flag typo dies on the host. Output to stdout.
 set -euo pipefail
 
 CELL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,5 +26,5 @@ sha=$(/usr/bin/shasum -a 256 "$PROMPT" | awk '{print $1}')
   -m "$TARGET" \
   -md "$DRAFT" \
   --spec-type draft-dspark \
-  -n 64 --temp 0 --top-k 1 -t 8 -ngl 0 \
+  -n 64 --temp 0 --top-k 1 -t 5 -ngl 0 -ngld 0 \
   -f "$PROMPT"
