@@ -1,3 +1,16 @@
+== fixture: parsers against the COMMITTED real S23 calib logs (run 3, ecf70a63) ==
+PASS  real npu proof status
+PASS  real npu arch=v73 from session uri
+PASS  real npu execute-op count (device)
+PASS  real npu scaled min (13 tok x 0.86 -> 12)
+PASS  real cpu proof status
+PASS  real cpu proof counts (device)
+PASS  real gpu proof status
+PASS  real gpu proof counts (device)
+PASS  real cpu fp proof == turn
+PASS  real gpu fp proof == turn
+PASS  real cpu extractor keeps CPU_REPACK
+PASS  real npu buf placement carries HTP0
 == fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
 PASS  six-arms shell-syntax
 PASS  six rc
@@ -103,7 +116,7 @@ PASS  bfp rc
 PASS  bfp rows
 PASS  bfp void_reason
 PASS  bfp turn says CPU
-PASS  bfp proof says GPUOpenCL
+PASS  bfp proof carries the GPU set
 PASS  bfp END
 PASS  backend-mismatch restore-ran
 PASS  backend-mismatch timeout-restored
@@ -378,4 +391,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=340 FAIL=0
+dryrun summary: PASS=352 FAIL=0

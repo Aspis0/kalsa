@@ -47,7 +47,7 @@ run_fixture prior-restore CG seed_prior_restore
 eq "prs rc" 0 "$RC"
 assert_end prs exit_0
 eq "prs prior restore log" yes "$([ -f "$RAW/prior_restore.log" ] && echo yes || echo no)"
-eq "prs fresh state captured pristine" "STAYON=1" "$(grep '^STAYON=' "$CELL/.restore-state" 2>/dev/null)"
+eq "prs fresh state captured pristine" "STAYON=1" "$(grep -a '^STAYON=' "$CELL/.restore-state" 2>/dev/null)"
 eq "prs final timeout pristine" 60000 "$(cat "$STATE/screen_timeout" 2>/dev/null || echo missing)"
 eq "prs final stayon pristine" 1 "$(cat "$STATE/stay_on_while_plugged_in" 2>/dev/null || echo missing)"
 assert_restore prior-restore

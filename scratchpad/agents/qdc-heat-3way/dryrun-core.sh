@@ -1,6 +1,36 @@
 # dryrun-core.sh — happy path, registered orders, proof thresholds and
 # fingerprint gates (sourced by dryrun.sh after dryrun-lib.sh).
 
+echo "== fixture: parsers against the COMMITTED real S23 calib logs (run 3, ecf70a63) =="
+# Non-circular: these assertions run the parsers on the REAL device logs the
+# coordinator committed — the arch/extractor bugs were found exactly here.
+REAL="$CELL/raw/s23-calib-3"
+RAW_SAVE="$RAW"
+if [ -f "$REAL/s23-calib-3-calnpu.load.log" ]; then
+  # The NPU log stayed in the RAW root (the run voided before the per-backend
+  # mv); cpu/gpu were moved into calib/ by the completed loop iterations.
+  RAW="$REAL"
+  arm_parse_proof "s23-calib-3-calnpu" npu
+  eq "real npu proof status" OK "$ARM_STATUS"
+  has "real npu arch=v73 from session uri" "arch=v73" "$ARM_PROOF"
+  has "real npu execute-op count (device)" "htp_ops=1675" "$ARM_PROOF"
+  has "real npu scaled min (13 tok x 0.86 -> 12)" "min=12" "$ARM_PROOF"
+  RAW="$REAL/calib"
+  arm_parse_proof "s23-calib-3-calcpu" cpu
+  eq "real cpu proof status" OK "$ARM_STATUS"
+  has "real cpu proof counts (device)" "cpu_no_offload tokens=13" "$ARM_PROOF"
+  arm_parse_proof "s23-calib-3-calgpu" gpu
+  eq "real gpu proof status" OK "$ARM_STATUS"
+  has "real gpu proof counts (device)" "gpu_assigned_lines=62 kernels=15" "$ARM_PROOF"
+  RAW="$RAW_SAVE"
+  eq "real cpu fp proof == turn" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calcpu.load.log")" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calcpu.log")"
+  eq "real gpu fp proof == turn" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calgpu.load.log")" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calgpu.log")"
+  eq "real cpu extractor keeps CPU_REPACK" "buf=CPU,CPU_REPACK off=0/31 thr=5" "$(arm_fingerprint "$REAL/calib/s23-calib-3-calcpu.load.log")"
+  eq "real npu buf placement carries HTP0" "buf=CPU,HTP0 off=31/31 thr=5" "$(arm_fingerprint "$REAL/s23-calib-3-calnpu.load.log")"
+else
+  fail "real S23 calib logs present" "missing $REAL/s23-calib-3-calnpu.load.log"
+fi
+
 echo "== fixture: six-arms (registered order CGNNGC, seeded stayon=1) =="
 run_fixture six-arms CGNNGC seed_stayon
 eq "six rc" 0 "$RC"
@@ -17,13 +47,13 @@ eq "six cpu prefill" 45000.00 "$(col 1 22)"
 eq "six gpu prefill" 14000.00 "$(col 2 22)"
 eq "six npu prefill" 18000.00 "$(col 3 22)"
 has "six cpu proof" cpu_no_offload "$(col 1 25)"
-has "six cpu fingerprint (placement)" "fp=buf=CPU off=0/33 thr=5" "$(col 1 25)"
+has "six cpu fingerprint (placement)" "fp=buf=CPU,CPU_REPACK off=0/31 thr=5" "$(col 1 25)"
 has "six gpu proof assign" gpu_assigned_lines= "$(col 2 25)"
 has "six gpu proof kernels" "kernels=" "$(col 2 25)"
-has "six gpu fingerprint (placement)" "fp=buf=GPUOpenCL off=33/33 thr=5" "$(col 2 25)"
+has "six gpu fingerprint (placement)" "fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5" "$(col 2 25)"
 has "six npu proof arch" "arch=v73" "$(col 3 25)"
 has "six npu proof ops" "htp_ops=80" "$(col 3 25)"
-has "six npu fingerprint (placement)" "fp=buf=HTP0 off=33/33 thr=5" "$(col 3 25)"
+has "six npu fingerprint (placement)" "fp=buf=CPU,HTP0 off=31/31 thr=5" "$(col 3 25)"
 has "six npu scaled floor" "min=4" "$(col 3 25)"    # NEW-1: ceil(0.86 x 4 proof tokens)
 eq "six skin_before" 33.5 "$(col 1 14)"
 eq "six load_skin_before A8" 33.5 "$(col 1 11)"
@@ -112,7 +142,7 @@ eq "bfp rc" 0 "$RC"
 eq "bfp rows" 1 "$(rows)"
 eq "bfp void_reason" backend_mismatch "$(col 1 5)"
 has "bfp turn says CPU" "fp_turn=buf=CPU" "$(col 1 25)"
-has "bfp proof says GPUOpenCL" "fp_proof=buf=GPUOpenCL" "$(col 1 25)"
+has "bfp proof carries the GPU set" "fp_proof=buf=CPU,CPU_REPACK,OpenCL" "$(col 1 25)"
 assert_end bfp method_void_backend_mismatch
 assert_restore backend-mismatch
 
@@ -151,14 +181,14 @@ eq "cal no heat rows" absent "$([ -f "$RAW/results.tsv" ] && echo present || ech
 eq "cal report written" yes "$([ -f "$RAW/calib/report.txt" ] && echo yes || echo no)"
 has "cal proof stats cpu" "CALIB backend=cpu phase=proof" "$(cat "$RAW/calib/report.txt")"
 has "cal proof stats npu (ops+tokens)" "tokens=4 proof=htp_ops=80" "$(cat "$RAW/calib/report.txt")"
-has "cal turn fingerprint cpu" "CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5" "$(cat "$RAW/calib/report.txt")"
+has "cal turn fingerprint cpu" "CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK off=0/31 thr=5" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate buffer line" "cand=buf|" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate fit line" "cand=fit|" "$(cat "$RAW/calib/report.txt")"
 has "cal candidate device line" "cand=device|" "$(cat "$RAW/calib/report.txt")"
 eq "cal logs moved into calib/" yes "$([ -f "$RAW/calib/dry-calibrate-calcpu.log" ] && echo yes || echo no)"
-eq "cal floor pinned (0.5 x 80/4)" "htp_ops_floor_per_tok=10.0000" "$(grep '^htp_ops_floor_per_tok=' "$CELL/calib.ok" 2>/dev/null)"
+eq "cal floor pinned (0.5 x 80/4)" "htp_ops_floor_per_tok=10.0000" "$(grep -a '^htp_ops_floor_per_tok=' "$CELL/calib.ok" 2>/dev/null)"
 has "cal pin bound to board/kit (A-N6)" "serial=fakes23" "$(cat "$CELL/calib.ok")"
-has "cal buf printed for G/N (A-N8)" "CALIB buf_gpu=GPUOpenCL buf_npu=HTP0" "$(cat "$RAW/calib/report.txt")"
+has "cal buf printed for G/N (A-N8)" "CALIB buf_gpu=CPU,CPU_REPACK,OpenCL buf_npu=CPU,HTP0" "$(cat "$RAW/calib/report.txt")"
 assert_restore cal
 
 echo "== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) =="
@@ -171,7 +201,7 @@ has "cav void reported" "CALIB_VOID backend=cpu reason=no_cpu_proof" "$(cat "$RA
 assert_restore cav
 
 echo "== fixture A-N8: G/N buffer-name collision fails calibration =="
-run_fixture buf-collision CGN CALIBRATE=1 DRY_TURN_FP_BUF=GPUOpenCL
+run_fixture buf-collision CGN CALIBRATE=1 'DRY_TURN_FP_BUF=CPU|CPU_REPACK|OpenCL'
 eq "bcol rc" 3 "$RC"
 assert_end bcol calib_buf_collision
 eq "bcol no calib.ok" absent "$([ -f "$CELL/calib.ok" ] && echo present || echo absent)"

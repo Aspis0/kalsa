@@ -106,12 +106,23 @@ Current cooling devices from HAL:
   Temperature{mValue=10.0, mType=15, mName=fan0}
 EOF
 }
+# Real MiB sizes per buffer name (raw/s23-calib-3 reports; not parsed, only
+# kept so the fake's shape matches the device).
+buf_size() {
+  case "$1" in
+    CPU) printf '206.07' ;;
+    CPU_REPACK) printf '1511.20' ;;
+    OpenCL) printf '1307.20' ;;
+    HTP0) printf '1525.87' ;;
+    *) printf '1182.09' ;;
+  esac
+}
 emit_gpu_block() { # placement + execution evidence (A6)
   printf 'llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free\n'
   printf 'ggml_opencl: default device: %s (%s)\n' "QUALCOMM Adreno(TM) 740" "OpenCL 2.0"
   if [ "${DRY_NO_GPU_PROOF:-0}" != 1 ]; then
     local i=0
-    while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device GPUOpenCL, is_swa = 0\n' "$i"; i=$((i + 1)); done
+    while [ "$i" -lt 31 ]; do printf 'load_tensors: layer %3d assigned to device GPUOpenCL, is_swa = 0\n' "$i"; i=$((i + 1)); done
     local k=0 kn="${DRY_GPU_KERNELS:-12}"
     while [ "$k" -lt "$kn" ]; do printf 'GGML_OPENCL_LOG_KERNELS: kernel_%02d\n' "$k"; k=$((k + 1)); done
     if [ "${DRY_GPU_DISABLED:-0}" = 1 ]; then
@@ -119,13 +130,18 @@ emit_gpu_block() { # placement + execution evidence (A6)
     fi
   fi
 }
-emit_npu_block() { # dispatch evidence (A6: >= 1000 execute-op lines + arch)
+emit_npu_block() { # dispatch evidence (A6: execute-op floor + HTP0 placement;
+  # arch identity comes from the session URI — f25f0c1c5 prints NO
+  # `Hexagon Arch version` line, raw/s23-calib-3/s23-calib-3-calnpu.load.log:275)
   printf 'llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free\n'
   local i=0
-  while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device HTP0, is_swa = 0\n' "$i"; i=$((i + 1)); done
+  while [ "$i" -lt 31 ]; do printf 'load_tensors: layer %3d assigned to device HTP0, is_swa = 0\n' "$i"; i=$((i + 1)); done
   if [ "${DRY_NO_HTP_PROOF:-0}" != 1 ]; then
-    printf 'ggml-hex: Hexagon Arch version v73\n'
-    printf 'ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB\n'
+    # Verbatim from the committed real log (lines 274-275), timestamps included.
+    printf '0.00.315.055 I ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB\n'
+    if [ "${DRY_NO_ARCH:-0}" != 1 ]; then
+      printf '0.00.315.451 I ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007bedbe7e80\n'
+    fi
     # 80 = the structural proof tokens (1 prompt + 3 eval runs for -n 4)
     # x 20 ops/token — inside the [0.5,25] sanity band (audit3 A-N5b).
     local n="${DRY_HTP_OPS:-80}" j=0
@@ -142,7 +158,7 @@ emit_cpu_block() { # discovery lines mirror the real A.log: -ngl 0 still lists
   printf 'llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free\n'
   if [ "${DRY_NO_CPU_PROOF:-0}" != 1 ]; then
     local i=0
-    while [ "$i" -lt 33 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
+    while [ "$i" -lt 31 ]; do printf 'load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$i"; i=$((i + 1)); done
   fi
 }
 run_arm() { # synthesizes the pulled llama-completion log (proof/load phase or turn)
@@ -171,15 +187,24 @@ run_arm() { # synthesizes the pulled llama-completion log (proof/load phase or t
   # Fingerprint components (audit2 NEW-2/NEW-3): PLACEMENT = buffer size line
   # + offloaded layers + system_info threads. The turn may be stripped of
   # them (NO_FP) or have its buffer line forged (FP_BUF).
-  buf_name="$backend"
-  case "$backend" in cpu) buf_name=CPU ;; gpu) buf_name=GPUOpenCL ;; npu) buf_name=HTP0 ;; esac
-  if [ "$phase" = turn ] && [ -n "${DRY_TURN_FP_BUF:-}" ]; then buf_name="$DRY_TURN_FP_BUF"; fi
+  # Buffer SETS with the names the real build prints (raw/s23-calib-3: cpu
+  # CPU+CPU_REPACK, gpu +OpenCL, npu CPU+HTP0; 31 offloadable layers); the
+  # forged knob replaces the whole set with one name (silent-fallback model).
+  local buf_set
+  case "$backend" in
+    cpu) buf_set="CPU|CPU_REPACK" ;;
+    gpu) buf_set="CPU|CPU_REPACK|OpenCL" ;;
+    npu) buf_set="CPU|HTP0" ;;
+  esac
+  if [ "$phase" = turn ] && [ -n "${DRY_TURN_FP_BUF:-}" ]; then buf_set="$DRY_TURN_FP_BUF"; fi
   fp_part=""
   if ! { [ "$phase" = turn ] && [ "${DRY_TURN_NO_FP:-0}" = 1 ]; }; then
-    fp_part=$(printf 'load_tensors: %12s model buffer size = %8.2f MiB' "$buf_name" 1182.09)
+    fp_part=$(printf '%s\n' "$buf_set" | tr '|' '\n' | while IFS= read -r nm; do
+      printf 'load_tensors: %12s model buffer size = %8.2f MiB\n' "$nm" "$(buf_size "$nm")"
+    done)
     case "$backend" in
-      cpu) fp_part="${fp_part}"$'\n'"$(printf 'load_tensors: offloaded 0/33 layers to GPU')" ;;
-      *)   fp_part="${fp_part}"$'\n'"$(printf 'load_tensors: offloaded 33/33 layers to GPU')" ;;
+      cpu) fp_part="${fp_part}"$'\n'"$(printf 'load_tensors: offloaded 0/31 layers to GPU')" ;;
+      *)   fp_part="${fp_part}"$'\n'"$(printf 'load_tensors: offloaded 31/31 layers to GPU')" ;;
     esac
     fp_part="${fp_part}"$'\n'"$(printf '0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1')"
   fi

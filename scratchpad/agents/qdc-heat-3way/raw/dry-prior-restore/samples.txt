@@ -1,12 +1,12 @@
 H zones: /sys/class/thermal/thermal_zone0:cpu-0 /sys/class/thermal/thermal_zone5:gpuss-0
-H sampler_start 1790482173
-Z 1790482173 cpu-thermal=42000
-S 1790482173 33.5
-H sampler_done 1790482174
-H sampler_start 1790482174
-Z 1790482174 cpu-thermal=42000
-S 1790482174 33.5
-H sampler_done 1790482175
-H sampler_start 1790482175
-Z 1790482175 cpu-thermal=42000
-S 1790482175 33.5
+H sampler_start 1790484471
+Z 1790484471 cpu-thermal=42000
+S 1790484471 33.5
+H sampler_done 1790484472
+H sampler_start 1790484472
+Z 1790484472 cpu-thermal=42000
+S 1790484472 33.5
+H sampler_done 1790484473
+H sampler_start 1790484474
+Z 1790484474 cpu-thermal=42000
+S 1790484474 33.5

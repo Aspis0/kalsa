@@ -202,7 +202,9 @@ arm_perf_parse() {
 arm_fingerprint() {
   local logf="$1" buf="" off="" thr=""
   if [ -f "$logf" ]; then
-    buf=$(sed -n 's/.*[^A-Za-z0-9:]\([A-Za-z0-9:_]*\) model buffer size.*/\1/p' "$logf" | sort -u | paste -sd, -)
+    # Space-anchored (run-3 class bug): the old [^A-Za-z0-9:] split CPU_REPACK
+    # into REPACK on the real log — verified against raw/s23-calib-3.
+    buf=$(sed -n 's/.* \([A-Za-z0-9:_]*\) model buffer size.*/\1/p' "$logf" | sort -u | paste -sd, -)
     off=$(sed -n 's/.*offloaded \([0-9][0-9]*\/[0-9][0-9]*\) layers to GPU.*/\1/p' "$logf" | head -1)
     thr=$(sed -n 's/.*system_info: n_threads = \([0-9][0-9]*\).*/\1/p' "$logf" | head -1)
   fi
@@ -217,7 +219,7 @@ arm_parse_proof() {
   local tag="$1"
   local backend="$2"
   local logf="$RAW/$tag.load.log"
-  local exit_line="" gpu_assign=0 gpu_kernels=0 htp_ops=0 floor min_ops tokens
+  local exit_line="" gpu_assign=0 gpu_kernels=0 htp_ops=0 floor min_ops tokens arch=""
   ARM_STATUS=VOID; ARM_VOID=proof_run_fail; ARM_PROOF=na; ARM_PROOF_FP="?"; PROOF_TOKENS=na
   [ -f "$logf" ] || return 0
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
@@ -264,10 +266,25 @@ arm_parse_proof() {
       if [ "$htp_ops" -lt "$min_ops" ]; then
         ARM_VOID=htp_ops_low; ARM_PROOF="htp_ops=$htp_ops min=$min_ops tokens=$tokens"; return 0
       fi
-      if ! awk '/Hexagon Arch version/{n++} END{exit !(n>0)}' "$logf"; then
-        ARM_VOID=no_htp_proof; ARM_PROOF="htp_ops=$htp_ops min=$min_ops"; return 0
+      # HTP0 PLACEMENT (run-3 evidence: `HTP0 model buffer size = 1525.87 MiB`):
+      # dispatching ops is not enough — the proof's fingerprint must place the
+      # model on HTP0 too.
+      case "$ARM_PROOF_FP" in
+        *HTP0*) ;;
+        *) ARM_VOID=no_htp_placement; ARM_PROOF="htp_ops=$htp_ops min=$min_ops fp=$ARM_PROOF_FP"; return 0 ;;
+      esac
+      # Arch identity, dual form: f25f0c1c5 prints NO `Hexagon Arch version`
+      # line (run 3 was voided requiring it) — the skel version lives in the
+      # session URI; older kits print the explicit line. Real shapes:
+      # raw/s23-calib-3/s23-calib-3-calnpu.load.log:274-275.
+      arch=$(sed -n 's/.*Hexagon Arch version \([^ ,]*\).*/\1/p' "$logf" | head -1)
+      if [ -z "$arch" ]; then
+        arch=$(sed -n 's/.*libggml-htp-\(v[0-9][0-9]*\)\.so.*/\1/p' "$logf" | head -1)
       fi
-      ARM_PROOF="htp_ops=$htp_ops min=$min_ops arch=$(sed -n 's/.*Hexagon Arch version \([^ ,]*\).*/\1/p' "$logf" | head -1)" ;;
+      if [ -z "$arch" ]; then
+        ARM_VOID=no_htp_arch; ARM_PROOF="htp_ops=$htp_ops min=$min_ops"; return 0
+      fi
+      ARM_PROOF="htp_ops=$htp_ops min=$min_ops arch=$arch" ;;
   esac
   ARM_STATUS=OK; ARM_VOID=na
   return 0

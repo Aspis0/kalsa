@@ -1,14 +1,14 @@
-[00:08:17] SESSION job=dry-stop-midarm board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[00:08:17] KIT_UNPACK_PUSH
-[00:08:17] DEVICE_LIST_OK
-[00:08:17] KIT_PUSH ship.gguf sha_before=absent
-[00:08:17] KIT_PUSH prompt.txt sha_before=absent
-[00:08:18] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:08:18] GATE label=setup
-[00:08:18] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[00:08:18] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:08:18] SAMPLER_LAUNCHED pid=2344
-[00:08:18] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-midarm-t1cpu
-[00:08:21] STOP reason=battery_temp
-[00:08:21] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
-[00:08:23] SESSION_STOP reason=battery_temp
+[00:46:35] SESSION job=dry-stop-midarm board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[00:46:35] KIT_UNPACK_PUSH
+[00:46:35] DEVICE_LIST_OK
+[00:46:35] KIT_PUSH ship.gguf sha_before=absent
+[00:46:35] KIT_PUSH prompt.txt sha_before=absent
+[00:46:37] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:46:37] GATE label=setup
+[00:46:37] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[00:46:37] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[00:46:37] SAMPLER_LAUNCHED pid=34488
+[00:46:37] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-midarm-t1cpu
+[00:46:39] STOP reason=battery_temp
+[00:46:39] KILL_VERIFIED ctx=stop_battery_temp (no llama-completion remains)
+[00:46:41] SESSION_STOP reason=battery_temp

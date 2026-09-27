@@ -1,0 +1,400 @@
+== fixture: parsers against the COMMITTED real S23 calib logs (run 3, ecf70a63) ==
+FAIL  real npu proof status -- expected=[OK] got=[VOID]
+FAIL  real npu arch=v73 from session uri -- missing [arch=v73] in [htp_ops=1675 min=12]
+PASS  real npu execute-op count (device)
+PASS  real npu scaled min (13 tok x 0.86 -> 12)
+FAIL  real cpu proof status -- expected=[OK] got=[VOID]
+FAIL  real cpu proof counts (device) -- missing [cpu_no_offload tokens=13] in [na]
+FAIL  real gpu proof status -- expected=[OK] got=[VOID]
+FAIL  real gpu proof counts (device) -- missing [gpu_assigned_lines=62 kernels=15] in [na]
+PASS  real cpu fp proof == turn
+PASS  real gpu fp proof == turn
+FAIL  real cpu extractor keeps CPU_REPACK -- expected=[buf=CPU,CPU_REPACK off=0/31 thr=5] got=[buf=CPU,REPACK off=0/31 thr=5]
+PASS  real npu buf placement carries HTP0
+== fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
+PASS  six-arms shell-syntax
+PASS  six rc
+FAIL  six END -- expected=[exit_0] got=[method_void_no_htp_proof]
+FAIL  six rows -- expected=[6] got=[3]
+FAIL  six arm sequence -- expected=[cpu gpu npu npu gpu cpu] got=[cpu gpu npu]
+FAIL  six pairs -- expected=[1 1 2 2 3 3] got=[1 1 2]
+FAIL  six all-OK -- expected=[] got=[npu ]
+PASS  six perf-prefix A1
+PASS  six inload-parsed A8
+PASS  six prompt_n
+PASS  six decode_runs
+PASS  six cpu prefill
+PASS  six gpu prefill
+FAIL  six npu prefill -- expected=[18000.00] got=[na]
+PASS  six cpu proof
+FAIL  six cpu fingerprint (placement) -- missing [fp=buf=CPU,CPU_REPACK off=0/31 thr=5] in [cpu_no_offload tokens=4 fp=buf=CPU off=0/31 thr=5]
+PASS  six gpu proof assign
+PASS  six gpu proof kernels
+FAIL  six gpu fingerprint (placement) -- missing [fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5] in [gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,REPACK off=31/31 thr=5]
+FAIL  six npu proof arch -- missing [arch=v73] in [htp_ops=80 min=4]
+PASS  six npu proof ops
+FAIL  six npu fingerprint (placement) -- missing [fp=buf=CPU,HTP0 off=31/31 thr=5] in [htp_ops=80 min=4]
+PASS  six npu scaled floor
+PASS  six skin_before
+PASS  six load_skin_before A8
+PASS  six load_skin_after A8
+PASS  six pagein_cold arm1
+PASS  six pagein_cold arm2
+PASS  six load_wall_s
+FAIL  six samples.txt -- expected=[yes] got=[no]
+PASS  six list-devices
+PASS  six sampler-paused A11 NEW-6
+PASS  six sampler state (A-N7)
+FAIL  six sampler state on last turn -- expected=[ok] got=[]
+PASS  six sampler-resumed A11
+PASS  six pgrep selftest NEW-4
+PASS  six floor source (until calibrated)
+FAIL  six single sampler header -- expected=[1] got=[]
+FAIL  six sampler launches -- expected=[7] got=[]
+PASS  six restore-ran
+PASS  six timeout-restored
+PASS  six stayon-restored
+PASS  six no-unknown-shell
+== fixture A-13: unregistered/odd orders are rejected ==
+PASS  odd order CGN rejected
+PASS  unregistered pair CC rejected
+== fixture: missing HTP proof voids the N proof run (A6) ==
+PASS  no-htp shell-syntax
+PASS  nohtp rc
+PASS  nohtp END
+PASS  nohtp rows
+PASS  nohtp status
+PASS  nohtp void_reason
+PASS  nohtp backend
+PASS  nohtp restore-ran
+PASS  nohtp timeout-restored
+== fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) ==
+PASS  htp-low shell-syntax
+PASS  htplow rc
+PASS  htplow rows
+PASS  htplow void_reason
+PASS  htplow scaled proof count
+PASS  htplow END
+PASS  htp-low restore-ran
+PASS  htp-low timeout-restored
+== fixture: missing GPU placement evidence voids the G proof run (A6) ==
+PASS  no-gpu shell-syntax
+PASS  nogpu rc
+PASS  nogpu rows
+PASS  nogpu status
+PASS  nogpu void_reason
+PASS  nogpu END
+PASS  nogpu restore-ran
+PASS  nogpu timeout-restored
+== fixture: GPU kernel-dispatch below the 8 floor voids the G proof run (A6) ==
+PASS  gpu-exec-low shell-syntax
+PASS  gpuex rc
+PASS  gpuex rows
+PASS  gpuex void_reason
+PASS  gpuex END
+PASS  gpu-exec-low restore-ran
+PASS  gpu-exec-low timeout-restored
+== fixture: kernel-build failure line voids the G proof run (A6) ==
+PASS  gpu-disabled shell-syntax
+PASS  gpudis rc
+PASS  gpudis rows
+PASS  gpudis void_reason
+PASS  gpudis END
+PASS  gpu-disabled restore-ran
+PASS  gpu-disabled timeout-restored
+== fixture: CPU placement proof absent in the proof run (A15) ==
+PASS  no-cpu shell-syntax
+PASS  nocpu rc
+PASS  nocpu rows
+PASS  nocpu void_reason
+PASS  nocpu END
+PASS  nocpu restore-ran
+PASS  nocpu timeout-restored
+== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
+PASS  backend-mismatch shell-syntax
+PASS  bfp rc
+PASS  bfp rows
+FAIL  bfp void_reason -- expected=[backend_mismatch] got=[no_fingerprint]
+FAIL  bfp turn says CPU -- missing [fp_turn=buf=CPU] in [fp_turn=buf=? off=31/31 thr=5 fp_proof=buf=CPU,REPACK off=31/31 thr=5]
+FAIL  bfp proof says GPUOpenCL -- missing [fp_proof=buf=GPUOpenCL] in [fp_turn=buf=? off=31/31 thr=5 fp_proof=buf=CPU,REPACK off=31/31 thr=5]
+FAIL  bfp END -- expected=[method_void_backend_mismatch] got=[method_void_no_fingerprint]
+PASS  backend-mismatch restore-ran
+PASS  backend-mismatch timeout-restored
+== fixture: turn log without fingerprint -> no_fingerprint (fail closed) ==
+PASS  no-fingerprint shell-syntax
+PASS  nfp rc
+PASS  nfp rows
+PASS  nfp void_reason
+PASS  nfp END
+PASS  no-fingerprint restore-ran
+PASS  no-fingerprint timeout-restored
+== fixture: kernel-disable line in the TURN log voids it too (NEW-3) ==
+PASS  turn-disabled shell-syntax
+PASS  tdis rc
+PASS  tdis rows
+PASS  tdis void_reason
+PASS  tdis END
+PASS  turn-disabled restore-ran
+PASS  turn-disabled timeout-restored
+== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
+PASS  warm-start shell-syntax
+PASS  warm rc
+PASS  warm END
+PASS  warm rows
+PASS  warm all-OK
+PASS  warm warm_start
+PASS  warm cooldown_s
+PASS  warm skin_before recorded
+PASS  warm restore-ran
+PASS  warm timeout-restored
+== fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) ==
+PASS  calibrate shell-syntax
+FAIL  cal rc -- expected=[0] got=[3]
+FAIL  cal END -- expected=[calibrated] got=[calib_void_npu]
+PASS  cal no heat rows
+PASS  cal report written
+PASS  cal proof stats cpu
+PASS  cal proof stats npu (ops+tokens)
+FAIL  cal turn fingerprint cpu -- missing [CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK off=0/31 thr=5] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:34:17Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+PASS  cal candidate buffer line
+PASS  cal candidate fit line
+PASS  cal candidate device line
+PASS  cal logs moved into calib/
+FAIL  cal floor pinned (0.5 x 80/4) -- expected=[htp_ops_floor_per_tok=10.0000] got=[]
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/calib.ok: No such file or directory
+FAIL  cal pin bound to board/kit (A-N6) -- missing [serial=fakes23] in []
+FAIL  cal buf printed for G/N (A-N8) -- missing [CALIB buf_gpu=GPUOpenCL buf_npu=HTP0] in [qdc-heat-3way calibration job=dry-calibrate utc=2026-09-27T04:34:17Z production_decode_n=127 short_n=16
+htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; t]
+PASS  cal restore-ran
+PASS  cal timeout-restored
+== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) ==
+PASS  calibrate-void shell-syntax
+PASS  cav rc
+PASS  cav END
+PASS  cav no calib.ok
+PASS  cav no heat rows
+PASS  cav void reported
+PASS  cav restore-ran
+PASS  cav timeout-restored
+== fixture A-N8: G/N buffer-name collision fails calibration ==
+PASS  buf-collision shell-syntax
+PASS  bcol rc
+FAIL  bcol END -- expected=[calib_buf_collision] got=[calib_void_npu]
+PASS  bcol no calib.ok
+FAIL  bcol collision logged -- missing [CALIB_FAIL buf_collision] in [[00:34:20] SESSION job=dry-buf-collision board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
+[00:34:20] KIT_UNPACK_PUSH
+[00:34:20] DEVICE_LIST_OK
+[00:34:20] KIT_PUS]
+PASS  bcol restore-ran
+PASS  bcol timeout-restored
+== fixture: production reads the PINNED floor from calib.ok ==
+PASS  pinned-floor shell-syntax
+PASS  pin rc
+PASS  pin END
+PASS  pin rows
+PASS  pin floor came from calib.ok
+PASS  pin scaled min=40
+PASS  pinned-floor restore-ran
+PASS  pinned-floor timeout-restored
+== fixture: stop thermal_status >= 3 (injected at first gate) ==
+PASS  stop-thermal shell-syntax
+PASS  st rc
+PASS  st END
+PASS  st rows
+PASS  st restore-ran
+PASS  st timeout-restored
+PASS  st stayon deleted
+== fixture: stop battery_temp >= 44.0 C (fires after arm 1, trusted) ==
+PASS  stop-batt-temp shell-syntax
+PASS  sbtemp rc
+PASS  sbtemp END
+PASS  sbtemp rows
+PASS  sbtemp first row OK
+PASS  sbtemp battery trusted
+PASS  sbtemp restore-ran
+PASS  sbtemp timeout-restored
+== fixture: stop battery_level <= 25 % ==
+PASS  stop-level shell-syntax
+PASS  slvl rc
+PASS  slvl END
+PASS  slvl rows
+PASS  slvl restore-ran
+PASS  slvl timeout-restored
+== fixture: stop plugged ==
+PASS  stop-plugged shell-syntax
+PASS  spl rc
+PASS  spl END
+PASS  spl rows
+PASS  spl restore-ran
+PASS  spl timeout-restored
+== fixture: stop missing_skin (fail-closed missing reading) ==
+PASS  stop-missing shell-syntax
+PASS  smis rc
+PASS  smis END
+PASS  smis rows
+PASS  smis restore-ran
+PASS  smis timeout-restored
+== fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
+PASS  stop-skinfb shell-syntax
+PASS  sskin rc
+PASS  sskin END
+PASS  sskin rows
+PASS  sskin untrusted verdict
+PASS  sskin restore-ran
+PASS  sskin timeout-restored
+== fixture A5: untrusted battery still stops on 44.5 C (never disarmed) ==
+PASS  stop-untrusted-batt shell-syntax
+PASS  sunb rc
+PASS  sunb END
+PASS  sunb rows
+PASS  sunb untrusted verdict
+PASS  sunb restore-ran
+PASS  sunb timeout-restored
+== fixture: stop fires mid-arm (background poll, POLL_S=1) ==
+PASS  stop-midarm shell-syntax
+PASS  smid rc
+PASS  smid END
+PASS  smid rows
+PASS  smid row voided by stop
+PASS  smid restore-ran
+PASS  smid timeout-restored
+== fixture A-4: pkill that does not kill -> loud kill_unverified end ==
+PASS  kill-unverified shell-syntax
+PASS  kuv rc
+PASS  kuv END
+PASS  kuv rows
+PASS  kuv loud log
+PASS  kuv restore loud
+PASS  kuv restore rc
+PASS  kuv timeout-restored
+PASS  kuv pgrep probed
+== fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 ==
+PASS  restore-late shell-syntax
+PASS  rla rc
+PASS  rla END
+PASS  rla rows-ok
+PASS  rla marker written
+PASS  rla restore message
+PASS  rla restore rc
+PASS  rla timeout-restored
+== fixture A-N7: an unconfirmed sampler pause is flagged in the row ==
+PASS  sampler-unconfirmed shell-syntax
+PASS  spc rc
+PASS  spc END
+PASS  spc rows
+PASS  spc unconfirmed logged
+PASS  spc row flag
+PASS  spc turns still OK (validity recorded, not silently clean)
+PASS  spc restore-ran
+PASS  spc timeout-restored
+== fixture A-10/A-3: production 15 s poll cadence during the load phase ==
+PASS  poll-cadence shell-syntax
+PASS  pcad rc
+PASS  pcad END
+PASS  pcad rows
+PASS  pcad row is the load-phase stop
+PASS  pcad stop latency 15s >= POLL_S(15)-slack
+PASS  poll-cadence restore-ran
+PASS  poll-cadence timeout-restored
+== fixture A2: stale stop_request + END cleared at session start ==
+PASS  stale shell-syntax
+PASS  stale rc
+PASS  stale END
+PASS  stale rows
+PASS  stale first row OK
+PASS  stale stop_request gone
+PASS  stale kill marker gone (A-N2)
+PASS  stale restore-ran
+PASS  stale timeout-restored
+== fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
+PASS  timeout shell-syntax
+PASS  tmo rc
+PASS  tmo END
+PASS  tmo rows
+PASS  tmo void_reason
+PASS  tmo orphan-kill logged
+PASS  tmo kill verified
+PASS  tmo bracketed pkill
+PASS  tmo pgrep probed
+PASS  tmo restore-ran
+PASS  tmo timeout-restored
+== fixture A7: unequal decode voids the row and stops the session ==
+PASS  decode-unequal shell-syntax
+PASS  dec rc
+PASS  dec END
+PASS  dec rows
+PASS  dec status
+PASS  dec void_reason
+PASS  dec runs recorded
+PASS  dec restore-ran
+PASS  dec timeout-restored
+== fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) ==
+PASS  decode-derived shell-syntax
+PASS  decder rc
+PASS  decder END
+PASS  decder rows
+PASS  decder status
+PASS  decder runs accepted
+PASS  decder restore-ran
+PASS  decder timeout-restored
+== fixture A-6: stale .restore-state is consumed (prior restore), not clobbered ==
+PASS  prior-restore shell-syntax
+PASS  prs rc
+PASS  prs END
+PASS  prs prior restore log
+PASS  prs fresh state captured pristine
+PASS  prs final timeout pristine
+PASS  prs final stayon pristine
+PASS  prior-restore restore-ran
+PASS  prior-restore timeout-restored
+== fixture A-9: adb failures log loudly instead of dying raw ==
+PASS  fail-devices shell-syntax
+PASS  fdv rc
+PASS  fdv NO_DEVICE logged
+PASS  fdv no-END (pre-trap exit)
+PASS  fail-soc shell-syntax
+PASS  fsoc rc
+PASS  fsoc ADB_FAIL logged
+PASS  fsoc no-END (pre-trap exit)
+== fixture NEW-4: broken pgrep aborts before any load ==
+PASS  pgrep-broken shell-syntax
+PASS  pgb rc
+PASS  pgb selftest failed
+PASS  pgb END
+PASS  pgb no load ran
+PASS  pgb no turn ran
+PASS  pgb restore rc loud
+PASS  pgb restore unverified
+PASS  pgb timeout-restored
+== fixture A-N6: a pin from another board refuses the session ==
+PASS  calib-pin-mismatch shell-syntax
+PASS  cpm rc
+PASS  cpm mismatch logged
+PASS  cpm no-END (pre-trap exit)
+PASS  cpm no load ran
+== fixture A-N5a: an out-of-band pin rate refuses the session pre-device ==
+PASS  calib-pin-badrate shell-syntax
+PASS  cpr rc
+PASS  cpr invalid logged
+PASS  cpr no-END (pre-trap exit)
+PASS  cpr never touched the device
+== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
+PASS  no-selfmatch shell-syntax
+PASS  nsm rc
+PASS  nsm END
+PASS  nsm rows
+PASS  nsm selftest ok
+PASS  nsm restore probe verified
+PASS  nsm restore rc
+PASS  nsm restore-ran
+PASS  nsm timeout-restored
+== fixture A-5: SIGHUP (SSH drop) restores the device ==
+PASS  hup shell-syntax
+PASS  hup rc
+PASS  hup END
+PASS  hup restore-ran
+PASS  hup timeout-restored
+PASS  hup stop marker left for the sampler
+
+dryrun summary: PASS=319 FAIL=33

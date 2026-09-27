@@ -69,19 +69,20 @@ measured window is prefill+decode only. The app has no NPU route
 - `battery_trust.sh` (69) — battery-sensor verdict (two-sample mismatch).
 - `kit.sh` (76) — `prompt_verify`, push and byte-verify kit/model/prompt/
   sampler, remote-log+samples sweep, backend-name preflight.
-- `arm.sh` (313) — proof-run and turn commands, run/pull, shared perf parse,
+- `arm.sh` (330) — proof-run and turn commands, run/pull, shared perf parse,
   fingerprint (with the `off`-is-a-count note), the two parses.
 - `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
   row column), resume, stop.
 - `restore.sh` (88) — undo every device change (standalone-capable,
   health-probed kill with a `kill_check=` verdict field).
 - `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
-- `dryrun-adb.sh` (397 — declared, over the ~350 indicative) — fake adb with
-  reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, and a
-  `dash -n` syntax check on every shell string it receives.
-- `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (103) + `dryrun-core.sh`
-  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (129) — fixture matrix
-  split by topic (39 fixtures, 340 assertions).
+- `dryrun-adb.sh` (422 — declared, over the ~350 indicative) — fake adb with
+  reading/log/kill/pgrep/sampler knobs, the pgrep self-match model, a
+  `dash -n` syntax check on every shell string, and the real f25 log shapes
+  (buffer sets, verbatim hexagon lines).
+- `dryrun.sh` (28, orchestrator) + `dryrun-lib.sh` (103) + `dryrun-core.sh`
+  (219) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (129) — fixture matrix
+  split by topic (40 fixtures, 352 assertions).
 - `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
@@ -464,6 +465,63 @@ agree, but a construct that differs would need the board to catch. The real
 S23 has not re-run these commands (no phone). The `dash -n` check parses, it
 does not execute: a command can be syntactically valid and still fail
 remotely (paths, flags) — that class stays covered by the device run itself.
+
+## Round 9 — run 3 voided the NPU on a line f25 does not print (ecf70a63) — red→green (2026-09-27)
+
+Run 3: CPU and GPU calibrated; NPU really ran (1675 execute-op, 1525.87 MiB
+HTP0 buffer) and was voided `no_htp_proof` because `arm.sh` required a
+`Hexagon Arch version` line that engine f25f0c1c5 does not print. Audited
+against the committed real logs with `LC_ALL=C grep -a` (the NPU log is
+`Non-ISO extended-ASCII`).
+
+| fix (file:line) | what |
+|---|---|
+| `arm.sh:275-287` | **dual-form arch**: `Hexagon Arch version` (older kits) OR the session URI `… libggml-htp-v<NN>.so` (f25 — run 3's real shape, `raw/s23-calib-3/s23-calib-3-calnpu.load.log:274-275`); neither → VOID `no_htp_arch`. Execute-op floor (NEW-1 scaling) unchanged |
+| `arm.sh:269-275` | **HTP0 placement required** for the N proof: the fingerprint must carry `HTP0` (run 3's `HTP0 model buffer size = 1525.87 MiB`) — dispatch alone is not placement → VOID `no_htp_placement` |
+| `arm.sh:205-207` | **extractor same-class bug**: the old `[^A-Za-z0-9:]` split `CPU_REPACK` into `REPACK` on the REAL log; now space-anchored → `CPU,CPU_REPACK` (unit-checked on the committed logs) |
+| `dryrun-adb.sh` npu block | invented `Hexagon Arch version` line **removed**; the two real f25 lines copied VERBATIM (hwinfo `0.00.315.055 I …`, new session `0.00.315.451 I … libggml-htp-v73.so?…` incl. timestamps); `DRY_NO_ARCH=1` omits the session line for the still-void fixture; buffer sets now match the real names/sizes (CPU+CPU_REPACK / +OpenCL / CPU+HTP0), 31 layers, `off 0/31 · 31/31` |
+| `dryrun-core.sh` real-log fixture | parsers run against the COMMITTED real `raw/s23-calib-3` logs (non-circular): NPU arch=v73 from the URI, `htp_ops=1675 min=12`, cpu `tokens=13`, gpu `assigned=62 kernels=15`, extractor keeps `CPU_REPACK`, proof↔turn fp equality on both real backends |
+
+**Same-class audit of every field the calibration report parses vs the real
+logs** (the rest of `raw/s23-calib-3/calib/report.txt` cross-checked):
+`tokens=13` (prompt `" "` = 10 tokens + 3 runs) and `min=ceil(0.86×13)=12`
+match the real report arithmetic ✓; `thr=5`, `off=0/31·31/31`,
+`gpu_assigned_lines=62 kernels=15`, buffer sets and prefixed turn perf lines
+all present ✓. **Listed, no fix:** the `fit|`/`htpwarn|` candidates are
+absent from the real G/N logs (`-ngl 99` does not take the `to 0` abort
+path) — informational families only, no gate consumes them (labelled in
+`calib_candidates`); the NPU `cand=` lines are absent only because run 3
+aborted pre-turn and will appear on the next calibration. Non-UTF-8 safety:
+the driver exports `LC_ALL=C` (`d_run.sh:16`), `dryrun.sh` now exports it
+too, and every file-reading `grep` in the harness is `-a`.
+
+**Red → green, quoted exit codes**
+
+```
+# OLD arm.sh (arch-version-only + old extractor), new fixture + fake:
+./dryrun.sh > /tmp/dr9-red.log 2>&1; echo "EXIT=$?"
+EXIT=1   PASS=319 FAIL=33        (raw/dryrun-arch-red.log)
+         real-log fixture: npu VOID `htp_ops=1675 min=12` (no arch), cpu extractor `buf=CPU,REPACK`
+# after the fixes:
+./dryrun.sh > /tmp/dr9-green3.log 2>&1; echo "EXIT=$?"
+EXIT=0   PASS=352 FAIL=0          (raw/dryrun-final-run.log; real-log fixture 10/10 green)
+```
+Two intermediate green attempts (326/26 then 348/4) caught my own fake bugs
+before commit: `tr` without a trailing newline dropped the LAST buffer name
+in every set, and the collision forge needed the pipe form (`'DRY_…=CPU|…'`)
+because comma names are not extractable — both fixed in the fake/fixture.
+
+**Legacy form** unit-checked inline: synthetic `Hexagon Arch version v79` →
+`v79`; real f25 log → (empty for that form) + `v73` from the URI; neither →
+empty. `bash -n` on every script → 0.
+
+**Not verified (round 9):** the fixed NPU proof has not run on the S23 (no
+phone) — the URI-arch extraction is proven on the committed real log and the
+legacy form on a synthetic line only; the fake's verbatim hexagon lines come
+from run 3 but its `handle` value is run-3 device-specific (informational,
+never parsed); whether older-kit logs still carry `Hexagon Arch version` at
+that exact wording rests on the STEP0-era captures, not this kit; `dash -n`
+remains a POSIX parser, not Android's shell.
 
 ## Declared, not touched
 

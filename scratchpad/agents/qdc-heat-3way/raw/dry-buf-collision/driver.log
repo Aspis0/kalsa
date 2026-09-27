@@ -1,22 +1,22 @@
-[00:07:56] SESSION job=dry-buf-collision board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
-[00:07:56] KIT_UNPACK_PUSH
-[00:07:57] DEVICE_LIST_OK
-[00:07:57] KIT_PUSH ship.gguf sha_before=absent
-[00:07:57] KIT_PUSH prompt.txt sha_before=absent
-[00:07:58] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[00:07:58] GATE label=setup
-[00:07:58] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior
-[00:07:58] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[00:07:58] SAMPLER_LAUNCHED pid=91455
-[00:07:58] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
-[00:07:58] CALIB_START backend=cpu tag=dry-buf-collision-calcpu
-[00:07:58] CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
-[00:07:58] CALIB backend=cpu phase=turn fp=buf=GPUOpenCL off=0/33 thr=5
-[00:07:58] CALIB_START backend=gpu tag=dry-buf-collision-calgpu
-[00:07:58] CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
-[00:07:58] CALIB backend=gpu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
-[00:07:58] CALIB_START backend=npu tag=dry-buf-collision-calnpu
-[00:07:59] CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
-[00:07:59] CALIB backend=npu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
-[00:07:59] CALIB buf_gpu=GPUOpenCL buf_npu=GPUOpenCL (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
-[00:07:59] CALIB_FAIL buf_collision gpu=GPUOpenCL npu=GPUOpenCL — fingerprint cannot tell G from N on this kit
+[00:46:15] SESSION job=dry-buf-collision board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
+[00:46:15] KIT_UNPACK_PUSH
+[00:46:15] DEVICE_LIST_OK
+[00:46:15] KIT_PUSH ship.gguf sha_before=absent
+[00:46:15] KIT_PUSH prompt.txt sha_before=absent
+[00:46:16] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[00:46:16] GATE label=setup
+[00:46:16] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior
+[00:46:16] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[00:46:16] SAMPLER_LAUNCHED pid=23589
+[00:46:16] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
+[00:46:16] CALIB_START backend=cpu tag=dry-buf-collision-calcpu
+[00:46:16] CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+[00:46:17] CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=0/31 thr=5
+[00:46:17] CALIB_START backend=gpu tag=dry-buf-collision-calgpu
+[00:46:17] CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[00:46:17] CALIB backend=gpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[00:46:17] CALIB_START backend=npu tag=dry-buf-collision-calnpu
+[00:46:17] CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+[00:46:17] CALIB backend=npu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+[00:46:17] CALIB buf_gpu=CPU,CPU_REPACK,OpenCL buf_npu=CPU,CPU_REPACK,OpenCL (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
+[00:46:17] CALIB_FAIL buf_collision gpu=CPU,CPU_REPACK,OpenCL npu=CPU,CPU_REPACK,OpenCL — fingerprint cannot tell G from N on this kit

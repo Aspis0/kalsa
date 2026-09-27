@@ -10,7 +10,7 @@ fail() { FAIL=$((FAIL + 1)); printf 'FAIL  %s -- %s\n' "$1" "$2"; }
 eq() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1" "expected=[$2] got=[$3]"; fi; }
 ne() { if [ "$2" != "$3" ]; then pass "$1"; else fail "$1" "expected NOT [$2]"; fi; }
 has() { case "$3" in *"$2"*) pass "$1" ;; *) fail "$1" "missing [$2] in [$(printf '%s' "$3" | head -c 200)]" ;; esac; }
-count_is() { eq "$1" "$2" "$(grep -c "$3" "$4" 2>/dev/null || true)"; }
+count_is() { eq "$1" "$2" "$(grep -ac "$3" "$4" 2>/dev/null || true)"; }
 
 seed_stale() { # A2 + audit3 A-N2: stale stop_request, END AND kill marker
   local name="$1"
@@ -82,7 +82,7 @@ assert_no_end() {
   if [ ! -f "$RAW/END.txt" ]; then pass "$1 no-END (pre-trap exit)"; else fail "$1 no-END" "$(end_reason)"; fi
 }
 assert_restore() {
-  if [ -f "$RAW/restore.log" ] && grep -q 'state=1 .*rc=0' "$RAW/restore.log"; then
+  if [ -f "$RAW/restore.log" ] && grep -aq 'state=1 .*rc=0' "$RAW/restore.log"; then
     pass "$1 restore-ran"
   else
     fail "$1 restore-ran" "$(cat "$RAW/restore.log" 2>/dev/null || echo missing)"

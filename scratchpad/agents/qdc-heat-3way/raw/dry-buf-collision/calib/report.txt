@@ -1,27 +1,33 @@
-qdc-heat-3way calibration job=dry-buf-collision utc=2026-09-27T04:07:58Z production_decode_n=127 short_n=16
+qdc-heat-3way calibration job=dry-buf-collision utc=2026-09-27T04:46:16Z production_decode_n=127 short_n=16
 htp_floor_in_effect=0.86 source=prior (prior=0.86; NEW-1 half-lowest-prior q57 1764/1024=1.72; this run replaces it with the measured pin)
-CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
-CALIB backend=cpu phase=turn fp=buf=GPUOpenCL off=0/33 thr=5
+CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU,CPU_REPACK off=0/31 thr=5
+CALIB backend=cpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=0/31 thr=5
 CALIB backend=cpu cand=fit|0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort
 CALIB backend=cpu cand=htpwarn|0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
-CALIB backend=cpu cand=buf|load_tensors:    GPUOpenCL model buffer size =  1182.09 MiB
-CALIB backend=cpu cand=off|load_tensors: offloaded 0/33 layers to GPU
+CALIB backend=cpu cand=buf|load_tensors:          CPU model buffer size =   206.07 MiB
+CALIB backend=cpu cand=buf|load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+CALIB backend=cpu cand=buf|load_tensors:       OpenCL model buffer size =  1307.20 MiB
+CALIB backend=cpu cand=off|load_tensors: offloaded 0/31 layers to GPU
 CALIB backend=cpu cand=sys|0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 CALIB backend=cpu cand=device|llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
 CALIB backend=cpu cand=device|llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
-CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
-CALIB backend=gpu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
+CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=31 kernels=12 tokens=4 fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
+CALIB backend=gpu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
 CALIB backend=gpu cand=fit|0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
-CALIB backend=gpu cand=buf|load_tensors:    GPUOpenCL model buffer size =  1182.09 MiB
-CALIB backend=gpu cand=off|load_tensors: offloaded 33/33 layers to GPU
+CALIB backend=gpu cand=buf|load_tensors:          CPU model buffer size =   206.07 MiB
+CALIB backend=gpu cand=buf|load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+CALIB backend=gpu cand=buf|load_tensors:       OpenCL model buffer size =  1307.20 MiB
+CALIB backend=gpu cand=off|load_tensors: offloaded 31/31 layers to GPU
 CALIB backend=gpu cand=sys|0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 CALIB backend=gpu cand=device|llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 740) (unknown id) - 3536 MiB free
-CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
-CALIB backend=npu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
+CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=CPU,HTP0 off=31/31 thr=5
+CALIB backend=npu phase=turn fp=buf=CPU,CPU_REPACK,OpenCL off=31/31 thr=5
 CALIB backend=npu cand=fit|0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 CALIB backend=npu cand=htpwarn|0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
-CALIB backend=npu cand=buf|load_tensors:    GPUOpenCL model buffer size =  1182.09 MiB
-CALIB backend=npu cand=off|load_tensors: offloaded 33/33 layers to GPU
+CALIB backend=npu cand=buf|load_tensors:          CPU model buffer size =   206.07 MiB
+CALIB backend=npu cand=buf|load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+CALIB backend=npu cand=buf|load_tensors:       OpenCL model buffer size =  1307.20 MiB
+CALIB backend=npu cand=off|load_tensors: offloaded 31/31 layers to GPU
 CALIB backend=npu cand=sys|0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 CALIB backend=npu cand=device|llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
-CALIB buf_gpu=GPUOpenCL buf_npu=GPUOpenCL (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
+CALIB buf_gpu=CPU,CPU_REPACK,OpenCL buf_npu=CPU,CPU_REPACK,OpenCL (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)

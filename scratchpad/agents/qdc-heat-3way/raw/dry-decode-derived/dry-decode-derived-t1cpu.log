@@ -1,7 +1,8 @@
 0.00.649.591 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort
 0.00.604.690 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
-load_tensors:          CPU model buffer size =  1182.09 MiB
-load_tensors: offloaded 0/33 layers to GPU
+load_tensors:          CPU model buffer size =   206.07 MiB
+load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+load_tensors: offloaded 0/31 layers to GPU
 0.07.916.389 I system_info: n_threads = 5 (n_threads_batch = 5) / 8 | CPU : NEON = 1 | ARM_FMA = 1
 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
 llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
