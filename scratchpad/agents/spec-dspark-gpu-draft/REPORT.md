@@ -242,3 +242,26 @@ allocation failure; no decoded-token metrics exist for it.
 `END reason=signal_INT`, wrapper exit 130; restore verified `rc=0` and
 settings returned to their prior values. Raw evidence is in
 `raw/s23-dspark-3/`; no retry was made.
+
+
+## S23 DSpark run 4 — matched-N completed with pinned contexts
+
+Preflight passed on the pinned TLS endpoint: unplugged, 70% / 26.2 C,
+thermal 0, traced 0, Kalsa and llama/bench absent, display Awake/unlocked.
+All five proofs passed; all five final rows matched at `n_predict=136`.
+Both target and drafter logs show `n_ctx=2048` on every proof and final run.
+Run-4 raw logs contain no HTP0 / ggml-hex references and no interactive-mode
+banner. Historical run-2 crash logs do contain HTP0 / ggml-hex references.
+
+| Final arm | Status / void | Drafter placement | n_ctx target/draft | n_drafted / n_accept / accept | Decode t/s | Skin start / peak C |
+|---|---|---|---|---|---:|---:|
+| A-m1 | matched / na | CPU, 0/6 GPU | 2048 / 2048 | 0 / 0 / nan% | 15.993 | 32.6 / 33.4 |
+| B4-m1 | matched / na | CPU, 0/6 GPU | 2048 / 2048 | 161 / 95 / 59.006% | 21.487 | 33.4 / 33.5 |
+| B8 | matched / na | CPU, 0/6 GPU | 2048 / 2048 | 253 / 104 / 41.107% | 18.287 | 31.3 / 31.8 |
+| C4-m1 | matched / na | OpenCL, 6/6 GPU | 2048 / 2048 | 165 / 94 / 56.970% | 9.401 | 33.5 / 33.7 |
+| C8 | matched / na | OpenCL, 6/6 GPU | 2048 / 2048 | 253 / 104 / 41.107% | 9.640 | 32.2 / 32.6 |
+
+The skin peak column is the highest safety sample bounded by that row's
+start/end gates. `END reason=exit_0`, driver exit 0; restore verified `rc=0`,
+sampler stopped, screen timeout and stay-on returned to saved values. Raw
+logs and context evidence are in `raw/s23-dspark-4/`.

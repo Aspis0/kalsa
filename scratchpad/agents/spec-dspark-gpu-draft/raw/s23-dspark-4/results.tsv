@@ -1,0 +1,14 @@
+tag	arm	attempt	limit	n_predict	over	n_drafted	accept	tps	cooldown_s	warm_start	skin_before	skin_after	status	void	proof	wall_s	final
+A-p	A	0	8	na	na	na	na	na	0	0	28.0	28.4	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=31	5	proof
+B4-p	B4	0	8	na	na	na	na	na	0	0	28.4	28.7	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=31	3	proof
+B8-p	B8	0	8	na	na	na	na	na	0	0	28.7	29.0	OK	na	proof: draft_cpu_assign=6 gpu_evidence=0 pre_place=31	3	proof
+C4-p	C4	0	8	na	na	na	na	na	0	0	29.0	29.3	OK	na	proof: draft_gpu_assign=6 kernels=19 pre_place=31	7	proof
+C8-p	C8	0	8	na	na	na	na	na	0	0	29.3	29.6	OK	na	proof: draft_gpu_assign=6 kernels=19 pre_place=31	7	proof
+A	A	1	127	128	1	0	nan%	15.616	0	0	29.6	30.9	OK	na	na	11	superseded
+B4	B4	1	127	132	5	158	58.228%	21.785	0	0	30.9	31.3	OK	na	na	8	superseded
+B8	B8	1	127	136	9	253	41.107%	18.287	0	0	31.3	31.8	OK	na	na	10	matched
+C4	C4	1	127	132	5	162	56.173%	9.401	0	0	31.8	32.2	OK	na	na	19	superseded
+C8	C8	1	127	136	9	253	41.107%	9.640	0	0	32.2	32.6	OK	na	na	18	matched
+A-m1	A	2	135	136	1	0	nan%	15.993	0	0	32.6	33.4	OK	na	na	11	matched
+B4-m1	B4	2	131	136	5	161	59.006%	21.487	0	0	33.4	33.5	OK	na	na	8	matched
+C4-m1	C4	2	131	136	5	165	56.970%	9.401	0	0	33.5	33.7	OK	na	na	19	matched

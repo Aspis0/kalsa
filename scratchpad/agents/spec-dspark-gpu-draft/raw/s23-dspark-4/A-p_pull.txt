@@ -1,0 +1,1 @@
+/data/local/tmp/dspark-spec/A-p.log: 1 file pulled, 0 skipped. 2.4 MB/s (122289 bytes in 0.049s)
