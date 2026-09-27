@@ -12,6 +12,11 @@ PASS  happy all-OK
 PASS  happy final proof
 PASS  happy final matched
 PASS  happy final superseded
+PASS  happy A0 probe N
+PASS  happy A0 tps
+PASS  happy A0 accept-na
+PASS  happy A0-vs-A0b drift
+PASS  happy ctx-A0
 PASS  happy final void
 PASS  happy A no-spec
 PASS  happy B8 tps
@@ -224,6 +229,7 @@ PASS  countmismatch rows
 PASS  countmismatch void-A
 PASS  countmismatch void-B4
 PASS  countmismatch final-void
+PASS  countmismatch A0-ok
 PASS  countmismatch final-proof
 PASS  countmismatch matched-tag
 PASS  countmismatch no-success
@@ -372,6 +378,19 @@ PASS  ctxbad restore-ran
 PASS  ctxbad timeout-restored
 PASS  ctxbad stayon-restored
 PASS  ctxbad state-consumed
+== audit10: an A0 turn without the eval-time metric line is voided no_stats ==
+PASS  a0noperf rc
+PASS  a0noperf END
+PASS  a0noperf rows
+PASS  a0noperf void-A0
+PASS  a0noperf why
+PASS  a0noperf proof-A0
+PASS  a0noperf matched
+PASS  a0noperf no-success
+PASS  a0noperf restore-ran
+PASS  a0noperf timeout-restored
+PASS  a0noperf stayon-restored
+PASS  a0noperf state-consumed
 == audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) ==
 PASS  flagbad rc
 PASS  flagbad names the flag
@@ -381,4 +400,4 @@ PASS  flagok rc (selective)
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=347 fail=0
+SUMMARY pass=365 fail=0

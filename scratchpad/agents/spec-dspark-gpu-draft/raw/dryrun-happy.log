@@ -1,41 +1,53 @@
-[04:13:44] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[04:13:44] SESSION job=dry-happy board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[04:13:44] GATE label=before_setup
-[04:13:45] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[04:13:45] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[04:13:46] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[04:13:46] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[04:13:46] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[04:13:46] GATE label=after_push
-[04:13:48] KIT_AND_MODELS_VERIFIED
-[04:13:48] GATE label=setup
-[04:13:48] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[04:13:49] GATE label=post_A-p
-[04:13:49] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:13:50] GATE label=post_B4-p
-[04:13:50] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:13:51] GATE label=post_B8-p
-[04:13:51] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:13:52] GATE label=post_C4-p
-[04:13:53] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[04:13:54] GATE label=post_C8-p
-[04:13:54] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[04:13:55] GATE label=post_A
-[04:13:55] ARM_DONE tag=A limit=127 n=128 status=OK void=na accept=nan% tps=16.000
-[04:13:56] GATE label=post_B4
-[04:13:56] ARM_DONE tag=B4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
-[04:13:57] GATE label=post_B8
-[04:13:57] ARM_DONE tag=B8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
-[04:13:59] GATE label=post_C4
-[04:13:59] ARM_DONE tag=C4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
-[04:14:00] GATE label=post_C8
-[04:14:00] ARM_DONE tag=C8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
-[04:14:01] GATE label=post_A-m1
-[04:14:01] ARM_DONE tag=A-m1 limit=135 n=136 status=OK void=na accept=nan% tps=17.000
-[04:14:02] GATE label=post_B4-m1
-[04:14:02] ARM_DONE tag=B4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
-[04:14:04] GATE label=post_C4-m1
-[04:14:04] ARM_DONE tag=C4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
-[04:14:04] GATE label=post_session
-[04:14:04] MATCH ok n=136 arms=5 (final=matched rows are the measurement)
-[04:14:04] SESSION_DONE
+[05:52:28] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[05:52:28] SESSION job=dry-happy board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[05:52:28] GATE label=before_setup
+[05:52:29] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[05:52:29] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[05:52:29] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[05:52:29] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[05:52:29] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[05:52:30] GATE label=after_push
+[05:52:31] KIT_AND_MODELS_VERIFIED
+[05:52:31] GATE label=setup
+[05:52:31] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[05:52:33] GATE label=post_A0-p
+[05:52:33] PROOF_DONE arm=A0 status=OK void=na proof=plain: buffer_lines=2 off_gpu=0
+[05:52:34] GATE label=post_A-p
+[05:52:34] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:52:35] GATE label=post_B4-p
+[05:52:35] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:52:36] GATE label=post_B8-p
+[05:52:36] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:52:37] GATE label=post_C4-p
+[05:52:38] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[05:52:39] GATE label=post_C8-p
+[05:52:39] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[05:52:40] GATE label=post_A0b-p
+[05:52:40] PROOF_DONE arm=A0b status=OK void=na proof=plain: buffer_lines=2 off_gpu=0
+[05:52:41] GATE label=post_A0
+[05:52:41] ARM_DONE tag=A0 limit=127 n=126 status=OK void=na accept=na tps=21.00
+[05:52:42] GATE label=post_A
+[05:52:42] ARM_DONE tag=A limit=127 n=128 status=OK void=na accept=nan% tps=16.000
+[05:52:44] GATE label=post_B4
+[05:52:44] ARM_DONE tag=B4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[05:52:45] GATE label=post_B8
+[05:52:45] ARM_DONE tag=B8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[05:52:46] GATE label=post_C4
+[05:52:46] ARM_DONE tag=C4 limit=127 n=132 status=OK void=na accept=56.000% tps=16.500
+[05:52:47] GATE label=post_C8
+[05:52:47] ARM_DONE tag=C8 limit=127 n=136 status=OK void=na accept=39.000% tps=17.000
+[05:52:48] GATE label=post_A0b
+[05:52:48] ARM_DONE tag=A0b limit=127 n=126 status=OK void=na accept=na tps=21.00
+[05:52:50] GATE label=post_A0-m1
+[05:52:50] ARM_DONE tag=A0-m1 limit=137 n=136 status=OK void=na accept=na tps=21.00
+[05:52:51] GATE label=post_A-m1
+[05:52:51] ARM_DONE tag=A-m1 limit=135 n=136 status=OK void=na accept=nan% tps=17.000
+[05:52:52] GATE label=post_B4-m1
+[05:52:52] ARM_DONE tag=B4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
+[05:52:53] GATE label=post_C4-m1
+[05:52:53] ARM_DONE tag=C4-m1 limit=131 n=136 status=OK void=na accept=56.000% tps=17.000
+[05:52:55] GATE label=post_A0b-m1
+[05:52:55] ARM_DONE tag=A0b-m1 limit=137 n=136 status=OK void=na accept=na tps=21.00
+[05:52:55] GATE label=post_session
+[05:52:55] MATCH ok n=136 arms=7 (final=matched rows are the measurement)
+[05:52:55] SESSION_DONE

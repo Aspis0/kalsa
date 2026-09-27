@@ -34,6 +34,8 @@
 #   DRY_TURN_HTP=1              same, TURN log only (proof stays clean)
 #   DRY_CTX_MISMATCH=1          emit n_ctx=128000 (train ctx) even with -c
 #                               (audit9 gate coverage)
+#   DRY_A0_NO_PERF=1            the A0 turn lacks the eval-time metric line
+#                               (audit10: parse must void no_stats)
 #   DRY_PGREP_BROKEN=1          pgrep self-test fails -> setup aborts (exit 4)
 #   DRY_PGREP_BREAK_AT=N        pgrep works for call #1 (self-test) then breaks
 #   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
@@ -156,7 +158,7 @@ emit_ctx_block() {
 # `-no-cnv`/`--no-conversation`, common/arg.cpp:1899-1900) or a flag that
 # belongs to another binary (`-no-cnv`, `-cnv`, `-st` are completion-only and
 # spec-simple would reject them too) must never pass the dry-run silently.
-KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-dev$|^-devd$|^-c$|^-b$|^-ub$|^-fit$|^-lv$'
+KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^--no-conversation$|^--perf$|^-t$|^-ngl$|^-ngld$|^-dev$|^-devd$|^-c$|^-b$|^-ub$|^-fit$|^-lv$'
 run_arm() {
   local cmd=$1 tag limit nmax n i k kernels o n_predict dpn drafted accept rc gpu=0
   local badf
@@ -208,10 +210,20 @@ run_arm() {
   if [ "${DRY_CTX_MISMATCH:-0}" = 1 ]; then c=128000; fi
   kv=$(awk -v c="$c" 'BEGIN{printf "%.2f", c/64}')       # real: 128000 -> 2000.00 MiB
   kvk=$(awk -v c="$c" 'BEGIN{printf "%.2f", c/128}')     # real: 128000 -> 1000.00 MiB
+  # audit10: llama-completion eval-time metric values — runs = limit - 1
+  # (device -n 127 -> 126, host -n 64 -> 63), 21.0 t/s ≈ A's real plain
+  # baseline (21.15 t/s, s23-3way-6-t1cpu.log); prompt block = 77 tok ≈ 20 ms.
+  runs=$((limit - 1))
+  ev_ms=$(awk -v r="$runs" 'BEGIN{printf "%.2f", 1000*r/21.0}')
+  ev_per=$(awk -v m="$ev_ms" -v r="$runs" 'BEGIN{printf "%.2f", m/r}')
+  ev_tps=$(awk -v m="$ev_ms" -v r="$runs" 'BEGIN{printf "%.2f", 1000*r/m}')
+  pr_ms=1540.00; pr_per=20.00; pr_tps=50.00
   rc="${DRY_ARM_RC:-0}"
   # mode: `-lv 5` = proof run, anything else with `-lv` = measured turn (-lv 4).
   mode=measure
   case "$cmd" in *"-lv 5"*) mode=proof ;; esac
+  local plain=0
+  case "$cmd" in *llama-completion*) plain=1 ;; esac   # audit10: A0/A0b
   # AUDIT5 N-C2 turn knobs (measure logs only — the proof run must stay intact).
   local no_place=0 no_marker=0
   if [ "$mode" = measure ]; then
@@ -279,7 +291,7 @@ run_arm() {
     fi
     # the crash happened BEFORE the draft ever loads: no marker, no draft,
     # no stats — same shape as the real A-p.log tail.
-    if [ "$unpinned" -eq 0 ]; then
+    if [ "$unpinned" -eq 0 ] && [ "$plain" -eq 0 ]; then
     if [ "$no_marker" -eq 0 ]; then
       lg I "common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'"
     fi
@@ -340,6 +352,17 @@ run_arm() {
     lg I "n_accept  = 0"
     lg I "accept    = $accept"
     printf 'EXIT=%s\n' "$rc"
+    elif [ "$unpinned" -eq 0 ] && [ "$plain" = 1 ]; then
+      # audit10: llama-completion — no marker, no drafter, no spec stats; the
+      # metric is the eval-time line (format verbatim from
+      # s23-3way-6-t1cpu.log: `eval time = 5956.09 ms / 126 runs   (…` ).
+      # metric lines exist only with --perf (completion's default is off,
+      # common/arg.cpp --perf provenance) unless the knob forces them off.
+      if printf '%s' "$cmd" | grep -q -- '--perf' && [ "${DRY_A0_NO_PERF:-0}" != 1 ]; then
+        printf '0.00.900.110 I common_perf_print: prompt eval time = %10.2f ms / %5d tokens (%8.2f ms per token, %8.2f tokens per second)\n' "$pr_ms" 77 "$pr_per" "$pr_tps"
+        printf '0.00.900.111 I common_perf_print:        eval time = %10.2f ms / %5d runs   (%8.2f ms per token, %8.2f tokens per second)\n' "$ev_ms" "$runs" "$ev_per" "$ev_tps"
+      fi
+      printf 'EXIT=%s\n' "$rc"
     fi   # audit8: unpinned crash skipped marker/draft/stats
   } > "$DEV/$tag.log"
   rm -f "$STATE/proc_running"
@@ -419,7 +442,7 @@ handle_shell() {
     *"tar -xzf"*)
       if [ -f "$STATE/present_kit" ]; then : > "$STATE/kit_unpacked"; exit 0; fi
       echo "tar: kit.tgz: No such file" >&2; exit 1 ;;
-    *llama-speculative-simple*) run_arm "$cmd" ;;
+    *llama-speculative-simple*|*llama-completion*) run_arm "$cmd" ;;
     *"dumpsys thermalservice"*) dump_thermals; exit 0 ;;
     *"dumpsys battery"*) dump_battery; exit 0 ;;
     *power_supply/battery/temp*) echo "${DRY_SYSFS_TEMP:-310}"; exit 0 ;;

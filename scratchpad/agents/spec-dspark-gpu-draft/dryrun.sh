@@ -121,17 +121,25 @@ echo "== happy: proofs + probes + matched-N, prefixed logs, no debug in measured
 run_fixture happy
 eq "happy rc" 0 "$RC"
 eq "happy END" exit_0 "$(end_reason)"
-eq "happy rows" 13 "$(rows)"              # 5 proofs + 5 probes + 3 adjustments
-eq "happy rows attempt0" 5 "$(rows_att 0)"
-eq "happy rows attempt1" 5 "$(rows_att 1)"
-eq "happy rows attempt>1" 3 "$(rows_att_gt 1)"
-eq "happy probe N" "128 132 136 132 136" "$(awk -F'\t' 'NR>1 && $3==1 {printf "%s%s", sep, $5; sep=" "}' "$RAW/results.tsv")"
-eq "happy matched N" "136 136 136" "$(awk -F'\t' 'NR>1 && $3>1 {printf "%s%s", sep, $5; sep=" "}' "$RAW/results.tsv")"
+eq "happy rows" 19 "$(rows)"              # 7 proofs + 7 probes + 5 adjustments
+
+eq "happy rows attempt0" 7 "$(rows_att 0)"
+eq "happy rows attempt1" 7 "$(rows_att 1)"
+eq "happy rows attempt>1" 5 "$(rows_att_gt 1)"
+eq "happy probe N" "126 128 132 136 132 136 126" "$(awk -F'\t' 'NR>1 && $3==1 {printf "%s%s", sep, $5; sep=" "}' "$RAW/results.tsv")"
+eq "happy matched N" "136 136 136 136 136" "$(awk -F'\t' 'NR>1 && $3>1 {printf "%s%s", sep, $5; sep=" "}' "$RAW/results.tsv")"
 has "happy match-gate" "MATCH ok n=136" "$(driver_log)"
 eq "happy all-OK" "" "$(awk -F'\t' 'NR>1 && $14!="OK"{printf "%s ", $1}' "$RAW/results.tsv")"
-eq "happy final proof" 5 "$(fcount proof)"
-eq "happy final matched" 5 "$(fcount matched)"
-eq "happy final superseded" 3 "$(fcount superseded)"
+eq "happy final proof" 7 "$(fcount proof)"
+eq "happy final matched" 7 "$(fcount matched)"
+eq "happy final superseded" 5 "$(fcount superseded)"
+# audit10: A0/A0b = the plain completion baseline — eval-line metric (runs =
+# limit-1 = 126), no spec stats, and its two instances must agree (drift test)
+eq "happy A0 probe N" 126 "$(colr A0 5)"
+eq "happy A0 tps" 21.00 "$(colr A0 9)"
+eq "happy A0 accept-na" na "$(colr A0 8)"
+eq "happy A0-vs-A0b drift" "$(colr A0 9)" "$(colr A0b 9)"
+eq "happy ctx-A0" "2048 " "$(awk '/llama_context: n_ctx / && !/n_ctx_seq/{printf "%s ", $NF}' "$RAW/A0.log" 2>/dev/null)"
 eq "happy final void" 0 "$(fcount void)"
 eq "happy A no-spec" 0 "$(colr A 7)"
 eq "happy B8 tps" 17.000 "$(colr B8 9)"
@@ -192,11 +200,11 @@ has "push kill-verified" "KILL_VERIFY" "$(driver_log)"
 eq "push rows" 0 "$(rows)"
 
 echo "== B-1: thermal stop mid-probe-arm + verified kill =="
-run_fixture thermal DRY_THERMAL_AT=17 DRY_THERMAL_AFTER=3 DRY_ARM_SLEEP_S=3
+run_fixture thermal DRY_THERMAL_AT=21 DRY_THERMAL_AFTER=3 DRY_ARM_SLEEP_S=3
 eq "thermal rc" 0 "$RC"
 eq "thermal END" stop_thermal_status "$(end_reason)"
-eq "thermal rows" 6 "$(rows)"             # 5 proofs + the stopped probe A
-eq "thermal void" stop_thermal_status "$(colr A 15)"
+eq "thermal rows" 8 "$(rows)"             # 7 proofs + the stopped A0 probe
+eq "thermal void" stop_thermal_status "$(colr A0 15)"
 has "thermal killed-spec" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
 has "thermal kill-verified" "KILL_VERIFY reason=stop_thermal_status result=gone" "$(driver_log)"
 eq "thermal cols18" 0 "$(cols18_bad)"                        # NEW-3: stop path keeps 18 cols
@@ -227,19 +235,19 @@ echo "== B-6: jittered overshoot still converges inside MATCH_MAX =="
 run_fixture jitter DRY_JITTER=1
 eq "jitter rc" 0 "$RC"
 eq "jitter END" exit_0 "$(end_reason)"
-eq "jitter rows" 15 "$(rows)"             # 5 proofs + 5 probes; A x1, B4 x2, C4 x2 adjustments
+eq "jitter rows" 21 "$(rows)"             # 7 proofs + 7 probes + A0,A,B4,C4,A0b + B4-m2 adjustments
 has "jitter second-round tag" "B4-m2" "$(awk -F'\t' 'NR>1{printf "%s ", $1}' "$RAW/results.tsv")"
 has "jitter match" "MATCH ok n=136" "$(driver_log)"
-eq "jitter final matched" 5 "$(fcount matched)"
+eq "jitter final matched" 7 "$(fcount matched)"
 
 echo "== B-3: non-converging arm -> END=match_void, exit 3, final=void_match =="
 run_fixture matchvoid DRY_NEVER_MATCH_ARM=B4
 eq "matchvoid rc" 3 "$RC"
 eq "matchvoid END" match_void "$(end_reason)"
-eq "matchvoid rows" 16 "$(rows)"          # 5 proofs + 5 probes + A m1 + C4 m1 + B4 m1..m4
+eq "matchvoid rows" 22 "$(rows)"          # 7 proofs + 7 probes + 5 raises + B4 m2..m4 (stuck)
 eq "matchvoid matched-tag" 0 "$(fcount matched)"
-eq "matchvoid void_match-tag" 11 "$(fcount void_match)"
-eq "matchvoid proof-tag" 5 "$(fcount proof)"
+eq "matchvoid void_match-tag" 15 "$(fcount void_match)"
+eq "matchvoid proof-tag" 7 "$(fcount proof)"
 not_has "matchvoid no-success-log" "MATCH ok" "$(driver_log)"
 assert_restore matchvoid
 
@@ -247,7 +255,7 @@ echo "== B-1: timeout kills AND verifies; void session not success =="
 run_fixture timeout DRY_PROOF_SLEEP_S=3 ARM_TIMEOUT_S=1
 eq "timeout rc" 3 "$RC"
 eq "timeout END" match_void "$(end_reason)"
-eq "timeout rows" 5 "$(rows)"
+eq "timeout rows" 7 "$(rows)"
 eq "timeout void" timeout "$(colr A-p 15)"
 has "timeout kill-verified" "KILL_VERIFY reason=abn_A-p result=gone" "$(driver_log)"
 has "timeout killed-spec" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
@@ -385,11 +393,12 @@ echo "== audit3: decoded <N> vs n_predict = <N> cross-check voids the row =="
 run_fixture countmismatch DRY_N_DECODED_MISMATCH=1
 eq "countmismatch rc" 3 "$RC"
 eq "countmismatch END" match_void "$(end_reason)"
-eq "countmismatch rows" 10 "$(rows)"      # 5 proofs + 5 probes, every probe voided
+eq "countmismatch rows" 14 "$(rows)"      # 7 proofs + 7 probes, every probe voided
 eq "countmismatch void-A" count_mismatch "$(colr A 15)"
 eq "countmismatch void-B4" count_mismatch "$(colr B4 15)"
-eq "countmismatch final-void" 5 "$(fcount void)"            # the 5 probes; proofs stay final=proof
-eq "countmismatch final-proof" 5 "$(fcount proof)"
+eq "countmismatch final-void" 5 "$(fcount void)"   # the 5 SPEC probes (A0/A0b print no decoded line — knob scope)
+eq "countmismatch A0-ok" OK "$(colr A0 14)"
+eq "countmismatch final-proof" 7 "$(fcount proof)"
 eq "countmismatch matched-tag" 0 "$(fcount matched)"
 not_has "countmismatch no-success" "MATCH ok" "$(driver_log)"
 assert_restore countmismatch
@@ -430,7 +439,7 @@ echo "== audit4 N-B2: a disabled backend in the TURN voids the row (the proof wa
 run_fixture turndisabled DRY_TURN_DISABLED=1
 eq "turndisabled rc" 3 "$RC"
 eq "turndisabled END" match_void "$(end_reason)"
-eq "turndisabled rows" 10 "$(rows)"       # 5 proofs + 5 probes, every turn voided
+eq "turndisabled rows" 14 "$(rows)"       # 7 proofs + 7 probes, every turn voided
 eq "turndisabled void-A" turn_backend_disabled "$(colr A 15)"
 eq "turndisabled proof-A-status" OK "$(colr A-p 14)"   # proof passed: the silent case
 eq "turndisabled proof-A-final" proof "$(colr A-p 18)"
@@ -442,7 +451,7 @@ echo "== AUDIT5 N-C2: turn_no_marker / turn_no_placement each have a fixture =="
 run_fixture turnnomarker DRY_TURN_NO_MARKER=1
 eq "turnnomarker rc" 3 "$RC"
 eq "turnnomarker END" match_void "$(end_reason)"
-eq "turnnomarker rows" 10 "$(rows)"        # 5 proofs + 5 probes, all turns voided
+eq "turnnomarker rows" 14 "$(rows)"        # 7 proofs + 7 probes, all turns voided
 eq "turnnomarker void-A" turn_no_marker "$(colr A 15)"
 eq "turnnomarker proof-A" OK "$(colr A-p 14)"
 eq "turnnomarker matched" 0 "$(fcount matched)"
@@ -451,7 +460,7 @@ assert_restore turnnomarker
 run_fixture turnnoplace DRY_TURN_NO_PLACEMENT=1
 eq "turnnoplace rc" 3 "$RC"
 eq "turnnoplace END" match_void "$(end_reason)"
-eq "turnnoplace rows" 10 "$(rows)"
+eq "turnnoplace rows" 14 "$(rows)"
 eq "turnnoplace void-A" turn_no_placement "$(colr A 15)"
 eq "turnnoplace proof-A" OK "$(colr A-p 14)"
 eq "turnnoplace matched" 0 "$(fcount matched)"
@@ -461,7 +470,7 @@ echo "== AUDIT5 N-C1: a PARTIAL drafter offload (3/6) must not pass as C4 =="
 run_fixture turnpartial DRY_TURN_PARTIAL=1
 eq "turnpartial rc" 3 "$RC"
 eq "turnpartial END" match_void "$(end_reason)"
-eq "turnpartial rows" 12 "$(rows)"        # 5 proofs + 5 probes + A-m1 + B4-m1 (C voided -> never matched)
+eq "turnpartial rows" 18 "$(rows)"        # 7 proofs + 7 probes + A0,A,B4,A0b raises (C voided)
 eq "turnpartial void-C4" turn_placement_mismatch "$(colr C4 15)"
 eq "turnpartial void-C8" turn_placement_mismatch "$(colr C8 15)"
 eq "turnpartial proof-C4" OK "$(colr C4-p 14)"
@@ -473,7 +482,7 @@ echo "== AUDIT5 N-C2: turn_gpu_leak — an A/B turn that offloads the drafter ==
 run_fixture turnleak DRY_TURN_GPU_LEAK=1
 eq "turnleak rc" 3 "$RC"
 eq "turnleak END" match_void "$(end_reason)"
-eq "turnleak rows" 11 "$(rows)"           # 5 proofs + 5 probes + C4-m1 (A/B voided)
+eq "turnleak rows" 17 "$(rows)"           # 7 proofs + 7 probes + A0,C4,A0b raises (A,B4,B8 voided)
 eq "turnleak void-A" turn_gpu_leak "$(colr A 15)"
 eq "turnleak void-B8" turn_gpu_leak "$(colr B8 15)"
 eq "turnleak proof-A" OK "$(colr A-p 14)"
@@ -485,7 +494,7 @@ echo "== audit6: an interactive/conversation TURN is voided (proof was fine) =="
 run_fixture interactiveturn DRY_TURN_INTERACTIVE=1
 eq "interactiveturn rc" 3 "$RC"
 eq "interactiveturn END" match_void "$(end_reason)"
-eq "interactiveturn rows" 10 "$(rows)"     # 5 proofs OK + 5 turns voided
+eq "interactiveturn rows" 14 "$(rows)"     # 7 proofs OK + 7 turns voided
 eq "interactiveturn void-A" interactive_mode "$(colr A 15)"
 eq "interactiveturn proof-A" OK "$(colr A-p 14)"
 eq "interactiveturn matched" 0 "$(fcount matched)"
@@ -495,7 +504,7 @@ echo "== audit6: an interactive PROOF voids the arm before it is ever measured =
 run_fixture interactiveproof DRY_PROOF_INTERACTIVE=1
 eq "interactiveproof rc" 3 "$RC"
 eq "interactiveproof END" match_void "$(end_reason)"
-eq "interactiveproof rows" 5 "$(rows)"     # proof-only: arms dead, no turns ran
+eq "interactiveproof rows" 7 "$(rows)"     # proof-only: arms dead, no turns ran
 eq "interactiveproof void-A" interactive_mode "$(colr A-p 15)"
 eq "interactiveproof matched" 0 "$(fcount matched)"
 not_has "interactiveproof no-success" "MATCH ok" "$(driver_log)"
@@ -505,7 +514,7 @@ echo "== audit8: an HTP0 leak in a PROOF is voided htp_leak (content beats rc) =
 run_fixture htpproof DRY_HTP_LEAK=1
 eq "htpproof rc" 3 "$RC"
 eq "htpproof END" match_void "$(end_reason)"
-eq "htpproof rows" 5 "$(rows)"          # proofs voided before any turn ran
+eq "htpproof rows" 7 "$(rows)"          # proofs voided before any turn ran
 eq "htpproof void-A" htp_leak "$(colr A-p 15)"
 eq "htpproof proof-col" htp_line=1 "$(colr A-p 16)"   # parse-gate proof string: EXIT=0 was NOT the reason
 eq "htpproof matched" 0 "$(fcount matched)"
@@ -515,7 +524,7 @@ echo "== audit8: an HTP0 leak in a TURN voids the probe, the proof stays OK =="
 run_fixture htpturn DRY_TURN_HTP=1
 eq "htpturn rc" 3 "$RC"
 eq "htpturn END" match_void "$(end_reason)"
-eq "htpturn rows" 10 "$(rows)"
+eq "htpturn rows" 14 "$(rows)"
 eq "htpturn void-A" htp_leak "$(colr A 15)"
 eq "htpturn proof-A" OK "$(colr A-p 14)"
 assert_restore htpturn
@@ -524,7 +533,7 @@ echo "== audit8: a pure SIGSEGV (no HTP lines) is crash_sig139, not timeout =="
 run_fixture segv DRY_ARM_RC=139
 eq "segv rc" 3 "$RC"
 eq "segv END" match_void "$(end_reason)"
-eq "segv rows" 5 "$(rows)"
+eq "segv rows" 7 "$(rows)"
 eq "segv void-A" crash_sig11 "$(colr A-p 15)"   # rc 139 = 128 + signal 11 (SIGSEGV)
 eq "segv rc-recorded" 139 "$(colr A-p 16)"   # abnormal rows carry the rc in the proof col
 has "segv kill-verified" "KILL_VERIFY reason=abn_A-p result=gone" "$(driver_log)"
@@ -534,18 +543,30 @@ echo "== audit9: a train-ctx (128000) run is voided ctx_mismatch =="
 run_fixture ctxbad DRY_CTX_MISMATCH=1
 eq "ctxbad rc" 3 "$RC"
 eq "ctxbad END" match_void "$(end_reason)"
-eq "ctxbad rows" 5 "$(rows)"            # proofs voided before any turn ran
+eq "ctxbad rows" 7 "$(rows)"            # proofs voided before any turn ran
 eq "ctxbad void-A" ctx_mismatch "$(colr A-p 15)"
 has "ctxbad proof-values" "128000" "$(colr A-p 16)"   # n_ctx=128000,128000 want=2048
 eq "ctxbad matched" 0 "$(fcount matched)"
 not_has "ctxbad no-success" "MATCH ok" "$(driver_log)"
 assert_restore ctxbad
 
+echo "== audit10: an A0 turn without the eval-time metric line is voided no_stats =="
+run_fixture a0noperf DRY_A0_NO_PERF=1
+eq "a0noperf rc" 3 "$RC"
+eq "a0noperf END" match_void "$(end_reason)"
+eq "a0noperf rows" 17 "$(rows)"         # 7 proofs + 7 probes + A,B4,C4 raises (A0/A0b dead)
+eq "a0noperf void-A0" no_stats "$(colr A0 15)"
+has "a0noperf why" "eval_line=missing" "$(colr A0 16)"
+eq "a0noperf proof-A0" OK "$(colr A0-p 14)"   # the proof does not read the metric
+eq "a0noperf matched" 0 "$(fcount matched)"
+not_has "a0noperf no-success" "MATCH ok" "$(driver_log)"
+assert_restore a0noperf
+
 echo "== audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) =="
 FB=/tmp/dspark-dry-flagbad
 rm -rf "$FB"; mkdir -p "$FB"
 BADCMD=$(D=/data/local/tmp/dspark-spec; . "$CELL/arm.sh" >/dev/null 2>&1; arm_cmd flagbad A 8 measure | sed 's/ -lv 4/ -lv 4 --no-cnv/')
-CLEANCMD=$(D=/data/local/tmp/dspark-spec; . "$CELL/arm.sh" >/dev/null 2>&1; arm_cmd flagok A 8 measure)
+CLEANCMD=$(D=/data/local/tmp/dspark-spec; . "$CELL/arm.sh" >/dev/null 2>&1; arm_cmd flagok A0 8 measure)
 set +e
 env FAKE_ADB_STATE="$FB" "$CELL/fake-adb.sh" -s fake shell "$BADCMD" > "$CELL/raw/dryrun-flagbad.log" 2>&1
 RC=$?

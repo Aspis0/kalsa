@@ -435,14 +435,14 @@ run_measure() { # <arm> <tag> <limit> <attempt_no> <index>: the timed turn
 match_state() {  # sets N_STAR, N_OK, ALL_EQ (0/1)
   N_STAR=0; N_OK=0; ALL_EQ=1
   local j cur
-  for j in 0 1 2 3 4; do
+  for j in "${!ARMS[@]}"; do
     cur=${N_OF[$j]}
     [ -n "$cur" ] || { ALL_EQ=0; continue; }
     N_OK=$((N_OK + 1))
     [ "$cur" -le "$N_STAR" ] || N_STAR=$cur
   done
   if [ "$N_OK" -ne "${#ARMS[@]}" ]; then ALL_EQ=0; return 0; fi
-  for j in 0 1 2 3 4; do
+  for j in "${!ARMS[@]}"; do
     [ "${N_OF[$j]}" -eq "$N_STAR" ] || { ALL_EQ=0; return 0; }
   done
   ALL_EQ=1
@@ -513,11 +513,19 @@ log "SETUP_DONE skin=$LIVE_SKIN thermal=$LIVE_THERMAL_STATUS batt_temp=$LIVE_BAT
 printf 'tag\tarm\tattempt\tlimit\tn_predict\tover\tn_drafted\taccept\ttps\tcooldown_s\twarm_start\tskin_before\tskin_after\tstatus\tvoid\tproof\twall_s\tfinal\n' > "$RESULTS"
 
 # ---- passes: proofs (5) -> probes (5) -> matched-N adjustments ----
-ARMS=(A B4 B8 C4 C8)
-N_OF=("" "" "" "" "")
-LIMIT_OF=(127 127 127 127 127)
-LAST_OK_TAG=("" "" "" "" "")
-DEAD=(0 0 0 0 0)
+# A0 = plain llama-completion baseline (audit10), FIRST and LAST so drift
+# between its two instances is visible in results.tsv.
+ARMS=(A0 A B4 B8 C4 C8 A0b)
+N_OF=()
+LIMIT_OF=()
+LAST_OK_TAG=()
+DEAD=()
+for _arm in "${ARMS[@]}"; do
+  N_OF+=("")
+  LIMIT_OF+=(127)
+  LAST_OK_TAG+=("")
+  DEAD+=(0)
+done
 
 i=0
 for arm in "${ARMS[@]}"; do
@@ -552,7 +560,7 @@ done
 
 if [ "$ALL_EQ" -eq 1 ]; then
   matched_tags=""
-  for j in 0 1 2 3 4; do matched_tags="$matched_tags ${LAST_OK_TAG[$j]}"; done
+  for j in "${!ARMS[@]}"; do matched_tags="$matched_tags ${LAST_OK_TAG[$j]}"; done
   safety_gate post_session || finish_stop
   finalize_results matched "$matched_tags"
   log "MATCH ok n=$N_STAR arms=${#ARMS[@]} (final=matched rows are the measurement)"

@@ -1,0 +1,9 @@
+0.00.000.133 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.900.010 I llama_context: n_ctx                 = 2048
+0.00.900.011 I llama_context: n_ctx_seq             = 2048
+0.00.900.012 I llama_context: n_batch               = 2048
+0.00.900.013 I llama_context: n_ubatch              = 1024
+0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
+0.00.900.110 I common_perf_print: prompt eval time =    1540.00 ms /    77 tokens (   20.00 ms per token,    50.00 tokens per second)
+0.00.900.111 I common_perf_print:        eval time =    6000.00 ms /   126 runs   (   47.62 ms per token,    21.00 tokens per second)
+EXIT=0

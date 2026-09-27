@@ -1,27 +1,27 @@
-0.00.000.300 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.301 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.302 I load_tensors: offloaded 0/31 layers to GPU
-0.00.000.303 I load_tensors:          CPU model buffer size =   206.07 MiB
-0.00.000.304 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.000.345 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.346 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.347 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.348 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.349 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
 0.00.900.013 I llama_context: n_ubatch              = 1024
 0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
-0.00.000.305 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
-0.00.000.306 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.307 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.308 I load_tensors: offloaded 0/6 layers to GPU
-0.00.000.309 I load_tensors:          CPU model buffer size =   340.00 MiB
+0.00.000.350 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.351 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.352 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.353 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.354 I load_tensors:          CPU model buffer size =   340.00 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
 0.00.900.013 I llama_context: n_ubatch              = 1024
 0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
 0.00.900.001 I decoded  132 tokens in    8.000 seconds, speed:   16.500 t/s
-0.00.000.310 I n_draft   = 4
-0.00.000.311 I n_predict = 132
-0.00.000.312 I n_drafted = 264
-0.00.000.313 I n_accept  = 0
-0.00.000.314 I accept    = 56.000%
+0.00.000.355 I n_draft   = 4
+0.00.000.356 I n_predict = 132
+0.00.000.357 I n_drafted = 264
+0.00.000.358 I n_accept  = 0
+0.00.000.359 I accept    = 56.000%
 EXIT=0

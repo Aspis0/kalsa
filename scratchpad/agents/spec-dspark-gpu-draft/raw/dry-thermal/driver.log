@@ -1,27 +1,31 @@
-[04:14:36] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[04:14:36] SESSION job=dry-thermal board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[04:14:36] GATE label=before_setup
-[04:14:38] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[04:14:38] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[04:14:38] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[04:14:38] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[04:14:38] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[04:14:39] GATE label=after_push
-[04:14:40] KIT_AND_MODELS_VERIFIED
-[04:14:40] GATE label=setup
-[04:14:40] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[04:14:41] GATE label=post_A-p
-[04:14:41] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:14:42] GATE label=post_B4-p
-[04:14:42] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:14:44] GATE label=post_B8-p
-[04:14:44] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[04:14:45] GATE label=post_C4-p
-[04:14:45] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[04:14:46] GATE label=post_C8-p
-[04:14:46] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[04:14:47] STOP reason=thermal_status
-[04:14:47] PKILL_UNVERIFIED ctx=stop_thermal_status pgrep_rc=missing — remote llama-completion may still be running
-[04:14:47] KILL_VERIFY reason=poll_stop result=gone attempt=1
-[04:14:49] KILL_VERIFY reason=stop_thermal_status result=gone attempt=1
-[04:14:49] SESSION_STOP reason=thermal_status kill_failed=0
+[05:53:35] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[05:53:35] SESSION job=dry-thermal board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[05:53:35] GATE label=before_setup
+[05:53:36] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[05:53:36] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[05:53:36] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[05:53:36] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[05:53:36] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[05:53:37] GATE label=after_push
+[05:53:38] KIT_AND_MODELS_VERIFIED
+[05:53:38] GATE label=setup
+[05:53:38] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[05:53:39] GATE label=post_A0-p
+[05:53:40] PROOF_DONE arm=A0 status=OK void=na proof=plain: buffer_lines=2 off_gpu=0
+[05:53:41] GATE label=post_A-p
+[05:53:41] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:53:42] GATE label=post_B4-p
+[05:53:42] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:53:43] GATE label=post_B8-p
+[05:53:43] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[05:53:44] GATE label=post_C4-p
+[05:53:44] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[05:53:46] GATE label=post_C8-p
+[05:53:46] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[05:53:47] GATE label=post_A0b-p
+[05:53:47] PROOF_DONE arm=A0b status=OK void=na proof=plain: buffer_lines=2 off_gpu=0
+[05:53:48] STOP reason=thermal_status
+[05:53:48] PKILL_UNVERIFIED ctx=stop_thermal_status pgrep_rc=missing — remote llama-completion may still be running
+[05:53:48] KILL_VERIFY reason=poll_stop result=gone attempt=1
+[05:53:50] KILL_VERIFY reason=stop_thermal_status result=gone attempt=1
+[05:53:50] SESSION_STOP reason=thermal_status kill_failed=0

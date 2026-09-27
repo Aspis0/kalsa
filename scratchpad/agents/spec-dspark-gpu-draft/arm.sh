@@ -42,6 +42,10 @@ CTX_SIZE=2048
 
 arm_is_gpu() { case "$1" in C*) return 0 ;; *) return 1 ;; esac; }
 
+# audit10: A0/A0b = the plain llama-completion baseline (no drafter; metric
+# from the eval-time line). First and last in ARMS so drift is visible.
+arm_is_plain() { case "$1" in A0|A0b) return 0 ;; *) return 1 ;; esac; }
+
 # arm_flags <arm>: drafter device/depth. A and B pin the drafter to CPU
 # (-ngld 0: the -1 default would auto-offload on a kit WITH OpenCL).
 arm_flags() {
@@ -68,14 +72,24 @@ arm_flags() {
 #                    none of them, -lv 4 admits INFO, DEBUG needs -lv 5)
 arm_cmd() {
   local tag=$1 arm=$2 limit=$3 mode=$4 flags lv envk
-  flags=$(arm_flags "$arm") || return 1
-  flags="$flags -c $CTX_SIZE -b 2048 -ub 1024 -fit off"   # audit9 (see CTX_SIZE)
   lv=""; envk=""
   case "$mode" in
     proof)   lv=" -lv 5"; envk="export GGML_OPENCL_LOG_KERNELS=1 && " ;;
     measure) lv=" -lv 4" ;;
     *) return 1 ;;
   esac
+  if arm_is_plain "$arm"; then
+    # audit10: A0 = plain llama-completion. No drafter flags (the completion
+    # example rejects --spec-draft-model/--spec-type), plus --no-conversation
+    # (kills the template/interactive trap) and --perf (the eval-time metric
+    # line is opt-in for completion); -c/-b/-ub/-fit/-t/-dev/-ngl identical to
+    # the spec arms so the only difference is the binary's own loop.
+    printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && ./bin/llama-completion -m %s/ship.gguf -dev none -f %s/prompt.txt -n %s -c %s -b 2048 -ub 1024 -fit off -t 5 -ngl 0 --temp 0 --top-k 1 --no-conversation --perf%s > %s/%s.log 2>&1 < /dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+      "$D" "$D" "$D" "$D" "$limit" "$CTX_SIZE" "$lv" "$D" "$tag" "$D" "$tag"
+    return 0
+  fi
+  flags=$(arm_flags "$arm") || return 1
+  flags="$flags -c $CTX_SIZE -b 2048 -ub 1024 -fit off"   # audit9 (see CTX_SIZE)
   printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -dev none -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1 < /dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$D" "$D" "$envk" "$D" "$D" "$flags" "$D" "$limit" "$lv" "$D" "$tag" "$D" "$tag"
 }
@@ -151,7 +165,7 @@ arm_rc_reason() {
 arm_parse_proof() {
   local tag=$1 arm=$2
   local logf="$RAW/$tag.log" exit_line="" pre="" post="" ctxv=""
-  local pre_place=0 gpu_assign=0 cpu_assign=0 kernels=0
+  local pre_place=0 gpu_assign=0 cpu_assign=0 kernels=0 turn_buf=0 turn_off=0
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   [ -f "$logf" ] || return 0
   # audit8: HTP0/session-failure content first — it is the root cause even in
@@ -177,6 +191,26 @@ arm_parse_proof() {
   if awk '/Running in interactive mode/{n++} END{exit !(n>0)}' "$logf"; then
     ARM_VOID=interactive_mode
     ARM_PROOF="interactive_line=1"
+    return 0
+  fi
+  # audit10: the plain baseline has no drafter — prove the TARGET stayed on
+  # CPU via the INFO placement lines over the WHOLE log (there is no draft
+  # segment to split) and require the lines to exist (-lv 5 admits them).
+  if arm_is_plain "$arm"; then
+    turn_buf=$(awk 'index($0, "model buffer size") {n++} END{print n+0}' "$logf")
+    turn_off=$(awk '$0 ~ ("offloaded [1-9][0-9]*/[0-9]+ layers to GPU") {n++} END{print n+0}' "$logf")
+    if [ "$turn_buf" -lt 1 ]; then
+      ARM_VOID=turn_no_placement
+      ARM_PROOF="plain: buffer_lines=$turn_buf (needs -lv 5)"
+      return 0
+    fi
+    if [ "$turn_off" -gt 0 ]; then
+      ARM_VOID=turn_gpu_leak
+      ARM_PROOF="plain: buffer_lines=$turn_buf off_gpu=$turn_off"
+      return 0
+    fi
+    ARM_PROOF="plain: buffer_lines=$turn_buf off_gpu=0"
+    ARM_STATUS=OK; ARM_VOID=na
     return 0
   fi
   local marker
@@ -246,6 +280,34 @@ arm_parse_measure() {
     ARM_PROOF="interactive_line=1"
     return 0
   fi
+  # audit4 N-B2 (moved up so BOTH branches share it): the measured PROCESS
+  # must prove its own backend — an OpenCL failure line in the turn voids it
+  # before any stat is read (cell A's turn_backend_disabled equivalent).
+  if awk '/kernel set failed to build|device disabled/{n++} END{exit !(n>0)}' "$logf"; then
+    ARM_VOID=turn_backend_disabled
+    ARM_PROOF="disabled_line_in_turn=1"
+    return 0
+  fi
+  # audit10: A0 (llama-completion) has no drafter and no spec stats — its
+  # metric is the eval-time line, verbatim
+  # `common_perf_print:        eval time = 5956.09 ms / 126 runs   (47.27 ms
+  # per token, 21.15 tokens per second)` (s23-3way-6-t1cpu.log): a DECODE-only
+  # window (prompt eval is its own line) so it is comparable with
+  # spec-simple's `decoded N tokens … speed`; runs = limit-1 on device (-n 127
+  # -> 126) and host (-n 64 -> 63), both measured in raw/host_a0_sanity.log.
+  if arm_is_plain "$arm"; then
+    local ev_line=""
+    ev_line=$(awk '/eval time = / && !/prompt eval/{print; exit}' "$logf")
+    [ -n "$ev_line" ] || { ARM_VOID=no_stats; ARM_PROOF="eval_line=missing (needs --perf)"; return 0; }
+    ARM_N=$(printf '%s\n' "$ev_line" | awk 'match($0, /\/ *[0-9]+ runs/){s=substr($0,RSTART,RLENGTH);gsub(/[^0-9]/,"",s);print s}')
+    ARM_TPS=$(printf '%s\n' "$ev_line" | awk 'match($0, /[0-9.]+ tokens per second/){s=substr($0,RSTART,RLENGTH);gsub(/[^0-9.]/,"",s);print s}')
+    case "$ARM_N" in ''|*[!0-9]*) ARM_VOID=no_stats; ARM_PROOF="eval_runs=unparsed"; return 0 ;; esac
+    case "$ARM_TPS" in ''|*[!0-9.]*) ARM_VOID=no_stats; ARM_TPS=na; return 0 ;; esac
+    ARM_DRAFTED=na; ARM_ACCEPT=na
+    ARM_OVER=$((ARM_N - limit))
+    ARM_STATUS=OK; ARM_VOID=na
+    return 0
+  fi
   # Stats-block shapes, end-anchored (AUDIT5 item-4): the real S23 logs also
   # carry llama-completion's `generate: … n_predict = 16, n_keep = 1`, which
   # the unanchored pattern would match ($NF=1 = garbage). The `$` pins the
@@ -267,16 +329,6 @@ arm_parse_measure() {
   if [ "$n_dec" != "$ARM_N" ]; then
     ARM_VOID=count_mismatch
     ARM_PROOF="decoded=$n_dec n_predict=$ARM_N"
-    return 0
-  fi
-  # audit4 N-B2: the measured PROCESS must prove its own backend — the proof
-  # run is a different process and cannot vouch for this turn. Same negative
-  # check as cell A's turn_backend_disabled, plus placement evidence that only
-  # -lv 4 admits: buffer lines must exist, the drafter's segment must offload
-  # to GPU exactly when this arm says so.
-  if awk '/kernel set failed to build|device disabled/{n++} END{exit !(n>0)}' "$logf"; then
-    ARM_VOID=turn_backend_disabled
-    ARM_PROOF="disabled_line_in_turn=1 n_predict=$ARM_N"
     return 0
   fi
   marker=$(draft_marker_line "$logf")

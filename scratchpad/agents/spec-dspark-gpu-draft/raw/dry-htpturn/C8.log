@@ -1,32 +1,32 @@
-0.00.000.154 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.155 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.156 I load_tensors: offloaded 0/31 layers to GPU
-0.00.000.157 I load_tensors:          CPU model buffer size =   206.07 MiB
-0.00.000.158 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.000.172 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.173 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.174 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.175 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.176 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
 0.00.900.013 I llama_context: n_ubatch              = 1024
 0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
-0.00.000.159 I llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
-0.00.000.160 E ggml-hex: HTP0 failed to open session : uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 error 0x80000406
-0.00.000.161 E llama_init_from_model: failed to initialize the context: ggml-hex: failed to open session (see log for details)
-0.00.000.162 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
-0.00.000.163 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
-0.00.000.164 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.165 I load_tensors: offloading output layer to GPU
-0.00.000.166 I load_tensors: offloading 4 repeating layers to GPU
-0.00.000.167 I load_tensors: offloaded 6/6 layers to GPU
-0.00.000.168 I load_tensors:       OpenCL model buffer size =   340.00 MiB
+0.00.000.177 I llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+0.00.000.178 E ggml-hex: HTP0 failed to open session : uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 error 0x80000406
+0.00.000.179 E llama_init_from_model: failed to initialize the context: ggml-hex: failed to open session (see log for details)
+0.00.000.180 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.181 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+0.00.000.182 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.183 I load_tensors: offloading output layer to GPU
+0.00.000.184 I load_tensors: offloading 4 repeating layers to GPU
+0.00.000.185 I load_tensors: offloaded 6/6 layers to GPU
+0.00.000.186 I load_tensors:       OpenCL model buffer size =   340.00 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
 0.00.900.013 I llama_context: n_ubatch              = 1024
 0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
 0.00.900.001 I decoded  136 tokens in    8.000 seconds, speed:   17.000 t/s
-0.00.000.169 I n_draft   = 8
-0.00.000.170 I n_predict = 136
-0.00.000.171 I n_drafted = 408
-0.00.000.172 I n_accept  = 0
-0.00.000.173 I accept    = 39.000%
+0.00.000.187 I n_draft   = 8
+0.00.000.188 I n_predict = 136
+0.00.000.189 I n_drafted = 408
+0.00.000.190 I n_accept  = 0
+0.00.000.191 I accept    = 39.000%
 EXIT=0

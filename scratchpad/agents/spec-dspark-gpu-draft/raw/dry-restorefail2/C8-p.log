@@ -1,8 +1,8 @@
-0.00.000.268 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.269 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.270 I load_tensors: offloaded 0/31 layers to GPU
-0.00.000.271 I load_tensors:          CPU model buffer size =   206.07 MiB
-0.00.000.272 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.000.303 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.304 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.305 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.306 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.307 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
@@ -32,13 +32,13 @@
 0.00.071.021 D load_tensors: layer  21 assigned to device CPU, is_swa = 0
 0.00.072.022 D load_tensors: layer  22 assigned to device CPU, is_swa = 0
 0.00.073.023 D load_tensors: layer  23 assigned to device CPU, is_swa = 0
-0.00.000.273 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
-0.00.000.274 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
-0.00.000.275 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.276 I load_tensors: offloading output layer to GPU
-0.00.000.277 I load_tensors: offloading 4 repeating layers to GPU
-0.00.000.278 I load_tensors: offloaded 6/6 layers to GPU
-0.00.000.279 I load_tensors:       OpenCL model buffer size =   340.00 MiB
+0.00.000.308 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.309 I llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+0.00.000.310 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.311 I load_tensors: offloading output layer to GPU
+0.00.000.312 I load_tensors: offloading 4 repeating layers to GPU
+0.00.000.313 I load_tensors: offloaded 6/6 layers to GPU
+0.00.000.314 I load_tensors:       OpenCL model buffer size =   340.00 MiB
 0.00.900.010 I llama_context: n_ctx                 = 2048
 0.00.900.011 I llama_context: n_ctx_seq             = 2048
 0.00.900.012 I llama_context: n_batch               = 2048
@@ -56,9 +56,9 @@ GGML_OPENCL_LOG_KERNELS: kernel_03
 GGML_OPENCL_LOG_KERNELS: kernel_04
 GGML_OPENCL_LOG_KERNELS: kernel_05
 0.00.900.001 I decoded   17 tokens in    8.000 seconds, speed:    2.125 t/s
-0.00.000.280 I n_draft   = 8
-0.00.000.281 I n_predict = 17
-0.00.000.282 I n_drafted = 51
-0.00.000.283 I n_accept  = 0
-0.00.000.284 I accept    = 39.000%
+0.00.000.315 I n_draft   = 8
+0.00.000.316 I n_predict = 17
+0.00.000.317 I n_drafted = 51
+0.00.000.318 I n_accept  = 0
+0.00.000.319 I accept    = 39.000%
 EXIT=0

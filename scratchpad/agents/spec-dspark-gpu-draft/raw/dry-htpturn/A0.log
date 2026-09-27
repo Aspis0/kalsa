@@ -1,0 +1,16 @@
+0.00.000.090 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.091 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.092 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.093 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.094 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.900.010 I llama_context: n_ctx                 = 2048
+0.00.900.011 I llama_context: n_ctx_seq             = 2048
+0.00.900.012 I llama_context: n_batch               = 2048
+0.00.900.013 I llama_context: n_ubatch              = 1024
+0.00.900.020 I llama_kv_cache: size =   32.00 MiB (  2048 cells,   8 layers,  1/1 seqs), K (f16):   16.00 MiB, V (f16):   16.00 MiB
+0.00.000.095 I llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+0.00.000.096 E ggml-hex: HTP0 failed to open session : uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 error 0x80000406
+0.00.000.097 E llama_init_from_model: failed to initialize the context: ggml-hex: failed to open session (see log for details)
+0.00.900.110 I common_perf_print: prompt eval time =    1540.00 ms /    77 tokens (   20.00 ms per token,    50.00 tokens per second)
+0.00.900.111 I common_perf_print:        eval time =    6000.00 ms /   126 runs   (   47.62 ms per token,    21.00 tokens per second)
+EXIT=0

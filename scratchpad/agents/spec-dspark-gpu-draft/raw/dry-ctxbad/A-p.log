@@ -1,8 +1,8 @@
-0.00.000.001 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.002 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.003 I load_tensors: offloaded 0/31 layers to GPU
-0.00.000.004 I load_tensors:          CPU model buffer size =   206.07 MiB
-0.00.000.005 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+0.00.000.006 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.007 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.008 I load_tensors: offloaded 0/31 layers to GPU
+0.00.000.009 I load_tensors:          CPU model buffer size =   206.07 MiB
+0.00.000.010 I load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
 0.00.900.010 I llama_context: n_ctx                 = 128000
 0.00.900.011 I llama_context: n_ctx_seq             = 128000
 0.00.900.012 I llama_context: n_batch               = 2048
@@ -32,11 +32,11 @@
 0.00.071.021 D load_tensors: layer  21 assigned to device CPU, is_swa = 0
 0.00.072.022 D load_tensors: layer  22 assigned to device CPU, is_swa = 0
 0.00.073.023 D load_tensors: layer  23 assigned to device CPU, is_swa = 0
-0.00.000.006 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
-0.00.000.007 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
-0.00.000.008 I load_tensors: offloading 0 repeating layers to GPU
-0.00.000.009 I load_tensors: offloaded 0/6 layers to GPU
-0.00.000.010 I load_tensors:          CPU model buffer size =   340.00 MiB
+0.00.000.011 I common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'
+0.00.000.012 I load_tensors: loading model tensors, this can take a while... (load_mode = none)
+0.00.000.013 I load_tensors: offloading 0 repeating layers to GPU
+0.00.000.014 I load_tensors: offloaded 0/6 layers to GPU
+0.00.000.015 I load_tensors:          CPU model buffer size =   340.00 MiB
 0.00.900.010 I llama_context: n_ctx                 = 128000
 0.00.900.011 I llama_context: n_ctx_seq             = 128000
 0.00.900.012 I llama_context: n_batch               = 2048
@@ -48,9 +48,9 @@
 0.00.303.003 D load_tensors: layer   3 assigned to device CPU, is_swa = 0
 0.00.304.004 D load_tensors: layer   4 assigned to device CPU, is_swa = 0
 0.00.900.001 I decoded    9 tokens in    8.000 seconds, speed:    1.125 t/s
-0.00.000.011 I n_draft   = 0
-0.00.000.012 I n_predict = 9
-0.00.000.013 I n_drafted = 0
-0.00.000.014 I n_accept  = 0
-0.00.000.015 I accept    = nan%
+0.00.000.016 I n_draft   = 0
+0.00.000.017 I n_predict = 9
+0.00.000.018 I n_drafted = 0
+0.00.000.019 I n_accept  = 0
+0.00.000.020 I accept    = nan%
 EXIT=0
