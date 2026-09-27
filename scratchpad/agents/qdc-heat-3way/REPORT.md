@@ -833,3 +833,24 @@ the refused heat start: unplugged, 88%, 28.9 C battery, thermal 0, traced 0,
 Kalsa absent, no `llama|bench` process, timeout `null`, stay-on 0, screen
 Awake/unlocked. Raw calibration, pin snapshot, heat refusal, and final state
 are in `raw/s23-calib-4/` and `raw/s23-3way-4/`.
+
+### S23 three-way run 5 — CPU arm timed out
+
+Preflight passed with the pinned TLS serial; the driver logged
+`CALIB_PIN_BOARD_OK` and `source=calib.ok`. After the 900-second arm timeout,
+the CPU child was killed and verified gone. The driver stopped after arm 1
+with `END reason=method_void_run_fail`; session exit code 0.
+
+| Pair / arm | Status | Skin start / peak | Prefill / decode | Fingerprint | HTP ops / minimum | Sampler |
+|---|---|---:|---|---|---|---|
+| 1 / CPU | VOID `run_fail` (900 s timeout) | 28.5 / 38.5 C | Parsed partial row: 141.78 ms / 26.12 tok/s, only 3 decode runs; invalid/incomplete | N/A (`fp_turn=na`) | N/A | `ok` |
+
+The run log ended mid-generation, so the partial perf fields are not a valid
+completed 1018-token/127-decode turn. No GPU or NPU arm ran; NPU op counts and
+pair deltas are unavailable. Pair 1 CPU−GPU and CPU−NPU skin deltas cannot be
+computed, and pairs 2–3 were not attempted.
+
+Restore verified (`kill_check=verified rc=0`). Final: unplugged, 81%, 35.8 C
+battery, thermal 0, traced 0, Kalsa and llama/bench absent, screen Awake and
+unlocked, timeout `null`, stay-on 0. Raw driver, safety, sampler, partial CPU
+log, and restore evidence are in `raw/s23-3way-5/`.

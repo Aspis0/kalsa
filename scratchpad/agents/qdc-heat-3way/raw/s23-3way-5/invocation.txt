@@ -1,0 +1,5 @@
+Command: cd scratchpad/agents/qdc-heat-3way && ADB_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp ADB_PORT=5037 ./d_run.sh s23-3way-5 CGNNGC 100
+Captured stdout/stderr: /tmp/s23heat5.log
+Exit: 0
+END: method_void_run_fail
+Session stopped by the driver after arm 1 timed out; no restart.

@@ -1,0 +1,2 @@
+./d_run.sh: line 127: 10026 Alarm clock: 14         /usr/bin/perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" "$ADB_BIN" "$@"
+EXIT=142 wall_s=901

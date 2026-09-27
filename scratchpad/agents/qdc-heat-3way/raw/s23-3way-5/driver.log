@@ -1,0 +1,19 @@
+[01:03:15] CALIB_PIN_BOARD_OK serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp soc=SM8550
+[01:03:17] SESSION job=s23-3way-5 board=S23-v73 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp order=CGNNGC stayon_saved=0 timeout_saved=null
+[01:03:18] DEVICE_LIST_OK
+[01:03:20] KIT_PRESENT ship.gguf
+[01:03:20] KIT_PRESENT prompt.txt
+[01:03:50] BATTERY_SENSOR_TRUSTED dumpsys=271,273 sysfs=,
+[01:03:50] GATE label=setup
+[01:03:50] SETUP_DONE skin0=28.5 battery_untrusted=0 htp_floor=64.4231 source=calib.ok
+[01:03:52] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[01:03:54] SAMPLER_LAUNCHED pid=9199
+[01:03:54] ARM_START turn=1 backend=cpu pair=1 tag=s23-3way-5-t1cpu
+[01:03:59] LOAD_PHASE turn=1 wall_s=4 skin 28.5->28.5 pagein_cold=1
+[01:04:00] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[01:19:01] ARM_TIMEOUT backend=cpu rc=142 -> killing remote llama-completion
+[01:19:01] KILL_VERIFIED ctx=arm_timeout_cpu (no llama-completion remains)
+[01:19:03] SAMPLER_LAUNCHED pid=96358
+[01:19:03] SAMPLER_RESUMED
+[01:20:03] ARM_END turn=1 status=VOID void=run_fail prefill_ms=141.78 inload_ms=142.14 fp_turn=na proof=cpu_no_offload tokens=13
+[01:20:03] STOP_METHOD_VOID turn=1 backend=cpu reason=run_fail
