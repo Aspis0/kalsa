@@ -22,3 +22,54 @@ The key lines are in [G5-r1-kalsa.log](raw/s23-20260927/G5-r1-kalsa.log), [G5-r1
 ## Stop and cleanup
 
 Cooldown log is [cooldown-wait.log](raw/s23-20260927/cooldown-wait.log). At 31% the phone cooled below the start limit; final check was 31%, battery 31.6 °C, status 0, unplugged, screen Awake, Kalsa foreground, traced 0, and no llama/bench process ([final-phone-state.txt](raw/s23-20260927/final-phone-state.txt)). The remaining battery margin was insufficient for another ~5-point arm. GPU route was reset and acknowledged with `bench:route auto`; no thread override was written. No CPU-prefill, 3-thread, or 2-thread arm was run. CPU-vs-GPU heat, speed cost, and thread-count heat effect remain unknown.
+
+## Protocol v2 — fresh conversation and bounded workload
+
+No device commands or arms were run for this preparation; the S23 was reported at 31% and is going on charge. Do not benchmark while charging.
+
+### Fresh chat per arm
+
+The `kalsa://share` handler is not a new-chat API: `src/app/shareIntent.ts` parses only `kalsa://share?text=` / `file=`, and `mergeSharePrefill()` appends incoming text to the existing composer draft. It does not change the active conversation. Source: `src/app/shareIntent.ts:1-2,12-23`.
+
+Use the app's own drawer action. `src/theme/components/DrawerContent.tsx:64-82` renders `testID="drawer.newChat"` and calls `onNewChat`; `src/host/conversationActions.ts:118-169` implements it: it switches to an existing empty conversation or creates a new empty conversation with `createEmptyConversationMeta()` and binds it active. It does not delete or clear chat data. Source `src/host/HostRoot.tsx:219` opens the drawer from the menu.
+
+For each future arm, with Kalsa already on its chat screen and awake/unlocked, run from the lab root:
+
+```sh
+cd scratchpad/agents/governor-thermal-ladder
+SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+adb -s "$SERIAL" shell uiautomator dump /sdcard/bench-ui.xml > raw/protocol-v2/ui-dump-menu.log 2>&1; echo EXIT=$?
+adb -s "$SERIAL" shell cat /sdcard/bench-ui.xml > raw/protocol-v2/ui-menu.xml 2>&1; echo EXIT=$?
+```
+
+Read the `bounds="[x1,y1][x2,y2]"` for `resource-id="shell.strip.menu"` in `ui-menu.xml`, tap its center, then dump again and read the center of `resource-id="drawer.newChat"` (or its `New chat` accessibility text):
+
+```sh
+adb -s "$SERIAL" shell input tap MENU_CENTER_X MENU_CENTER_Y > raw/protocol-v2/tap-menu.log 2>&1; echo EXIT=$?
+adb -s "$SERIAL" shell uiautomator dump /sdcard/bench-ui.xml > raw/protocol-v2/ui-dump-drawer.log 2>&1; echo EXIT=$?
+adb -s "$SERIAL" shell cat /sdcard/bench-ui.xml > raw/protocol-v2/ui-drawer.xml 2>&1; echo EXIT=$?
+adb -s "$SERIAL" shell input tap NEW_CHAT_CENTER_X NEW_CHAT_CENTER_Y > raw/protocol-v2/tap-new-chat.log 2>&1; echo EXIT=$?
+```
+
+Dump once more and confirm the composer is empty and the transcript contains no previous user/assistant turns. If the expected resource-id is absent, stop and inspect the dump; do not use `pm clear`, uninstall, or a share intent as a substitute. To submit the same prompt bytes after the new-chat check, the existing helper sends the file through `kalsa://share` and taps the enabled send button:
+
+```sh
+python3 raw/s23-20260927/manual_send.py --file raw/protocol-v2/prompt-v2.txt > raw/protocol-v2/send.log 2>&1; echo EXIT=$?
+```
+
+### Output length finding
+
+There is no `n_predict`, `maxTokens`, or output-token benchmark preference/command in `src/bench/benchConfig.ts`; its usage exposes thinking, format, speculative, engine, devmodels, route, and show only (`:6-38,859-860`). `bench:thinking budget256` limits the reasoning budget, not answer length. Ordinary LFM chat does have a hard engine ceiling: `src/engine/ModelRegistry.ts:295` sets LFM `thinking.nPredict: 2048`, and `src/engine/thinkingBudgets.ts:98-99` returns `max(1024, model.thinking.nPredict ?? 1024)`; `src/engine/LlamaService.ts:5148` passes it as `n_predict`. That is a 2048-token ceiling, not a configurable ~256-token decode length.
+
+No bench stop-after-N-tokens command was found. Cheapest practical substitute: the prompt asks for a compact four-field JSON answer and at most 64 whitespace words, and the run must record actual generated tokens from telemetry. This bounds typical answers but is not a hard token guarantee. Do not compare arms as fixed-decode if actual generated-token counts differ; a hard matched decode length requires an app/engine control that this build does not expose.
+
+### Fixed prompt and tokenizer
+
+Exact UTF-8 prompt: [prompt-v2.txt](raw/protocol-v2/prompt-v2.txt); SHA-256: see [prompt.sha256](raw/protocol-v2/prompt.sha256). Host tokenizer: `/Users/marco/Projects/kalsallama/build/bin/llama-tokenize` (Mach-O arm64; `pkg-snapdragon/llama.cpp/bin/llama-tokenize` is Android ELF and cannot run on the Mac). Tokenizer result: **962 tokens**, including BOS, counting the standalone user text only and excluding the app system prompt and chat wrapper. Command and result are in [tokenizer-count.txt](raw/protocol-v2/tokenizer-count.txt). The prior 2584 `prompt_n` was not this user-text count; a fresh chat removes previous transcript history, but runtime system/template tokens still add to the engine's full prompt count.
+
+### Run protocol
+
+1. Wait until unplugged and all existing start gates pass (Android thermal status 0, battery ≤33.0 °C, battery ≥30%, Awake, Kalsa foreground, traced 0, no `llama|bench`). Keep screen on; never set `kalsa.bench.thermo`.
+2. Use the same model, prompt file, app settings, and sampling settings for every arm. Create and verify a fresh chat as above. Set `bench:route gpu` or `bench:route cpu` in the composer and verify its acknowledgement; route applies next turn. For thread arms, set `bench:engine threads=5`, `threads=3`, or `threads=2`; this engine override applies at init, so force-stop/relaunch consistently after changing it, then create a fresh chat. Do not change other engine fields.
+3. Send the prompt using the helper command above. Record runtime `prompt_n`, route proof, prefill ms, generated-token count, decode tok/s, and 1–2 s thermal/current/voltage samples. An answer that ends naturally may have variable token count; preserve actual counts and mark unequal-decode pairs incomparable. Stop at Android thermal status 3 or 30% battery.
+4. Alternate GPU/CPU prefill, two repetitions each; include 5/3/2 decode-thread arms only if the thread override acknowledgement and relaunch are both proved. Return to the exact start point (status 0, battery ≤33.0 °C) before each arm; otherwise withhold it.

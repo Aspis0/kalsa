@@ -1,0 +1,5 @@
+Tokenizer: /Users/marco/Projects/kalsallama/build/bin/llama-tokenize
+Model: /Users/marco/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf
+Command: /Users/marco/Projects/kalsallama/build/bin/llama-tokenize -m /Users/marco/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf -f scratchpad/agents/governor-thermal-ladder/raw/protocol-v2/prompt-v2.txt --show-count
+Exit: 0
+Total number of tokens: 962 (includes tokenizer BOS; user-text only, no app/system/template wrapper)
