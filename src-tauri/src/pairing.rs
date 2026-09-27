@@ -270,14 +270,14 @@ impl Desk {
             // scanning, so an allowed phone behind it still reaches the
             // catalog.
             DeviceKind::Phone if device.waiting => None,
-            // A declared weights_bytes of 0 is the phone saying it has no
-            // local model, not a model of no bytes: the chooser is handed
-            // None and takes the phone-free route, exactly as with no phone
-            // at all.
+            // Weights of 0 mean the phone runs no model of its own, and no
+            // parameter count means nothing can be compared against it
+            // anyway: the chooser is handed None and takes the phone-free
+            // route, exactly as with no phone at all.
             DeviceKind::Phone => device
                 .handshake
                 .phone
-                .filter(|phone| phone.weights_bytes > 0),
+                .filter(|phone| phone.weights_bytes > 0 && phone.parameters.is_some()),
             DeviceKind::Host => None,
         }))
     }
@@ -852,6 +852,42 @@ mod tests {
             .unwrap();
         assert_eq!(dto["phone"], "phone with no model of its own");
         assert_eq!(dto["devices"][0]["phone"], "phone with no model of its own");
+    }
+
+    /// A phone that reports weights but no parameter count cannot be
+    /// compared to any row, so the chooser is handed nothing — the
+    /// phone-free route. The scan passes over it instead of stopping: a
+    /// comparable phone further down the store still reaches the catalog.
+    #[test]
+    fn a_phone_without_a_parameter_count_is_passed_over_by_the_catalog() {
+        let silent = PhoneModel {
+            weights_bytes: 1_593_894_944,
+            parameters: None,
+            ..a_phone()
+        };
+        let now = SystemTime::now();
+
+        let alone = Desk::new(scratch("no-parameter-count"));
+        alone.read(true, "http://127.0.0.1:1", None, None, now);
+        assert!(alone.complete(declaration_for(&alone, silent, now), now).is_some());
+        alone.allow_device(0).expect("the owner allows the phone");
+        assert!(
+            alone.phone().unwrap().is_none(),
+            "a phone that never said its parameter count is not comparable"
+        );
+
+        let desk = Desk::new(scratch("no-parameter-count-then-a-comparable"));
+        desk.read(true, "http://127.0.0.1:1", None, None, now);
+        assert!(desk.complete(declaration_for(&desk, silent, now), now).is_some());
+        desk.retry(true, "http://127.0.0.1:1", None, None, now);
+        assert!(desk.complete(declaration_for(&desk, a_phone(), now), now).is_some());
+        desk.allow_device(0).expect("the owner allows the first phone");
+        desk.allow_device(1).expect("the owner allows the second phone");
+        let phone = desk
+            .phone()
+            .unwrap()
+            .expect("the comparable phone behind the silent one still reaches the catalog");
+        assert_eq!(phone.weights_bytes, 2_000_000_000, "the second phone, not the first");
     }
 
     /// A set the door refuses (record 1 declares parameters that cannot
