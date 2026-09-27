@@ -1,0 +1,34 @@
+[ci] JavaScript provenance gate passed; evidence=/tmp/s23-governor-lfm-long/run/.metro-preflight.AADtJc
+ok
+[ci] T20C rerun2 start serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp out=/tmp/s23-governor-lfm-long/run
+[ci] battery preflight floor=enforced level=81 temp=28.0C charging=false
+[ci] battery level=81 temp=28.0C charging=false
+[ci] DEVICE IDENTITY: model=SM-S911U (CAMPAIGN_EXPECT_MODEL unset; not enforcing)
+[ci] thermal preflight status=0 battery_deci=280
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: saved stay_on_while_plugged_in=15
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] screen: timeout pinned to 2147483647 (saved: 86400000), keyguard dismissed — no restore at exit
+[ci] logcat pid=60854 file=/tmp/s23-governor-lfm-long/run/logcat.txt
+[ci] charging monitor pid=60855 (30s poll)
+[ci] arm begin: flags->ciswire, wipe chat, launch
+[ci] flags: force-stop com.kalsa.app before governor pref write
+[ci] governor pref: kalsa.governor.enabled=1 written before launch
+[ci] share preflight: launch PID changed or missing (expected=none current=none); relaunching
+[ci] startup marker present for PID 16007: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 16007
+[ci] never reported Pronto/Ready after 240s
+[ci] FATAL: native log setup: could not deliver bench:nativelog on
+[ci] native log teardown: restoring previous preference
+[ci] startup marker present for PID 17659: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 17659
+/Users/marco/Projects/kalsa-wt-iroh/scripts/device-env.sh: line 89: 60855 Terminated: 15          charging_monitor
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: restored stay_on_while_plugged_in=15
+[ci] keep-awake: force-stop com.kalsa.app
+[ci] keep-awake: stay_on_while_plugged_in=15
+[ci] keep-awake: screen_off_timeout=null

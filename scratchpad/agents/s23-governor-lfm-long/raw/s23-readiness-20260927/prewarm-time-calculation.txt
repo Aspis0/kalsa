@@ -1,0 +1,5 @@
+Prior successful governor-on load, PID 16007:
+first process log 12:59:42.239 -> KALSA_PREWARM done 13:00:04.286 = 22.047 s
+KALSA_FOREGROUND_IDLE_PROTOCOL 12:59:42.960 -> KALSA_PREWARM done 13:00:04.286 = 21.326 s
+KALSA_PREWARM start 12:59:49.891 -> done 13:00:04.286 = 14.395 s
+Campaign then logged never reported Pronto/Ready after 240s.

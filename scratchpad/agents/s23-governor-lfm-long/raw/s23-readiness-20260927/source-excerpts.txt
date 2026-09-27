@@ -1,0 +1,23 @@
+scripts/device-share-send.sh:37
+readonly _SHARE_READY_LABELS=("Ready" "Pronto")
+
+scripts/device-env.sh:107-127
+
+device_dump_ui_retry calls dump_ui, which is scripts/ci-lib.sh:39:
+  adb shell uiautomator dump /data/local/tmp/ui.xml; adb shell cat /data/local/tmp/ui.xml
+It retries until a <hierarchy> XML dump is returned. device_ui_has_any uses grep -qF over the whole XML string for each exact label.
+
+scripts/campaign/conversation.sh:111-125
+campaign_wait_ready uses device_dump_ui_retry then device_ui_has_any; on a miss it sleeps 5 seconds and increments its local counter by 5, ending with "never reported Pronto/Ready after ${CAMPAIGN_READY_TIMEOUT}s".
+
+scripts/campaign/nativeLog.sh:57
+  device_share_send "bench:nativelog on" || die "native log setup: could not deliver bench:nativelog on"
+
+scripts/device-share-send.sh:154-164, 170-175, 185-200, 216-218
+Share delivery is an ACTION_VIEW kalsa://share?text=... deep link, followed by waiting for the text to appear in the composer, tapping Send/Invia, and proving it left the composer. It does not type via adb input text. device_share_send first calls campaign_ensure_launch_pid.
+
+scripts/campaign/conversation.sh:96-108
+campaign_ensure_launch_pid sees an unset/mismatched PID, relaunches, then calls campaign_wait_ready before returning to device_share_send. Therefore a ready-gate failure returns before device_share_intent is called.
+
+src/ui/shell/ShellStrip.tsx:129-135; src/ui/shell/ModelPillSheet.tsx:26-63
+The model status component is passed into ModelPillSheet, whose Modal is visible only when the model pill is opened. The normal main chat screen does not render that status row.
