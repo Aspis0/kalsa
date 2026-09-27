@@ -36,8 +36,8 @@ describe("the desk's verdict in one /props response", () => {
     expect(confirmationVerdict({ status: 403, bodyEmpty: true })).toBe("retry");
   });
 
-  test("403 with a body is no door signal: unattributable, never allowed", () => {
-    expect(confirmationVerdict({ status: 403, bodyEmpty: false })).toBe("unattributed");
+  test("403 with a body is allowed — the contract's any-other-status rule", () => {
+    expect(confirmationVerdict({ status: 403, bodyEmpty: false })).toBe("allowed");
   });
 
   test("every other status means allowed — a 200 and an asleep engine's 503 alike", () => {
@@ -103,12 +103,12 @@ describe("polling the paired door until the owner answers", () => {
     expect(phases.every((phase) => phase.phase === "waiting")).toBe(true);
   });
 
-  test("403 with a body is not a verdict: the poll continues and only a later allow pairs", async () => {
-    const door = fakeDoor([{ status: 403, bodyEmpty: false }, { status: 403, bodyEmpty: false }, OK_200]);
+  test("403 with a body pairs at once — only 401 waits, only 403-empty retries", async () => {
+    const door = fakeDoor([{ status: 403, bodyEmpty: false }]);
     const { outcome } = poll(door);
 
     expect(await outcome).toEqual({ result: "paired" });
-    expect(door).toHaveBeenCalledTimes(3);
+    expect(door).toHaveBeenCalledTimes(1);
   });
 
   test("401 until the cap ends as not confirmed, the waiting phase all along", async () => {

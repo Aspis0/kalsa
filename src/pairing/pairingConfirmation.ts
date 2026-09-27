@@ -4,13 +4,10 @@
  * road rules the chat uses — until the owner allows, the cap ends it, or
  * the screen goes away.
  *
- * Desk vocabulary (kalsa-brain, authoritative): 401 = no verdict yet
- * (refused and revoked are also 401 — only the cap separates them);
+ * Desk vocabulary (kalsa-brain, final contract): 401 = no verdict yet
+ * (refused and revoked are also 401 — only the deadline separates them);
  * 403 with an EMPTY body = the listener is out of sockets, try again;
- * any other status = allowed. A 403 WITH a body matches none of those
- * signals and is not this door's 401 either, so the poll treats it as
- * unattributable: it keeps waiting rather than claiming a pairing it
- * cannot prove.
+ * ANY other status — 403 with a body included — = allowed.
  */
 
 import { canSendAuthorization, joinRemoteApiUrl } from "../engine/remote/remoteUrl";
@@ -19,11 +16,11 @@ import { doorFetchFor, establishDoorRoad, type DoorRoad } from "../remote/doorRo
 
 export type ConfirmationResponse = { status: number; bodyEmpty: boolean };
 
-export type ConfirmationVerdict = "allowed" | "pending" | "retry" | "unattributed";
+export type ConfirmationVerdict = "allowed" | "pending" | "retry";
 
 export function confirmationVerdict(response: ConfirmationResponse): ConfirmationVerdict {
   if (response.status === 401) return "pending";
-  if (response.status === 403) return response.bodyEmpty ? "retry" : "unattributed";
+  if (response.status === 403) return response.bodyEmpty ? "retry" : "allowed";
   return "allowed";
 }
 
