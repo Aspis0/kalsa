@@ -18,6 +18,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # The one place secrets get rendered, for the QR and the credential store.
 hex = "0.4"
+# The invite link: the QR payload behind a `#`, URL-safe and unpadded.
+base64 = "0.22"
 # PhoneModel: the phone's shape, filled here and read everywhere else.
 kalsa-catalog = { path = "../kalsa-catalog" }
 # The QR encoder: MIT, forbid(unsafe), no dependencies, one readable file.

@@ -556,6 +556,23 @@ fn write_records(records: &[StoredDeviceRecord], path: &Path) -> Result<(), Stor
     publish_temp(&temp_path(path), path).map_err(StoreError::Io)
 }
 
+/// Publish a JSON document at `path` the way the store publishes its own
+/// set: sibling temp, `0600` on unix and a protected DACL on Windows,
+/// flushed, then renamed over the name. The invite file carries the codes
+/// behind links the owner has already handed out, so it rides this road
+/// rather than growing a second one whose permissions could drift apart
+/// from the credential's.
+pub(crate) fn publish_json(value: &impl Serialize, path: &Path) -> std::io::Result<()> {
+    write_temp(value, path).map_err(|error| match error {
+        StoreError::Serde(error) => std::io::Error::other(error),
+        // The write path fails on the file or on encoding this crate just
+        // built, and `Io` is the file. The store's own refusals belong to
+        // the paths that read first; this one does not read.
+        error => std::io::Error::other(error),
+    })?;
+    publish_temp(&temp_path(path), path)
+}
+
 fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {

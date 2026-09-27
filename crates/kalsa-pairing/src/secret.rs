@@ -84,6 +84,16 @@ impl OneTimeCode {
         hex::encode(self.bytes)
     }
 
+    /// The code back out of a persisted offer. Exactly this ceremony's
+    /// length or nothing: a shortened hex string would still be a key to
+    /// whoever holds the rest of the file, and a code the file cannot
+    /// state exactly is a code this build must not offer.
+    pub(crate) fn from_hex(text: &str) -> Option<Self> {
+        let mut bytes = [0u8; CODE_BYTES];
+        hex::decode_to_slice(text, &mut bytes).ok()?;
+        Some(Self { bytes })
+    }
+
     /// Constant-time comparison against what was presented. A malformed or
     /// wrong-length presentation is simply "no match": the length of the code
     /// is public anyway (it is on the QR), and nothing here says how close a

@@ -131,7 +131,9 @@ impl PhoneFields {
 /// ceremony by a MAC keyed on the QR's one-time secret. The transport
 /// deserializes it and hands it to the ceremony; the ceremony verifies it
 /// or refuses it, moving nothing.
-#[derive(Serialize, Deserialize)]
+// Cloned because the invite set must offer one declaration to every
+// ceremony that is claimed before it knows which one the MAC belongs to.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PhoneDeclaration {
     /// The metadata the phone declares about itself. Covered by the MAC.
     pub phone: PhoneFields,

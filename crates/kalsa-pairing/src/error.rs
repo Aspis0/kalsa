@@ -150,3 +150,59 @@ impl Error for StoreError {
         }
     }
 }
+
+/// Why an invitation could not be minted, kept, or read back. Two kinds of
+/// failure, said apart: a refusal to mint, where nothing exists and the
+/// owner may simply try again, and the invite file — which holds the codes
+/// behind links the owner has already handed out, so it is either read
+/// exactly or not at all.
+#[derive(Debug)]
+pub enum InviteError {
+    /// The ceremony would not go on the table: no entropy, or a deadline
+    /// the clock cannot hold. No invite was minted.
+    Offer(OfferError),
+    /// A link is an iroh link: without this computer's node id a phone that
+    /// scans it has a code and no road to dial. Refused, never defaulted.
+    NoNode,
+    /// The set is at its cap — ten live invitations, or an id space the file
+    /// has already handed out — so no new invite can be minted. Nothing is
+    /// evicted: an owner who wants a new link cancels one first.
+    Full,
+    /// The invite file could not be written or read.
+    Io(std::io::Error),
+    /// The invite file's own JSON failed to encode or parse.
+    Serde(serde_json::Error),
+    /// The file violates its own structure: an envelope version this build
+    /// does not read, a payload missing the fields the ceremony is keyed
+    /// on. The tag is static and no file content is echoed back.
+    Corrupt(&'static str),
+}
+
+impl fmt::Display for InviteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Offer(e) => write!(f, "invitation: {e}"),
+            Self::NoNode => {
+                f.write_str("invitation: the road to this computer is not open, \
+                     so a link could not be made")
+            }
+            Self::Full => f.write_str(
+                "invitation: this computer already has as many invitations as it can hold",
+            ),
+            Self::Io(e) => write!(f, "invite file: {e}"),
+            Self::Serde(e) => write!(f, "invite file: {e}"),
+            Self::Corrupt(tag) => write!(f, "invite file is corrupt: {tag}"),
+        }
+    }
+}
+
+impl Error for InviteError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Offer(e) => Some(e),
+            Self::Io(e) => Some(e),
+            Self::Serde(e) => Some(e),
+            Self::NoNode | Self::Full | Self::Corrupt(_) => None,
+        }
+    }
+}

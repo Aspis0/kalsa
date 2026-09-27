@@ -2660,6 +2660,7 @@ dependencies = [
 name = "kalsa-pairing"
 version = "0.0.1"
 dependencies = [
+ "base64 0.22.1",
  "getrandom 0.3.4",
  "hex",
  "hmac",

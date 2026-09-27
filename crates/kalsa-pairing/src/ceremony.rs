@@ -162,6 +162,45 @@ impl Pairing {
         }
     }
 
+    /// The offer back on the table exactly as an invite file left it: same
+    /// address, same node id, same code, nonce and deadline — nothing is
+    /// regenerated, because the link is already out and it must keep
+    /// working. `None` when any hex field is not the hex this ceremony
+    /// writes: a file half understood must not become an offer that would
+    /// pair with nobody.
+    pub(crate) fn restore(
+        reachable: &str,
+        code: &str,
+        nonce: &str,
+        node: Option<&str>,
+        tailnet: Option<&str>,
+        expires_at: SystemTime,
+    ) -> Option<Self> {
+        let code = OneTimeCode::from_hex(code)?;
+        let mut bytes = [0u8; NONCE_BYTES];
+        hex::decode_to_slice(nonce, &mut bytes).ok()?;
+        Some(Self::Offered(Offer {
+            reachable: reachable.to_string(),
+            node: node.map(str::to_string),
+            tailnet: tailnet.map(str::to_string),
+            code,
+            nonce: bytes,
+            expires_at,
+        }))
+    }
+
+    /// Does this offer hold the code that was presented? No transition:
+    /// the invite set asks this first because `claim` consumes what it
+    /// matches, and the set has to know which ceremony a claim belongs to
+    /// before it touches the file. The window is answered here too — an
+    /// offer whose deadline has passed is one this code no longer opens.
+    pub(crate) fn matches_offer(&self, presented: &str, now: SystemTime) -> bool {
+        match self {
+            Self::Offered(offer) => now < offer.expires_at && offer.code.matches_hex(presented),
+            _ => false,
+        }
+    }
+
     /// A phone — or anything posing as one — presents a code. The claim is
     /// the first gate; the completion proof (also keyed on this code) is
     /// the second.

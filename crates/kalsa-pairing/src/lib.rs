@@ -22,6 +22,9 @@
 //!   window, the single use, the proof gate, and the indistinguishable
 //!   rejections enforced by the transitions, never asserted next to them
 //!   (`ceremony`);
+//! * the invitation — the same ceremony a day long, several at once, as a
+//!   link that outlives the screen, persisted beside the credential file and
+//!   claimed by the same constant-time compare (`invite`, `invite::file`);
 //! * the result: the long-lived credential plus the `PhoneModel` the phone
 //!   declared, persisted owner-only (`handshake`, `store`).
 //!
@@ -32,6 +35,7 @@
 mod ceremony;
 mod error;
 mod handshake;
+mod invite;
 mod messages;
 mod payload;
 mod qr;
@@ -40,7 +44,8 @@ mod secret;
 pub mod store;
 
 pub use ceremony::{ClaimResult, Pairing};
-pub use error::{CompleteError, OfferError, PayloadTooLong, StoreError};
+pub use error::{CompleteError, InviteError, OfferError, PayloadTooLong, StoreError};
 pub use handshake::Handshake;
+pub use invite::Invites;
 pub use messages::{PairingSeal, PhoneDeclaration};
 pub use qr::qr_svg;
