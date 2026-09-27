@@ -1,5 +1,6 @@
 package expo.modules.kalsairoh
 
+import android.content.Context
 import android.util.Base64
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -27,6 +28,13 @@ import java.util.concurrent.atomic.AtomicLong
  * languages would only add a parsing seam where the key lands.
  */
 class KalsaIrohModule : Module() {
+  companion object {
+    init {
+      // The JNI context hook and UniFFI's JNA binding use the same packaged .so.
+      System.loadLibrary("kalsa_iroh_mobile")
+    }
+  }
+
   // Two pools, split by whether the call parks. Reads (and writes, which
   // backpressure can park) sit on an unbounded cached pool: each parks up
   // to its own deadline — a long SSE read — and a parked read must never
@@ -40,6 +48,8 @@ class KalsaIrohModule : Module() {
   @Volatile private var destroyed = false
   private val tunnels = ConcurrentHashMap<Long, Tunnel>()
   private val nextId = AtomicLong(0)
+
+  private external fun nativeInstallAndroidContext(applicationContext: Context): Boolean
 
   override fun definition() = ModuleDefinition {
     Name("KalsaIroh")
@@ -132,6 +142,7 @@ class KalsaIrohModule : Module() {
   }
 
   private fun rejectionCode(error: Throwable): String = when (error) {
+    is AndroidContextInitializationException -> "KALSA_IROH_CONFIG"
     is IrohMobileException.Deadline -> "KALSA_IROH_DEADLINE"
     is IrohMobileException.InvalidNodeHex -> "KALSA_IROH_INVALID_NODE_HEX"
     is IrohMobileException.Transport -> "KALSA_IROH_TRANSPORT"
@@ -147,9 +158,10 @@ class KalsaIrohModule : Module() {
 
   private fun startBridgeAtFilesDir(): MobileBridge {
     if (destroyed) throw IllegalStateException("the module is destroyed")
-    val filesDir = appContext.reactContext?.applicationContext?.filesDir
+    val applicationContext = appContext.reactContext?.applicationContext
       ?: throw IllegalStateException("the Android context is not ready")
-    val started = MobileBridge(File(filesDir, "iroh-node.key").path)
+    if (!nativeInstallAndroidContext(applicationContext)) throw AndroidContextInitializationException()
+    val started = MobileBridge(File(applicationContext.filesDir, "iroh-node.key").path)
     val previous = synchronized(bridges) {
       val old = bridge
       bridge = started
@@ -178,4 +190,7 @@ class KalsaIrohModule : Module() {
     // Dropping the reference runs the crate's bounded runtime shutdown;
     // it happens on a pool thread, never the JS thread.
   }
+
+  private class AndroidContextInitializationException :
+    IllegalStateException("Could not initialize the iroh Android DNS context")
 }

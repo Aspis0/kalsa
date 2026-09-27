@@ -10,6 +10,8 @@
 //! `Closed`, and a call that would panic — `block_on` from inside an
 //! async context — answers `AsyncContext` instead.
 
+#[cfg(target_os = "android")]
+mod android_context;
 mod bridge;
 mod error;
 mod runtime;
