@@ -1,0 +1,10 @@
+  bash arg: -p
+  bash arg: com.kalsa.app
+  bash arg: 1
+args: [-p, com.kalsa.app, 1]
+ arg: "-p"
+ arg: "com.kalsa.app"
+ arg: "1"
+data="com.kalsa.app"
+Events injected: 1
+## Network stats: elapsed time=23ms (0ms mobile, 0ms wifi, 23ms not connected)
