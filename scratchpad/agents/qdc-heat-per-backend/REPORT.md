@@ -1391,3 +1391,19 @@ device afterwards showed `default_input_method` = LatinIME and both IMEs enabled
 
 CPU−GPU: **P3 +0.884, P4 +0.857** (S1: P1 +0.349, P2 +0.358). QRD8750 four pairs complete, all CPU hotter.
 Minutes: QRD8750 837 → **741** (96 min). QRD8635 / QRD7675 Unavailable at 20:16.
+
+## Night availability watch (coordinator 43c25dd3, 4 h, every ~30 min) — QRD8635 / QRD7675 never Available
+
+Portal only (aspis, tab 3774c340; tab 4e7a3b7e no longer exists). No session opened, no minutes used.
+
+- 22:53:58 QRD8635 Unavailable, QRD7675 Unavailable
+- 23:24:02 QRD8635 Unavailable, QRD7675 Unavailable
+- 23:54:03 QRD8635 Unavailable, QRD7675 Unavailable
+- 00:24:05 QRD8635 Unavailable, QRD7675 Unavailable
+- 00:54:05 QRD8635 Unavailable, QRD7675 Unavailable
+- 01:24:05 QRD8635 Unavailable, QRD7675 Unavailable
+- 01:54:05 QRD8635 Unavailable, QRD7675 Unavailable
+- 02:24:05 QRD8635 Unavailable, QRD7675 Unavailable
+- 02:54:07 QRD8635 Unavailable, QRD7675 Unavailable
+
+At 02:54: QRD8635 1000, QRD7675 1000 (Unavailable); QRD8750 741, QRD8650 512 (Available, not in scope).
