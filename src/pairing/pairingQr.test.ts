@@ -161,7 +161,7 @@ describe("the optional v3 tailnet", () => {
       ok: true,
       square: { ...base, tailnet: "https://macbook.local" },
     });
-    const hundred = `https://${"a".repeat(100)}`;
+    const hundred = `https://${"a".repeat(63)}.${"a".repeat(36)}`;
     expect(parsePairingQr(square({ tailnet: hundred }))).toEqual({
       ok: true,
       square: { ...base, tailnet: hundred },
@@ -179,6 +179,11 @@ describe("the optional v3 tailnet", () => {
     ["a path", "https://macbook.local/pair"],
     ["a trailing slash", "https://macbook.local/"],
     ["101 host chars", `https://${"a".repeat(101)}`],
+    ["a 100-char single label over 63", `https://${"a".repeat(100)}`],
+    ["a 64-char label", `https://${"a".repeat(64)}.local`],
+    ["an empty label (a..b)", "https://a..b"],
+    ["a leading hyphen", "https://-mac.local"],
+    ["a trailing hyphen", "https://mac-.local"],
     ["a leading dot", "https://.macbook.local"],
     ["a trailing dot", "https://macbook.local."],
     ["http scheme", "http://macbook.local"],

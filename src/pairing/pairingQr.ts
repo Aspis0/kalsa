@@ -23,21 +23,24 @@ const CODE_PATTERN = /^[0-9a-f]{32}$/;
 const NONCE_PATTERN = /^[0-9a-f]{64}$/;
 const NODE_PATTERN = /^[0-9a-f]{64}$/;
 const TAILNET_PREFIX = "https://";
-/** The tailnet host, exactly: lowercase, no port/path/query/fragment. */
-const TAILNET_HOST_PATTERN = /^[a-z0-9.-]+$/;
+/** One DNS label: lowercase, 1..63 chars, no empty, no edge hyphen. */
+const DNS_LABEL_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 /**
- * The optional v3 `tailnet`: a validated `https://<host>` (lowercase
- * [a-z0-9.-], 1..100 chars, no leading/trailing dot), else "" — a
- * malformed value is the absence of a value, never a refused scan. It is
- * never MAC'd: the signatures cover reachable/node exactly as before.
+ * The optional v3 `tailnet`: a validated `https://<host>` — lowercase DNS
+ * labels (1..63 chars each, no empty label, no leading/trailing hyphen),
+ * whole host 1..100 chars — else "". A malformed value is the absence of
+ * a value, never a refused scan. It is never MAC'd: the signatures cover
+ * reachable/node exactly as before.
  */
 function canonicalTailnet(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith(TAILNET_PREFIX)) return "";
   const host = value.slice(TAILNET_PREFIX.length);
   if (host.length < 1 || host.length > 100) return "";
-  if (!TAILNET_HOST_PATTERN.test(host)) return "";
-  if (host.startsWith(".") || host.endsWith(".")) return "";
+  // The label rule also refuses empty labels — the leading/trailing dot
+  // and the inner `..` are all "a label with nothing in it".
+  const labels = host.split(".");
+  if (labels.some((label) => label.length > 63 || !DNS_LABEL_PATTERN.test(label))) return "";
   return value;
 }
 
