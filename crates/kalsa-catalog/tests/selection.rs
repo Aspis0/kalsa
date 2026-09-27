@@ -454,13 +454,19 @@ fn a_measured_decode_belongs_to_the_machine_it_was_measured_on() {
     assert!(slow.floor() < 20.44, "the speed is no longer 20.44: {:?}", slow.floor());
     assert!(slow.floor() > 0.0, "the prediction still has a figure: {slow:?}");
 
-    // And the band: a machine a quarter away from the measured bandwidth
-    // still counts as the machine the rate was taken on.
-    let near = decode_prediction(twelve, &metal(16, 300.0e9));
-    assert!(
-        matches!(near, Prediction::Measured { .. }),
-        "300 GB/s is within a quarter of the M1 Max's 400: {near:?}"
-    );
+    // And the band: a machine within a quarter of the measured bandwidth
+    // still counts as the machine the rate was taken on — and the rate
+    // rides the bandwidth difference, so equal machines get the reading
+    // itself and the rest of the band gets their share of it.
+    let rate = |bandwidth: f64| match decode_prediction(twelve, &metal(16, bandwidth)) {
+        Prediction::Measured {
+            tokens_per_second, ..
+        } => tokens_per_second,
+        other => panic!("inside the band the measurement stands: {other:?}"),
+    };
+    assert!((rate(300.0e9) - 15.33).abs() < 1e-9, "{}", rate(300.0e9));
+    assert!((rate(400.0e9) - 20.44).abs() < 1e-9, "{}", rate(400.0e9));
+    assert!((rate(500.0e9) - 25.55).abs() < 1e-9, "{}", rate(500.0e9));
 }
 
 #[test]
@@ -1213,17 +1219,26 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
     let pick = largest_that_runs_well(&fast).expect("a 16 GiB machine runs something");
     assert_eq!(pick.entry.repo, "google/gemma-4-12B-it");
 
-    // And a gated row is reported, not lost: at 40 GB/s the 8 GiB tier's
-    // only fitting row (the LFM file, ~8 tok/s) is under its line, and the
-    // refusal states its speed — not the "smallest one needs N bytes"
-    // sentence an empty bucket would give.
+    // The lines stand down when nothing clears them: at 40 GB/s the 8 GiB
+    // tier's only fitting row (the LFM file, ~8 tok/s) is under its line,
+    // no row on the tier clears one, and the reading floor alone decides —
+    // the tier starts the Q8 file.
     let tier = metal(8, 40.0e9);
-    let refusal = match largest_that_runs_well(&tier) {
+    let pick = largest_that_runs_well(&tier).expect("the 8 GiB tier starts the LFM file");
+    assert_eq!(pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(pick.entry.quant, "Q8_0");
+
+    // And the refusal sentence is about the READING floor, and only fires
+    // under it: at half a GB/s the same row decodes below 3 tok/s, so the
+    // tier is refused with a span that is actually slower than reading.
+    let dead = metal(8, 0.5e9);
+    let refusal = match largest_that_runs_well(&dead) {
         Err(refusal) => refusal,
-        Ok(pick) => panic!("{} is under its line and was offered anyway", pick.entry.repo),
+        Ok(pick) => panic!("{} decodes below reading speed and was offered", pick.entry.repo),
     };
     assert_eq!(refusal.reason, RefusalReason::NothingFastEnough);
     let explanation = refusal.explanation;
+    assert!(explanation.contains("slower than reading"), "{explanation}");
     assert!(explanation.contains("tokens per second"), "{explanation}");
     assert!(
         !explanation.contains("smallest one in the catalog needs"),
@@ -1327,4 +1342,64 @@ fn the_full_precision_file_is_not_the_first_card_below_the_roomy_line() {
     // And at 8 GiB, where F16 does not even fit, the pick is the Q8 file.
     let pick = largest_that_runs_well(&metal(8, 100.0e9)).expect("an 8 GiB machine runs something");
     assert_eq!(pick.entry.quant, "Q8_0");
+}
+
+#[test]
+fn the_full_precision_file_leads_no_card_and_no_pair_shares_a_model() {
+    // 64 GiB with a 10 GiB card at 100 GB/s: the F16 file fits the card and
+    // outsizes the Gemma 4 E4B, so without the rule it would lead — the pick
+    // must be another model, and the two cards must not read the same name.
+    let small_card = ChoiceInput {
+        backend: Backend::DiscreteGpu {
+            vram_bytes: Some(10 * GIB),
+        },
+        bandwidth_bytes_per_second: 100.0e9,
+        ..input(64, false)
+    };
+    let first = largest_that_runs_well(&small_card).expect("the card runs something");
+    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    let second = quicker_alternative(&small_card, &first.decode).expect("a second card");
+    assert_ne!(second.entry.repo, first.entry.repo);
+    assert_ne!(second.entry.display_name, first.entry.display_name);
+
+    // An 11 GiB card at 400 GB/s: the 12B leads (its measurement is in
+    // band) and the F16 file may even BE the second card — never the first —
+    // and the names still differ.
+    let card = ChoiceInput {
+        backend: Backend::DiscreteGpu {
+            vram_bytes: Some(11 * GIB),
+        },
+        bandwidth_bytes_per_second: 400.0e9,
+        ..input(64, false)
+    };
+    let first = largest_that_runs_well(&card).expect("the card runs something");
+    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    let second = quicker_alternative(&card, &first.decode).expect("a second card");
+    assert_ne!(second.entry.repo, first.entry.repo);
+    assert_ne!(second.entry.display_name, first.entry.display_name);
+}
+
+#[test]
+fn the_phone_judges_the_row_the_brain_chose_and_never_which_one_leads() {
+    // Paired, 64 GiB at 800 GB/s: the big dense row cleared its line, so it
+    // leads and the phone answers only whether it beats what the phone runs.
+    // The class walk alone used to hand the card to the bigger 35B MoE —
+    // which is the phone deciding the PC's model, the thing it never does.
+    let machine = ChoiceInput {
+        bandwidth_bytes_per_second: 800.0e9,
+        ..input(64, true)
+    };
+    match choose(&machine) {
+        Decision::Pick(selection) => assert_eq!(
+            selection.repo,
+            "Qwen/Qwen3.8-27B",
+            "the brain's first card leads on the paired route too: {}",
+            selection.repo
+        ),
+        other => panic!("expected a pick, got {other:?}"),
+    }
+    // Both routes agree on the first card; the phone only ever changes the
+    // sentence under it.
+    let phone_free = largest_that_runs_well(&machine).expect("a 64 GiB machine runs something");
+    assert_eq!(phone_free.entry.repo, "Qwen/Qwen3.8-27B");
 }

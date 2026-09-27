@@ -381,16 +381,45 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     };
     // The walk prunes as it goes, so it borrows its own copy of the
     // survivors; `remaining` stays whole for the nothing-admitted analysis
-    // below, where every fitting row still counts.
-    let mut walk: Vec<&Candidate> = remaining.iter().collect();
-    // The existing preference, walked until a candidate admits an honest
-    // justification: the biggest that fits, then — among models of the same
-    // class — the one the numbers say decodes fastest. The biggest may admit
-    // nothing (a small unsourced MoE can claim neither capability nor
-    // expected strength, and a device that does not run on battery admits no
-    // relief), and when it cannot, the walk falls through to what remains
-    // rather than mislabelling the offer or hiding it.
+    // below, where every fitting row still counts. The full-precision file
+    // leaves here: it leads no card on either route — the roomy rule offers
+    // it as the Faster option only.
+    let mut walk: Vec<&Candidate> = remaining
+        .iter()
+        .filter(|candidate| !full_precision_file(candidate.entry))
+        .collect();
     while !walk.is_empty() {
+        // The brain's own first card, shared with the phone-free route: the
+        // big dense row that cleared its line. The phone answers only
+        // whether that row beats what the phone runs; it never decides which
+        // PC model leads. No justification, no offer — the row drops out of
+        // the walk exactly as the class rule's candidate below does.
+        if let Some(dense) = walk
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
+            })
+            .max_by_key(|candidate| candidate.entry.weights_bytes)
+        {
+            match justification(dense, &phone) {
+                Some(earned) => {
+                    return Decision::Pick(selection(dense, input, &phone, budget, earned))
+                }
+                None => {
+                    walk.retain(|candidate| !std::ptr::eq(*candidate, dense));
+                    continue;
+                }
+            }
+        }
+        // Then the class preference, walked until a candidate admits an
+        // honest justification: the biggest that fits, then — among models
+        // of the same class — the one the numbers say decodes fastest. The
+        // biggest may admit nothing (a small unsourced MoE can claim neither
+        // capability nor expected strength, and a device that does not run
+        // on battery admits no relief), and when it cannot, the walk falls
+        // through to what remains rather than mislabelling the offer or
+        // hiding it.
         let leader = *walk
             .iter()
             .max_by_key(|candidate| candidate.entry.weights_bytes)
@@ -517,25 +546,29 @@ pub struct RunnableRow {
 /// the caller that cannot start still owes the owner a reason.
 pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusal> {
     let answer = runnable_on(input)?;
+    // The first-card pool, minus the full-precision file: that row leads
+    // no card — the roomy rule offers it only as the Faster option — and
+    // it must not out-rank the smaller rows by bytes on its way to being
+    // one. It never travels alone: anything that admits F16 admits the E4B
+    // beside it, which clears every line F16 clears.
+    let pool: Vec<&Candidate> = answer
+        .remaining
+        .iter()
+        .filter(|candidate| !full_precision_file(candidate.entry))
+        .collect();
     // The big dense row that cleared its line is the smarter answer and is
     // shown as the first card; the biggest row beside it becomes the second
     // option, measured against whatever is shown (`quicker_alternative`).
     // With no big dense row qualifying, the biggest row that runs well is
     // the pick, as always. The line identifies the class: only a dense row
     // at the big end HAS this line, and it already cleared it to be here.
-    let chosen = answer
-        .remaining
+    let chosen = pool
         .iter()
         .filter(|candidate| {
             dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
         })
         .max_by_key(|candidate| candidate.entry.weights_bytes)
-        .or_else(|| {
-            answer
-                .remaining
-                .iter()
-                .max_by_key(|candidate| candidate.entry.weights_bytes)
-        })
+        .or_else(|| pool.iter().max_by_key(|candidate| candidate.entry.weights_bytes))
         .expect("runnable_on answers remaining only when it is not empty");
     Ok(row(chosen, answer.budget))
 }
@@ -666,9 +699,12 @@ fn row(candidate: &Candidate<'static>, budget: MemoryBudget) -> RunnableRow {
 /// cannot grow different rules about what runs.
 struct Runnable {
     budget: MemoryBudget,
-    /// Rows that fit the budget but are provably too slow: never offerable,
-    /// yet they count when the answer is "nothing fits" or "too slow to
-    /// use", and they are what the span in those refusals spans.
+    /// Rows that fit the budget but are never offerable on it: under the
+    /// reading floor, or under their row's dense speed line while some
+    /// other row clears its own. They count when an answer is about what
+    /// fits; the reading-speed refusal only ever spans rows the reading
+    /// floor refused, because the dense lines stand down when nothing
+    /// clears them (they never withhold a whole tier).
     too_slow: Vec<Candidate<'static>>,
     /// Rows that fit and are not provably too slow: everything either
     /// question can actually offer.
@@ -725,7 +761,7 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
     // range below the line never reaches either answer, and a floor always
     // does, with its offer saying the real figure will be measured.
     let mut too_slow = Vec::new();
-    let mut remaining = Vec::new();
+    let mut eligible = Vec::new();
     for candidate in candidates {
         if !fits(&candidate) {
             continue;
@@ -742,17 +778,27 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         if full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES {
             continue;
         }
-        // The dense speed floor: where this machine cannot drive a dense
-        // row at the line its size sets, the row is not offered at all —
-        // not as a pick, not as a second option, and not as somebody else's
-        // stored choice. It lands in `too_slow` with the rows the reading
-        // floor refuses, so a refusal names its speed instead of losing it
-        // (and the "smallest one needs N" sentence never sees an empty set).
-        if let Some(line) = dense_speed_floor(candidate.entry) {
-            if candidate.decode.floor() < line {
-                too_slow.push(candidate);
-                continue;
-            }
+        eligible.push(candidate);
+    }
+    // The dense floors are a preference among rows, not a verdict on the
+    // machine: a row under its line is withheld only while some other row
+    // clears its own. When nothing clears them — a small tier where every
+    // dense row sits under 10 — the reading floor decides alone, so the
+    // tier still starts something. That is what keeps the refusal honest:
+    // `remaining` is empty only when the eligible rows are empty, so the
+    // reading-speed sentence always quotes speeds below the reading floor.
+    let clears_its_line =
+        |candidate: &Candidate| dense_speed_floor(candidate.entry).is_none_or(|line| {
+            candidate.decode.floor() >= line
+        });
+    let any_clears = eligible.iter().any(|candidate| clears_its_line(candidate));
+    let mut remaining = Vec::new();
+    for candidate in eligible {
+        if any_clears && !clears_its_line(&candidate) {
+            // Withheld, never offerable here — and counted, so an answer
+            // about what fits cannot pretend this row does not exist.
+            too_slow.push(candidate);
+            continue;
         }
         remaining.push(candidate);
     }

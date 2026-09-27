@@ -101,6 +101,16 @@ fn print_tier(tier: u64, base: ChoiceInput) {
             None
         }
     };
+    // The dense floors are conditional in the chooser (choice.rs): they
+    // withhold a row only while some row on the menu clears its own line.
+    // The report mirrors that, or it would withhold rows the chooser starts.
+    let any_clears_line = rows
+        .iter()
+        .filter(|row| on_the_menu(row, budget, input.ram_bytes))
+        .any(|row| {
+            row.dense_line
+                .is_none_or(|line| row.decode.as_ref().is_some_and(|decode| decode.floor() >= line))
+        });
     println!("other rows:");
     // The whole row is the identity, not the repo alone: two files of one
     // model (Q8_0 and F16) are separate menu entries, and hiding both
@@ -115,34 +125,45 @@ fn print_tier(tier: u64, base: ChoiceInput) {
             row.entry.quant,
             gibs(row.entry.weights_bytes),
             gibs(row.footprint.total_bytes()),
-            offering(row, budget, input.ram_bytes),
-            rejection(row, budget, input.ram_bytes)
+            offering(row, budget, input.ram_bytes, any_clears_line),
+            rejection(row, budget, input.ram_bytes, any_clears_line)
         );
     }
 }
 
-/// The menu's own gates, in the order the chooser applies them: manifest
-/// standing, fit at the pricing window, the reading floor, the row's dense
-/// speed floor, a file to fetch. `offered` means on this machine's menu —
-/// the pick is one of them, chosen by preference, which is a separate
-/// question with its own sentence below.
+/// The chooser's gates, in the order it applies them: manifest standing,
+/// fit at the pricing window, the reading floor, the roomy-machine rule, a
+/// file to fetch — then the row's dense speed floor, asked only when some
+/// other row on the menu clears its own (choice.rs). `offered` means on
+/// this machine's menu; the pick is one of them, chosen by preference,
+/// which is a separate question with its own sentence below.
+fn on_the_menu(
+    row: &RowAssessment,
+    budget: kalsa_catalog::MemoryBudget,
+    ram_bytes: u64,
+) -> bool {
+    !matches!(row.standing, Standing::Excluded { .. })
+        && row.footprint.total_bytes() <= budget.usable_bytes
+        && !row.too_slow
+        && !(kalsa_catalog::full_precision_file(row.entry)
+            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES)
+        && has_a_file(row.entry)
+}
+
 fn offering(
     row: &RowAssessment,
     budget: kalsa_catalog::MemoryBudget,
     ram_bytes: u64,
+    any_clears_line: bool,
 ) -> &'static str {
-    if matches!(row.standing, Standing::Excluded { .. })
-        || row.footprint.total_bytes() > budget.usable_bytes
-        || row.too_slow
-        || (kalsa_catalog::full_precision_file(row.entry)
-            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES)
-        || !has_a_file(row.entry)
-    {
+    if !on_the_menu(row, budget, ram_bytes) {
         return "withheld";
     }
-    if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
-        if decode.floor() < line {
-            return "withheld";
+    if any_clears_line {
+        if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
+            if decode.floor() < line {
+                return "withheld";
+            }
         }
     }
     "offered"
@@ -152,7 +173,12 @@ fn has_a_file(entry: &kalsa_catalog::ModelEntry) -> bool {
     kalsa_catalog::DOWNLOADABLE.iter().any(|row| row.model.repo == entry.repo)
 }
 
-fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget, ram_bytes: u64) -> String {
+fn rejection(
+    row: &RowAssessment,
+    budget: kalsa_catalog::MemoryBudget,
+    ram_bytes: u64,
+    any_clears_line: bool,
+) -> String {
     let mut reasons = Vec::new();
     if let Standing::Excluded { reason } = row.standing {
         reasons.push(format!("excluded by manifest: {reason}"));
@@ -166,14 +192,16 @@ fn rejection(row: &RowAssessment, budget: kalsa_catalog::MemoryBudget, ram_bytes
             reasons.push("roomy machines only: the full-precision file (32 GiB of RAM)".to_string());
         }
         if row.too_slow {
-            reasons.push("too slow: predicted range is below 3.0 tok/s".to_string());
+            reasons.push("too slow: below the reading floor".to_string());
         }
-        if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
-            if decode.floor() < line {
-                reasons.push(format!(
-                    "dense speed floor: predicts {floor:.1} tok/s, needs {line:.0}",
-                    floor = decode.floor()
-                ));
+        if any_clears_line {
+            if let (Some(line), Some(decode)) = (row.dense_line, &row.decode) {
+                if decode.floor() < line {
+                    reasons.push(format!(
+                        "dense speed floor: predicts {floor:.1} tok/s, needs {line:.0}",
+                        floor = decode.floor()
+                    ));
+                }
             }
         }
         if reasons.is_empty() {

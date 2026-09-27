@@ -165,8 +165,14 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
                 && (input.bandwidth_bytes_per_second - measured.bandwidth_bytes_per_second).abs()
                     <= measured.bandwidth_bytes_per_second * MEASURED_BANDWIDTH_TOLERANCE =>
         {
+            // Inside the band the machine is *like* the measured one, not
+            // identical to it: the rate rides the bandwidth difference
+            // (a 500 GB/s card is not told a 400 GB/s card's figure), and
+            // at the measured bandwidth the ratio is 1 — the reading
+            // itself, unchanged.
             Prediction::Measured {
-                tokens_per_second: measured.tokens_per_second,
+                tokens_per_second: measured.tokens_per_second
+                    * (input.bandwidth_bytes_per_second / measured.bandwidth_bytes_per_second),
                 machine: measured.measured_on,
             }
         }
