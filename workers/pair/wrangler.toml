@@ -1,0 +1,15 @@
+name = "kalsa-pair"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+# Routes on the kalsa.io zone are the only origin (like kalsa-telemetry):
+# workers.dev stays disabled, the apex and every other host/path stay unrouted.
+workers_dev = false
+
+routes = [
+  { pattern = "kalsa.io/pair*", zone_name = "kalsa.io" },
+  { pattern = "kalsa.io/.well-known/assetlinks.json", zone_name = "kalsa.io" },
+]
+
+# Static page + static JSON: nothing to observe, logs off.
+[observability]
+enabled = false
