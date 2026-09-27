@@ -819,7 +819,7 @@ check(
 
 const shFlags = bash([path.join(here, "flags.sh"), "--selftest"]);
 check(shFlags.status === 0, `flags.sh --selftest exit=${shFlags.status} ${shFlags.stderr}`);
-for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "phase0.sh", "oneTurn.sh", "../device-share-send.sh"]) {
+for (const f of ["supervisor.sh", "flags.sh", "conversation.sh", "logcat.sh", "watchdog.sh", "recovery.sh", "turn.sh", "nativeLog.sh", "phase0.sh", "oneTurn.sh", "run-t20c.sh", "selftest_defects.sh", "selftest_fakedevice.sh", "../device-share-send.sh"]) {
   const r = bash(["-n", path.join(here, f)]);
   check(r.status === 0, `bash -n ${f} exit=${r.status} ${r.stderr}`);
 }

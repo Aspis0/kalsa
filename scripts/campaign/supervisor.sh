@@ -19,6 +19,7 @@ source "$_HERE/logcat.sh"
 source "$_HERE/watchdog.sh"
 source "$_HERE/recovery.sh"
 source "$_HERE/turn.sh"
+source "$_HERE/nativeLog.sh"
 source "$_HERE/oneTurn.sh"
 source "$_HERE/phase0.sh"
 source "$_HERE/metroPreflight.sh"
@@ -140,7 +141,7 @@ campaign_ensure_device || die "device missing (serial=$ANDROID_SERIAL) — refus
 [ "$(campaign_adb_state)" = "device" ] || die "adb get-state is not device"
 device_keepawake_begin
 campaign_logcat_start "$OUT/logcat.txt"
-trap 'campaign_logcat_stop; device_termux_wakelock_restore; _device_session_restore' EXIT
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; device_termux_wakelock_restore; _device_session_restore' EXIT
 
 campaign_arm_begin() {
   campaign_write_flags
@@ -286,6 +287,8 @@ mode_run() {
     fi
   done
 }
+
+campaign_native_log_setup
 
 case "$MODE" in
   dry-run) mode_dry_run ;;

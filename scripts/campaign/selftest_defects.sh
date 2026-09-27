@@ -19,6 +19,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 # Reuse logcat's derived marker so fake-device fixtures cannot drift.
 source "$HERE/logcat.sh"
+source "$HERE/nativeLog.sh"
 export CAMPAIGN_STARTUP_MARKER
 CAMPAIGN_METRO_IN_FLIGHT_NEEDLE="$(sed -n '/POST_FIX_IN_FLIGHT_NEEDLE/{n;s/^[[:space:]]*"\([^"\\]*\)";[[:space:]]*$/\1/p;}' "$REPO/scripts/campaign/metroGate.mjs")"
 if [ -z "$CAMPAIGN_METRO_IN_FLIGHT_NEEDLE" ]; then
@@ -534,7 +535,13 @@ run_campaign_case() {
   else
     bad "$mode run exit rc=$rc (want $want_rc); tail: $(tail -3 "$out/run.log" | tr '\n' '|')"
   fi
-  if grep -q 'ABORT after turn 2: completion counter stayed at' "$out/run.log"; then
+  if [ "$mode" = native-log-off ]; then
+    if grep -Fq 'native log setup refused: INFO liveness evidence is disabled' "$out/run.log"; then
+      ok "nativelog=off refuses campaign startup"
+    else
+      bad "nativelog=off did not refuse startup in $out/run.log"
+    fi
+  elif grep -q 'ABORT after turn 2: completion counter stayed at' "$out/run.log"; then
     ok "$mode abort names the missing signal"
   else
     bad "$mode abort message missing in $out/run.log"
@@ -544,12 +551,23 @@ run_campaign_case() {
   else
     ok "$mode fake adb handled every call"
   fi
-  printf '   jsonl: %s\n' "$(jsonl_reason "$out/T20C/c1-V1.jsonl" 2 already-landed-skip-send >/dev/null 2>&1 && printf ok || printf 'no already-landed row')"
+  local restored_pref
+  restored_pref=$(sqlite3 "$FAKE_DEV/databases/RKStorage" \
+    "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.nativelog';" 2>/dev/null)
+  if [ -z "$restored_pref" ]; then
+    ok "$mode campaign teardown restored the previously absent nativelog preference"
+  else
+    bad "$mode campaign teardown left nativelog=$restored_pref instead of ABSENT"
+  fi
+  if [ "$mode" != native-log-off ]; then
+    printf '   jsonl: %s\n' "$(jsonl_reason "$out/T20C/c1-V1.jsonl" 2 already-landed-skip-send >/dev/null 2>&1 && printf ok || printf 'no already-landed row')"
+  fi
 }
 
 printf '\n== (b) early abort after turn 2 ==\n'
 run_campaign_case marker-turn1 4
 run_campaign_case never 4
+run_campaign_case native-log-off 1
 
 # The serial guard is the ONLY thing that can exit 2 here: CAMPAIGN_APK_PATH is
 # bound the way a real run binds it, so with the guard removed the run gets past
@@ -1281,6 +1299,24 @@ flags_tools_case() {
 }
 
 flags_tools_case
+
+native_log_off_refusal_case() {
+  local out="$WORK/native-log-off.log" rc
+  (
+    log() { printf '%s\n' "$*" >&2; }
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 1; }
+    campaign_native_log_require_on 'bench: thinking=default, nativelog=off' \
+      || die "native log setup refused: INFO liveness evidence is disabled"
+  ) > "$out" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ] && grep -Fq 'native log setup refused: INFO liveness evidence is disabled' "$out"; then
+    ok "campaign refuses startup when bench:show reports nativelog=off"
+  else
+    bad "campaign did not refuse startup for nativelog=off (rc=$rc; output: $(cat "$out"))"
+  fi
+}
+
+native_log_off_refusal_case
 
 printf '\npassed=%d failed=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

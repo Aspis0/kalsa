@@ -92,6 +92,7 @@ source "$CAMPAIGN_ROOT/logcat.sh"
 source "$CAMPAIGN_ROOT/watchdog.sh"
 source "$CAMPAIGN_ROOT/recovery.sh"
 source "$CAMPAIGN_ROOT/turn.sh"
+source "$CAMPAIGN_ROOT/nativeLog.sh"
 source "$CAMPAIGN_ROOT/oneTurn.sh"
 source "$CAMPAIGN_ROOT/metroPreflight.sh"
 
@@ -298,7 +299,7 @@ log "thermal preflight status=${THERMAL_STATUS_AT_TURN:-unknown} battery_deci=${
 device_keepawake_begin
 campaign_logcat_start "$OUT/logcat.txt"
 MON_PID=""
-trap 'campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; _device_session_restore' EXIT
+trap 'campaign_native_log_restore || true; campaign_logcat_stop; [ -n "$MON_PID" ] && kill "$MON_PID" 2>/dev/null; device_termux_wakelock_restore; _device_session_restore' EXIT
 
 charging_monitor &
 MON_PID=$!
@@ -342,6 +343,7 @@ campaign_abort_turn() {
 }
 
 log "arm begin: flags->ciswire, wipe chat, launch"
+campaign_native_log_setup
 campaign_arm_begin
 battery_line
 

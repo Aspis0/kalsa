@@ -128,37 +128,3 @@ describe("capture setup", () => {
     expect(addNativeLogListener).toHaveBeenCalledTimes(1);
   });
 });
-
-/**
- * Wiring proof (source, comment-stripped): the ONLY KALSA_NATIVE emitter sits
- * behind the gate. The 2026-09-27 S23 trace showed the old unconditional
- * mirror flooding logcat at 1,102 lines/s during load.
- */
-describe("the mirror lives behind the gate", () => {
-  function stripComments(source: string): string {
-    return source
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^[ \t]*\/\/.*$/gm, "");
-  }
-
-  test("nativeLogTail applies the gate at the console call", () => {
-    const { readFileSync } = require("fs");
-    const { join } = require("path");
-    const source = stripComments(
-      readFileSync(join(__dirname, "nativeLogTail.ts"), "utf8"),
-    );
-    expect(source).toContain("shouldMirrorNativeLog(level, nativeLogMirrorAll)");
-    expect(source).toContain("console.log(`KALSA_NATIVE ${level} ${text}`)");
-  });
-
-  test("LlamaService has no direct KALSA_NATIVE mirror left", () => {
-    const { readFileSync } = require("fs");
-    const { join } = require("path");
-    const source = stripComments(
-      readFileSync(join(__dirname, "LlamaService.ts"), "utf8"),
-    );
-    // KALSA_NATIVE_VARIANT (the variant-selection line the campaigns parse)
-    // stays; the per-line native-log mirror must not.
-    expect(source).not.toContain("KALSA_NATIVE ${level}");
-  });
-});

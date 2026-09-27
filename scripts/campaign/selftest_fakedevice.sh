@@ -117,7 +117,7 @@ app_pid() {
 }
 
 _share_intent() {
-  local args="$1" mode enc text turn msgs ui_text
+  local args="$1" mode enc text turn msgs ui_text assistant_text native_mode
   mode=$(_mode)
   [ "$mode" = "fail-send" ] && exit 1
   enc=$(printf '%s' "$args" | sed -E 's/.*kalsa:\/\/share\?text=([^#]*).*/\1/')
@@ -126,6 +126,22 @@ _share_intent() {
   printf '%s' "$turn" > "$F/turn"
   # vanish: the first send lands, the retry send (after the crash) does not.
   if [ "$mode" = "vanish" ] && [ "$turn" -gt 1 ]; then exit 1; fi
+  assistant_text="Risposta $turn $(printf '%*s' "$((40 * turn))" '' | tr ' ' x)"
+  case "$text" in
+    "bench:nativelog on")
+      if [ "$mode" != native-log-off ]; then
+        sqlite3 "$DEV/databases/RKStorage" \
+          "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.nativelog','1');"
+      fi
+      assistant_text='bench: nativelog=on (force-stop + relaunch to apply)'
+      ;;
+    "bench:show")
+      native_mode=$(sqlite3 "$DEV/databases/RKStorage" \
+        "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.nativelog';" 2>/dev/null)
+      [ "$native_mode" = 1 ] && native_mode=on || native_mode=off
+      assistant_text="bench: thinking=default, nativelog=$native_mode"
+      ;;
+  esac
   # composer: the share put the text in the EditText (+ "Pronto" for wait_ready)
   ui_text="$text"
   [ "$mode" = "hot" ] && ui_text=""
@@ -142,16 +158,16 @@ open(sys.argv[1], "w", encoding="utf-8").write(
 PY
 # Chat history: normal modes finish the turn here; throttled mode adds its
 # assistant bubble incrementally after the Send tap.
-  python3 - "$F/messages.json" "$text" "$turn" "$mode" <<'PY'
+  python3 - "$F/messages.json" "$text" "$turn" "$mode" "$assistant_text" <<'PY'
 import json, sys
-path, text, turn, mode = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+path, text, turn, mode, answer = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4], sys.argv[5]
 try:
     msgs = json.load(open(path, encoding="utf-8"))
 except Exception:
     msgs = []
 msgs.append({"role": "user", "text": text})
 if mode != "throttled":
-    msgs.append({"role": "assistant", "text": "Risposta %d %s" % (turn, "x" * (40 * turn))})
+    msgs.append({"role": "assistant", "text": answer})
 json.dump(msgs, open(path, "w", encoding="utf-8"))
 PY
   # db-lag: the engine accepted the turn and started it, but the app has not
@@ -293,6 +309,10 @@ PY
       "run-as $PKG cp "*)
         rest="${s#run-as $PKG cp }"
         cp "$DEV${rest%% *}" "$DEV/${rest#* }"
+        if [ -z "$(sqlite3 "$DEV/databases/RKStorage" "SELECT value FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" 2>/dev/null)" ]; then
+          : > "$F/messages.json"
+          printf '%s' 0 > "$F/turn"
+        fi
         ;;
       "run-as $PKG rm -f databases/"*) rm -f "$DEV"/databases/${s##*databases/} ;;
       "rm -f /data/local/tmp/kalsa-rkstorage-"*) rm -f "$DEV"/data/local/tmp/kalsa-rkstorage-* ;;
