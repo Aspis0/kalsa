@@ -71,6 +71,8 @@ bash scripts/campaign/run-t20c.sh > /tmp/t20c.log 2>&1; echo "EXIT=$?"
   (`recovery:"screen-invalid"` in the jsonl — the verdict never counts it),
   wakes the phone (`KEYCODE_WAKEUP`, `wm dismiss-keyguard`) and redoes the
   turn. After `${CAMPAIGN_SCREEN_REDO_CAP:-3}` redos the run dies.
+  A redone turn discards the answer but NOT the conversation: the discarded
+  text stays in the model context — do not try to rewind the chat.
 
 ## 3. Scoring / verdict
 
