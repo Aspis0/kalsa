@@ -113,6 +113,7 @@ import { GlassPanel2 } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { PairingScreen } from "./PairingScreen";
+import type { PairingSquare } from "../pairing/pairingTransport";
 import { testRemoteConnection } from "../engine/engineBackend";
 import { getPairingCredential } from "../pairing/pairingCredentialStore";
 import { getRemoteBrainUrl } from "../engine/remote/remoteSettings";
@@ -181,6 +182,8 @@ type Props = {
   model: SettingsModelProps;
   voice: SettingsVoiceProps;
   embedding: SettingsEmbeddingProps;
+  initialPairingInvite?: PairingSquare | null;
+  onDismissPairingInvite?: () => void;
 };
 
 /** App version from Expo config; fallback keeps the Kalsa card usable in tests. */
@@ -206,7 +209,7 @@ type MemoryNotice = {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled, onToggleWebTools, model, voice, embedding }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled, onToggleWebTools, model, voice, embedding, initialPairingInvite, onDismissPairingInvite }: Props) {
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -238,6 +241,17 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     setPairingDoorUrl(getRemoteBrainUrl());
     setPairingOpen(true);
   }, []);
+
+  useEffect(() => {
+    if (!initialPairingInvite) return;
+    setPairingDoorUrl(getRemoteBrainUrl());
+    setPairingOpen(true);
+  }, [initialPairingInvite]);
+
+  const dismissPairing = useCallback(() => {
+    setPairingOpen(false);
+    onDismissPairingInvite?.();
+  }, [onDismissPairingInvite]);
 
   // Production "default" is thinking-on with the model's short budget.
   // The picker shows the two user-facing live budgets.
@@ -955,7 +969,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
 
   const handlePageBack = useCallback(() => {
     if (pairingOpen) {
-      setPairingOpen(false);
+      dismissPairing();
       return;
     }
     if (page === "advanced") {
@@ -963,7 +977,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
       return;
     }
     handleBack();
-  }, [handleBack, page, pairingOpen]);
+  }, [dismissPairing, handleBack, page, pairingOpen]);
 
   /** Guards double-tap: two rapid Help taps must not stack two discard Alerts. */
   const helpConfirmPendingRef = useRef(false);
@@ -1464,10 +1478,11 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
       <PairingScreen
         initialDoorUrl={pairingDoorUrl}
         currentModelId={model.currentModelId}
-        onBack={() => setPairingOpen(false)}
+        initialInvite={initialPairingInvite ?? undefined}
+        onBack={dismissPairing}
         onDone={() => {
           // Paired: the chat is where the owner wanted to get back to.
-          setPairingOpen(false);
+          dismissPairing();
           onBack();
         }}
       />

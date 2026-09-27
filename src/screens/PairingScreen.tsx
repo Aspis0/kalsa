@@ -12,7 +12,7 @@ import { PairingManualForm, type PairingFields } from "./PairingManualForm";
 import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
 import { chooseRoad, isValidNodeHex } from "../remote/road";
 import { irohModulePresent } from "../remote/irohBridge";
-import { logPairingFail } from "../pairing/pairingFailLog";
+import { logPairingFail, type PairingFailStage } from "../pairing/pairingFailLog";
 import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import {
   savePairingCredential,
@@ -27,6 +27,8 @@ import { bytesToHex } from "../pairing/sha256";
 import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
 import { PairingQrScanner } from "./PairingQrScanner";
+import { PairingInvitePaste } from "./PairingInvitePaste";
+import type { TranslationKey } from "../i18n";
 
 type Props = {
   initialDoorUrl: string;
@@ -34,6 +36,22 @@ type Props = {
   onBack: () => void;
   /** Leaves for the chat — passed when pairing was opened from settings. */
   onDone?: () => void;
+  initialInvite?: PairingSquare;
+};
+
+const FAILURE_STAGE_KEYS: Record<PairingFailStage, TranslationKey> = {
+  random: "pairing.failStage.random",
+  validate: "pairing.failStage.validate",
+  claim_url: "pairing.failStage.claimUrl",
+  claim_network: "pairing.failStage.claimNetwork",
+  claim_status: "pairing.failStage.claimStatus",
+  complete_network: "pairing.failStage.completeNetwork",
+  complete_status: "pairing.failStage.completeStatus",
+  seal: "pairing.failStage.seal",
+  save: "pairing.failStage.save",
+  request_too_large: "pairing.failStage.requestTooLarge",
+  confirm_timeout: "pairing.failStage.confirmTimeout",
+  unexpected: "pairing.failStage.unexpected",
 };
 
 /** The desk's allow-answer poll: one /props every 2 s, up to 3 minutes. */
@@ -73,7 +91,7 @@ function declarationForModel(modelId: string): PairingPhoneDeclaration {
   };
 }
 
-export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }: Props) {
+export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, initialInvite }: Props) {
   const { t } = useLocale();
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
   const colors = modes[mode];
@@ -97,12 +115,15 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
    *  while that phase lasts. */
   const [pairHosts, setPairHosts] = useState<{ claim: string; confirm: string } | null>(null);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
+  const [failureStage, setFailureStage] = useState<PairingFailStage | null>(null);
   // The typed address is Start's one blocking input: without a door the
   // ceremony cannot even name who to ask. (A missing phone model is not a
   // block — the zero declaration says "none" on the wire.)
   const doorReady = isAllowedPairingUrl(fields.doorUrl);
   const sessionRef = useRef<PairingSession | null>(null);
   const deskAbortRef = useRef<AbortController | null>(null);
+  const activeInviteRef = useRef<PairingSquare | null>(null);
+  const startedInitialInvite = useRef<PairingSquare | null>(null);
 
   useEffect(
     () => () => {
@@ -141,6 +162,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // The cap is the only thing that can end a 401-only poll: refused,
       // revoked and still-pending all answer 401 to the phone.
       logPairingFail("confirm_timeout", null);
+      setFailureStage("confirm_timeout");
       setState("not-confirmed");
     });
   };
@@ -155,7 +177,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
 
   const update = (key: keyof PairingFields, value: string) => {
     sessionRef.current = null;
-    setState("ready");
+    activeInviteRef.current = null;
+    setState((current) => current === "refused" ? current : "ready");
     setPairHosts(null);
     setFields((current) => ({ ...current, [key]: value }));
   };
@@ -177,13 +200,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // A fresh install has no door URL yet: the reason line already shows
       // it (button disabled beside it); logcat still owes the stage line.
       logPairingFail("validate", null);
+      setFailureStage("validate");
       return;
     }
     if (!isAllowedPairingUrl(deskUrl)) {
       logPairingFail("validate", null);
+      setFailureStage("validate");
       setState("refused");
       return;
     }
+    setFailureStage(null);
+    setState("ready");
     setBusy(true);
     try {
       // A scanned square is a fresh square: it abandons a session holding a
@@ -217,6 +244,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
             phone: declarationForModel(currentModelId),
             signal,
             fetcher: useIrohDesk ? createDeskPairingFetch(square.node, signal) : undefined,
+            onFailure: (stage) => setFailureStage((current) => current ?? stage),
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
               : undefined,
@@ -245,6 +273,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
         await setRemoteServerModelId("");
       } catch {
         logPairingFail("save", null);
+        setFailureStage((current) => current ?? "save");
         setState("refused");
         return;
       }
@@ -263,6 +292,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // throw reaching here escaped every named stage and must still leave
       // its one line in logcat.
       logPairingFail("unexpected", null);
+      setFailureStage((current) => current ?? "unexpected");
       setState("refused");
     } finally {
       setBusy(false);
@@ -274,6 +304,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   // leaves a pending completion retry intact.
   const acceptScannedSquare = (square: PairingSquare) => {
     setScanning(false);
+    activeInviteRef.current = square;
     // The square brings its own addresses (tailnet) or means the configured
     // prefill — a scan never inherits the previous scan's tailnet host,
     // or the claim would go there without the status naming it.
@@ -281,6 +312,14 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
     setFields((current) => ({ ...current, ...square, ...scannedUrls }));
     void run(square);
   };
+
+  useEffect(() => {
+    if (!initialInvite || startedInitialInvite.current === initialInvite) return;
+    startedInitialInvite.current = initialInvite;
+    acceptScannedSquare(initialInvite);
+  }, [initialInvite]);
+
+  const retryPairing = () => void run(activeInviteRef.current ?? undefined);
 
   // Which host names the current phase: the desk (port included) while
   // claiming, the door while waiting; an outcome outranks the name.
@@ -292,10 +331,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
         ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
         // The reason renders either here (details collapsed) or next to the
         // disabled button inside the form — never both: one placement per view.
-        : !doorReady && !showManual
-          ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
-          : state === "refused"
-            ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+        : state === "refused"
+          ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+          : !doorReady && !showManual
+            ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
             : state === "paired"
               ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
               : state === "not-confirmed"
@@ -340,6 +379,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
           <Text testID={status.testID} style={[type.secondary, { color: status.error ? colors.danger : colors.ink2 }]}>
             {status.text}
           </Text>
+          {failureStage ? (
+            <Text testID="pairing.failure.stage" style={[type.secondary, { color: colors.danger }]}>
+              {t("pairing.failedAt", { stage: t(FAILURE_STAGE_KEYS[failureStage]) })}
+            </Text>
+          ) : null}
           {state === "waiting" && confirmPhase.phase === "unreachable" ? (
             <Text testID="pairing.unreachable" style={[type.secondary, { color: colors.danger }]}>
               {t("pairing.unreachablePoll")}
@@ -379,7 +423,26 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
             >
               <Text style={[type.bodyStrong, { color: colors.ink }]}>{t("pairing.retry")}</Text>
             </Pressable>
+          ) : state === "refused" || (failureStage !== null && state === "ready") ? (
+            <Pressable
+              testID="pairing.failure.retry"
+              accessibilityRole="button"
+              accessibilityLabel={t("pairing.retry")}
+              onPress={retryPairing}
+              style={({ pressed }) => ({
+                minHeight: 48,
+                borderRadius: radius.button,
+                borderWidth: 1,
+                borderColor: colors.line,
+                alignItems: "center" as const,
+                justifyContent: "center" as const,
+                backgroundColor: pressed ? colors.surface : "transparent",
+              })}
+            >
+              <Text style={[type.bodyStrong, { color: colors.ink }]}>{t("pairing.retry")}</Text>
+            </Pressable>
           ) : null}
+          <PairingInvitePaste disabled={busy || state === "waiting"} onInvite={acceptScannedSquare} />
           <Pressable
             testID="pairing.manual"
             accessibilityRole="button"

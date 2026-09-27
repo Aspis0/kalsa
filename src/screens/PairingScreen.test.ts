@@ -112,6 +112,7 @@ import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import { irohModulePresent, openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";
 import { PairingScreen } from "./PairingScreen";
+import type { PairingSquare } from "../pairing/pairingTransport";
 
 const saveCredentialMock = savePairingCredential as jest.MockedFunction<typeof savePairingCredential>;
 const originalFetch = globalThis.fetch;
@@ -302,6 +303,33 @@ describe("PairingScreen", () => {
     expect(bodies[0]).toBe(`{"code":"${"41".repeat(16)}"}`);
     expect(saveCredentialMock).toHaveBeenCalled();
     expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
+  test("an initial invite starts the existing pairing ceremony on a cold link open", async () => {
+    const { urls } = installFetch(200);
+    const square: PairingSquare = {
+      reachable: "http://127.0.0.1:8132",
+      code: "41".repeat(16),
+      nonce: "42".repeat(32),
+      node: "43".repeat(32),
+      tailnet: "",
+    };
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(React.createElement(PairingScreen, {
+        initialDoorUrl: "https://desktop.tailnet.ts.net",
+        currentModelId: "local-model",
+        initialInvite: square,
+        onBack: jest.fn(),
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(urls).toEqual([
+      "https://desktop.tailnet.ts.net:8443/pair/claim",
+      "https://desktop.tailnet.ts.net:8443/pair/complete",
+    ]);
     expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     await act(async () => renderer.unmount());
   });
@@ -727,6 +755,26 @@ describe("PairingScreen", () => {
     expect(renderer.root.findByProps({ testID: "pairing.refused" }).props.children).toBe("pairing.refused");
     expect(saveCredentialMock).not.toHaveBeenCalled();
     expect(storedCredential).toEqual(preexistingCredential);
+    await act(async () => renderer.unmount());
+  });
+
+  test("a pairing failure keeps its stage and retry visible while the user edits", async () => {
+    installFetch(503);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findByProps({ testID: "pairing.failure.stage" }).props.children)
+      .toBe("Pairing failed during pairing.failStage.completeStatus.");
+    expect(renderer.root.findByProps({ testID: "pairing.failure.retry" })).toBeDefined();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.code" }).props.onChangeText("44".repeat(16));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.refused" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.failure.stage" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.failure.retry" })).toBeDefined();
     await act(async () => renderer.unmount());
   });
 
