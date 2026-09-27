@@ -405,6 +405,9 @@ pub const CATALOG: &[ModelEntry] = &[
         stale: None,
         // Qwen/Qwen3.5-4B's card: "Thinking mode for general tasks:
         // temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=1.5,
+        // Thinking's recipe is the one this app runs for this model: thinking is
+        // on unless the reader turns it off (chat/src/lib/thinking.ts), and the
+        // pinned template's default branch is the thinking one.
         // repetition_penalty=1.0" (the non-thinking alternative is
         // temperature=0.7, top_p=0.8, top_k=20). presence_penalty is not carried
         // as a launch flag.
@@ -671,6 +674,9 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // "temperature=0.7, top_p=0.8, top_k=20". min_p and presence_penalty are
             // not carried as launch flags. The pinned file's own `general.sampling`
             // agrees: temp 1.0, top_p 0.95, top_k 20 (read 2026-09-26).
+            // Thinking's recipe is the one this app runs for this model: thinking is
+            // on unless the reader turns it off (chat/src/lib/thinking.ts), and the
+            // pinned template's default branch is the thinking one.
             sampling: Sampling {
                 temperature: Some(1.0),
                 top_p: Some(0.95),
@@ -984,6 +990,9 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             // "temperature=0.7, top_p=0.80, top_k=20, ...". Thinking is this model's
             // default, so the desktop starts it the way the card recommends thinking.
             // min_p and presence_penalty are not carried as launch flags.
+            // Thinking's recipe is the one this app runs for this model: thinking is
+            // on unless the reader turns it off (chat/src/lib/thinking.ts), and the
+            // pinned template's default branch is the thinking one.
             sampling: Sampling {
                 temperature: Some(1.0),
                 top_p: Some(0.95),
