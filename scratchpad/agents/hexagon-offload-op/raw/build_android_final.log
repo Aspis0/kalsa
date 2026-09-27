@@ -1,0 +1,4 @@
+[1/3] Building CXX object tools/llama-bench/CMakeFiles/llama-bench-impl.dir/llama-bench.cpp.o
+[2/3] Linking CXX static library tools/llama-bench/libllama-bench-impl.a
+[3/3] Linking CXX executable bin/llama-bench
+BUILD_EXIT=0
