@@ -1,0 +1,12 @@
+Functional, on charger — source excerpts; no thermal conclusion.
+
+App source, kalsa-wt-iroh HEAD 1e289b85:
+- native/GovernorBatteryModule.kt: readThermo() reads ACTION_BATTERY_CHANGED; `plugged` is EXTRA_PLUGGED != 0; `sensorValid` is EXTRA_PRESENT && temperature > 0; it emits `battTempTenthsC`, `plugged`, `sensorValid`, `t_idle_valid=sensorValid`, and `t_idle_tenths_c=temperature` when valid.
+- src/engine/governorInputs.ts: profileFrom() converts t_idle_tenths_c / 10 to t_idle_c; absent trend defaults to 0. readGovernorThermo() first reads `kalsa.bench.thermo`, then falls back to GovernorBattery. AsyncStorage read-only check recorded ABSENT.
+- src/engine/LlamaService.ts: load marker shape `KALSA_GOVERNOR_PLAN ${JSON.stringify(plan)}`; turn marker shape `KALSA_GOVERNOR ${JSON.stringify({ engine_prefill, engine_decode, prefill_ms, thermal_state, thermo_source, fit, fallback_reason, failed, failure_reason, attempt, ...routeFields })}`. On a failed `setGovernorThermo`, the only app-side thermo marker is `KALSA_GOVERNOR_THERMO {"valid":false,"source":"battery"}`. The normal valid payload/latch value is not logged.
+
+Installed app dependency from package-lock: github:Aspis0/kalsa.rn#88b2b57e4b9f58a9f14a764ac05c8a848ed19ae8; vendor/llama.cpp source at that dependency HEAD 88b2b57e.
+- vendor/llama.cpp/src/llama-governor-policy.cpp: plugged thresholds are `{min(t_idle+3,42), t_idle+1, min(t_idle+4.5,42), t_idle+1.5, k_kill_c, t_idle+1}`; k_kill_c=43 C. Plugged profile requires sensor_valid, t_idle_valid, finite positive t_idle, and t_idle+1<42 C. First accepted plugged update latches t_idle; later updates invalidate only when absolute drift exceeds 1.5 C.
+- vendor/llama.cpp/src/llama-governor-runtime.cpp: invalid log shape `set_thermo_profile: invalid thermal profile; accelerator admission is closed`; hot plugged log shape `set_thermo_profile: hot-plugged profile is CPU-only with no cool mode`.
+
+Exact valid thermo input and exact latched value are not present in this build's logs. Per-turn t_idle figures below are source-reconstructed from the BatteryManager temperature captured immediately before each send; `sensor_valid` is inferred from battery `present=true` and positive temperature, not read from a valid-payload log.

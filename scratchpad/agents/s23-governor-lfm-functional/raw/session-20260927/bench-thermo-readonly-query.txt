@@ -1,0 +1,2 @@
+schema: [('CREATE TABLE android_metadata (locale TEXT)',), ('CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL)',)]
+kalsa.bench.thermo: ABSENT

@@ -1,0 +1,20 @@
+functional, on charger; end-of-turn state, gate only
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  status: 5
+  level: 100
+  temperature: 334
+  Capacity level: -1
+09-27 09:27:03.937  Sending ACTION_BATTERY_CHANGED: level:100, status:5, health:2, remain:0, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4387, temperature:335, online:38, charging_status:0, cycle_count:0, current_avg:0, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:3750000, present:true, scale:100, technology:Li-ion, protection:0
+0
+Thermal Status: 0
+	Temperature{mValue=33.3, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=33.3, mType=3, mName=SKIN, mStatus=0}
+  mWakefulness=Awake
+  mIsPowered=true
+  mStayOn=true
+  mIsPowered=true
+  mCurrentFocus=Window{12ae646 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+    isKeyguardShowing=false
+    topResumedActivity=ActivityRecord{178302141 u0 com.kalsa.app/.MainActivity t61}

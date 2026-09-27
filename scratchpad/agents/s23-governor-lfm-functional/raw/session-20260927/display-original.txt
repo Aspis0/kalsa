@@ -1,0 +1,14 @@
+null
+0
+0
+0
+    mScreenBrightnessHysteresis=null
+    mScreenBrightnessIdleHysteresis=null
+    mHdrBrightnessData= HdrBrightnessData {mMaxBrightnessLimits: {}, mBrightnessIncreaseDebounceMillis: 0, mScreenBrightnessRampIncrease: -1.0, mBrightnessDecreaseDebounceMillis: 0, mScreenBrightnessRampDecrease: -1.0, transitionPoint: 1.0, minimumHdrPercentOfScreenForNbm: 0.5, minimumHdrPercentOfScreenForHbm: 0.5, allowInLowPowerMode: false, sdrToHdrRatioSpline: null, highestHdrSdrRatio: 1.0, sdrToHdrSpline: null} 
+  mScreenBrightnessDozeConfig=0.0
+  mScreenBrightnessDimConfig=0.050980393
+  mScreenBrightnessRampAnimator.isAnimating()=false
+  mScreenState=ON
+  mScreenBrightness=0.0
+  mScreenBrightnessDefault=0.5019608
+  mScreenBrightnessDimConfig=0.050980393

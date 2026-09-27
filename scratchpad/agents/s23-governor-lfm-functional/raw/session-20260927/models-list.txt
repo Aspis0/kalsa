@@ -1,0 +1,8 @@
+files/models/qwen3.5-4b/Qwen3.5-4B-Q4_K_M.gguf
+files/models/qwen3.5-4b/mmproj-F16.gguf
+files/models/lfm2.5-8b-a1b/LFM2.5-8B-A1B-Q4_K_M.gguf
+files/models/lfm2.5-8b-a1b-kexp/LFM2.5-8B-A1B-KEXP.gguf
+files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf
+files/models/qwen3.5-2b/Qwen3.5-2B-Q4_K_M.gguf
+files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf
+files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf.sha256-ok

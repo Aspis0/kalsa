@@ -1,0 +1,13 @@
+Functional, on charger. Global KGSL gpubusy; `busy total` values sampled against /proc/uptime.
+Baseline tail before turn 1: 146559.0–146564.6 s; 34 samples, all `0 0`. The 5-turn prefill envelope uses `KALSA_WINDOW` time (+0.14 s from send marker) through `promptMs` from KALSA_TELEMETRY; correlation is global and time-based, not per-process.
+turn 1: window 146629.34–146630.46 uptime s; samples=10; nonzero=5; max busy=611307; max total=1012925; median interval=0.120s; rise seen
+  146629.97 611307 1012925
+  146630.09 611307 1012925
+  146630.20 611307 1012925
+  146630.30 611307 1012925
+  146630.42 611307 1012925
+turn 2: window 146744.80–146745.22 uptime s; samples=4; nonzero=0; max busy=0; max total=0; median interval=0.110s; no rise sampled
+turn 3: window 146799.01–146799.42 uptime s; samples=4; nonzero=0; max busy=0; max total=0; median interval=0.110s; no rise sampled
+turn 4: window 146849.05–146849.46 uptime s; samples=3; nonzero=0; max busy=0; max total=0; median interval=0.120s; no rise sampled
+turn 5: window 146895.62–146896.03 uptime s; samples=3; nonzero=0; max busy=0; max total=0; median interval=0.115s; no rise sampled
+Across adjacent samples in these windows: median spacing 0.120s (8.3 Hz).

@@ -1,0 +1,16 @@
+functional, on charger; turn 5 post-send gate
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  status: 5
+  level: 100
+  temperature: 361
+  Capacity level: -1
+Thermal Status: 0
+	Temperature{mValue=36.4, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=36.4, mType=3, mName=SKIN, mStatus=0}
+  mWakefulness=Awake
+  mStayOn=true
+  mCurrentFocus=Window{12ae646 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+    isKeyguardShowing=false
+    topResumedActivity=ActivityRecord{178302141 u0 com.kalsa.app/.MainActivity t61}

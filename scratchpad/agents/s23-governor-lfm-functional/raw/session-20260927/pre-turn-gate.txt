@@ -1,0 +1,20 @@
+functional, on charger
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  status: 5
+  level: 100
+  temperature: 355
+  Capacity level: -1
+Thermal Status: 1
+	Temperature{mValue=35.6, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=36.1, mType=3, mName=SKIN, mStatus=1}
+	Temperature{mValue=35.6, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=36.1, mType=3, mName=SKIN, mStatus=1}
+  mWakefulness=Awake
+  mIsPowered=true
+  mStayOn=true
+  mIsPowered=true
+  mCurrentFocus=Window{12ae646 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+    isKeyguardShowing=false
+    topResumedActivity=ActivityRecord{178302141 u0 com.kalsa.app/.MainActivity t61}

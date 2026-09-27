@@ -1,0 +1,9 @@
+Functional, on charger. Source-reconstructed BatteryManager payloads (not direct payload logs):
+turn,battery_temperature_tenths_c,t_idle_c,plugged,sensor_valid,t_idle_valid,battery_level
+1,350,35.0,true,true,true,100
+2,354,35.4,true,true,true,100
+3,357,35.7,true,true,true,100
+4,360,36.0,true,true,true,100
+5,360,36.0,true,true,true,100
+
+Method: corresponding turnNN-before.txt `dumpsys battery` rows; AC powered=true and level=100. GovernorBatteryModule maps positive temperature + present=true to sensorValid=true, copies that raw temperature into t_idle_tenths_c, and JS divides by 10. `present=true` is captured in preflight/full battery service state; this build does not log each valid payload. The five sampled t_idle inputs span 1.0 C. Exact load-time input/latch value is unavailable.

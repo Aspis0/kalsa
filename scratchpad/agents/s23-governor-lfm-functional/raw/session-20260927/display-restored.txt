@@ -1,0 +1,11 @@
+functional, on charger; screen settings restored
+null
+0
+0
+0
+  mWakefulness=Awake
+  mStayOn=false
+  mScreenState=ON
+  mScreenBrightness=0.09372575
+  mCurrentFocus=Window{12ae646 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+    isKeyguardShowing=false
