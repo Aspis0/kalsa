@@ -29,7 +29,18 @@ jest.mock("../theme/components", () => ({
 }));
 
 jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
-jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key }) }));
+jest.mock("../i18n", () => {
+  const { makeT } = jest.requireActual("../i18n") as typeof import("../i18n");
+  const realT = makeT("en");
+  return {
+    useLocale: () => ({
+      // Parameterized copy comes from the real catalogue so interpolation
+      // is exercised end to end; bare keys keep this file's key assertions.
+      t: (key: string, params?: Record<string, string | number>) =>
+        params ? realT(key as Parameters<typeof realT>[0], params) : key,
+    }),
+  };
+});
 jest.mock("./SettingsHeader", () => ({
   SettingsHeader: (props: Record<string, unknown>) =>
     require("react").createElement("SettingsHeader", props),
@@ -373,7 +384,7 @@ describe("PairingScreen", () => {
     // The claim went to a scanned host, never a typed one: the status names
     // it through the whole confirmation wait.
     expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("pairing.withHost");
+      .toBe("Pairing with paired.example.ts.net…");
     expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
@@ -412,8 +423,40 @@ describe("PairingScreen", () => {
       { node: "", pairedVia: "https" },
     );
     expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("pairing.withHost");
+      .toBe("Pairing with paired.example.ts.net…");
     expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
+    await act(async () => renderer.unmount());
+  });
+
+  test("editing a field by hand clears the host line — it never outlives its scan", async () => {
+    installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+        tailnet: "https://paired.example.ts.net",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
+      .toBe("Pairing with paired.example.ts.net…");
+
+    // A manual edit takes the screen back to its own addresses: the line
+    // about the scanned host must not outlive the scan it came from.
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.onChangeText(
+        "https://typed.example:8443",
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ testID: "pairing.withHost" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 
