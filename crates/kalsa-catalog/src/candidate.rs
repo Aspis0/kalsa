@@ -104,6 +104,15 @@ pub fn decode_prediction(entry: UsableEntry<'_>, input: &ChoiceInput) -> Predict
     candidate(entry, input).decode
 }
 
+/// How far this machine's memory bandwidth may sit from the bandwidth a
+/// row's measurement was taken on and still have that measurement count: a
+/// quarter either way. Inside the band the machine is like the one the rate
+/// was measured on (the owner's M1 Max reads just under 400 GB/s); outside
+/// it the number is another machine's fact — an M1/M2 base at 100 GB/s does
+/// about a quarter of the M1 Max's 20.4 — and the row takes the ordinary
+/// prediction below, which says out loud that it is estimated.
+pub const MEASURED_BANDWIDTH_TOLERANCE: f64 = 0.25;
+
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
     let source = entry.source();
     let entry = entry.entry();
@@ -145,13 +154,21 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     let ends = decode_band(input.bandwidth_bytes_per_second);
     let decode = match entry.measured_decode {
         // A rate measured on the real path beats any prediction — but only
-        // for a machine that decodes on the same path: the figure is a fact
-        // about the machine it was measured on, and saying it elsewhere is
-        // the number-without-a-path mistake all over again.
-        Some(measured) if measured.backend == input.backend => Prediction::Measured {
-            tokens_per_second: measured.tokens_per_second,
-            machine: measured.measured_on,
-        },
+        // on a machine LIKE the one it was measured on: the same path, and
+        // the same memory bandwidth within MEASURED_BANDWIDTH_TOLERANCE.
+        // Saying it elsewhere is the number-without-a-machine mistake all
+        // over again: the M1 Max's 20.44 for the 12B is about four times
+        // what a 100 GB/s machine delivers.
+        Some(measured)
+            if measured.backend == input.backend
+                && (input.bandwidth_bytes_per_second - measured.bandwidth_bytes_per_second).abs()
+                    <= measured.bandwidth_bytes_per_second * MEASURED_BANDWIDTH_TOLERANCE =>
+        {
+            Prediction::Measured {
+                tokens_per_second: measured.tokens_per_second,
+                machine: measured.measured_on,
+            }
+        }
         _ => {
             let pessimistic = ends.and_then(|(low, _)| decode_tokens_per_second(&low, traffic));
             let optimistic = ends.and_then(|(_, high)| decode_tokens_per_second(&high, traffic));
@@ -250,7 +267,7 @@ pub(crate) fn too_slow_to_use(
 mod tests {
     use super::*;
     use crate::footprint::GIB;
-    use crate::manifest::SlotCache;
+    use crate::manifest::{Sampling, SlotCache};
 
     fn entry(weights_gib: f64, total: u64, active: u64) -> ModelEntry {
         ModelEntry {
@@ -274,6 +291,7 @@ mod tests {
             // The fixture's limit is the memory's, so the trained cap never binds.
             trained_context_tokens: None,
             stale: None,
+            sampling: Sampling::default(),
         }
     }
 

@@ -167,6 +167,11 @@ fn every_measured_decode_names_its_machine_and_date() {
     for (repo, measured) in measured {
         assert!(measured.tokens_per_second > 0.0, "{repo}");
         assert_eq!(measured.backend, kalsa_probe::Backend::Metal, "{repo}");
+        assert!(
+            measured.bandwidth_bytes_per_second >= 100.0e9,
+            "{repo}: the rate must record the bandwidth it was measured at, or it \
+             cannot be judged against this machine"
+        );
         assert!(measured.measured_on.contains("M1 Max"), "{repo}: {}", measured.measured_on);
         assert!(
             measured.measured_on.contains("2026-"),

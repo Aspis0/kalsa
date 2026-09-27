@@ -112,6 +112,7 @@ fn launch_args(
         // A real directory: the engine throws on a `--slot-save-path` that is
         // not one, and this harness exercises the launch, not the tier.
         slot_save_path: std::env::temp_dir(),
+        sampling: kalsa_catalog::Sampling::default(),
     }
 }
 
@@ -261,6 +262,7 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         // A real directory: the engine throws on a `--slot-save-path` that is
         // not one, and this harness exercises the launch, not the tier.
         slot_save_path: std::env::temp_dir(),
+        sampling: kalsa_catalog::Sampling::default(),
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

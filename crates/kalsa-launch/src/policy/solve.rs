@@ -42,6 +42,7 @@ fn plain_row(weights_bytes: u64) -> ModelEntry {
         measured_decode: None,
         trained_context_tokens: None,
         stale: None,
+        sampling: kalsa_catalog::Sampling::default(),
     }
 }
 

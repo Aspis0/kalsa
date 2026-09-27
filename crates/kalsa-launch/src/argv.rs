@@ -63,6 +63,24 @@ impl ServerArgs {
             "--cache-type-v".to_string(),
             self.kv_cache.flag().to_string(),
         ]);
+        // The row's publisher sampling, as the server's default for THIS
+        // model. Each value renders its own flag and only when the row
+        // carries one: a card that published nothing gets the engine's own
+        // default, never an invented number. A request that sends its own
+        // sampling still overrides these — llama-server's per-request
+        // behaviour — so this is what an ordinary message gets.
+        if let Some(value) = self.sampling.temperature {
+            argv.extend(["--temp".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.top_p {
+            argv.extend(["--top-p".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.top_k {
+            argv.extend(["--top-k".to_string(), value.to_string()]);
+        }
+        if let Some(value) = self.sampling.repeat_penalty {
+            argv.extend(["--repeat-penalty".to_string(), value.to_string()]);
+        }
         argv.extend([
             "--sleep-idle-seconds".to_string(),
             self.idle_unload_seconds.to_string(),
@@ -169,6 +187,7 @@ mod tests {
             kv_cache: crate::args::KvCache::Q8_0,
             parallel: crate::args::DEFAULT_PARALLEL,
             slot_save_path: PathBuf::from("/slots"),
+            sampling: kalsa_catalog::Sampling::default(),
         }
     }
 

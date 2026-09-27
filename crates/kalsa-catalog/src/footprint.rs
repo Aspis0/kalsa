@@ -145,7 +145,7 @@ pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{rows, SlotCache};
+    use crate::manifest::{rows, Sampling, SlotCache};
 
     fn dense_row(weights_bytes: u64) -> ModelEntry {
         ModelEntry {
@@ -165,6 +165,7 @@ mod tests {
             // The fixture's limit is the memory's, so the trained cap never binds.
             trained_context_tokens: None,
             stale: None,
+            sampling: Sampling::default(),
         }
     }
 

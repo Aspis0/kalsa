@@ -1017,6 +1017,10 @@ fn dev_config_with_overrides(
         // The dev path carries the disk tier too: the engine would refuse to
         // start without a directory for `--slot-save-path`.
         slot_save_path,
+        // The dev path has no catalog row — the developer pinned the file —
+        // so it renders no sampling flags and the engine keeps its own
+        // defaults.
+        sampling: kalsa_catalog::Sampling::default(),
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;

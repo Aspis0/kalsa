@@ -56,6 +56,7 @@ fn rule_args() -> ServerArgs {
         kv_cache: KvCache::Q8_0,
         parallel: 1,
         slot_save_path: PathBuf::from("/slots"),
+        sampling: kalsa_catalog::Sampling::default(),
     }
 }
 

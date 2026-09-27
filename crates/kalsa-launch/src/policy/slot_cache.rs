@@ -54,6 +54,7 @@ fn section_7_row() -> ModelEntry {
         measured_decode: None,
         trained_context_tokens: None,
         stale: None,
+        sampling: kalsa_catalog::Sampling::default(),
     }
 }
 

@@ -72,7 +72,7 @@ pub use footprint::{
 pub use kalsa_probe::Backend;
 pub use licence::{Licence, Standing};
 pub use manifest::{
-    excluded, rows, usable, DenseEquivalent, DownloadableEntry, GgufSource, ModelEntry,
+    excluded, rows, usable, DenseEquivalent, DownloadableEntry, GgufSource, ModelEntry, Sampling,
     UsableEntry, CATALOG, DOWNLOADABLE,
 };
 pub use parameters::{ActiveParameters, Parameters, TotalParameters};

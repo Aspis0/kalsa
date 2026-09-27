@@ -134,6 +134,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         kv_cache: input.kv_cache,
         parallel,
         slot_save_path: input.slot_save_path.clone(),
+        sampling: input.model.sampling,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
@@ -590,6 +591,7 @@ mod tests {
             trained_context_tokens: None,
             dense_equivalent: None,
             stale: None,
+            sampling: kalsa_catalog::Sampling::default(),
         }
     }
 
@@ -616,6 +618,7 @@ mod tests {
             trained_context_tokens: None,
             dense_equivalent: None,
             stale: None,
+            sampling: kalsa_catalog::Sampling::default(),
         }
     }
 
@@ -1359,5 +1362,37 @@ mod tests {
         model.trained_context_tokens = Some(0);
         assert!(trained_context_unreadable(&model));
         assert_eq!(funded_context(&model, ROOMY_BYTES, 1), None);
+    }
+
+    #[test]
+    fn the_rows_publisher_sampling_reaches_the_command_line() {
+        // The card's values become the engine's defaults for this model, and
+        // a misspelled or missing flag would die in silence on the engine's
+        // side — so the built args are what is asserted, flag by flag. The
+        // row's own values: LiquidAI's README says temperature 0.1, top_k 50,
+        // repetition penalty 1.1, and no top_p at all.
+        let model = shipped_row(LFM);
+        let budget = memory_budget(Backend::Metal, 64 * GIB);
+        let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+            .expect("the row is fundable here");
+        let line = launched.args.argv().join(" ");
+        assert!(line.contains("--temp 0.1"), "{line}");
+        assert!(line.contains("--top-k 50"), "{line}");
+        assert!(line.contains("--repeat-penalty 1.1"), "{line}");
+        assert!(
+            !line.contains("--top-p"),
+            "no card published a top_p for this row, so no flag: {line}"
+        );
+
+        // And a row whose card published nothing renders no sampling flags at
+        // all: the engine's own default stands, never an invented number.
+        let mut silent = *model;
+        silent.sampling = kalsa_catalog::Sampling::default();
+        let quiet = plan(&input(ServerBackend::Metal, budget, &silent, M1_MAX_RAMP))
+            .expect("the row is fundable here");
+        let line = quiet.args.argv().join(" ");
+        assert!(!line.contains("--temp"), "{line}");
+        assert!(!line.contains("--top-k"), "{line}");
+        assert!(!line.contains("--repeat-penalty"), "{line}");
     }
 }

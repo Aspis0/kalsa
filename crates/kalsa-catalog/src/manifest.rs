@@ -64,8 +64,11 @@ pub struct GgufSource {
 /// A decode rate measured for real, with the machine it was measured on —
 /// because a rate is a fact about one machine, never a property of the
 /// model. The catalog uses it only for a machine that decodes on the same
-/// backend; anywhere else the probe prediction is the honest answer, and the
-/// measurement stays on the record for whoever rebuilds the traffic model.
+/// backend AND whose memory bandwidth is within
+/// [`crate::candidate::MEASURED_BANDWIDTH_TOLERANCE`] of the bandwidth the
+/// rate was taken at; anywhere else the probe prediction is the honest
+/// answer, and the measurement stays on the record for whoever rebuilds the
+/// traffic model.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MeasuredDecode {
     /// Decode throughput, from the serving engine's own timings.
@@ -73,6 +76,10 @@ pub struct MeasuredDecode {
     /// The backend the rate was measured on: the figure is used only for a
     /// machine that decodes on the same path.
     pub backend: Backend,
+    /// The memory bandwidth of the machine it was measured on: the row must
+    /// record it, or the figure cannot be judged against this machine's. The
+    /// owner's M1 Max is 400 GB/s.
+    pub bandwidth_bytes_per_second: f64,
     /// The machine, the configuration and the date — verbatim enough that
     /// the reader can judge the figure.
     pub measured_on: &'static str,
@@ -153,6 +160,21 @@ pub enum SlotCache {
     },
 }
 
+/// The publisher's recommended sampling for a row — the server's DEFAULT
+/// whenever this model starts, read from the model card (or from the pinned
+/// file's own `general.sampling`, which the converter writes from it). A
+/// request that carries its own sampling still overrides it: that is
+/// llama-server's per-request behaviour, so this is what an ordinary message
+/// gets, never a ceiling on what a client may ask for. Every field is `None`
+/// when nothing published a value — no number here is invented.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Sampling {
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub top_k: Option<u32>,
+    pub repeat_penalty: Option<f64>,
+}
+
 /// A researched row: everything a decision needs except a way to fetch it.
 /// There is deliberately no `source` field here — a row with an identified
 /// file is a [`DownloadableEntry`], and the types do not mix.
@@ -213,6 +235,9 @@ pub struct ModelEntry {
     pub trained_context_tokens: Option<u64>,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
+    /// The publisher's recommended sampling, applied as the server's default
+    /// when this row starts (see [`Sampling`]).
+    pub sampling: Sampling,
 }
 
 impl ModelEntry {
@@ -340,6 +365,16 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         trained_context_tokens: None,
         stale: None,
+        // Google's official Gemma sampling, present as `general.sampling` in
+        // Google's own QAT file for this row (`gemma-4-E2B_q4_0-it.gguf`,
+        // read 2026-09-26): temperature 1.0, top_p 0.95, top_k 64. No
+        // repetition penalty is published for Gemma, so that field stays None.
+        sampling: Sampling {
+            temperature: Some(1.0),
+            top_p: Some(0.95),
+            top_k: Some(64),
+            repeat_penalty: None,
+        },
     },
     // Google Gemma 4 E4B moved to DOWNLOADABLE (2026-09-18): its pinned file
     // was identified and verified. See the download table.
@@ -359,6 +394,17 @@ pub const CATALOG: &[ModelEntry] = &[
         measured_decode: None,
         trained_context_tokens: None,
         stale: None,
+        // Qwen/Qwen3.5-4B's card: "Thinking mode for general tasks:
+        // temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=1.5,
+        // repetition_penalty=1.0" (the non-thinking alternative is
+        // temperature=0.7, top_p=0.8, top_k=20). presence_penalty is not carried
+        // as a launch flag.
+        sampling: Sampling {
+            temperature: Some(1.0),
+            top_p: Some(0.95),
+            top_k: Some(20),
+            repeat_penalty: Some(1.0),
+        },
     },
     // Google Gemma 4 12B moved to DOWNLOADABLE (2026-09-17): its pinned file
     // was identified, verified against the response headers, downloaded and
@@ -451,6 +497,16 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: None,
             trained_context_tokens: Some(262_144),
             stale: None,
+            // Google's own quantisation-aware training build; its file carries the
+            // official Gemma sampling in `general.sampling` (read 2026-09-26):
+            // temperature 1.0, top_p 0.95, top_k 64. Google publishes no repetition
+            // penalty for Gemma, so that field stays None.
+            sampling: Sampling {
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                top_k: Some(64),
+                repeat_penalty: None,
+            },
         },
         source: GgufSource {
             repo: "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
@@ -520,6 +576,16 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: None,
             trained_context_tokens: Some(131_072),
             stale: None,
+            // The official Gemma sampling, carried in this pinned file's own
+            // `general.sampling` (read 2026-09-26): temperature 1.0, top_p 0.95,
+            // top_k 64. Google publishes no repetition penalty for Gemma, so that
+            // field stays None.
+            sampling: Sampling {
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                top_k: Some(64),
+                repeat_penalty: None,
+            },
         },
         source: GgufSource {
             repo: "unsloth/gemma-4-E4B-it-GGUF",
@@ -584,6 +650,20 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: None,
             trained_context_tokens: Some(262_144),
             stale: None,
+            // Qwen's recommendation for this model's thinking mode — its default —
+            // quoted from the pinned quant's README, which reproduces the card
+            // (Qwen/Qwen3.6-35B itself is gated): "Thinking mode for general tasks:
+            // temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=1.5,
+            // repetition_penalty=1.0"; the non-thinking alternative is
+            // "temperature=0.7, top_p=0.8, top_k=20". min_p and presence_penalty are
+            // not carried as launch flags. The pinned file's own `general.sampling`
+            // agrees: temp 1.0, top_p 0.95, top_k 20 (read 2026-09-26).
+            sampling: Sampling {
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                top_k: Some(20),
+                repeat_penalty: Some(1.0),
+            },
         },
         source: GgufSource {
             repo: "unsloth/Qwen3.6-35B-A3B-GGUF",
@@ -642,11 +722,25 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: Some(MeasuredDecode {
                 tokens_per_second: 20.44,
                 backend: Backend::Metal,
+                // The M1 Max's memory bandwidth, from Apple's own spec page:
+                // outside a quarter of this the rate is another machine's
+                // fact and the row is predicted like any other.
+                bandwidth_bytes_per_second: 400.0e9,
                 measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
                               on GPU, context 512), 2026-09-17",
             }),
             trained_context_tokens: Some(131_072),
             stale: None,
+            // The official Gemma sampling, carried in this pinned file's own
+            // `general.sampling` (read 2026-09-26): temperature 1.0, top_p 0.95,
+            // top_k 64. Google publishes no repetition penalty for Gemma, so that
+            // field stays None.
+            sampling: Sampling {
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                top_k: Some(64),
+                repeat_penalty: None,
+            },
         },
         source: GgufSource {
             repo: "bartowski/gemma-4-12B-it-GGUF",
@@ -704,6 +798,16 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: None,
             trained_context_tokens: Some(131_072),
             stale: None,
+            // LiquidAI's README, "Generation parameters": temperature 0.1, top_k 50,
+            // repetition penalty 1.1 — no top_p is published, so that field stays
+            // None. The pinned file's own `general.sampling` agrees on temp 0.1 and
+            // top_k 50 (read 2026-09-26).
+            sampling: Sampling {
+                temperature: Some(0.1),
+                top_p: None,
+                top_k: Some(50),
+                repeat_penalty: Some(1.1),
+            },
         },
         source: GgufSource {
             repo: "LiquidAI/LFM2.5-2.6B-GGUF",
@@ -767,6 +871,18 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             measured_decode: None,
             trained_context_tokens: Some(262_144),
             stale: None,
+            // Qwen/Qwen3.8-27B's card, sampling recommendations: "Thinking Mode:
+            // temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=0.0,
+            // repetition_penalty=1.0"; the non-thinking alternative is
+            // "temperature=0.7, top_p=0.80, top_k=20, ...". Thinking is this model's
+            // default, so the desktop starts it the way the card recommends thinking.
+            // min_p and presence_penalty are not carried as launch flags.
+            sampling: Sampling {
+                temperature: Some(1.0),
+                top_p: Some(0.95),
+                top_k: Some(20),
+                repeat_penalty: Some(1.0),
+            },
         },
         source: GgufSource {
             repo: "unsloth/Qwen3.8-27B-GGUF",

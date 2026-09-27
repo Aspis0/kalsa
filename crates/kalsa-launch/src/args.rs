@@ -321,7 +321,7 @@ pub enum Offload {
 /// The exact arguments the server is started with, as data: a test asserts
 /// "the context is N" here, and the sentinel hands back a reduced
 /// configuration by writing fields, not by editing strings.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ServerArgs {
     pub model_path: PathBuf,
     pub port: u16,
@@ -367,6 +367,13 @@ pub struct ServerArgs {
     /// supported` in silence. Never optional, so no site can leave the tier
     /// behind.
     pub slot_save_path: PathBuf,
+    /// The row's publisher sampling, rendered as `--temp`, `--top-p`,
+    /// `--top-k` and `--repeat-penalty` — the server's DEFAULT for this
+    /// model. A request that carries its own sampling still overrides it
+    /// (llama-server's per-request behaviour), so this is what an ordinary
+    /// message gets. `None` fields render no flag: a card that published
+    /// nothing gets the engine's own default, never an invented number.
+    pub sampling: kalsa_catalog::Sampling,
 }
 
 /// The settings the UI may show after the command line has been built.
@@ -434,7 +441,7 @@ pub struct MemoryAssumption {
 }
 
 /// What [`plan`] produced: the command, and the honest cost of running it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LaunchPlan {
     pub args: ServerArgs,
     pub memory: MemoryAssumption,

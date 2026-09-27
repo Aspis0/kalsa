@@ -117,6 +117,7 @@ fn the_second_turn_is_measured_against_the_first() {
         // that is not one. This harness exercises the RAM prompt cache, not
         // the save routes, so the shared temp directory is enough.
         slot_save_path: std::env::temp_dir(),
+        sampling: kalsa_catalog::Sampling::default(),
     };
     let mut argv = args.argv();
     // Harness-only variants, appended after the plan: what a changed launch

@@ -386,14 +386,15 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
 #[test]
 fn a_measured_decode_is_what_counts() {
     // The 16 GiB Metal tier picks the row whose speed is no longer a
-    // prediction: the row carries the rate measured on this very
-    // machine, the machine and the conditions travel with it, and the
-    // probe's floor figure is nowhere in the prose — a floor speaks words,
-    // and this row has graduated past words.
+    // prediction — on the machine the rate was measured on: the owner's
+    // M1 Max at 400 GB/s, same backend and same bandwidth, so the figure,
+    // the machine and the conditions travel with it and the probe's floor
+    // figure is nowhere in the prose — a floor speaks words, and this row
+    // has graduated past words.
     let mac = ChoiceInput {
         backend: Backend::Metal,
         bandwidth_is_lower_bound: true,
-        bandwidth_bytes_per_second: 107.0e9,
+        bandwidth_bytes_per_second: 400.0e9,
         ..input(16, true)
     };
     match choose(&mac) {
@@ -413,6 +414,56 @@ fn a_measured_decode_is_what_counts() {
             // No floor glyph anywhere: the row is past floors.
             assert!(!selection.details.contains('≥'), "{}", selection.details);
         }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_measured_decode_belongs_to_the_machine_it_was_measured_on() {
+    // The rate above is a fact about a 400 GB/s M1 Max. On a 100 GB/s Metal
+    // machine — an M1/M2 base — the same row is predicted like any other:
+    // the M1 Max's 20.44 must not travel, and the range the prediction
+    // makes is what the card shows.
+    let base = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 100.0e9,
+        ..input(16, true)
+    };
+    match choose(&base) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "google/gemma-4-12B-it");
+            assert!(
+                !matches!(selection.decode, Prediction::Measured { .. }),
+                "the M1 Max's measurement must not reach a 100 GB/s machine: {:?}",
+                selection.decode
+            );
+            assert!(
+                selection.decode.floor() < 20.44,
+                "the speed is no longer the measured 20.44: {:?}",
+                selection.decode
+            );
+            assert!(
+                selection.details.contains("tokens per second"),
+                "the prediction is said in its own words: {}",
+                selection.details
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+
+    // And the band: a machine a quarter away from the measured bandwidth
+    // still counts as the machine the rate was taken on.
+    let near = ChoiceInput {
+        backend: Backend::Metal,
+        bandwidth_bytes_per_second: 300.0e9,
+        ..input(16, true)
+    };
+    match choose(&near) {
+        Decision::Pick(selection) => assert!(
+            matches!(selection.decode, Prediction::Measured { .. }),
+            "300 GB/s is within a quarter of the M1 Max's 400: {:?}",
+            selection.decode
+        ),
         other => panic!("expected a pick, got {other:?}"),
     }
 }
