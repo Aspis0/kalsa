@@ -178,3 +178,22 @@ verified its kill probe as gone. `END reason=exit_4`, process exit 4. No arm
 rows or drafter placement, acceptance, speed, or per-arm skin values exist.
 No restore state was created. Evidence is in `raw/s23-dspark-1/`; no retry was
 made.
+
+
+## S23 DSpark run 2 — proof startup failed at HTP session init
+
+Preflight passed on the TLS endpoint: unplugged, battery 74% / 27.1 C,
+thermal 0, traced 0, Kalsa and llama/bench absent, screen Awake/unlocked.
+`PGREP_SELFTEST=FOUND` and `PGREP_SELFCLEAN=GONE`. The kit, target, drafter,
+and prompt verified after push. The first proof (`A-p`) and a second proof
+(`B4-p`, already starting as INT was delivered) both exited 139 with
+`Segmentation fault`; the driver classified each as `VOID timeout` and was
+interrupted before remaining proofs/measures. Both logs show HTP0 URI error
+0x14, fallback cDSP session open error `0x80000406`, then context-init failure.
+No `loading draft model` marker appears, so drafter placement, `n_drafted`,
+acceptance, and tok/s are unavailable. Main-model placement says `0/31 GPU`,
+which is not drafter-placement evidence. Row skin starts were 29.4 and 29.5 C;
+peak per proof is not separable from the safety poll (session-wide observed
+skin max 29.6 C). `END reason=signal_INT`, wrapper exit 130. Restore verified
+`rc=0`, settings returned to timeout=null / stay-on=0. No retry. Raw logs:
+`raw/s23-dspark-2/`.

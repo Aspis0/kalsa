@@ -1,0 +1,18 @@
+[02:52:17] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[02:52:19] SESSION job=s23-dspark-2 board=S23 soc=SM8550 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp timeout_saved=null stayon_saved=0
+[02:52:19] GATE label=before_setup
+[02:52:50] BATTERY_SENSOR_TRUSTED dumpsys=272,272 sysfs=,
+[02:52:50] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[02:53:49] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[02:54:04] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[02:54:04] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[02:54:05] GATE label=after_push
+[02:54:21] KIT_AND_MODELS_VERIFIED
+[02:54:21] GATE label=setup
+[02:54:21] SETUP_DONE skin=29.4 thermal=0 batt_temp=282 level=74 plugged=false untrusted=0
+[02:54:37] KILL_VERIFY reason=timeout_A-p result=gone attempt=1
+[02:54:37] PROOF_TIMEOUT arm=A rc=139
+[02:54:37] GATE label=post_A-p
+[02:54:53] KILL_VERIFY reason=timeout_B4-p result=gone attempt=1
+[02:54:53] PROOF_TIMEOUT arm=B4 rc=139
+[02:54:53] GATE label=post_B4-p
