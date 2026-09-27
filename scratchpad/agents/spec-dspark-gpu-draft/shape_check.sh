@@ -114,10 +114,14 @@ arm_parse_proof "A" cpu >/dev/null 2>&1 && p_rc=0 || p_rc=$?
 pvoid=$ARM_VOID
 arm_parse_measure "A" cpu 127 >/dev/null 2>&1 && m_rc=0 || m_rc=$?
 mvoid=$ARM_VOID
-if [ "${p_rc:-1}" = 0 ] && [ "${m_rc:-1}" = 0 ] && [ "$pvoid" = no_draft_marker ] && [ "$mvoid" = no_stats ]; then
-  ok "parsers survive binary logs" "MATCH (proof -> $pvoid, measure -> $mvoid; both expected for a non-spec log)"
+# audit6/8: the real cal logs carry BOTH the interactive banner AND a
+# `using device HTP0` line (cell A's CPU cal listed the DSP); the htp gate
+# runs first (device safety), so the survival outcome on this real evidence
+# is htp_leak on both parses — no crash, deterministic void.
+if [ "${p_rc:-1}" = 0 ] && [ "${m_rc:-1}" = 0 ] && [ "$pvoid" = htp_leak ] && [ "$mvoid" = htp_leak ]; then
+  ok "parsers survive binary logs" "MATCH (proof -> $pvoid, measure -> $mvoid; htp gate fires first on REAL evidence)"
 else
-  bad "parser survival" "proof_rc=$p_rc/$pvoid measure_rc=$m_rc/$mvoid"
+  bad "parser survival" "proof_rc=$p_rc/$pvoid measure_rc=$m_rc/$mvoid (expected htp_leak/htp_leak)"
 fi
 rm -rf "$TMPR"
 

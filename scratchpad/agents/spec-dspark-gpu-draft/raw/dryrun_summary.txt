@@ -24,6 +24,7 @@ PASS  happy cooldown
 PASS  happy warm_start
 PASS  happy proof limit
 PASS  happy cols18
+PASS  happy no-npu
 PASS  happy proof-prefixed-placement
 PASS  happy measured-no-placement
 PASS  happy measured-prefix
@@ -324,6 +325,38 @@ PASS  interactiveproof restore-ran
 PASS  interactiveproof timeout-restored
 PASS  interactiveproof stayon-restored
 PASS  interactiveproof state-consumed
+== audit8: an HTP0 leak in a PROOF is voided htp_leak (content beats rc) ==
+PASS  htpproof rc
+PASS  htpproof END
+PASS  htpproof rows
+PASS  htpproof void-A
+PASS  htpproof proof-col
+PASS  htpproof matched
+PASS  htpproof restore-ran
+PASS  htpproof timeout-restored
+PASS  htpproof stayon-restored
+PASS  htpproof state-consumed
+== audit8: an HTP0 leak in a TURN voids the probe, the proof stays OK ==
+PASS  htpturn rc
+PASS  htpturn END
+PASS  htpturn rows
+PASS  htpturn void-A
+PASS  htpturn proof-A
+PASS  htpturn restore-ran
+PASS  htpturn timeout-restored
+PASS  htpturn stayon-restored
+PASS  htpturn state-consumed
+== audit8: a pure SIGSEGV (no HTP lines) is crash_sig139, not timeout ==
+PASS  segv rc
+PASS  segv END
+PASS  segv rows
+PASS  segv void-A
+PASS  segv rc-recorded
+PASS  segv kill-verified
+PASS  segv restore-ran
+PASS  segv timeout-restored
+PASS  segv stayon-restored
+PASS  segv state-consumed
 == audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) ==
 PASS  flagbad rc
 PASS  flagbad names the flag
@@ -333,4 +366,4 @@ PASS  flagok rc (selective)
 
 == audit4-adj: fake adb sh -n-checked every shell command of every fixture ==
 PASS  shell-syntax all-fixtures
-SUMMARY pass=303 fail=0
+SUMMARY pass=333 fail=0

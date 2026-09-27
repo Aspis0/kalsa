@@ -144,6 +144,8 @@ eq "happy cooldown" 0 "$(colr A-p 10)"
 eq "happy warm_start" 0 "$(colr A-p 11)"
 eq "happy proof limit" 8 "$(colr A-p 4)"                    # NEW-7: PROOF_N=8
 eq "happy cols18" 0 "$(cols18_bad)"                          # NEW-3 schema
+# audit8: with `-dev none` pinned, no log may mention the NPU at all
+if grep -q "HTP0\|ggml-hex" "$RAW"/*.log 2>/dev/null; then fail "happy no-npu" "$(grep -l "HTP0\|ggml-hex" "$RAW"/*.log | head -2)"; else pass "happy no-npu"; fi
 if grep -q ' D load_tensors: layer' "$RAW/A-p.log" 2>/dev/null; then pass "happy proof-prefixed-placement"; else fail "happy proof-prefixed-placement" "no ' D load_tensors' in A-p.log"; fi
 if [ "$(grep -c 'assigned to device' "$RAW/B8.log" 2>/dev/null || true)" = 0 ]; then pass "happy measured-no-placement"; else fail "happy measured-no-placement" "$(grep -m2 'assigned to device' "$RAW/B8.log")"; fi
 has "happy measured-prefix" " I n_predict = 136" "$(cat "$RAW/B8.log" 2>/dev/null || echo none)"
@@ -242,7 +244,7 @@ eq "timeout rc" 3 "$RC"
 eq "timeout END" match_void "$(end_reason)"
 eq "timeout rows" 5 "$(rows)"
 eq "timeout void" timeout "$(colr A-p 15)"
-has "timeout kill-verified" "KILL_VERIFY reason=timeout_A-p result=gone" "$(driver_log)"
+has "timeout kill-verified" "KILL_VERIFY reason=abn_A-p result=gone" "$(driver_log)"
 has "timeout killed-spec" "llama-speculative-simpl[e]" "$(cat "$STATE/pkill.log" 2>/dev/null || echo none)"
 eq "timeout cols18" 0 "$(cols18_bad)"                        # NEW-3: void path keeps 18 cols
 assert_restore timeout
@@ -493,6 +495,35 @@ eq "interactiveproof void-A" interactive_mode "$(colr A-p 15)"
 eq "interactiveproof matched" 0 "$(fcount matched)"
 not_has "interactiveproof no-success" "MATCH ok" "$(driver_log)"
 assert_restore interactiveproof
+
+echo "== audit8: an HTP0 leak in a PROOF is voided htp_leak (content beats rc) =="
+run_fixture htpproof DRY_HTP_LEAK=1
+eq "htpproof rc" 3 "$RC"
+eq "htpproof END" match_void "$(end_reason)"
+eq "htpproof rows" 5 "$(rows)"          # proofs voided before any turn ran
+eq "htpproof void-A" htp_leak "$(colr A-p 15)"
+eq "htpproof proof-col" htp_line=1 "$(colr A-p 16)"   # parse-gate proof string: EXIT=0 was NOT the reason
+eq "htpproof matched" 0 "$(fcount matched)"
+assert_restore htpproof
+
+echo "== audit8: an HTP0 leak in a TURN voids the probe, the proof stays OK =="
+run_fixture htpturn DRY_TURN_HTP=1
+eq "htpturn rc" 3 "$RC"
+eq "htpturn END" match_void "$(end_reason)"
+eq "htpturn rows" 10 "$(rows)"
+eq "htpturn void-A" htp_leak "$(colr A 15)"
+eq "htpturn proof-A" OK "$(colr A-p 14)"
+assert_restore htpturn
+
+echo "== audit8: a pure SIGSEGV (no HTP lines) is crash_sig139, not timeout =="
+run_fixture segv DRY_ARM_RC=139
+eq "segv rc" 3 "$RC"
+eq "segv END" match_void "$(end_reason)"
+eq "segv rows" 5 "$(rows)"
+eq "segv void-A" crash_sig11 "$(colr A-p 15)"   # rc 139 = 128 + signal 11 (SIGSEGV)
+eq "segv rc-recorded" 139 "$(colr A-p 16)"   # abnormal rows carry the rc in the proof col
+has "segv kill-verified" "KILL_VERIFY reason=abn_A-p result=gone" "$(driver_log)"
+assert_restore segv
 
 echo "== audit6b: the fake rejects a misspelled flag (--no-cnv is NOT a flag) =="
 FB=/tmp/dspark-dry-flagbad

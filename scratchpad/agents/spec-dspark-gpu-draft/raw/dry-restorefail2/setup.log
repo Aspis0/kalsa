@@ -79,3 +79,15 @@ lib/libggml-opencl.so: OK
 bin/llama-completion: OK
 bin/llama-speculative-simple: OK
 lib/libggml-opencl.so: OK
+bin/llama-completion: OK
+bin/llama-speculative-simple: OK
+lib/libggml-opencl.so: OK
+bin/llama-completion: OK
+bin/llama-speculative-simple: OK
+lib/libggml-opencl.so: OK
+bin/llama-completion: OK
+bin/llama-speculative-simple: OK
+lib/libggml-opencl.so: OK
+bin/llama-completion: OK
+bin/llama-speculative-simple: OK
+lib/libggml-opencl.so: OK

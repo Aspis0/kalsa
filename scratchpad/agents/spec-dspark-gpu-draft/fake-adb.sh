@@ -29,6 +29,9 @@
 #   DRY_NEVER_MATCH_ARM=<arm>   that arm always reports DRY_NEVER_MATCH_N
 #   DRY_NEVER_MATCH_N=N         (default 132) -> non-converging match
 #   DRY_KILL_FAIL=1             pkill does NOT kill: KILL_VERIFY must fail
+#   DRY_HTP_LEAK=1              HTP0/session-failure lines in BOTH logs of a
+#                               PINNED command (rc stays 0 -> parse gate)
+#   DRY_TURN_HTP=1              same, TURN log only (proof stays clean)
 #   DRY_PGREP_BROKEN=1          pgrep self-test fails -> setup aborts (exit 4)
 #   DRY_PGREP_BREAK_AT=N        pgrep works for call #1 (self-test) then breaks
 #   DRY_RESTORE_PUT_FAIL=1      the restore-time settings write fails (NEW-1)
@@ -139,7 +142,7 @@ EOF
 # `-no-cnv`/`--no-conversation`, common/arg.cpp:1899-1900) or a flag that
 # belongs to another binary (`-no-cnv`, `-cnv`, `-st` are completion-only and
 # spec-simple would reject them too) must never pass the dry-run silently.
-KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-devd$|^-lv$'
+KNOWN_SPEC_FLAGS='^-m$|^-md$|^--spec-type$|^--spec-draft-n-max$|^--spec-draft-n-min$|^--spec-draft-p-min$|^-f$|^-n$|^--temp$|^--top-k$|^--seed$|^-t$|^-ngl$|^-ngld$|^-dev$|^-devd$|^-lv$'
 run_arm() {
   local cmd=$1 tag limit nmax n i k kernels o n_predict dpn drafted accept rc gpu=0
   local badf
@@ -189,6 +192,18 @@ run_arm() {
     if [ "${DRY_TURN_NO_PLACEMENT:-0}" = 1 ]; then no_place=1; fi
     if [ "${DRY_TURN_NO_MARKER:-0}" = 1 ]; then no_marker=1; fi
   fi
+  # audit8: without `-dev none` the kit registers Hexagon, llama's default
+  # selection puts the target on HTP0, the session open fails and the run
+  # SIGSEGVs (verbatim replay of raw/s23-dspark-2/A-p.log:51-52,856,858,859 +
+  # bare `Segmentation fault` + `EXIT=139`, rc 139). The driver pins the
+  # devices, so unpinned only fires on a regression (red); the knobs force the
+  # gate on a PINNED command (rc stays 0 -> parse gate must catch it).
+  local unpinned=0 htp=0
+  case "$cmd" in *" -dev none"*) : ;; *) unpinned=1 ;; esac
+  htp=$unpinned
+  if [ "$mode" = measure ] && [ "${DRY_TURN_HTP:-0}" = 1 ]; then htp=1; fi
+  if [ "${DRY_HTP_LEAK:-0}" = 1 ]; then htp=1; fi
+  if [ "$unpinned" = 1 ] && [ -z "${DRY_ARM_RC:-}" ]; then rc=139; fi
   {
     lg I "load_tensors: loading model tensors, this can take a while... (load_mode = none)"
     # audit6: completion's interactive banner (tools/completion/completion.cpp:484)
@@ -211,6 +226,23 @@ run_arm() {
     if printf '%s' "$cmd" | grep -q -- '-lv 5'; then
       i=0; while [ "$i" -lt 24 ]; do printf '0.00.%03d.%03d D load_tensors: layer %3d assigned to device CPU, is_swa = 0\n' "$((50 + i))" "$i" "$i"; i=$((i + 1)); done
     fi
+    # audit8 HTP lines, shapes/values verbatim from raw/s23-dspark-2/A-p.log.
+    if [ "$htp" = 1 ]; then
+      if [ "$unpinned" = 1 ]; then
+        lg I "llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free"
+      fi
+      lg I "llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free"
+      lg E "ggml-hex: HTP0 failed to open session : uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 error 0x80000406"
+      lg E "llama_init_from_model: failed to initialize the context: ggml-hex: failed to open session (see log for details)"
+      if [ "$unpinned" = 1 ]; then
+        lg E "common_fit_params: encountered an error while trying to fit params to free device memory: failed to create llama_context from model"
+        printf 'Segmentation fault\n'
+        printf 'EXIT=%s\n' 139
+      fi
+    fi
+    # the crash happened BEFORE the draft ever loads: no marker, no draft,
+    # no stats — same shape as the real A-p.log tail.
+    if [ "$unpinned" -eq 0 ]; then
     if [ "$no_marker" -eq 0 ]; then
       lg I "common_speculative_init_result: loading draft model '/data/local/tmp/dspark-spec/draft.gguf'"
     fi
@@ -266,6 +298,7 @@ run_arm() {
     lg I "n_accept  = 0"
     lg I "accept    = $accept"
     printf 'EXIT=%s\n' "$rc"
+    fi   # audit8: unpinned crash skipped marker/draft/stats
   } > "$DEV/$tag.log"
   rm -f "$STATE/proc_running"
   exit "$rc"

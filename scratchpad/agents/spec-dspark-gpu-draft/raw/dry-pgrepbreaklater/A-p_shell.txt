@@ -1,1 +1,1 @@
-[02:46:26] KILL_VERIFY reason=cleanup_rc0_sigTERM result=pgrep_broken probe=PROBE_BROKEN
+[03:34:33] KILL_VERIFY reason=cleanup_rc0_sigTERM result=pgrep_broken probe=PROBE_BROKEN

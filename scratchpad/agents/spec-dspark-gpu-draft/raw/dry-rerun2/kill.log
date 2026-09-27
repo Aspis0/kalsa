@@ -1,2 +1,7 @@
 reason=cleanup_rc3_signone pkill_out=
 reason=cleanup_rc4_signone pkill_out=
+reason=abn_A-p pkill_out=
+reason=abn_B4-p pkill_out=
+reason=abn_B8-p pkill_out=
+reason=abn_C4-p pkill_out=
+reason=abn_C8-p pkill_out=

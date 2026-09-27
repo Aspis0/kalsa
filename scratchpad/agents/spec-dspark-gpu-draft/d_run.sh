@@ -369,7 +369,7 @@ write_row() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s
 
 run_proof() {   # <arm> <index>: short -lv 5 run -> backend proof (never timed)
   local arm=$1 i=$2 tag="$1-p"
-  local b_skin a_skin=""
+  local b_skin a_skin="" why=""
   deadline_check
   cooldown_wait "$tag"
   b_skin=$LIVE_SKIN
@@ -381,9 +381,10 @@ run_proof() {   # <arm> <index>: short -lv 5 run -> backend proof (never timed)
     finish_stop
   fi
   if [ "$ARM_RC" -ge 124 ]; then
-    kill_spec_verified "timeout_$tag" || true
-    write_row "$tag" "$arm" 0 "$PROOF_N" na na na na na "$COOLDOWN_SECONDS" "$WARM_START" "$b_skin" na VOID timeout "$ARM_RC" "$ARM_WALL_S"
-    log "PROOF_TIMEOUT arm=$arm rc=$ARM_RC"
+    why=$(arm_rc_reason "$ARM_RC" "$RAW/$tag.log")
+    kill_spec_verified "abn_$tag" || true
+    write_row "$tag" "$arm" 0 "$PROOF_N" na na na na na "$COOLDOWN_SECONDS" "$WARM_START" "$b_skin" na VOID "$why" "$ARM_RC" "$ARM_WALL_S"
+    log "PROOF_ABNORMAL arm=$arm rc=$ARM_RC void=$why"
     DEAD[$i]=1
     safety_gate "post_$tag" || finish_stop
   else
@@ -399,7 +400,7 @@ run_proof() {   # <arm> <index>: short -lv 5 run -> backend proof (never timed)
 
 run_measure() { # <arm> <tag> <limit> <attempt_no> <index>: the timed turn
   local arm=$1 tag=$2 limit=$3 attempt_no=$4 i=$5
-  local b_skin a_skin="" parsed=""
+  local b_skin a_skin="" parsed="" why=""
   deadline_check
   cooldown_wait "$tag"
   b_skin=$LIVE_SKIN
@@ -411,9 +412,10 @@ run_measure() { # <arm> <tag> <limit> <attempt_no> <index>: the timed turn
     finish_stop
   fi
   if [ "$ARM_RC" -ge 124 ]; then
-    kill_spec_verified "timeout_$tag" || true
-    write_row "$tag" "$arm" "$attempt_no" "$limit" na na na na na "$COOLDOWN_SECONDS" "$WARM_START" "$b_skin" na VOID timeout "$ARM_RC" "$ARM_WALL_S"
-    log "ARM_TIMEOUT tag=$tag rc=$ARM_RC"
+    why=$(arm_rc_reason "$ARM_RC" "$RAW/$tag.log")
+    kill_spec_verified "abn_$tag" || true
+    write_row "$tag" "$arm" "$attempt_no" "$limit" na na na na na "$COOLDOWN_SECONDS" "$WARM_START" "$b_skin" na VOID "$why" "$ARM_RC" "$ARM_WALL_S"
+    log "ARM_ABNORMAL tag=$tag rc=$ARM_RC void=$why"
     # previous OK N (if any) stays: the match loop retries this arm next round
   else
     arm_parse_measure "$tag" "$arm" "$limit"

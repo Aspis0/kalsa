@@ -1,34 +1,34 @@
-[02:47:45] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
-[02:47:45] SESSION job=dry-turndisabled board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
-[02:47:45] GATE label=before_setup
-[02:47:47] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[02:47:47] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
-[02:47:47] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
-[02:47:47] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
-[02:47:47] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
-[02:47:48] GATE label=after_push
-[02:47:49] KIT_AND_MODELS_VERIFIED
-[02:47:49] GATE label=setup
-[02:47:49] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
-[02:47:50] GATE label=post_A-p
-[02:47:50] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[02:47:51] GATE label=post_B4-p
-[02:47:51] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[02:47:53] GATE label=post_B8-p
-[02:47:53] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
-[02:47:54] GATE label=post_C4-p
-[02:47:54] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[02:47:55] GATE label=post_C8-p
-[02:47:55] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
-[02:47:56] GATE label=post_A
-[02:47:56] ARM_DONE tag=A limit=127 n=128 status=VOID void=turn_backend_disabled accept=nan% tps=16.000
-[02:47:57] GATE label=post_B4
-[02:47:57] ARM_DONE tag=B4 limit=127 n=132 status=VOID void=turn_backend_disabled accept=56.000% tps=16.500
-[02:47:59] GATE label=post_B8
-[02:47:59] ARM_DONE tag=B8 limit=127 n=136 status=VOID void=turn_backend_disabled accept=39.000% tps=17.000
-[02:48:00] GATE label=post_C4
-[02:48:00] ARM_DONE tag=C4 limit=127 n=132 status=VOID void=turn_backend_disabled accept=56.000% tps=16.500
-[02:48:01] GATE label=post_C8
-[02:48:01] ARM_DONE tag=C8 limit=127 n=136 status=VOID void=turn_backend_disabled accept=39.000% tps=17.000
-[02:48:01] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID
-[02:48:01] KILL_VERIFY reason=cleanup_rc3_signone result=gone attempt=1
+[03:35:52] PGREP_SELFTEST ok (pgrep -f found and cleaned our probe process)
+[03:35:52] SESSION job=dry-turndisabled board=S23 soc=SM8550 serial=fakes23 timeout_saved=60000 stayon_saved=1
+[03:35:52] GATE label=before_setup
+[03:35:54] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[03:35:54] PUSH_OK /data/local/tmp/dspark-spec/kit.tgz
+[03:35:54] PUSH_OK /data/local/tmp/dspark-spec/ship.gguf
+[03:35:54] PUSH_OK /data/local/tmp/dspark-spec/draft.gguf
+[03:35:54] PUSH_OK /data/local/tmp/dspark-spec/prompt.txt
+[03:35:55] GATE label=after_push
+[03:35:56] KIT_AND_MODELS_VERIFIED
+[03:35:56] GATE label=setup
+[03:35:56] SETUP_DONE skin=33.5 thermal=0 batt_temp=310 level=88 plugged=false untrusted=0
+[03:35:57] GATE label=post_A-p
+[03:35:57] PROOF_DONE arm=A status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[03:35:58] GATE label=post_B4-p
+[03:35:58] PROOF_DONE arm=B4 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[03:36:00] GATE label=post_B8-p
+[03:36:00] PROOF_DONE arm=B8 status=OK void=na proof=proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24
+[03:36:01] GATE label=post_C4-p
+[03:36:01] PROOF_DONE arm=C4 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[03:36:02] GATE label=post_C8-p
+[03:36:02] PROOF_DONE arm=C8 status=OK void=na proof=proof: draft_gpu_assign=5 kernels=6 pre_place=24
+[03:36:03] GATE label=post_A
+[03:36:03] ARM_DONE tag=A limit=127 n=128 status=VOID void=turn_backend_disabled accept=nan% tps=16.000
+[03:36:04] GATE label=post_B4
+[03:36:05] ARM_DONE tag=B4 limit=127 n=132 status=VOID void=turn_backend_disabled accept=56.000% tps=16.500
+[03:36:06] GATE label=post_B8
+[03:36:06] ARM_DONE tag=B8 limit=127 n=136 status=VOID void=turn_backend_disabled accept=39.000% tps=17.000
+[03:36:07] GATE label=post_C4
+[03:36:07] ARM_DONE tag=C4 limit=127 n=132 status=VOID void=turn_backend_disabled accept=56.000% tps=16.500
+[03:36:08] GATE label=post_C8
+[03:36:08] ARM_DONE tag=C8 limit=127 n=136 status=VOID void=turn_backend_disabled accept=39.000% tps=17.000
+[03:36:08] MATCH void n_star=0 after 4 adjustment round(s) — session data VOID
+[03:36:08] KILL_VERIFY reason=cleanup_rc3_signone result=gone attempt=1

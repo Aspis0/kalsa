@@ -3,15 +3,15 @@ A-p	A	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evide
 B4-p	B4	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	0	proof
 B8-p	B8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_cpu_assign=5 gpu_evidence=0 pre_place=24	0	proof
 C4-p	C4	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	0	proof
-C8-p	C8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	0	proof
+C8-p	C8	0	8	na	na	na	na	na	0	0	33.5	33.5	OK	na	proof: draft_gpu_assign=5 kernels=6 pre_place=24	1	proof
 A	A	1	127	128	1	0	nan%	16.000	0	0	33.5	33.5	OK	na	na	0	void_match
 B4	B4	1	127	132	5	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match
 B8	B8	1	127	136	9	408	39.000%	17.000	0	0	33.5	33.5	OK	na	na	0	void_match
 C4	C4	1	127	132	5	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match
 C8	C8	1	127	136	9	408	39.000%	17.000	0	0	33.5	33.5	OK	na	na	0	void_match
-A-m1	A	2	135	136	1	0	nan%	17.000	0	0	33.5	33.5	OK	na	na	1	void_match
+A-m1	A	2	135	136	1	0	nan%	17.000	0	0	33.5	33.5	OK	na	na	0	void_match
 B4-m1	B4	2	131	132	1	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match
 C4-m1	C4	2	131	136	5	272	56.000%	17.000	0	0	33.5	33.5	OK	na	na	0	void_match
-B4-m2	B4	3	135	132	-3	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match
+B4-m2	B4	3	135	132	-3	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	1	void_match
 B4-m3	B4	4	139	132	-7	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match
 B4-m4	B4	5	143	132	-11	264	56.000%	16.500	0	0	33.5	33.5	OK	na	na	0	void_match

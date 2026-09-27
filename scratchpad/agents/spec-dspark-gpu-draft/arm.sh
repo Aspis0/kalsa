@@ -36,10 +36,13 @@ arm_is_gpu() { case "$1" in C*) return 0 ;; *) return 1 ;; esac; }
 # arm_flags <arm>: drafter device/depth. A and B pin the drafter to CPU
 # (-ngld 0: the -1 default would auto-offload on a kit WITH OpenCL).
 arm_flags() {
+  # audit8: the CPU-draft arms pin the drafter with `-devd none` (arg.cpp:4208
+  # 'none = don't offload') — with the kit registering Hexagon, an unpinned
+  # model is picked up by HTP0 and the missing ADSP session crashes the run.
   case "$1" in
-    A)  printf '%s' "--spec-draft-n-max 0 -ngld 0" ;;
-    B4) printf '%s' "--spec-draft-n-max 4 -ngld 0" ;;
-    B8) printf '%s' "--spec-draft-n-max 8 -ngld 0" ;;
+    A)  printf '%s' "--spec-draft-n-max 0 -devd none -ngld 0" ;;
+    B4) printf '%s' "--spec-draft-n-max 4 -devd none -ngld 0" ;;
+    B8) printf '%s' "--spec-draft-n-max 8 -devd none -ngld 0" ;;
     C4) printf '%s' "--spec-draft-n-max 4 -devd GPUOpenCL -ngld 99" ;;
     C8) printf '%s' "--spec-draft-n-max 8 -devd GPUOpenCL -ngld 99" ;;
     *) return 1 ;;
@@ -63,7 +66,7 @@ arm_cmd() {
     measure) lv=" -lv 4" ;;
     *) return 1 ;;
   esac
-  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1 < /dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
+  printf 'cd %s && export LD_LIBRARY_PATH=%s/lib && %s./bin/llama-speculative-simple -m %s/ship.gguf -dev none -md %s/draft.gguf --spec-type draft-dspark %s -f %s/prompt.txt -n %s --temp 0 --top-k 1 -t 5 -ngl 0%s > %s/%s.log 2>&1 < /dev/null; rc=$?; echo EXIT=$rc >> %s/%s.log; exit $rc' \
     "$D" "$D" "$envk" "$D" "$D" "$flags" "$D" "$limit" "$lv" "$D" "$tag" "$D" "$tag"
 }
 
@@ -89,6 +92,27 @@ draft_marker_line() {
   awk '/common_speculative_init_result: loading draft model/{print NR; exit}' "$1"
 }
 
+# arm_htp_leak <log>: this cell must NEVER touch the NPU (no
+# ADSP_LIBRARY_PATH by design): HTP0 in a `using device` line or a failed
+# hexagon session is a leak, whatever the exit code says (audit8; real
+# evidence raw/s23-dspark-2/A-p.log:52,856,858 — the unpinned target landed
+# on HTP0 and the run died with SIGSEGV).
+arm_htp_leak() {
+  [ -f "$1" ] || return 1
+  awk '/using device HTP0/ || /ggml-hex:.*failed to open session/{n++} END{exit !(n>0)}' "$1"
+}
+
+# arm_rc_reason <rc> <log>: classify an abnormal arm exit — content beats the
+# code: an HTP leak is the root cause even when it crashes (rc 139); signal
+# exits (>=128, incl. 139) are crash_sig<N>; the alarm paths 124/142 stay
+# `timeout` (142 = our own SIGALRM on the adb client, not a device signal).
+arm_rc_reason() {
+  if arm_htp_leak "$2"; then echo htp_leak; return 0; fi
+  if [ "$1" = "124" ] || [ "$1" = "142" ]; then echo timeout; return 0; fi
+  if [ "$1" -ge 128 ]; then echo "crash_sig$(( $1 - 128 ))"; return 0; fi
+  echo "adb_fail_$1"
+}
+
 # arm_parse_proof <tag> <arm>: the -lv 5 run. Sets ARM_STATUS/ARM_VOID/ARM_PROOF.
 # Order assert (audit B-12): the target must have placement lines BEFORE the
 # draft-load marker, otherwise the post-marker split measures the wrong model.
@@ -98,6 +122,13 @@ arm_parse_proof() {
   local pre_place=0 gpu_assign=0 cpu_assign=0 kernels=0
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   [ -f "$logf" ] || return 0
+  # audit8: HTP0/session-failure content first — it is the root cause even in
+  # a log whose shell recorded a crash exit.
+  if arm_htp_leak "$logf"; then
+    ARM_VOID=htp_leak
+    ARM_PROOF="htp_line=1"
+    return 0
+  fi
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
   # audit6: a conversation/interactive run is not data — completion prints this
@@ -154,6 +185,12 @@ arm_parse_measure() {
   ARM_STATUS=VOID; ARM_VOID=run_fail; ARM_PROOF=na
   ARM_N=na; ARM_OVER=na; ARM_DRAFTED=na; ARM_ACCEPT=na; ARM_TPS=na
   [ -f "$logf" ] || return 0
+  # audit8: same HTP gate as the proof parse, before the exit code is read.
+  if arm_htp_leak "$logf"; then
+    ARM_VOID=htp_leak
+    ARM_PROOF="htp_line=1"
+    return 0
+  fi
   exit_line=$(sed -n 's/^EXIT=//p' "$logf" | tail -1)
   [ "$exit_line" = "0" ] || return 0
   # audit6: same banner gate as the proof parse — an interactive run exits 0

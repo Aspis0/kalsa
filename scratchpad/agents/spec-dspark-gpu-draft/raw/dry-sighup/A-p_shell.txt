@@ -1,1 +1,1 @@
-[02:45:33] KILL_VERIFY reason=cleanup_rc0_sigHUP result=gone attempt=1
+[03:33:39] KILL_VERIFY reason=cleanup_rc0_sigHUP result=gone attempt=1

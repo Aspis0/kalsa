@@ -15,7 +15,7 @@ EXIT=<rc> bare line                                MATCH
 logger prefix <h>.<m>.<s>.<ms> <L>                 MATCH (216 lines)
 n_threads / common_perf_print lines                INFO — present (2/8); B parses neither (n_threads=5 confirms -t 5 on device)
 non-UTF-8 lines in source logs                     6 (parsers run on these files below)
-parsers survive binary logs                        MATCH (proof -> interactive_mode, measure -> interactive_mode; the banner gate fires on REAL evidence)
+parsers survive binary logs                        MATCH (proof -> htp_leak, measure -> htp_leak; htp gate fires first on REAL evidence)
 fake offload shapes ⊆ real                       MATCH (       3 normalized shapes)
 fake buffer shapes ⊆ real                        MATCH (       3 normalized shapes)
 fake assigned shapes ⊆ real                      MATCH
