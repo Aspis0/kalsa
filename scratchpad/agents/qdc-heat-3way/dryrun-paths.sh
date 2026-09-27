@@ -89,6 +89,16 @@ has "cpr invalid logged" "CALIB_PIN_INVALID why=floor_rate_out_of_band" "$(cat "
 assert_no_end cpr
 eq "cpr never touched the device" absent "$([ -f "$RAW/wait_for_device.txt" ] && echo present || echo absent)"
 
+echo "== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) =="
+run_fixture no-selfmatch CG
+eq "nsm rc" 0 "$RC"
+assert_end nsm exit_0
+eq "nsm rows" 2 "$(rows)"
+has "nsm selftest ok" "PGREP_SELFTEST_OK" "$(cat "$RAW/driver.log")"
+has "nsm restore probe verified" "kill_check=verified" "$(cat "$RAW/restore.log" 2>/dev/null)"
+eq "nsm restore rc" 0 "$(sed -n 's/.* rc=\([0-9]*\)$/\1/p' "$RAW/restore.log" 2>/dev/null | tail -1)"
+assert_restore nsm
+
 echo "== fixture A-5: SIGHUP (SSH drop) restores the device =="
 STATE="/tmp/qdc-heat3way-fake-sighup"
 rm -rf "$STATE" "$CELL/raw/dry-sighup"

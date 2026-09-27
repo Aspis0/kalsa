@@ -1,10 +1,10 @@
-[23:20:15] SESSION job=dry-stop-thermal board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[23:20:15] KIT_UNPACK_PUSH
-[23:20:15] DEVICE_LIST_OK
-[23:20:15] KIT_PUSH ship.gguf sha_before=absent
-[23:20:15] KIT_PUSH prompt.txt sha_before=absent
-[23:20:16] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[23:20:16] GATE label=setup
-[23:20:16] STOP reason=thermal_status
-[23:20:16] KILL_VERIFIED ctx=stop_thermal_status (no llama-completion remains)
-[23:20:16] SESSION_STOP reason=thermal_status
+[23:49:36] SESSION job=dry-stop-thermal board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:49:36] KIT_UNPACK_PUSH
+[23:49:36] DEVICE_LIST_OK
+[23:49:36] KIT_PUSH ship.gguf sha_before=absent
+[23:49:37] KIT_PUSH prompt.txt sha_before=absent
+[23:49:38] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[23:49:38] GATE label=setup
+[23:49:38] STOP reason=thermal_status
+[23:49:38] KILL_VERIFIED ctx=stop_thermal_status (no llama-completion remains)
+[23:49:38] SESSION_STOP reason=thermal_status

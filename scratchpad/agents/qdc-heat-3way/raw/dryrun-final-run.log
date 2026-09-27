@@ -323,6 +323,15 @@ PASS  cpr rc
 PASS  cpr invalid logged
 PASS  cpr no-END (pre-trap exit)
 PASS  cpr never touched the device
+== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
+PASS  nsm rc
+PASS  nsm END
+PASS  nsm rows
+PASS  nsm selftest ok
+PASS  nsm restore probe verified
+PASS  nsm restore rc
+PASS  nsm restore-ran
+PASS  nsm timeout-restored
 == fixture A-5: SIGHUP (SSH drop) restores the device ==
 PASS  hup rc
 PASS  hup END
@@ -330,4 +339,4 @@ PASS  hup restore-ran
 PASS  hup timeout-restored
 PASS  hup stop marker left for the sampler
 
-dryrun summary: PASS=293 FAIL=0
+dryrun summary: PASS=301 FAIL=0

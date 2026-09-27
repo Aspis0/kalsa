@@ -1,22 +1,22 @@
-[23:20:07] SESSION job=dry-calibrate board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
-[23:20:07] KIT_UNPACK_PUSH
-[23:20:07] DEVICE_LIST_OK
-[23:20:07] KIT_PUSH ship.gguf sha_before=absent
-[23:20:07] KIT_PUSH prompt.txt sha_before=absent
-[23:20:08] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[23:20:08] GATE label=setup
-[23:20:08] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior
-[23:20:08] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[23:20:08] SAMPLER_LAUNCHED pid=28882
-[23:20:08] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
-[23:20:08] CALIB_START backend=cpu tag=dry-calibrate-calcpu
-[23:20:08] CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
-[23:20:08] CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5
-[23:20:08] CALIB_START backend=gpu tag=dry-calibrate-calgpu
-[23:20:08] CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
-[23:20:08] CALIB backend=gpu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
-[23:20:08] CALIB_START backend=npu tag=dry-calibrate-calnpu
-[23:20:09] CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
-[23:20:09] CALIB backend=npu phase=turn fp=buf=HTP0 off=33/33 thr=5
-[23:20:09] CALIB buf_gpu=GPUOpenCL buf_npu=HTP0 (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
-[23:20:09] CALIB_DONE floor_htp_ops_per_tok=10.0000 (measured 80 ops / 4 tokens; pinned in calib.ok)
+[23:49:28] SESSION job=dry-calibrate board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
+[23:49:28] KIT_UNPACK_PUSH
+[23:49:28] DEVICE_LIST_OK
+[23:49:28] KIT_PUSH ship.gguf sha_before=absent
+[23:49:28] KIT_PUSH prompt.txt sha_before=absent
+[23:49:29] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[23:49:29] GATE label=setup
+[23:49:29] SETUP_DONE skin0=33.5 battery_untrusted=0 htp_floor=0.86 source=prior
+[23:49:29] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[23:49:29] SAMPLER_LAUNCHED pid=1318
+[23:49:29] CALIBRATE start (no heat rows; all stops live; report -> calib/report.txt)
+[23:49:29] CALIB_START backend=cpu tag=dry-calibrate-calcpu
+[23:49:30] CALIB backend=cpu phase=proof status=OK void=na tokens=4 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
+[23:49:30] CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5
+[23:49:30] CALIB_START backend=gpu tag=dry-calibrate-calgpu
+[23:49:30] CALIB backend=gpu phase=proof status=OK void=na tokens=4 proof=gpu_assigned_lines=33 kernels=12 tokens=4 fp=buf=GPUOpenCL off=33/33 thr=5
+[23:49:30] CALIB backend=gpu phase=turn fp=buf=GPUOpenCL off=33/33 thr=5
+[23:49:30] CALIB_START backend=npu tag=dry-calibrate-calnpu
+[23:49:30] CALIB backend=npu phase=proof status=OK void=na tokens=4 proof=htp_ops=80 min=4 arch=v73 fp=buf=HTP0 off=33/33 thr=5
+[23:49:30] CALIB backend=npu phase=turn fp=buf=HTP0 off=33/33 thr=5
+[23:49:30] CALIB buf_gpu=GPUOpenCL buf_npu=HTP0 (G/N separation rests on buf; off reads "GPU" for both, llama-model.cpp:1845)
+[23:49:30] CALIB_DONE floor_htp_ops_per_tok=10.0000 (measured 80 ops / 4 tokens; pinned in calib.ok)

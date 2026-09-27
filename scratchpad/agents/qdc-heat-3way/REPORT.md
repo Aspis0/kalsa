@@ -58,7 +58,7 @@ measured window is prefill+decode only. The app has no NPU route
   proof+turn loop, 26-column rows, END, restore. *Declared:* over the ~350
   indicative (pre-existing shape since Round 4; shuffling it now would move
   lines only for the number).
-- `setup.sh` (79) — pre-arm device setup: prior restore, state, trap arming,
+- `setup.sh` (80) — pre-arm device setup: prior restore, state, trap arming,
   mutations, kit+trust+gate, the single-session pgrep self-test, sampler.
 - `pin.sh` (62) — calib.ok pin resolution/validation (keys, [0.5,25] rate,
   model/kit binding, board binding) or exit 9.
@@ -73,14 +73,14 @@ measured window is prefill+decode only. The app has no NPU route
   fingerprint (with the `off`-is-a-count note), the two parses.
 - `sampler.sh` (73) — sampler lifecycle: launch, confirmed pause (state →
   row column), resume, stop.
-- `restore.sh` (84) — undo every device change (standalone-capable,
+- `restore.sh` (88) — undo every device change (standalone-capable,
   health-probed kill with a `kill_check=` verdict field).
 - `smp.sh` (41) — on-device 1 s sampler: append-only + 4 h hard bound.
-- `dryrun-adb.sh` (361 — declared, ~350 indicative) — fake adb with
-  reading/log/kill/pgrep/sampler knobs.
+- `dryrun-adb.sh` (386 — declared, over the ~350 indicative) — fake adb with
+  reading/log/kill/pgrep/sampler knobs + the pgrep self-match model.
 - `dryrun.sh` (20, orchestrator) + `dryrun-lib.sh` (96) + `dryrun-core.sh`
-  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (114) — fixture matrix
-  split by topic (38 fixtures, 293 assertions).
+  (189) + `dryrun-stops.sh` (120) + `dryrun-paths.sh` (124) — fixture matrix
+  split by topic (39 fixtures, 301 assertions).
 - `PREREG.md` (337), `REPORT.md`, `AUDIT{,2,3}-dd6bdb56.md`.
 
 ## Dry-run proof (Mac, fake adb)
@@ -347,6 +347,79 @@ it; the single-session self-test's SIGHUP/self-match behavior on real adbd
 `buf` strings for G and N (calibration prints them — `buf_collision` only
 fires if they agree); pin keys against a real (non-fake) calibration run;
 `DRY_SAMPLER_NO_DONE` models the unconfirmed path, not the device timing.
+
+## Round 7 — pgrep probes self-matched on the S23 (run 1640559a) — red→green (2026-09-27)
+
+The first real S23 run died at setup with `PGREP_SELFTEST_FAIL
+health_probe_rc=0`; the coordinator proved the cause on the board: `pgrep -f
+'zzz_no_such_proc_zzz'` run through `adb shell` finds the wrapping `sh -c`,
+whose own cmdline contains the literal (plain → RC 0; bracket → RC 1; and
+when both forms sit in one command the bracket one also matches, because the
+plain occurrence is right there). Both probes in this cell had the plain
+form — the setup self-test aborted every session, and `restore.sh` would have
+reported `PROBE=0` forever, turning every clean end into
+`kill_unverified`/rc 3.
+
+**Fixes (file:line)**
+
+| what | where |
+|---|---|
+| setup self-test health probe bracketed `'[z]zz_no_such_proc_zzz'` + the two invariants documented (pattern assembled/bracketed AND its unbracketed literal absent from the whole command) | `setup.sh:8-17` |
+| restore probe bracketed, same rule stated | `restore.sh:44-56` |
+| fake models the general rule: a pgrep/pkill target self-matches iff the command string contains its UNBRACKETED literal (health zzz, victim `sleep 4731`, llama `llama-completion`); restore probe keyed on the invariant `PROBE=` marker, not on a glob-visible literal | `dryrun-adb.sh:264-325` |
+| new fixture `no-selfmatch`: rc 0, `PGREP_SELFTEST_OK`, rows 2, `kill_check=verified`, restore rc 0 | `dryrun-paths.sh:92-101` |
+
+**Red → green, same fixture, quoted exit codes**
+
+```
+# old probes (plain zzz) + self-match-modeling fake:
+./dryrun.sh > /tmp/dr7-red.log 2>&1; echo "EXIT=$?"
+EXIT=1   PASS=101 FAIL=200        (raw/dryrun-selfmatch-red.log)
+         nsm: rc [0]≠[4], END [exit_0]≠[exit_4_kill_unverified];
+         raw/dry-no-selfmatch/driver.log: PGREP_SELFTEST_FAIL health_probe_rc=0
+         raw/dry-no-selfmatch/restore_run.log: RESTORE_LLAMA_UNVERIFIED probe_rc=0 gone_rc=1
+# after the bracket fixes:
+./dryrun.sh > /tmp/dr7-green2.log 2>&1; echo "EXIT=$?"
+EXIT=0   PASS=301 FAIL=0           (raw/dryrun-final-run.log; nsm fully PASS)
+```
+
+**Static literal audit** (python one-off over every device pgrep/pkill
+command): `setup.sh` selftest (`zzz_no_such_proc_zzz` absent, `sleep 4731`
+absent-via-assembly), `restore.sh` (`zzz…` absent, `llama-completion`
+absent), `stop_lib.sh:71-72` pkill+pgrep (`llama-completion` absent —
+bracketed) → **PASS, 6/6, zero unbracketed literals**. Host-side
+`pkill -f "$HEAT_TMP/smp.sh"` (`restore.sh:45`) is a path pattern, absent
+from this process's cmdline, and pkill never matches itself.
+
+**spec-dspark-gpu-draft (READ-ONLY — not staged, not edited), one finding:**
+
+- **`spec-dspark-gpu-draft/d_run.sh:149`** — health probe
+  `pgrep -f zzz_no_such_proc_zzz >/dev/null 2>&1; echo PROBE=$?` uses the
+  PLAIN literal → on a real phone the wrapping sh self-matches → `PROBE=0`
+  forever → their `kill_spec_verified` takes the `pgrep_broken` branch every
+  time (`d_run.sh:151-154`), so every kill is recorded `KILL_VERIFY_FAIL`
+  despite being clean (fail-closed, but permanently false and it would mask a
+  real pgrep breakage). Fix for its owner: bracket `'[z]zz_no_such_proc_zzz'`
+  and keep that literal absent from the same command.
+- Their other sites are SAFE: the self-test victim is assembled
+  (`d_run.sh:127`, `q="sleep 12"; q="$q""345"` — the contiguous
+  `sleep 12345` never appears in the cmdline), and `llama-speculative-simpl[e]`
+  at `d_run.sh:144,159` and `restore.sh:43` has no plain `…simpl`+`e`
+  occurrence in its commands. There is **no `stop_lib.sh` in that cell** —
+  the `stop_lib_pgrep_selftest` shim (`d_run.sh:116-118`) falls through to
+  that local assembled self-test.
+
+**Commands (this round):** `bash -n` on all scripts → 0; python literal
+checker → PASS (6/6); red run EXIT=1 (101 PASS / 200 FAIL); green run
+**EXIT=0 (301 PASS / 0 FAIL)**; `git add` only qdc-heat-3way paths.
+
+**Not verified (round 7):** the fixed commands were not re-executed on the
+S23 (no phone) — the coordinator's on-device proof covers the health pattern
+plain-vs-bracket pair; the other two targets follow the same no-plain-literal
+rule but rest on that proof plus the static check. The fake's self-match
+model is a semantic emulation (glob over the raw command string), not an
+execution of pgrep. `dryrun-adb.sh` is declared at 386 lines (over the ~350
+indicative) — kept whole; splitting it now would move lines only for a number.
 
 ## Declared, not touched
 

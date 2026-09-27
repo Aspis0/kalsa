@@ -5,15 +5,16 @@
 # Called once by d_run.sh as session_setup; exits the driver on any failure.
 pgrep_selftest() {
   # audit3 A-N4: spawn + alive + health + kill + gone in ONE adb session
-  # (setup.sh round-2 used three: a cross-session SIGHUP could kill the
-  # victim between calls — false FAIL on a healthy phone — and an early
-  # alive-failure returned before the pkill, orphaning the sleep). The pattern
-  # is assembled at runtime (`q="sleep 47""31"`) so neither pgrep/pkill nor
-  # our own shell cmdline contains the contiguous victim string — the same
-  # self-match trap the bracket pattern solves elsewhere. With one session
-  # the pkill ALWAYS runs before we read a result.
+  # (round-2 used three: a cross-session SIGHUP could kill the victim between
+  # calls — false FAIL on a healthy phone — and an early alive-failure
+  # returned before the pkill, orphaning the sleep). Two invariants proven on
+  # the S23 (run 1640559a): every pattern is assembled or bracketed so its
+  # UNBRACKETED literal appears NOWHERE contiguously in this command — one
+  # plain occurrence makes pgrep -f match the wrapping sh itself (plain→RC0,
+  # bracket→RC1, and both-in-one-cmd→RC0 for the bracket too). With one
+  # session the pkill ALWAYS runs before we read a result.
   local out alive health gone
-  out=$(adbT 30 -s "$SER" shell "q=\"sleep 47\"\"31\"; \$q >/dev/null 2>&1 & sleep 1; pgrep -f \"\$q\"; echo ALIVE_RC=\$?; pgrep -f 'zzz_no_such_proc_zzz'; echo HEALTH_RC=\$?; pkill -f \"\$q\"; pgrep -f \"\$q\" >/dev/null 2>&1; echo GONE_RC=\$?" 2>/dev/null || true)
+  out=$(adbT 30 -s "$SER" shell "q=\"sleep 47\"\"31\"; \$q >/dev/null 2>&1 & sleep 1; pgrep -f \"\$q\"; echo ALIVE_RC=\$?; pgrep -f '[z]zz_no_such_proc_zzz'; echo HEALTH_RC=\$?; pkill -f \"\$q\"; pgrep -f \"\$q\" >/dev/null 2>&1; echo GONE_RC=\$?" 2>/dev/null || true)
   alive=$(printf '%s\n' "$out" | sed -n 's/.*ALIVE_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
   health=$(printf '%s\n' "$out" | sed -n 's/.*HEALTH_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)
   gone=$(printf '%s\n' "$out" | sed -n 's/.*GONE_RC=\([0-9][0-9]*\).*/\1/p' | tail -1)

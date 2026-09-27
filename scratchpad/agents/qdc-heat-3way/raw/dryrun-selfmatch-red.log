@@ -1,0 +1,383 @@
+== fixture: six-arms (registered order CGNNGC, seeded stayon=1) ==
+FAIL  six rc -- expected=[0] got=[4]
+FAIL  six END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  six rows -- expected=[6] got=[0]
+FAIL  six arm sequence -- expected=[cpu gpu npu npu gpu cpu] got=[]
+FAIL  six pairs -- expected=[1 1 2 2 3 3] got=[]
+PASS  six all-OK
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-six-arms/dry-six-arms-t1cpu.log: No such file or directory
+FAIL  six perf-prefix A1 -- missing [I common_perf_print:] in []
+FAIL  six inload-parsed A8 -- missing [inload_ms=9876.50] in [[23:43:43] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[23:43:43] KIT_UNPACK_PUSH
+[23:43:43] DEVICE_LIST_OK
+[23:43:43] KIT_PUSH shi]
+FAIL  six prompt_n -- expected=[1018] got=[]
+FAIL  six decode_runs -- expected=[126] got=[]
+FAIL  six cpu prefill -- expected=[45000.00] got=[]
+FAIL  six gpu prefill -- expected=[14000.00] got=[]
+FAIL  six npu prefill -- expected=[18000.00] got=[]
+FAIL  six cpu proof -- missing [cpu_no_offload] in []
+FAIL  six cpu fingerprint (placement) -- missing [fp=buf=CPU off=0/33 thr=5] in []
+FAIL  six gpu proof assign -- missing [gpu_assigned_lines=] in []
+FAIL  six gpu proof kernels -- missing [kernels=] in []
+FAIL  six gpu fingerprint (placement) -- missing [fp=buf=GPUOpenCL off=33/33 thr=5] in []
+FAIL  six npu proof arch -- missing [arch=v73] in []
+FAIL  six npu proof ops -- missing [htp_ops=80] in []
+FAIL  six npu fingerprint (placement) -- missing [fp=buf=HTP0 off=33/33 thr=5] in []
+FAIL  six npu scaled floor -- missing [min=4] in []
+FAIL  six skin_before -- expected=[33.5] got=[]
+FAIL  six load_skin_before A8 -- expected=[33.5] got=[]
+FAIL  six load_skin_after A8 -- expected=[33.5] got=[]
+FAIL  six pagein_cold arm1 -- expected=[1] got=[]
+FAIL  six pagein_cold arm2 -- expected=[0] got=[]
+PASS  six load_wall_s
+FAIL  six samples.txt -- expected=[yes] got=[no]
+PASS  six list-devices
+FAIL  six sampler-paused A11 NEW-6 -- missing [SAMPLER_PAUSE_CONFIRMED] in [[23:43:43] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[23:43:43] KIT_UNPACK_PUSH
+[23:43:43] DEVICE_LIST_OK
+[23:43:43] KIT_PUSH shi]
+FAIL  six sampler state (A-N7) -- expected=[ok] got=[]
+FAIL  six sampler state on last turn -- expected=[ok] got=[]
+FAIL  six sampler-resumed A11 -- missing [SAMPLER_RESUMED] in [[23:43:43] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[23:43:43] KIT_UNPACK_PUSH
+[23:43:43] DEVICE_LIST_OK
+[23:43:43] KIT_PUSH shi]
+FAIL  six pgrep selftest NEW-4 -- missing [PGREP_SELFTEST_OK] in [[23:43:43] SESSION job=dry-six-arms board=S23-v73 soc=SM8550 serial=fakes23 order=CGNNGC stayon_saved=1 timeout_saved=60000
+[23:43:43] KIT_UNPACK_PUSH
+[23:43:43] DEVICE_LIST_OK
+[23:43:43] KIT_PUSH shi]
+PASS  six floor source (until calibrated)
+FAIL  six single sampler header -- expected=[1] got=[]
+FAIL  six sampler launches -- expected=[7] got=[]
+FAIL  six restore-ran -- restore 2026-09-26 23:43:44 serial=fakes23 state=1 stayon_restored=1 screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  six timeout-restored
+PASS  six stayon-restored
+PASS  six no-unknown-shell
+== fixture A-13: unregistered/odd orders are rejected ==
+PASS  odd order CGN rejected
+PASS  unregistered pair CC rejected
+== fixture: missing HTP proof voids the N proof run (A6) ==
+FAIL  nohtp rc -- expected=[0] got=[4]
+FAIL  nohtp END -- expected=[method_void_no_htp_proof] got=[exit_4_kill_unverified]
+FAIL  nohtp rows -- expected=[1] got=[0]
+FAIL  nohtp status -- expected=[VOID] got=[]
+FAIL  nohtp void_reason -- expected=[no_htp_proof] got=[]
+FAIL  nohtp backend -- expected=[npu] got=[]
+FAIL  nohtp restore-ran -- restore 2026-09-26 23:43:46 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  nohtp timeout-restored
+== fixture: execute-op below the SCALED floor voids the N proof run (NEW-1) ==
+FAIL  htplow rc -- expected=[0] got=[4]
+FAIL  htplow rows -- expected=[1] got=[0]
+FAIL  htplow void_reason -- expected=[htp_ops_low] got=[]
+FAIL  htplow scaled proof count -- missing [htp_ops=2 min=4] in []
+FAIL  htplow END -- expected=[method_void_htp_ops_low] got=[exit_4_kill_unverified]
+FAIL  htp-low restore-ran -- restore 2026-09-26 23:43:48 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  htp-low timeout-restored
+== fixture: missing GPU placement evidence voids the G proof run (A6) ==
+FAIL  nogpu rc -- expected=[0] got=[4]
+FAIL  nogpu rows -- expected=[1] got=[0]
+FAIL  nogpu status -- expected=[VOID] got=[]
+FAIL  nogpu void_reason -- expected=[no_gpu_proof] got=[]
+FAIL  nogpu END -- expected=[method_void_no_gpu_proof] got=[exit_4_kill_unverified]
+FAIL  nogpu restore-ran -- restore 2026-09-26 23:43:49 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  nogpu timeout-restored
+== fixture: GPU kernel-dispatch below the 8 floor voids the G proof run (A6) ==
+FAIL  gpuex rc -- expected=[0] got=[4]
+FAIL  gpuex rows -- expected=[1] got=[0]
+FAIL  gpuex void_reason -- expected=[gpu_exec_low] got=[]
+FAIL  gpuex END -- expected=[method_void_gpu_exec_low] got=[exit_4_kill_unverified]
+FAIL  gpu-exec-low restore-ran -- restore 2026-09-26 23:43:51 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  gpu-exec-low timeout-restored
+== fixture: kernel-build failure line voids the G proof run (A6) ==
+FAIL  gpudis rc -- expected=[0] got=[4]
+FAIL  gpudis rows -- expected=[1] got=[0]
+FAIL  gpudis void_reason -- expected=[gpu_disabled] got=[]
+FAIL  gpudis END -- expected=[method_void_gpu_disabled] got=[exit_4_kill_unverified]
+FAIL  gpu-disabled restore-ran -- restore 2026-09-26 23:43:53 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  gpu-disabled timeout-restored
+== fixture: CPU placement proof absent in the proof run (A15) ==
+FAIL  nocpu rc -- expected=[0] got=[4]
+FAIL  nocpu rows -- expected=[1] got=[0]
+FAIL  nocpu void_reason -- expected=[no_cpu_proof] got=[]
+FAIL  nocpu END -- expected=[method_void_no_cpu_proof] got=[exit_4_kill_unverified]
+FAIL  nocpu restore-ran -- restore 2026-09-26 23:43:54 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  nocpu timeout-restored
+== fixture: turn PLACEMENT differs from the proof run -> backend_mismatch (NEW-3) ==
+FAIL  bfp rc -- expected=[0] got=[4]
+FAIL  bfp rows -- expected=[1] got=[0]
+FAIL  bfp void_reason -- expected=[backend_mismatch] got=[]
+FAIL  bfp turn says CPU -- missing [fp_turn=buf=CPU] in []
+FAIL  bfp proof says GPUOpenCL -- missing [fp_proof=buf=GPUOpenCL] in []
+FAIL  bfp END -- expected=[method_void_backend_mismatch] got=[exit_4_kill_unverified]
+FAIL  backend-mismatch restore-ran -- restore 2026-09-26 23:43:56 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  backend-mismatch timeout-restored
+== fixture: turn log without fingerprint -> no_fingerprint (fail closed) ==
+FAIL  nfp rc -- expected=[0] got=[4]
+FAIL  nfp rows -- expected=[1] got=[0]
+FAIL  nfp void_reason -- expected=[no_fingerprint] got=[]
+FAIL  nfp END -- expected=[method_void_no_fingerprint] got=[exit_4_kill_unverified]
+FAIL  no-fingerprint restore-ran -- restore 2026-09-26 23:43:58 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  no-fingerprint timeout-restored
+== fixture: kernel-disable line in the TURN log voids it too (NEW-3) ==
+FAIL  tdis rc -- expected=[0] got=[4]
+FAIL  tdis rows -- expected=[1] got=[0]
+FAIL  tdis void_reason -- expected=[turn_backend_disabled] got=[]
+FAIL  tdis END -- expected=[method_void_turn_backend_disabled] got=[exit_4_kill_unverified]
+FAIL  turn-disabled restore-ran -- restore 2026-09-26 23:43:59 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  turn-disabled timeout-restored
+== fixture: cooldown is a cap only (warm_start flagged, no cool-start gate) ==
+FAIL  warm rc -- expected=[0] got=[4]
+FAIL  warm END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  warm rows -- expected=[2] got=[0]
+PASS  warm all-OK
+FAIL  warm warm_start -- expected=[1] got=[]
+FAIL  warm cooldown_s -- expected=[2] got=[]
+FAIL  warm skin_before recorded -- expected=[38] got=[]
+FAIL  warm restore-ran -- restore 2026-09-26 23:44:01 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  warm timeout-restored
+== fixture: CALIBRATE=1 mode (proof + short run per backend, no heat rows) ==
+FAIL  cal rc -- expected=[0] got=[4]
+FAIL  cal END -- expected=[calibrated] got=[exit_4_kill_unverified]
+PASS  cal no heat rows
+FAIL  cal report written -- expected=[yes] got=[no]
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal proof stats cpu -- missing [CALIB backend=cpu phase=proof] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal proof stats npu (ops+tokens) -- missing [tokens=4 proof=htp_ops=80] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal turn fingerprint cpu -- missing [CALIB backend=cpu phase=turn fp=buf=CPU off=0/33 thr=5] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal candidate buffer line -- missing [cand=buf|] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal candidate fit line -- missing [cand=fit|] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal candidate device line -- missing [cand=device|] in []
+FAIL  cal logs moved into calib/ -- expected=[yes] got=[no]
+FAIL  cal floor pinned (0.5 x 80/4) -- expected=[htp_ops_floor_per_tok=10.0000] got=[]
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/calib.ok: No such file or directory
+FAIL  cal pin bound to board/kit (A-N6) -- missing [serial=fakes23] in []
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate/calib/report.txt: No such file or directory
+FAIL  cal buf printed for G/N (A-N8) -- missing [CALIB buf_gpu=GPUOpenCL buf_npu=HTP0] in []
+FAIL  cal restore-ran -- restore 2026-09-26 23:44:02 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  cal timeout-restored
+== fixture BLOCKER1: calibration refuses a VOID proof (A-N9) ==
+FAIL  cav rc -- expected=[3] got=[4]
+FAIL  cav END -- expected=[calib_void_cpu] got=[exit_4_kill_unverified]
+PASS  cav no calib.ok
+PASS  cav no heat rows
+cat: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/raw/dry-calibrate-void/calib/report.txt: No such file or directory
+FAIL  cav void reported -- missing [CALIB_VOID backend=cpu reason=no_cpu_proof] in []
+FAIL  cav restore-ran -- restore 2026-09-26 23:44:04 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  cav timeout-restored
+== fixture A-N8: G/N buffer-name collision fails calibration ==
+FAIL  bcol rc -- expected=[3] got=[4]
+FAIL  bcol END -- expected=[calib_buf_collision] got=[exit_4_kill_unverified]
+PASS  bcol no calib.ok
+FAIL  bcol collision logged -- missing [CALIB_FAIL buf_collision] in [[23:44:04] SESSION job=dry-buf-collision board=S23-v73 soc=SM8550 serial=fakes23 order=CGN stayon_saved=null timeout_saved=60000
+[23:44:04] KIT_UNPACK_PUSH
+[23:44:04] DEVICE_LIST_OK
+[23:44:04] KIT_PUS]
+FAIL  bcol restore-ran -- restore 2026-09-26 23:44:06 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  bcol timeout-restored
+== fixture: production reads the PINNED floor from calib.ok ==
+FAIL  pin rc -- expected=[0] got=[4]
+FAIL  pin END -- expected=[method_void_htp_ops_low] got=[exit_4_kill_unverified]
+FAIL  pin rows -- expected=[1] got=[0]
+PASS  pin floor came from calib.ok
+FAIL  pin scaled min=40 -- missing [htp_ops=20 min=40] in []
+FAIL  pinned-floor restore-ran -- restore 2026-09-26 23:44:07 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  pinned-floor timeout-restored
+== fixture: stop thermal_status >= 3 (injected at first gate) ==
+PASS  st rc
+PASS  st END
+PASS  st rows
+FAIL  st restore-ran -- restore 2026-09-26 23:44:09 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  st timeout-restored
+PASS  st stayon deleted
+== fixture: stop battery_temp >= 44.0 C (fires after arm 1, trusted) ==
+FAIL  sbtemp rc -- expected=[0] got=[4]
+FAIL  sbtemp END -- expected=[stop_battery_temp] got=[exit_4_kill_unverified]
+FAIL  sbtemp rows -- expected=[1] got=[0]
+FAIL  sbtemp first row OK -- expected=[OK] got=[]
+PASS  sbtemp battery trusted
+FAIL  sbtemp restore-ran -- restore 2026-09-26 23:44:11 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  sbtemp timeout-restored
+== fixture: stop battery_level <= 25 % ==
+PASS  slvl rc
+PASS  slvl END
+PASS  slvl rows
+FAIL  slvl restore-ran -- restore 2026-09-26 23:44:12 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  slvl timeout-restored
+== fixture: stop plugged ==
+PASS  spl rc
+PASS  spl END
+PASS  spl rows
+FAIL  spl restore-ran -- restore 2026-09-26 23:44:14 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  spl timeout-restored
+== fixture: stop missing_skin (fail-closed missing reading) ==
+PASS  smis rc
+PASS  smis END
+PASS  smis rows
+FAIL  smis restore-ran -- restore 2026-09-26 23:44:15 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  smis timeout-restored
+== fixture: stop skin_fallback >= 46 C on untrusted battery (stub) ==
+FAIL  sskin rc -- expected=[0] got=[4]
+FAIL  sskin END -- expected=[stop_skin_fallback] got=[exit_4_kill_unverified]
+FAIL  sskin rows -- expected=[1] got=[0]
+PASS  sskin untrusted verdict
+FAIL  sskin restore-ran -- restore 2026-09-26 23:44:17 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  sskin timeout-restored
+== fixture A5: untrusted battery still stops on 44.5 C (never disarmed) ==
+FAIL  sunb rc -- expected=[0] got=[4]
+FAIL  sunb END -- expected=[stop_battery_temp] got=[exit_4_kill_unverified]
+FAIL  sunb rows -- expected=[1] got=[0]
+PASS  sunb untrusted verdict
+FAIL  sunb restore-ran -- restore 2026-09-26 23:44:19 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  sunb timeout-restored
+== fixture: stop fires mid-arm (background poll, POLL_S=1) ==
+FAIL  smid rc -- expected=[0] got=[4]
+FAIL  smid END -- expected=[stop_battery_temp] got=[exit_4_kill_unverified]
+FAIL  smid rows -- expected=[1] got=[0]
+FAIL  smid row voided by stop -- expected=[VOID stop_battery_temp] got=[ ]
+FAIL  smid restore-ran -- restore 2026-09-26 23:44:20 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  smid timeout-restored
+== fixture A-4: pkill that does not kill -> loud kill_unverified end ==
+FAIL  kuv rc -- expected=[3] got=[4]
+FAIL  kuv END -- expected=[stop_battery_temp_kill_unverified] got=[exit_4_kill_unverified]
+FAIL  kuv rows -- expected=[1] got=[0]
+FAIL  kuv loud log -- missing [PKILL_UNVERIFIED] in [[23:44:20] SESSION job=dry-kill-unverified board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:44:20] KIT_UNPACK_PUSH
+[23:44:20] DEVICE_LIST_OK
+[23:44:20] KIT_PU]
+PASS  kuv restore loud
+PASS  kuv restore rc
+PASS  kuv timeout-restored
+PASS  kuv pgrep probed
+== fixture NEW-5: a llama only restore can see -> END owns the kill, rc=3 ==
+FAIL  rla rc -- expected=[3] got=[4]
+FAIL  rla END -- expected=[kill_unverified] got=[exit_4_kill_unverified]
+PASS  rla rows-ok
+PASS  rla marker written
+PASS  rla restore message
+PASS  rla restore rc
+PASS  rla timeout-restored
+== fixture A-N7: an unconfirmed sampler pause is flagged in the row ==
+FAIL  spc rc -- expected=[0] got=[4]
+FAIL  spc END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  spc rows -- expected=[2] got=[0]
+FAIL  spc unconfirmed logged -- missing [SAMPLER_PAUSE_UNCONFIRMED] in [[23:44:24] SESSION job=dry-sampler-unconfirmed board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:44:24] KIT_UNPACK_PUSH
+[23:44:24] DEVICE_LIST_OK
+[23:44:24] KI]
+FAIL  spc row flag -- expected=[unconfirmed] got=[]
+PASS  spc turns still OK (validity recorded, not silently clean)
+FAIL  spc restore-ran -- restore 2026-09-26 23:44:25 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  spc timeout-restored
+== fixture A-10/A-3: production 15 s poll cadence during the load phase ==
+FAIL  pcad rc -- expected=[0] got=[4]
+FAIL  pcad END -- expected=[stop_battery_temp] got=[exit_4_kill_unverified]
+FAIL  pcad rows -- expected=[1] got=[0]
+FAIL  pcad row is the load-phase stop -- expected=[VOID stop_battery_temp na] got=[  ]
+FAIL  pcad stop latency -- gap=[] start= stop= (expected 13..40 at production cadence)
+FAIL  poll-cadence restore-ran -- restore 2026-09-26 23:44:27 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  poll-cadence timeout-restored
+== fixture A2: stale stop_request + END cleared at session start ==
+FAIL  stale rc -- expected=[0] got=[4]
+FAIL  stale END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  stale rows -- expected=[2] got=[0]
+FAIL  stale first row OK -- expected=[OK] got=[]
+PASS  stale stop_request gone
+FAIL  stale kill marker gone (A-N2) -- expected=[absent] got=[present]
+FAIL  stale restore-ran -- restore 2026-09-26 23:44:28 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  stale timeout-restored
+== fixture A3/A-4: arm timeout kills the remote orphan (verified) ==
+FAIL  tmo rc -- expected=[0] got=[4]
+FAIL  tmo END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  tmo rows -- expected=[2] got=[0]
+FAIL  tmo void_reason -- expected=[load_fail] got=[]
+FAIL  tmo orphan-kill logged -- missing [ARM_TIMEOUT backend=cpu] in [[23:44:28] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:44:28] KIT_UNPACK_PUSH
+[23:44:29] DEVICE_LIST_OK
+[23:44:29] KIT_PUSH ship.]
+FAIL  tmo kill verified -- missing [KILL_VERIFIED] in [[23:44:28] SESSION job=dry-timeout board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:44:28] KIT_UNPACK_PUSH
+[23:44:29] DEVICE_LIST_OK
+[23:44:29] KIT_PUSH ship.]
+FAIL  tmo bracketed pkill -- expected=[yes] got=[no]
+PASS  tmo pgrep probed
+FAIL  tmo restore-ran -- restore 2026-09-26 23:44:30 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  tmo timeout-restored
+== fixture A7: unequal decode voids the row and stops the session ==
+FAIL  dec rc -- expected=[0] got=[4]
+FAIL  dec END -- expected=[stop_unequal_decode] got=[exit_4_kill_unverified]
+FAIL  dec rows -- expected=[1] got=[0]
+FAIL  dec status -- expected=[VOID] got=[]
+FAIL  dec void_reason -- expected=[decode_len] got=[]
+FAIL  dec runs recorded -- expected=[125] got=[]
+FAIL  dec restore-ran -- restore 2026-09-26 23:44:32 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  dec timeout-restored
+== fixture A7b: gate derives N-1 from -n (DECODE_N=64 accepts 63) ==
+FAIL  decder rc -- expected=[0] got=[4]
+FAIL  decder END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  decder rows -- expected=[2] got=[0]
+FAIL  decder status -- expected=[OK] got=[]
+FAIL  decder runs accepted -- expected=[63] got=[]
+FAIL  decder restore-ran -- restore 2026-09-26 23:44:33 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  decder timeout-restored
+== fixture A-6: stale .restore-state is consumed (prior restore), not clobbered ==
+FAIL  prs rc -- expected=[0] got=[3]
+FAIL  prs END -- expected=[exit_0] got=[]
+PASS  prs prior restore log
+PASS  prs fresh state captured pristine
+PASS  prs final timeout pristine
+PASS  prs final stayon pristine
+FAIL  prior-restore restore-ran -- missing
+PASS  prior-restore timeout-restored
+== fixture A-9: adb failures log loudly instead of dying raw ==
+PASS  fdv rc
+PASS  fdv NO_DEVICE logged
+PASS  fdv no-END (pre-trap exit)
+PASS  fsoc rc
+PASS  fsoc ADB_FAIL logged
+PASS  fsoc no-END (pre-trap exit)
+== fixture NEW-4: broken pgrep aborts before any load ==
+PASS  pgb rc
+PASS  pgb selftest failed
+PASS  pgb END
+PASS  pgb no load ran
+PASS  pgb no turn ran
+PASS  pgb restore rc loud
+PASS  pgb restore unverified
+PASS  pgb timeout-restored
+== fixture A-N6: a pin from another board refuses the session ==
+PASS  cpm rc
+PASS  cpm mismatch logged
+PASS  cpm no-END (pre-trap exit)
+PASS  cpm no load ran
+== fixture A-N5a: an out-of-band pin rate refuses the session pre-device ==
+PASS  cpr rc
+PASS  cpr invalid logged
+PASS  cpr no-END (pre-trap exit)
+PASS  cpr never touched the device
+== fixture: no pgrep/pkill probe self-matches on healthy equipment (S23 1640559a) ==
+FAIL  nsm rc -- expected=[0] got=[4]
+FAIL  nsm END -- expected=[exit_0] got=[exit_4_kill_unverified]
+FAIL  nsm rows -- expected=[2] got=[0]
+FAIL  nsm selftest ok -- missing [PGREP_SELFTEST_OK] in [[23:44:35] SESSION job=dry-no-selfmatch board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:44:35] KIT_UNPACK_PUSH
+[23:44:35] DEVICE_LIST_OK
+[23:44:35] KIT_PUSH ]
+FAIL  nsm restore probe verified -- missing [kill_check=verified] in [restore 2026-09-26 23:44:37 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1]
+FAIL  nsm restore rc -- expected=[0] got=[1]
+FAIL  nsm restore-ran -- restore 2026-09-26 23:44:37 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  nsm timeout-restored
+== fixture A-5: SIGHUP (SSH drop) restores the device ==
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-heat-3way/dryrun-paths.sh: line 116: kill: (7402) - No such process
+FAIL  hup rc -- expected=[129] got=[4]
+FAIL  hup END -- expected=[signal_HUP] got=[exit_4_kill_unverified]
+FAIL  hup restore-ran -- restore 2026-09-26 23:44:38 serial=fakes23 state=1 stayon_restored=null screen_off_timeout=60000 sampler=stopped kill_check=unverified rc=1
+PASS  hup timeout-restored
+PASS  hup stop marker left for the sampler
+
+dryrun summary: PASS=101 FAIL=200

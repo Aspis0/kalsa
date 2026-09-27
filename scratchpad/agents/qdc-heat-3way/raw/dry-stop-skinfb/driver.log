@@ -1,19 +1,19 @@
-[23:20:24] SESSION job=dry-stop-skinfb board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[23:20:24] KIT_UNPACK_PUSH
-[23:20:24] DEVICE_LIST_OK
-[23:20:24] KIT_PUSH ship.gguf sha_before=absent
-[23:20:24] KIT_PUSH prompt.txt sha_before=absent
-[23:20:26] BATTERY_SENSOR_UNTRUSTED why=fixed_25.0C_stub temp=250,250 skin=33.5->33.5
-[23:20:26] GATE label=setup
-[23:20:26] SETUP_DONE skin0=33.5 battery_untrusted=1 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
-[23:20:26] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
-[23:20:26] SAMPLER_LAUNCHED pid=38229
-[23:20:26] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-skinfb-t1cpu
-[23:20:26] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
-[23:20:27] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
-[23:20:27] SAMPLER_LAUNCHED pid=38702
-[23:20:27] SAMPLER_RESUMED
-[23:20:27] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
-[23:20:27] STOP reason=skin_fallback
-[23:20:27] KILL_VERIFIED ctx=stop_skin_fallback (no llama-completion remains)
-[23:20:27] SESSION_STOP reason=skin_fallback
+[23:49:46] SESSION job=dry-stop-skinfb board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:49:46] KIT_UNPACK_PUSH
+[23:49:46] DEVICE_LIST_OK
+[23:49:46] KIT_PUSH ship.gguf sha_before=absent
+[23:49:46] KIT_PUSH prompt.txt sha_before=absent
+[23:49:47] BATTERY_SENSOR_UNTRUSTED why=fixed_25.0C_stub temp=250,250 skin=33.5->33.5
+[23:49:47] GATE label=setup
+[23:49:47] SETUP_DONE skin0=33.5 battery_untrusted=1 htp_floor=0.86 source=prior(no calib.ok — run CALIBRATE=1 first)
+[23:49:47] PGREP_SELFTEST_OK (single-session health/alive/gone — kill verification trusted this session)
+[23:49:47] SAMPLER_LAUNCHED pid=11140
+[23:49:47] ARM_START turn=1 backend=cpu pair=1 tag=dry-stop-skinfb-t1cpu
+[23:49:47] LOAD_PHASE turn=1 wall_s=0 skin 33.5->33.5 pagein_cold=1
+[23:49:49] SAMPLER_PAUSE_CONFIRMED (device loop exited; window quiet)
+[23:49:49] SAMPLER_LAUNCHED pid=11745
+[23:49:49] SAMPLER_RESUMED
+[23:49:49] ARM_END turn=1 status=OK void=na prefill_ms=45000.00 inload_ms=9876.50 fp_turn=buf=CPU off=0/33 thr=5 proof=cpu_no_offload tokens=4 fp=buf=CPU off=0/33 thr=5
+[23:49:49] STOP reason=skin_fallback
+[23:49:49] KILL_VERIFIED ctx=stop_skin_fallback (no llama-completion remains)
+[23:49:49] SESSION_STOP reason=skin_fallback

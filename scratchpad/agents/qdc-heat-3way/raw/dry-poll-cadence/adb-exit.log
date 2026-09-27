@@ -28,7 +28,7 @@ rc=0 -s fakes23 shell cat\ /sys/class/power_supply/battery/temp\ 2\>/dev/null
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
-rc=0 -s fakes23 shell q=\"sleep\ 47\"\"31\"\;\ \$q\ \>/dev/null\ 2\>\&1\ \&\ sleep\ 1\;\ pgrep\ -f\ \"\$q\"\;\ echo\ ALIVE_RC=\$\?\;\ pgrep\ -f\ \'zzz_no_such_proc_zzz\'\;\ echo\ HEALTH_RC=\$\?\;\ pkill\ -f\ \"\$q\"\;\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ echo\ GONE_RC=\$\?
+rc=0 -s fakes23 shell q=\"sleep\ 47\"\"31\"\;\ \$q\ \>/dev/null\ 2\>\&1\ \&\ sleep\ 1\;\ pgrep\ -f\ \"\$q\"\;\ echo\ ALIVE_RC=\$\?\;\ pgrep\ -f\ \'\[z\]zz_no_such_proc_zzz\'\;\ echo\ HEALTH_RC=\$\?\;\ pkill\ -f\ \"\$q\"\;\ pgrep\ -f\ \"\$q\"\ \>/dev/null\ 2\>\&1\;\ echo\ GONE_RC=\$\?
 rc=0 -s fakes23 shell dumpsys thermalservice
 rc=0 -s fakes23 shell dumpsys battery
 rc=0 -s fakes23 shell dumpsys thermalservice

@@ -48,8 +48,12 @@ pkill -f "$HEAT_TMP/smp.sh" 2>/dev/null || true
 # after this session's pgrep self-test (d_run pgrep_selftest) AND restore's
 # own health probe below: GONE is accepted only when pgrep answers 1 for a
 # missing pattern (a busybox-style pgrep that answers 1 on usage errors must
-# not be read as "process gone").
-probe=$("$ADB_BIN" -s "$SER" shell "pgrep -f zzz_no_such_proc_zzz; echo PROBE=\$?; pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo GONE=\$?" 2>/dev/null | tr -d '\r' || true)
+# not be read as "process gone"). The health pattern is bracketed for the
+# same reason as the llama one — proven on the S23 (run 1640559a): a PLAIN
+# zzz literal anywhere in this command makes pgrep find the wrapping sh
+# itself (PROBE=0 forever); no plain literal of either pattern may appear in
+# this command.
+probe=$("$ADB_BIN" -s "$SER" shell "pgrep -f '[z]zz_no_such_proc_zzz'; echo PROBE=\$?; pkill -f 'llama-completio[n]'; pgrep -f 'llama-completio[n]' >/dev/null 2>&1; echo GONE=\$?" 2>/dev/null | tr -d '\r' || true)
 KILL_CHECK=verified
 probe_rc=$(printf '%s\n' "$probe" | sed -n 's/.*PROBE=\([0-9][0-9]*\).*/\1/p' | tail -1)
 gone_rc=$(printf '%s\n' "$probe" | sed -n 's/.*GONE=\([0-9][0-9]*\).*/\1/p' | tail -1)

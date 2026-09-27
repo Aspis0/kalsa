@@ -1,10 +1,10 @@
-[23:20:23] SESSION job=dry-stop-missing board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
-[23:20:23] KIT_UNPACK_PUSH
-[23:20:23] DEVICE_LIST_OK
-[23:20:23] KIT_PUSH ship.gguf sha_before=absent
-[23:20:23] KIT_PUSH prompt.txt sha_before=absent
-[23:20:24] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
-[23:20:24] GATE label=setup
-[23:20:24] STOP reason=missing_skin
-[23:20:24] KILL_VERIFIED ctx=stop_missing_skin (no llama-completion remains)
-[23:20:24] SESSION_STOP reason=missing_skin
+[23:49:44] SESSION job=dry-stop-missing board=S23-v73 soc=SM8550 serial=fakes23 order=CG stayon_saved=null timeout_saved=60000
+[23:49:44] KIT_UNPACK_PUSH
+[23:49:44] DEVICE_LIST_OK
+[23:49:44] KIT_PUSH ship.gguf sha_before=absent
+[23:49:44] KIT_PUSH prompt.txt sha_before=absent
+[23:49:46] BATTERY_SENSOR_TRUSTED dumpsys=310,310 sysfs=310,310
+[23:49:46] GATE label=setup
+[23:49:46] STOP reason=missing_skin
+[23:49:46] KILL_VERIFIED ctx=stop_missing_skin (no llama-completion remains)
+[23:49:46] SESSION_STOP reason=missing_skin

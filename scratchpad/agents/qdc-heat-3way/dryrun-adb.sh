@@ -264,33 +264,58 @@ handle_shell() {
     # PROBE=/GONE= probe (NEW-4). Distinguish by the pattern in the command.
     *pgrep*)
       printf '%s\n' "$cmd" >> "$STATE/pgrep.log"
+      # Self-match model (proven on the S23, run 1640559a): pgrep -f PATTERN
+      # finds the wrapping `sh -c` whenever the command string itself contains
+      # PATTERN's UNBRACKETED literal — and a bracketed pattern ([z]zz_…)
+      # matches that same literal, so one plain occurrence anywhere in the
+      # command makes every probe of that target self-match (the coordinator
+      # proved plain=RC0, bracket=RC1, and both-in-one-cmd=RC0).
       health_rc=1
+      case "$cmd" in *zzz_no_such_proc_zzz*) health_rc=0 ;; esac
       if [ "${DRY_PGREP_BROKEN:-0}" = 1 ]; then health_rc=0; fi
+      victim_literal=0
+      case "$cmd" in *sleep\ 4731*) victim_literal=1 ;; esac
       case "$cmd" in
         *ALIVE_RC*)
-          # audit3 A-N4: setup's self-test is ONE adb session — spawn, alive,
-          # health, kill and gone all happen inside it; emulate the sequence
-          # (the victim never outlives the call). Matched on ALIVE_RC because
-          # the victim pattern is assembled at runtime in the real command.
+          # audit3 A-N4 one-session selftest: spawn → alive → health → kill →
+          # gone. The victim is assembled in the real command (no contiguous
+          # literal), so the marker decides; a literal in the cmd would make
+          # the victim self-match and GONE can never be true.
           : > "$DEV/sleep4731"
           printf '47310\nALIVE_RC=0\n'
-          if [ "$health_rc" = 1 ]; then printf 'HEALTH_RC=1\n'; else printf 'HEALTH_RC=0\n'; fi
+          printf 'HEALTH_RC=%s\n' "$health_rc"
           rm -f "$DEV/sleep4731"
-          printf 'GONE_RC=1\n'
+          if [ "$victim_literal" = 1 ]; then
+            printf '47310\nGONE_RC=0\n'
+          else
+            printf 'GONE_RC=1\n'
+          fi
           exit 0 ;;
-        *zzz_no_such_proc_zzz*llama-completio*)
-          # restore's combined probe: PROBE=health, then pkill effect, GONE=
+        *PROBE=*)
+          # restore's combined probe (keyed on the invariant `echo PROBE=$?`
+          # marker — NOT on a pattern's literal: the bracketed health pattern
+          # deliberately contains no plain zzz for a glob to see): PROBE=
+          # health, then pkill effect, GONE=
           printf 'PROBE=%s\n' "$health_rc"
           if [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then : > "$STATE/llama_killed"; fi
-          if [ -f "$STATE/llama_killed" ] && [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then
+          llama_literal=0
+          case "$cmd" in *llama-completion*) llama_literal=1 ;; esac
+          if [ "$llama_literal" = 1 ]; then
+            printf '4242\nGONE=0\n'      # plain pattern in cmd = self-match: never gone
+          elif [ -f "$STATE/llama_killed" ] && [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then
             printf 'GONE=1\n'
           else
             printf '4242\nGONE=0\n'
           fi
           exit 0 ;;
       esac
-      # session llama kill probe
-      if [ -f "$STATE/llama_killed" ] && [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then
+      # session llama kill probe (bracketed — no plain literal in its cmd,
+      # so the state flag decides)
+      llama_literal=0
+      case "$cmd" in *llama-completion*) llama_literal=1 ;; esac
+      if [ "$llama_literal" = 1 ]; then
+        printf '4242\nPGREP_RC=0\n'
+      elif [ -f "$STATE/llama_killed" ] && [ "${DRY_PKILL_NOOP:-0}" != 1 ]; then
         printf 'PGREP_RC=1\n'
       else
         printf '4242\nPGREP_RC=0\n'
