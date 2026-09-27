@@ -1455,6 +1455,25 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     };
   });
 
+  // Pairing overlays whichever page opened it, so this branch must stay
+  // ABOVE the page returns: below them the home page shadowed it and the
+  // tap did nothing (Jelly, APK c6e0b3a9). Closing it falls back to
+  // `page` — the page it was opened from — because `page` never changes.
+  if (pairingOpen) {
+    return (
+      <PairingScreen
+        initialDoorUrl={pairingDoorUrl}
+        currentModelId={model.currentModelId}
+        onBack={() => setPairingOpen(false)}
+        onDone={() => {
+          // Paired: the chat is where the owner wanted to get back to.
+          setPairingOpen(false);
+          onBack();
+        }}
+      />
+    );
+  }
+
   if (page === "home") {
     return (
       <SettingsHomeScreen
@@ -1487,21 +1506,6 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
         calendarToolsEnabled={calendarToolsEnabled}
         onToggleCalendarTools={handleToggleCalendarTools}
         appVersion={APP_VERSION}
-      />
-    );
-  }
-
-  if (pairingOpen) {
-    return (
-      <PairingScreen
-        initialDoorUrl={pairingDoorUrl}
-        currentModelId={model.currentModelId}
-        onBack={() => setPairingOpen(false)}
-        onDone={() => {
-          // Paired: the chat is where the owner wanted to get back to.
-          setPairingOpen(false);
-          onBack();
-        }}
       />
     );
   }
