@@ -36,6 +36,25 @@ export const PHONE_FREE_REASON =
 export const PHONE_REASON = "This computer runs a bigger model than your phone does. (stub)";
 export const AUTO_REASON = "This is the model this computer runs best. (stub)";
 export const RUNNING_MODEL = "IBM Granite 4 Tiny";
+/// The house the invitation states pair in: phones already paired, both
+/// ports known — the page's own "paired" branch, where the owner adds one.
+function pairedHouse() {
+  return pairingDto("paired", {
+    phone: "Pixel 9a (stub)",
+    devices: ONE_DEVICE,
+    door_port: 8131,
+    desk_port: 8134,
+  });
+}
+
+const INVITE_LINK = "https://kalsa.io/pair#stub";
+/// The command's own words for "the road is not open", verbatim from
+/// src-tauri/src/invites.rs NO_ROAD — the page shows them as they are.
+const NO_ROAD =
+  "An invitation is a link to this computer, and it can only lead over this computer's internet road, which is not open.";
+const INVITE_SOON = Math.floor(Date.now() / 1000) + 60 * 60;
+const INVITE_LATER = Math.floor(Date.now() / 1000) + 60 * 60 * 5;
+
 const STUB_SQUARE =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" shape-rendering="crispEdges">' +
   '<rect width="21" height="21" fill="#ffffff"/>' +
@@ -227,6 +246,15 @@ const scenarios = [
   ["Pairing", "the connection could not be saved", "devices", { pairing: pairingDto("failed", { failure: "could-not-save" }) }],
   ["Pairing", "the existing phone connection could not be read", "devices", { pairing: pairingDto("failed", { failure: "could-not-read" }) }],
   ["Pairing", "the local pairing service stopped", "devices", { pairing: pairingDto("failed", { failure: "service-unavailable" }) }],
+  // The invitation half of this page. Every state pairs as a house that is
+  // already paired: that is the state the owner adds a link in, and it
+  // carries the primary action the rules expect beneath the new button.
+  ["Pairing", "no invitations are out", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] } }],
+  ["Pairing", "two invitations are out", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [{ id: 1, expires_at: INVITE_SOON }, { id: 2, expires_at: INVITE_LATER }] } }],
+  ["Pairing", "an invitation link is copied", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [{ id: 3, expires_at: INVITE_SOON }] }, inviteLink: INVITE_LINK, click: "Invite by link" }],
+  ["Pairing", "an invitation cannot be made without the road", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateError: NO_ROAD, click: "Invite by link" }],
+  ["Pairing", "the clipboard refuses the link", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [{ id: 4, expires_at: INVITE_SOON }] }, inviteLink: INVITE_LINK, clipboardFails: true, click: "Invite by link" }],
+  ["Pairing", "earlier invitations could not be read", "devices", { pairing: pairedHouse(), invites: { discarded: true, invites: [] } }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
   // retry. And a read that rejects AFTER an answer must leave that answer on
@@ -284,6 +312,13 @@ function installBridge() {
               }
               return Promise.resolve(bridgeState.pairing ?? null);
             }
+            if (command === "brain_invite_list") return Promise.resolve(bridgeState.invites ?? null);
+            if (command === "brain_invite_create") {
+              return bridgeState.inviteCreateError
+                ? Promise.reject(bridgeState.inviteCreateError)
+                : Promise.resolve(bridgeState.inviteLink ?? INVITE_LINK);
+            }
+            if (command === "brain_invite_link") return Promise.resolve(bridgeState.inviteLink ?? INVITE_LINK);
             if (command === "brain_advanced") return Promise.resolve(bridgeState.advanced ?? null);
             // The host's credential the page keeps in memory. A stub value:
             // nothing in these states talks to a door.
@@ -305,6 +340,15 @@ function installBridge() {
   // refuses everything else, so a live server on the developer's machine can
   // never leak into a rendered state. `propsFailures` makes the first reads
   // reject, which is how a server that is still loading the model behaves.
+  // The clipboard the page copies a link into. It answers unless the
+  // scenario says otherwise, so a copy that "works" is the ordinary case
+  // and `clipboardFails` is the one where the page must show the link
+  // itself instead.
+  globalThis.window.navigator.clipboard = {
+    writeText: async () => {
+      if (bridgeState.clipboardFails) throw new Error("the clipboard refused");
+    },
+  };
   globalThis.fetch = (url) => {
     if (!bridgeState.props || !String(url).endsWith("/props")) {
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
@@ -359,6 +403,8 @@ function extract(panel, heading, automatic = []) {
   const qrEl = first(panel, (el) => el.className === "surface-qr");
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
   const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
+  const inviteEls = elements(panel, (el) => el.className === "surface-invite-name");
+  const inputEls = elements(panel, (el) => el.tagName === "INPUT");
   const quietEls = elements(panel, (el) => el.className === "surface-quiet");
   return {
     heading,
@@ -374,6 +420,10 @@ function extract(panel, heading, automatic = []) {
     qr: Boolean(qrEl),
     deviceNames: deviceEls.map(elementText),
     deviceDetails: detailEls.map(elementText),
+    inviteNames: inviteEls.map(elementText),
+    // The field a refused clipboard leaves behind, by value: this is the one
+    // place a link may appear, and it is an input's, never a sentence's.
+    fallbackLinks: inputEls.map((el) => String(el.value ?? "")),
     fresh: quietEls.map(elementText).find((text) => text.includes("this one is fresh")) ?? null,
     automatic,
   };
@@ -407,6 +457,17 @@ async function renderScenario(descriptor) {
   const root = createRoot(panel);
   root.render(componentFor(kind, data));
   await settle();
+  if (data.click) {
+    // A button the owner presses: the panel's own answer follows in
+    // microtasks, which one turn of the queue drains whole.
+    const target = first(
+      panel,
+      (el) => el.tagName === "BUTTON" && elementText(el) === data.click,
+    );
+    if (!target) throw new Error(`no button named ${data.click} on ${title}`);
+    target.click();
+    await settle();
+  }
   if (data.step) {
     for (const handler of eventHandlers) handler(data.step);
     await settle();

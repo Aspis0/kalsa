@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { copyText } from "../lib/clipboard";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
 import ReactMarkdown from "react-markdown";
@@ -49,23 +50,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   }
 
   async function copy(): Promise<void> {
-    let ok = false;
-    try {
-      await navigator.clipboard.writeText(code);
-      ok = true;
-    } catch {
-      try {
-        // Clipboard API unavailable (permissions): fall back to selection.
-        const area = document.createElement("textarea");
-        area.value = code;
-        document.body.appendChild(area);
-        area.select();
-        ok = document.execCommand("copy");
-        area.remove();
-      } catch {
-        ok = false;
-      }
-    }
+    const ok = await copyText(code);
     if (ok) {
       setCopied(true);
       later(() => setCopied(false));

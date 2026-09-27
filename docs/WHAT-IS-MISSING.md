@@ -336,27 +336,27 @@ reporting them. `THE-BRAIN-IS-THE-HOME.md:162-165` still has it open, and
 its "today it does not" predates `proxy.rs:94`.
 
 **The monogamy is gone too, found while re-reading on 2026-09-20.** The store holds
-several devices (`crates/kalsa-pairing/src/store.rs:150`; production adds go through
-`add_device_with_delivery` at `:302`, `load_devices` at `:593`) and the DTO carries the list
-— `devices: Vec<PairedDeviceDto>` (`src-tauri/src/pairing.rs:141`) — beside the older
-singular `phone: Option<String>` (`pairing.rs:138`).
+several devices (`crates/kalsa-pairing/src/store.rs:192`; production adds go through
+`add_device_with_delivery` at `:397`, `load_devices` at `:855`) and the DTO carries the list
+— `devices: Vec<PairedDeviceDto>` (`src-tauri/src/pairing.rs:122`) — beside the older
+singular `phone: Option<String>` (`pairing.rs:119`).
 `brain_pairing_replace` and `brain_pairing_keep` are gone, replaced by
-`brain_pairing_forget_device` (`src-tauri/src/main.rs:856`) and `brain_pairing_forget`
-(`main.rs:867`): a second phone is no longer a conflict to settle; it can be dismissed one
+`brain_pairing_forget_device` (`src-tauri/src/main.rs:1745`) and `brain_pairing_forget`
+(`main.rs:1824`): a second phone is no longer a conflict to settle; it can be dismissed one
 at a time. `ModelDto`
-is no longer only `{ chosen: bool }` — `chosen` is still there at `main.rs:637`, beside
-`display_name` and `reason` (`main.rs:636-640`) — and `phone_connected: Option<bool>` is
+is no longer only `{ chosen: bool }` — `chosen` is still there at `main.rs:1063`, beside
+`display_name` and `reason` (`main.rs:1064-1065`) — and `phone_connected: Option<bool>` is
 gone in favour of `active_devices: Option<Vec<ActiveDeviceDto>>`
-(`src-tauri/src/metrics.rs:45`). The
+(`src-tauri/src/metrics.rs:80`). The
 old monogamy is history; it stays in this record because its replacement is still
 half-true in the code.
 
 What is NOT closed is the decision this section recorded, still the larger half:
 **the PC does not register itself as a device.** Outside the store's own tests, the only
-caller of the add path is the phone ceremony (`src-tauri/src/pairing.rs:418`). Every device
+caller of the add path is the phone ceremony (`src-tauri/src/pairing.rs:581`). Every device
 arrived by QR; the machine running the server walked in nowhere. So the screen draws no
 seats at all — one boolean, not four — even though the door reports authenticated presence
-(`proxy.rs:94`); `DevicesSurface.tsx:211-214` lists who is *paired*, not who is busy.
+(`proxy.rs:94`); `DevicesSurface.tsx:420` lists who is *paired*, not who is busy.
 Installing Kalsa desktop still leaves the house empty until a phone pairs — the exact
 opposite of what was decided.
 

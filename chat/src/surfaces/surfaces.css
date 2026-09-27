@@ -136,7 +136,25 @@
   margin: 0.25rem 0 1rem;
 }
 
-.surface-device {
+/* The invitation link itself, and only when the clipboard refused it:
+   selectable so the owner can copy it by hand. Never a sentence — it is
+   the secret the page otherwise never renders. */
+.surface-link {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.surface-device,
+.surface-invite {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -146,7 +164,8 @@
   border-radius: 10px;
 }
 
-.surface-device-name {
+.surface-device-name,
+.surface-invite-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;

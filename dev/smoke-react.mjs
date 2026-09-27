@@ -645,7 +645,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -653,8 +653,8 @@ try {
     if (fresh !== null && !FRESH_PHRASINGS.includes(fresh)) problems.push(`a fresh-square note must be an approved phrasing: ${heading}`);
     if (sentence.includes("now works with") && !buttons.includes(REPAIR_PRIMARY)) problems.push(`a paired phone must offer a deliberate way to pair another: ${heading}`);
     if (sentence.includes("saved the connection") && !buttons.includes(REPAIR_PRIMARY)) problems.push(`a pending delivery must still offer another pairing: ${heading}`);
-    if (heading.includes("saved here; the phone still needs the response") && !sentence.includes("the phone still needs to receive it")) {
-      problems.push(`a pending delivery must say that the phone still needs the response: ${heading}`);
+    if (heading.includes("saved here; the phone still needs the response") && !sentence.includes("a phone is still waiting to receive its connection")) {
+      problems.push(`a pending delivery must say that a phone is still owed its response: ${heading}`);
     }
     // The host row is one of the stored devices now, and it is not a phone:
     // the house sentence counts phones, so the check must count them too.
@@ -692,6 +692,51 @@ try {
     if (heading.includes("there is no app behind the page")) {
       if (!all.includes(COULD_NOT_CHECK)) problems.push(`a page with no app to ask must say the check could not run: ${heading}`);
       if (buttons.length > 0) problems.push(`a page with no app to ask must offer no retry: ${heading}`);
+    }
+    // The invitation half of this page: the button the page can pair with,
+    // the rows it draws, and the sentences this feature owns. Each rule is
+    // tied to its own card, so a state cannot satisfy another state's check.
+    if (heading.includes("no invitations are out")) {
+      if (!buttons.includes("Invite by link")) problems.push(`a page that can pair must offer an invitation: ${heading}`);
+      if (inviteNames.length !== 0) problems.push(`an empty house lists nothing: ${heading}`);
+    }
+    if (heading.includes("two invitations are out")) {
+      if (inviteNames.length !== 2) problems.push(`two invitations draw two rows: ${heading}`);
+      if (!inviteNames.every((name) => name.startsWith("Expires "))) problems.push(`each row says when it dies: ${heading}`);
+      if (buttons.filter((text) => text === "Copy link").length !== 2) problems.push(`each row offers its link again: ${heading}`);
+      if (buttons.filter((text) => text === "Cancel invite").length !== 2) problems.push(`each row can be taken back: ${heading}`);
+      if (all.includes("kalsa.io")) problems.push(`a link is never rendered as text: ${heading}`);
+    }
+    if (heading.includes("an invitation link is copied")) {
+      if (!/Link copied\. It works once, until .+\. Send it only to the person you want to add\./.test(all)) {
+        problems.push(`the copied sentence is the owner's own, in full: ${heading}`);
+      }
+      if (fallbackLinks.length > 0) problems.push(`a copy that worked shows no field: ${heading}`);
+    }
+    if (heading.includes("an invitation cannot be made without the road")) {
+      if (!all.includes("which is not open.")) problems.push(`the command's own words reach the page: ${heading}`);
+      if (all.includes("Link copied.")) problems.push(`nothing was copied: ${heading}`);
+    }
+    if (heading.includes("the clipboard refuses the link")) {
+      if (all.includes("Link copied.")) problems.push(`a refused copy is not a copied link: ${heading}`);
+      if (fallbackLinks.length !== 1 || !fallbackLinks[0].startsWith("https://kalsa.io/pair#")) {
+        problems.push(`the refused link is shown to select by hand: ${heading}`);
+      }
+    }
+    if (heading.includes("the connection could not be saved")) {
+      // True for both roads: a square can be drawn again, an invitation can
+      // be sent again — neither promises the last attempt comes back.
+      if (!all.includes("This computer could not save the new phone. Start the pairing again, or send a new invite.")) {
+        problems.push(`the save failure is worded for both roads: ${heading}`);
+      }
+      if (all.includes("Trying again usually works")) {
+        problems.push(`no promise a spent invitation cannot keep: ${heading}`);
+      }
+    }
+    if (heading.includes("earlier invitations could not be read")) {
+      if (!all.includes("Earlier invitations could not be read, so they were cancelled for safety.")) {
+        problems.push(`a discarded file is said once, plainly: ${heading}`);
+      }
     }
     // The approval gate: a waiting phone's row says so and offers the two
     // owner decisions.

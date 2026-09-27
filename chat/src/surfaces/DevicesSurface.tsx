@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
+import type { InviteList } from "./InvitePanel";
+import { InvitePanel } from "./InvitePanel";
 import { available, invoke } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
@@ -64,10 +66,11 @@ interface PairingState {
 // waiting, the sentence says the wait instead — a single waiting phone is
 // named, several are counted — and a mixed house says both facts: the house
 // counted as "paired phones", the waiting ones as waiting for the OK. The
-// pending delivery is not attributable from the page — after a restart the
-// desk holds whichever phone the store's order gives it — so its clause
-// names no phone, except in a one-phone house, where "the phone" can only
-// be that phone and is said plainly.
+// pending delivery is not attributable from the page — the flag says some
+// phone is owed its connection, never which one, and with several devices
+// the one it names may not be the one owed — so no clause of this sentence
+// names a phone for it: naming the house is true either way, naming the
+// wrong phone would not be.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
     (device) => device.kind !== "host",
@@ -92,13 +95,13 @@ function pairedSentence(dto: PairingState): string {
   }
   if (approved.length === 0) {
     return pending
-      ? `This computer saved the connection for ${dto.phone ?? "your phone"}; the phone still needs to receive it.`
+      ? `This computer saved the connection for ${dto.phone ?? "your phone"}; a phone is still waiting to receive its connection.`
       : `This computer now works with ${dto.phone ?? "your phone"}.`;
   }
   if (approved.length === 1) {
     const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? "your phone";
     return pending
-      ? `This computer saved the connection for ${name}; the phone still needs to receive it.`
+      ? `This computer saved the connection for ${name}; a phone is still waiting to receive its connection.`
       : `This computer now works with ${name}.`;
   }
   return pending
@@ -171,6 +174,10 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // The first read has settled — answered, rejected, or past the bound.
   // Until then the page is checking, which is not a failure.
   const [settled, setSettled] = useState(false);
+  // The invitations as the last read heard them: the page's poll reads them
+  // beside the pairing, and the panel below reports its own reads back
+  // through `onList` so the two never disagree.
+  const [invites, setInvites] = useState<InviteList | null>(null);
   // One read at a time: a poll tick during a slow read is skipped, so two
   // answers cannot race. The generation numbers each read, so a reply from a
   // read the bound already released is dropped instead of landing over a
@@ -202,14 +209,27 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       setSettled(true);
     }, FIRST_READ_BOUND_MS);
     try {
-      const next = await invoke<PairingState | null>("brain_pairing");
+      // The square first — the page's own checking state hangs on this
+      // answer — then the invitations on the same tick, under the same
+      // guards, so the two lists cannot race each other either. Each keeps
+      // its own answer: one failing must not cost the other its read.
+      try {
+        const next = await invoke<PairingState | null>("brain_pairing");
+        if (stillMine()) {
+          setState((previous) => lastKnown(previous, next));
+          setSettled(true);
+        }
+      } catch {
+        // The command rejected: what this page already knows stands.
+        if (stillMine()) setSettled(true);
+      }
       if (!stillMine()) return;
-      setState((previous) => lastKnown(previous, next));
-      setSettled(true);
-    } catch {
-      // The command rejected: what this page already knows stands.
-      if (!stillMine()) return;
-      setSettled(true);
+      try {
+        const listed = await invoke<InviteList | null>("brain_invite_list");
+        if (stillMine()) setInvites((previous) => lastKnown(previous, listed));
+      } catch {
+        // The list rejected: what this page already knows stands.
+      }
     } finally {
       clearTimeout(bound);
       if (mine === generation.current) inFlight.current = false;
@@ -328,8 +348,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         }
         onAction = retry;
         headline = "Could not finish";
+        // True for both roads: a square can be drawn again, an invitation
+        // can be sent again, and neither promises that the last attempt
+        // will come back on its own.
         sentence =
-          "Your phone connected, but this computer could not save the connection. Trying again usually works.";
+          "This computer could not save the new phone. Start the pairing again, or send a new invite.";
         button = "Try again";
         break;
       default:
@@ -351,6 +374,17 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       button = "Try again";
     }
   }
+
+  // The invite section is where this page can pair: a square on screen, a
+  // house already paired, and the one pairing that failed to save — whose
+  // own words tell the owner to send a new invite, so the button has to be
+  // there for that sentence to be true. Outside the webview there is
+  // nothing to ask, so none of it is drawn.
+  const canInvite =
+    available() &&
+    (state?.state === "waiting" ||
+      state?.state === "paired" ||
+      state?.failure === "could-not-save");
 
   return (
     <div className="surface-page">
@@ -374,6 +408,12 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             </button>
           ) : null}
         </div>
+      ) : null}
+      {canInvite ? (
+        <InvitePanel
+          invites={invites}
+          onList={(listed) => setInvites((previous) => lastKnown(previous, listed))}
+        />
       ) : null}
       {devices.length > 0 ? (
         <div className="surface-devices">
