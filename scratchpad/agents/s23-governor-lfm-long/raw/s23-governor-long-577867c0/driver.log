@@ -1,0 +1,35 @@
+[ci] JavaScript provenance gate passed; evidence=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/s23-governor-long-577867c0/campaign/.metro-preflight.bbhrEp
+ok
+[ci] T20C rerun2 start serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/s23-governor-long-577867c0/campaign
+[ci] battery preflight floor=enforced level=57 temp=29.6C charging=false
+[ci] battery level=57 temp=29.6C charging=false
+[ci] DEVICE IDENTITY: model=SM-S911U (CAMPAIGN_EXPECT_MODEL unset; not enforcing)
+[ci] thermal preflight status=0 battery_deci=296
+[ci] keep-awake: saved screen_off_timeout=2147483647
+[ci] keep-awake: saved stay_on_while_plugged_in=15
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] screen: timeout pinned to 2147483647 (saved: 86400000), keyguard dismissed — no restore at exit
+[ci] logcat pid=89104 file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/s23-governor-lfm-long/raw/s23-governor-long-577867c0/campaign/logcat.txt
+[ci] charging monitor pid=89105 (30s poll)
+[ci] arm begin: flags->ciswire, wipe chat, launch
+[ci] flags: force-stop com.kalsa.app before governor pref write
+[ci] governor pref: kalsa.governor.enabled=1 written before launch
+[ci] LOAD DEAD MARKER: kalsa.load.dead.lfm2.5-2.6b=1 — the previous load never settled; clearing it so this run can load (run record: load_dead_marker_cleared=true)
+[ci] share preflight: launch PID changed or missing (expected=none current=none); relaunching
+[ci] startup marker present for PID 29885: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 29885
+[ci] native log teardown: restoring previous preference
+[ci] startup marker present for PID 30336: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 30336
+[ci] keep-awake: restored screen_off_timeout=2147483647 (was 86400000)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: restored stay_on_while_plugged_in=15
+[ci] keep-awake: force-stop com.kalsa.app
+[ci] keep-awake: stay_on_while_plugged_in=15
+[ci] keep-awake: screen_off_timeout=2147483647
+[ci] screen finalize: screen_off_timeout=2147483647
+[ci] screen finalize: Awake + keyguard dismissed + Kalsa foreground
+[ci] screen finalize: readback screen_off_timeout=2147483647

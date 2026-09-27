@@ -1,0 +1,2 @@
+10085:09-27 13:00:04.286 16007 16033 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14330.558,"promptN":1660,"hash":"3677660334"}'
+36603:09-27 15:05:47.444 29885 29913 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14265.905,"promptN":1660,"hash":"3677660334"}'

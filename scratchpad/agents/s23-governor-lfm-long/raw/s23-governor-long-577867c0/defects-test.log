@@ -1,0 +1,134 @@
+== (a) liveness vs completion marker ==
+[ci] logcat pid=60892 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/live/logcat.txt
+[ci] health device 4242 0 elapsed=53ms
+PASS: frozen turn is still a hang (status=hang)
+[ci] logcat pid=61309 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/live/logcat.txt
+[ci] health device 4242 0 elapsed=53ms
+PASS: native engine lines keep it alive (status=timeout)
+[ci] logcat pid=62048 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/live/logcat.txt
+[ci] health device 4242 0 elapsed=55ms
+PASS: growing reply keeps it alive (status=timeout)
+[ci] logcat pid=62849 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/live/logcat.txt
+[ci] health device 4242 0 elapsed=54ms
+PASS: new assistant bubbles keep it alive (status=timeout)
+[ci] logcat pid=63657 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/live/logcat.txt
+PASS: telemetry + new bubble still completes ok (status=ok)
+
+== (b) early abort after turn 2 ==
+mode=marker-turn1 rc=4 (want 4)
+PASS: marker-turn1 run exit rc=4
+PASS: marker-turn1 abort names the missing signal
+PASS: marker-turn1 fake adb handled every call
+PASS: marker-turn1 campaign teardown restored the previously absent nativelog preference
+PASS: marker-turn1 exit ends screen-safe: timeout=2147483647, never deleted, Kalsa foreground
+   jsonl: ok
+mode=never rc=4 (want 4)
+PASS: never run exit rc=4
+PASS: never abort names the missing signal
+PASS: never fake adb handled every call
+PASS: never campaign teardown restored the previously absent nativelog preference
+PASS: never exit ends screen-safe: timeout=2147483647, never deleted, Kalsa foreground
+   jsonl: ok
+mode=native-log-off rc=1 (want 1)
+PASS: native-log-off run exit rc=1
+PASS: nativelog=off refuses campaign startup
+PASS: native-log-off fake adb handled every call
+PASS: native-log-off campaign teardown restored the previously absent nativelog preference
+PASS: native-log-off exit ends screen-safe: timeout=2147483647, never deleted, Kalsa foreground
+PASS: mismatched configured serial is refused
+
+== (a2) the pre-device guards read the config ==
+PASS: configured serial 10.0.0.1:9999 passed the serial guard, refused at the provenance gate
+PASS: a non-string device is refused, not compared as None
+PASS: a config declaring 24 turns is refused
+PASS: a device string with a trailing newline is refused, not compared stripped
+PASS: turns as the string "20" is refused, not compared as the int
+
+== (a3) the identity gate reads the config deviceModel ==
+PASS: deviceModel Jelly Star on an SM-S911B device is refused, naming both models
+PASS: deviceModel SM-S911B clears the identity gate and the run continues to the turn loop
+PASS: a model name with a space clears the gate, quoted end to end
+PASS: a declared-but-empty deviceModel is refused, not silently unenforced
+
+== (b2) throttled completion gets a progress probe ==
+PASS: throttled completion: changing fingerprint survives beyond the old 120s ceiling
+PASS: throttled completion: late marker arrived after the progress probe
+marker-turn1 turns=[1] already-landed-skips=1 (i=2)
+PASS: marker-turn1: skip rows=1, no silent disappearance (turns=[1])
+never        turns=[] already-landed-skips=2 (i=1,2)
+PASS: never: skip rows=2, no silent disappearance (turns=[])
+
+== (c) skip paths leave a RECOVERY-shaped record ==
+PASS: skip path 'send-failed' recorded (oneTurn rc=0)
+   jsonl: summary=1/RECOVERY/send-failed
+PASS: skip path 'retry-send-failed' recorded (oneTurn rc=0)
+   jsonl: summary=1/RECOVERY/pid-death 1/RECOVERY/retry-send-failed
+PASS: skip path 'thermal-cooldown-failed' recorded (oneTurn rc=0)
+   jsonl: summary=1/RECOVERY/thermal-cooldown-failed
+PASS: technical cooldown failure clears CAMPAIGN_TURN_STATUS before skipping
+PASS: skip path 'recovery-refused' recorded (oneTurn rc=0)
+   jsonl: summary=1/RECOVERY/pid-death 1/RECOVERY/recovery-refused
+
+== (c2) hard abort in recovery path stops the run ==
+PASS: hard abort in recovery path records reason and stops the run
+PASS: thermal GIVEUP reached through oneTurn and stopped the run
+
+== (g) thermal overshoot direction and unplugged hard stops ==
+PASS: thermal-rise-fall cooldown rc=0
+PASS: thermal-rise-fall records 'thermal overshoot window'
+PASS: thermal-hard-abort cooldown rc=1
+PASS: thermal-hard-abort records 'THERMAL HARD ABORT: unplugged battery'
+PASS: thermal-status-abort cooldown rc=1
+PASS: thermal-status-abort records 'THERMAL HARD ABORT: unplugged thermal status'
+PASS: thermal-plugged-rise cooldown rc=1
+PASS: thermal-plugged-rise records 'rising temperature is not a reason to stop'
+PASS: thermal status 3 reached hard abort through the real turn path
+PASS: unreadable thermal status still reaches the battery hard abort through the real turn path
+PASS: thermal-sustained-rise reaches its recovery branch
+PASS: thermal-unknown-power reaches its recovery branch
+PASS: cooldown clamps a step longer than the overshoot window (rc=0)
+PASS: failed thermal trend computation is explicit and unknown
+
+== (d) the verdict tool reads the markers it claims to read ==
+PASS: verdict parses window_align through the outer marker (1 of 2)
+PASS: verdict exits 0 when every turn answered and slides are monotone
+PASS: verdict refuses to score truncation on a build that cannot report it
+
+== (e) a send the engine accepted is not re-sent ==
+[ci] logcat pid=87330 file=/var/folders/7v/4dqj9qqs1q1fb3qllxbkqkbh0000gn/T//kalsa-defects.pRR2mF/dblag/logcat.txt
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine back after 0s
+[ci] tap 'Send' at 950,2050
+[ci] engine started the turn try=1 t=0s — send landed (DB copy may lag)
+PASS: db-lag: send accepted on engine evidence (DB never got the user message)
+PASS: db-lag: exactly one share intent — no duplicate turn over live work
+PASS: db-lag: the turn started from one Send tap, not from the share alone
+PASS: verdict exits 1 when a turn was never answered
+
+== (f) the run-cost report is asserted, not just printed ==
+PASS: spend: prewarm prefill is counted, and named separately
+PASS: spend: one turn pays one slide, and -1 is refused as a measurement
+PASS: spend: no negative bill reached the report
+PASS: spend: decode decay skips the turn with no rate
+
+== (g) a turn carrying a tool round is timingValid:false; a clean turn is true ==
+PASS: a tool round forces timingValid:false (reason tool_rounds); a clean turn stays timingValid:true
+
+== (h) the cell writes AND verifies the three tool keys as 0 ==
+PASS: campaign_write_flags wrote the three tool keys as 0 and verified them
+PASS: campaign_verify_flags died on a corrupted tool key
+PASS: campaign refuses startup when bench:show reports nativelog=off
+PASS: governor gate accepts Fit+pref1 and refuses pref0, NoFit and a missing plan
+PASS: pref off logs no plan and the gate dies; pref on logs a verifiable Fit plan
+PASS: Awake+focused turn passes the screen rule and is counted once
+PASS: dozing turn invalidated (screen-invalid) and redone; phone woken and foregrounded
+PASS: a phone that stays not-Awake hits the redo cap and dies, without counting
+PASS: thermal status, battery temp, level and plugged each stop at 3 consecutive invalid reads
+PASS: two alternating invalid sensors keep per-sensor streaks and die at 3 each
+PASS: readiness passes on this launch's KALSA_PREWARM op=done + enabled composer
+PASS: readiness refuses a stale prewarm line from a previous launch
+PASS: readiness refuses a disabled composer even with the log line
+PASS: dead-load marker: preflight logs loudly, clears it and records load_dead_marker_cleared=true
+PASS: a re-dead load dies with 'model load died' and a logcat snapshot
+
+passed=82 failed=0

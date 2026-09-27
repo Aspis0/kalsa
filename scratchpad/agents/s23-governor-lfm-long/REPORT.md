@@ -43,3 +43,17 @@ The fresh manual launch could not produce a new prewarm: storage still had `kals
 `bench:nativelog on` delivery uses `ACTION_VIEW` with a URL-encoded `kalsa://share?text=...` deep link (`device-share-send.sh:154-164`), then waits for composer text and taps Send; it does not type with `input text`. The campaign log shows `share preflight ... expected=none current=none`, then `never reported Pronto/Ready after 240s`, followed by `FATAL: native log setup: could not deliver bench:nativelog on`; there are no `share-send attempt` lines. `campaign_ensure_launch_pid` returns on its `campaign_wait_ready` failure before `device_share_intent` is reached. This failure is therefore downstream of the readiness precondition; the deep-link send itself was not independently tested. Logs: `prior-campaign-driver.log`, `prior-campaign-logcat.txt`, and `prior-campaign-timeout-ui.txt`.
 
 Preflight/final checks are saved in this raw directory: phone unplugged, traced 0, display Awake, Kalsa foreground. No harness/app edits, app-data clearing, marker deletion, or `kalsa.bench.thermo` writes were made.
+
+## Governor long-session retry — stopped on readiness matcher defect
+
+Harness was exactly `kalsa-wt-iroh` HEAD `577867c05309972dfa7e29e30447309722acec93`; no harness/app edits. Host checks passed: `npm run harness:campaign` EXIT 0 (`passed=82 failed=0`, `selftest ok`) and standalone `selftest_defects.sh` EXIT 0 (`passed=82 failed=0`). Used the existing installed debuggable APK `ae64564d`, SHA-256 `cd644477c08d4d3d21cec0f3e756eed3b4a53e0c9814f9347ff0ce0ea7e26ecc`; local and installed hashes matched and `run-as` passed. No reinstall.
+
+Preflight: TLS S23 unplugged, battery 57%, 29.6 C, thermal 0, traced 0; no llama/bench processes; display Awake/unlocked. Governor was enabled by the runner. It cleared the dead-load marker loudly (`run-record.json: load_dead_marker_cleared=true`), then loaded with `gpu_fit=Fit`. This launch logged startup protocol at 15:05:25.430 and `KALSA_PREWARM op=done` at 15:05:47.444 (22.014 s from protocol marker).
+
+The readiness gate then did not advance. `scripts/device-share-send.sh` `device_ready_log_seen` searches for literal `KALSA_PREWARM {"op":"done"`, but this build emits `ReactNativeJS: 'KALSA_PREWARM', '{"op":"done"...` (exact line in `raw/s23-governor-long-577867c0/matcher-repro.txt`). The literal grep returns 1, so the `&& device_composer_enabled` short-circuits and the composer check is never reached. I stopped immediately after confirming the source/log mismatch; no turn started, no per-turn results. Driver EXIT=130, not a campaign stop verdict. This is the harness bug for mimo to fix; no retry performed.
+
+| Turn | Route per phase | Prefill ms | Decode tok/s | Pauses/kills | Thermal / skin / battery temp / level | Awake | Answer OK |
+|---|---|---:|---:|---|---|---|---|
+| None | No turn started | — | — | — | — | Yes at exit | — |
+
+The interrupt teardown completed: screen timeout remains 2147483647, display Awake, keyguard dismissed, Kalsa foreground; unplugged, battery 57% / 30.3 C, traced 0, no llama/bench process. No `kalsa.bench.thermo` write. Full preflight, driver, logcat, test output, gate repro and cleanup evidence are under `raw/s23-governor-long-577867c0/`.

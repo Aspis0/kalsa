@@ -1,0 +1,7 @@
+Worktree source scripts/device-share-send.sh:
+  grep -qF 'KALSA_PREWARM {"op":"done"' <<<"$slice"
+
+Campaign logcat for this launch (PID 29885):
+  09-27 15:05:47.444 29885 29913 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14265.905,"promptN":1660,"hash":"3677660334"}'
+
+The source matcher string does not occur in this actual emitted log line; the literal grep check returns 1 (MATCH_EXIT=1). The `KALSA_PREWARM op=done` event was emitted, but device_ready_log_seen returns false before device_composer_enabled is evaluated because the call is short-circuited with `&&`.
