@@ -112,9 +112,7 @@ describe("which credential may fall back to HTTPS", () => {
     await expect(establishDoorRoad({ node: NODE, pairedVia: null })).rejects.toThrow(
       "remote_brain_network",
     );
-    expect(roadLines()).toEqual([
-      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
+    expect(roadLines()).toEqual([]);
   });
 
   test("a failed connect falls back for a credential paired over HTTPS", async () => {
@@ -124,9 +122,7 @@ describe("which credential may fall back to HTTPS", () => {
     const road = await establishDoorRoad({ node: NODE, pairedVia: "https" });
 
     expect(road).toEqual({ road: "https" });
-    expect(roadLines()).toEqual([
-      { road: "https", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
+    expect(roadLines()).toEqual([]);
   });
 
   test("a failed connect for an iroh-paired credential is a connection error, logged as one iroh line", async () => {
@@ -136,11 +132,7 @@ describe("which credential may fall back to HTTPS", () => {
     await expect(establishDoorRoad({ node: NODE, pairedVia: "iroh" })).rejects.toThrow(
       "remote_brain_network",
     );
-    const lines = roadLines();
-    expect(lines).toEqual([
-      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
-    expect(JSON.stringify(lines[0])).not.toContain(NODE);
+    expect(roadLines()).toEqual([]);
   });
 });
 
@@ -158,9 +150,7 @@ describe("establishing the road", () => {
     expect(road.firstTunnel).toBe(tunnel);
     expect(openTunnelMock).toHaveBeenCalledWith(NODE, "door");
     expect(await road.openTunnel()).toBe(tunnel);
-    expect(roadLines()).toEqual([
-      { road: "iroh", reason: "connected", node8: NODE.slice(0, 8) },
-    ]);
+    expect(roadLines()).toEqual([]);
   });
 
   test("an already-aborted signal never dials and logs no road", async () => {

@@ -12,7 +12,34 @@ export type Road = "iroh" | "https";
 export type HttpsRoadReason = "no_node" | "module_absent";
 
 /** Why the last road decision went the way it did, for the one log line. */
-export type RoadReason = HttpsRoadReason | "connected" | "connect_failed";
+export type RoadReason = HttpsRoadReason;
+
+export type DialLane = "desk" | "door";
+export type IrohDialReason =
+  | "ok"
+  | "deadline"
+  | "aborted"
+  | "no_module"
+  | "linkage"
+  | "invalid_node"
+  | "connect_refused"
+  | "other";
+
+export const IROH_DIAL_ERROR_REASONS = {
+  KALSA_IROH_DEADLINE: "deadline",
+  KALSA_IROH_ABORTED: "aborted",
+  KALSA_IROH_NO_MODULE: "no_module",
+  KALSA_IROH_LINKAGE: "linkage",
+  KALSA_IROH_INVALID_NODE_HEX: "invalid_node",
+  KALSA_IROH_TRANSPORT: "connect_refused",
+  KALSA_IROH_IO: "other",
+  KALSA_IROH_ENTROPY: "other",
+  KALSA_IROH_KEY_CORRUPT: "other",
+  KALSA_IROH_CONFIG: "other",
+  KALSA_IROH_CLOSED: "other",
+  KALSA_IROH_ASYNC_CONTEXT: "other",
+  KALSA_IROH_OTHER: "other",
+} as const satisfies Record<string, IrohDialReason>;
 
 export type RoadChoice =
   | { road: "https"; reason: HttpsRoadReason }
@@ -41,16 +68,50 @@ export function chooseRoad(
 }
 
 /**
- * Exactly one KALSA_ROAD line per door operation, always-on like
- * KALSA_PAIRING_FAIL: road, reason, and at most the node's first 8 hex —
- * never a URL, a credential, or the full node id.
+ * Record a road choice that does not attempt an iroh dial.
  */
 export function logRoadDecision(road: Road, reason: RoadReason, node: string | null | undefined): void {
+  const line: Record<string, string> = { road, reason };
+  if (isValidNodeHex(node)) line.node8 = node.slice(0, 8);
+  emitRoadLine(line);
+}
+
+/** Map only the native rejection code; its message may contain private details. */
+export function irohDialReason(error: unknown): Exclude<IrohDialReason, "ok"> {
+  if (!error || typeof error !== "object") return "other";
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string" || !Object.prototype.hasOwnProperty.call(IROH_DIAL_ERROR_REASONS, code)) {
+    return "other";
+  }
+  return IROH_DIAL_ERROR_REASONS[code as keyof typeof IROH_DIAL_ERROR_REASONS];
+}
+
+/** One privacy-safe timing line for each native tunnel dial attempt. */
+export function logIrohDial(
+  lane: DialLane,
+  node: string,
+  reason: IrohDialReason,
+  elapsedMs: number,
+): void {
   try {
-    const line: Record<string, string> = { road, reason };
+    const line: Record<string, string | number> = {
+      road: "iroh",
+      lane,
+      stage: "dial",
+      reason,
+      ms: Math.max(0, Math.round(elapsedMs)),
+    };
     if (isValidNodeHex(node)) line.node8 = node.slice(0, 8);
+    emitRoadLine(line);
+  } catch {
+    // Invalid input must never change the dial result.
+  }
+}
+
+function emitRoadLine(line: Record<string, string | number>): void {
+  try {
     console.log("KALSA_ROAD", JSON.stringify(line));
   } catch {
-    // Logging must never change the road.
+    // Logging must never change a road decision.
   }
 }

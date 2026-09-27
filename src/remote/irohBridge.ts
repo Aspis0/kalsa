@@ -8,6 +8,7 @@
 import type { IrohLane } from "../../modules/kalsa-iroh/src/index";
 import type { IrohTunnel } from "./irohHttp";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "../util/base64";
+import { irohDialReason, logIrohDial } from "./road";
 
 type IrohModule = typeof import("../../modules/kalsa-iroh/src/index");
 
@@ -48,6 +49,10 @@ function ensureStarted(module: IrohModule): Promise<void> {
   return started;
 }
 
+function dialError(code: string, message: string): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
 /**
  * The native dial has no deadline of its own: race it against the caller's
  * signal — which carries the confirmation poll's deadline, its per-probe
@@ -61,14 +66,16 @@ function raceDial(
   module: IrohModule,
 ): Promise<number> {
   if (signal === undefined) return dial();
-  if (signal.aborted === true) return Promise.reject(new Error("dial aborted"));
+  if (signal.aborted === true) {
+    return Promise.reject(dialError("KALSA_IROH_ABORTED", "dial aborted"));
+  }
   return new Promise<number>((resolve, reject) => {
     let settled = false;
     const onAbort = () => {
       if (settled) return;
       settled = true;
       signal.removeEventListener("abort", onAbort);
-      reject(new Error("dial aborted"));
+      reject(dialError("KALSA_IROH_ABORTED", "dial aborted"));
     };
     signal.addEventListener("abort", onAbort);
     dial().then(
@@ -102,19 +109,33 @@ export async function openIrohTunnel(
   lane: IrohLane,
   signal?: AbortSignal,
 ): Promise<IrohTunnel> {
-  const module = loadModule();
-  if (module === null) throw new Error("iroh module unavailable");
-  await ensureStarted(module);
-  const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);
-  let closed = false;
-  return {
-    write: (bytes, timeoutMs) => module.tunnelWrite(id, uint8ArrayToBase64(bytes), timeoutMs),
-    read: async (max, timeoutMs) =>
-      base64ToUint8Array(await module.tunnelRead(id, max, timeoutMs)),
-    shutdown: async () => {
-      if (closed) return;
-      closed = true;
-      await module.tunnelShutdown(id);
-    },
-  };
+  const startedAt = Date.now();
+  try {
+    const module = loadModule();
+    if (module === null) {
+      throw dialError("KALSA_IROH_NO_MODULE", "iroh module unavailable");
+    }
+    await ensureStarted(module);
+    const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);
+    logIrohDial(lane, nodeHex, "ok", Date.now() - startedAt);
+    let closed = false;
+    return {
+      write: (bytes, timeoutMs) => module.tunnelWrite(id, uint8ArrayToBase64(bytes), timeoutMs),
+      read: async (max, timeoutMs) =>
+        base64ToUint8Array(await module.tunnelRead(id, max, timeoutMs)),
+      shutdown: async () => {
+        if (closed) return;
+        closed = true;
+        await module.tunnelShutdown(id);
+      },
+    };
+  } catch (error) {
+    logIrohDial(
+      lane,
+      nodeHex,
+      signal?.aborted === true ? "aborted" : irohDialReason(error),
+      Date.now() - startedAt,
+    );
+    throw error;
+  }
 }

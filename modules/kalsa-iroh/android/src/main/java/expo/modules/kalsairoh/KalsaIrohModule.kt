@@ -5,6 +5,7 @@ import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import uniffi.kalsa_iroh_mobile.Lane
+import uniffi.kalsa_iroh_mobile.IrohMobileException
 import uniffi.kalsa_iroh_mobile.MobileBridge
 import uniffi.kalsa_iroh_mobile.Tunnel
 import java.io.File
@@ -118,7 +119,7 @@ class KalsaIrohModule : Module() {
           // The interface's reject takes all three; the message is the
           // crate's own (never key material) or a class name.
           promise.reject(
-            "KALSA_IROH",
+            rejectionCode(e),
             e.message ?: e::class.simpleName ?: "native error",
             null,
           )
@@ -126,8 +127,22 @@ class KalsaIrohModule : Module() {
       }
     } catch (e: Throwable) {
       // The pool is shut down or saturated beyond its queue: the call never ran.
-      promise.reject("KALSA_IROH", e.message ?: "could not submit the native call", null)
+      promise.reject(rejectionCode(e), e.message ?: "could not submit the native call", null)
     }
+  }
+
+  private fun rejectionCode(error: Throwable): String = when (error) {
+    is IrohMobileException.Deadline -> "KALSA_IROH_DEADLINE"
+    is IrohMobileException.InvalidNodeHex -> "KALSA_IROH_INVALID_NODE_HEX"
+    is IrohMobileException.Transport -> "KALSA_IROH_TRANSPORT"
+    is IrohMobileException.Io -> "KALSA_IROH_IO"
+    is IrohMobileException.Entropy -> "KALSA_IROH_ENTROPY"
+    is IrohMobileException.KeyCorrupt -> "KALSA_IROH_KEY_CORRUPT"
+    is IrohMobileException.Config -> "KALSA_IROH_CONFIG"
+    is IrohMobileException.Closed -> "KALSA_IROH_CLOSED"
+    is IrohMobileException.AsyncContext -> "KALSA_IROH_ASYNC_CONTEXT"
+    is LinkageError -> "KALSA_IROH_LINKAGE"
+    else -> "KALSA_IROH_OTHER"
   }
 
   private fun startBridgeAtFilesDir(): MobileBridge {

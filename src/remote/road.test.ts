@@ -1,4 +1,14 @@
-import { chooseRoad, isValidNodeHex, logRoadDecision } from "./road";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+import {
+  chooseRoad,
+  irohDialReason,
+  IROH_DIAL_ERROR_REASONS,
+  isValidNodeHex,
+  logIrohDial,
+  logRoadDecision,
+} from "./road";
 
 const NODE = "ab".repeat(32);
 
@@ -49,25 +59,16 @@ describe("the KALSA_ROAD line", () => {
   };
 
   test("an iroh line carries road, reason and at most the node's first 8 hex", () => {
-    logRoadDecision("iroh", "connected", NODE);
+    logRoadDecision("iroh", "module_absent", NODE);
     const calls = log.mock.calls.filter((args) => args[0] === "KALSA_ROAD");
     expect(calls).toHaveLength(1);
     const payload = calls[0][1] as string;
     expect(JSON.parse(payload)).toEqual({
       road: "iroh",
-      reason: "connected",
+      reason: "module_absent",
       node8: NODE.slice(0, 8),
     });
     expect(payload).not.toContain(NODE);
-  });
-
-  test("a fallback line names connect_failed and keeps the node truncated", () => {
-    logRoadDecision("https", "connect_failed", NODE);
-    expect(lastLine()).toEqual({
-      road: "https",
-      reason: "connect_failed",
-      node8: NODE.slice(0, 8),
-    });
   });
 
   test("an HTTPS line without a node carries no node field at all", () => {
@@ -84,5 +85,70 @@ describe("isValidNodeHex", () => {
     expect(isValidNodeHex(null)).toBe(false);
     expect(isValidNodeHex(undefined)).toBe(false);
     expect(isValidNodeHex(42)).toBe(false);
+  });
+});
+
+describe("iroh dial diagnostic", () => {
+  test.each([
+    ["KALSA_IROH_DEADLINE", "deadline"],
+    ["KALSA_IROH_ABORTED", "aborted"],
+    ["KALSA_IROH_NO_MODULE", "no_module"],
+    ["KALSA_IROH_LINKAGE", "linkage"],
+    ["KALSA_IROH_INVALID_NODE_HEX", "invalid_node"],
+    ["KALSA_IROH_TRANSPORT", "connect_refused"],
+    ["KALSA_IROH_IO", "other"],
+    ["KALSA_IROH_ENTROPY", "other"],
+    ["KALSA_IROH_KEY_CORRUPT", "other"],
+    ["KALSA_IROH_CONFIG", "other"],
+    ["KALSA_IROH_CLOSED", "other"],
+    ["KALSA_IROH_ASYNC_CONTEXT", "other"],
+    ["KALSA_IROH_OTHER", "other"],
+  ])("maps code %s to %s", (code, reason) => {
+    expect(irohDialReason({ code, message: "raw error is ignored" })).toBe(reason);
+  });
+
+  test("an unknown or missing code maps to other", () => {
+    expect(irohDialReason({ code: "SOME_NEW_NATIVE_CODE" })).toBe("other");
+    expect(irohDialReason(new Error("deadline fired"))).toBe("other");
+    expect(Object.values(IROH_DIAL_ERROR_REASONS)).not.toContain(undefined);
+  });
+
+  test("every Kotlin rejection code has a closed-enum mapping", () => {
+    const kotlin = readFileSync(
+      join(__dirname, "../../modules/kalsa-iroh/android/src/main/java/expo/modules/kalsairoh/KalsaIrohModule.kt"),
+      "utf8",
+    );
+    const nativeCodes = [...new Set(kotlin.match(/"KALSA_IROH_[A-Z_]+"/g) ?? [])];
+    expect(nativeCodes).toHaveLength(11);
+    for (const literal of nativeCodes) {
+      expect(IROH_DIAL_ERROR_REASONS).toHaveProperty(literal.slice(1, -1));
+    }
+  });
+
+  test("one line includes only diagnostic fields and the node8 prefix", () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const credential = "credential-secret";
+    const code = "pairing-code-secret";
+    const nonce = "pairing-nonce-secret";
+    const rawError = "private native error";
+    logIrohDial("desk", NODE, "connect_refused", 123.4);
+
+    expect(log).toHaveBeenCalledTimes(1);
+    const [tag, serialized] = log.mock.calls[0] as [string, string];
+    expect(tag).toBe("KALSA_ROAD");
+    const payload = JSON.parse(serialized) as Record<string, unknown>;
+    expect(payload).toEqual({
+      road: "iroh",
+      lane: "desk",
+      stage: "dial",
+      reason: "connect_refused",
+      ms: 123,
+      node8: NODE.slice(0, 8),
+    });
+    expect(serialized).not.toContain(NODE);
+    for (const secret of [credential, code, nonce, rawError]) {
+      expect(serialized).not.toContain(secret);
+    }
+    log.mockRestore();
   });
 });

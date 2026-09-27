@@ -76,4 +76,38 @@ describe("the iroh dial race", () => {
     expect(shutdownMock).toHaveBeenCalledTimes(1);
     expect(shutdownMock).toHaveBeenCalledWith(11);
   });
+
+  test.each(["desk", "door"] as const)("a successful %s dial emits exactly one timed line", async (lane) => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    openTunnelMock.mockResolvedValue(21);
+
+    await openIrohTunnel(NODE, lane);
+
+    const lines = log.mock.calls.filter((call) => call[0] === "KALSA_ROAD");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0][1] as string)).toEqual({
+      road: "iroh",
+      lane,
+      stage: "dial",
+      reason: "ok",
+      ms: expect.any(Number),
+      node8: NODE.slice(0, 8),
+    });
+    log.mockRestore();
+  });
+
+  test("a native dial rejection emits exactly one mapped line without its raw message", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    openTunnelMock.mockRejectedValue(
+      Object.assign(new Error("private peer detail"), { code: "KALSA_IROH_DEADLINE" }),
+    );
+
+    await expect(openIrohTunnel(NODE, "desk")).rejects.toThrow("private peer detail");
+
+    const lines = log.mock.calls.filter((call) => call[0] === "KALSA_ROAD");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][1]).toContain('"reason":"deadline"');
+    expect(lines[0][1]).not.toContain("private peer detail");
+    log.mockRestore();
+  });
 });

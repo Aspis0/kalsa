@@ -1,8 +1,8 @@
 /**
  * The door road for one operation (a probe or one chat turn): chosen from
  * the paired credential's node plus the runtime module, established with
- * exactly one connect whose tunnel carries the operation's first request,
- * and recorded as exactly one KALSA_ROAD line.
+ * one connect whose tunnel carries the operation's first request. Every
+ * native dial records its own KALSA_ROAD timing line in `irohBridge.ts`.
  *
  * Fallback rule: HTTPS is a road only for a credential whose PAIRING went
  * over HTTPS to the saved URLs (pairedVia "https") — that ceremony proved
@@ -84,10 +84,8 @@ export async function establishDoorRoad(
     // KALSA_ROAD line, no fallback decision.
     if (aborted()) throw abortedError();
     if (door.pairedVia === "https") {
-      logRoadDecision("https", "connect_failed", choice.node);
       return { road: "https" };
     }
-    logRoadDecision("iroh", "connect_failed", choice.node);
     throw connectionError();
   }
   if (aborted()) {
@@ -95,7 +93,6 @@ export async function establishDoorRoad(
     await firstTunnel.shutdown();
     throw abortedError();
   }
-  logRoadDecision("iroh", "connected", choice.node);
   return {
     road: "iroh",
     node: choice.node,
