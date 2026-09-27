@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
 import { available, invoke } from "../lib/tauri";
+import { lastKnown } from "../lib/slotGate";
 // ONE declaration of `brain_state`'s answer, shared with the poll every other
 // surface reads. A local copy of `kind` here is how "stopping" was read as
 // "could not tell": the DTO moved and this page's second declaration did not.
@@ -35,7 +36,10 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
           next = null;
         }
       }
-      setState(next);
+      // A read that rejected — or one that answered nothing — keeps what
+      // this page already knows; only a page that never had an answer shows
+      // the "could not check" sentence.
+      setState((previous) => lastKnown(previous, next));
     }
     void refresh();
     const timer = setInterval(() => void refresh(), POLL_MS);

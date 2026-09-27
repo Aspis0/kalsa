@@ -232,7 +232,17 @@ const scenarios = [
   // retry. And a read that rejects AFTER an answer must leave that answer on
   // screen — the poll is what would otherwise blank the square.
   ["Pairing", "the first read has not answered yet", "devices", { pairingSilent: true }],
+  // The bound: silence stops being "still checking" after 8 s (the page's
+  // own FIRST_READ_BOUND_MS) and becomes a failure with a retry, so this
+  // card waits past it before it is read.
+  ["Pairing", "the first read hangs past the bound", "devices", { pairingSilent: true, waitMs: 9000 }],
+  // Outside the webview nothing can be asked, so the same failure stands
+  // with no Try again — a button with no command behind it.
+  ["Pairing", "there is no app behind the page", "devices", { available: false }],
   ["Pairing", "a later pairing read fails and the answer stands", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), pairingFailsAfter: true, waitMs: 3000 }],
+  // A read that ANSWERS nothing is not "there is nothing": the command came
+  // back with no DTO, and the square on screen must survive it too.
+  ["Pairing", "a later pairing read answers nothing", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), pairingNullAfter: true, waitMs: 3000 }],
   // The first page's arms: each state through setupArm — the mapping App
   // runs — so a scenario pins the mapping AND the words the page that fixes
   // that arm already shows. Titles carry the arm; smoke-react checks both.
@@ -262,10 +272,13 @@ function installBridge() {
           invoke(command) {
             if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
             if (command === "brain_pairing") {
-              // Two shapes a real first open takes: a read that has not
-              // answered yet (it awaits two Tailscale CLI calls), and reads
-              // that start failing once an answer is already on screen.
+              // The shapes a real open takes: a read that has not answered
+              // yet (it awaits two Tailscale CLI calls), and reads after the
+              // first answer that come back empty or rejected.
               if (bridgeState.pairingSilent) return new Promise(() => {});
+              if (bridgeState.pairingNullAfter && pairingReads++ > 0) {
+                return Promise.resolve(null);
+              }
               if (bridgeState.pairingFailsAfter && pairingReads++ > 0) {
                 return Promise.reject(new Error("stub: the pairing read rejected"));
               }

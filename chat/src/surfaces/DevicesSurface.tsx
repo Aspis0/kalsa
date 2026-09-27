@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SurfaceKey } from "../app/surfaces";
+import { lastKnown } from "../lib/slotGate";
 import { available, invoke } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
+// The first read awaits two Tailscale CLI calls, 2 s timeout each: this is
+// where "still checking" becomes a failure the owner can act on. It also
+// releases a read that hung, so the next tick can ask again.
+const FIRST_READ_BOUND_MS = 8000;
 
 // The approved ways to say the square is the way in, that it was replaced,
 // and who may use it. dev/smoke-react.mjs keeps its own copy of these on the
@@ -150,21 +155,6 @@ function tailscaleNote(
   return `Run for Tailscale: ${commands}. ${where}${moved}`;
 }
 
-// What this page knows: still waiting on the first read, an answer to draw,
-// or a read that failed with nothing behind it. The first read takes seconds
-// (two Tailscale CLI calls), so "no answer yet" must not be drawn as "the
-// check failed".
-type Answer =
-  | { status: "checking" }
-  | { status: "answered"; state: PairingState }
-  | { status: "failed" };
-
-// A read that rejects keeps what this page already knows — a poll failing
-// mid-session must not blank a square that is on screen. With no answer to
-// keep there is only the failure.
-const keepOrFail = (previous: Answer): Answer =>
-  previous.status === "answered" ? previous : { status: "failed" };
-
 interface DevicesSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
@@ -174,27 +164,66 @@ interface DevicesSurfaceProps {
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
-  const [answer, setAnswer] = useState<Answer>({ status: "checking" });
+  // The last pairing answer this page knows. A read that rejects, or one
+  // that answers nothing, leaves it standing: "I could not ask" is not
+  // "there is no phone connected".
+  const [state, setState] = useState<PairingState | null>(null);
+  // The first read has settled — answered, rejected, or past the bound.
+  // Until then the page is checking, which is not a failure.
+  const [settled, setSettled] = useState(false);
+  // One read at a time: a poll tick during a slow read is skipped, so two
+  // answers cannot race. The generation numbers each read, so a reply from a
+  // read the bound already released is dropped instead of landing over a
+  // newer answer, and `live` keeps a late reply off an unmounted page.
+  const inFlight = useRef(false);
+  const generation = useRef(0);
+  const live = useRef(false);
 
   const refresh = useCallback(async (): Promise<void> => {
-    // No Tauri here: nothing can be asked, so the page says the check could
-    // not run rather than waiting on a command that never starts.
+    if (!live.current || inFlight.current) return;
+    inFlight.current = true;
+    const mine = ++generation.current;
+    const stillMine = (): boolean => live.current && mine === generation.current;
+    // No Tauri here: nothing can be asked. Settling keeps the page from
+    // saying "checking" forever, and the failure below offers no Try again,
+    // which could not work either.
     if (!available()) {
-      setAnswer(keepOrFail);
+      inFlight.current = false;
+      setSettled(true);
       return;
     }
+    // A read that has not answered by the bound stops holding the lock, the
+    // page stops waiting on it, and whatever it says later is no longer this
+    // page's next answer.
+    const bound = setTimeout(() => {
+      if (!stillMine()) return;
+      generation.current += 1;
+      inFlight.current = false;
+      setSettled(true);
+    }, FIRST_READ_BOUND_MS);
     try {
-      const next = await invoke<PairingState>("brain_pairing");
-      setAnswer(next ? { status: "answered", state: next } : { status: "failed" });
+      const next = await invoke<PairingState | null>("brain_pairing");
+      if (!stillMine()) return;
+      setState((previous) => lastKnown(previous, next));
+      setSettled(true);
     } catch {
-      setAnswer(keepOrFail);
+      // The command rejected: what this page already knows stands.
+      if (!stillMine()) return;
+      setSettled(true);
+    } finally {
+      clearTimeout(bound);
+      if (mine === generation.current) inFlight.current = false;
     }
   }, []);
 
   useEffect(() => {
+    live.current = true;
     void refresh();
     const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
+    return () => {
+      live.current = false;
+      clearInterval(timer);
+    };
   }, [refresh]);
 
   function retry(): void {
@@ -239,16 +268,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   let onAlt: () => void = () => {};
   let devices: PairedDevice[] = [];
 
-  if (answer.status === "checking") {
-    // Still the first read: say so plainly and offer no retry — there is
-    // nothing to retry yet, and "could not check" would be false.
-    sentence = "Checking for your phone…";
-  } else if (answer.status === "failed") {
-    onAction = () => void refresh();
-    sentence = "This page could not check whether a phone is connected. Trying again usually works.";
-    button = "Try again";
-  } else {
-    const state = answer.state;
+  if (state !== null) {
     switch (state.state) {
       case "idle":
         onAction = () => onNavigate("server");
@@ -316,6 +336,19 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         onAction = () => void refresh();
         sentence = "This page could not check whether a phone is connected. Trying again usually works.";
         button = "Try again";
+    }
+  } else if (!settled) {
+    // Still the first read: say so plainly and offer no retry — there is
+    // nothing to retry yet, and "could not check" would be false.
+    sentence = "Checking for your phone…";
+  } else {
+    // Settled with nothing to show: the read rejected, hung past the bound,
+    // or cannot run at all. "Try again" is offered only where a retry can
+    // actually ask — outside the webview there is nothing to ask.
+    sentence = "This page could not check whether a phone is connected. Trying again usually works.";
+    if (available()) {
+      onAction = () => void refresh();
+      button = "Try again";
     }
   }
 

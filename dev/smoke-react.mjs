@@ -269,10 +269,12 @@ async function loadRenderer() {
   return { dir, renderer };
 }
 
+// The hung-first-read card waits out the page's 8 s bound, so this run is
+// measured in tens of seconds rather than the few it used to take.
 const timeout = setTimeout(() => {
   console.error("React smoke timed out");
   process.exit(2);
-}, 30000);
+}, 60000);
 
 try {
   installDom();
@@ -398,6 +400,13 @@ try {
   }
   if (/!/.test(allText)) problems.push("exclamation mark");
 
+  // The two sentences a Devices card may stand on with no button to press:
+  // the first pairing read is still in flight — nothing to retry, no failure
+  // to report yet — and the check that cannot run at all, where offering
+  // "Try again" would be a button with nothing behind it.
+  const CHECKING = "Checking for your phone…";
+  const COULD_NOT_CHECK = "This page could not check whether a phone is connected.";
+
   const NOTHING = [
     "nothing for you to do here",
     "Open the app on this computer",
@@ -405,9 +414,8 @@ try {
     "A phone is connecting right now",
     "This computer now works with",
     "will appear here in a moment",
-    // The first pairing read is still in flight: there is nothing to retry
-    // and no failure to report yet.
-    "Checking for your phone…",
+    CHECKING,
+    COULD_NOT_CHECK,
     "Looking at what this computer",
     "Finding the version of the engine",
     "can take a minute",
@@ -630,7 +638,6 @@ try {
   }
 
   const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
-  const CHECKING = "Checking for your phone…";
   const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";
   const REPAIR_PRIMARY = "Pair another phone";
   const CANCEL_PRIMARY = "Cancel";
@@ -668,6 +675,23 @@ try {
     if (heading.includes("a later pairing read fails")) {
       if (!sentence.includes("now works with")) problems.push(`a read that rejects must keep the answer already on screen: ${heading}`);
       if (all.includes("could not check")) problems.push(`a rejecting read must not draw the failure sentence over an answer: ${heading}`);
+    }
+    if (heading.includes("a later pairing read answers nothing")) {
+      if (!sentence.includes("now works with")) problems.push(`a read that answers nothing must keep the answer already on screen: ${heading}`);
+      if (all.includes("could not check")) problems.push(`a null answer must not be read as a failed check: ${heading}`);
+    }
+    // Past the bound, silence is no longer "still checking": the page falls
+    // to the failure with a retry that can run. And where there is no app to
+    // ask at all, that same failure stands with no retry, because nothing
+    // could answer it.
+    if (heading.includes("the first read hangs past the bound")) {
+      if (!all.includes(COULD_NOT_CHECK)) problems.push(`a first read past its bound must fall to the failure sentence: ${heading}`);
+      if (!buttons.includes("Try again")) problems.push(`a first read past its bound must offer Try again: ${heading}`);
+      if (all.includes(CHECKING)) problems.push(`a first read past its bound must stop saying it is checking: ${heading}`);
+    }
+    if (heading.includes("there is no app behind the page")) {
+      if (!all.includes(COULD_NOT_CHECK)) problems.push(`a page with no app to ask must say the check could not run: ${heading}`);
+      if (buttons.length > 0) problems.push(`a page with no app to ask must offer no retry: ${heading}`);
     }
     // The approval gate: a waiting phone's row says so and offers the two
     // owner decisions.

@@ -7,6 +7,7 @@ import type { Capability } from "./MachineCard";
 import { FirstRun } from "./FirstRun";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
+import { lastKnown } from "../lib/slotGate";
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
 import "./surfaces.css";
 import "./BrainSurface.css";
@@ -83,10 +84,10 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
         setCapability(next);
       })
       .catch(() => {
-        // A read that failed leaves the card off the page rather than
-        // showing a machine that was never measured — but the answer before
-        // it still stands for the legacy check below.
-        if (live) setCapability(null);
+        // A read that failed is not a machine that was never measured: the
+        // answer before it stands, and only a page that never had one stays
+        // blank — which is what keeps a failed first read off the screen.
+        if (live) setCapability((previous) => lastKnown(previous, null));
       });
     return () => {
       live = false;
