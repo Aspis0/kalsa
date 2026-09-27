@@ -160,10 +160,14 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   const run = async (scanned?: PairingSquare) => {
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
-    // A scanned tailnet names both addresses itself (door = the URL, desk =
-    // same origin on :8443, through the same prefill both typed fields use);
-    // otherwise the typed fields are the addresses.
-    const scannedUrls = scanned?.tailnet ? pairingUrlPrefill(scanned.tailnet) : null;
+    // Address resolution: a scan brings its own addresses (tailnet) or
+    // means the configured prefill — never the previous scan's tailnet-
+    // derived host; a manual run uses the typed fields.
+    const scannedUrls = scanned
+      ? scanned.tailnet
+        ? pairingUrlPrefill(scanned.tailnet)
+        : prefill
+      : null;
     const doorUrl = scannedUrls ? scannedUrls.doorUrl : fields.doorUrl;
     const deskUrl = scannedUrls ? scannedUrls.deskUrl : fields.deskUrl;
     if (!isAllowedPairingUrl(doorUrl)) {
@@ -186,7 +190,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
       // A tailnet-derived address was never typed, never confirmed: say
       // whose host this claim goes to, and keep saying it through the wait.
       if (scanned) {
-        setPairHost(scannedUrls ? new URL(doorUrl).host : null);
+        setPairHost(scanned.tailnet ? new URL(doorUrl).host : null);
       }
       const square = scanned ?? fields;
       const existing = sessionRef.current;
@@ -258,8 +262,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone }
   // leaves a pending completion retry intact.
   const acceptScannedSquare = (square: PairingSquare) => {
     setScanning(false);
-    const scannedUrls = square.tailnet ? pairingUrlPrefill(square.tailnet) : null;
-    setFields((current) => ({ ...current, ...square, ...(scannedUrls ?? {}) }));
+    // The square brings its own addresses (tailnet) or means the configured
+    // prefill — a scan never inherits the previous scan's tailnet host,
+    // or the claim would go there without the status naming it.
+    const scannedUrls = square.tailnet ? pairingUrlPrefill(square.tailnet) : prefill;
+    setFields((current) => ({ ...current, ...square, ...scannedUrls }));
     void run(square);
   };
 

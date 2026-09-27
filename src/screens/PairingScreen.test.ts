@@ -417,6 +417,71 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("a second scan without a tailnet resets the addresses to the configured prefill", async () => {
+    const { urls } = installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+        tailnet: "https://paired.example.ts.net",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(urls).toEqual([
+      "https://paired.example.ts.net:8443/pair/claim",
+      "https://paired.example.ts.net:8443/pair/complete",
+    ]);
+    expect(renderer.root.findByProps({ testID: "pairing.withHost" })).toBeDefined();
+
+    // The confirmation gives up: the scan button comes back.
+    await act(async () => {
+      mockConfirmControl.resolve?.({ result: "not_confirmed" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.notConfirmed" })).toBeDefined();
+
+    // Scan #2 carries no tailnet: the addresses are the configured prefill
+    // again — the previous scan's host is neither used nor named.
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const secondScanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      secondScanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node: "",
+        tailnet: "",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(urls.slice(2)).toEqual([
+      "https://desktop.tailnet.ts.net:8443/pair/claim",
+      "https://desktop.tailnet.ts.net:8443/pair/complete",
+    ]);
+    expect(renderer.root.findByProps({ testID: "pairing.doorUrl" }).props.value)
+      .toBe("https://desktop.tailnet.ts.net");
+    expect(renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.value)
+      .toBe("https://desktop.tailnet.ts.net:8443");
+    // The host line is gone: this claim goes where the fields say.
+    expect(renderer.root.findAllByProps({ testID: "pairing.withHost" })).toHaveLength(0);
+    expect(saveCredentialMock).toHaveBeenLastCalledWith(
+      new Uint8Array(32).fill(0xab),
+      "https://desktop.tailnet.ts.net",
+      { node: "", pairedVia: "https" },
+    );
+    await act(async () => renderer.unmount());
+  });
+
   test("unmounting with a desk request in flight aborts it and closes its tunnel", async () => {
     const node = "ab".repeat(32);
     (irohModulePresent as jest.Mock).mockReturnValue(true);
