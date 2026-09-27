@@ -421,6 +421,13 @@ model is a semantic emulation (glob over the raw command string), not an
 execution of pgrep. `dryrun-adb.sh` is declared at 386 lines (over the ~350
 indicative) — kept whole; splitting it now would move lines only for a number.
 
+**Note on `AUDIT4-dd6bdb56.md`** (arrived mid-round, verdict "SÌ — nessun
+blocker"; committed with this round as cell evidence): its two mediums are
+NOT yet addressed — N-A1 (a valid pin rejected because the serial is an
+alias of this board's) and N-A2 (the G/N buf-collision check is skipped when
+either `buf` is `?`) — awaiting instruction, as this round's brief covered
+the self-match defect only.
+
 ## Declared, not touched
 
 Nothing pre-existing was refactored: `../qdc-heat-per-backend/*` and
