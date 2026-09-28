@@ -6,7 +6,8 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use super::{
     add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
     forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
-    publish_json, replace, temp_path, Delivery, DeviceKind, StoreError, HOST_LABEL,
+    add_or_replace_by_install, publish_json, replace, temp_path, Delivery, DeviceKind, StoreError,
+    HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -942,3 +943,203 @@ fn every_target_stages_beside_its_own_name() {
     );
     fs::remove_dir_all(&dir).unwrap();
 }
+
+/// The sealed response a phone could collect: the same shape every test
+/// builds, only the token differs.
+fn a_delivery(token: &str) -> Delivery {
+    let seal = seal_computer(
+        &[0x31u8; 16],
+        &[0x32u8; 32],
+        &Credential::from_hex(&"33".repeat(32)).unwrap(),
+    );
+    Delivery::new(token, seal, UNIX_EPOCH + Duration::from_secs(60)).unwrap()
+}
+
+#[test]
+fn the_same_install_id_replaces_the_phone_in_place() {
+    let dir = scratch("install-same");
+    let path = dir.join("pairing.json");
+    let first = sample_handshake();
+    let second = sample_handshake_with_credential(&"11".repeat(32));
+    let install = Some("d0".repeat(16));
+
+    add_or_replace_by_install(
+        &path,
+        "Paired phone",
+        &first,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    let id = load_devices(&path).unwrap()[0].id;
+
+    // The same phone pairs again: the seat it already holds, swapped in
+    // place — never a second row for one phone.
+    add_or_replace_by_install(
+        &path,
+        "Paired phone 2",
+        &second,
+        a_delivery(&"55".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1, "one phone, one seat");
+    assert_eq!(devices[0].id, id);
+    assert_eq!(
+        devices[0].label, "Paired phone",
+        "the owner's label and number stay"
+    );
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        second.credential_hex(),
+        "the new credential is the one in the store"
+    );
+    assert!(
+        devices[0].waiting,
+        "a re-paired credential waits for the owner, like any other"
+    );
+    assert_eq!(
+        devices[0].delivery.as_ref().unwrap().token(),
+        &"55".repeat(16),
+        "the old retained response went with the old credential"
+    );
+
+    // The old credential is nowhere in the file, and that IS its
+    // revocation: the door serves exactly what the store holds.
+    let on_disk = fs::read_to_string(&path).unwrap();
+    assert!(
+        !on_disk.contains(&first.credential_hex()),
+        "the old credential must be gone"
+    );
+    assert!(on_disk.contains(&second.credential_hex()));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_different_install_id_adds_a_second_phone() {
+    let dir = scratch("install-different");
+    let path = dir.join("pairing.json");
+    let one = "aa".repeat(16);
+    let two = "bb".repeat(16);
+    add_or_replace_by_install(
+        &path,
+        "Phone one",
+        &sample_handshake(),
+        a_delivery(&"44".repeat(16)),
+        Some(one.as_str()),
+    )
+    .unwrap();
+    add_or_replace_by_install(
+        &path,
+        "Phone two",
+        &sample_handshake_with_credential(&"11".repeat(32)),
+        a_delivery(&"55".repeat(16)),
+        Some(two.as_str()),
+    )
+    .unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "another phone is another seat");
+    assert_eq!(devices[0].label, "Phone one");
+    assert_eq!(devices[1].label, "Phone two");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn no_install_id_adds_a_second_phone() {
+    let dir = scratch("install-absent");
+    let path = dir.join("pairing.json");
+    add_or_replace_by_install(
+        &path,
+        "First",
+        &sample_handshake(),
+        a_delivery(&"44".repeat(16)),
+        None,
+    )
+    .unwrap();
+    add_or_replace_by_install(
+        &path,
+        "Second",
+        &sample_handshake_with_credential(&"11".repeat(32)),
+        a_delivery(&"55".repeat(16)),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(load_devices(&path).unwrap().len(), 2);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_malformed_install_id_adds_a_second_phone() {
+    // The wire refuses a malformed id before the store ever sees one; if a
+    // caller passes one anyway it is no id, so it matches nothing — two
+    // phones carrying the same garbage must not become one seat.
+    let dir = scratch("install-malformed");
+    let path = dir.join("pairing.json");
+    let malformed = Some("D0".repeat(16));
+    add_or_replace_by_install(
+        &path,
+        "First",
+        &sample_handshake(),
+        a_delivery(&"44".repeat(16)),
+        malformed.as_deref(),
+    )
+    .unwrap();
+    add_or_replace_by_install(
+        &path,
+        "Second",
+        &sample_handshake_with_credential(&"11".repeat(32)),
+        a_delivery(&"55".repeat(16)),
+        malformed.as_deref(),
+    )
+    .unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "a malformed id is no id at all");
+    assert!(!fs::read_to_string(&path).unwrap().contains("install_id"));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_record_without_an_install_id_loads_and_adds() {
+    // A file from before this field: it loads as it is, its phone has no
+    // install id, and a phone that pairs against it is a second seat — the
+    // same answer as any phone that sent none.
+    let dir = scratch("install-old-file");
+    let path = dir.join("pairing.json");
+    let credential = "ab".repeat(32);
+    let phone = r#"{"weights_bytes":1,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}"#;
+    fs::write(
+        &path,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":3,"label":"Paired phone","credential_hex":"{credential}","phone":{phone}}}]}}"#
+        ),
+    )
+    .unwrap();
+
+    let old = load_devices(&path).unwrap();
+    assert_eq!(old.len(), 1);
+    assert_eq!(old[0].label, "Paired phone");
+
+    let install = "d0".repeat(16);
+    add_or_replace_by_install(
+        &path,
+        "Second",
+        &sample_handshake(),
+        a_delivery(&"44".repeat(16)),
+        Some(install.as_str()),
+    )
+    .unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "the old record keeps its seat, the new phone takes another");
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        old[0].handshake.credential_hex(),
+        "the old seat keeps its credential"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+

@@ -46,7 +46,7 @@
 
 use getrandom::fill;
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::Sha256;
 use std::fmt;
 use subtle::ConstantTimeEq;
@@ -143,6 +143,42 @@ pub struct PhoneDeclaration {
     /// Stable for this pairing attempt so a retry may carry a fresh
     /// measurement without becoming a different claimant.
     pub(crate) delivery_token: String,
+    /// The phone app's identity for this installation, sent beside the MAC
+    /// and never inside it: this desk compares it as a string and never
+    /// derives it. `None` when the square or link carried no node to put in
+    /// the derivation, and `None` again for a value this ceremony would not
+    /// have written — wrong length, wrong case, not hex — because a
+    /// malformed identity is no identity, never a reason to refuse a phone
+    /// that completed its ceremony.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "install_id_or_none"
+    )]
+    pub(crate) install_id: Option<String>,
+}
+
+/// Exactly what the phone sends: 32 lowercase hex characters, or nothing.
+/// Anything else arrives as absent — the same wire, the same result, no
+/// error and no refusal — because a malformed identity must not be able to
+/// fail a completion, nor to match a device either.
+fn install_id_or_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(raw.filter(|value| is_install_id(value)))
+}
+
+/// One install id as this desk accepts it: 32 lowercase hex characters.
+/// The phone derives it (HMAC over the desk's node); this side only ever
+/// compares the string, so the derivation is never reproduced here.
+/// Shared with the store, the one other place that compares one.
+pub(crate) fn is_install_id(value: &str) -> bool {
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 impl PhoneDeclaration {
@@ -202,6 +238,14 @@ impl PhoneDeclaration {
         &self.delivery_token
     }
 
+    /// The phone's install identity, when it sent one this ceremony can
+    /// read. Outside the MAC on purpose — the MAC binds what the phone
+    /// signed, and this arrives beside it — and never a credential: this
+    /// desk only ever compares it as a string.
+    pub fn install_id(&self) -> Option<&str> {
+        self.install_id.as_deref()
+    }
+
     /// Compare the signed delivery identity without making the stored seal a
     /// public bearer object. Both sides are fixed-size hex values, so the
     /// value comparison is constant-time after decoding.
@@ -238,6 +282,7 @@ impl PhoneDeclaration {
         );
         Some(Self {
             phone: fields,
+            install_id: None,
             mac: hex::encode(mac),
             delivery_token: hex::encode(token),
         })

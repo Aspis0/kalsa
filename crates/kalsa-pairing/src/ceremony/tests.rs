@@ -82,6 +82,7 @@ fn declaration(
         phone,
         mac,
         delivery_token,
+        install_id: None,
     }
 }
 

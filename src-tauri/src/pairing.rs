@@ -513,7 +513,7 @@ impl Desk {
                 handshake,
                 seal,
                 expires_at,
-                &delivery_token,
+                &declaration,
             );
         }
         // A phone retrying a response it never received: the seal is in the
@@ -527,15 +527,21 @@ impl Desk {
             return None;
         };
         let expires_at = pairing.expires_at()?;
-        let (handshake, seal) = pairing.complete(declaration, now).ok()?;
-        Self::store_completed(&self.file, &mut state, handshake, seal, expires_at, &delivery_token)
+        // The declaration is cloned rather than consumed: the store reads
+        // the delivery token and the phone's install identity off it after
+        // the ceremony has had its say.
+        let (handshake, seal) = pairing.complete(declaration.clone(), now).ok()?;
+        Self::store_completed(&self.file, &mut state, handshake, seal, expires_at, &declaration)
     }
 
-    /// One completed ceremony — the invitation's or the square's — added to
-    /// the house the same way: the label the store mints beside, the sealed
-    /// response retained under THAT ceremony's deadline (a link's seal can
-    /// never outlive the link that authorised it), and the phone stored
-    /// WAITING, so the owner's Allow is what admits it. Every failure lands
+    /// One completed ceremony — the invitation's or the square's — taken
+    /// into the house the same way on both roads: a phone the set does not
+    /// know gets a new seat with the label the store mints beside it, a
+    /// phone it already knows gets its own seat swapped in place (same id,
+    /// same label), and either way the sealed response is retained under
+    /// THAT ceremony's deadline — a link's seal can never outlive the link
+    /// that authorised it — and the phone is stored WAITING, so the owner's
+    /// Allow is what admits it. Every failure lands
     /// in `CouldNotSave`: no phone is admitted without the owner, and no
     /// owner-facing question is invented — including for a replayed
     /// credential, which is a refusal and not a choice between two phones.
@@ -551,17 +557,21 @@ impl Desk {
         handshake: Handshake,
         seal: PairingSeal,
         expires_at: SystemTime,
-        delivery_token: &str,
+        declaration: &PhoneDeclaration,
     ) -> Option<PairingSeal> {
-        let delivery =
-            kalsa_pairing::store::Delivery::new(delivery_token, seal.clone(), expires_at)?;
+        let delivery = kalsa_pairing::store::Delivery::new(
+            declaration.delivery_token(),
+            seal.clone(),
+            expires_at,
+        )?;
         // The label is assigned HERE, locally — the pairing protocol
         // deliberately carries no name. It is numbered after the id the
         // store will mint, by the same never-reuse rule the store mints ids
         // with (one above every id in the set, under the single-writer
         // assumption both sides already make): a minted number is never
         // handed out twice, so no two devices can carry the same label,
-        // however many devices leave.
+        // however many devices leave. It is the label of a NEW seat: a phone
+        // the set already holds keeps the label its owner gave it.
         let stored = kalsa_pairing::store::load_devices(file).unwrap_or_default();
         let next_id = stored
             .iter()
@@ -577,9 +587,18 @@ impl Desk {
         };
         // The delivery rides the add: the store keeps the sealed response,
         // so a crash before the phone's retry is answered by the retry path
-        // for EVERY device, the way it always was for the first.
-        match kalsa_pairing::store::add_device_with_delivery(file, &label, &handshake, delivery) {
-            Ok(_) => {
+        // for EVERY device, the way it always was for the first. And a
+        // phone that carries an install id the set already holds gets its
+        // own seat swapped instead of a second one: same id, same label,
+        // the old credential gone from the store with the old response.
+        match kalsa_pairing::store::add_or_replace_by_install(
+            file,
+            &label,
+            &handshake,
+            delivery,
+            declaration.install_id(),
+        ) {
+            Ok(()) => {
                 let Some(phone) = handshake.phone else {
                     // A completed ceremony always declares a phone, and a
                     // host never completes one; the impossible is answered

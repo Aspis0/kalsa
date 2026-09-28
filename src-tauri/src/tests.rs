@@ -3298,3 +3298,96 @@ fn a_second_completion_does_not_spend_the_first_phones_retry() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A completed pairing as the wire carries it: the desk's own signature
+/// with the phone's install identity beside the MAC — the only shape in
+/// which this side ever sees an install id, and the phone team's own way
+/// of sending one.
+fn declaration_with_install(
+    code: &str,
+    nonce: &str,
+    reachable: &str,
+    node: &str,
+    install_id: &str,
+) -> kalsa_pairing::PhoneDeclaration {
+    let signed = kalsa_pairing::PhoneDeclaration::sign(
+        code,
+        nonce,
+        reachable,
+        Some(node),
+        kalsa_catalog::PhoneModel {
+            weights_bytes: 2_000_000_000,
+            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: Some(9.0),
+            battery_powered: Some(true),
+        },
+    )
+    .expect("the phone can sign what its link carried");
+    let mut wire = serde_json::to_value(&signed).expect("the declaration serialises");
+    wire["install_id"] = serde_json::json!(install_id);
+    serde_json::from_value(wire).expect("the wire shape")
+}
+
+/// Every phone in the store, oldest first — the rows the Devices page draws.
+fn phone_rows(file: &Path) -> Vec<kalsa_pairing::store::StoredDevice> {
+    kalsa_pairing::store::load_devices(file)
+        .expect("the store reloads")
+        .into_iter()
+        .filter(|device| device.kind == DeviceKind::Phone)
+        .collect()
+}
+
+#[test]
+fn the_same_phone_pairing_again_gets_its_seat_back() {
+    // One install behind two invitations: the second ceremony must swap the
+    // record the first one wrote — same seat, same label the owner knows,
+    // the new credential waiting for the owner — and the old credential
+    // must be gone from the store, which is its revocation: the door serves
+    // exactly what the store holds.
+    let (dir, desk) = scratch_invite_desk("repair");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    let _ = desk.read(true, address, None, None, start);
+    let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let install = "d0".repeat(16);
+
+    let pair_once = |at: SystemTime| {
+        let link = desk
+            .invites()
+            .create(address, Some(node), None, at)
+            .expect("the set is writable")
+            .expect("an invitation carries a link");
+        let (code, nonce, reachable, _) = square_of_link(&link);
+        assert!(desk.claim(&code, at + Duration::from_secs(1)));
+        desk.complete(declaration_with_install(&code, &nonce, &reachable, node, &install), at + Duration::from_secs(2))
+            .expect("the ceremony completes");
+    };
+
+    pair_once(start);
+    let first_rows = phone_rows(desk.file());
+    assert_eq!(first_rows.len(), 1);
+    let seat = first_rows[0].id;
+    let label = first_rows[0].label.clone();
+    let old_credential = first_rows[0].handshake.credential_hex();
+    assert!(first_rows[0].waiting, "the first credential waits for Allow");
+
+    pair_once(start + Duration::from_secs(10));
+    let rows = phone_rows(desk.file());
+    assert_eq!(rows.len(), 1, "the same phone must not get a second seat");
+    assert_eq!(rows[0].id, seat, "the seat it already had");
+    assert_eq!(rows[0].label, label, "the label its owner knows stays");
+    assert_ne!(
+        rows[0].handshake.credential_hex(),
+        old_credential,
+        "the new ceremony's credential is the one in the store"
+    );
+    assert!(rows[0].waiting, "a re-paired credential waits for Allow too");
+
+    let on_disk = std::fs::read_to_string(desk.file()).unwrap();
+    assert!(
+        !on_disk.contains(&old_credential),
+        "the old credential is gone from the store: that is the revocation"
+    );
+    assert!(on_disk.contains(&rows[0].handshake.credential_hex()));
+    let _ = std::fs::remove_dir_all(dir);
+}

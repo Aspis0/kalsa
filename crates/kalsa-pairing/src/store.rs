@@ -96,7 +96,7 @@ use subtle::ConstantTimeEq;
 
 use crate::error::StoreError;
 use crate::handshake::{Credential, Handshake};
-use crate::messages::{PairingSeal, PhoneFields};
+use crate::messages::{is_install_id, PairingSeal, PhoneFields};
 
 /// The version this build writes.
 const STORE_VERSION: u8 = 2;
@@ -232,6 +232,14 @@ struct StoredDeviceRecord {
     phone: Option<PhoneFields>,
     #[serde(default)]
     delivery: Option<Delivery>,
+    /// The phone app's identity for this installation, from the completion's
+    /// top-level `install_id`: how a phone that pairs again is recognised as
+    /// the phone it already is. Absent in every file written before it and
+    /// for every phone that sent none — skipped when absent, so an old file
+    /// stays byte for byte what it was — and never part of a MAC, never
+    /// logged, never handed to the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    install_id: Option<String>,
 }
 
 /// The version-1 shell, kept for reading: every installed copy has one of
@@ -354,6 +362,9 @@ fn record_from(
         credential_hex: handshake.credential_hex(),
         phone: handshake.phone.map(PhoneFields::of),
         delivery,
+        // Filled in by the caller that knows it, the way `approval` is: a
+        // handshake carried here has no phone-side identity of its own.
+        install_id: None,
     }
 }
 
@@ -385,7 +396,7 @@ pub fn add_device(
     label: &str,
     handshake: &Handshake,
 ) -> Result<StoredDevice, StoreError> {
-    add_device_record(path, label, handshake, None, false)
+    add_device_record(path, label, handshake, None, false, None)
 }
 
 /// [`add_device`], retaining a sealed response for the phone's retry — the
@@ -400,7 +411,7 @@ pub fn add_device_with_delivery(
     handshake: &Handshake,
     delivery: Delivery,
 ) -> Result<StoredDevice, StoreError> {
-    add_device_record(path, label, handshake, Some(delivery), true)
+    add_device_record(path, label, handshake, Some(delivery), true, None)
 }
 
 fn add_device_record(
@@ -409,6 +420,7 @@ fn add_device_record(
     handshake: &Handshake,
     delivery: Option<Delivery>,
     waiting: bool,
+    install_id: Option<&str>,
 ) -> Result<StoredDevice, StoreError> {
     let credential_hex = handshake.credential_hex();
     let mut records = read_records_or_empty(path)?;
@@ -425,6 +437,7 @@ fn add_device_record(
     } else {
         Approval::Allowed
     };
+    record.install_id = install_id.map(str::to_string);
     records.push(record);
     write_records(&records, path)?;
     Ok(StoredDevice {
@@ -435,6 +448,49 @@ fn add_device_record(
         delivery,
         waiting,
     })
+}
+
+/// Add a completed pairing, or — when it carries the install id of a phone
+/// already in the set — replace that phone's entry in place. The seat and
+/// its label are the owner's and stay; the credential, the phone's
+/// declaration, the retained response and the Allow are this ceremony's, so
+/// the new credential arrives waiting for the owner exactly like any new
+/// one, and the old credential leaves the file here — which is its
+/// revocation, since the door serves what the store holds. No install id,
+/// or one no record carries, is the add this has always been.
+///
+/// A phone that pairs again gets its old seat back rather than a second:
+/// the label the owner knows, the number the page counts, and one row where
+/// there would otherwise be a duplicate of a phone that never changed.
+pub fn add_or_replace_by_install(
+    path: &Path,
+    label: &str,
+    handshake: &Handshake,
+    delivery: Delivery,
+    install_id: Option<&str>,
+) -> Result<(), StoreError> {
+    // A malformed identity is no identity: the phone's derivation is not
+    // reproduced here, so the only ids that can ever match are the ones the
+    // wire accepted — anything else behaves exactly like a phone that sent
+    // none and gets a second entry, never somebody else's seat.
+    let install_id = install_id.filter(|value| is_install_id(value));
+    let mut records = read_records_or_empty(path)?;
+    let matched = install_id.and_then(|install| {
+        records
+            .iter()
+            .position(|record| record.install_id.as_deref() == Some(install))
+    });
+    let Some(index) = matched else {
+        add_device_record(path, label, handshake, Some(delivery), true, install_id)?;
+        return Ok(());
+    };
+    let record = &mut records[index];
+    record.credential_hex = handshake.credential_hex();
+    record.kind = kind_of(handshake);
+    record.phone = handshake.phone.map(PhoneFields::of);
+    record.delivery = Some(delivery);
+    record.approval = Approval::Waiting;
+    write_records(&records, path)
 }
 
 /// One above every id in the set as it stands now: unique within one set,
@@ -976,6 +1032,7 @@ fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
                 credential_hex: stored.credential_hex,
                 phone: Some(stored.phone),
                 delivery: stored.delivery,
+                install_id: None,
             }]
         }
         _ => return Err(StoreError::Corrupt("unsupported stored version")),

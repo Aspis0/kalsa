@@ -1,4 +1,6 @@
-use super::{phone_mac, seal_computer, verify_phone_mac, PhoneFields, MAC_BYTES, NONCE_BYTES};
+use super::{
+    phone_mac, seal_computer, verify_phone_mac, PhoneDeclaration, PhoneFields, MAC_BYTES, NONCE_BYTES,
+};
 use crate::handshake::Credential;
 use crate::secret::OneTimeCode;
 use kalsa_catalog::{Parameters, PhoneModel};
@@ -379,3 +381,62 @@ fn a_mac_is_worthless_under_a_different_nonce() {
 // MAC_BYTES is referenced through the sized decode inside verify; keep the
 // import honest with a compile-time touch.
 const _: () = assert!(MAC_BYTES == 32);
+
+/// A completion body as the wire carries it: vector D's inputs, with the
+/// phone's install identity beside the MAC — or without one, the way a
+/// square that carried no node is sent.
+fn declaration_with_install_id(install_id: Option<&str>) -> PhoneDeclaration {
+    let mut body = serde_json::json!({
+        "phone": serde_json::to_value(sample_phone()).unwrap(),
+        "mac": FROZEN_PHONE_MAC_WITH_DELIVERY_TOKEN,
+        "delivery_token": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+    });
+    if let Some(install_id) = install_id {
+        body["install_id"] = serde_json::json!(install_id);
+    }
+    serde_json::from_value(body).expect("the wire shape")
+}
+
+/// The phone team's vector E: vector D's body plus a top-level install id,
+/// the MAC unchanged — the id rides beside the MAC and never inside it, so
+/// the digest that verified D verifies E, and the desk reads the id off the
+/// declaration it just verified.
+#[test]
+fn vector_e_carries_the_install_id_outside_the_mac() {
+    let install_id = "d0".repeat(16);
+    let declaration = declaration_with_install_id(Some(&install_id));
+    assert_eq!(declaration.install_id(), Some(install_id.as_str()));
+    assert!(super::verify_phone_mac_with_token(
+        &[0x31u8; super::CODE_BYTES],
+        &[0x32u8; NONCE_BYTES],
+        "http://127.0.0.1:8132",
+        "",
+        declaration.delivery_token(),
+        &declaration.phone,
+        &declaration.mac,
+    ));
+}
+
+/// A malformed identity is no identity: wrong length, wrong case, not hex —
+/// each reads back as absent, with no error and no refusal, so a phone that
+/// sent one is treated exactly like a phone that sent none (and gets its own
+/// seat rather than somebody else's).
+#[test]
+fn a_malformed_install_id_is_absent_not_a_rejection() {
+    let good = "d0".repeat(16);
+    assert_eq!(
+        declaration_with_install_id(Some(&good)).install_id(),
+        Some(good.as_str()),
+        "the shape the phone ships is read"
+    );
+    let malformed = ["d0".repeat(15), "d0".repeat(34), "D0".repeat(16), "0g".repeat(16)];
+    for value in malformed {
+        assert_eq!(
+            declaration_with_install_id(Some(&value)).install_id(),
+            None,
+            "{value}"
+        );
+    }
+    assert_eq!(declaration_with_install_id(None).install_id(), None);
+}
+
