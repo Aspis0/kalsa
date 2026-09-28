@@ -81,3 +81,8 @@ scratchpad/agents/qdc-heat-per-backend/.restore-state
 # qdc-heat-per-backend: restore.sh per-step cp-chain output (append-only log,
 # written on every abnormal-end recovery) — never versioned
 scratchpad/agents/qdc-heat-per-backend/restore-prefs.log
+
+# Binaries never enter the lab: record their sha256 in the report instead.
+*.apk
+*.aab
+scratchpad/agents/s23-launch-jank/raw/session-20260927-diagnosis/logcat.txt
