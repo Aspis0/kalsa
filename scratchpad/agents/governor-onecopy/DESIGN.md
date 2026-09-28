@@ -26,8 +26,11 @@ Trees read (all read-only):
    Those buffers are not CPU-readable, so CPU decode would round-trip to the DSP ~100× per token. The
    product placement is "everything in `-HOST`, admit `SSM_CONV` and weighted `MUL` in the offload rule"
    and it needs its own KLD run (P6) (§2).
-4. **The one-copy raw path cannot run `ffn_down` on the NPU** (VTCM need 13.9–15.4 MB vs 8.39 MB budget,
-   P5 log). ~27 % of the matmul MACs (derived) stay on the CPU during "NPU prefill". The 6.45 °C·s/1k and
+4. **The one-copy raw path cannot run `ffn_down` on the NPU.** Three VTCM numbers, by path — do not mix
+   them: *tiled* kernel (two-copy, repacked weights) needs 7 827 456 B and fits (`npu-proof.log`,
+   `hvx-tiled vtcm 7827456`); the *configured budget* is 8 388 608 B (8.39 MB, `hwinfo … vtcm 8 MB`);
+   the *raw flat* path needs 13.9–15.4 MB and is declined (P5 log). So "`ffn_down` fits in 7.8 MB" is
+   true only for the tiled two-copy path. ~27 % of the matmul MACs (derived) stay on the CPU during "NPU prefill". The 6.45 °C·s/1k and
    1.47 s numbers were measured on the two-copy default kernels and **do not transfer** (§2, §7).
 5. Decode on the NPU under one-copy means a raw→tile conversion per matvec, with no ubatch to amortise it
    (`OC:65-68`). Not planned until the conversion timing exists.
@@ -297,6 +300,7 @@ state is owner-only (`GOV src/llama-kv-cache.cpp:394-414`, `:757`, `src/llama-me
 | I15 | device resolve degrades to GPU, never throws; bench-force cases | `devices.cpp:259-280`, `:119-158` |
 | I16 | the 77-proof: every `77` is proven by its stderr line and one run with `KALSA_HYBRID_GGUF` = ship GGUF must exit 0 | `hybrid.cpp:384-388`; `NPUD:69-76`; memory `governor-host-tests-skip-hybrid` |
 | I17 | shared-cells fences (MTP/spec) untouched | `test-governor-v0-shared-cells.cpp:141-161` |
+| I18 | **LOAD gate: the governor is never eligible when an mmproj/vision model is loaded.** App: `governorLoad` requires `… && !options.mmprojPath && !streamExperts` (`src/engine/LlamaService.ts:2433-2440`, app `524aa0e0`; `NPUD:102-107` cites it as `:2375-2386` on its older checkout). The engine has no mmproj guard of its own (`NPUD:104-105`). With one context this matters more: a vision model on the one-copy path would put the projector and its compute in the same context and the same HTP session; the gate must be restated inside the one-copy eligibility predicate, and a host test in the app (`governorInputs`) must fail if the predicate loses it. Companion: `governor_ineligible_when_mmproj_loaded` policy (owner 25/09: stays so until a governor vision lane) |
 
 **Inverted invariant.** The hybrid test asserts `commit_count == 2*turns-1` and exact `commit_bytes`
 (`hybrid.cpp:237-248`). For the one-copy lane the new assertion is `commit_count == 0 && commit_bytes == 0`
@@ -415,20 +419,26 @@ Rules for every step: one commit, one test, one hostile audit (per the plan cade
 fix; every device run keeps screen on, Kalsa foreground, Awake per turn, unplugged for heat/timing
 (plugged for correctness only, as in `OC`). Mac = host build + host tests only.
 
-| # | step | files | test | device check | where | needs conversion timing |
+| # | class · step | files | test | device check | where | needs conversion timing |
 |---|---|---|---|---|---|---|
-| **S0** | **Measure, no code.** P5 prefill wall time and heat per 1k tokens vs the two-copy baseline; CPU decode tok/s with raw `-HOST` weights (no repack); op census at ubatch 128 under `-nkvo` + P5; VTCM need of `ffn_down` at ubatch 32/64/128 (`HEX_VERBOSE` prints it, `ggml-hexagon.cpp:5070`) | existing binaries `onecopy-d/` | — | S23 unplugged and/or the QDC 8 Elite run in preparation | S23 / QDC | **produces it** |
-| S1 | Hexagon admission state + gate: statics → device context; pure predicate header; `supports_op` shape gate; offload mask incl. `SSM_CONV`, weighted `MUL`; proc-address setter | `ggml-hexagon.cpp`, new `htp-admit.h` | host predicate test compiled on the Mac (pattern `tests/test-hexagon-q4_0-raw-tile.c`, `OC:70-83`): table of (op, n_tokens, host/HTP-only buffers, mask) → expected | decode census at `min=32` must show **0** HTP ops at ubatch 1 (D0 showed 16 SET_ROWS + 8 FA + 44 cache + 17 RMS_NORM + …) | Mac (predicate), S23 (census) | no |
-| S2 | `llama_set_backend_admission()`: proc-address lookup, `sched_need_reserve`, counters | `src/llama-context.cpp`, `include/llama.h` | Mac: setter returns false without a capable backend; reserve counter unchanged | S23: hop changes the census, re-reserve ≈ 0.1 s | Mac + S23 | no |
-| S3 | One-copy governor: `llama_governor_init_one_copy`, single context, admission via S2; legacy constructor untouched | `src/llama-governor*.cpp/.h`, `llama-ext.h` | new `test-governor-v0-onecopy.cpp` on the Mac (CPU model, hybrid ship GGUF via `KALSA_HYBRID_GGUF`): I1, I2, I3, I5–I10 on one context, **`commit_count == 0`**, the 77-proof; **all legacy governor tests pass unmodified** | none | Mac | no |
-| S4 | Policy: `decode_engine` NPU/CPU vocabulary, R3 `pace_us`, `platform_status`; `gpu_lane_loaded` input | `policy.cpp`, `llama-ext.h` | `router` golden tables (pure policy, Mac): AIMD bounds, never-zero rate, pause line unchanged, stats counters | none | Mac | no |
-| S5 | Binding one-copy load: single `common_init_from_params` with the override, `use_mmap=false`, `offload_kqv=false`, env `GGML_HEXAGON_HOSTBUF=1` + `MM_SELECT=1` set where `ADSP_LIBRARY_PATH` is (`NPUD:25`); **degrade rule**: HTP0 or the host buft missing → today's two-context path, plan fields `one_copy`, `weights_buft`, `kv_buft`, `npu_fallback` (`NPUD:77-91`) | `cpp/rn-llama.cpp`, `rn-governor-params.cpp` | extend `tests/governor_params_test.cpp`; one-copy path is device-only | — | Mac (params), S23 | no |
-| S6 | Device soak: debuggable APK, one-copy load; **P6** (all `-HOST` + admit mask) bit-identity vs P5 on tensors 1–1006 (`OC:646-652`), else KLD band; op census per phase (§2.3); memory breakdown; load time + `MemAvailable`; FastRPC/`0x14`, perfmond spin watch (`NPUD:128-132`) | none | KLD ≤ 0.0031, same-top ≥ 95 %, `commit_bytes == 0`, one weight buffer | S23 debuggable APK (`s23-debuggable-apks-policy`) | S23 | **yes: go/no-go** — proceed as default only if one-copy prefill beats today's GPU lane on both time and heat (6.95 s and 24.17 °C·s/1k, `HEAT-S23:87`); owner may move the bar |
-| S7 | `ffn_down` on the NPU under raw weights: K-split or a lower-VTCM raw job (needs ≤ 8.39 MB from 13.9–15.4 MB) | `htp/matmul-ops.c/.h`, host rule `:5067` | Mac host test extending the raw-tile test: split accumulation vs `dequantize_row_q4_0` reference (max abs error small, documented); S23 KLD ≤ 0.005 | S23 census: `ffn_down` execute-op > 0; timing/heat re-run | Mac + S23 | **yes** (S0 ranks its value) |
-| S8 | Optional GPU lane (G1): existing pair, one-copy context as decode side | `governor.cpp` (legacy path), binding load | legacy tests unmodified (§4.2); new: one-copy ctx as `ctx_decode` with an OpenCL prefill, token oracle as `devices.cpp` | S23 OpenCL + one-copy load fits memory | Mac (CPU-only pair) + S23 | no |
-| S9 | Sustainable-rate mode: engine pace + app periodic push + `platform_status` wiring | `governor.cpp`, app thermal loop | policy tables (S4) + injected-clock engine test: tokens generated == requested | hot soak arm, S23 unplugged, **no cool-start gate** (memory `heat-arms-no-cold-start-gate`), stats show pace and zero truncation | Mac + S23 | no |
-| S10 | NPU decode lane — only if S0/S6 timing says a raw matvec is viable | admission mask at `min=1` for the decode lane | census + tok/s + heat arm (S23 NPU decode has never been run) | S23 | S23 | **yes** |
-| S11 | Flip defaults; update `PLAN.md`/`ALIVE.md` (lab-only) | lab | — | — | — | after S6/S7 |
+| **S0** | **LANE** (measurement that decides the lanes) ·  **Measure, no code.** P5 prefill wall time and heat per 1k tokens vs the two-copy baseline; CPU decode tok/s with raw `-HOST` weights (no repack); op census at ubatch 128 under `-nkvo` + P5; VTCM need of `ffn_down` at ubatch 32/64/128 (`HEX_VERBOSE` prints it, `ggml-hexagon.cpp:5070`) | existing binaries `onecopy-d/` | — | S23 unplugged and/or the QDC 8 Elite run in preparation | S23 / QDC | **produces it** |
+| S1 | **SAFETY** ·  Hexagon admission state + gate: statics → device context; pure predicate header; `supports_op` shape gate; offload mask incl. `SSM_CONV`, weighted `MUL`; proc-address setter | `ggml-hexagon.cpp`, new `htp-admit.h` | host predicate test compiled on the Mac (pattern `tests/test-hexagon-q4_0-raw-tile.c`, `OC:70-83`): table of (op, n_tokens, host/HTP-only buffers, mask) → expected | decode census at `min=32` must show **0** HTP ops at ubatch 1 (D0 showed 16 SET_ROWS + 8 FA + 44 cache + 17 RMS_NORM + …) | Mac (predicate), S23 (census) | no |
+| S2 | **SAFETY** ·  `llama_set_backend_admission()`: proc-address lookup, `sched_need_reserve`, counters | `src/llama-context.cpp`, `include/llama.h` | Mac: setter returns false without a capable backend; reserve counter unchanged | S23: hop changes the census, re-reserve ≈ 0.1 s | Mac + S23 | no |
+| S3 | **SAFETY** ·  One-copy governor: `llama_governor_init_one_copy`, single context, admission via S2; legacy constructor untouched | `src/llama-governor*.cpp/.h`, `llama-ext.h` | new `test-governor-v0-onecopy.cpp` on the Mac (CPU model, hybrid ship GGUF via `KALSA_HYBRID_GGUF`): I1, I2, I3, I5–I10 on one context, **`commit_count == 0`**, the 77-proof; **all legacy governor tests pass unmodified** | none | Mac | no |
+| S4 | **SAFETY** ·  Policy: `decode_engine` NPU/CPU vocabulary, R3 `pace_us`, `platform_status`; `gpu_lane_loaded` input | `policy.cpp`, `llama-ext.h` | `router` golden tables (pure policy, Mac): AIMD bounds, never-zero rate, pause line unchanged, stats counters | none | Mac | no |
+| S5 | **LANE** ·  Binding one-copy load: single `common_init_from_params` with the override, `use_mmap=false`, `offload_kqv=false`, env `GGML_HEXAGON_HOSTBUF=1` + `MM_SELECT=1` set where `ADSP_LIBRARY_PATH` is (`NPUD:25`); **degrade rule**: HTP0 or the host buft missing → today's two-context path, plan fields `one_copy`, `weights_buft`, `kv_buft`, `npu_fallback` (`NPUD:77-91`) | `cpp/rn-llama.cpp`, `rn-governor-params.cpp` | extend `tests/governor_params_test.cpp`; one-copy path is device-only | — | Mac (params), S23 | no |
+| S6 | **LANE** ·  Device soak: debuggable APK, one-copy load; **P6** (all `-HOST` + admit mask) bit-identity vs P5 on tensors 1–1006 (`OC:646-652`), else KLD band; op census per phase (§2.3); memory breakdown; load time + `MemAvailable`; FastRPC/`0x14`, perfmond spin watch (`NPUD:128-132`) | none | KLD ≤ 0.0031, same-top ≥ 95 %, `commit_bytes == 0`, one weight buffer | S23 debuggable APK (`s23-debuggable-apks-policy`) | S23 | **yes: go/no-go** — proceed as default only if one-copy prefill beats today's GPU lane on both time and heat (6.95 s and 24.17 °C·s/1k, `HEAT-S23:87`); owner may move the bar |
+| S7 | **LANE** ·  `ffn_down` on the NPU under raw weights: K-split or a lower-VTCM raw job (needs ≤ 8.39 MB from 13.9–15.4 MB) | `htp/matmul-ops.c/.h`, host rule `:5067` | Mac host test extending the raw-tile test: split accumulation vs `dequantize_row_q4_0` reference (max abs error small, documented); S23 KLD ≤ 0.005 | S23 census: `ffn_down` execute-op > 0; timing/heat re-run | Mac + S23 | **yes** (S0 ranks its value) |
+| S8 | **LANE** ·  Optional GPU lane (G1): existing pair, one-copy context as decode side | `governor.cpp` (legacy path), binding load | legacy tests unmodified (§4.2); new: one-copy ctx as `ctx_decode` with an OpenCL prefill, token oracle as `devices.cpp` | S23 OpenCL + one-copy load fits memory | Mac (CPU-only pair) + S23 | no |
+| S9 | **SAFETY** ·  Sustainable-rate mode: engine pace + app periodic push + `platform_status` wiring | `governor.cpp`, app thermal loop | policy tables (S4) + injected-clock engine test: tokens generated == requested | hot soak arm, S23 unplugged, **no cool-start gate** (memory `heat-arms-no-cold-start-gate`), stats show pace and zero truncation | Mac + S23 | no |
+| S10 | **LANE** ·  NPU decode lane — only if S0/S6 timing says a raw matvec is viable | admission mask at `min=1` for the decode lane | census + tok/s + heat arm (S23 NPU decode has never been run) | S23 | S23 | **yes** |
+| S11 | **LANE** ·  Flip defaults; update `PLAN.md`/`ALIVE.md` (lab-only) | lab | — | — | — | after S6/S7 |
+
+**SAFETY** = built regardless of the timing, validated by the op census (thermal ladder, admission gate,
+single-context correctness, pacing, so the phone can never ping-pong or overheat silently). **LANE** =
+conditional on S0/S6 timing (one-copy prefill as default, `ffn_down` on the NPU, GPU lane, NPU decode,
+default flip). S5 is LANE because the one-copy load is only worth shipping if S6 passes; its degrade rule
+is SAFETY-grade and must land first inside it.
 
 Pins and provenance after each engine step follow the chain in `REPOS.md` (engine → binding
 `vendor/VERSIONS` → app `package.json` + lock → `assert-engine-provenance.sh`). Push only with the
@@ -451,7 +461,8 @@ owner's approval or per the standing pipeline rule.
    selection (`s23 sess.sh:11` sets only `NDEV`; proof line `hvx-tiled`). Every NPU speed/heat number in
    the brief is a two-copy tiled/HMX number. 8 Elite v79 not checked; likely a larger loss. Also lost:
    gate/up and q/k/v NX fusion (`OC:67-68`, `:223-235`).
-4. **Decode speed regression where repack is on today.** One-copy has no CPU repack; the binding comment
+4. **Decode speed regression where repack is on today** (see the memory-figure reconciliation at §3,
+   "Conflict to resolve": my 1.68 GiB saving assumes decode keeps its repack copy today). One-copy has no CPU repack; the binding comment
    prices that at ~1.4× decode cost (`BIND rn-llama.cpp:88-90`). The S23 8 GB shape already pays it.
    Product trade-off for ≥ 12 GB devices: owner decision.
 5. **KV-A attention placement is inferred from one census** at ubatch 16, tiny prompt, two-copy
@@ -479,6 +490,14 @@ owner's approval or per the standing pipeline rule.
     guesses until S9.
 13. **The owner's GPU rule contradicts the measurements** (§5.1) and needs an explicit decision before S8.
 14. **Session ban** stays; lifting it is a separate contract change.
+
+## 7b. Owner decision pending
+
+The design's data say the GPU is never cooler than the NPU (S23 24.17 vs 6.45 °C·s/1k; 8 Elite 79.0 vs
+23.1 per prefill) and it cannot share the one copy (§5.1). **Proposal awaiting the owner:** keep the GPU
+off the heat ladder (NPU hot → sustainable-rate mode, R3), and use the GPU only on devices without a usable
+NPU (today's two-context pair, unchanged). The GPU-hop branch (S8) stays implemented-but-off until the
+owner decides. This overrides nothing yet: the brief's rule "GPU when the NPU is hot" stands until then.
 
 ## 8. Sources not read in full
 
