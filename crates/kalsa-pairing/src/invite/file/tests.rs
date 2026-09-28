@@ -131,19 +131,35 @@ fn a_record_the_ceremony_cannot_read_is_not_honoured() {
 }
 
 #[test]
-fn an_envelope_of_another_version_is_refused() {
-    // A version this build does not read is not a file it may half
-    // understand: the records of another format must not be taken for
-    // today's.
+fn a_version_this_build_does_not_read_is_parked_not_rewritten() {
+    // Another build's file — its own version, its own invitations — is the
+    // one file this reader must not replace: the set still starts empty and
+    // writes its own file at that same path, so the other build's data has
+    // to be somewhere else first. Parking it beside its own name is that
+    // somewhere: byte for byte, and out of the way. Nothing in it is
+    // honoured either — the version is refused exactly as before.
     let now = start();
-    let path = scratch("version");
+    let path = scratch("park");
     let mut value = envelope(1, vec![record(0, now + INVITE_TTL, &square(now))]);
     value["v"] = serde_json::json!(FILE_VERSION + 1);
-    fs::write(&path, serde_json::to_string(&value).unwrap()).unwrap();
-    let loaded = read(&path, now);
-    assert!(loaded.invites.is_empty());
-    assert!(loaded.discarded);
-    assert!(path.exists());
+    let written = serde_json::to_string(&value).unwrap();
+    fs::write(&path, &written).unwrap();
+
+    let (invites, discarded) = Invites::open(&path, now);
+    assert!(discarded, "the page is told that nothing came back");
+    assert!(invites.list().is_empty(), "and nothing from it is honoured");
+
+    let parked = path.with_file_name(format!("invites.json.v{}.parked", FILE_VERSION + 1));
+    assert_eq!(
+        fs::read_to_string(&parked).expect("the other build's file is parked"),
+        written,
+        "kept byte for byte — parked, not consumed"
+    );
+    // The path itself holds this build's file now, so even the write that
+    // follows the park could not reach the other build's bytes by accident.
+    let on_disk = fs::read_to_string(&path).expect("this build's own file");
+    assert_ne!(on_disk, written);
+    assert!(on_disk.contains(&format!("\"v\":{FILE_VERSION}")), "{on_disk}");
 }
 
 #[test]

@@ -572,31 +572,25 @@ pub(crate) fn publish_json(value: &impl Serialize, path: &Path) -> std::io::Resu
     publish_temp(&temp_path(path), path)
 }
 
-fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
+/// Rename one file onto another, replacing whatever is already there: the
+/// move [`publish_temp`] makes for a publication, on every platform this app
+/// ships on. Windows asks MoveFileEx for write-through, so the entry is on
+/// disk before the call returns. Nothing here removes the SOURCE on error —
+/// the caller decides whether a source that could not move is a temp to
+/// sweep up or a file that must stay exactly where it is.
+fn move_file(from: &Path, to: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
-        fs::rename(temp, path).map_err(|e| {
-            let _ = fs::remove_file(temp);
-            e
-        })?;
-        // The file's bytes were synced before the rename; the rename itself
-        // is on disk only once the DIRECTORY holding it is. A power loss in
-        // between rolls the file back to whatever it said before — for a
-        // claim, to a version still holding a used code. The failure of this
-        // last step is not reported: the rename has already happened, and a
-        // caller told its write failed would roll back a memory state the
-        // file has already moved past.
-        sync_parent(path);
-        Ok(())
+        fs::rename(from, to)
     }
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::Storage::FileSystem::MoveFileExW;
 
-        let mut source: Vec<u16> = temp.as_os_str().encode_wide().collect();
+        let mut source: Vec<u16> = from.as_os_str().encode_wide().collect();
         source.push(0);
-        let mut destination: Vec<u16> = path.as_os_str().encode_wide().collect();
+        let mut destination: Vec<u16> = to.as_os_str().encode_wide().collect();
         destination.push(0);
         let ok = unsafe {
             MoveFileExW(
@@ -606,18 +600,46 @@ fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
             )
         };
         if ok == 0 {
-            let _ = fs::remove_file(temp);
             return Err(std::io::Error::last_os_error());
         }
         Ok(())
     }
     #[cfg(not(any(unix, windows)))]
     {
-        fs::rename(temp, path).map_err(|e| {
-            let _ = fs::remove_file(temp);
-            e
-        })
+        fs::rename(from, to)
     }
+}
+
+/// Rename `from` onto `to` and make it stick: the same move and the same
+/// platform discipline as a publication — the directory fsynced after it on
+/// unix, write-through on Windows — so a power loss cannot bring the old
+/// name back. Nothing is removed on error: this is for a source that is NOT
+/// a temp file, one that must stay where it is when the move cannot happen.
+pub(crate) fn rename_durable(from: &Path, to: &Path) -> std::io::Result<()> {
+    move_file(from, to)?;
+    #[cfg(unix)]
+    sync_parent(to);
+    Ok(())
+}
+
+fn publish_temp(temp: &Path, path: &Path) -> std::io::Result<()> {
+    // The source is a temp file: a move that failed sweeps it up, because a
+    // half-written temp is this write's own litter.
+    let moved = move_file(temp, path);
+    if moved.is_err() {
+        let _ = fs::remove_file(temp);
+    }
+    // The bytes were synced before the rename; the rename is on disk only
+    // once the DIRECTORY holding it is. A power loss in between rolls the
+    // file back to whatever it said before — for a claim, to a version still
+    // holding a used code. A failure of this last step is not reported: the
+    // rename has already happened, and a caller told its write failed would
+    // roll back a memory state the file has already moved past.
+    #[cfg(unix)]
+    if moved.is_ok() {
+        sync_parent(path);
+    }
+    moved
 }
 
 /// The sibling name the bytes land in before publication: the target's own

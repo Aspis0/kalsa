@@ -74,6 +74,10 @@ struct Invite {
 pub struct Invites {
     path: PathBuf,
     invites: Vec<Invite>,
+    /// A file whose version this build does not read is still at `path`,
+    /// because parking it aside failed: `Some(version)` while that is so.
+    /// Nothing is written until it moves — see [`Invites::persist`].
+    park_pending: Option<u64>,
     /// The id the next mint takes. It rides the file and only moves
     /// forward, so an id is never handed out twice while the file lives —
     /// see [`Invites::take_id`].
@@ -115,7 +119,7 @@ impl Invites {
     /// and the next write tries the disk again.
     pub fn open(path: &Path, now: SystemTime) -> (Self, bool) {
         let loaded = file::read(path, now);
-        let invites = Self {
+        let mut invites = Self {
             path: path.to_path_buf(),
             invites: loaded
                 .invites
@@ -123,6 +127,7 @@ impl Invites {
                 .map(|(id, pairing)| Invite { id, pairing })
                 .collect(),
             next_id: loaded.next_id,
+            park_pending: loaded.park_pending,
         };
         if loaded.discarded {
             // The file holds invitations this build will not honour — codes
@@ -330,7 +335,15 @@ impl Invites {
     /// only in this process's memory until it completes or expires.
     /// `except` is how the claim's own write names the invitation the phone
     /// has matched while it is still an offer here.
-    fn persist(&self, except: Option<u32>) -> Result<(), InviteError> {
+    fn persist(&mut self, except: Option<u32>) -> Result<(), InviteError> {
+        if let Some(version) = self.park_pending.take() {
+            // The file in the way could not be moved when this set was
+            // opened. Try again, and if it still cannot move, refuse to
+            // write: overwriting it is the one thing that would destroy
+            // what this build cannot read. The caller rolls back — the
+            // original is left exactly where it is.
+            file::park(&self.path, version).map_err(InviteError::Io)?;
+        }
         let records = self
             .invites
             .iter()

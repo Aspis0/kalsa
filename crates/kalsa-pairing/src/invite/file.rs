@@ -88,6 +88,12 @@ pub(super) struct Loaded {
     pub(super) invites: Vec<(u32, Pairing)>,
     pub(super) next_id: u32,
     pub(super) discarded: bool,
+    /// The file whose version this build does not read is still in the way:
+    /// it could not be parked aside, so `Some(version)` — and while it is
+    /// `Some`, nothing may be written, because writing is exactly how that
+    /// file would be destroyed. `Invites::persist` parks again first and
+    /// clears it the moment the park lands.
+    pub(super) park_pending: Option<u64>,
 }
 
 /// Read the invitations back. This never fails: a file that cannot be
@@ -101,6 +107,7 @@ pub(super) fn read(path: &Path, now: SystemTime) -> Loaded {
         invites: Vec::new(),
         next_id: 0,
         discarded: false,
+        park_pending: None,
     };
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
@@ -110,14 +117,31 @@ pub(super) fn read(path: &Path, now: SystemTime) -> Loaded {
             return loaded;
         }
     };
-    let Ok(envelope) = serde_json::from_slice::<Envelope>(&bytes) else {
+    // The version decides before anything else is read, so a file this
+    // build does not write — an older shape or a newer one — is parked
+    // aside instead of being handed to the reader that would refuse it and
+    // the writer that would replace it. Anything that is not one of ours
+    // (not JSON, no version) keeps the ordinary refusal: nothing to save.
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
         loaded.discarded = true;
         return loaded;
     };
-    if envelope.v != FILE_VERSION {
+    let Some(version) = value.get("v").and_then(|v| v.as_u64()) else {
         loaded.discarded = true;
         return loaded;
+    };
+    if version != FILE_VERSION as u64 {
+        loaded.discarded = true;
+        loaded.park_pending = match park(path, version) {
+            Ok(()) => None,
+            Err(_) => Some(version),
+        };
+        return loaded;
     }
+    let Ok(envelope) = serde_json::from_value::<Envelope>(value) else {
+        loaded.discarded = true;
+        return loaded;
+    };
     loaded.next_id = envelope.next_id;
     // The furthest out a recorded deadline may sit: the window from here,
     // plus the clock's tolerance. Both additions are checked — a `now` the
@@ -169,6 +193,48 @@ pub(super) fn read(path: &Path, now: SystemTime) -> Loaded {
     }
     loaded
 }
+
+/// Move a file this build's version does not read aside, so the write that
+/// follows cannot destroy what a different build wrote. The parked name
+/// carries the version it held (`invites.json.v3.parked`), and a counter
+/// keeps a park that is already there: nothing already aside is replaced.
+/// The rename moves no bytes — the file keeps the `0600` / DACL it was
+/// written with — and a failure is the caller's to honour: it must not
+/// write over what it could not move.
+pub(super) fn park(path: &Path, version: u64) -> std::io::Result<()> {
+    let base = path
+        .file_name()
+        .map(|name| {
+            let mut parked = name.to_os_string();
+            parked.push(format!(".v{version}.parked"));
+            path.with_file_name(parked)
+        })
+        .ok_or_else(|| std::io::Error::other("a path with no file name to park"))?;
+    // Single writer — the instance lock — so a name that is free a moment
+    // ago is free now; the bound only exists so this loop cannot spin.
+    for counter in 0..PARK_ATTEMPTS {
+        let target = if counter == 0 {
+            base.clone()
+        } else {
+            let mut name = base.as_os_str().to_os_string();
+            name.push(format!(".{counter}"));
+            path.with_file_name(name)
+        };
+        if target.exists() {
+            continue;
+        }
+        // The move is made durable the way a publication is: a park that a
+        // power loss could undo would put the file back where the next
+        // write could destroy it.
+        return crate::store::rename_durable(path, &target);
+    }
+    Err(std::io::Error::other("every parked name for this file is taken"))
+}
+
+/// How many parked names are tried before the park gives up. Anything
+/// beyond this means a directory full of parks, which is not a state this
+/// app creates.
+const PARK_ATTEMPTS: u32 = 64;
 
 /// Publish the invitations the owner still has out. The set hands over the
 /// records themselves and the counter they were minted against, so this is
