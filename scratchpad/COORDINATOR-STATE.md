@@ -114,3 +114,39 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
     correctness OK. Timing waits for the phone OFF the charger:
     `cd scratchpad/agents/npu-spec-verify && ./d_run.sh s23 5037 s23-v73-step0` (refuses while charging).
   * Quotas: commandcode + opencode-go out; GLM-Flash codes, luna reviews.
+
+## 2026-09-27 night (owner asleep; S23 + QDC fully delegated to the coordinator for the night)
+- App origin/main c6e0b3a9 (iroh step 3 + pairing UX bugs 1-9). Debuggable APK sha ef4bb493 at
+  `/Users/marco/kalsa-apks/c6e0b3a9-debuggable/`. kalsa-brain (23ac3537) authorised to install it on the
+  Jelly and run the Tailscale + iroh pairing tests tonight; desk commits 8accd769 + c1e5a45d pending push.
+- S23 launch jank A/B (cell `s23-launch-jank`, eabf7f0c): deferring the eager load by 5 s does NOT reduce
+  launch jank (median 8.70 % vs 7.81 %, p99 93 vs 101 ms, n=3 per arm). Deferral hypothesis refuted; no
+  fix shipped. Main thread 85-92 % and Jit up to 80 % in every arm; note the APK was debuggable.
+- Lab cells: qdc-heat-3way d7527c92 (CALIBRATE=1 mode, AUDIT2 closed, dry-run 259/0), spec-dspark-gpu-draft
+  df26ebdc. Final audit round 3 by space-bunny dd6bdb56 -> then S23: calibrate -> 3-way heat -> DSpark.
+- QDC: Opus agent b5447088 re-checking QRD8635/QRD7675 every 30 min (max 4 h), runs S1 CGGC + S2 GCGC.
+- 2026-09-27 ~01:50: FIRST VALID S23 3-way CLI run (qdc-heat-3way s23-3way-6, commit acaf2063, 6/6 OK, END exit_0).
+  Engine f25f0c1c5, LFM2.5-2.6B ship, prompt 1010 tok raw (--no-conversation), 126 decode, -t 5.
+  Prefill ms: CPU 19027 (cold page-in) / 10389 (warm), GPU 7347 / 7326, NPU(HTP v73) 1668 / 1558.
+  Decode tok/s: CPU 21.15 / 21.12, GPU 11.26 / 11.10, NPU 13.01 / 12.91 (decode side of the HTP arm).
+  Skin deltas ~1 C (turns are 16-29 s: too short for a heat verdict). Calib pin 139.8 ops/tok (raw proof).
+  Driver bugs found only on the device tonight: pgrep self-match, `&& &&`, a missing log line, a wrong band,
+  conversation mode auto-on in llama-completion -> the fake adb now dash-checks commands and rejects bad flags.
+- App main 2fe5a12d (settings pair tap fix) APK sha 3a9efd14 on the Jelly (brain: pair tap PASS; scanner
+  inconclusive in the dark; Tailscale/iroh tests wait for Marco to unlock the Mac).
+- 2026-09-27 ~03:00: FIRST VALID S23 DSpark run (spec-dspark-gpu-draft s23-dspark-4, commit 0bf3fea8, 5/5 matched
+  at 136, END exit_0, n_ctx 2048/2048, no HTP). Decode t/s: A(spec-simple n_max 0) 15.99, B4 CPU-draft 21.49
+  (acc 59 %), B8 18.29 (41 %), C4 GPU-draft 9.40 (57 %), C8 9.64 (41 %). GPU drafter REFUTED (−41 % vs A).
+  CAVEAT: A may not be the real plain-decode baseline (llama-completion plain decode was 21.1 t/s in 3-way
+  run 6) -> arm A0 (plain llama-completion, same prompt/flags) being added before any claim of a B4 win.
+- DSpark run 5 (s23-dspark-5, 5c2d3fad, 7/7 matched at 136, exit_0): plain llama-completion A0 23.63 / A0b 23.50
+  t/s (drift -0.6 %) BEATS every speculative arm: B4 21.14 (-10.5 %), B8 18.35, A(spec n_max 0) 17.14,
+  C4 9.51, C8 9.57. VERDICT: DSpark speculation LOSES on S23 CPU at 59 % acceptance; GPU drafter loses badly.
+  Why A was slow: spec-simple decodes the drafter every round even at n_max 0 (speculative.cpp:1170).
+  Matches the PLAN prediction "B vs A lean lose" (needs alpha >= 0.65 at K=4). Lane parked unless a better
+  drafter (acceptance >= ~0.7) or cheaper verify appears.
+
+## 2026-09-27 — invite-by-link beta debt (owner decisions, relayed by brain fda66492)
+- BETA DEBT: a link overwrites the saved desk before any confirmation — add a one-tap confirm naming the computer before links can reach strangers. (Owner declined the confirm for the alpha: family-only users.)
+- BETA DEBT: swap assetlinks.json to the release signing key before any public invite link — the debug keystore is public and authenticates nothing. Add a CI gate refusing a deploy with the `CN=Android Debug` fingerprint.
+- kalsa-pair deployed 2026-09-27 (version 5f5ea8c9), routes kalsa.io/pair* + /.well-known/assetlinks.json; NOT reachable until the apex gets a proxied DNS record (owner OK pending).
