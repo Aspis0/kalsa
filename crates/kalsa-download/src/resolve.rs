@@ -12,9 +12,9 @@ use std::thread;
 use std::time::Duration;
 
 /// How long a name may take to answer before this crate calls the network
-/// blocked. Five seconds covers a resolver's ordinary bad day; past it the
-/// walk has lost anyway, and the owner is owed a sentence they can act on.
-pub(crate) const RESOLVE_DEADLINE: Duration = Duration::from_secs(5);
+/// blocked. The Windows resolver retries for roughly 12 s in total before
+/// it answers on its own, so the deadline must sit above that number.
+pub(crate) const RESOLVE_DEADLINE: Duration = Duration::from_secs(15);
 
 /// What the std resolver does, without its patience: `host:port` to
 /// addresses, straight through to `getaddrinfo`.
@@ -29,8 +29,8 @@ pub(crate) fn std_lookup(netloc: &str) -> io::Result<Vec<SocketAddr>> {
 ///
 /// WHY the lookup runs on its own thread: it is a blocking call with no
 /// deadline of its own, and the only way to stop waiting for it is to stop
-/// waiting. The thread is detached — a truly wedged resolver never ends,
-/// which costs one idle thread, not a stuck walk.
+/// waiting. The thread is detached, blocked in `getaddrinfo` until the
+/// resolver answers — one blocked thread per attempt, not a stuck walk.
 pub(crate) fn deadline_resolver(
     deadline: Duration,
     lookup: impl Fn(&str) -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static,
