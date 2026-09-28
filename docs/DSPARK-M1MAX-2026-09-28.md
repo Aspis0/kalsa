@@ -191,3 +191,101 @@ full generated texts); `server-*.log` engine logs including the DSpark init
 lines; `build/` the fork-HEAD Metal build; `kalsallama/` the HEAD clone.
 Bench servers were killed; nothing outside /tmp/dspark and this doc was
 modified.
+
+---
+
+## Correctness check — are we running DSpark correctly? (2026-09-28, later)
+
+The numbers above carry three red flags: acceptance far below Liquid's 4.42/10, a
+steep n_max penalty (9 → 55 tok/s vs 3 → 100) that a one-pass block drafter should
+not pay, and a converter that already proved able to corrupt this arch's rope.
+This section closes the question: **the fork is equivalent to upstream llama.cpp —
+identical speed, identical acceptance, byte-identical output — so 1.6× is simply
+what this pair does on our prompts on this machine.** Measured unless labelled.
+
+### a) Liquid's own reference run
+
+The `LiquidAI/LFM2.5-2.6B-DSpark-GGUF` README (read live today) gives the exact
+reference argv and nothing more specific:
+
+> `llama-server -m LFM2.5-2.6B-F16.gguf -md LFM2.5-2.6B-DSpark-F16.gguf --spec-type draft-dspark --spec-draft-n-max 10 --spec-draft-n-min 0 -fa on -ngl 99`
+> "DSpark speculative decoding is in mainline, ggml-org/llama.cpp #25173."
+
+No exact commit is named, and the README publishes **no acceptance or speedup
+numbers for llama.cpp** — the 4.42/10 and 2.27x figures live in the
+safetensors-card/blog tables, measured on **their** task mix: per-task acceptance
+on M4 Max of 4.45 (MATH-500), 4.91 (GSM8K), 5.24 (HumanEval), 4.19 (MBPP), 3.33
+(MT-Bench), mean 4.42 of 10. The upstream PR that added LFM2 DSpark (#27383,
+merged 2026-08-20, commit `07822bddf`) reports the author's own 1.2B numbers on
+an RTX 4070 Laptop: mean 2.12x (94 → 199 t/s) with per-task acceptance 18–66% —
+and community results in that thread agree with our range, not the headline:
+simongonzalezdc (Strix Halo) got acceptance 0.70–0.80 on prose with the default
+`n_max=3` and only **+17.7%** with the F16 draft (Q8_0 draft: −20%); insraq's
+"~3x" on Windows CUDA/Vulkan came with no acceptance figures.
+
+On thinking: the target's chat template **always** opens the assistant turn with
+`<think>` (README: "The generation prompt opens with `assistant\n<think>`"), so
+reasoning tokens are the model's designed output; our runs counting
+`reasoning_content` matches the design. Whether Liquid's acceptance tables were
+computed over reasoning+answer or answer-only is not stated anywhere — CODE-DERIVED
+from their use of eval harnesses (MATH-500 etc.): likely over everything the model
+emits.
+
+### b) Fork vs upstream, same everything
+
+Upstream `ggml-org/llama.cpp` at master `57b557cb9` (today) built for Metal with
+the same flags as the fork build. Diff of the DSpark runtime between upstream
+master and fork HEAD `833cde99b`: `src/models/dflash.cpp`, `common/speculative.cpp`
+(the whole `common_speculative_impl_draft_dflash` class) and `src/llama-arch.cpp`
+differ **only** by upstream's `common_batch` API migration (#29385) and
+unrelated-arch additions (DeepSeek YaRN rope_freqs, Gemma4 backbone #29226,
+NVFP4 #28000) — no behavioural change in drafting, sampling, truncation, or
+verification. No commit matching "apply the DSpark interleaved-rope reorder once,
+not twice" (the PR-thread rumour) exists in upstream history; searched `git log`.
+
+Same three prompts, Liquid's exact argv (F16 target, `--spec-draft-n-max 10`,
+official drafter, greedy, seed 42):
+
+| prompt | upstream tps | v1.1.2 tps | acc rate | tokens/step |
+|---|---|---|---|---|
+| en_short | 71.3 | 72.1 | 0.40 | 4.6 |
+| en_code | 58.3 | 58.7 | 0.30 | 3.7 |
+| it_long | 40.3 | 40.4 | 0.17 | 2.5 |
+
+F16 no-draft baseline en_code on upstream: **56.3 t/s** (Liquid's M4 Max baseline
+61 is consistent with the ~1.1x M4/M1 bandwidth ratio). At n_max 3: upstream
+98.2 vs fork 100.6. And the greedy output of upstream and v1.1.2 at identical
+argv is **byte-identical** (en_code, 2,117 chars, exact string equality). The
+earlier table's "B acc/step" column is the ratio (accepted drafts + emitted) /
+emitted; restated as tokens per decode step including the bonus token it reads
+2.5–2.9 at n_max 3 and 2.5–4.6 at n_max 9.
+
+**One pass per block — confirmed, not autoregressive.** The fork's
+`common_speculative.cpp` `draft()` builds "one batch holding every drafting
+sequence's noise block into a single decode" and calls `llama_decode(ctx_dft,
+batch)` exactly once per step (comment and call in
+`common_speculative_impl_draft_dflash::draft`). The `-v` logs agree: each block
+emits candidate lines for all 9 positions at the same timestamp (e.g. 10,179
+candidate lines for these runs, `pos 0..8` grouped per step). The n_max penalty
+is on the **target's verify pass**: with n_max 3 the target decodes 4 tokens per
+step at ~28.5 ms (98.2 t/s at 2.8 tokens/step); with n_max 9 it decodes 10 at
+~63.5 ms (58.3 t/s at 3.7) — the M1 Max Metal cost of a width-10 dense F16
+verify is ~3.6x the single-token step (17.7 ms), and the extra accepted tokens
+do not pay for it. Liquid's M4 Max numbers were measured with the Metal
+small-batch tiles of #27441 (2026-08-31) on a 1.37x-bandwidth chip; even so, on
+our prompt mix their argv yields 1.04x here (58.7 vs 56.3) and the plausible
+reading of their 2.27x is the math/code-heavy task mix (acceptance 4.4–5.2) at
+those flags on M4 Max. INFERRED, not measured: no M4 Max available.
+
+### c) Verdict
+
+**Fork == upstream** — to the first decimal in tok/s, identical acceptance, and
+byte-identical greedy text. No defect to name; in particular the +1
+hidden-state layer offsets (`src/models/dflash.cpp:23`), mask token 125017,
+`sample_from_anchor=true`, and the official GGUF's rope layout are all read the
+same way by both engines, and bug #25618 did not reproduce (greedy exact, and
+the F16-target control matched the Q8 one). Acceptance 2.5–4.6 tokens/step sits
+inside Liquid's own per-task spread (their MT-Bench row is 3.33); the shortfall
+against the 4.42 mean is our prompt mix — Italian expository worst at 0.17
+per-position — plus the M1 Max verify-width cost that makes n_max 3, not 10, the
+right flag here. The first doc's conclusion stands unchanged.
