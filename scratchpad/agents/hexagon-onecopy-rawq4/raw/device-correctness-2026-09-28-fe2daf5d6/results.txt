@@ -1,0 +1,13 @@
+Engine commit: fe2daf5d6 (on 9a2fb2376)
+llama-perplexity SHA-256 local/device: 9aaaf4c8e99dd1b306b1518bfa63de92fda640a15add4a00e1e269a244aaf4d6
+libggml-htp-v73.so SHA-256 local/device: dcdbceb5523e0f27ed6da88c10ab83442bdfa47c64767efb656560513c4b73c6
+Fixture SHA-256: bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728
+CPU base logits SHA-256: 5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f
+
+Run 1 raw one-copy: EXIT=0; HTP MUL_MAT=1080; HTP0:0-HOST MUL_MAT=1080; error markers=0; mean KLD=0.004706 ± 0.000397; max=0.116930; same top p=96.667 ± 0.796%; PPL(Q)=33.971933 ± 5.161928.
+Run 2 normal-buffer: EXIT=0; HTP MUL_MAT=811; host-source MUL_MAT=0; error markers=0; mean KLD=0.002788 ± 0.000170; max=0.032330; same top p=96.471 ± 0.818%; PPL(Q)=33.374816 ± 5.055062.
+Run 3 normal-buffer + --no-repack: EXIT=0; HTP MUL_MAT=811; host-source MUL_MAT=0; error markers=0; mean KLD=0.002788 ± 0.000170; max=0.032330; same top p=96.471 ± 0.818%; PPL(Q)=33.374816 ± 5.055062.
+
+Run 3 load_tensors reports CPU model buffer 559.45 MiB and no CPU_REPACK buffer. Run 2 reports CPU model 205.08 MiB and CPU_REPACK 354.38 MiB. Thus the no-repack discriminator did run with ffn_down on the normal CPU buffer.
+
+All pre/post gates: Awake, AC=true, 100%, battery temperature 29.7-35.1 C, thermal status 0, traced 0. App force-stopped before each arm, pidof empty. Stay-on command EXIT=0. No timing or heat result. All arms log a URI fallback warning before HTP session creation; none logs NO-SUPPORT, dsp-error, crash, or abort.

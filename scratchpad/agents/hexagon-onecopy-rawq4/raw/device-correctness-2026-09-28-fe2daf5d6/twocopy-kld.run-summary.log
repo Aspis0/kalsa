@@ -1,0 +1,7 @@
+BINARY_EXIT=0 HTP_MUL_MAT=811 HTP_HOST_MUL_MAT=0 ERROR_MARKERS=0
+Mean PPL(Q)/PPL(base)         :   1.032093 ±   0.004526
+Mean PPL(Q)-PPL(base)         :   1.037785 ±   0.233310
+Mean    KLD:   0.002788 ±   0.000170
+Maximum KLD:   0.032330
+Same top p: 96.471 ± 0.818 %
+ADB_EXIT=0

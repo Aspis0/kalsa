@@ -1,0 +1,10 @@
+17789
+1.51.830.920 D ggml-hex: HTP0:0 execute-op SWIGLU|ffn_gate-21 x ffn_up-21 -> ffn_swiglu-21|10752:128 x 10752:128 -> 10752:128|f32 x f32 -> f32|4:43008 x 4:43008 -> 4:43008|HTP0:0 x HTP0:0 -> HTP0:0|----|flags 0x0
+1.51.830.925 D ggml-hex: HTP0:0 add-tensor #5 ffn_swiglu-21 : bi 2 data 0x745a48e000 offset 12075008 size 5505024 flags 0x0 : 10752:128:1:1
+1.51.831.060 D ggml-hex: HTP0:0 opqueue-push batch #964 : n-bufs 3 n-tensors 6 n-ops 3 vmem 630444032 : b-size 72 t-size 336 o-size 696 m-size 1248
+1.51.831.084 D ggml-hex: HTP0:0 queue-opbatch: 0x74be797c80 size 1248
+  mWakefulness=Awake
+  level: 100
+  temperature: 325
+Thermal Status: 0
+0

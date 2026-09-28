@@ -1,0 +1,9 @@
+18398
+0.52.836.883 D ggml-hex: HTP0:0 add-tensor #35 ffn_swiglu-2 : bi 0 data 0x7dc891da80 offset 14289536 size 5505024 flags 0x0 : 10752:128:1:1
+0.52.836.928 D ggml-hex: HTP0:0 opqueue-push batch #247 : n-bufs 4 n-tensors 36 n-ops 16 vmem 1149509632 : b-size 96 t-size 2016 o-size 3712 m-size 6592
+0.52.836.929 D ggml-hex: HTP0:0 queue-opbatch: 0x7e83647100 size 6592
+  mWakefulness=Awake
+  level: 100
+  temperature: 351
+Thermal Status: 0
+0

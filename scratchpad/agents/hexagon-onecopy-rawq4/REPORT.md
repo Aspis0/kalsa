@@ -310,5 +310,44 @@ the skel.
 | `build-onecopy-v73b/bin/llama-perplexity` | `9aaaf4c8e99dd1b306b1518bfa63de92fda640a15add4a00e1e269a244aaf4d6` |
 | `build-onecopy-v73b/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `dcdbceb5523e0f27ed6da88c10ab83442bdfa47c64767efb656560513c4b73c6` |
 
-Unproven on device: the hardened build has not run on the S23. The `--no-repack`
-control above has not run.
+At the time this build note was written, the hardened build and `--no-repack`
+control had not run on the S23; both were subsequently run in the dated section
+below.
+
+## S23 hardened-build correctness and `--no-repack` discriminator — 2026-09-28
+
+Engine commit `fe2daf5d6` artifacts were verified locally against the hashes in
+the build report, then pushed only to `/data/local/tmp/govhtp/onecopy-v73b/`.
+The device hashes matched. `ADSP_LIBRARY_PATH` placed `onecopy-v73b/dsp` before
+the untouched kit `lib` directory. The three arms used the same fixture and CPU
+base with `-lv 5`; all dispatch counts use full device name `HTP0:0`. No timing
+or heat comparison was run.
+
+| Run | Configuration | Exit | HTP MUL_MAT | HTP0:0-HOST MUL_MAT | Mean KLD | Max KLD | Same top p | Mean PPL(Q) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Raw one-copy | 0 | 1080 | 1080 | 0.004706 ± 0.000397 | 0.116930 | 96.667 ± 0.796% | 33.971933 ± 5.161928 |
+| 2 | Normal-buffer control | 0 | 811 | 0 | 0.002788 ± 0.000170 | 0.032330 | 96.471 ± 0.818% | 33.374816 ± 5.055062 |
+| 3 | Run 2 + `--no-repack` | 0 | 811 | 0 | 0.002788 ± 0.000170 | 0.032330 | 96.471 ± 0.818% | 33.374816 ± 5.055062 |
+
+Run 1 again passes the stated correctness gate. The hardened decline-everywhere
+build still executes 1080 `MUL_MAT` operations from `HTP0:0-HOST`, with no
+`NO-SUPPORT`, `dsp-error`, abort, or crash marker. Run 2 reproduces the previous
+normal-buffer result. Its 811 execute lines include fused operations as described
+above.
+
+**Discriminator verdict: the `--no-repack` prediction is refuted, reopening raw-path
+attribution.** Run 3 is
+exactly at the normal-buffer result (mean KLD 0.002788), not the predicted
+0.004–0.005. Its load log confirms that `--no-repack` put the CPU weights in the
+normal CPU buffer (559.45 MiB; no `CPU_REPACK` allocation), while Run 2 used
+`CPU_REPACK` (354.38 MiB). Thus the generic CPU `ffn_down` kernel alone does not
+explain the Run 1 vs Run 2 KLD gap. Run 1 still passes the registered numerical
+thresholds; its remaining difference from Run 3 requires raw-path/op-placement
+attribution.
+
+All arms passed pre/post Awake, screen-on, thermal, battery, traced, and
+force-stop gates; the phone was plugged in for correctness only. All three logs
+show a URI-fallback warning before successful HTP session creation, and no DSP
+failure marker. Full logs, load-placement evidence, hashes, gates, and commands
+are under `raw/device-correctness-2026-09-28-fe2daf5d6/`. A/B/C remain pending until the
+phone is unplugged.
