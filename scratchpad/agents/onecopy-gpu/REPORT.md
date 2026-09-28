@@ -405,3 +405,91 @@ Other captured failure: HTP initialization logged `HTP0:0 failed to get URI ... 
 then said it was “Falling back to single session URI”; G1 still exited successfully. Captured
 logcats show no fatal signal or GPU fault/reset. Full probe, KLD, gates, device hashes and logcats
 are in `raw/s23-20260928-gpu-correctness/`.
+
+### 2026-09-28 17:32 EDT — cl_qcom_dmabuf_host_ptr route (engine `4ff4f729c`)
+
+The S23 slot (above) proved two things: the Adreno 740 exposes
+`cl_qcom_dmabuf_host_ptr` + `cl_qcom_ext_host_ptr` + `cl_qcom_ext_host_ptr_iocoherent` but
+neither import API the engine tried, and the probe's own allocators returned `rc -1` before any
+import row could run.
+
+**Cause of the probe `rc -1`** (both allocators failed *before* setting `size`, which is why
+the logs printed `size 0 capacity 0`):
+
+- **rpcmem: the S23's `libcdsprpc.so` does not export `rpcmem_alloc2`.** `dlopen` worked —
+  the fastrpc constructor lines in `probe-rpcmem.logcat.txt` carry the probe's own pid
+  (`q4raw-probe ... multidsplib_env_init: libcdsprpc.so loaded`) — but
+  `dmabuf_alloc_rpcmem` required `rpcmem_alloc2` and returned at its dlsym check. This phone
+  has been logging the proof from the engine itself: `ggml-hex: rpcmem_alloc2 not found,
+  falling back to rpcmem_alloc` (`../q53-v73-npu-correctness/raw/lane2_s2_qwen_htp_ppl.log:1925`,
+  an S23 run), and the engine's `htp-drv.cpp` marks exactly that dlsym optional with an
+  `rpcmem_alloc` fallback. Fixed the same way; every failure step now prints `dlerror()`.
+- **system dma-heap: `open("/dev/dma_heap/system")` failed and its errno was never logged**, so
+  the captured logs cannot distinguish a SELinux denial on the shell domain (no avc lines in the
+  captured logcat buffers) from a missing heap node — not a heap-id/flags problem, those are
+  only reached after `open` succeeds. The probe now prints `strerror(errno)` at open/ioctl/mmap:
+  `EACCES`/`EPERM` → SELinux (grab `dmesg | grep avc`, command below), `ENOENT` → no node on
+  this device. The engine's `-HOST` rpcmem allocations work from the same shell, so
+  `--import rpcmem` is the arm G1 needs; `--import system` stays auxiliary.
+
+**Engine: third import route.** `cl_qcom_dmabuf_host_ptr` is now preferred (then
+`cl_qcom_ion_host_ptr`, then Khronos); `GGML_OPENCL_RAWQ4_IMPORT = dmabuf | ion | khr` forces
+one. The struct and token are declared locally as interop constants citing the extension (QTI's
+`cl_ext_qcom.h` is proprietary and not vendored; see `QCOM-DMABUF-HOST-PTR.md`). It runs through
+the same shared wrapper as the other routes, so the import rules, error logging, fail-closed
+`DMA_BUF_IOCTL_SYNC` and dup-fd lifetime all apply unchanged. There is no offset field: the
+whole page-aligned HTP buffer is imported at its base (the registry already imports whole
+buffers) and tensor byte offsets stay in the kernel args. Cache policy: the -HOST buffer is
+rpcmem `flags=1` (cached) —
+`../hexagon-onecopy-rawq4/raw/p5-2026-09-28/p5-small-htp-kld-v.log:1114`
+`HOST RPCMEM allocation flags=1 uncached=0` — so `WRITEBACK`/`IOCOHERENT` are both legal and the
+default stays `IOCOHERENT` (iocoherent extension present). If `GGML_HEXAGON_HOSTBUF_UNCACHED=1`
+is ever used, pair it with `GGML_OPENCL_RAWQ4_POLICY=uc`.
+
+Build: same image, preset, targets and `build-onecopy-gpu` dir. Configure r3 `EXIT=0`
+(`raw/configure_r3.log`); attempt 9 `EXIT=1` — `llama-perplexity` LTO link OOM-killed
+(`raw/build_android9.log`); attempt 10 `EXIT=0` (`raw/build_android10.log`); probe rebuild
+`EXIT=0` (`raw/probe_build_android_r3.log`, no warnings). Same 7 warnings, all in the
+pre-existing `ggml-opencl.cpp` lines; none in `ggml-opencl-rawq4*` or the probe sources.
+
+| Artifact | SHA-256 (2026-09-28 17:32 EDT, `4ff4f729c`) |
+|---|---|
+| `build-onecopy-gpu/bin/llama-perplexity` | `7e2f3476665bdfdcf5c7034f203794a87ae9db641e1af6dd772d92f967f00fee` |
+| `build-onecopy-gpu/bin/llama-eval-callback` | `ef7a337af34bca1b1733650eb86a572f6ef28a0795db963a2ea48d690a76d62e` |
+| `build-onecopy-gpu/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640` (unchanged: no DSP change) |
+| `build-onecopy-gpu/q4raw-probe` (AArch64 PIE) | `42bbe7b73381dad5732160d2fb79d8b93d814096a89049e894d1ed6796c40dd6` |
+| `kernels/mul_mm_q4_0_f32_l4_lm_raw.cl` | `2bbab74d596362159e69cc71944de6f53ab26e15c14054a0834d8e739abc4768` (unchanged) |
+| `kernels/mul_mv_q4_0_f32_v.cl` | `d144489d59830879de907bcb8cf98280fcbbba1b06cd36003d1f35614f9cdf77` (unchanged) |
+
+Earlier tables are kept for history; `raw/SHA256SUMS.txt` was appended.
+
+#### Rerun commands (correctness only; plugged OK)
+
+Same gates as §6. The payloads changed, so re-push first; `llama-eval-callback` is rebuilt but
+is not part of the push payload (unchanged role). The wrapper's `error_markers` regex now
+matches the engine's `no usable dma-buf import extension` message.
+
+```sh
+cd /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/onecopy-gpu
+sh run-onecopy-gpu.sh push        # mkdir + 5 pushes + sha256sum on device
+sh run-onecopy-gpu.sh probe       # rows: import-dmabuf-{ioc,wb,uc}-*, import-ion-*, import-khr-*
+sh run-onecopy-gpu.sh kld         # steps 2-3: G0 control, then G1 raw (ub 128)
+sh run-onecopy-gpu.sh kld-decode  # step 4: G0/G1 at ub 1 (GEMV path)
+```
+
+Extra one-liner right after `probe`, only for the system-heap diagnosis (may print nothing or
+be denied on a production kernel):
+
+```sh
+S=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+adb -s "$S" shell "dmesg | grep -i 'avc.*dma_heap' | tail -5"
+```
+
+What the rerun must show: probe `import-dmabuf-ioc-synced` `PASS` (the import works and the GPU
+reads the CPU-written bytes), `nosync` recorded as a finding either way; probe `--import rpcmem`
+prints `INFO dmabuf rpcmem_alloc2 absent, using rpcmem_alloc` then `rc 0`; G1 `imports >= 1`
+through `imported dma-buf fd ... via cl_qcom_dmabuf_host_ptr`,
+`GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q4_0_f32_l4_lm_raw` at `-ub 128` and
+`kernel_mul_mat_q4_0_f32_v` at `-ub 1`, `error_markers=0`, and the §6 KLD gates unchanged
+(Mean KLD <= 0.005, same-top >= 95 %, <= G0 + 0.001). If `--import system` still fails, its new
+INFO line names the errno; that arm is not required for G1.
