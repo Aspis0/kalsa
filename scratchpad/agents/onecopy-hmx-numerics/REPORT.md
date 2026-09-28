@@ -122,3 +122,44 @@ Optional arm — env-off control (P0-hmx with `GGML_HEXAGON_RAW_HMX` unset and
   recompiled; `htp_iface.idl` identical, verified by diff).
 - v79: the same sources compiled and linked `libggml-htp-v79.so` normally (its qaic succeeded before the
   flake began); usable for an 8 Elite arm later via `GGML_HEXAGON_ARCH=v79` on that device's harness.
+
+### 2026-09-28 — S23 HMX one-copy correctness run
+
+Correctness-only, plugged. Engine `9d5eaf681`. Local artifact SHA-256 matched the requested values;
+push and device SHA checks returned `EXIT=0`:
+
+| Artifact | SHA-256 |
+|---|---|
+| `llama-perplexity` | `9d5c2609def957f0bd03641a474596ca5fafe903e6e5c41427b38d04f5127b50` |
+| `libggml-htp-v73.so` | `f56217c0652a3d2e46211e78d42bf076e7d6127e304fe70c0d2c99df8448067f` |
+
+The new binary/skel pair was placed only in `/data/local/tmp/govhtp/onecopy-hmx/`; kit and earlier
+onecopy directories were untouched. Device `strings` confirmed generic HMX code and the existing
+flat raw-Q4 symbols, but did not expose `hmx-mm-2d:` or the inlined `q4_0_raw_chunk_to_tiles` helper.
+The build's `matmul-ops.c.obj` bitcode contains `q4_0_raw_chunk_to_tiles`; the linked/device skel
+hash matches the requested build. Runtime P0 logs also identify every relevant matmul's kernel type
+as `hmx-tiled` with `HTP0:0-HOST` weights. The more specific DSP FARF line requested below was absent.
+
+Pre/post gates for both runs: Awake, AC powered, level 100%, thermal status 0, traced 0, app stopped;
+stay-on setting remained 15. P0 battery temperature was 32.3→33.9 °C; Q0 was 33.7→33.6 °C.
+No DSP errors, `NO-SUPPORT`, aborts, or hangs. P0 `EXIT=0`; Q0 `EXIT=0`. One first attempt at
+recording Q0's post-gate had a shell test typo (`[: missing ]`, exit 2); the gate was immediately
+rerun correctly and passed (`q0.after.checked.txt`).
+
+| Arm | HTP MUL_MAT | HOST source MUL_MAT | `hmx-tiled` | `hmx-mm-2d:` | Mean KLD ± SD | Max KLD | Same-top | Mean PPL(Q) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| P0-hmx raw `-HOST` | 1316 | 1316 | 1316 | 0 | 0.000928 ± 0.000053 | 0.010814 | 97.451 ± 0.699% | 32.216773 ± 4.842615 |
+| Q0-hmx normal buffer | 1320 | 0 | 1320 | 0 | 0.000892 ± 0.000052 | 0.011580 | 97.843 ± 0.644% | 32.205994 ± 4.841256 |
+
+The KLD mean difference is `+0.000036`, within the reported per-arm spread. However, `opset.sh`
+returns nonidentical tables (P0 19 rows, Q0 26; diff exit 1). Q0 includes HTP `MUL` for ffn output,
+operator norm and q/k layernorm, `SSM_CONV`, and four `result_output` matmuls which P0 does not;
+P0 also has 4 fewer `MUL_MAT` operations. Thus these KLD values are not a placement-matched
+numerics comparison.
+
+**Verdict: NOT PASS / inconclusive.** HTP host-weight matmuls and the `hmx-tiled` kernel selection
+are visible; both runs complete and produce finite, close KLD/PPL. The specified pass requires
+`hmx-mm-2d:` FARF lines (>0) and matching opset tables; observed counts are zero and the tables
+differ. Do not treat the KLD proximity as proof of raw-HMX equivalence. The optional env-off control
+was skipped. Raw command logs, op tables, device strings and gates are retained locally under
+`raw/s23-20260928-hmx/` (raw dumps are ignored by the lab repository).
