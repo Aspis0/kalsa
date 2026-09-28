@@ -407,3 +407,148 @@ parallel codegen under x86 emulation. No warnings come from the changed files.
 
 Unproven on device: `6fd40579d` / `v73c`. Also still open: the run-2
 `--no-repack` control from the gap analysis.
+
+
+## Discriminating raw-path numerics vs placement — 2026-09-28
+
+Engine commit `c939a135d` (on `6fd40579d`). NPU code is unchanged, so the `v73d`
+skel is byte-identical to `v73c`. No device and no adb in this step. Evidence and
+scripts: `raw/discriminators-2026-09-28/`.
+
+**Correction to the previous section.** The run-2 `--no-repack` control
+(lab `ff53c5f`, rewritten) gave KLD 0.002788, identical to run 2. So the
+`ffn_down` CPU kernel does not explain the gap; my "ffn_down" attribution was
+wrong. The Mac `--no-repack` figure (0.001574) does not transfer to the S23 CPU
+kernels.
+
+**The old `HOSTBUF_FLUSH` / `HOSTBUF_REPACK` arms were no-ops.** With `-lm none`,
+the loader `read()`s directly into host buffers and never calls `set_tensor`
+(`src/llama-model-loader.cpp:1668-1670`). The `-HOST` setter hooks
+(`ggml-hexagon.cpp:1994-2026`) therefore never ran. That is why the REPACK arm's
+marker is absent and its KLD equals the raw arm's
+(`../hexagon-offload-op/raw/hostbuf-correctness-20260928/results.txt:11,13`).
+`HOSTBUF_UNCACHED` acts at allocation and was a real arm. So a raw-vs-repacked
+A/B cannot use the REPACK hook. The design below uses `-ot` instead.
+
+### What differs between run 1 and run 2 (real batches)
+
+`opset.sh` (below) run on the two device logs gives `opset-run1.txt` and
+`opset-run2.txt`. Only run 2 has, on HTP: `SSM_CONV` (176), 4 more `ADD l_out`,
+4 more `RMS_NORM`, and the lm_head `MUL_MAT result_output` (4). Run 2 also fuses
+gate+up and q+k+v (410 NX events) and RMS_NORM+MUL (685 events). Run 1 fuses
+nothing. Run 1 runs the norm-weight `MUL`s, `SSM_CONV`, the final norm and the
+lm_head on the CPU, because their weights sit in `-HOST` and only `MUL_MAT`
+opts in to offload. The Q4_0 matmul set is the same in both.
+
+### Build `build-onecopy-v73d`
+
+Same preset. Configure `EXIT=0`. Attempt 1 (`-j2`) `EXIT=1` on the OpenCL
+`embed_kernel.py` codegen flake (`gemv_noshuffle_q4_k_f32.cl.h`); attempt 2
+`EXIT=0` (`build_attempts.txt`). No warnings from changed files.
+
+| Artifact | SHA-256 |
+|---|---|
+| `bin/llama-perplexity` | `b350d98f0c49836cb89363656514a030dd4ed98b7cb91f6bbceaad810ff0210c` |
+| `bin/llama-eval-callback` | `6f7c13ca26259a90000c8f72de72c4cfa387f721f26380298f7c54fefa69b083` |
+| `ggml/src/ggml-hexagon/libggml-htp-v73.so` | `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640` |
+
+The only engine change: the debug callback now prints `hash = <FNV-1a of the
+element bits>` after each tensor (`common/debug.cpp`), because six values at
+`%.4f` plus a float sum cannot show bit identity. Host check: on the Mac CPU,
+the ship model with the prompt below dumps 1014 tensors over 68 prompt tokens
+(>= 32, so its matmuls go to HTP on the device). Two runs gave identical hashes.
+
+### Design: one variable per arm
+
+All arms use `GGML_HEXAGON_OPFUSION=0` (existing switch, `ggml-hexagon.cpp:115,3073`),
+which removes both fusions, and `--no-warmup`. Fixture, CPU base, chunks and
+gates are as before.
+
+- **P0 (raw):** run 1 unchanged: all weights in `-HOST`, raw Q4_0 path.
+- **P1 (repacked, same placement):** P0, but the 136 HTP-consumed Q4_0 matmul
+  weights (`attn_q/k/v/output`, `ffn_gate/up`, `shortconv.in/out_proj`; the regex
+  was checked against the model's tensor names) go to the normal `HTP0:0` buffer,
+  which repacks on load. Everything the CPU reads (`ffn_down`, `token_embd`,
+  norms, conv) stays in `-HOST` as in P0. The only difference is how HTP reads the
+  same matmul weights: raw plus convert, or pre-repacked tiles.
+- **Q0 (run 2, fusion off):** normal buffer, no `-ot`.
+- **D0 / D0b / D1:** `llama-eval-callback` dumps with the P0 / P0 / P1 settings
+  on one 68-token prompt. The callback splits the graph per node
+  (`ggml-backend.cpp:1815-1835`, synchronized before each read), so no fusion
+  either way.
+
+Push (new dir, the kit and `onecopy/` untouched):
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'mkdir -p /data/local/tmp/govhtp/onecopy-d/bin /data/local/tmp/govhtp/onecopy-d/dsp'
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsallama-onecopy/build-onecopy-v73d/bin/llama-perplexity /data/local/tmp/govhtp/onecopy-d/bin/
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsallama-onecopy/build-onecopy-v73d/bin/llama-eval-callback /data/local/tmp/govhtp/onecopy-d/bin/
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp push /Users/marco/Projects/kalsallama-onecopy/build-onecopy-v73d/ggml/src/ggml-hexagon/libggml-htp-v73.so /data/local/tmp/govhtp/onecopy-d/dsp/
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell 'sha256sum /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity /data/local/tmp/govhtp/onecopy-d/bin/llama-eval-callback /data/local/tmp/govhtp/onecopy-d/dsp/libggml-htp-v73.so'
+```
+
+Decisive arms:
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot '.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p0-raw-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p0-raw-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p0-raw-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p0-raw-kld.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot 'blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up)|shortconv\.(in|out)_proj)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p1-repacked-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p1-repacked-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p1-repacked-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p1-repacked-kld.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence  > /data/local/tmp/govhtp/onecopy-d/q0-normal-nofusion-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/q0-normal-nofusion-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/q0-normal-nofusion-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/q0-normal-nofusion-kld.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-eval-callback -m /data/local/tmp/heat3way/ship.gguf -p 'The history of the printing press begins in the fifteenth century, when Johannes Gutenberg combined movable metal type, oil-based ink and a wooden screw press into a practical system that could produce books far faster and more cheaply than scribes copying manuscripts by hand, and within fifty years presses operated in hundreds of European cities.' -n 1 -ngl 99 -dev HTP0:0 -lm none -ot '.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/d0-raw.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"hash = \" /data/local/tmp/govhtp/onecopy-d/d0-raw.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-eval-callback -m /data/local/tmp/heat3way/ship.gguf -p 'The history of the printing press begins in the fifteenth century, when Johannes Gutenberg combined movable metal type, oil-based ink and a wooden screw press into a practical system that could produce books far faster and more cheaply than scribes copying manuscripts by hand, and within fifty years presses operated in hundreds of European cities.' -n 1 -ngl 99 -dev HTP0:0 -lm none -ot '.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/d0b-raw.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"hash = \" /data/local/tmp/govhtp/onecopy-d/d0b-raw.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-eval-callback -m /data/local/tmp/heat3way/ship.gguf -p 'The history of the printing press begins in the fifteenth century, when Johannes Gutenberg combined movable metal type, oil-based ink and a wooden screw press into a practical system that could produce books far faster and more cheaply than scribes copying manuscripts by hand, and within fifty years presses operated in hundreds of European cities.' -n 1 -ngl 99 -dev HTP0:0 -lm none -ot 'blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up)|shortconv\.(in|out)_proj)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/d1-repacked.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"hash = \" /data/local/tmp/govhtp/onecopy-d/d1-repacked.log"
+```
+
+Local analysis after pulling the logs (scripts in `raw/discriminators-2026-09-28/`,
+tested on the existing logs and on two host dumps):
+
+```sh
+sh raw/discriminators-2026-09-28/compare-dumps.sh d0-raw.log d0b-raw.log      # determinism of the raw path
+sh raw/discriminators-2026-09-28/compare-dumps.sh d0-raw.log d1-repacked.log  # raw vs repacked, bit level
+sh raw/discriminators-2026-09-28/opset.sh p0-raw-kld.log > p0.ops; sh raw/discriminators-2026-09-28/opset.sh p1-repacked-kld.log > p1.ops; diff p0.ops p1.ops
+sh raw/discriminators-2026-09-28/opset.sh d0-raw.log 68 > d0.ops; sh raw/discriminators-2026-09-28/opset.sh d1-repacked.log 68 > d1.ops; diff d0.ops d1.ops
+```
+
+Validity gates: every arm `EXIT=0`, no `dsp-error`/`NO-SUPPORT`, HTP `MUL_MAT` > 0.
+P0/P1 and D0/D1 op tables must be identical (`diff` empty); otherwise placement
+moved and that pair does not isolate the path. P1's matmul lines must read
+`HTP0:0 x HTP0:0-HOST`, P0's `HTP0:0-HOST x HTP0:0-HOST`.
+
+**Expected outcomes**
+
+| Hypothesis | P0 vs P1 | D0 vs D1 | D0 vs D0b | Q0 |
+|---|---|---|---|---|
+| (b) raw HTP path numerically differs | P0 > P1 | first difference at a `MUL_MAT` (first HTP matmul, `conv.in_proj-0`) with identical inputs | identical | ~0.0028 |
+| (b') raw path nondeterministic (e.g. a DMA or VTCM race) | differ, and P0 ≠ run 1's 0.004706 | differ | **differ** | — |
+| (a) placement (ops run 1 moves to CPU) | **equal** to all printed digits, both ≈ 0.004706 | IDENTICAL | identical | ~0.0028 |
+| fusion (RMS_NORM+MUL / NX on HTP in run 2) | equal, ≈ 0.004706 | IDENTICAL | identical | ≈ 0.0047 |
+
+My prior, not evidence: (a) or fusion. The tiles are byte-identical and the dot
+and quantizer code is shared (host test). But the conversion is scalar stores into
+VTCM followed by HVX loads, and nothing in this build proves that ordering on
+device. D0 vs D0b and D0 vs D1 test exactly that.
+
+**Follow-ups only if (a) holds (P0 = P1 and Q0 ≈ 0.0028).** Start from P1 and
+move one group back to where run 2 has it, one arm each. The arm whose KLD drops
+toward 0.0028 owns the gap.
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot '(blk\.[0-9]+\.(attn_norm|ffn_norm|attn_q_norm|attn_k_norm)|token_embd_norm)\.weight=HTP0:0,blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up)|shortconv\.(in|out)_proj)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p2-norms-htp-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p2-norms-htp-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p2-norms-htp-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p2-norms-htp-kld.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot 'blk\.[0-9]+\.shortconv\.conv\.weight=HTP0:0,blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up)|shortconv\.(in|out)_proj)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p3-conv-htp-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p3-conv-htp-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p3-conv-htp-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p3-conv-htp-kld.log"
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot 'token_embd\.weight=CPU,blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up)|shortconv\.(in|out)_proj)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p4-lmhead-htp-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p4-lmhead-htp-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p4-lmhead-htp-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p4-lmhead-htp-kld.log"
+```
+
+- P2: the norm weights (`attn_norm`, `ffn_norm`, `attn_q_norm`, `attn_k_norm`,
+  `token_embd_norm`; 77 tensors) go to the normal buffer, so the norm `MUL`s and
+  the final norm run on HTP.
+- P3: `shortconv.conv.weight` (22) goes to the normal buffer, so `SSM_CONV` runs
+  on HTP.
+- P4: `token_embd` goes to a CPU buffer (Q6_K is not CPU-repackable), so the
+  lm_head offloads to HTP at batch 128 as in run 2. `GET_ROWS` stays on CPU.
+- Check with `opset.sh` that each arm moved only its intended ops.
+
+Evidence files committed: scripts, `opset-run{1,2}.txt`, `SHA256SUMS.txt`,
+`build_attempts.txt`. Build/configure logs stay local (`*.log` is ignored and not
+force-added):
+- `build_android1.log` `eed36b4c94c7d2a39c1e3731aefc97bb685b482825f24a0c55ddad9f937349f4`
+- `build_android2.log` `9498a8d4b207ff4ed1899fb082f25c19649ab5d8a6c872e0a5f5e41a722afdac`
+- `configure.log` `4470af9c41cddc01ac39114429550c02d86967b1f1993a8ad8fc9e3afa7dc2da`
