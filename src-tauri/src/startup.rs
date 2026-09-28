@@ -1706,18 +1706,17 @@ mod tests {
         assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
     }
 
-    /// The owner's ruling, on the machine that asked for it: the Lenovo's
-    /// RTX 4050 6 GiB against 32 GiB of RAM. Budgeted on the card the
-    /// catalog leaves ~3.0 GiB after the margin and every row weighs more;
-    /// budgeted on RAM the processor build picks — and the reason says which
-    /// memory decided.
+    /// The owner's ruling: a card whose budget, after the margin, holds no
+    /// row this app ships, while the RAM funds several. The fixture's 2 GiB
+    /// card budgets 1.0 GiB and every row is charged more on the card; the
+    /// processor build picks — and the reason says which memory decided.
     #[test]
     fn the_graphics_refusal_falls_back_to_the_processor_and_says_why() {
         let machine = Machine {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                    vram_bytes: Some(2 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -1725,7 +1724,7 @@ mod tests {
         // The refusal that started this: budgeted on the card, nothing fits.
         assert!(
             choose_model(ServerBackend::Vulkan, &machine, None, None).is_err(),
-            "6.4 GB of VRAM minus the margin must hold no row"
+            "2.0 GB of VRAM minus the margin must hold no row"
         );
 
         // The walk's fallback asks the processor route for its own answer,
@@ -1869,7 +1868,7 @@ mod tests {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                    vram_bytes: Some(2 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -1906,7 +1905,7 @@ mod tests {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                    vram_bytes: Some(2 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -1945,7 +1944,7 @@ mod tests {
             measurement: measured(
                 80.9e9,
                 Backend::DiscreteGpu {
-                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                    vram_bytes: Some(2 * 1024 * 1024 * 1024),
                 },
             ),
             ram_bytes: 32 * 1024 * 1024 * 1024,
