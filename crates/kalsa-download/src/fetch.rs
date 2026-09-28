@@ -90,7 +90,9 @@ fn fetch_with_read_timeout(
         if done == expected_size {
             return Ok(());
         }
-        let read = reader.read(&mut chunk).map_err(DownloadError::Network)?;
+        // Mid-body silence or reset: the wire again, no answer this time
+        // either.
+        let read = reader.read(&mut chunk).map_err(DownloadError::Unreachable)?;
         if read == 0 {
             // The server ran out before the promise; the length gate in
             // `verify` will call that what it is.
@@ -276,6 +278,41 @@ mod tests {
     }
 
     #[test]
+    fn a_wire_that_refuses_the_connect_is_the_network_block_fact() {
+        // A closed loopback port: the connect dies with nothing spoken —
+        // no DNS, no answer, no probe — which is exactly the fact the
+        // engine decision's network-block sentence keys on. Offline by
+        // construction; the refusal is immediate.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        drop(listener);
+        let dir = scratch("fetch-unreachable");
+        let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
+        let err = fetch(&format!("http://127.0.0.1:{port}/weights.gguf"), &mut part, 16, &mut |_| {})
+            .expect_err("nothing listens there");
+        assert!(err.is_network(), "the wire's own refusal: {err:?}");
+
+        // Everything an exchange produced, and everything local, is not
+        // the wire's verdict: an HTTP refusal, a local fault, and the
+        // answered-but-unusable status keep the retry advice and stay out
+        // of the classification.
+        assert!(!DownloadError::Refused { status: 403 }.is_network(), "an answer");
+        assert!(
+            !DownloadError::Io(io::Error::new(io::ErrorKind::Other, "a file")).is_network(),
+            "local"
+        );
+        assert!(
+            !DownloadError::Network(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "unusable HTTP status 302"
+            ))
+            .is_network(),
+            "answered, not judged usable"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn a_quiet_server_times_out_and_keeps_bytes_for_the_next_attempt() {
         let dir = scratch("fetch-stall");
         let data = payload(3 * SPLIT as usize);
@@ -298,7 +335,10 @@ mod tests {
             .recv_timeout(Duration::from_secs(8))
             .expect("a stalled fetch must return before the hard deadline");
         assert!(
-            matches!(&result, Err(DownloadError::Network(e)) if e.kind() == io::ErrorKind::TimedOut),
+            matches!(
+                &result,
+                Err(DownloadError::Unreachable(e)) if e.kind() == io::ErrorKind::TimedOut
+            ),
             "a read timeout must be the existing resumable I/O failure: {result:?}"
         );
         assert_eq!(

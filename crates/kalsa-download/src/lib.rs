@@ -45,19 +45,26 @@ pub struct Progress {
 
 /// Why the download did not become the model. After `SizeMismatch` or
 /// `DigestMismatch` the `.part` file is gone: Keeping it would only fail
-/// verification again. After `Io`, `Network`, `Refused` or `DiskFull` it is
-/// still there — a refused file, a dropped connection or a full disk is
-/// resumable, which is the whole point.
+/// verification again. After `Io`, `Network`, `Unreachable`, `Refused` or
+/// `DiskFull` it is still there — a refused file, a dropped connection or a
+/// full disk is resumable, which is the whole point.
 #[derive(Debug)]
 pub enum DownloadError {
     /// A file on this machine refused: the part file, the destination, the
     /// disk. Every `?` on a bare `io::Error` lands here through the
     /// blanket conversion below; the wire sites name their own kinds
-    /// (`Network`, `Refused`) before `?` ever sees them.
+    /// (`Network`, `Unreachable`, `Refused`) before `?` ever sees them.
     Io(io::Error),
     /// The transport — connect, read. Built at the sites that know they
     /// are on the wire, never by the blanket conversion.
     Network(io::Error),
+    /// The wire refused to carry the exchange, so no HTTP answer exists to
+    /// judge: DNS, connect refused or timed out (TLS handshake and reset
+    /// included — ureq reports both as `ConnectionFailed`), socket I/O,
+    /// mid-body silence. ureq's own kind travels in the words. This
+    /// variant, and only this one, is the network-block fact the engine
+    /// decision classifies on.
+    Unreachable(io::Error),
     /// The publisher answered but did not allow the download: an HTTP
     /// status is a refusal, not a dropped connection. The part stays as
     /// for every resumable error — usually nothing arrived to keep — so
@@ -69,6 +76,15 @@ pub enum DownloadError {
     DigestMismatch { expected: String, actual: String },
 }
 
+impl DownloadError {
+    /// Whether the fetch died on the wire — the question the engine
+    /// decision's network-block sentence keys on. An HTTP answer of any
+    /// status, a mismatch, a full disk, a local file: all false.
+    pub fn is_network(&self) -> bool {
+        matches!(self, Self::Unreachable(_))
+    }
+}
+
 impl From<io::Error> for DownloadError {
     fn from(e: io::Error) -> Self {
         Self::Io(e)
@@ -78,7 +94,9 @@ impl From<io::Error> for DownloadError {
 impl std::fmt::Display for DownloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(e) | Self::Network(e) => write!(f, "download failed: {e}"),
+            Self::Io(e) | Self::Network(e) | Self::Unreachable(e) => {
+                write!(f, "download failed: {e}")
+            }
             Self::Refused { status } => write!(f, "the server refused the download: HTTP {status}"),
             Self::DiskFull => write!(f, "the disk filled up during the download"),
             Self::NotEnoughSpace { free, needed } => {
@@ -100,7 +118,7 @@ impl std::fmt::Display for DownloadError {
 impl std::error::Error for DownloadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Io(e) | Self::Network(e) => Some(e),
+            Self::Io(e) | Self::Network(e) | Self::Unreachable(e) => Some(e),
             _ => None,
         }
     }

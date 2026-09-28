@@ -51,6 +51,13 @@ pub enum DecideError {
     NothingWorked {
         attempts: Vec<(ServerBackend, String)>,
     },
+    /// Every candidate died on the wire — DNS, connect, TLS, a silenced
+    /// host — before any answer could be judged, and no probe ever ran.
+    /// The network is the reason no backend worked, and the app says so
+    /// instead of blaming the builds.
+    EngineUnreachable {
+        attempts: Vec<(ServerBackend, String)>,
+    },
 }
 
 impl fmt::Display for DecideError {
@@ -68,6 +75,13 @@ impl fmt::Display for DecideError {
             DecideError::StorageFull => write!(f, "there is not enough disk space for the server"),
             DecideError::NothingWorked { attempts } => {
                 write!(f, "no server build works on this machine:")?;
+                for (backend, reason) in attempts {
+                    write!(f, "\n  {} — {reason}", backend.name())?;
+                }
+                Ok(())
+            }
+            DecideError::EngineUnreachable { attempts } => {
+                write!(f, "the network refused every server build:")?;
                 for (backend, reason) in attempts {
                     write!(f, "\n  {} — {reason}", backend.name())?;
                 }
@@ -170,6 +184,10 @@ pub(crate) fn decide_in(
     let params = ProbeParams::for_port(port);
 
     let mut attempts = Vec::new();
+    // Was the wire the reason every candidate died? One answered exchange
+    // or one probe that ran, and it was not: the candidates' own words
+    // stand.
+    let mut all_wire = true;
     for backend in candidates {
         let exe = match store::ensure_backend(root, platform, backend, progress) {
             Ok(exe) => exe,
@@ -179,9 +197,11 @@ pub(crate) fn decide_in(
                 // under "no build works" the owner would be told to check
                 // a connection that was never the problem.
                 let words = e.to_string();
+                let wire = matches!(&e, StoreError::Download(d) if d.is_network());
                 if matches!(map_store_error(e), DecideError::StorageFull) {
                     return Err(DecideError::StorageFull);
                 }
+                all_wire &= wire;
                 attempts.push((backend, words));
                 continue;
             }
@@ -200,10 +220,25 @@ pub(crate) fn decide_in(
                 );
                 return Ok(Decision { backend, exe });
             }
-            Err(reason) => attempts.push((backend, reason)),
+            Err(reason) => {
+                // An engine that ran and failed is an answer, not the wire.
+                all_wire = false;
+                attempts.push((backend, reason));
+            }
         }
     }
-    Err(DecideError::NothingWorked { attempts })
+    Err(attempts_verdict(attempts, all_wire))
+}
+
+/// The loop's verdict when every candidate died: the wire's own verdict
+/// when the wire killed every attempt, the candidates' words otherwise —
+/// one answer or one probe that ran, and the wire was not the reason.
+fn attempts_verdict(attempts: Vec<(ServerBackend, String)>, all_wire: bool) -> DecideError {
+    if all_wire {
+        DecideError::EngineUnreachable { attempts }
+    } else {
+        DecideError::NothingWorked { attempts }
+    }
 }
 
 /// The verdict file this ask reads and writes: the whole walk's own, or —
@@ -292,6 +327,23 @@ mod tests {
             "the refusal must not touch the disk"
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_wire_killing_every_attempt_is_its_own_verdict() {
+        // Every fetch refused by the wire, no probe ever run: the network
+        // is the reason no backend worked, and the verdict says so. One
+        // answered exchange or one probe that ran, and the candidates'
+        // own words stand instead.
+        let attempts = vec![(ServerBackend::Cpu, "the wire's words".to_string())];
+        assert!(matches!(
+            attempts_verdict(attempts.clone(), true),
+            DecideError::EngineUnreachable { .. }
+        ));
+        assert!(matches!(
+            attempts_verdict(attempts, false),
+            DecideError::NothingWorked { .. }
+        ));
     }
 
     #[test]

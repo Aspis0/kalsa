@@ -33,6 +33,11 @@ pub(crate) enum StartupFailure {
     NothingFits,
     NothingBetter,
     NothingFastEnough,
+    /// Every engine archive fetch died on the wire — DNS, connect, TLS, a
+    /// silenced host — so no backend could even be tried. The network is
+    /// the fixable fact; an engine that was tried and failed says the
+    /// other sentence.
+    EngineUnreachable,
     // — starting the server (kalsa-launch) —
     /// The chosen model needs more memory than this machine can give it:
     /// the launch path refuses when not even one token of context fits, and
@@ -134,6 +139,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::NothingFastEnough => {
             "Everything that fits this computer would run too slowly to use. \
              An app update may add faster options."
+                .into()
+        }
+        StartupFailure::EngineUnreachable => {
+            "This network blocks the download of the assistant's engine. Try another \
+             network, or ask whoever manages this network to allow dl.kalsa.io."
                 .into()
         }
         StartupFailure::ChosenModelUnfundable => {
@@ -276,6 +286,9 @@ impl From<DecideError> for StartupFailure {
             // A full disk gets the disk's sentence, not the connection's.
             DecideError::StorageFull => Self::NotEnoughDisk(None),
             DecideError::NothingWorked { .. } => Self::NoBackendWorked,
+            // The wire killed every fetch before an answer: the sentence
+            // that names the network, not one that blames the builds.
+            DecideError::EngineUnreachable { .. } => Self::EngineUnreachable,
         }
     }
 }
@@ -287,7 +300,7 @@ impl From<DownloadError> for StartupFailure {
             // splits again at an HTTP status — a refusal is not a dropped
             // connection — and a file this machine refused gets its own
             // words, because "connection" would be false.
-            DownloadError::Network(_) => Self::ConnectionLost,
+            DownloadError::Network(_) | DownloadError::Unreachable(_) => Self::ConnectionLost,
             DownloadError::Refused { .. } => Self::DownloadRefused,
             DownloadError::Io(_) => Self::ModelFileUnwritable,
             DownloadError::DiskFull => Self::NotEnoughDisk(None),
@@ -372,6 +385,7 @@ mod tests {
             StartupFailure::ConnectionLost,
             StartupFailure::DownloadRefused,
             StartupFailure::ModelFileUnwritable,
+            StartupFailure::EngineUnreachable,
         ]
     }
 
@@ -397,6 +411,28 @@ mod tests {
         assert!(!spoken.contains("connection"), "{spoken}");
     }
 
+    #[test]
+    fn a_wire_that_blocked_every_engine_fetch_names_the_network() {
+        // The owner-approved copy, verbatim: the network is the fixable
+        // fact, and the sentence names the host to allow. The build's
+        // NoBackendWorked words would send an owner on a filtered network
+        // to wait for an update that cannot help.
+        let spoken = words(&StartupFailure::from(DecideError::EngineUnreachable {
+            attempts: vec![],
+        }));
+        assert_eq!(
+            spoken,
+            "This network blocks the download of the assistant's engine. Try another \
+             network, or ask whoever manages this network to allow dl.kalsa.io."
+        );
+        // A probe that ran and failed is a different fact and keeps the
+        // builds' own sentence.
+        assert!(words(&StartupFailure::from(DecideError::NothingWorked {
+            attempts: vec![]
+        }))
+        .contains("None of the ways"));
+    }
+
     /// The causes the user cannot act on, named one by one. A failure joins this
     /// list only by an edit here, and that edit is the claim that no true
     /// instruction exists to give. `SlotSavePathUnwritable` is the app
@@ -413,7 +449,7 @@ mod tests {
         // declared, and a declared one must not also hand out advice.
         for failure in every_failure() {
             let spoken = words(&failure);
-            let actionable = ["again", "update", "restart", "measure", "pair", "space"]
+            let actionable = ["again", "update", "restart", "measure", "pair", "space", "try"]
                 .iter()
                 .any(|word| spoken.to_ascii_lowercase().contains(word));
             assert!(actionable || unrecoverable(&failure), "{failure:?} is a dead end: {spoken}");

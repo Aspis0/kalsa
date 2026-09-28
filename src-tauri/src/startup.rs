@@ -412,11 +412,12 @@ fn choose_model(
     automatic_choice(&input, phone)
 }
 
-/// The answer this computer would give with nobody choosing: the largest row
-/// that runs well with no phone, the catalog's full comparison with one. This
-/// is the whole promise for everyone who never opens the page that offers a
-/// choice, so it is one function and the stored-choice branch is beside it,
-/// not inside it.
+/// The answer this computer would give with nobody choosing: the row that
+/// takes the first card (`largest_that_runs_well`) — the biggest row that
+/// cleared its line while some line was cleared, the fastest of them where
+/// none could be. This is the whole promise for everyone who never opens
+/// the page that offers a choice, so it is one function and the
+/// stored-choice branch is beside it, not inside it.
 fn automatic_choice(
     input: &ChoiceInput,
     phone: Option<PhoneModel>,
@@ -495,7 +496,14 @@ pub(crate) fn choose_with_processor_fallback(
             // answer carries the sentence that says which memory decided.
             let decision = match decide_processor() {
                 Ok(decision) => decision,
-                // The processor route failing must not wear
+                // A wire that killed every processor fetch outranks the
+                // card refusal: the processor route is how this machine
+                // would run at all, and the sentence that names the
+                // network is the one the owner can act on.
+                Err(error @ kalsa_runtime::DecideError::EngineUnreachable { .. }) => {
+                    return Err(error.into());
+                }
+                // The processor route failing otherwise must not wear
                 // NoBackendWorked ("None of the ways … work"): the
                 // graphics build already worked and proved itself. The
                 // truthful headline is the original refusal — nothing
@@ -1885,6 +1893,45 @@ mod tests {
         assert!(
             matches!(err, StartupFailure::NothingFits),
             "the fallback's failure must wear the original refusal: {err:?}"
+        );
+    }
+
+    #[test]
+    fn a_wire_blocked_processor_route_says_so_not_nothing_fits() {
+        // The card route had no row, and the processor route died on the
+        // wire before any answer: the network is the reason nothing starts,
+        // and its sentence wins over a budget refusal the owner cannot act
+        // on from this machine.
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                },
+            ),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        let calls = std::cell::Cell::new(0);
+        let err = choose_with_processor_fallback(
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
+            &machine,
+            None,
+            None,
+            || {
+                calls.set(calls.get() + 1);
+                Err(kalsa_runtime::DecideError::EngineUnreachable {
+                    attempts: vec![],
+                })
+            },
+        )
+        .expect_err("the wire refused every fetch");
+        assert_eq!(calls.get(), 1, "the fixture reaches the decide");
+        assert!(
+            matches!(err, StartupFailure::EngineUnreachable),
+            "the network's own sentence: {err:?}"
         );
     }
 

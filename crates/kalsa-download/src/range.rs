@@ -86,9 +86,26 @@ fn send(
         // 403 or 429 must not wear the connection's sentence, which is
         // what a blanket map_err here once did.
         ureq::Error::Status(code, _) => DownloadError::Refused { status: code },
-        ureq::Error::Transport(t) => {
-            DownloadError::Network(io::Error::new(io::ErrorKind::Other, t.to_string()))
-        }
+        ureq::Error::Transport(t) => match t.kind() {
+            // The wire itself — DNS, connect refused or timed out (TLS
+            // handshake and reset included: ureq reports them as
+            // ConnectionFailed), socket I/O and mid-body silence — leaves
+            // no HTTP answer to judge. Every remaining kind (BadStatus,
+            // BadHeader, the proxy and url faults) means an exchange
+            // happened or the request was ours to get wrong: those keep
+            // `Network`'s retry advice and stay out of the network-block
+            // classification.
+            ureq::ErrorKind::Dns
+            | ureq::ErrorKind::ConnectionFailed
+            | ureq::ErrorKind::Io => DownloadError::Unreachable(io::Error::new(
+                io::ErrorKind::Other,
+                format!("{:?}: {}", t.kind(), t),
+            )),
+            kind => DownloadError::Network(io::Error::new(
+                io::ErrorKind::Other,
+                format!("{:?}: {}", kind, t),
+            )),
+        },
     })
 }
 
