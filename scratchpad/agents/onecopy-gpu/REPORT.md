@@ -532,3 +532,90 @@ stall. The rerun therefore does **not pass** the GPU one-copy correctness criter
 and raw-kernel selection are demonstrated, but G1 has no completed KLD and lacks an import/weight
 placement INFO line. Full probe, G0/G1 logs and gates, and logcats are in
 `raw/s23-20260928-gpu-rerun/`.
+
+### 2026-09-28 18:10 EDT — G1 stall diagnosis: slow raw prefill, not a proven hang (engine `0285aae40`)
+
+Source + log analysis of the rerun's G1 stall. Ranked, with what proves each:
+
+1. **(d) Pathological slowness of the raw prefill GEMM — prime hypothesis.** The probe measures
+   the raw GEMM at `ms=678.6` for K2048/M6144/N128 = 3.22 GFLOP → **4.75 GFLOPS**, *identical*
+   for the normal buffer and every import row, both runs (the import costs nothing: sweep
+   55.4–56.0 GB/s either way). GEMV1 `0.239 ms` ≈ **105 GFLOPS**; G0's SoA kernel runs
+   512 tok × 4.87 GFLOP ≈ 2.49 TFLOP in 5.70 s ≈ **437 GFLOPS** — the raw GEMM is ≈ **92×
+   slower per FLOP**. Model demand (2.435 GMAC/token, `governor-onecopy/DESIGN.md` §2.3): one
+   ub128 batch ≈ 623 GFLOP ≈ **131 s**; a 512-token pass ≈ **8.7 min**; perplexity prints only
+   after a full pass (G0's first pass line was at 5.7 s), so G1's first log line would land at
+   ≈ 9 min. The run was killed after minutes of GPU-busy/CPU-idle/no-fault — the exact
+   signature of a slow-but-progressing stream. A single dispatch cannot be the hang: the
+   biggest one (ffn_gate_up, 5.64 GFLOP) is ≈ 1.2 s at the measured rate.
+2. **(e) Missing import INFO — resolved, not a failure.** ggml `INFO` is filtered at the default
+   verbosity: `common_log_get_verbosity(INFO)` returns `LOG_LEVEL_TRACE` (4)
+   (`common/log.cpp:531-532`) against the default threshold `LOG_LEVEL_INFO` (3)
+   (`common/log.cpp:30`, `common/common.h:534`), so `common_log_default_callback`
+   (`common/log.cpp:543-546`) drops every ggml INFO line — that is why `imported dma-buf`,
+   `load_tensors` and `HTP0:0-HOST model buffer size` never appear (also the first run's
+   "missing placement line"). The import did happen: the diag lines are printed at *enqueue*
+   (`ggml-opencl-kalsa-diag.cpp`), so the raw `_v` (warmup) and `_l4_lm_raw` (chunk 1)
+   dispatches prove `lookup()` returned true — any other outcome logs `E` (absent) or
+   `GGML_ABORT` (absent). **Fix:** the wrapper now passes `-v` (threshold → INT_MAX,
+   `common/arg.cpp:3920-3926`) in both arms, so `imports=` and the placement greps work.
+3. **(a) 32-bit overflow — ruled out by arithmetic.** Every `int` expression in the raw GEMM is
+   bounded by K·M ≤ 10752×2048 ≈ 2.2e7 ≪ 2³¹ (pos_a, batch strides, dst index); tensor byte
+   offsets are ≤ 512 MiB per buffer (`GGML_HEXAGON_MBUF=512`) and travel as `cl_ulong`.
+4. **(b) loop bound — ruled out.** `for (block = 0; block < ne00; block += BK)` with
+   `ne00 = src0->ne[0]` set as arg 6 by both the probe (`q4raw.c run()`) and the engine
+   dispatch (verified side by side, plus `GGML_ASSERT(ne00 == ne10)`); max `ne00 = 10752`
+   → 336 iterations.
+5. **(c) workgroup/shape — ruled out.** `{128,1,1}` local size and the GWS formula are
+   byte-identical to the probe's, which passes on this device; worst GWS is 21504×2×1.
+
+**Discriminator added — probe `--model-shapes`** (engine `0285aae40`): imports a **768 MiB**
+rpcmem dma-buf through `cl_qcom_dmabuf_host_ptr` (ioc, wb fallback; 768 MiB because the Adreno
+740 caps one cl_mem at 884 MiB, so a literal 1 GiB import is impossible — still past every
+engine offset) and checks the ship model's real shapes at `buffer_size - nbytes`:
+`ffn_gate_up 10752×2048`, `conv_in_proj 6144×2048`, `ffn_down 2048×10752` (K=10752 was never
+covered), `attn_k 512×2048`, all N=128, GEMM + GEMV1 vs the CPU reference, publishing CPU
+writes before each run, printing ms per shape. Bounded: GPU ≈ 15 s (≤ 2 iters/shape ≈ 1.2 s
+each at the measured rate), CPU reference ≈ 1–2 min. The wrapper's `probe` step now runs it
+(`out/probe-model.log`).
+
+**How the rerun decides:** `RESULT <shape> gemm PASS ms≈0.7-4` for all four → the stall was
+slowness; G1 then needs **≥ 20 min** before the first pass line (do not interrupt on log
+silence), and the raw layout's ~90× prefill cost becomes the owner's product decision. A
+`model-shapes` row with no RESULT and a busy GPU → genuine per-shape hang → bisect kernel next.
+
+Build: `raw/build_android11.log` `EXIT=0` (no-op for the engine binaries — only `tests/`
+changed, so their shas are unchanged), probe rebuild `raw/probe_build_android_r4.log`
+`EXIT=0`, no warnings.
+
+| Artifact | SHA-256 (2026-09-28 18:10 EDT, `0285aae40`) |
+|---|---|
+| `build-onecopy-gpu/bin/llama-perplexity` | `7e2f3476665bdfdcf5c7034f203794a87ae9db641e1af6dd772d92f967f00fee` (unchanged) |
+| `build-onecopy-gpu/bin/llama-eval-callback` | `ef7a337af34bca1b1733650eb86a572f6ef28a0795db963a2ea48d690a76d62e` (unchanged) |
+| `build-onecopy-gpu/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640` (unchanged) |
+| `build-onecopy-gpu/q4raw-probe` (AArch64 PIE) | `2c4787919d5aa690a5b12ab7a77d305f8dd12da2663365e286dfa5b342799e72` |
+| `kernels/mul_mm_q4_0_f32_l4_lm_raw.cl` | `2bbab74d596362159e69cc71944de6f53ab26e15c14054a0834d8e739abc4768` (unchanged) |
+| `kernels/mul_mv_q4_0_f32_v.cl` | `d144489d59830879de907bcb8cf98280fcbbba1b06cd36003d1f35614f9cdf77` (unchanged) |
+
+Earlier tables are kept for history; `raw/SHA256SUMS.txt` was appended.
+
+#### Rerun commands (correctness only; plugged OK)
+
+Only `q4raw-probe` changed on the device side, but re-push everything to keep hashes aligned:
+
+```sh
+cd /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/onecopy-gpu
+sh run-onecopy-gpu.sh push        # 5 pushes + sha256sum on device
+sh run-onecopy-gpu.sh probe       # rpcmem + system rows AND the new model-shapes self-test
+sh run-onecopy-gpu.sh kld         # G0, then G1 raw at ub 128 — NOW WITH -v (INFO lines visible)
+sh run-onecopy-gpu.sh kld-decode  # G0/G1 at ub 1 (GEMV, expected fast: ~105 GFLOPS)
+```
+
+Wait rule for G1: the first `seconds per pass` line is expected at ≈ 9 min (8.7 min pass + fixup)
+at the measured 4.75 GFLOPS; **do not interrupt before 20 minutes of log silence**. Expected
+signals: `imports ≥ 3` (three `-HOST` buffers) and `HTP0:0-HOST model buffer size` now captured
+via `-v`; `kernel_mul_mm_q4_0_f32_l4_lm_raw` in the dispatch diag; `error_markers=0`. If
+`probe-model.log` shows all four `RESULT ... gemm PASS`, the stall diagnosis is confirmed and the
+remaining question is whether ~90× prefill cost is acceptable (owner decision) — a stall in
+`model-shapes` (a shape row with no `RESULT`, busy GPU) instead means a real per-shape hang and
+stops the session for kernel work.

@@ -64,6 +64,11 @@ probe() {
         echo "probe $kind EXIT=$?"
         grep -E "^INFO|^RESULT" "$out/probe-$kind.log" | grep -v "^INFO name" | head -40
     done
+    # Real model shapes near the end of a 768 MiB import (hang-vs-slow discriminator
+    # for the G1 stall; see REPORT 2026-09-28 rerun-stall section).
+    adb -s "$serial" shell "cd $dev && export LD_LIBRARY_PATH=$root/lib && ./probe/q4raw-probe --kernels $dev/kernels --model-shapes" > "$out/probe-model.log" 2>&1
+    echo "probe model EXIT=$?"
+    grep -E "^INFO model-shapes|^RESULT" "$out/probe-model.log"
     gate probe.post
 }
 
@@ -79,7 +84,9 @@ arm() {
         setup="GGML_OPENCL_LOG_KERNELS=1"
         override=
     fi
-    adb -s "$serial" shell "cd $root && export LD_LIBRARY_PATH=$root/lib ADSP_LIBRARY_PATH='$dev/dsp;$root/lib' TMPDIR=$dev $setup && $dev/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f $root/input/kld_english_fixture.txt -c 512 -b 512 -ub $ub -ngl 99 -dev GPUOpenCL $override -lm none --chunks 2 --kl-divergence-base $root/input/cause-cpu-base.logits --kl-divergence > $dev/$name.log 2>&1; rc=\$?; echo EXIT=\$rc >> $dev/$name.log; echo BINARY_EXIT=\$rc; echo imports=\$(grep -c 'imported dma-buf' $dev/$name.log); grep -E 'model buffer size' $dev/$name.log | head -8; grep -E 'GGML_OPENCL_LOG_KERNELS: kernel_mul_(mm|mat)_q4_0' $dev/$name.log | sort -u; echo error_markers=\$(grep -Eic 'GGML_ABORT|GGML_ASSERT|Segmentation|does not meet|exceeds CL_DEVICE|clCreateBuffer.*failed|no usable dma-buf import extension' $dev/$name.log); grep -E 'Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p|prompt eval time' $dev/$name.log | tail -6; exit \$rc" > "$out/$name.run-summary.log" 2>&1
+    # -v: raise the log threshold so ggml INFO lines (imported dma-buf, model
+    # buffer sizes) are captured; they are filtered at the default level.
+    adb -s "$serial" shell "cd $root && export LD_LIBRARY_PATH=$root/lib ADSP_LIBRARY_PATH='$dev/dsp;$root/lib' TMPDIR=$dev $setup && $dev/bin/llama-perplexity -v -m /data/local/tmp/heat3way/ship.gguf -f $root/input/kld_english_fixture.txt -c 512 -b 512 -ub $ub -ngl 99 -dev GPUOpenCL $override -lm none --chunks 2 --kl-divergence-base $root/input/cause-cpu-base.logits --kl-divergence > $dev/$name.log 2>&1; rc=\$?; echo EXIT=\$rc >> $dev/$name.log; echo BINARY_EXIT=\$rc; echo imports=\$(grep -c 'imported dma-buf' $dev/$name.log); grep -E 'model buffer size' $dev/$name.log | head -8; grep -E 'GGML_OPENCL_LOG_KERNELS: kernel_mul_(mm|mat)_q4_0' $dev/$name.log | sort -u; echo error_markers=\$(grep -Eic 'GGML_ABORT|GGML_ASSERT|Segmentation|does not meet|exceeds CL_DEVICE|clCreateBuffer.*failed|no usable dma-buf import extension' $dev/$name.log); grep -E 'Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p|prompt eval time' $dev/$name.log | tail -6; exit \$rc" > "$out/$name.run-summary.log" 2>&1
     echo "ADB_EXIT=$?" >> "$out/$name.run-summary.log"
     cat "$out/$name.run-summary.log"
     gate "$name.post"
