@@ -13,10 +13,11 @@
 //! invite this build could have minted, or whose square carries no node to
 //! dial is dropped on its own; a file that does not parse, names another
 //! version, or holds a square this build cannot read hands back nothing at
-//! all. A read publishes nothing: it is `Invites::open` that replaces a
-//! file it had to discard, at once and through the same atomic path, so the
-//! codes it held do not stay on disk waiting for an owner to mint — and
-//! nothing that failed to read is ever honoured.
+//! all. A read never rewrites a file; what it may do is move one it cannot
+//! honour aside — `park`, a sibling name carrying the version — and
+//! `Invites::open` then replaces the path at once through the same atomic
+//! path, so the codes such a file held do not wait for an owner to mint
+//! before they are gone. Nothing that failed to read is ever honoured.
 //!
 //! A claim leaves no record: the set writes the file without a ceremony the
 //! phone has claimed, so a restart can never hand a used code to a second

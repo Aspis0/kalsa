@@ -470,3 +470,48 @@ fn the_invite_file_is_owner_only() {
     let mode = fs::metadata(&path).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
 }
+
+#[test]
+fn a_park_that_fails_is_tried_again_and_never_overwrites() {
+    // Every name the park could move the file to is taken, so the file
+    // cannot be moved: a file this build cannot honour then stays exactly
+    // where it is — two writes in a row, both refused, both leaving the
+    // original bytes standing.
+    let now = start();
+    let path = scratch("park-blocked");
+    let dir = path.parent().expect("a scratch file has a directory").to_path_buf();
+    let mut value = envelope(1, vec![record(0, now + INVITE_TTL, &square(now))]);
+    value["v"] = serde_json::json!(FILE_VERSION + 1);
+    let original = serde_json::to_string(&value).unwrap();
+    fs::write(&path, &original).unwrap();
+
+    let parked = format!("invites.json.v{}.parked", FILE_VERSION + 1);
+    fs::create_dir(dir.join(&parked)).unwrap();
+    for counter in 1..super::PARK_ATTEMPTS {
+        fs::create_dir(dir.join(format!("{parked}.{counter}"))).unwrap();
+    }
+
+    let (mut invites, discarded) = Invites::open(&path, now);
+    assert!(discarded, "the page is told");
+    assert!(
+        invites.list().is_empty(),
+        "nothing from a file that could not be honoured"
+    );
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        original,
+        "the failed park leaves the file where it was"
+    );
+
+    // And that failure did not disarm the guard: the next write tries to
+    // park again, fails again, and leaves the original standing too.
+    assert!(
+        invites.mint(REACHABLE, Some(NODE), None, now).is_err(),
+        "nothing may be written through a file that could not be moved"
+    );
+    assert_eq!(
+        fs::read_to_string(&path).unwrap(),
+        original,
+        "the second write fails the same way"
+    );
+}

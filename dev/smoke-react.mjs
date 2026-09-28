@@ -757,15 +757,29 @@ try {
         problems.push(`a copy that worked never shows the link: ${heading}`);
       }
     }
-    if (heading.includes("an invitation never comes back")) {
-      if (!all.includes("This invitation could not be made. Try again.")) {
-        problems.push(`a create past the bound says it did not happen: ${heading}`);
+    if (heading.includes("an invitation is taking longer than usual")) {
+      if (!all.includes("This is taking longer than usual. If the invitation appears below, copy its link from there.")) {
+        problems.push(`a slow create says so: ${heading}`);
       }
+      if (all.includes("This invitation could not be made")) {
+        problems.push(`a slow create is not a failed one: ${heading}`);
+      }
+      if (!disabledButtons.includes("Invite by link")) {
+        problems.push(`a create still in flight keeps the button down: ${heading}`);
+      }
+    }
+    if (heading.includes("an invitation that answers late")) {
       if (disabledButtons.includes("Invite by link")) {
-        problems.push(`the bound puts the button back down: ${heading}`);
+        problems.push(`a settled create puts the button back: ${heading}`);
       }
-      if (fallbackLinks.length > 0 || all.includes("Link copied.")) {
-        problems.push(`an answer that arrived after the bound is dropped: ${heading}`);
+      if (all.includes("Link copied.")) {
+        problems.push(`a stale gesture is not a copy: ${heading}`);
+      }
+      if (fallbackLinks.length > 0) {
+        problems.push(`a stale gesture shows no field: ${heading}`);
+      }
+      if (inviteNames.length !== 1) {
+        problems.push(`the list is read from the source: ${heading}`);
       }
     }
     if (heading.includes("an invitation is being made")) {

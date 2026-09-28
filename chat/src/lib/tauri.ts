@@ -24,8 +24,10 @@ export function available(): boolean {
 // How long this app waits on a pairing ask that has not answered. Both of
 // them ride the same two Tailscale CLI calls with a 2 s timeout each — the
 // first `brain_pairing` read, and an invitation create — so one number
-// covers them: past it the page stops waiting and says the ask did not
-// answer, instead of holding a "checking" line or a button down forever.
+// covers them: past it the read stops being waited on (the page says so and
+// offers a retry), and a create that is still in flight tells the owner it
+// is slow rather than failed, keeping its button down until the command
+// itself settles.
 export const PAIRING_ASK_BOUND_MS = 8000;
 
 // Rejects when the command itself fails; callers turn the error into a

@@ -336,13 +336,17 @@ impl Invites {
     /// `except` is how the claim's own write names the invitation the phone
     /// has matched while it is still an offer here.
     fn persist(&mut self, except: Option<u32>) -> Result<(), InviteError> {
-        if let Some(version) = self.park_pending.take() {
+        // Read, never taken: a park that fails must leave the guard standing,
+        // or the next write would walk straight through the file it could
+        // not move. Only a park that lands clears it.
+        if let Some(version) = self.park_pending {
             // The file in the way could not be moved when this set was
             // opened. Try again, and if it still cannot move, refuse to
             // write: overwriting it is the one thing that would destroy
             // what this build cannot read. The caller rolls back — the
             // original is left exactly where it is.
             file::park(&self.path, version).map_err(InviteError::Io)?;
+            self.park_pending = None;
         }
         let records = self
             .invites

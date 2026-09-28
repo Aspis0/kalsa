@@ -265,9 +265,13 @@ const scenarios = [
   // A create that has not answered: the button is held down, so a second
   // press cannot mint a second invitation.
   ["Pairing", "an invitation is being made", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateHangs: true, click: "Invite by link" }],
-  // …and one that answers only after the bound: the button comes back, the
-  // failure is said, and the late link is dropped instead of rendered.
-  ["Pairing", "an invitation never comes back", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, click: "Invite by link", waitMs: 9500 }],
+  // Past the bound the create is slow, not failed: the button stays down
+  // and the owner is told to look below — read before any answer arrives.
+  ["Pairing", "an invitation is taking longer than usual", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateHangs: true, click: "Invite by link", waitMs: 8500 }],
+  // …and one that settles only after the bound: the gesture that answer
+  // belongs to is stale, so nothing is copied and nothing is announced —
+  // the list is read from the source instead, and the invitation is there.
+  ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
   // retry. And a read that rejects AFTER an answer must leave that answer on
@@ -332,6 +336,11 @@ function installBridge() {
               // quiet leaves the sentence with no moment to name.
               if (bridgeState.inviteListGoesEmpty && inviteListReads++ > 0) {
                 return Promise.resolve({ discarded: false, invites: [] });
+              }
+              // The list after a create that settled late: the invitation
+              // is in it because the answer was read from the source.
+              if (bridgeState.inviteListFillsAfterCreate && inviteListReads++ > 0) {
+                return Promise.resolve({ discarded: false, invites: [{ id: 6, expires_at: INVITE_SOON }] });
               }
               return Promise.resolve(bridgeState.invites ?? null);
             }

@@ -3,6 +3,12 @@ import { copyText } from "../lib/clipboard";
 import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import "./surfaces.css";
 
+// Awaiting the owner's OK, in one place so it can change. The create is
+// slow, not failed: the shell may still mint, so the invitation would
+// appear in the list below and its link can be copied from there.
+const SLOW_CREATE =
+  "This is taking longer than usual. If the invitation appears below, copy its link from there.";
+
 // Said once, when the invite file could not be read at startup: those
 // invitations were thrown away rather than honoured, and the owner is told
 // plainly. dev/smoke-react.mjs keeps its own copy of this sentence.
@@ -63,6 +69,9 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [linkFallback, setLinkFallback] = useState<string | null>(null);
+  // What the bound says while a create is still in flight. It is not an
+  // error — nothing failed yet — so it lives apart from the other two.
+  const [waiting, setWaiting] = useState<string | null>(null);
   // One link at a time: while a create is running the button is disabled,
   // so a double press cannot mint two invitations. The generation numbers
   // each ask — the answer to a create that already timed out is dropped
@@ -86,29 +95,36 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
   // list cannot answer, the sentence names what is true of every link (one
   // day) instead. The field is for a refused clipboard only, never for a
   // successful copy.
+  //
+  // Past the bound the create is SLOW, not failed: the shell may still
+  // mint, so the button stays down — a create in flight must never be
+  // mintable twice — and the owner is told to look below rather than press
+  // again. Only the command settling re-enables it, and an answer that
+  // arrives after the bound belongs to a gesture the owner has already been
+  // told may not have happened: no copy, no notice, the list refreshed from
+  // the source so the invitation can be copied from where it landed.
   async function createInvite(): Promise<void> {
     setCommandError(null);
     setNotice(null);
     setLinkFallback(null);
+    setWaiting(null);
     setCreating(true);
     const mine = ++generation.current;
     const stillMine = (): boolean => live.current && mine === generation.current;
-    // The create rides the same two CLI calls the first read does: past the
-    // shared bound it is not coming back, the button goes down again, and
-    // the failure says so. A late answer finds `mine` superseded and is
-    // dropped before it can reach the clipboard.
+    const clock = { missed: false };
     const bound = setTimeout(() => {
       if (!stillMine()) return;
-      generation.current += 1;
-      setCreating(false);
-      // The shell's own words for a mint that did not happen, verbatim
-      // from `words` in src-tauri/src/invites.rs.
-      setCommandError("This invitation could not be made. Try again.");
+      clock.missed = true;
+      setWaiting(SLOW_CREATE);
     }, PAIRING_ASK_BOUND_MS);
     try {
       const link = await invoke<string>("brain_invite_create");
       if (!stillMine()) return;
-      if (await copyText(link)) {
+      setWaiting(null);
+      if (clock.missed) {
+        const listed = await invoke<InviteList>("brain_invite_list").catch(() => null);
+        if (stillMine() && listed) onList(listed);
+      } else if (await copyText(link)) {
         const listed = await invoke<InviteList>("brain_invite_list").catch(() => null);
         if (!stillMine()) return;
         if (listed) onList(listed);
@@ -124,9 +140,13 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
     } catch (error) {
       // The command's own words — no road, no room, could not save — shown
       // as they are, with nothing of the invitation inside them.
-      if (stillMine()) setCommandError(error instanceof Error ? error.message : String(error));
+      if (stillMine()) {
+        setWaiting(null);
+        setCommandError(error instanceof Error ? error.message : String(error));
+      }
     } finally {
       clearTimeout(bound);
+      // The command settled — that, and only that, puts the button back.
       if (stillMine()) setCreating(false);
     }
   }
@@ -187,6 +207,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
         </button>
       </div>
       {commandError ? <p className="surface-note">{commandError}</p> : null}
+      {waiting ? <p className="surface-quiet">{waiting}</p> : null}
       {notice ? (
         <p className="surface-quiet" aria-live="polite">
           {notice}
