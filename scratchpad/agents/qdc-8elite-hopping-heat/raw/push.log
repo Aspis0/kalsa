@@ -1,0 +1,21 @@
+== push 2026-09-28T12:38:02Z args=
+MODEL_PUSH
+/Users/marco/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf: 1 file pushed, 0 skipped. 21.8 MB/s (1593894944 bytes in 69.857s)
+/Users/marco/kalsa-qdc/qdc-8elite-heat-arms/kit-8e.tgz: 1 file pushed, 0 skipped. 25.7 MB/s (9662214 bytes in 0.359s)
+bin/llama-bench: OK
+bin/llama-completion: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml-hexagon.so: OK
+lib/libggml-htp-v73.so: OK
+lib/libggml-htp-v79.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml.so: OK
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/governor-thermal-ladder/raw/protocol-v2/prompt-v2.txt: 1 file pushed, 0 skipped. 15.0 MB/s (5195 bytes in 0.000s)
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-hopping-heat/sess.sh: 1 file pushed, 0 skipped. 6.6 MB/s (5315 bytes in 0.001s)
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-hopping-heat/smp.sh: 1 file pushed, 0 skipped. 2.3 MB/s (1753 bytes in 0.001s)
+0.00.136.425 W DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+Available devices:
+  GPUOpenCL: QUALCOMM Adreno(TM) 830 (7578 MiB, 6554 MiB free)
+  HTP0: Hexagon (0 MiB, 0 MiB free)
+STEP_RC=0

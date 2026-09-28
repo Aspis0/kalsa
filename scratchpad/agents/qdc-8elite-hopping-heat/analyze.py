@@ -104,7 +104,8 @@ def qcom(text):
 def proof_ok(backend, text):
     b = bufs(text)
     if backend == "cpu":
-        return bool(b) and b <= {"CPU", "CPU_REPACK"}
+        # CPU_Mapped = llama-bench's mmap'd host buffer (still CPU memory).
+        return bool(b) and b <= {"CPU", "CPU_Mapped", "CPU_REPACK"}
     if backend == "gpu":
         return qcom(text) and "OpenCL" in b
     return "HTP0" in b

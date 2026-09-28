@@ -1,0 +1,52 @@
+zones inventoried: 88; unreadable: 0; watchdog kills: 0
+
+## A. Blocks
+
+| block | units OK | start skin | end-of-block skin rise | peak skin (block+tail) | skin area block+tail °C·s | area per prefill | median prefill ms | first/last prefill ms | NSP start→end | GPU start→end | CPU start→end |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| A-cpu | 6/6 | 29.3 | 5.96 | 36.1 | 451 | 75.1 | 5222 | 4742/5376 | 32.3→58.0 | 33.2→64.1 | 38.6→78.4 |
+| A-npu | 12/12 | 33.9 | 4.16 | 38.7 | 277 | 23.1 | 918 | 907/924 | 36.9→57.3 | 37.8→58.7 | 41.3→64.5 |
+| A-gpu | 12/12 | 35.7 | 7.97 | 44.0 | 948 | 79.0 | 3329 | 3324/3330 | 40.7→63.8 | 42.0→75.3 | 66.8→84.9 |
+
+### A. Per-unit block-relative rise at unit end (skin / NSP / GPU zone)
+
+| k | NPU skin | NPU NSP | NPU prefill ms | GPU skin | GPU gpuss | GPU prefill ms | CPU skin | CPU prefill ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | -0.11 | 14.6 | 907 | 1.04 | 16.7 | 3324 | 0.16 | 4742 |
+| 2 | -0.11 | 31.5 | 919 | 2.07 | 34.4 | 3334 | 1.26 | 5052 |
+| 3 | 0.16 | 20.4 | 916 | 3.07 | 22.8 | 3319 | 2.36 | 5175 |
+| 4 | 0.61 | 19.6 | 912 | 3.92 | 21.3 | 3272 | 3.69 | 5386 |
+| 5 | 0.95 | 26.5 | 919 | 4.55 | 42.9 | 3323 | 4.91 | 5269 |
+| 6 | 1.48 | 22.3 | 913 | 5.18 | 42.1 | 3343 | 5.96 | 5376 |
+| 7 | 1.83 | 40.0 | 917 | 5.77 | 27.1 | 3328 | NA | NA |
+| 8 | 2.38 | 24.6 | 917 | 6.24 | 24.8 | 3299 | NA | NA |
+| 9 | 2.72 | 41.1 | 928 | 6.72 | 25.2 | 3356 | NA | NA |
+| 10 | 3.24 | 28.4 | 920 | 7.23 | 24.4 | 3363 | NA | NA |
+| 11 | 3.71 | 25.7 | 930 | 7.65 | 24.4 | 3354 | NA | NA |
+| 12 | 4.16 | 20.4 | 924 | 7.97 | 33.3 | 3330 | NA | NA |
+
+skin crossover (NPU rise > GPU rise, two consecutive k): no crossover observed through 12 prefills
+A-npu skin_rise_end: monotonic=False largest unit-to-unit rise=0.55
+A-npu nsp_rise_end: monotonic=False largest unit-to-unit rise=17.70
+A-gpu skin_rise_end: monotonic=True largest unit-to-unit rise=1.04
+A-gpu gpu_rise_end: monotonic=False largest unit-to-unit rise=21.60
+
+## B. Decode tg256
+
+| arm | pos | status | tok/s | skin start | skin peak | area °C·s | °C·s/token | CPU peak | GPU peak | NSP peak |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| B1-cpu | 1 | OK | 39.2 | 36.0 | 37.7 | 80 | 0.314 | 105.0 | 70.2 | 59.6 |
+| B2-gpu | 2 | OK | 30.3 | 36.0 | 37.8 | 84 | 0.328 | 102.3 | 73.3 | 53.4 |
+| B3-npu | 3 | OK | 28.9 | 36.0 | 37.2 | 58 | 0.226 | 67.5 | 54.8 | 74.6 |
+| B4-gpu | 1 | OK | 30.3 | 36.0 | 37.8 | 83 | 0.325 | 101.1 | 72.9 | 54.2 |
+| B5-npu | 2 | OK | 29.1 | 36.0 | 37.3 | 59 | 0.229 | 96.5 | 54.4 | 74.6 |
+| B6-cpu | 3 | OK | 38.9 | 36.0 | 37.7 | 81 | 0.315 | 105.4 | 71.0 | 59.9 |
+| B7-npu | 1 | OK | 29.1 | 36.0 | 37.2 | 59 | 0.229 | 66.8 | 54.8 | 74.6 |
+| B8-cpu | 2 | VOID deadline | NA | NA | NA | NA | NA | NA | NA | NA |
+| B9-gpu | 3 | VOID deadline | NA | NA | NA | NA | NA | NA | NA | NA |
+
+| backend | n OK | median tok/s | median °C·s/token (reps) | median skin Δ | median CPU/GPU/NSP peak |
+|---|---:|---:|---:|---:|---:|
+| cpu | 2 | 39.0 | 0.315 (0.314/0.315) | 1.72 | 105.2/70.6/59.8 |
+| gpu | 2 | 30.3 | 0.326 (0.328/0.325) | 1.82 | 101.7/73.1/53.8 |
+| npu | 3 | 29.1 | 0.229 (0.226/0.229/0.229) | 1.26 | 67.5/54.8/74.6 |

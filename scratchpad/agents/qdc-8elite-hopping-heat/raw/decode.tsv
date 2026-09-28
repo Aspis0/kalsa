@@ -1,0 +1,10 @@
+tag	backend	pos	status	tps	dur_s	skin_start	skin_peak	skin_end	area	per_tok	status_peak	cpu_peak	gpu_peak	nsp_peak
+B1-cpu	cpu	1	OK	39.18	7	35.97	37.69	36.94	80.49	0.31	0	105.00	70.20	59.60
+B2-gpu	gpu	2	OK	30.30	14	35.96	37.77	36.83	83.94	0.33	0	102.30	73.30	53.40
+B3-npu	npu	3	OK	28.95	10	35.96	37.22	36.61	57.82	0.23	0	67.50	54.80	74.60
+B4-gpu	gpu	1	OK	30.29	13	35.97	37.79	36.86	83.12	0.32	0	101.10	72.90	54.20
+B5-npu	npu	2	OK	29.09	10	36.00	37.26	36.64	58.65	0.23	0	96.50	54.40	74.60
+B6-cpu	cpu	3	OK	38.89	7	35.99	37.72	36.99	80.63	0.31	0	105.40	71.00	59.90
+B7-npu	npu	1	OK	29.08	10	35.99	37.24	36.66	58.54	0.23	0	66.80	54.80	74.60
+B8-cpu	cpu	2	VOID deadline	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA
+B9-gpu	gpu	3	VOID deadline	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA

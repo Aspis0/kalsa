@@ -1,0 +1,66 @@
+== preflight 2026-09-28T12:37:52Z args=
+List of devices attached
+f3b4a4c5               device product:sun model:Sun_for_arm64 device:sun transport_id:1
+
+uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0
+SM8750
+Sun for arm64
+16
+8
+/dev/block/dm-56  45G 2.2G   43G   6% /mnt/pass_through/0/emulated
+	Temperature{mValue=28.675, mType=3, mName=skin, mStatus=0}
+Thermal Status: 0
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging voltage: 0
+  level: 100
+  voltage: 7998
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +2h31m32s369ms
+ The last voltage value sent via the battery changed broadcast: 7998
+  temperature: 420
+  Capacity level: -1
+  mWakefulness=Awake
+  mStayOn=true
+cpu-0-0-0=33200
+cpu-0-2-1=31200
+cpu-0-3-0=31200
+cpu-0-3-1=31200
+cpu-0-4-0=32000
+cpu-0-4-1=34300
+cpu-0-5-0=32400
+cpu-0-5-1=32000
+cpuss-0-0=32800
+cpuss-0-1=32400
+cpu-1-0-0=31200
+cpu-1-0-1=30500
+cpu-1-1-0=31200
+cpu-1-1-1=31200
+cpuss-1-0=30800
+cpu-0-0-1=34300
+cpuss-1-1=31200
+gpuss-0=31200
+gpuss-1=30800
+gpuss-2=30800
+gpuss-3=30800
+gpuss-4=30800
+gpuss-5=31600
+gpuss-6=30800
+gpuss-7=31200
+nsphvx-0=29900
+nsphvx-1=29900
+cpu-0-1-0=33600
+nsphvx-2=30700
+nsphmx-0=29900
+nsphmx-1=30300
+nsphmx-2=30300
+nsphmx-3=30300
+cpu-0-1-1=32400
+cpu-0-2-0=32400
+no_llama
+/system/bin/awk
+/system/bin/timeout
+/system/bin/pkill
+/system/bin/setsid
+STEP_RC=0

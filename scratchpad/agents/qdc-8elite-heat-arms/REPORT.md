@@ -5,8 +5,9 @@ They do not transfer to the S23 (Adreno 740 / v73).
 
 - QDC session **852687** (aspis.launcher, board `sa856756`, serial `9aed338b`).
 - Started 22:22:08, ended 22:44:20 EDT on 2026-09-27; the portal shows Completed.
-- Billed **70 min**, the full cap: the device card went 741 → 671 for ~22 min used.
-  Mobile boards bill the requested cap, as recorded in `qdc-bills-the-requested-cap`.
+- **Billing, corrected 2026-09-28.** Right after End Session the card showed 741 → 671, which looked like 70 billed (the full cap).
+  The next morning it read **718**, so the final charge was **23 min**, about the real duration.
+  671 was a provisional hold at the cap. The "70 billed" in the first version of this report was wrong.
 - Engine f25f0c1c5 kit plus `libggml-htp-v79.so`, as in `PREREG.md` (lab 38575acc).
 - Prompt: 962 tokens on the device (`prompt_n=962`). Model sha `a247afd6…`, verified
   on push.

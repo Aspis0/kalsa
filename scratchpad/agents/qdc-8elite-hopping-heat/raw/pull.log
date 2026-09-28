@@ -1,0 +1,43 @@
+== pull 2026-09-28T13:16:09Z args=
+/data/local/tmp/h8h/out/./: 44 files pulled, 0 skipped. 0.5 MB/s (4429758 bytes in 8.269s)
+-rw-r--r--   1 marco  staff    15493 Sep 28 09:16 A-cpu-u05.log
+-rw-r--r--   1 marco  staff    15493 Sep 28 09:16 A-cpu-u06.log
+-rw-r--r--   1 marco  staff    17546 Sep 28 09:16 A-gpu-u01.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u02.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u03.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u04.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u05.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u06.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u07.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u08.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u09.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u10.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u11.log
+-rw-r--r--   1 marco  staff    17545 Sep 28 09:16 A-gpu-u12.log
+-rw-r--r--   1 marco  staff    15988 Sep 28 09:16 A-npu-u01.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u02.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u03.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u04.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u05.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u06.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u07.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u08.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u09.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u10.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u11.log
+-rw-r--r--   1 marco  staff    15987 Sep 28 09:16 A-npu-u12.log
+-rw-r--r--   1 marco  staff  2539369 Sep 28 09:16 B-npu.proof.log
+-rw-r--r--   1 marco  staff    64545 Sep 28 09:16 B1-cpu.log
+-rw-r--r--   1 marco  staff    57733 Sep 28 09:16 B2-gpu.log
+-rw-r--r--   1 marco  staff    55294 Sep 28 09:16 B3-npu.log
+-rw-r--r--   1 marco  staff    57733 Sep 28 09:16 B4-gpu.log
+-rw-r--r--   1 marco  staff    55294 Sep 28 09:16 B5-npu.log
+-rw-r--r--   1 marco  staff    64545 Sep 28 09:16 B6-cpu.log
+-rw-r--r--   1 marco  staff    55294 Sep 28 09:16 B7-npu.log
+-rw-r--r--   1 marco  staff        0 Sep 28 09:16 DONE
+-rw-r--r--   1 marco  staff     3160 Sep 28 09:16 markers.txt
+-rw-r--r--   1 marco  staff   981447 Sep 28 09:16 samples.txt
+-rw-r--r--   1 marco  staff        0 Sep 28 09:16 sess.out
+-rw-r--r--   1 marco  staff        0 Sep 28 09:16 smp.out
+-rw-r--r--   1 marco  staff        0 Sep 28 09:16 smp.stop
+STEP_RC=0
