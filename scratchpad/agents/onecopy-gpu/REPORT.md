@@ -619,3 +619,29 @@ via `-v`; `kernel_mul_mm_q4_0_f32_l4_lm_raw` in the dispatch diag; `error_marker
 remaining question is whether ~90× prefill cost is acceptable (owner decision) — a stall in
 `model-shapes` (a shape row with no `RESULT`, busy GPU) instead means a real per-shape hang and
 stops the session for kernel work.
+
+### 2026-09-28 rerun 3 (S23, plugged: correctness only) - PASS
+
+Run by luna b6248552 (device only); every line below re-read by the coordinator from `out/` or the
+device logs under `/data/local/tmp/govhtp/onecopy-gpu/`.
+
+- Push: all five device sha256 match (`out/payload-sha256.log`).
+- `probe-model.log`: all four shapes `gemm PASS` and `gemv1 PASS`, `INFO model-shapes failures 0`
+  (e.g. `RESULT ffn_down gemm PASS err=1.727e-05 ms=1167.919`). The stall of run 2 was slowness.
+- G1 (raw, one copy): `imports=3`, `HTP0:0-HOST model buffer size = 1306.12 MiB`,
+  `error_markers=0`, `ADB_EXIT=0`; ub 128 dispatches `kernel_mul_mm_q4_0_f32_l4_lm_raw`, ub 1
+  `kernel_mul_mat_q4_0_f32_v`.
+
+| arm | ub | Mean KLD | s per pass (plugged, indicative) |
+|---|---|---|---|
+| G0 normal | 128 | 0.000951 ± 0.000058 | 5.70 |
+| G1 raw one-copy | 128 | 0.000916 ± 0.000053 | 518.30 |
+| G0 normal | 1 | 0.000929 ± 0.000054 | 44.14 |
+| G1 raw one-copy | 1 | 0.000919 ± 0.000053 | 77.21 |
+
+Verdict: GPU one-copy is **correct** (G1 KLD within G0's error bar at both ubatch sizes).
+Speed: prefill GEMM ~91x slower than normal (518.30 / 5.70), decode GEMV ~1.75x slower
+(77.21 / 44.14). Timing was taken on the charger, so it is a direction, not a number.
+Next: a real raw-layout GEMM kernel (prefill is the blocker), then the decode GEMV.
+Wrapper defect: `kld` and `kld-decode` returned 1 because the final pull used a mutated log name
+(`*.pre.log`); binaries exited 0. Fix before the next run.
