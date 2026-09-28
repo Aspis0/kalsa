@@ -1,7 +1,8 @@
 # One weight copy for CPU + NPU + GPU: Adreno reads the raw Q4_0 bytes (spike, phase 1)
 
 Engine worktree `/Users/marco/Projects/kalsallama-onecopy-gpu`, branch `spike/onecopy-gpu-rawq4`
-from `c939a135d` (tip of `spike/hexagon-onecopy-rawq4`). Commit: `133cef802`. Not pushed.
+from `c939a135d` (tip of `spike/hexagon-onecopy-rawq4`). Commit: `133cef802`; review fixes in
+`5e6b66e86` (rebuild below, §5). Not pushed.
 No adb, no phone. Everything below is source, docs, a Mac GPU run and an Android build.
 `orig:` = line numbers in `/Users/marco/Projects/kalsallama-onecopy` (unchanged tree);
 `new:` = line numbers in the `-gpu` worktree.
@@ -204,6 +205,48 @@ All 7 warnings are in pre-existing lines (`ggml-opencl.cpp:1541, 8416, 8560, 966
 (`raw/SHA256SUMS.txt`.) The probe reads the two `.cl` files from a directory at run time; the
 engine binary has them embedded.
 
+### 2026-09-28 16:33 EDT — review-fix rebuild (engine `5e6b66e86`)
+
+One commit on the spike branch, `133cef802` -> `5e6b66e86`, the four SHIP-review fixes; with
+`GGML_OPENCL_RAWQ4` off the behaviour is unchanged.
+
+1. **fd lifetime**: `lookup` `dup()`s the exported dma-buf fd (registry field `dup_fd`, the
+   export's fd is only an identity) and passes the duplicate to `clCreateBuffer`. The dup is
+   closed when the entry is replaced (buffer freed and reallocated) and in
+   `ggml_opencl_rawq4_release`, next to `clReleaseMemObject`. The owner can free the `-HOST`
+   buffer before backend teardown without unmapping memory the `cl_mem` still reads; a failed
+   `dup` refuses the import with a logged error.
+2. **Sync is fatal**: `publish_cpu_writes` returns `bool` and logs the `errno` (`strerror`) of
+   both `DMA_BUF_IOCTL_SYNC` halves; on failure the wrapper logs the fd and route, releases the
+   fresh `cl_mem` and fails the import, so the op stays on the CPU (it reads the same bytes).
+   A platform with no dma-buf sync refuses the import too, with its own log line.
+3. **Khronos route**: both routes go through the same wrapper sync (now fatal), and
+   `import_khr` documents/logs that this route has no host cache policy knob, so coherence
+   rests on `DMA_BUF_IOCTL_SYNC`; the refusal line names the route (`route ion|khr`), and the
+   KHR INFO line says which coherence mechanism applies.
+4. **2-byte offset**: `lookup` refuses an odd tensor byte offset with a logged error naming
+   the tensor — the raw kernels' documented precondition (18-byte Q4_0 blocks read with
+   `vload_half` / 16-bit loads, `mul_mm_q4_0_f32_l4_lm_raw.cl:4`).
+
+Build: same image, preset, targets and `build-onecopy-gpu` dir as above. Configure `EXIT=0`
+(`raw/configure_r2.log`). Attempt 7 `EXIT=1`: `llama-eval-callback` OOM-killed again in the
+LTO link (`raw/build_android7.log`, same failure as attempt 5) after `llama-perplexity`
+linked; attempt 8 `EXIT=0` (`raw/build_android8.log`). Probe rebuild `EXIT=0`
+(`raw/probe_build_android_r2.log`). Same 7 warnings, all in the pre-existing `ggml-opencl.cpp`
+lines listed above; none in `ggml-opencl-rawq4*`. `strings` finds the new refusal messages in
+both binaries.
+
+| Artifact | SHA-256 (2026-09-28 16:33 EDT, `5e6b66e86`) |
+|---|---|
+| `build-onecopy-gpu/bin/llama-perplexity` | `b6055ec202c4004ca92cbb4efe0b806e8a971102d0b7dcdeecd63a3a58477415` |
+| `build-onecopy-gpu/bin/llama-eval-callback` | `dd1a934ad4a11b51b3ad0af422506644d8b43d7cbfbd50ee708f4900a7113739` |
+| `build-onecopy-gpu/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640` (unchanged: no DSP change) |
+| `build-onecopy-gpu/q4raw-probe` (AArch64 PIE) | `e9abd1661abcd0138ac20ce01f692ad34f1d39355f3a6e9cb8bb65593f3d7cc2` (unchanged: probe sources untouched) |
+| `kernels/mul_mm_q4_0_f32_l4_lm_raw.cl` | `2bbab74d596362159e69cc71944de6f53ab26e15c14054a0834d8e739abc4768` (unchanged) |
+| `kernels/mul_mv_q4_0_f32_v.cl` | `d144489d59830879de907bcb8cf98280fcbbba1b06cd36003d1f35614f9cdf77` (unchanged) |
+
+The table above this section (attempt 6, `133cef802`) is kept for history.
+
 ## 6. S23 session (coordinator; not run)
 
 Wrapper: `scratchpad/agents/onecopy-gpu/run-onecopy-gpu.sh` (`sh -n` clean, never run). Same
@@ -298,6 +341,7 @@ Steps 2-4 (`kld`, `kld-decode`), each arm `EXIT=0`, `error_markers=0`:
 5. All non-matmul weights stay in normal GPU buffers in the test config (norms, conv, embedding),
    so this spike shares the **Q4_0 trunk only** (~1.3 GiB of 1.5). Sharing the rest needs
    the CPU/GPU-readable placement discussed in `governor-onecopy/DESIGN.md` §2.
-6. Lifetime: an imported `cl_mem` keeps the dma-buf alive until backend teardown (freed with the
-   OpenCL backend context), and a lost DSP session takes the weights the GPU reads
+6. Lifetime: as of `5e6b66e86` the import owns a `dup()` of the dma-buf fd, so the owner
+   freeing the buffer first no longer unmaps the GPU's view (the `cl_mem` keeps its own ref
+   until backend teardown), and a lost DSP session still takes the weights the GPU reads
    (`governor-onecopy/DESIGN.md` §7 item 7).
