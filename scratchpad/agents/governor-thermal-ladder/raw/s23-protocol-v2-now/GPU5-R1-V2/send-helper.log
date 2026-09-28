@@ -1,0 +1,7 @@
+Starting: Intent { act=android.intent.action.VIEW dat=kalsa://share/... }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+UI hierchary dumped to: /data/local/tmp/thermal-ladder-ui.xml
+share_intent=kalsa://share?text=This%20is%20a%20fixed%20workload%20for%20comparing%20prefill%20and%20decode%20behavior%20on%20one%20phone.%20Treat%20every%20paragraph%20as%2...
+uiautomator_chars=22926
+send_bounds=873,2010,1017,2130 tap=945,2070
+send_tapped

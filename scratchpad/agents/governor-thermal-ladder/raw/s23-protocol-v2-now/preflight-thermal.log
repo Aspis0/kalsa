@@ -1,0 +1,5 @@
+Thermal Status: 0
+	Temperature{mValue=30.7, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.2, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=30.7, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=31.2, mType=3, mName=SKIN, mStatus=0}

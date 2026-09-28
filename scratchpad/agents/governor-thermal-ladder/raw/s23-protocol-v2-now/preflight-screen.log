@@ -1,0 +1,6 @@
+  mWakefulness=Awake
+Failed to write while dumping service power: Broken pipe
+  mScreenState=ON
+Failed to write while dumping service display: Broken pipe
+  mCurrentFocus=Window{c8b200a u0 com.kalsa.app/com.kalsa.app.MainActivity}
+Failed to write while dumping service window: Broken pipe

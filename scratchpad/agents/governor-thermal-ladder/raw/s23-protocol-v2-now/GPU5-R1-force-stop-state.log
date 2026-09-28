@@ -1,0 +1,15 @@
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 77
+  temperature: 338
+Thermal Status: 0
+	Temperature{mValue=33.8, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=34.1, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=33.8, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=34.1, mType=3, mName=SKIN, mStatus=0}
+0
+  mWakefulness=Awake
+Failed to write while dumping service power: Broken pipe
+  mScreenState=ON
+Failed to write while dumping service display: Broken pipe

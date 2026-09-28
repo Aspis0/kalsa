@@ -1,0 +1,4 @@
+         1790562315.590 27649 27715 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3694.49,"bench_norepack_forced":null}
+         1790562627.327 27649 27715 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+         1790562943.793 27649 27715 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3694.49,"bench_norepack_forced":null}
+         1790562963.138 27649 27715 I ReactNativeJS: KALSA_THINKING {"turnId":"2","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
