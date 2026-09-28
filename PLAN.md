@@ -637,13 +637,22 @@ on every device, with its flag OFF where NPU is better.
 
 The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
-**SHIP for an S23 correctness run after the four fixes**; that run is in progress with mimo.
+**SHIP for an S23 correctness run after the four fixes**. S23 run 1 found no import route and a
+failed probe allocation (fixed in `4ff4f729c`: `cl_qcom_dmabuf_host_ptr` route, `rpcmem_alloc`
+fallback). S23 run 2: the probe imports and small shapes are correct, but the raw kernel **stalls on
+the full model** (GPU 99%, no progress, no driver error; the import INFO line is missing from the
+llama-perplexity log). The normal-GPU control is fine (KLD 0.00095). Stall diagnosis is with mimo
+(`18ce4d32`); suspects: 32-bit offset overflow on the ~1 GiB buffer, loop bounds, workgroup size.
 
 The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
 fused raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not
-measured. Governor S3+ remains on hold until the implementation is validated and one-copy is fast.
-Next: build and validate that reader with pp512 and KLD on the 8 Elite; diagnose the rpcmem CPU-read
-slowdown with a bandwidth probe when the S23 is unplugged.
+measured. First step built and run on the S23 (`scratchpad/agents/onecopy-hmx-numerics/`, engine
+`spike/onecopy-hmx-raw` `9d5eaf681`, lab `9a356250`): raw `-HOST` weights now run on HMX (1,316
+`hmx-tiled` matmuls, EXIT 0). KLD one-copy **0.000928** vs two-copy HMX **0.000892**. Verdict
+**inconclusive, not PASS**: the `hmx-mm-2d:` FARF proof line is absent in both arms, and the opsets
+differ (two-copy also puts norms, `SSM_CONV` and `result_output` on HTP). Governor S3+ remains on
+hold. Next: rerun with a placement-matched opset and FARF enabled; then the fused reader and pp512 on
+the 8 Elite (QDC, Opus medium); the rpcmem CPU-read bandwidth probe when the S23 is unplugged.
 
 ## Gates and dates (recovered 2026-09-21)
 

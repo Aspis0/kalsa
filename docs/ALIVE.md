@@ -693,11 +693,15 @@ fast. Owner decision: keep the GPU lane on every device, with its flag OFF where
 
 The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
-**SHIP for an S23 correctness run after the four fixes**; the run is in progress with mimo. The
-HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a fused
-raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not measured.
-Implementation and pp512/KLD validation on the 8 Elite remain open, as does the rpcmem CPU-read
-bandwidth probe when the S23 is unplugged.
+**SHIP for an S23 correctness run after the four fixes**. After the import fix (`4ff4f729c`) the
+probe imports and small shapes are correct, but the raw kernel **stalls on the full model** (GPU 99%,
+no progress); normal-GPU control KLD 0.00095. Diagnosis with mimo (`18ce4d32`). The HMX-on-raw
+estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a fused raw-to-fp16
+HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not measured. First S23
+run of raw weights on HMX (`onecopy-hmx-numerics`, engine `9d5eaf681`, lab `9a356250`): 1,316
+`hmx-tiled` matmuls on `-HOST`, KLD **0.000928** vs two-copy HMX **0.000892**, but **inconclusive**:
+no `hmx-mm-2d:` FARF line and unmatched opsets. Open: matched-opset rerun, fused reader + pp512 on
+the 8 Elite, rpcmem CPU-read bandwidth probe when the S23 is unplugged.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):
