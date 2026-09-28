@@ -522,8 +522,8 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
 - **Engaged and working in the app:** `KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit"}` on load; three
   smoke turns with `engine_prefill=GPU`, `engine_decode=CPU`, `route_push=applied`,
   `route_mismatch=null`, per-chunk `actual:"gpu"`, commit in milliseconds (`commit_ms` 5.388 /
-  6.01 / 10.65). Record: `scratchpad/agents/s23-governor-lfm-long/REPORT.md` "Manual governor
-  smoke", raw `raw/manual-smoke/`.
+  6.01 / 10.65). Record: `scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit
+  `8c0e38e0`), "Manual governor smoke", raw `raw/manual-smoke/`.
 - **The blind spot, measured on one long turn:** turn 3 (`prompt_n=981`, a 587-word prompt) drove
   battery **33.6 → 41.6 °C** and Android thermal status **0 → 3 (SEVERE)** while the governor
   kept logging `thermal_state:"FAST"` (same REPORT, table rows 1-3 and "the Governor's logged
@@ -539,7 +539,7 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
 |---|---|---|
 | `scratchpad/agents/s23-heat-arms-engine/` | `147b0351` | S23: battery-area prefill per 1k tokens: NPU **6.45**, GPU **24.17**, CPU **44.59 °C·s**; NPU is 73.3 % below OpenCL and 85.5 % below CPU; median prefill 1,470.99 / 6,948.76 / 9,905.57 ms (NPU/GPU/CPU); fewer decode threads show **no clear thermal benefit** (battery-area medians overlap by 1-3 %, skin area rises as threads fall) |
 | `scratchpad/agents/qdc-8elite-heat-arms/` | `335fc965` | 8 Elite: skin area NPU **21.2** vs GPU 45.5 vs CPU 52.3 °C·s — NPU coolest in every triple |
-| `scratchpad/agents/qdc-8elite-hopping-heat/` | `a6ec6507` | 8 Elite: NPU decode **0.229 °C·s/token, 27 % below CPU** at **−25 % speed** (29.1 vs 39.0 tok/s); **GPU decode buys nothing** (hotter per token than CPU and 22 % slower); **no NPU skin crossover through 12 back-to-back prefills** |
+| `scratchpad/agents/qdc-8elite-hopping-heat/` | `a6ec6507` | 8 Elite skin area per prefill NPU/GPU/CPU **23/79/75 °C·s**; NPU decode **0.229** vs CPU **0.315** vs GPU **0.326 °C·s/token**, at **29.1/39.0/30.3 tok/s** (NPU/CPU/GPU); **no NPU skin crossover through 12 back-to-back prefills** |
 
 - **CPU prefill is never cooler**: on both chips CPU is the worst of the three on the heat-area
   axis (S23 battery-area rows P-*; 8 Elite skin-area 52.3 vs 45.5/21.2). `s23-backend-hopping-heat/` has a PREREG but
@@ -578,7 +578,8 @@ brake only (held app `19368426`).
 
 ### NPU prefill: validated, wired, landed — disabled by default
 
-- **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md` —
+- **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md`
+  (commit `e69ff684`) —
   three-prompt handoff verdict EQUIVALENT (HTP mean agreement 99.306 %, mean KLD 0.000853797
   inside OpenCL's prompt ranges 0.000706-0.000956), commit bytes identical per backend, 1,089
   `HTP0 execute-op MUL_MAT` dispatch lines.
@@ -590,17 +591,28 @@ brake only (held app `19368426`).
   - app `origin/main`: `2fb5ee4a` (eligibility, **lane default OFF**,
     `kalsa.bench.npu_lane = auto | on | off`), then `335f9c8d` (pin bump, provenance gate
     exit 0, space-bunny SHIP). Device APK CI build `36434636903` is building.
-- Status: **on main at `335f9c8d`, default OFF, APK building; step-5 device soak pending**
+- Status: **on `origin/main` at `335f9c8d`, default OFF, APK building; step-5 device soak pending**
   (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
   `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
 
+### Pairing: iroh and invite links
+
+- Iroh pairing passed on Jelly with app commit `aba67977`; invite-by-link uses the existing v3
+  QR payload, and desk-side Allow remains mandatory.
+- The `kalsa-pair` Worker is live (version `5f5ea8c9`, deployed 2026-09-27), serving `/pair*` and
+  `/.well-known/assetlinks.json`. It is not publicly reachable until the apex has a proxied DNS
+  record. Before public links, replace the debug signing fingerprint in `assetlinks.json` and
+  add the CI rejection gate (`scratchpad/COORDINATOR-STATE.md`, 2026-09-27 invite-by-link notes).
+
 ### One-copy (Hexagon offload_op): the owner says FIX, not park
 
-`scratchpad/agents/hexagon-offload-op/REPORT.md`: the HTP `-HOST` reading is corrupt, isolated
-to HTP matmuls consuming the row-major host-buffer weights (layout interpretation is the likely
-cause, `:373-380`; cache/coherency not excluded), rpcmem decode is **1.49× slower** than CPU
-`--no-repack` (`:233`), and three opt-in diagnostics sit on `spike/hexagon-offload-op` at commit
-`0a5c7823` with device validation pending. Prior art: `npu-prefill-prior-art/` (upstream
+`scratchpad/agents/hexagon-offload-op/REPORT.md` (commit `eafdee29`): the HTP `-HOST` reading is
+corrupt, isolated to HTP matmuls consuming row-major host-buffer weights; a layout mismatch is
+the leading cause (`:373-380`), while cache/coherency remains unexcluded. The raw-Q4_0 HTP-kernel
+spike is underway on engine branch `spike/hexagon-onecopy-rawq4`; continue fixing, with one weight
+copy still the target. Earlier RPCMEM decode measured **1.49× slower** than CPU `--no-repack`
+(`:233`). The opt-in diagnostics are on `spike/hexagon-offload-op` at commit `0a5c7823`.
+Prior art: `npu-prefill-prior-art/` (upstream
 `offload_op`) and `mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for
 APU use, `:141`).
 
@@ -939,13 +951,12 @@ Ordered next steps:
     (react-native 0.72 jest setup on node 26) - the binding's JS layer ships with no test net.
     Environment debt, not a defect of the line; nobody has booked the fix
     (`scratchpad/agents/binding-audit/REPORT.md` item 5).
-11. Governor runtime engagement: OPEN (superseded 2026-09-28 — engagement is recorded on
-    the S23, see "Verified state, 2026-09-28"). The last device smoke activated the governor through the
-    app's own path and it then REFUSED to engage (`fallback_reason:"governor not eligible"`,
-    `engine_prefill:"CPU"` - `scratchpad/agents/s23-governor-smoke/REPORT.md` sec. 5); no document
-    records an engagement since. The V73 GPU-prefill lane ships by owner decision and is still
-    unmeasured on the device it will run on (`scratchpad/agents/phone-line-audit/REPORT.md`
-    sec. 3.2).
+11. Governor runtime and NPU lane: engagement is confirmed by the S23 app smoke, but its long-turn
+    blind spot remains: Android reached SEVERE while the battery-only engine classifier reported
+    FAST (`scratchpad/agents/s23-governor-lfm-long/REPORT.md`; see "Verified state, 2026-09-28").
+    The NPU-prefill lane is on `origin/main` at app `335f9c8d`, **OFF by default**; device APK CI
+    `36434636903` is building, and the step-5 device soak is pending. Do not enable by default
+    before that soak.
 12. Desk work (`kalsa-brain`): the four commits - panel row labelled with the release (`1f22bb7`),
     provenance fields inside the artefact (`fe14e78`), `Stopping` (`6efec90`) and the `Stopped`
     invariant with its proof (`f1df191`, `ae78761`, `f9d8861`) - were first recorded here as

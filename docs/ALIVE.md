@@ -77,8 +77,10 @@ document that produced them is named instead.
 | The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
 | Desktop speed numbers: the provenance verdict (CPU-only / GPU-capable / NOT ATTRIBUTABLE), the load-condition finding, and the profile-validity test matrix | `scratchpad/agents/governor-desktop-net/REPORT.md` |
 | The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the K-order ablation for its residual, the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/cok-residual/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
-| The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` ("Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
+| The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit `8c0e38e0`; "Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
 | Per-backend heat measured on both chips: NPU coolest, CPU prefill never cooler, no NPU skin crossover in 12 back-to-back prefills, 8 Elite NPU decode 27 % cooler/token at -25 % speed | `scratchpad/agents/s23-heat-arms-engine/REPORT.md` (`147b0351`), `qdc-8elite-heat-arms/REPORT.md` (`335fc965`), `qdc-8elite-hopping-heat/REPORT.md` (`a6ec6507`) |
+| Governor thermal ladder and one-copy HTP follow-up: CPU-at-MODERATE rung refuted; raw-Q4_0 HTP layout remains the leading one-copy fault | `scratchpad/agents/governor-thermal-ladder/LEVERS.md` (`3e00ccea`); `hexagon-offload-op/REPORT.md` (`eafdee29`) |
+| Iroh pairing and invite-by-link beta rollout, including `install_id` and the Worker/DNS state | app commits `aba67977`, `9922f2e7`; `scratchpad/COORDINATOR-STATE.md:150-152` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -92,14 +94,12 @@ document that produced them is named instead.
 - A device number is only as good as the phone state it was read in. The archived diary carries
   the per-run provenance, including the thermal and DSP-daemon caveats that travel with every S23
   number.
-- Three limbs of 2026-09-22 are OPEN and are written as open, not smoothed: the MAGNITUDE of the
-  KV term (the two reference orientations disagree by 3.2x; the full-corpus matched reference is
-  queued), the THERMAL limb of the prefill stall (both rerun runs sat at
-  `ThrottlingStatus: SEVERE` where the originals ran NONE), the GOVERNOR's own blind spot - engagement is
-  now RECORDED on the S23 (GPU prefill / CPU decode, `s23-governor-lfm-long`), but one long turn
-  took Android to SEVERE while the governor stayed FAST, because the engine's classifier reads the
-  battery only; that gap, the heat data and the owner's 2026-09-28 direction are in "2026-09-26/28"
-  below).
+- Two limbs of 2026-09-22 remain OPEN: the MAGNITUDE of the KV term (the two reference orientations
+  disagree by 3.2x; the full-corpus matched reference is queued), and the THERMAL limb of the
+  prefill stall (both rerun runs sat at `ThrottlingStatus: SEVERE` where the originals ran NONE).
+  Governor engagement is confirmed on the S23, but its blind spot remains: one long turn reached
+  Android SEVERE while the battery-only engine classifier stayed FAST. The measured heat arms
+  and 2026-09-28 owner direction are in "2026-09-26/28" below.
 - A timing ratio is incomplete without the screen state of BOTH arms: with the screen off
   Android parks CPUs, the device's `screen_off_timeout` is 30000 ms, and the f32 route's
   published 68.42 was a Dozing number (screen ON it reads 71.98). Every bracket now records
@@ -628,37 +628,41 @@ per-chunk `actual:"gpu"`, and commit in milliseconds (`commit_ms` 5.388 / 6.01 /
 logging `thermal_state:"FAST"` - the classifier reads the battery only
 (`kalsallama llama-governor-policy.cpp`, `classify` at `:83-94`). The 27/09 baseline campaign
 hit the same wall: the status-3 abort stopped it after one submitted prompt. Record:
-`scratchpad/agents/s23-governor-lfm-long/REPORT.md`, raw `raw/manual-smoke/` and
+`scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit `8c0e38e0`), raw `raw/manual-smoke/` and
 `raw/baseline-before-thermal-20260927/`.
 
 **Heat per backend - the "n = 0" above is superseded.** Three cells ran:
 `scratchpad/agents/s23-heat-arms-engine/` (`147b0351`),
 `qdc-8elite-heat-arms/` (`335fc965`), `qdc-8elite-hopping-heat/` (`a6ec6507`).
 
-- **NPU is the coolest prefill on both chips:** S23 battery area per 1k tokens 73.3 % below
-  OpenCL and 85.5 % below CPU (skin 66 % below OpenCL); 8 Elite skin area 21.2 vs 45.5 (GPU)
-  and 52.3 (CPU) C*s. Prefill speed rows: S23 9,905.57 / 6,948.76 / 1,470.99 ms (CPU/GPU/NPU,
-  97.12 / 138.44 / 653.98 tok/s); 8 Elite 4,861 / 3,317 / 919 ms (197.9 / 290.0 / 1,046.4
-  tok/s).
-- **CPU prefill is never cooler** (it is the hottest of the three on the skin axis of both
-  chips).
-- **8 Elite decode:** NPU **0.229 C*s/token, 27 % below CPU** (0.315) at **-25 % speed**
-  (29.1 vs 39.0 tok/s); GPU is worse than CPU per token and 22 % slower - **GPU decode buys
-  nothing** there (`hopping-heat` §B, verdict).
+- **NPU is the coolest prefill on both chips.** S23 battery area per 1k tokens (NPU/GPU/CPU)
+  is **6.45 / 24.17 / 44.59 °C·s**; the NPU is 73.3 % below OpenCL and 85.5 % below CPU
+  (skin area 66 % below OpenCL). The 8 Elite first arms measured skin area **21.2 / 45.5 / 52.3
+  °C·s per prefill** (NPU/GPU/CPU); its sustained follow-up measured **23 / 79 / 75 °C·s** in
+  the same order. These are different devices and sensors, so the values are not compared across
+  them. Prefill speed rows: S23 9,905.57 / 6,948.76 / 1,470.99 ms (CPU/GPU/NPU; 97.12 / 138.44 /
+  653.98 tok/s); 8 Elite 4,861 / 3,317 / 919 ms (197.9 / 290.0 / 1,046.4 tok/s). Sources:
+  S23 report `147b0351`, QDC first arms `335fc965`, sustained QDC `a6ec6507`.
+- **CPU prefill is hottest** in both devices' measured area metrics. Fewer S23 decode threads
+  show no clear thermal benefit: battery-area medians overlap by 1–3 %, while skin area rises as
+  threads fall (`147b0351`, D-t5/t3/t2).
+- **8 Elite decode:** NPU **0.229 °C·s/token at 29.1 tok/s**, CPU **0.315 at 39.0 tok/s**, GPU
+  **0.326 at 30.3 tok/s**. NPU is coolest per token; GPU is hotter per token than CPU and 22 %
+  slower (`a6ec6507`, §B).
 - **No NPU heat crossover in 12 back-to-back prefills** (same cell, §A).
 - **Fewer decode threads show no clear benefit on the S23** (battery medians overlap within
   1-3 %, skin rises as threads fall: D-t5/t3/t2 = 22.41 / 18.49 / 15.16 tok/s).
 - `s23-backend-hopping-heat/` has a PREREG only, no REPORT - nothing claimed from it.
 
 **Owner direction (2026-09-28; decisions in `PLAN.md`, "Verified state, 2026-09-28"):** CPU is
-out of prefill; NPU first and GPU when the NPU is hot; decode hops CPU <-> NPU by heat; never
+out of prefill; NPU first and GPU when the NPU is hot; decode hops CPU <-> NPU <-> GPU by heat; never
 truncate reasoning silently; persistent SEVERE needs a sustainable slow rate, not a pause - the
 pause is only an emergency brake, so the platform-pause implementation (app `19368426`) is
 **held**. The lever map `governor-thermal-ladder/LEVERS.md` (`3e00ccea`) keeps every lever
 except its "MODERATE -> CPU prefill" rung, which the heat data **refutes**.
 
 **NPU prefill: validated, wired, landed - disabled by default.** The spike
-(`scratchpad/agents/governor-htp-prefill-spike/REPORT.md`) gave an EQUIVALENT three-prompt
+(`scratchpad/agents/governor-htp-prefill-spike/REPORT.md`, commit `e69ff684`) gave an EQUIVALENT three-prompt
 handoff verdict vs OpenCL (mean agreement 99.306 %, mean KLD 0.000853797 inside OpenCL's
 0.000706-0.000956 range; identical commit bytes; 1,089 `HTP0 execute-op MUL_MAT` lines). The
 chain: engine `feat/governor-npu-prefill` `45f097b74`; binding `4e0837f8` then `3d2fff25`
@@ -669,11 +673,13 @@ bump, provenance exit 0)**. The lane is **default OFF** on main, the bench key
 and the **step-5 device soak is pending**. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
-**One-copy (Hexagon `offload_op`): FIX, not park (owner).** The HTP `-HOST` reading is corrupt,
-isolated to HTP matmuls consuming the row-major host-buffer weights (layout interpretation the
-likely cause; cache/coherency not excluded), and rpcmem decode measures **1.49x slower** than
-CPU `--no-repack`. Three opt-in diagnostics wait on `spike/hexagon-offload-op` at `0a5c7823`,
-device validation pending. Prior art: `npu-prefill-prior-art/` (upstream `offload_op`),
+**One-copy (Hexagon `offload_op`): CONTINUE FIXING (owner); one weight copy is the target.** The
+HTP `-HOST` reading is corrupt, isolated to HTP matmuls consuming row-major host-buffer weights;
+layout mismatch is the leading cause, while cache/coherency is not excluded (`hexagon-offload-op`
+report commit `eafdee29`). The raw-Q4_0 HTP-kernel spike has started on engine branch
+`spike/hexagon-onecopy-rawq4`; no corrected result is claimed. Earlier RPCMEM decode measured
+**1.49× slower** than CPU `--no-repack`. The opt-in diagnostics are on `spike/hexagon-offload-op`
+at `0a5c7823`, device validation pending. Prior art: `npu-prefill-prior-art/` (upstream `offload_op`),
 `mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for APU use, `:141`).
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
@@ -684,10 +690,12 @@ device validation pending. Prior art: `npu-prefill-prior-art/` (upstream `offloa
   rendering (`af1498fa`).
 - **Served-model adoption:** `93f29b8e` - dedupe and trim served ids at the source, clear the
   stored id on pairing, keep the id out of every log line.
-- **iroh:** the real root cause was `startBridge` resolving a non-marshallable
-  `MobileBridge` (`2641144c`); dial outcomes are now logged (`022e14e5`).
-- **Invite-by-link:** phone `9922f2e7`, Worker `kalsa-pair` `ea245988`, deployed **2026-09-27**
+- **iroh:** pairing now passes on Jelly (APK/app `aba67977`); the earlier start failure was
+  `startBridge` resolving a non-marshallable `MobileBridge` (`2641144c`), and dial outcomes are
+  logged (`022e14e5`).
+- **Invite-by-link:** phone `9922f2e7`, Worker `kalsa-pair` `ea245988`, live since **2026-09-27**
   (version `5f5ea8c9`, routes `kalsa.io/pair*` + `/.well-known/assetlinks.json`;
+  it carries the existing v3 QR payload and desk-side Allow remains mandatory;
   `scratchpad/COORDINATOR-STATE.md:152` - the apex still needed a proxied DNS record there).
 - **install_id per desk:** `aba67977`.
 - **Campaign harness:** screen-ON per turn, fail-closed readings and the log-based readiness
