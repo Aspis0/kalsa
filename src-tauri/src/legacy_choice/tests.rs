@@ -62,6 +62,35 @@ fn a_legacy_record_with_its_verified_file_becomes_the_choice() {
 }
 
 #[test]
+fn a_cleared_choice_does_not_restart_the_migration() {
+    // A successful migration is settled once and for all: the walk or the
+    // owner can clear the stored choice later, and the next launch must not
+    // hash the file again to re-ask a question that was answered.
+    let root = scratch("settled");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    std::fs::write(root.join("models").join("old.gguf"), BODY).expect("the file");
+    let state_file = root.join("server.state");
+
+    let checks = std::cell::Cell::new(0);
+    let counting = |wanted: &str| {
+        checks.set(checks.get() + 1);
+        lookup(wanted)
+    };
+    assert!(migrate_with(&state_file, &root, counting));
+    assert_eq!(checks.get(), 1, "the first launch hashed the file");
+
+    let mut overrides = crate::options::load(&state_file);
+    overrides.model = None;
+    crate::options::save(&state_file, overrides).expect("the choice is cleared");
+
+    assert!(checked(&state_file), "the settled check is recorded");
+    assert!(!migrate_with(&state_file, &root, counting));
+    assert_eq!(checks.get(), 1, "no second hash: the marker stands");
+    assert_eq!(stored(&state_file), None, "and the cleared choice stays cleared");
+}
+
+#[test]
 fn per_model_records_never_become_a_choice() {
     let root = scratch("per-model");
     record_for(&root);

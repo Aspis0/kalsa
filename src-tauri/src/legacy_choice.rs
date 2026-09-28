@@ -65,10 +65,10 @@ fn catalog_row(digest: &str) -> Option<Pinned> {
     })
 }
 
-/// The record of a check that finished: the model file was read whole and
-/// was not the pinned one. Only that answer is kept — it cannot change next
-/// launch, while an absent, wrong-sized or unreadable file is no answer at
-/// all and is asked again.
+/// The record of a settled check: the file was read whole and was not the
+/// pinned one, or it was and the choice was saved. Both answers cannot
+/// change on a later launch, so neither is asked twice — while an absent,
+/// wrong-sized or unreadable file is no answer at all and is asked again.
 fn checked(state_file: &Path) -> bool {
     marker(state_file).exists()
 }
@@ -82,9 +82,11 @@ fn marker(state_file: &Path) -> PathBuf {
 }
 
 /// Stores the legacy model as the choice when nothing is stored yet and its
-/// file in `runtime_root/models` hashes to the pinned digest. The choice it
-/// stores stops it running again — and so does a check that proved the file
-/// is not the pinned one.
+/// file in `runtime_root/models` hashes to the pinned digest. Either
+/// terminal answer — the choice, or a file proven not to be the pinned one —
+/// is recorded, so the hash runs at most once per machine: the choice can be
+/// cleared later by an owner or a walk that refused it, and the migration
+/// must not start over when that happens.
 fn migrate_with(
     state_file: &Path,
     runtime_root: &Path,
@@ -97,7 +99,9 @@ fn migrate_with(
     let Some(pinned) = kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d))
     else {
         // No record, or no catalog row for its digest: nothing was read, so
-        // nothing is recorded and the next launch asks again.
+        // nothing is recorded and the next launch asks again. Cheap — no
+        // model is hashed — and asking again is the point: a later catalog
+        // can still adopt the file.
         return false;
     };
     let path = runtime_root.join("models").join(&pinned.file);
@@ -108,12 +112,18 @@ fn migrate_with(
             mark_checked(state_file);
             false
         }
-        // The pinned file becomes the choice, which stops this running
-        // again. No record is written: a save that failed must be retried,
-        // and the stored choice alone is the answer when it succeeded.
+        // The pinned file becomes the choice, and only a saved choice marks
+        // the check done: a save that failed must be retried whole. The
+        // marker, not the choice, is what runs this once — the choice says
+        // what migrated, the marker says it was settled.
         Ok(true) => {
             overrides.model = Some(pinned.token);
-            crate::options::save(state_file, overrides).is_ok()
+            if crate::options::save(state_file, overrides).is_ok() {
+                mark_checked(state_file);
+                true
+            } else {
+                false
+            }
         }
         // Absent, the wrong size, or the disk said no — no verdict, so no
         // record. The file may still arrive.
