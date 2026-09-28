@@ -645,6 +645,17 @@ try {
   if (!results.some((r) => r.heading.includes("a progress event arrives") && r.working)) {
     problems.push("the progress event must reach the screen");
   }
+  // The road's permission, said where the switch that opens the road is:
+  // the owner's own sentence, on a card that carries the road.
+  if (!results.some((card) => card.all.includes(
+    "Kalsa will ask to find devices on your local network, so your phone can reach this computer at home.",
+  ))) {
+    problems.push("the local-network permission is explained where the road is switched on");
+  }
+  if (results.some((card) => card.heading.includes("the internet road is off")
+    && card.all.includes("Kalsa will ask to find devices"))) {
+    problems.push("the permission is not explained where the road is off");
+  }
 
   const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
   const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";

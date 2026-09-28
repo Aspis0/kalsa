@@ -359,6 +359,13 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
               }}
             />
           </AdvancedField>
+          {dto?.internet_road ? (
+            // The road touches the home network, so macOS asks for the
+            // local-network permission when it opens — this is that switch.
+            <p className="advanced-note">
+              Kalsa will ask to find devices on your local network, so your phone can reach this computer at home.
+            </p>
+          ) : null}
           <p className="advanced-values">
             {dto
               ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? automaticLabel(dto, cache)}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.${dto.tune ? ` tune: ${dto.tune}.` : ""}`

@@ -203,6 +203,9 @@ const scenarios = [
   }],
   // The Advanced panel's own moved sentence: only the Devices fallback
   // card exercised it before, and the panel builds its line separately.
+  // The road's own switch, off: the permission that sentence explains is
+  // irrelevant here, so the sentence must be gone with it.
+  ["Advanced", "the internet road is off", "advanced", { state: { kind: "stopped" }, advanced: advancedDto({ internet_road: false, iroh_sentence: "The internet road is turned off. The phone reaches this computer the Tailscale way." }) }],
   ["Advanced", "the desk on a fallback port", "advanced", {
     state: { kind: "stopped" },
     advanced: advancedDto({ desk_port: 51990, desk_port_preferred: false }),
