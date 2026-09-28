@@ -600,8 +600,9 @@ brake only (held app `19368426`).
 - Iroh pairing passed on Jelly with app commit `aba67977`; invite-by-link uses the existing v3
   QR payload, and desk-side Allow remains mandatory.
 - The `kalsa-pair` Worker is live (version `5f5ea8c9`, deployed 2026-09-27), serving `/pair*` and
-  `/.well-known/assetlinks.json`. It is not publicly reachable until the apex has a proxied DNS
-  record. Before public links, replace the debug signing fingerprint in `assetlinks.json` and
+  `/.well-known/assetlinks.json`. Public reachability was confirmed on 2026-09-28:
+  `GET https://kalsa.io/pair` and `GET https://kalsa.io/.well-known/assetlinks.json` both returned
+  HTTP 200. Before a public launch, replace the debug signing fingerprint in `assetlinks.json` and
   add the CI rejection gate (`scratchpad/COORDINATOR-STATE.md`, 2026-09-27 invite-by-link notes).
 
 ### One-copy (Hexagon offload_op): the owner says FIX, not park

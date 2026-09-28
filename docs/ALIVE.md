@@ -80,7 +80,7 @@ document that produced them is named instead.
 | The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit `8c0e38e0`; "Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
 | Per-backend heat measured on both chips: NPU coolest, CPU prefill never cooler, no NPU skin crossover in 12 back-to-back prefills, 8 Elite NPU decode 27 % cooler/token at -25 % speed | `scratchpad/agents/s23-heat-arms-engine/REPORT.md` (`147b0351`), `qdc-8elite-heat-arms/REPORT.md` (`335fc965`), `qdc-8elite-hopping-heat/REPORT.md` (`a6ec6507`) |
 | Governor thermal ladder and one-copy HTP follow-up: CPU-at-MODERATE rung refuted; raw-Q4_0 HTP layout remains the leading one-copy fault | `scratchpad/agents/governor-thermal-ladder/LEVERS.md` (`3e00ccea`); `hexagon-offload-op/REPORT.md` (`eafdee29`) |
-| Iroh pairing and invite-by-link beta rollout, including `install_id` and the Worker/DNS state | app commits `aba67977`, `9922f2e7`; `scratchpad/COORDINATOR-STATE.md:150-152` |
+| Iroh pairing and invite-by-link beta rollout, including `install_id` and public Worker reachability | app commits `aba67977`, `9922f2e7`; HTTP 200 checks on `kalsa.io/pair` and `/.well-known/assetlinks.json` (2026-09-28) |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -695,13 +695,14 @@ at `0a5c7823`, device validation pending. Prior art: `npu-prefill-prior-art/` (u
   logged (`022e14e5`).
 - **Invite-by-link:** phone `9922f2e7`, Worker `kalsa-pair` `ea245988`, live since **2026-09-27**
   (version `5f5ea8c9`, routes `kalsa.io/pair*` + `/.well-known/assetlinks.json`;
-  it carries the existing v3 QR payload and desk-side Allow remains mandatory;
-  `scratchpad/COORDINATOR-STATE.md:152` - the apex still needed a proxied DNS record there).
+  it carries the existing v3 QR payload and desk-side Allow remains mandatory). Public
+  reachability was confirmed on 2026-09-28: both `https://kalsa.io/pair` and
+  `https://kalsa.io/.well-known/assetlinks.json` returned HTTP 200.
 - **install_id per desk:** `aba67977`.
 - **Campaign harness:** screen-ON per turn, fail-closed readings and the log-based readiness
   gate (`018bc514`); both quoted and unquoted `KALSA_` log wire forms (`2a5e8952`); tool-round
   capture with its quiet window and the 10-minute per-round bound (`bef8219d`, `0f0808b6`).
-- **Beta debts (`scratchpad/COORDINATOR-STATE.md:151-152`):** `assetlinks.json` still carries
+- **Beta debts (`scratchpad/COORDINATOR-STATE.md:150-151`):** `assetlinks.json` still carries
   the public debug key and must move to the release signing key before any public invite link
   (with a CI gate refusing `CN=Android Debug`); and a link overwrites the saved desk before any
   confirmation - the owner declined the one-tap confirm for the alpha (family-only users).
