@@ -59,7 +59,7 @@ document that produced them is named instead.
 
 | what | record |
 |---|---|
-| The app's `main` is `d69b4ce` (2026-09-23): `llama.rn` pinned to binding `5b966218`, engine `kalsa-phone-v1-1-1` = `1577495b9` (provenance gate green), plus the CI repair (`f16903b`, `08670fb`: setup-android v4, the APK builds on push to main, debuggable only by dispatch input) and the Kalsa Brain phone client (8 commits, remote mode behind a consent line). On `d69b4ce`: the full jest suite (115 suites, 1436 tests), the APK build and the E2E emulator run are all green. Origin keeps `main`, `ux-2026-09-21` (`fb3239b`) and the desktop line `brain`. `remote-brain` is retired as the tag `archive/remote-brain` (`ce71e78cd`); other retired branches are `archive/<name>` tags | `scratchpad/agents/app-branch-cleanup/REPORT.md`; `scratchpad/agents/app-ci-setup-android/`; `scratchpad/agents/remote-brain-port/` (RECON, STEP1/2, AUDIT-STEP1, AUDIT-STEP2-luna/-deepseek; open follow-ups in STEP2.md) |
+| The app's `main` is `335f9c8d` (2026-09-28): it pins `llama.rn@3d2fff25` (the JSI fix that copies the NPU stats fields before the closure; base `4e0837f8`) -> engine `kalsallama@45f097b74`, with `native/kalsallama.pin` matching and `scripts/assert-engine-provenance.sh` at exit 0 (`1121 files match`, `kalsallama@45f097b74eb6 == native/kalsallama.pin`). The NPU lane landed on main **default OFF** (`2fb5ee4a`; bench key `kalsa.bench.npu_lane auto/on/off`); device APK CI `36434636903` is building and the step-5 device soak is pending. The 2026-09-23 chain (`d69b4ce`, binding `5b966218`, engine `1577495b9`, all suites green) is history. Origin keeps `main`, `ux-2026-09-21` (`fb3239b`) and the desktop line `brain`. `remote-brain` is retired as the tag `archive/remote-brain` (`ce71e78cd`); other retired branches are `archive/<name>` tags | `scratchpad/agents/app-branch-cleanup/REPORT.md`; `scratchpad/agents/app-ci-setup-android/`; `scratchpad/agents/remote-brain-port/` (RECON, STEP1/2, AUDIT-STEP1, AUDIT-STEP2-luna/-deepseek; open follow-ups in STEP2.md) |
 | The binding's jest was not dead code. The binding's `node_modules` had been installed with pnpm, while CI and the lockfile use `npm ci`. After `npm ci`, 12/12 pass | `scratchpad/agents/binding-jest-dead/REPORT.md` |
 | History (superseded 2026-09-22): the app shipped `llama.rn@0f313bab` → `kalsallama` `8537d097c` (`b11010-merge`), with the q4_K MoE OpenCL mask fix inside it | `PLAN.md`, "The q4_K MoE OpenCL fix is in the shipped engine"; `vendor/VERSIONS` at `0f313bab` |
 | The migration to upstream's `vendor/` layout: the measured upstream bump, the gates, the repaired consumers | `analysis/FORK-VENDOR-MIGRATION.md` |
@@ -77,6 +77,8 @@ document that produced them is named instead.
 | The Meter decision: owner's rule, the 1 %/5 % bar, the pre-registration, and the soundness finding | `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 30; `scratchpad/agents/governor-meter-recon/REPORT.md` sec. 5 and THE RANKING |
 | Desktop speed numbers: the provenance verdict (CPU-only / GPU-capable / NOT ATTRIBUTABLE), the load-condition finding, and the profile-validity test matrix | `scratchpad/agents/governor-desktop-net/REPORT.md` |
 | The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the K-order ablation for its residual, the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/cok-residual/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
+| The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` ("Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
+| Per-backend heat measured on both chips: NPU coolest, CPU prefill never cooler, no NPU skin crossover in 12 back-to-back prefills, 8 Elite NPU decode 27 % cooler/token at -25 % speed | `scratchpad/agents/s23-heat-arms-engine/REPORT.md` (`147b0351`), `qdc-8elite-heat-arms/REPORT.md` (`335fc965`), `qdc-8elite-hopping-heat/REPORT.md` (`a6ec6507`) |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -93,9 +95,11 @@ document that produced them is named instead.
 - Three limbs of 2026-09-22 are OPEN and are written as open, not smoothed: the MAGNITUDE of the
   KV term (the two reference orientations disagree by 3.2x; the full-corpus matched reference is
   queued), the THERMAL limb of the prefill stall (both rerun runs sat at
-  `ThrottlingStatus: SEVERE` where the originals ran NONE), and whether the GOVERNOR actually
-  engages at runtime (the last device smoke recorded REFUSED to engage; no document records an
-  engagement since).
+  `ThrottlingStatus: SEVERE` where the originals ran NONE), the GOVERNOR's own blind spot - engagement is
+  now RECORDED on the S23 (GPU prefill / CPU decode, `s23-governor-lfm-long`), but one long turn
+  took Android to SEVERE while the governor stayed FAST, because the engine's classifier reads the
+  battery only; that gap, the heat data and the owner's 2026-09-28 direction are in "2026-09-26/28"
+  below).
 - A timing ratio is incomplete without the screen state of BOTH arms: with the screen off
   Android parks CPUs, the device's `screen_off_timeout` is 30000 ms, and the f32 route's
   published 68.42 was a Dozing number (screen ON it reads 71.98). Every bracket now records
@@ -587,7 +591,7 @@ that holds a candidate is a *different object* from the line that ships.**
   `!options.mmprojPath`). Qwen3.5-4B (recommended on high-tier boards) never runs under the governor;
   `bench:route` reports `skipped`. Found on QDC QRD8650, session 845086
   (`scratchpad/agents/qdc-heat-per-backend/REPORT.md`). Owner decision 2026-09-25: mmproj stays out of the governor until a governor vision lane exists; heat arms on LFM2.5-2.6B.
-- **Per-backend heat tables: n = 0.** Every S23 and QDC attempt of 24-25/09 ended before a valid arm
+- **Per-backend heat tables: n = 0 (2026-09-24/25 state; measured 09-27/28 - see "2026-09-26/28" below).** Every S23 and QDC attempt of 24-25/09 ended before a valid arm
   (DSP spin, tools left ON, a cold-start gate, account/tab problems, the mmproj defect above). What
   survives is the method: device-side 1 Hz sampler (median 1.06 s), tools OFF, a new-token target
   (1024 +-5%), validity = `route_requested`/`route_push=applied`/`route_mismatch=false`, no cool-start
@@ -612,6 +616,87 @@ that holds a candidate is a *different object* from the line that ships.**
 - **Windows server release:** v1.1.1 could not be built portably on Windows (bmoe linked a ggml-cpu
   symbol directly, LNK2019 under `GGML_BACKEND_DL`); fixed via the CPU backend's `get_proc_address`
   and released as v1.1.2 (see "Engine release pipeline").
+
+### 2026-09-26/28 - the governor on the S23, heat per backend, the NPU lane on main
+
+**The governor runs in the app.** On the TLS S23 the load emitted
+`KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit", ...}` and the manual smoke ran three turns with
+`engine_prefill=GPU`, `engine_decode=CPU`, `route_push=applied`, `route_mismatch=null`,
+per-chunk `actual:"gpu"`, and commit in milliseconds (`commit_ms` 5.388 / 6.01 / 10.65).
+**And the blind spot is measured:** turn 3 (`prompt_n=981`, 587 words) took battery
+**33.6 -> 41.6 C** and Android thermal status **0 -> 3 (SEVERE)** while the governor kept
+logging `thermal_state:"FAST"` - the classifier reads the battery only
+(`kalsallama llama-governor-policy.cpp`, `classify` at `:83-94`). The 27/09 baseline campaign
+hit the same wall: the status-3 abort stopped it after one submitted prompt. Record:
+`scratchpad/agents/s23-governor-lfm-long/REPORT.md`, raw `raw/manual-smoke/` and
+`raw/baseline-before-thermal-20260927/`.
+
+**Heat per backend - the "n = 0" above is superseded.** Three cells ran:
+`scratchpad/agents/s23-heat-arms-engine/` (`147b0351`),
+`qdc-8elite-heat-arms/` (`335fc965`), `qdc-8elite-hopping-heat/` (`a6ec6507`).
+
+- **NPU is the coolest prefill on both chips:** S23 battery area per 1k tokens 73.3 % below
+  OpenCL and 85.5 % below CPU (skin 66 % below OpenCL); 8 Elite skin area 21.2 vs 45.5 (GPU)
+  and 52.3 (CPU) C*s. Prefill speed rows: S23 9,905.57 / 6,948.76 / 1,470.99 ms (CPU/GPU/NPU,
+  97.12 / 138.44 / 653.98 tok/s); 8 Elite 4,861 / 3,317 / 919 ms (197.9 / 290.0 / 1,046.4
+  tok/s).
+- **CPU prefill is never cooler** (it is the hottest of the three on the skin axis of both
+  chips).
+- **8 Elite decode:** NPU **0.229 C*s/token, 27 % below CPU** (0.315) at **-25 % speed**
+  (29.1 vs 39.0 tok/s); GPU is worse than CPU per token and 22 % slower - **GPU decode buys
+  nothing** there (`hopping-heat` §B, verdict).
+- **No NPU heat crossover in 12 back-to-back prefills** (same cell, §A).
+- **Fewer decode threads show no clear benefit on the S23** (battery medians overlap within
+  1-3 %, skin rises as threads fall: D-t5/t3/t2 = 22.41 / 18.49 / 15.16 tok/s).
+- `s23-backend-hopping-heat/` has a PREREG only, no REPORT - nothing claimed from it.
+
+**Owner direction (2026-09-28; decisions in `PLAN.md`, "Verified state, 2026-09-28"):** CPU is
+out of prefill; NPU first and GPU when the NPU is hot; decode hops CPU <-> NPU by heat; never
+truncate reasoning silently; persistent SEVERE needs a sustainable slow rate, not a pause - the
+pause is only an emergency brake, so the platform-pause implementation (app `19368426`) is
+**held**. The lever map `governor-thermal-ladder/LEVERS.md` (`3e00ccea`) keeps every lever
+except its "MODERATE -> CPU prefill" rung, which the heat data **refutes**.
+
+**NPU prefill: validated, wired, landed - disabled by default.** The spike
+(`scratchpad/agents/governor-htp-prefill-spike/REPORT.md`) gave an EQUIVALENT three-prompt
+handoff verdict vs OpenCL (mean agreement 99.306 %, mean KLD 0.000853797 inside OpenCL's
+0.000706-0.000956 range; identical commit bytes; 1,089 `HTP0 execute-op MUL_MAT` lines). The
+chain: engine `feat/governor-npu-prefill` `45f097b74`; binding `4e0837f8` then `3d2fff25`
+(the first device APK build failed because the JSI lambda captured `ctx` implicitly - the fix
+copies the fields before the closure); app `origin/main` `2fb5ee4a` then **`335f9c8d` (pin
+bump, provenance exit 0)**. The lane is **default OFF** on main, the bench key
+`kalsa.bench.npu_lane = auto | on | off` drives A/B, device APK CI `36434636903` is building,
+and the **step-5 device soak is pending**. Design and steps:
+`governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
+
+**One-copy (Hexagon `offload_op`): FIX, not park (owner).** The HTP `-HOST` reading is corrupt,
+isolated to HTP matmuls consuming the row-major host-buffer weights (layout interpretation the
+likely cause; cache/coherency not excluded), and rpcmem decode measures **1.49x slower** than
+CPU `--no-repack`. Three opt-in diagnostics wait on `spike/hexagon-offload-op` at `0a5c7823`,
+device validation pending. Prior art: `npu-prefill-prior-art/` (upstream `offload_op`),
+`mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for APU use, `:141`).
+
+**App and pairing - main, all reviewed** (every sha below verified an ancestor of
+`origin/main`):
+
+- **Perf:** the log flood is fixed by level-gating the `KALSA_NATIVE` mirror (`2256a110`:
+  WARN/ERROR always, INFO behind `bench:nativelog`), and transcript re-render by isolating
+  rendering (`af1498fa`).
+- **Served-model adoption:** `93f29b8e` - dedupe and trim served ids at the source, clear the
+  stored id on pairing, keep the id out of every log line.
+- **iroh:** the real root cause was `startBridge` resolving a non-marshallable
+  `MobileBridge` (`2641144c`); dial outcomes are now logged (`022e14e5`).
+- **Invite-by-link:** phone `9922f2e7`, Worker `kalsa-pair` `ea245988`, deployed **2026-09-27**
+  (version `5f5ea8c9`, routes `kalsa.io/pair*` + `/.well-known/assetlinks.json`;
+  `scratchpad/COORDINATOR-STATE.md:152` - the apex still needed a proxied DNS record there).
+- **install_id per desk:** `aba67977`.
+- **Campaign harness:** screen-ON per turn, fail-closed readings and the log-based readiness
+  gate (`018bc514`); both quoted and unquoted `KALSA_` log wire forms (`2a5e8952`); tool-round
+  capture with its quiet window and the 10-minute per-round bound (`bef8219d`, `0f0808b6`).
+- **Beta debts (`scratchpad/COORDINATOR-STATE.md:151-152`):** `assetlinks.json` still carries
+  the public debug key and must move to the release signing key before any public invite link
+  (with a CI gate refusing `CN=Android Debug`); and a link overwrites the saved desk before any
+  confirmation - the owner declined the one-tap confirm for the alpha (family-only users).
 
 ## Engine release pipeline (`kalsa-server`)
 

@@ -494,8 +494,10 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
 
 - **Delivery chain (pushed):** engine `kalsa-phone-v1-1-8` `f25f0c1c5` (pause 43 / kill 44, critical =
   kill), binding `88b2b57e`, app `main` `0509f8c8`, APK sha256 `855c89de...5c91e7` (CI 36171227792).
-- **Governor research status:** the per-backend (CPU/GPU/NPU) heat tables are still unmeasured (n = 0);
-  the admission deltas `{1.9, 3.25, 3.25, 5.15}` remain NPU-only S23 numbers. NPU-as-verifier is killed on
+- **Governor research status (superseded 2026-09-28: the heat tables have since been measured,
+  see "Verified state, 2026-09-28" below):** as of 2026-09-25 the per-backend (CPU/GPU/NPU) heat
+  tables were unmeasured (n = 0); the admission deltas `{1.9, 3.25, 3.25, 5.15}` remain NPU-only
+  S23 numbers. NPU-as-verifier is killed on
   v79 speed; CPU speculative decoding with a draft-probability gate is the new lane (CPU verifies K=4 for
   1.24x one step on the ship model).
 - **Owner decision (2026-09-25): mmproj models stay OUT of the governor until the governor has a
@@ -507,9 +509,100 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
 - **Devices:** S23 DSP spin likely fixed by `setprop persist.traced.enable 0` (check it before every S23
   session). QDC second account `aspis.launcher@gmail.com`; each Paseo browser tab has its own cookies;
   QDC bills the full requested cap.
-- **Next, in order:** (1) the mmproj decision, then QDC heat arms (QRD8650 4 pairs, QRD7675 2 pairs);
+- **Next, in order (2026-09-25 list; superseded 2026-09-28 by the owner order below — items 1
+  and 2 have since run: the mmproj decision landed 25/09 and both heat programs produced their
+  tables):** (1) the mmproj decision, then QDC heat arms (QRD8650 4 pairs, QRD7675 2 pairs);
   (2) S23: NPU Step 0 on v73, then the S23 heat arms; (3) CPU speculative decoding with a confidence
   gate; (4) only then the thermal routing design (per device AND per model, from the tables).
+
+## Verified state, 2026-09-28
+
+### The governor runs on the S23 — and its blind spot is measured
+
+- **Engaged and working in the app:** `KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit"}` on load; three
+  smoke turns with `engine_prefill=GPU`, `engine_decode=CPU`, `route_push=applied`,
+  `route_mismatch=null`, per-chunk `actual:"gpu"`, commit in milliseconds (`commit_ms` 5.388 /
+  6.01 / 10.65). Record: `scratchpad/agents/s23-governor-lfm-long/REPORT.md` "Manual governor
+  smoke", raw `raw/manual-smoke/`.
+- **The blind spot, measured on one long turn:** turn 3 (`prompt_n=981`, a 587-word prompt) drove
+  battery **33.6 → 41.6 °C** and Android thermal status **0 → 3 (SEVERE)** while the governor
+  kept logging `thermal_state:"FAST"` (same REPORT, table rows 1-3 and "the Governor's logged
+  state remained FAST"). Cause: the classifier reads the battery only (`kalsallama
+  llama-governor-policy.cpp`, `classify` at `:83-94`, temperature from `batt_temp_tenths_c`);
+  the platform status is not an engine input.
+- The campaign defects the 27/09 baseline exposed (no screen-ON per turn, status-3 abort, no
+  readiness gate) are fixed in the harness — see `docs/ALIVE.md`, "2026-09-26/28".
+
+### Heat per backend: measured (this supersedes the 2026-09-25 "n = 0")
+
+| cell | lab commit | headline |
+|---|---|---|
+| `scratchpad/agents/s23-heat-arms-engine/` | `147b0351` | S23: battery-area prefill per 1k tokens: NPU **6.45**, GPU **24.17**, CPU **44.59 °C·s**; NPU is 73.3 % below OpenCL and 85.5 % below CPU; median prefill 1,470.99 / 6,948.76 / 9,905.57 ms (NPU/GPU/CPU); fewer decode threads show **no clear thermal benefit** (battery-area medians overlap by 1-3 %, skin area rises as threads fall) |
+| `scratchpad/agents/qdc-8elite-heat-arms/` | `335fc965` | 8 Elite: skin area NPU **21.2** vs GPU 45.5 vs CPU 52.3 °C·s — NPU coolest in every triple |
+| `scratchpad/agents/qdc-8elite-hopping-heat/` | `a6ec6507` | 8 Elite: NPU decode **0.229 °C·s/token, 27 % below CPU** at **−25 % speed** (29.1 vs 39.0 tok/s); **GPU decode buys nothing** (hotter per token than CPU and 22 % slower); **no NPU skin crossover through 12 back-to-back prefills** |
+
+- **CPU prefill is never cooler**: on both chips CPU is the worst of the three on the heat-area
+  axis (S23 battery-area rows P-*; 8 Elite skin-area 52.3 vs 45.5/21.2). `s23-backend-hopping-heat/` has a PREREG but
+  no REPORT yet — no claim from it.
+- **The GPU table (the one the owner kept)**, for the routing design:
+
+  | chip | prefill CPU | prefill GPU | prefill NPU | decode CPU | decode GPU | decode NPU |
+  |---|---|---|---|---|---|---|
+  | 8 Gen 2 (S23) ms / tok-s | 9,905.57 / 97.12 | 6,948.76 / 138.44 | **1,470.99 / 653.98** | 22.41 tok/s (D-t5; CPU-only lane) | — | — |
+  | 8 Elite ms / tok-s | 4,861 / 197.9 | 3,317 / 290.0 | **919 / 1,046.4** | 39.0 | 30.3 (0.326 °C·s/tok) | **29.1 (0.229, coolest)** |
+
+  Prefill rows from the two heat tables; decode rows from `qdc-8elite-hopping-heat/REPORT.md`
+  §B and `s23-heat-arms-engine/REPORT.md` rows D-*. Owner note attached: the GPU still matters
+  where it is the only accelerator we ship for — iPhone (Metal) and the Mali phone (whose Mali
+  path is currently NOT MEASURED / failing, `archive-gpu-cells/REPORT.md:510-512,757`). No claim
+  is made about Adreno 830 kernel tuning: no such measurement exists in the lab.
+
+### Owner direction (2026-09-28)
+
+- CPU is out of prefill.
+- NPU first; GPU when the NPU is hot.
+- Decode hops CPU ↔ NPU ↔ GPU by heat.
+- Never truncate reasoning silently.
+- Persistent SEVERE (a hot climate) needs a **sustainable slow rate**, not a pause: the pause is
+  only an **emergency brake** — the platform-pause implementation (app `19368426`) is therefore
+  **held**, not shipped.
+
+### The lever map, and the rung the heat data refuted
+
+`scratchpad/agents/governor-thermal-ladder/LEVERS.md` (commit `3e00ccea`) maps each lever (what
+to cut, mid-turn vs between turns, cost). Its row-2 proposal — **push the prefill route to CPU at
+MODERATE** — is **REFUTED by the heat data**: CPU prefill is the hottest of the three on both
+chips. The other half of that row (skip the background prewarm, cut our own steady load) stands.
+The pause-as-last-resort rung with resume ≤1 and the 10-minute cap is built as the emergency
+brake only (held app `19368426`).
+
+### NPU prefill: validated, wired, landed — disabled by default
+
+- **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md` —
+  three-prompt handoff verdict EQUIVALENT (HTP mean agreement 99.306 %, mean KLD 0.000853797
+  inside OpenCL's prompt ranges 0.000706-0.000956), commit bytes identical per backend, 1,089
+  `HTP0 execute-op MUL_MAT` dispatch lines.
+- **Wired through the chain (all landed):**
+  - engine `kalsallama` branch `feat/governor-npu-prefill`, commit `45f097b74` (pushed);
+  - binding `kalsa.rn` branch `feat/governor-npu-prefill`: `4e0837f8`, then `3d2fff25` (the
+    JSI lambda captured `ctx` implicitly, which failed the first device APK build — the fix
+    copies the NPU fields before the closure); pushed;
+  - app `origin/main`: `2fb5ee4a` (eligibility, **lane default OFF**,
+    `kalsa.bench.npu_lane = auto | on | off`), then `335f9c8d` (pin bump, provenance gate
+    exit 0, space-bunny SHIP). Device APK CI build `36434636903` is building.
+- Status: **on main at `335f9c8d`, default OFF, APK building; step-5 device soak pending**
+  (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
+  `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
+
+### One-copy (Hexagon offload_op): the owner says FIX, not park
+
+`scratchpad/agents/hexagon-offload-op/REPORT.md`: the HTP `-HOST` reading is corrupt, isolated
+to HTP matmuls consuming the row-major host-buffer weights (layout interpretation is the likely
+cause, `:373-380`; cache/coherency not excluded), rpcmem decode is **1.49× slower** than CPU
+`--no-repack` (`:233`), and three opt-in diagnostics sit on `spike/hexagon-offload-op` at commit
+`0a5c7823` with device validation pending. Prior art: `npu-prefill-prior-art/` (upstream
+`offload_op`) and `mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for
+APU use, `:141`).
 
 ## Gates and dates (recovered 2026-09-21)
 
@@ -846,7 +939,8 @@ Ordered next steps:
     (react-native 0.72 jest setup on node 26) - the binding's JS layer ships with no test net.
     Environment debt, not a defect of the line; nobody has booked the fix
     (`scratchpad/agents/binding-audit/REPORT.md` item 5).
-11. Governor runtime engagement: OPEN. The last device smoke activated the governor through the
+11. Governor runtime engagement: OPEN (superseded 2026-09-28 — engagement is recorded on
+    the S23, see "Verified state, 2026-09-28"). The last device smoke activated the governor through the
     app's own path and it then REFUSED to engage (`fallback_reason:"governor not eligible"`,
     `engine_prefill:"CPU"` - `scratchpad/agents/s23-governor-smoke/REPORT.md` sec. 5); no document
     records an engagement since. The V73 GPU-prefill lane ships by owner decision and is still
