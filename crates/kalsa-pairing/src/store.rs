@@ -287,6 +287,33 @@ pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     persist_record(handshake, path, None)
 }
 
+/// Writes `bytes` to `path` through the same owner-only publication the
+/// credential store uses — temp beside the target, restricted to the owner
+/// before the bytes land, renamed into place. The app's sidecar records are
+/// per-user state and ride this instead of a bare `fs::write`.
+pub fn write_owner_only(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let temp = temp_path(path);
+    let result = (|| {
+        let mut file = open_temp(&temp)?;
+        restrict_to_owner(&temp).map_err(store_io)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        publish_temp(&temp, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn store_io(error: StoreError) -> std::io::Error {
+    match error {
+        StoreError::Io(e) => e,
+        other => std::io::Error::other(other.to_string()),
+    }
+}
+
 /// Persist a handshake and the sealed response as one atomic record. The
 /// response survives a crash between publication and the phone's retry.
 pub fn persist_with_delivery(

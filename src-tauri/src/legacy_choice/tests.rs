@@ -2,7 +2,9 @@ use super::*;
 use sha2::{Digest, Sha256};
 
 const BODY: &[u8] = b"weights an old install downloaded and tuned";
+const BODY2: &[u8] = b"weights of the other model the old install tuned";
 const TOKEN: &str = "00c0ffee00c0ffee";
+const TOKEN2: &str = "00f00d0000f00d00";
 
 fn scratch(name: &str) -> std::path::PathBuf {
     let dir =
@@ -17,13 +19,27 @@ fn digest() -> &'static str {
     DIGEST.get_or_init(|| format!("{:x}", Sha256::digest(BODY)))
 }
 
+fn digest2() -> &'static str {
+    static DIGEST: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    DIGEST.get_or_init(|| format!("{:x}", Sha256::digest(BODY2)))
+}
+
 fn lookup(wanted: &str) -> Option<Pinned> {
-    (wanted == digest()).then(|| Pinned {
-        token: TOKEN.to_string(),
-        file: "old.gguf".to_string(),
-        bytes: BODY.len() as u64,
-        sha256: digest(),
-    })
+    match wanted {
+        d if d == digest() => Some(Pinned {
+            token: TOKEN.to_string(),
+            file: "old.gguf".to_string(),
+            bytes: BODY.len() as u64,
+            sha256: digest(),
+        }),
+        d if d == digest2() => Some(Pinned {
+            token: TOKEN2.to_string(),
+            file: "new.gguf".to_string(),
+            bytes: BODY2.len() as u64,
+            sha256: digest2(),
+        }),
+        _ => None,
+    }
 }
 
 /// A record the way the tune files one, under the model's own digest.
@@ -44,6 +60,23 @@ fn record_for(root: &Path) -> std::path::PathBuf {
     root.join(format!("tuning-{}.txt", digest()))
 }
 
+fn other_record_for(root: &Path) -> std::path::PathBuf {
+    let record = kalsa_tune::record::Record {
+        fingerprint: format!("kalsa-tune fp v1|model={}|ctx=1", digest2()),
+        winner: None,
+        trials: vec![(
+            kalsa_tune::Candidate {
+                backend: kalsa_runtime::ServerBackend::Cpu,
+                threads: Some(8),
+                offload: kalsa_launch::Offload::NoGpuBuild,
+            },
+            kalsa_tune::record::Kept::Best(19.0),
+        )],
+    };
+    kalsa_tune::record::save(root, digest2(), &record).expect("record");
+    root.join(format!("tuning-{}.txt", digest2()))
+}
+
 fn stored(state_file: &Path) -> Option<String> {
     crate::options::load(state_file).model
 }
@@ -58,6 +91,10 @@ fn a_legacy_record_with_its_verified_file_becomes_the_choice() {
 
     assert!(migrate_with(&state_file, &root, lookup));
     assert_eq!(stored(&state_file).as_deref(), Some(TOKEN));
+    assert_eq!(
+        std::fs::read(marker(&state_file)).expect("the marker names what it settled"),
+        digest().as_bytes()
+    );
     assert!(!migrate_with(&state_file, &root, lookup), "a stored choice is never overwritten");
 }
 
@@ -84,10 +121,83 @@ fn a_cleared_choice_does_not_restart_the_migration() {
     overrides.model = None;
     crate::options::save(&state_file, overrides).expect("the choice is cleared");
 
-    assert!(checked(&state_file), "the settled check is recorded");
+    assert!(settled(&state_file, digest()), "the settled check is recorded");
     assert!(!migrate_with(&state_file, &root, counting));
     assert_eq!(checks.get(), 1, "no second hash: the marker stands");
     assert_eq!(stored(&state_file), None, "and the cleared choice stays cleared");
+}
+
+#[test]
+fn a_marker_that_cannot_be_written_is_not_a_settlement() {
+    // The marker's home is a file, not a directory: the owner-only write
+    // fails, and the migration must answer "not migrated" and leave the
+    // question open — the next launch hashes again rather than trusting a
+    // settlement that never reached the disk.
+    let root = scratch("unwritable");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    let same_size = vec![b'x'; BODY.len()];
+    std::fs::write(root.join("models").join("old.gguf"), same_size).expect("the wrong bytes");
+    std::fs::write(root.join("blocked"), b"a file, not a directory").expect("the blocker");
+    let state_file = root.join("blocked").join("server.state");
+
+    let checks = std::cell::Cell::new(0);
+    let counting = |wanted: &str| {
+        checks.set(checks.get() + 1);
+        lookup(wanted)
+    };
+    assert!(!migrate_with(&state_file, &root, counting));
+    assert!(!settled(&state_file, digest()), "a failed write records nothing");
+    assert!(!migrate_with(&state_file, &root, counting));
+    assert_eq!(checks.get(), 2, "the check runs again: nothing was recorded");
+}
+
+#[test]
+fn a_record_naming_another_model_reopens_the_check() {
+    // The marker names the digest it settled on. A record that later names
+    // a different legacy model is a new question: it is checked and, if its
+    // file verifies, adopted.
+    let root = scratch("second-record");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    std::fs::write(root.join("models").join("old.gguf"), BODY).expect("the file");
+    let state_file = root.join("server.state");
+
+    assert!(migrate_with(&state_file, &root, lookup));
+    assert_eq!(stored(&state_file).as_deref(), Some(TOKEN));
+
+    let other = other_record_for(&root);
+    std::fs::rename(other, root.join("tuning.txt")).expect("the record names another model");
+    std::fs::write(root.join("models").join("new.gguf"), BODY2).expect("the other file");
+    let mut overrides = crate::options::load(&state_file);
+    overrides.model = None;
+    crate::options::save(&state_file, overrides).expect("the choice is cleared");
+
+    assert!(!settled(&state_file, digest2()), "another model is another question");
+    assert!(migrate_with(&state_file, &root, lookup));
+    assert_eq!(stored(&state_file).as_deref(), Some(TOKEN2));
+    assert_eq!(
+        std::fs::read(marker(&state_file)).expect("the marker"),
+        digest2().as_bytes()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn the_marker_is_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = scratch("owner-only");
+    let per_model = record_for(&root);
+    std::fs::rename(per_model, root.join("tuning.txt")).expect("the pre-split name");
+    std::fs::write(root.join("models").join("old.gguf"), BODY).expect("the file");
+    let state_file = root.join("server.state");
+
+    assert!(migrate_with(&state_file, &root, lookup));
+    let mode = std::fs::metadata(marker(&state_file))
+        .expect("the marker exists")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o600, "the marker is per-user state: {mode:o}");
 }
 
 #[test]
@@ -158,7 +268,7 @@ fn an_unreadable_model_leaves_no_marker() {
     let state_file = root.join("server.state");
 
     assert!(!migrate_with(&state_file, &root, lookup));
-    assert!(!checked(&state_file), "an I/O error records nothing");
+    assert!(!settled(&state_file, digest()), "an I/O error records nothing");
     assert_eq!(stored(&state_file), None, "and nothing was stored");
 }
 

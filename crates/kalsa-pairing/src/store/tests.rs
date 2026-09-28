@@ -6,8 +6,8 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use super::{
     add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
     forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
-    add_device_with_install, publish_json, replace, temp_path, Delivery, DeviceKind, StoreError,
-    HOST_LABEL,
+    add_device_with_install, publish_json, replace, temp_path, write_owner_only, Delivery,
+    DeviceKind, StoreError, HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -47,6 +47,26 @@ fn write_v1_file(path: &std::path::Path, credential_hex: &str) {
         r#"{{"v":1,"credential_hex":"{credential_hex}","phone":{{"weights_bytes":2200000000,"parameters":{{"total":7600000000,"active":2400000000}},"measured_tokens_per_second":9.5,"battery_powered":true}}}}"#
     );
     fs::write(path, json).unwrap();
+}
+
+#[test]
+fn sidecar_bytes_reach_their_file_owner_only() {
+    // The publication the credential store uses for itself, offered to the
+    // app's sidecar records: the bytes land, and on unix the file is the
+    // owner's alone (the windows DACL is the same path's work).
+    let dir = scratch("sidecar");
+    let path = dir.join("sidecar.record");
+    write_owner_only(&path, b"the settled digest").expect("the write");
+    assert_eq!(fs::read(&path).expect("read"), b"the settled digest");
+    assert!(!temp_path(&path).exists(), "no temp left behind");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(&path).expect("metadata").permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "owner-only: {mode:o}");
+    }
+    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]

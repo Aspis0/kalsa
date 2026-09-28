@@ -25,9 +25,9 @@ struct Pinned {
 /// record — so the window opens at once.
 /// Hashing a model takes about a minute; `migrating` is true until it ends.
 pub(crate) fn in_background(migrating: Arc<AtomicBool>, state_file: PathBuf, runtime_root: PathBuf) {
+    let digest = kalsa_tune::record::legacy_model(&runtime_root);
     if crate::options::load(&state_file).model.is_some()
-        || checked(&state_file)
-        || kalsa_tune::record::legacy_model(&runtime_root).is_none()
+        || digest.as_deref().is_none_or(|digest| settled(state_file.as_path(), digest))
     {
         return;
     }
@@ -65,16 +65,30 @@ fn catalog_row(digest: &str) -> Option<Pinned> {
     })
 }
 
-/// The record of a settled check: the file was read whole and was not the
-/// pinned one, or it was and the choice was saved. Both answers cannot
-/// change on a later launch, so neither is asked twice — while an absent,
-/// wrong-sized or unreadable file is no answer at all and is asked again.
-fn checked(state_file: &Path) -> bool {
-    marker(state_file).exists()
+/// The record of a settled check: the legacy digest it settled on, empty
+/// for a marker written before the digest lived here. The same digest, or
+/// an empty one, stays settled; a record naming another model reopens the
+/// question, and no marker at all was never settled.
+fn settled(state_file: &Path, digest: &str) -> bool {
+    match std::fs::read(marker(state_file)) {
+        Ok(content) => content.is_empty() || content == digest.as_bytes(),
+        Err(_) => false,
+    }
 }
 
-fn mark_checked(state_file: &Path) {
-    let _ = std::fs::write(marker(state_file), b"");
+/// Records the digest the check settled on, through the owner-only
+/// publication the credential store uses. A write that fails records
+/// nothing — the question stays open and the next launch hashes again,
+/// never a silent "checked" — and says so here, once.
+fn mark_checked(state_file: &Path, digest: &str) {
+    if let Err(error) =
+        kalsa_pairing::store::write_owner_only(&marker(state_file), digest.as_bytes())
+    {
+        eprintln!(
+            "kalsa-brain: the legacy check could not be recorded: {error}; \
+             it will run again on the next launch"
+        );
+    }
 }
 
 fn marker(state_file: &Path) -> PathBuf {
@@ -84,32 +98,42 @@ fn marker(state_file: &Path) -> PathBuf {
 /// Stores the legacy model as the choice when nothing is stored yet and its
 /// file in `runtime_root/models` hashes to the pinned digest. Either
 /// terminal answer — the choice, or a file proven not to be the pinned one —
-/// is recorded, so the hash runs at most once per machine: the choice can be
-/// cleared later by an owner or a walk that refused it, and the migration
-/// must not start over when that happens.
+/// is recorded beside the digest that was checked, so the hash runs at most
+/// once per legacy record: the choice can be cleared later by an owner or a
+/// walk that refused it, and the migration must not start over when that
+/// happens.
 fn migrate_with(
     state_file: &Path,
     runtime_root: &Path,
     lookup: impl Fn(&str) -> Option<Pinned>,
 ) -> bool {
     let mut overrides = crate::options::load(state_file);
-    if overrides.model.is_some() || checked(state_file) {
+    if overrides.model.is_some() {
         return false;
     }
-    let Some(pinned) = kalsa_tune::record::legacy_model(runtime_root).and_then(|d| lookup(&d))
-    else {
-        // No record, or no catalog row for its digest: nothing was read, so
-        // nothing is recorded and the next launch asks again. Cheap — no
-        // model is hashed — and asking again is the point: a later catalog
-        // can still adopt the file.
+    let Some(digest) = kalsa_tune::record::legacy_model(runtime_root) else {
+        // No record: nothing was read, so nothing is recorded and the next
+        // launch asks again. Cheap — no model is hashed — and asking again
+        // is the point: a later catalog can still adopt the file.
+        return false;
+    };
+    if settled(state_file, &digest) {
+        return false;
+    }
+    let Some(pinned) = lookup(&digest) else {
+        // No catalog row for the digest: nothing was read, so nothing is
+        // recorded and the next launch asks again. Cheap — no model is
+        // hashed — and asking again is the point: a later catalog can
+        // still adopt the file.
         return false;
     };
     let path = runtime_root.join("models").join(&pinned.file);
     match file_digest_checked(&path, pinned.bytes, pinned.sha256) {
         // Read whole, and not the pinned file: a re-check next launch would
-        // answer the same, so the answer is the record.
+        // answer the same, so the answer is the record. Nothing was
+        // adopted either way.
         Ok(false) => {
-            mark_checked(state_file);
+            mark_checked(state_file, &digest);
             false
         }
         // The pinned file becomes the choice, and only a saved choice marks
@@ -119,7 +143,7 @@ fn migrate_with(
         Ok(true) => {
             overrides.model = Some(pinned.token);
             if crate::options::save(state_file, overrides).is_ok() {
-                mark_checked(state_file);
+                mark_checked(state_file, &digest);
                 true
             } else {
                 false
