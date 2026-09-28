@@ -1,0 +1,12 @@
+== launch 2026-09-28T02:24:17Z args=1790565968
+./run.sh: line 21: 34003 Alarm clock: 14         perl -e 'alarm shift; exec @ARGV' "$t" adb "$@"
+launch_rc=142
+H wake_lock ok 1790562258
+H session_start deadline=1790565968 1790562258
+C 01-P-cpu-1 ok 29.649 0 1790562258
+A_START 01-P-cpu-1 1790562258
+A_END 01-P-cpu-1 rc=0 1790562264
+17407 sh -c cd /data/local/tmp/h8e && setsid sh sess.sh 1790565968 > /data/local/tmp/h8e/out/sess.out 2>&1 < /dev/null &
+17408 sh sess.sh 1790565968
+17411 sh /data/local/tmp/h8e/smp.sh
+STEP_RC=0

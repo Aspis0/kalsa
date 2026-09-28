@@ -1,0 +1,30 @@
+== pull 2026-09-28T02:43:21Z args=
+/data/local/tmp/h8e/out/./: 24 files pulled, 0 skipped. 3.0 MB/s (12249425 bytes in 3.927s)
+total 24000
+drwxr-xr-x  26 marco  staff      832 Sep 27 22:43 .
+drwxr-xr-x   7 marco  staff      224 Sep 27 22:43 ..
+-rw-r--r--   1 marco  staff    15493 Sep 27 22:43 01-P-cpu-1.log
+-rw-r--r--   1 marco  staff    17546 Sep 27 22:43 02-P-gpu-1.log
+-rw-r--r--   1 marco  staff    15987 Sep 27 22:43 03-P-npu-1.log
+-rw-r--r--   1 marco  staff  3861236 Sep 27 22:43 03-P-npu-1.proof.log
+-rw-r--r--   1 marco  staff    15493 Sep 27 22:43 04-P-cpu-2.log
+-rw-r--r--   1 marco  staff    17545 Sep 27 22:43 05-P-gpu-2.log
+-rw-r--r--   1 marco  staff    15987 Sep 27 22:43 06-P-npu-2.log
+-rw-r--r--   1 marco  staff  3861236 Sep 27 22:43 06-P-npu-2.proof.log
+-rw-r--r--   1 marco  staff    15493 Sep 27 22:43 07-P-cpu-3.log
+-rw-r--r--   1 marco  staff    17545 Sep 27 22:43 08-P-gpu-3.log
+-rw-r--r--   1 marco  staff    15987 Sep 27 22:43 09-P-npu-3.log
+-rw-r--r--   1 marco  staff  3861236 Sep 27 22:43 09-P-npu-3.proof.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 10-D-6-1.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 11-D-4-1.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 12-D-2-1.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 13-D-6-2.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 14-D-4-2.log
+-rw-r--r--   1 marco  staff     1063 Sep 27 22:43 15-D-2-2.log
+-rw-r--r--   1 marco  staff        0 Sep 27 22:43 DONE
+-rw-r--r--   1 marco  staff     2155 Sep 27 22:43 markers.txt
+-rw-r--r--   1 marco  staff   510108 Sep 27 22:43 samples.txt
+-rw-r--r--   1 marco  staff        0 Sep 27 22:43 sess.out
+-rw-r--r--   1 marco  staff        0 Sep 27 22:43 smp.out
+-rw-r--r--   1 marco  staff        0 Sep 27 22:43 smp.stop
+STEP_RC=0

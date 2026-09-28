@@ -1,0 +1,16 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Loading driver libcdsprpc.so
+DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+ggml-hex: FASTRPC_GET_DOMAINS query failed (0x6c), using static CDSP domains
+ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+ggml-hex: Hexagon Arch version v79
+ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)
+| model                          |       size |     params | backend    | ngl | threads |  fa | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |   0 |       2 |   1 | none         |           tg256 |         33.89 ± 0.00 |
+
+build: unknown (0)
+EXIT=0
