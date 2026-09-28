@@ -1,0 +1,50 @@
+# real-batch (ne1=128) HTP execute-op counts, dst names with layer index removed
+## run 1 raw one-copy
+ 232 ADD l_out
+ 236 ADD node_#
+  64 FLASH_ATTN_EXT node_#
+   8 GET_ROWS node_#
+ 352 MUL node_#
+  64 MUL_MAT Kcur
+  64 MUL_MAT Qcur
+  64 MUL_MAT Vcur
+ 236 MUL_MAT ffn_gate
+ 236 MUL_MAT ffn_up
+ 176 MUL_MAT model.layers.{}.conv.in_proj
+ 176 MUL_MAT model.layers.{}.conv.out_proj
+  64 MUL_MAT model.layers.{}.self_attn.out_proj
+ 476 RMS_NORM norm
+  64 SET_ROWS cache_k_l# (view)
+  64 SET_ROWS cache_v_l# (view)
+ 236 SWIGLU ffn_swiglu
+## run 2 normal buffer
+ 236 ADD l_out
+ 236 ADD node_#
+  64 FLASH_ATTN_EXT node_#
+   8 GET_ROWS node_#
+ 352 MUL node_#
+  64 MUL_MAT Qcur
+ 236 MUL_MAT ffn_gate
+ 176 MUL_MAT model.layers.{}.conv.in_proj
+ 176 MUL_MAT model.layers.{}.conv.out_proj
+  64 MUL_MAT model.layers.{}.self_attn.out_proj
+   4 MUL_MAT result_output
+ 480 RMS_NORM norm
+  64 SET_ROWS cache_k_l# (view)
+  64 SET_ROWS cache_v_l# (view)
+ 176 SSM_CONV model.layers.{}.conv.conv
+ 236 SWIGLU ffn_swiglu
+## fusion events
+r1:
+   8 fused D
+r2:
+   8 fused D
+ 410 fused MUL_MAT_NX
+ 685 fused RMS_NORM+MUL
+## weight buffers
+r1:
+0.00.871.029 I load_tensors:  HTP0:0-HOST model buffer size =  1525.87 MiB
+r2:
+0.00.831.395 I load_tensors:          CPU model buffer size =   205.08 MiB
+0.00.831.397 I load_tensors:   CPU_REPACK model buffer size =   354.38 MiB
+0.00.831.397 I load_tensors:       HTP0:0 model buffer size =  1171.50 MiB

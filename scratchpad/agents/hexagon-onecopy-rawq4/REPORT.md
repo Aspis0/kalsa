@@ -207,3 +207,108 @@ no DSP error, `NO-SUPPORT`, crash, or abort markers. Every pre/post gate remaine
 Awake with the screen on, AC connected, battery above 30%, below 43 C, thermal
 status below 3, and traced 0. Raw logs, gates, hashes, and command receipts are
 under `raw/device-correctness-2026-09-28/`. A/B/C remain pending until unplugged.
+
+## KLD gap analysis and review hardening — 2026-09-28
+
+Engine commit `fe2daf5d6` (on `9a2fb2376`). No device and no adb in this step.
+Evidence files: `raw/hardening-2026-09-28/` (op-set tables in
+`op-set-comparison.txt`, derived from the two device logs in
+`raw/device-correctness-2026-09-28/`).
+
+### Why run 1 is at 0.0047 and run 2 at 0.0028
+
+**It is not a numeric difference in the raw path. The difference is where the
+non-HTP work runs.**
+
+1. **1080 vs 811 is a logging artifact, not extra HTP matmuls.** Run 2 fused
+   gate+up and q+k+v (`fused MUL_MAT_NX`: 266 two-way and 72 three-way fusions).
+   Each fused op logs one `execute-op MUL_MAT` line, named after its first weight.
+   Run 1 does not fuse (raw weights are kept out of NX fusion,
+   `ggml-hexagon.cpp:5856`). On the real 128-token batches, run 2 has
+   720 lines + 236 fused `ffn_up` + 128 fused `attn_k`/`attn_v` = 1084 matmuls:
+   the same 1080 Q4_0 matmuls as run 1, plus 4 Q6_K lm_head
+   (`token_embd.weight`, tied output). Run 2's other 91 lines are the 2-token
+   warmup graph, which is not scored.
+2. **The raw path is numerically identical per op.** The tiles are
+   byte-identical to the repacked buffer (host test). The dot kernel and the
+   activation quantizer are the same code for both paths. The partial-group
+   padding path never runs: every raw weight has `ne01 % 32 == 0` (shapes
+   2048x{2048,512,6144,10752}). A wrong DMA or conversion would corrupt whole
+   32-row groups (arm c: KLD 1.75e8), not shift KLD by 0.002.
+3. **What does differ is off-HTP placement.** On real batches (`op-set-comparison.txt`):
+   - Run 2 also runs on HTP: `SSM_CONV` (176), the final norm/add (4 each), and
+     the Q6_K lm_head (4). Run 1 runs them on the CPU (the lm_head because raw Q6_K
+     is declined).
+   - **`ffn_down` (30 layers, the largest matmul) runs on the CPU in both runs,
+     because HTP declines it (`supports-op ... ffn_down ... no`), but with a
+     different kernel.** Run 2's loader put it in `CPU_REPACK`
+     (354.38 MiB, `load_tensors`), the same repacked kernel as the CPU base. The
+     base was `-ngl 0` with default repack
+     (`../hexagon-offload-op/raw/phase-b/cause-commands.txt:5`). Run 1 forces it into
+     `HTP0:0-HOST` (1525.87 MiB, the only weight buffer), so the CPU runs the
+     generic Q4_0 kernel on raw blocks. That is inherent to one-copy: the CPU
+     repack *is* a second copy.
+4. **Size of that effect, measured on the Mac** (same `ship.gguf` SHA `a247afd6…`,
+   same fixture SHA `bca6ac9f…`, `-c 512 -b 512 -ub 128 --chunks 2`, CPU only,
+   engine `fe2daf5d6` host build). The repacked base (`CPU_REPACK` 1511.20 MiB)
+   vs the same run with `--no-repack` gives mean KLD **0.001574 ± 0.000105**,
+   max 0.030952, same top 97.451%, with no HTP involved. That is the same order as
+   the 0.0019 gap. It also matches the earlier S23 arm b (all matmuls CPU-generic
+   on `-HOST`, KLD 0.001316). I could not isolate `ffn_down` alone on the Mac:
+   `-ot ffn_down=CPU` re-selects the CPU extra buffers
+   (`src/llama-model-loader.cpp:1233-1235`), and `CPU_REPACK` cannot be named in
+   `-ot` (`common/arg.cpp:255-265`). So the exact split between the `ffn_down`
+   kernel swap and the other placement changes is not measured.
+
+**Verdict:** the op set / placement explains the gap, chiefly the CPU kernel
+for `ffn_down` (generic on raw blocks vs the base's repacked kernel). Would the
+normal buffer show the same KLD with the same op set? Expected yes, but not run.
+The decisive S23 control is run 2 plus `--no-repack` (the normal-buffer HTP run
+with `ffn_down` on the CPU generic kernel). Prediction: mean KLD ≈ 0.004–0.005.
+A result near 0.0028 would refute this explanation and reopen the raw path.
+Note that `--no-repack` is the app's current S23 CPU configuration
+(`../hexagon-offload-op/REPORT.md:142`), so the one-copy number is not a
+regression against what ships.
+
+### Review hardening (space-bunny)
+
+- **Decline raw weights for every op**, in one place:
+  `ggml_hexagon_raw_weights_supported` (`ggml-hexagon.cpp:2176`), called at the
+  top of `supports_op` (`:6716`). Any source that is a raw weight is declined unless
+  the op is `MUL_MAT`, the source is src0, the type is Q4_0 and `MM_SELECT=1`. The
+  two per-matmul checks were removed. `ggml_hexagon_is_raw_weight` (`:2163`) now
+  also requires a `WEIGHTS`-usage buffer (set for every model buffer,
+  `src/llama-model.cpp:1822-1826`), so a quantized KV cache is not misclassified,
+  and it resolves views to `view_src`.
+- **Underflow:** `hvx_mm_raw_group_rows` (`htp/matmul-ops.c:340`) asserts
+  `ct * 32 < ne[1]`. It holds by construction (`ct < ceil(src0_end_row / 32)`,
+  `src0_end_row <= ne01`), and the assert is a debug aid only: the HTP Release
+  skel builds with `NDEBUG` (`htp/CMakeLists.txt:50`).
+- **k bound vs slot / no recomputation:** push (`:345`) and convert (`:351`) both
+  take the group's rows from the one helper, and `n_k` from the macro's slot basis
+  `n_k_tiles_a = ne10 / 32`. The conversion therefore writes exactly the slot's tile
+  count by construction. The raw DMA is `n_rows * n_k * 18 <= n_k * 640` bytes.
+  `op_matmul` now refuses raw weights unless `ne00 == ne10` (`:3693`), a runtime
+  check that holds in Release. The row count is shared rather than carried through
+  the DMA ring: the ring only returns `dst`, and one helper removes the drift the
+  review worried about.
+- **Test build comment** now gives the rpath command (no DYLD/LD_LIBRARY_PATH).
+
+Host test rerun with that exact command: build exit 0, no warnings; run exit 0
+(with `DYLD_LIBRARY_PATH` unset), 12/12 PASS (`raw/hardening-2026-09-28/host_test.log`).
+
+### Android build `build-onecopy-v73b` (new dir)
+
+Same preset and options as `build-onecopy-v73`. Configure `EXIT=0`. Build attempt 1
+`EXIT=1`: the same silent `qaic` failure as before
+(`build_android.log:6`). Attempt 2 `EXIT=0` (`build_android2.log`). The build
+emitted 38 warnings, none in the changed files. `hexagon-nm` shows both raw jobs in
+the skel.
+
+| Artifact | SHA-256 |
+|---|---|
+| `build-onecopy-v73b/bin/llama-perplexity` | `9aaaf4c8e99dd1b306b1518bfa63de92fda640a15add4a00e1e269a244aaf4d6` |
+| `build-onecopy-v73b/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `dcdbceb5523e0f27ed6da88c10ab83442bdfa47c64767efb656560513c4b73c6` |
+
+Unproven on device: the hardened build has not run on the S23. The `--no-repack`
+control above has not run.

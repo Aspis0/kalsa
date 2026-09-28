@@ -1,0 +1,13 @@
+[1/341] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[3/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[4/341] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[5/341] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+FAILED: ggml/src/ggml-hexagon/htp_iface_skel.c ggml/src/ggml-hexagon/htp_iface_stub.c ggml/src/ggml-hexagon/htp_iface.h /workspace/build-onecopy-v73b/ggml/src/ggml-hexagon/htp_iface_skel.c /workspace/build-onecopy-v73b/ggml/src/ggml-hexagon/htp_iface_stub.c /workspace/build-onecopy-v73b/ggml/src/ggml-hexagon/htp_iface.h 
+cd /workspace/ggml/src/ggml-hexagon && /opt/hexagon/6.6.0.0/ipc/fastrpc/qaic//bin/qaic -mdll -o /workspace/build-onecopy-v73b/ggml/src/ggml-hexagon -I/opt/hexagon/6.6.0.0/incs/ -I/opt/hexagon/6.6.0.0/incs/stddef/ -I/opt/hexagon/6.6.0.0/ipc/fastrpc/rtld/ship/android_aarch64 -I/opt/hexagon/6.6.0.0/incs -I/opt/hexagon/6.6.0.0/incs/stddef -I/opt/hexagon/6.6.0.0/utils/examples -I/workspace/ggml/src/ggml-hexagon/htp -I/workspace/build-onecopy-v73b/ggml/src/ggml-hexagon htp/htp_iface.idl
+[6/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[7/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[8/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[9/341] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[10/341] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+ninja: build stopped: subcommand failed.

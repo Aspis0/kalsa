@@ -1,0 +1,15 @@
+BUILD_EXIT=0
+n_k   1 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   1 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   1 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+ALL PASS
+RUN_EXIT=0
