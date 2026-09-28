@@ -22,7 +22,7 @@ def read_markers(path):
         kind, tag, epoch = p[0], p[1], int(p[-1])
         a = arms.setdefault(tag, {"tag": tag})
         if kind == "C":
-            a["cool"], a["cool_skin"], a["cool_s"] = p[2], p[3], p[4]
+            a["cool"], a["cool_skin"], a["cool_s"], a["cool_t"] = p[2], p[3], p[4], epoch
         elif kind == "A_START":
             a["start"] = epoch
         elif kind == "A_END":
@@ -121,6 +121,12 @@ def heat(skin, zones, t0, t_run_end):
 def main(out):
     arms = read_markers(out / "markers.txt")
     skin, zones, kills = read_samples(out / "samples.txt")
+    # The cooldown's final HAL skin read (C marker) is a real skin sample too;
+    # without it arm 1 (started in the sampler's first second) has none <= t0.
+    for a in arms.values():
+        if a.get("cool_t") and a.get("cool_skin", "").replace(".", "", 1).isdigit():
+            skin.append((a["cool_t"], float(a["cool_skin"])))
+    skin.sort()
     rows = []
     for tag, a in sorted(arms.items()):
         _, kind, b, rep = tag.split("-")

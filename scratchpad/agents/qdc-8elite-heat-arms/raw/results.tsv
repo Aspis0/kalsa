@@ -1,0 +1,16 @@
+tag	arm	rep	status	why	cool	proof	prompt_n	prefill_ms	prefill_tps	decode_runs	decode_tps	tg_tps	dur_s	skin0	peak	dskin	area	zone_peak	nsp_peak
+01-P-cpu-1	P-cpu	1	OK		ok@29.649/0s	bufs=CPU,CPU_REPACK	962	4814.12	199.83	15	34.70		4.97	29.66	30.99	1.33	66.74	104.60	50.20
+02-P-gpu-1	P-gpu	1	OK		ok@30.675/0s	qcom=True bufs=CPU,OpenCL	962	3317.39	289.99	15	30.66		4.48	31.59	33.10	1.51	59.41	93.80	50.50
+03-P-npu-1	P-npu	1	OK		ok@32.024/0s	htp_mulmat_ops=484 v79=True bufs=CPU,HTP0	962	922.25	1043.10	15	25.36		1.64	32.02	32.60	0.58	20.96	95.70	78.00
+04-P-cpu-2	P-cpu	2	OK		ok@32.126/0s	bufs=CPU,CPU_REPACK	962	4860.69	197.91	15	34.40		5.00	32.11	33.28	1.17	52.29	105.00	51.30
+05-P-gpu-2	P-gpu	2	OK		ok@32.706/0s	qcom=True bufs=CPU,OpenCL	962	3317.68	289.96	15	30.97		4.63	32.69	33.85	1.16	45.48	91.50	49.40
+06-P-npu-2	P-npu	2	OK		ok@33.05/0s	htp_mulmat_ops=484 v79=True bufs=CPU,HTP0	962	914.56	1051.88	15	24.35		1.60	33.05	33.67	0.61	23.45	103.80	66.40
+07-P-cpu-3	P-cpu	3	OK		ok@33.216/0s	bufs=CPU,CPU_REPACK	962	4888.52	196.79	15	35.11		5.01	33.22	34.30	1.08	47.63	104.20	51.70
+08-P-gpu-3	P-gpu	3	OK		ok@33.729/0s	qcom=True bufs=CPU,OpenCL	962	3304.95	291.08	15	31.40		4.57	33.72	34.85	1.12	42.84	93.80	50.50
+09-P-npu-3	P-npu	3	OK		ok@34.025/1s	htp_mulmat_ops=484 v79=True bufs=CPU,HTP0	962	919.34	1046.40	15	25.90		1.58	34.03	34.61	0.58	21.23	99.60	66.40
+10-D-6-1	D-6	1	OK		ok@34.135/0s	dev=none tg256_row=True						38.44	7	34.13	35.73	1.60	72.04	105.40	57.90
+11-D-4-1	D-4	1	OK		ok@34.912/0s	dev=none tg256_row=True						37.13	8	34.91	36.40	1.49	63.14	105.00	58.30
+12-D-2-1	D-2	1	OK		ok@35.477/0s	dev=none tg256_row=True						33.89	8	35.48	36.57	1.09	43.12	105.00	56.30
+13-D-6-2	D-6	2	OK		ok@35.732/0s	dev=none tg256_row=True						38.73	7	35.74	37.21	1.47	61.37	105.00	59.40
+14-D-4-2	D-4	2	OK		ok@35.866/30s	dev=none tg256_row=True						36.86	8	35.87	37.35	1.48	65.92	105.00	59.00
+15-D-2-2	D-2	2	OK		ok@35.908/60s	dev=none tg256_row=True						33.84	9	35.92	37.14	1.22	54.43	104.60	56.30
