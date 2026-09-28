@@ -694,8 +694,10 @@ fast. Owner decision: keep the GPU lane on every device, with its flag OFF where
 The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
 **SHIP for an S23 correctness run after the four fixes**. After the import fix (`4ff4f729c`) the
-probe imports and small shapes are correct, but the raw kernel **stalls on the full model** (GPU 99%,
-no progress); normal-GPU control KLD 0.00095. Diagnosis with mimo (`18ce4d32`). The HMX-on-raw
+probe imports and small shapes are correct; on the full model the GPU looked stalled. Diagnosis
+(engine `0285aae40`, lab `1ecbcbfe`): most likely **slow, not hung** - raw GEMM **4.75 GFLOPS** vs
+~**437** for the normal path (~92x), ~9 min per pass; the import did happen (INFO hidden by the log
+threshold; wrapper now uses `-v`). Next: rerun with the `--model-shapes` probe and a 20-min wait. The HMX-on-raw
 estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a fused raw-to-fp16
 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not measured. First S23
 run of raw weights on HMX (`onecopy-hmx-numerics`, engine `9d5eaf681`, lab `9a356250`): 1,316

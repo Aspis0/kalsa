@@ -1,59 +1,79 @@
-# Coordinator state - 2026-09-28
+# Coordinator state - 2026-09-28 (end of session 43c25dd3)
 
 The current operating facts and next decisions. Per-cell methods and raw evidence remain in
 `scratchpad/agents/<cell>/REPORT.md`.
 
 ## One-copy CPU + NPU
 
-- **Correct on S23:** P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d`
-  carrying layout-fix commit `9a2fb2376`; governor design commits `4d606e4f`, `5a94d88c`,
-  `df4a18d1`, `7ac42dec`).
-- **Slow as built on 8 Elite:** QDC session **853723**, lab report `9ac6ebc7`, measured 512-token
-  prefill: two-copy HMX **1,782 tok/s**, two-copy flat **57.8**, one-copy **37.3**. The raw path is
-  flat-only because the DSP refuses raw weights on HMX. CPU decode tg128: repack **38.3 tok/s**,
-  no-repack **34.6**, raw `-HOST` rpcmem **22.6**. Memory: **1,526 vs 3,448 MiB** in separate
-  processes, about **1.9 GiB saved**. v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD
-  is unmeasured. See `scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`.
-- The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
-  fused raw-to-fp16 HMX reader is the path worth building, estimated at **900–1,600 tok/s** (not
-  measured). Implementation and pp512/KLD validation on the 8 Elite remain open. The rpcmem CPU-read
-  slowdown probe needs the S23 unplugged.
+- **Correct on S23 (flat):** P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`, engine `c939a135d`,
+  layout fix `9a2fb2376`).
+- **Slow as built on 8 Elite:** QDC **853723**, lab `9ac6ebc7`. pp512: two-copy HMX **1,782 tok/s**,
+  two-copy flat **57.8**, one-copy flat **37.3**. CPU decode tg128: repack **38.3**, no-repack
+  **34.6**, raw `-HOST` rpcmem **22.6**. Memory **1,526 vs 3,448 MiB** (~1.9 GiB saved).
+- **HMX on raw weights, first S23 run** (`onecopy-hmx-numerics`, engine `spike/onecopy-hmx-raw`
+  `9d5eaf681` in `~/Projects/kalsallama-onecopy-hmx`, build `build-onecopy-hmx-v73`, env
+  `GGML_HEXAGON_RAW_HMX=1`, lab `9a356250`): 1,316 `hmx-tiled` matmuls on `-HOST`, EXIT 0. KLD
+  one-copy **0.000928** vs two-copy HMX **0.000892**. **Inconclusive, not PASS:** no `hmx-mm-2d:`
+  FARF line in either arm; opsets differ (two-copy also puts norms, `SSM_CONV`, `result_output` on
+  HTP). Next: placement-matched rerun with FARF on, then the fused raw-to-fp16 reader
+  (estimate `db12e4b1`: 900-1,600 tok/s, unmeasured) and pp512 on the 8 Elite via QDC.
+- rpcmem CPU-read slowdown (-35%): bandwidth probe `hexagon-rpcmem-bench` needs the S23 UNPLUGGED.
 
-## Governor one-copy and GPU spike
+## Governor one-copy
 
-- Design: lab commits `4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`.
-- Engine `feat/governor-onecopy` is not pushed. S1: `1d39fd0dd` + `49676fd7a`. S2:
-  `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests pass with the ship GGUF; the Hexagon object
-  was syntax-checked only; device census is owed. S3+ lane steps are **ON HOLD** until one-copy is
-  fast. Owner decision: keep the GPU lane on every device, flag OFF where NPU is better.
-- GPU one-copy spike: engine `spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes
-  `5e6b66e86`; lab `scratchpad/agents/onecopy-gpu/`; one dma-buf imported by OpenCL for raw-Q4_0
-  GEMM. Review is **SHIP for an S23 correctness run after the fixes**; mimo is running it.
+- Design: lab `4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`.
+- Engine `feat/governor-onecopy` (`~/Projects/kalsallama-gov-onecopy`, not pushed). S1
+  `1d39fd0dd` + `49676fd7a`; S2 `a11e03a1f` + `c889b4658` + `b39a45be7` (closed). Hexagon object
+  syntax-checked only; device census owed. **S3+ ON HOLD** until one-copy is fast. Owner: GPU lane
+  on every device, flag OFF where NPU is better.
+
+## GPU one-copy spike
+
+- Engine `spike/onecopy-gpu-rawq4` (`~/Projects/kalsallama-onecopy-gpu`, not pushed): `133cef802`,
+  `5e6b66e86`, `4ff4f729c` (`cl_qcom_dmabuf_host_ptr` import), `0285aae40` (probe
+  `--model-shapes`; `q4raw-probe` sha `2c478791...9e72`). Lab `scratchpad/agents/onecopy-gpu/`,
+  last `1ecbcbfe`.
+- S23 run 2: import works, small shapes correct, full model looked stalled. Diagnosis: **slow, not
+  hung** - raw GEMM 4.75 GFLOPS vs ~437 normal (~92x); ~9 min per 512-token pass. Import INFO line
+  was hidden by the log threshold (wrapper now `-v`). Next: rerun `push`, `probe`, `kld`,
+  `kld-decode` from REPORT section "Rerun commands" (20-min wait on G1); correctness only, plugged OK.
+  If correct, the raw GEMM still needs a real kernel.
 
 ## kalsa-server v1.1.3
 
-Owner approved v1.1.3 (“e ok 1.1.3”). Engine branch `ci/kalsa-server-vcredist` is at
-`43a317fde`: app-local VC++ DLLs passed both Windows legs in dry run `36458657174`; the boolean
-publish gate is fixed; Hugging Face mirror URLs are
-`https://huggingface.co/Kalsa-ai/kalsa-server/resolve/<tag>/<file>`. Only the finalizer writes to
-HF, `HF_TOKEN` is configured, and all space-bunny reviews say SHIP. Pending: after Actions minutes
-reset, run a second dry run proving R2 and HF are skipped; merge into the workflow branch; then tag.
+Owner approved. Engine `ci/kalsa-server-vcredist` at `43a317fde` (pushed to the fork): VC++ DLLs
+(vcruntime140, vcruntime140_1, msvcp140, vcomp140), boolean publish gate fixed, HF mirror
+`https://huggingface.co/Kalsa-ai/kalsa-server/resolve/<tag>/<file>` (finalizer-only, `HF_TOKEN`
+secret set, whoami preflight, safe retag); all reviews SHIP. **Blocked on Actions minutes (free
+tier, monthly reset).** Then: dispatch "Kalsa Server" on that branch with release_tag
+`kalsa-server-v1.1.2`, platforms `windows`, publish `false`, force `false`; prove R2 + HF steps are
+skipped and the 4 DLLs verify; merge into the fork main; tag `kalsa-server-v1.1.3`, publish, verify
+dl.kalsa.io and HF byte-identical; report release sha, zip names, sha256, sizes, exe_sha256 to
+kalsa-brain.
 
-## App CI and agent operating rule
+## App, CI and agent rules
 
-- GitHub Actions is on the free tier. App heavy workflows are dispatch-only in commit `0c66cf7d`,
-  under review.
-- QDC work uses Paseo **claude Opus 5.5 medium**. Everything else uses Paseo profiles only; no
-  Claude agents.
+- App main `6368a723`: heavy workflows dispatch-only (`29e175ce`), cheap checks on main pushes;
+  AGENTS.md fixed (`1d68887b`: reviews assigned by coordinator, no self-spawned reviewers - the old
+  DeepSeek rule made luna `43b20ee2` spawn DeepSeek `30dd9a35`; owner: do not kill it).
+- APK `335f9c8d` (CI green, `/tmp/apk-335f/`) awaits the S23 step-5 NPU-lane soak
+  (`kalsa.bench.npu_lane=auto`, expect engine_prefill=NPU, npu_device HTP0).
+- Beta debts recorded in PLAN: pairing assetlinks on the debug key; 180 MB APK (7 engine variants).
+- QDC = Paseo claude **Opus 5.5 medium**. Everything else = Paseo profiles only; no Claude agents;
+  never Sonnet 5. GLM agent `7802595c` drifted to GLM-5.3 max; owner: do not kill.
+
+## S23 (Marco says when it is UNPLUGGED)
+
+Waiting for unplug: A/B/C backend-hopping heat (`s23-backend-hopping-heat`), step-5 NPU lane soak,
+rpcmem bandwidth probe, one-copy timing. Correctness-only runs are allowed while plugged.
 
 ## Next, in order
 
-1. Implement and validate the fused raw-to-fp16 HMX reader with pp512 and KLD on the 8 Elite; then
-   resolve the rpcmem CPU-read slowdown with a bandwidth probe when the S23 is unplugged.
-2. Complete the S23 correctness run for GPU one-copy after mimo's four fixes; keep governor S3+
-   work on hold until the CPU + NPU one-copy lane is fast.
-3. After Actions minutes reset, prove the server publish=false run skips both R2 and HF; merge the
-   workflow branch and tag v1.1.3.
+1. GPU one-copy correctness rerun (plugged OK) - luna `85540c64` has the device context.
+2. HMX one-copy placement-matched rerun with FARF on (plugged OK).
+3. When unplugged: S23 heat A/B/C, NPU-lane soak, rpcmem probe.
+4. Fused raw-to-fp16 HMX reader + pp512 on QDC 8 Elite (Opus medium).
+5. After the Actions reset: v1.1.3 dry run, merge, tag, report to brain.
 
 ## Historical process lessons (2026-09-25)
 

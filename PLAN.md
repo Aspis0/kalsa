@@ -639,10 +639,15 @@ The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
 **SHIP for an S23 correctness run after the four fixes**. S23 run 1 found no import route and a
 failed probe allocation (fixed in `4ff4f729c`: `cl_qcom_dmabuf_host_ptr` route, `rpcmem_alloc`
-fallback). S23 run 2: the probe imports and small shapes are correct, but the raw kernel **stalls on
-the full model** (GPU 99%, no progress, no driver error; the import INFO line is missing from the
-llama-perplexity log). The normal-GPU control is fine (KLD 0.00095). Stall diagnosis is with mimo
-(`18ce4d32`); suspects: 32-bit offset overflow on the ~1 GiB buffer, loop bounds, workgroup size.
+fallback). S23 run 2: the probe imports and small shapes are correct; on the full model the GPU sat at 99%
+with no output and was killed (normal-GPU control KLD 0.00095). Diagnosis (mimo, engine `0285aae40`,
+lab `1ecbcbfe`): most likely **slow, not hung** - the raw GEMM measures **4.75 GFLOPS** vs about
+**437** for the normal SoA path (~92x slower), so one 512-token pass takes ~9 min before perplexity
+prints anything. The import did happen: the INFO line was hidden by `common/log.cpp` (ggml INFO maps
+to TRACE, above the default threshold); the wrapper now passes `-v`. Overflow, loop bounds and
+workgroup size were ruled out on paper. Next (correctness, plugged OK): rerun with the new
+`--model-shapes` probe self-test and a 20-min wait on G1. Even if correct, the raw GPU GEMM needs a
+real kernel before it is usable.
 
 The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
 fused raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not
