@@ -493,3 +493,42 @@ through `imported dma-buf fd ... via cl_qcom_dmabuf_host_ptr`,
 `kernel_mul_mat_q4_0_f32_v` at `-ub 1`, `error_markers=0`, and the §6 KLD gates unchanged
 (Mean KLD <= 0.005, same-top >= 95 %, <= G0 + 0.001). If `--import system` still fails, its new
 INFO line names the errno; that arm is not required for G1.
+
+### 2026-09-28 — S23 rerun: dmabuf probe passes, raw KLD stalls
+
+Engine `4ff4f729c`; local SHA-256 matched the §5 values for `llama-perplexity`,
+`llama-eval-callback`, `q4raw-probe`, the unchanged skel library, and both raw kernels before
+push. Device SHA-256 matched for the pushed payloads. Payloads went only into
+`/data/local/tmp/govhtp/onecopy-gpu/`; the kit was untouched. The ship GGUF hash matched §6.
+All commands were correctness-only while AC-powered. `com.kalsa.app` was force-stopped before
+each binary. Before and after each completed binary: Awake, AC powered, level 100%, thermal status
+0, traced 0; `stay_on_while_plugged_in=15` remained set. G1 battery temperature rose from 30.6 °C
+to 36.7 °C; screen stayed on.
+
+**Probe:** rpcmem probe `EXIT=0`; `rpcmem_alloc2` was absent and the fallback `rpcmem_alloc`
+returned `rc 0`, fd 9. The `cl_qcom_dmabuf_host_ptr` route passed GEMM and GEMV for all three
+policies (IOC, WB, UC); IOC nosync/synced GEMM error `9.617e-06`, GEMV1 error `4.839e-07`.
+These prove the probe can import and read the allocation. System dma-heap probe `EXIT=0`, but
+`open /dev/dma_heap/system` was denied; the required `dmesg | grep -i 'avc.*dma_heap' | tail -5`
+command `EXIT=0` printed `dmesg: klogctl: Permission denied`. Probe bandwidth values are
+**plugged, not a measurement**.
+
+**KLD:** G0 normal-GPU control `EXIT=0`; it dispatched
+`kernel_gemm_noshuffle_q4_0_f32`, Mean KLD `0.000951 ± 0.000058`, max `0.015517`, same-top
+`97.451 ± 0.699%`, PPL `32.152178 ± 4.833061`. This meets its control role.
+
+G1 raw q4 at ubatch 128 selected
+`GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q4_0_f32_l4_lm_raw`, but the KLD did not complete.
+After the log remained unchanged for over 30 seconds, `llama-perplexity` was at 0% CPU and
+KGSL reported GPU busy `99%`; it was interrupted to stop the apparent kernel/driver stall.
+Binary/ADB `EXIT=130`; no KLD/PPL or same-top result. The G1 log has no import INFO line naming
+`cl_qcom_dmabuf_host_ptr` (and no host-buffer placement size), so the per-model raw import and
+placement are not proven by this arm even though the standalone probe import passed. Captured
+logcat has no fatal signal, DSP error, Adreno fault, or GPU reset line. The HTP URI warning fell
+back to the single-session URI as in earlier runs.
+
+Per the stop-on-driver-failure rule, ubatch-1 `kld-decode` was **not run** after the raw-path
+stall. The rerun therefore does **not pass** the GPU one-copy correctness criterion: probe import
+and raw-kernel selection are demonstrated, but G1 has no completed KLD and lacks an import/weight
+placement INFO line. Full probe, G0/G1 logs and gates, and logcats are in
+`raw/s23-20260928-gpu-rerun/`.
