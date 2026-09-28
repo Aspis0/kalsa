@@ -23,7 +23,9 @@ import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
   buildGovernorParams,
+  htpArchFor,
   readBenchGovernorForce,
+  readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
 
@@ -79,6 +81,11 @@ describe("governor inputs", () => {
       gpu_prefill_measured: true,
       bench_force_gpu_prefill: false,
       npu_lane_enabled: false,
+      npu_fit: "Fit",
+      htp_trunk_readable: false,
+      htp_experts_readable: false,
+      npu_device: null,
+      npu_fallback: null,
       reload_budget_available: false,
       forced: false,
     });
@@ -361,6 +368,116 @@ describe("governor inputs", () => {
       t_idle_c: 0,
       thermo_source: "bench-skin",
     });
+  });
+
+  test("NPU lane eligibility: android + arch >= 73 + vision + kind + fit", () => {
+    const inputs = { android: true, hasMmproj: false };
+    // S23 (SM8550 -> V73), hybrid, 8 GiB free: eligible, HTP0 claimed.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, inputs),
+    ).toMatchObject({
+      npu_lane_enabled: true,
+      npu_fit: "Fit",
+      npu_device: "HTP0",
+      htp_trunk_readable: true,
+      htp_experts_readable: false,
+    });
+    // Platform is hard: never on a non-Android host, not even forced on.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        android: false,
+      }).npu_lane_enabled,
+    ).toBe(false);
+    // Vision restates the LlamaService governorLoad gate: mmproj never claims it.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        hasMmproj: true,
+      }).npu_lane_enabled,
+    ).toBe(false);
+    // Unknown SoC -> no HTP arch >= 73.
+    expect(
+      buildGovernorParams(model, device("unlisted"), memory, false, undefined, inputs)
+        .npu_lane_enabled,
+    ).toBe(false);
+    // MoE never claims it: no expert-readability signal in the app.
+    expect(
+      buildGovernorParams(
+        { ...model, hybrid: false, canStreamExperts: true },
+        device("SM8550"),
+        memory,
+        false,
+        undefined,
+        inputs,
+      ).npu_lane_enabled,
+    ).toBe(false);
+    // Memory fit with the +219 MiB HTP copy: 100 MiB free fits neither
+    // lane (the ship model's own boundary lives in governorPlanLog.test).
+    const tight = { ...memory, availableMemoryBytes: 100 * 1024 ** 2 };
+    expect(
+      buildGovernorParams(model, device("SM8550"), tight, false, undefined, inputs),
+    ).toMatchObject({ npu_lane_enabled: false, npu_fit: "NoFit" });
+  });
+
+  test("bench pref kalsa.bench.npu_lane forces the lane off and on", () => {
+    const inputs = { android: true, hasMmproj: false };
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        lanePref: "off",
+      }).npu_lane_enabled,
+    ).toBe(false);
+    // Forced on bypasses the auto gates only (arch/kind): fit, platform and
+    // vision stay hard, and the engine degrades to GPU when HTP0 is absent.
+    // MoE is the visible bypass: auto refuses it, "on" takes it.
+    expect(
+      buildGovernorParams(
+        { ...model, hybrid: false, canStreamExperts: true },
+        device("SM8550"),
+        memory,
+        false,
+        undefined,
+        { ...inputs, lanePref: "on" },
+      ).npu_lane_enabled,
+    ).toBe(true);
+    // Even forced on, an unpriced SoC stays off: laneFit refuses Unknown.
+    expect(
+      buildGovernorParams(model, device("unlisted"), memory, false, undefined, {
+        ...inputs,
+        lanePref: "on",
+      }).npu_lane_enabled,
+    ).toBe(false);
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        android: false,
+        lanePref: "on",
+      }).npu_lane_enabled,
+    ).toBe(false);
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        hasMmproj: true,
+        lanePref: "on",
+      }).npu_lane_enabled,
+    ).toBe(false);
+  });
+
+  test("htpArchFor maps the shipped generations to their Hexagon arch", () => {
+    expect(htpArchFor("V73")).toBe(73);
+    expect(htpArchFor("V75")).toBe(75);
+    expect(htpArchFor("V79")).toBe(79);
+    expect(htpArchFor("Unknown")).toBeNull();
+  });
+
+  test("readBenchNpuLane parses off/on and ignores anything else", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("off");
+    await expect(readBenchNpuLane()).resolves.toBe("off");
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("on");
+    await expect(readBenchNpuLane()).resolves.toBe("on");
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("1");
+    await expect(readBenchNpuLane()).resolves.toBeUndefined();
   });
 
   test("keeps an unplugged poll without an idle reference valid", async () => {

@@ -39,6 +39,8 @@ describe("governor plan log", () => {
       required_mib_without_repack: 2998.06,
       available_mib: 4519,
       bench_norepack_forced: null,
+      npu_device: null,
+      npu_fallback: null,
     });
     expect(
       buildGovernorPlanLog(
@@ -56,6 +58,34 @@ describe("governor plan log", () => {
         false,
       ).bench_norepack_forced,
     ).toBe(false);
+  });
+
+  test("an eligible NPU lane carries its plan fields and its own repack decision", () => {
+    const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const memory = {
+      availableMemoryBytes: 4519 * 1024 ** 2,
+      totalMemoryBytes: 8 * 1024 ** 3,
+      contextTokens: 8192,
+      ubatch: 256,
+      mmap: true,
+      offloadedBytes: model.sizeBytes,
+    };
+    // S23, no vision: the lane fits only WITHOUT repack once the +219 MiB
+    // HTP prefill copy is priced (4737.12 > 4519, 3217.06 <= 4519).
+    const governor = buildGovernorParams(model, s23, memory, false, undefined, {
+      android: true,
+      hasMmproj: false,
+    });
+    expect(governor).toMatchObject({
+      npu_lane_enabled: true,
+      npu_fit: "Fit",
+      decode_repack: false,
+    });
+    expect(buildGovernorPlanLog(model, memory, governor, undefined)).toMatchObject({
+      npu_device: "HTP0",
+      npu_fallback: null,
+      decode_repack: false,
+    });
   });
 
   test("records a computed NoFit plan even when GPU prefill is forced", () => {

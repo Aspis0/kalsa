@@ -7,6 +7,29 @@ import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
 const MIB = 1024 * 1024;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
 export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
+/** Bench-only A/B for the governor NPU lane: "off" forces it off, "on"
+ *  forces it past the auto gates (fit and platform still win — the engine
+ *  degrades to GPU when the device does not resolve). Production never
+ *  writes this key; absent lets eligibility decide. */
+export const BENCH_NPU_LANE_KEY = "kalsa.bench.npu_lane";
+
+export type BenchNpuLanePref = "off" | "on";
+
+/** The HTP prefill copy costs +219 MiB over the OpenCL one (spike buffer
+ *  table: HTP0 1525.87 MiB vs OpenCL 1307.20 MiB), so the NPU lane prices
+ *  every fit with this extra — same repack order as the GPU lane, i.e. an
+ *  8 GB device lands on decode_repack=false exactly like today. */
+export const NPU_PREFILL_EXTRA_MIB = 219;
+
+/** What the NPU lane needs to know beyond the pure governor inputs; read at
+ *  the call site (Platform, the mmproj gate and the bench pref live there). */
+export type NpuLaneInputs = {
+  android: boolean;
+  /** Restates the LlamaService governorLoad gate (`… && !options.mmprojPath`)
+   *  where the flag is built: vision models never claim the lane. */
+  hasMmproj: boolean;
+  lanePref?: BenchNpuLanePref;
+};
 
 type Generation = "V73" | "V75" | "V79" | "Unknown";
 
@@ -120,6 +143,7 @@ function laneFit(
   profile: DeviceProfile,
   memory: MemorySnapshot,
   repack: boolean,
+  extraMiB = 0,
 ) {
   if (generationFor(profile) === "Unknown") return "NoFit" as const;
   const lane = lanePrice(model, memory, repack);
@@ -133,13 +157,33 @@ function laneFit(
   if (verdict.status === "unknown" || verdict.status === "does_not_fit") return "NoFit" as const;
 
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
-  return lane.requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+  return lane.requiredMiB + extraMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+}
+
+/** Hexagon HTP arch a generation implies (the shipped libggml-htp-v73/75/79
+ *  assets cover it); null when the SoC is unknown — no lane below v73. */
+export function htpArchFor(generation: Generation): number | null {
+  switch (generation) {
+    case "V73":
+      return 73;
+    case "V75":
+      return 75;
+    case "V79":
+      return 79;
+    default:
+      return null;
+  }
 }
 
 export function buildGovernorPlanLog(
   model: GovernorModel,
   memory: MemorySnapshot,
-  governor: { gpu_fit: "Fit" | "NoFit"; decode_repack: boolean },
+  governor: {
+    gpu_fit: "Fit" | "NoFit";
+    decode_repack: boolean;
+    npu_device?: string | null;
+    npu_fallback?: string | null;
+  },
   benchNoRepack: boolean | undefined,
 ) {
   const withRepack = lanePrice(model, memory, true);
@@ -154,6 +198,10 @@ export function buildGovernorPlanLog(
     required_mib_without_repack: roundMiB(withoutRepack?.requiredMiB ?? 0),
     available_mib: roundMiB(availableMiB),
     bench_norepack_forced: benchNoRepack ?? null,
+    // Intent, not outcome: the loader resolves the device after this line; a
+    // GPU degrade is reported on KALSA_GOVERNOR via the stats fields.
+    npu_device: governor.npu_device ?? null,
+    npu_fallback: governor.npu_fallback ?? null,
   };
 }
 
@@ -162,6 +210,7 @@ function gpuFit(
   profile: DeviceProfile,
   memory: MemorySnapshot,
   benchNoRepack: boolean | undefined,
+  extraMiB = 0,
 ) {
   // Price the lane WITH repack first: P1 (decode_repack false) drops the CPU
   // repack copy and costs ~1.41x lane decode plus KLD p99 0.034 -> 0.042, so
@@ -171,10 +220,10 @@ function gpuFit(
   // skips the with-repack attempt (no-repack arm), "0" skips the P1 fallback
   // (repack-on arm, refused rather than silently re-priced); absent lets the
   // production order above decide.
-  if (benchNoRepack !== true && laneFit(model, profile, memory, true) === "Fit") {
+  if (benchNoRepack !== true && laneFit(model, profile, memory, true, extraMiB) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: true };
   }
-  if (benchNoRepack !== false && laneFit(model, profile, memory, false) === "Fit") {
+  if (benchNoRepack !== false && laneFit(model, profile, memory, false, extraMiB) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: false };
   }
   return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
@@ -186,10 +235,30 @@ export function buildGovernorParams(
   memory: MemorySnapshot,
   force = false,
   benchNoRepack: boolean | undefined = undefined,
+  npu?: NpuLaneInputs,
 ) {
   const generation = generationFor(deviceProfile);
   const enabled = force || GPU_PREFILL_CORRECT[generation];
   const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
+  const npuLane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack, NPU_PREFILL_EXTRA_MIB);
+  // NPU lane eligibility (owner rule 2026-09-28). Hard gates never bend:
+  // Android only, vision excluded (the LlamaService governorLoad gate
+  // `… && !options.mmprojPath`, restated here via hasMmproj), memory fit
+  // priced with the +219 MiB HTP prefill copy. MoE never claims it — the app
+  // has no expert-readability signal, and the engine requires the pair.
+  // bench pref: "off" forces off; "on" bypasses only the auto gates (arch
+  // and kind); fit, platform and vision stay hard and the engine still
+  // degrades to GPU when HTP0 does not resolve.
+  const androidOk = npu?.android ?? false;
+  const visionOk = !npu?.hasMmproj;
+  const arch = htpArchFor(generation);
+  const kindOk = modelKind(modelEntry) !== "MoE";
+  const fitOk = npuLane.fit === "Fit";
+  const autoOk = androidOk && visionOk && arch !== null && arch >= 73 && kindOk && fitOk;
+  const laneEnabled =
+    npu?.lanePref === "off" ? false
+    : npu?.lanePref === "on" ? androidOk && visionOk && fitOk
+    : autoOk;
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,
@@ -198,13 +267,27 @@ export function buildGovernorParams(
     gpu_fit: lane.fit,
     // Binding param governor.decode_repack (default true): false makes
     // load_governor_models drop the decode model's CPU repack copy (P1).
-    decode_repack: lane.decodeRepack,
+    // When the NPU lane is on, its own fit decides — the HTP copy costs
+    // +219 MiB, so an 8 GB device falls to no-repack exactly like today.
+    decode_repack: laneEnabled ? npuLane.decodeRepack : lane.decodeRepack,
     // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
       generation === "V73" || generation === "V75" || generation === "V79",
     bench_force_gpu_prefill: force,
-    npu_lane_enabled: false,
+    npu_lane_enabled: laneEnabled,
+    npu_fit: npuLane.fit,
+    // Claim only what is switched on: with the lane off the binding skips
+    // the device resolver and the plan says nothing; with it on the trunk
+    // weights are readable (the engine re-checks both facts).
+    htp_trunk_readable: laneEnabled,
+    // No app-side signal says whether MoE expert weights are HTP-readable —
+    // MoE never passes `kindOk` below, and the engine requires the pair.
+    htp_experts_readable: false,
+    // Intent, not outcome: resolved at load; a GPU degrade reaches
+    // KALSA_GOVERNOR as stats.npu_device/npu_fallback.
+    npu_device: laneEnabled ? "HTP0" : null,
+    npu_fallback: null,
     reload_budget_available: false,
     forced: force,
     ...(enabled ? {} : { reason: `gpu-prefill-incorrect-${generation}` }),
@@ -216,6 +299,16 @@ export async function readBenchGovernorForce(): Promise<boolean> {
     return (await AsyncStorage.getItem(BENCH_GOVERNOR_FORCE_KEY)) === "1";
   } catch {
     return false;
+  }
+}
+
+/** Tri-state: "off" | "on" | undefined (absent/invalid → eligibility). */
+export async function readBenchNpuLane(): Promise<BenchNpuLanePref | undefined> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_NPU_LANE_KEY);
+    return raw === "off" || raw === "on" ? raw : undefined;
+  } catch {
+    return undefined;
   }
 }
 

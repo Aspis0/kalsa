@@ -61,6 +61,7 @@ import {
   buildGovernorPlanLog,
   buildGovernorParams,
   readBenchGovernorForce,
+  readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
 import {
@@ -1783,6 +1784,13 @@ async function emitGovernorTelemetry(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "getGovernorStats",
     );
+    // The pinned binding (kalsa.rn 4e0837f8) adds these two plan fields to
+    // GovernorStats; the local intersection keeps tsc honest against an
+    // installed older binding.
+    const npuStats = stats as typeof stats & {
+      npu_device?: string | null;
+      npu_fallback?: string | null;
+    };
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
         engine_prefill: stats.engine_prefill,
@@ -1798,6 +1806,9 @@ async function emitGovernorTelemetry(
         thermal_state: stats.thermal_state,
         thermo_source: thermoSource,
         fit: activeGovernorFit ?? "Unknown",
+        // NPU lane outcome the loader resolved (null with the lane off).
+        npu_device: npuStats.npu_device ?? null,
+        npu_fallback: npuStats.npu_fallback ?? null,
         fallback_reason: activeGovernorFallbackReason,
         // A latched governor failure is sticky: every later turn dies on it.
         // Surface it here so it is visible in telemetry, not just in the
@@ -2291,6 +2302,7 @@ export function initEngine(
     const benchGovernorForce = governorFeatureEnabled
       ? await readBenchGovernorForce()
       : false;
+    const benchNpuLane = governorFeatureEnabled ? await readBenchNpuLane() : undefined;
     const benchNoRepack = await getBenchNoRepack();
     // Same predicate the RAM gate uses. Production writes params.moe_stream
     // below, BEFORE applyEngineOverride, so a bench A/B still wins.
@@ -2360,7 +2372,17 @@ export function initEngine(
             ubatch: tuning.n_ubatch,
             mmap: load.useMmap,
             offloadedBytes: modelInfo.sizeBytes,
-          }, benchGovernorForce, benchNoRepack)
+          },
+          benchGovernorForce,
+          benchNoRepack,
+          {
+            android: Platform.OS === "android",
+            // Same source of truth as the governorLoad gate below
+            // (… && !options.mmprojPath): vision never claims the lane.
+            hasMmproj: Boolean(options.mmprojPath),
+            lanePref: benchNpuLane,
+          },
+        )
         : null;
     const governorLoad =
       governorBase != null &&
