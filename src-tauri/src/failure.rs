@@ -34,8 +34,11 @@ pub(crate) enum StartupFailure {
     NothingBetter,
     NothingFastEnough,
     // — starting the server (kalsa-launch) —
-    /// The chosen model cannot be given even one token of context within
-    /// this machine's budget: it is never started smaller, the start fails.
+    /// The chosen model needs more memory than this machine can give it:
+    /// the launch path refuses when not even one token of context fits, and
+    /// the chooser refuses the same way when the row misses the budget it
+    /// was asked about. Never started smaller either way; the choice is
+    /// kept, because it says what the owner picked, not what fits.
     ChosenModelUnfundable,
     /// The chosen model's trained context length arrived as a zero: the
     /// field was in its header and reads as nothing a conversation can be

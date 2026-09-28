@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_catalog::{
-    memory_budget, rows, usable, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
+    fits, memory_budget, rows, usable, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
     CHOOSER_CONTEXT_TOKENS,
 };
 use kalsa_download::{default_roots, download};
@@ -265,9 +265,10 @@ pub(crate) fn run(
             );
             let (build, exe, plan, row, reason) = match step {
                 Ok(step) => step,
-                // A stored choice this walk cannot honour stops the walk AND
-                // is forgotten: Home offers the pick again instead of a
-                // choice the walk refuses, and nothing unpicked is fetched,
+                // `AwaitingChoice` out of the walk names a token nothing
+                // answers to any more: forgotten, so Home offers the pick
+                // again. A chosen row the walk refuses arrives in its own
+                // words and stays chosen — nothing unpicked is fetched,
                 // taken from disk or started.
                 Err(StartupFailure::AwaitingChoice) => {
                     forget_choice(&state_file);
@@ -360,10 +361,14 @@ fn prepare_slot_save_dir(path: &Path) -> Result<(), StartupFailure> {
 /// plan was built from, so the file that is fetched is always the row that was
 /// judged, and the reason in the owner's words that came with the branch.
 ///
-/// A stored choice is honoured only when this walk can run it; anything else
-/// stops the walk (`AwaitingChoice`). There is no automatic answer beside
-/// it: a model the owner did not pick is never started, not even one already
-/// on disk.
+/// A stored choice is honoured when this walk can run it. One the winning
+/// budget cannot hold answers in the chosen model's own words — over budget
+/// (`ChosenModelUnfundable`) or withheld by the speed floors
+/// (`NothingFastEnough`) — and keeps the choice: the card arm below hands
+/// the over-budget case to the processor budget. A token nothing answers to,
+/// and a row no fetched file answers to, stop the walk (`AwaitingChoice`);
+/// there is no automatic answer beside the choice: a model the owner did not
+/// pick is never started, not even one already on disk.
 fn choose_model(
     winner: ServerBackend,
     machine: &Machine,
@@ -371,14 +376,38 @@ fn choose_model(
     chosen: Option<&str>,
 ) -> Result<(DownloadPlan, &'static ModelEntry, String), StartupFailure> {
     let input = choice_input(winner, machine, phone);
-    // The stored choice and nothing else. A token this walk cannot run —
-    // unknown to this catalog, no file left to fetch, or too big for this
-    // build's budget — stops the walk rather than picking something else.
     if let Some(token) = chosen {
-        let run = row_for_token(token)
-            .and_then(|row| kalsa_catalog::runnable_row(&input, row))
-            .ok_or(StartupFailure::AwaitingChoice)?;
-        return Ok((run.download, run.entry, CHOSEN_REASON.to_string()));
+        let Some(row) = row_for_token(token) else {
+            return Err(StartupFailure::AwaitingChoice);
+        };
+        if let Some(run) = kalsa_catalog::runnable_row(&input, row) {
+            return Ok((run.download, run.entry, CHOSEN_REASON.to_string()));
+        }
+        // A row no fetched file answers to is not a choice the walk can act
+        // on — it stops and is forgotten, like the unknown token above.
+        let on_the_menu = usable().any(|candidate| {
+            let entry = candidate.entry();
+            entry.repo == row.repo
+                && entry.quant == row.quant
+                && entry.weights_bytes == row.weights_bytes
+        });
+        if !on_the_menu {
+            return Err(StartupFailure::AwaitingChoice);
+        }
+        // On the menu and refused here: the catalog's own fit predicate, so
+        // "over budget" is the same fact `runnable_on` refused on — not a
+        // recomputation beside it. A row that fits but does not run is the
+        // floors' verdict. Both keep the choice; the card arm hands the
+        // over-budget case to the processor budget.
+        return Err(if fits(
+            row,
+            input.context_tokens,
+            &memory_budget(input.backend, input.ram_bytes),
+        ) {
+            StartupFailure::NothingFastEnough
+        } else {
+            StartupFailure::ChosenModelUnfundable
+        });
     }
     automatic_choice(&input, phone)
 }
@@ -427,14 +456,15 @@ pub(crate) const PROCESSOR_FALLBACK_REASON: &str =
     "No model fits this computer's graphics card's memory alone, so this model is sized for this computer's memory.";
 
 /// The graphics build's catalog answer, with the processor fallback the
-/// owner ruled in. `decide_processor` is lazy — a choice that fits the card
+/// owner ruled in. `decide_processor` is lazy — an answer that fits the card
 /// never pays for it — and only the builds whose budget IS the card's memory
 /// (Vulkan) fall back: a processor refusal is a real refusal, and
-/// Metal budgets RAM already. And only the NothingFits refusal falls back at
-/// all: the fallback's sentence is about the card's memory holding no row,
-/// which is true only of that one — a phone comparison or a speed floor are
-/// other facts and reach the owner unchanged (pinned below); a stored choice
-/// this walk cannot honour stops the walk.
+/// Metal budgets RAM already. And only over-budget refusals fall back at
+/// all: the fallback's sentence is about the card's memory holding no
+/// runnable answer — the automatic one, or the owner's chosen row — which
+/// is true of exactly those. A phone comparison or a speed floor are other
+/// facts and reach the owner unchanged (the processor would be slower
+/// still); MachineNotMeasured, Unresolved and the rest travel as they are.
 pub(crate) fn choose_with_processor_fallback(
     build: (ServerBackend, PathBuf),
     machine: &Machine,
@@ -446,13 +476,17 @@ pub(crate) fn choose_with_processor_fallback(
     let budgets_the_card = matches!(winner, ServerBackend::Vulkan);
     match choose_model(winner, machine, phone, chosen) {
         Ok((plan, row, reason)) => Ok((winner, exe, plan, row, reason)),
-        // ONLY NothingFits buys the fallback: the sentence "no model fits
-        // this computer's graphics card's memory" is true only of it.
-        // NothingBetter / NothingFastEnough (a phone was compared),
-        // ChosenModelUnresolved, MachineNotMeasured — other facts, other
-        // words — fall through unchanged.
+        // Only a refusal that says "this budget could not hold a model"
+        // buys the fallback — `NothingFits` for the automatic answer,
+        // `ChosenModelUnfundable` for a chosen row. NothingBetter (a phone
+        // was compared) and NothingFastEnough (the floors, which the
+        // processor would only fail harder) are other facts, other words.
         Err(graphics_refusal)
-            if budgets_the_card && matches!(graphics_refusal, StartupFailure::NothingFits) =>
+            if budgets_the_card
+                && matches!(
+                    graphics_refusal,
+                    StartupFailure::NothingFits | StartupFailure::ChosenModelUnfundable
+                ) =>
         {
             // The ruling: a GPU build that probes well but whose card holds
             // no row is not a reason to refuse the machine (Lenovo walk:
@@ -1852,6 +1886,122 @@ mod tests {
             matches!(err, StartupFailure::NothingFits),
             "the fallback's failure must wear the original refusal: {err:?}"
         );
+    }
+
+    #[test]
+    fn a_stored_choice_gets_the_processor_fallback_too() {
+        // The card's budget holds no row at all, and the owner's pick runs
+        // on the processor budget: the fallback the automatic answer gets
+        // must serve a chosen row the same way, prefix and all. Refusing it
+        // as if nobody had chosen anything is the bug this pins.
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                },
+            ),
+            ram_bytes: 32 * 1024 * 1024 * 1024,
+        };
+        let cpu_input = choice_input(ServerBackend::Cpu, &machine, None);
+        let chosen = rows()
+            .find(|entry| kalsa_catalog::runnable_row(&cpu_input, entry).is_some())
+            .expect("a 32 GiB machine runs some row on the processor budget");
+        let card_input = choice_input(ServerBackend::Vulkan, &machine, None);
+        assert!(
+            !fits(
+                chosen,
+                card_input.context_tokens,
+                &memory_budget(card_input.backend, card_input.ram_bytes),
+            ),
+            "the fixture's card budget must refuse the chosen row"
+        );
+        let calls = std::cell::Cell::new(0);
+        let (backend, _exe, _plan, row, reason) = choose_with_processor_fallback(
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
+            &machine,
+            None,
+            Some(&model_token(chosen)),
+            || {
+                calls.set(calls.get() + 1);
+                Ok(kalsa_runtime::Decision {
+                    backend: ServerBackend::Cpu,
+                    exe: PathBuf::from("/builds/cpu-server.exe"),
+                })
+            },
+        )
+        .expect("the chosen row runs on the processor budget");
+        assert_eq!(calls.get(), 1, "the card refusal reached the decide");
+        assert_eq!(backend, ServerBackend::Cpu, "the processor build won");
+        assert_eq!(row.display_name, chosen.display_name, "the chosen row ran");
+        let prefixed = format!("{PROCESSOR_FALLBACK_REASON} {CHOSEN_REASON}");
+        assert_eq!(reason, prefixed, "the reason says who chose and what sized it");
+    }
+
+    #[test]
+    fn a_chosen_row_that_fits_neither_budget_stops_in_its_own_words() {
+        // Over the card's budget and over the processor budget too: the
+        // walk stops, but in the chosen model's words — the variant the
+        // fold keeps — never `AwaitingChoice`, which would forget the
+        // choice and claim nothing was ever picked.
+        let machine = Machine {
+            measurement: measured(
+                80.9e9,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(5 * 1024 * 1024 * 1024),
+                },
+            ),
+            ram_bytes: 4 * 1024 * 1024 * 1024,
+        };
+        let cpu_input = choice_input(ServerBackend::Cpu, &machine, None);
+        let chosen = usable().next().expect("the menu has rows").entry();
+        assert!(row_for_token(&model_token(chosen)).is_some(), "a menu row resolves");
+        assert!(
+            rows().all(|entry| !fits(
+                entry,
+                cpu_input.context_tokens,
+                &memory_budget(cpu_input.backend, cpu_input.ram_bytes),
+            )),
+            "the fixture's processor budget must hold no row"
+        );
+        let calls = std::cell::Cell::new(0);
+        let err = choose_with_processor_fallback(
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
+            &machine,
+            None,
+            Some(&model_token(chosen)),
+            || {
+                calls.set(calls.get() + 1);
+                Ok(kalsa_runtime::Decision {
+                    backend: ServerBackend::Cpu,
+                    exe: PathBuf::from("/builds/cpu-server.exe"),
+                })
+            },
+        )
+        .expect_err("no budget here can run the chosen row");
+        assert_eq!(calls.get(), 1, "the card arm tried the processor budget");
+        assert!(
+            matches!(err, StartupFailure::ChosenModelUnfundable),
+            "the chosen row's own refusal: {err:?}"
+        );
+    }
+
+    #[test]
+    fn a_token_nothing_answers_to_is_still_awaiting_choice() {
+        // A token the catalog no longer knows is no choice at all: the walk
+        // stops with the set-up sentence and the fold forgets it, so Home
+        // offers the pick again.
+        let machine = two_row_machine();
+        assert!(matches!(
+            choose_model(ServerBackend::Cpu, &machine, None, Some("no such token")),
+            Err(StartupFailure::AwaitingChoice)
+        ));
     }
 
     #[test]
