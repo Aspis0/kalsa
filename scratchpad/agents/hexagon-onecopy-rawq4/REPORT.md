@@ -546,9 +546,59 @@ adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/go
   lm_head offloads to HTP at batch 128 as in run 2. `GET_ROWS` stays on CPU.
 - Check with `opset.sh` that each arm moved only its intended ops.
 
-Evidence files committed: scripts, `opset-run{1,2}.txt`, `SHA256SUMS.txt`,
-`build_attempts.txt`. Build/configure logs stay local (`*.log` is ignored and not
-force-added):
+Committed: the two scripts. `*.txt` and `*.log` are ignored under `scratchpad/agents/`, so the tables and build records are inlined here instead of force-added.
+
+`opset.sh` on the device logs (real batches):
+
+```text
+== run 1 (rawq4-kld.log.gz)
+ 232 ADD l_out
+ 236 ADD node_#
+  64 FLASH_ATTN_EXT node_#
+   8 GET_ROWS node_#
+ 352 MUL node_#
+  64 MUL_MAT Kcur
+  64 MUL_MAT Qcur
+  64 MUL_MAT Vcur
+ 236 MUL_MAT ffn_gate
+ 236 MUL_MAT ffn_up
+ 176 MUL_MAT model.layers.{}.conv.in_proj
+ 176 MUL_MAT model.layers.{}.conv.out_proj
+  64 MUL_MAT model.layers.{}.self_attn.out_proj
+ 604 RMS_NORM norm
+ 128 ROPE node_#
+  64 SET_ROWS cache_k_l# (view)
+  64 SET_ROWS cache_v_l# (view)
+ 236 SWIGLU ffn_swiglu
+== run 2 (twocopy-kld.log.gz)
+ 236 ADD l_out
+ 236 ADD node_#
+  64 FLASH_ATTN_EXT node_#
+   8 GET_ROWS node_#
+ 352 MUL node_#
+  64 MUL_MAT Qcur
+ 236 MUL_MAT ffn_gate
+ 176 MUL_MAT model.layers.{}.conv.in_proj
+ 176 MUL_MAT model.layers.{}.conv.out_proj
+  64 MUL_MAT model.layers.{}.self_attn.out_proj
+   4 MUL_MAT result_output
+ 608 RMS_NORM norm
+ 128 ROPE node_#
+  64 SET_ROWS cache_k_l# (view)
+  64 SET_ROWS cache_v_l# (view)
+ 176 SSM_CONV model.layers.{}.conv.conv
+ 236 SWIGLU ffn_swiglu
+```
+
+`build_attempts.txt`:
+
+```text
+attempt 1 (-j2) BUILD_EXIT=1
+attempt 2 (-j2) BUILD_EXIT=0
+DONE
+```
+
+Local logs (sha256):
 - `build_android1.log` `eed36b4c94c7d2a39c1e3731aefc97bb685b482825f24a0c55ddad9f937349f4`
 - `build_android2.log` `9498a8d4b207ff4ed1899fb082f25c19649ab5d8a6c872e0a5f5e41a722afdac`
 - `configure.log` `4470af9c41cddc01ac39114429550c02d86967b1f1993a8ad8fc9e3afa7dc2da`
