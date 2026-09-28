@@ -390,7 +390,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         budget,
         too_slow,
         remaining,
-        ..
+        dense_lines_stand_down,
     } = match runnable_on(input) {
         Ok(answer) => answer,
         Err(refusal) => return Decision::Refuse(refusal),
@@ -406,16 +406,22 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         .collect();
     while !walk.is_empty() {
         // The brain's own first card, shared with the phone-free route: the
-        // big dense row that cleared its line. The phone answers only
-        // whether that row beats what the phone runs; it never decides which
-        // PC model leads. No justification, no offer — the row drops out of
-        // the walk exactly as the class rule's candidate below does.
-        if let Some(dense) = walk
-            .iter()
-            .copied()
-            .filter(|candidate| {
-                dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
+        // big dense row that cleared its line — asked only while some row
+        // on the tier clears one, because on a stand-down tier none did and
+        // "that cleared its line" describes nothing. There the walk below
+        // leads with speed, as `leading_candidate` does on the phone-free
+        // road. The phone answers only whether the row it is given beats
+        // what the phone runs; it never decides which PC model leads. No
+        // justification, no offer — the row drops out of the walk exactly
+        // as the class rule's candidate below does.
+        if let Some(dense) = (!dense_lines_stand_down)
+            .then(|| {
+                walk.iter().copied().filter(|candidate| {
+                    dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
+                })
             })
+            .into_iter()
+            .flatten()
             .max_by_key(|candidate| candidate.entry.weights_bytes)
         {
             match justification(dense, &phone) {
@@ -435,21 +441,31 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         // capability nor expected strength, and a device that does not run
         // on battery admits no relief), and when it cannot, the walk falls
         // through to what remains rather than mislabelling the offer or
-        // hiding it.
-        let leader = *walk
-            .iter()
-            .max_by_key(|candidate| candidate.entry.weights_bytes)
-            .expect("remaining is not empty");
-        let band_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
-        let chosen = *walk
-            .iter()
-            .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
-            .max_by(|a, b| {
-                a.decode_ceiling()
-                    .partial_cmp(&b.decode_ceiling())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .expect("the leader is in its own class");
+        // hiding it. On a tier whose lines stand down none of that row
+        // arithmetic means anything — no line spoke — so the walk leads with
+        // speed instead, and the justification below gates it as it gates
+        // every other candidate.
+        let chosen = if dense_lines_stand_down {
+            *walk
+                .iter()
+                .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()))
+                .expect("remaining is not empty")
+        } else {
+            let leader = *walk
+                .iter()
+                .max_by_key(|candidate| candidate.entry.weights_bytes)
+                .expect("remaining is not empty");
+            let band_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
+            *walk
+                .iter()
+                .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
+                .max_by(|a, b| {
+                    a.decode_ceiling()
+                        .partial_cmp(&b.decode_ceiling())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .expect("the leader is in its own class")
+        };
         let Some(earned) = justification(chosen, &phone) else {
             walk.retain(|candidate| !std::ptr::eq(*candidate, chosen));
             continue;
@@ -680,16 +696,21 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         None => true,
     };
     // The row on the first card, answered the way `largest_that_runs_well`
-    // answers it, so the second option can never be that model again — the
-    // pair a page shows must read as two models, not one twice.
+    // answers it, so the second option can never be that row — the pair a
+    // page shows must read as two entries, not one twice. The comparison is
+    // the row's identity (repo, quant, weights — what `model_token` keys
+    // on), not its display name: two files of one model share a name, and
+    // "Liquid LFM 2.5" is both the Q8 and the F16 row.
     let first_card_pool: Vec<&Candidate> = answer
         .remaining
         .iter()
         .filter(|candidate| !full_precision_file(candidate.entry))
         .collect();
-    let lead_name = leading_candidate(&answer, &first_card_pool)
-        .map(|candidate| candidate.entry.display_name);
-    let not_the_first = |candidate: &Candidate| lead_name != Some(candidate.entry.display_name);
+    let lead = leading_candidate(&answer, &first_card_pool)
+        .map(|candidate| (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes));
+    let not_the_first = |candidate: &Candidate| {
+        lead != Some((candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes))
+    };
     if answer.dense_lines_stand_down {
         // The lines stand down, so there is no line to clear beside the
         // pick: speed answers both cards — the next fastest row that runs

@@ -1360,6 +1360,55 @@ fn the_surface_that_clears_no_line_starts_the_two_fastest_rows() {
 }
 
 #[test]
+fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
+    // The owner's Surface WITH a phone paired: 15.6 GiB at 45.1 GB/s, the
+    // same tier `stand_down_cards` pins on the phone-free road. Nothing
+    // clears a line here either, so the paired walk must not fall back to
+    // the biggest row — Gemma 12B, at 3.8–5.5 tok/s, used to lead it. Speed
+    // ranks the walk, and the phone's justification still gates every
+    // candidate: the fastest row that earns one takes the card.
+    let machine = ChoiceInput {
+        ram_bytes: (15.6 * GIB as f64) as u64,
+        bandwidth_bytes_per_second: 45.1e9,
+        ..input(16, true)
+    };
+    for repo in [
+        "LiquidAI/LFM2.5-2.6B",
+        "google/gemma-4-E4B-it",
+        "google/gemma-4-12B-it",
+    ] {
+        let row = kalsa_catalog::usable()
+            .find(|row| row.entry().repo == repo)
+            .expect("the row is on the menu");
+        let floor = decode_prediction(row, &machine).floor();
+        if let Some(line) = dense_speed_floor(row.entry()) {
+            assert!(
+                floor < line,
+                "{repo} clears {line} at {floor:.1} — this is no stand-down tier"
+            );
+        }
+    }
+    let pick = match choose(&machine) {
+        Decision::Pick(selection) => selection,
+        other => panic!("the tier starts something: {other:?}"),
+    };
+    assert_ne!(
+        pick.repo, "google/gemma-4-12B-it",
+        "the biggest row must not lead a tier that runs it at about four tokens a second"
+    );
+    // Speed leads: LFM Q8 is the fastest row here (9.0–13.1) and it earns
+    // a justification — the assertion's message names which — so the walk
+    // returns it before the bigger rows are ever tried. The E4B (5.6–8.1)
+    // and Gemma 12B (3.8–5.5) are both slower, and only size put 12B first.
+    assert_eq!(
+        pick.repo,
+        "LiquidAI/LFM2.5-2.6B",
+        "justified as {:?}",
+        pick.justification
+    );
+}
+
+#[test]
 fn sixteen_gigabytes_at_forty_five_is_the_same_two_cards() {
     // The same tier at the owner's rounded numbers: 16 GiB of RAM at
     // 45 GB/s. Nothing clears a line here either, and the two cards are
