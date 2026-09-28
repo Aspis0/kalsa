@@ -639,8 +639,11 @@ The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
 **SHIP for an S23 correctness run after the four fixes**; that run is in progress with mimo.
 
-Next: HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and diagnose
-the rpcmem CPU-read slowdown with a bandwidth probe when the S23 is unplugged.
+The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
+fused raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not
+measured. Governor S3+ remains on hold until the implementation is validated and one-copy is fast.
+Next: build and validate that reader with pp512 and KLD on the 8 Elite; diagnose the rpcmem CPU-read
+slowdown with a bandwidth probe when the S23 is unplugged.
 
 ## Gates and dates (recovered 2026-09-21)
 

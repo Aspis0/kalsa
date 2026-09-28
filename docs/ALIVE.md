@@ -693,9 +693,11 @@ fast. Owner decision: keep the GPU lane on every device, with its flag OFF where
 
 The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
 lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
-**SHIP for an S23 correctness run after the four fixes**; the run is in progress with mimo. Next are
-the HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and an rpcmem
-CPU-read bandwidth probe when the S23 is unplugged.
+**SHIP for an S23 correctness run after the four fixes**; the run is in progress with mimo. The
+HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a fused
+raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not measured.
+Implementation and pp512/KLD validation on the 8 Elite remain open, as does the rpcmem CPU-read
+bandwidth probe when the S23 is unplugged.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):

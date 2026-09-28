@@ -14,8 +14,10 @@ The current operating facts and next decisions. Per-cell methods and raw evidenc
   no-repack **34.6**, raw `-HOST` rpcmem **22.6**. Memory: **1,526 vs 3,448 MiB** in separate
   processes, about **1.9 GiB saved**. v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD
   is unmeasured. See `scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`.
-- Next: HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress); rpcmem CPU
-  read slowdown probe needs the S23 unplugged.
+- The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
+  fused raw-to-fp16 HMX reader is the path worth building, estimated at **900–1,600 tok/s** (not
+  measured). Implementation and pp512/KLD validation on the 8 Elite remain open. The rpcmem CPU-read
+  slowdown probe needs the S23 unplugged.
 
 ## Governor one-copy and GPU spike
 
@@ -46,8 +48,8 @@ reset, run a second dry run proving R2 and HF are skipped; merge into the workfl
 
 ## Next, in order
 
-1. Finish the in-progress HMX-on-raw estimate; then resolve the rpcmem CPU-read slowdown with a
-   bandwidth probe when the S23 is unplugged.
+1. Implement and validate the fused raw-to-fp16 HMX reader with pp512 and KLD on the 8 Elite; then
+   resolve the rpcmem CPU-read slowdown with a bandwidth probe when the S23 is unplugged.
 2. Complete the S23 correctness run for GPU one-copy after mimo's four fixes; keep governor S3+
    work on hold until the CPU + NPU one-copy lane is fast.
 3. After Actions minutes reset, prove the server publish=false run skips both R2 and HF; merge the
