@@ -771,6 +771,11 @@ try {
       }
     }
     if (heading.includes("a forget that fails keeps its row")) {
+      // Present and unfolded is also what a missing Forget button leaves, and
+      // the driver no longer dies on one: the stub must have been asked first.
+      if (!forgetIds.includes(1)) {
+        problems.push(`the row's own forget was asked for: ${heading}`);
+      }
       if (!deviceNames.includes("Paired phone")) {
         problems.push(`a forget that failed leaves the row where it was: ${heading}`);
       }
