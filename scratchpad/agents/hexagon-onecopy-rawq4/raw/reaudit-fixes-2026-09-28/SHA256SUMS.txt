@@ -1,0 +1,2 @@
+edd59af95c57ba1e9e036a8d6433ad5c292d6b86976837c2cfa76be2b5f22297  /Users/marco/Projects/kalsallama-onecopy/build-onecopy-v73c/bin/llama-perplexity
+61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640  /Users/marco/Projects/kalsallama-onecopy/build-onecopy-v73c/ggml/src/ggml-hexagon/libggml-htp-v73.so

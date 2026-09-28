@@ -1,0 +1,17 @@
+== rawq4
+execute-op MUL_MAT lines: 1080
+1080 real-batch
+real-batch lines naming ffn_gate / attn_q / token_embd (lm_head):
+  ffn_gate: 236
+  attn_q: 64
+  token_embd: 0
+== twocopy
+execute-op MUL_MAT lines: 811
+ 720 real-batch
+  91 warmup
+ 338 fused MUL_MAT_NX (N=2
+  72 fused MUL_MAT_NX (N=3
+real-batch lines naming ffn_gate / attn_q / token_embd (lm_head):
+  ffn_gate: 236
+  attn_q: 64
+  token_embd: 4

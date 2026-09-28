@@ -351,3 +351,59 @@ show a URI-fallback warning before successful HTP session creation, and no DSP
 failure marker. Full logs, load-placement evidence, hashes, gates, and commands
 are under `raw/device-correctness-2026-09-28-fe2daf5d6/`. A/B/C remain pending until the
 phone is unplugged.
+
+## Re-audit fixes (space-bunny, SHIP for device) — 2026-09-28
+
+Engine commit `6fd40579d` (on `fe2daf5d6`). The device run of
+`build-onecopy-v73b` (`fe2daf5d6`) is independent: that dir was not touched.
+No device and no adb in this step. Evidence: `raw/reaudit-fixes-2026-09-28/`.
+
+1. **Row bound survives Release.** `hvx_mm_raw_group_rows`
+   (`htp/matmul-ops.c:340`) now branches:
+   `ct * 32 >= ne1 ? 0 : MIN(32, ne1 - ct * 32)`. The assert is gone.
+2. **`ne00 % 32 != 0` is refused, not truncated.** The DSP `op_matmul` returns
+   `NO_SUPPORT` for raw Q4_0 with `ne00 % QK4_0` (`htp/matmul-ops.c:3692`). The
+   host `ggml_hexagon_raw_weights_supported` declines it (`ggml-hexagon.cpp:2182`).
+   ggml itself cannot build such a Q4_0 row, so both are pure guards.
+3. **The census is reproducible.** `sh raw/reaudit-fixes-2026-09-28/census.sh`,
+   run from this dir, reads the committed device logs
+   (`raw/device-correctness-2026-09-28/{rawq4,twocopy}-kld.log.gz`). Output:
+   `census.txt`, exit 0, identical on a second run. It counts
+   `execute-op MUL_MAT|` lines, splits them by src1 batch (>= 32 = real batch,
+   else warmup), counts `fused MUL_MAT_NX (N=…` events, and counts real-batch lines
+   naming `ffn_gate`, `attn_q` and `token_embd`. Results:
+   - run 1: 1080 lines, all real-batch, no fusion.
+   - run 2: 811 lines = 720 real-batch + 91 warmup. Fusion events: 338 `N=2` and
+     72 `N=3`. A q+k+v fusion logs N=2 and then N=3, so there are 266 gate+up
+     fusions (= 236 real-batch `ffn_gate` lines + 30 warmup) and 72 q+k+v fusions
+     (= 64 real-batch `attn_q` lines + 8 warmup).
+   - Real-batch matmuls in run 2: 720 + 236 (`ffn_up`) + 2 × 64 (`attn_k`,
+     `attn_v`) = **1084** = 1080 Q4_0 + 4 `token_embd` (lm_head, Q6_K). This equals
+     run 1's 1080 Q4_0 matmuls.
+4. **MUL_MAT_ADD is already admitted; no code change.** The host fusion
+   `try_fuse_mul_mat_add` (`ggml-hexagon.cpp:2667`) has no raw check. Its params
+   come from the same `ggml_hexagon_precompute_matmul_params_impl` as `MUL_MAT`
+   (`:4689`), so it gets the flat kernel under `MM_SELECT=1`. The DSP routes it
+   through the shared `op_matmul` dispatch (`htp/main.c:786-788`), and the raw jobs
+   handle `src2`. It only fuses when `n_hmx > 0` or `src1_nrows == 1`
+   (`ggml-hexagon.cpp:2696`), and neither happens in the S23 config (flat-only,
+   threshold 32). So it is admitted but has never run with raw weights on the device.
+
+Host test rerun (rpath command): build exit 0, no warnings; run exit 0 with
+`DYLD_LIBRARY_PATH` unset, 12/12 PASS (`host_test.log`).
+
+**Android build `build-onecopy-v73c` (new dir).** Same preset, configure `EXIT=0`.
+Attempts 1-3 at `-j6` exited `1`, each on a silent failure of an OpenCL
+`embed_kernel.py` codegen step (`oracle_consumer_q4_0_gemv.cl.h`,
+`gemv_noshuffle_q4_k_f32_32b_trans.cl.h`, `softmax_f32.cl.h`;
+`build_attempts.txt`). Attempt 4 at `-j2` exited `0` (`build_android4.log`). The flake looks tied to
+parallel codegen under x86 emulation. No warnings come from the changed files.
+`hexagon-nm` lists both raw jobs.
+
+| Artifact | SHA-256 |
+|---|---|
+| `build-onecopy-v73c/bin/llama-perplexity` | `edd59af95c57ba1e9e036a8d6433ad5c292d6b86976837c2cfa76be2b5f22297` |
+| `build-onecopy-v73c/ggml/src/ggml-hexagon/libggml-htp-v73.so` | `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640` |
+
+Unproven on device: `6fd40579d` / `v73c`. Also still open: the run-2
+`--no-repack` control from the gap analysis.
