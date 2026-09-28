@@ -3,9 +3,9 @@ import { copyText } from "../lib/clipboard";
 import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import "./surfaces.css";
 
-// Awaiting the owner's OK, in one place so it can change. The create is
-// slow, not failed: the shell may still mint, so the invitation would
-// appear in the list below and its link can be copied from there.
+// The create is slow, not failed: the shell may still mint, so the
+// invitation would appear in the list below and its link can be copied
+// from there.
 const SLOW_CREATE =
   "This is taking longer than usual. If the invitation appears below, copy its link from there.";
 
