@@ -665,7 +665,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceDetails, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceDetails, allowIds, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -776,6 +776,44 @@ try {
       }
       if (foldingRows > 0) {
         problems.push(`nothing folds when nothing was forgotten: ${heading}`);
+      }
+    }
+    if (heading.includes("two requests on one seat")) {
+      if (deviceNames.includes("Paired phone 5") || deviceNames.includes("Paired phone 6")) {
+        problems.push(`a stale request never draws a row of its own: ${heading}`);
+      }
+      if (deviceNames.filter((name) => name === "Paired phone 4").length !== 1) {
+        problems.push(`the seat is drawn exactly once: ${heading}`);
+      }
+      if (!all.includes("Paired phone 4 is pairing again.")) {
+        problems.push(`the seat's row says the request: ${heading}`);
+      }
+      if (!forgetIds.includes(6) || forgetIds.includes(4)) {
+        problems.push(`the buttons answer for the newest ceremony, never the seat: ${heading}`);
+      }
+    }
+    if (heading.includes("a forget under reduced motion")) {
+      if (deviceNames.includes("Paired phone")) {
+        problems.push(`reduced motion forgets in one step: ${heading}`);
+      }
+      if (foldingRows > 0) {
+        problems.push(`reduced motion folds nothing: ${heading}`);
+      }
+    }
+    if (heading.includes("an allowed pairing-again asks for the waiting id")) {
+      if (!allowIds.includes(5) || allowIds.includes(4)) {
+        problems.push(`Allow asks for the waiting record, never the seat: ${heading}`);
+      }
+    }
+    if (heading.includes("a seat forgotten while its request waits")) {
+      if (!deviceNames.includes("Paired phone 5")) {
+        problems.push(`a request whose seat left draws its own row: ${heading}`);
+      }
+      if (!deviceDetails.includes("Waiting for your OK.")) {
+        problems.push(`such a request is a waiting record like any other: ${heading}`);
+      }
+      if (!allowIds.includes(5) || allowIds.includes(4)) {
+        problems.push(`its buttons carry its own id: ${heading}`);
       }
     }
     if (heading.includes("a phone is pairing again")) {

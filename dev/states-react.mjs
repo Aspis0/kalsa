@@ -281,7 +281,20 @@ const scenarios = [
   // …and by 400 ms the beat is over: the row has left the list.
   ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 400 }],
   // A forget the store refuses: nothing folds, because nothing left.
+  // Reduced motion: the row is simply gone — no fold phase at all.
+  ["Pairing", "a forget under reduced motion is simply gone", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Forget", waitMs: 100 }],
+  // Allow on the seat's row asks for the WAITING record behind it, never the
+  // seat the owner already admitted.
+  ["Pairing", "an allowed pairing-again asks for the waiting id", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow" }],
+  // The seat was forgotten while its request waited: the request has no row
+  // to sit on, so it draws its own — a waiting record like any other, with
+  // its own id on its buttons.
+  ["Pairing", "a seat forgotten while its request waits", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow" }],
   ["Pairing", "a forget that fails keeps its row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Forget", waitMs: 400 }],
+  // Two waiting records under one seat — the shape an old pairing.json can
+  // still carry. The seat is drawn once, the request is said once, and the
+  // buttons answer for the newest ceremony: the one the store would keep.
+  ["Pairing", "two requests on one seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, { id: 5, label: "Paired phone 5", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }, { id: 6, label: "Paired phone 6", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "a phone is pairing again", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
@@ -320,17 +333,29 @@ let propsReads = 0;
 let pairingReads = 0;
 let inviteListReads = 0;
 let forgetIds = [];
+let allowIds = [];
 
 function installBridge() {
   propsReads = 0;
   pairingReads = 0;
   inviteListReads = 0;
   forgetIds.length = 0;
+  allowIds.length = 0;
+  // The page reads the reduced-motion preference the way App.tsx does:
+  // answered, and false unless this card asks for it.
+  globalThis.window.matchMedia = (query) => ({
+    matches: bridgeState.reduceMotion === true && String(query).includes("reduced-motion"),
+    media: String(query),
+  });
   globalThis.window.__TAURI__ = bridgeState.available === false
     ? undefined
     : {
         core: {
           invoke(command, args) {
+            if (command === "brain_pairing_allow_device") {
+              allowIds.push(args?.id ?? -1);
+              return Promise.resolve(null);
+            }
             if (command === "brain_pairing_forget_device") {
               // Which id the page's Refuse actually asked for: the seat's or
               // the waiting record's. The rule that cares reads it back.
@@ -497,8 +522,9 @@ function extract(panel, heading, automatic = []) {
     // place a link may appear, and it is an input's, never a sentence's.
     fallbackLinks: inputEls.map((el) => String(el.value ?? "")),
     disabledButtons: disabledEls.map(elementText),
-    // Which ids the page's Refuse asked for in this card.
+    // Which ids the page's Refuse and Allow asked for in this card.
     forgetIds: [...forgetIds],
+    allowIds: [...allowIds],
     // The WHOLE document, not just this card: a link the copy path left
     // behind in the body, or in a field outside the card, must be visible
     // to the rule that forbids it.
@@ -547,9 +573,14 @@ async function renderScenario(descriptor) {
       panel,
       (el) => el.tagName === "BUTTON" && elementText(el) === data.click,
     );
-    if (!target) throw new Error(`no button named ${data.click} on ${title}`);
-    target.click();
-    await settle();
+    // Nothing by that name to press: the card's own rules read what the
+    // click would have done — an empty answer, a problem of theirs. Throwing
+    // here would take the whole run down with a card that is being shown
+    // wrong, which is the one case the run must still report.
+    if (target) {
+      target.click();
+      await settle();
+    }
   }
   if (data.step) {
     for (const handler of eventHandlers) handler(data.step);

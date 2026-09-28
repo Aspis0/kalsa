@@ -1,28 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
 import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
+import { useRowFold } from "./useRowFold";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
-
-// A forgotten row takes this long to fold out of the list before it leaves
-// it. The same number times the CSS the row animates with, so the box and
-// the timer are one beat written once.
-const FOLD_MS = 250;
-
-// The same read App.tsx makes: under reduced motion nothing is animated, so
-// a forgotten row is simply gone — which is how it always went.
-function reducedMotion(): boolean {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 // The owner's line about capacity, kept whole because dev/smoke-react.mjs
 // keeps its own copy and enforces it. "Four" mirrors WORKERS in
@@ -36,6 +22,11 @@ const CAPACITY_LINE =
 // purpose, or failing the check.
 const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
 const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";
+// The seat's row says the request in the owner's own words, beside the
+// other approved lines: dev/smoke-react.mjs keeps its own copy of these and
+// enforces them, so a rewording here is a decision made twice.
+const pairingAgain = (label: string): string => `${label} is pairing again.`;
+
 const FRESH_LINES: Record<string, string> = {
   expired: "The previous square expired — this one is fresh.",
   "wrong-code": "A square that did not match was replaced — this one is fresh.",
@@ -94,10 +85,17 @@ interface PairingState {
 // the one it names may not be the one owed — so no clause of this sentence
 // names a phone for it: naming the house is true either way, naming the
 // wrong phone would not be.
+// A waiting record whose seat is still in the house sits on that seat's row:
+// no row and no count of its own, so one phone is never two. Its seat gone —
+// forgotten while the request waited — it is one waiting phone like any
+// other: its own row, its own count, its own buttons.
+function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): boolean {
+  return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
+}
+
 function pairedSentence(dto: PairingState): string {
-  const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
-    (device) => device.kind !== "host" && device.pairing_again == null,
-  );
+  const house = Array.isArray(dto.devices) ? dto.devices : [];
+  const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
   const waiting = phones.filter((device) => device.waiting === true);
   const approved = phones.filter((device) => device.waiting !== true);
   const pending = dto.delivery_pending === true;
@@ -136,11 +134,10 @@ function pairedSentence(dto: PairingState): string {
 // headline speaks for the house: while nothing is approved, "Paired" would
 // claim a working phone; a mixed house keeps it for the approved ones.
 function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
-  // A record that is pairing again is not a phone of its own: the headline
-  // speaks for the seats the house has.
-  const phones = (Array.isArray(devices) ? devices : []).filter(
-    (device) => device.kind !== "host" && device.pairing_again == null,
-  );
+  // A record sitting on its seat's row is not a phone of its own: the
+  // headline speaks for the phones the house draws.
+  const house = Array.isArray(devices) ? devices : [];
+  const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
   return phones.length > 0 && phones.every((device) => device.waiting === true);
 }
 
@@ -210,18 +207,16 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   const inFlight = useRef(false);
   const generation = useRef(0);
   const live = useRef(false);
-  // A row that is folding out of the list: which one, and what it stood as
-  // when the command that removes it was pressed. The ref is what the poll
-  // reads — a read landing mid-fold would drop the row before its beat.
-  const [folding, setFolding] = useState<{ id: number; height: number } | null>(null);
-  const foldingId = useRef<number | null>(null);
-  const foldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The rows themselves, by device: a fold animates from the height the row
-  // really stands as, and only the row can say what that is.
-  const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  // The fold is the hook's business: this page only asks for it and reads
+  // whether one is running.
+  const fold = useRowFold();
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (!live.current || inFlight.current || foldingId.current !== null) return;
+    // No read STARTS while a row folds — all this line claims. A read
+    // already in flight when the fold began still finishes, and its answer
+    // is dropped where it lands, for the same reason: a list that no longer
+    // holds the folding row would cut the beat short.
+    if (!live.current || inFlight.current || fold.folding()) return;
     inFlight.current = true;
     const mine = ++generation.current;
     const stillMine = (): boolean => live.current && mine === generation.current;
@@ -250,7 +245,10 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       try {
         const next = await invoke<PairingState | null>("brain_pairing");
         if (stillMine()) {
-          setState((previous) => lastKnown(previous, next));
+          // A fold under way holds its row: an answer that has already let
+          // it go would drop the row mid-beat, so it is dropped instead and
+          // the next poll takes it.
+          if (!fold.folding()) setState((previous) => lastKnown(previous, next));
           setSettled(true);
         }
       } catch {
@@ -277,7 +275,6 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     return () => {
       live.current = false;
       clearInterval(timer);
-      if (foldTimer.current !== null) clearTimeout(foldTimer.current);
     };
   }, [refresh]);
 
@@ -309,62 +306,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // resolved — so what follows is presentation only, and a failure means the
   // row never moved at all.
   function forgetDevice(id: number): void {
-    // Measured while the row still stands: the collapse animates from the
-    // height it really has, never from an estimate.
-    const row = rowRefs.current.get(id);
-    const height = typeof row?.offsetHeight === "number" ? row.offsetHeight : 0;
     void invoke("brain_pairing_forget_device", { id })
       .then(() => {
-        if (!live.current) return;
-        if (reducedMotion()) {
-          removeRow(id);
-          return;
-        }
-        setFolding({ id, height });
-        foldingId.current = id;
-        foldTimer.current = setTimeout(() => {
-          foldTimer.current = null;
-          foldingId.current = null;
-          setFolding(null);
-          removeRow(id);
-        }, FOLD_MS);
-        // Two frames: one for the browser to take the height the row stands
-        // as, one to move away from it — a transition needs both sides
-        // computed apart. Not every page this runs on hands out frames, and
-        // a plain task does the same job where nobody is watching motion.
-        const frame = (step: () => void): void => {
-          if (typeof requestAnimationFrame === "function") requestAnimationFrame(step);
-          else setTimeout(step, 0);
-        };
-        frame(() => {
-          if (!live.current) return;
-          frame(() => {
-            if (live.current) setFolding({ id, height: 0 });
-          });
-        });
+        if (live.current) fold.begin(id, () => removeRow(id));
       })
       .catch(() => {});
-  }
-
-  // What a row that is folding wears: its height pinned, then gone — the box
-  // gives up its padding and its border with its height, so no sliver is
-  // left standing for the rows below to sit beside.
-  function foldStyle(id: number): CSSProperties | undefined {
-    if (folding === null || folding.id !== id) return undefined;
-    const transition = `height ${FOLD_MS}ms ease, padding ${FOLD_MS}ms ease, border-width ${FOLD_MS}ms ease, opacity ${FOLD_MS}ms ease`;
-    if (folding.height > 0) {
-      return { height: `${folding.height}px`, overflow: "hidden", transition };
-    }
-    return {
-      height: 0,
-      paddingTop: 0,
-      paddingBottom: 0,
-      borderTopWidth: 0,
-      borderBottomWidth: 0,
-      opacity: 0,
-      overflow: "hidden",
-      transition,
-    };
   }
 
   function allowDevice(id: number): void {
@@ -499,14 +445,15 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       state?.state === "paired" ||
       state?.failure === "could-not-save");
 
-  // The request is drawn on the seat it belongs to: a waiting record whose
-  // phone already has an allowed seat never gets a row of its own, so one
-  // phone never becomes two on screen.
   // A phone this house has already admitted — the line below speaks for the
   // phones that can ask, and a phone still waiting for Allow is not one.
   const hasPairedPhone = devices.some(
     (device) => device.kind !== "host" && device.waiting !== true,
   );
+  // Each request is filed under the seat it belongs to, so the seat's row can
+  // speak for it. Two stale requests under one seat (a file from before the
+  // store replaced them) answer with the newest: that is the ceremony the
+  // store would have kept.
   const requests = new Map<number, PairedDevice>();
   for (const device of devices) {
     if (device.pairing_again != null) requests.set(device.pairing_again, device);
@@ -551,28 +498,26 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // fresh one. The command refuses it too; the row simply does not
             // offer it.
             const host = device.kind === "host";
-            // A request to pair again gets no row of its own: it is drawn on
-            // the seat it belongs to, so a phone this house already has never
-            // becomes a second one on screen.
-            if (device.pairing_again != null) return null;
+            // A request rides its seat's row — when the seat is still here,
+            // so one phone never becomes two. A seat that left while the
+            // request waited leaves it nowhere to sit, and a ceremony that
+            // is waiting must never be hidden.
+            if (hidesOnSeat(device, devices)) return null;
             const name = device.label ?? (host ? "This computer" : `device ${device.id}`);
             const request = requests.get(device.id);
             return (
               <div
                 key={device.id}
                 className="surface-device"
-                ref={(element) => {
-                  if (element) rowRefs.current.set(device.id, element);
-                  else rowRefs.current.delete(device.id);
-                }}
-                style={foldStyle(device.id)}
+                ref={fold.refFor(device.id)}
+                style={fold.styleFor(device.id)}
               >
                 <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
                   {device.waiting
                     ? "Waiting for your OK."
                     : request
-                      ? `${name} is pairing again.`
+                      ? pairingAgain(name)
                       : (device.phone ?? "")}
                 </span>
                 {host ? null : device.waiting ? (
