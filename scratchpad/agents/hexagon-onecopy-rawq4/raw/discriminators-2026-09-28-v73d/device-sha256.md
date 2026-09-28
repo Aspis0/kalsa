@@ -1,0 +1,6 @@
+b350d98f0c49836cb89363656514a030dd4ed98b7cb91f6bbceaad810ff0210c  /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity
+6f7c13ca26259a90000c8f72de72c4cfa387f721f26380298f7c54fefa69b083  /data/local/tmp/govhtp/onecopy-d/bin/llama-eval-callback
+61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640  /data/local/tmp/govhtp/onecopy-d/dsp/libggml-htp-v73.so
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  /data/local/tmp/govhtp/input/kld_english_fixture.txt
+5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f  /data/local/tmp/govhtp/input/cause-cpu-base.logits
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /data/local/tmp/heat3way/ship.gguf

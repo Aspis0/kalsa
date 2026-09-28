@@ -602,3 +602,64 @@ Local logs (sha256):
 - `build_android1.log` `eed36b4c94c7d2a39c1e3731aefc97bb685b482825f24a0c55ddad9f937349f4`
 - `build_android2.log` `9498a8d4b207ff4ed1899fb082f25c19649ab5d8a6c872e0a5f5e41a722afdac`
 - `configure.log` `4470af9c41cddc01ac39114429550c02d86967b1f1993a8ad8fc9e3afa7dc2da`
+
+## 2026-09-28 — v73d one-copy placement discriminators (correctness only)
+
+Ran on the S23 while plugged in; no timing or heat measurements were taken. The
+three build artifact hashes matched the requested values locally and on device:
+`llama-perplexity` `b350d98f0c49836cb89363656514a030dd4ed98b7cb91f6bbceaad810ff0210c`,
+`llama-eval-callback` `6f7c13ca26259a90000c8f72de72c4cfa387f721f26380298f7c54fefa69b083`,
+and `libggml-htp-v73.so` `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640`.
+Model, fixture, and CPU-base hashes also matched the recorded values. Binaries
+and the new DSP library went into `/data/local/tmp/govhtp/onecopy-d/`; the DSP
+path was first in `ADSP_LIBRARY_PATH`, followed by the untouched kit directory.
+Push commands each exited 0.
+
+The six requested arms P0/P1/Q0/D0/D0b/D1 all exited 0. The first P0/P1
+perplexity attempts also exited 0 and produced KLD output, but their op lines
+were hidden by the common logger threshold despite `GGML_HEXAGON_VERBOSE=1`.
+They were repeated with `-lv 5`; this changes visibility only. All reported
+results below use the instrumented reruns, with `GGML_HEXAGON_OPFUSION=0`,
+`--no-warmup` for perplexity, the same fixture/base, `-c 512 -b 512 -ub 128`,
+and HTP0:0. Callback commands used the report's same 68-token prompt and
+placement overrides with `-lv 5`.
+
+| Arm | KLD mean ± SD | KLD max | Same top p | HTP MUL_MAT lines | Exit |
+|---|---:|---:|---:|---:|---:|
+| P0 raw all-HOST | 0.004706 ± 0.000397 | 0.116930 | 96.667% | 1080 | 0 |
+| P1 selected matmul weights repacked | 0.004706 ± 0.000397 | 0.116930 | 96.667% | 1080 | 0 |
+| Q0 normal-buffer, fusion off | 0.002788 ± 0.000170 | 0.032330 | 96.471% | 1084 | 0 |
+| P2 P1 + norm weights on HTP | 0.004198 ± 0.000345 | 0.122586 | 96.078% | 1080 | 0 |
+| P3 P1 + `shortconv.conv.weight` on HTP | 0.003016 ± 0.000213 | 0.047790 | 96.078% | 1080 | 0 |
+| P4 P1 + `token_embd.weight=CPU` | 0.004706 ± 0.000397 | 0.116930 | 96.667% | 1080 | 0 |
+
+**Cause:** The KLD signature is a placement effect, not a measured raw-Q4
+coherence/layout penalty: P0 and P1 match at all printed KLD precision, while
+Q0 is lower. Moving only the norms (P2) lowers mean KLD by 0.000508; moving
+`shortconv.conv.weight` (P3) lowers it by 0.001690; moving token embeddings
+(P4) changes nothing. `opset.sh` confirms P2 adds the expected HTP norm ops and
+P3 adds the expected 176 `SSM_CONV` ops; P4's prefill op table matches P1.
+The `shortconv.conv.weight`/`SSM_CONV` placement accounts for most of the
+observed gap; norms account for a smaller part. P2+P3 together were not run.
+
+`opset.sh` tables were identical for P0/P1 at ubatch 128 and D0/D1 at prompt
+ubatch 68. D0 and D0b each dumped 1014 tensors and `compare-dumps.sh` found all
+hashes identical. D0 vs D1 differed first at tensor 1007 (`ffn_gate-29`), then
+`ffn_up-29` and downstream. The ubatch-1 op table shows why this dump pair is
+not a raw-kernel comparison: D1 dispatches one `ffn_gate` and one `ffn_up`
+`MUL_MAT` plus `SWIGLU` to HTP, while D0 leaves those decode ops on CPU. The
+full dump mismatch is therefore confounded by decode placement. Raw Q4 path
+coherence/layout is not decided by this batch; no nondeterminism was observed.
+
+For every arm the captured pre/post wakefulness was `Awake`, and tracing stayed
+0. Battery remained at 100% and AC-powered. Thermal status was 0 at preflight;
+per-arm status stayed below 3 (P4 ended at 1); final status returned to 0. The
+initial battery temperature was 28.3 °C and the final reading was 35.6 °C, both
+below the 43 °C gate. `com.kalsa.app` was force-stopped before each binary run.
+No `dsp-error`, `NO-SUPPORT`, or `ABORT` appeared. The screen was left on.
+
+The exact device logs, per-run gate output, push hashes, and analysis outputs
+are in `raw/discriminators-2026-09-28-v73d/`; verbose DSP logs are gzip-compressed
+there. Local copies of `.log` and `.txt` are ignored by the lab rules, so only
+the non-ignored compressed logs and evidence files are committed; no force-add
+was used.
