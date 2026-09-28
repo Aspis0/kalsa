@@ -755,3 +755,26 @@ chosen per graph by the scheduler's batch-size offload (`offload_op`
 threshold/`MM_SELECT`) instead of by switching contexts. The governor's policy
 becomes "set the threshold/admitted ops per phase". The KV route and the second
 weight copy go away.
+
+## 2026-09-28 — P5 combined norm + SSM_CONV placement
+
+Reverified the existing `onecopy-d/` device binaries before running: all three
+SHA-256 values matched the v73d build recorded above. S23 was plugged in at 100%,
+Awake, thermal status 0, tracing 0; `com.kalsa.app` was force-stopped. No timing
+or heat measurement was taken.
+
+The exact P5 command above exited 0. It produced mean KLD **0.002750 ± 0.000165**,
+maximum **0.031080**, same-top **97.059%**, inside the requested 0.0025–0.0031
+band. The report command's `grep "HTP0 execute-op"` returned 0 because the logger
+prints the full `HTP0:0` device name and the default common logger filters debug
+lines. I repeated the same arm with `-lv 5` solely to expose dispatch: EXIT 0,
+**1080 HTP0:0 MUL_MAT** execute-op lines, same KLD values, and no
+`dsp-error`/`NO-SUPPORT`/`ABORT`.
+
+`opset.sh` comparison at ubatch 128 matches Q0 exactly after excluding Q0's
+four `MUL_MAT result_output` lm-head ops, which are absent in P5. Both tables
+have 236 `ADD l_out` entries. The P5 trace confirms the intended HTP `MUL` norm,
+`SSM_CONV` using `shortconv.conv.weight`, and flat `MUL_MAT` with Q4_0 weights
+read from `HTP0:0-HOST`. This passes the KLD and placement checks; P2+P3 are
+compatible on the raw one-copy path. Raw logs and hash/gate evidence are in
+`raw/p5-2026-09-28/`.
