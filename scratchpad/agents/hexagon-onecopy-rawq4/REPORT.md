@@ -663,3 +663,95 @@ are in `raw/discriminators-2026-09-28-v73d/`; verbose DSP logs are gzip-compress
 there. Local copies of `.log` and `.txt` are ignored by the lab rules, so only
 the non-ignored compressed logs and evidence files are committed; no force-add
 was used.
+
+
+## Why SSM_CONV on the CPU diverges more, and the one-copy placement — 2026-09-28
+
+Inputs: device result lab `d6906f59`. P0 = P1 = 0.004706 exactly (raw read path
+identical to repacked). Q0 0.002788, P2 (norms on HTP) 0.004198, P3 (conv on HTP)
+0.003016, P4 unchanged. Engine unchanged in this step (`c939a135d`). No adb.
+
+### 1. Direction: CPU `SSM_CONV` is not less precise; KLD at 1e-3 cannot rank precision here
+
+- **Only `SSM_CONV` moves between P1 and P3.** A diff of every `execute-op` line
+  (both arms ran with `--no-warmup`, so every line is scored) shows the same HTP ops
+  except 176 `SSM_CONV`. The `c*conv` MUL and the `out_proj` input only change buffer
+  (`HTP0:0-HOST` in P1). `CONCAT` and the recurrent-state `CPY` run on HTP in both
+  arms (layer-0 sequence from `p1-v.log.gz` / `p3-conv-v.log.gz`). Graph:
+  `src/models/lfm2.cpp:176-227`.
+- **No lossy path in the source.**
+  - Every tensor on the path is f32.
+  - The CPU split's input is a synchronous copy: the scheduler synchronizes the HTP
+    backend, then `ggml_backend_tensor_copy`s (`ggml/src/ggml-backend.cpp`,
+    `compute_splits`, the non-MoE branch); for a non-repacked tensor that is a
+    `memcpy`.
+  - The DSP flush-invalidates its data cache at every batch start and end
+    (`htp/main.c:1136,1192`).
+  - The CPU kernel is a plain f32 three-tap sum (`ggml-cpu/ops.cpp`,
+    `ggml_compute_forward_ssm_conv_f32`), the same code the all-CPU base ran.
+  - The HTP kernel accumulates in qf32 (`htp/ssm-conv.c:319-325`).
+- **Not a race or coherence effect.** Run 1, P0 and P1 reproduced 0.004706 and max
+  0.116930 exactly across two builds and three runs. A stale-cache handoff would be
+  timing dependent.
+- **Rounding sensitivity measured directly (Mac, ship model SHA `a247afd6…`, same
+  fixture and flags, CPU only).** A temporary patch changed only the CPU `SSM_CONV`
+  accumulator from `float` to `double`: a *more* accurate three-tap sum, nothing
+  else. Against the unpatched f32 CPU base it gives **mean KLD 0.001158 ± 0.000076,
+  max 0.021962**, same top 97.843%. The unpatched control gives 0.000000
+  (max 0.000046). The patch was reverted (`git checkout`, tree clean) and not
+  committed. Logs are local: `oc-mac-convdouble.log` `a3c3eaf36d3f562f98786aff0765f805be993e1bd2bfebb463962b41af04ceda`,
+  `oc-mac-control.log` `c72f29d45a9cedea4ef2007d068cf74128f279a522218a61ccf68714bfa57223`.
+
+**Explanation.** On this model an ulp-level rounding change in `SSM_CONV` alone moves
+KLD by ~0.0012; the 22 short-conv layers feed the recurrent state. The P1–P3 gap
+(0.0017) is of that order. With the upstream ops on HTP (qf32 elementwise, Q4_0
+flat matmuls), swapping the conv between an f32 CPU sum and a qf32 HTP sum changes
+how rounding compounds. Which variant lands closer to the f32 CPU base is a property
+of that interplay, not of accuracy: the most accurate conv of all (double) *also*
+diverges from the f32 base. The norms (P2, 0.0005) are the same effect, smaller.
+
+**Unproven:** a causal account of why the all-HTP rounding pattern tracks the base
+better. A mechanism-level answer would need per-layer dumps with conv on HTP vs CPU;
+D0/D1 were not comparable (D1 moved two 1-token matmuls).
+
+### 2. One-copy placement for the governor
+
+- Q4_0 matmul weights (and `ffn_down`, `token_embd`) stay shared in `-HOST`.
+- The 99 small f32 tensors go to the HTP normal buffer: 77 norm weights and 22
+  `shortconv.conv` weights.
+- **Cost, from the load logs:** norms 0.48 MiB, conv 0.52 MiB
+  (`HTP0:0` 951.75 → 952.23 / 952.27 MiB; `-HOST` shrinks by the same). Moving them
+  costs **~1.0 MiB total and zero net**. Keeping a second copy for the CPU would cost
+  +1.0 MiB.
+- **Caveat for decode.** With these weights only in the normal buffer, which the CPU
+  cannot read, CPU-side decode would pull the norm/conv ops to HTP or copy the
+  weights every token. The cleaner equivalent keeps them in `-HOST` (0 extra MiB) and
+  lets `offload_op` (`ggml-hexagon.cpp`, currently `MUL_MAT` only) also admit
+  `SSM_CONV` and the norm `MUL` at batch >= threshold. Prefill then gets P5's
+  placement and decode stays CPU. That needs code and a KLD check of its own.
+
+**P5 = P2 + P3 on the raw path** (matmul weights raw in `-HOST`, as P0; fusion off
+and `--no-warmup` as in P0-P4; binaries already on the device in `onecopy-d/`):
+
+```sh
+adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell "cd /data/local/tmp/govhtp && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=\"/data/local/tmp/govhtp/onecopy-d/dsp;/data/local/tmp/govhtp/lib\" GGML_HEXAGON_DEVICES=HTP0:0 GGML_HEXAGON_MM_SELECT=1 GGML_OP_OFFLOAD_MIN_BATCH=32 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 GGML_HEXAGON_HOSTBUF=1 && /data/local/tmp/govhtp/onecopy-d/bin/llama-perplexity -m /data/local/tmp/heat3way/ship.gguf -f /data/local/tmp/govhtp/input/kld_english_fixture.txt -c 512 -b 512 -ub 128 -ngl 99 -dev HTP0:0 -lm none --no-warmup --chunks 2 --kl-divergence-base /data/local/tmp/govhtp/input/cause-cpu-base.logits --kl-divergence -ot '(blk\.[0-9]+\.(attn_norm|ffn_norm|attn_q_norm|attn_k_norm|shortconv\.conv)|token_embd_norm)\.weight=HTP0:0,.*=HTP0:0-HOST' > /data/local/tmp/govhtp/onecopy-d/p5-small-htp-kld.log 2>&1; rc=\$?; echo EXIT=\$rc; grep -c \"HTP0 execute-op MUL_MAT\" /data/local/tmp/govhtp/onecopy-d/p5-small-htp-kld.log; grep -m3 \"dsp-error\\|NO-SUPPORT\\|ABORT\" /data/local/tmp/govhtp/onecopy-d/p5-small-htp-kld.log; grep -E \"Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p\" /data/local/tmp/govhtp/onecopy-d/p5-small-htp-kld.log"
+```
+
+Expected: `EXIT=0`, HTP `MUL_MAT` > 0, no `dsp-error`/`NO-SUPPORT`. **Mean KLD
+≈ Q0 (0.002788), within 0.0025-0.0031.** Only the lm_head (P4: no effect) and the
+`ffn_down` CPU kernel (bit-identical on the S23 per the `--no-repack` control)
+still differ from Q0. `opset.sh` on the P5 log must match `q0-v.log.gz`'s table,
+apart from `MUL_MAT result_output` and the final `ADD l_out`. If P5 is well above
+0.0031, the norm and conv gains are not additive and the combination needs a dump
+to locate.
+
+### 3. Product integration (design only)
+
+Today the governor loads two models, builds two contexts with independent KV
+caches, and routes KV between them (`src/llama-governor.cpp:27-53`). One-copy
+collapses that into one model loaded with `-HOST` placement, one context and one KV
+cache (placed in `-HOST`, readable by both backends). Each phase's backend is then
+chosen per graph by the scheduler's batch-size offload (`offload_op`
+threshold/`MM_SELECT`) instead of by switching contexts. The governor's policy
+becomes "set the threshold/admitted ops per phase". The KV route and the second
+weight copy go away.
