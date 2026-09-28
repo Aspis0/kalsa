@@ -1,0 +1,41 @@
+[1/7] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity.dir/main.cpp.o
+[2/7] Linking CXX static library common/libllama-common.a
+[3/7] Linking CXX static library tools/perplexity/libllama-perplexity-impl.a
+[4/7] Performing build step for 'htp-v73'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v73.dir/dma-queue.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v73.dir/htp_iface_skel.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v73.dir/work-queue.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v73.dir/hmx-queue.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v73.dir/htp-tensor.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v73.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v73.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v73.dir/gated-delta-net-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v73.dir/binary-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v73.dir/softmax-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v73.dir/flash-attn-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v73.dir/act-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v73.dir/rope-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v73.dir/set-rows-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v73.dir/repeat-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v73.dir/cpy-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v73.dir/get-rows-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v73.dir/ssm-conv.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v73.dir/cumsum-ops.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v73.dir/fill-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v73.dir/concat-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v73.dir/diag-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v73.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v73.dir/pad-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v73.dir/argsort-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v73.dir/im2col-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v73.dir/matmul-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v73.dir/unary-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v73.dir/allreduce-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v73.so
+[5/7] Performing install step for 'htp-v73'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-onecopy-v73/ggml/src/ggml-hexagon/libggml-htp-v73.so
+[6/7] Completed 'htp-v73'
+[7/7] Linking CXX executable bin/llama-perplexity

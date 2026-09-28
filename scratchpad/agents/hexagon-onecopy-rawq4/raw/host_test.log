@@ -1,0 +1,16 @@
+$ cc -std=c11 -O1 -Wall -Wextra -Iggml/include -Iggml/src -Iggml/src/ggml-hexagon/htp tests/test-hexagon-q4_0-raw-tile.c -Lbuild-host/bin -lggml-base -o build-host/test-q4-raw-tile
+BUILD_EXIT=0
+n_k   1 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   1 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   1 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k   3 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k  64 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows 32 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows 13 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+n_k 256 n_rows  1 : bytes==repack_q4_0_tiled yes  max|w - dequantize_row_q4_0| 0  PASS
+ALL PASS
+RUN_EXIT=0
