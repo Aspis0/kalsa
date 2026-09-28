@@ -357,7 +357,7 @@ the moment the phone is hot — allocates memory at the worst time.
 
 So hopping NPU→GPU *raises* heat per prompt by 3.4–3.7×. The GPU's only defensible role is availability:
 the HTP is unusable or throttled *specifically* (session lost, FastRPC failure `error 0x14` fallback,
-`NPUD:113-116`) while the rest of the phone is fine. **Owner decision required** (the direction in the
+`NPUD:113-116`) while the rest of the phone is fine. **Owner decision taken, §7b** (the direction in the
 brief is "GPU when the NPU is hot"): implement the hop but keep it OFF by default, and define "NPU hot" as
 a measured HTP slowdown, not a battery temperature: chunk throughput ratio against the first chunk of the
 session, from the per-chunk facts the engine already records (`GOV governor.cpp:335-350`). No S23 arm
@@ -429,7 +429,7 @@ fix; every device run keeps screen on, Kalsa foreground, Awake per turn, unplugg
 | S5 | **LANE** ·  Binding one-copy load: single `common_init_from_params` with the override, `use_mmap=false`, `offload_kqv=false`, env `GGML_HEXAGON_HOSTBUF=1` + `MM_SELECT=1` set where `ADSP_LIBRARY_PATH` is (`NPUD:25`); **degrade rule**: HTP0 or the host buft missing → today's two-context path, plan fields `one_copy`, `weights_buft`, `kv_buft`, `npu_fallback` (`NPUD:77-91`) | `cpp/rn-llama.cpp`, `rn-governor-params.cpp` | extend `tests/governor_params_test.cpp`; one-copy path is device-only | — | Mac (params), S23 | no |
 | S6 | **LANE** ·  Device soak: debuggable APK, one-copy load; **P6** (all `-HOST` + admit mask) bit-identity vs P5 on tensors 1–1006 (`OC:646-652`), else KLD band; op census per phase (§2.3); memory breakdown; load time + `MemAvailable`; FastRPC/`0x14`, perfmond spin watch (`NPUD:128-132`) | none | KLD ≤ 0.0031, same-top ≥ 95 %, `commit_bytes == 0`, one weight buffer | S23 debuggable APK (`s23-debuggable-apks-policy`) | S23 | **yes: go/no-go** — proceed as default only if one-copy prefill beats today's GPU lane on both time and heat (6.95 s and 24.17 °C·s/1k, `HEAT-S23:87`); owner may move the bar |
 | S7 | **LANE** ·  `ffn_down` on the NPU under raw weights: K-split or a lower-VTCM raw job (needs ≤ 8.39 MB from 13.9–15.4 MB) | `htp/matmul-ops.c/.h`, host rule `:5067` | Mac host test extending the raw-tile test: split accumulation vs `dequantize_row_q4_0` reference (max abs error small, documented); S23 KLD ≤ 0.005 | S23 census: `ffn_down` execute-op > 0; timing/heat re-run | Mac + S23 | **yes** (S0 ranks its value) |
-| S8 | **LANE** ·  Optional GPU lane (G1): existing pair, one-copy context as decode side | `governor.cpp` (legacy path), binding load | legacy tests unmodified (§4.2); new: one-copy ctx as `ctx_decode` with an OpenCL prefill, token oracle as `devices.cpp` | S23 OpenCL + one-copy load fits memory | Mac (CPU-only pair) + S23 | no |
+| S8 | **LANE** ·  GPU lane everywhere (G1, owner decision §7b): existing pair, one-copy context as decode side; flag default per device class (OFF with a usable NPU, ON without); second weight copy decided at load, only when the flag is ON and the fit gate passes | `governor.cpp` (legacy path), binding load | legacy tests unmodified (§4.2); new: one-copy ctx as `ctx_decode` with an OpenCL prefill, token oracle as `devices.cpp` | S23 OpenCL + one-copy load fits memory | Mac (CPU-only pair) + S23 | no |
 | S9 | **SAFETY** ·  Sustainable-rate mode: engine pace + app periodic push + `platform_status` wiring | `governor.cpp`, app thermal loop | policy tables (S4) + injected-clock engine test: tokens generated == requested | hot soak arm, S23 unplugged, **no cool-start gate** (memory `heat-arms-no-cold-start-gate`), stats show pace and zero truncation | Mac + S23 | no |
 | S10 | **LANE** ·  NPU decode lane — only if S0/S6 timing says a raw matvec is viable | admission mask at `min=1` for the decode lane | census + tok/s + heat arm (S23 NPU decode has never been run) | S23 | S23 | **yes** |
 | S11 | **LANE** ·  Flip defaults; update `PLAN.md`/`ALIVE.md` (lab-only) | lab | — | — | — | after S6/S7 |
@@ -491,13 +491,26 @@ owner's approval or per the standing pipeline rule.
 13. **The owner's GPU rule contradicts the measurements** (§5.1) and needs an explicit decision before S8.
 14. **Session ban** stays; lifting it is a separate contract change.
 
-## 7b. Owner decision pending
+## 7b. Owner decision: the GPU lane (2026-09-28)
 
-The design's data say the GPU is never cooler than the NPU (S23 24.17 vs 6.45 °C·s/1k; 8 Elite 79.0 vs
-23.1 per prefill) and it cannot share the one copy (§5.1). **Proposal awaiting the owner:** keep the GPU
-off the heat ladder (NPU hot → sustainable-rate mode, R3), and use the GPU only on devices without a usable
-NPU (today's two-context pair, unchanged). The GPU-hop branch (S8) stays implemented-but-off until the
-owner decides. This overrides nothing yet: the brief's rule "GPU when the NPU is hot" stands until then.
+Owner, verbatim: "lasciala dappertutto, non si sa mai, magari con un flag spento dove la npu e' migliore".
+
+Decision: **the GPU lane stays on every device, behind a flag that is OFF by default where the NPU is
+better (devices with a usable NPU) and ON by default where there is no usable NPU.** The data behind the
+default (never cooler than the NPU: S23 24.17 vs 6.45 °C·s/1k; 8 Elite 79.0 vs 23.1 per prefill; cannot
+share the one copy, §5.1) are unchanged; they justify the default, the owner's decision keeps the lane
+available. Consequences:
+
+- The GPU lane is **not** removed from the ladder code and the legacy two-context path stays (§4.1);
+  what the flag decides is whether the policy may return GPU and whether the second weight copy is loaded.
+- Default per device class: usable NPU (`npu_fit == Fit`, HTP readable, generation ∈ {V73, V75, V79}) →
+  flag OFF; no usable NPU (NoHTP, `npu_fit` not Fit, mmproj loaded, MoE without readable experts) → flag ON,
+  i.e. today's GPU plan unchanged. A bench/JS override may still switch it either way.
+- The GPU lane still needs its **own second weight copy, decided at load** (§5.1 G1): flag ON on a device
+  with a usable NPU means the load builds the OpenCL model beside the one-copy model, subject to the fit
+  gate. Flag OFF means no second copy is ever built and the policy is told `gpu_lane_loaded = false`.
+- Heat ladder: with the flag OFF the ladder never hops to the GPU (NPU hot → sustainable rate, R3); with it
+  ON the hop is the existing GPU plan.
 
 ## 8. Sources not read in full
 
