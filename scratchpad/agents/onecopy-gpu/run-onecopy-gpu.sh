@@ -20,7 +20,8 @@ mkdir -p "$out"
 raw_regex='blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up|down)|shortconv\.(in|out)_proj)\.weight=HTP0:0-HOST'
 
 gate() {
-    name=$1
+    # No `local` in POSIX sh: assigning to a name here would clobber the caller's
+    # (arm's) $name, so the gate logs and the final pull would use the wrong stem.
     adb -s "$serial" shell '
         wake=$(dumpsys power | sed -n "s/.*mWakefulness=//p" | head -1)
         battery=$(dumpsys battery 2>/dev/null | grep -E "^  level:|^  temperature:")
@@ -33,10 +34,10 @@ gate() {
           "$wake" "$ac" "$level" "$temp" "$thermal" "$traced"
         [ "$wake" = Awake ] && [ "$level" -gt 30 ] && [ "$temp" -lt 430 ] \
           && [ "$thermal" -lt 3 ] && [ "$traced" = 0 ]
-    ' > "$out/$name.gate.log" 2>&1
+    ' > "$out/$1.gate.log" 2>&1
     rc=$?
-    echo "GATE_EXIT=$rc" >> "$out/$name.gate.log"
-    cat "$out/$name.gate.log"
+    echo "GATE_EXIT=$rc" >> "$out/$1.gate.log"
+    cat "$out/$1.gate.log"
     return "$rc"
 }
 
@@ -87,10 +88,14 @@ arm() {
     # -v: raise the log threshold so ggml INFO lines (imported dma-buf, model
     # buffer sizes) are captured; they are filtered at the default level.
     adb -s "$serial" shell "cd $root && export LD_LIBRARY_PATH=$root/lib ADSP_LIBRARY_PATH='$dev/dsp;$root/lib' TMPDIR=$dev $setup && $dev/bin/llama-perplexity -v -m /data/local/tmp/heat3way/ship.gguf -f $root/input/kld_english_fixture.txt -c 512 -b 512 -ub $ub -ngl 99 -dev GPUOpenCL $override -lm none --chunks 2 --kl-divergence-base $root/input/cause-cpu-base.logits --kl-divergence > $dev/$name.log 2>&1; rc=\$?; echo EXIT=\$rc >> $dev/$name.log; echo BINARY_EXIT=\$rc; echo imports=\$(grep -c 'imported dma-buf' $dev/$name.log); grep -E 'model buffer size' $dev/$name.log | head -8; grep -E 'GGML_OPENCL_LOG_KERNELS: kernel_mul_(mm|mat)_q4_0' $dev/$name.log | sort -u; echo error_markers=\$(grep -Eic 'GGML_ABORT|GGML_ASSERT|Segmentation|does not meet|exceeds CL_DEVICE|clCreateBuffer.*failed|no usable dma-buf import extension' $dev/$name.log); grep -E 'Mean PPL\\(Q\\)|Mean +KLD|Maximum KLD|Same top p|prompt eval time' $dev/$name.log | tail -6; exit \$rc" > "$out/$name.run-summary.log" 2>&1
-    echo "ADB_EXIT=$?" >> "$out/$name.run-summary.log"
+    run_rc=$?
+    echo "ADB_EXIT=$run_rc" >> "$out/$name.run-summary.log"
     cat "$out/$name.run-summary.log"
     gate "$name.post"
     adb -s "$serial" pull "$dev/$name.log" "$out/$name.log" > /dev/null 2>&1
+    # Status of the run, not of the pull: a good run must not look failed (pull
+    # target missing on-device) nor a failed run look good.
+    return "$run_rc"
 }
 
 case "${1:-}" in
