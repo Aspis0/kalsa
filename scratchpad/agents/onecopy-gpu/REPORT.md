@@ -345,3 +345,63 @@ Steps 2-4 (`kld`, `kld-decode`), each arm `EXIT=0`, `error_markers=0`:
    freeing the buffer first no longer unmaps the GPU's view (the `cl_mem` keeps its own ref
    until backend teardown), and a lost DSP session still takes the weights the GPU reads
    (`governor-onecopy/DESIGN.md` §7 item 7).
+
+### 2026-09-28 — S23 Adreno 740 correctness-only slot
+
+Engine `5e6b66e86`, build `build-onecopy-gpu`. Before push, local SHA-256 matched the §5 table:
+`llama-perplexity` `b6055ec202c4004ca92cbb4efe0b806e8a971102d0b7dcdeecd63a3a58477415`,
+`llama-eval-callback` `dd1a934ad4a11b51b3ad0af422506644d8b43d7cbfbd50ee708f4900a7113739`,
+DSP library `61c8d6f592786302b257d0d5676d992efcb21bde68aad2cde22447c3fedca640`,
+probe `e9abd1661abcd0138ac20ce01f692ad34f1d39355f3a6e9cb8bb65593f3d7cc2`,
+raw GEMM kernel `2bbab74d596362159e69cc71944de6f53ab26e15c14054a0834d8e739abc4768`,
+and GEMV kernel `d144489d59830879de907bcb8cf98280fcbbba1b06cd36003d1f35614f9cdf77`.
+The five payloads were pushed only under `/data/local/tmp/govhtp/onecopy-gpu/`; the device SHA-256
+values matched. `llama-eval-callback` was verified locally and was not part of the report's push
+payload. Ship GGUF SHA-256 on device: `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
+The kit and earlier device directories were untouched.
+
+Gates before/after each binary: Awake; AC powered; 100% level; battery 27.8–31.0 °C; thermal
+status 0; traced 0; `com.kalsa.app` absent after force-stop. `svc power stayon true` was set and
+left set. Correctness only; plugged-in throughput figures below are **plugged, not a measurement**.
+
+#### Adreno 740 extension and probe result
+
+Full `CL_DEVICE_EXTENSIONS` from the probe:
+
+```text
+cl_ext_image_from_buffer cl_ext_image_requirements_info cl_khr_3d_image_writes cl_khr_byte_addressable_store cl_khr_depth_images cl_khr_egl_event cl_khr_egl_image cl_khr_fp16 cl_khr_gl_sharing cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_image2d_from_buffer cl_khr_integer_dot_product cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_mipmap_image cl_khr_srgb_image_writes cl_khr_subgroups cl_qcom_accelerated_image_ops cl_qcom_android_ahardwarebuffer_host_ptr cl_qcom_android_native_buffer_host_ptr cl_qcom_bfloat16_product cl_qcom_bitreverse cl_qcom_compressed_image cl_qcom_create_buffer_from_image cl_qcom_dmabuf_host_ptr cl_qcom_dot_product8 cl_qcom_ext_host_ptr cl_qcom_ext_host_ptr_iocoherent cl_qcom_extended_query_image_info cl_qcom_extract_image_plane cl_qcom_filter_bicubic cl_qcom_ml_ops cl_qcom_other_image cl_qcom_perf_hint cl_qcom_priority_hint cl_qcom_protected_context cl_qcom_recordable_queues cl_qcom_reqd_sub_group_size cl_qcom_subgroup_shuffle cl_qcom_vector_image_ops cl_qcom_onchip_global_memory cl_qcom_large_buffer
+```
+
+Driver: `OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62`. `ext_mem_padding=0`,
+`page_size=4096`, `mem_base_addr_align_bits=1024`, `svm_caps=0xb`. The list has
+`cl_qcom_dmabuf_host_ptr` and `cl_qcom_ext_host_ptr_iocoherent`, but lacks both import APIs this
+implementation supports (`cl_qcom_ion_host_ptr` and `cl_khr_external_memory_dma_buf`).
+`cl_qcom_dmabuf_host_ptr` is not implemented because its public struct/spec was unavailable.
+
+The report's rpcmem probe command returned `EXIT=0` but `INFO dmabuf alloc rpcmem rc -1`; a retry
+with `/vendor/lib64` prepended to `LD_LIBRARY_PATH` returned the same. The system dma-heap probe
+also returned `EXIT=0`, `INFO dmabuf alloc system rc -1`. Allocation failure prevented all import
+policy/coherence rows, so this run has no `nosync`/`synced` comparison. Normal-buffer probe passed:
+GEMM error `1.023e-05`, GEMV1 error `6.378e-07`. Sweep `55.8–56.0 GB/s` and GEMV `28.8–29.4
+weights_GB/s` are **plugged, not a measurement**; no imported-buffer bandwidth was obtained.
+
+#### KLD, ubatch 128
+
+Same two-chunk fixture and CPU base as the prior protocol. G0 normal GPU control: `EXIT=0`,
+`Mean KLD 0.000951 ± 0.000058`, max `0.015517`, same-top `97.451 ± 0.699%`, PPL
+`32.152178 ± 4.833061`; dispatch log includes `kernel_gemm_noshuffle_q4_0_f32`. No
+`GPUOpenCL model buffer size` line was emitted, so this log does not provide a measured buffer size.
+
+G1 raw attempt: binary `EXIT=0`; printed `Mean KLD 0.001096 ± 0.000051`, max `0.009303`,
+same-top `98.824 ± 0.478%`, PPL `32.263537 ± 4.853336`. **Invalid as a raw-path correctness
+result:** it logged `ggml_opencl_rawq4_import_dmabuf: no usable dma-buf import extension` three
+times; there were no imported-buffer INFO lines or `HTP0:0-HOST model buffer size` lines, and the
+dispatch log has `kernel_mul_mm_f16_f32_l4_lm` but no
+`kernel_mul_mm_q4_0_f32_l4_lm_raw`. The numerical KLD gate alone passes, but one-copy placement
+and raw Q4 dispatch were not proved. This is the explicit §6 stop condition, so the ubatch-1
+decode arms were not run.
+
+Other captured failure: HTP initialization logged `HTP0:0 failed to get URI ... error 0x14`,
+then said it was “Falling back to single session URI”; G1 still exited successfully. Captured
+logcats show no fatal signal or GPU fault/reset. Full probe, KLD, gates, device hashes and logcats
+are in `raw/s23-20260928-gpu-correctness/`.
