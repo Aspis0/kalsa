@@ -31,6 +31,10 @@ interface PairedDevice {
   // door's 401 until Allow. Absent reads as allowed, the state every
   // stored device had before approval existed.
   waiting?: boolean;
+  // Present only on a waiting record whose phone already holds an allowed
+  // seat: that seat's id. The request is drawn on the seat's row, and this
+  // record never gets one of its own.
+  pairing_again?: number | null;
 }
 
 /** What `brain_pairing` answers: one read, polled; two decisions and a retry. */
@@ -56,7 +60,9 @@ interface PairingState {
 // is named — naming it IS naming the house — while several are counted,
 // because naming one of many reads as if the others were not real. This
 // computer's own row is not a phone and is never part of the count: "now
-// works with This computer" is not a sentence about a pairing. A phone
+// works with This computer" is not a sentence about a pairing. Nor is a
+// record that is pairing again: it is drawn on its seat's row, and the
+// house has one phone there, not two. A phone
 // still waiting for Allow is not one this computer works with yet, so the
 // success sentence is computed from approved phones only. Where phones are
 // waiting, the sentence says the wait instead — a single waiting phone is
@@ -69,7 +75,7 @@ interface PairingState {
 // wrong phone would not be.
 function pairedSentence(dto: PairingState): string {
   const phones = (Array.isArray(dto.devices) ? dto.devices : []).filter(
-    (device) => device.kind !== "host",
+    (device) => device.kind !== "host" && device.pairing_again == null,
   );
   const waiting = phones.filter((device) => device.waiting === true);
   const approved = phones.filter((device) => device.waiting !== true);
@@ -109,8 +115,10 @@ function pairedSentence(dto: PairingState): string {
 // headline speaks for the house: while nothing is approved, "Paired" would
 // claim a working phone; a mixed house keeps it for the approved ones.
 function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
+  // A record that is pairing again is not a phone of its own: the headline
+  // speaks for the seats the house has.
   const phones = (Array.isArray(devices) ? devices : []).filter(
-    (device) => device.kind !== "host",
+    (device) => device.kind !== "host" && device.pairing_again == null,
   );
   return phones.length > 0 && phones.every((device) => device.waiting === true);
 }
@@ -382,6 +390,14 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       state?.state === "paired" ||
       state?.failure === "could-not-save");
 
+  // The request is drawn on the seat it belongs to: a waiting record whose
+  // phone already has an allowed seat never gets a row of its own, so one
+  // phone never becomes two on screen.
+  const requests = new Map<number, PairedDevice>();
+  for (const device of devices) {
+    if (device.pairing_again != null) requests.set(device.pairing_again, device);
+  }
+
   return (
     <div className="surface-page">
       <h2>Pairing</h2>
@@ -421,13 +437,21 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // fresh one. The command refuses it too; the row simply does not
             // offer it.
             const host = device.kind === "host";
+            // A request to pair again gets no row of its own: it is drawn on
+            // the seat it belongs to, so a phone this house already has never
+            // becomes a second one on screen.
+            if (device.pairing_again != null) return null;
+            const name = device.label ?? (host ? "This computer" : `device ${device.id}`);
+            const request = requests.get(device.id);
             return (
               <div key={device.id} className="surface-device">
-                <span className="surface-device-name">
-                  {device.label ?? (host ? "This computer" : `device ${device.id}`)}
-                </span>
+                <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
-                  {device.waiting ? "Waiting for your OK." : (device.phone ?? "")}
+                  {device.waiting
+                    ? "Waiting for your OK."
+                    : request
+                      ? `${name} is pairing again.`
+                      : (device.phone ?? "")}
                 </span>
                 {host ? null : device.waiting ? (
                   <>
@@ -435,6 +459,18 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                       Allow
                     </button>
                     <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
+                      Refuse
+                    </button>
+                  </>
+                ) : request ? (
+                  // The buttons belong to the REQUEST, not the seat: Deny
+                  // takes the request back and leaves this phone, its label
+                  // and its credential exactly where they are.
+                  <>
+                    <button type="button" className="btn-quiet" onClick={() => allowDevice(request.id)}>
+                      Allow
+                    </button>
+                    <button type="button" className="btn-quiet" onClick={() => forgetDevice(request.id)}>
                       Refuse
                     </button>
                   </>

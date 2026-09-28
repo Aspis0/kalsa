@@ -665,7 +665,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, disabledButtons, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -757,6 +757,20 @@ try {
         problems.push(`a copy that worked never shows the link: ${heading}`);
       }
     }
+    if (heading.includes("a phone is pairing again")) {
+      if (deviceNames.includes("Paired phone 5")) {
+        problems.push(`a pairing-again request gets no row of its own: ${heading}`);
+      }
+      if (!all.includes("Paired phone 4 is pairing again.")) {
+        problems.push(`the seat's row says the request in the owner's own words: ${heading}`);
+      }
+      if (forgetIds.includes(4)) {
+        problems.push(`Deny must not touch the seat: ${heading}`);
+      }
+      if (!forgetIds.includes(5)) {
+        problems.push(`Deny must act on the waiting record: ${heading}`);
+      }
+    }
     if (heading.includes("an invitation is taking longer than usual")) {
       if (!all.includes("This is taking longer than usual. If the invitation appears below, copy its link from there.")) {
         problems.push(`a slow create says so: ${heading}`);
@@ -832,7 +846,11 @@ try {
     // command asks is_host, and Desk::forget_device refuses the id).
     if (deviceNames.includes("This computer")) {
       const forgets = buttons.filter((text) => text === "Forget").length;
-      const approvedPhones = phones - waitingRows;
+      // A seat that is pairing again carries Allow/Deny for the request
+      // instead of Forget: one phone, one row, and no Forget while the
+      // request stands.
+      const pairingAgain = deviceDetails.filter((detail) => detail.endsWith("is pairing again.")).length;
+      const approvedPhones = phones - waitingRows - pairingAgain;
       if (forgets !== approvedPhones) {
         problems.push(`every Forget must belong to an approved phone and none to This computer: ${heading} (${forgets} Forget for ${approvedPhones} approved phones)`);
       }

@@ -146,6 +146,12 @@ pub(crate) struct PairedDeviceDto {
     /// the door's 401 until Allow, and the page draws Allow/Refuse with
     /// no success sentence for it.
     waiting: bool,
+    /// Set only on a WAITING record whose phone already holds an ALLOWED
+    /// seat: that seat's id, so the page draws the request on the seat's
+    /// row instead of giving a phone it already has a second row. The
+    /// install id the match was made on never leaves this process — this
+    /// is the whole of what crosses to the page.
+    pairing_again: Option<u32>,
 }
 
 impl PairingDto {
@@ -338,6 +344,20 @@ impl Desk {
     /// words, and nothing is owed that cannot be read.
     fn house(&self, now: SystemTime) -> (Vec<PairedDeviceDto>, bool) {
         let devices = kalsa_pairing::store::load_devices(&self.file).unwrap_or_default();
+        // A waiting record whose phone already has an allowed seat is not a
+        // second phone: the page draws its request on THAT seat's row, so
+        // only the seat's id crosses to it — matched here, from the install
+        // ids this process already holds.
+        let seats: Vec<(String, u32)> = devices
+            .iter()
+            .filter(|device| !device.waiting)
+            .filter_map(|device| {
+                device
+                    .install_id
+                    .clone()
+                    .map(|install| (install, device.id))
+            })
+            .collect();
         let owed = devices.iter().any(|device| {
             device
                 .delivery
@@ -346,14 +366,27 @@ impl Desk {
         });
         let rows = devices
             .into_iter()
-            .map(|device| PairedDeviceDto {
-                id: device.id,
-                label: device.label,
-                kind: device.kind.word(),
-                // The capability sentence is a phone's; a host has none to
-                // give, and the row's rendering is a later commit's decision.
-                phone: device.handshake.phone.map_or_else(String::new, phone_label),
-                waiting: device.waiting,
+            .map(|device| {
+                let pairing_again = if device.waiting {
+                    device.install_id.as_deref().and_then(|install| {
+                        seats
+                            .iter()
+                            .find(|(seat, _)| seat == install)
+                            .map(|(_, id)| *id)
+                    })
+                } else {
+                    None
+                };
+                PairedDeviceDto {
+                    id: device.id,
+                    label: device.label,
+                    kind: device.kind.word(),
+                    // The capability sentence is a phone's; a host has none to
+                    // give, and the row's rendering is a later commit's decision.
+                    phone: device.handshake.phone.map_or_else(String::new, phone_label),
+                    waiting: device.waiting,
+                    pairing_again,
+                }
             })
             .collect();
         (rows, owed)

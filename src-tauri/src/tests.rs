@@ -3337,6 +3337,34 @@ fn phone_rows(file: &Path) -> Vec<kalsa_pairing::store::StoredDevice> {
         .collect()
 }
 
+/// One invitation completed end to end with an install id — mint, claim,
+/// complete — the way the phone's wire carries one: the id of the record
+/// the store just wrote.
+fn pair_once_with_install(
+    desk: &pairing::Desk,
+    at: SystemTime,
+    address: &str,
+    node: &str,
+    install: &str,
+) -> u32 {
+    let link = desk
+        .invites()
+        .create(address, Some(node), None, at)
+        .expect("the set is writable")
+        .expect("an invitation carries a link");
+    let (code, nonce, reachable, _) = square_of_link(&link);
+    assert!(desk.claim(&code, at + Duration::from_secs(1)));
+    desk.complete(
+        declaration_with_install(&code, &nonce, &reachable, node, install),
+        at + Duration::from_secs(2),
+    )
+    .expect("the ceremony completes");
+    phone_rows(desk.file())
+        .last()
+        .expect("a record was written")
+        .id
+}
+
 #[test]
 fn the_same_phone_pairing_again_keeps_its_seat_after_allow() {
     // One install behind two invitations: the second completion is a new
@@ -3353,30 +3381,14 @@ fn the_same_phone_pairing_again_keeps_its_seat_after_allow() {
     let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
     let install = "d0".repeat(16);
 
-    let pair_once = |at: SystemTime| -> u32 {
-        let link = desk
-            .invites()
-            .create(address, Some(node), None, at)
-            .expect("the set is writable")
-            .expect("an invitation carries a link");
-        let (code, nonce, reachable, _) = square_of_link(&link);
-        assert!(desk.claim(&code, at + Duration::from_secs(1)));
-        desk.complete(declaration_with_install(&code, &nonce, &reachable, node, &install), at + Duration::from_secs(2))
-            .expect("the ceremony completes");
-        phone_rows(desk.file())
-            .last()
-            .expect("a record was written")
-            .id
-    };
-
-    let seat = pair_once(start);
+    let seat = pair_once_with_install(&desk, start, address, node, &install);
     desk.allow_device(seat).expect("the owner admits the first phone");
     let first_rows = phone_rows(desk.file());
     assert_eq!(first_rows.len(), 1);
     let label = first_rows[0].label.clone();
     let old_credential = first_rows[0].handshake.credential_hex();
 
-    let pending = pair_once(start + Duration::from_secs(10));
+    let pending = pair_once_with_install(&desk, start + Duration::from_secs(10), address, node, &install);
     let waiting = phone_rows(desk.file());
     assert_eq!(waiting.len(), 2, "the new ceremony is its own record");
     assert_eq!(
@@ -3406,3 +3418,72 @@ fn the_same_phone_pairing_again_keeps_its_seat_after_allow() {
     assert!(on_disk.contains(&folded[0].handshake.credential_hex()));
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// The phone's own node id: the square and the invitation both carry it,
+/// and the completion's MAC covers it.
+const REPAIR_NODE: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+
+#[test]
+fn a_waiting_record_names_the_seat_it_pairs_again_with() {
+    // The owner's case: the same phone, mid re-pair. The DTO hands the page
+    // the seat's id on the WAITING record and nothing else — never the
+    // install id the match was made on.
+    let (dir, desk) = scratch_invite_desk("dto-pairing-again");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    let _ = desk.read(true, address, None, None, start);
+    let install = "d0".repeat(16);
+
+    let seat = pair_once_with_install(&desk, start, address, REPAIR_NODE, &install);
+    desk.allow_device(seat).expect("the owner admits the phone");
+    let waiting =
+        pair_once_with_install(&desk, start + Duration::from_secs(10), address, REPAIR_NODE, &install);
+
+    let dto = serde_json::to_value(desk.read(true, address, None, None, start)).unwrap();
+    let rows = dto["devices"].as_array().expect("the house");
+    let seat_row = rows
+        .iter()
+        .find(|row| row["id"].as_u64() == Some(seat as u64))
+        .expect("the seat is in the house");
+    let waiting_row = rows
+        .iter()
+        .find(|row| row["id"].as_u64() == Some(waiting as u64))
+        .expect("the waiting record is in the house");
+    assert_eq!(
+        seat_row["pairing_again"], serde_json::Value::Null,
+        "the seat is not a request"
+    );
+    assert_eq!(
+        waiting_row["pairing_again"].as_u64(),
+        Some(seat as u64),
+        "the waiting record names its seat"
+    );
+
+    // The match was made inside this process: what crosses to the page is an
+    // id, and the identity it was matched on is not in the answer at all.
+    let wire = dto.to_string();
+    assert!(!wire.contains("install_id"), "the install id never reaches the page: {wire}");
+    assert!(!wire.contains(&install), "not as a key, not as a value: {wire}");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_waiting_record_with_no_allowed_seat_names_none() {
+    // The other half of "only when": the same identity, twice, and no seat
+    // the owner has admitted — two ordinary phones waiting for Allow, and
+    // no pairing_again anywhere.
+    let (dir, desk) = scratch_invite_desk("dto-no-seat");
+    let start = SystemTime::now();
+    let address = "http://127.0.0.1:1";
+    let _ = desk.read(true, address, None, None, start);
+    let install = "d0".repeat(16);
+
+    pair_once_with_install(&desk, start, address, REPAIR_NODE, &install);
+    pair_once_with_install(&desk, start + Duration::from_secs(10), address, REPAIR_NODE, &install);
+
+    let dto = serde_json::to_value(desk.read(true, address, None, None, start)).unwrap();
+    let rows = dto["devices"].as_array().expect("the house");
+    assert!(rows.iter().all(|row| row["pairing_again"].is_null()), "no seat, no pairing again: {dto}");
+    let _ = std::fs::remove_dir_all(dir);
+}
+

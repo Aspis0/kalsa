@@ -267,6 +267,11 @@ pub struct StoredDevice {
     /// The owner has not allowed this device yet. False for every record
     /// written before approval existed, and never true for the host.
     pub waiting: bool,
+    /// The phone app's install identity this record was written with, when
+    /// the ceremony carried one. Matched here in the shell to tell a phone
+    /// that pairs again from a second phone; it never leaves this process —
+    /// no DTO, no event, no log carries it.
+    pub install_id: Option<String>,
 }
 
 /// Write the handshake result as the store's first device. The parent
@@ -447,6 +452,7 @@ fn add_device_record(
         handshake: handshake.clone(),
         delivery,
         waiting,
+        install_id: install_id.map(str::to_string),
     })
 }
 
@@ -517,6 +523,7 @@ pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
         kind: DeviceKind::Host,
         handshake,
         delivery: None,
+        install_id: None,
         // The host record is never waiting: self-enrolment mints it
         // allowed, on every launch, and realize() refuses a hand edit
         // that says otherwise.
@@ -1011,6 +1018,7 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
             handshake,
             delivery: record.delivery.clone(),
             waiting: matches!(record.approval, Approval::Waiting),
+            install_id: record.install_id,
         },
         record.delivery,
     ))

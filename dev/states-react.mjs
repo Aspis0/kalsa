@@ -48,6 +48,11 @@ function pairedHouse() {
 }
 
 const INVITE_LINK = "https://kalsa.io/pair#stub";
+// A seat the owner admitted, and the waiting record behind it: the same
+// phone mid re-pair. The record's own label is the number the store would
+// have minted — the page must never draw it as a second phone.
+const REPAIR_SEAT = { id: 4, label: "Paired phone 4", phone: "phone with 2 GB of model weights", kind: "phone" };
+const REPAIR_REQUEST = { id: 5, label: "Paired phone 5", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 };
 /// The command's own words for "the road is not open", verbatim from
 /// src-tauri/src/invites.rs NO_ROAD — the page shows them as they are.
 const NO_ROAD =
@@ -271,6 +276,7 @@ const scenarios = [
   // …and one that settles only after the bound: the gesture that answer
   // belongs to is stale, so nothing is copied and nothing is announced —
   // the list is read from the source instead, and the invitation is there.
+  ["Pairing", "a phone is pairing again", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
@@ -307,16 +313,24 @@ let eventHandlers = new Set();
 let propsReads = 0;
 let pairingReads = 0;
 let inviteListReads = 0;
+let forgetIds = [];
 
 function installBridge() {
   propsReads = 0;
   pairingReads = 0;
   inviteListReads = 0;
+  forgetIds.length = 0;
   globalThis.window.__TAURI__ = bridgeState.available === false
     ? undefined
     : {
         core: {
-          invoke(command) {
+          invoke(command, args) {
+            if (command === "brain_pairing_forget_device") {
+              // Which id the page's Refuse actually asked for: the seat's or
+              // the waiting record's. The rule that cares reads it back.
+              forgetIds.push(args?.id ?? -1);
+              return Promise.resolve(null);
+            }
             if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
             if (command === "brain_pairing") {
               // The shapes a real open takes: a read that has not answered
@@ -471,6 +485,8 @@ function extract(panel, heading, automatic = []) {
     // place a link may appear, and it is an input's, never a sentence's.
     fallbackLinks: inputEls.map((el) => String(el.value ?? "")),
     disabledButtons: disabledEls.map(elementText),
+    // Which ids the page's Refuse asked for in this card.
+    forgetIds: [...forgetIds],
     // The WHOLE document, not just this card: a link the copy path left
     // behind in the body, or in a field outside the card, must be visible
     // to the rule that forbids it.
