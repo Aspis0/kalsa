@@ -299,9 +299,10 @@ fn capability_does_not_need_a_battery() {
 
 #[test]
 fn a_small_card_is_not_bypassed_by_the_system_ram() {
-    // 32 GiB of RAM would fit the 20.6 GiB MoE; the 5 GiB card gives a
-    // 2 GiB budget, and the smallest row in the catalog needs 3.7 GiB at
-    // the chooser's 65_536-token window, so nothing fits. The machine is refused — a model sized to its
+    // 32 GiB of RAM would fit the 20.6 GiB MoE; the 4 GiB card gives a
+    // 3 GiB budget after its one-GiB floor ([`VRAM_MARGIN_BYTES`]), and the
+    // smallest row in the catalog needs 3.7 GiB at the chooser's 65_536-token
+    // window, so nothing fits. The machine is refused — a model sized to its
     // RAM would spill across both memories, and the spill is a loss.
     let biggest_on_ram = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
@@ -311,7 +312,7 @@ fn a_small_card_is_not_bypassed_by_the_system_ram() {
             <= usable_bytes(32 * GIB),
         "the RAM alone would have allowed the 35B row, which is what makes this test real"
     );
-    let (reason, explanation) = refusal(&pc(32, Some(5)));
+    let (reason, explanation) = refusal(&pc(32, Some(4)));
     assert_eq!(reason, RefusalReason::NothingFits);
     assert!(explanation.contains("GiB"), "{explanation}");
 }

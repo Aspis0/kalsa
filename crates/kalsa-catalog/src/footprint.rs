@@ -29,6 +29,19 @@ pub const GIB: u64 = 1024 * MIB;
 pub const MARGIN_FLOOR_BYTES: u64 = 3 * GIB;
 pub const MARGIN_FRACTION: f64 = 0.25;
 
+/// What the card keeps for everything that is not the model, as its own
+/// measured floor rather than the RAM margin. One GiB — the number the
+/// engine's planner already refuses to go under (`will leave 1515 >= 1024
+/// MiB of free device memory`, twice, in the load log quoted at
+/// docs/VRAM-LENOVO-2026-09-28.md §3), measured on the owner's Lenovo
+/// (§6): the worst peak on that card, 3 800 MiB, still left 2 341 MiB of
+/// the 6 141 MiB card free, against an idle desktop that read 0 MiB there
+/// and at most ≈ 221 MiB on 09-26 (§4). The owner approved replacing
+/// `max(3 GiB, 25%)` with this: "replace the VRAM margin with a smaller,
+/// measured one". A percentage of a small card was never what the desktop
+/// took from it.
+pub const VRAM_MARGIN_BYTES: u64 = GIB;
+
 /// The compute buffers (the micro-batch's attention and FFN intermediates):
 /// they follow the batch, not the model, which is the naive formula's first
 /// mistake. Measured on the shipped build with a 4 GiB MoE row at
@@ -71,16 +84,18 @@ pub struct MemoryBudget {
 
 /// The budget for this machine's path. A model that will decode on a discrete
 /// GPU is budgeted by the card's memory, because system RAM is irrelevant to
-/// it: a 32 GiB PC with a 6 GiB card is a 3 GiB machine for this decision.
-/// The margin applies to VRAM the same way it applies to RAM — the desktop
-/// compositor and the browser keep VRAM for themselves exactly as the OS
-/// keeps RAM, and no fraction of a small card is enough for them either.
+/// it: a 32 GiB PC with a 6 GiB card is a machine with a 6 GiB card for this
+/// decision. The card's margin is its own floor — [`VRAM_MARGIN_BYTES`], one
+/// GiB, the number the engine's planner enforces and the desktop on the
+/// machine that measured it never approached (docs/VRAM-LENOVO-2026-09-28.md
+/// §3–§4) — not [`MARGIN_FLOOR_BYTES`]/[`MARGIN_FRACTION`], which stay the
+/// RAM margin for the paths that run in RAM.
 pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
     match backend {
         Backend::DiscreteGpu {
             vram_bytes: Some(vram),
         } => MemoryBudget {
-            usable_bytes: usable_bytes(vram),
+            usable_bytes: vram.saturating_sub(VRAM_MARGIN_BYTES),
             gpu_accounted_for: true,
         },
         // Unified memory: the GPU decodes out of system RAM, so the RAM budget
@@ -243,17 +258,43 @@ mod tests {
     }
 
     #[test]
+    fn the_card_budget_is_the_measured_floor_not_a_share_of_the_card() {
+        // The owner's Lenovo, as the measurement report states it
+        // (docs/VRAM-LENOVO-2026-09-28.md §6): the card reads 6 141 MiB and
+        // the approved floor is one GiB, so the budget is 5 117 MiB — the
+        // number the measured peaks (3 800, 3 496, 3 436, 3 132 MiB) all
+        // fit with room to spare. The RAM side is untouched: 32 GiB still
+        // budgets 24 GiB, and Metal still budgets RAM less 25%.
+        let card = memory_budget(
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_141 * MIB),
+            },
+            32 * GIB,
+        );
+        assert_eq!(card.usable_bytes, 5_117 * MIB, "the report's own figure");
+        assert_eq!(card.usable_bytes, 6_141 * MIB - VRAM_MARGIN_BYTES);
+
+        let ram = memory_budget(Backend::Cpu, 32 * GIB);
+        assert_eq!(ram.usable_bytes, usable_bytes(32 * GIB));
+        let mac = memory_budget(Backend::Metal, 16 * GIB);
+        assert_eq!(mac.usable_bytes, usable_bytes(16 * GIB));
+    }
+
+    #[test]
     fn the_budget_follows_the_path_the_model_will_take() {
         // A discrete card is budgeted by its own memory, not the machine's
-        // RAM: a 32 GiB PC with a 6 GiB card is a 3 GiB machine for this
-        // decision, and the RAM it also has must not size the model.
+        // RAM: a 32 GiB PC with a 6 GiB card is a machine with a 6 GiB card
+        // for this decision, and the RAM it also has must not size the
+        // model. The card's margin is its own one-GiB floor (measured —
+        // [`VRAM_MARGIN_BYTES`]), not the RAM margin the rest of this test
+        // keeps pinning.
         let card = memory_budget(
             Backend::DiscreteGpu {
                 vram_bytes: Some(6 * GIB),
             },
             32 * GIB,
         );
-        assert_eq!(card.usable_bytes, 3 * GIB);
+        assert_eq!(card.usable_bytes, 6 * GIB - VRAM_MARGIN_BYTES);
         assert!(card.gpu_accounted_for);
 
         // Apple Silicon decodes through Metal out of unified memory: system
