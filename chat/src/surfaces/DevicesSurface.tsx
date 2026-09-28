@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
 import type { InviteList } from "./InvitePanel";
@@ -8,6 +9,26 @@ import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
+
+// A forgotten row takes this long to fold out of the list before it leaves
+// it. The same number times the CSS the row animates with, so the box and
+// the timer are one beat written once.
+const FOLD_MS = 250;
+
+// The same read App.tsx makes: under reduced motion nothing is animated, so
+// a forgotten row is simply gone — which is how it always went.
+function reducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+// The owner's line about capacity, kept whole because dev/smoke-react.mjs
+// keeps its own copy and enforces it. "Four" mirrors WORKERS in
+// crates/kalsa-door/src/lib.rs:88 — change both together.
+const CAPACITY_LINE =
+  "Up to four phones can get answers at the same time. If more ask at once, the others wait a few seconds for their turn.";
 
 // The approved ways to say the square is the way in, that it was replaced,
 // and who may use it. dev/smoke-react.mjs keeps its own copy of these on the
@@ -189,9 +210,18 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   const inFlight = useRef(false);
   const generation = useRef(0);
   const live = useRef(false);
+  // A row that is folding out of the list: which one, and what it stood as
+  // when the command that removes it was pressed. The ref is what the poll
+  // reads — a read landing mid-fold would drop the row before its beat.
+  const [folding, setFolding] = useState<{ id: number; height: number } | null>(null);
+  const foldingId = useRef<number | null>(null);
+  const foldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The rows themselves, by device: a fold animates from the height the row
+  // really stands as, and only the row can say what that is.
+  const rowRefs = useRef(new Map<number, HTMLDivElement>());
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (!live.current || inFlight.current) return;
+    if (!live.current || inFlight.current || foldingId.current !== null) return;
     inFlight.current = true;
     const mine = ++generation.current;
     const stillMine = (): boolean => live.current && mine === generation.current;
@@ -247,6 +277,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     return () => {
       live.current = false;
       clearInterval(timer);
+      if (foldTimer.current !== null) clearTimeout(foldTimer.current);
     };
   }, [refresh]);
 
@@ -254,8 +285,86 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     void invoke("brain_pairing_retry").catch(() => {});
   }
 
-  function forgetDevice(id: number): void {
+  // The row's record is out of the store; this takes it out of what the page
+  // shows, so the fold ends with the list it started from — the next poll
+  // confirms the same thing from the store itself.
+  function removeRow(id: number): void {
+    setState((current) =>
+      current !== null && Array.isArray(current.devices)
+        ? { ...current, devices: current.devices.filter((device) => device.id !== id) }
+        : current,
+    );
+  }
+
+  // Refuse a request riding on its seat's row: the waiting record behind it
+  // goes, the seat and its phone stay — the row is not the record, so
+  // nothing folds.
+  function denyRequest(id: number): void {
     void invoke("brain_pairing_forget_device", { id }).catch(() => {});
+  }
+
+  // Forget, with the beat the owner approved: the row folds out of the list
+  // and only then leaves it, so the rows below move with it instead of
+  // jumping up. The store has already changed when this runs — the command
+  // resolved — so what follows is presentation only, and a failure means the
+  // row never moved at all.
+  function forgetDevice(id: number): void {
+    // Measured while the row still stands: the collapse animates from the
+    // height it really has, never from an estimate.
+    const row = rowRefs.current.get(id);
+    const height = typeof row?.offsetHeight === "number" ? row.offsetHeight : 0;
+    void invoke("brain_pairing_forget_device", { id })
+      .then(() => {
+        if (!live.current) return;
+        if (reducedMotion()) {
+          removeRow(id);
+          return;
+        }
+        setFolding({ id, height });
+        foldingId.current = id;
+        foldTimer.current = setTimeout(() => {
+          foldTimer.current = null;
+          foldingId.current = null;
+          setFolding(null);
+          removeRow(id);
+        }, FOLD_MS);
+        // Two frames: one for the browser to take the height the row stands
+        // as, one to move away from it — a transition needs both sides
+        // computed apart. Not every page this runs on hands out frames, and
+        // a plain task does the same job where nobody is watching motion.
+        const frame = (step: () => void): void => {
+          if (typeof requestAnimationFrame === "function") requestAnimationFrame(step);
+          else setTimeout(step, 0);
+        };
+        frame(() => {
+          if (!live.current) return;
+          frame(() => {
+            if (live.current) setFolding({ id, height: 0 });
+          });
+        });
+      })
+      .catch(() => {});
+  }
+
+  // What a row that is folding wears: its height pinned, then gone — the box
+  // gives up its padding and its border with its height, so no sliver is
+  // left standing for the rows below to sit beside.
+  function foldStyle(id: number): CSSProperties | undefined {
+    if (folding === null || folding.id !== id) return undefined;
+    const transition = `height ${FOLD_MS}ms ease, padding ${FOLD_MS}ms ease, border-width ${FOLD_MS}ms ease, opacity ${FOLD_MS}ms ease`;
+    if (folding.height > 0) {
+      return { height: `${folding.height}px`, overflow: "hidden", transition };
+    }
+    return {
+      height: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      borderTopWidth: 0,
+      borderBottomWidth: 0,
+      opacity: 0,
+      overflow: "hidden",
+      transition,
+    };
   }
 
   function allowDevice(id: number): void {
@@ -393,6 +502,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // The request is drawn on the seat it belongs to: a waiting record whose
   // phone already has an allowed seat never gets a row of its own, so one
   // phone never becomes two on screen.
+  // A phone this house has already admitted — the line below speaks for the
+  // phones that can ask, and a phone still waiting for Allow is not one.
+  const hasPairedPhone = devices.some(
+    (device) => device.kind !== "host" && device.waiting !== true,
+  );
   const requests = new Map<number, PairedDevice>();
   for (const device of devices) {
     if (device.pairing_again != null) requests.set(device.pairing_again, device);
@@ -444,7 +558,15 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             const name = device.label ?? (host ? "This computer" : `device ${device.id}`);
             const request = requests.get(device.id);
             return (
-              <div key={device.id} className="surface-device">
+              <div
+                key={device.id}
+                className="surface-device"
+                ref={(element) => {
+                  if (element) rowRefs.current.set(device.id, element);
+                  else rowRefs.current.delete(device.id);
+                }}
+                style={foldStyle(device.id)}
+              >
                 <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
                   {device.waiting
@@ -470,7 +592,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                     <button type="button" className="btn-quiet" onClick={() => allowDevice(request.id)}>
                       Allow
                     </button>
-                    <button type="button" className="btn-quiet" onClick={() => forgetDevice(request.id)}>
+                    <button type="button" className="btn-quiet" onClick={() => denyRequest(request.id)}>
                       Refuse
                     </button>
                   </>
@@ -484,6 +606,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
           })}
         </div>
       ) : null}
+      {hasPairedPhone ? <p className="surface-quiet">{CAPACITY_LINE}</p> : null}
     </div>
   );
 }

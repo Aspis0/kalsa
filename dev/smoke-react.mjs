@@ -665,7 +665,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, deviceDetails, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceDetails, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -757,6 +757,27 @@ try {
         problems.push(`a copy that worked never shows the link: ${heading}`);
       }
     }
+    if (heading.includes("a forgotten phone folds first")) {
+      if (!deviceNames.includes("Paired phone")) {
+        problems.push(`a forgotten row is given its beat before it leaves: ${heading}`);
+      }
+      if (foldingRows < 1) {
+        problems.push(`the row's box gives way under its own transition: ${heading}`);
+      }
+    }
+    if (heading.includes("a forgotten phone is gone after the fold")) {
+      if (deviceNames.includes("Paired phone")) {
+        problems.push(`after the beat the row has left the list: ${heading}`);
+      }
+    }
+    if (heading.includes("a forget that fails keeps its row")) {
+      if (!deviceNames.includes("Paired phone")) {
+        problems.push(`a forget that failed leaves the row where it was: ${heading}`);
+      }
+      if (foldingRows > 0) {
+        problems.push(`nothing folds when nothing was forgotten: ${heading}`);
+      }
+    }
     if (heading.includes("a phone is pairing again")) {
       if (deviceNames.includes("Paired phone 5")) {
         problems.push(`a pairing-again request gets no row of its own: ${heading}`);
@@ -840,6 +861,19 @@ try {
     // approved phones and its waiting row says the rest.
     const phones = deviceNames.filter((name) => name !== "This computer").length;
     const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
+    // The owner's capacity line rides with the house it describes: any phone
+    // this computer already works with, and never for a house where every
+    // phone is still waiting for Allow.
+    const canAsk =
+      phoneNames.length - deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
+    if (canAsk > 0) {
+      if (!all.includes("Up to four phones can get answers at the same time. If more ask at once, the others wait a few seconds for their turn.")) {
+        problems.push(`a house with a paired phone says its capacity: ${heading}`);
+      }
+    } else if (all.includes("Up to four phones can get answers at the same time.")) {
+      problems.push(`no paired phone, no capacity line: ${heading}`);
+    }
+
     // The host row has no Forget: every Forget button on the page belongs
     // to an approved PHONE row, and "This computer" contributes none —
     // the rendering half of a promise the Rust side keeps too (the

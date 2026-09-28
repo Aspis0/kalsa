@@ -276,6 +276,12 @@ const scenarios = [
   // …and one that settles only after the bound: the gesture that answer
   // belongs to is stale, so nothing is copied and nothing is announced —
   // the list is read from the source instead, and the invitation is there.
+  // A forgotten row takes its beat: at 100 ms it is still there, folding.
+  ["Pairing", "a forgotten phone folds first", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 100 }],
+  // …and by 400 ms the beat is over: the row has left the list.
+  ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 400 }],
+  // A forget the store refuses: nothing folds, because nothing left.
+  ["Pairing", "a forget that fails keeps its row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Forget", waitMs: 400 }],
   ["Pairing", "a phone is pairing again", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
@@ -329,6 +335,7 @@ function installBridge() {
               // Which id the page's Refuse actually asked for: the seat's or
               // the waiting record's. The rule that cares reads it back.
               forgetIds.push(args?.id ?? -1);
+              if (bridgeState.forgetFails) return Promise.reject(new Error("the store refused"));
               return Promise.resolve(null);
             }
             if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
@@ -461,6 +468,10 @@ function extract(panel, heading, automatic = []) {
   const walkEl = first(panel, (el) => el.className === "surface-walk");
   const qrEl = first(panel, (el) => el.className === "surface-qr");
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
+  // A row whose box is already giving way — fading out under its own
+  // transition — which is the fold itself, not the list being shorter.
+  const rowEls = elements(panel, (el) => el.className === "surface-device");
+  const foldingRows = rowEls.filter((el) => String(el.style?.opacity ?? "1") === "0").length;
   const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
   const inviteEls = elements(panel, (el) => el.className === "surface-invite-name");
   const inputEls = elements(panel, (el) => el.tagName === "INPUT");
@@ -479,6 +490,7 @@ function extract(panel, heading, automatic = []) {
     walk: Boolean(walkEl),
     qr: Boolean(qrEl),
     deviceNames: deviceEls.map(elementText),
+    foldingRows,
     deviceDetails: detailEls.map(elementText),
     inviteNames: inviteEls.map(elementText),
     // The field a refused clipboard leaves behind, by value: this is the one
