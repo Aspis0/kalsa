@@ -1,12 +1,11 @@
 name: CI (typecheck + jest)
 
-# Lightweight gate for the feat/** branch line: TypeScript typecheck + the
-# jest suite, run in-band. No emulator — minutes, not the ~35-min E2E run.
-# Fires on push to any feat/** branch and on PRs; docs-only pushes are ignored
-# (a mutation matrix that runs on no push is decoration, not a gate).
+# Lightweight gate: TypeScript typecheck + the jest suite, run in-band. No
+# emulator — about 80 seconds, not the ~35-min E2E run. Fires on main and
+# feat/** pushes and feat/** pull requests; docs-only changes are ignored.
 on:
   push:
-    branches: [feat/**]
+    branches: [main, feat/**]
     paths-ignore:
       - "**/*.md"
       - LICENSE

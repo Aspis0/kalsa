@@ -25,7 +25,7 @@ on:
         options: ["default", budget256, budget512]
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  group: e2e-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -74,8 +74,8 @@ jobs:
         run: bash scripts/assert-overlay-includes.sh
 
       - name: Jest (bounded before inference)
-        # ci.yml fires only on feat/** branches, so manual E2E dispatches also
-        # run the unit suite before the emulator. Reuse its 15-minute bound.
+        # Manual E2E dispatches run the unit suite before the emulator, so they
+        # need its 15-minute timeout bound too.
         # A hang must not burn the 120-minute job budget and leave no E2E result.
         timeout-minutes: 15
         run: npx jest
