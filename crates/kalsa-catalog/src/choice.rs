@@ -390,6 +390,7 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         budget,
         too_slow,
         remaining,
+        ..
     } = match runnable_on(input) {
         Ok(answer) => answer,
         Err(refusal) => return Decision::Refuse(refusal),
@@ -525,8 +526,36 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     })
 }
 
-/// What the phone-free question answers with: the largest row this machine
-/// runs well, with what a page needs in order to show it. Deliberately
+/// The first card among rows that run — the row every second option is
+/// measured against. When some row on the tier clears its own dense line,
+/// the big dense row that cleared it is the smarter answer and leads; only
+/// a dense row at the big end HAS that line, and here it really cleared it.
+/// When the lines stand down — no row clears one — they withhold nobody and
+/// pick nobody: the fastest row this machine runs well leads, never the
+/// biggest. The full-precision file is already out of `pool`: it leads no
+/// card on either answer.
+fn leading_candidate<'a>(
+    answer: &Runnable,
+    pool: &[&'a Candidate<'static>],
+) -> Option<&'a Candidate<'static>> {
+    if answer.dense_lines_stand_down {
+        return pool
+            .iter()
+            .copied()
+            .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()));
+    }
+    pool.iter()
+        .copied()
+        .filter(|candidate| {
+            dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
+        })
+        .max_by_key(|candidate| candidate.entry.weights_bytes)
+        .or_else(|| pool.iter().copied().max_by_key(|candidate| candidate.entry.weights_bytes))
+}
+
+/// What the phone-free question answers with: the row this machine runs
+/// well that takes the first card — [`leading_candidate`] says which one —
+/// with what a page needs in order to show it. Deliberately
 /// smaller than a `Selection`: a selection carries a justification, and with
 /// no phone there is nothing to justify against — no comparison was made, so
 /// none may be implied.
@@ -550,9 +579,10 @@ pub struct RunnableRow {
 
 /// The catalog row this machine should run, phone or no phone: it fits the
 /// budget at [`CHOOSER_CONTEXT_TOKENS`] and even its pessimistic speed
-/// clears the usability floor — the biggest such row, unless a big dense row
-/// that cleared [`MINIMUM_DENSE_TOKENS_PER_SECOND`] is among them, which is
-/// the smarter answer and takes the first card. No phone is
+/// clears the usability floor — see [`leading_candidate`] for which of them
+/// takes the first card: the big dense row that cleared its line while some
+/// row clears one, and the fastest row there is while the lines stand down,
+/// never the biggest on a tier where no line can speak. No phone is
 /// involved, because "what can this computer run" does not need one — the
 /// phone decides whether the computer is an *upgrade*, which is [`choose`].
 /// `Err` exactly when `choose` would refuse without ever reaching the
@@ -571,19 +601,9 @@ pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusa
         .iter()
         .filter(|candidate| !full_precision_file(candidate.entry))
         .collect();
-    // The big dense row that cleared its line is the smarter answer and is
-    // shown as the first card; the biggest row beside it becomes the second
-    // option, measured against whatever is shown (`quicker_alternative`).
-    // With no big dense row qualifying, the biggest row that runs well is
-    // the pick, as always. The line identifies the class: only a dense row
-    // at the big end HAS this line, and it already cleared it to be here.
-    let chosen = pool
-        .iter()
-        .filter(|candidate| {
-            dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
-        })
-        .max_by_key(|candidate| candidate.entry.weights_bytes)
-        .or_else(|| pool.iter().max_by_key(|candidate| candidate.entry.weights_bytes))
+    // The first card is [`leading_candidate`]'s answer, whatever this tier
+    // is: the second card measures against that row (`quicker_alternative`).
+    let chosen = leading_candidate(&answer, &pool)
         .expect("runnable_on answers remaining only when it is not empty");
     Ok(row(chosen, answer.budget))
 }
@@ -659,6 +679,30 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         Some(phone) => justification(candidate, &phone).is_some(),
         None => true,
     };
+    // The row on the first card, answered the way `largest_that_runs_well`
+    // answers it, so the second option can never be that model again — the
+    // pair a page shows must read as two models, not one twice.
+    let first_card_pool: Vec<&Candidate> = answer
+        .remaining
+        .iter()
+        .filter(|candidate| !full_precision_file(candidate.entry))
+        .collect();
+    let lead_name = leading_candidate(&answer, &first_card_pool)
+        .map(|candidate| candidate.entry.display_name);
+    let not_the_first = |candidate: &Candidate| lead_name != Some(candidate.entry.display_name);
+    if answer.dense_lines_stand_down {
+        // The lines stand down, so there is no line to clear beside the
+        // pick: speed answers both cards — the next fastest row that runs
+        // well, above the reading floor like every row here, and never the
+        // first card's own model again. Size is not asked at all.
+        return answer
+            .remaining
+            .iter()
+            .filter(|candidate| not_the_first(candidate))
+            .filter(|candidate| justified(candidate))
+            .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()))
+            .map(|candidate| row(candidate, answer.budget));
+    }
     let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
     let quick = answer
         .remaining
@@ -724,6 +768,10 @@ struct Runnable {
     /// Rows that fit and are not provably too slow: everything either
     /// question can actually offer.
     remaining: Vec<Candidate<'static>>,
+    /// The stand-down: no row here clears its own dense line, so the lines
+    /// are withholding nobody and cannot pick either. Where the lines would
+    /// have decided, speed decides instead — see [`leading_candidate`].
+    dense_lines_stand_down: bool,
 }
 
 /// The machine's half of any answer, phone or no phone. The `Err` arms are
@@ -840,6 +888,7 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         budget,
         too_slow,
         remaining,
+        dense_lines_stand_down: !any_clears,
     })
 }
 

@@ -269,7 +269,8 @@ pub(crate) fn dto(
             // The commonest first run has no phone paired. `choose` answers
             // "is this computer an upgrade?" and without a phone that has no
             // answer; the page asks "what can this computer run?", and that
-            // one is answerable — the largest row that fits and runs well.
+            // one is answerable — the row that fits and runs well: the big
+            // dense row that clears its line, the fastest row when none does.
             // Every other refusal is a real one and keeps its own words.
             RefusalReason::PhoneUnknown => match largest_that_runs_well(&input) {
                 Ok(row) => {

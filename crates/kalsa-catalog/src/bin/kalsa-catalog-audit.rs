@@ -14,8 +14,8 @@ mod audit_config;
 
 use kalsa_catalog::{
     audit::{inspect, RowAssessment},
-    choose, memory_budget, ChoiceInput, Decision, DownloadPlan, PhoneModel, Prediction, Standing,
-    CATALOG, GIB,
+    choose, largest_that_runs_well, memory_budget, quicker_alternative, ChoiceInput, Decision,
+    DownloadPlan, PhoneModel, Prediction, RefusalReason, RunnableRow, Standing, CATALOG, GIB,
 };
 
 use audit_config::Config;
@@ -93,6 +93,38 @@ fn print_tier(tier: u64, base: ChoiceInput) {
             println!("            {bytes} bytes, sha256 {sha256}");
             Some((selection.repo, selection.quant, selection.weights_bytes))
         }
+        // No phone is not no choice: the page answers "what can this
+        // computer run?" with the phone-free question — capability.rs takes
+        // this same refusal down that road — so the report shows those two
+        // cards, stand-down included: nothing clears a line there, and speed
+        // rather than size picked them.
+        Decision::Refuse(refusal) if refusal.reason == RefusalReason::PhoneUnknown => {
+            match largest_that_runs_well(&input) {
+                Ok(first) => {
+                    print_winner(&first);
+                    if let Some(second) = quicker_alternative(&input, &first.decode) {
+                        println!(
+                            "second: {} | repo={} | quant={} | weights={} | \
+                             footprint={} | decode: {}",
+                            second.entry.display_name,
+                            second.entry.repo,
+                            second.entry.quant,
+                            gibs(second.entry.weights_bytes),
+                            gibs(second.footprint.total_bytes()),
+                            prediction(&second.decode)
+                        );
+                    }
+                    Some((first.entry.repo, first.entry.quant, first.entry.weights_bytes))
+                }
+                Err(fallback) => {
+                    println!(
+                        "winner: REFUSED | {:?}: {}",
+                        fallback.reason, fallback.explanation
+                    );
+                    None
+                }
+            }
+        }
         Decision::Refuse(refusal) => {
             println!(
                 "winner: REFUSED | {:?}: {}",
@@ -104,6 +136,8 @@ fn print_tier(tier: u64, base: ChoiceInput) {
     // The dense floors are conditional in the chooser (choice.rs): they
     // withhold a row only while some row on the menu clears its own line.
     // The report mirrors that, or it would withhold rows the chooser starts.
+    // The same stand-down orders the phone-free cards above: speed when no
+    // line can speak, size when one did.
     let any_clears_line = rows
         .iter()
         .filter(|row| on_the_menu(row, budget, input.ram_bytes))
@@ -137,6 +171,26 @@ fn print_tier(tier: u64, base: ChoiceInput) {
 /// other row on the menu clears its own (choice.rs). `offered` means on
 /// this machine's menu; the pick is one of them, chosen by preference,
 /// which is a separate question with its own sentence below.
+/// The phone-free first card, in this report's own shape.
+fn print_winner(row: &RunnableRow) {
+    println!(
+        "winner: {} | repo={} | quant={} | weights={} | footprint={}",
+        row.entry.display_name,
+        row.entry.repo,
+        row.entry.quant,
+        gibs(row.entry.weights_bytes),
+        gibs(row.footprint.total_bytes())
+    );
+    println!("  decode: {}", prediction(&row.decode));
+    let DownloadPlan {
+        url,
+        bytes,
+        sha256,
+    } = &row.download;
+    println!("  download: {url}");
+    println!("            {bytes} bytes, sha256 {sha256}");
+}
+
 fn on_the_menu(
     row: &RowAssessment,
     budget: kalsa_catalog::MemoryBudget,

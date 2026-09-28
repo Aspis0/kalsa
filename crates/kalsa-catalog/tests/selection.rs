@@ -5,7 +5,7 @@
 
 use kalsa_catalog::{
     capability_basis, choose, decode_prediction, dense_speed_floor, footprint_bytes,
-    largest_that_runs_well, quicker_alternative, usable_bytes, Backend, CapabilityBasis,
+    largest_that_runs_well, quicker_alternative, usable_bytes, Backend, CapabilityBasis, RunnableRow,
     ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
     DOWNLOADABLE, GIB, CHOOSER_CONTEXT_TOKENS, LARGE_MOE_TOTAL_PARAMETERS,
     MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
@@ -1295,6 +1295,80 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
         !explanation.contains("smallest one in the catalog needs"),
         "the too-slow bucket must not read as the no-fit bucket: {explanation}"
     );
+}
+
+// ── the stand-down: no row clears its line ─────────────────────────────────
+// On such a machine the dense lines withhold nobody and pick nobody, so size
+// stops deciding: the owner's rule is speed, and speed is what ranks both
+// cards. The biggest row of the tier is not an answer to a tier that cannot
+// run any of them well.
+
+/// The two cards a stand-down tier must show, asserted where they are
+/// wanted: the LFM Q8 row first, the E4B beside it, fastest first, and
+/// Gemma 12B — the biggest row on those tiers — on neither card.
+fn stand_down_cards(machine: &ChoiceInput) -> (RunnableRow, RunnableRow) {
+    let first = largest_that_runs_well(machine).expect("the tier starts something");
+    let second = quicker_alternative(machine, &first.decode).expect("a second card");
+    assert_eq!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(first.entry.quant, "Q8_0");
+    assert_eq!(second.entry.repo, "google/gemma-4-E4B-it");
+    assert!(
+        first.decode.floor() > second.decode.floor(),
+        "fastest first: {:.1} against {:.1}",
+        first.decode.floor(),
+        second.decode.floor()
+    );
+    assert_ne!(second.entry.display_name, first.entry.display_name);
+    for card in [&first, &second] {
+        assert_ne!(
+            card.entry.repo,
+            "google/gemma-4-12B-it",
+            "Gemma 12B makes no sense on a tier that runs it at about four tokens a second"
+        );
+    }
+    (first, second)
+}
+
+#[test]
+fn the_surface_that_clears_no_line_starts_the_two_fastest_rows() {
+    // The owner's Surface: Windows, CPU-only, 15.6 GiB at 45.1 GB/s, no
+    // phone. At the 65536-token pricing context no row clears the
+    // small-dense line of 10 — LFM Q8 9.0–13.1, E4B 5.6–8.1, Gemma 12B
+    // 3.8–5.5 — which is the premise the ranking rides on, asserted first.
+    let surface = ChoiceInput {
+        ram_bytes: (15.6 * GIB as f64) as u64,
+        bandwidth_bytes_per_second: 45.1e9,
+        ..input(16, false)
+    };
+    for repo in [
+        "LiquidAI/LFM2.5-2.6B",
+        "google/gemma-4-E4B-it",
+        "google/gemma-4-12B-it",
+    ] {
+        let row = kalsa_catalog::usable()
+            .find(|row| row.entry().repo == repo)
+            .expect("the row is on the menu");
+        let floor = decode_prediction(row, &surface).floor();
+        if let Some(line) = dense_speed_floor(row.entry()) {
+            assert!(
+                floor < line,
+                "{repo} clears {line} at {floor:.1} — this is no stand-down tier"
+            );
+        }
+    }
+    stand_down_cards(&surface);
+}
+
+#[test]
+fn sixteen_gigabytes_at_forty_five_is_the_same_two_cards() {
+    // The same tier at the owner's rounded numbers: 16 GiB of RAM at
+    // 45 GB/s. Nothing clears a line here either, and the two cards are
+    // the same two rows — the biggest fitting row (Gemma 12B) on neither.
+    let machine = ChoiceInput {
+        bandwidth_bytes_per_second: 45.0e9,
+        ..input(16, false)
+    };
+    stand_down_cards(&machine);
 }
 
 // ── the full-precision file ────────────────────────────────────────────────
