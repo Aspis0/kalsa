@@ -417,12 +417,12 @@ fn alternative_details(row: &RunnableRow, decode: &Prediction) -> String {
 
 /// The full working for the phone-free pick: what was compared, what was not,
 /// and where its speed figure comes from. Two things are said here and nowhere
-/// else — the machine's own "no phone" sentence, and the claim to be the largest
-/// that fits, which is true of this row only and was being said of both.
+/// else — the machine's own "no phone" sentence, and the fit, which is a fact
+/// about this row on this machine and was being said of both cards.
 fn phone_free_details(row: &RunnableRow, decode: &Prediction) -> String {
     format!(
-        "No phone is paired, so nothing here is compared to one. {} — {:.1} GiB of weights, \
-         the largest that fits this machine's {:.1} GiB budget. {}",
+        "No phone is paired, so nothing here is compared to one. {} — {:.1} GiB of weights. \
+         It fits this computer's {:.1} GiB budget. {}",
         row.entry.display_name,
         row.entry.weights_bytes as f64 / GIB as f64,
         row.budget.usable_bytes as f64 / GIB as f64,
@@ -897,13 +897,13 @@ mod tests {
     }
 
     #[test]
-    fn only_the_pick_claims_to_be_the_largest_and_no_speed_contradicts_itself() {
+    fn only_the_pick_claims_the_fit_and_no_speed_contradicts_itself() {
         // Two defects in one string, both read off the screen on 2026-09-19: the
         // working is written for the pick and was applied to both rows, so the
-        // second option — smaller, faster, and not the largest by definition —
-        // claimed the pick's ground; and a figure that was measured was called a
-        // prediction in the same breath ("62.7 tok/s, measured on an M1 Max …
-        // The speed is a prediction, not a measurement on this machine").
+        // second option — smaller and faster, not the row the pick's facts are
+        // about — claimed the pick's ground; and a figure that was measured was
+        // called a prediction in the same breath ("62.7 tok/s, measured on an M1
+        // Max … The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
             dto(&pair_machine(), 16 * GIB, None, true, &records_root("largest"))
         else {
@@ -913,12 +913,12 @@ mod tests {
         let second = quicker.expect("a 16 GiB machine has something faster");
 
         assert!(
-            pick.details.contains("largest"),
+            pick.details.contains("It fits this computer's"),
             "the pick claims its own ground: {}",
             pick.details
         );
         assert!(
-            !second.details.contains("largest"),
+            !second.details.contains("It fits this computer's"),
             "the alternative claims the pick's ground: {}",
             second.details
         );

@@ -675,8 +675,8 @@ pub fn full_precision_file(entry: &ModelEntry) -> bool {
 /// faster than the pick at all (see [`ROOMY_RAM_BYTES`]).
 ///
 /// It is held to the bar of the row it sits beside, which is
-/// [`justification`]: a phone-free first option is the largest that runs well
-/// and was never asked to justify itself, so neither is this one; a first
+/// [`justification`]: a phone-free first option is `leading_candidate`'s
+/// answer and was never asked to justify itself, so neither is this one; a first
 /// option chosen *against a paired phone* had to earn a justification, so a
 /// second option that earns none is not offered — the product would refuse to
 /// start it.
