@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { copyText } from "../lib/clipboard";
-import { invoke } from "../lib/tauri";
+import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import "./surfaces.css";
 
 // Said once, when the invite file could not be read at startup: those
@@ -64,8 +64,11 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
   const [commandError, setCommandError] = useState<string | null>(null);
   const [linkFallback, setLinkFallback] = useState<string | null>(null);
   // One link at a time: while a create is running the button is disabled,
-  // so a double press cannot mint two invitations.
+  // so a double press cannot mint two invitations. The generation numbers
+  // each ask — the answer to a create that already timed out is dropped
+  // rather than rendered, because the page has said it did not get one.
   const [creating, setCreating] = useState(false);
+  const generation = useRef(0);
   // The panel unmounts whenever the owner leaves the page and every action
   // here awaits something first — the page's poll guards the same way: a
   // reply that lands after the component is gone writes nothing.
@@ -88,12 +91,26 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
     setNotice(null);
     setLinkFallback(null);
     setCreating(true);
+    const mine = ++generation.current;
+    const stillMine = (): boolean => live.current && mine === generation.current;
+    // The create rides the same two CLI calls the first read does: past the
+    // shared bound it is not coming back, the button goes down again, and
+    // the failure says so. A late answer finds `mine` superseded and is
+    // dropped before it can reach the clipboard.
+    const bound = setTimeout(() => {
+      if (!stillMine()) return;
+      generation.current += 1;
+      setCreating(false);
+      // The shell's own words for a mint that did not happen, verbatim
+      // from `words` in src-tauri/src/invites.rs.
+      setCommandError("This invitation could not be made. Try again.");
+    }, PAIRING_ASK_BOUND_MS);
     try {
       const link = await invoke<string>("brain_invite_create");
-      if (!live.current) return;
+      if (!stillMine()) return;
       if (await copyText(link)) {
         const listed = await invoke<InviteList>("brain_invite_list").catch(() => null);
-        if (!live.current) return;
+        if (!stillMine()) return;
         if (listed) onList(listed);
         const newest = listed ? newestInvite(listed.invites) : null;
         setNotice(
@@ -102,14 +119,15 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
             : "Link copied. It works once, for one day. Send it only to the person you want to add.",
         );
       } else {
-        setLinkFallback(link);
+        if (stillMine()) setLinkFallback(link);
       }
     } catch (error) {
       // The command's own words — no road, no room, could not save — shown
       // as they are, with nothing of the invitation inside them.
-      if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
+      if (stillMine()) setCommandError(error instanceof Error ? error.message : String(error));
     } finally {
-      if (live.current) setCreating(false);
+      clearTimeout(bound);
+      if (stillMine()) setCreating(false);
     }
   }
 

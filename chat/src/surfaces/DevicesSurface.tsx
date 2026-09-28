@@ -3,15 +3,11 @@ import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
 import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
-import { available, invoke } from "../lib/tauri";
+import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
-// The first read awaits two Tailscale CLI calls, 2 s timeout each: this is
-// where "still checking" becomes a failure the owner can act on. It also
-// releases a read that hung, so the next tick can ask again.
-const FIRST_READ_BOUND_MS = 8000;
 
 // The approved ways to say the square is the way in, that it was replaced,
 // and who may use it. dev/smoke-react.mjs keeps its own copy of these on the
@@ -207,7 +203,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       generation.current += 1;
       inFlight.current = false;
       setSettled(true);
-    }, FIRST_READ_BOUND_MS);
+    }, PAIRING_ASK_BOUND_MS);
     try {
       // The square first — the page's own checking state hangs on this
       // answer — then the invitations on the same tick, under the same

@@ -746,6 +746,17 @@ try {
         problems.push(`a copy that worked never shows the link: ${heading}`);
       }
     }
+    if (heading.includes("an invitation never comes back")) {
+      if (!all.includes("This invitation could not be made. Try again.")) {
+        problems.push(`a create past the bound says it did not happen: ${heading}`);
+      }
+      if (disabledButtons.includes("Invite by link")) {
+        problems.push(`the bound puts the button back down: ${heading}`);
+      }
+      if (fallbackLinks.length > 0 || all.includes("Link copied.")) {
+        problems.push(`an answer that arrived after the bound is dropped: ${heading}`);
+      }
+    }
     if (heading.includes("an invitation is being made")) {
       if (!disabledButtons.includes("Invite by link")) {
         problems.push(`the button is held down while a link is being made: ${heading}`);

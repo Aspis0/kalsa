@@ -262,6 +262,9 @@ const scenarios = [
   // A create that has not answered: the button is held down, so a second
   // press cannot mint a second invitation.
   ["Pairing", "an invitation is being made", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateHangs: true, click: "Invite by link" }],
+  // …and one that answers only after the bound: the button comes back, the
+  // failure is said, and the late link is dropped instead of rendered.
+  ["Pairing", "an invitation never comes back", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, click: "Invite by link", waitMs: 9500 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
   // retry. And a read that rejects AFTER an answer must leave that answer on
@@ -331,6 +334,13 @@ function installBridge() {
             }
             if (command === "brain_invite_create") {
               if (bridgeState.inviteCreateHangs) return new Promise(() => {});
+              // An answer that arrives after the page's bound: it has to be
+              // dropped, not rendered as the link it never promised.
+              if (bridgeState.inviteCreateLate) {
+                return new Promise((resolve) =>
+                  setTimeout(() => resolve(bridgeState.inviteCreateLate), 9000),
+                );
+              }
               return bridgeState.inviteCreateError
                 ? Promise.reject(bridgeState.inviteCreateError)
                 : Promise.resolve(bridgeState.inviteLink ?? INVITE_LINK);

@@ -21,6 +21,13 @@ export function available(): boolean {
   return Boolean(window.__TAURI__?.core?.invoke);
 }
 
+// How long this app waits on a pairing ask that has not answered. Both of
+// them ride the same two Tailscale CLI calls with a 2 s timeout each — the
+// first `brain_pairing` read, and an invitation create — so one number
+// covers them: past it the page stops waiting and says the ask did not
+// answer, instead of holding a "checking" line or a button down forever.
+export const PAIRING_ASK_BOUND_MS = 8000;
+
 // Rejects when the command itself fails; callers turn the error into a
 // sentence on the page. Callers check available() first — outside the
 // webview the access below throws, exactly like the unavailable door.
