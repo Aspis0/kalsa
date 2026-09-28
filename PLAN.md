@@ -614,17 +614,32 @@ brake only (held app `19368426`).
   symbols in user builds, enable R8 for release, and ship an Android App Bundle on Play. Target
   **under 70 MB** is an estimate, not measured.
 
-### One-copy (Hexagon offload_op): the owner says FIX, not park
+### One-copy CPU + NPU: correct on S23, too slow as built on 8 Elite
 
-`scratchpad/agents/hexagon-offload-op/REPORT.md` (commit `eafdee29`): the HTP `-HOST` reading is
-corrupt, isolated to HTP matmuls consuming row-major host-buffer weights; a layout mismatch is
-the leading cause (`:373-380`), while cache/coherency remains unexcluded. The raw-Q4_0 HTP-kernel
-spike is underway on engine branch `spike/hexagon-onecopy-rawq4`; continue fixing, with one weight
-copy still the target. Earlier RPCMEM decode measured **1.49× slower** than CPU `--no-repack`
-(`:233`). The opt-in diagnostics are on `spike/hexagon-offload-op` at commit `0a5c7823`.
-Prior art: `npu-prefill-prior-art/` (upstream
-`offload_op`) and `mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for
-APU use, `:141`).
+The raw-Q4_0 HTP layout fix is **correct on the S23**: P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`,
+engine commit `9a2fb2376`; governor design cross-check `4d606e4f`, `5a94d88c`, `df4a18d1`,
+`7ac42dec`). On the 8 Elite, QDC session **853723** / lab report `9ac6ebc7` measured 512-token
+prefill at **1,782 tok/s** for two-copy HMX, **57.8** for two-copy flat, and **37.3** for one-copy.
+Raw one-copy is flat-only because the DSP refuses raw weights on HMX. CPU decode at tg128 was
+**38.3 tok/s** with repack, **34.6** without repack, and **22.6** with raw `-HOST` rpcmem weights.
+One-copy used **1,526 MiB** versus **3,448 MiB** for the separate-process two-copy HTP + CPU models,
+saving about **1.9 GiB**. The v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD remains
+unmeasured. The speed and KLD evidence is in `scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`
+(`9ac6ebc7`); it is 8 Elite-specific and does not transfer to the S23.
+
+**Governor implementation remains gated on making one-copy fast.** Design commits are lab
+`4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`. Engine branch `feat/governor-onecopy` is not
+pushed: S1 is `1d39fd0dd` + `49676fd7a`; S2 is `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests
+pass with the ship GGUF; the Hexagon object has only been syntax-checked and device census is owed.
+S3 and later lane steps are **ON HOLD** until one-copy is fast. Owner decision: retain the GPU lane
+on every device, with its flag OFF where NPU is better.
+
+The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, engine `133cef802`; lab
+`scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
+**SHIP for an S23 correctness run after four fixes**; that run is in progress with mimo.
+
+Next: HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and diagnose
+the rpcmem CPU-read slowdown with a bandwidth probe when the S23 is unplugged.
 
 ## Gates and dates (recovered 2026-09-21)
 

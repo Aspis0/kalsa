@@ -79,7 +79,7 @@ document that produced them is named instead.
 | The tail fix: `_cok` accumulator (measured, then the independent audit's refusal), the K-order ablation for its residual, the build-provenance stamp, and the pre-registered morning queue | `scratchpad/agents/cok-accumulator/REPORT.md`; `scratchpad/agents/cok-accumulator-audit/REPORT.md`; `scratchpad/agents/cok-residual/REPORT.md`; `scratchpad/agents/build-provenance/REPORT.md`; `scratchpad/agents/s23-kld-740-q4-0/REPORT.md` sec. 35-37 |
 | The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit `8c0e38e0`; "Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
 | Per-backend heat measured on both chips: NPU coolest, CPU prefill never cooler, no NPU skin crossover in 12 back-to-back prefills, 8 Elite NPU decode 27 % cooler/token at -25 % speed | `scratchpad/agents/s23-heat-arms-engine/REPORT.md` (`147b0351`), `qdc-8elite-heat-arms/REPORT.md` (`335fc965`), `qdc-8elite-hopping-heat/REPORT.md` (`a6ec6507`) |
-| Governor thermal ladder and one-copy HTP follow-up: CPU-at-MODERATE rung refuted; raw-Q4_0 HTP layout remains the leading one-copy fault | `scratchpad/agents/governor-thermal-ladder/LEVERS.md` (`3e00ccea`); `hexagon-offload-op/REPORT.md` (`eafdee29`) |
+| One-copy CPU + NPU: S23 P5 is numerically correct; 8 Elite raw path is memory-efficient but slow and flat-only | `hexagon-onecopy-rawq4/REPORT.md` (`9a2fb2376`); `qdc-8elite-onecopy-cost/REPORT.md` (`9ac6ebc7`); governor design `4d606e4f`, `5a94d88c`, `df4a18d1`, `7ac42dec` |
 | Iroh pairing and invite-by-link beta rollout, including `install_id` and public Worker reachability | app commits `aba67977`, `9922f2e7`; reachability commands and HTTP 200 results for both endpoints (2026-09-28): `scratchpad/agents/pair-worker-reachability/2026-09-28.txt` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
@@ -674,14 +674,27 @@ bump, provenance exit 0)**. The lane is **default OFF** on main, the bench key
 and the **step-5 device soak is pending**. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
-**One-copy (Hexagon `offload_op`): CONTINUE FIXING (owner); one weight copy is the target.** The
-HTP `-HOST` reading is corrupt, isolated to HTP matmuls consuming row-major host-buffer weights;
-layout mismatch is the leading cause, while cache/coherency is not excluded (`hexagon-offload-op`
-report commit `eafdee29`). The raw-Q4_0 HTP-kernel spike has started on engine branch
-`spike/hexagon-onecopy-rawq4`; no corrected result is claimed. Earlier RPCMEM decode measured
-**1.49× slower** than CPU `--no-repack`. The opt-in diagnostics are on `spike/hexagon-offload-op`
-at `0a5c7823`, device validation pending. Prior art: `npu-prefill-prior-art/` (upstream `offload_op`),
-`mediatek-apu-prior-art/` (no third-party APU path; the G99 is a dead end for APU use, `:141`).
+**One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
+S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, engine `9a2fb2376`; design record
+`4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`). QDC session **853723**, report `9ac6ebc7`,
+measured 512-token prefill at **1,782 tok/s** for two-copy HMX, **57.8** for two-copy flat, and
+**37.3** for one-copy. The raw path is flat-only because the DSP refuses raw weights on HMX. CPU
+decode tg128 measured **38.3 tok/s** repacked, **34.6** no-repack, and **22.6** with raw `-HOST`
+rpcmem weights. Memory was **1,526 vs 3,448 MiB** across separate processes, about **1.9 GiB saved**.
+The v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD is unmeasured. These 8 Elite
+results do not transfer to the S23 (`scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`).
+
+**Governor one-copy is gated on speed.** Design: lab commits `4d606e4f`, `5a94d88c`, `df4a18d1`,
+`7ac42dec`. Engine branch `feat/governor-onecopy` is not pushed: S1 `1d39fd0dd` + `49676fd7a`;
+S2 `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests pass with the ship GGUF; the Hexagon object
+is syntax-checked only, and device census is owed. S3+ lane steps are **ON HOLD** until one-copy is
+fast. Owner decision: keep the GPU lane on every device, with its flag OFF where NPU is better.
+
+The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, engine `133cef802`; lab
+`scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
+**SHIP for an S23 correctness run after four fixes**; the run is in progress with mimo. Next are the
+HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and an rpcmem CPU-read
+bandwidth probe when the S23 is unplugged.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):

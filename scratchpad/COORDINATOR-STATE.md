@@ -1,67 +1,58 @@
-# Coordinator state - end of 2026-09-25 (session kalsa-99 / c925dc00, handing over)
+# Coordinator state - 2026-09-28
 
-The previous version (end of 2026-09-21) is in git history. Detail lives in each cell's
+The current operating facts and next decisions. Per-cell methods and raw evidence remain in
 `scratchpad/agents/<cell>/REPORT.md`.
 
-## Delivery chain (all pushed, fast-forward, provenance gate green)
+## One-copy CPU + NPU
 
-| Repo | Ref | Commit | What |
-|---|---|---|---|
-| Engine `Aspis0/kalsallama` | `kalsa-phone-v1-1-8` | `f25f0c1c5` | governor pause 43 C / kill 44 C (owner 25/09), critical = kill in both profiles, admission ceiling 42.5 |
-| Binding `Aspis0/kalsa.rn` | `kalsarn-governor-engine` | `88b2b57e` | vendors engine v1-1-8 |
-| App `Aspis0/kalsa` | `main` | `0509f8c8` | pins binding 88b2b57e / engine f25f0c1c5 |
-| APK | CI run 36171227792 | sha256 `855c89de...5c91e7` | `/Users/marco/kalsa-apks/0509f8c8/` (arm64, debuggable) |
-| Engine `main` + tag | `kalsa-server-v1.1.2` | `5102686dd` | first Windows x64 server (cpu + vulkan, portable CPU variants), BACKEND_DL-safe bmoe hook; published on dl.kalsa.io (run 36191270775); kalsa-brain-90 re-hashed and is repinning |
+- **Correct on S23:** P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`, engine `9a2fb2376`;
+  governor design commits `4d606e4f`, `5a94d88c`, `df4a18d1`, `7ac42dec`).
+- **Slow as built on 8 Elite:** QDC session **853723**, lab report `9ac6ebc7`, measured 512-token
+  prefill: two-copy HMX **1,782 tok/s**, two-copy flat **57.8**, one-copy **37.3**. The raw path is
+  flat-only because the DSP refuses raw weights on HMX. CPU decode tg128: repack **38.3 tok/s**,
+  no-repack **34.6**, raw `-HOST` rpcmem **22.6**. Memory: **1,526 vs 3,448 MiB** in separate
+  processes, about **1.9 GiB saved**. v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD
+  is unmeasured. See `scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`.
+- Next: HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress); rpcmem CPU
+  read slowdown probe needs the S23 unplugged.
 
-Engine phone branch `kalsa-opencl-upload-oom-throw` = v1-1-8. Two reviewers (luna + deepseek) on every
-shipped commit today.
+## Governor one-copy and GPU spike
 
-## Governor research - what we know now
+- Design: lab commits `4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`.
+- Engine `feat/governor-onecopy` is not pushed. S1: `1d39fd0dd` + `49676fd7a`. S2:
+  `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests pass with the ship GGUF; the Hexagon object
+  was syntax-checked only; device census is owed. S3+ lane steps are **ON HOLD** until one-copy is
+  fast. Owner decision: keep the GPU lane on every device, flag OFF where NPU is better.
+- GPU one-copy spike: engine `spike/onecopy-gpu-rawq4` `133cef802`, lab
+  `scratchpad/agents/onecopy-gpu/`; one dma-buf imported by OpenCL for raw-Q4_0 GEMM. Review is
+  **SHIP for an S23 correctness run after four fixes**; mimo is running it.
 
-- **Thresholds 40/43 were harness guards, never an owner decision.** Owner chose pause 43 / kill 44.
-  Open, owner-accepted risk: a floor chunk from 42.99 projects 44.9 (> kill) on the 1.9 C delta; kill is
-  a sticky governor failure for the session. The delta table itself is unmeasured for GPU/CPU.
-- **NPU as speculative-decode verifier: KILLED on speed on v79** (QRD8750, cell `npu-spec-verify`):
-  ms/call at d1920, K=1/4: CPU 28.8/35.7 (ratio 1.24), NPU `-nkvo` 39.4/71.6 (1.82). NPU cost is a
-  staircase (kernel tiers), not per-call overhead. Surprise: **CPU verifies 4 tokens for 1.24x one step on
-  the ship model** - CPU speculative decoding with a confidence gate (`--draft-p-min` exists) is the lane
-  that got stronger. Kit was old engine `4c7101af4`; one board only.
-- **Per-backend heat tables: still n=0 everywhere.** S23 blocked by the DSP spin; QDC blocked first by
-  the account/tab problem, then by an APP defect (below).
-- **App defect found (verified): the governor is disabled whenever an mmproj is loaded**
-  (`src/engine/LlamaService.ts:2439` `!options.mmprojPath`). Qwen3.5-4B (recommended on high-tier boards)
-  needs the mmproj, so it never runs under the governor and `bench:route` is `skipped`. OWNER DECISION
-  PENDING: run the heat arms on a model without mmproj (LFM2.5-2.6B) or fix the app first.
+## kalsa-server v1.1.3
 
-## S23 DSP spin - likely SOLVED (cell `s23-dsp-spin-web`, agent 263437c8 still watching)
+Owner approved v1.1.3 (“e ok 1.1.3”). Engine branch `ci/kalsa-server-vcredist` is at
+`43a317fde`: app-local VC++ DLLs passed both Windows legs in dry run `36458657174`; the boolean
+publish gate is fixed; Hugging Face mirror URLs are
+`https://huggingface.co/Kalsa-ai/kalsa-server/resolve/<tag>/<file>`. Only the finalizer writes to
+HF, `HF_TOKEN` is configured, and all space-bunny reviews say SHIP. Pending: after Actions minutes
+reset, run a second dry run proving R2 and HF are skipped; merge into the workflow branch; then tag.
 
-`adb shell setprop persist.traced.enable 0` stops Perfetto (traced/traced_probes/traced_perf); it
-survives reboot; no profiling signal, so adsprpcd/cdsprpcd stay at 0. After the reboot: 0% at every
-10-min poll up to 7630 s uptime (the spin used to return at ~4046 s); idle battery drain dropped from
-~17%/h to ~2%/h. Revert: `setprop persist.traced.enable 1`. `debug.perfmond.default.perfetto=0` alone
-did NOT work. Final report will be `s23-dsp-spin-web/STOP-SOURCE.md`.
+## App CI and agent operating rule
 
-## QDC
-
-- Account `aspis.launcher@gmail.com` (new, 25/09): QRD8650 885 min, QRD7675 1000, QRD8750 970-994,
-  QRD8635 1000. Old account (marco...): QRD8650 1, QRD8750 51, QRD7675 555.
-- **Each Paseo browser tab has its own cookies**: a new tab does not inherit a login. The aspis login lives
-  in tab `4e7a3b7e`. Agents never type passwords; a new tab on aspis needs the owner to log in there.
-- QDC bills the FULL requested cap (session 845086: 41 min used, 115 billed). Request the minimum.
-- Heat driver `qdc-heat-per-backend/d_run.sh` is dry-run-validated and fixed (mmproj copy, no wait after
-  `bench:route`, port override, SoC check first, QRD7675 support).
+- GitHub Actions is on the free tier. App heavy workflows are dispatch-only in commit `0c66cf7d`,
+  under review.
+- QDC work uses Paseo **claude Opus 5.5 medium**. Everything else uses Paseo profiles only; no
+  Claude agents.
 
 ## Next, in order
 
-1. Owner decision on the mmproj/governor defect; then QDC heat arms (QRD8650 4 pairs, QRD7675 2 pairs).
-2. S23 (DSP now clean): NPU Step 0 on v73 (`npu-spec-verify/d_run.sh`, ~15 min), then the S23 heat arms
-   (tools OFF, frozen 1024-token prompt at `s23-heat-cpu-vs-gpu-v2/raw/heat-arms/resume-tools-off-20260925/frozen-prompt-1024.txt`, no cool-start gate).
-3. CPU speculative decoding with a draft-probability gate on the ship model (new lane from Step 0).
-4. Debt: `inputs.publish != 'false'` in `kalsa-server.yml` is wrong for a typed boolean (use
-   `github.event_name != 'workflow_dispatch' || inputs.publish`); ~700 duplicated workflow lines;
-   `test-governor-v0-devices` fails on a Metal Mac (pre-existing); Windows zips need the VC++ runtime.
+1. Finish the in-progress HMX-on-raw estimate; then resolve the rpcmem CPU-read slowdown with a
+   bandwidth probe when the S23 is unplugged.
+2. Complete the S23 correctness run for GPU one-copy after mimo's four fixes; keep governor S3+
+   work on hold until the CPU + NPU one-copy lane is fast.
+3. After Actions minutes reset, prove the server publish=false run skips both R2 and HF; merge the
+   workflow branch and tag v1.1.3.
 
-## Process lessons of the day (mine)
+## Historical process lessons (2026-09-25)
 
 - Paseo `create_agent` with the GLM-5.3-Flash profile comes up as GLM-5.3 (max) - a backslash bug.
   ALWAYS `update_agent` to Flash + high and confirm with `list_agents`. It burned the owner's quota.
