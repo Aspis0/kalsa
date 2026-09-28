@@ -458,9 +458,11 @@ fn add_device_record(
 
 /// Add a completed pairing, WAITING, with the phone's install identity
 /// beside it. Nothing about a seat the owner already approved changes here:
-/// the new credential is a new record that waits its turn, and the identity
-/// is what lets [`allow_device`] recognise the phone it belongs to and fold
-/// the two into one seat — at the owner's word, not before it.
+/// the new credential is a record that waits its turn, and the identity is
+/// what lets [`allow_device`] recognise the phone it belongs to and fold the
+/// two into one seat — at the owner's word, not before it. While that first
+/// record waits, a second ceremony from the same phone takes its place
+/// instead of queueing beside it, so one phone is never two pending records.
 pub fn add_device_with_install(
     path: &Path,
     label: &str,
@@ -473,6 +475,25 @@ pub fn add_device_with_install(
     // wire accepted — anything else behaves exactly like a phone that sent
     // none and gets a second seat, never somebody else's.
     let install_id = install_id.filter(|value| is_install_id(value));
+    let mut records = read_records_or_empty(path)?;
+    // A second ceremony while the first is still waiting: the newer one takes
+    // that record's place in this one write — same record, same id and label,
+    // its credential, its declaration and its response — so the older
+    // ceremony's credential leaves the file here, which is its revocation.
+    // An ALLOWED record is never this: a seat the owner admitted changes
+    // only at Allow, and only by folding.
+    if let Some(install) = install_id {
+        if let Some(waiting) = records.iter().position(|record| {
+            record.approval == Approval::Waiting && record.install_id.as_deref() == Some(install)
+        }) {
+            let record = &mut records[waiting];
+            record.credential_hex = handshake.credential_hex();
+            record.kind = kind_of(handshake);
+            record.phone = handshake.phone.map(PhoneFields::of);
+            record.delivery = Some(delivery);
+            return write_records(&records, path);
+        }
+    }
     add_device_record(path, label, handshake, Some(delivery), true, install_id)?;
     Ok(())
 }

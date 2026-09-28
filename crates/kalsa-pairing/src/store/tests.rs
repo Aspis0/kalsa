@@ -1269,3 +1269,104 @@ fn a_record_without_an_install_id_loads_and_adds() {
     fs::remove_dir_all(&dir).unwrap();
 }
 
+
+#[test]
+fn a_second_ceremony_replaces_the_waiting_install() {
+    let dir = scratch("install-second");
+    let path = dir.join("pairing.json");
+    let first = sample_handshake();
+    let second = sample_handshake_with_credential(&"11".repeat(32));
+    let install = Some("d0".repeat(16));
+
+    add_device_with_install(
+        &path,
+        "Paired phone",
+        &first,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    // No Allow between them: the first ceremony is still waiting, and the
+    // second one takes its place instead of queueing beside it.
+    add_device_with_install(
+        &path,
+        "Paired phone 2",
+        &second,
+        a_delivery(&"55".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1, "one phone is never two waiting records");
+    assert!(devices[0].waiting, "it is still the owner's to allow");
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        second.credential_hex(),
+        "the newer ceremony holds the record"
+    );
+    assert_eq!(
+        devices[0].delivery.as_ref().unwrap().token(),
+        &"55".repeat(16),
+        "and the newer response"
+    );
+    let on_disk = fs::read_to_string(&path).unwrap();
+    assert!(
+        !on_disk.contains(&first.credential_hex()),
+        "the older ceremony's credential is gone"
+    );
+    assert!(on_disk.contains(&second.credential_hex()));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_second_install_never_touches_the_allowed_seat() {
+    let dir = scratch("install-second-allowed");
+    let path = dir.join("pairing.json");
+    let seat = sample_handshake();
+    let second = sample_handshake_with_credential(&"11".repeat(32));
+    let third = sample_handshake_with_credential(&"22".repeat(32));
+    let install = Some("d0".repeat(16));
+
+    add_device_with_install(
+        &path,
+        "Paired phone",
+        &seat,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    allow_device(&path, 0).unwrap();
+    add_device_with_install(
+        &path,
+        "Paired phone 2",
+        &second,
+        a_delivery(&"55".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    add_device_with_install(
+        &path,
+        "Paired phone 3",
+        &third,
+        a_delivery(&"66".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "the seat and one waiting record");
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        seat.credential_hex(),
+        "the allowed seat is untouched"
+    );
+    assert!(!devices[0].waiting, "and still allowed");
+    assert!(devices[1].waiting, "the waiting record is still the owner's");
+    assert_eq!(
+        devices[1].handshake.credential_hex(),
+        third.credential_hex(),
+        "and holds the newest ceremony"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
