@@ -1,0 +1,15 @@
+# kalsa-pair public reachability check — 2026-09-28
+
+Rechecked from the coordinator worktree:
+
+```sh
+curl -sS -o /dev/null -w 'https://kalsa.io/pair %{http_code}\n' https://kalsa.io/pair
+```
+
+Output: `https://kalsa.io/pair 200`
+
+```sh
+curl -sS -o /dev/null -w 'https://kalsa.io/.well-known/assetlinks.json %{http_code}\n' https://kalsa.io/.well-known/assetlinks.json
+```
+
+Output: `https://kalsa.io/.well-known/assetlinks.json 200`

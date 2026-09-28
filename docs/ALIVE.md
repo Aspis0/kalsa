@@ -80,7 +80,7 @@ document that produced them is named instead.
 | The governor ENGAGES on the S23: plan `gpu_fit=Fit`, GPU prefill / CPU decode, commit in ms, `route_push=applied` - plus the measured blind spot (Android status 3 while `thermal_state:FAST`) | `scratchpad/agents/s23-governor-lfm-long/REPORT.md` (commit `8c0e38e0`; "Manual governor smoke"; raw `raw/manual-smoke/`, `raw/baseline-before-thermal-20260927/`) |
 | Per-backend heat measured on both chips: NPU coolest, CPU prefill never cooler, no NPU skin crossover in 12 back-to-back prefills, 8 Elite NPU decode 27 % cooler/token at -25 % speed | `scratchpad/agents/s23-heat-arms-engine/REPORT.md` (`147b0351`), `qdc-8elite-heat-arms/REPORT.md` (`335fc965`), `qdc-8elite-hopping-heat/REPORT.md` (`a6ec6507`) |
 | Governor thermal ladder and one-copy HTP follow-up: CPU-at-MODERATE rung refuted; raw-Q4_0 HTP layout remains the leading one-copy fault | `scratchpad/agents/governor-thermal-ladder/LEVERS.md` (`3e00ccea`); `hexagon-offload-op/REPORT.md` (`eafdee29`) |
-| Iroh pairing and invite-by-link beta rollout, including `install_id` and public Worker reachability | app commits `aba67977`, `9922f2e7`; HTTP 200 checks on `kalsa.io/pair` and `/.well-known/assetlinks.json` (2026-09-28) |
+| Iroh pairing and invite-by-link beta rollout, including `install_id` and public Worker reachability | app commits `aba67977`, `9922f2e7`; reachability commands and HTTP 200 results for both endpoints (2026-09-28): `scratchpad/agents/pair-worker-reachability/2026-09-28.txt` |
 | Measurement method and rules for the lab | `PLAN.md`; `README.md` in this repo |
 | The engine release pipeline and the manifest contract | this file, "Engine release pipeline"; current position in `PLAN.md` |
 
@@ -639,8 +639,9 @@ hit the same wall: the status-3 abort stopped it after one submitted prompt. Rec
   is **6.45 / 24.17 / 44.59 °C·s**; the NPU is 73.3 % below OpenCL and 85.5 % below CPU
   (skin area 66 % below OpenCL). The 8 Elite first arms measured skin area **21.2 / 45.5 / 52.3
   °C·s per prefill** (NPU/GPU/CPU); its sustained follow-up measured **23 / 79 / 75 °C·s** in
-  the same order. These are different devices and sensors, so the values are not compared across
-  them. Prefill speed rows: S23 9,905.57 / 6,948.76 / 1,470.99 ms (CPU/GPU/NPU; 97.12 / 138.44 /
+  the same order. Both QDC runs use the same 8 Elite and skin °C·s per prefill metric, but the
+  protocols differ: initial arms versus 12 back-to-back sustained prefills, so they are not a
+  like-for-like pair. Prefill speed rows: S23 9,905.57 / 6,948.76 / 1,470.99 ms (CPU/GPU/NPU; 97.12 / 138.44 /
   653.98 tok/s); 8 Elite 4,861 / 3,317 / 919 ms (197.9 / 290.0 / 1,046.4 tok/s). Sources:
   S23 report `147b0351`, QDC first arms `335fc965`, sustained QDC `a6ec6507`.
 - **CPU prefill is hottest** in both devices' measured area metrics. Fewer S23 decode threads
@@ -695,17 +696,19 @@ at `0a5c7823`, device validation pending. Prior art: `npu-prefill-prior-art/` (u
   logged (`022e14e5`).
 - **Invite-by-link:** phone `9922f2e7`, Worker `kalsa-pair` `ea245988`, live since **2026-09-27**
   (version `5f5ea8c9`, routes `kalsa.io/pair*` + `/.well-known/assetlinks.json`;
-  it carries the existing v3 QR payload and desk-side Allow remains mandatory). Public
-  reachability was confirmed on 2026-09-28: both `https://kalsa.io/pair` and
-  `https://kalsa.io/.well-known/assetlinks.json` returned HTTP 200.
+  it carries the existing v3 QR payload and desk-side Allow remains mandatory). Public reachability
+  was rechecked on 2026-09-28; both GET commands and their HTTP 200 results are recorded in
+  `scratchpad/agents/pair-worker-reachability/2026-09-28.txt`.
 - **install_id per desk:** `aba67977`.
 - **Campaign harness:** screen-ON per turn, fail-closed readings and the log-based readiness
   gate (`018bc514`); both quoted and unquoted `KALSA_` log wire forms (`2a5e8952`); tool-round
   capture with its quiet window and the 10-minute per-round bound (`bef8219d`, `0f0808b6`).
-- **Beta debts (`scratchpad/COORDINATOR-STATE.md:150-151`):** `assetlinks.json` still carries
-  the public debug key and must move to the release signing key before any public invite link
-  (with a CI gate refusing `CN=Android Debug`); and a link overwrites the saved desk before any
-  confirmation - the owner declined the one-tap confirm for the alpha (family-only users).
+- **Active security risk; owner decision pending:** the public `assetlinks.json` still carries the
+  public Android debug signing key. Another app with package `com.kalsa.app` signed by that key
+  could verify as a handler for `https://kalsa.io/pair` links. Decide the signing-key migration
+  and CI enforcement; the risk is live because the endpoint is already public. Separately, a link
+  overwrites the saved desk before confirmation; the owner declined one-tap confirm for the alpha
+  (family-only users).
 
 ## Engine release pipeline (`kalsa-server`)
 

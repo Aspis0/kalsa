@@ -148,5 +148,5 @@ Owner said "go ahead" on the recommendation: both lanes in parallel.
 
 ## 2026-09-27 — invite-by-link beta debt (owner decisions, relayed by brain fda66492)
 - BETA DEBT: a link overwrites the saved desk before any confirmation — add a one-tap confirm naming the computer before links can reach strangers. (Owner declined the confirm for the alpha: family-only users.)
-- BETA DEBT: swap assetlinks.json to the release signing key before any public invite link — the debug keystore is public and authenticates nothing. Add a CI gate refusing a deploy with the `CN=Android Debug` fingerprint.
-- kalsa-pair deployed 2026-09-27 (version 5f5ea8c9), routes kalsa.io/pair* + /.well-known/assetlinks.json; NOT reachable until the apex gets a proxied DNS record (owner OK pending).
+- ACTIVE SECURITY RISK; owner decision pending: the public `assetlinks.json` still names the public Android debug signing key. Another app with package `com.kalsa.app` signed by that key could verify as a handler for `https://kalsa.io/pair` links. Decide the signing-key migration and CI enforcement; the risk is live because the endpoint is public.
+- `kalsa-pair` deployed 2026-09-27 (version `5f5ea8c9`), routes `kalsa.io/pair*` + `/.well-known/assetlinks.json`. The earlier “NOT reachable until the apex gets a proxied DNS record” statement is superseded by the 2026-09-28 GET checks; commands and HTTP 200 results: `scratchpad/agents/pair-worker-reachability/2026-09-28.txt`.

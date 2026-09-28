@@ -149,9 +149,9 @@ a separate question, and the governor numbers are under re-verification below.
   earlier Italian plan was re-read on the artefacts on 2026-09-20 and the plan was rewritten; the
   audited Italian body is archived byte-for-byte at
   `archived/GOVERNOR-DEVICE-PLAN-2026-09-audited.md`, and the re-verification is
-  `scratchpad/agents/governor-audit-recheck/REPORT.md`. The plan is parked per the owner order
-  quoted in the archived copy; no document on disk records an un-park, so re-opening it is an open
-  owner decision.
+  `scratchpad/agents/governor-audit-recheck/REPORT.md`. The owner un-parked the device plan on
+  2026-09-21 and brought its first three steps forward; see the owner decision below and
+  `git log` commit `db49fe2e`. The analysis file's status header still reflects the earlier park.
 - The rewritten plan states its own sourcing rule and applies it: every number carries an artefact
   citation or an explicit UNSOURCED label with what would settle it. The design
   shape (Rule 1: decisions contain no device identity; Rule 2: matrix as data; Rule 3: one
@@ -600,10 +600,12 @@ brake only (held app `19368426`).
 - Iroh pairing passed on Jelly with app commit `aba67977`; invite-by-link uses the existing v3
   QR payload, and desk-side Allow remains mandatory.
 - The `kalsa-pair` Worker is live (version `5f5ea8c9`, deployed 2026-09-27), serving `/pair*` and
-  `/.well-known/assetlinks.json`. Public reachability was confirmed on 2026-09-28:
-  `GET https://kalsa.io/pair` and `GET https://kalsa.io/.well-known/assetlinks.json` both returned
-  HTTP 200. Before a public launch, replace the debug signing fingerprint in `assetlinks.json` and
-  add the CI rejection gate (`scratchpad/COORDINATOR-STATE.md`, 2026-09-27 invite-by-link notes).
+  `/.well-known/assetlinks.json`. Both endpoints returned HTTP 200 on 2026-09-28; commands and
+  results are recorded in `scratchpad/agents/pair-worker-reachability/2026-09-28.txt`.
+- **Active security risk; owner decision pending:** the public `assetlinks.json` still names the
+  public Android debug signing key. Another app with package `com.kalsa.app` signed by that key
+  could verify as a handler for `https://kalsa.io/pair` links. Decide how to replace the signing
+  key and enforce it in CI; this risk is live while the endpoint is public.
 
 ### One-copy (Hexagon offload_op): the owner says FIX, not park
 
