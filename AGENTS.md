@@ -13,7 +13,7 @@
   ARE OURS TO WORK ON. No other session works on the phones except the UX session,
   and Marco decides when the UX may take one — ask him before handing a device over,
   and never let two sessions drive the same phone at the same time.
-- Never push without Marco's explicit approval. Audit (DeepSeek reviewer)
-  before every push.
+- Push only when the coordinator says so. Reviews are assigned by the
+  coordinator; never create sub-agents or reviewers yourself.
 - Energy measurements: never benchmark while charging (project rule);
   preflight gates in the campaign scripts enforce this.
