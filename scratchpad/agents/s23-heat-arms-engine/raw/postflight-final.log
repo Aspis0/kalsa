@@ -1,0 +1,15 @@
+WAKE
+  mWakefulness=Awake
+BATTERY
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 67
+  temperature: 335
+TRACE=0
+APP=
+PROCESSES=
+THERMAL
+0
+FATAL
+EXIT=0

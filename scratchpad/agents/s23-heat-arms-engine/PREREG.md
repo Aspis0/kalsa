@@ -97,3 +97,48 @@ and arm validity. Do not replace missing evidence with inference.
 Stop immediately at 30% battery, thermal status ≥3, battery temperature ≥43 °C,
 tracing enabled, unplugged gate failure, app not force-stopped, or a process
 crash. Preserve screen Awake and `stayon` through cleanup.
+
+## Amendment — 2026-09-27, before validation or arms
+
+The first preflight found that Android's `shell` UID cannot read the requested
+`/sys/class/power_supply/battery/current_now`, `voltage_now`, or `uevent` paths.
+The previous stop was premature: test Android's reported battery current as a
+possible proxy, then continue with thermal measurements regardless of the
+energy result. This amendment supersedes the energy-source and primary-outcome
+paragraphs above; all arm order and safety gates remain unchanged.
+
+The first probe showed `dumpsys batteryproperties` is empty on this build.
+`cmd battery help` lists `current_now`, but `cmd battery get` was not yet
+validated. `dumpsys battery` does contain a live `current now: -116` field,
+separate from its historical `current_avg` event log. Use that anchored field
+and the same dump's `voltage:` once per second for 30 s at idle, then for 30 s
+during a CPU-only `llama-bench` `tg256` run. Preserve timestamps and raw output.
+Accept current only as a **validated proxy** if it changes within 1–2 samples
+of load start and end, moves toward greater discharge under load, and its
+current change is physically plausible relative to the idle/load power draw.
+Use the same-second voltage. If those checks fail or either source is
+stale/missing, drop energy metrics entirely; do not substitute cached
+historical current or estimate it.
+
+Thermal results are primary whether or not current passes: for every arm,
+sample battery temperature and Android thermal status once per second, plus
+HAL skin when available. Report battery Δ from arm start to peak, battery
+temperature area above the start (trapezoid-integrated °C·s over arm plus
+60-second tail), skin Δ and skin area on the same window when available, and
+peak Android thermal status. Report per-rep and median values. The prefill
+verdict ranks median battery-temperature area and Δ first; skin metrics are
+reported alongside them. Decode compares the same thermal metrics per `tg256`
+run. Energy, if validated, is secondary and baseline-corrected as above.
+
+## Amendment — 2026-09-27, current-proxy decision before arms
+
+The 30-second idle / 30-second CPU `llama-bench` sample showed `dumpsys
+battery` `current now` at `-302` before compute and `-3096` once the CPU load
+was active. A follow-up edge check sampled `cmd battery get current_now` at
+one-second cadence around a 15-second CPU load: it stayed at `-106` for the
+first 10 load samples, changed to `-1080` at sample 11, then had not returned
+to idle by eight seconds after stopping the load. This fails the registered
+1–2-second responsiveness condition. The current value has a strong load
+response, but its delayed edges would misassign power to neighboring arm/tail
+windows. **Drop energy for this session.** Thermal metrics remain primary; do
+not estimate or report net mWh.

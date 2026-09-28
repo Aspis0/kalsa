@@ -1,0 +1,97 @@
+SESSION_START battery_dC=308 1790565294
+COOL npu-proof ok battery_dC=308 status=0 waited=0 1790565294
+WAKE before_npu_proof value=Awake battery_dC=308 status=0 level=72 1790565295
+PROOF_START npu-proof 1790565295
+PROOF_END npu-proof rc=0 htp_mulmat=484 v73=1 1790565298
+WAKE after_npu_proof value=Awake battery_dC=308 status=0 level=72 1790565298
+COOL P-cpu-1 ok battery_dC=308 status=0 waited=0 1790565298
+WAKE before_P-cpu-1 value=Awake battery_dC=308 status=0 level=72 1790565298
+A_START P-cpu-1 kind=P backend=cpu battery_dC=308 status=0 level=72 1790565298
+A_END P-cpu-1 rc=0 1790565312
+WAKE after_P-cpu-1 value=Awake battery_dC=308 status=0 level=72 1790565312
+TAIL_END P-cpu-1 1790565372
+COOL P-gpu-1 ok battery_dC=320 status=0 waited=0 1790565372
+WAKE before_P-gpu-1 value=Awake battery_dC=316 status=0 level=71 1790565372
+A_START P-gpu-1 kind=P backend=gpu battery_dC=316 status=0 level=71 1790565372
+A_END P-gpu-1 rc=0 1790565388
+WAKE after_P-gpu-1 value=Awake battery_dC=316 status=0 level=71 1790565388
+TAIL_END P-gpu-1 1790565448
+COOL P-npu-1 ok battery_dC=321 status=0 waited=0 1790565449
+WAKE before_P-npu-1 value=Awake battery_dC=321 status=0 level=71 1790565449
+A_START P-npu-1 kind=P backend=npu battery_dC=321 status=0 level=71 1790565449
+A_END P-npu-1 rc=0 1790565455
+WAKE after_P-npu-1 value=Awake battery_dC=321 status=0 level=71 1790565455
+TAIL_END P-npu-1 1790565515
+COOL P-cpu-2 ok battery_dC=321 status=0 waited=1 1790565516
+WAKE before_P-cpu-2 value=Awake battery_dC=321 status=0 level=71 1790565516
+A_START P-cpu-2 kind=P backend=cpu battery_dC=321 status=0 level=71 1790565516
+A_END P-cpu-2 rc=0 1790565530
+WAKE after_P-cpu-2 value=Awake battery_dC=320 status=0 level=71 1790565530
+TAIL_END P-cpu-2 1790565590
+COOL P-gpu-2 ok battery_dC=324 status=0 waited=0 1790565590
+WAKE before_P-gpu-2 value=Awake battery_dC=324 status=0 level=71 1790565590
+A_START P-gpu-2 kind=P backend=gpu battery_dC=324 status=0 level=71 1790565590
+A_END P-gpu-2 rc=0 1790565608
+WAKE after_P-gpu-2 value=Awake battery_dC=324 status=0 level=71 1790565608
+TAIL_END P-gpu-2 1790565668
+COOL P-npu-2 ok battery_dC=329 status=0 waited=0 1790565668
+WAKE before_P-npu-2 value=Awake battery_dC=329 status=0 level=70 1790565669
+A_START P-npu-2 kind=P backend=npu battery_dC=329 status=0 level=70 1790565669
+A_END P-npu-2 rc=0 1790565675
+WAKE after_P-npu-2 value=Awake battery_dC=326 status=0 level=70 1790565675
+TAIL_END P-npu-2 1790565735
+COOL P-cpu-3 ok battery_dC=325 status=0 waited=0 1790565735
+WAKE before_P-cpu-3 value=Awake battery_dC=325 status=0 level=70 1790565735
+A_START P-cpu-3 kind=P backend=cpu battery_dC=325 status=0 level=70 1790565735
+A_END P-cpu-3 rc=0 1790565749
+WAKE after_P-cpu-3 value=Awake battery_dC=325 status=0 level=70 1790565749
+TAIL_END P-cpu-3 1790565809
+COOL P-gpu-3 ok battery_dC=330 status=0 waited=1 1790565810
+WAKE before_P-gpu-3 value=Awake battery_dC=330 status=0 level=70 1790565810
+A_START P-gpu-3 kind=P backend=gpu battery_dC=330 status=0 level=70 1790565810
+A_END P-gpu-3 rc=0 1790565825
+WAKE after_P-gpu-3 value=Awake battery_dC=332 status=0 level=70 1790565826
+TAIL_END P-gpu-3 1790565886
+COOL P-npu-3 ok battery_dC=330 status=0 waited=0 1790565886
+WAKE before_P-npu-3 value=Awake battery_dC=330 status=0 level=70 1790565886
+A_START P-npu-3 kind=P backend=npu battery_dC=330 status=0 level=70 1790565886
+A_END P-npu-3 rc=0 1790565892
+WAKE after_P-npu-3 value=Awake battery_dC=330 status=0 level=70 1790565892
+TAIL_END P-npu-3 1790565952
+COOL D-5-1 ok battery_dC=329 status=0 waited=1 1790565953
+WAKE before_D-5-1 value=Awake battery_dC=329 status=0 level=69 1790565953
+A_START D-5-1 kind=D backend=cpu battery_dC=329 status=0 level=69 1790565953
+A_END D-5-1 rc=0 1790565967
+WAKE after_D-5-1 value=Awake battery_dC=329 status=0 level=69 1790565968
+TAIL_END D-5-1 1790566028
+COOL D-3-1 ok battery_dC=329 status=0 waited=76 1790566104
+WAKE before_D-3-1 value=Awake battery_dC=329 status=0 level=69 1790566105
+A_START D-3-1 kind=D backend=cpu battery_dC=329 status=0 level=69 1790566105
+A_END D-3-1 rc=0 1790566120
+WAKE after_D-3-1 value=Awake battery_dC=329 status=0 level=69 1790566120
+TAIL_END D-3-1 1790566180
+COOL D-2-1 ok battery_dC=329 status=0 waited=77 1790566257
+WAKE before_D-2-1 value=Awake battery_dC=329 status=0 level=68 1790566257
+A_START D-2-1 kind=D backend=cpu battery_dC=329 status=0 level=68 1790566257
+A_END D-2-1 rc=0 1790566276
+WAKE after_D-2-1 value=Awake battery_dC=329 status=0 level=68 1790566276
+TAIL_END D-2-1 1790566336
+COOL D-5-2 ok battery_dC=330 status=0 waited=77 1790566413
+WAKE before_D-5-2 value=Awake battery_dC=330 status=0 level=68 1790566413
+A_START D-5-2 kind=D backend=cpu battery_dC=330 status=0 level=68 1790566413
+A_END D-5-2 rc=0 1790566425
+WAKE after_D-5-2 value=Awake battery_dC=330 status=0 level=68 1790566426
+TAIL_END D-5-2 1790566486
+COOL D-3-2 ok battery_dC=329 status=0 waited=107 1790566593
+WAKE before_D-3-2 value=Awake battery_dC=329 status=0 level=67 1790566593
+A_START D-3-2 kind=D backend=cpu battery_dC=329 status=0 level=67 1790566593
+A_END D-3-2 rc=0 1790566608
+WAKE after_D-3-2 value=Awake battery_dC=329 status=0 level=67 1790566608
+TAIL_END D-3-2 1790566669
+COOL D-2-2 ok battery_dC=330 status=0 waited=61 1790566730
+WAKE before_D-2-2 value=Awake battery_dC=330 status=0 level=67 1790566730
+A_START D-2-2 kind=D backend=cpu battery_dC=330 status=0 level=67 1790566730
+A_END D-2-2 rc=0 1790566748
+WAKE after_D-2-2 value=Awake battery_dC=330 status=0 level=67 1790566748
+TAIL_END D-2-2 1790566808
+SESSION_END 1790566809

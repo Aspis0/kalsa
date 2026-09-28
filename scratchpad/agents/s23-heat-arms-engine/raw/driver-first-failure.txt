@@ -1,0 +1,4 @@
+Excerpt captured from the first S23 sampler run:
+/system/bin/sh: /data/local/tmp/heat3way/s23-engine/smp.sh[35]: /system/bin/printf: Argument list too long
+SESSION_STOP battery_dC=310 status=0 level=72 trace=0 plug=0 1790565139
+WAKE before abort: Awake; no arm binary had started.

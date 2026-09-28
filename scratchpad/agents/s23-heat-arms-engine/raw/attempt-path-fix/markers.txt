@@ -1,0 +1,16 @@
+SESSION_START battery_dC=308 1790565191
+COOL npu-proof ok battery_dC=308 status=0 waited=0 1790565192
+WAKE before_npu_proof value=Awake battery_dC=308 status=0 level=72 1790565192
+PROOF_START npu-proof 1790565192
+PROOF_END npu-proof rc=0 htp_mulmat=484 v73=1 1790565196
+WAKE after_npu_proof value=Awake battery_dC=308 status=0 level=72 1790565196
+COOL P-cpu-1 ok battery_dC=308 status=0 waited=0 1790565196
+WAKE before_P-cpu-1 value=Awake battery_dC=308 status=0 level=72 1790565196
+A_START P-cpu-1 kind=P backend=cpu battery_dC=308 status=0 level=72 1790565197
+A_END P-cpu-1 rc=1 1790565197
+WAKE after_P-cpu-1 value=Awake battery_dC=308 status=0 level=72 1790565197
+VOID P-cpu-1 rc=1 1790565197
+TAIL_END P-cpu-1 1790565257
+SESSION_STOP battery_dC=309 status=0 level=72 trace=0 plug=0 1790565257
+SESSION_ABORT arm=P-gpu-1 1790565257
+SESSION_END 1790565259

@@ -1,0 +1,5 @@
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /data/local/tmp/heat3way/ship.gguf
+f516905dd5a86926279b3bf08999539557aee3af6467c84a9df99a9323d4ba0a  /data/local/tmp/heat3way/prompt.txt
+790e38986321ff244535d297fbe66fc7d025454a07c5db904554e40dd4846109  /data/local/tmp/heat3way/bin/llama-completion
+5b52c79f2491daeab5995635de946d345cd13de06e6952ef785c52f00706cd1e  /data/local/tmp/heat3way/bin/llama-bench
+33e4e586f54c7c151d112d2cb8f8bbd8b8fd6ed2cf65339341813be9fbefcf46  /data/local/tmp/heat3way/lib/libggml-htp-v73.so

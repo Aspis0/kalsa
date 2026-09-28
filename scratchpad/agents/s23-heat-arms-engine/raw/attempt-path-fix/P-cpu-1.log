@@ -1,0 +1,13 @@
+COMMAND_START P-cpu-1 1790565197
+battery_dC=308 thermal_status=0 battery_pct=72 trace=0 plug=0 wake=Awake
+0.00.032.166 W DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+0.00.032.182 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+error while handling argument "-f": error: failed to open file '/data/local/tmp/heat3way/s23-engine/prompt.txt'
+
+
+usage:
+-f,    --file FNAME                     a file containing the prompt (default: none)
+
+
+to show complete usage, run with -h
+EXIT=1
