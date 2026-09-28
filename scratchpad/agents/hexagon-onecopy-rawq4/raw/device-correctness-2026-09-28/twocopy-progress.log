@@ -1,0 +1,9 @@
+0.57.613.677 D ggml-hex: HTP0:0 release ref on buffer: base 0x7192308000 size 1073111040 fd 21
+0.57.616.468 D ggml-hex: HTP0:0 unmapped buffer: base 0x7188eec000 size 155303936 fd 22
+0.57.616.476 D ggml-hex: HTP0:0 release ref on buffer: base 0x7188eec000 size 155303936 fd 22
+EXIT=0
+  mWakefulness=Awake
+  level: 100
+  temperature: 368
+Thermal Status: 0
+0

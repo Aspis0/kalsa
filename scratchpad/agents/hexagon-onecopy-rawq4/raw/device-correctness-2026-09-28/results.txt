@@ -1,0 +1,12 @@
+Engine commit: 9a2fb2376 (reported)
+llama-perplexity SHA-256 local/device: 6d29c123f09143b27e416655bfec96337bf3a414587eea2e0c9c5ad04e4a124b
+libggml-htp-v73.so SHA-256 local/device: d34a511a7e1b01f73ca2601bf4cb6cea000c1c6494c83ad7df28b3bbfb611b68
+Fixture SHA-256: bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728
+CPU base logits SHA-256: 5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f
+
+Run 1 raw Q4_0 one-copy: EXIT=0; HTP0:0 execute-op MUL_MAT=1080; of those, HTP0:0-HOST source=1080; failure markers=0; mean KLD=0.004706 ± 0.000397; max KLD=0.116930; same top p=96.667 ± 0.796%; mean PPL(Q)=33.971933 ± 5.161928.
+Run 2 normal-buffer control: EXIT=0; HTP0:0 execute-op MUL_MAT=811; HTP0:0-HOST source=0; failure markers=0; mean KLD=0.002788 ± 0.000170; max KLD=0.032330; same top p=96.471 ± 0.818%; mean PPL(Q)=33.374816 ± 5.055062.
+
+Run 1 pre/post: Awake, AC=true, 97% / 32.0 C / status 0 / traced 0 -> Awake, AC=true, 98% / 35.5 C / status 0 / traced 0.
+Run 2 pre/post: Awake, AC=true, 98% / 35.5 C / status 0 / traced 0 -> Awake, AC=true, 100% / 36.8 C / status 0 / traced 0.
+The app was force-stopped before each run; pidof output was empty. No timing or heat result is reported. Both logs show the same `failed to get URI ... Falling back to single session URI` warning before creating an HTP session; neither has dsp-error, NO-SUPPORT, crash, or abort markers. HTP execute-op lines confirm both sessions executed.

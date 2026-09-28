@@ -1,0 +1,29 @@
+STAYON_EXIT=0
+mWakefulness=Awake AC=true level=97 temperature_dC=320 thermal_status=0 traced=0
+GATE_EXIT=0
+BINARY_EXIT=0 HTP_MUL_MAT=1080 HTP_HOST_MUL_MAT=1080 ERROR_MARKERS=0
+Mean PPL(Q)/PPL(base)         :   1.050558 ±   0.006457
+Mean PPL(Q)-PPL(base)         :   1.634901 ±   0.353686
+Mean    KLD:   0.004706 ±   0.000397
+Maximum KLD:   0.116930
+Same top p: 96.667 ± 0.796 %
+ADB_EXIT=0
+mWakefulness=Awake AC=true level=98 temperature_dC=355 thermal_status=0 traced=0
+GATE_EXIT=0
+/data/local/tmp/govhtp/onecopy/rawq4-kld.log: 1 file pulled, 0 skipped. 21.7 MB/s (11271763 bytes in 0.495s)
+PULL_EXIT=0
+mWakefulness=Awake AC=true level=98 temperature_dC=355 thermal_status=0 traced=0
+GATE_EXIT=0
+BINARY_EXIT=0 HTP_MUL_MAT=811 HTP_HOST_MUL_MAT=0 ERROR_MARKERS=0
+Mean PPL(Q)/PPL(base)         :   1.032093 ±   0.004526
+Mean PPL(Q)-PPL(base)         :   1.037785 ±   0.233310
+Mean    KLD:   0.002788 ±   0.000170
+Maximum KLD:   0.032330
+Same top p: 96.471 ± 0.818 %
+ADB_EXIT=0
+mWakefulness=Awake AC=true level=100 temperature_dC=368 thermal_status=0 traced=0
+GATE_EXIT=0
+/data/local/tmp/govhtp/onecopy/twocopy-kld.log: 1 file pulled, 0 skipped. 20.7 MB/s (8429234 bytes in 0.388s)
+PULL_EXIT=0
+mWakefulness=Awake AC=true level=100 temperature_dC=368 thermal_status=0 traced=0
+GATE_EXIT=0

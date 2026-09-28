@@ -1,0 +1,6 @@
+2.04.254.018 D ggml-hex: HTP0:0 release ref on buffer: base 0x6f08b0f000 size 8392704 fd 23
+2.04.255.265 D ggml-hex: HTP0:0 unmapped buffer: base 0x6f292c6000 size 1063436288 fd 21
+2.04.255.278 D ggml-hex: HTP0:0 release ref on buffer: base 0x6f292c6000 size 1063436288 fd 21
+2.04.258.359 D ggml-hex: HTP0:0 unmapped buffer: base 0x6f09310000 size 536567808 fd 22
+2.04.258.374 D ggml-hex: HTP0:0 release ref on buffer: base 0x6f09310000 size 536567808 fd 22
+EXIT=0

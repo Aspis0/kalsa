@@ -172,3 +172,38 @@ large weights also get a `q_img` image (`:11360-11369`). It has no host path:
 only OpenCL bufts (`:14594-14598`). A 3-backend copy needs an AoS raw-Q4_0 GPU
 kernel on an imported rpcmem/dma-buf buffer plus a host buft, and gives up the
 SoA/image layout the fast Adreno kernels use: bigger than this HTP fix.
+
+## S23 device correctness — raw Q4_0 one-copy fix — 2026-09-28
+
+The Android artifacts from engine commit `9a2fb2376` were SHA-256 checked
+against the build report before transfer. `llama-perplexity` matched
+`6d29c123f09143b27e416655bfec96337bf3a414587eea2e0c9c5ad04e4a124b`; the new
+`libggml-htp-v73.so` matched
+`d34a511a7e1b01f73ca2601bf4cb6cea000c1c6494c83ad7df28b3bbfb611b68`. Device
+hashes matched too. Files were pushed only into `/data/local/tmp/govhtp/onecopy/`;
+the new DSP directory was first in `ADSP_LIBRARY_PATH`, ahead of the kit path.
+
+Both KLD arms used the registered two-chunk fixture, `-c 512`, and the same CPU
+logits base. `-lv 5` made the debug `execute-op` records visible; counts use the
+full device name `HTP0:0`. The app was force-stopped for each run. The phone was
+plugged in for correctness only; no timing or heat comparison was made.
+
+| Run | Exit | HTP MUL_MAT | MUL_MAT reading `HTP0:0-HOST` | Mean KLD | Max KLD | Same top p | Mean PPL(Q) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1: raw Q4_0 one-copy | 0 | 1080 | 1080 | 0.004706 ± 0.000397 | 0.116930 | 96.667 ± 0.796% | 33.971933 ± 5.161928 |
+| 2: normal-buffer control | 0 | 811 | 0 | 0.002788 ± 0.000170 | 0.032330 | 96.471 ± 0.818% | 33.374816 ± 5.055062 |
+| Earlier normal-buffer arm a | 0 | 182 in separate dispatch proof | 0 | 0.002788 | 0.032330 | 96.471% | 33.3748 |
+
+**Verdict: PASS.** Run 1 meets the report criterion verbatim: `EXIT=0`,
+`MUL_MAT > 0` and host-source `MUL_MAT > 0`, no `dsp-error`/`NO-SUPPORT`, mean
+KLD ≤0.005, same-top ≥95%, and finite PPL near 33.4. Its mean PPL is 33.971933,
+about 1.8% above 33.4 and within its reported ±5.16 chunk spread. Run 2 reproduces
+the earlier normal-buffer arm a: KLD, top-p agreement, and PPL match the recorded
+values. The raw-Q4 host-buffer fix is therefore correct on this S23 run.
+
+Both logs contain a `failed to get URI ... Falling back to single session URI`
+warning before the HTP session is created; HTP execution then proceeds. There are
+no DSP error, `NO-SUPPORT`, crash, or abort markers. Every pre/post gate remained
+Awake with the screen on, AC connected, battery above 30%, below 43 C, thermal
+status below 3, and traced 0. Raw logs, gates, hashes, and command receipts are
+under `raw/device-correctness-2026-09-28/`. A/B/C remain pending until unplugged.
