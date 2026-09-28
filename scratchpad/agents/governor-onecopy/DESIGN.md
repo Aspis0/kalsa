@@ -440,6 +440,14 @@ conditional on S0/S6 timing (one-copy prefill as default, `ffn_down` on the NPU,
 default flip). S5 is LANE because the one-copy load is only worth shipping if S6 passes; its degrade rule
 is SAFETY-grade and must land first inside it.
 
+**S1 status (2026-09-28):** implemented in the engine worktree `/Users/marco/Projects/kalsallama-gov-onecopy`,
+branch `feat/governor-onecopy` (base: spike head `c939a135d` merged with `feat/governor-npu-prefill`
+`45f097b74`, merge `f92413edf`; no existing branch rewritten), commit `1d39fd0dd`, not pushed. Deviations
+from the plan: the proc-address setter is left to S2 (its only caller), so S1 seeds the device-context state
+from env (`GGML_HEXAGON_ADMIT_OPS`, `GGML_HEXAGON_ADMIT_GATE`, default = old behaviour); the token dimension
+rule is per op (`htp-admit.h`), with the per-head-norm imprecision at decode pinned in the host test.
+Device census (decode = 0 HTP ops at ubatch 1) is still owed.
+
 Pins and provenance after each engine step follow the chain in `REPOS.md` (engine → binding
 `vendor/VERSIONS` → app `package.json` + lock → `assert-engine-provenance.sh`). Push only with the
 owner's approval or per the standing pipeline rule.
