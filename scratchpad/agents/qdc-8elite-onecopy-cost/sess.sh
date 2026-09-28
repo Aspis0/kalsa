@@ -69,7 +69,8 @@ sleep 3
 mark "H session_start deadline=$DEADLINE"
 
 # ---- names: the buffer-type names the -ot regex must target ----
-./bin/llama-bench -m "$D/ship.gguf" -p 1 -n 0 -r 1 -ngl 99 -dev HTP0 -ot 'zzz=NOSUCH' -o md > "$O/probe-names.out" 2>&1 < /dev/null
+# HOSTBUF=1: the -HOST buffer type is listed only when the host buffer is enabled.
+GGML_HEXAGON_HOSTBUF=1 ./bin/llama-bench -m "$D/ship.gguf" -p 1 -n 0 -r 1 -ngl 0 -dev none -ot 'zzz=NOSUCH' -o md > "$O/probe-names.out" 2>&1 < /dev/null
 HTPB=$(awk '/^  HTP/ && !/HOST/ {print $1; exit}' "$O/probe-names.out")
 HOSTB=$(awk '/^  HTP/ && /HOST/ {print $1; exit}' "$O/probe-names.out")
 mark "H names htp=${HTPB:-NONE} host=${HOSTB:-NONE}"

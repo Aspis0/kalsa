@@ -82,43 +82,49 @@ def proof(arm, bufs):
     if arm in ("b", "d-host"):    return bool(host) and (bool(htp) or arm == "d-host")
     return bool(cpu_only)
 
+# Units per arm: PREREG rounds 1-2, plus the disclosed amendment A1 re-runs (PREREG "Amendment A1").
+A1 = {"b": ["A1-b512", "A1-b2048"], "c": ["A1-c2048"],
+      "d-cpu": ["A1-d-cpu"], "d-cpu-nr": ["A1-d-cpu-nr"], "d-host": ["A1-d-host"]}
+def tags(prefix, arm): return [f"{prefix}{r}-{arm}" for r in (1, 2)] + A1.get(arm, [])
+
 def med(v): return st.median(v) if v else None
 def fmt(x, n=1): return "NA" if x is None else f"{x:.{n}f}"
 
 # ---- prefill ----
 pf = {}   # (arm,size) -> samples
 mem = {}  # arm -> dict
-print("## Prefill (tok/s, pooled reps of both rounds)\n")
-print("| arm | size | reps | median | min | max | proof | start skin (r1/r2) |\n|---|---:|---:|---:|---:|---:|---|---|")
+print("## Prefill (tok/s, pooled reps of every valid unit)\n")
+print("| arm | size | reps | median | min | max | valid units | void units |\n|---|---:|---:|---:|---:|---:|---|---|")
 for arm in PREFILL:
     for size in SIZES:
-        s, ok, sk = [], True, []
-        for r in (1, 2):
-            d = load(f"P{r}-{arm}")
-            sk.append(d["u"].get("skin0", "NA"))
-            if d["bad"] or not proof(arm, d["bufs"]): ok = False; continue
-            for row in d["rows"]:
-                if row.get("n_prompt") == size and not row.get("n_gen"):
-                    s += row["samples_ts"]
-            mem.setdefault(arm, dict(bufs=d["bufs"], hwm=[]))["hwm"].append(d["hwm"])
+        s, good, void = [], [], []
+        for tag in tags("P", arm):
+            d = load(tag)
+            if tag not in units: continue
+            if d["bad"] or not proof(arm, d["bufs"]):
+                void.append(f"{tag}({';'.join(d['bad']) or 'proof'})"); continue
+            got = [x for row in d["rows"] if row.get("n_prompt") == size and not row.get("n_gen") for x in row["samples_ts"]]
+            if got: good.append(f"{tag}@{d['u'].get('skin0')}C"); s += got
+            if d["bufs"] and size == SIZES[0]: mem.setdefault(arm, dict(bufs=d["bufs"], hwm=[]))["hwm"].append(d["hwm"])
         pf[(arm, size)] = s
-        print(f"| {arm} | {size} | {len(s)} | {fmt(med(s))} | {fmt(min(s) if s else None)} | {fmt(max(s) if s else None)} | {'OK' if ok else 'PARTIAL/VOID'} | {'/'.join(sk)} |")
+        print(f"| {arm} | {size} | {len(s)} | {fmt(med(s))} | {fmt(min(s) if s else None)} | {fmt(max(s) if s else None)} | {', '.join(good) or '-'} | {', '.join(void) or '-'} |")
 
 # ---- decode ----
 dc = {}
-print("\n## Decode tg256 (tok/s)\n")
-print("| arm | reps | median | min | max | proof | start skin (r1/r2) |\n|---|---:|---:|---:|---:|---|---|")
+print("\n## Decode (tok/s; PREREG tg256, A1 tg128)\n")
+print("| arm | reps | median | min | max | valid units | void units |\n|---|---:|---:|---:|---:|---|---|")
 for arm in DECODE:
-    s, ok, sk = [], True, []
-    for r in (1, 2):
-        d = load(f"D{r}-{arm}")
-        sk.append(d["u"].get("skin0", "NA"))
-        if d["bad"] or not proof(arm, d["bufs"]): ok = False; continue
-        for row in d["rows"]:
-            if row.get("n_gen") == 256: s += row["samples_ts"]
-        mem.setdefault(arm, dict(bufs=d["bufs"], hwm=[]))["hwm"].append(d["hwm"])
+    s, good, void = [], [], []
+    for tag in tags("D", arm):
+        d = load(tag)
+        if tag not in units: continue
+        if d["bad"] or not proof(arm, d["bufs"]):
+            void.append(f"{tag}({';'.join(d['bad']) or 'proof'})"); continue
+        got = [x for row in d["rows"] if row.get("n_gen") in (128, 256) for x in row["samples_ts"]]
+        if got: good.append(f"{tag}@{d['u'].get('skin0')}C"); s += got
+        if d["bufs"]: mem.setdefault(arm, dict(bufs=d["bufs"], hwm=[]))["hwm"].append(d["hwm"])
     dc[arm] = s
-    print(f"| {arm} | {len(s)} | {fmt(med(s))} | {fmt(min(s) if s else None)} | {fmt(max(s) if s else None)} | {'OK' if ok else 'PARTIAL/VOID'} | {'/'.join(sk)} |")
+    print(f"| {arm} | {len(s)} | {fmt(med(s))} | {fmt(min(s) if s else None)} | {fmt(max(s) if s else None)} | {', '.join(good) or '-'} | {', '.join(void) or '-'} |")
 
 # ---- memory ----
 print("\n## Memory (model buffers from the load log; peak RSS = VmHWM)\n")

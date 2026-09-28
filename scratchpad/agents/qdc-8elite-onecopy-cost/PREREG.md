@@ -157,3 +157,19 @@ after, and a later re-read if one is possible.
 Account `aspis.launcher@gmail.com`; the password only ever goes from the macOS Keychain into the browser
 field. Login asking for 2FA: stop and report. adb only to the QDC tunnel on port 6037, never the local server.
 One session. Kalsa is not installed on the board; no app runs.
+
+## Amendment A1 — 2026-09-28 15:29 EDT, written DURING the session, AFTER round 1 results were seen
+
+Disclosed, not pre-registered. Two facts forced it:
+1. The soft 60 s gate did not bind heat: P1-a-flat ran 176 s (the flat HVX kernel on v79 is slow), the
+   skin rose to 45 °C and the watchdog killed P1-b, P1-c, D1-d-cpu and D1-d-cpu-nr (all VOID `watchdog`).
+   Continuing sess.sh would have voided the rest, so the operator killed it at 15:27 (marker
+   `H A1_operator_stop` was not written: the pkill also ended the adb shell). The sampler was restarted.
+2. The numerics gate had already failed its absolute bound (k1-p5 mean KLD 0.019336 > 0.0035) while
+   meeting the relative one (|k1 − k2| = 0.000016 ≤ 0.0005): the two-copy flat control itself sits at
+   0.019320 on v79. Per the rule above the verdict is therefore UNDECIDED; A1 does not change that rule.
+
+A1 (`a1.sh`): hard cooldown to skin ≤ 38.0 °C and status 0 (cap 240 s) before every unit, then
+d-cpu, d-cpu-nr, d-host at `-n 128 -r 2`; b at `-p 512 -r 3` (a clean repeat of the watchdog-cut P1-b row);
+c at `-p 2048 -r 2`; b at `-p 2048 -r 1`. Round 2 of the PREREG is dropped (no session time).
+The rows P1-b/P1-c printed before the watchdog kill are reported as informational, marked VOID.
