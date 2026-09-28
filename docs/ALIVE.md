@@ -703,12 +703,18 @@ at `0a5c7823`, device validation pending. Prior art: `npu-prefill-prior-art/` (u
 - **Campaign harness:** screen-ON per turn, fail-closed readings and the log-based readiness
   gate (`018bc514`); both quoted and unquoted `KALSA_` log wire forms (`2a5e8952`); tool-round
   capture with its quiet window and the 10-minute per-round bound (`bef8219d`, `0f0808b6`).
-- **Active security risk; owner decision pending:** the public `assetlinks.json` still carries the
-  public Android debug signing key. Another app with package `com.kalsa.app` signed by that key
-  could verify as a handler for `https://kalsa.io/pair` links. Decide the signing-key migration
-  and CI enforcement; the risk is live because the endpoint is already public. Separately, a link
-  overwrites the saved desk before confirmation; the owner declined one-tap confirm for the alpha
-  (family-only users).
+- **Beta debt (owner decision, 2026-09-28):** the owner accepts the `assetlinks.json` debug-key
+  risk for the family-only alpha. Before beta, create our private release signing key (also needed
+  for Play), publish its SHA-256 in the Worker's `assetlinks.json`, and add a CI gate that fails if
+  the file names the public React Native debug key (`FA:C6:17:…:3B:9C`).
+- **Beta debt (owner decision, 2026-09-28):** the device APK for `335f9c8d` is **179.8 MB**
+  (SHA-256 `eee75d1f…47a5`). Coordinator `unzip -l` breakdown: seven CPU-feature engine variants,
+  **83.3 MB** total (`librnllama*.so` about **10.7 MB** each; only one loads at runtime); dex
+  **34.8 MB** (not minified); other native libraries **30.6 MB**; iroh **11.1 MB**; assets
+  **7.3 MB**; Hexagon skels **2.8 MB**. Before beta, keep 2–3 engine variants, strip native debug
+  symbols in user builds, enable R8 for release, and ship an Android App Bundle on Play. Target
+  **under 70 MB** is an estimate, not measured. Separately, a link overwrites the saved desk before
+  confirmation; the owner declined one-tap confirm for the alpha (family-only users).
 
 ## Engine release pipeline (`kalsa-server`)
 
