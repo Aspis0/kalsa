@@ -7,10 +7,16 @@
 //! it — and a 206 that starts anywhere else get the same treatment: one
 //! fresh request, from zero, overwriting the part file rather than gluing a
 //! foreign body onto our prefix.
+//!
+//! The connection is built here too, with the clocks the wire is held to —
+//! including the resolver's, which ureq itself does not apply (see
+//! [`crate::resolve`]).
 
 use std::io;
+use std::net::SocketAddr;
 use std::time::Duration;
 
+use crate::resolve::{deadline_resolver, std_lookup, RESOLVE_DEADLINE};
 use crate::DownloadError;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -29,8 +35,31 @@ pub(crate) fn connect_with_read_timeout(
     resume_from: u64,
     read_timeout: Duration,
 ) -> Result<(ureq::Response, u64), DownloadError> {
+    connect_with_lookup(url, resume_from, read_timeout, RESOLVE_DEADLINE, std_lookup)
+}
+
+/// The connect with its clocks and its lookup handed in: the read clock is
+/// the resume's, the resolver's is the one ureq cannot apply, and the lookup
+/// is whatever the caller wants held to that clock — a test hands in a
+/// sleeper and a short deadline and never opens a socket.
+pub(crate) fn connect_with_lookup(
+    url: &str,
+    resume_from: u64,
+    read_timeout: Duration,
+    resolve_deadline: Duration,
+    lookup: impl Fn(&str) -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static,
+) -> Result<(ureq::Response, u64), DownloadError> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(CONNECT_TIMEOUT)
+        .timeout_read(read_timeout)
+        // Only a request line and headers are ever written, so bounding
+        // writes cannot touch a download's body — and a peer that accepts
+        // no bytes would otherwise hang here before any read could start.
+        .timeout_write(CONNECT_TIMEOUT)
+        .resolver(deadline_resolver(resolve_deadline, lookup))
+        .build();
     if resume_from > 0 {
-        let response = send(url, Some(resume_from), read_timeout)?;
+        let response = send(&agent, url, Some(resume_from))?;
         match response.status() {
             // Range ignored: the body is the whole file.
             200 => return Ok((response, 0)),
@@ -47,7 +76,7 @@ pub(crate) fn connect_with_read_timeout(
             code => return Err(unusable_status(code)),
         }
     }
-    let response = send(url, None, read_timeout)?;
+    let response = send(&agent, url, None)?;
     let start = match response.status() {
         200 => 0,
         // A 206 to a request with no Range is a broken server; its body may
@@ -64,14 +93,10 @@ pub(crate) fn connect_with_read_timeout(
 }
 
 fn send(
+    agent: &ureq::Agent,
     url: &str,
     range: Option<u64>,
-    read_timeout: Duration,
 ) -> Result<ureq::Response, DownloadError> {
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(CONNECT_TIMEOUT)
-        .timeout_read(read_timeout)
-        .build();
     let mut request = agent.get(url);
     if let Some(at) = range {
         // No If-Range alongside this, on purpose: we persist no ETag from the
@@ -165,6 +190,34 @@ mod tests {
         assert_eq!(content_range_start("bytes */789"), None);
         assert_eq!(content_range_start("garbage"), None);
         assert_eq!(content_range_start(""), None);
+    }
+
+    #[test]
+    fn a_name_that_never_answers_is_the_network_block_within_the_deadline() {
+        // The owner's black hole, at the resolver itself: a lookup that
+        // sleeps past its clock. No socket exists to hang on, and the answer
+        // the clock gives is the wire's — the classification the engine
+        // decision's network-block sentence reads.
+        let deadline = Duration::from_millis(250);
+        let slow = |_netloc: &str| -> io::Result<Vec<SocketAddr>> {
+            std::thread::sleep(Duration::from_secs(2));
+            Ok(vec![])
+        };
+        let started = std::time::Instant::now();
+        let err = connect_with_lookup(
+            "http://names-that-never-answer.invalid/model.gguf",
+            0,
+            DEFAULT_READ_TIMEOUT,
+            deadline,
+            slow,
+        )
+        .expect_err("a name that never answers must fail");
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < deadline + Duration::from_millis(750),
+            "the resolver's clock is the bound: {elapsed:?} for a {deadline:?} deadline"
+        );
+        assert!(err.is_network(), "the network-block fact: {err:?}");
     }
 
     #[test]

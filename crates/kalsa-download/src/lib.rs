@@ -24,6 +24,7 @@ mod fetch;
 mod part;
 mod publish;
 mod range;
+mod resolve;
 mod reuse;
 mod verify;
 
