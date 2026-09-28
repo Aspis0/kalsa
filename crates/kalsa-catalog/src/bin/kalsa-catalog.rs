@@ -26,12 +26,22 @@ fn main() {
         }
     };
     let budget = memory_budget(input.backend, input.ram_bytes);
+    // Which margin made the budget: the card's own one-GiB floor on a
+    // discrete path, the RAM margin on every other — the number alone
+    // cannot say, and after the measured VRAM floor it is no longer the
+    // same margin either way.
+    let basis = match input.backend {
+        kalsa_probe::Backend::DiscreteGpu {
+            vram_bytes: Some(vram),
+        } => format!("of the {} card, after its 1 GiB floor", gibs(vram)),
+        _ => format!("after the {:.0}% / 3 GiB margin", 25.0),
+    };
 
     println!(
-        "machine: {} RAM, {} budget after the {:.0}% / 3 GiB margin, {} context",
+        "machine: {} RAM, {} budget {}, {} context",
         gibs(input.ram_bytes),
         gibs(budget.usable_bytes),
-        25.0,
+        basis,
         input.context_tokens
     );
     println!(
@@ -72,7 +82,7 @@ fn main() {
     for usable in kalsa_catalog::usable() {
         let entry = usable.entry();
         let footprint = footprint_bytes(entry, input.context_tokens);
-        let fits = footprint.total_bytes() <= budget.usable_bytes;
+        let fits = kalsa_catalog::fits_footprint(entry, &footprint, &budget);
         let capable = input
             .phone
             .as_ref()

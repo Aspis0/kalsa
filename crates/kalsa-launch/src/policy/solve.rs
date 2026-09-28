@@ -60,6 +60,7 @@ fn a_plain_row_pays_no_per_slot_term() {
     // KV budget over the per-token figure, nothing subtracted.
     let budget = MemoryBudget {
         usable_bytes: 16 * GIB,
+        card_sized: false,
         gpu_accounted_for: true,
     };
     let flat = funded_maximum(&input(ServerBackend::Cpu, budget, &plain, M1_MAX_RAMP))
@@ -171,6 +172,7 @@ fn the_growing_regime_is_reached_through_plan_at_two_slots() {
     let fixed = row.weights_bytes + COMPUTE_BUFFER_BYTES;
     let budget = MemoryBudget {
         usable_bytes: fixed + 2_000_000_000,
+        card_sized: false,
         gpu_accounted_for: true,
     };
     let kv_budget = 1_500_000_000;
@@ -224,6 +226,7 @@ fn a_budget_that_cannot_pay_every_slot_refuses_at_two_slots() {
     // exactly 1_000_000_000 B.
     let budget = MemoryBudget {
         usable_bytes: fixed + 1_333_333_333,
+        card_sized: false,
         gpu_accounted_for: true,
     };
     let kv_budget = 1_000_000_000;

@@ -74,6 +74,11 @@ pub fn usable_bytes(ram_bytes: u64) -> u64 {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MemoryBudget {
     pub usable_bytes: u64,
+    /// True when `usable_bytes` is the CARD's memory: on this budget a row's
+    /// [`host_bytes_on_gpu`] are not charged to it, because they never enter
+    /// the card. False for every budget sized in system RAM — where those
+    /// bytes run, and are charged as part of the file, as they always were.
+    pub card_sized: bool,
     /// True when the budget is sized for the path the model will take: system
     /// RAM on a CPU machine or in unified memory, the card's own memory for a
     /// discrete GPU whose size could be read. False means a discrete GPU is
@@ -96,12 +101,14 @@ pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
             vram_bytes: Some(vram),
         } => MemoryBudget {
             usable_bytes: vram.saturating_sub(VRAM_MARGIN_BYTES),
+            card_sized: true,
             gpu_accounted_for: true,
         },
         // Unified memory: the GPU decodes out of system RAM, so the RAM budget
         // is the whole story and nothing is left unaccounted for.
         Backend::Cpu | Backend::Metal => MemoryBudget {
             usable_bytes: usable_bytes(ram_bytes),
+            card_sized: false,
             gpu_accounted_for: true,
         },
         // A card whose size could not be read honestly: the chooser refuses
@@ -112,6 +119,7 @@ pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
         // accounted for.
         Backend::DiscreteGpu { vram_bytes: None } | Backend::Unknown => MemoryBudget {
             usable_bytes: usable_bytes(ram_bytes),
+            card_sized: false,
             gpu_accounted_for: false,
         },
     }
@@ -153,8 +161,42 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
     }
 }
 
+/// Bytes of this row that never enter a discrete card: the engine's
+/// `CPU_Mapped` buffer. The load logs on the owner's Lenovo print them for
+/// two rows, quoted in docs/VRAM-LENOVO-2026-09-28.md §3 — Gemma 4 E4B
+/// Q4_K_M leaves **2 208.00 MiB** (2_315_556_864 bytes) of its per-layer
+/// embeddings in host memory while "offloaded 43/43 layers to GPU", and
+/// LFM2.5-2.6B Q8_0 leaves **265.62 MiB** (278_527_367 bytes — the log
+/// prints two decimals) of its output weight. The sizes are measured; what
+/// the tensors are is the report's INFERRED reading of them. `None` on
+/// every row nobody has measured this way — nothing is guessed, and such a
+/// row is charged whole, exactly as before.
+pub fn host_bytes_on_gpu(entry: &ModelEntry) -> Option<u64> {
+    match (entry.repo, entry.quant) {
+        ("google/gemma-4-E4B-it", "Q4_K_M") => Some(2_315_556_864),
+        ("LiquidAI/LFM2.5-2.6B", "Q8_0") => Some(278_527_367),
+        _ => None,
+    }
+}
+
+/// What a row has to fit: its whole footprint on a budget sized in system
+/// RAM — those bytes are in RAM where the row runs, so they are charged
+/// there as part of the file — and on a card's budget the footprint minus
+/// [`host_bytes_on_gpu`], because they never enter the card. Nothing is
+/// dropped from the arithmetic; each byte is charged where it lives, and
+/// `weights_bytes` still says what the file weighs on either path.
+pub fn fits_footprint(entry: &ModelEntry, footprint: &Footprint, budget: &MemoryBudget) -> bool {
+    let total = footprint.total_bytes();
+    let charged = if budget.card_sized {
+        total.saturating_sub(host_bytes_on_gpu(entry).unwrap_or(0))
+    } else {
+        total
+    };
+    charged <= budget.usable_bytes
+}
+
 pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> bool {
-    footprint_bytes(entry, context_tokens).total_bytes() <= budget.usable_bytes
+    fits_footprint(entry, &footprint_bytes(entry, context_tokens), budget)
 }
 
 #[cfg(test)]
@@ -278,6 +320,68 @@ mod tests {
         assert_eq!(ram.usable_bytes, usable_bytes(32 * GIB));
         let mac = memory_budget(Backend::Metal, 16 * GIB);
         assert_eq!(mac.usable_bytes, usable_bytes(16 * GIB));
+    }
+
+    #[test]
+    fn a_row_that_keeps_weights_in_host_memory_is_charged_to_the_card_they_never_enter() {
+        // The Lenovo's load logs, as the report quotes them
+        // (docs/VRAM-LENOVO-2026-09-28.md §3): Gemma 4 E4B leaves
+        // 2 208.00 MiB of its per-layer embeddings in a CPU_Mapped buffer
+        // while all 43 layers are offloaded; LFM2.5 leaves 265.62 MiB of
+        // its output weight there. Only those two rows carry a figure —
+        // measured sizes, on rows the log printed — and nothing else
+        // guesses one.
+        let find = |repo: &str| {
+            rows()
+                .find(|entry| entry.repo == repo)
+                .expect("the row is in the catalog")
+        };
+        let e4b = find("google/gemma-4-E4B-it");
+        let lfm = find("LiquidAI/LFM2.5-2.6B");
+        assert_eq!(host_bytes_on_gpu(e4b), Some(2_315_556_864), "2 208.00 MiB");
+        assert_eq!(host_bytes_on_gpu(lfm), Some(278_527_367), "265.62 MiB");
+        assert_eq!(
+            host_bytes_on_gpu(find("google/gemma-4-12B-it")),
+            None,
+            "unmeasured rows are charged whole, as they always were"
+        );
+
+        // The card as the report measures it: 6 141 MiB with the one-GiB
+        // floor — 5 117 MiB — where the catalog's own estimates for these
+        // two rows are 5 802 and 3 798 MiB at 65 536 tokens (§2).
+        let card = memory_budget(
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_141 * MIB),
+            },
+            32 * GIB,
+        );
+        let at_64k = footprint_bytes(e4b, 65_536);
+        assert_eq!(at_64k.total_bytes(), 6_084_467_840, "the report's estimate");
+        assert!(
+            at_64k.total_bytes() > card.usable_bytes,
+            "charged whole, the file is over the card"
+        );
+        assert!(
+            fits_footprint(e4b, &at_64k, &card),
+            "the card holds the 3 594 MiB that actually enter it"
+        );
+        let lfm_fp = footprint_bytes(lfm, 65_536);
+        assert_eq!(lfm_fp.total_bytes(), 3_982_075_904, "the report's estimate");
+        assert!(fits_footprint(lfm, &lfm_fp, &card));
+
+        // The host bytes are not dropped: on a budget sized in RAM the whole
+        // file is still charged, host-mapped bytes and all.
+        let ram = memory_budget(Backend::Cpu, 8 * GIB);
+        assert_eq!(ram.usable_bytes, 5 * GIB);
+        assert!(
+            !fits_footprint(e4b, &at_64k, &ram),
+            "a 5 GiB RAM budget holds no row whose file weighs 5 802 MiB"
+        );
+        assert!(
+            fits_footprint(lfm, &lfm_fp, &ram),
+            "and the LFM file fits it whole — nothing was subtracted"
+        );
+        assert!(!ram.card_sized, "a RAM budget never subtracts");
     }
 
     #[test]

@@ -14,8 +14,9 @@ mod audit_config;
 
 use kalsa_catalog::{
     audit::{inspect, RowAssessment},
-    choose, largest_that_runs_well, memory_budget, quicker_alternative, ChoiceInput, Decision,
-    DownloadPlan, PhoneModel, Prediction, RefusalReason, RunnableRow, Standing, CATALOG, GIB,
+    choose, fits_footprint, largest_that_runs_well, memory_budget, quicker_alternative,
+    ChoiceInput, Decision, DownloadPlan, PhoneModel, Prediction, RefusalReason, RunnableRow,
+    Standing, CATALOG, GIB,
 };
 
 use audit_config::Config;
@@ -197,7 +198,7 @@ fn on_the_menu(
     ram_bytes: u64,
 ) -> bool {
     !matches!(row.standing, Standing::Excluded { .. })
-        && row.footprint.total_bytes() <= budget.usable_bytes
+        && fits_footprint(row.entry, &row.footprint, &budget)
         && !row.too_slow
         && !(kalsa_catalog::full_precision_file(row.entry)
             && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES)

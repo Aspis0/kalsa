@@ -8,7 +8,7 @@
 use kalsa_probe::{decode_band, decode_tokens_per_second, prefill_tokens_per_second};
 
 use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
-use crate::footprint::{footprint_bytes, Footprint, MemoryBudget};
+use crate::footprint::{fits_footprint, footprint_bytes, Footprint, MemoryBudget};
 use crate::manifest::{self, GgufSource, ModelEntry, UsableEntry};
 
 /// A predicted figure, with its shape carried in the type. The shape is
@@ -258,7 +258,7 @@ pub(crate) fn too_slow_to_use(
 ) -> Option<Prediction> {
     manifest::usable()
         .map(|entry| candidate(entry, input))
-        .filter(|candidate| candidate.footprint.total_bytes() <= budget.usable_bytes)
+        .filter(|candidate| fits_footprint(candidate.entry, &candidate.footprint, budget))
         .filter(|candidate| matches!(candidate.decode, Prediction::Range { .. }))
         .filter(|candidate| candidate.decode.floor() < MINIMUM_TOKENS_PER_SECOND)
         .filter(|candidate| candidate.entry.weights_bytes > chosen.entry.weights_bytes)

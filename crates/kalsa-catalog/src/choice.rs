@@ -15,7 +15,7 @@
 use kalsa_probe::Backend;
 
 use crate::candidate::{candidate, Candidate, Prediction};
-use crate::footprint::{memory_budget, Footprint, MemoryBudget, GIB};
+use crate::footprint::{fits_footprint, memory_budget, Footprint, MemoryBudget, GIB};
 use crate::licence::Licence;
 use crate::manifest::{self, DenseEquivalent, ModelEntry};
 use crate::parameters::Parameters;
@@ -834,7 +834,7 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
     // the GPU at all, so "nearly fits, offload most of it" is a loss dressed
     // up as a win, and the fallback is the largest model that fits, never a
     // spill.
-    let fits = |candidate: &Candidate| candidate.footprint.total_bytes() <= budget.usable_bytes;
+    let fits = |candidate: &Candidate| fits_footprint(candidate.entry, &candidate.footprint, &budget);
     if candidates.iter().all(|candidate| !fits(candidate)) {
         return Err(nothing_fits(budget, &candidates));
     }
