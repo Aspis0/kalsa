@@ -15,7 +15,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use kalsa_catalog::{
-    choose, decode_prediction, largest_that_runs_well, memory_budget, quicker_alternative, rows,
+    choose, largest_that_runs_well, memory_budget, quicker_alternative, rows,
     runnable_row, usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction,
     RefusalReason, RunnableRow, Selection, CHOOSER_CONTEXT_TOKENS,
 };
@@ -25,9 +25,10 @@ use kalsa_probe::{Backend, Measurement};
 
 /// The phone-free pick's sentence, written for that path: there is no
 /// justification to report, because no comparison was ever made. The true
-/// thing is that this is the biggest model the machine runs well, and the
+/// thing is that this is the row this machine runs best — the big dense row
+/// that cleared its line, the fastest row when no line clears — and the
 /// phone is what would turn it into a comparison.
-pub(crate) const PHONE_FREE_REASON: &str = "This is the biggest model this computer runs well. \
+pub(crate) const PHONE_FREE_REASON: &str = "This is the model that suits this computer best. \
 Pair your phone and the app can tell you whether it beats what the phone runs.";
 
 /// The sentence for a model the owner picked themselves. It says who decided,
@@ -49,37 +50,6 @@ The one above is the more capable of the two.";
 /// it. What stays true is the size, not the speed.
 const QUICKER_SMALLER_REASON: &str = "Smaller, so it starts answering sooner. \
 The one above is the more capable of the two.";
-
-/// The conversation length every speed on this page is priced at.
-///
-/// [`CHOOSER_CONTEXT_TOKENS`] — 65_536, the window a row must fit to be
-/// offered at all — is what decides *which* row appears here, and pricing
-/// the cache there excludes nothing the engine will pay for that row. But
-/// the cache is re-read on every token, so it costs speed as well as memory,
-/// and a figure quoted at the launch window is the best case the owner will
-/// see once — at the first word of the first conversation. This is the
-/// figure after a real exchange, and the card says which length it is,
-/// because the honest answer is that the speed falls as the conversation
-/// grows rather than that it is one number.
-///
-/// It is a CEILING, not the figure: see [`shown_context`]. Quoting a speed at
-/// 8192 tokens on a row the machine funds 1645 tokens of is a number nobody
-/// can ever see, and a label the model cannot keep — Phi Mini was trained at
-/// 4096 and the card said 8192 under it.
-const SPEED_CONTEXT_TOKENS: u64 = 8192;
-
-/// The conversation length one row's speed is priced at on this machine:
-/// [`SPEED_CONTEXT_TOKENS`] where the memory funds it, the whole funded
-/// window where it does not. `funded_context` already stops at the length the
-/// model was trained for, so this cannot label a row with a window it never
-/// had, and it answers PER SLOT: the card prices one device, and the engine
-/// gives one device `1/parallel` of the flag. `None` there means the row fits
-/// with nothing left for a cache at all; the chooser's own window is then
-/// the only context there is.
-fn shown_context(entry: &ModelEntry, usable_bytes: u64, parallel: u32) -> u64 {
-    funded_context(entry, usable_bytes, parallel)
-        .map_or(CHOOSER_CONTEXT_TOKENS, |funded| funded.min(SPEED_CONTEXT_TOKENS))
-}
 
 /// The answer the Brain page reads. `Unmeasured` when this run keeps no
 /// measurement of the machine; otherwise the machine's facts and exactly one
@@ -153,9 +123,12 @@ pub(crate) struct ModelChoiceDto {
     /// cannot fund even one token; the page shows nothing rather than a
     /// number that lies.
     context_tokens: Option<u64>,
-    /// The conversation length the `speed` above is priced at. It travels as
-    /// a number so the page can say it: a speed without the length it was
-    /// measured at is the empty-cache best case wearing a general claim.
+    /// The conversation length the `speed` above is priced at:
+    /// [`CHOOSER_CONTEXT_TOKENS`], the window the chooser judged this row
+    /// in, so the number on the page and the number in the rule are one
+    /// number. It travels as a number so the page can say it: a speed
+    /// without the length it was priced at is the empty-cache best case
+    /// wearing a general claim.
     speed_context_tokens: u64,
     speed: SpeedDto,
     /// The tune's measured decode rate for this row on THIS machine, when
@@ -241,12 +214,6 @@ pub(crate) fn dto(
     let (model, decode, refusal) = match choose(&input) {
         Decision::Pick(selection) => {
             let row = chosen_row(&selection);
-            let context = row.map_or(CHOOSER_CONTEXT_TOKENS, |row| {
-                shown_context(row, budget.usable_bytes, DEFAULT_PARALLEL)
-            });
-            let shown = row
-                .and_then(|row| shown_decode(row, &input, context))
-                .unwrap_or(selection.decode);
             (
                 Some(ModelChoiceDto {
                     id: row.map(crate::startup::model_token),
@@ -255,13 +222,13 @@ pub(crate) fn dto(
                     weights_bytes: selection.weights_bytes,
                     context_tokens: row
                         .and_then(|row| funded_context(row, budget.usable_bytes, DEFAULT_PARALLEL)),
-                    speed_context_tokens: context,
-                    speed: speed(&shown),
+                    speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                    speed: speed(&selection.decode),
                     measured: row.and_then(|row| measured_speed(root, row)),
                     reason: selection.plain_reason,
                     details: selection.details,
                 }),
-                Some(shown),
+                Some(selection.decode),
                 None,
             )
         }
@@ -274,8 +241,6 @@ pub(crate) fn dto(
             // Every other refusal is a real one and keeps its own words.
             RefusalReason::PhoneUnknown => match largest_that_runs_well(&input) {
                 Ok(row) => {
-                    let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
-                    let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
                     (
                         Some(ModelChoiceDto {
                             id: Some(crate::startup::model_token(row.entry)),
@@ -287,17 +252,17 @@ pub(crate) fn dto(
                                 budget.usable_bytes,
                                 DEFAULT_PARALLEL,
                             ),
-                            speed_context_tokens: context,
-                            speed: speed(&shown),
+                            speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                            speed: speed(&row.decode),
                             measured: measured_speed(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
                             // The working quotes the same figure as the line
-                            // above it: built from `row.decode` it quoted the
-                            // chooser's one-token price instead, and the card
-                            // carried two speeds for one model, one click apart.
-                            details: phone_free_details(&row, &shown),
+                            // above it — this row's own band at the chooser's
+                            // window — so one model cannot carry two speeds
+                            // one click apart.
+                            details: phone_free_details(&row, &row.decode),
                         }),
-                        Some(shown),
+                        Some(row.decode),
                         None,
                     )
                 }
@@ -313,16 +278,12 @@ pub(crate) fn dto(
     // Against the row on the page, not against the biggest that fits: with a
     // phone paired those can differ, and "faster" has to mean faster than
     // what the owner is looking at. The FIT is the chooser's own question and
-    // is asked at [`CHOOSER_CONTEXT_TOKENS`] — the window the pick itself
-    // must hold — while `prediction` is the pick's speed as SHOWN, priced at
-    // [`SPEED_CONTEXT_TOKENS`], which is the only part that window still
-    // touches: the second card is tested at the product's window and quoted
-    // at the conversation length its number is labelled with.
+    // travels in `context_tokens`; the band both cards quote is the one the
+    // chooser judged — [`CHOOSER_CONTEXT_TOKENS`] — so the bar the second
+    // card must clear and the number the page shows are one number.
     let quicker = decode
         .and_then(|prediction| quicker_alternative(&input, &prediction))
         .map(|row| {
-            let context = shown_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL);
-            let shown = shown_decode(row.entry, &input, context).unwrap_or(row.decode);
             let measured = measured_speed(root, row.entry);
             // "Much faster" is the catalog's prediction. When both rows
             // carry this machine's own measurements and the smaller one
@@ -338,11 +299,11 @@ pub(crate) fn dto(
                 quant: row.entry.quant.to_string(),
                 weights_bytes: row.entry.weights_bytes,
                 context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
-                speed_context_tokens: context,
-                speed: speed(&shown),
+                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                speed: speed(&row.decode),
                 measured,
                 reason: reason.to_string(),
-                details: alternative_details(&row, &shown),
+                details: alternative_details(&row, &row.decode),
             }
         });
     CapabilityDto::Measured {
@@ -368,28 +329,6 @@ fn measured_speed(root: &Path, entry: &ModelEntry) -> Option<f64> {
         .source();
     let record = kalsa_tune::record::load_by_model(root, source.sha256)?;
     record.winner.map(|winner| winner.best)
-}
-
-/// The decode figure the page shows for a row: the same catalog arithmetic,
-/// priced at a conversation of real length instead of an empty cache. `None`
-/// only if the row is not on the menu, which cannot happen for a row the
-/// chooser just picked — the fallback is then the selection's own figure.
-fn shown_decode(entry: &ModelEntry, input: &ChoiceInput, context: u64) -> Option<Prediction> {
-    let shown = ChoiceInput {
-        context_tokens: context,
-        ..*input
-    };
-    usable()
-        // The same identity `chosen_row` matches on, minus the display name
-        // it does not have here: a repo alone is not a key, and pricing the
-        // wrong row's cache would be a wrong number with a right label.
-        .find(|row| {
-            let row = row.entry();
-            row.repo == entry.repo
-                && row.quant == entry.quant
-                && row.weights_bytes == entry.weights_bytes
-        })
-        .map(|row| decode_prediction(row, &shown))
 }
 
 /// Decode speed as the three shapes the UI can say. `Estimate` is a prefill
@@ -533,7 +472,7 @@ mod tests {
                 quant: "Q4_K_M".to_string(),
                 weights_bytes: 4_000_000_000,
                 context_tokens: Some(4584),
-                speed_context_tokens: SPEED_CONTEXT_TOKENS,
+                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: SpeedDto::Range {
                     low: 12.0,
                     high: 21.0,
@@ -554,7 +493,7 @@ mod tests {
                 quant: "Q4_K_M".to_string(),
                 weights_bytes: 4_977_171_584,
                 context_tokens: Some(8192),
-                speed_context_tokens: SPEED_CONTEXT_TOKENS,
+                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: SpeedDto::Measured {
                     value: 62.7,
                     machine: "an M1 Max".to_string(),
@@ -815,7 +754,7 @@ mod tests {
         let choice = model.expect("something runs well on a 16 GiB machine");
         assert!(refusal.is_none(), "a pick does not carry a refusal");
         let reason = choice.reason.to_ascii_lowercase();
-        assert!(reason.contains("biggest"), "{reason}");
+        assert!(reason.contains("suits this computer best"), "{reason}");
         assert!(reason.contains("pair"), "{reason}");
         assert!(!choice.details.is_empty(), "the working travels too");
         // And when nothing runs even without the comparison, the phone-free
@@ -892,11 +831,15 @@ mod tests {
     /// A measurement by hand, so no test runs the probe: 80 GB/s on the CPU
     /// path, the shape the catalog predicts from.
     #[test]
-    fn no_speed_is_quoted_at_a_context_the_machine_does_not_fund() {
-        // The card used to price every speed at 8192 tokens whatever the row
-        // was: Phi Mini was trained at 4096 and funds 1645 on an 8 GiB
-        // machine, and the page still said 8192 under it. A length nobody can
-        // reach is not a conversation the owner will ever have.
+    fn every_speed_is_quoted_at_the_window_the_rule_judged() {
+        // The card used to reprice every band at 8192 tokens while the rule
+        // judged the row at 65_536: the page read 10.5 for a row the floors
+        // saw at 9.0, and the owner could not reconcile the two. Both cards
+        // now carry the chooser's own band and name it, so the number on the
+        // page IS the number the dense floors, the stand-down and the second
+        // card's bar were computed from. What the memory funds travels
+        // separately, in `context_tokens`, which the page says as "up to N
+        // tokens of context" — see the preview test above.
         for ram in [8, 16, 32, 64] {
             for backend in [Backend::Cpu, Backend::Metal] {
                 let CapabilityDto::Measured { model, quicker, .. } =
@@ -905,22 +848,52 @@ mod tests {
                     panic!("{ram} GiB: a measured machine answers Measured");
                 };
                 for option in [model, quicker].into_iter().flatten() {
-                    assert!(
-                        option.speed_context_tokens <= SPEED_CONTEXT_TOKENS,
-                        "{ram} GiB: {} priced above the ceiling",
+                    assert_eq!(
+                        option.speed_context_tokens, CHOOSER_CONTEXT_TOKENS,
+                        "{ram} GiB: {} was priced at a window the rule did not judge",
                         option.name
                     );
-                    if let Some(funded) = option.context_tokens {
-                        assert!(
-                            option.speed_context_tokens <= funded,
-                            "{ram} GiB: {} priced at {} tokens, funded for {funded}",
-                            option.name,
-                            option.speed_context_tokens
-                        );
-                    }
                 }
             }
         }
+    }
+
+    /// The band as the page says it, to one decimal — the same rendering the
+    /// CLI's table prints, which is what the owner compared against.
+    fn band(speed: &SpeedDto) -> String {
+        match *speed {
+            SpeedDto::Range { low, high } => format!("{low:.1}\u{2013}{high:.1}"),
+            _ => panic!("a predicted band, not a measured or floor shape"),
+        }
+    }
+
+    #[test]
+    fn the_surface_card_quotes_the_band_the_rule_judged() {
+        // The owner's numbers: `--ram 15.6 --bandwidth 45.1 --no-phone`,
+        // which the CLI truncates to 15 GiB (`number(..) as u64 * GIB`) —
+        // reproduced here exactly so the card and the CLI are read off the
+        // same machine. Nothing clears its line there, so both cards are
+        // speed-ranked, and both quote the chooser's 65_536-token band:
+        // LFM Q8 9.0–13.1 and the E4B 5.6–8.1, the CLI's own figures.
+        let surface = Measurement {
+            decode_bytes_per_second: Some(45.1e9),
+            ..measured(Backend::Cpu)
+        };
+        let suggestion = dto(&surface, 15 * GIB, None, true, &records_root("surface-window"));
+        let CapabilityDto::Measured { model, quicker, .. } = suggestion else {
+            panic!("a measured machine answers Measured");
+        };
+        let model = model.expect("the tier starts something");
+        assert_eq!(
+            (model.name.as_str(), model.quant.as_str()),
+            ("Liquid LFM 2.5", "Q8_0")
+        );
+        assert_eq!(model.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
+        assert_eq!(band(&model.speed), "9.0\u{2013}13.1");
+        let second = quicker.expect("a second card beside it");
+        assert_eq!(second.name, "Google Gemma 4 E4B");
+        assert_eq!(second.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
+        assert_eq!(band(&second.speed), "5.6\u{2013}8.1");
     }
 
     #[test]

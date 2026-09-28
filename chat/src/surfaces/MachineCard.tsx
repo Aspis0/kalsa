@@ -149,8 +149,9 @@ function machineSentence(machine: Machine): string {
 function modelDetail(model: ModelOption, speed: Speed): string {
   const held = `${model.quant} · ${bytesText(model.weights_bytes)} on disk`;
   // "up to": the figure is the largest context the memory funds, and the
-  // speed beside it is priced at a much shorter conversation. Saying it flat
-  // would put two numbers on one line that cannot both hold at once.
+  // speed beside it is priced at the chooser's window — the 65,536 tokens
+  // the rule judged the row in — not at that context. Saying it flat would
+  // put two numbers on one line that cannot both hold at once.
   const context =
     typeof model.context_tokens === "number"
       ? ` · up to ${model.context_tokens.toLocaleString()} tokens of context`

@@ -42,7 +42,7 @@
         "low": 12.0,
         "shape": "range"
       },
-      "speed_context_tokens": 8192,
+      "speed_context_tokens": 65536,
       "weights_bytes": 4000000000
     },
     "quicker": {
@@ -58,7 +58,7 @@
         "shape": "measured",
         "value": 62.7
       },
-      "speed_context_tokens": 8192,
+      "speed_context_tokens": 65536,
       "weights_bytes": 4977171584
     },
     "refusal": null

@@ -31,7 +31,7 @@ const MODEL_BYTES = 3786957088;
 // verbatim from `capability::PHONE_FREE_REASON` (real words); the catalog reason
 // for a paired phone is invented (stub). The name is a real catalog row.
 export const PHONE_FREE_REASON =
-  "This is the biggest model this computer runs well. " +
+  "This is the model that suits this computer best. " +
   "Pair your phone and the app can tell you whether it beats what the phone runs.";
 export const PHONE_REASON = "This computer runs a bigger model than your phone does. (stub)";
 export const AUTO_REASON = "This is the model this computer runs best. (stub)";
