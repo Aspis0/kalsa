@@ -6,7 +6,7 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use super::{
     add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
     forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
-    add_or_replace_by_install, publish_json, replace, temp_path, Delivery, DeviceKind, StoreError,
+    add_device_with_install, publish_json, replace, temp_path, Delivery, DeviceKind, StoreError,
     HOST_LABEL,
 };
 use crate::handshake::{Credential, Handshake};
@@ -956,14 +956,14 @@ fn a_delivery(token: &str) -> Delivery {
 }
 
 #[test]
-fn the_same_install_id_replaces_the_phone_in_place() {
-    let dir = scratch("install-same");
+fn allow_folds_the_pending_install_into_its_seat() {
+    let dir = scratch("install-fold");
     let path = dir.join("pairing.json");
     let first = sample_handshake();
     let second = sample_handshake_with_credential(&"11".repeat(32));
     let install = Some("d0".repeat(16));
 
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Paired phone",
         &first,
@@ -971,11 +971,68 @@ fn the_same_install_id_replaces_the_phone_in_place() {
         install.as_deref(),
     )
     .unwrap();
-    let id = load_devices(&path).unwrap()[0].id;
+    allow_device(&path, 0).unwrap();
 
-    // The same phone pairs again: the seat it already holds, swapped in
-    // place — never a second row for one phone.
-    add_or_replace_by_install(
+    // The same phone pairs again: a NEW waiting record, and nothing about
+    // the seat the owner already admitted changes until Allow says so.
+    add_device_with_install(
+        &path,
+        "Paired phone 2",
+        &second,
+        a_delivery(&"55".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    assert_eq!(
+        load_devices(&path).unwrap().len(),
+        2,
+        "the ceremony is its own record while it waits"
+    );
+
+    allow_device(&path, 1).unwrap();
+
+    let folded = load_devices(&path).unwrap();
+    assert_eq!(folded.len(), 1, "one phone, one seat");
+    assert_eq!(folded[0].id, 0, "the seat keeps its id");
+    assert_eq!(folded[0].label, "Paired phone", "and its label");
+    assert_eq!(
+        folded[0].handshake.credential_hex(),
+        second.credential_hex(),
+        "the new credential is the live one"
+    );
+    assert!(!folded[0].waiting, "the owner allowed it");
+    assert_eq!(
+        folded[0].delivery.as_ref().unwrap().token(),
+        &"55".repeat(16),
+        "the new response replaced the old"
+    );
+
+    let on_disk = fs::read_to_string(&path).unwrap();
+    assert!(
+        !on_disk.contains(&first.credential_hex()),
+        "the old credential is gone: that is its revocation"
+    );
+    assert!(on_disk.contains(&second.credential_hex()));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_old_credential_still_works_while_the_new_one_is_pending() {
+    let dir = scratch("install-pending");
+    let path = dir.join("pairing.json");
+    let first = sample_handshake();
+    let second = sample_handshake_with_credential(&"11".repeat(32));
+    let install = Some("d0".repeat(16));
+    add_device_with_install(
+        &path,
+        "Paired phone",
+        &first,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    allow_device(&path, 0).unwrap();
+    add_device_with_install(
         &path,
         "Paired phone 2",
         &second,
@@ -984,36 +1041,105 @@ fn the_same_install_id_replaces_the_phone_in_place() {
     )
     .unwrap();
 
+    // A completion changes nothing about the seat: the phone the owner
+    // admitted still holds the credential the door serves, its label and
+    // its approval untouched — only the new ceremony is waiting.
     let devices = load_devices(&path).unwrap();
-    assert_eq!(devices.len(), 1, "one phone, one seat");
-    assert_eq!(devices[0].id, id);
+    assert_eq!(devices.len(), 2, "the pending ceremony is its own record");
+    let seat = devices.iter().find(|device| device.id == 0).unwrap();
     assert_eq!(
-        devices[0].label, "Paired phone",
-        "the owner's label and number stay"
+        seat.handshake.credential_hex(),
+        first.credential_hex(),
+        "the working phone keeps working"
     );
-    assert_eq!(
-        devices[0].handshake.credential_hex(),
-        second.credential_hex(),
-        "the new credential is the one in the store"
-    );
-    assert!(
-        devices[0].waiting,
-        "a re-paired credential waits for the owner, like any other"
-    );
-    assert_eq!(
-        devices[0].delivery.as_ref().unwrap().token(),
-        &"55".repeat(16),
-        "the old retained response went with the old credential"
-    );
+    assert!(!seat.waiting, "and stays approved");
+    assert_eq!(seat.label, "Paired phone");
+    let pending = devices.iter().find(|device| device.id == 1).unwrap();
+    assert!(pending.waiting, "the new ceremony waits its turn");
+    assert_eq!(pending.handshake.credential_hex(), second.credential_hex());
 
-    // The old credential is nowhere in the file, and that IS its
-    // revocation: the door serves exactly what the store holds.
     let on_disk = fs::read_to_string(&path).unwrap();
     assert!(
-        !on_disk.contains(&first.credential_hex()),
-        "the old credential must be gone"
+        on_disk.contains(&first.credential_hex()),
+        "both credentials are in the file"
     );
     assert!(on_disk.contains(&second.credential_hex()));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_deny_leaves_the_old_seat_approved_and_intact() {
+    let dir = scratch("install-deny");
+    let path = dir.join("pairing.json");
+    let first = sample_handshake();
+    let install = Some("d0".repeat(16));
+    add_device_with_install(
+        &path,
+        "Paired phone",
+        &first,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    allow_device(&path, 0).unwrap();
+    add_device_with_install(
+        &path,
+        "Paired phone 2",
+        &sample_handshake_with_credential(&"11".repeat(32)),
+        a_delivery(&"55".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+
+    // The owner refuses the new ceremony: only the pending record goes.
+    forget_device(&path, 1).unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1, "the seat is the only record left");
+    assert_eq!(devices[0].id, 0);
+    assert_eq!(devices[0].label, "Paired phone");
+    assert_eq!(
+        devices[0].handshake.credential_hex(),
+        first.credential_hex(),
+        "the old credential is untouched"
+    );
+    assert!(!devices[0].waiting, "and still approved");
+    assert!(fs::read_to_string(&path).unwrap().contains(&first.credential_hex()));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_pending_install_that_matches_no_seat_is_allowed_as_a_new_seat() {
+    // The cross case: the identity is real but no seat carries it — a
+    // second phone, not the first one's new ceremony. Allow seats it the
+    // way it seats any phone: approved, beside the seat it does not match.
+    let dir = scratch("install-cross");
+    let path = dir.join("pairing.json");
+    let one = "aa".repeat(16);
+    let two = "bb".repeat(16);
+    add_device_with_install(
+        &path,
+        "Phone one",
+        &sample_handshake(),
+        a_delivery(&"44".repeat(16)),
+        Some(one.as_str()),
+    )
+    .unwrap();
+    allow_device(&path, 0).unwrap();
+    add_device_with_install(
+        &path,
+        "Phone two",
+        &sample_handshake_with_credential(&"11".repeat(32)),
+        a_delivery(&"55".repeat(16)),
+        Some(two.as_str()),
+    )
+    .unwrap();
+    allow_device(&path, 1).unwrap();
+
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 2, "another phone is another seat");
+    assert_eq!(devices[0].label, "Phone one");
+    assert_eq!(devices[1].label, "Phone two");
+    assert!(!devices[1].waiting, "allowed like any other phone");
     fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -1023,7 +1149,7 @@ fn a_different_install_id_adds_a_second_phone() {
     let path = dir.join("pairing.json");
     let one = "aa".repeat(16);
     let two = "bb".repeat(16);
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Phone one",
         &sample_handshake(),
@@ -1031,7 +1157,7 @@ fn a_different_install_id_adds_a_second_phone() {
         Some(one.as_str()),
     )
     .unwrap();
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Phone two",
         &sample_handshake_with_credential(&"11".repeat(32)),
@@ -1051,7 +1177,7 @@ fn a_different_install_id_adds_a_second_phone() {
 fn no_install_id_adds_a_second_phone() {
     let dir = scratch("install-absent");
     let path = dir.join("pairing.json");
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "First",
         &sample_handshake(),
@@ -1059,7 +1185,7 @@ fn no_install_id_adds_a_second_phone() {
         None,
     )
     .unwrap();
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Second",
         &sample_handshake_with_credential(&"11".repeat(32)),
@@ -1080,7 +1206,7 @@ fn a_malformed_install_id_adds_a_second_phone() {
     let dir = scratch("install-malformed");
     let path = dir.join("pairing.json");
     let malformed = Some("D0".repeat(16));
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "First",
         &sample_handshake(),
@@ -1088,7 +1214,7 @@ fn a_malformed_install_id_adds_a_second_phone() {
         malformed.as_deref(),
     )
     .unwrap();
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Second",
         &sample_handshake_with_credential(&"11".repeat(32)),
@@ -1125,7 +1251,7 @@ fn a_record_without_an_install_id_loads_and_adds() {
     assert_eq!(old[0].label, "Paired phone");
 
     let install = "d0".repeat(16);
-    add_or_replace_by_install(
+    add_device_with_install(
         &path,
         "Second",
         &sample_handshake(),

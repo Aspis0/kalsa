@@ -450,47 +450,25 @@ fn add_device_record(
     })
 }
 
-/// Add a completed pairing, or — when it carries the install id of a phone
-/// already in the set — replace that phone's entry in place. The seat and
-/// its label are the owner's and stay; the credential, the phone's
-/// declaration, the retained response and the Allow are this ceremony's, so
-/// the new credential arrives waiting for the owner exactly like any new
-/// one, and the old credential leaves the file here — which is its
-/// revocation, since the door serves what the store holds. No install id,
-/// or one no record carries, is the add this has always been.
-///
-/// A phone that pairs again gets its old seat back rather than a second:
-/// the label the owner knows, the number the page counts, and one row where
-/// there would otherwise be a duplicate of a phone that never changed.
-pub fn add_or_replace_by_install(
+/// Add a completed pairing, WAITING, with the phone's install identity
+/// beside it. Nothing about a seat the owner already approved changes here:
+/// the new credential is a new record that waits its turn, and the identity
+/// is what lets [`allow_device`] recognise the phone it belongs to and fold
+/// the two into one seat — at the owner's word, not before it.
+pub fn add_device_with_install(
     path: &Path,
     label: &str,
     handshake: &Handshake,
     delivery: Delivery,
     install_id: Option<&str>,
 ) -> Result<(), StoreError> {
-    // A malformed identity is no identity: the phone's derivation is not
+    // A malformed identity is no identity: the phone's derivation is never
     // reproduced here, so the only ids that can ever match are the ones the
     // wire accepted — anything else behaves exactly like a phone that sent
-    // none and gets a second entry, never somebody else's seat.
+    // none and gets a second seat, never somebody else's.
     let install_id = install_id.filter(|value| is_install_id(value));
-    let mut records = read_records_or_empty(path)?;
-    let matched = install_id.and_then(|install| {
-        records
-            .iter()
-            .position(|record| record.install_id.as_deref() == Some(install))
-    });
-    let Some(index) = matched else {
-        add_device_record(path, label, handshake, Some(delivery), true, install_id)?;
-        return Ok(());
-    };
-    let record = &mut records[index];
-    record.credential_hex = handshake.credential_hex();
-    record.kind = kind_of(handshake);
-    record.phone = handshake.phone.map(PhoneFields::of);
-    record.delivery = Some(delivery);
-    record.approval = Approval::Waiting;
-    write_records(&records, path)
+    add_device_record(path, label, handshake, Some(delivery), true, install_id)?;
+    Ok(())
 }
 
 /// One above every id in the set as it stands now: unique within one set,
@@ -569,18 +547,50 @@ pub fn forget_device(path: &Path, id: u32) -> Result<(), StoreError> {
 /// temp-then-rename publication every store write uses. A device that was
 /// not waiting (or an id nobody holds) changes nothing and writes nothing,
 /// the way forgetting an unknown id answers Ok.
+///
+/// And when the record being allowed carries the install id of a seat that
+/// is ALREADY allowed, it is not a second phone: the seat keeps its id and
+/// its label, takes this ceremony's credential, declaration and retained
+/// response, and the waiting record is removed — all in this one write. The
+/// old credential leaving the file IS its revocation; until this call the
+/// seat is untouched, so a Deny, an expiry, or no answer at all costs it
+/// nothing.
 pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
     let mut records = read_records_or_empty(path)?;
-    let mut changed = false;
-    for record in &mut records {
-        if record.id == id && record.approval == Approval::Waiting {
-            record.approval = Approval::Allowed;
-            changed = true;
-        }
-    }
-    if !changed {
+    let Some(index) = records
+        .iter()
+        .position(|record| record.id == id && record.approval == Approval::Waiting)
+    else {
+        // Not waiting, or an id nobody holds: nothing changes and nothing
+        // is written.
         return Ok(());
-    }
+    };
+    let seat = records[index]
+        .install_id
+        .as_deref()
+        .filter(|value| is_install_id(value))
+        .and_then(|install| {
+            records.iter().position(|record| {
+                record.approval == Approval::Allowed
+                    && record.id != id
+                    && record.install_id.as_deref() == Some(install)
+            })
+        });
+    let Some(seat) = seat else {
+        records[index].approval = Approval::Allowed;
+        return write_records(&records, path);
+    };
+    // The seat takes the ceremony's parts and the waiting record goes: one
+    // phone, one row, one write. `seat` and `index` are different records
+    // by construction, and removing `index` first only shifts a seat that
+    // sits behind it.
+    let ceremony = records.remove(index);
+    let seat = if seat > index { seat - 1 } else { seat };
+    let seat = &mut records[seat];
+    seat.credential_hex = ceremony.credential_hex;
+    seat.kind = ceremony.kind;
+    seat.phone = ceremony.phone;
+    seat.delivery = ceremony.delivery;
     write_records(&records, path)
 }
 

@@ -535,13 +535,13 @@ impl Desk {
     }
 
     /// One completed ceremony — the invitation's or the square's — taken
-    /// into the house the same way on both roads: a phone the set does not
-    /// know gets a new seat with the label the store mints beside it, a
-    /// phone it already knows gets its own seat swapped in place (same id,
-    /// same label), and either way the sealed response is retained under
-    /// THAT ceremony's deadline — a link's seal can never outlive the link
-    /// that authorised it — and the phone is stored WAITING, so the owner's
-    /// Allow is what admits it. Every failure lands
+    /// into the house the same way on both roads: a seat the store does not
+    /// know gets the label the store mints beside it, a phone the owner has
+    /// already admitted gets a NEW WAITING record beside its seat — the seat
+    /// is untouched until Allow folds the two together — and either way the
+    /// sealed response is retained under THAT ceremony's deadline (a link's
+    /// seal can never outlive the link that authorised it) and the record
+    /// is stored WAITING, so the owner's Allow is what admits it. Every failure lands
     /// in `CouldNotSave`: no phone is admitted without the owner, and no
     /// owner-facing question is invented — including for a replayed
     /// credential, which is a refusal and not a choice between two phones.
@@ -570,8 +570,9 @@ impl Desk {
         // with (one above every id in the set, under the single-writer
         // assumption both sides already make): a minted number is never
         // handed out twice, so no two devices can carry the same label,
-        // however many devices leave. It is the label of a NEW seat: a phone
-        // the set already holds keeps the label its owner gave it.
+        // however many devices leave. This is the label of the RECORD the
+        // completion creates; the phone's own seat keeps the label its owner
+        // gave it, and Allow folds the two into that seat.
         let stored = kalsa_pairing::store::load_devices(file).unwrap_or_default();
         let next_id = stored
             .iter()
@@ -587,11 +588,11 @@ impl Desk {
         };
         // The delivery rides the add: the store keeps the sealed response,
         // so a crash before the phone's retry is answered by the retry path
-        // for EVERY device, the way it always was for the first. And a
-        // phone that carries an install id the set already holds gets its
-        // own seat swapped instead of a second one: same id, same label,
-        // the old credential gone from the store with the old response.
-        match kalsa_pairing::store::add_or_replace_by_install(
+        // for EVERY device, the way it always was for the first. The
+        // install id rides too — it is what the owner's Allow reads to fold
+        // this record into the seat its phone already holds, instead of
+        // seating a phone twice.
+        match kalsa_pairing::store::add_device_with_install(
             file,
             &label,
             &handshake,

@@ -3338,12 +3338,14 @@ fn phone_rows(file: &Path) -> Vec<kalsa_pairing::store::StoredDevice> {
 }
 
 #[test]
-fn the_same_phone_pairing_again_gets_its_seat_back() {
-    // One install behind two invitations: the second ceremony must swap the
-    // record the first one wrote — same seat, same label the owner knows,
-    // the new credential waiting for the owner — and the old credential
-    // must be gone from the store, which is its revocation: the door serves
-    // exactly what the store holds.
+fn the_same_phone_pairing_again_keeps_its_seat_after_allow() {
+    // One install behind two invitations: the second completion is a new
+    // WAITING record beside the first phone's seat, and nothing about that
+    // seat moves until the owner Allows — its credential is still the one
+    // the door serves while the new ceremony waits. Allow folds the two
+    // into one row: the seat's id and label, the new credential live, the
+    // old one gone from the store (its revocation), and no second row with
+    // a duplicate label left behind.
     let (dir, desk) = scratch_invite_desk("repair");
     let start = SystemTime::now();
     let address = "http://127.0.0.1:1";
@@ -3351,7 +3353,7 @@ fn the_same_phone_pairing_again_gets_its_seat_back() {
     let node = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
     let install = "d0".repeat(16);
 
-    let pair_once = |at: SystemTime| {
+    let pair_once = |at: SystemTime| -> u32 {
         let link = desk
             .invites()
             .create(address, Some(node), None, at)
@@ -3361,33 +3363,46 @@ fn the_same_phone_pairing_again_gets_its_seat_back() {
         assert!(desk.claim(&code, at + Duration::from_secs(1)));
         desk.complete(declaration_with_install(&code, &nonce, &reachable, node, &install), at + Duration::from_secs(2))
             .expect("the ceremony completes");
+        phone_rows(desk.file())
+            .last()
+            .expect("a record was written")
+            .id
     };
 
-    pair_once(start);
+    let seat = pair_once(start);
+    desk.allow_device(seat).expect("the owner admits the first phone");
     let first_rows = phone_rows(desk.file());
     assert_eq!(first_rows.len(), 1);
-    let seat = first_rows[0].id;
     let label = first_rows[0].label.clone();
     let old_credential = first_rows[0].handshake.credential_hex();
-    assert!(first_rows[0].waiting, "the first credential waits for Allow");
 
-    pair_once(start + Duration::from_secs(10));
-    let rows = phone_rows(desk.file());
-    assert_eq!(rows.len(), 1, "the same phone must not get a second seat");
-    assert_eq!(rows[0].id, seat, "the seat it already had");
-    assert_eq!(rows[0].label, label, "the label its owner knows stays");
+    let pending = pair_once(start + Duration::from_secs(10));
+    let waiting = phone_rows(desk.file());
+    assert_eq!(waiting.len(), 2, "the new ceremony is its own record");
+    assert_eq!(
+        waiting[0].handshake.credential_hex(),
+        old_credential,
+        "the working phone keeps working while the new one waits"
+    );
+    assert!(!waiting[0].waiting, "and stays approved");
+
+    desk.allow_device(pending).expect("the owner admits the new ceremony");
+    let folded = phone_rows(desk.file());
+    assert_eq!(folded.len(), 1, "one phone, one row — no duplicate label");
+    assert_eq!(folded[0].id, seat, "the seat keeps its id");
+    assert_eq!(folded[0].label, label, "and the label its owner knows");
     assert_ne!(
-        rows[0].handshake.credential_hex(),
+        folded[0].handshake.credential_hex(),
         old_credential,
         "the new ceremony's credential is the one in the store"
     );
-    assert!(rows[0].waiting, "a re-paired credential waits for Allow too");
+    assert!(!folded[0].waiting, "allowed by the owner's Allow");
 
     let on_disk = std::fs::read_to_string(desk.file()).unwrap();
     assert!(
         !on_disk.contains(&old_credential),
-        "the old credential is gone from the store: that is the revocation"
+        "the old credential is gone from the store: that is its revocation"
     );
-    assert!(on_disk.contains(&rows[0].handshake.credential_hex()));
+    assert!(on_disk.contains(&folded[0].handshake.credential_hex()));
     let _ = std::fs::remove_dir_all(dir);
 }
