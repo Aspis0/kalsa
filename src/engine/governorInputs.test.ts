@@ -370,9 +370,17 @@ describe("governor inputs", () => {
     });
   });
 
-  test("NPU lane eligibility: android + arch >= 73 + vision + kind + fit", () => {
-    const inputs = { android: true, hasMmproj: false };
-    // S23 (SM8550 -> V73), hybrid, 8 GiB free: eligible, HTP0 claimed.
+  test("NPU lane eligibility: default off, auto gates android + arch >= 73 + vision + kind + fit", () => {
+    // Default: no bench key, the lane is off even on perfect hardware.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        android: true,
+        hasMmproj: false,
+      }).npu_lane_enabled,
+    ).toBe(false);
+    const inputs = { android: true, hasMmproj: false, lanePref: "auto" as const };
+    // S23 (SM8550 -> V73), hybrid, 8 GiB free, kalsa.bench.npu_lane=auto:
+    // eligible, HTP0 claimed.
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, inputs),
     ).toMatchObject({
@@ -382,6 +390,12 @@ describe("governor inputs", () => {
       htp_trunk_readable: true,
       htp_experts_readable: false,
     });
+    // The owner's daily phone profile (Jelly, Helio G99): unknown SoC, no
+    // HTP arch >= 73, so auto stays off.
+    expect(
+      buildGovernorParams(model, device("Jelly Star"), memory, false, undefined, inputs)
+        .npu_lane_enabled,
+    ).toBe(false);
     // Platform is hard: never on a non-Android host, not even forced on.
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
@@ -420,8 +434,14 @@ describe("governor inputs", () => {
     ).toMatchObject({ npu_lane_enabled: false, npu_fit: "NoFit" });
   });
 
-  test("bench pref kalsa.bench.npu_lane forces the lane off and on", () => {
+  test("bench pref kalsa.bench.npu_lane picks off, auto and on", () => {
     const inputs = { android: true, hasMmproj: false };
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        lanePref: "auto",
+      }).npu_lane_enabled,
+    ).toBe(true);
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
         ...inputs,
@@ -476,6 +496,8 @@ describe("governor inputs", () => {
     await expect(readBenchNpuLane()).resolves.toBe("off");
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("on");
     await expect(readBenchNpuLane()).resolves.toBe("on");
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("auto");
+    await expect(readBenchNpuLane()).resolves.toBe("auto");
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("1");
     await expect(readBenchNpuLane()).resolves.toBeUndefined();
   });

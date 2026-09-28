@@ -7,13 +7,14 @@ import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
 const MIB = 1024 * 1024;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
 export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
-/** Bench-only A/B for the governor NPU lane: "off" forces it off, "on"
- *  forces it past the auto gates (fit and platform still win — the engine
- *  degrades to GPU when the device does not resolve). Production never
- *  writes this key; absent lets eligibility decide. */
+/** Bench-only A/B for the governor NPU lane: absent → OFF (the lane lands
+ *  disabled and flips only after the device soak and the heat arm — DESIGN
+ *  step 6), "auto" → eligibility, "off" forces it off, "on" forces it past
+ *  the auto gates (fit and platform still win — the engine degrades to GPU
+ *  when the device does not resolve). Production never writes this key. */
 export const BENCH_NPU_LANE_KEY = "kalsa.bench.npu_lane";
 
-export type BenchNpuLanePref = "off" | "on";
+export type BenchNpuLanePref = "off" | "on" | "auto";
 
 /** The HTP prefill copy costs +219 MiB over the OpenCL one (spike buffer
  *  table: HTP0 1525.87 MiB vs OpenCL 1307.20 MiB), so the NPU lane prices
@@ -256,9 +257,9 @@ export function buildGovernorParams(
   const fitOk = npuLane.fit === "Fit";
   const autoOk = androidOk && visionOk && arch !== null && arch >= 73 && kindOk && fitOk;
   const laneEnabled =
-    npu?.lanePref === "off" ? false
+    npu?.lanePref === "auto" ? autoOk
     : npu?.lanePref === "on" ? androidOk && visionOk && fitOk
-    : autoOk;
+    : false; // default OFF: flips only after the device soak and the heat arm (DESIGN step 6)
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,
@@ -302,11 +303,11 @@ export async function readBenchGovernorForce(): Promise<boolean> {
   }
 }
 
-/** Tri-state: "off" | "on" | undefined (absent/invalid → eligibility). */
+/** absent/invalid → undefined, and the gate maps that to OFF. */
 export async function readBenchNpuLane(): Promise<BenchNpuLanePref | undefined> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_NPU_LANE_KEY);
-    return raw === "off" || raw === "on" ? raw : undefined;
+    return raw === "off" || raw === "on" || raw === "auto" ? raw : undefined;
   } catch {
     return undefined;
   }

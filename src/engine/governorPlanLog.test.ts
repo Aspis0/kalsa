@@ -75,6 +75,7 @@ describe("governor plan log", () => {
     const governor = buildGovernorParams(model, s23, memory, false, undefined, {
       android: true,
       hasMmproj: false,
+      lanePref: "auto",
     });
     expect(governor).toMatchObject({
       npu_lane_enabled: true,
