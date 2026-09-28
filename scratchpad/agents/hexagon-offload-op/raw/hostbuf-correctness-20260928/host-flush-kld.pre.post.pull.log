@@ -1,0 +1,2 @@
+adb: error: failed to stat remote object '/data/local/tmp/govhtp/host-flush-kld.pre.post.log': No such file or directory
+PULL_EXIT=1

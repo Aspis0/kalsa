@@ -1,0 +1,7 @@
+BINARY_EXIT=0 HTP_MUL_MAT=0
+1.05.437.685 D ggml-hex: HTP0:0 unmapped buffer: base 0x729ea0a000 size 1063436288 fd 21
+1.05.437.704 D ggml-hex: HTP0:0 release ref on buffer: base 0x729ea0a000 size 1063436288 fd 21
+1.05.441.721 D ggml-hex: HTP0:0 unmapped buffer: base 0x727ea54000 size 536567808 fd 22
+1.05.441.752 D ggml-hex: HTP0:0 release ref on buffer: base 0x727ea54000 size 536567808 fd 22
+EXIT=0
+ADB_EXIT=0

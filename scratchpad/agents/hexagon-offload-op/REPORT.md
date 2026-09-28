@@ -481,3 +481,53 @@ probe. If repack alone restores KLD, the production fix needs an HTP kernel for
 raw row-major Q4_0 or a per-operation repack scratch; it must not rewrite the
 shared host weights because CPU decode reads their original layout. Promote
 only the mechanism that restores KLD and preserves the CPU consumer contract.
+
+## S23 host-buffer correctness diagnostics — 2026-09-28
+
+Correctness-only runs on the plugged-in S23 used the existing two-chunk,
+`-c 512` English fixture and the same CPU logits base as the isolation results
+above. No timing or bandwidth probe was run. Before pushing, both binary SHA-256
+values matched this report: `llama-perplexity`
+`97027ce93a078f91fb2e067cc6196fae049996a758b3a0aa9f87c79d047508db` and
+`hexagon-rpcmem-bench`
+`7a6fe525933db503ca0722a1e0f596c54e2a455f0894c931d58ebc45f367c82e`.
+The device copies matched; the bandwidth probe binary was not run.
+
+The exact three registered KLD arms ran with their corresponding
+`GGML_HEXAGON_HOSTBUF_FLUSH=1`, `GGML_HEXAGON_HOSTBUF_UNCACHED=1`, or
+`GGML_HEXAGON_HOSTBUF_REPACK=1`, with `GGML_HEXAGON_HOSTBUF=1`,
+`GGML_HEXAGON_MM_SELECT=1`, `GGML_OP_OFFLOAD_MIN_BATCH=32`,
+`GGML_HEXAGON_VERBOSE=1`, and `-lv 5`. The added `-lv 5` exposes the backend's
+`GGML_LOG_DEBUG` execute-op records. Each logged 784 `HTP0:0 execute-op
+MUL_MAT` operations. The first flush attempt without `-lv 5` had zero visible
+op records; it exited 0 and is retained as an incomplete dispatch-proof
+attempt. The runner's initial count expression omitted the `:0` device suffix;
+counts below were recomputed from the raw logs using the full device name.
+
+| Arm | Exit | HTP MUL_MAT | Mean KLD | Max KLD | Same top p | PPL |
+|---|---:|---:|---:|---:|---:|---:|
+| Existing normal-buffer HTP | 0 | see earlier dispatch proof (182) | 0.002788 | 0.032330 | 96.471% | 33.3748 |
+| Existing raw `-HOST` | 0 | 784 in two-chunk comparison | 175,370,565.885071 | 255,755,840 | 0.000% | inf |
+| `HOSTBUF_FLUSH` | 0 | 784 | 175,370,565.885071 | 255,755,840 | 0.000% | inf |
+| `HOSTBUF_UNCACHED` | 0 | 784 | 175,370,565.885071 | 255,755,840 | 0.000% | inf |
+| `HOSTBUF_REPACK` | 0 | 784 | 175,370,565.885071 | 255,755,840 | 0.000% | inf |
+
+The flush arm reported no sync failure and did not change KLD. Uncached allocation
+was confirmed in its log (`HOST RPCMEM allocation flags=0 uncached=1`) and also
+did not change KLD. These outcomes do not support cache coherence as the cause.
+The repack arm remained numerically identical to raw `-HOST`, but its log did not
+contain the expected `HOST repack experiment uses tiled weight layout` marker.
+Although the requested environment variable was set, the log does not prove the
+setter repack branch ran; therefore this arm cannot establish or rule out a
+layout fix. **Verdict: unresolved; coherence is disfavored, while layout remains
+open.** Next, instrument the repack option at backend initialization and the
+host-buffer setter, verify the marker and tensor-write count, then repeat only
+the repack KLD arm against this same base.
+
+All three runs passed pre/post gates and force-stop checks. They remained Awake
+with `AC powered=true`, battery 74–77%, temperature 34.1–39.0 °C, thermal status
+0–1, and traced 0; screen stay-on returned exit 0. Per-run gates, binary logs,
+exact payload hashes, push receipts, and the first incomplete attempt are under
+`raw/hostbuf-correctness-20260928/`. Summary values and hashes are also in
+`raw/hostbuf-correctness-20260928/results.txt`. The phone remained plugged after
+the final gate, so the separate unplugged A/B/C heat campaign has not resumed.

@@ -1,0 +1,5 @@
+97027ce93a078f91fb2e067cc6196fae049996a758b3a0aa9f87c79d047508db  bin/llama-perplexity
+7a6fe525933db503ca0722a1e0f596c54e2a455f0894c931d58ebc45f367c82e  bin/hexagon-rpcmem-bench
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  input/kld_english_fixture.txt
+5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f  input/cause-cpu-base.logits
+HASH_EXIT=0

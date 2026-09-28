@@ -1,0 +1,6 @@
+  mWakefulness=Awake
+09-28 10:22:04.319  Sending ACTION_BATTERY_CHANGED: level:70, status:2, health:2, remain:2228, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4268, temperature:316, online:38, charging_status:0, cycle_count:0, current_avg:2612, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2613750, present:true, scale:100, technology:Li-ion, protection:0
+09-28 10:22:55.268  Sending ACTION_BATTERY_CHANGED: level:71, status:2, health:2, remain:2177, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4284, temperature:316, online:38, charging_status:0, cycle_count:0, current_avg:2661, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2655000, present:true, scale:100, technology:Li-ion, protection:0
+09-28 10:23:35.924  Sending ACTION_BATTERY_CHANGED: level:71, status:2, health:2, remain:2141, ac:true, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:1, charger_type:2, voltage:4187, temperature:328, online:38, charging_status:0, cycle_count:0, current_avg:1816, ps:false, hvc:true, current_event:0x40000000, mcc:0, mcv:0, cc:2685000, present:true, scale:100, technology:Li-ion, protection:0
+Thermal Status: 0
+0

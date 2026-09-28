@@ -1,0 +1,63 @@
+STAYON_EXIT=0
+97027ce93a078f91fb2e067cc6196fae049996a758b3a0aa9f87c79d047508db  bin/llama-perplexity
+7a6fe525933db503ca0722a1e0f596c54e2a455f0894c931d58ebc45f367c82e  bin/hexagon-rpcmem-bench
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  input/kld_english_fixture.txt
+5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f  input/cause-cpu-base.logits
+HASH_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=74 temperature_dC=341 thermal_status=0 traced=0
+GATE_EXIT=0
+1.04.396.520 D ggml-hex: HTP0:0 release ref on buffer: base 0x72e8744000 size 1063436288 fd 21
+1.04.399.965 D ggml-hex: HTP0:0 unmapped buffer: base 0x72c878e000 size 536567808 fd 22
+1.04.399.976 D ggml-hex: HTP0:0 release ref on buffer: base 0x72c878e000 size 536567808 fd 22
+EXIT=0
+ADB_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=75 temperature_dC=369 thermal_status=0 traced=0
+GATE_EXIT=0
+/data/local/tmp/govhtp/host-flush-kld-v2.log: 1 file pulled, 0 skipped. 22.6 MB/s (11216234 bytes in 0.474s)
+PULL_EXIT=0
+BINARY_EXIT=0 HTP_MUL_MAT=0
+EXIT=0
+ADB_EXIT=0
+Mean PPL(Q)/PPL(base)         :        inf ±        inf
+Mean PPL(Q)-PPL(base)         :        inf ±        nan
+Mean    KLD: 175370565.885071 ± 1002063.604772
+Maximum KLD: 255755840.000000
+Same top p:  0.000 ± 0.000 %
+mWakefulness=Awake AC=true USB=false Wireless=false level=75 temperature_dC=369 thermal_status=0 traced=0
+GATE_EXIT=0
+1.05.437.704 D ggml-hex: HTP0:0 release ref on buffer: base 0x729ea0a000 size 1063436288 fd 21
+1.05.441.721 D ggml-hex: HTP0:0 unmapped buffer: base 0x727ea54000 size 536567808 fd 22
+1.05.441.752 D ggml-hex: HTP0:0 release ref on buffer: base 0x727ea54000 size 536567808 fd 22
+EXIT=0
+ADB_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=76 temperature_dC=384 thermal_status=1 traced=0
+GATE_EXIT=0
+/data/local/tmp/govhtp/host-uncached-kld.log: 1 file pulled, 0 skipped. 23.8 MB/s (11216234 bytes in 0.449s)
+PULL_EXIT=0
+BINARY_EXIT=0 HTP_MUL_MAT=0
+EXIT=0
+ADB_EXIT=0
+Mean PPL(Q)/PPL(base)         :        inf ±        inf
+Mean PPL(Q)-PPL(base)         :        inf ±        nan
+Mean    KLD: 175370565.885071 ± 1002063.604772
+Maximum KLD: 255755840.000000
+Same top p:  0.000 ± 0.000 %
+mWakefulness=Awake AC=true USB=false Wireless=false level=76 temperature_dC=384 thermal_status=1 traced=0
+GATE_EXIT=0
+1.06.565.056 D ggml-hex: HTP0:0 release ref on buffer: base 0x7325f8a000 size 1063436288 fd 21
+1.06.570.130 D ggml-hex: HTP0:0 unmapped buffer: base 0x7305fd4000 size 536567808 fd 22
+1.06.570.148 D ggml-hex: HTP0:0 release ref on buffer: base 0x7305fd4000 size 536567808 fd 22
+EXIT=0
+ADB_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=77 temperature_dC=390 thermal_status=1 traced=0
+GATE_EXIT=0
+/data/local/tmp/govhtp/host-repack-kld.log: 1 file pulled, 0 skipped. 23.7 MB/s (11216234 bytes in 0.452s)
+PULL_EXIT=0
+BINARY_EXIT=0 HTP_MUL_MAT=0
+EXIT=0
+ADB_EXIT=0
+Mean PPL(Q)/PPL(base)         :        inf ±        inf
+Mean PPL(Q)-PPL(base)         :        inf ±        nan
+Mean    KLD: 175370565.885071 ± 1002063.604772
+Maximum KLD: 255755840.000000
+Same top p:  0.000 ± 0.000 %

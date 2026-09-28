@@ -1,0 +1,19 @@
+STAYON_EXIT=0
+97027ce93a078f91fb2e067cc6196fae049996a758b3a0aa9f87c79d047508db  bin/llama-perplexity
+7a6fe525933db503ca0722a1e0f596c54e2a455f0894c931d58ebc45f367c82e  bin/hexagon-rpcmem-bench
+bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728  input/kld_english_fixture.txt
+5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f  input/cause-cpu-base.logits
+HASH_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=71 temperature_dC=316 thermal_status=0 traced=0
+GATE_EXIT=0
+RMS Δp    : 46.491 ± 1.615 %
+Same top p:  0.000 ± 0.000 %
+
+EXIT=0
+ADB_EXIT=0
+mWakefulness=Awake AC=true USB=false Wireless=false level=72 temperature_dC=356 thermal_status=0 traced=0
+GATE_EXIT=0
+adb: error: failed to stat remote object '/data/local/tmp/govhtp/host-flush-kld.pre.post.log': No such file or directory
+PULL_EXIT=1
+grep: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/hexagon-offload-op/raw/hostbuf-correctness-20260928/host-flush-kld.pre.post.run-summary.log: No such file or directory
+grep: /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/hexagon-offload-op/raw/hostbuf-correctness-20260928/host-flush-kld.pre.post.log: No such file or directory
