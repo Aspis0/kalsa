@@ -675,7 +675,8 @@ and the **step-5 device soak is pending**. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
-S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, engine `9a2fb2376`; design record
+S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d` carrying layout
+fix `9a2fb2376`; design record
 `4d606e4f` / `5a94d88c` / `df4a18d1` / `7ac42dec`). QDC session **853723**, report `9ac6ebc7`,
 measured 512-token prefill at **1,782 tok/s** for two-copy HMX, **57.8** for two-copy flat, and
 **37.3** for one-copy. The raw path is flat-only because the DSP refuses raw weights on HMX. CPU
@@ -690,11 +691,11 @@ S2 `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests pass with the ship GGUF; 
 is syntax-checked only, and device census is owed. S3+ lane steps are **ON HOLD** until one-copy is
 fast. Owner decision: keep the GPU lane on every device, with its flag OFF where NPU is better.
 
-The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, engine `133cef802`; lab
-`scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
-**SHIP for an S23 correctness run after four fixes**; the run is in progress with mimo. Next are the
-HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and an rpcmem CPU-read
-bandwidth probe when the S23 is unplugged.
+The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
+lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw-Q4_0 GEMM. Review:
+**SHIP for an S23 correctness run after the four fixes**; the run is in progress with mimo. Next are
+the HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and an rpcmem
+CPU-read bandwidth probe when the S23 is unplugged.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):

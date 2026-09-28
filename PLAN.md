@@ -616,9 +616,10 @@ brake only (held app `19368426`).
 
 ### One-copy CPU + NPU: correct on S23, too slow as built on 8 Elite
 
-The raw-Q4_0 HTP layout fix is **correct on the S23**: P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`,
-engine commit `9a2fb2376`; governor design cross-check `4d606e4f`, `5a94d88c`, `df4a18d1`,
-`7ac42dec`). On the 8 Elite, QDC session **853723** / lab report `9ac6ebc7` measured 512-token
+The raw-Q4_0 HTP layout fix is **correct on the S23**: P5 mean KLD **0.002750**
+(`hexagon-onecopy-rawq4`, device run on engine `c939a135d`, carrying layout-fix commit
+`9a2fb2376`; governor design cross-check `4d606e4f`, `5a94d88c`, `df4a18d1`, `7ac42dec`). On the
+8 Elite, QDC session **853723** / lab report `9ac6ebc7` measured 512-token
 prefill at **1,782 tok/s** for two-copy HMX, **57.8** for two-copy flat, and **37.3** for one-copy.
 Raw one-copy is flat-only because the DSP refuses raw weights on HMX. CPU decode at tg128 was
 **38.3 tok/s** with repack, **34.6** without repack, and **22.6** with raw `-HOST` rpcmem weights.
@@ -634,9 +635,9 @@ pass with the ship GGUF; the Hexagon object has only been syntax-checked and dev
 S3 and later lane steps are **ON HOLD** until one-copy is fast. Owner decision: retain the GPU lane
 on every device, with its flag OFF where NPU is better.
 
-The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, engine `133cef802`; lab
-`scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
-**SHIP for an S23 correctness run after four fixes**; that run is in progress with mimo.
+The GPU one-copy spike (`spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes `5e6b66e86`;
+lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf in OpenCL and runs raw-Q4_0 GEMM. Review says
+**SHIP for an S23 correctness run after the four fixes**; that run is in progress with mimo.
 
 Next: HMX-on-raw estimate (`scratchpad/agents/onecopy-hmx-estimate/`, in progress) and diagnose
 the rpcmem CPU-read slowdown with a bandwidth probe when the S23 is unplugged.

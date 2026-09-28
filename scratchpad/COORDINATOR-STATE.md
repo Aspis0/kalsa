@@ -5,8 +5,9 @@ The current operating facts and next decisions. Per-cell methods and raw evidenc
 
 ## One-copy CPU + NPU
 
-- **Correct on S23:** P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`, engine `9a2fb2376`;
-  governor design commits `4d606e4f`, `5a94d88c`, `df4a18d1`, `7ac42dec`).
+- **Correct on S23:** P5 mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d`
+  carrying layout-fix commit `9a2fb2376`; governor design commits `4d606e4f`, `5a94d88c`,
+  `df4a18d1`, `7ac42dec`).
 - **Slow as built on 8 Elite:** QDC session **853723**, lab report `9ac6ebc7`, measured 512-token
   prefill: two-copy HMX **1,782 tok/s**, two-copy flat **57.8**, one-copy **37.3**. The raw path is
   flat-only because the DSP refuses raw weights on HMX. CPU decode tg128: repack **38.3 tok/s**,
@@ -23,9 +24,9 @@ The current operating facts and next decisions. Per-cell methods and raw evidenc
   `a11e03a1f` + `c889b4658` + `b39a45be7`. Host tests pass with the ship GGUF; the Hexagon object
   was syntax-checked only; device census is owed. S3+ lane steps are **ON HOLD** until one-copy is
   fast. Owner decision: keep the GPU lane on every device, flag OFF where NPU is better.
-- GPU one-copy spike: engine `spike/onecopy-gpu-rawq4` `133cef802`, lab
-  `scratchpad/agents/onecopy-gpu/`; one dma-buf imported by OpenCL for raw-Q4_0 GEMM. Review is
-  **SHIP for an S23 correctness run after four fixes**; mimo is running it.
+- GPU one-copy spike: engine `spike/onecopy-gpu-rawq4`, base `133cef802`, four review fixes
+  `5e6b66e86`; lab `scratchpad/agents/onecopy-gpu/`; one dma-buf imported by OpenCL for raw-Q4_0
+  GEMM. Review is **SHIP for an S23 correctness run after the fixes**; mimo is running it.
 
 ## kalsa-server v1.1.3
 
