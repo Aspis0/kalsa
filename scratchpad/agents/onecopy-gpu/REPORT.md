@@ -160,7 +160,7 @@ throughout avoids the half-product divergence documented for the noshuffle GEMM
 | wiring | `ggml-opencl.cpp` (kernel load, supports_buft/op, offload_op, dispatch) | ~150 |
 | probe + kernel check | `tests/opencl-q4_0-raw/{probe,q4raw,dmabuf}.{c,h}` | 188 + 214 + 96 (+ headers) |
 
-**Mac GPU check** (Apple M1 Max, OpenCL 1.2; `raw/host_mac_probe.log`): raw GEMM vs a CPU double
+**Mac GPU check** (Apple M1 Max, OpenCL 1.2; `raw/evidence.tar.gz:host_mac_probe.log`): raw GEMM vs a CPU double
 reference (own dequantiser identical to `dequantize_row_q4_0`), random blocks, weights at byte
 offsets 0/2/18/32/34/96 (block starts only 2-byte aligned for 2/18/34), shapes
 K in {512, 2048, 6144}, M in {130, 200, 512, 2048, 6144, 10752}, N in {1, 33, 64, 70, 128}
@@ -169,7 +169,7 @@ K in {512, 2048, 6144}, M in {130, 200, 512, 2048, 6144, 10752}, N in {1, 33, 64
 extensions), any import, any timing (Apple's event timestamps are not meaningful:
 the probe prints 7-15 TB/s).
 
-## 5. Android build (not touched: `build-onecopy-v73*`)
+## 5. Android build (`build-onecopy-v73*` not touched; logs are in `raw/evidence.tar.gz`, `.log`/`.txt` are gitignored here)
 
 Same image and preset as the HTP builds: `ghcr.io/snapdragon-toolchain/arm64-android:v0.7`,
 `arm64-android-snapdragon-release`, `BUILD_SHARED_LIBS=OFF`, new dir
@@ -182,7 +182,7 @@ docker run ... bash -c '/opt/android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_
 ```
 
 Configure `0`. Build: attempts 1-3 (`-j2`) died on the known silent `embed_kernel.py` flake
-(`raw/build_attempts.txt`, `build_android1-3.log`), attempt 4 `0` but built **before** my last
+(`raw/evidence.tar.gz`: `build_attempts.txt`, `build_android1-3.log`), attempt 4 `0` but built **before** my last
 edits (registry split, Khronos import, const kernel pointer), so it was redone: attempt 5
 linked `llama-perplexity` and had `llama-eval-callback` **OOM-killed** in the LTO link
 (`clang++: error: unable to execute command: Killed`, `build_android5.log`), attempt 6 `0`.
