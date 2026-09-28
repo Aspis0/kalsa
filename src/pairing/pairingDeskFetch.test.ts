@@ -6,6 +6,13 @@
  */
 
 jest.mock("../remote/irohBridge", () => ({ openIrohTunnel: jest.fn() }));
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+}));
+jest.mock("expo-crypto", () => ({
+  getRandomBytes: (length: number) => new Uint8Array(length).fill(0x11),
+}));
 
 import { openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";

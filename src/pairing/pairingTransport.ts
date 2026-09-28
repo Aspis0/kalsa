@@ -6,6 +6,7 @@ import {
   type PairingPhoneDeclaration,
 } from "./pairingWire";
 import { logPairingFail, type PairingFailStage } from "./pairingFailLog";
+import { getPairingInstallId } from "./pairingInstallId";
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_HEAD_BYTES = 8 * 1024;
@@ -246,7 +247,9 @@ export class PairingSession {
         event: "pairing.signed_request",
         mac_hex: mac,
       });
-      const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"}`;
+      const installId = square.node ? await getPairingInstallId(square.node) : null;
+      const installIdField = installId === null ? "" : `,"install_id":"${installId}"`;
+      const body = `{"phone":${canonicalPhoneJson(phone)},"mac":"${mac}","delivery_token":"${this.deliveryToken}"${installIdField}}`;
       const result = await postPairingJson(this.completeUrl, body, this.fetcher, this.options.signal);
       if (!result.ok) {
         this.reportFailure(result.reason === "request_too_large" ? "request_too_large" : "complete_network", null);

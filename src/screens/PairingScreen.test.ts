@@ -103,6 +103,10 @@ jest.mock("expo-crypto", () => ({
     return new Uint8Array(length).fill(mockRandomFills.shift() ?? 0xc0);
   },
 }));
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+}));
 
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";

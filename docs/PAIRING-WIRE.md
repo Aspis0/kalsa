@@ -48,11 +48,20 @@ POST /pair/claim     {"code":"<32 hex>"}
   -> 200, body {}                       Content-Type: application/json, Connection: close
 
 POST /pair/complete  {"phone":{...canonical fields...},"mac":"<64 hex>","delivery_token":"<32 hex>"}
+  plus optional top-level "install_id":"<32 hex>" when the square has a node
   -> 200, {"credential_ciphertext":"<64 hex>","mac":"<64 hex>"}
 ```
 
 The **phone mints the `delivery_token`**: 16 random bytes, lowercase hex. Keep it: a retry of `complete`
 re-sends the **same** token, and only if the 200 never arrived.
+
+When the square has a node, the phone also sends `install_id` at the top level of `/pair/complete`.
+It is the lowercase hex of the first 16 bytes of
+`HMAC-SHA256(install_secret, ASCII(lowercase(node_hex)))`. The 16-byte `install_secret` is minted once
+per phone install and stored in SecureStore under `kalsa.pairing.install_id.v1`; it never leaves the
+phone. This value lets the desk replace the entry for the same phone and node. It is outside the phone
+MAC: the canonical phone JSON, signed payload, MAC domain, and vectors A–D are unchanged. If the square
+has no node, omit `install_id` and keep the existing request shape.
 
 **Every failure is byte-identical**:
 `HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n` — and that one response covers a
@@ -118,6 +127,8 @@ applies: an empty 401 until the owner allows.
 | **B** (Rust-frozen) | A plus node `9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08` | mac `0503754d7ad8a465ffcf82506231bf961da877ff802087c8f8c5756da0de0d83` |
 | **C** (Rust-frozen) | seal: key `0x41`×16, nonce `0x42`×32, credential `0xab`×32 | ciphertext `19d0b3455e311a70ba202aea83ea569e8127f2f1936f67bdc557439a82222ba7`, seal mac `6d86a29391e258de9bb13dae9ceb3612143c4448050562a36ad2e6ac8dd4a849`, opens to `ab`×32 |
 | **D** (Python only) | the real shape: key/nonce as A, reachable `http://127.0.0.1:8132`, node `""`, token `c0c0…c0` (32 hex), same canonical | mac `ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132` |
+| **E** (wire extension) | D's complete body plus top-level `"install_id":"d0d0…d0"` (32 hex) | same mac as D: `ad34a8b2731b0a0e3d41f09d498e4f206333c1c1a67d3421f62b0659324f4132`; `install_id` is outside the MAC. E demonstrates MAC independence; a live square without a node omits the field. |
+| **F** (install-id derivation) | secret `11`×16 bytes; node ASCII string `"22"`×32 (64 lowercase hex chars) | install_id `14fa2e35fc2d329875fe3d73b6f101dd` |
 
 D's signed payload, as hex, for anyone porting this without the Python:
 `0000000000000015687474703a2f2f3132372e302e302e313a38313332000000000000000000000000000000206330633063306330633063306330633063306330633063306330633063306330000000000000008a7b22776569676874735f6279746573223a323230303030303030302c22706172616d6574657273223a7b22746f74616c223a373630303030303030302c22616374697665223a323430303030303030307d2c226d656173757265645f746f6b656e735f7065725f7365636f6e64223a392e352c22626174746572795f706f7765726564223a747275657d`
@@ -131,3 +142,7 @@ complete {"phone":{"weights_bytes":2200000000,"parameters":{"total":7600000000,"
 **Pin A, B and C first** (they are frozen in Rust), then D — and if our TypeScript agrees with A and B and
 disagrees with D, **say so before assuming D is wrong**: the frozen vectors use an empty token while a real
 declaration always carries one, which is exactly where a port goes subtly wrong.
+
+Vector F cross-check:
+`python3 -c 'import hashlib,hmac; print(hmac.new(bytes.fromhex("11"*16), ("22"*32).encode("ascii"), hashlib.sha256).digest()[:16].hex())'`
+prints `14fa2e35fc2d329875fe3d73b6f101dd`.

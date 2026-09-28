@@ -61,6 +61,7 @@ describe("PairingSession delivery-token lifecycle", () => {
     expect(requests[0].init.body).toBe('{"code":"' + square.code + '"}');
     expect(requests[1].init.body).toBe(requests[2].init.body);
     expect(requests[1].init.body).toContain(`"delivery_token":"${"c0".repeat(16)}"`);
+    expect(JSON.parse(requests[1].init.body)).not.toHaveProperty("install_id");
     expect(requests[1].init.headers).toEqual({
       "Content-Type": "application/json",
       Connection: "close",
