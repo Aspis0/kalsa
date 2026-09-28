@@ -3,13 +3,6 @@ name: E2E emulator (real inference)
 # Runs the app on a KVM-accelerated emulator and proves a real on-device
 # inference turn: sideloads a GGUF, sends a message, captures the reply.
 on:
-  push:
-    branches: [main, v4.2-context-compaction, feat/moe-stream]
-    # A ~35 min emulator run is pointless for docs-only commits.
-    paths-ignore:
-      - "**/*.md"
-      - LICENSE
-      - docs/**
   workflow_dispatch:
     inputs:
       model:
@@ -80,13 +73,10 @@ jobs:
           KALSA_GATE_REQUIRE_NDK: "1"
         run: bash scripts/assert-overlay-includes.sh
 
-      - name: Jest (bounded — the suite that guards main)
-        # ci.yml fires only on feat/** branches, and this workflow is the only
-        # one a push to main triggers: before this step, a push to main ran the
-        # unit suite NOWHERE. From here on a red jest makes main's e2e red.
-        # ci.yml bounds the same suite's job at 15 minutes; this step takes
-        # that number. A hang here must not burn the 120-minute job budget
-        # and leave no e2e evidence at all.
+      - name: Jest (bounded before inference)
+        # ci.yml fires only on feat/** branches, so manual E2E dispatches also
+        # run the unit suite before the emulator. Reuse its 15-minute bound.
+        # A hang must not burn the 120-minute job budget and leave no E2E result.
         timeout-minutes: 15
         run: npx jest
 

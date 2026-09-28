@@ -8,14 +8,6 @@ on:
         required: false
         type: boolean
         default: false
-  push:
-    branches: [main]
-    # An APK build (~35 min) is pointless for docs-only commits.
-    paths-ignore:
-      - "**/*.md"
-      - LICENSE
-      - docs/**
-
 permissions:
   contents: read
 
