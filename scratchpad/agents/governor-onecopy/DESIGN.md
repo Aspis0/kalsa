@@ -300,7 +300,7 @@ state is owner-only (`GOV src/llama-kv-cache.cpp:394-414`, `:757`, `src/llama-me
 | I15 | device resolve degrades to GPU, never throws; bench-force cases | `devices.cpp:259-280`, `:119-158` |
 | I16 | the 77-proof: every `77` is proven by its stderr line and one run with `KALSA_HYBRID_GGUF` = ship GGUF must exit 0 | `hybrid.cpp:384-388`; `NPUD:69-76`; memory `governor-host-tests-skip-hybrid` |
 | I17 | shared-cells fences (MTP/spec) untouched | `test-governor-v0-shared-cells.cpp:141-161` |
-| I18 | **LOAD gate: the governor is never eligible when an mmproj/vision model is loaded.** App: `governorLoad` requires `… && !options.mmprojPath && !streamExperts` (`src/engine/LlamaService.ts:2433-2440`, app `524aa0e0`; `NPUD:102-107` cites it as `:2375-2386` on its older checkout). The engine has no mmproj guard of its own (`NPUD:104-105`). With one context this matters more: a vision model on the one-copy path would put the projector and its compute in the same context and the same HTP session; the gate must be restated inside the one-copy eligibility predicate, and a host test in the app (`governorInputs`) must fail if the predicate loses it. Companion: `governor_ineligible_when_mmproj_loaded` policy (owner 25/09: stays so until a governor vision lane) |
+| I18 | **LOAD gate: the governor is never eligible when an mmproj/vision model is loaded.** App, cited against app `origin/main` `335f9c8d` (read with `git show`, working tree untouched; the local checkout `524aa0e0` is stale): `governorLoad` requires `… && !options.mmprojPath && !streamExperts` (`src/engine/LlamaService.ts:2387-2394`, gate line `:2393`); the same source of truth feeds the lane predicate as `hasMmproj: Boolean(options.mmprojPath)` (`:2382`), consumed as `visionOk = !npu?.hasMmproj` (`src/engine/governorInputs.ts:31,254`) with tests using `hasMmproj: true/false` (`governorInputs.test.ts:378,410`). `NPUD:102-107` cites the gate as `:2375-2386` on an older checkout. The engine has no mmproj guard of its own (`NPUD:104-105`). With one context this matters more: a vision model on the one-copy path would put the projector and its compute in the same context and the same HTP session; the one-copy eligibility predicate must keep `visionOk`, and the `governorInputs` test with `hasMmproj: true` must keep failing the lane. Companion: `governor_ineligible_when_mmproj_loaded` policy (owner 25/09: stays so until a governor vision lane) |
 
 **Inverted invariant.** The hybrid test asserts `commit_count == 2*turns-1` and exact `commit_bytes`
 (`hybrid.cpp:237-248`). For the one-copy lane the new assertion is `commit_count == 0 && commit_bytes == 0`
@@ -370,11 +370,11 @@ The engine sees battery temperature, level, plugged, `t_idle`, trend (`GOV llama
 FAST/WARM/COOLMODE/CRITICAL/LOWBAT/Invalid from `classify`/`update_thermal` (`policy.cpp:83-95`,
 `:105-172`), lines pause 43 / kill 44, admission ceiling 42.5 (`:15-17`), 10-min dwell (`:8`).
 It does **not** see Android thermal status/skin, and it learns the temperature only when the app pushes a
-profile — before every completion (`LEVERS §2`: `LlamaService.ts:1735`), not during generation.
+profile — before every completion (`LEVERS §2` cites `LlamaService.ts:1735`; on app `origin/main` `335f9c8d` the function is `src/engine/LlamaService.ts:1727`, called at `:1168`), not during generation.
 
 Two additions are required for any mid-generation ladder: (a) `platform_status` (0–4) in
 `llama_governor_thermo_profile`, and (b) the app pushes the profile every ≤ 10 s during a completion
-(`thermalResume.ts:69` already polls at 10 s).
+(`GOVERNOR_COOLING_POLL_MS = 10_000`, `src/engine/thermalResume.ts:69` on app `origin/main` `335f9c8d`, already polls at 10 s).
 
 ### 5.3 The ladder under one-copy
 
