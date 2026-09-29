@@ -2693,6 +2693,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalsa-room"
+version = "0.0.1"
+dependencies = [
+ "kalsa-pairing",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "kalsa-runtime"
 version = "0.0.1"
 dependencies = [
