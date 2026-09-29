@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { BEAT_MS, FOLD_MS } from "./motion";
 
-// What the beat needs from a device record: identity and the wait. The
-// page's fuller records satisfy it structurally.
+// What the beat needs from a device record: identity, the wait, and the
+// seat a pairing-again request rides on. The page's fuller records
+// satisfy it structurally.
 interface BeatDevice {
   id: number;
   waiting?: boolean;
+  pairing_again?: number | null;
 }
 
 /** The beat a row plays when the owner's Allow lands: which rows are saying
@@ -22,9 +24,10 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
   // request, whose Allow acts on the request while the row that stays is
   // its seat.
   const allows = useRef(new Map<number, number>());
-  // The Refuses this page pressed. The same poll answer shape resolves
-  // both — the record leaves — so the beat keys on which button was
-  // pressed, never on the leaving alone.
+  // The Refuses this page pressed: they arm nothing, they only disarm. The
+  // store's next answer may show the record gone either way — allowed,
+  // refused, replaced — and the one fact this page holds is which button
+  // the owner pressed.
   const refuses = useRef(new Set<number>());
   const previous = useRef<BeatDevice[] | null>(null);
   // One hold per row: two Allows in one poll are two beats, not one.
@@ -60,8 +63,13 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
       resolved.push(actedId);
       if (actedId !== rowId) {
         // A pairing-again request, spent: the beat lands on the seat that
-        // stays — and only while that seat is still drawn.
-        if (current.has(rowId)) land(rowId);
+        // stays — only while that seat is still drawn AND nothing new is
+        // asking on it. A replacement request is not an Allow's outcome:
+        // the phone did not get in, someone asked again.
+        const seatStillAsked = house.some(
+          (device) => device.waiting === true && device.pairing_again === rowId,
+        );
+        if (current.has(rowId) && !seatStillAsked) land(rowId);
       } else if (after !== undefined) {
         // Allowed in place: the one answer that says the phone is in.
         land(rowId);

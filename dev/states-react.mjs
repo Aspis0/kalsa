@@ -61,6 +61,7 @@ const INVITE_LINK = "https://kalsa.io/pair#stub";
 // have minted — the page must never draw it as a second phone.
 const REPAIR_SEAT = { id: 4, label: "Paired phone 4", phone: "phone with 2 GB of model weights", kind: "phone" };
 const REPAIR_REQUEST = { id: 5, label: "Paired phone 5", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 };
+const REPAIR_REQUEST_2 = { id: 6, label: "Paired phone 6", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 };
 /// The command's own words for "the road is not open", verbatim from
 /// src-tauri/src/invites.rs NO_ROAD — the page shows them as they are.
 const NO_ROAD =
@@ -334,8 +335,15 @@ const scenarios = [
   // one press is the other half; its card is below.)
   ["Pairing", "an allow the store answers with the record gone says no beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
   // One press is enough: the row holds its decision until the store's next
-  // answer makes the outcome visible, and nothing lands while it waits.
-  ["Pairing", "a row holds its decision until the store answers", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow" }],
+  // answer makes the outcome visible, and nothing lands while it waits. A
+  // second press lands on the held button and must not ask again.
+  ["Pairing", "a row holds its decision until the store answers", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow" }],
+  // The Allow's store answer arrives as a REPLACEMENT request on the same
+  // seat: the old ask is gone, the phone did not get in, and no beat lands.
+  ["Pairing", "a replaced request arms nothing", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST_2], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
+  // A Refuse the store refuses: the decision was never taken, so the row
+  // gets its buttons back at once — they must not stay down forever.
+  ["Pairing", "a refused request the store rejects gives the buttons back", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Refuse" }],
   // Two Allows riding one poll answer: each row holds its own beat, and
   // neither drops the other's.
   ["Pairing", "two allows in one poll each hold their beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE, WAITING_PHONE_2], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_TWO, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
@@ -581,7 +589,11 @@ function extract(panel, heading, automatic = []) {
   const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
   const inviteEls = elements(panel, (el) => el.className === "surface-invite-name");
   const inputEls = elements(panel, (el) => el.tagName === "INPUT");
-  const disabledEls = buttonEls.filter((el) => el.disabled);
+  // A button this page is holding down: really disabled, or held with
+  // aria-disabled (the kind that keeps its focus).
+  const disabledEls = buttonEls.filter(
+    (el) => el.disabled === true || el.getAttribute?.("aria-disabled") === "true",
+  );
   const quietEls = elements(panel, (el) => el.className === "surface-quiet");
   return {
     heading,
@@ -676,12 +688,15 @@ async function renderScenario(descriptor) {
   }
   if (data.clickThen) {
     // A second press, on a button the owner can still press: the first
-    // match that is not held down. A held button is not pressable, and the
-    // races these cards run need the presses that still are.
+    // match that is not held down. A held button — disabled, or aria-held
+    // with its focus kept — is not pressable, and the races these cards
+    // run need the presses that still are.
     const second = first(
       panel,
       (el) =>
-        el.tagName === "BUTTON" && !el.disabled && elementText(el) === data.clickThen,
+        el.tagName === "BUTTON" &&
+        el.getAttribute?.("aria-disabled") !== "true" &&
+        elementText(el) === data.clickThen,
     );
     if (second) {
       second.click();

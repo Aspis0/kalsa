@@ -878,6 +878,31 @@ try {
       if (connectedDetails.length > 0) {
         problems.push(`a decision the store has not answered lands nothing: ${heading}`);
       }
+      if (allowIds.filter((id) => id === 1).length !== 1) {
+        problems.push(`a press on the held button must not ask again: ${heading}`);
+      }
+    }
+    if (heading.includes("a replaced request arms nothing")) {
+      if (connectedDetails.length > 0) {
+        problems.push(`a replacement is not an Allow's outcome, and no beat lands: ${heading}`);
+      }
+      if (!deviceDetails.includes("Paired phone 4 is pairing again.")) {
+        problems.push(`the seat says the new ask: ${heading}`);
+      }
+      if (disabledButtons.includes("Allow") || disabledButtons.includes("Refuse")) {
+        problems.push(`the replacement's buttons are free, not held by the old press: ${heading}`);
+      }
+    }
+    if (heading.includes("the store rejects gives the buttons back")) {
+      if (disabledButtons.includes("Allow") || disabledButtons.includes("Refuse")) {
+        problems.push(`a decision the store did not take leaves the buttons free: ${heading}`);
+      }
+      if (!deviceDetails.includes("Paired phone 4 is pairing again.")) {
+        problems.push(`the request stands until the store takes it: ${heading}`);
+      }
+      if (connectedDetails.length > 0) {
+        problems.push(`nothing was decided, so nothing lands: ${heading}`);
+      }
     }
     if (heading.includes("a connected beat under reduced motion")) {
       if (!deviceDetails.includes("Paired phone is connected.")) {

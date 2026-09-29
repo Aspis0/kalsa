@@ -194,6 +194,33 @@ interface DevicesSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
 }
 
+// A button the row holds after one press. It is aria-disabled, not
+// disabled: disabling it would drag the owner's focus to <body> the moment
+// it is pressed, so it stays what it was — focusable, named, and inert
+// until the store's answer releases it.
+function HeldButton({
+  held,
+  onPress,
+  children,
+}: {
+  held: boolean;
+  onPress: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn-quiet"
+      aria-disabled={held}
+      onClick={() => {
+        if (!held) onPress();
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 // The Devices surface: the phone scans, nobody types. The square on screen is
 // the ceremony's payload as SVG from kalsa-pairing's qr_svg(payload) —
 // generated on this machine, so the page may inject it as markup; it is a
@@ -324,7 +351,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // on the button the owner pressed, never on the record merely leaving.
   function denyRequest(id: number): void {
     beats.deny(id);
-    void invoke("brain_pairing_forget_device", { id }).catch(() => {});
+    // A Deny the store rejects leaves the decision unmade: the row gets
+    // its buttons back, or they stay down forever.
+    void invoke("brain_pairing_forget_device", { id }).catch(() => beats.revoke(id));
   }
 
   // Forget, with the beat the owner approved: the row folds out of the list
@@ -600,12 +629,18 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 </span>
                 {host ? null : device.waiting ? (
                   <>
-                    <button type="button" className="btn-quiet" disabled={beats.decided.has(device.id)} onClick={() => allowDevice(device.id, device.id)}>
+                    <HeldButton
+                      held={beats.decided.has(device.id)}
+                      onPress={() => allowDevice(device.id, device.id)}
+                    >
                       Allow
-                    </button>
-                    <button type="button" className="btn-quiet" disabled={beats.decided.has(device.id)} onClick={() => forgetDevice(device.id)}>
+                    </HeldButton>
+                    <HeldButton
+                      held={beats.decided.has(device.id)}
+                      onPress={() => forgetDevice(device.id)}
+                    >
                       Refuse
-                    </button>
+                    </HeldButton>
                   </>
                 ) : request ? (
                   // The buttons belong to the REQUEST, not the seat: Deny
@@ -614,12 +649,18 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                   // enough — the row holds its decision until the store's
                   // next answer.
                   <>
-                    <button type="button" className="btn-quiet" disabled={beats.decided.has(request.id)} onClick={() => allowDevice(request.id, device.id)}>
+                    <HeldButton
+                      held={beats.decided.has(request.id)}
+                      onPress={() => allowDevice(request.id, device.id)}
+                    >
                       Allow
-                    </button>
-                    <button type="button" className="btn-quiet" disabled={beats.decided.has(request.id)} onClick={() => denyRequest(request.id)}>
+                    </HeldButton>
+                    <HeldButton
+                      held={beats.decided.has(request.id)}
+                      onPress={() => denyRequest(request.id)}
+                    >
                       Refuse
-                    </button>
+                    </HeldButton>
                   </>
                 ) : (
                   <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
