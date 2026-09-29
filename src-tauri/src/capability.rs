@@ -116,7 +116,10 @@ pub(crate) struct ModelChoiceDto {
     pub(crate) id: Option<String>,
     name: String,
     quant: String,
-    weights_bytes: u64,
+    /// What downloading this model costs, as one number: its file plus the
+    /// drafter its row ships beside it — the same two files one progress
+    /// bar carries.
+    download_bytes: u64,
     /// The context this machine would actually fund for the row, from the
     /// launch arithmetic — never the chooser's one-token pricing, which on
     /// the screen would read "context window: 1 token". `None` when the row
@@ -219,7 +222,7 @@ pub(crate) fn dto(
                     id: row.map(crate::startup::model_token),
                     name: selection.display_name.to_string(),
                     quant: selection.quant.to_string(),
-                    weights_bytes: selection.weights_bytes,
+                    download_bytes: selection.download.total_bytes(),
                     context_tokens: row
                         .and_then(|row| funded_context(row, budget.usable_bytes, DEFAULT_PARALLEL)),
                     speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
@@ -246,7 +249,7 @@ pub(crate) fn dto(
                             id: Some(crate::startup::model_token(row.entry)),
                             name: row.entry.display_name.to_string(),
                             quant: row.entry.quant.to_string(),
-                            weights_bytes: row.entry.weights_bytes,
+                            download_bytes: row.download.total_bytes(),
                             context_tokens: funded_context(
                                 row.entry,
                                 budget.usable_bytes,
@@ -297,7 +300,7 @@ pub(crate) fn dto(
                 id: Some(crate::startup::model_token(row.entry)),
                 name: row.entry.display_name.to_string(),
                 quant: row.entry.quant.to_string(),
-                weights_bytes: row.entry.weights_bytes,
+                download_bytes: row.download.total_bytes(),
                 context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: speed(&row.decode),
@@ -470,7 +473,7 @@ mod tests {
                 id: Some("0000000000000001".to_string()),
                 name: "Liquid LFM 2.5".to_string(),
                 quant: "Q4_K_M".to_string(),
-                weights_bytes: 4_000_000_000,
+                download_bytes: 4_000_000_000,
                 context_tokens: Some(4584),
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: SpeedDto::Range {
@@ -491,7 +494,7 @@ mod tests {
                 id: Some("0000000000000002".to_string()),
                 name: "Google Gemma 4 E4B".to_string(),
                 quant: "Q4_K_M".to_string(),
-                weights_bytes: 4_977_171_584,
+                download_bytes: 4_977_171_584,
                 context_tokens: Some(8192),
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: SpeedDto::Measured {
@@ -635,7 +638,7 @@ mod tests {
                 let row = row.entry();
                 row.display_name == before.name
                     && row.quant == before.quant
-                    && row.weights_bytes == before.weights_bytes
+                    && row.weights_bytes == before.download_bytes
             })
             .expect("the pick is on the menu")
             .source()
@@ -644,6 +647,7 @@ mod tests {
             backend: kalsa_runtime::ServerBackend::Cpu,
             threads: Some(8),
             offload: Offload::NoGpuBuild,
+            draft: None,
         };
         let record = kalsa_tune::record::Record {
             fingerprint: "the display read does not compare keys".to_string(),
@@ -693,7 +697,7 @@ mod tests {
                         let row = row.entry();
                         row.display_name == option.name
                             && row.quant == option.quant
-                            && row.weights_bytes == option.weights_bytes
+                            && row.weights_bytes == option.download_bytes
                     })
                     .expect("both options are on the menu")
                     .source()
@@ -705,6 +709,7 @@ mod tests {
                 backend: kalsa_runtime::ServerBackend::Cpu,
                 threads: Some(8),
                 offload: Offload::NoGpuBuild,
+            draft: None,
             };
             let record = kalsa_tune::record::Record {
                 fingerprint: "the display read does not compare keys".to_string(),

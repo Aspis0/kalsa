@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use kalsa_launch::{KvCache, Offload, ServerArgs};
+use kalsa_launch::{Draft as LaunchDraft, KvCache, Offload, ServerArgs};
 use kalsa_probe::{Backend, ExecutionPath, Measurement, Reliability, Series};
 use kalsa_supervisor::ServerConfig;
 
@@ -81,14 +81,21 @@ fn prepared_with(main: &str, args: ServerArgs) -> PreparedStart {
         },
         info: LaunchInfo {
             args,
-            maximum_context: ContextMaxima { q8_0: None, f16: None },
-            automatic_context: ContextMaxima { q8_0: None, f16: None },
+            maximum_context: ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
+            automatic_context: ContextMaxima {
+                q8_0: None,
+                f16: None,
+            },
             context_prices: Default::default(),
             display_name: Some("Test Row".to_string()),
             reason: Some("the test chose it".to_string()),
             model_sha256: Some("deadbeef".to_string()),
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
     }
 }
@@ -107,17 +114,26 @@ const CORES: (Option<usize>, Option<usize>) = (Some(10), Some(10));
 #[test]
 fn tuned_launch_changes_only_what_it_owns() {
     let base = rule_args();
-    let (_, base_argv) = tuned_launch(&base, Path::new("/base"), base.threads, base.offload, PORT);
+    let (_, base_argv) = tuned_launch(
+        &base,
+        Path::new("/base"),
+        base.threads,
+        base.offload,
+        None,
+        PORT,
+    );
     let (exe, argv) = tuned_launch(
         &base,
         Path::new("/other"),
         Some(4),
         Offload::ForcedOff,
+        None,
         9999,
     );
     assert_eq!(exe, PathBuf::from("/other"));
     let has = |argv: &[String], flag: &str, value: &str| {
-        argv.windows(2).any(|pair| pair[0] == flag && pair[1] == value)
+        argv.windows(2)
+            .any(|pair| pair[0] == flag && pair[1] == value)
     };
     assert!(has(&argv, "--threads", "4") && has(&argv, "--threads-batch", "4"));
     assert!(has(&argv, "--n-gpu-layers", "0"));
@@ -137,23 +153,36 @@ fn exe_for_returns_the_main_build_without_asking() {
         backend: ServerBackend::Cpu,
         threads: Some(8),
         offload: Offload::NoGpuBuild,
+        draft: None,
     };
     let mut processor = None;
-    let exe = exe_for(&candidate, (ServerBackend::Cpu, Path::new("/m")), &mut processor, &machine, &mut |_| {})
-        .expect("the main build needs no decision");
+    let exe = exe_for(
+        &candidate,
+        (ServerBackend::Cpu, Path::new("/m")),
+        &mut processor,
+        &machine,
+        &mut |_| {},
+    )
+    .expect("the main build needs no decision");
     assert_eq!(exe, PathBuf::from("/m"));
-    assert!(processor.is_none(), "the processor decision was never asked");
+    assert!(
+        processor.is_none(),
+        "the processor decision was never asked"
+    );
 }
 
 /// A different backend resolves through the memo the walk shares with the
 /// candidate loop — the seeded value is returned, not recomputed.
 #[test]
 fn exe_for_uses_the_resolved_processor_build() {
-    let machine = machine(Backend::DiscreteGpu { vram_bytes: Some(6_439_305_216) });
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
     let candidate = kalsa_tune::Candidate {
         backend: ServerBackend::Cpu,
         threads: Some(16),
         offload: Offload::NoGpuBuild,
+        draft: None,
     };
     let mut processor = Some(Ok(PathBuf::from("/stub-cpu")));
     let exe = exe_for(
@@ -176,7 +205,9 @@ fn exe_for_uses_the_resolved_processor_build() {
 #[test]
 fn a_record_hit_keeps_the_winner_and_never_measures() {
     let dir = scratch("hit");
-    let machine = machine(Backend::DiscreteGpu { vram_bytes: Some(6_439_305_216) });
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
     let mut prepared = prepared("/main-gpu");
     let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
@@ -184,16 +215,22 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
         backend: ServerBackend::Vulkan,
         threads: Some(4),
         offload: Offload::All,
+        draft: None,
     };
     let record = kalsa_tune::record::Record {
         fingerprint,
-        winner: Some(kalsa_tune::Winner { candidate: winner_candidate, best: 49.0 }),
-        trials: vec![(
-            winner_candidate,
-            kalsa_tune::record::Kept::Best(49.0),
-        )],
+        winner: Some(kalsa_tune::Winner {
+            candidate: winner_candidate,
+            best: 49.0,
+        }),
+        trials: vec![(winner_candidate, kalsa_tune::record::Kept::Best(49.0))],
     };
-    kalsa_tune::record::save(&dir, prepared.info.model_sha256.as_deref().unwrap(), &record).expect("save");
+    kalsa_tune::record::save(
+        &dir,
+        prepared.info.model_sha256.as_deref().unwrap(),
+        &record,
+    )
+    .expect("save");
     let mut seen: Vec<Progress> = Vec::new();
     let mut progress = |step: Progress| seen.push(step);
     let mut memo = Memo {
@@ -216,10 +253,15 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
         "the kept record is what the panel shows: {:?}",
         prepared.info.tune
     );
-    assert_eq!(prepared.info.args.threads, Some(4), "the winner's threads are applied");
+    assert_eq!(
+        prepared.info.args.threads,
+        Some(4),
+        "the winner's threads are applied"
+    );
     let argv = &prepared.server.argv;
     assert!(
-        argv.windows(2).any(|pair| pair[0] == "--threads" && pair[1] == "4"),
+        argv.windows(2)
+            .any(|pair| pair[0] == "--threads" && pair[1] == "4"),
         "the winner launches with its own argv: {argv:?}"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -231,7 +273,9 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
 #[test]
 fn a_refused_tune_is_saved_and_the_rule_stands() {
     let dir = scratch("refused");
-    let machine = machine(Backend::DiscreteGpu { vram_bytes: Some(6_439_305_216) });
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
     let mut prepared = prepared("/main-gpu");
     let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
@@ -257,7 +301,10 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
             resolved
                 .iter()
                 .map(|(candidate, _)| {
-                    (*candidate, kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::NotReady))
+                    (
+                        *candidate,
+                        kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::NotReady),
+                    )
                 })
                 .collect()
         },
@@ -270,14 +317,21 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
     );
     let argv = &prepared.server.argv;
     assert!(
-        argv.windows(2).any(|pair| pair[0] == "--threads" && pair[1] == "8"),
+        argv.windows(2)
+            .any(|pair| pair[0] == "--threads" && pair[1] == "8"),
         "the rule's threads stand: {argv:?}"
     );
     assert!(
-        seen.iter().any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
+        seen.iter()
+            .any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
         "three lifetimes planned, three done"
     );
-    let saved = kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).expect("the record was saved");
+    let saved = kalsa_tune::record::load(
+        &dir,
+        prepared.info.model_sha256.as_deref().unwrap(),
+        &fingerprint,
+    )
+    .expect("the record was saved");
     assert_eq!(saved.winner, None, "and it says there was no winner");
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -287,7 +341,10 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
 fn a_single_candidate_is_skipped_and_never_measured() {
     let dir = scratch("skipped");
     let machine = machine(Backend::Cpu);
-    let args = ServerArgs { threads: None, ..rule_args() };
+    let args = ServerArgs {
+        threads: None,
+        ..rule_args()
+    };
     let mut prepared = prepared_with("/main-cpu", args);
     // Exactly one candidate: no rule count and one core count (the gpu
     // filter drops a Cpu verdict's graphics side) — one thing to run, so
@@ -318,7 +375,12 @@ fn a_single_candidate_is_skipped_and_never_measured() {
     );
     assert!(prepared.server.argv.iter().all(|arg| arg != "--threads"));
     assert!(
-        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
+        kalsa_tune::record::load(
+            &dir,
+            prepared.info.model_sha256.as_deref().unwrap(),
+            &fingerprint
+        )
+        .is_none(),
         "nothing measured, nothing saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -340,15 +402,20 @@ fn the_tune_line_is_the_owners_copy() {
         backend: ServerBackend::Vulkan,
         threads: Some(16),
         offload: Offload::All,
+        draft: None,
     };
     let alternative = kalsa_tune::Candidate {
         backend: ServerBackend::Cpu,
         threads: Some(16),
         offload: Offload::NoGpuBuild,
+        draft: None,
     };
     let record = kalsa_tune::record::Record {
         fingerprint: "fp".to_string(),
-        winner: Some(kalsa_tune::Winner { candidate: winner, best: 49.0 }),
+        winner: Some(kalsa_tune::Winner {
+            candidate: winner,
+            best: 49.0,
+        }),
         trials: vec![
             (winner, kalsa_tune::record::Kept::Best(49.0)),
             (alternative, kalsa_tune::record::Kept::Best(11.8)),
@@ -363,6 +430,7 @@ fn the_tune_line_is_the_owners_copy() {
         backend: ServerBackend::Vulkan,
         threads: Some(16),
         offload: Offload::EngineFitted,
+        draft: None,
     };
     assert_eq!(
         tune_line(&Tune::Measured(kalsa_tune::record::Record {
@@ -389,7 +457,9 @@ fn the_tune_line_is_the_owners_copy() {
 /// record is keyed on cannot silently stop covering something.
 #[test]
 fn the_fingerprint_follows_the_launch_and_the_machine() {
-    let machine = machine(Backend::DiscreteGpu { vram_bytes: Some(6_439_305_216) });
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
     let info = prepared("/main-gpu").info;
     let base = tune_fingerprint(&machine, &info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
@@ -472,7 +542,9 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
         processor: None,
     };
     let mut progress = |_: Progress| {};
-    let mut captured: Vec<(kalsa_tune::Candidate, PathBuf)> = Vec::new();
+    // The measure seam runs twice now — grid, then the draft dimension on
+    // the winner — so what it hands over is collected through a cell.
+    let captured = std::cell::RefCell::new(Vec::<(kalsa_tune::Candidate, PathBuf)>::new());
     tune_launch(
         &mut prepared,
         &machine,
@@ -483,15 +555,18 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
         &mut progress,
         |resolved, _, counts| {
             counts(resolved.len(), resolved.len());
-            captured = resolved.to_vec();
+            *captured.borrow_mut() = resolved.to_vec();
             vec![]
         },
     );
     assert!(
         captured
+            .borrow()
             .iter()
-            .any(|(candidate, resolved_exe)| candidate.backend == ServerBackend::Vulkan
-                && resolved_exe.as_path() == std::path::Path::new("/gpu-exe")),
+            .any(
+                |(candidate, resolved_exe)| candidate.backend == ServerBackend::Vulkan
+                    && resolved_exe.as_path() == std::path::Path::new("/gpu-exe")
+            ),
         "the graphics candidate runs on the main build's exe: {captured:?}"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -544,7 +619,12 @@ fn an_incomplete_tune_is_not_saved() {
     );
     // …but nothing was written down.
     assert!(
-        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
+        kalsa_tune::record::load(
+            &dir,
+            prepared.info.model_sha256.as_deref().unwrap(),
+            &fingerprint
+        )
+        .is_none(),
         "an incomplete tune must not be saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -586,11 +666,17 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
     // The processor candidates were dropped by the memoized failure — one
     // lifetime ran, three candidates exist — so this is incomplete.
     assert!(
-        seen.iter().any(|step| matches!(step, Progress::Tuning { done: 1, total: 1 })),
+        seen.iter()
+            .any(|step| matches!(step, Progress::Tuning { done: 1, total: 1 })),
         "the processor candidates never ran"
     );
     assert!(
-        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint).is_none(),
+        kalsa_tune::record::load(
+            &dir,
+            prepared.info.model_sha256.as_deref().unwrap(),
+            &fingerprint
+        )
+        .is_none(),
         "an incomplete tune must not be saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -598,7 +684,7 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
 
 /// A legacy record — v1 magic, its graphics winner pinning `--n-gpu-layers
 /// all` — is refused, the refusal is a fresh tune, and the complete result
-/// replaces it with a v2 record on disk.
+/// replaces it with a fresh record on disk.
 #[test]
 fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     let dir = scratch("legacy");
@@ -613,6 +699,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         backend: ServerBackend::Vulkan,
         threads: Some(8),
         offload: Offload::All,
+        draft: None,
     };
     let record = kalsa_tune::record::Record {
         fingerprint: fingerprint.clone(),
@@ -620,19 +707,20 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
             candidate: winner_candidate,
             best: 49.0,
         }),
-        trials: vec![(
-            winner_candidate,
-            kalsa_tune::record::Kept::Best(49.0),
-        )],
+        trials: vec![(winner_candidate, kalsa_tune::record::Kept::Best(49.0))],
     };
-    kalsa_tune::record::save(&dir, prepared.info.model_sha256.as_deref().unwrap(), &record)
-        .expect("save");
+    kalsa_tune::record::save(
+        &dir,
+        prepared.info.model_sha256.as_deref().unwrap(),
+        &record,
+    )
+    .expect("save");
     // The file as the pre-fit build wrote it:
     let file = dir.join("tuning-deadbeef.txt");
     let text = std::fs::read_to_string(&file).expect("read");
-    std::fs::write(&file, text.replacen("kalsa-tune v2", "kalsa-tune v1", 1)).expect("rewrite");
+    std::fs::write(&file, text.replacen("kalsa-tune v3", "kalsa-tune v2", 1)).expect("rewrite");
 
-    let mut measured = 0usize;
+    let measured = std::cell::Cell::new(0usize);
     let mut memo = Memo {
         cores: CORES,
         processor: Some(Ok(PathBuf::from("/stub-cpu"))),
@@ -646,7 +734,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            measured += 1;
+            measured.set(measured.get() + 1);
             counts(resolved.len(), resolved.len());
             // Complete: every candidate ran (each refused is an answer),
             // so the result may be saved.
@@ -662,22 +750,29 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         },
     );
 
-    assert_eq!(measured, 1, "the refused record leads to a fresh measure");
+    assert_eq!(
+        measured.get(),
+        1,
+        "the refused record leads to a fresh measure"
+    );
     assert!(
         matches!(prepared.info.tune, Some(Tune::NoWinner(_))),
         "and the walk completes with a line, not a failure: {:?}",
         prepared.info.tune
     );
-    let text =
-        std::fs::read_to_string(dir.join("tuning-deadbeef.txt")).expect("read the record");
+    let text = std::fs::read_to_string(dir.join("tuning-deadbeef.txt")).expect("read the record");
     assert!(
-        text.starts_with("kalsa-tune v2\n"),
-        "the complete tune replaced it with a v2 record"
+        text.starts_with("kalsa-tune v3\n"),
+        "the complete tune replaced it with a current record"
     );
     assert!(
-        kalsa_tune::record::load(&dir, prepared.info.model_sha256.as_deref().unwrap(), &fingerprint)
-            .is_some(),
-        "and the v2 record loads"
+        kalsa_tune::record::load(
+            &dir,
+            prepared.info.model_sha256.as_deref().unwrap(),
+            &fingerprint
+        )
+        .is_some(),
+        "and the rewritten record loads"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -707,7 +802,10 @@ fn a_panicking_tune_leaves_the_plan_standing() {
         &mut progress,
         |_, _, _| panic!("the measure exploded"),
     );
-    assert_eq!(prepared.server.argv, rule.argv, "the rule's argv is restored");
+    assert_eq!(
+        prepared.server.argv, rule.argv,
+        "the rule's argv is restored"
+    );
     assert_eq!(prepared.server.exe, rule.exe, "the rule's exe is restored");
     assert_eq!(prepared.info.args.threads, rule_threads, "and its threads");
     assert!(
@@ -721,9 +819,283 @@ fn a_panicking_tune_leaves_the_plan_standing() {
 /// and one name on both sides is the whole point of the field.
 #[test]
 fn the_tuning_step_serialises_the_total_the_page_reads() {
-    let json =
-        serde_json::to_value(Progress::Tuning { done: 1, total: 2 }).expect("serialise");
+    let json = serde_json::to_value(Progress::Tuning { done: 1, total: 2 }).expect("serialise");
     assert_eq!(json["kind"], "tuning");
     assert_eq!(json["total"], 2);
-    assert!(json.get("planned").is_none(), "the old name must not appear");
+    assert!(
+        json.get("planned").is_none(),
+        "the old name must not appear"
+    );
+}
+
+/// The draft dimension: on the launch the grid chose, the plan's drafter at
+/// n_max 2, 3 and 4 gets its own lifetimes beside the winner's own
+/// target-only trial; the fastest is kept, persisted with the rest of the
+/// record, and a later start reuses it without measuring again.
+#[test]
+fn a_draft_winner_is_measured_persisted_and_reused() {
+    let dir = scratch("draft-winner");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    let passes = std::cell::Cell::new(0usize);
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            passes.set(passes.get() + 1);
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    // The grid is target-only: the graphics shape leads.
+                    // The draft pass proposes beside it: 3 wins, 2 and 4
+                    // lose on their numbers.
+                    let outcome = match candidate.draft {
+                        None if matches!(candidate.offload, Offload::EngineFitted) => {
+                            kalsa_tune::Outcome::Measured(vec![40.0])
+                        }
+                        None => kalsa_tune::Outcome::Measured(vec![10.0]),
+                        Some(2) => kalsa_tune::Outcome::Measured(vec![44.0]),
+                        Some(3) => kalsa_tune::Outcome::Measured(vec![50.0]),
+                        Some(_) => kalsa_tune::Outcome::Measured(vec![46.0]),
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+    );
+    assert_eq!(
+        passes.get(),
+        2,
+        "the grid, then the draft dimension on its winner"
+    );
+    let argv = prepared.server.argv.join(" ");
+    assert!(
+        argv.contains("--model-draft /models/mtp.gguf"),
+        "the winner launches its drafter: {argv}"
+    );
+    assert!(argv.contains("--spec-draft-n-max 3"), "{argv}");
+    assert_eq!(
+        prepared.info.args.draft.as_ref().map(|draft| draft.n_max),
+        Some(3),
+        "the args the panel reads carry the choice"
+    );
+    let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
+    assert!(line.contains("drafter 3"), "{line}");
+
+    // A later start: the record answers, nothing is measured, and the same
+    // drafter setting is applied from it.
+    let mut again = prepared_with("/main-gpu", {
+        let mut args = rule_args();
+        args.draft = Some(LaunchDraft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+        });
+        args
+    });
+    again.info.drafter_sha256 = Some("cafe1234".to_string());
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("a kept record must not measure"),
+    );
+    assert!(
+        again.server.argv.join(" ").contains("--spec-draft-n-max 3"),
+        "the kept record carries the draft choice"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A draft lifetime that fails simply loses: refused drafts leave the
+/// target-only winner standing, and that verdict is what persists.
+#[test]
+fn a_failing_draft_candidate_loses() {
+    let dir = scratch("draft-refused");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = if candidate.draft.is_some() {
+                        kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::DidNotStart)
+                    } else if matches!(candidate.offload, Offload::EngineFitted) {
+                        kalsa_tune::Outcome::Measured(vec![40.0])
+                    } else {
+                        kalsa_tune::Outcome::Measured(vec![10.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+    );
+    let argv = prepared.server.argv.join(" ");
+    assert!(
+        !argv.contains("--model-draft"),
+        "every draft lifetime refused: the target-only winner stands: {argv}"
+    );
+    assert!(prepared.info.args.draft.is_none());
+
+    // And "off" is the persisted verdict: a later start reuses it.
+    let mut again = prepared_with("/main-gpu", {
+        let mut args = rule_args();
+        args.draft = Some(LaunchDraft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+        });
+        args
+    });
+    again.info.drafter_sha256 = Some("cafe1234".to_string());
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("a kept record must not measure"),
+    );
+    assert!(
+        !again.server.argv.join(" ").contains("--model-draft"),
+        "the kept record says off"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// No drafter, no draft dimension: the grid runs once and nothing else is
+/// measured.
+#[test]
+fn a_launch_without_a_drafter_measures_no_draft_lifetimes() {
+    let dir = scratch("no-drafter");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared("/main-gpu");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    let passes = std::cell::Cell::new(0usize);
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            passes.set(passes.get() + 1);
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| (*candidate, kalsa_tune::Outcome::Measured(vec![40.0])))
+                .collect()
+        },
+    );
+    assert_eq!(passes.get(), 1, "the grid alone: no drafter, no draft pass");
+    assert!(!prepared.server.argv.join(" ").contains("--model-draft"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The processor alternative carries the chosen drafter too, pinned to the
+/// CPU beside its own `--n-gpu-layers 0`.
+#[test]
+fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
+    let dir = scratch("draft-processor-leg");
+    // The Mac's shape: the processor leg is the SAME Metal build with the
+    // offload forced off — the one leg that renders --n-gpu-layers 0.
+    let machine = machine(Backend::Metal);
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Metal, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = match candidate.draft {
+                        None if matches!(candidate.offload, Offload::EngineFitted) => {
+                            kalsa_tune::Outcome::Measured(vec![40.0])
+                        }
+                        None => kalsa_tune::Outcome::Measured(vec![10.0]),
+                        Some(3) => kalsa_tune::Outcome::Measured(vec![50.0]),
+                        Some(_) => kalsa_tune::Outcome::Measured(vec![45.0]),
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+    );
+    let (config, leg_args) = prepared
+        .processor
+        .as_ref()
+        .expect("the processor alternative");
+    let argv = config.argv.join(" ");
+    assert!(argv.contains("--n-gpu-layers 0"), "the CPU leg: {argv}");
+    assert!(
+        argv.contains("--n-gpu-layers-draft 0"),
+        "its drafter is pinned to the CPU too: {argv}"
+    );
+    assert!(argv.contains("--spec-draft-n-max 3"), "{argv}");
+    assert_eq!(leg_args.draft.as_ref().map(|draft| draft.n_max), Some(3));
+    let _ = std::fs::remove_dir_all(&dir);
 }

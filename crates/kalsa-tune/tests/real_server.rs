@@ -62,11 +62,13 @@ fn the_metal_build_measures_full_and_forced_off() {
             backend: ServerBackend::Metal,
             threads: Some(8),
             offload: Offload::EngineFitted,
+            draft: None,
         },
         Candidate {
             backend: ServerBackend::Metal,
             threads: Some(8),
             offload: Offload::ForcedOff,
+            draft: None,
         },
     ];
     let root = Scratch::new();

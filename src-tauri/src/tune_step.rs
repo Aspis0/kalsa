@@ -18,30 +18,52 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 
 use kalsa_launch::{Offload, ServerArgs};
-use kalsa_supervisor::ServerConfig;
 use kalsa_runtime::ServerBackend;
+use kalsa_supervisor::ServerConfig;
 
 use crate::failure::StartupFailure;
 use crate::startup::{LaunchInfo, Machine, PreparedStart, Progress};
 
 /// The final launch and every candidate's lifetime come out of this one
 /// function: the same plan argv, changed only in the binary, `--threads`/
-/// `--threads-batch`, `--n-gpu-layers` and the port. Nothing else in argv
-/// can differ, because nothing else is a parameter. One instrumented
-/// exception: the measurer appends its `--alias` nonce to every lifetime —
-/// a name the engine lists on `/v1/models` only, which never reaches load
-/// or decode and is not part of the launch the record remembers.
+/// `--threads-batch`, `--n-gpu-layers`, the draft setting and the port.
+/// Nothing else in argv can differ, because nothing else is a parameter.
+/// One instrumented exception: the measurer appends its `--alias` nonce to
+/// every lifetime — a name the engine lists on `/v1/models` only, which
+/// never reaches load or decode and is not part of the launch the record
+/// remembers.
+///
+/// `draft_n_max` is the tune's one draft decision: `None` launches the
+/// target alone — every grid lifetime runs target-only, so the grid's
+/// numbers are decode without speculation — and `Some(n)` launches the
+/// plan's own drafter proposing `n` per step. A plan without a drafter
+/// The drafter a tuned launch carries: the plan's own file, at the n_max
+/// the tune chose — or none, when the tune chose target-only or the plan
+/// shipped no drafter at all.
+fn chosen_drafter(rule_args: &ServerArgs, draft_n_max: Option<u32>) -> Option<kalsa_launch::Draft> {
+    match (draft_n_max, &rule_args.draft) {
+        (Some(n_max), Some(draft)) => Some(kalsa_launch::Draft {
+            model_path: draft.model_path.clone(),
+            n_max,
+        }),
+        _ => None,
+    }
+}
+
+/// ignores the setting: there is nothing to carry.
 pub(crate) fn tuned_launch(
     args: &ServerArgs,
     exe: &Path,
     threads: Option<usize>,
     offload: Offload,
+    draft_n_max: Option<u32>,
     port: u16,
 ) -> (PathBuf, Vec<String>) {
     let mut tuned = args.clone();
     tuned.threads = threads;
     tuned.offload = offload;
     tuned.port = port;
+    tuned.draft = chosen_drafter(args, draft_n_max);
     (exe.to_path_buf(), tuned.argv())
 }
 
@@ -126,6 +148,7 @@ pub(crate) fn tune_fingerprint(
         cores.0,
         cores.1,
         (&engine(main), &engine(ServerBackend::Cpu)),
+        info.drafter_sha256.as_deref(),
     ))
 }
 
@@ -141,7 +164,16 @@ pub(crate) fn measure_with_rule(
     kalsa_tune::measure_candidates(
         resolved,
         root,
-        |candidate, exe, port| tuned_launch(rule, exe, candidate.threads, candidate.offload, port),
+        |candidate, exe, port| {
+            tuned_launch(
+                rule,
+                exe,
+                candidate.threads,
+                candidate.offload,
+                candidate.draft,
+                port,
+            )
+        },
         counts,
     )
 }
@@ -160,7 +192,7 @@ pub(crate) fn tune_launch(
     main: (ServerBackend, PathBuf),
     memo: &mut Memo,
     progress: &mut dyn FnMut(Progress),
-    measure: impl FnOnce(
+    measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
@@ -192,7 +224,7 @@ fn tune_launch_inner(
     main: (ServerBackend, PathBuf),
     memo: &mut Memo,
     progress: &mut dyn FnMut(Progress),
-    measure: impl FnOnce(
+    measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
@@ -250,9 +282,63 @@ fn tune_launch_inner(
                 prepared.info.tune = Some(Tune::Skipped);
                 return;
             }
-            let results = measure(&resolved, &rule_args, &mut |done, planned| {
-                progress(Progress::Tuning { done, total: planned })
+            let mut results = measure(&resolved, &rule_args, &mut |done, planned| {
+                progress(Progress::Tuning {
+                    done,
+                    total: planned,
+                })
             });
+            // The draft dimension, on the launch the grid chose and only on
+            // it: the plan's drafter at n_max 2, 3 and 4, each its own
+            // lifetime, beside the winner's own target-only trial as the
+            // "off" every one of them has to beat. A draft lifetime that
+            // refuses simply loses; "off" wins by default.
+            let grid_winner = kalsa_tune::winner(&results);
+            let mut expected = candidates.len();
+            if rule_args.draft.is_some() {
+                if let Some(win) = &grid_winner {
+                    // The winner's exe resolved once for the draft pass or
+                    // not at all: an unresolved one leaves the dimension
+                    // unmeasured — and unmeasured is not saved, so the next
+                    // start tries again.
+                    let shape = win.candidate;
+                    if let Some(exe) = exe_for(
+                        &shape,
+                        (main.0, &main.1),
+                        &mut memo.processor,
+                        machine,
+                        progress,
+                    )
+                    .ok()
+                    {
+                        let draft_ns = [2, 3, 4];
+                        let draft_resolved: Vec<_> = draft_ns
+                            .iter()
+                            .map(|&n_max| {
+                                (
+                                    kalsa_tune::Candidate {
+                                        draft: Some(n_max),
+                                        ..shape
+                                    },
+                                    exe.clone(),
+                                )
+                            })
+                            .collect();
+                        let base = results.len();
+                        expected += draft_ns.len();
+                        results.extend(measure(
+                            &draft_resolved,
+                            &rule_args,
+                            &mut |done, planned| {
+                                progress(Progress::Tuning {
+                                    done: base + done,
+                                    total: base + planned,
+                                })
+                            },
+                        ));
+                    }
+                }
+            }
             let winner = kalsa_tune::winner(&results);
             let ran = results.len();
             let record = kalsa_tune::record::Record {
@@ -272,7 +358,7 @@ fn tune_launch_inner(
             // answered, `DidNotStart` included; only a candidate whose
             // lifetime never began (the budget cut round one, or an exe
             // that could not be resolved) makes the picture incomplete.
-            if ran == candidates.len() {
+            if ran == expected {
                 if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
                     // Best effort: a record that cannot be written costs a
                     // re-tune next start, never this launch.
@@ -312,6 +398,7 @@ fn tune_launch_inner(
                 exe.clone(),
                 win.candidate.threads,
                 win.candidate.offload,
+                win.candidate.draft,
             );
             if matches!(win.candidate.offload, Offload::All | Offload::EngineFitted) {
                 // The processor alternative beside a graphics winner: what
@@ -330,14 +417,15 @@ fn tune_launch_inner(
             prepared.info.tune = Some(Tune::Measured(record));
         }
         None => {
-            // The rule stands — the plan's own exe, threads and offload —
-            // and the line says why there is no winner to show.
+            // The rule stands — the plan's own exe, threads, offload and
+            // drafter setting — and the line says why there is no winner.
             apply(
                 prepared,
                 &rule_args,
                 rule_exe,
                 rule_args.threads,
                 rule_args.offload,
+                rule_args.draft.as_ref().map(|draft| draft.n_max),
             );
             prepared.info.tune = Some(Tune::NoWinner(record));
             if winner.is_some() {
@@ -357,10 +445,19 @@ fn apply(
     exe: PathBuf,
     threads: Option<usize>,
     offload: Offload,
+    draft_n_max: Option<u32>,
 ) {
-    let (exe, argv) = tuned_launch(rule_args, &exe, threads, offload, crate::startup::PORT);
+    let (exe, argv) = tuned_launch(
+        rule_args,
+        &exe,
+        threads,
+        offload,
+        draft_n_max,
+        crate::startup::PORT,
+    );
     prepared.info.args.threads = threads;
     prepared.info.args.offload = offload;
+    prepared.info.args.draft = chosen_drafter(rule_args, draft_n_max);
     prepared.server.exe = exe;
     prepared.server.argv = argv;
 }
@@ -369,11 +466,15 @@ fn apply(
 /// the threads the member. `candidates()` never builds an offloaded
 /// candidate without a count, so the bare fallback is only defensive.
 pub(crate) fn tune_label(candidate: &kalsa_tune::Candidate) -> String {
-    match (candidate.offload, candidate.threads) {
+    let mut label = match (candidate.offload, candidate.threads) {
         (Offload::All | Offload::EngineFitted, _) => "graphics".to_string(),
         (_, Some(threads)) => format!("processor {threads} threads"),
         (Offload::NoGpuBuild | Offload::ForcedOff, None) => "processor".to_string(),
+    };
+    if let Some(n_max) = candidate.draft {
+        label.push_str(&format!(" + drafter {n_max}"));
     }
+    label
 }
 
 /// The tune's line for the panel — the one place these words are written.
@@ -403,7 +504,11 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
                 })
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             if let Some((candidate, rate)) = alternative {
-                line.push_str(&format!(" ({}: {:.1} tokens/s)", tune_label(&candidate), rate));
+                line.push_str(&format!(
+                    " ({}: {:.1} tokens/s)",
+                    tune_label(&candidate),
+                    rate
+                ));
             }
             line
         }
@@ -443,15 +548,26 @@ fn processor_launch(
         progress,
     )
     .ok()?;
-    let (exe, argv) =
-        tuned_launch(rule_args, &exe, candidate.threads, candidate.offload, base.port);
+    let chosen_draft = record
+        .winner
+        .as_ref()
+        .map_or(None, |win| win.candidate.draft);
+    let (exe, argv) = tuned_launch(
+        rule_args,
+        &exe,
+        candidate.threads,
+        candidate.offload,
+        chosen_draft,
+        base.port,
+    );
     // The config AND its args together: the panel's "In force" reads the
     // args, and after a switch they must be the processor's.
-    let args = ServerArgs {
+    let mut args = ServerArgs {
         threads: candidate.threads,
         offload: candidate.offload,
         ..rule_args.clone()
     };
+    args.draft = chosen_drafter(rule_args, chosen_draft);
     Some((
         ServerConfig {
             exe,
@@ -493,9 +609,9 @@ pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked
         Checked::Kept => head,
         Checked::Switched => format!("{head} — running the processor candidate"),
         Checked::NoProcessor => format!("{head} — nothing to switch to"),
-        Checked::StillGraphics => format!(
-            "{head} — the processor candidate would not start; keeping the graphics launch"
-        ),
+        Checked::StillGraphics => {
+            format!("{head} — the processor candidate would not start; keeping the graphics launch")
+        }
         Checked::Down => format!("{head} — neither launch came up"),
     }
 }

@@ -191,6 +191,7 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -353,6 +354,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         });
     }
     brain.clear_launch_for_state(&ServerState::Starting);
@@ -386,6 +388,7 @@ fn a_drain_takes_the_launch_record_down_with_it() {
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -418,7 +421,8 @@ fn a_refused_start_never_publishes_its_record() {
         model_sha256: None,
         tune: None,
         checked: None,
-    };
+            drafter_sha256: None,
+        };
     let rejected = startup::LaunchInfo {
         args: launch_args("/models/rejected.gguf", 8138),
         maximum_context: startup::ContextMaxima {
@@ -435,7 +439,8 @@ fn a_refused_start_never_publishes_its_record() {
         model_sha256: None,
         tune: None,
         checked: None,
-    };
+            drafter_sha256: None,
+        };
     brain.record_launch(running, StartOutcome::Accepted);
     brain.record_launch(rejected, StartOutcome::Refused);
     let launch = brain.launch.lock().unwrap();
@@ -1208,6 +1213,7 @@ fn a_store_holding_only_the_host_starts_the_door() {
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -1297,6 +1303,7 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
             model_sha256: Some(sha256.to_string()),
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -1363,6 +1370,7 @@ fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_w
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         StartOutcome::Accepted,
     );
@@ -1418,7 +1426,8 @@ fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_c
                 model_sha256: Some(digest.to_string()),
                 tune: None,
                 checked: None,
-            },
+            drafter_sha256: None,
+        },
             StartOutcome::Accepted,
         );
         let started = brain.start_door_if_paired(1, &file, false);
@@ -2501,6 +2510,7 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
             model_sha256: None,
             tune: None,
             checked: None,
+            drafter_sha256: None,
         },
         rule_launch: None,
         processor: None,
@@ -2724,6 +2734,7 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
         backend: kalsa_runtime::ServerBackend::Vulkan,
         threads: Some(16),
         offload: kalsa_launch::Offload::EngineFitted,
+                draft: None,
     };
     let record = kalsa_tune::record::Record {
         fingerprint: "fp".to_string(),
@@ -2738,6 +2749,7 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
                     backend: kalsa_runtime::ServerBackend::Cpu,
                     threads: Some(16),
                     offload: kalsa_launch::Offload::NoGpuBuild,
+                draft: None,
                 },
                 kalsa_tune::record::Kept::Best(10.2),
             ),
@@ -2761,6 +2773,7 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
             model_sha256: None,
             tune: Some(tune_step::Tune::Measured(record)),
             checked: None,
+            drafter_sha256: None,
         },
         processor: Some((processor, processor_args)),
         rule_launch: None,

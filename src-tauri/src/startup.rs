@@ -142,6 +142,14 @@ impl Default for ContextPrices {
     }
 }
 
+/// The drafter this launch carries, when placement proved one: where it
+/// landed, and the pin it was proven against — the pin is what the tune's
+/// fingerprint and the record's key travel on.
+pub(crate) struct DrafterLaunch {
+    pub(crate) path: PathBuf,
+    pub(crate) sha256: &'static str,
+}
+
 /// The exact launch data kept by the shell after the supervisor receives it.
 /// The UI reads this rather than reconstructing values from argv strings.
 #[derive(Debug)]
@@ -179,6 +187,11 @@ pub(crate) struct LaunchInfo {
     /// words, composed where the tune's words live. `None` when no check
     /// ran (no graphics winner, or the development path).
     pub(crate) checked: Option<String>,
+    /// The drafter's pinned sha256, when this launch carries one: the tune's
+    /// fingerprint keys on it, so a changed drafter is re-measured and a
+    /// launch without one never reuses a record that had it. `None` on the
+    /// development path and when placement fell back to target-only.
+    pub(crate) drafter_sha256: Option<String>,
 }
 
 #[derive(Debug)]
@@ -281,11 +294,15 @@ pub(crate) fn run(
             // about to be placed; without it nothing is used — not even a
             // copy already on disk.
             let placed = place_model(&plan, root, consented(chosen, row), progress)?;
+            let drafter = placed
+                .drafter
+                .zip(plan.drafter.as_ref())
+                .map(|(path, file)| DrafterLaunch { path, sha256: file.sha256 });
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
                 placed.weights,
-                placed.drafter,
+                drafter,
                 row,
                 reason,
                 // The digest of the row whose file was just placed: the
@@ -692,27 +709,40 @@ pub(crate) fn model_on_disk(root: &Path, entry: &ModelEntry) -> bool {
     find_reusable(&default_roots(), source.bytes, source.sha256).is_some()
 }
 
-/// The row's own source, from the catalog's pairing: the pinned address the
-/// download is held to. A served Q8 variant is an entry in its own right,
-/// nested under its row, so the search walks rows and their variants — the
-/// table's own structure, not a copy of the rule that decides which one a
-/// machine serves. `None` — the row is not on the menu, or carries no
-/// identified file — means there is no file to look for.
-fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource> {
+/// The entry as the catalog's own pairing holds it: the row, or the Q8
+/// variant nested under it. A served variant is an entry in its own right,
+/// so the search walks rows and their variants — the table's own structure,
+/// not a copy of the rule that decides which one a machine serves. `None`
+/// — the row is not on the menu — means there is no file to look for.
+fn entry_on_menu(entry: &ModelEntry) -> Option<kalsa_catalog::UsableEntry<'static>> {
     let is_the_entry = |candidate: &ModelEntry| {
         candidate.repo == entry.repo
             && candidate.display_name == entry.display_name
             && candidate.quant == entry.quant
             && candidate.weights_bytes == entry.weights_bytes
     };
-    usable_with_q8()
-        .find_map(|(row, variant)| {
-            if is_the_entry(row.entry()) {
-                return Some(row);
-            }
-            variant.filter(|variant| is_the_entry(variant.entry()))
-        })
-        .map(|found| found.source())
+    usable_with_q8().find_map(|(row, variant)| {
+        if is_the_entry(row.entry()) {
+            return Some(row);
+        }
+        variant.filter(|variant| is_the_entry(variant.entry()))
+    })
+}
+
+/// The row's own source, from the catalog's pairing: the pinned address the
+/// download is held to.
+fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource> {
+    Some(entry_on_menu(entry)?.source())
+}
+
+/// What downloading this entry costs, as one number: its own pinned file
+/// plus the drafter its row ships beside it — the same two files one
+/// progress bar carries. The bool says whether there is a second file, for
+/// the copy that says "file" or "files".
+pub(crate) fn entry_download(entry: &ModelEntry) -> Option<(u64, bool)> {
+    let found = entry_on_menu(entry)?;
+    let drafter = found.drafter().map_or(0, |drafter| drafter.bytes);
+    Some((found.source().bytes + drafter, drafter > 0))
 }
 
 /// The reason a test's launch record carries. These tests are about budgets
@@ -801,7 +831,7 @@ fn planned_config_with_overrides(
     backend: ServerBackend,
     exe: PathBuf,
     model: PathBuf,
-    drafter: Option<PathBuf>,
+    drafter: Option<DrafterLaunch>,
     row: &ModelEntry,
     reason: String,
     model_sha256: &str,
@@ -901,8 +931,10 @@ fn planned_config_with_overrides(
     }
     // The drafter rides the launch only as a proven file: acquire_model
     // verified it before this ran, and the engine cannot load half a pair.
-    plan.args.draft = drafter.map(|model_path| kalsa_launch::Draft {
-        model_path,
+    // n_max is the pre-tune default; the tune's first run measures 2/3/4
+    // against off and keeps the fastest.
+    plan.args.draft = drafter.as_ref().map(|drafter| kalsa_launch::Draft {
+        model_path: drafter.path.clone(),
         n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
     });
     let args = plan.args;
@@ -940,6 +972,7 @@ fn planned_config_with_overrides(
             display_name: Some(row.display_name.to_owned()),
             reason: Some(reason),
             model_sha256: Some(model_sha256.to_string()),
+            drafter_sha256: drafter.map(|drafter| drafter.sha256.to_string()),
             tune: None,
             checked: None,
         },
@@ -1047,6 +1080,7 @@ fn dev_config_with_overrides(
                 f16: None,
             },
             context_prices: ContextPrices::default(),
+            drafter_sha256: None,
             display_name: None,
             reason: None,
             // A pinned file no catalog row named: there is no pinned digest
@@ -2824,7 +2858,7 @@ mod tests {
                 entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0"
             })
             .expect("a row that funds the fixture machine");
-        let base = |drafter: Option<PathBuf>| {
+        let base = |drafter: Option<crate::startup::DrafterLaunch>| {
             planned_config_with_overrides(
                 ServerBackend::Cpu,
                 PathBuf::from("/server/llama-server"),
@@ -2846,7 +2880,10 @@ mod tests {
             without.info.args.draft.is_none(),
             "no proven drafter, no draft flags"
         );
-        let with = base(Some(PathBuf::from("/models/mtp-chosen.gguf")));
+        let with = base(Some(crate::startup::DrafterLaunch {
+            path: PathBuf::from("/models/mtp-chosen.gguf"),
+            sha256: TEST_SHA256,
+        }));
         assert_eq!(
             with.info.args.draft,
             Some(kalsa_launch::Draft {

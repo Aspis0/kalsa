@@ -23,7 +23,12 @@ pub(crate) struct Suggestions {
 struct Suggestion {
     id: String,
     name: &'static str,
-    weights_bytes: u64,
+    /// What downloading this model costs, as one number: its file plus the
+    /// drafter its row ships beside it.
+    download_bytes: u64,
+    /// Whether a second file comes with the first, for the copy that says
+    /// "file" or "files".
+    drafter: bool,
     on_disk: bool,
 }
 
@@ -35,11 +40,18 @@ pub(crate) fn suggest(
 ) -> Suggestions {
     let options = entries
         .into_iter()
-        .map(|entry| Suggestion {
-            id: startup::model_token(entry),
-            name: entry.display_name,
-            weights_bytes: entry.weights_bytes,
-            on_disk: startup::model_on_disk(root, entry),
+        .map(|entry| {
+            // Off the menu there is no plan to price: the entry's own
+            // weight is the honest fallback for a row nothing fetches.
+            let (download_bytes, drafter) =
+                startup::entry_download(entry).unwrap_or((entry.weights_bytes, false));
+            Suggestion {
+                id: startup::model_token(entry),
+                name: entry.display_name,
+                download_bytes,
+                drafter,
+                on_disk: startup::model_on_disk(root, entry),
+            }
         })
         .collect();
     Suggestions { options, refusal }

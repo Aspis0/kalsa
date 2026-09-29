@@ -69,22 +69,30 @@ pub struct Winner {
 /// the GPU first (the GPU does the work then, though full offload does not
 /// free the processor entirely), then the fewer threads — and an unknown
 /// thread count ranks heaviest of all: the engine's own default may be
-/// every core the machine has.
-fn lightness(candidate: &Candidate) -> (u8, usize) {
+/// every core the machine has. The draft axis ranks last and lightest at
+/// none: speculation a measurement did not clearly buy is not kept, and a
+/// wider proposal loses a tie to a narrower one.
+fn lightness(candidate: &Candidate) -> (u8, usize, u32) {
     // EngineFitted aims at the same place as All — every layer on the
     // card — and lets the engine confirm the count, so it ranks as the
     // fuller offload too.
-    let offload_rank =
-        u8::from(!matches!(candidate.offload, Offload::All | Offload::EngineFitted));
+    let offload_rank = u8::from(!matches!(
+        candidate.offload,
+        Offload::All | Offload::EngineFitted
+    ));
     let thread_rank = candidate.threads.unwrap_or(usize::MAX);
-    (offload_rank, thread_rank)
+    let draft_rank = candidate.draft.map_or(0, |n_max| 1 + n_max);
+    (offload_rank, thread_rank, draft_rank)
 }
 
 /// The winner among the trials: the top is the highest best, and within
 /// `TIE_BAND` of it the lightest candidate wins. `None` when nothing was
 /// measured or everything was refused — the caller keeps the rule.
 pub fn winner(trials: &[(Candidate, Outcome)]) -> Option<Winner> {
-    let top = trials.iter().filter_map(|(_, outcome)| outcome.best()).reduce(f64::max)?;
+    let top = trials
+        .iter()
+        .filter_map(|(_, outcome)| outcome.best())
+        .reduce(f64::max)?;
     let mut best: Option<Winner> = None;
     for (candidate, outcome) in trials {
         let Some(rate) = outcome.best() else {
@@ -98,7 +106,10 @@ pub fn winner(trials: &[(Candidate, Outcome)]) -> Option<Winner> {
             Some(current) => lightness(candidate) < lightness(&current.candidate),
         };
         if take {
-            best = Some(Winner { candidate: *candidate, best: rate });
+            best = Some(Winner {
+                candidate: *candidate,
+                best: rate,
+            });
         }
     }
     best
@@ -114,6 +125,7 @@ mod tests {
             backend: ServerBackend::Cpu,
             threads: Some(threads),
             offload: Offload::NoGpuBuild,
+            draft: None,
         }
     }
 
@@ -122,6 +134,7 @@ mod tests {
             backend: ServerBackend::Vulkan,
             threads: Some(16),
             offload: Offload::All,
+            draft: None,
         }
     }
 
@@ -147,11 +160,13 @@ mod tests {
             backend: ServerBackend::Cpu,
             threads: Some(16),
             offload: Offload::NoGpuBuild,
+            draft: None,
         };
         let fitted = Candidate {
             backend: ServerBackend::Vulkan,
             threads: Some(16),
             offload: Offload::EngineFitted,
+            draft: None,
         };
         let results = vec![
             (off, Outcome::Measured(vec![40.0])),
@@ -230,7 +245,11 @@ mod tests {
             (cpu(4), Outcome::Measured(vec![0.0])),
             (cpu(8), Outcome::Measured(vec![-1.0])),
         ];
-        assert_eq!(winner(&all_bad), None, "non-positive samples leave no winner");
+        assert_eq!(
+            winner(&all_bad),
+            None,
+            "non-positive samples leave no winner"
+        );
     }
 
     /// An unknown thread count is the heaviest, not the lightest: the
@@ -242,6 +261,7 @@ mod tests {
             backend: ServerBackend::Cpu,
             threads: None,
             offload: Offload::NoGpuBuild,
+            draft: None,
         };
         let trials = [
             (unknown, Outcome::Measured(vec![12.0])),

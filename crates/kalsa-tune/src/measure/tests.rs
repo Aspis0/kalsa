@@ -8,6 +8,7 @@
             backend: ServerBackend::Cpu,
             threads: Some(threads),
             offload: Offload::NoGpuBuild,
+            draft: None,
         }
     }
 
@@ -16,6 +17,7 @@
             backend: ServerBackend::Vulkan,
             threads: Some(16),
             offload: Offload::All,
+            draft: None,
         }
     }
 

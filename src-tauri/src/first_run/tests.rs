@@ -1,8 +1,10 @@
 use super::*;
 
 fn scratch(name: &str) -> std::path::PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("kalsa-brain-first-run-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "kalsa-brain-first-run-{name}-{}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("mkdir");
     dir
@@ -19,15 +21,23 @@ fn a_turn_on_with_nothing_chosen_is_refused_before_it_walks() {
         ),
         "no stored choice and no override: refused"
     );
-    assert!(require_choice(&state_file, true).is_ok(), "a dev override owns its bytes");
+    assert!(
+        require_choice(&state_file, true).is_ok(),
+        "a dev override owns its bytes"
+    );
     let chosen = crate::options::LaunchOverrides {
         model: Some(crate::startup::model_token(
-            kalsa_catalog::rows().next().expect("the catalog carries rows"),
+            kalsa_catalog::rows()
+                .next()
+                .expect("the catalog carries rows"),
         )),
         ..Default::default()
     };
     crate::options::save(&state_file, chosen).expect("save");
-    assert!(require_choice(&state_file, false).is_ok(), "a stored choice walks");
+    assert!(
+        require_choice(&state_file, false).is_ok(),
+        "a stored choice walks"
+    );
 }
 
 #[test]
@@ -78,5 +88,8 @@ fn a_token_no_row_answers_to_is_no_choice() {
         ),
         "a token nothing answers to is refused like no choice at all"
     );
-    assert!(require_choice(&state_file, true).is_ok(), "a dev override owns its bytes");
+    assert!(
+        require_choice(&state_file, true).is_ok(),
+        "a dev override owns its bytes"
+    );
 }

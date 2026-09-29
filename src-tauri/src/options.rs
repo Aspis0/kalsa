@@ -661,7 +661,8 @@ mod tests {
                 model_sha256: None,
                 tune: None,
                 checked: None,
-            }),
+            drafter_sha256: None,
+        }),
             Some(8130),
             "The internet road is open.".to_string(),
         )

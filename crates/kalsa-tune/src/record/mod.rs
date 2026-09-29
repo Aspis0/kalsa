@@ -14,7 +14,7 @@ use kalsa_runtime::ServerBackend;
 use crate::candidates::Candidate;
 use crate::winner::{Outcome, Refusal, Winner};
 
-const MAGIC: &str = "kalsa-tune v2";
+const MAGIC: &str = "kalsa-tune v3";
 
 /// One record per model, filed under the model digest the key names. The
 /// single `tuning.txt` this replaces could hold one tune, so a second
@@ -61,16 +61,25 @@ pub fn fingerprint(
     physical_cores: Option<usize>,
     logical_cores: Option<usize>,
     engine_builds: (&str, &str),
+    drafter: Option<&str>,
 ) -> String {
     format!(
-        "kalsa-tune fp v1|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
-         logical={logical_cores:?}|graphics={}|processor={}",
-        engine_builds.0, engine_builds.1
+        "kalsa-tune fp v2|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
+         logical={logical_cores:?}|graphics={}|processor={}|draft={}",
+        engine_builds.0,
+        engine_builds.1,
+        drafter.unwrap_or("none")
     )
 }
 /// The winner as the file holds it, field by field until every line has
-/// arrived: backend, offload, threads (optional), best.
-type WinnerLine = (ServerBackend, Option<Offload>, Option<usize>, Option<f64>);
+/// arrived: backend, offload, threads (optional), draft (optional), best.
+type WinnerLine = (
+    ServerBackend,
+    Option<Offload>,
+    Option<usize>,
+    Option<u32>,
+    Option<f64>,
+);
 
 /// A candidate's kept result: its best rate, or its refusal. The record
 /// keeps the winning number, not every sample — the app shows the figure
@@ -130,6 +139,7 @@ fn validate(record: &Record) -> io::Result<()> {
             candidate.backend.name(),
             candidate.threads,
             offload_name(candidate.offload),
+            candidate.draft,
         );
         if !seen.insert(identity) {
             return reject("two trials of one launch: the list is de-duplicated");
@@ -176,7 +186,10 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
     for (index, (candidate, kept)) in record.trials.iter().enumerate() {
-        text.push_str(&format!("candidate.{index}.backend={}\n", candidate.backend.name()));
+        text.push_str(&format!(
+            "candidate.{index}.backend={}\n",
+            candidate.backend.name()
+        ));
         if let Some(threads) = candidate.threads {
             text.push_str(&format!("candidate.{index}.threads={threads}\n"));
         }
@@ -184,6 +197,9 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
             "candidate.{index}.offload={}\n",
             offload_name(candidate.offload)
         ));
+        if let Some(n_max) = candidate.draft {
+            text.push_str(&format!("candidate.{index}.draft={n_max}\n"));
+        }
         match kept {
             Kept::Best(rate) => text.push_str(&format!("candidate.{index}.best={rate}\n")),
             Kept::Refused(refusal) => text.push_str(&format!(
@@ -193,13 +209,19 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
         }
     }
     if let Some(winner) = &record.winner {
-        text.push_str(&format!("winner-backend={}\n", winner.candidate.backend.name()));
+        text.push_str(&format!(
+            "winner-backend={}\n",
+            winner.candidate.backend.name()
+        ));
         text.push_str(&format!(
             "winner-offload={}\n",
             offload_name(winner.candidate.offload)
         ));
         if let Some(threads) = winner.candidate.threads {
             text.push_str(&format!("winner-threads={threads}\n"));
+        }
+        if let Some(n_max) = winner.candidate.draft {
+            text.push_str(&format!("winner-draft={n_max}\n"));
         }
         text.push_str(&format!("winner-best={}\n", winner.best));
     }
@@ -236,7 +258,9 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
 fn temp_path(target: &Path) -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let serial = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let name = target.file_name().expect("a path we just built names a file");
+    let name = target
+        .file_name()
+        .expect("a path we just built names a file");
     target.with_file_name(format!(
         "{}.{}.{}.tmp",
         name.to_string_lossy(),
@@ -291,7 +315,7 @@ fn parse(text: &str) -> Option<(String, Record)> {
     // The candidate being read: fields arrive in the order save writes
     // them (backend, threads?, offload, then exactly one of best/refused)
     // and only for the next index in line.
-    let mut open: Option<(ServerBackend, Option<usize>, Option<Offload>)> = None;
+    let mut open: Option<(ServerBackend, Option<usize>, Option<Offload>, Option<u32>)> = None;
     let mut kept: Option<Kept> = None;
     let mut winner: Option<WinnerLine> = None;
     let mut saw_end = false;
@@ -320,21 +344,29 @@ fn parse(text: &str) -> Option<(String, Record)> {
                     if open.is_some() || kept.is_some() {
                         return None;
                     }
-                    open = Some((ServerBackend::from_name(value)?, None, None));
+                    open = Some((ServerBackend::from_name(value)?, None, None, None));
                 }
                 "threads" => {
                     let slot = open.as_mut()?;
-                    if slot.1.is_some() || slot.2.is_some() || kept.is_some() {
+                    if slot.1.is_some() || slot.2.is_some() || slot.3.is_some() || kept.is_some() {
                         return None;
                     }
                     slot.1 = Some(parse_count(value)?);
                 }
                 "offload" => {
                     let slot = open.as_mut()?;
-                    if slot.2.is_some() || kept.is_some() {
+                    if slot.2.is_some() || slot.3.is_some() || kept.is_some() {
                         return None;
                     }
                     slot.2 = Some(offload_from_name(value)?);
+                }
+                "draft" => {
+                    let slot = open.as_mut()?;
+                    if slot.3.is_some() || kept.is_some() {
+                        return None;
+                    }
+                    slot.2?; // the offload line must have come first
+                    slot.3 = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
                 }
                 "best" | "refused" => {
                     if kept.is_some() {
@@ -351,8 +383,13 @@ fn parse(text: &str) -> Option<(String, Record)> {
                 _ => return None,
             }
             if kept.is_some() {
-                let (backend, threads, offload) = open.take()?;
-                let candidate = Candidate { backend, threads, offload: offload? };
+                let (backend, threads, offload, draft) = open.take()?;
+                let candidate = Candidate {
+                    backend,
+                    threads,
+                    offload: offload?,
+                    draft,
+                };
                 if trials.iter().any(|(other, _)| *other == candidate) {
                     // The builder de-duplicates: a file that does not is a
                     // file from something else wearing our shape.
@@ -372,20 +409,27 @@ fn parse(text: &str) -> Option<(String, Record)> {
                 saved_fingerprint = Some(value);
             }
             "winner-backend" if winner.is_none() => {
-                winner = Some((ServerBackend::from_name(value)?, None, None, None));
+                winner = Some((ServerBackend::from_name(value)?, None, None, None, None));
             }
             "winner-offload" if winner.as_ref().is_some_and(|slot| slot.1.is_none()) => {
                 winner.as_mut()?.1 = Some(offload_from_name(value)?);
             }
             "winner-threads"
-                if winner
-                    .as_ref()
-                    .is_some_and(|slot| slot.1.is_some() && slot.2.is_none() && slot.3.is_none()) =>
+                if winner.as_ref().is_some_and(|slot| {
+                    slot.1.is_some() && slot.2.is_none() && slot.3.is_none()
+                }) =>
             {
                 winner.as_mut()?.2 = Some(parse_count(value)?);
             }
-            "winner-best" if winner.as_ref().is_some_and(|slot| slot.3.is_none()) => {
-                winner.as_mut()?.3 = Some(parse_rate(value)?);
+            "winner-draft"
+                if winner.as_ref().is_some_and(|slot| {
+                    slot.2.is_some() && slot.3.is_none() && slot.4.is_none()
+                }) =>
+            {
+                winner.as_mut()?.3 = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
+            }
+            "winner-best" if winner.as_ref().is_some_and(|slot| slot.4.is_none()) => {
+                winner.as_mut()?.4 = Some(parse_rate(value)?);
             }
             _ => return None,
         }
@@ -397,10 +441,15 @@ fn parse(text: &str) -> Option<(String, Record)> {
     }
     let winner = match winner {
         None => None,
-        Some((backend, offload, threads, best)) => {
+        Some((backend, offload, threads, draft, best)) => {
             let offload = offload?;
             let best = best?;
-            let candidate = Candidate { backend, threads, offload };
+            let candidate = Candidate {
+                backend,
+                threads,
+                offload,
+                draft,
+            };
             // A file whose winner cannot be found among its own candidates
             // is a file that lost its middle.
             if !trial_holds(&trials, &candidate, best) {
@@ -410,7 +459,14 @@ fn parse(text: &str) -> Option<(String, Record)> {
         }
     };
     let fingerprint = saved_fingerprint?.to_string();
-    Some((fingerprint.clone(), Record { fingerprint, winner, trials }))
+    Some((
+        fingerprint.clone(),
+        Record {
+            fingerprint,
+            winner,
+            trials,
+        },
+    ))
 }
 
 /// A rate the record may hold: a positive, finite number. Anything else

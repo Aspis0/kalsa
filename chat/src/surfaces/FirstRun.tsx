@@ -10,7 +10,11 @@ import { clearWalkStep } from "./useBrain";
 interface Suggestion {
   id: string;
   name: string;
-  weights_bytes: number;
+  // What downloading this model costs, as one number: its file plus the
+  // drafter its row ships beside it. `drafter` says whether a second file
+  // comes with the first.
+  download_bytes: number;
+  drafter: boolean;
   on_disk: boolean;
 }
 
@@ -106,8 +110,10 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     const { option, suggestions } = step;
     body = (
       <section className="first-run-confirm">
-        <p className="surface-verdict">Download {gigabytes(option.weights_bytes)}?</p>
-        <p className="surface-sentence">Kalsa needs this file to run {option.name}.</p>
+        <p className="surface-verdict">Download {gigabytes(option.download_bytes)}?</p>
+        <p className="surface-sentence">
+          Kalsa needs {option.drafter ? "these files" : "this file"} to run {option.name}.
+        </p>
         <div className="surface-actions">
           <button type="button" className="btn-primary" onClick={() => void choose(suggestions, option)}>
             Download
@@ -133,7 +139,7 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
             <strong className="first-run-option-name">{option.name}</strong>
             <span>{TAGLINES[index] ?? TAGLINES[1]}</span>
             <span className="first-run-option-size">
-              {option.on_disk ? "Already on your computer" : `${gigabytes(option.weights_bytes)} download`}
+              {option.on_disk ? "Already on your computer" : `${gigabytes(option.download_bytes)} download`}
             </span>
             <button type="button" className="btn-primary" onClick={() => use(suggestions, option)}>
               Use this

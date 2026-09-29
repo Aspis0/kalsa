@@ -13,7 +13,9 @@ export interface ModelOption {
   id: string | null;
   name: string;
   quant: string;
-  weights_bytes: number;
+  // What downloading this model costs, as one number: its file plus the
+  // drafter its row ships beside it.
+  download_bytes: number;
   // null when this machine cannot fund even one token of context: the
   // chosen row fits the budget with nothing left for a window. There is
   // then no context to show — not an unknown one.
@@ -147,7 +149,7 @@ function machineSentence(machine: Machine): string {
 // `speed` is the figure the head already chose — the tune's own number
 // where one exists, the prediction otherwise.
 function modelDetail(model: ModelOption, speed: Speed): string {
-  const held = `${model.quant} · ${bytesText(model.weights_bytes)} on disk`;
+  const held = `${model.quant} · ${bytesText(model.download_bytes)} on disk`;
   // "up to": the figure is the largest context the memory funds, and the
   // speed beside it is priced at the chooser's window — the 65,536 tokens
   // the rule judged the row in — not at that context. Saying it flat would
@@ -198,7 +200,7 @@ function Option({
         <div className="machine-option-choose">
           <p>
             The assistant stops and starts again on {model.name}. If this model is not on this
-            computer yet it is downloaded first — {bytesText(model.weights_bytes)} — so this is not
+            computer yet it is downloaded first — {bytesText(model.download_bytes)} — so this is not
             instant.
           </p>
           <div className="machine-option-actions">

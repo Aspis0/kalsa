@@ -4,13 +4,19 @@ use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
 /// One launch the tune may measure: which build, how many threads, what
-/// offload. `threads: None` means the engine's own default — no count was
-/// measured, and the tune does not invent one.
+/// offload, and — for the draft dimension, measured only on the launch the
+/// grid already chose — how many tokens a drafter may propose per step.
+/// `threads: None` means the engine's own default — no count was measured,
+/// and the tune does not invent one. `draft: None` is the target-only
+/// launch: every grid candidate carries it, so the grid's numbers are
+/// target-only decode and the draft pass reuses the winner's own trial as
+/// its "off".
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Candidate {
     pub backend: ServerBackend,
     pub threads: Option<usize>,
     pub offload: Offload,
+    pub draft: Option<u32>,
 }
 
 /// The offload a graphics candidate gets: no flag at all, so the engine
@@ -62,6 +68,7 @@ pub fn candidates(
             // same counts the rule itself would pick, never a new guess.
             threads: rule_threads.or(physical_cores),
             offload: offload_for(backend),
+            draft: None,
         });
     }
     // The processor runs, measured rather than assumed (the owner's
@@ -73,11 +80,13 @@ pub fn candidates(
             backend: ServerBackend::Metal,
             threads: None,
             offload: Offload::ForcedOff,
+            draft: None,
         },
         _ => Candidate {
             backend: ServerBackend::Cpu,
             threads: None,
             offload: Offload::NoGpuBuild,
+            draft: None,
         },
     };
     let mut counts = [rule_threads, physical_cores, logical_cores]
@@ -87,7 +96,10 @@ pub fn candidates(
     counts.sort_unstable();
     counts.dedup();
     for threads in counts {
-        list.push(Candidate { threads: Some(threads), ..processor });
+        list.push(Candidate {
+            threads: Some(threads),
+            ..processor
+        });
     }
     list
 }
@@ -108,6 +120,7 @@ mod tests {
             backend: ServerBackend::Vulkan,
             threads: Some(threads),
             offload: Offload::EngineFitted,
+            draft: None,
         }
     }
 
@@ -116,6 +129,7 @@ mod tests {
             backend: ServerBackend::Cpu,
             threads: Some(threads),
             offload: Offload::NoGpuBuild,
+            draft: None,
         }
     }
 
@@ -126,7 +140,10 @@ mod tests {
     fn the_lenovo_runs_the_graphics_first_then_the_processor_ascending() {
         let list = candidates(Some(ServerBackend::Vulkan), Some(16), Some(16), Some(22));
         assert_eq!(list, vec![gpu(16), cpu(16), cpu(22)]);
-        assert!(needs_tuning(&list), "three launches differ: measuring can decide");
+        assert!(
+            needs_tuning(&list),
+            "three launches differ: measuring can decide"
+        );
     }
 
     /// The Surface: no GPU verdict, 4 and 4 are the same count, 8 is a
@@ -135,7 +152,10 @@ mod tests {
     fn the_surface_counts_each_present_thread_count_once() {
         let list = candidates(None, Some(4), Some(4), Some(8));
         assert_eq!(list, vec![cpu(4), cpu(8)]);
-        assert!(needs_tuning(&list), "two launches differ: measuring can decide");
+        assert!(
+            needs_tuning(&list),
+            "two launches differ: measuring can decide"
+        );
     }
 
     /// The Mac, measured rather than assumed: the Metal build with no
@@ -152,16 +172,19 @@ mod tests {
                     backend: ServerBackend::Metal,
                     threads: Some(8),
                     offload: Offload::EngineFitted,
+                    draft: None,
                 },
                 Candidate {
                     backend: ServerBackend::Metal,
                     threads: Some(8),
                     offload: Offload::ForcedOff,
+                    draft: None,
                 },
                 Candidate {
                     backend: ServerBackend::Metal,
                     threads: Some(10),
                     offload: Offload::ForcedOff,
+                    draft: None,
                 },
             ]
         );
@@ -175,14 +198,25 @@ mod tests {
     #[test]
     fn a_zero_count_is_unknown_to_every_candidate() {
         let zero_rule = candidates(Some(ServerBackend::Vulkan), Some(0), Some(16), Some(32));
-        assert_eq!(zero_rule[0].threads, Some(16), "zero rule falls to the physical count");
+        assert_eq!(
+            zero_rule[0].threads,
+            Some(16),
+            "zero rule falls to the physical count"
+        );
         assert!(
-            zero_rule.iter().all(|candidate| candidate.threads != Some(0)),
+            zero_rule
+                .iter()
+                .all(|candidate| candidate.threads != Some(0)),
             "no candidate may carry a count nobody measured: {zero_rule:?}"
         );
 
         let all_zero = candidates(Some(ServerBackend::Vulkan), Some(0), Some(0), Some(0));
-        assert_eq!(all_zero[0].threads, None, "zero and None are alike: unknown");
-        assert!(all_zero.iter().all(|candidate| candidate.threads != Some(0)));
+        assert_eq!(
+            all_zero[0].threads, None,
+            "zero and None are alike: unknown"
+        );
+        assert!(all_zero
+            .iter()
+            .all(|candidate| candidate.threads != Some(0)));
     }
 }
