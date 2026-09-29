@@ -261,11 +261,13 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
             crate::HEAD_PATIENCE,
             upstream_port,
             1,
-            &devices,
+            &proxy::Shared {
+                stop,
+                set: devices,
+                room: None,
+            },
             &crate::paging::Chats::new(1, None, None, None),
-            None,
             &registry,
-            &stop,
             &active,
             None,
         );

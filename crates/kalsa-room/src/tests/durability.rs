@@ -245,11 +245,14 @@ fn a_reopened_file_the_room_cannot_explain_stops_the_writes() {
 #[test]
 fn the_room_id_is_stable_and_the_epoch_moves_only_with_recovery() {
     let (dir, room) = open("durability_identity");
-    let member = super::phone(&room, 3);
-    say(&room, 3, "m1", "words");
+    super::phone(&room, 3);
+    for n in 1..=3 {
+        say(&room, 3, &format!("m{n}"), "words");
+    }
+    // A late member: the floor is the interesting part of both recoveries.
+    let late = super::phone(&room, 4);
     let room_id = room.room_id();
     let epoch = room.epoch();
-    assert_eq!(room.join_of(member), Some(1), "the first member joined at the start");
     drop(room);
 
     let reopened = reopen(&dir).expect("the room opens again");
@@ -257,16 +260,37 @@ fn the_room_id_is_stable_and_the_epoch_moves_only_with_recovery() {
     assert_eq!(reopened.epoch(), epoch, "a clean reopen keeps the epoch");
     drop(reopened);
 
-    // Damage that drops bytes: the id stays, the epoch moves, and every
-    // live member's history begins at the epoch's own start.
-    std::fs::write(log_path(&dir), b"garbage that parses as nothing\n").unwrap();
+    // A pure torn tail: nobody was ever served those bytes, so nothing
+    // acknowledged was lost — the epoch stands and every floor survives.
+    let whole = std::fs::read_to_string(log_path(&dir)).unwrap();
+    std::fs::write(log_path(&dir), format!("{whole}{{\"torn")).unwrap();
+    let tail_recovered = reopen(&dir).expect("the tail is recovered");
+    assert_eq!(tail_recovered.epoch(), epoch, "a torn tail lost nothing acknowledged");
+    assert_eq!(
+        tail_recovered.join_of(late),
+        Some(4),
+        "the late member's floor survives a tail recovery untouched"
+    );
+    drop(tail_recovered);
+
+    // Middle damage: acknowledged entries are gone, the epoch moves, and
+    // a join past what survived is clamped to just past it.
+    let whole = std::fs::read_to_string(log_path(&dir)).unwrap();
+    let lines: Vec<String> = whole.lines().map(str::to_string).collect();
+    assert_eq!(lines.len(), 3);
+    std::fs::write(
+        log_path(&dir),
+        format!("{}\ngarbage middle\n{}\n", lines[0], lines[2]),
+    )
+    .unwrap();
     let recovered = reopen(&dir).expect("the recovery opens on the prefix");
     assert_eq!(recovered.room_id(), room_id);
-    assert_ne!(recovered.epoch(), epoch, "a recovery that dropped bytes re-minted it");
+    assert_ne!(recovered.epoch(), epoch, "middle damage dropped acknowledged entries");
     let member_again = recovered.member_of(3).expect("the roster survived");
+    assert_eq!(recovered.join_of(member_again), Some(1), "a join within what survived is kept");
     assert_eq!(
-        recovered.join_of(member_again),
-        Some(1),
-        "a join point past what survived is clamped to the epoch's start"
+        recovered.join_of(late),
+        Some(2),
+        "a join past what survived clamps to just past it: min(4, surviving 1 + 1)"
     );
 }

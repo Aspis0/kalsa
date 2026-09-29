@@ -16,7 +16,9 @@ use std::time::{Duration, Instant};
 
 use kalsa_room::{Event, MemberEvent, Room, Take};
 
-use super::{entry_json, json_error, BAD_LAST_EVENT_ID};
+use super::answers::{entry_json, json_error};
+use super::routes::ai_state;
+use super::BAD_LAST_EVENT_ID;
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::proxy;
@@ -32,11 +34,55 @@ const PING: Duration = Duration::from_secs(15);
 /// streamed — and the live follow then owns the socket on its own thread.
 /// The stream's cut and its subject, the one bundle the spawned thread
 /// keeps: the set that can revoke the device, the flag that stops the
-/// door, and the device itself.
+/// door, the device itself, and the follower's seat in the per-device cap.
 pub(super) struct Ctx {
     pub(super) set: Arc<DeviceSet>,
     pub(super) stop: Arc<AtomicBool>,
     pub(super) device: DeviceId,
+    pub(super) seats: Arc<Seats>,
+}
+
+/// How many live streams one device may hold. A phone that reconnects
+/// after a network change opens the new one BEFORE the old one dies, so
+/// the cap closes the OLDEST — the stream the phone is leaving — and the
+/// fresh connection is never the one refused.
+const PER_DEVICE: usize = 2;
+
+/// One device's live streams, each by its retire flag. Guarded, small,
+/// and only ever touched at open and at close.
+#[derive(Default)]
+pub struct Seats {
+    live: std::sync::Mutex<Vec<(DeviceId, Arc<AtomicBool>)>>,
+}
+
+impl Seats {
+    /// Takes a seat for a new stream, closing the oldest beyond the cap by
+    /// setting its retire flag — its thread sees the flag within a second
+    /// and closes the socket.
+    fn take(&self, device: DeviceId) -> Arc<AtomicBool> {
+        let mut live = self
+            .live
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        live.retain(|(held, _)| *held == device);
+        while live.len() >= PER_DEVICE {
+            let (_, oldest) = live.remove(0);
+            oldest.store(true, Ordering::SeqCst);
+        }
+        let seat = Arc::new(AtomicBool::new(false));
+        live.push((device, Arc::clone(&seat)));
+        seat
+    }
+
+    /// Gives the seat back when its stream ends, so the cap counts the
+    /// living only.
+    fn give(&self, device: DeviceId, seat: &Arc<AtomicBool>) {
+        let mut live = self
+            .live
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        live.retain(|(held, flag)| *held != device || !Arc::ptr_eq(flag, seat));
+    }
 }
 
 pub(super) fn serve(
@@ -48,29 +94,26 @@ pub(super) fn serve(
     origin: Option<&[u8]>,
     deadline: Instant,
 ) {
-    // A cached epoch that is not this room's names a transcript whose seqs
-    // mean something else now: the phone is told to drop its cache and
-    // refetch, in one explicit refusal rather than a stream of right
-    // numbers attached to wrong words.
-    if let Some(held) = client_epoch {
-        if held != room.epoch().as_bytes() {
-            let answer = json_error(
-                409,
-                origin,
-                "epoch_changed",
-                "The room's transcript restarted; drop what was cached and read it again.",
-            );
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
-            return;
-        }
-    }
+    // The epoch of the cached seqs was checked ahead of the routes; the
+    // stream itself only names the epoch it speaks. A non-numeric
+    // Last-Event-ID names nothing and is answered, not streamed.
+    let _ = client_epoch;
     // A member's replay never reaches before their join: a Last-Event-ID
     // below it is raised to it, so the replay begins where their history
-    // does. The host has no floor.
-    let floor = room
-        .member_of(ctx.device.value())
-        .and_then(|member| room.join_of(member))
-        .map(|join| join - 1);
+    // does. The host has no floor; a member the room cannot place is
+    // refused rather than guessed at.
+    let floor = match room.member_of(ctx.device.value()) {
+        None => None,
+        Some(member) => match super::floor_of(room, member) {
+            Some(join) => Some(join - 1),
+            None => {
+                eprintln!("kalsa door: a member with no join point opened a stream");
+                let answer = json_error(500, origin, "internal", "The room's store failed on disk.");
+                let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+                return;
+            }
+        },
+    };
     // A fresh follower starts from now; a reconnect resumes after the seq
     // it last saw. A cursor above the newest claims events that never
     // happened, and a non-numeric one names nothing: both are answered.
@@ -100,8 +143,22 @@ pub(super) fn serve(
     };
     let origin = origin.map(<[u8]>::to_vec);
     let room = Arc::clone(room);
+    let seats = Arc::clone(&ctx.seats);
+    let device = ctx.device;
+    let seat = seats.take(device);
     let spawned = std::thread::Builder::new().name("kalsa-door-room-stream".into()).spawn(
-        move || follow(Follower { client, room, ctx, cursor, origin, deadline }),
+        move || {
+            follow(Follower {
+                client,
+                room,
+                ctx,
+                cursor,
+                origin,
+                deadline,
+                seat: Arc::clone(&seat),
+            });
+            seats.give(device, &seat);
+        },
     );
     if spawned.is_err() {
         // No thread, no stream: the socket closes and the phone's next
@@ -120,6 +177,8 @@ struct Follower {
     cursor: usize,
     origin: Option<Vec<u8>>,
     deadline: Instant,
+    /// This stream's retire flag, checked beside the door's own cuts.
+    seat: Arc<AtomicBool>,
 }
 
 fn follow(follower: Follower) {
@@ -130,11 +189,13 @@ fn follow(follower: Follower) {
         cursor,
         origin,
         deadline,
+        seat,
     } = follower;
     let mut client = client;
     let mut cursor = cursor;
-    let cut =
-        |ctx: &Ctx| ctx.stop.load(Ordering::SeqCst) || !ctx.set.holds(ctx.device);
+    let cut = |ctx: &Ctx| {
+        ctx.stop.load(Ordering::SeqCst) || !ctx.set.holds(ctx.device) || seat.load(Ordering::SeqCst)
+    };
     let epoch = room.epoch();
     let head = format!(
         "HTTP/1.1 200 OK\r\n{}Content-Type: text/event-stream\r\n\
@@ -152,12 +213,16 @@ fn follow(follower: Follower) {
     if proxy::write_with_deadline(&mut client, &head, deadline).is_err() {
         return;
     }
-    // One state snapshot before anything else, so a phone connecting in
-    // the middle of a turn knows a turn is running. R2 has no AI: the
-    // snapshot is idle, but the first frame a follower reads is the frame
-    // R3 will fill.
-    let snapshot = b"event: ai_status\ndata: {\"state\":\"idle\",\"running\":null,\"queue\":[],\"who\":null}\n\n";
-    if proxy::write_with_deadline(&mut client, snapshot, deadline).is_err() {
+    // One state snapshot before anything else — the same object `info`
+    // answers with, framed — so a phone connecting mid-turn knows a turn
+    // is running. R2 has no AI: idle through and through, but the frame
+    // R3 fills is first from now on.
+    let mut snapshot = b"event: ai_status\ndata: ".to_vec();
+    snapshot.extend_from_slice(
+        &serde_json::to_vec(&ai_state()).expect("the state always serializes"),
+    );
+    snapshot.extend_from_slice(b"\n\n");
+    if proxy::write_with_deadline(&mut client, &snapshot, deadline).is_err() {
         return;
     }
     let mut out = Vec::new();

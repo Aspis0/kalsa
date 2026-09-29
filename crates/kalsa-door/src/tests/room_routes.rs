@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use kalsa_room::Room;
 
-use super::room_support::{body_json, devices_labeled, get, put, post, raw, read_all, scratch, stream_get, text_of, Reader};
+use super::room_support::{body_json, devices_labeled, get, get_with_header, put, post, post_with_header, raw, read_all, scratch, stream_get, text_of, Reader};
 use super::*;
 
 const HOST: u32 = 0;
@@ -59,12 +59,28 @@ fn the_room_routes_answer_only_a_real_credential() {
 
 #[test]
 fn info_lists_the_host_its_phones_and_the_assistant() {
-    let (door, _room, [_, token, _]) = room_of();
-    let answer = body_json(&get(
+    let (door, room, [_, one, two]) = room_of();
+    // Phone TWO makes the room's first phone request, so it takes the
+    // first minted member id — the opposite order of the pairing ids,
+    // which is the only fixture that tells the two namespaces apart.
+    let reversed = get(
         door.address(),
-        Some(&format!("Bearer {token}")),
+        Some(&format!("Bearer {two}")),
         "/kalsa/room/info",
-    ));
+    );
+    assert!(
+        reversed.starts_with(b"HTTP/1.1 200"),
+        "phone two opened the room first: {}",
+        text_of(&reversed)
+    );
+    let one_bearer = format!("Bearer {one}");
+    put(
+        door.address(),
+        Some(&one_bearer),
+        "/kalsa/room/name",
+        r#"{"name":"Marco"}"#,
+    );
+    let answer = body_json(&get(door.address(), Some(&one_bearer), "/kalsa/room/info"));
     assert_eq!(answer["room_name"], "This computer");
     let kinds: Vec<&str> = answer["members"]
         .as_array()
@@ -73,14 +89,35 @@ fn info_lists_the_host_its_phones_and_the_assistant() {
         .map(|member| member["kind"].as_str().unwrap())
         .collect();
     assert_eq!(kinds, ["host", "phone", "phone", "ai"]);
-    let names: Vec<&str> = answer["members"]
+    // The rows carry the ROOM's member ids — minted in enrollment order,
+    // phone two before phone one — and a set name survives to its row.
+    let rows: Vec<(u64, &str)> = answer["members"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|member| member["name"].as_str().unwrap())
+        .map(|member| {
+            (
+                member["member_id"].as_u64().unwrap(),
+                member["name"].as_str().unwrap(),
+            )
+        })
         .collect();
-    // The caller enrolls; the other phone is enrolled by the list itself.
-    assert_eq!(names, ["This computer", "Paired phone", "Paired phone 2", "Kalsa"]);
+    let phone_two = room.member_of(PHONE_TWO).unwrap().wire() as u64;
+    let phone_one = room.member_of(PHONE_ONE).unwrap().wire() as u64;
+    assert_ne!(phone_one, phone_two, "the fixture must tell the namespaces apart");
+    // Rows follow the pairing set's order (host, phones, AI); the ids in
+    // them are the room's — phone one enrolled second, so it is member 2.
+    assert_eq!(
+        rows,
+        vec![
+            (u32::MAX as u64, "This computer"),
+            (phone_one, "Marco"),
+            (phone_two, "Paired phone 2"),
+            (u32::MAX as u64 - 1, "Kalsa"),
+        ],
+        "member ids are the room's own, in the rows' order, with the set name"
+    );
+    assert_eq!(answer["you"], phone_one, "you matches the caller's row");
     assert_eq!(answer["ai"]["busy"], false);
     door.shutdown();
 }
@@ -483,30 +520,47 @@ fn a_cached_epoch_from_before_a_recovery_is_refused() {
     let room_id = room.room_id();
     door.shutdown();
 
-    // Damage that drops bytes: the room's next OPEN recovers it — the
-    // recovery is the opener's, exactly as a restart would see it — the
-    // room id stays, and the epoch changes with it.
+    // Middle damage: an acknowledged entry is gone, so the room's next
+    // OPEN recovers it and re-mints the epoch — the recovery is the
+    // opener's, exactly as a restart would see it. (A pure torn tail would
+    // keep the epoch: nothing acknowledged was lost.)
     let log = data.join("room").join("room-log.jsonl");
-    let mut bytes = std::fs::read(&log).unwrap();
-    bytes.extend_from_slice(b"{torn");
-    std::fs::write(&log, &bytes).unwrap();
+    std::fs::write(&log, b"garbage that parses as nothing\n").unwrap();
     let room = Arc::new(Room::open(&data).unwrap());
     let door = build(&room);
-    assert_ne!(room.epoch(), before, "a recovery that dropped bytes re-minted it");
+    assert_ne!(room.epoch(), before, "middle damage re-minted the epoch");
     assert_eq!(room.room_id(), room_id, "the room id never changes");
 
+    let stale_epoch = format!("Kalsa-Room-Epoch: {before}");
     let mut stale = raw(
         door.address(),
         Some(&bearer),
         "GET",
         "/kalsa/room/events",
         "",
-        &[&format!("Kalsa-Room-Epoch: {before}")],
+        &[&stale_epoch],
     );
     let answer = text_of(&read_all(&mut stale));
     assert!(
         answer.starts_with("HTTP/1.1 409") && answer.contains("epoch_changed"),
         "a cached epoch is one explicit refusal: {answer}"
+    );
+    // The guard sits ahead of every route, history and posts included.
+    let stale_history = get_with_header(door.address(), &bearer, "/kalsa/room/history", &stale_epoch);
+    assert!(
+        stale_history.starts_with(b"HTTP/1.1 409") && text_of(&stale_history).contains("epoch_changed"),
+        "history refuses a stale epoch"
+    );
+    let stale_post = post_with_header(
+        door.address(),
+        &bearer,
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"m2","text":"words"}"#,
+        &stale_epoch,
+    );
+    assert!(
+        stale_post.starts_with(b"HTTP/1.1 409"),
+        "a post refuses a stale epoch before it lands"
     );
 
     // The same stream with the current epoch opens, snapshot first.
@@ -522,9 +576,48 @@ fn a_cached_epoch_from_before_a_recovery_is_refused() {
     let opened = Reader::until(&mut fresh, b"ai_status", Duration::from_secs(5));
     assert!(
         opened.contains(&format!("Kalsa-Room-Epoch: {current}"))
-            && opened.contains("\"state\":\"idle\""),
-        "the epoch rides the response head and the first frame is the state snapshot: {opened}"
+            && opened.contains("\"state\":\"idle\"")
+            && opened.contains("\"busy\":false")
+            && opened.contains("\"you_pending\":false"),
+        "the epoch rides the head and the first frame is info's own state object: {opened}"
     );
     let _ = fresh.shutdown(std::net::Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
+fn a_third_stream_of_one_device_closes_the_oldest_and_keeps_the_newest() {
+    let (door, _room, [_, one, _]) = room_of();
+    let bearer = format!("Bearer {one}");
+    let mut first = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    let opened = Reader::until(&mut first, b"text/event-stream", Duration::from_secs(5));
+    assert!(opened.contains("200"));
+
+    let mut second = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    let _ = Reader::until(&mut second, b"text/event-stream", Duration::from_secs(5));
+
+    // The third stream is the phone's reconnect: the OLDEST closes, the
+    // new one is never the refused one.
+    let mut third = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    let opened_third = Reader::until(&mut third, b"text/event-stream", Duration::from_secs(5));
+    assert!(opened_third.contains("200"), "the fresh stream opened");
+
+    let mut closed = false;
+    let deadline = std::time::Instant::now() + Duration::from_secs(6);
+    first.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    while std::time::Instant::now() < deadline {
+        let mut chunk = [0u8; 256];
+        match first.read(&mut chunk) {
+            Ok(0) => {
+                closed = true;
+                break;
+            }
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
+    assert!(closed, "the oldest stream was closed by the cap");
+    let _ = second.shutdown(std::net::Shutdown::Both);
+    let _ = third.shutdown(std::net::Shutdown::Both);
     door.shutdown();
 }

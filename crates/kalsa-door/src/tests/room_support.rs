@@ -63,6 +63,32 @@ pub(super) fn raw(
     stream
 }
 
+pub(super) fn get_with_header(
+    address: std::net::SocketAddr,
+    authorization: &str,
+    target: &str,
+    header: &str,
+) -> Vec<u8> {
+    read_all(&mut raw(address, Some(authorization), "GET", target, "", &[header]))
+}
+
+pub(super) fn post_with_header(
+    address: std::net::SocketAddr,
+    authorization: &str,
+    target: &str,
+    body: &str,
+    header: &str,
+) -> Vec<u8> {
+    read_all(&mut raw(
+        address,
+        Some(authorization),
+        "POST",
+        target,
+        body,
+        &[header],
+    ))
+}
+
 pub(super) fn read_all(stream: &mut TcpStream) -> Vec<u8> {
     let mut response = Vec::new();
     stream.read_to_end(&mut response).unwrap();

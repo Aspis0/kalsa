@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::registry::Registry;
-use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, DeviceSet, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
+use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
 struct Work {
     stream: TcpStream,
@@ -56,33 +56,37 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     // directory's ownership only changes at those two moments and a per-tick
     // read would race the ticker's own saves for nothing.
     chats.sweep(&device_set);
+    // What every worker serves with, built once: the stop flag, the live
+    // device set, and the room. One bundle because it is one thing — the
+    // door's shared state — and the room's threads take clones of it whole.
+    let shared = Arc::new(crate::proxy::Shared {
+        stop: Arc::clone(&stop),
+        set: Arc::clone(&door.devices),
+        room: door.room.clone(),
+    });
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));
     let mut threads = Vec::with_capacity(WORKERS + 2);
 
     for index in 0..WORKERS {
-        let worker_stop = Arc::clone(&stop);
         let worker_active = Arc::clone(&active);
         let worker_receiver = Arc::clone(&receiver);
         let worker_registry = Arc::clone(&registry);
-        let worker_devices = Arc::clone(&door.devices);
         let worker_chats = Arc::clone(&chats);
+        let worker_shared = Arc::clone(&shared);
         let port = door.upstream_port;
         let capacity = door.capacity;
         let head_patience = door.head_patience;
         let observer = door.response_observer.clone();
-        let worker_room = door.room.clone();
         let result = thread::Builder::new()
             .name(format!("kalsa-door-worker-{index}"))
             .spawn(move || {
                 worker(
-                    worker_stop,
                     worker_active,
                     worker_receiver,
                     worker_registry,
-                    worker_devices,
                     worker_chats,
-                    worker_room,
+                    worker_shared,
                     port,
                     capacity,
                     head_patience,
@@ -204,13 +208,11 @@ fn accept_loop(
 }
 
 fn worker(
-    stop: Arc<AtomicBool>,
     active: Arc<ActiveDevices>,
     receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
     registry: Arc<Registry>,
-    devices: Arc<DeviceSet>,
     chats: Arc<crate::paging::Chats>,
-    room: Option<Arc<crate::room::RoomDoor>>,
+    shared: Arc<crate::proxy::Shared>,
     upstream_port: u16,
     capacity: u32,
     head_patience: Duration,
@@ -223,7 +225,7 @@ fn worker(
             .recv_timeout(POLL_INTERVAL);
         match result {
             Ok(work) => {
-                if !stop.load(Ordering::SeqCst) {
+                if !shared.stop.load(Ordering::SeqCst) {
                     let response_observer = observer.as_ref().map(|factory| factory());
                     proxy::handle(
                         work.stream,
@@ -231,11 +233,9 @@ fn worker(
                         head_patience,
                         upstream_port,
                         capacity,
-                        &devices,
+                        &shared,
                         &chats,
-                        room.as_ref(),
                         &registry,
-                        &stop,
                         &active,
                         response_observer.as_deref(),
                     );
@@ -243,7 +243,7 @@ fn worker(
                 // The work — and with it its slot — drops here, on every
                 // path an unwind included. No manual fetch_sub to forget.
             }
-            Err(mpsc::RecvTimeoutError::Timeout) if stop.load(Ordering::SeqCst) => return,
+            Err(mpsc::RecvTimeoutError::Timeout) if shared.stop.load(Ordering::SeqCst) => return,
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => return,
         }

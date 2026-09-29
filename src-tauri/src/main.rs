@@ -1760,7 +1760,7 @@ async fn brain_pairing_retry(brain: State<'_, Brain>, desk: State<'_, Desk>) -> 
 /// The owner says a device is no longer part of the house. The others keep
 /// their credentials and their ids.
 #[tauri::command]
-fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String> {
+fn brain_pairing_forget_device(desk: State<Desk>, brain: State<Brain>, id: u32) -> Result<(), String> {
     // This computer's own record has no Forget. The page does not draw the
     // button, and this refuses the call anyway: forgetting the host would
     // take the app's own credential out of the store while the running door
@@ -1777,7 +1777,11 @@ fn brain_pairing_forget_device(desk: State<Desk>, id: u32) -> Result<(), String>
     desk.desk.forget_device(id).map_err(|_| {
         "This device could not be forgotten. Fixing permissions and trying again may help."
             .to_string()
-    })
+    })?;
+    // The room follows at once, not at the next poll: the member's posts
+    // stop the moment the owner's finger leaves the button.
+    room::forget_now(&brain, id);
+    Ok(())
 }
 
 /// The owner pressed Allow: the phone that completed its ceremony may now

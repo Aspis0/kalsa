@@ -219,22 +219,22 @@ fn the_request_write_holds_the_gate_against_a_forget() {
         let upstream_port = upstream.port;
         thread::spawn(move || {
             let (stream, _) = listener.accept().unwrap();
-            let stop = AtomicBool::new(false);
+            let stop = Arc::new(AtomicBool::new(false));
             let active = ActiveDevices::new();
             let registry = Registry::new();
-            let set = Arc::new(set);
-            let stop = Arc::new(stop);
             proxy::handle(
                 stream,
                 Instant::now(),
                 crate::HEAD_PATIENCE,
                 upstream_port,
                 1,
-                &set,
+                &proxy::Shared {
+                    stop,
+                    set,
+                    room: None,
+                },
                 &crate::paging::Chats::new(1, None, None, None),
-                None,
                 &registry,
-                &stop,
                 &active,
                 None,
             );
@@ -298,22 +298,22 @@ fn a_revoked_device_is_refused_without_opening_an_upstream_socket() {
         let upstream_port = upstream.port;
         thread::spawn(move || {
             let (stream, _) = listener.accept().unwrap();
-            let stop = AtomicBool::new(false);
+            let stop = Arc::new(AtomicBool::new(false));
             let active = ActiveDevices::new();
             let registry = Registry::new();
-            let set = Arc::new(set);
-            let stop = Arc::new(stop);
             proxy::handle(
                 stream,
                 Instant::now(),
                 crate::HEAD_PATIENCE,
                 upstream_port,
                 1,
-                &set,
+                &proxy::Shared {
+                    stop,
+                    set,
+                    room: None,
+                },
                 &crate::paging::Chats::new(1, None, None, None),
-                None,
                 &registry,
-                &stop,
                 &active,
                 None,
             );

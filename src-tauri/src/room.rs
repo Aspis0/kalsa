@@ -9,6 +9,9 @@ use kalsa_room::{Entry, MemberEvent, Room};
 
 /// The host posts to its own room. The `client_msg_id` is the caller's to
 /// mint and keep stable across retries, exactly as a phone's is.
+///
+/// R4's room view calls these; nothing in this step does, on order.
+#[allow(dead_code)]
 pub fn host_post(room: &Room, client_msg_id: &str, text: &str) -> Result<Entry, String> {
     room.post(kalsa_room::MemberId::Host, client_msg_id, text, false)
         .map_err(|error| error.to_string())
@@ -16,8 +19,21 @@ pub fn host_post(room: &Room, client_msg_id: &str, text: &str) -> Result<Entry, 
 
 /// The host's own display name — the one path that sets it. Phones reach
 /// theirs through the door; the host is on this computer.
+#[allow(dead_code)]
 pub fn set_host_display_name(room: &Room, name: &str) -> Result<String, String> {
     room.set_host_name(name).map_err(|error| error.to_string())
+}
+
+/// The owner's forget, applied to the room the moment the button is
+/// pressed: the member retires and its posts are refused at once, before
+/// the once-a-second poll swaps the credential set — the poll remains the
+/// safety net for every other path a store can change.
+pub fn forget_now(brain: &crate::Brain, device: u32) {
+    if let Some(room) = brain.room.get() {
+        if let Err(error) = room.forget_device(device) {
+            eprintln!("kalsa-brain: the room could not forget a device: {error}");
+        }
+    }
 }
 
 /// Brings the room's roster to the pairing store's new state: a device

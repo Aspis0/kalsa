@@ -129,13 +129,23 @@ pub(crate) fn is_client_msg_id(id: &str) -> bool {
 
 /// What `open` found on disk: the entries the room may serve, the handle to
 /// append with, and whether appending is allowed at all.
+/// What this open's recovery dropped, when it dropped anything. A pure
+/// TORN TAIL never was a complete line: no client was ever served it, so
+/// dropping it costs nothing acknowledged and the epoch stands. MIDDLE
+/// damage removed complete lines somebody may have read — the numbering
+/// starts a new epoch and the caller re-mints it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Recovery {
+    None,
+    Tail,
+    Middle,
+}
+
 pub(super) struct Opened {
     pub(super) messages: Vec<Message>,
     pub(super) file: File,
     pub(super) writable: bool,
-    /// This open dropped bytes into a damaged copy: the transcript's
-    /// numbering starts a new epoch, and the caller re-mints it.
-    pub(super) recovered: bool,
+    pub(crate) recovery: Recovery,
 }
 
 pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
@@ -147,7 +157,7 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
                 messages: Vec::new(),
                 file,
                 writable: true,
-                recovered: false,
+                recovery: Recovery::None,
             });
         }
         Err(error) => return Err(error.into()),
@@ -161,10 +171,12 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
     };
     let (mut messages, valid) = parse_prefix(&bytes, complete);
     let mut writable = true;
-    let mut recovered = false;
+    let mut recovery = Recovery::None;
     if valid < complete {
         writable = recovery::recover(path, &bytes, valid);
-        recovered = writable;
+        if writable {
+            recovery = Recovery::Middle;
+        }
     } else if complete < bytes.len() {
         let mut checker = Checker::of(&messages);
         match serde_json::from_slice::<Record>(&bytes[complete..])
@@ -181,8 +193,13 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
                 }
             }
             None => {
+                // The unparsable tail is not a complete line: nobody was
+                // ever served it, so dropping it is the one recovery that
+                // costs nothing acknowledged and keeps the epoch.
                 writable = recovery::recover(path, &bytes, valid);
-                recovered = writable;
+                if writable {
+                    recovery = Recovery::Tail;
+                }
             }
         }
     }
@@ -191,7 +208,7 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
         messages,
         file,
         writable,
-        recovered,
+        recovery,
     })
 }
 

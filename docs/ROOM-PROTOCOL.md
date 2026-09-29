@@ -147,10 +147,11 @@ with the bytes.
 
 - `seq` and `time` are assigned by the computer: `seq` is the transcript
   number (§7), `time` is unix seconds UTC. Client clocks are never used.
-- `ai_call` is `null` when the message did not call the AI, `"queued"`
-  when accepted, `"refused"` when not — `refusal` carries the honest
-  sentence (a member with a call already pending is refused; the message
-  itself still posts).
+- `ai_call` is reserved for the AI guest and is `null` in this version —
+  no call is claimed or queued yet. When the guest lands it answers
+  `"queued"` or `"refused"`, with `refusal` carrying the honest sentence (a
+  member with a call already pending is refused; the message itself still
+  posts).
 
 ### The "@Kalsa" rule, exactly
 
@@ -299,6 +300,10 @@ its visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
 | history limit | 1–200 | `400 bad_request` |
 | Last-Event-ID | at or below newest seq | `400 bad_cursor` |
 | cached epoch | not the current epoch | `409 epoch_changed` |
+| no room open | — | `503 no_room`: show "the room is not open on this computer" |
+| damaged transcript | unrepaired | `503 read_only`: reads work, posts refuse; show the sentence, retry later |
+| unknown room route | — | `404 not_found`: the phone is talking to something this computer does not serve |
+| store failure | — | `500 internal`: show the sentence, nothing the phone can do |
 
 Error bodies (except the empty 401) are
 `{"error": {"code": "...", "message": "<one honest sentence>"}}` with the

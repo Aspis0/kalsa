@@ -525,11 +525,13 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
             super::HEAD_PATIENCE,
             upstream_port,
             1,
-            &devices,
+            &proxy::Shared {
+                stop,
+                set: devices,
+                room: None,
+            },
             &crate::paging::Chats::new(1, None, None, None),
-            None,
             &registry,
-            &stop,
             &active,
             None,
         );
@@ -798,11 +800,13 @@ fn a_connection_past_its_lifetime_is_cut() {
             super::HEAD_PATIENCE,
             1,
             1,
-            &devices,
+            &proxy::Shared {
+                stop,
+                set: devices,
+                room: None,
+            },
             &crate::paging::Chats::new(1, None, None, None),
-            None,
             &registry,
-            &stop,
             &active,
             None,
         );

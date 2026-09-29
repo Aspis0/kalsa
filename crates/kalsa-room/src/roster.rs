@@ -114,14 +114,14 @@ impl Roster {
         }
     }
 
-    /// The roster a new epoch hands back: every member's history begins
-    /// at the epoch's own start, because a join point past what survived
-    /// the recovery would hide the whole transcript from someone still in
-    /// the room.
-    pub(crate) fn with_epoch_start(&self) -> Self {
+    /// The roster a new epoch hands back: every join point is clamped to
+    /// the first seq past what survived the recovery, because a join
+    /// beyond it would hide the whole transcript from someone still in the
+    /// room — and a join within what survived is the member's own, kept.
+    pub(crate) fn with_epoch_start(&self, surviving: u64) -> Self {
         let mut updated = self.clone();
         for join in updated.joined.values_mut() {
-            *join = 1;
+            *join = (*join).min(surviving);
         }
         updated
     }

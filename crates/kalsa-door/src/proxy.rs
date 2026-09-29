@@ -80,20 +80,29 @@ impl Drop for SlotTurn<'_> {
     }
 }
 
+/// The door's shared state, one per door: the stop flag, the live device
+/// set, and the room. Built in `server::start`; workers and the room's
+/// stream threads hold it whole.
+pub(super) struct Shared {
+    pub(super) stop: Arc<AtomicBool>,
+    pub(super) set: Arc<DeviceSet>,
+    pub(super) room: Option<Arc<crate::room::RoomDoor>>,
+}
+
 pub(super) fn handle(
     mut client: TcpStream,
     accepted: Instant,
     head_patience: Duration,
     upstream_port: u16,
     capacity: u32,
-    devices: &Arc<DeviceSet>,
+    shared: &Shared,
     chats: &paging::Chats,
-    room: Option<&Arc<crate::room::RoomDoor>>,
     registry: &Registry,
-    stop: &Arc<AtomicBool>,
     active: &ActiveDevices,
     observer: Option<&Observed>,
 ) {
+    let devices: &DeviceSet = &shared.set;
+    let stop: &AtomicBool = &shared.stop;
     let deadline = accepted + CONNECTION_LIFETIME;
     // The head patience is the worker's, not the queue's: it counts from
     // when this worker begins reading, so a connection that waited in the
@@ -213,9 +222,9 @@ pub(super) fn handle(
                 head: &head,
                 device,
                 devices: &current,
-                room,
-                stop,
-                set: devices,
+                room: shared.room.as_ref(),
+                stop: &shared.stop,
+                set: &shared.set,
             },
             deadline,
         );

@@ -102,13 +102,13 @@ impl Room {
         let opened = log::open(&dir.join(log::LOG_NAME))?;
         let mut roster = roster::load(&dir.join(roster::ROSTER_NAME))?;
         let mut identity = Identity::open(&dir)?;
-        if opened.recovered {
-            // Bytes a phone may already have seen are gone: the numbering
-            // starts a new epoch, and every live member's history begins
-            // at it — a join point past what survived would hide the whole
+        if opened.recovery == crate::log::Recovery::Middle {
+            // Acknowledged entries are gone: the numbering starts a new
+            // epoch, and every join point is clamped to the first seq past
+            // what survived — a join beyond it would hide the whole
             // transcript from someone still in the room.
             identity = identity.next_epoch(&dir)?;
-            roster = roster.with_epoch_start();
+            roster = roster.with_epoch_start(opened.messages.len() as u64 + 1);
             roster::publish(&dir.join(roster::ROSTER_NAME), &roster).map_err(RoomError::Io)?;
         }
         let messages: Vec<Arc<Message>> = opened.messages.into_iter().map(Arc::new).collect();

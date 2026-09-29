@@ -13,7 +13,10 @@ use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::proxy;
 
-use super::MAX_BODY;
+/// The largest body the room's routes read: a message is 8000 bytes of
+/// text and 64 of id, a name is 40 — anything beyond is a client talking
+/// to something else, refused before its bytes are read.
+const MAX_BODY: usize = 16 * 1024;
 
 /// One transcript entry as the protocol answers it: the author's CURRENT
 /// name, resolved here at the door, and the former mark for a member whose

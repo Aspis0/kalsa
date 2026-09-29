@@ -128,7 +128,8 @@ impl Room {
             .map_err(|failure| PostError::Io(io_of(failure)))?;
         writer.file = reopened.file;
         writer.writable = reopened.writable;
-        if reopened.recovered && !self.new_epoch() {
+        let surviving = reopened.messages.len() as u64 + 1;
+        if reopened.recovery == log::Recovery::Middle && !self.new_epoch(surviving) {
             // The bytes are gone and the new epoch could not be published:
             // serving the next seqs under the old one is the silent reuse
             // the epoch exists to prevent. Reads keep serving; writes stop.
@@ -161,15 +162,19 @@ impl Room {
         }
     }
 
-    /// Mints and publishes the next epoch, and moves every live member's
-    /// history to its start. Called where a recovery dropped bytes — the
-    /// seqs a phone already saw may be re-used for different words, and
-    /// the phone learns that from the epoch, not from a wrong transcript.
-    /// `false` means the new epoch is not what the room is serving.
-    fn new_epoch(&self) -> bool {
+    /// Mints and publishes the next epoch, and clamps every join point to
+    /// what survived. Called where a recovery dropped acknowledged entries
+    /// — the seqs a phone already saw may be re-used for different words,
+    /// and the phone learns that from the epoch, not from a wrong
+    /// transcript. `false` means the new epoch is not what the room is
+    /// serving.
+    fn new_epoch(&self, surviving: u64) -> bool {
         let (identity, roster) = {
             let state = self.lock_state();
-            (state.identity.clone(), state.roster.with_epoch_start())
+            (
+                state.identity.clone(),
+                state.roster.with_epoch_start(surviving),
+            )
         };
         let Ok(re_minted) = identity.next_epoch(&self.dir) else {
             return false;
