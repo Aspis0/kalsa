@@ -1,3 +1,32 @@
+# Coordinator state - 2026-09-29 (session 3f035b4e) - READ THIS BLOCK FIRST
+
+## Queue for 2026-09-30 (GitHub Actions quota resets; S23 must be charged, then unplugged)
+
+1. **v1.1.3 engine release:** merge `ci/kalsa-server-vcredist` (`43a317fde`) into fork `main`
+   (`e8065c7cf`, includes Gemma MTP; merge-tree was clean) -> dry run on main (windows,
+   publish=false) -> tag -> publish -> verify digests -> report to kalsa-brain
+   (`edd8034a-6e58-4ff8-a18f-2d56da9ba61a`).
+2. **New debuggable APK** from app `main` (`2fe1f214` or later; governor platform status end to end:
+   engine `d07d0181b`, binding `c0bbbd35`). On the S23: NPU-lane soak, pairing test, governor
+   platform-status check (KALSA_GOVERNOR keys), in-app current test with AsyncStorage
+   `kalsa.bench.energy_trace`=on (1 Hz native trace, `files/energy/<ms>-t<turn>.csv`): does the
+   current separate NPU/GPU/CPU per turn? -> report to Marco before any agnostic-governor design.
+3. **S23 CLI tests (llama-bench, unplugged, dirs under /data/local/tmp/govhtp/):**
+   a. one-copy raw NPU decode: `GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1 GGML_HEXAGON_MM_SELECT=1
+      --load-mode none -ngl 99 -dev HTP0` tg128 vs two-copy HTP decode (22.09 tok/s). Device name is
+      `HTP0` (not `HTP0:0`); llama-bench default load mode in this fork is `none`.
+   b. tied-embedding share (`spike/tied-embd-onecopy` `048603398`): CPU tg128 before/after
+      (plain-Q6_K lm_head) + RSS; if flat -> cherry-pick onto the engine main line -> pin chain.
+   c. RAM mmap+mlock vs none (for the owner's no-mmap decision). Note: the app sends use_mlock=true,
+      so no-mmap in the app = LLAMA_LOAD_MODE_MLOCK, not NONE (binding JSIParams.cpp:353-358).
+4. Decide the q4_0_4x8 shared layout (CPU decode 0.62-0.64 on raw) after 3a.
+
+Engine spike branches pushed to origin 2026-09-29: `spike/onecopy-hmx-raw` `e71421fd9`,
+`spike/onecopy-cpu-gemv` `1dd83c245` (no gain, keep for record), `spike/tied-embd-onecopy` `048603398`.
+Owner rules added today: backend ranking = least heat/energy per token above a tok/s floor (NPU decode
+wins on S23 and 8 Elite); accelerator order Snapdragon > iPhone (llama.cpp Metal, not Core ML) >
+Exynos > Mali > Tensor.
+
 # Coordinator state - 2026-09-28 (end of session 43c25dd3)
 
 The current operating facts and next decisions. Per-cell methods and raw evidence remain in
