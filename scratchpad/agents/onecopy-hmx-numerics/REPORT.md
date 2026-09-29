@@ -385,3 +385,19 @@ unplugged, thermal status 0; a correctness check, not a measurement), `-ngl 99 -
 
 Under mmap the run no longer reaches the hexagon compute path with a CPU buffer: it completes on
 CPU and says why. Note: the device name in this build is `HTP0`, not `HTP0:0`.
+
+## CPU raw Q4_0 multi-row gemv on the S23 (2026-09-29, 1dd83c245, NR=2)
+
+GLM `spike/onecopy-cpu-gemv` `1dd83c245` (not pushed), CPU-only S23 build `749ed035`, vs the
+old hexagon build `onecopy-hmx-c8d` with `-dev none`. tg128 `-r 3 -t 5 -ngl 0`, interleaved,
+unplugged, battery 23 -> 17 %, battery temp 38.8 -> 41.0 °C (low battery and warm: relative
+reading only). tok/s:
+
+| round | new repack | new raw | old repack | old raw |
+|---|---|---|---|---|
+| 1 | 20.80 | 13.09 | 19.55 | 12.51 |
+| 2 | 16.98 | 10.86 | 16.76 | 10.42 |
+
+Raw/repack stays 0.62-0.64 with either build; the kernel gains ~4 % on raw (13.09 vs 12.51,
+10.86 vs 10.42). The multi-row gemv does not close the one-copy CPU decode gap. Different build
+configs (CPU-only LTO vs hexagon build), so the 4 % is within build noise. Stopped at 17 %.
