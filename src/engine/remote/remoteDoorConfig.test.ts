@@ -26,10 +26,12 @@ describe("remote door configuration precedence", () => {
 
   test("paired door and credential win together over typed values", async () => {
     pairedMock.mockResolvedValue({
+      localId: "p-lid-a",
       doorUrl: "https://paired.tailnet.ts.net:9443",
       credential: "ab".repeat(32),
       node: null,
       pairedVia: null,
+      roomId: null,
     });
     const config = await getRemoteDoorConfig();
 
@@ -39,6 +41,7 @@ describe("remote door configuration precedence", () => {
       node: null,
       pairedVia: null,
       source: "pairing",
+      pairing: { localId: "p-lid-a", removed: false },
     });
     expect(config.url).not.toBe(getRemoteBrainUrl());
     await expect(getRemoteDoorToken(config)).resolves.toBe("ab".repeat(32));
@@ -48,14 +51,30 @@ describe("remote door configuration precedence", () => {
   test("the paired iroh node and pairing road ride the config so the door road can choose", async () => {
     const node = "cd".repeat(32);
     pairedMock.mockResolvedValue({
+      localId: "p-lid-b",
       doorUrl: "https://paired.tailnet.ts.net:9443",
       credential: "ab".repeat(32),
       node,
       pairedVia: "iroh",
+      roomId: null,
     });
     const config = await getRemoteDoorConfig();
     expect(config.node).toBe(node);
     expect(config.pairedVia).toBe("iroh");
+  });
+
+  test("a record the room already refused rides the door as removed", async () => {
+    pairedMock.mockResolvedValue({
+      localId: "p-lid-c",
+      doorUrl: "https://paired.tailnet.ts.net:9443",
+      credential: "ab".repeat(32),
+      node: null,
+      pairedVia: null,
+      roomId: "1f0a3b9c2d4e5f60718293a4b5c6d7e8",
+      removed: true,
+    });
+    const config = await getRemoteDoorConfig();
+    expect(config.pairing).toEqual({ localId: "p-lid-c", removed: true });
   });
 
   test("without a pairing the manual URL and token remain the active path", async () => {
@@ -66,6 +85,7 @@ describe("remote door configuration precedence", () => {
       node: null,
       pairedVia: null,
       source: "manual",
+      pairing: null,
     });
     await expect(getRemoteDoorToken(config)).resolves.toBe("typed-token");
     expect(manualTokenMock).toHaveBeenCalledTimes(1);

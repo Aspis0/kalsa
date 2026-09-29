@@ -11,6 +11,10 @@ export type RemoteDoorConfig = {
   /** Which road the pairing ceremony used; null when unknown (old records). */
   pairedVia: Road | null;
   source: "pairing" | "manual";
+  /** The paired record behind this door: the local id a room client threads
+   *  through ONE request (captured here, before any await could swap the
+   *  active pairing), and whether this room has already refused the phone. */
+  pairing: { localId: string; removed: boolean } | null;
 };
 
 /** A completed pairing owns its door, credential, node and pairing road as one indivisible choice. */
@@ -23,6 +27,7 @@ export async function getRemoteDoorConfig(): Promise<RemoteDoorConfig> {
       node: paired.node,
       pairedVia: paired.pairedVia,
       source: "pairing",
+      pairing: { localId: paired.localId, removed: paired.removed === true },
     };
   }
   return {
@@ -31,6 +36,7 @@ export async function getRemoteDoorConfig(): Promise<RemoteDoorConfig> {
     node: null,
     pairedVia: null,
     source: "manual",
+    pairing: null,
   };
 }
 
