@@ -613,6 +613,19 @@ brake only (held app `19368426`).
   **7.3 MB**; Hexagon skels **2.8 MB**. Before beta, keep 2–3 engine variants, strip native debug
   symbols in user builds, enable R8 for release, and ship an Android App Bundle on Play. Target
   **under 70 MB** is an estimate, not measured.
+- **iroh without Tailscale PASSED on the Jelly (2026-09-28, run by kalsa-brain `edd8034a`, desk
+  `054db08e`, log `~/lab/jelly-logs/jelly-2026-09-28-pairing.log`):** invite link opened the app
+  directly; iroh dial door 451 ms, desk 673 ms; "Paired phone 4 is pairing again." on one line;
+  chat served by the Mac; Forget gives 401; re-pair after Forget works.
+- Phone-side issues from that run (open, not scheduled):
+  1. A failed chat showed "Could not reach your computer" with **no log line** (no `KALSA_ROAD`,
+     no `remote.brain.*`), during repeated `Fabric View [-1] does not have SurfaceId` exceptions
+     (react-native-keyboard-controller). A failed chat must log its reason; a stale error bubble
+     from an earlier road must not look current.
+  2. After a desk Forget the phone shows a raw "error 401" - needs plain copy (owner's call).
+  3. "Connected to the Mac" is shown both before and after Allow - waiting-for-Allow is not
+     distinguished from paired.
+  4. Owner wants a success moment after Allow (no earlier record found; decision pending).
 
 ### One-copy CPU + NPU: correct on S23, too slow as built on 8 Elite
 
