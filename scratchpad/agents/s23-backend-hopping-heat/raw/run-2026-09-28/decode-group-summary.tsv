@@ -1,0 +1,4 @@
+backend	n	median_tg256_tok_s	range_tg256_tok_s	median_battery_Cs_per_token	range_battery_Cs_per_token	median_skin_Cs_per_token	range_skin_Cs_per_token	source_per_rep_rows
+cpu	3	22.1300	22.0200-22.8900	0.2018	0.1278-0.2905	0.2474	0.2413-0.3785	D-cpu-1,D-cpu-2,D-cpu-3
+gpu	3	14.0300	13.5300-14.1500	0.4298	0.3526-0.4579	0.5253	0.4358-0.5293	D-gpu-1,D-gpu-2,D-gpu-3
+npu	3	22.0900	22.0300-22.2500	0.1404	0.1265-0.1659	0.1708	0.1135-0.1885	D-npu-1,D-npu-2,D-npu-3

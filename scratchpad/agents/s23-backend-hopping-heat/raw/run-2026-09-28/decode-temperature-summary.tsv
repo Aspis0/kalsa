@@ -1,0 +1,10 @@
+tag	battery_start_C	battery_peak_C	battery_end_C	battery_peak_delta_C	battery_end_delta_C	skin_start_C	skin_peak_C	skin_end_C	skin_peak_delta_C	skin_end_delta_C	peak_status	CPU_peak_C	CPU_sensor	GPU_peak_C	GPU_sensor	NSP_peak_C	NSP_sensor	start_sample_line	end_sample_line
+D-cpu-1	28.5	30.3	29.8	1.8	1.3	29.7	31.5	30.9	1.8	1.2	0	90.3	cpu-1-10	67.4	gpuss-4	61.7	nspss-0	7	75
+D-gpu-1	29.8	32.2	31.3	2.4	1.5	31.0	33.5	32.4	2.5	1.4	0	90.3	cpu-1-9	76.9	gpuss-4	64.9	nspss-0	83	163
+D-npu-1	31.3	31.9	31.5	0.6	0.2	32.3	33.5	32.5	1.2	0.2	0	72.9	cpu-1-9	56.6	gpuss-7	84.4	nspss-1	167	238
+D-gpu-2	31.5	33.6	32.8	2.1	1.3	32.5	35.0	33.8	2.5	1.3	0	90.3	cpu-1-9	77.3	gpuss-4	65.3	nspss-0	246	326
+D-npu-2	32.8	33.8	33.3	1.0	0.5	33.8	34.6	33.8	0.8	0.0	0	77.0	cpu-1-9	58.2	gpuss-7	86.0	nspss-1	330	400
+D-cpu-2	33.3	34.3	33.6	1.0	0.3	33.8	35.2	34.1	1.4	0.3	0	90.3	cpu-1-10	69.7	gpuss-4	64.9	nspss-0	401	469
+D-npu-3	33.6	34.2	33.7	0.6	0.1	34.1	35.1	34.2	1.0	0.1	0	72.1	cpu-1-9	59.0	gpuss-7	86.0	nspss-0	474	544
+D-cpu-3	33.7	35.1	34.4	1.4	0.7	34.2	35.6	34.7	1.4	0.5	0	91.6	cpu-1-10	70.1	gpuss-4	65.3	nspss-1	544	613
+D-gpu-3	34.4	36.7	35.5	2.3	1.1	34.7	36.7	35.5	2.0	0.8	0	90.3	cpu-1-9	78.5	gpuss-4	66.9	nspss-0	621	701

@@ -1,0 +1,9 @@
+block	requested_or_attempted	valid_count	status	sampler_cadence	primary_evidence	note
+archived A CPU prefill	6	6	completed under original prereg cool-start block gate	2.0 s median; 3.0 s max	prior/raw/device-out/out/P-cpu-*.log and prefill-results.tsv	Pre-existing archive; not repeated under dated no-cool override
+archived A HTP prefill	12	0	VOID_HOT before first invocation	2.0 s median archive	prior/raw/device-out/out/markers.tsv:L29	battery_dC=332 after wait=610; status=0
+archived A OpenCL prefill	12	12	completed under original prereg cool-start block gate	2.0 s median; 3.0 s max	prior/raw/device-out/out/P-gpu-*.log and prefill-results.tsv	Pre-existing archive; not repeated under dated no-cool override
+archived supplemental HTP prefill	12	12	completed as separate later block	1.091 s median; 1.140 s max	prior/raw/device-out/supplement/P-npu-supp-*.log and supplement-prefill-results.tsv	Diagnostic separate block; original cool-start gate
+archived B decode	9	9	completed; superseded for final B because sampler cadence was slow	2.0 s median; 3.0 s max	prior/raw/device-out/decode-results.tsv	All nine exit0=True; preserved read-only
+fast B decode repeat	9	9	completed; final B result	1.1 s median; 1.4 s max	repeat/device-raw/final/D-*.log and decode-arm-summary.tsv	Required order; no cooldown gate/wait; all route proofs pass
+HTP recovery checker attempt	1	0 counted in clean block	Driver stopped after one arm due over-strict validator; command exit0 and HTP0 buffer present	1.1 s median; 1.1 s max	npu-rerun/device-raw/attempt-1-pull/npu-rerun-20260928/P-npu-rerun-01.log	Preserved; backend_proof=FAIL marker was checker mismatch, no safety stop
+HTP no-cool recovery block	12	12	completed; separate post-decode recovery block	1.1 s median; 1.1 s max	npu-rerun-validated/device-raw/final/npu-rerun-20260928-valid/P-npu-rerun-*.log	No cool-start wait; all exits0 and HTP0 buffers pass
