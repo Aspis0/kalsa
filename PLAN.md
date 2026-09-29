@@ -851,11 +851,13 @@ pruning allowed. Research (luna, 2026-09-29, sources in the agent report, key on
 REAP evidence: at 50 % expert pruning, mean -1.2 % on non-agentic coding and -5.9 % on tool use
 (arXiv 2510.13999, large models). Nothing published supports ~80 %.
 
-Proposed phases (each gated):
-0. **Free, Mac only:** run every candidate as-is in our llama.cpp (Q4) through the lab's Italian/English
-   bpb tooling (`scripts/run_multi5_ppl_host.py`) plus 20 fixed EN/IT chat prompts. Gate: pick the
-   base with the best Italian at acceptable size. No spending.
-1. **Prune (only if the pick is >8B):** one-layer REAP observer smoke, then 50 % on RunPod; gate on
+**Owner decision 2026-09-29: base = Qwen3.6-35B-A3B** ("sappiamo benissimo che Qwen 3.6 35b vince su
+tutti"; no smaller recent MoE exists). No phase 0.
+Phases (each gated):
+1. **Prune:** one REAP observation pass, then several ratios from the same saliency (25/50/65/75 %),
+   each converted to GGUF and scored EN/IT vs the unpruned base; keep the smallest that holds.
+   Prep (fork pin, calibration set, pod script, estimate) on the Mac first: `scratchpad/agents/kalsa-reap-prep/`.
+   Pod: one-layer REAP observer smoke, then 50 % on RunPod; gate on
    held-out EN/IT + tool calls vs the unpruned base. Budget cap $40 floor / $120 soft / $150 stop.
 2. **Kalsa SFT:** BF16 LoRA (Axolotl; Unsloth for Qwen3.5-MoE), router frozen, 2-5k curated EN/IT
    examples (identity, tone, refusals, tool calls) + 10-20 % general replay; one 4090/A100, a few hours.
