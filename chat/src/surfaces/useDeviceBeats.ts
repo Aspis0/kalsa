@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SUCCESS_HOLD_MS } from "./motion";
+import { FOLD_MS, SUCCESS_HOLD_MS } from "./motion";
 
 // What the beat needs from a device record: identity and the wait. The
 // page's fuller records satisfy it structurally.
@@ -11,7 +11,7 @@ interface BeatDevice {
 /** The beat a row plays when the owner's Allow lands: which rows are saying
     "connected" right now, and the bookkeeping that starts and ends it. */
 export function useDeviceBeats(devices: BeatDevice[] | undefined) {
-  const [connectedId, setConnectedId] = useState<number | null>(null);
+  const [connected, setConnected] = useState<ReadonlySet<number>>(() => new Set());
   const [enteringIds, setEnteringIds] = useState<ReadonlySet<number>>(() => new Set());
   // The records this page has sent a decision for and is still waiting on
   // the store to answer: the row's buttons stay down until an answer makes
@@ -27,7 +27,11 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
   // pressed, never on the leaving alone.
   const refuses = useRef(new Set<number>());
   const previous = useRef<BeatDevice[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One hold per row: two Allows in one poll are two beats, not one.
+  const holds = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  // The unfold's own clock: once it has played, the entering state is gone
+  // and the row's other classes (the breath) take over.
+  const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const live = useRef(true);
 
   // A page that goes away mid-beat leaves nothing behind.
@@ -35,7 +39,9 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
     live.current = true;
     return () => {
       live.current = false;
-      if (timer.current !== null) clearTimeout(timer.current);
+      for (const hold of holds.current.values()) clearTimeout(hold);
+      holds.current.clear();
+      if (enteringTimer.current !== null) clearTimeout(enteringTimer.current);
     };
   }, []);
 
@@ -87,21 +93,37 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
       const entering = house
         .filter((device) => device.waiting === true && !seen.has(device.id))
         .map((device) => device.id);
-      if (entering.length > 0) setEnteringIds(new Set(entering));
+      if (entering.length > 0) {
+        setEnteringIds(new Set(entering));
+        // The entrance is a beat, not a state: once it has played the row
+        // is an ordinary waiting row, and the classes it no longer wears
+        // stop deferring to it.
+        if (enteringTimer.current !== null) clearTimeout(enteringTimer.current);
+        enteringTimer.current = setTimeout(() => {
+          enteringTimer.current = null;
+          if (live.current) setEnteringIds(() => new Set());
+        }, FOLD_MS);
+      }
     }
   }, [devices]);
 
   function land(rowId: number): void {
-    if (timer.current !== null) clearTimeout(timer.current);
-    setConnectedId(rowId);
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      if (live.current) setConnectedId(null);
+    const standing = holds.current.get(rowId);
+    if (standing !== undefined) clearTimeout(standing);
+    setConnected((prior) => new Set(prior).add(rowId));
+    const hold = setTimeout(() => {
+      holds.current.delete(rowId);
+      if (live.current) setConnected((prior) => {
+        const next = new Set(prior);
+        next.delete(rowId);
+        return next;
+      });
     }, SUCCESS_HOLD_MS);
+    holds.current.set(rowId, hold);
   }
 
   return {
-    connectedId,
+    connected,
     enteringIds,
     decided,
     /** Remember an Allow this page pressed, before its answer can land. */

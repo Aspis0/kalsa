@@ -81,9 +81,15 @@ const MANY_DEVICES = [
 // The beat after Allow: a waiting phone the owner admits, and the house
 // every later read answers with once the store has it.
 const WAITING_PHONE = { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true };
+const WAITING_PHONE_2 = { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true };
 const ADMITTED_HOUSE = [
   HOST_DEVICE,
   { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone" },
+];
+const ADMITTED_TWO = [
+  HOST_DEVICE,
+  { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone" },
+  { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone" },
 ];
 
 function advancedDto(extra = {}) {
@@ -315,6 +321,9 @@ const scenarios = [
   // One press is enough: the row holds its decision until the store's next
   // answer makes the outcome visible, and nothing lands while it waits.
   ["Pairing", "a row holds its decision until the store answers", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow" }],
+  // Two Allows riding one poll answer: each row holds its own beat, and
+  // neither drops the other's.
+  ["Pairing", "two allows in one poll each hold their beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE, WAITING_PHONE_2], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_TWO, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow", waitMs: 2600 }],
   ["Pairing", "a connected beat under reduced motion is still said", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Allow", waitMs: 2600 }],
   // The seat was forgotten while its request waited: the request has no row
   // to sit on, so it draws its own — a waiting record like any other, with
@@ -327,9 +336,10 @@ const scenarios = [
   ["Pairing", "two requests on one seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, { id: 5, label: "Paired phone 5", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }, { id: 6, label: "Paired phone 6", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "a phone is pairing again", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   // A waiting phone arrives while the page is open: its row unfolds in and
-  // breathes like every row that needs the owner. Under reduced motion it
-  // simply appears, saying the same thing.
-  ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: 2600 }],
+  // breathes like every row that needs the owner. The card reads while the
+  // entrance is still playing — the entrance is a beat, and it ends.
+  // Under reduced motion it simply appears, saying the same thing.
+  ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: 2100 }],
   ["Pairing", "a waiting row under reduced motion does not breathe", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
@@ -646,6 +656,20 @@ async function renderScenario(descriptor) {
     // wrong, which is the one case the run must still report.
     if (target) {
       target.click();
+      await settle();
+    }
+  }
+  if (data.clickThen) {
+    // A second press, on a button the owner can still press: the first
+    // match that is not held down. A held button is not pressable, and the
+    // races these cards run need the presses that still are.
+    const second = first(
+      panel,
+      (el) =>
+        el.tagName === "BUTTON" && !el.disabled && elementText(el) === data.clickThen,
+    );
+    if (second) {
+      second.click();
       await settle();
     }
   }

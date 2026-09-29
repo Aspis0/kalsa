@@ -820,7 +820,8 @@ try {
     const beatCard =
       heading.includes("says connected for a beat") ||
       heading.includes("lands its beat on the seat") ||
-      heading.includes("a connected beat under reduced motion");
+      heading.includes("a connected beat under reduced motion") ||
+      heading.includes("two allows in one poll");
     if (heading.startsWith("Pairing") && connectedDetails.length > 0 && !beatCard) {
       problems.push(`only the beat after an Allow this page watched may say "is connected.": ${heading}`);
     }
@@ -856,6 +857,14 @@ try {
       }
       if (deviceNames.includes("Paired phone")) {
         problems.push(`the answer the store gave leaves no row behind: ${heading}`);
+      }
+    }
+    if (heading.includes("two allows in one poll")) {
+      if (connectedDetails.length !== 2) {
+        problems.push(`each allowed row holds its own beat, neither dropped: ${heading} (${connectedDetails.length} of 2)`);
+      }
+      if (!deviceDetails.includes("Paired phone is connected.") || !deviceDetails.includes("Paired phone 2 is connected.")) {
+        problems.push(`both beats are said, each on its own row: ${heading}`);
       }
     }
     if (heading.includes("a row holds its decision until the store answers")) {

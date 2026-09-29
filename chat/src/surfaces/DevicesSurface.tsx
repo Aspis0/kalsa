@@ -541,7 +541,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             const request = requests.get(device.id);
             // The beat after Allow: the sentence and its checkmark hold the
             // row for a moment, then it settles into the ordinary detail.
-            const connected = beats.connectedId === device.id;
+            const connected = beats.connected.has(device.id);
             // A row waiting for the owner's decision breathes, and a waiting
             // row that just arrived unfolds in — the reverse of the fold,
             // timed by the same number. Under reduced motion neither exists.
