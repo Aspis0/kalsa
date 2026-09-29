@@ -576,6 +576,28 @@ chips. The other half of that row (skip the background prewarm, cut our own stea
 The pause-as-last-resort rung with resume ≤1 and the 10-minute cap is built as the emergency
 brake only (held app `19368426`).
 
+### Thermal plan approved by the owner (2026-09-29)
+
+Trigger: one S23 turn went Android status 0 -> 3 while the governor logged FAST (battery-only
+classifier, engine `45f097b74` `llama-governor-policy.cpp` `temperature_c`). The app must never
+block after a turn; the first lever is moving work to the backend with the lowest heat per token,
+not slowing down (sleep-pacing at full clock keeps total heat equal).
+
+| Android status | governor response |
+|---|---|
+| 0-1 | normal |
+| 2 MODERATE | hop to the cooler backend |
+| 3 SEVERE | coolest backend only (NPU), no background work |
+| 4 CRITICAL | emergency brake (exists) |
+
+Steps, in order: (1) the classifier takes the platform status (engine, then binding parser, then
+app feed from the existing `KalsaThermalModule`); (2) NPU prefill lane on after the step-5 soak;
+(3) prefill GPU when NPU is hot, never CPU; (4) mid-turn decode hop CPU <-> NPU (today a decode
+engine change needs a full context reload, `llama-governor-runtime.cpp` `select_decode`; one-copy
+weights make three ready backends affordable); (5) a rate lever only if measured to lower heat per
+token; (6) brake = the existing native CRITICAL only. Step 1a (engine) started 2026-09-29 on
+`feat/governor-platform-status` from `45f097b74`.
+
 ### NPU prefill: validated, wired, landed — disabled by default
 
 - **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md`
