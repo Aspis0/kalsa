@@ -228,21 +228,23 @@
   background: var(--accent);
 }
 
-/* The waiting row's breath, at rest: a wash that covers the row's box and
-   sits invisible until the loop below fades it in and out. At rest it is
-   nothing, so a page that never animates shows a still row. */
+/* The waiting row's wash, at rest: a tint behind the row's content — the
+   text never sits under it — that stands even when nothing animates, so a
+   reader who asked for stillness still sees that the row needs them. */
 .surface-device.is-waiting {
   position: relative;
+  isolation: isolate;
 }
 
 .surface-device.is-waiting::after {
   content: "";
   position: absolute;
   inset: -1px;
+  z-index: -1;
   border-radius: inherit;
   background: rgba(var(--surface-muted-rgb), 0.35);
   box-shadow: inset 0 0 0 1px var(--border-strong);
-  opacity: 0;
+  opacity: 0.45;
   pointer-events: none;
 }
 
@@ -270,9 +272,10 @@
     }
   }
 
-  /* A row that needs the owner breathes. The wash is a pseudo-element
-     whose opacity is all the keyframes touch — the compositor carries the
-     loop, and the row's own colours never repaint. */
+  /* A row that needs the owner breathes. The wash's opacity is all the
+     keyframes touch — the compositor carries the loop, and the row's own
+     colours never repaint — and the loop only deepens the tint that is
+     already standing. */
   .surface-device.is-waiting::after {
     animation: surface-row-breath var(--beat-ms) ease-in-out infinite;
   }
@@ -280,10 +283,10 @@
   @keyframes surface-row-breath {
     0%,
     100% {
-      opacity: 0;
+      opacity: 0.45;
     }
     50% {
-      opacity: 1;
+      opacity: 0.9;
     }
   }
 

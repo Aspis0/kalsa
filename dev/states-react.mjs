@@ -375,7 +375,7 @@ const scenarios = [
   // back — a decision still held from the first press would leave them
   // down forever.
   ["Pairing", "the buttons come back once the store has answered", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), pairingSwapAfter: 2, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS * 2 + 600 }],
-  ["Pairing", "a waiting row under reduced motion does not breathe", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true }],
+  ["Pairing", "a waiting row under reduced motion stands still", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to

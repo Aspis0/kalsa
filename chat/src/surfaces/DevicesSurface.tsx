@@ -8,7 +8,7 @@ import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
-import { forgetLocalCredential, PHONE_IN_USE_SENTENCE, useBrain } from "./useBrain";
+import { forgetLocalCredential, useBrain } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
@@ -582,14 +582,17 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // The beat after Allow: the sentence and its checkmark hold the
             // row for a moment, then it settles into the ordinary detail.
             const connected = beats.connected.has(device.id);
-            // A row waiting for the owner's decision breathes, and a waiting
-            // row that just arrived unfolds in — the reverse of the fold,
-            // on the fold's own number. Under reduced motion neither exists.
+            // A row waiting for the owner's decision carries the wash —
+            // a standing tint that survives reduced motion, since "needs
+            // you" is information — and, when motion is allowed, a waiting
+            // row that just arrived unfolds in: the reverse of the fold,
+            // on the fold's own number, and pure motion, so reduced motion
+            // draws no entrance and no beat.
             const needsOwner = !connected && (device.waiting === true || request !== undefined);
             const entering = !motionless && beats.enteringIds.has(device.id);
             const classes =
               "surface-device" +
-              (needsOwner && !motionless ? " is-waiting" : "") +
+              (needsOwner ? " is-waiting" : "") +
               (entering ? " is-entering" : "");
             return (
               <div
@@ -599,11 +602,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 style={fold.styleFor(device.id)}
               >
                 {activeIds.has(device.id) ? (
-                  <span
-                    className="surface-device-live"
-                    role="img"
-                    aria-label={PHONE_IN_USE_SENTENCE}
-                  />
+                  <span className="surface-device-live" aria-hidden="true" />
                 ) : null}
                 <span className="surface-device-name">{name}</span>
                 {/* The detail is the row's voice: the beat a screen reader

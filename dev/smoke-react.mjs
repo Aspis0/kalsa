@@ -942,18 +942,16 @@ try {
     }
     // A row that waits for the owner breathes, and an entrance is a beat
     // that ends: wherever the card reads from, no is-entering survives.
-    // Two cards are the exceptions this rule names: the reduced-motion
-    // card, where the row waits and wears nothing, and the card that reads
-    // inside the entrance's own beat on purpose.
+    // The wash itself is information and survives reduced motion; the one
+    // card that reads inside an entrance's own beat is the exception.
     if (
       deviceDetails.some((detail) => detail === "Waiting for your OK.") &&
-      !heading.includes("under reduced motion") &&
       !heading.includes("arrive together")
     ) {
       const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
       const breathing = deviceClasses.filter((name) => name.includes("is-waiting")).length;
       if (breathing !== waitingRows) {
-        problems.push(`every row waiting for the OK breathes, and nothing else does: ${heading} (${breathing} of ${waitingRows})`);
+        problems.push(`every row waiting for the OK wears the wash, and nothing else does: ${heading} (${breathing} of ${waitingRows})`);
       }
       if (deviceClasses.some((name) => name.includes("is-entering"))) {
         problems.push(`the entrance is a beat that ends, and the row it brought breathes on its own: ${heading}`);
@@ -977,8 +975,11 @@ try {
       }
     }
     if (heading.includes("a waiting row under reduced motion")) {
-      if (deviceClasses.some((name) => name.includes("is-waiting") || name.includes("is-entering"))) {
-        problems.push(`under reduced motion a waiting row wears no motion classes: ${heading}`);
+      if (!deviceClasses.some((name) => name.includes("is-waiting"))) {
+        problems.push(`under reduced motion the wash stands, still: ${heading}`);
+      }
+      if (deviceClasses.some((name) => name.includes("is-entering"))) {
+        problems.push(`under reduced motion there is no entrance: ${heading}`);
       }
       if (!deviceDetails.includes("Waiting for your OK.")) {
         problems.push(`under reduced motion the waiting row still says the wait: ${heading}`);
