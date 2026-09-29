@@ -570,10 +570,16 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 style={fold.styleFor(device.id)}
               >
                 {activeIds.has(device.id) ? (
-                  <span className="surface-device-live" aria-hidden="true" />
+                  <span
+                    className="surface-device-live"
+                    role="img"
+                    aria-label={`${name} is using this computer right now.`}
+                  />
                 ) : null}
                 <span className="surface-device-name">{name}</span>
-                <span className="surface-device-detail">
+                {/* The detail is the row's voice: the beat a screen reader
+                    hears land is the same sentence the owner reads. */}
+                <span className="surface-device-detail" aria-live="polite">
                   {connected ? (
                     <>
                       <svg className="surface-check" viewBox="0 0 12 10" aria-hidden="true">
