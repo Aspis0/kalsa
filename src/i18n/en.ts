@@ -210,6 +210,7 @@ export const en = {
       "Plain HTTP only works for this phone itself. Use https:// for your computer.",
     remoteBrainTokenRequired:
       "A token is required when the address is not on this phone.",
+    remoteBrainTokenRefused: "The computer refused this token. Check it in Settings.",
     remoteComputer: "Your computer",
     remoteComputerHint: "Runs on your computer. No download on this phone.",
     remoteGated: "Not available with the remote brain",

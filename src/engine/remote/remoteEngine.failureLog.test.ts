@@ -32,6 +32,8 @@ jest.mock("../../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(async () => null),
 }));
 
+import { getPairingCredential } from "../../pairing/pairingCredentialStore";
+
 jest.mock("./openaiTransport", () => ({
   streamOpenAiChat: jest.fn(),
 }));
@@ -90,14 +92,36 @@ describe("remote.brain.failure lines from the engine paths", () => {
     await disposeRemoteEngine();
   });
 
-  test("a failed init probe logs stage init with the road it rode", async () => {
+  test("a manual door's init 401 is a refused token, logged as such", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({}),
     });
-    // The probe speaks the same 401 code the chat transport produces, so
-    // init and chat map to one message downstream.
+    // The probe speaks the code the chat transport's manual-door turn
+    // produces, so init and chat carry one message downstream.
+    await expect(
+      initRemoteEngine("", "kalsa-remote-mac", { locale: "en" }),
+    ).rejects.toThrow("remote_brain_token_refused");
+    expect(failureLines(logSpy)).toEqual([
+      { road: "https", stage: "init", reason: "remote_brain_token_refused" },
+    ]);
+  });
+
+  test("a paired door's models 401 stays unauthorized even when /health answers 200", async () => {
+    (getPairingCredential as jest.Mock).mockResolvedValue({
+      doorUrl: "https://desktop.tailnet.ts.net:9443",
+      credential: "ab".repeat(32),
+      node: null,
+      pairedVia: null,
+    });
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/v1/models")) {
+        return { ok: false, status: 401, json: async () => ({}) };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
     await expect(
       initRemoteEngine("", "kalsa-remote-mac", { locale: "en" }),
     ).rejects.toThrow("remote_brain_http_401");
@@ -147,6 +171,70 @@ describe("remote.brain.failure lines from the engine paths", () => {
       { road: "https", stage: "stream", reason: "remote_brain_http_500" },
     ]);
   });
+
+  test.each([
+    {
+      door: "a manual server",
+      credential: null,
+      transport: "remote_brain_http_401",
+      reported: "remote_brain_token_refused",
+    },
+    {
+      door: "a paired desk",
+      credential: {
+        doorUrl: "https://desktop.tailnet.ts.net:9443",
+        credential: "ab".repeat(32),
+        node: null,
+        pairedVia: null,
+      },
+      transport: "remote_brain_http_401",
+      reported: "remote_brain_http_401",
+    },
+  ] as const)(
+    "$door: the transport's blind 401 becomes the door's own code",
+    async ({ credential, transport, reported }) => {
+      (getPairingCredential as jest.Mock).mockResolvedValue(credential);
+      const { setRemoteServerModelId } = await import("./remoteSettings");
+      await setRemoteServerModelId("ornith");
+      await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+      logSpy.mockClear();
+
+      const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+        streamOpenAiChat: jest.Mock;
+      };
+      streamOpenAiChat.mockImplementation((
+        _req: unknown,
+        handlers: { onFinish: (f: { kind: string; finishReason: null; error: Error }) => void },
+      ) => {
+        queueMicrotask(() => {
+          handlers.onFinish({
+            kind: "error",
+            finishReason: null,
+            error: new Error(transport),
+          });
+        });
+        return { requestId: "r-401", abort: jest.fn(), xhr: {}, isClosed: () => false };
+      });
+
+      const errors: string[] = [];
+      await streamRemoteAssistantTurn(
+        [{ role: "user", content: "x" }],
+        {
+          onDelta: () => undefined,
+          onDone: () => undefined,
+          onError: (e) => {
+            errors.push(e.message);
+          },
+        },
+        undefined,
+        { locale: "en", turnId: "t-401" },
+      );
+      expect(errors).toEqual([reported]);
+      expect(failureLines(logSpy)).toEqual([
+        { road: "https", stage: "stream", reason: reported },
+      ]);
+    },
+  );
 
   test("a user stop logs no failure line", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");

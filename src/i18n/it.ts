@@ -209,6 +209,7 @@ export const it: typeof en = {
       "HTTP in chiaro funziona solo per questo telefono. Per il tuo computer usa https://.",
     remoteBrainTokenRequired:
       "Serve un token quando l'indirizzo non è su questo telefono.",
+    remoteBrainTokenRefused: "Il computer ha rifiutato questo token. Controllalo nelle Impostazioni.",
     remoteComputer: "Il tuo computer",
     remoteComputerHint: "Gira sul tuo computer. Nessun download sul telefono.",
     remoteGated: "Non disponibile con il cervello remoto",

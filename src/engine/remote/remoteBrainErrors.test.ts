@@ -65,9 +65,14 @@ describe("humanRemoteBrainError", () => {
     );
   });
 
-  test("401 on the remote road says the desk no longer knows this phone", () => {
+  test("401 means one of two things, and the code says which", () => {
+    // Emitted only for a PAIRED desk: the desk no longer knows this phone.
     expect(humanRemoteBrainError("remote_brain_http_401", t)).toBe(
       "settings.remoteBrainFailUnpaired",
+    );
+    // A manual URL/token server: the token itself was refused.
+    expect(humanRemoteBrainError("remote_brain_token_refused", t)).toBe(
+      "settings.remoteBrainTokenRefused",
     );
   });
 

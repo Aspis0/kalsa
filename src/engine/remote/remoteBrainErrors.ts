@@ -26,8 +26,10 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   // Status 0 means the request never got an HTTP answer at all.
   remote_brain_http_0: "settings.remoteBrainFailNetwork",
   // 401 on the remote road has one meaning the user can act on: the desk
-  // forgot (or revoked) this phone. Every other status stays generic.
+  // forgot (or revoked) this phone. The engine emits this code only for a
+  // PAIRED door — a manual server's 401 is remote_brain_token_refused.
   remote_brain_http_401: "settings.remoteBrainFailUnpaired",
+  remote_brain_token_refused: "settings.remoteBrainTokenRefused",
 };
 
 /** HTTP failures carry the status: remote_brain_http_500. */

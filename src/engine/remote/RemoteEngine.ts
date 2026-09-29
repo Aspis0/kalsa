@@ -16,6 +16,7 @@ import { toOpenAiMessages } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
+import type { RemoteDoorConfig } from "./remoteDoorConfig";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
 import { createIrohChatXhr } from "../../remote/irohChatXhr";
 import type { IrohTunnel } from "../../remote/irohHttp";
@@ -86,6 +87,18 @@ function authHeaders(url: string, token: string | null): Record<string, string> 
 }
 
 const PROBE_TIMEOUT_MS = 10_000;
+
+/**
+ * The 401 code for THIS door: a paired desk answering 401 has forgotten
+ * (or revoked) this phone; a manual URL/token server answering 401 was
+ * handed a wrong token. Two different sentences, decided where the door
+ * is known — the transport itself is authorization-blind.
+ */
+function unauthorizedCode(source: RemoteDoorConfig["source"]): string {
+  return source === "pairing"
+    ? "remote_brain_http_401"
+    : "remote_brain_token_refused";
+}
 
 async function jsonGet(
   base: string,
@@ -173,16 +186,27 @@ export async function testRemoteConnection(): Promise<{
           ]
         : [];
     } else {
-      const health = await jsonGet(base, "/health", token, doorFetch, probe.signal);
-      if (!health.ok) {
-        // A 401 from either read is the desk not knowing this credential —
-        // the same code the chat transport produces, one mapping downstream.
-        const unauthorized = models.status === 401 || health.status === 401;
+      // A 401 from the models read is an authorization verdict no /health
+      // answer can upgrade — a healthy server still refused the credential.
+      // It is decided here, before health is ever consulted.
+      if (models.status === 401) {
         return {
           ok: false,
           modelId: configured || null,
           road: road.road,
-          error: unauthorized ? "remote_brain_http_401" : `models HTTP ${models.status}`,
+          error: unauthorizedCode(door.source),
+        };
+      }
+      const health = await jsonGet(base, "/health", token, doorFetch, probe.signal);
+      if (!health.ok) {
+        return {
+          ok: false,
+          modelId: configured || null,
+          road: road.road,
+          error:
+            health.status === 401
+              ? unauthorizedCode(door.source)
+              : `models HTTP ${models.status}`,
         };
       }
     }
@@ -560,12 +584,18 @@ export async function streamRemoteAssistantTurn(
             settle();
             return;
           }
-          const err = new Error(
+          // The transport's 401 is authorization-blind: the door the turn
+          // rode decides which failure — and which sentence — it earns.
+          const raw =
             finish.kind === "truncated"
               ? strings.chat.truncated
               : finish.kind === "interrupted"
                 ? strings.chat.interrupted
-                : finish.error?.message || strings.chat.serviceUnreachable,
+                : finish.error?.message || strings.chat.serviceUnreachable;
+          const err = new Error(
+            raw === "remote_brain_http_401" && door.source === "manual"
+              ? "remote_brain_token_refused"
+              : raw,
           );
           (err as { code?: string; preservePartial?: boolean }).code =
             finish.kind;
