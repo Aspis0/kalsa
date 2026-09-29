@@ -227,3 +227,28 @@ Verdict: the fused reader is 4x the flat path but still **~7x slower than two-co
 (estimate was 900-1600 on the 8 Elite: not met on S23). Decode through the raw HMX path is unusable
 (1.22 tok/s) and crashed once. Open: where the prefill time goes (reader vs raw DMA vs pipeline
 overlap); why decode collapses and the dspqueue_write failure.
+
+## 2026-09-29 - c8d215de2 diagnostics on the S23 (luna `2dc99ad0`, unplugged; lines re-read)
+
+Engine `c8d215de2`: small-m raw Q4_0 matmuls are no longer advertised to the HTP (audit
+`e24651f9`: before, the DSP refused them with NO_SUPPORT and decode FAILED; `1e1752910`'s DMA
+prologue change is correct but gains ~0, the raw DMA was already overlapped).
+
+- **Correctness:** Q0 KLD 0.000892 (unchanged); P0 0.000943 (was 0.000946 - the few small-m
+  ffn matmuls now run on the CPU: P0 has 29 not 30 HTP ops per ffn family).
+- **P0/Q0 gap source found:** the FIRST differing tensor hash (llama-eval-callback, 75-token prompt)
+  is stream index 0, `model.embed_tokens = GET_ROWS(token_embd.weight)`: P0 reads a scheduler copy
+  `CPU#token_embd.weight#0` of the q6_K embedding that the P0 `-ot` put on the HTP0:0 buffer; Q0
+  reads it straight from the CPU buffer. So the gap comes from the embedding placement chosen to
+  match opsets, NOT from the raw reader. Open: the HTP0:0 -> CPU copy of a q6_K tensor returning
+  different bytes means the HTP buffer's read-back of q6_K is not lossless (possible engine defect
+  worth its own check).
+- **Decode, llama-bench tg128:** Q0 19.66 +- 0.80; P0 **1.47** +- 0.14; P0 env off 1.15. In the P0
+  `-v` decode log zero HTP MUL_MATs read an `HTP0:0-HOST` source: decode runs on the CPU and is
+  still ~13x slower than two-copy - suspect the CPU cannot read the -HOST buffer in place (if the
+  buffer type is not host, the scheduler copies weights every token). Unverified.
+- **DSP stage profile, pp512 (GGML_HEXAGON_PROFILE=3), Q4_0 matmuls total ms:**
+  Q0 DMA 301.3 / HVX reader 128.0 / HMX 265.6; P0 DMA 3248.0 / reader 3204.1 / HMX 256.0.
+  Worst family ffn_down (k 10752): P0 reader 1891 ms vs Q0 77 ms. HMX compute is equal; the reader
+  is ~25x on device (3.75x in the simulator) and the raw DMA ~10.8x. The one-copy prefill is
+  bound by the reader + raw DMA, not by HMX.
