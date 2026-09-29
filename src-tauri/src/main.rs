@@ -23,6 +23,7 @@ mod measurement;
 mod metrics;
 mod options;
 mod pairing;
+mod room;
 mod placement;
 mod road;
 mod startup;
@@ -36,7 +37,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -98,6 +99,11 @@ struct Brain {
     /// One walk at a time: a second press while the first is still deciding,
     /// downloading or starting must not start a second of anything.
     turning_on: AtomicBool,
+    /// The room this computer hosts, opened once beside the pairing store
+    /// and shared with the door. `None` when its store could not be opened:
+    /// the brain still runs, and the door's room routes answer with the one
+    /// honest sentence instead of a room that pretends.
+    room: OnceLock<Arc<kalsa_room::Room>>,
     /// How many Turn offs the owner has asked for. A walk captures it at its
     /// start and re-checks it before each start it makes: a stop taken
     /// mid-walk is never undone by the launch that follows.
@@ -310,6 +316,7 @@ impl Brain {
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
+            room: OnceLock::new(),
         }
     }
 
@@ -603,6 +610,12 @@ impl Brain {
                 // itself, mid-exchange. The road points at the same bound
                 // address — nothing it names stops being served — and the
                 // switch still governs it, as on the fast path.
+                // The room follows the set: a device the owner forgot
+                // leaves it the same moment the door stops serving its
+                // credential, and one just allowed joins under its label.
+                if let (Some(room), Some(host_id)) = (self.room.get(), active.host.or(host)) {
+                    room::reconcile(room, host_id, &active.devices, &devices);
+                }
                 active.door.set_devices(devices.clone());
                 active.devices = devices;
                 active.host = host;
@@ -638,6 +651,10 @@ impl Brain {
                 let tier = {
                     let launch = self.launch.lock().ok();
                     disk_tier(launch.as_deref().and_then(|stored| stored.as_ref()))
+                };
+                let door = match (self.room.get(), host) {
+                    (Some(room), Some(host)) => door.with_room(Arc::clone(room), host),
+                    _ => door,
                 };
                 let door = match tier {
                     Ok(tier) => match door
@@ -1959,6 +1976,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // into a computer whose owner cannot run a model at all.
             if let Err(error) = take_own_seat(&file) {
                 eprintln!("kalsa-brain: this computer could not take its own seat: {error}");
+            }
+            // The room this computer hosts, opened once in the same data
+            // directory the pairing store lives in: the door gets it when
+            // it is built, the desktop's own room view gets it through
+            // [`room`], and a failure here costs the room alone — the door
+            // then answers every room route with the one honest sentence,
+            // never a pretend one.
+            match kalsa_room::Room::open(
+                &file.parent().unwrap_or_else(|| std::path::Path::new("")),
+            ) {
+                Ok(opened) => {
+                    let _ = app.state::<Brain>().room.set(Arc::new(opened));
+                }
+                Err(error) => {
+                    eprintln!("kalsa-brain: the room could not be opened: {error}");
+                }
             }
             // A pairing-side loopback bind failure is a startup failure,
             // not an empty pairing state: `?` aborts the hook, and tauri

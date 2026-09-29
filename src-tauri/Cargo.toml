@@ -24,6 +24,7 @@ kalsa-download = { path = "../crates/kalsa-download" }
 kalsa-reuse = { path = "../crates/kalsa-reuse" }
 kalsa-iroh = { path = "../crates/kalsa-iroh" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }
+kalsa-room = { path = "../crates/kalsa-room" }
 kalsa-probe = { path = "../crates/kalsa-probe" }
 kalsa-runtime = { path = "../crates/kalsa-runtime" }
 kalsa-tune = { path = "../crates/kalsa-tune" }
