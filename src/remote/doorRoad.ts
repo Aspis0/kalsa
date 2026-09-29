@@ -103,7 +103,13 @@ export async function establishDoorRoad(
 
 export type DoorFetch = (
   url: string,
-  init: { method: string; headers: Record<string, string>; signal?: AbortSignal },
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    /** JSON body; the tunnel recomputes Content-Length and never forwards one. */
+    body?: string;
+    signal?: AbortSignal;
+  },
 ) => Promise<TunnelJsonResponse>;
 
 /**
