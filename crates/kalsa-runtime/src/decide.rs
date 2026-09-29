@@ -51,11 +51,16 @@ pub enum DecideError {
     NothingWorked {
         attempts: Vec<(ServerBackend, String)>,
     },
-    /// Every candidate died on the wire — DNS, connect, TLS, a silenced
-    /// host — before any answer could be judged, and no probe ever ran.
-    /// The network is the reason no backend worked, and the app says so
-    /// instead of blaming the builds.
+    /// The wire refused the walk before any probe ran — DNS, connect,
+    /// TLS, a silenced host: the probe model's own fetch
+    /// (`probe_model_reason`, no candidate reached) or every candidate's
+    /// fetch (`attempts`). The network is the reason no backend worked,
+    /// and the app says so instead of blaming the builds.
     EngineUnreachable {
+        /// The wire's own words when the walk died at the probe model —
+        /// before any candidate ran, so `attempts` is empty. `None` once
+        /// candidates were reached; then their words are in `attempts`.
+        probe_model_reason: Option<String>,
         attempts: Vec<(ServerBackend, String)>,
     },
 }
@@ -80,7 +85,13 @@ impl fmt::Display for DecideError {
                 }
                 Ok(())
             }
-            DecideError::EngineUnreachable { attempts } => {
+            DecideError::EngineUnreachable {
+                probe_model_reason,
+                attempts,
+            } => {
+                if let Some(reason) = probe_model_reason {
+                    return write!(f, "the network refused the walk: {reason}");
+                }
                 write!(f, "the network refused every server build:")?;
                 for (backend, reason) in attempts {
                     write!(f, "\n  {} — {reason}", backend.name())?;
@@ -178,7 +189,7 @@ pub(crate) fn decide_in(
         }
         // Its build is gone from disk: decide again from the top.
     }
-    let model = store::ensure_probe_model(root, progress).map_err(map_store_error)?;
+    let model = store::ensure_probe_model(root, progress).map_err(map_probe_model_error)?;
     let port = probe::free_loopback_port()
         .map_err(|e| DecideError::CannotAcquire(format!("no free loopback port: {e}")))?;
     let params = ProbeParams::for_port(port);
@@ -235,7 +246,10 @@ pub(crate) fn decide_in(
 /// one answer or one probe that ran, and the wire was not the reason.
 fn attempts_verdict(attempts: Vec<(ServerBackend, String)>, all_wire: bool) -> DecideError {
     if all_wire {
-        DecideError::EngineUnreachable { attempts }
+        DecideError::EngineUnreachable {
+            probe_model_reason: None,
+            attempts,
+        }
     } else {
         DecideError::NothingWorked { attempts }
     }
@@ -294,6 +308,20 @@ fn map_store_error(e: StoreError) -> DecideError {
         }
         other => DecideError::CannotAcquire(other.to_string()),
     }
+}
+
+/// The probe model's fetch, decided: on the wire the walk's verdict is
+/// the network's, in the wire's own words — no candidate has been
+/// reached, so there are no attempts to name. The disk and every other
+/// failure keep `map_store_error`'s verdict.
+fn map_probe_model_error(e: StoreError) -> DecideError {
+    if matches!(&e, StoreError::Download(d) if d.is_network()) {
+        return DecideError::EngineUnreachable {
+            probe_model_reason: Some(e.to_string()),
+            attempts: vec![],
+        };
+    }
+    map_store_error(e)
 }
 
 pub(crate) fn state_file(root: &Path) -> PathBuf {
@@ -385,6 +413,42 @@ mod tests {
         assert!(matches!(
             map_store_error(StoreError::Download(DownloadError::Network(reset))),
             DecideError::CannotAcquire(_)
+        ));
+    }
+
+    #[test]
+    fn a_probe_model_fetched_on_a_dead_wire_is_the_networks_verdict() {
+        // First run, DNS blocked: the walk dies at the probe model, before
+        // any candidate. That is the same fact the candidate loop reports
+        // (`d.is_network()`), so it wears the same verdict — the wire's own
+        // words travelling in the variant, with no backend to name.
+        let unreachable = StoreError::Download(DownloadError::Unreachable(
+            std::io::Error::new(std::io::ErrorKind::TimedOut, "connection timed out"),
+        ));
+        let err = map_probe_model_error(unreachable);
+        match &err {
+            DecideError::EngineUnreachable {
+                probe_model_reason,
+                attempts,
+            } => {
+                assert!(attempts.is_empty(), "no candidate ran: {attempts:?}");
+                assert!(
+                    probe_model_reason.as_deref().is_some_and(|r| r.contains("timed out")),
+                    "the wire's own words: {probe_model_reason:?}"
+                );
+            }
+            other => panic!("the network's verdict, not {other:?}"),
+        }
+        // The Display/log text keeps them too.
+        assert!(err.to_string().contains("timed out"), "{err}");
+        // A full disk is still this machine's fact, wire or no wire.
+        let full = StoreError::Io(std::io::Error::new(
+            std::io::ErrorKind::StorageFull,
+            "no space left",
+        ));
+        assert!(matches!(
+            map_probe_model_error(full),
+            DecideError::StorageFull
         ));
     }
 

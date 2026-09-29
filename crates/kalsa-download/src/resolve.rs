@@ -29,8 +29,8 @@ pub(crate) fn std_lookup(netloc: &str) -> io::Result<Vec<SocketAddr>> {
 ///
 /// WHY the lookup runs on its own thread: it is a blocking call with no
 /// deadline of its own, and the only way to stop waiting for it is to stop
-/// waiting. The thread is detached, blocked in `getaddrinfo` until the
-/// resolver answers — one blocked thread per attempt, not a stuck walk.
+/// waiting. It blocks in `getaddrinfo`; a wedged resolver never answers:
+/// a blocked thread per attempt for the process's life — not a stuck walk.
 pub(crate) fn deadline_resolver(
     deadline: Duration,
     lookup: impl Fn(&str) -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static,

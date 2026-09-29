@@ -496,10 +496,11 @@ pub(crate) fn choose_with_processor_fallback(
             // answer carries the sentence that says which memory decided.
             let decision = match decide_processor() {
                 Ok(decision) => decision,
-                // A wire that killed every processor fetch outranks the
-                // card refusal: the processor route is how this machine
-                // would run at all, and the sentence that names the
-                // network is the one the owner can act on.
+                // A wire that refused the processor route — its probe
+                // model or every fetch — outranks the card refusal: the
+                // processor route is how this machine would run at all,
+                // and the sentence that names the network is the one the
+                // owner can act on.
                 Err(error @ kalsa_runtime::DecideError::EngineUnreachable { .. }) => {
                     return Err(error.into());
                 }
@@ -1922,6 +1923,7 @@ mod tests {
             || {
                 calls.set(calls.get() + 1);
                 Err(kalsa_runtime::DecideError::EngineUnreachable {
+                    probe_model_reason: None,
                     attempts: vec![],
                 })
             },

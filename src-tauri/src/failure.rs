@@ -33,10 +33,10 @@ pub(crate) enum StartupFailure {
     NothingFits,
     NothingBetter,
     NothingFastEnough,
-    /// Every engine archive fetch died on the wire — DNS, connect, TLS, a
-    /// silenced host — so no backend could even be tried. The network is
-    /// the fixable fact; an engine that was tried and failed says the
-    /// other sentence.
+    /// A fetch died on the wire — DNS, connect, TLS, a silenced host —
+    /// before any backend could be tried: the probe model's, or every
+    /// engine archive fetch. The network is the fixable fact; an engine
+    /// that was tried and failed says the other sentence.
     EngineUnreachable,
     // — starting the server (kalsa-launch) —
     /// The chosen model needs more memory than this machine can give it:
@@ -286,8 +286,9 @@ impl From<DecideError> for StartupFailure {
             // A full disk gets the disk's sentence, not the connection's.
             DecideError::StorageFull => Self::NotEnoughDisk(None),
             DecideError::NothingWorked { .. } => Self::NoBackendWorked,
-            // The wire killed every fetch before an answer: the sentence
-            // that names the network, not one that blames the builds.
+            // The wire refused before any answer existed — the probe
+            // model's fetch or every candidate's: the sentence that names
+            // the network, not one that blames the builds.
             DecideError::EngineUnreachable { .. } => Self::EngineUnreachable,
         }
     }
@@ -418,6 +419,7 @@ mod tests {
         // NoBackendWorked words would send an owner on a filtered network
         // to wait for an update that cannot help.
         let spoken = words(&StartupFailure::from(DecideError::EngineUnreachable {
+            probe_model_reason: None,
             attempts: vec![],
         }));
         assert_eq!(
