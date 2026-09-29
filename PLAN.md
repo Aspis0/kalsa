@@ -609,6 +609,7 @@ unplugged only), with an occasional exploratory turn on another backend while co
 calibration test. Gate before any build: an S23 run proving the battery current separates
 NPU/GPU/CPU per turn above noise; the result goes back to the owner before design work. This step
 sits between (1) and (4).
+S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated, wired, landed — disabled by default
 
