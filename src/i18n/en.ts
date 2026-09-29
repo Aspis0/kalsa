@@ -1348,6 +1348,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       tooHot: "Too hot — paused",
       unloaded: "Model unloaded",
       failed: "Stopped by an error",
+      /** A remote failure from before the current pairing: past, not present. */
+      failedStale: "Failed before the current pairing",
     },
     /** Shown whenever the composer refuses input. It is never empty then. */
     held: {
@@ -1466,6 +1468,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       /** A failed stop, carrying the engine's own reason: §2.8 forbids a
        *  generic apology in this row. */
       stopFailed: "Stopped by an error: {reason}",
+      /** The stale-pairing twin of stopFailed: same reason, past framing. */
+      stopFailedStale: "Failed before the current pairing: {reason}",
     },
     a11y: {
       band: "Machine status",

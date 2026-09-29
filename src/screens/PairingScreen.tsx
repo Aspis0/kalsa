@@ -13,6 +13,7 @@ import { createDeskPairingFetch } from "../pairing/pairingDeskFetch";
 import { chooseRoad, isValidNodeHex } from "../remote/road";
 import { irohModulePresent } from "../remote/irohBridge";
 import { logPairingFail, type PairingFailStage } from "../pairing/pairingFailLog";
+import { markPairingCompleted } from "../pairing/pairingCompletedAt";
 import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import {
   savePairingCredential,
@@ -156,6 +157,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
     }).then((outcome) => {
       if (outcome.result === "aborted") return;
       if (outcome.result === "paired") {
+        // Allow is the moment the current pairing began: the stamp is what
+        // tells the chat which remote failures predate it. Fire-and-forget —
+        // a failed stamp write only means nothing is ever marked stale.
+        void markPairingCompleted().catch(() => undefined);
         setState("paired");
         return;
       }

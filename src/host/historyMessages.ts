@@ -42,7 +42,11 @@ export function buildPersistableMessages(
 
 /** Validate every field (even nested) of a persisted history payload: a
  *  corrupt record is skipped or clipped, never thrown on. */
-export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
+export function sanitizeHistoryMessages(
+  raw: unknown,
+  locale: Locale,
+  stamps?: { remoteStaleBefore?: number | null },
+): Message[] {
   if (!Array.isArray(raw)) return [];
   const strings = getStrings(locale);
   const result: Message[] = [];
@@ -83,6 +87,22 @@ export function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[]
       }
       if (record.failureThermal === true) {
         message.failureThermal = true;
+      }
+      // The remote mark rides with the failure it explains; records from
+      // before the flag simply have no source and render as they always did.
+      if (record.failureSource === "remote") {
+        message.failureSource = "remote";
+        // One stamp at restore keeps the render a pure read: a remote
+        // failure OLDER than the current pairing's completion belongs to a
+        // previous pairing, and must not read as this one's live state.
+        const staleBefore = stamps?.remoteStaleBefore;
+        if (
+          typeof staleBefore === "number" &&
+          Number.isFinite(staleBefore) &&
+          message.createdAt < staleBefore
+        ) {
+          message.failureStale = true;
+        }
       }
     }
     if (record.edited === true) {

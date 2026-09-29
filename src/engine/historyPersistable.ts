@@ -52,6 +52,10 @@ export function toPersistableHistoryMessages(
     delete next.streaming;
     delete next.statusLabel;
     delete next.statusHistory;
+    // Volatile like the status fields: the stale-pairing stamp is decided at
+    // restore from the pairing stamp, and an in-memory-only field that rode
+    // into the boot JSON would break the save/load hash parity.
+    delete next.failureStale;
     if (rec.streaming && allowStreamingPartial) {
       next.interrupted = true;
     }

@@ -52,6 +52,12 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   savePairingCredential: jest.fn(),
 }));
 
+// The completion stamp writes SecureStore; the screen's paired verdict is
+// what must call it, and the spy below asserts exactly that.
+jest.mock("../pairing/pairingCompletedAt", () => ({
+  markPairingCompleted: jest.fn(async () => undefined),
+}));
+
 // A completed pairing hands the stored computer-model id back to the
 // remote settings — the spy stands in for that write.
 jest.mock("../engine/remote/remoteSettings", () => ({
@@ -112,6 +118,7 @@ import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { Keyboard } from "react-native";
 import { savePairingCredential } from "../pairing/pairingCredentialStore";
+import { markPairingCompleted } from "../pairing/pairingCompletedAt";
 import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
 import { irohModulePresent, openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";
@@ -940,6 +947,9 @@ describe("PairingScreen", () => {
 
     expect(renderer.root.findByProps({ testID: "pairing.paired" }).props.children)
       .toBe("pairing.paired");
+    // The Allow verdict is the moment the current pairing began: the stamp
+    // the chat compares old remote failures against.
+    expect(markPairingCompleted).toHaveBeenCalledTimes(1);
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.paired.done" }).props.onPress();
     });
@@ -969,6 +979,8 @@ describe("PairingScreen", () => {
     const fails = log.mock.calls.filter((call) => call[0] === "KALSA_PAIRING_FAIL");
     expect(fails).toHaveLength(1);
     expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "confirm_timeout", status: null });
+    // No Allow verdict: the pairing did not complete, so no stamp.
+    expect(markPairingCompleted).not.toHaveBeenCalled();
 
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.retry" }).props.onPress();

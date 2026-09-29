@@ -59,3 +59,42 @@ describe("turn finalization preserves emission provenance", () => {
     expect(message).not.toHaveProperty("emissionSource");
   });
 });
+
+describe("the failure's source lands on the message", () => {
+  function finalizeWithFailure(failure: { remote?: boolean }) {
+    const fence = createTurnFence();
+    const token = fence.beginRun();
+    let messages: Message[] = [
+      { id: "assistant-1", role: "assistant", text: "", streaming: true, createdAt: 1 },
+    ];
+    finalizeAssistantTurn(
+      {
+        fence,
+        token,
+        assistantId: "assistant-1",
+        messagesRef: { current: messages },
+        setMessages: (update) => {
+          messages = update(messages);
+        },
+        persist: () => null,
+        getEpoch: () => 0,
+      },
+      { thinkingText: undefined },
+      { interrupted: false, failure: { reason: "remote_brain_http_401", ...failure } },
+    );
+    return messages[0];
+  }
+
+  it("a remote failure stamps failureSource remote", () => {
+    expect(finalizeWithFailure({ remote: true })).toMatchObject({
+      failed: true,
+      failureSource: "remote",
+    });
+  });
+
+  it("a local failure carries no source", () => {
+    const message = finalizeWithFailure({});
+    expect(message.failed).toBe(true);
+    expect(message.failureSource).toBeUndefined();
+  });
+});

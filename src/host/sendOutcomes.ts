@@ -18,7 +18,11 @@ import { finalizeAssistantTurn, type FinalizeCtx } from "./sendFinalize";
 
 export type SendOutcomeCaptured = ReturnType<RichCallbacks["captured"]>;
 
-export type SendOutcomeCtx = FinalizeCtx & { t: TranslateFn };
+export type SendOutcomeCtx = FinalizeCtx & {
+  t: TranslateFn;
+  /** The send ran on the remote brain: its failures stamp failureSource. */
+  remote: boolean;
+};
 
 export function applySendOutcome(
   result: SendResult,
@@ -46,6 +50,7 @@ export function applySendOutcome(
       failure: {
         reason: captured.failureReason ?? result.message?.trim(),
         thermal: result.reasonKey === "chat.thermalHardGateBody",
+        remote: ctx.remote,
       },
       afterSessionSave: result.afterSessionSave,
     });

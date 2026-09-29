@@ -59,6 +59,13 @@ export type TranscriptMessage = {
    */
   stop?: TranscriptStop;
   /**
+   * A past failure: the turn failed on a pairing THIS one replaced (a remote
+   * failure older than the current pairing's completion). The band dims the
+   * answer so a stale error cannot read as the current pairing's state; the
+   * stop row carries the past framing.
+   */
+  stale?: boolean;
+  /**
    * The user edited this bubble and resent it (D1 row 17): the small badge
    * under the capsule. Carried from the host's `Message.edited`, which the
    * history path already round-trips.

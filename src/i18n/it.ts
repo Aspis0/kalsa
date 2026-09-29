@@ -1303,6 +1303,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       tooHot: "Troppo caldo — in pausa",
       unloaded: "Modello scaricato",
       failed: "Fermato da un errore",
+      failedStale: "Fallito prima del collegamento attuale",
     },
     /** Shown whenever the composer refuses input. Never empty then. */
     held: {
@@ -1412,6 +1413,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       /** A failed stop, carrying the engine's own reason: §2.8 forbids a
        *  generic apology in this row. */
       stopFailed: "Fermato da un errore: {reason}",
+      stopFailedStale: "Fallito prima del collegamento attuale: {reason}",
     },
     a11y: {
       band: "Stato della macchina",

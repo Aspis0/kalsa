@@ -133,6 +133,7 @@ function AnswerView({
   readingMeasure,
   sources,
   speaking,
+  stale,
   stop,
   styles,
   text,
@@ -159,6 +160,8 @@ function AnswerView({
   onSpeak?: () => void;
   speaking?: boolean;
   sources?: readonly TranscriptSource[];
+  /** A past failure (pairing replaced since): the whole answer dims. */
+  stale?: boolean;
   stop?: TranscriptStop;
   styles: TranscriptStyles;
   text: string;
@@ -172,7 +175,10 @@ function AnswerView({
   const showChips =
     (onCopy !== undefined || onSpeak !== undefined) && !caret && text.trim().length > 0;
   return (
-    <View testID={`transcript.answer.${id}`}>
+    <View
+      testID={`transcript.answer.${id}`}
+      style={stale ? { opacity: 0.5 } : undefined}
+    >
       {thinking ? (
         <ThoughtCloud
           answered={thinking.answered}

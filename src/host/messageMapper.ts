@@ -86,6 +86,16 @@ function mapThinking(message: Message, opts: MapperOptions): TranscriptThinking 
  */
 function mapStop(message: Message): TranscriptStop | undefined {
   if (message.failed === true) {
+    // A remote failure from BEFORE the current pairing is past, not present:
+    // quiet tone, past framing, and the band dims the bubble (mapper sets
+    // `stale` beside this). The stored reason stays — it explains the row —
+    // but it can no longer read as this pairing's live state.
+    if (message.failureStale === true) {
+      const reason = (message.failureReason ?? "").trim();
+      return reason === ""
+        ? { key: "shell.phase.failedStale", tone: "quiet" }
+        : { key: "shell.composer.stopFailedStale", params: { reason }, tone: "quiet" };
+    }
     const view = stopOutcome(
       message.failureThermal === true
         ? { cause: "thermal" }
@@ -114,6 +124,7 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
     if (caretVisible(message.streaming, message.text)) mapped.caret = true;
     const stop = mapStop(message);
     if (stop) mapped.stop = stop;
+    if (message.failureStale === true) mapped.stale = true;
     // The mini-app definition crosses whole (D1 row 4/28): the card reads
     // kind + title, the sheet reads the rest — nothing is projected away
     // here, because the sheet opens from THIS object.

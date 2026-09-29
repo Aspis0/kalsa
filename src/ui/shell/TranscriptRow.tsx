@@ -75,6 +75,7 @@ export const TranscriptRow = memo(function TranscriptRow({
       readingMeasure={layout.readingMeasure}
       speaking={speaking}
       sources={message.sources}
+      stale={message.stale}
       stop={message.stop}
       styles={styles}
       text={message.text}

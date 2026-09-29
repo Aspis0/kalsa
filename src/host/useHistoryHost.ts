@@ -23,6 +23,7 @@ import {
 } from "../chat/historyWriteGuard";
 import { createHistoryWriter, type HistoryWriter } from "./historyWrite";
 import { buildPersistableMessages, sanitizeHistoryMessages } from "./historyMessages";
+import { getPairingCompletedAt } from "../pairing/pairingCompletedAt";
 import {
   messagesKey,
   previewFromMessages,
@@ -159,8 +160,14 @@ export function useHistoryHost(params: HistoryHostParams): {
     }
 
     let mounted = true;
-    AsyncStorage.getItem(key)
-      .then((raw) => {
+    // The pairing stamp rides with the load: remote failures older than the
+    // current pairing's completion are marked past at restore, once, so the
+    // render path never touches storage. An unreadable stamp stamps nothing.
+    Promise.all([
+      AsyncStorage.getItem(key),
+      getPairingCompletedAt().catch(() => null),
+    ])
+      .then(([raw, pairingStamp]) => {
         if (!mounted || writer.epoch() !== loadEpoch) return;
         // The guard classifies the load by message IDENTITY; a lossy raw is
         // preserved in the quarantine key before any write can be issued
@@ -168,7 +175,7 @@ export function useHistoryHost(params: HistoryHostParams): {
         let begun: BegunHistoryLoad<Message>;
         try {
           begun = historyGuard.beginHistoryLoad(raw, key, (entries) =>
-            sanitizeHistoryMessages(entries, locale),
+            sanitizeHistoryMessages(entries, locale, { remoteStaleBefore: pairingStamp }),
           );
         } catch {
           // A throw here must not leave the gate closed with no user signal:

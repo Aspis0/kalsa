@@ -315,6 +315,7 @@ export function useSendHost(params: SendHostParams): SendHost {
             persist: params.persist,
             getEpoch: params.getEpoch,
             t,
+            remote: remoteBackend,
           },
           rich.captured(),
         );

@@ -37,6 +37,8 @@ import {
 } from "./remoteSettings";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
+import { logRemoteBrainFailure, type RemoteBrainFailureRoad } from "./remoteBrainFailureLog";
+import type { Road } from "../../remote/road";
 
 let ready = false;
 let activeId: string | null = null;
@@ -112,6 +114,8 @@ export async function testRemoteConnection(): Promise<{
   modelId: string | null;
   models?: string[];
   error?: string;
+  /** The road the probe rode; absent when it died before the dial. */
+  road?: Road;
 }> {
   const configured = getRemoteServerModelId();
   const probe = new AbortController();
@@ -174,6 +178,7 @@ export async function testRemoteConnection(): Promise<{
         return {
           ok: false,
           modelId: configured || null,
+          road: road.road,
           error: `models HTTP ${models.status}`,
         };
       }
@@ -184,17 +189,18 @@ export async function testRemoteConnection(): Promise<{
       // alias later). Persisting what THIS probe saw must not trip the
       // config-changed hook — the init in flight would supersede itself.
       await adoptRemoteServerModelId(decision.modelId);
-      return { ok: true, modelId: decision.modelId, models: ids };
+      return { ok: true, modelId: decision.modelId, models: ids, road: road.road };
     }
     if (decision.kind === "error") {
       return {
         ok: false,
         modelId: configured || null,
         models: ids,
+        road: road.road,
         error: decision.code,
       };
     }
-    return { ok: true, modelId: decision.modelId, models: ids };
+    return { ok: true, modelId: decision.modelId, models: ids, road: road.road };
   } catch (err) {
     return {
       ok: false,
@@ -219,6 +225,10 @@ export async function initRemoteEngine(
   if (!probe.ok) {
     ready = false;
     activeId = null;
+    // Success logs (remote.brain.init); so must failure, or a dead probe is
+    // invisible in logcat — tonight's "Could not reach your computer" with
+    // no line at all.
+    logRemoteBrainFailure("init", probe.road ?? "unknown", new Error(probe.error ?? ""));
     const strings = getStrings(options.locale);
     throw new Error(probe.error || strings.errors.modelNotLoaded);
   }
@@ -280,15 +290,20 @@ export async function streamRemoteAssistantTurn(
   // manual URL and token remain the fallback for users who have not paired.
   const serverModel = getRemoteServerModelId();
   if (inFlight) {
+    logRemoteBrainFailure("stream", "unknown", new Error("remote_brain_busy"));
     callbacks.onError(new Error("remote_brain_busy"));
     return;
   }
   const myGen = ++streamGeneration;
   const stillMine = () => myGen === streamGeneration;
   inFlight = true;
+  // The road the turn ended on, for its one failure line: "unknown" until
+  // the dial answers, the chosen road after.
+  let turnRoad: RemoteBrainFailureRoad = "unknown";
   const reportPreStreamError = (err: unknown) => {
     if (!stillMine()) return;
     inFlight = false;
+    logRemoteBrainFailure("stream", turnRoad, err);
     const failure = err instanceof Error ? err : new Error(String(err));
     const control = failure as { code?: string; superseded?: boolean };
     const ours =
@@ -347,6 +362,7 @@ export async function streamRemoteAssistantTurn(
   }
   // The turn's iroh tunnel is released only while it is still ours: once
   // send() takes it, the chat XHR shim owns its close.
+  turnRoad = road.road;
   let turnTunnel: IrohTunnel | null = road.road === "iroh" ? road.firstTunnel : null;
   const releaseTurnTunnel = () => {
     const tunnel = turnTunnel;
@@ -407,6 +423,7 @@ export async function streamRemoteAssistantTurn(
   const finishOnce = (err?: Error) => {
     if (closed) return;
     closed = true;
+    if (err) logRemoteBrainFailure("stream", turnRoad, err);
     releaseTurnTunnel();
     if (timer != null) {
       clearTimeout(timer);

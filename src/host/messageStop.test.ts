@@ -177,3 +177,41 @@ describe("sanitize → mapper round trip of a failed turn", () => {
     expect("stop" in out[3]).toBe(false);
   });
 });
+
+describe("a remote failure from before the current pairing", () => {
+  const stale = base({
+    role: "assistant",
+    text: "⚠️ Could not reach your computer.",
+    failed: true,
+    failureSource: "remote",
+    failureReason: "Could not reach your computer. Check the address and try again.",
+    failureStale: true,
+  });
+
+  test("draws the past framing in quiet, not danger", () => {
+    const out = toTranscriptMessage(stale, opts());
+    expect(out.stop).toEqual({
+      key: "shell.composer.stopFailedStale",
+      params: { reason: "Could not reach your computer. Check the address and try again." },
+      tone: "quiet",
+    });
+    expect(out.stale).toBe(true);
+  });
+
+  test("the reasonless stale failure keeps its own honest line", () => {
+    const out = toTranscriptMessage(base({ ...stale, failureReason: undefined }), opts());
+    expect(out.stop).toEqual({ key: "shell.phase.failedStale", tone: "quiet" });
+    expect(out.stop?.params).toBeUndefined();
+    expect(out.stale).toBe(true);
+  });
+
+  test("a current failure never carries the stale flag or the past framing", () => {
+    const out = toTranscriptMessage(base({ ...stale, failureStale: undefined }), opts());
+    expect(out.stop).toEqual({
+      key: "shell.composer.stopFailed",
+      params: { reason: "Could not reach your computer. Check the address and try again." },
+      tone: "danger",
+    });
+    expect("stale" in out).toBe(false);
+  });
+});

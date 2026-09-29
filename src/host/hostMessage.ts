@@ -80,6 +80,19 @@ export type Message = {
   /** The device refused the turn (thermal), not the engine: the mapper sends
    *  it to §2.8's thermal row instead of the failed row. */
   failureThermal?: boolean;
+  /**
+   * Which brain failed: "remote" = the computer, not this phone. Set by the
+   * send path's finalize; persisted and restored with the failed mark, so a
+   * re-pair can tell computer failures from phone failures.
+   */
+  failureSource?: "remote";
+  /**
+   * VOLATILE, decided at restore: a remote failure older than the current
+   * pairing's completion belongs to a previous pairing and renders as past
+   * (quiet row, dimmed bubble). Never persisted — the persistable
+   * projection drops it, or the boot hash would diverge.
+   */
+  failureStale?: boolean;
   /** True when the user edited this message text (edit-then-regen flow). */
   edited?: boolean;
   statusLabel?: string;

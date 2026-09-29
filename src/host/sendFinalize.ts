@@ -67,7 +67,13 @@ export function finalizeAssistantTurn(
     fallbackText?: string;
     /** §2.8's failed row: mark the message failed and carry the engine's own
      *  reason (verbatim, possibly absent) — never a catalogued apology. */
-    failure?: { reason?: string | undefined; thermal?: boolean };
+    failure?: {
+      reason?: string | undefined;
+      thermal?: boolean;
+      /** The failure was the remote brain's: stamps failureSource so a later
+       *  re-pair can tell computer failures from phone failures. */
+      remote?: boolean;
+    };
     /** The engine's deferred extract release, adopted only through the save. */
     afterSessionSave?: () => void;
   },
@@ -95,6 +101,7 @@ export function finalizeAssistantTurn(
           failed: opts.failure ? true : undefined,
           failureReason: opts.failure?.reason?.trim() || undefined,
           failureThermal: opts.failure?.thermal ? true : undefined,
+          failureSource: opts.failure?.remote === true ? "remote" : undefined,
           ...(emittedSave !== undefined
             ? {
                 modelEmittedText: emittedSave,
