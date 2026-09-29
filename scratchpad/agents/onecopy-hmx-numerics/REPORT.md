@@ -287,3 +287,34 @@ Reading: on the S23 the CPU reads the rpcmem buffer at full speed (C1 = C0n); th
 of one copy is the lost CPU repack (-33 %: 15.97 vs 23.77). The 1.4 tok/s was the hopping, not the
 memory. Governor shape for one copy on the S23 today: prefill on the NPU (fused raw reader, 125 tok/s,
 being optimised) + decode on the CPU at ~16 tok/s, vs two copies ~862 / ~20-24.
+
+## Rewritten reader `81c0d6ff5` on the S23 (2026-09-29)
+
+Engine `spike/onecopy-hmx-raw`: `00e01a2bd` (Sonnet: 7-block windows, halfword transpose, vlut16;
+sim 2641 -> 190 Pcycles/tile vs tiled 162), then GLM `70eedf236`/`19e4a23fc`/`81c0d6ff5` (gate grows
+n_k 2/5 shapes, staged negative controls, measured over-read, a double-evaluating span macro in the
+harness fixed). Coordinator reran the sim gate: `ALL PASS`, `ALL OVER-READS IN BOUND`, EXIT 0;
+negative controls 1/2/3 EXIT 1. Worker-stack chain measured on the LTO `.so`: <= 6919 B (v73) of
+16384. Artifacts on device: `llama-bench` `5310b8a3…`, v73 skel `3b0066ab…`. Luna `88ee306b`,
+unplugged, Awake, thermal 0; raw logs kept on the Mac under `/tmp/onecopy-hmx-81c0/` (not in lab).
+
+- **Correct on silicon:** KLD raw one-copy 0.000946 = two-copy 0.000946 (max 0.011872, top-1
+  97.843 %) with both arms pinned `.*=HTP0:0` (token_embd on HTP in both, which also closes the
+  P0/Q0 gap above: it was the placement). Unaligned 128-B VTCM loads: no fault, no garbage.
+- **DMA is not the bottleneck:** `HTP_TRACE_EVT_DMA_WAIT` sums to 0.55 ms per pp512 pass (560 waits);
+  reader 97.26 ms vs tiled 81.10 ms; HMX 267.00 vs 265.38 ms.
+- **Speed, pp512 tok/s (coordinator re-read every value in the logs):**
+
+| arm | placement | round 1 | round 2 |
+|---|---|---|---|
+| T0 two-copy | no `-ot` | 876.88 | 874.08 |
+| T1 two-copy | `token_embd.weight=HTP0:0` | 468.56 | 469.75 |
+| R0 raw one-copy | norms+token_embd on HTP0, `.*=HTP0:0-HOST` | 456.70 | 459.20 |
+| R1 raw one-copy | same, but `token_embd.weight=CPU` | **820.88** | **816.30** |
+
+Reading: the one-copy NPU prefill reaches ~94 % of two-copy (818.6 vs 875.5) once the tied
+token_embd/output (q6_K) is kept off HTP; the 458 was the placement, not the reader. R1 moves both
+the embedding lookup and the tied output matmul, so the two costs are not separated. Decode on
+this path is still the known problem (tg128 raw 1.59 vs two-copy 19.67, graph hopping; product
+decode = CPU on the -HOST buffer, ~16 tok/s). Next: make the R1 placement the default for the
+raw path in the engine (not an `-ot` string), then an app-level check.
