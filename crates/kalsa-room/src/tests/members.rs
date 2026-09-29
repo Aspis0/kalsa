@@ -197,10 +197,10 @@ fn lookalikes_of_kalsa_do_not_get_the_name() {
     assert!(matches!(room.set_name(member, "Kals\u{0430}"), Err(NameError::MixedScripts)));
     // Fullwidth dress maps to ASCII, spaces (any Unicode space) are
     // removed for this comparison: all of these ARE the assistant.
-    for taken in ["\u{FF2B}\u{FF41}\u{FF4C}\u{FF53}\u{FF41}", "K alsa", "Kal\u{2003}sa", "K A L S A"] {
+    for taken in ["\u{FF2B}\u{FF41}\u{FF4C}\u{FF53}\u{FF41}", "K alsa", "Kal\u{2003}sa", "K A L S A", "\u{41A}\u{430}\u{43B}\u{441}\u{430}"] {
         assert!(
             matches!(room.set_name(member, taken), Err(NameError::Reserved)),
-            "{taken:?} is Kalsa in a dress"
+            "{taken:?} is Kalsa in a dress, fullwidth or Cyrillic"
         );
     }
 }

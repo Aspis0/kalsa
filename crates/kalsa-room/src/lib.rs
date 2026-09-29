@@ -29,6 +29,11 @@
 //!
 //! One process owns a room's directory: this crate locks nothing against a
 //! second one, the same single-writer assumption the pairing store states.
+//!
+//! The transcript's line version is 1 and assumes no file written before
+//! the `kind` field existed: none can be, this crate was unwired until it
+//! gained the field. The version must be bumped the day that assumption
+//! stops being true.
 
 use std::fmt;
 

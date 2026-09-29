@@ -73,16 +73,19 @@ pub fn valid(name: &str) -> Result<String, NameError> {
 }
 
 /// The folded form compared for uniqueness: fullwidth characters mapped to
-/// their ASCII twins, every Unicode space as one plain space with runs
-/// collapsed, trimmed, then lowercased by Unicode's own simple
-/// lowercasing. No composition normalization is applied — std has none,
-/// and pulling a crate for it buys little a household name needs.
+/// their ASCII twins, the Cyrillic and Greek letters below mapped to the
+/// Latin letters a hand spelling a Latin word means by them, every Unicode
+/// space as one plain space with runs collapsed, trimmed, then lowercased
+/// by Unicode's own simple lowercasing. No composition normalization is
+/// applied — std has none, and pulling a crate for it buys little a
+/// household name needs.
 pub(crate) fn fold(name: &str) -> String {
     let mut folded = String::with_capacity(name.len());
     let mut pending_space = false;
     for c in name.chars() {
-        let c = fullwidth_to_ascii(c);
-        if is_space_separator(c) {
+        let lower: Vec<char> = fullwidth_to_ascii(c).to_lowercase().collect();
+        let lower = lower.as_slice();
+        if is_space_separator(lower[0]) {
             if !folded.is_empty() {
                 pending_space = true;
             }
@@ -92,9 +95,31 @@ pub(crate) fn fold(name: &str) -> String {
             folded.push(' ');
             pending_space = false;
         }
-        folded.extend(c.to_lowercase());
+        match lookalike_to_latin(lower[0]) {
+            Some(latin) => folded.push(latin),
+            None => folded.extend(lower.iter().copied()),
+        }
     }
     folded
+}
+
+/// The Cyrillic and Greek letters that carry one Latin letter when a hand
+/// types a Latin word on that keyboard — so an all-Cyrillic "Калса" folds
+/// to "kalsa" and is refused like every other spelling of the assistant's
+/// name. The map follows what the key MEANS (с is s, р is r), not the
+/// nearest glyph, because the name being smuggled past the comparison is
+/// typed, not drawn. Hand-listed, and honest about being the common
+/// letters, not a transliterator.
+fn lookalike_to_latin(c: char) -> Option<char> {
+    Some(match c {
+        'а' => 'a', 'е' => 'e', 'о' => 'o', 'р' => 'r', 'с' => 's',
+        'у' => 'u', 'х' => 'h', 'к' => 'k', 'м' => 'm', 'т' => 't',
+        'н' => 'n', 'в' => 'v', 'л' => 'l',
+        'α' => 'a', 'ο' => 'o', 'κ' => 'k', 'ν' => 'n', 'ρ' => 'r',
+        'τ' => 't', 'ι' => 'i', 'υ' => 'u', 'ε' => 'e', 'λ' => 'l',
+        'σ' => 's',
+        _ => return None,
+    })
 }
 
 /// The reserved-name comparison: spaces removed entirely, so "K alsa" and

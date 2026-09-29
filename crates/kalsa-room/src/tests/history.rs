@@ -74,8 +74,9 @@ fn a_cursor_beyond_either_end_is_an_empty_page_not_an_error() {
     assert!(before_zero.messages.is_empty(), "below the floor, still an empty page");
     let past = room.page_before(u64::MAX, 100).unwrap();
     assert!(
-        past.messages.is_empty(),
-        "a cursor far past the newest names a place the transcript never reached"
+        past.messages.is_empty() && !past.has_older && !past.has_newer,
+        "a cursor far past the newest names a place the transcript never reached: \
+         no page exists relative to it, not even the one behind"
     );
     // One past the newest is allowed: everything is older than that.
     let whole = room.page_before(2, 100).unwrap();

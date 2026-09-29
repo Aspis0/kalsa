@@ -55,7 +55,14 @@ impl Room {
             .map(|message| message.seq)
             .unwrap_or(0);
         if before.saturating_sub(1) > newest {
-            return Ok(page_of(&state, state.messages.len(), state.messages.len()));
+            return Ok(Page {
+                messages: Vec::new(),
+                // A cursor past the newest names a place the transcript
+                // never reached: no page exists relative to it, not even
+                // the one behind.
+                has_older: false,
+                has_newer: false,
+            });
         }
         let end = state.messages.partition_point(|message| message.seq < before);
         let start = end.saturating_sub(limit);
