@@ -11,6 +11,7 @@ use crate::events::StoredEvent;
 use crate::log::{self, Message};
 use crate::mention::calls_ai;
 use crate::room::{Room, Writer};
+use crate::roster;
 use crate::{Entry, MemberId, PostError, RoomError};
 
 impl Room {
@@ -127,6 +128,12 @@ impl Room {
             .map_err(|failure| PostError::Io(io_of(failure)))?;
         writer.file = reopened.file;
         writer.writable = reopened.writable;
+        if reopened.recovered && !self.new_epoch() {
+            // The bytes are gone and the new epoch could not be published:
+            // serving the next seqs under the old one is the silent reuse
+            // the epoch exists to prevent. Reads keep serving; writes stop.
+            writer.writable = false;
+        }
         let memory = self.lock_state().messages.len();
         let landed = match reopened.messages.len().checked_sub(memory) {
             Some(1) => reopened
@@ -152,6 +159,28 @@ impl Room {
                 Err(PostError::ReadOnly)
             }
         }
+    }
+
+    /// Mints and publishes the next epoch, and moves every live member's
+    /// history to its start. Called where a recovery dropped bytes — the
+    /// seqs a phone already saw may be re-used for different words, and
+    /// the phone learns that from the epoch, not from a wrong transcript.
+    /// `false` means the new epoch is not what the room is serving.
+    fn new_epoch(&self) -> bool {
+        let (identity, roster) = {
+            let state = self.lock_state();
+            (state.identity.clone(), state.roster.with_epoch_start())
+        };
+        let Ok(re_minted) = identity.next_epoch(&self.dir) else {
+            return false;
+        };
+        if roster::publish(&self.dir.join(roster::ROSTER_NAME), &roster).is_err() {
+            return false;
+        }
+        let mut state = self.lock_state();
+        state.identity = re_minted;
+        state.roster = roster;
+        true
     }
 
     /// Publishes a durable entry to the readers: the memory, the
@@ -192,6 +221,7 @@ fn io_of(error: RoomError) -> std::io::Error {
         RoomError::Io(error) => error,
         RoomError::Corrupt(why) => std::io::Error::other(why),
         RoomError::RosterFull => std::io::Error::other("the room has more members than it can name"),
+        RoomError::Entropy => std::io::Error::other("the room could not mint an identity"),
     }
 }
 

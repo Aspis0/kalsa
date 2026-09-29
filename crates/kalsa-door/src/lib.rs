@@ -60,6 +60,7 @@ mod proxy;
 mod request;
 mod response;
 mod registry;
+mod room;
 mod server;
 mod slot_routes;
 mod slots;
@@ -265,6 +266,10 @@ pub struct Door {
     /// saves on a switch and never on a timer.
     idle_save: Option<Duration>,
     response_observer: Option<ResponseObserverFactory>,
+    /// The room this door serves under `/kalsa/room/`, with the device id
+    /// the host seats. `None` — the door built by a caller that has not
+    /// opened one — answers every room route with one honest sentence.
+    room: Option<Arc<room::RoomDoor>>,
 }
 
 /// The devices with a connection currently being served. Presence, not
@@ -400,6 +405,7 @@ impl Door {
             slot_dir: None,
             idle_save: None,
             response_observer: None,
+            room: None,
         })
     }
 
@@ -443,6 +449,15 @@ impl Door {
     /// first.
     pub fn with_idle_save(mut self, idle_save: Duration) -> Self {
         self.idle_save = Some(idle_save);
+        self
+    }
+
+    /// The room served under `/kalsa/room/`, and the device id this
+    /// computer's own user seats in it — the room's name and the host's
+    /// default display name come from that device's label. A door built
+    /// without a room serves nothing under the prefix.
+    pub fn with_room(mut self, room: Arc<kalsa_room::Room>, host: DeviceId) -> Self {
+        self.room = Some(Arc::new(room::RoomDoor::new(room, host)));
         self
     }
 

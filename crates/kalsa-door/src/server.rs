@@ -71,6 +71,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let capacity = door.capacity;
         let head_patience = door.head_patience;
         let observer = door.response_observer.clone();
+        let worker_room = door.room.clone();
         let result = thread::Builder::new()
             .name(format!("kalsa-door-worker-{index}"))
             .spawn(move || {
@@ -81,6 +82,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_registry,
                     worker_devices,
                     worker_chats,
+                    worker_room,
                     port,
                     capacity,
                     head_patience,
@@ -208,6 +210,7 @@ fn worker(
     registry: Arc<Registry>,
     devices: Arc<DeviceSet>,
     chats: Arc<crate::paging::Chats>,
+    room: Option<Arc<crate::room::RoomDoor>>,
     upstream_port: u16,
     capacity: u32,
     head_patience: Duration,
@@ -230,6 +233,7 @@ fn worker(
                         capacity,
                         &devices,
                         &chats,
+                        room.as_ref(),
                         &registry,
                         &stop,
                         &active,

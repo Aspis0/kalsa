@@ -46,6 +46,9 @@ pub(super) struct UnsealedHead {
     /// The client's `Last-Event-ID`, taken out of the forwarded bytes: the
     /// id namespace belongs to the door, and the upstream must never see it.
     pub(super) last_event_id: Option<Vec<u8>>,
+    /// The client's `Kalsa-Room-Epoch`: the transcript epoch its cached
+    /// seqs belong to. The door's own header, never forwarded.
+    pub(super) room_epoch: Option<Vec<u8>>,
 }
 
 /// A head sealed with the door's private headers. Producing it consumes the
@@ -144,6 +147,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     // same.
     let mut authorization = None;
     let mut last_event_id = None;
+    let mut room_epoch = None;
     let mut origin: Option<Vec<u8>> = None;
     let mut origin_twice = false;
     let mut asks_for_method = false;
@@ -173,6 +177,12 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
                     return Err(());
                 }
                 last_event_id = Some(trim_ows(value).to_vec());
+            }
+            b"kalsa-room-epoch" => {
+                if room_epoch.is_some() {
+                    return Err(());
+                }
+                room_epoch = Some(trim_ows(value).to_vec());
             }
             // Kept in `origin` and forwarded: the upstream echoes this back as
             // its own `Access-Control-Allow-Origin`, which is the header the
@@ -236,6 +246,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
             && !HOP_BY_HOP.contains(&lower.as_slice())
             && lower.as_slice() != b"authorization"
             && lower.as_slice() != b"last-event-id"
+            && lower.as_slice() != b"kalsa-room-epoch"
             && lower.as_slice() != b"x-kalsa-slot"
             && lower.as_slice() != b"x-kalsa-cache-salt";
         if kept {
@@ -255,6 +266,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
         target: target.to_vec(),
         method,
         last_event_id,
+        room_epoch,
     })
 }
 

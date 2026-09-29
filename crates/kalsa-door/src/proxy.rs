@@ -1,6 +1,7 @@
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::cors;
@@ -8,6 +9,7 @@ use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
 use crate::paging;
 use crate::registry::{Registry, StartRefused};
+use crate::room;
 use crate::token::parse_resume;
 use crate::request;
 use crate::response;
@@ -84,10 +86,11 @@ pub(super) fn handle(
     head_patience: Duration,
     upstream_port: u16,
     capacity: u32,
-    devices: &DeviceSet,
+    devices: &Arc<DeviceSet>,
     chats: &paging::Chats,
+    room: Option<&Arc<crate::room::RoomDoor>>,
     registry: &Registry,
-    stop: &AtomicBool,
+    stop: &Arc<AtomicBool>,
     active: &ActiveDevices,
     observer: Option<&Observed>,
 ) {
@@ -199,6 +202,25 @@ pub(super) fn handle(
     // A device revoked in the window since authentication gets the 401 the
     // rest of the door gives, because the salt is read before anything is
     // written anywhere.
+    // The room's five routes, served by the door on the credential that
+    // authenticated it. Before the disk tier because the tier owns the
+    // same prefix: a room path that fell through to it would be answered
+    // as an unknown chat route instead of an unknown room one.
+    if room::owns(&head.target) {
+        room::serve(
+            client,
+            room::Request {
+                head: &head,
+                device,
+                devices: &current,
+                room,
+                stop,
+                set: devices,
+            },
+            deadline,
+        );
+        return;
+    }
     if paging::owns(&head.target) {
         let Some(salt) = devices.cache_salt(device) else {
             let _ = discard_request_body(&mut client, head.body_length, deadline);

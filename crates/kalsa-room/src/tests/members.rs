@@ -47,7 +47,7 @@ fn a_forgotten_member_retires_and_a_returning_device_is_new() {
     assert_ne!(again, member, "a returning device id is a fresh member");
     assert!(!room.is_former(again), "the returning device is no former member");
     assert_eq!(room.name_of(again), None, "and inherits no name");
-    let page = room.newest_page(10).unwrap();
+    let page = room.newest_page(1, 10).unwrap();
     assert_eq!(page.messages[0].member, member, "past entries keep their author");
 
     room.forget_device(9).expect("an unknown device is success");

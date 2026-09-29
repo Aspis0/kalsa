@@ -81,7 +81,7 @@ fn a_recovery_that_cannot_write_serves_reads_and_refuses_posts() {
     fs::set_permissions(&room_dir, fs::Permissions::from_mode(0o500)).unwrap();
 
     let room = Room::open(room_dir.parent().unwrap()).expect("the room opens on its intact prefix");
-    assert_eq!(room.newest_page(10).unwrap().messages.len(), 1, "reads serve");
+    assert_eq!(room.newest_page(1, 10).unwrap().messages.len(), 1, "reads serve");
     let member = room.member_of(3).expect("the roster reads too");
     assert!(
         matches!(room.post(member, "m2", "refused", false), Err(PostError::ReadOnly)),

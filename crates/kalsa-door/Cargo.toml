@@ -16,6 +16,9 @@ sha2 = "0.10"
 # The door rewrites the upstream's /props JSON before relaying it — the
 # model path leaves the machine and every other field stays.
 serde_json = "1"
+# The room the door serves behind /kalsa/room/: the store and its live
+# stream, with the door adding the credential and the wire.
+kalsa-room = { path = "../kalsa-room" }
 
 [dev-dependencies]
 # The test mints the same public handshake credential the desktop stores.

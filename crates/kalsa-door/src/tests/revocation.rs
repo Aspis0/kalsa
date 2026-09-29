@@ -222,6 +222,8 @@ fn the_request_write_holds_the_gate_against_a_forget() {
             let stop = AtomicBool::new(false);
             let active = ActiveDevices::new();
             let registry = Registry::new();
+            let set = Arc::new(set);
+            let stop = Arc::new(stop);
             proxy::handle(
                 stream,
                 Instant::now(),
@@ -230,6 +232,7 @@ fn the_request_write_holds_the_gate_against_a_forget() {
                 1,
                 &set,
                 &crate::paging::Chats::new(1, None, None, None),
+                None,
                 &registry,
                 &stop,
                 &active,
@@ -298,6 +301,8 @@ fn a_revoked_device_is_refused_without_opening_an_upstream_socket() {
             let stop = AtomicBool::new(false);
             let active = ActiveDevices::new();
             let registry = Registry::new();
+            let set = Arc::new(set);
+            let stop = Arc::new(stop);
             proxy::handle(
                 stream,
                 Instant::now(),
@@ -306,6 +311,7 @@ fn a_revoked_device_is_refused_without_opening_an_upstream_socket() {
                 1,
                 &set,
                 &crate::paging::Chats::new(1, None, None, None),
+                None,
                 &registry,
                 &stop,
                 &active,

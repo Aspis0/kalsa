@@ -69,7 +69,7 @@ fn the_same_id_and_content_replay_the_same_entry_with_no_second_post() {
         .expect("the retry is answered");
     assert_eq!(replay, first, "the retry sees the stored entry, not a new one");
     assert_eq!(
-        room.newest_page(100).unwrap().messages.len(),
+        room.newest_page(1, 100).unwrap().messages.len(),
         1,
         "no duplicate landed"
     );
@@ -89,7 +89,7 @@ fn the_same_id_with_different_text_or_flag_is_refused() {
         "a different flag is a different message too"
     );
     assert_eq!(
-        room.newest_page(100).unwrap().messages.len(),
+        room.newest_page(1, 100).unwrap().messages.len(),
         1,
         "the refusal stored nothing"
     );
@@ -146,6 +146,6 @@ fn the_ai_entry_takes_the_next_seq_without_an_idempotency_key() {
     assert!(answer.call_ai, "an answer belongs to a called turn");
     let again = room.post_ai("And now it is 17:01.").expect("no key to collide with");
     assert_eq!(again.seq, 3, "every AI entry is its own entry");
-    let page = room.newest_page(100).unwrap();
+    let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 3);
 }

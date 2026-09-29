@@ -2577,6 +2577,7 @@ dependencies = [
  "kalsa-pairing",
  "kalsa-probe",
  "kalsa-reuse",
+ "kalsa-room",
  "kalsa-runtime",
  "kalsa-sentinel",
  "kalsa-supervisor",
@@ -2607,6 +2608,7 @@ dependencies = [
  "getrandom 0.3.4",
  "kalsa-catalog",
  "kalsa-pairing",
+ "kalsa-room",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
@@ -2696,6 +2698,7 @@ dependencies = [
 name = "kalsa-room"
 version = "0.0.1"
 dependencies = [
+ "getrandom 0.3.4",
  "kalsa-pairing",
  "serde",
  "serde_json",

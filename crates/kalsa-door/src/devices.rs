@@ -144,6 +144,12 @@ impl Devices {
         (any == 1).then_some(DeviceId(matched))
     }
 
+    /// Every device with its label, in the set's own order — the room's
+    /// member list is built from this.
+    pub fn entries(&self) -> impl Iterator<Item = (DeviceId, &str)> + '_ {
+        self.entries.iter().map(|entry| (entry.id, entry.label.as_str()))
+    }
+
     /// The owner's label for a device the set holds. The label is the one
     /// thing about a device that may be shown beyond this crate; the
     /// credential never is.

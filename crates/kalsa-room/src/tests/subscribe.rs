@@ -131,7 +131,7 @@ fn a_reconnect_resumes_after_its_last_seq_and_skips_what_came_before() {
                 member,
                 name: "Marco".to_string(),
             }),
-            Event::Message(room.page_after(1, 1).unwrap().messages.remove(0)),
+            Event::Message(room.page_after(1, 1, 1).unwrap().messages.remove(0)),
         ]
     );
 }

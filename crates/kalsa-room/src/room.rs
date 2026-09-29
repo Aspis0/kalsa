@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 
 use crate::events::StoredEvent;
+use crate::identity::Identity;
 use crate::log::{self, Message};
 use crate::roster::{self, Roster};
 use crate::{MemberId, RoomError};
@@ -71,6 +72,9 @@ pub(crate) struct Writer {
 }
 
 pub(crate) struct State {
+    /// The room's identities. The epoch is read for every framed event and
+    /// re-minted where a recovery drops bytes; the room id never changes.
+    pub(crate) identity: Identity,
     pub(crate) messages: Vec<Arc<Message>>,
     /// (author, client_msg_id) → the seq it got. Only member entries are
     /// keyed: an AI entry has no idempotency key.
@@ -96,7 +100,17 @@ impl Room {
         std::fs::create_dir_all(&dir).map_err(RoomError::Io)?;
         tighten_dir(&dir)?;
         let opened = log::open(&dir.join(log::LOG_NAME))?;
-        let roster = roster::load(&dir.join(roster::ROSTER_NAME))?;
+        let mut roster = roster::load(&dir.join(roster::ROSTER_NAME))?;
+        let mut identity = Identity::open(&dir)?;
+        if opened.recovered {
+            // Bytes a phone may already have seen are gone: the numbering
+            // starts a new epoch, and every live member's history begins
+            // at it — a join point past what survived would hide the whole
+            // transcript from someone still in the room.
+            identity = identity.next_epoch(&dir)?;
+            roster = roster.with_epoch_start();
+            roster::publish(&dir.join(roster::ROSTER_NAME), &roster).map_err(RoomError::Io)?;
+        }
         let messages: Vec<Arc<Message>> = opened.messages.into_iter().map(Arc::new).collect();
         let events = messages
             .iter()
@@ -109,6 +123,7 @@ impl Room {
                 writable: opened.writable,
             }),
             state: Mutex::new(State {
+                identity,
                 by_client: by_client_of(&messages),
                 messages,
                 events,
@@ -141,6 +156,17 @@ impl Room {
 
     pub(crate) fn notify(&self) {
         self.signal.notify_all();
+    }
+
+    /// The stable identity a phone keys its multi-computer store by.
+    pub fn room_id(&self) -> String {
+        self.lock_state().identity.room_id().to_string()
+    }
+
+    /// The epoch the transcript's seqs are unique within. Changes only
+    /// where a recovery dropped bytes.
+    pub fn epoch(&self) -> String {
+        self.lock_state().identity.epoch().to_string()
     }
 }
 

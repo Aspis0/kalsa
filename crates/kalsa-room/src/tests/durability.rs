@@ -31,7 +31,7 @@ fn a_reopen_keeps_every_entry_and_continues_the_numbering() {
     drop(room);
 
     let reopened = reopen(&dir).expect("the room opens again");
-    let page = reopened.newest_page(100).unwrap();
+    let page = reopened.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 2);
     assert_eq!(page.messages[0].text, "before the restart");
     let after = say(&reopened, 3, "three", "after");
@@ -54,7 +54,7 @@ fn an_idempotent_retry_survives_the_restart_that_separated_it() {
         matches!(reopened.post(member, "retry-me", "different words", false), Err(PostError::ClientIdReused)),
         "and the reused-id rule survives with it"
     );
-    assert_eq!(reopened.newest_page(100).unwrap().messages.len(), 1);
+    assert_eq!(reopened.newest_page(1, 100).unwrap().messages.len(), 1);
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn the_ai_entry_survives_the_restart_like_any_other() {
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{AI_LINE}\n")).unwrap();
 
     let room = reopen(&dir).expect("the room opens again");
-    let page = room.newest_page(100).unwrap();
+    let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 2);
     assert_eq!(page.messages[1].member, crate::MemberId::Ai);
     let next = room.post_ai("Still 17:00.").unwrap();
@@ -77,7 +77,7 @@ fn a_torn_last_line_is_cut_back_and_every_dropped_byte_is_kept_beside() {
     std::fs::write(log_path(&dir), &original).unwrap();
 
     let room = reopen(&dir).expect("the room opens again");
-    assert_eq!(room.newest_page(100).unwrap().messages.len(), 1);
+    assert_eq!(room.newest_page(1, 100).unwrap().messages.len(), 1);
     assert_eq!(
         std::fs::read_to_string(log_path(&dir)).unwrap(),
         format!("{LINE_ONE}\n"),
@@ -96,7 +96,7 @@ fn a_tail_that_lost_only_its_newline_is_repaired_and_kept() {
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{LINE_TWO}")).unwrap();
 
     let room = reopen(&dir).expect("the room opens again");
-    let page = room.newest_page(100).unwrap();
+    let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 2, "the entry whose newline was lost is kept");
     let bytes = std::fs::read(log_path(&dir)).unwrap();
     assert_eq!(*bytes.last().unwrap(), b'\n', "the newline is written back");
@@ -112,7 +112,7 @@ fn middle_damage_recovers_the_longest_valid_prefix_and_keeps_the_bytes() {
     std::fs::write(log_path(&dir), &original).unwrap();
 
     let room = reopen(&dir).expect("the room opens again");
-    let page = room.newest_page(100).unwrap();
+    let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 1, "everything after the damage waits in the copy");
     let copies = damaged_copies(&dir);
     assert_eq!(copies.len(), 1);
@@ -127,7 +127,7 @@ fn a_line_from_a_newer_format_is_recovered_not_served() {
     let newer = LINE_ONE.replace(r#""v":1"#, r#""v":2"#);
     std::fs::write(log_path(&dir), format!("{newer}\n")).unwrap();
     let room = reopen(&dir).expect("the room opens again");
-    assert!(room.newest_page(10).unwrap().messages.is_empty());
+    assert!(room.newest_page(1, 10).unwrap().messages.is_empty());
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
 
@@ -137,7 +137,7 @@ fn numbering_with_a_gap_recovers_up_to_the_gap() {
     let third = LINE_ONE.replace("\"seq\":1", "\"seq\":3");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{third}\n")).unwrap();
     let room = reopen(&dir).expect("the room opens again");
-    assert_eq!(room.newest_page(10).unwrap().messages.len(), 1);
+    assert_eq!(room.newest_page(1, 10).unwrap().messages.len(), 1);
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
 
@@ -147,7 +147,7 @@ fn one_idempotency_key_on_two_entries_keeps_only_the_first() {
     let twin = LINE_ONE.replace("\"seq\":1", "\"seq\":2").replace("\"text\":\"first\"", "\"text\":\"again\"");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{twin}\n")).unwrap();
     let room = reopen(&dir).expect("the room opens again");
-    assert_eq!(room.newest_page(10).unwrap().messages.len(), 1);
+    assert_eq!(room.newest_page(1, 10).unwrap().messages.len(), 1);
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
 
@@ -157,7 +157,7 @@ fn a_torn_first_append_leaves_an_openable_room() {
     std::fs::write(log_path(&dir), "{\"v\":1,\"seq\":1,\"clie").unwrap();
 
     let room = reopen(&dir).expect("the room opens again");
-    assert!(room.newest_page(10).unwrap().messages.is_empty());
+    assert!(room.newest_page(1, 10).unwrap().messages.is_empty());
     let appended = say(&room, 3, "a", "the first complete entry");
     assert_eq!(appended.seq, 1);
     assert_eq!(
@@ -239,5 +239,34 @@ fn a_reopened_file_the_room_cannot_explain_stops_the_writes() {
     assert!(
         matches!(room.post(phone(&room, 3), "m3", "also refused", false), Err(PostError::ReadOnly)),
         "and the room stays read-only, not just for the one post"
+    );
+}
+
+#[test]
+fn the_room_id_is_stable_and_the_epoch_moves_only_with_recovery() {
+    let (dir, room) = open("durability_identity");
+    let member = super::phone(&room, 3);
+    say(&room, 3, "m1", "words");
+    let room_id = room.room_id();
+    let epoch = room.epoch();
+    assert_eq!(room.join_of(member), Some(1), "the first member joined at the start");
+    drop(room);
+
+    let reopened = reopen(&dir).expect("the room opens again");
+    assert_eq!(reopened.room_id(), room_id, "the id a phone keys its store by never changes");
+    assert_eq!(reopened.epoch(), epoch, "a clean reopen keeps the epoch");
+    drop(reopened);
+
+    // Damage that drops bytes: the id stays, the epoch moves, and every
+    // live member's history begins at the epoch's own start.
+    std::fs::write(log_path(&dir), b"garbage that parses as nothing\n").unwrap();
+    let recovered = reopen(&dir).expect("the recovery opens on the prefix");
+    assert_eq!(recovered.room_id(), room_id);
+    assert_ne!(recovered.epoch(), epoch, "a recovery that dropped bytes re-minted it");
+    let member_again = recovered.member_of(3).expect("the roster survived");
+    assert_eq!(
+        recovered.join_of(member_again),
+        Some(1),
+        "a join point past what survived is clamped to the epoch's start"
     );
 }

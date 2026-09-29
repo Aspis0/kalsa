@@ -252,8 +252,9 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
     }
     let server = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
-        let stop = AtomicBool::new(false);
+        let stop = Arc::new(AtomicBool::new(false));
         let active = ActiveDevices::new();
+        let devices = Arc::new(devices);
         proxy::handle(
             stream,
             Instant::now(),
@@ -262,6 +263,7 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
             1,
             &devices,
             &crate::paging::Chats::new(1, None, None, None),
+            None,
             &registry,
             &stop,
             &active,

@@ -133,6 +133,9 @@ pub(super) struct Opened {
     pub(super) messages: Vec<Message>,
     pub(super) file: File,
     pub(super) writable: bool,
+    /// This open dropped bytes into a damaged copy: the transcript's
+    /// numbering starts a new epoch, and the caller re-mints it.
+    pub(super) recovered: bool,
 }
 
 pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
@@ -144,6 +147,7 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
                 messages: Vec::new(),
                 file,
                 writable: true,
+                recovered: false,
             });
         }
         Err(error) => return Err(error.into()),
@@ -157,8 +161,10 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
     };
     let (mut messages, valid) = parse_prefix(&bytes, complete);
     let mut writable = true;
+    let mut recovered = false;
     if valid < complete {
         writable = recovery::recover(path, &bytes, valid);
+        recovered = writable;
     } else if complete < bytes.len() {
         let mut checker = Checker::of(&messages);
         match serde_json::from_slice::<Record>(&bytes[complete..])
@@ -174,7 +180,10 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
                     writable = false;
                 }
             }
-            None => writable = recovery::recover(path, &bytes, valid),
+            None => {
+                writable = recovery::recover(path, &bytes, valid);
+                recovered = writable;
+            }
         }
     }
     let file = OpenOptions::new().read(true).append(true).open(path)?;
@@ -182,6 +191,7 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
         messages,
         file,
         writable,
+        recovered,
     })
 }
 

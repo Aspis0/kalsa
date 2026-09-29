@@ -40,6 +40,7 @@ use std::fmt;
 mod append;
 mod events;
 mod history;
+mod identity;
 mod names;
 mod log;
 mod members;
@@ -144,6 +145,9 @@ pub enum RoomError {
     /// The roster's member counter reached the reserved range. No
     /// household gets here; no store may wrap it.
     RosterFull,
+    /// The operating system's entropy pool refused: an identity that
+    /// cannot be minted cannot be guessed into existence either.
+    Entropy,
 }
 
 impl fmt::Display for RoomError {
@@ -152,6 +156,7 @@ impl fmt::Display for RoomError {
             Self::Io(_) => f.write_str("the room's store failed on disk"),
             Self::Corrupt(why) => write!(f, "the room's store is corrupt: {why}"),
             Self::RosterFull => f.write_str("the room has more members than it can name"),
+            Self::Entropy => f.write_str("the room could not mint an identity"),
         }
     }
 }

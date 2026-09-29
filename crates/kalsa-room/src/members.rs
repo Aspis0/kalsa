@@ -25,9 +25,12 @@ impl Room {
         }
         let (updated, member) = {
             let state = self.lock_state();
+            // The join point is the next seq of the epoch being joined:
+            // everything before it was said while this device was not in
+            // the room, and is not this member's to read.
             state
                 .roster
-                .with_device(device)
+                .with_device(device, state.messages.len() as u64 + 1)
                 .ok_or(RoomError::RosterFull)?
         };
         roster::publish(&self.dir.join(ROSTER_NAME), &updated).map_err(RoomError::Io)?;
@@ -41,6 +44,19 @@ impl Room {
     /// The member a device has, if any — a look, never a mint.
     pub fn member_of(&self, device: u32) -> Option<MemberId> {
         self.lock_state().roster.member_of(device)
+    }
+
+    /// The device a member id came from, for the door's label lookup. A
+    /// retired member maps to nothing: its device is gone from the pairing
+    /// set, and the label would be somebody else's.
+    pub fn device_of(&self, member: MemberId) -> Option<u32> {
+        self.lock_state().roster.device_of(member)
+    }
+
+    /// The first seq a member may see — their join point. `None` is no
+    /// floor: the host sees the whole transcript.
+    pub fn join_of(&self, member: MemberId) -> Option<u64> {
+        self.lock_state().roster.join_of(member)
     }
 
     /// Retires a device's member: the mapping goes, the member id never

@@ -37,16 +37,25 @@ Same road, same door, same credential as `/v1/chat/completions`:
   computer itself, never from a phone.
 - The AI's display name is "Kalsa", fixed: no member may take it, nor a
   name another live member or the host already wears (§6).
+- A member sees the room's history only from when they joined: entries
+  before their join point are not returned by history pages and not
+  replayed by their event stream. The host sees everything. A forgotten
+  and re-paired device is a new member and starts fresh.
 - A device the owner forgets stops being a member immediately: every route
-  answers `401`, its live stream is cut, and it leaves the member list. Its
-  past messages stay, carrying the author they had, shown with the name it
-  had and marked as a former member. A phone that pairs again starts fresh.
+  answers `401`, its live stream is cut, and it leaves the member list —
+  the 401 is how the phone learns it was removed; no `left` event of its
+  own is owed to it. Its past messages stay, carrying the author they had,
+  shown with the name it had and marked as a former member. A phone that
+  pairs again starts fresh.
 
 ## 3. Room info — `GET /kalsa/room/info`
 
 ```json
 {
   "room_name": "This computer",
+  "room_id": "1f0a3b9c2d4e5f60718293a4b5c6d7e8",
+  "epoch": "8a7b6c5d4e3f20112233445566778899",
+  "you": 3,
   "members": [
     {"member_id": 4294967295, "name": "This computer", "kind": "host"},
     {"member_id": 3, "name": "Paired phone 2", "kind": "phone"},
@@ -56,7 +65,15 @@ Same road, same door, same credential as `/v1/chat/completions`:
 }
 ```
 
-- `room_name` is the computer's own device label.
+- `room_id` is opaque, random, minted once when the room is created, and
+  stable for the life of that computer's room — the key a phone's
+  multi-computer store shelves this room under.
+- `epoch` names the transcript's current epoch (§7): it changes only where
+  a recovery dropped bytes.
+- `you` is the caller's own member id.
+- `room_name` is the computer's own device label; when the host renames
+  itself, the change arrives as a `member` `renamed` event for the host's
+  member id, and `room_name` follows if it derives from the host.
 - `members` lists the host, every allowed paired device, and the AI, in
   that order. `kind` is `"host"`, `"phone"` or `"ai"`; names are the
   display names, defaults included; former members are not listed.
@@ -89,11 +106,15 @@ Query parameters, all optional:
 ```
 
 - Messages come back oldest first in both modes. `has_older`/`has_newer`
-  say whether another page exists beyond the returned edges.
+  say whether another page exists beyond the returned edges — within the
+  caller's own history: a member's pages begin at their join point, and
+  the host's at the transcript's start. A `Last-Event-ID` replay begins at
+  the join point too, never before it.
 - `name` is the author's CURRENT display name, resolved at read time: a
   rename recolors that member's past messages. A former member's messages
-  show the name it had, marked as a former member. `call_ai` is the flag
-  the post carried; `client_msg_id` is never returned.
+  show the name it had, and carry `"former": true` — that field is the
+  mark. `call_ai` is the flag the post carried; `client_msg_id` is never
+  returned.
 - `after` and `before` together: `400 bad_request`. A cursor beyond either
   end is an empty page, not an error.
 
@@ -119,7 +140,10 @@ one shape either way; the client cannot tell and need not:
 ```
 
 The same `client_msg_id` with DIFFERENT text or flag is refused with
-`409 client_msg_id_reused`: one id, one message.
+`409 client_msg_id_reused`: one id, one message. An id is remembered for
+the life of the transcript within an epoch — a post lost to a recovery
+that started a new epoch is accepted again as new, because the id went
+with the bytes.
 
 - `seq` and `time` are assigned by the computer: `seq` is the transcript
   number (§7), `time` is unix seconds UTC. Client clocks are never used.
@@ -169,23 +193,38 @@ honest limit, said plainly. Setting the same name again changes nothing. A
 rename broadcasts a `member` event (§7) and does not touch messages
 already posted.
 
-## 7. Ordering: the seq and the event stream
+## 7. Ordering: the seq, the epoch, and the event stream
 
 One transcript, one counter. Every transcript entry — a member's message
 and the AI's finished answer alike — takes the next `seq`: from 1, strictly
-increasing, never reused, no gaps. The `seq` a POST returns is the `seq`
-the stream carries. Posts are ordered by the computer, in the order it
-accepted them.
+increasing, never reused, no gaps — UNIQUE WITHIN AN EPOCH. A recovery
+that drops bytes starts a new epoch (a fresh opaque value in `info` and on
+every stream): the surviving prefix keeps its seqs, the entries after it
+may reuse seqs a phone saw before the damage, and every `message` and
+`ai_message` event carries the epoch it belongs to. A phone that cached a
+different epoch sends it as a `Kalsa-Room-Epoch` request header and is
+answered `409 epoch_changed` — drop the cache, refetch. The same header on
+the response names the epoch the stream speaks. On a new epoch every live
+member's history begins at the epoch's first surviving entry.
+
+The `seq` a POST returns is the `seq` the stream carries. Posts are
+ordered by the computer, in the order it accepted them.
 
 ### `GET /kalsa/room/events` — the live stream (SSE)
 
 - `id:` is the entry's `seq`. An SSE client echoes it back as the
   `Last-Event-ID` header on reconnect, and the server replays every
-  transcript entry after that `seq`, in order, without duplicates, then
-  follows the tail live. The transcript is durable and never truncated in
-  v1, so any `seq` the client last saw can be resumed from, however long
-  the disconnect lasted. A `Last-Event-ID` above the newest seq is
-  `400 bad_cursor` — it claims events that never happened.
+  transcript entry after that `seq` — raised to the caller's join point if
+  it sits below it — in order, without duplicates, then follows the tail
+  live. The transcript is durable and never truncated in v1, so any `seq`
+  the client last saw can be resumed from, however long the disconnect
+  lasted. A `Last-Event-ID` above the newest seq is `400 bad_cursor` — it
+  claims events that never happened.
+- The first frame on every stream open is one `ai_status` snapshot of the
+  turn state as the computer sees it now, before any replay: a phone
+  connecting mid-answer knows a turn is running. In v1 the snapshot is
+  always `idle` — there is no AI yet — but the frame is first from now
+  on, so the mechanism is what R3 fills.
 - Events that are not transcript entries — member changes and AI turn
   progress — carry no `id:` line. A reconnect resumes from its last seq and
   does not replay the member news it slept through; it fetches
@@ -226,10 +265,11 @@ data: {"text":"It is "}
 - `member` — `action` is `joined` (device allowed), `renamed` (the new
   name in `name`), or `left` (device forgotten; `name` is the last name it
   was known by).
-- `ai_status` — the visible turn state, after every change: `state` is
-  `queued` / `thinking` / `answering` / `done` / `refused`, `who` the name
-  whose call it is about, plus the same `running`/`queue` view as info.
-  Names only, ever.
+- `ai_status` — the visible turn state, after every change and once as
+  the first frame of every stream: `state` is `idle` / `queued` /
+  `thinking` / `answering` / `done` / `refused`, `who` the name whose call
+  it is about, plus the same `running`/`queue` view as info. Names only,
+  ever.
 - `ai_delta` — a chunk of the answer being streamed, during `answering`.
   One turn streams at a time; a client assembles chunks until `ai_message`
   gives it the final text, which replaces the assembly.
@@ -258,6 +298,7 @@ its visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
 | client_msg_id reuse | same id, different content | `409 client_msg_id_reused` |
 | history limit | 1–200 | `400 bad_request` |
 | Last-Event-ID | at or below newest seq | `400 bad_cursor` |
+| cached epoch | not the current epoch | `409 epoch_changed` |
 
 Error bodies (except the empty 401) are
 `{"error": {"code": "...", "message": "<one honest sentence>"}}` with the

@@ -44,6 +44,12 @@ struct StoredRoster {
     retired: BTreeSet<u32>,
     names: BTreeMap<u32, String>,
     host_name: Option<String>,
+    /// The first seq each member may see — their join point, in the epoch
+    /// they joined. Absent for a member means the transcript's start: the
+    /// one default this file can mean, because a room from before join
+    /// points hid nothing from anybody.
+    #[serde(default)]
+    joined: BTreeMap<u32, u64>,
 }
 
 #[derive(Clone)]
@@ -53,6 +59,7 @@ pub(crate) struct Roster {
     retired: HashSet<u32>,
     names: HashMap<u32, String>,
     host_name: Option<String>,
+    joined: HashMap<u32, u64>,
 }
 
 impl Roster {
@@ -63,6 +70,7 @@ impl Roster {
             retired: HashSet::new(),
             names: HashMap::new(),
             host_name: None,
+            joined: HashMap::new(),
         }
     }
 
@@ -71,10 +79,21 @@ impl Roster {
         self.devices.get(&device).copied()
     }
 
-    /// A roster with `device` enrolled under a fresh member id. `None`
-    /// means the counter reached the reserved range: refused, never
-    /// wrapped — a wrapped counter would mint a duplicate member.
-    pub(crate) fn with_device(&self, device: u32) -> Option<(Self, MemberId)> {
+    /// The enrolled device behind a member id, or `None` when the member is
+    /// retired — the label that device wore belongs to nobody now.
+    pub(crate) fn device_of(&self, member: MemberId) -> Option<u32> {
+        self.devices
+            .iter()
+            .find(|(_, id)| **id == member)
+            .map(|(device, _)| *device)
+    }
+
+    /// A roster with `device` enrolled under a fresh member id whose
+    /// history begins at `join` — the next seq of the epoch they joined
+    /// in, the caller's to name. `None` means the counter reached the
+    /// reserved range: refused, never wrapped — a wrapped counter would
+    /// mint a duplicate member.
+    pub(crate) fn with_device(&self, device: u32, join: u64) -> Option<(Self, MemberId)> {
         if self.next_member > MAX_MEMBER {
             return None;
         }
@@ -82,7 +101,29 @@ impl Roster {
         let mut updated = self.clone();
         updated.next_member += 1;
         updated.devices.insert(device, member);
+        updated.joined.insert(member.wire(), join);
         Some((updated, member))
+    }
+
+    /// The first seq a member may see. `None` is no floor — the host, or
+    /// a member of a room from before join points: the whole transcript.
+    pub(crate) fn join_of(&self, member: MemberId) -> Option<u64> {
+        match member {
+            MemberId::Member(number) => self.joined.get(&number).copied(),
+            _ => None,
+        }
+    }
+
+    /// The roster a new epoch hands back: every member's history begins
+    /// at the epoch's own start, because a join point past what survived
+    /// the recovery would hide the whole transcript from someone still in
+    /// the room.
+    pub(crate) fn with_epoch_start(&self) -> Self {
+        let mut updated = self.clone();
+        for join in updated.joined.values_mut() {
+            *join = 1;
+        }
+        updated
     }
 
     /// A roster with the device's member retired: the mapping goes, the
@@ -170,6 +211,7 @@ impl Roster {
                 .map(|(member, name)| (*member, name.clone()))
                 .collect(),
             host_name: self.host_name.clone(),
+            joined: self.joined.iter().map(|(member, join)| (*member, *join)).collect(),
         }
     }
 }
@@ -229,12 +271,28 @@ pub(crate) fn load(path: &Path) -> Result<Roster, RoomError> {
         Some(name) => Some(stored_name(&name)?),
         None => None,
     };
+    let mut joined = HashMap::new();
+    for (member, join) in stored.joined {
+        let member = reserved(member, "a join point is stored for a reserved member id")?;
+        if join == 0 {
+            return Err(RoomError::Corrupt("a join point is stored before the transcript"));
+        }
+        if !devices.values().any(|id| *id == MemberId::Member(member))
+            && !retired.contains(&member)
+        {
+            return Err(RoomError::Corrupt(
+                "a join point is stored for a member the roster does not hold",
+            ));
+        }
+        joined.insert(member, join);
+    }
     let roster = Roster {
         next_member: stored.next_member,
         devices,
         retired,
         names,
         host_name,
+        joined,
     };
     if let Some(host) = roster.host_name.as_deref() {
         if !roster.name_is_free(&fold(host), MemberId::Host) {
