@@ -833,6 +833,36 @@ on a real iPhone. Today iOS runs llama.rn's prebuilt upstream Metal xcframework;
 build (`RNLLAMA_BUILD_FROM_SOURCE=1`) has never been attempted. The Mac checks Metal correctness; speed,
 heat and the iOS memory limit need a real iPhone.
 
+### Kalsa model: a recent MoE fine-tuned as "Kalsa" (owner request 2026-09-29, PROPOSAL)
+
+Goal: ship on PC first (phones later) a recent open-weights MoE, fine-tuned by us with a "Kalsa"
+identity. Not LFM, not dense, nothing trained from scratch; dream size ~5-8B total, 2-3B active;
+pruning allowed. Research (luna, 2026-09-29, sources in the agent report, key ones re-checked):
+
+| candidate | total / active | licence | reach 5-8B | main problem |
+|---|---|---|---|---|
+| Qwen3.6-35B-A3B (2026-04) | 35B / 3B | Apache-2.0 | ~77 % expert pruning | pruning far beyond published evidence (REAP tests 25-50 %) |
+| Moonlight-16B-A3B (2025-02) | 16B / 3B | MIT | ~50 % pruning | Italian unknown, older |
+| Ling-mini-2.0 | 16.3B / 1.4B | MIT | ~51 % pruning | 1.4B active, Italian unknown |
+| Phi-mini-MoE (2025-06) | 7.6B / 2.4B | MIT | none | 4K context, English-only by design, data cutoff 2023-10 |
+| Trinity Nano Preview (2025-12) | 6B / 1B | Apache-2.0 | none | 1B active, preview |
+| Granite-4.0-H-Tiny (2025) | 7B / 1B | Apache-2.0 | none | 1B active, hybrid runtime issues |
+
+REAP evidence: at 50 % expert pruning, mean -1.2 % on non-agentic coding and -5.9 % on tool use
+(arXiv 2510.13999, large models). Nothing published supports ~80 %.
+
+Proposed phases (each gated):
+0. **Free, Mac only:** run every candidate as-is in our llama.cpp (Q4) through the lab's Italian/English
+   bpb tooling (`scripts/run_multi5_ppl_host.py`) plus 20 fixed EN/IT chat prompts. Gate: pick the
+   base with the best Italian at acceptable size. No spending.
+1. **Prune (only if the pick is >8B):** one-layer REAP observer smoke, then 50 % on RunPod; gate on
+   held-out EN/IT + tool calls vs the unpruned base. Budget cap $40 floor / $120 soft / $150 stop.
+2. **Kalsa SFT:** BF16 LoRA (Axolotl; Unsloth for Qwen3.5-MoE), router frozen, 2-5k curated EN/IT
+   examples (identity, tone, refusals, tool calls) + 10-20 % general replay; one 4090/A100, a few hours.
+3. **Export:** merge -> GGUF -> Q4_K_M and Q4_0 -> kalsa-server macOS/Windows checks (template, tool JSON).
+4. **Decide:** ship on PC only if eval gates pass.
+Apache/MIT allow the name "Kalsa" with licence and NOTICE kept and no implied endorsement.
+
 The order is the owner's to set. The committed near-term work is:
 
 1. Finish the device measurement of ciswire recall-after-eviction on Qwen (Xiaomi), using the
