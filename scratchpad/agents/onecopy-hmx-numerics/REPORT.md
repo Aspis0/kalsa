@@ -401,3 +401,22 @@ reading only). tok/s:
 Raw/repack stays 0.62-0.64 with either build; the kernel gains ~4 % on raw (13.09 vs 12.51,
 10.86 vs 10.42). The multi-row gemv does not close the one-copy CPU decode gap. Different build
 configs (CPU-only LTO vs hexagon build), so the 4 % is within build noise. Stopped at 17 %.
+
+## Why raw Q4_0 CPU decode is slower: Mac ablations (2026-09-29, GLM, no commit)
+
+M1 Max, microbench `/tmp/gemvmb/ablate.cpp` (untracked), min of 15, vs the raw NR=2 kernel (`1dd83c245`):
+
+| variant | isolates | 10752x2048 t1 / t5 | 2048x10752 t1 / t5 |
+|---|---|---|---|
+| xor88 | nibbles stored XOR 0x88 (storage change) | 0.87 / 0.87 | 0.82 / 0.83 |
+| xor4 | same, 4 rows | 0.84 / 0.86 | 0.86 / 0.84 |
+| rep48 | repacked q4_0_4x8 reference | 0.65 / 0.66 | 0.64 / 0.67 |
+
+Also (agent's log): 16-byte aligned loads ~1.00-1.02 (alignment is not a factor), scalar epilogue
+1.09-1.14 (worse), fp32 side scales 0.91-0.97. The Mac reproduces the S23 gap at kernel level
+(raw/repack 0.60-0.62); llama-bench tg128 t5 CPU: repack 59.15 vs raw 45.91 tok/s. Gate
+`test-backend-ops -o MUL_MAT -b CPU -p type_a=q4_0` EXIT 0 at t1 and t5 on HEAD.
+Cause: instruction count per row per block (nibble -8 subtracts plus a per-row fp16 scale chain),
+not bandwidth. No compute-only change on the raw layout closes it; XOR storage closes ~40 %.
+Conclusion: for one-copy decode at repack speed the shared copy should BE the q4_0_4x8 layout
+(same bytes per weight) and the NPU reader must read those tiles. Recon on the Hexagon side started.

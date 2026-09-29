@@ -813,7 +813,10 @@ is written.
 ## Roadmap and next steps
 
 **Accelerator order (owner, 2026-09-29):** Snapdragon first (everything that can be done: NPU, GPU,
-one-copy, governor), then iPhone, then Mali, and Google Tensor last. Tensor route to assess, in
+one-copy, governor), then iPhone, then Exynos (Samsung Galaxy with Exynos 2200/2400/2500: AMD-based
+Xclipse GPU, never mapped; route = Samsung Remote Test Lab, free 5 h/day, its decisive probe - push
+and run a native ELF from /data/local/tmp - is still unproven, see `scratchpad/agents/samsung-rtl-recon/`),
+then Mali, and Google Tensor last. Tensor route to assess, in
 theory first: the Google Tensor SDK (https://developers.google.com/edge/tensor-sdk, beta behind a
 sign-up form, 2026-09-29) runs models on the Pixel TPU through LiteRT AOT-compiled models. Open
 questions before any work: whether it takes LLMs with int4 weights, whether a LiteRT model can share
