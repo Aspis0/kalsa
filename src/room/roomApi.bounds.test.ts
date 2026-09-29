@@ -1,20 +1,26 @@
 /**
  * The §9 bounds checked before any request exists: a refusal here never
- * reaches the door, so the door is asserted silent every time.
+ * reaches the door, so the door is asserted silent every time. The
+ * encoded-body cap sits beside the text limit (§5: a legal text can
+ * escape past 16 KiB) and is its own local code, never the server's
+ * too_large. Fixture source lines are documented in roomApi.routes.test.ts.
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),
 }));
-jest.mock("../pairing/roomPairingStore", () => ({ adoptActivePairing: jest.fn() }));
+jest.mock("../pairing/pairingCredentialStore", () => ({
+  bindPairingRoom: jest.fn(),
+  markPairingRemoved: jest.fn(),
+}));
 
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
 import { fetchRoomHistory, postRoomMessage, putRoomName } from "./roomApi";
 import historyFixture from "./fixtures/history.json";
 import nameFixture from "./fixtures/name.json";
-import postQueuedFixture from "./fixtures/postQueued.json";
+import postFixture from "./fixtures/post.json";
 
 const CREDENTIAL = "ab".repeat(32);
 
@@ -31,6 +37,7 @@ function installDoor(body: unknown) {
     node: null,
     pairedVia: null,
     source: "pairing",
+    pairing: { localId: "p-lid-bounds", removed: false },
   });
   (getRemoteDoorToken as jest.MockedFunction<typeof getRemoteDoorToken>).mockResolvedValue(
     CREDENTIAL,
@@ -58,7 +65,7 @@ describe("message text: 1-8000 UTF-8 bytes", () => {
   test.each([[""], ["a".repeat(8001)], ["é".repeat(4001)]])(
     "refuses %j before any request",
     async (text) => {
-      installDoor(postQueuedFixture);
+      installDoor(postFixture);
       await expectRefusedWithoutRequest(postRoomMessage({ clientMsgId: "b3f1c2", text }));
     },
   );
@@ -68,8 +75,28 @@ describe("message text: 1-8000 UTF-8 bytes", () => {
     ["exactly 8000 ASCII bytes", "a".repeat(8000)],
     ["exactly 8000 bytes of two-byte characters", "é".repeat(4000)],
   ])("%s passes", async (_label, text) => {
-    installDoor(postQueuedFixture);
+    installDoor(postFixture);
     const result = await postRoomMessage({ clientMsgId: "b3f1c2", text });
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("the encoded body: 16 KiB whole (§5, answers.rs MAX_BODY)", () => {
+  test("a legal 4000-byte text whose escaping multiplies past the cap is refused locally", async () => {
+    installDoor(postFixture);
+    // Each NUL escapes to \u0000 — six bytes — so the text is 4000 bytes
+    // and the body over 24 KiB: legal text, body the door would refuse.
+    await expectRefusedWithoutRequest(
+      postRoomMessage({ clientMsgId: "b3f1c2", text: "\u0000".repeat(4000) }),
+    );
+  });
+
+  test("a multibyte text well inside the cap goes out", async () => {
+    installDoor(postFixture);
+    const result = await postRoomMessage({
+      clientMsgId: "b3f1c2",
+      text: "ciao, ".repeat(500),
+    });
     expect(result.ok).toBe(true);
   });
 });
@@ -98,7 +125,7 @@ describe("client_msg_id: 1-64 characters of ASCII 0x21-0x7E", () => {
   test.each([[""], ["a".repeat(65)], ["has a space"], ["tab\there"], ["é"], ["~".repeat(64) + "!"]])(
     "refuses %j before any request",
     async (clientMsgId) => {
-      installDoor(postQueuedFixture);
+      installDoor(postFixture);
       await expectRefusedWithoutRequest(postRoomMessage({ clientMsgId, text: "hello" }));
     },
   );
@@ -108,7 +135,7 @@ describe("client_msg_id: 1-64 characters of ASCII 0x21-0x7E", () => {
     ["exactly 64 characters", "a".repeat(64)],
     ["the edges of the ASCII range", "!~"],
   ])("%s passes", async (_label, clientMsgId) => {
-    installDoor(postQueuedFixture);
+    installDoor(postFixture);
     const result = await postRoomMessage({ clientMsgId, text: "hello" });
     expect(result.ok).toBe(true);
   });

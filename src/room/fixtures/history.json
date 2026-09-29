@@ -1,7 +1,7 @@
 {
   "messages": [
-    {"seq": 41, "member_id": 3, "name": "Marco", "time": 1791000000, "text": "dinner at eight?", "call_ai": false},
-    {"seq": 42, "member_id": 4294967294, "name": "Kalsa", "time": 1791000017, "text": "Dinner is at eight.", "call_ai": true}
+    {"seq": 41, "epoch": "8a7b6c5d4e3f20112233445566778899", "member_id": 3, "name": "Marco", "time": 1791000000, "text": "dinner at eight?", "call_ai": false},
+    {"seq": 42, "epoch": "8a7b6c5d4e3f20112233445566778899", "member_id": 5, "name": "Paired phone 3", "time": 1791000017, "text": "@Kalsa hi", "call_ai": true, "former": true}
   ],
   "has_older": true,
   "has_newer": false

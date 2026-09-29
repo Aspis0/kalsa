@@ -1,1 +1,1 @@
-{"error": {"code": "bad_cursor", "message": "Last-Event-ID claims events that never happened."}}
+{"error": {"code": "bad_cursor", "message": "The room resumes from a numeric Last-Event-ID."}}

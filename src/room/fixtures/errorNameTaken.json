@@ -1,1 +1,1 @@
-{"error": {"code": "name_taken", "message": "That name is already taken."}}
+{"error": {"code": "name_taken", "message": "someone in this room already wears that name"}}

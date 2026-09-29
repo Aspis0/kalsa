@@ -3,6 +3,11 @@
  * door chat already rides — same bearer, same one-road-per-operation
  * decision (iroh `door` lane or HTTPS), same fetch. Every refusal comes
  * back as a typed RoomResult; no route here talks SSE.
+ *
+ * One pairing threads through one call: the door config carries the
+ * record's local id captured BEFORE any await, and that id — never a
+ * later read of "the active record" — is what gets the room bound, what
+ * keys the cached epoch the door guard checks, and what a 401 marks.
  */
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
 import {
@@ -11,9 +16,15 @@ import {
   joinRemoteApiUrl,
   remoteUrlGateError,
 } from "../engine/remote/remoteUrl";
-import { adoptActivePairing } from "../pairing/roomPairingStore";
+import { bindPairingRoom, markPairingRemoved } from "../pairing/pairingCredentialStore";
 import { doorFetchFor, establishDoorRoad } from "../remote/doorRoad";
-import { checkClientMsgId, checkHistoryLimit, checkRoomName, checkRoomText } from "./roomBounds";
+import {
+  checkClientMsgId,
+  checkEncodedBody,
+  checkHistoryLimit,
+  checkRoomName,
+  checkRoomText,
+} from "./roomBounds";
 import {
   malformedRoomResponse,
   roomErrorFromResponse,
@@ -32,6 +43,10 @@ import {
 } from "./roomWire";
 
 export type RoomCallOptions = { signal?: AbortSignal };
+
+/** The epoch each pairing last read — this process only. A restart forgets
+ *  it, and an absent header is a phone that cached nothing (§7). */
+const roomEpochs = new Map<string, string>();
 
 /** Only our own codes cross to a caller: a thrown message may quote
  *  anything, and nothing may ever quote a credential. */
@@ -54,44 +69,83 @@ async function readErrorBody(response: { json: () => Promise<unknown> }): Promis
   }
 }
 
-/** One route call: door, bearer, road, request, status → typed result. */
+type RoomCall = { result: RoomResult<unknown>; localId: string | null };
+
+/** One route call: local bounds, door, bearer, road, request, status →
+ *  typed result — plus the room-side effects a status owes (401 marks,
+ *  a dead epoch is dropped). */
 async function roomRequest(
   method: string,
   path: string,
   query: readonly string[],
   body: unknown,
   options?: RoomCallOptions,
-): Promise<RoomResult<unknown>> {
+): Promise<RoomCall> {
+  let encodedBody: string | undefined;
+  if (body !== undefined) {
+    encodedBody = JSON.stringify(body);
+    const oversized = checkEncodedBody(encodedBody);
+    if (oversized !== null) return { result: refused(oversized), localId: null };
+  }
   try {
     const door = await getRemoteDoorConfig();
+    const localId = door.pairing?.localId ?? null;
+    // §2: a record this room already refused stops sending its bearer —
+    // the 401 needs no round trip to be known.
+    if (door.pairing !== null && door.pairing.removed) {
+      return { result: refused(roomErrorFromResponse(401, null)), localId };
+    }
     const gate = remoteUrlGateError(door.url);
-    if (gate !== null) return refused({ code: "door_unusable", message: gate });
+    if (gate !== null) return { result: refused({ code: "door_unusable", message: gate }), localId };
     const token = await getRemoteDoorToken(door);
     if (token === null && isNonLoopback(door.url)) {
-      return refused({ code: "door_unusable", message: "remote_brain_token_required" });
+      return {
+        result: refused({ code: "door_unusable", message: "remote_brain_token_required" }),
+        localId,
+      };
     }
     const road = await establishDoorRoad(door, options?.signal);
     const fetcher = doorFetchFor(road);
     const url = joinRemoteApiUrl(door.url, path) + (query.length > 0 ? `?${query.join("&")}` : "");
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (encodedBody !== undefined) headers["Content-Type"] = "application/json";
     if (token !== null && canSendAuthorization(url)) headers.Authorization = `Bearer ${token}`;
+    if (localId !== null) {
+      const epoch = roomEpochs.get(localId);
+      if (epoch !== undefined) headers["Kalsa-Room-Epoch"] = epoch;
+    }
     const response = await fetcher(url, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: encodedBody,
       signal: options?.signal,
     });
     if (!response.ok) {
-      return refused(roomErrorFromResponse(response.status, await readErrorBody(response)));
+      const error = roomErrorFromResponse(response.status, await readErrorBody(response));
+      if (localId !== null && error.code === "removed") {
+        // §2's mark: kept even though the refusal stands either way — the
+        // record survives, only its bearer is retired for this room.
+        try {
+          await markPairingRemoved(localId);
+        } catch {
+          // The next401 marks again; an unreadable map is its own error.
+        }
+      }
+      if (localId !== null && error.code === "epoch_changed") {
+        roomEpochs.delete(localId);
+      }
+      return { result: refused(error), localId };
     }
     try {
-      return { ok: true, value: await response.json() };
+      return { result: { ok: true, value: await response.json() }, localId };
     } catch {
-      return refused(malformedRoomResponse());
+      return { result: refused(malformedRoomResponse()), localId };
     }
   } catch (error) {
-    return refused({ code: "unreachable", message: transportMessage(error) });
+    return {
+      result: refused({ code: "unreachable", message: transportMessage(error) }),
+      localId: null,
+    };
   }
 }
 
@@ -100,19 +154,22 @@ function parsed<T>(value: unknown, parse: (body: unknown) => T | null): RoomResu
   return result === null ? refused(malformedRoomResponse()) : { ok: true, value: result };
 }
 
-/** §3 room info. The first successful answer names the room this phone's
- *  active pairing belongs to, and adoption happens before the caller sees
- *  the result — a failed stamp is retried by the next info, never by
- *  failing a read that already succeeded. */
+/** §3 room info. The first successful answer binds the room under the
+ *  record whose credential read it and caches the epoch every later
+ *  route sends; a failed bind never fails a read that succeeded — the
+ *  next info retries it. */
 export async function fetchRoomInfo(options?: RoomCallOptions): Promise<RoomResult<RoomInfo>> {
-  const response = await roomRequest("GET", "/kalsa/room/info", [], undefined, options);
-  if (!response.ok) return response;
-  const info = parseRoomInfo(response.value);
+  const { result, localId } = await roomRequest("GET", "/kalsa/room/info", [], undefined, options);
+  if (!result.ok) return result;
+  const info = parseRoomInfo(result.value);
   if (info === null) return refused(malformedRoomResponse());
-  try {
-    await adoptActivePairing(info.roomId);
-  } catch {
-    // The read stands; adoption is idempotent and retries on the next info.
+  if (localId !== null) {
+    roomEpochs.set(localId, info.epoch);
+    try {
+      await bindPairingRoom(localId, info.roomId);
+    } catch {
+      // The read stands; the map surfaces its own damage on its next access.
+    }
   }
   return { ok: true, value: info };
 }
@@ -130,9 +187,15 @@ export async function fetchRoomHistory(
   if (query.after !== undefined) params.push(`after=${query.after}`);
   if (query.before !== undefined) params.push(`before=${query.before}`);
   if (query.limit !== undefined) params.push(`limit=${query.limit}`);
-  const response = await roomRequest("GET", "/kalsa/room/history", params, undefined, options);
-  if (!response.ok) return response;
-  return parsed(response.value, parseRoomHistoryPage);
+  const { result } = await roomRequest(
+    "GET",
+    "/kalsa/room/history",
+    params,
+    undefined,
+    options,
+  );
+  if (!result.ok) return result;
+  return parsed(result.value, parseRoomHistoryPage);
 }
 
 /** §5 post: the id makes a retry of the same content idempotent. */
@@ -142,7 +205,7 @@ export async function postRoomMessage(
 ): Promise<RoomResult<RoomPostAck>> {
   const invalid = checkClientMsgId(message.clientMsgId) ?? checkRoomText(message.text);
   if (invalid !== null) return refused(invalid);
-  const response = await roomRequest(
+  const { result } = await roomRequest(
     "POST",
     "/kalsa/room/messages",
     [],
@@ -153,8 +216,8 @@ export async function postRoomMessage(
     },
     options,
   );
-  if (!response.ok) return response;
-  return parsed(response.value, parseRoomPostAck);
+  if (!result.ok) return result;
+  return parsed(result.value, parseRoomPostAck);
 }
 
 /** §6 set my name; the computer trims and judges it, this only bounds it. */
@@ -164,7 +227,7 @@ export async function putRoomName(
 ): Promise<RoomResult<RoomNameAck>> {
   const invalid = checkRoomName(name);
   if (invalid !== null) return refused(invalid);
-  const response = await roomRequest("PUT", "/kalsa/room/name", [], { name }, options);
-  if (!response.ok) return response;
-  return parsed(response.value, parseRoomNameAck);
+  const { result } = await roomRequest("PUT", "/kalsa/room/name", [], { name }, options);
+  if (!result.ok) return result;
+  return parsed(result.value, parseRoomNameAck);
 }

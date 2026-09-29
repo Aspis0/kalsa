@@ -24,6 +24,20 @@ describe("every example §5 gives", () => {
   });
 });
 
+describe("combining marks belong to the word they decorate (§5, mention.rs)", () => {
+  test.each([
+    // é as base + U+0301: the mark is skipped to the base e, an alnum letter
+    ["café@Kalsa", false],
+    // the token plus U+0301 is not the assistant's name
+    ["@Kalsa\u0301", false],
+    ["@kalsa\u0301, ciao", false],
+    // a mark alone before the @ decorates nothing: no base to hug the token
+    ["\u0301@Kalsa", true],
+  ])("%s", (text, expected) => {
+    expect(callsKalsa(text)).toBe(expected);
+  });
+});
+
 describe("boundaries the rule decides", () => {
   test.each([
     ["say @Kalsa when it's ready", true],

@@ -1,12 +1,12 @@
 {
   "room_name": "This computer",
+  "room_id": "1f0a3b9c2d4e5f60718293a4b5c6d7e8",
+  "epoch": "8a7b6c5d4e3f20112233445566778899",
+  "you": 3,
   "members": [
     {"member_id": 4294967295, "name": "This computer", "kind": "host"},
     {"member_id": 3, "name": "Paired phone 2", "kind": "phone"},
     {"member_id": 4294967294, "name": "Kalsa", "kind": "ai"}
   ],
-  "ai": {"busy": false, "running": null, "queue": [], "you_pending": false},
-  "you": 3,
-  "room_id": "7c1f0e5a9b3d4c28",
-  "transcript_epoch": 4
+  "ai": {"busy": false, "running": null, "queue": [], "you_pending": false}
 }

@@ -1,5 +1,5 @@
 /**
- * The bounds §5, §6 and §9 put on what this phone may send, checked
+ * The bounds §4, §5, §6 and §9 put on what this phone may send, checked
  * before any request exists: a refusal here means the bytes never left
  * the phone. The rules the COMPUTER enforces on content (a taken name, a
  * lookalike script mix) are its to make — only the numeric bounds are
@@ -8,6 +8,9 @@
 import type { RoomError } from "./roomError";
 
 const utf8 = new TextEncoder();
+
+/** What the door reads before its bytes: answers.rs MAX_BODY (16 KiB). */
+const MAX_ENCODED_BODY_BYTES = 16 * 1024;
 
 function invalid(message: string): RoomError {
   return { code: "invalid_input", message };
@@ -45,6 +48,19 @@ export function checkClientMsgId(clientMsgId: string): RoomError | null {
 export function checkHistoryLimit(limit: number): RoomError | null {
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
     return invalid("The history limit must be an integer from 1 to 200.");
+  }
+  return null;
+}
+
+/** The ENCODED body the door would read: escaping can multiply a legal
+ *  8000-byte text past 16 KiB, and a body the door refuses is a local
+ *  refusal — a distinct code, never the server's too_large. */
+export function checkEncodedBody(encodedBody: string): RoomError | null {
+  if (utf8.encode(encodedBody).length > MAX_ENCODED_BODY_BYTES) {
+    return {
+      code: "body_too_large",
+      message: "The encoded request body is over the 16 KiB the door reads.",
+    };
   }
   return null;
 }

@@ -1,1 +1,1 @@
-{"error": {"code": "too_large", "message": "Message text exceeds 8000 bytes."}}
+{"error": {"code": "too_large", "message": "the message is too long"}}

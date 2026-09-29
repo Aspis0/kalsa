@@ -1,28 +1,51 @@
 /**
  * The four room routes over a fake door: URL, method, headers, body and
- * the typed success each one parses — plus the adoption that info's first
- * successful answer triggers.
+ * the typed success each parses — plus what a successful info owes the
+ * store (a bind under the local id that made the call) and the epoch
+ * every later route sends once one is known.
+ *
+ * Fixture provenance — every field traced to the contract or the door:
+ *
+ * info.json — ROOM-PROTOCOL.md §3's example, verbatim. The door writes
+ *   the same keys: room_name/room_id/epoch/you/members/ai at
+ *   crates/kalsa-door/src/room/routes.rs:58-63; member rows at
+ *   routes.rs:53-55 (the AI) and routes.rs:99-103 (entry_member); the
+ *   ai object's busy/running/queue/you_pending at routes.rs:90-94 — the
+ *   door also answers state/who (routes.rs:89,93), fields §1 says to
+ *   ignore.
+ * history.json — key set and order from the door's entry_json,
+ *   answers.rs:26-33 (seq, epoch, member_id, name, time, text, call_ai),
+ *   former set only for a gone author at answers.rs:34-36, page wrapper
+ *   at routes.rs:170-172. Values: §4's message for the live author; the
+ *   second entry is §7's message and member examples.
+ * post.json — seq/time from §5's answer example; ai_call and refusal
+ *   null exactly as the door answers a message that called nobody
+ *   (routes.rs:207-209, shape at routes.rs:222).
+ * name.json — §6's answer example, the same keys as routes.rs:260.
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),
 }));
-jest.mock("../pairing/roomPairingStore", () => ({ adoptActivePairing: jest.fn() }));
+jest.mock("../pairing/pairingCredentialStore", () => ({
+  bindPairingRoom: jest.fn(),
+  markPairingRemoved: jest.fn(),
+}));
 
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
-import { adoptActivePairing } from "../pairing/roomPairingStore";
+import { bindPairingRoom } from "../pairing/pairingCredentialStore";
 import { fetchRoomHistory, fetchRoomInfo, postRoomMessage, putRoomName } from "./roomApi";
-import infoFixture from "./fixtures/info.json";
 import historyFixture from "./fixtures/history.json";
+import infoFixture from "./fixtures/info.json";
 import nameFixture from "./fixtures/name.json";
-import postQueuedFixture from "./fixtures/postQueued.json";
-import postRefusedFixture from "./fixtures/postRefused.json";
+import postFixture from "./fixtures/post.json";
 
 const CREDENTIAL = "ab".repeat(32);
+const EPOCH = "8a7b6c5d4e3f20112233445566778899";
 
-function installDoor(status: number, body: unknown) {
+function installDoor(status: number, body: unknown, localId: string | null = "p-lid-routes") {
   const fetcher = jest.fn(async (_url: string, _init: Parameters<DoorFetch>[1]) => ({
     ok: status >= 200 && status < 300,
     status,
@@ -35,6 +58,7 @@ function installDoor(status: number, body: unknown) {
     node: null,
     pairedVia: null,
     source: "pairing",
+    pairing: localId === null ? null : { localId, removed: false },
   });
   (getRemoteDoorToken as jest.MockedFunction<typeof getRemoteDoorToken>).mockResolvedValue(
     CREDENTIAL,
@@ -50,8 +74,8 @@ beforeEach(() => {
   jest.resetAllMocks();
 });
 
-test("info: bearer on the wire, room adopted, the answer typed", async () => {
-  const fetcher = installDoor(200, infoFixture);
+test("info: bearer on the wire, the room bound under the calling record, no epoch header yet", async () => {
+  const fetcher = installDoor(200, infoFixture, "p-lid-first-info");
   const controller = new AbortController();
 
   const result = await fetchRoomInfo({ signal: controller.signal });
@@ -67,11 +91,14 @@ test("info: bearer on the wire, room adopted, the answer typed", async () => {
       ],
       ai: { busy: false, running: null, queue: [], youPending: false },
       you: 3,
-      roomId: "7c1f0e5a9b3d4c28",
-      transcriptEpoch: 4,
+      roomId: "1f0a3b9c2d4e5f60718293a4b5c6d7e8",
+      epoch: EPOCH,
     },
   });
-  expect(adoptActivePairing).toHaveBeenCalledWith("7c1f0e5a9b3d4c28");
+  expect(bindPairingRoom).toHaveBeenCalledWith(
+    "p-lid-first-info",
+    "1f0a3b9c2d4e5f60718293a4b5c6d7e8",
+  );
   const [url, init] = fetcher.mock.calls[0];
   expect(url).toBe("https://desk.example/kalsa/room/info");
   expect(init.method).toBe("GET");
@@ -79,7 +106,6 @@ test("info: bearer on the wire, room adopted, the answer typed", async () => {
     Accept: "application/json",
     Authorization: `Bearer ${CREDENTIAL}`,
   });
-  expect(init.body).toBeUndefined();
   expect(init.signal).toBe(controller.signal);
   expect(establishDoorRoad).toHaveBeenCalledWith(
     expect.objectContaining({ url: "https://desk.example" }),
@@ -87,26 +113,24 @@ test("info: bearer on the wire, room adopted, the answer typed", async () => {
   );
 });
 
-test("info: an epoch the computer names as a string reads the same", async () => {
-  installDoor(200, { ...infoFixture, transcript_epoch: "e-17" });
+test("info: the door's extra ai fields and an entry's extra read count are ignored, per §1", async () => {
+  installDoor(200, {
+    ...infoFixture,
+    ai: { state: "idle", busy: false, running: null, queue: [], who: null, you_pending: false },
+  });
 
-  const result = await fetchRoomInfo();
+  const first = await fetchRoomInfo();
+  expect(first).toMatchObject({ ok: true, value: { ai: { busy: false, youPending: false } } });
 
-  expect(result).toMatchObject({ ok: true, value: { transcriptEpoch: "e-17" } });
+  installDoor(200, {
+    ...historyFixture,
+    messages: [{ ...historyFixture.messages[0], read: 12 }],
+  });
+  const page = await fetchRoomHistory({});
+  expect(page).toMatchObject({ ok: true, value: { messages: [{ seq: 41, former: false }] } });
 });
 
-test("info: a failed adoption never fails a read that succeeded", async () => {
-  installDoor(200, infoFixture);
-  (adoptActivePairing as jest.MockedFunction<typeof adoptActivePairing>).mockRejectedValue(
-    new Error("secure store unavailable"),
-  );
-
-  const result = await fetchRoomInfo();
-
-  expect(result).toMatchObject({ ok: true, value: { roomId: "7c1f0e5a9b3d4c28" } });
-});
-
-test("history: cursors and limit ride the query, the page comes back typed", async () => {
+test("history: cursors and limit ride the query, the page comes back typed with epoch and former", async () => {
   const fetcher = installDoor(200, historyFixture);
 
   const result = await fetchRoomHistory({ after: 41, limit: 50 });
@@ -117,19 +141,23 @@ test("history: cursors and limit ride the query, the page comes back typed", asy
       messages: [
         {
           seq: 41,
+          epoch: EPOCH,
           memberId: 3,
           name: "Marco",
           time: 1791000000,
           text: "dinner at eight?",
           callAi: false,
+          former: false,
         },
         {
           seq: 42,
-          memberId: 4294967294,
-          name: "Kalsa",
+          epoch: EPOCH,
+          memberId: 5,
+          name: "Paired phone 3",
           time: 1791000017,
-          text: "Dinner is at eight.",
+          text: "@Kalsa hi",
           callAi: true,
+          former: true,
         },
       ],
       hasOlder: true,
@@ -151,8 +179,8 @@ test("history: no cursor asks for the newest page, limit left to the computer", 
   expect(fetcher.mock.calls[0][0]).toBe("https://desk.example/kalsa/room/history");
 });
 
-test("post: id, text and flag go out; the queued ack comes back typed", async () => {
-  const fetcher = installDoor(200, postQueuedFixture);
+test("post: id, text and flag go out; the null-ai_call ack comes back typed", async () => {
+  const fetcher = installDoor(200, postFixture);
 
   const result = await postRoomMessage({
     clientMsgId: "b3f1c2",
@@ -162,7 +190,7 @@ test("post: id, text and flag go out; the queued ack comes back typed", async ()
 
   expect(result).toEqual({
     ok: true,
-    value: { seq: 42, time: 1791000017, aiCall: "queued", refusal: null },
+    value: { seq: 42, time: 1791000017, aiCall: null, refusal: null },
   });
   const [url, init] = fetcher.mock.calls[0];
   expect(url).toBe("https://desk.example/kalsa/room/messages");
@@ -175,19 +203,19 @@ test("post: id, text and flag go out; the queued ack comes back typed", async ()
   });
 });
 
-test("post: a refused call still posts the message with its honest sentence", async () => {
-  const fetcher = installDoor(200, postRefusedFixture);
+test("post: queued and refused answers the guest will send are typed as they are named", async () => {
+  installDoor(200, { seq: 43, time: 1791000018, ai_call: "queued", refusal: null });
+  await expect(
+    postRoomMessage({ clientMsgId: "b3f1c3", text: "hi" }),
+  ).resolves.toEqual({ ok: true, value: { seq: 43, time: 1791000018, aiCall: "queued", refusal: null } });
 
-  const result = await postRoomMessage({ clientMsgId: "b3f1c2", text: "ping" });
-
-  expect(result).toEqual({
+  // routes.rs:217 answers a second pending call refused, honestly.
+  installDoor(200, { seq: 44, time: 1791000019, ai_call: "refused", refusal: "already_pending" });
+  await expect(
+    postRoomMessage({ clientMsgId: "b3f1c4", text: "hi again" }),
+  ).resolves.toEqual({
     ok: true,
-    value: { seq: 43, time: 1791000018, aiCall: "refused", refusal: "You already have a call pending." },
-  });
-  expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({
-    client_msg_id: "b3f1c2",
-    text: "ping",
-    call_ai: false,
+    value: { seq: 44, time: 1791000019, aiCall: "refused", refusal: "already_pending" },
   });
 });
 
@@ -201,4 +229,71 @@ test("name: the raw name goes out and the ack comes back typed", async () => {
   expect(url).toBe("https://desk.example/kalsa/room/name");
   expect(init.method).toBe("PUT");
   expect(JSON.parse(init.body as string)).toEqual({ name: "Marco" });
+});
+
+test("the epoch: cached from info, sent on every route, dropped on 409, silent until refetched", async () => {
+  const fetcher = installDoor(200, historyFixture, "p-lid-epoch-flow");
+  const epochInfo = { ...infoFixture, epoch: "epoch-one" };
+
+  // Nothing cached: the first reads go out bare.
+  await fetchRoomHistory({});
+  expect(fetcher.mock.calls[0][1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
+
+  // info names the epoch for this pairing.
+  const fetcherForInfo = jest.fn(async (_url: string, _init: Parameters<DoorFetch>[1]) => ({
+    ok: true,
+    status: 200,
+    isBodyEmpty: async () => false,
+    json: async () => epochInfo,
+  }));
+  (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(fetcherForInfo);
+  await fetchRoomInfo();
+
+  // Every later route sends the cached epoch.
+  (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(fetcher);
+  await fetchRoomHistory({});
+  await postRoomMessage({ clientMsgId: "b3f1c2", text: "hello" });
+  expect(fetcher.mock.calls[1][1].headers["Kalsa-Room-Epoch"]).toBe("epoch-one");
+  expect(fetcher.mock.calls[2][1].headers["Kalsa-Room-Epoch"]).toBe("epoch-one");
+
+  // A 409 epoch_changed drops the cache: the next call goes out bare.
+  (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(
+    jest.fn(async () => ({
+      ok: false,
+      status: 409,
+      isBodyEmpty: async () => false,
+      json: async () => ({
+        error: {
+          code: "epoch_changed",
+          message: "The room's transcript restarted; drop what was cached and read it again.",
+        },
+      }),
+    })) as unknown as DoorFetch,
+  );
+  const resync = await fetchRoomHistory({});
+  expect(resync).toMatchObject({ ok: false, error: { code: "epoch_changed" } });
+  (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(fetcher);
+  await fetchRoomHistory({});
+  expect(fetcher.mock.calls.at(-1)?.[1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
+});
+
+test("a bind that fails never fails a read that succeeded", async () => {
+  installDoor(200, infoFixture, "p-lid-bindfail");
+  (bindPairingRoom as jest.MockedFunction<typeof bindPairingRoom>).mockRejectedValue(
+    new Error("pairing map damaged"),
+  );
+
+  const result = await fetchRoomInfo();
+
+  expect(result).toMatchObject({ ok: true, value: { roomId: "1f0a3b9c2d4e5f60718293a4b5c6d7e8" } });
+});
+
+test("a manual door reads rooms too, but binds nothing: it owns no record", async () => {
+  const fetcher = installDoor(200, infoFixture, null);
+
+  const result = await fetchRoomInfo();
+
+  expect(result.ok).toBe(true);
+  expect(bindPairingRoom).not.toHaveBeenCalled();
+  expect(fetcher.mock.calls[0][1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
 });

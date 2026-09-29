@@ -1,1 +1,1 @@
-{"error": {"code": "client_msg_id_reused", "message": "This id already carries a different message."}}
+{"error": {"code": "client_msg_id_reused", "message": "that client message id was already used for a different message"}}

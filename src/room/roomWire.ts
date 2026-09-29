@@ -22,17 +22,21 @@ export type RoomInfo = {
   you: number;
   /** Opaque; stable for the life of the computer's room. */
   roomId: string;
-  /** The transcript generation; a change means a resync, not a page. */
-  transcriptEpoch: string | number;
+  /** The transcript epoch seqs are unique within; a change means resync. */
+  epoch: string;
 };
 
 export type RoomHistoryMessage = {
   seq: number;
+  /** The epoch this entry belongs to — the room's current one at read. */
+  epoch: string;
   memberId: number;
   name: string;
   time: number;
   text: string;
   callAi: boolean;
+  /** The author's device is gone: the mark §4 puts on their old entries. */
+  former: boolean;
 };
 
 export type RoomHistoryPage = {
@@ -44,6 +48,8 @@ export type RoomHistoryPage = {
 export type RoomPostAck = {
   seq: number;
   time: number;
+  /** Null in this version — the AI guest claims nothing yet (§5); "queued"
+   *  and "refused" are what it will answer once it lands. */
   aiCall: null | "queued" | "refused";
   refusal: string | null;
 };
@@ -76,10 +82,8 @@ function asCounter(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function asEpoch(value: unknown): string | number | null {
-  if (typeof value === "string") return value.length > 0 ? value : null;
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  return null;
+function asEpoch(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function parseMembers(value: unknown): RoomMember[] | null {
@@ -124,7 +128,7 @@ export function parseRoomInfo(value: unknown): RoomInfo | null {
   const roomName = asString(info.room_name);
   const roomId = asString(info.room_id);
   const you = asMemberId(info.you);
-  const transcriptEpoch = asEpoch(info.transcript_epoch);
+  const epoch = asEpoch(info.epoch);
   const members = parseMembers(info.members);
   const ai = parseAiTurn(info.ai);
   if (
@@ -132,28 +136,46 @@ export function parseRoomInfo(value: unknown): RoomInfo | null {
     roomId === null ||
     roomId.length === 0 ||
     you === null ||
-    transcriptEpoch === null ||
+    epoch === null ||
     members === null ||
     ai === null
   ) {
     return null;
   }
-  return { roomName, members, ai, you, roomId, transcriptEpoch };
+  return { roomName, members, ai, you, roomId, epoch };
 }
 
 function parseMessage(value: unknown): RoomHistoryMessage | null {
   const message = asObject(value);
   if (message === null) return null;
   const seq = asCounter(message.seq);
+  const epoch = asEpoch(message.epoch);
   const memberId = asMemberId(message.member_id);
   const name = asString(message.name);
   const time = asCounter(message.time);
   const text = asString(message.text);
   const callAi = asBoolean(message.call_ai);
-  if (seq === null || memberId === null || name === null || time === null || text === null || callAi === null) {
+  // former is absent for a live author and true for a gone one; anything
+  // else is not the shape §4 promises.
+  const former =
+    message.former === undefined
+      ? false
+      : typeof message.former === "boolean"
+        ? message.former
+        : null;
+  if (
+    seq === null ||
+    epoch === null ||
+    memberId === null ||
+    name === null ||
+    time === null ||
+    text === null ||
+    callAi === null ||
+    former === null
+  ) {
     return null;
   }
-  return { seq, memberId, name, time, text, callAi };
+  return { seq, epoch, memberId, name, time, text, callAi, former };
 }
 
 export function parseRoomHistoryPage(value: unknown): RoomHistoryPage | null {
