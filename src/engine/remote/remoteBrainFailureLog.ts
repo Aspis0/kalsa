@@ -17,20 +17,28 @@ export type RemoteBrainFailureRoad = Road | "unknown";
 const PROBE_HTTP = /^(?:models|health) HTTP (\d{3})$/;
 
 /**
+ * Only a full lower_snake_case token of our own shape may be logged
+ * verbatim. A message merely STARTING with "remote_brain_" could carry a
+ * suffix nobody vetted (a URL, a token), so anything else — a localized
+ * sentence, a native exception, a prefixed foreign string — collapses to
+ * the fixed "other".
+ */
+const OWN_CODE = /^remote_brain_[a-z0-9_]+$/;
+
+/**
  * The normalized failure code. Our own codes pass through; the engine's
- * control codes map to their token; anything else — a localized sentence,
- * a native exception — collapses to `remote_brain_internal`, so no
- * arbitrary text can reach the log.
+ * control codes map to their token; everything else collapses to "other",
+ * so no arbitrary text can reach the log.
  */
 export function remoteBrainFailureReason(error: unknown): string {
   if (error instanceof Error) {
-    if (error.message.startsWith("remote_brain_")) return error.message;
+    if (OWN_CODE.test(error.message)) return error.message;
     const code = (error as { code?: unknown }).code;
     if (code === "interrupted" || code === "truncated") return code;
     const probe = PROBE_HTTP.exec(error.message);
     if (probe) return `remote_brain_http_${probe[1]}`;
   }
-  return "remote_brain_internal";
+  return "other";
 }
 
 export function logRemoteBrainFailure(

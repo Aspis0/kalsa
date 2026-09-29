@@ -31,18 +31,32 @@ describe("remoteBrainFailureReason", () => {
     );
   });
 
-  test("anything else collapses to remote_brain_internal — no free text in the log", () => {
+  test("anything else collapses to other — no free text in the log", () => {
     expect(
       remoteBrainFailureReason(
         new Error("fetch failed: java.net.ConnectException: 10.0.0.2:8443"),
       ),
-    ).toBe("remote_brain_internal");
-    expect(remoteBrainFailureReason(new Error("Model unloaded"))).toBe(
-      "remote_brain_internal",
+    ).toBe("other");
+    expect(remoteBrainFailureReason(new Error("Model unloaded"))).toBe("other");
+    expect(remoteBrainFailureReason(undefined)).toBe("other");
+    expect(remoteBrainFailureReason("remote_brain_network")).toBe("other");
+  });
+
+  test("a prefix is not a pass: our shape only, full message", () => {
+    // A message that merely starts with the prefix could be carrying a
+    // URL or token in its tail — it must collapse, not ride through.
+    expect(
+      remoteBrainFailureReason(
+        new Error("remote_brain_https://user:secret@desk.example:8443/v1"),
+      ),
+    ).toBe("other");
+    expect(remoteBrainFailureReason(new Error("remote_brain_401 token=abc"))).toBe(
+      "other",
     );
-    expect(remoteBrainFailureReason(undefined)).toBe("remote_brain_internal");
-    expect(remoteBrainFailureReason("remote_brain_network")).toBe(
-      "remote_brain_internal",
+    expect(remoteBrainFailureReason(new Error("remote_brain_TIMEOUT"))).toBe("other");
+    // The real codes still pass: full, lowercase, snake_case only.
+    expect(remoteBrainFailureReason(new Error("remote_brain_http_401"))).toBe(
+      "remote_brain_http_401",
     );
   });
 });
@@ -81,7 +95,7 @@ describe("logRemoteBrainFailure", () => {
     );
     const line = logSpy.mock.calls[0]?.[1] as string;
     expect(line).toBe(
-      JSON.stringify({ road: "unknown", stage: "stream", reason: "remote_brain_internal" }),
+      JSON.stringify({ road: "unknown", stage: "stream", reason: "other" }),
     );
   });
 });
