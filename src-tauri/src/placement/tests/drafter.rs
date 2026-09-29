@@ -152,6 +152,22 @@ fn a_failed_digest_is_not_retried_for_a_day() {
         "the failed pin is not retried within a day"
     );
 
+    // A marker time in the future is a clock that was ahead: stale, so the
+    // drafter is fetched rather than suppressed until the clock catches up.
+    std::fs::write(
+        &marker,
+        format!("{} {WRONG_SHA256}", at + DRAFTER_RETRY_SECONDS + 1),
+    )
+    .expect("a marker from ahead");
+    let ahead = place_model(&failing(wrong_drafter.clone()), &root, true, &mut |_| {})
+        .expect("still places");
+    assert!(ahead.drafter.is_none(), "the pin is still wrong");
+    assert_eq!(
+        requests_of(&wrong_requests),
+        2,
+        "a future marker reads as stale"
+    );
+
     // A day gone by (the marker's own time says so): fetched again.
     std::fs::write(
         &marker,
@@ -164,7 +180,7 @@ fn a_failed_digest_is_not_retried_for_a_day() {
     let retried = place_model(&failing(wrong_drafter.clone()), &root, true, &mut |_| {})
         .expect("still places");
     assert!(retried.drafter.is_none(), "the pin is still wrong");
-    assert_eq!(requests_of(&wrong_requests), 2, "a day later it retries");
+    assert_eq!(requests_of(&wrong_requests), 3, "a day later it retries");
 
     // The pin that succeeds removes the marker.
     std::fs::write(models.join("weights.gguf"), PLAN_BODY).expect("weights proven");

@@ -159,7 +159,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
             bytes_mark("runtime", done, total, &mut runtime_mark)
         }
         Progress::ModelBytes { done, total, .. } => {
-            transfer.observe(done);
+            transfer.observe(done, total);
             bytes_mark("model", done, total, &mut model_mark);
         }
     };
@@ -432,10 +432,19 @@ struct ModelTransfer {
     readings: u32,
     start: u64,
     last: u64,
+    /// The total the stream opened with. A reading carrying another total
+    /// is the re-based close after a lost drafter: its `done` is a closure
+    /// for the page, not bytes that arrived, and must not move `last`
+    /// backwards.
+    total: Option<u64>,
 }
 
 impl ModelTransfer {
-    fn observe(&mut self, done: u64) {
+    fn observe(&mut self, done: u64, total: u64) {
+        if self.total.is_some_and(|known| known != total) {
+            return;
+        }
+        self.total = Some(total);
         self.reported = true;
         self.readings += 1;
         if self.readings == 2 {
@@ -468,4 +477,23 @@ fn timing(timings: &Value, field: &str) -> f64 {
         .get(field)
         .and_then(Value::as_f64)
         .unwrap_or_else(|| panic!("the server's timings carry no {field}: {timings}"))
+}
+
+#[test]
+fn a_re_based_close_does_not_take_bytes_back() {
+    // The stream a lost drafter leaves: the zero-fire, the transfers over
+    // the promised total, then the close re-based to what placed. The
+    // transcript must count the bytes that moved, not let the close read
+    // as a transfer that never happened.
+    let mut transfer = ModelTransfer::default();
+    transfer.observe(0, 87);
+    transfer.observe(55, 87);
+    transfer.observe(87, 87);
+    assert_eq!(transfer.moved(), 32, "the drafter's bytes moved");
+    transfer.observe(55, 55);
+    assert_eq!(
+        transfer.moved(),
+        32,
+        "the close is for the page, not the accountant"
+    );
 }

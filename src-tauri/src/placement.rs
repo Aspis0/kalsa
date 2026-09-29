@@ -232,7 +232,11 @@ fn drafter_recently_failed(path: &Path, sha256: &str) -> bool {
     let Ok(at) = at.parse::<u64>() else {
         return false;
     };
-    pinned == sha256 && unix_now().saturating_sub(at) < DRAFTER_RETRY_SECONDS
+    // A marker time in the future is a clock that was ahead, not a failure
+    // worth waiting for: it reads as stale, so MTP is never suppressed
+    // until the clock catches up and a day passes on top of it.
+    let now = unix_now();
+    pinned == sha256 && at <= now && now - at < DRAFTER_RETRY_SECONDS
 }
 
 fn mark_drafter_failed(path: &Path, sha256: &str) {
