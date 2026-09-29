@@ -12,9 +12,9 @@
 //! nothing is claimed as capability.
 
 use kalsa_catalog::{
-    capability_basis, choose, footprint_bytes, largest_that_runs_well, memory_budget,
-    quicker_alternative, Backend, ChoiceInput, Decision, Parameters, PhoneModel, Prediction, GIB,
-    CHOOSER_CONTEXT_TOKENS,
+    candidate_footprint, capability_basis, choose, largest_that_runs_well, memory_budget,
+    quicker_alternative, Backend, ChoiceInput, Decision, DownloadPlan, Parameters, PhoneModel,
+    Prediction, CHOOSER_CONTEXT_TOKENS, GIB,
 };
 
 fn main() {
@@ -81,7 +81,9 @@ fn main() {
     );
     for usable in kalsa_catalog::usable() {
         let entry = usable.entry();
-        let footprint = footprint_bytes(entry, input.context_tokens);
+        // The chooser's own footprint for the row — the row's drafter
+        // included — so this column never disagrees with the pick below.
+        let footprint = candidate_footprint(usable, &input);
         let fits = kalsa_catalog::fits_footprint(entry, &footprint, &budget);
         let capable = input
             .phone
@@ -115,18 +117,17 @@ fn main() {
         println!("route:  phone-free (the row this machine runs well: biggest while a line clears, fastest while none does)");
         match largest_that_runs_well(&input) {
             Ok(row) => {
-                println!("starts: {} ({})", row.entry.display_name, row.entry.repo);
+                println!(
+                    "starts: {} ({}, {})",
+                    row.entry.display_name, row.entry.repo, row.entry.quant
+                );
                 println!(
                     "        {} of weights, {} in memory at the {}-token pricing context",
                     gibs(row.entry.weights_bytes),
                     gibs(row.footprint.total_bytes()),
                     input.context_tokens
                 );
-                println!("fetch:   {}", row.download.url);
-                println!(
-                    "         {} bytes, sha256 {}",
-                    row.download.bytes, row.download.sha256
-                );
+                print_fetch(&row.download);
                 match quicker_alternative(&input, &row.decode) {
                     Some(second) => println!(
                         "second:  {} ({}) — {} of weights",
@@ -145,7 +146,10 @@ fn main() {
         println!("route:  paired (the upgrade comparison against the phone)");
         match choose(&input) {
             Decision::Pick(selection) => {
-                println!("chosen: {} ({})", selection.display_name, selection.repo);
+                println!(
+                    "chosen: {} ({}, {})",
+                    selection.display_name, selection.repo, selection.quant
+                );
                 println!(
                     "        {} of weights, {} in memory at the {}-token pricing context",
                     gibs(selection.weights_bytes),
@@ -157,9 +161,7 @@ fn main() {
                     selection.justification,
                     selection.licence.id()
                 );
-                let plan = &selection.download;
-                println!("fetch:   {}", plan.url);
-                println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
+                print_fetch(&selection.download);
                 match quicker_alternative(&input, &selection.decode) {
                     Some(second) => println!(
                         "second:  {} ({}) — {} of weights",
@@ -287,6 +289,22 @@ fn yes_no(value: bool) -> &'static str {
         "yes"
     } else {
         "no"
+    }
+}
+
+/// The pick's fetch lines: the weights file, and the drafter beside it with
+/// the one total both cost, when the row ships with a drafter.
+fn print_fetch(plan: &DownloadPlan) {
+    println!("fetch:   {}", plan.url);
+    println!("         {} bytes, sha256 {}", plan.bytes, plan.sha256);
+    if let Some(drafter) = &plan.drafter {
+        println!("drafter: {}", drafter.url);
+        println!(
+            "         {} bytes, sha256 {} — {} with the weights",
+            drafter.bytes,
+            drafter.sha256,
+            gibs(plan.total_bytes())
+        );
     }
 }
 

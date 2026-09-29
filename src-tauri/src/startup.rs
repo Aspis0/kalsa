@@ -1340,6 +1340,7 @@ mod tests {
             url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
+            drafter: None,
         };
         let found = acquire_model(
             &plan,
@@ -1385,6 +1386,7 @@ mod tests {
             url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
+            drafter: None,
         };
         let found = acquire_model(
             &plan,
@@ -1498,6 +1500,7 @@ mod tests {
             url: url.clone(),
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
+            drafter: None,
         };
         let stopped = place_model(&plan, &root, false, &mut |_| {})
             .expect_err("nothing consents here: the walk waits");
@@ -1536,6 +1539,7 @@ mod tests {
             url,
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
+            drafter: None,
         };
         let local = models.join(plan.url.rsplit('/').next().expect("a file name"));
         std::fs::write(&local, PLAN_BODY).expect("the copy already here");
@@ -2130,6 +2134,7 @@ mod tests {
             url,
             bytes: PLAN_BODY.len() as u64,
             sha256: PLAN_SHA256,
+            drafter: None,
         };
         let path = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
         assert_eq!(
@@ -2159,6 +2164,7 @@ mod tests {
             url,
             bytes: body.len() as u64,
             sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+            drafter: None,
         };
         let err =
             place_model(&plan, &root, true, &mut |_| {}).expect_err("the digest is the promise");

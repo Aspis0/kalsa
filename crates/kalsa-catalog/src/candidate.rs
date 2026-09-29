@@ -78,6 +78,9 @@ pub(crate) struct Candidate<'a> {
     /// that has one — that is what `UsableEntry` means — so a prediction
     /// can always become a download plan.
     pub(crate) source: &'a GgufSource,
+    /// The pinned drafter beside the weights, when the row ships with one:
+    /// charged to the footprint below, carried into the download plan.
+    pub(crate) drafter: Option<&'a GgufSource>,
     pub(crate) footprint: Footprint,
     /// Decode throughput as a range, never as a point.
     pub(crate) decode: Prediction,
@@ -113,10 +116,24 @@ pub fn decode_prediction(entry: UsableEntry<'_>, input: &ChoiceInput) -> Predict
 /// prediction below, which says out loud that it is estimated.
 pub const MEASURED_BANDWIDTH_TOLERANCE: f64 = 0.25;
 
+/// The chooser's own footprint for this row on this machine — the same
+/// candidate construction `choose` runs, the row's drafter included. One
+/// copy of that arithmetic exists; this is the window onto it for callers
+/// outside the catalog, beside [`decode_prediction`].
+pub fn candidate_footprint(entry: UsableEntry<'_>, input: &ChoiceInput) -> Footprint {
+    candidate(entry, input).footprint
+}
+
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
     let source = entry.source();
+    let drafter = entry.drafter();
     let entry = entry.entry();
-    let footprint = footprint_bytes(entry, input.context_tokens);
+    let mut footprint = footprint_bytes(entry, input.context_tokens);
+    // The drafter is resident wherever the row runs, so the fit charges it;
+    // it is NOT charged to the decode traffic, whose anchors are no-spec
+    // target-only rates — pricing a drafter's reads belongs with the launch
+    // wiring that will actually run one.
+    footprint.drafter_bytes = drafter.map(|file| file.bytes).unwrap_or(0);
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
     // these two the wrong way round is the mistake the separate types prevent.
     let active_bytes = active_weight_bytes(entry);
@@ -196,6 +213,7 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     Candidate {
         entry,
         source,
+        drafter,
         footprint,
         decode,
         // Prefill is an estimate, and says so: the compute probe counts the

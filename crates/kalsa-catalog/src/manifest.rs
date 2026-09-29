@@ -268,6 +268,23 @@ impl ModelEntry {
     }
 }
 
+/// A row's other compression: the same model — same header, same licence,
+/// same cache arithmetic — with the bigger file's quant, size, pin and its
+/// own measured decode, which is a different machine fact from the smaller
+/// file's. Nested under its row rather than listed beside it: the interface
+/// lists rows, and this is one model. What it may replace its row's file on
+/// is the chooser's rule, not the table's.
+#[derive(Clone, Copy, Debug)]
+pub struct Q8Variant {
+    /// The row's numbers with the variant file's own quant, weights size and
+    /// measured decode; every other field carries over from the row, which
+    /// the tests pin.
+    pub model: ModelEntry,
+    /// The file the Q8 weights come from — complete, pinned, verified, like
+    /// every [`GgufSource`].
+    pub source: GgufSource,
+}
+
 /// A row whose weights are a pinned, verifiable file. This is the only shape
 /// the chooser is ever handed: the model's numbers and the file's address
 /// travel together, and neither exists without the other.
@@ -278,6 +295,13 @@ pub struct DownloadableEntry {
     pub model: ModelEntry,
     /// The file the weights come from — complete, pinned, verified.
     pub source: GgufSource,
+    /// A second model fetched and loaded beside the weights (a speculative
+    /// decoder's drafter), pinned like every other file. `None` on every row
+    /// that runs alone — there is no placeholder pin.
+    pub drafter: Option<GgufSource>,
+    /// The same model at Q8_0, served by the chooser's bandwidth rule where
+    /// it applies. `None` on every row with one compression.
+    pub q8: Option<Q8Variant>,
 }
 
 /// A row that passed every gate.
@@ -291,6 +315,10 @@ pub struct DownloadableEntry {
 pub struct UsableEntry<'a> {
     entry: &'a ModelEntry,
     source: &'a GgufSource,
+    /// The row's drafter, when it ships with one: it travels with the row
+    /// wherever the row goes, because a pick that starts a drafter must
+    /// fetch it.
+    drafter: Option<&'a GgufSource>,
 }
 
 impl<'a> UsableEntry<'a> {
@@ -302,6 +330,11 @@ impl<'a> UsableEntry<'a> {
     /// only constructor is [`usable`], fed by [`DOWNLOADABLE`].
     pub fn source(&self) -> &'a GgufSource {
         self.source
+    }
+
+    /// The pinned drafter beside the weights, when the row ships with one.
+    pub fn drafter(&self) -> Option<&'a GgufSource> {
+        self.drafter
     }
 }
 
@@ -315,6 +348,7 @@ impl<'a> UsableEntry<'a> {
         Self {
             entry,
             source: &TEST_ONLY_SOURCE,
+            drafter: None,
         }
     }
 }
@@ -531,6 +565,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 14_439_363_584,
             sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
         },
+        drafter: None,
+        q8: None,
     },
     // ── Google Gemma 4 E4B, verified 2026-09-18 ────────────────────────────
     // In this order: `general.architecture` was read from the pinned file's
@@ -610,6 +646,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 4_977_171_584,
             sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
         },
+        drafter: None,
+        q8: None,
     },
     // ── Alibaba Qwen 3.6, verified against Hugging Face on 2026-09-16 ───────
     // The architecture string was read from this pinned file's own GGUF
@@ -691,6 +729,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 22_134_528_992,
             sha256: "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
         },
+        drafter: None,
+        q8: None,
     },
     // Google Gemma 4 12B (2026-09-17): the table's only dense-parameter row
     // (dense FFN, n_expert 0 — but hybrid attention: 8 full layers of 48,
@@ -699,6 +739,38 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // 7662533088, x-linked-etag the sha256 below — licence apache-2.0 read
     // from the repo's own README, repo not gated. Downloaded and hashed
     // 2026-09-17: the digest matched.
+    //
+    // The drafter (2026-09-29): Gemma-4-12B MTP speculative decoding turns
+    // on in the alpha, and the assistant head is a pinned file like any
+    // other — `gemma4-assistant`, 4 blocks
+    // (docs/SPEC-GEMMA12B-MTP-M1MAX-2026-09-29.md Setup table, line 53).
+    // Repo commit `e3e681731089efaa3f0917336944ac64752db8ba` (the API's
+    // `sha` for main, read 2026-09-29): paths-info at that commit returned
+    // lfs.size 465_109_152 and lfs.oid the sha256 below, `curl -sIL` on the
+    // resolve URL returned the same pair as x-linked-size/x-linked-etag, and
+    // the local copy (`~/lab/spec/dl/`) hashes to it. The drafter's bytes
+    // are charged to the memory fit and to the download total — it is
+    // resident wherever the row runs — but not to the decode traffic: the
+    // row's rates are no-spec target-only figures, and pricing a drafter's
+    // reads belongs with the launch wiring that will actually run one.
+    //
+    // The Q8 file (2026-09-29, owner decision): on a machine whose bandwidth
+    // is at least [`crate::choice::Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] AND
+    // where the Q8 weights, the drafter and this row's memory accounting fit
+    // the budget, the row is served as Q8_0 instead of Q4_K_M; below the
+    // line, or where it does not fit, exactly as before. Same repo and
+    // commit as the Q4 file: `curl -sIL` on its resolve URL returned
+    // x-linked-size 12_669_647_328 and x-linked-etag the sha256 below, and
+    // paths-info at the commit agrees on both. The header is the same
+    // model's (the spec doc served this file under the row's own argv, q8_0
+    // KV, 65_536 context), so the cache arithmetic carries over.
+    //
+    // Its decode anchor is the doc's own Q8_0 no-spec rate on the final fork
+    // build — greedy it_short 19.62 (line 319, the fork A/B table) — read at
+    // the same protocol family as this row's 20.44: its Q4 twin is 19.86
+    // (line 309), so the anchor ratio puts Q8 about 4% under Q4, in line
+    // with the measured 1.1–3.0% decode gap (line 376) and erring against
+    // the bigger file.
     DownloadableEntry {
         model: ModelEntry {
             repo: "google/gemma-4-12B-it",
@@ -768,6 +840,55 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 7_662_533_088,
             sha256: "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509",
         },
+        drafter: Some(GgufSource {
+            repo: "ggml-org/gemma-4-12B-it-GGUF",
+            commit: "e3e681731089efaa3f0917336944ac64752db8ba",
+            file: "mtp-gemma-4-12B-it-Q8_0.gguf",
+            bytes: 465_109_152,
+            sha256: "16c90eb9f2b2891cc138f3d2b3bf11e23b2ced2aeab9a9d39d90fe446f2f0610",
+        }),
+        q8: Some(Q8Variant {
+            model: ModelEntry {
+                repo: "google/gemma-4-12B-it",
+                display_name: "Google Gemma 4 12B",
+                last_modified: "2026-07-20T16:42:08.000Z",
+                licence: Licence::Open("apache-2.0"),
+                parameters: Parameters::dense(11_950_000_000),
+                quant: "Q8_0",
+                weights_bytes: 12_669_647_328,
+                mmproj_bytes: None,
+                kv_bytes_per_token: Some(8_704),
+                slot_cache: SlotCache::SlidingWindow {
+                    window_tokens: 1024,
+                    width_per_cell: 163_840,
+                },
+                dense_equivalent: None,
+                kv_assumption_undercounts: false,
+                measured_decode: Some(MeasuredDecode {
+                    tokens_per_second: 19.62,
+                    backend: Backend::Metal,
+                    bandwidth_bytes_per_second: 400.0e9,
+                    measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
+                                  on GPU, context 65536, no-spec A arm, greedy it_short), \
+                                  2026-09-29",
+                }),
+                trained_context_tokens: Some(131_072),
+                stale: None,
+                sampling: Sampling {
+                    temperature: Some(1.0),
+                    top_p: Some(0.95),
+                    top_k: Some(64),
+                    repeat_penalty: None,
+                },
+            },
+            source: GgufSource {
+                repo: "bartowski/gemma-4-12B-it-GGUF",
+                commit: "2ae7d41be21ca62de00a2d320ee9cec50daa3aa6",
+                file: "gemma-4-12B-it-Q8_0.gguf",
+                bytes: 12_669_647_328,
+                sha256: "929bd294cbdc59e41450488bea524a174f1c6ddc43f140fdb5905a5fd1e41969",
+            },
+        }),
     },
     // ── LiquidAI LFM2.5-2.6B, verified against the Hugging Face API on 2026-09-26 ──
     // The same model the phone app ships, pinned at commit
@@ -851,6 +972,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 2_874_779_648,
             sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
         },
+        drafter: None,
+        q8: None,
     },
     // ── LiquidAI LFM2.5-2.6B, the full-precision file, same repo and commit ──
     // F16, and why not BF16: M1/M2 have no hardware BF16 and llama.cpp
@@ -929,6 +1052,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 5_403_158_528,
             sha256: "e041c231351185eb390f9c417d3bfd1815869a50a8589f3f86e5b9add3c529f1",
         },
+        drafter: None,
+        q8: None,
     },
     // ── Alibaba Qwen 3.8-27B, verified against the Hugging Face API on 2026-09-26 ──
     // The dense 27B, at unsloth's UD-Q4_K_M — the file the research pinned:
@@ -1007,6 +1132,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 16_464_440_224,
             sha256: "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
         },
+        drafter: None,
+        q8: None,
     },
 ];
 
@@ -1017,6 +1144,29 @@ pub fn usable() -> impl Iterator<Item = UsableEntry<'static>> {
     usable_in(DOWNLOADABLE)
 }
 
+/// Each row's Q8 variant beside the row that owns it. The pair is what keeps
+/// the lookup honest when one repo ships two rows (LiquidAI's two
+/// compressions): a variant replaces ITS row, never the repo. Existence here
+/// is not an offer — the chooser's bandwidth rule decides when a variant is
+/// served, and until then the row's own file is the row.
+pub fn q8_variants() -> impl Iterator<Item = (&'static ModelEntry, UsableEntry<'static>)> {
+    DOWNLOADABLE
+        .iter()
+        .filter(|row| row.model.is_usable())
+        .filter_map(|row| {
+            row.q8.as_ref().map(|variant| {
+                (
+                    &row.model,
+                    UsableEntry {
+                        entry: &variant.model,
+                        source: &variant.source,
+                        drafter: row.drafter.as_ref(),
+                    },
+                )
+            })
+        })
+}
+
 /// The gate itself, over any table, so a test can run the menu's exact
 /// filter over rows the test wrote: [`usable`] is this fed the real table.
 fn usable_in(rows: &[DownloadableEntry]) -> impl Iterator<Item = UsableEntry<'_>> {
@@ -1025,6 +1175,7 @@ fn usable_in(rows: &[DownloadableEntry]) -> impl Iterator<Item = UsableEntry<'_>
         .map(|row| UsableEntry {
             entry: &row.model,
             source: &row.source,
+            drafter: row.drafter.as_ref(),
         })
 }
 

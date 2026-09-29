@@ -55,17 +55,15 @@ pub mod licence;
 pub mod manifest;
 pub mod parameters;
 
-pub use candidate::{decode_prediction, Prediction};
+pub use candidate::{candidate_footprint, decode_prediction, Prediction};
 pub use choice::DownloadPlan;
 pub use choice::{
-    capability_basis, choose, largest_that_runs_well, quicker_alternative, runnable_row,
-    CapabilityBasis,
-    ChoiceInput, Decision, Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
-    dense_speed_floor, full_precision_file, CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO,
-    LARGE_DENSE_PARAMETERS,
-    LARGE_MOE_TOTAL_PARAMETERS, MINIMUM_DENSE_TOKENS_PER_SECOND,
-    MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE, ROOMY_RAM_BYTES,
-    SAME_CLASS_BAND,
+    capability_basis, choose, dense_speed_floor, full_precision_file, largest_that_runs_well,
+    quicker_alternative, runnable_row, CapabilityBasis, ChoiceInput, Decision, DownloadFile,
+    Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
+    CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO, LARGE_DENSE_PARAMETERS, LARGE_MOE_TOTAL_PARAMETERS,
+    MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
+    Q8_MIN_BANDWIDTH_BYTES_PER_SECOND, QUICK_SPEED_ADVANTAGE, ROOMY_RAM_BYTES, SAME_CLASS_BAND,
 };
 pub use footprint::{
     fits, fits_footprint, footprint_bytes, host_bytes_on_gpu, memory_budget, usable_bytes,
@@ -76,7 +74,7 @@ pub use footprint::{
 pub use kalsa_probe::Backend;
 pub use licence::{Licence, Standing};
 pub use manifest::{
-    excluded, rows, usable, DenseEquivalent, DownloadableEntry, GgufSource, ModelEntry, Sampling,
-    UsableEntry, CATALOG, DOWNLOADABLE,
+    excluded, q8_variants, rows, usable, DenseEquivalent, DownloadableEntry, GgufSource,
+    ModelEntry, Q8Variant, Sampling, UsableEntry, CATALOG, DOWNLOADABLE,
 };
 pub use parameters::{ActiveParameters, Parameters, TotalParameters};

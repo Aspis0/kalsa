@@ -89,6 +89,7 @@ fn print_tier(tier: u64, base: ChoiceInput) {
                 url,
                 bytes,
                 sha256,
+                ..
             } = &selection.download;
             println!("  download: {url}");
             println!("            {bytes} bytes, sha256 {sha256}");
@@ -187,6 +188,7 @@ fn print_winner(row: &RunnableRow) {
         url,
         bytes,
         sha256,
+        ..
     } = &row.download;
     println!("  download: {url}");
     println!("            {bytes} bytes, sha256 {sha256}");

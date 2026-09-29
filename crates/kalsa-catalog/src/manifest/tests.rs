@@ -1,6 +1,6 @@
 use super::{
-    excluded, excluded_in, rows, usable, usable_in, DenseEquivalent, Licence, Standing,
-    CATALOG, DOWNLOADABLE,
+    excluded, excluded_in, q8_variants, rows, usable, usable_in, DenseEquivalent, GgufSource,
+    Licence, Q8Variant, Standing, CATALOG, DOWNLOADABLE,
 };
 use crate::footprint::ASSUMED_KV_BYTES_PER_TOKEN;
 
@@ -158,7 +158,18 @@ fn every_measured_decode_names_its_machine_and_date() {
     // gate means a different machine is never told this one's speed.
     let measured: Vec<_> = DOWNLOADABLE
         .iter()
-        .filter_map(|row| row.model.measured_decode.map(|measured| (row.model.repo, measured)))
+        .flat_map(|row| {
+            row.model
+                .measured_decode
+                .map(|measured| (row.model.repo, measured))
+                .into_iter()
+                .chain(row.q8.iter().filter_map(|variant| {
+                    variant
+                        .model
+                        .measured_decode
+                        .map(|measured| (variant.model.repo, measured))
+                }))
+        })
         .collect();
     assert!(
         !measured.is_empty(),
@@ -292,9 +303,8 @@ fn every_source_is_pinned_and_consistent_with_its_row() {
     // be a sha256 — 64 lowercase hex characters — and the size must be the
     // file this row describes: a mismatch here is a copy-paste between
     // rows, which is exactly how an unverified download would sneak
-    // through.
-    for row in DOWNLOADABLE {
-        let source = row.source;
+    // through. A variant file is held to every word of it too.
+    let check = |repo: &str, source: GgufSource, weights_bytes: u64| {
         let lowercase_hex = |s: &str| {
             s.chars()
                 .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
@@ -328,10 +338,20 @@ fn every_source_is_pinned_and_consistent_with_its_row() {
         );
         assert!(!source.repo.is_empty(), "a source names its repo");
         assert_eq!(
-            source.bytes, row.model.weights_bytes,
+            source.bytes, weights_bytes,
             "{}: the pinned file's size must be the row's weight size",
-            row.model.repo
+            repo
         );
+    };
+    for row in DOWNLOADABLE {
+        check(row.model.repo, row.source, row.model.weights_bytes);
+        if let Some(variant) = row.q8 {
+            check(
+                variant.model.repo,
+                variant.source,
+                variant.model.weights_bytes,
+            );
+        }
     }
 }
 
@@ -469,19 +489,135 @@ fn every_usable_file_stem_is_distinct() {
     // The stem is the id the engine lists (`--alias`, rendered from the
     // served path): two rows with the same stem would answer the same id on
     // one machine, and the second file's model would be unreachable by name.
+    // Variant and drafter files become served files the same way, so their
+    // stems are held to the same rule.
     let mut stems: Vec<String> = DOWNLOADABLE
         .iter()
-        .map(|row| {
-            std::path::Path::new(row.source.file)
+        .flat_map(|row| {
+            std::iter::once(row.source.file)
+                .chain(row.drafter.as_ref().map(|drafter| drafter.file))
+                .chain(row.q8.iter().map(|variant| variant.source.file))
+        })
+        .map(|file| {
+            std::path::Path::new(file)
                 .file_stem()
                 .expect("a gguf file has a stem")
                 .to_string_lossy()
                 .into_owned()
         })
         .collect();
-    assert_eq!(stems.len(), DOWNLOADABLE.len());
     stems.sort();
+    assert_eq!(
+        stems,
+        vec![
+            "LFM2.5-2.6B-F16",
+            "LFM2.5-2.6B-Q8_0",
+            "Qwen3.6-35B-A3B-UD-Q4_K_M",
+            "Qwen3.8-27B-UD-Q4_K_M",
+            "gemma-4-12B-it-Q4_K_M",
+            "gemma-4-12B-it-Q8_0",
+            "gemma-4-26B_q4_0-it",
+            "gemma-4-E4B-it-Q4_K_M",
+            "mtp-gemma-4-12B-it-Q8_0",
+        ],
+        "every file the catalog can fetch, one stem each"
+    );
     let before = stems.len();
     stems.dedup();
     assert_eq!(stems.len(), before, "two rows share a file stem: {stems:?}");
+}
+
+#[test]
+fn the_gemma_row_carries_the_drafter_and_the_q8_file_and_no_other_row_does() {
+    // The two pins of 2026-09-29, verbatim, and their uniqueness: Option on
+    // every other row, never a placeholder. The numbers were verified
+    // against the Hugging Face API at the pinned commits (paths-info lfs
+    // size/oid, and the resolve URL's x-linked-size/x-linked-etag), and the
+    // drafter's local copy hashed to its digest.
+    let drafters: Vec<(&str, &GgufSource)> = DOWNLOADABLE
+        .iter()
+        .filter_map(|row| {
+            row.drafter
+                .as_ref()
+                .map(|drafter| (row.model.repo, drafter))
+        })
+        .collect();
+    assert_eq!(drafters.len(), 1, "one row ships a drafter");
+    assert_eq!(drafters[0].0, "google/gemma-4-12B-it");
+    let drafter = drafters[0].1;
+    assert_eq!(drafter.repo, "ggml-org/gemma-4-12B-it-GGUF");
+    assert_eq!(drafter.commit, "e3e681731089efaa3f0917336944ac64752db8ba");
+    assert_eq!(drafter.file, "mtp-gemma-4-12B-it-Q8_0.gguf");
+    assert_eq!(drafter.bytes, 465_109_152);
+    assert_eq!(
+        drafter.sha256,
+        "16c90eb9f2b2891cc138f3d2b3bf11e23b2ced2aeab9a9d39d90fe446f2f0610"
+    );
+
+    let variants: Vec<(&str, &Q8Variant)> = DOWNLOADABLE
+        .iter()
+        .filter_map(|row| row.q8.as_ref().map(|variant| (row.model.repo, variant)))
+        .collect();
+    assert_eq!(variants.len(), 1, "one row carries a Q8 variant");
+    assert_eq!(variants[0].0, "google/gemma-4-12B-it");
+    let variant = variants[0].1;
+    assert_eq!(
+        variant.source.commit, "2ae7d41be21ca62de00a2d320ee9cec50daa3aa6",
+        "the same bartowski commit the Q4 file is pinned to"
+    );
+    assert_eq!(variant.source.file, "gemma-4-12B-it-Q8_0.gguf");
+    assert_eq!(variant.source.bytes, 12_669_647_328);
+    assert_eq!(
+        variant.source.sha256,
+        "929bd294cbdc59e41450488bea524a174f1c6ddc43f140fdb5905a5fd1e41969"
+    );
+}
+
+#[test]
+fn a_q8_variant_is_its_row_except_for_the_bigger_file() {
+    // The variant is the same model: identical numbers, licence and cache
+    // arithmetic, and only the quant, the weights size and the measured
+    // decode may differ — the bigger file's rate is a different machine
+    // fact. A field added to ModelEntry and copied only into one of the two
+    // turns this red.
+    for row in DOWNLOADABLE {
+        let Some(variant) = row.q8 else {
+            continue;
+        };
+        let (base, up) = (&row.model, &variant.model);
+        assert_eq!(up.repo, base.repo, "{}", base.repo);
+        assert_eq!(up.display_name, base.display_name, "{}", base.repo);
+        assert_eq!(up.last_modified, base.last_modified, "{}", base.repo);
+        assert_eq!(up.licence, base.licence, "{}", base.repo);
+        assert_eq!(up.parameters, base.parameters, "{}", base.repo);
+        assert_eq!(up.mmproj_bytes, base.mmproj_bytes, "{}", base.repo);
+        assert_eq!(
+            up.kv_bytes_per_token, base.kv_bytes_per_token,
+            "{}",
+            base.repo
+        );
+        assert_eq!(up.slot_cache, base.slot_cache, "{}", base.repo);
+        assert_eq!(up.dense_equivalent, base.dense_equivalent, "{}", base.repo);
+        assert_eq!(
+            up.kv_assumption_undercounts, base.kv_assumption_undercounts,
+            "{}",
+            base.repo
+        );
+        assert_eq!(
+            up.trained_context_tokens, base.trained_context_tokens,
+            "{}",
+            base.repo
+        );
+        assert_eq!(up.stale, base.stale, "{}", base.repo);
+        assert_eq!(up.sampling, base.sampling, "{}", base.repo);
+        assert_ne!(up.quant, base.quant, "{}", base.repo);
+        assert!(up.weights_bytes > base.weights_bytes, "{}", base.repo);
+        assert_ne!(up.measured_decode, base.measured_decode, "{}", base.repo);
+    }
+    // And the variant stream is the variant rows, gated exactly as their
+    // owners are: one today, keyed by the row that owns it.
+    let keyed: Vec<(&str, &str)> = q8_variants()
+        .map(|(owner, variant)| (owner.repo, variant.entry().quant))
+        .collect();
+    assert_eq!(keyed, [("google/gemma-4-12B-it", "Q8_0")]);
 }
