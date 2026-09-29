@@ -812,6 +812,15 @@ is written.
 
 ## Roadmap and next steps
 
+**Accelerator order (owner, 2026-09-29):** Snapdragon first (everything that can be done: NPU, GPU,
+one-copy, governor), then iPhone, then Mali, and Google Tensor last. Tensor route to assess, in
+theory first: the Google Tensor SDK (https://developers.google.com/edge/tensor-sdk, beta behind a
+sign-up form, 2026-09-29) runs models on the Pixel TPU through LiteRT AOT-compiled models. Open
+questions before any work: whether it takes LLMs with int4 weights, whether a LiteRT model can share
+weights with our GGUF engine (if not, it is a second copy and a second runtime, against one-copy and
+one-kernel), and the sign-up terms. Note: Pixel's GPU is a Mali, so the Mali step already covers the
+Tensor GPU.
+
 The order is the owner's to set. The committed near-term work is:
 
 1. Finish the device measurement of ciswire recall-after-eviction on Qwen (Xiaomi), using the
