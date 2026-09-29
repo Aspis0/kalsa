@@ -767,8 +767,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // carries over.
     //
     // The anchor is the row's own 20.44 scaled by the same-build llama-bench
-    // ratio 23.90/24.66 (SPEC-GEMMA12B-MTP doc lines 386–387) = 19.81: Q8
-    // measured slower than Q4 on one build, never faster.
+    // ratio 23.90/24.66 (SPEC-GEMMA12B-MTP doc lines 386–387) = 19.81, Q8
+    // benched under Q4 on that build.
     DownloadableEntry {
         model: ModelEntry {
             repo: "google/gemma-4-12B-it",

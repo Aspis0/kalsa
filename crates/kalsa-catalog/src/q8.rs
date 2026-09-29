@@ -35,23 +35,37 @@ fn clears_the_gates(candidate: &Candidate, input: &ChoiceInput, budget: &MemoryB
         && !(full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES)
 }
 
+/// The entry a row serves: its own, or the variant when the band gate is
+/// cleared and the variant's own candidate clears the gates below. The one
+/// decision both windows share, so they cannot drift.
+fn served_entry<'a>(
+    row: UsableEntry<'a>,
+    variant: Option<UsableEntry<'a>>,
+    input: &ChoiceInput,
+) -> UsableEntry<'a> {
+    let budget = memory_budget(input.backend, input.ram_bytes);
+    match variant {
+        Some(variant)
+            if input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND
+                && clears_the_gates(&candidate(variant, input), input, &budget) =>
+        {
+            variant
+        }
+        _ => row,
+    }
+}
+
 /// The chooser's candidates over any pairing: one per row, served as the
-/// rule decides, each candidate built once and returned beside its owning
-/// row's entry — paired by structure where the table nests it.
+/// one decision decides, each returned beside its owning row's entry —
+/// paired by structure where the table nests it.
 pub(crate) fn resolved_in<'a>(
     pairs: impl Iterator<Item = (UsableEntry<'a>, Option<UsableEntry<'a>>)>,
     input: &ChoiceInput,
 ) -> Vec<(&'a ModelEntry, Candidate<'a>)> {
-    let budget = memory_budget(input.backend, input.ram_bytes);
     pairs
         .map(|(row, variant)| {
-            let base = candidate(row, input);
-            let served = variant
-                .filter(|_| input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND)
-                .map(|variant| candidate(variant, input))
-                .filter(|upgraded| clears_the_gates(upgraded, input, &budget))
-                .unwrap_or(base);
-            (row.entry(), served)
+            let served = served_entry(row, variant, input);
+            (row.entry(), candidate(served, input))
         })
         .collect()
 }
@@ -66,17 +80,8 @@ pub(crate) fn resolved(input: &ChoiceInput) -> Vec<(&'static ModelEntry, Candida
 /// else. The listing surfaces read this, so their lines cannot disagree
 /// with the pick.
 pub fn served(input: &ChoiceInput) -> Vec<UsableEntry<'static>> {
-    let budget = memory_budget(input.backend, input.ram_bytes);
     manifest::usable_with_q8()
-        .map(|(row, variant)| match variant {
-            Some(variant)
-                if input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND
-                    && clears_the_gates(&candidate(variant, input), input, &budget) =>
-            {
-                variant
-            }
-            _ => row,
-        })
+        .map(|(row, variant)| served_entry(row, variant, input))
         .collect()
 }
 
@@ -331,5 +336,40 @@ mod tests {
         assert_eq!(lfm_pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
         assert!(lfm_pick.download.drafter.is_none());
         assert_eq!(lfm_pick.download.total_bytes(), lfm_pick.download.bytes);
+    }
+
+    #[test]
+    fn the_two_windows_serve_the_same_file_for_every_row() {
+        // `served` and `resolved` are two windows onto one decision: if they
+        // drifted, the listing would show a file the chooser never picks.
+        // Both walk the pairing in table order, so the vectors align.
+        for machine in [mac(16, 100.0), mac(24, 200.0), mac(64, 400.0)] {
+            let entries: Vec<(&str, &str, u64)> = served(&machine)
+                .iter()
+                .map(|entry| {
+                    (
+                        entry.entry().repo,
+                        entry.entry().quant,
+                        entry.entry().weights_bytes,
+                    )
+                })
+                .collect();
+            let candidates: Vec<(&str, &str, u64)> = super::resolved(&machine)
+                .iter()
+                .map(|(_, candidate)| {
+                    (
+                        candidate.entry.repo,
+                        candidate.entry.quant,
+                        candidate.entry.weights_bytes,
+                    )
+                })
+                .collect();
+            assert_eq!(
+                entries,
+                candidates,
+                "the windows disagree at {:.0} GB/s",
+                machine.bandwidth_bytes_per_second / 1e9
+            );
+        }
     }
 }

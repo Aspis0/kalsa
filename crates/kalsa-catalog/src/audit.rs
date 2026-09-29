@@ -55,9 +55,10 @@ pub fn inspect(input: &ChoiceInput) -> Vec<RowAssessment> {
     rows
 }
 
-/// One row's facts: its own standing and dense line always; the chooser's
-/// served candidate — file, footprint, prediction — when the row is on the
-/// menu, and plain table arithmetic otherwise.
+/// One row's facts: the chooser's served candidate — file, footprint,
+/// prediction, standing, dense line — when the row is on the menu, all read
+/// from the entry actually served; plain table arithmetic on the row itself
+/// otherwise.
 fn assessed(
     entry: &'static ModelEntry,
     served: Option<Candidate<'static>>,
@@ -66,11 +67,11 @@ fn assessed(
     match served {
         Some(candidate) => RowAssessment {
             entry: candidate.entry,
-            standing: entry.standing(),
+            standing: candidate.entry.standing(),
             footprint: candidate.footprint,
             decode: Some(candidate.decode),
             too_slow: provably_too_slow(&candidate.decode),
-            dense_line: dense_speed_floor(entry),
+            dense_line: dense_speed_floor(candidate.entry),
         },
         None => RowAssessment {
             entry,
