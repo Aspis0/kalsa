@@ -24,6 +24,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+pub(crate) use crate::names::{fold, is_reserved, valid};
 use crate::{MemberId, RoomError};
 
 pub(crate) const ROSTER_NAME: &str = "room-roster.json";
@@ -31,8 +32,6 @@ const ROSTER_VERSION: u8 = 1;
 /// The AI's display name: fixed, unforgeable, refused to every member in
 /// every casing.
 pub const AI_NAME: &str = "Kalsa";
-/// The most a display name may be, after trimming.
-const MAX_NAME_BYTES: usize = 40;
 /// The highest member number the roster mints. Above it sit the two
 /// reserved wire ids — the AI, then the host.
 const MAX_MEMBER: u32 = u32::MAX - 2;
@@ -124,6 +123,12 @@ impl Roster {
         }
     }
 
+    /// Whether a member id belongs to someone the roster retired — the
+    /// door's mark for "a former member": their entries stay, they do not.
+    pub(crate) fn is_former(&self, member: MemberId) -> bool {
+        matches!(member, MemberId::Member(number) if self.retired.contains(&number))
+    }
+
     pub(crate) fn name_of(&self, member: MemberId) -> Option<String> {
         match member {
             MemberId::Ai => Some(AI_NAME.to_string()),
@@ -167,97 +172,6 @@ impl Roster {
             host_name: self.host_name.clone(),
         }
     }
-}
-
-/// Why a name was refused. The words below are all a client sees; the io
-/// error stays in the value for the app's local log, where paths belong.
-#[derive(Debug)]
-pub enum NameError {
-    Empty,
-    TooLong,
-    /// A control, format, bidi or zero-width character — anything that
-    /// renders as nothing and can make two different names look alike.
-    Invisible,
-    /// "Kalsa" in any casing: the AI's name is not takeable.
-    Reserved,
-    Taken,
-    NotAMember,
-    Io(std::io::Error),
-}
-
-impl std::fmt::Display for NameError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Empty => f.write_str("a name cannot be empty"),
-            Self::TooLong => f.write_str("the name is too long"),
-            Self::Invisible => {
-                f.write_str("a name cannot hold invisible characters")
-            }
-            Self::Reserved => f.write_str("that name belongs to the assistant"),
-            Self::Taken => f.write_str("someone in this room already wears that name"),
-            Self::NotAMember => f.write_str("that member is not in this room"),
-            Self::Io(_) => f.write_str("the room's store failed on disk"),
-        }
-    }
-}
-
-/// The one name rule, shared by the setter and the loader: trimmed, some
-/// text, short enough in bytes, nothing invisible. Comparison happens on
-/// [`fold`]ings, so "MARCO" does not dodge "Marco"; two names that differ
-/// only in Unicode composition (é as one character or as two) are
-/// different names in v1 — an honest limit, stated in the protocol.
-pub fn valid(name: &str) -> Result<String, NameError> {
-    let name = name.trim();
-    if name.is_empty() {
-        return Err(NameError::Empty);
-    }
-    if name.len() > MAX_NAME_BYTES {
-        return Err(NameError::TooLong);
-    }
-    if name.chars().any(is_invisible) {
-        return Err(NameError::Invisible);
-    }
-    Ok(name.to_string())
-}
-
-/// The folded form compared for uniqueness and for the reserved name:
-/// trimmed, then lowercased by Unicode's own simple lowercasing. No
-/// composition normalization is applied — std has none, and pulling a
-/// crate for it buys little a household name needs.
-pub(crate) fn fold(name: &str) -> String {
-    name.chars().flat_map(char::to_lowercase).collect()
-}
-
-fn is_invisible(c: char) -> bool {
-    c.is_control() || is_format_mark(c)
-}
-
-/// std has no general-category API, so the format ranges a name can hide
-/// in are listed by hand: the zero-width and bidi controls (Cf) that make
-/// two different strings render as one, and their neighbours that exist
-/// only to steer rendering. These are the ranges that matter in a name;
-/// the list is stated as the store's own rule, not as Unicode's entirety.
-fn is_format_mark(c: char) -> bool {
-    matches!(c as u32,
-        0x00AD
-        | 0x0600..=0x0605
-        | 0x061C
-        | 0x070F
-        | 0x08E2
-        | 0x180E
-        | 0x200B..=0x200F
-        | 0x202A..=0x202E
-        | 0x2060..=0x2064
-        | 0x2066..=0x2069
-        | 0xFEFF
-        | 0xFFF9..=0xFFFB
-        | 0x110BD
-        | 0x110CD
-        | 0x13430..=0x1343F
-        | 0x1BCA0..=0x1BCA3
-        | 0x1D173..=0x1D17A
-        | 0xE0001
-        | 0xE0020..=0xE007F)
 }
 
 /// Reads the roster back. No file yet is a fresh room — the same absence
@@ -334,8 +248,9 @@ pub(crate) fn load(path: &Path) -> Result<Roster, RoomError> {
 /// setter applies, so a hand edit cannot put past the store what the store
 /// refuses from a member.
 fn stored_name(name: &str) -> Result<String, RoomError> {
-    let name = valid(name).map_err(|_| RoomError::Corrupt("a stored name is not one the store would take"))?;
-    if fold(&name) == fold(AI_NAME) {
+    let name =
+        valid(name).map_err(|_| RoomError::Corrupt("a stored name is not one the store would take"))?;
+    if is_reserved(&name) {
         return Err(RoomError::Corrupt("a stored name is not one the store would take"));
     }
     Ok(name)

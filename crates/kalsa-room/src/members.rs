@@ -2,7 +2,8 @@
 //! member is retired, and the one path each kind of name has.
 
 use crate::events::MemberEvent;
-use crate::roster::{self, NameError, AI_NAME, ROSTER_NAME};
+use crate::names::{self as name_rules, NameError};
+use crate::roster::{self, ROSTER_NAME};
 use crate::room::Room;
 use crate::{MemberId, RoomError};
 
@@ -12,11 +13,14 @@ impl Room {
     /// it, on every call and across restarts. This is R2's first call
     /// after the door authenticates a credential.
     pub fn enroll(&self, device: u32) -> Result<MemberId, RoomError> {
+        // The cheap look first, under no lock a writer holds: every request
+        // a door serves for a known member pays a state lock only, never a
+        // wait behind somebody's fsync.
+        if let Some(member) = self.lock_state().roster.member_of(device) {
+            return Ok(member);
+        }
         let _writer = self.lock_write();
-        if let Some(member) = {
-            let state = self.lock_state();
-            state.roster.member_of(device)
-        } {
+        if let Some(member) = self.lock_state().roster.member_of(device) {
             return Ok(member);
         }
         let (updated, member) = {
@@ -66,9 +70,9 @@ impl Room {
     /// door; the host and the AI do not pass through it — the host has
     /// [`Room::set_host_name`], the AI's name is fixed.
     pub fn set_name(&self, member: MemberId, name: &str) -> Result<String, NameError> {
-        let name = roster::valid(name)?;
-        let folded = roster::fold(&name);
-        if folded == roster::fold(AI_NAME) {
+        let name = name_rules::valid(name)?;
+        let folded = name_rules::fold(&name);
+        if name_rules::is_reserved(&name) {
             return Err(NameError::Reserved);
         }
         let _writer = self.lock_write();
@@ -100,9 +104,9 @@ impl Room {
     /// Sets the host's display name — the computer's own path. The door
     /// does not expose this to phones: the room is the host's house.
     pub fn set_host_name(&self, name: &str) -> Result<String, NameError> {
-        let name = roster::valid(name)?;
-        let folded = roster::fold(&name);
-        if folded == roster::fold(AI_NAME) {
+        let name = name_rules::valid(name)?;
+        let folded = name_rules::fold(&name);
+        if name_rules::is_reserved(&name) {
             return Err(NameError::Reserved);
         }
         let _writer = self.lock_write();
@@ -134,5 +138,12 @@ impl Room {
     /// lives in the pairing store).
     pub fn name_of(&self, member: MemberId) -> Option<String> {
         self.lock_state().roster.name_of(member)
+    }
+
+    /// Whether a member id belongs to someone who left the room — the
+    /// door's mark for rendering a former member's entries ("Mamma (was)":
+    /// the words are the door's, the fact is the store's).
+    pub fn is_former(&self, member: MemberId) -> bool {
+        self.lock_state().roster.is_former(member)
     }
 }

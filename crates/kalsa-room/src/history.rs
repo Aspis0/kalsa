@@ -42,11 +42,21 @@ impl Room {
     }
 
     /// Up to `limit` entries older than `before`, oldest first — the page
-    /// a scroll-up asks for. `before` at or below the oldest seq is an
-    /// empty page, not an error.
+    /// a scroll-up asks for. `before` may name the message one past the
+    /// newest (the whole transcript is older than that); beyond it the
+    /// cursor names a place the transcript never reached, and the page is
+    /// empty, not the newest page in disguise.
     pub fn page_before(&self, before: u64, limit: usize) -> Result<Page, PageError> {
         check_limit(limit)?;
         let state = self.lock_state();
+        let newest = state
+            .messages
+            .last()
+            .map(|message| message.seq)
+            .unwrap_or(0);
+        if before.saturating_sub(1) > newest {
+            return Ok(page_of(&state, state.messages.len(), state.messages.len()));
+        }
         let end = state.messages.partition_point(|message| message.seq < before);
         let start = end.saturating_sub(limit);
         Ok(page_of(&state, start, end))

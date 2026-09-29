@@ -69,7 +69,7 @@ fn the_same_id_and_content_replay_the_same_entry_with_no_second_post() {
         .expect("the retry is answered");
     assert_eq!(replay, first, "the retry sees the stored entry, not a new one");
     assert_eq!(
-        room.page_before(u64::MAX, 100).unwrap().messages.len(),
+        room.newest_page(100).unwrap().messages.len(),
         1,
         "no duplicate landed"
     );
@@ -89,7 +89,7 @@ fn the_same_id_with_different_text_or_flag_is_refused() {
         "a different flag is a different message too"
     );
     assert_eq!(
-        room.page_before(u64::MAX, 100).unwrap().messages.len(),
+        room.newest_page(100).unwrap().messages.len(),
         1,
         "the refusal stored nothing"
     );
@@ -104,12 +104,17 @@ fn two_members_may_use_the_same_client_msg_id() {
 }
 
 #[test]
-fn the_call_ai_flag_the_caller_computed_travels_with_the_entry() {
+fn the_call_flag_is_derived_from_the_text_not_trusted_from_the_caller() {
     let (_dir, room) = open("post_call_ai");
-    let called = room
-        .post(phone(&room, 3), "calling", "@Kalsa what time is it?", true)
+    let explicit = room
+        .post(phone(&room, 3), "calling", "over to you", true)
         .expect("the post lands");
-    assert!(called.call_ai, "the flag is the caller's verdict, stored as given");
+    assert!(explicit.call_ai, "the explicit flag is one way to call");
+    let by_token = say(&room, 4, "by-mention", "hey @Kalsa, what time is it?");
+    assert!(
+        by_token.call_ai,
+        "the store applies the token rule itself; a caller that forgets cannot uncall"
+    );
     let plain = say(&room, 4, "not-calling", "as you were");
     assert!(!plain.call_ai);
 }
@@ -141,6 +146,6 @@ fn the_ai_entry_takes_the_next_seq_without_an_idempotency_key() {
     assert!(answer.call_ai, "an answer belongs to a called turn");
     let again = room.post_ai("And now it is 17:01.").expect("no key to collide with");
     assert_eq!(again.seq, 3, "every AI entry is its own entry");
-    let page = room.page_before(u64::MAX, 100).unwrap();
+    let page = room.newest_page(100).unwrap();
     assert_eq!(page.messages.len(), 3);
 }

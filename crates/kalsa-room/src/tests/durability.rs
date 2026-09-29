@@ -3,8 +3,8 @@
 
 use std::path::{Path, PathBuf};
 
-use super::{log_path, open, say};
-use crate::{PostError, Room};
+use super::{log_path, open, phone, reopen, say};
+use crate::PostError;
 
 const LINE_ONE: &str = r#"{"v":1,"kind":"member","seq":1,"client_msg_id":"a","member":3,"text":"first","time":100,"call_ai":false}"#;
 const LINE_TWO: &str = r#"{"v":1,"kind":"member","seq":2,"client_msg_id":"b","member":4,"text":"second","time":101,"call_ai":false}"#;
@@ -30,8 +30,8 @@ fn a_reopen_keeps_every_entry_and_continues_the_numbering() {
     say(&room, 4, "two", "also before");
     drop(room);
 
-    let reopened = Room::open(&dir).expect("the room opens again");
-    let page = reopened.page_before(u64::MAX, 100).unwrap();
+    let reopened = reopen(&dir).expect("the room opens again");
+    let page = reopened.newest_page(100).unwrap();
     assert_eq!(page.messages.len(), 2);
     assert_eq!(page.messages[0].text, "before the restart");
     let after = say(&reopened, 3, "three", "after");
@@ -44,7 +44,7 @@ fn an_idempotent_retry_survives_the_restart_that_separated_it() {
     let first = say(&room, 3, "retry-me", "posted before the restart");
     drop(room);
 
-    let reopened = Room::open(&dir).expect("the room opens again");
+    let reopened = reopen(&dir).expect("the room opens again");
     let member = reopened.member_of(3).expect("the roster survived too");
     let replay = reopened
         .post(member, "retry-me", "posted before the restart", false)
@@ -54,7 +54,7 @@ fn an_idempotent_retry_survives_the_restart_that_separated_it() {
         matches!(reopened.post(member, "retry-me", "different words", false), Err(PostError::ClientIdReused)),
         "and the reused-id rule survives with it"
     );
-    assert_eq!(reopened.page_before(u64::MAX, 100).unwrap().messages.len(), 1);
+    assert_eq!(reopened.newest_page(100).unwrap().messages.len(), 1);
 }
 
 #[test]
@@ -62,8 +62,8 @@ fn the_ai_entry_survives_the_restart_like_any_other() {
     let (dir, _room) = open("durability_ai_line");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{AI_LINE}\n")).unwrap();
 
-    let room = Room::open(&dir).expect("an ai line is a transcript line");
-    let page = room.page_before(u64::MAX, 100).unwrap();
+    let room = reopen(&dir).expect("the room opens again");
+    let page = room.newest_page(100).unwrap();
     assert_eq!(page.messages.len(), 2);
     assert_eq!(page.messages[1].member, crate::MemberId::Ai);
     let next = room.post_ai("Still 17:00.").unwrap();
@@ -76,8 +76,8 @@ fn a_torn_last_line_is_cut_back_and_every_dropped_byte_is_kept_beside() {
     let original = format!("{LINE_ONE}\n{{\"v\":1,\"seq\":2,\"client_m");
     std::fs::write(log_path(&dir), &original).unwrap();
 
-    let room = Room::open(&dir).expect("a torn tail is recovered, not fatal");
-    assert_eq!(room.page_before(u64::MAX, 100).unwrap().messages.len(), 1);
+    let room = reopen(&dir).expect("the room opens again");
+    assert_eq!(room.newest_page(100).unwrap().messages.len(), 1);
     assert_eq!(
         std::fs::read_to_string(log_path(&dir)).unwrap(),
         format!("{LINE_ONE}\n"),
@@ -95,8 +95,8 @@ fn a_tail_that_lost_only_its_newline_is_repaired_and_kept() {
     let (dir, _room) = open("durability_newline");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{LINE_TWO}")).unwrap();
 
-    let room = Room::open(&dir).expect("a complete entry is not thrown away");
-    let page = room.page_before(u64::MAX, 100).unwrap();
+    let room = reopen(&dir).expect("the room opens again");
+    let page = room.newest_page(100).unwrap();
     assert_eq!(page.messages.len(), 2, "the entry whose newline was lost is kept");
     let bytes = std::fs::read(log_path(&dir)).unwrap();
     assert_eq!(*bytes.last().unwrap(), b'\n', "the newline is written back");
@@ -111,8 +111,8 @@ fn middle_damage_recovers_the_longest_valid_prefix_and_keeps_the_bytes() {
     let original = format!("{LINE_ONE}\nnot json at all\n{LINE_TWO}\n");
     std::fs::write(log_path(&dir), &original).unwrap();
 
-    let room = Room::open(&dir).expect("the room opens on its intact prefix");
-    let page = room.page_before(u64::MAX, 100).unwrap();
+    let room = reopen(&dir).expect("the room opens again");
+    let page = room.newest_page(100).unwrap();
     assert_eq!(page.messages.len(), 1, "everything after the damage waits in the copy");
     let copies = damaged_copies(&dir);
     assert_eq!(copies.len(), 1);
@@ -126,7 +126,7 @@ fn a_line_from_a_newer_format_is_recovered_not_served() {
     let (dir, _room) = open("durability_version");
     let newer = LINE_ONE.replace(r#""v":1"#, r#""v":2"#);
     std::fs::write(log_path(&dir), format!("{newer}\n")).unwrap();
-    let room = Room::open(&dir).expect("the room opens, empty of what it cannot read");
+    let room = reopen(&dir).expect("the room opens again");
     assert!(room.newest_page(10).unwrap().messages.is_empty());
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
@@ -136,7 +136,7 @@ fn numbering_with_a_gap_recovers_up_to_the_gap() {
     let (dir, _room) = open("durability_gap");
     let third = LINE_ONE.replace("\"seq\":1", "\"seq\":3");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{third}\n")).unwrap();
-    let room = Room::open(&dir).expect("the room opens on the numbered prefix");
+    let room = reopen(&dir).expect("the room opens again");
     assert_eq!(room.newest_page(10).unwrap().messages.len(), 1);
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
@@ -146,7 +146,7 @@ fn one_idempotency_key_on_two_entries_keeps_only_the_first() {
     let (dir, _room) = open("durability_repeat_id");
     let twin = LINE_ONE.replace("\"seq\":1", "\"seq\":2").replace("\"text\":\"first\"", "\"text\":\"again\"");
     std::fs::write(log_path(&dir), format!("{LINE_ONE}\n{twin}\n")).unwrap();
-    let room = Room::open(&dir).expect("the room keeps the first meaning of the id");
+    let room = reopen(&dir).expect("the room opens again");
     assert_eq!(room.newest_page(10).unwrap().messages.len(), 1);
     assert_eq!(damaged_copies(&dir).len(), 1);
 }
@@ -156,7 +156,7 @@ fn a_torn_first_append_leaves_an_openable_room() {
     let (dir, _room) = open("durability_torn_first");
     std::fs::write(log_path(&dir), "{\"v\":1,\"seq\":1,\"clie").unwrap();
 
-    let room = Room::open(&dir).expect("a whole-file torn tail is recovered too");
+    let room = reopen(&dir).expect("the room opens again");
     assert!(room.newest_page(10).unwrap().messages.is_empty());
     let appended = say(&room, 3, "a", "the first complete entry");
     assert_eq!(appended.seq, 1);
@@ -178,11 +178,66 @@ fn damage_recovery_touches_the_original_only_through_its_copy() {
     let (dir, _room) = open("durability_no_loss");
     let original = format!("{LINE_ONE}\ngarbage middle\n{LINE_TWO}\n");
     std::fs::write(log_path(&dir), &original).unwrap();
-    let room = Room::open(&dir).unwrap();
+    let room = reopen(&dir).expect("the room opens again");
     let live = std::fs::read_to_string(log_path(&dir)).unwrap();
     assert!(
         original.starts_with(&live),
         "the live file is a prefix of what the copy kept"
     );
     drop(room);
+}
+
+#[test]
+fn only_the_two_newest_damaged_copies_stay() {
+    let (dir, _room) = open("durability_prune");
+    let mut originals = Vec::new();
+    for round in 0..3 {
+        let bytes = format!("{LINE_ONE}\ngarbage from round {round}\n");
+        std::fs::write(log_path(&dir), &bytes).unwrap();
+        originals.push(bytes);
+        let room = reopen(&dir).expect("the room opens again");
+        drop(room);
+    }
+    let copies = damaged_copies(&dir);
+    assert_eq!(copies.len(), 2, "the newest two, never more");
+    let kept: Vec<String> = copies
+        .iter()
+        .map(|path| std::fs::read_to_string(path).unwrap())
+        .collect();
+    assert_eq!(kept, originals[1..], "the oldest copy is the one pruned");
+}
+
+#[test]
+fn an_injected_append_failure_that_stored_nothing_reports_io_and_the_room_continues() {
+    let (_dir, room) = open("durability_inject_clean");
+    say(&room, 3, "m1", "the first entry");
+    crate::append::inject_append_failure();
+    let refused = room.post(phone(&room, 3), "m2", "the second entry", false);
+    crate::append::clear_append_failure();
+    assert!(
+        matches!(refused, Err(PostError::Io(_))),
+        "the file holds what memory holds: nothing landed, the refusal is the io error"
+    );
+    let retry = say(&room, 3, "m2", "the second entry");
+    assert_eq!(retry.seq, 2, "the room still writes after the honest refusal");
+}
+
+#[test]
+fn a_reopened_file_the_room_cannot_explain_stops_the_writes() {
+    let (dir, room) = open("durability_inject_divergent");
+    say(&room, 3, "m1", "the entry memory holds");
+    // The file loses that entry behind the room's back: a reopen now
+    // disagrees with memory by more than the one entry being posted.
+    std::fs::write(log_path(&dir), b"").unwrap();
+    crate::append::inject_append_failure();
+    let refused = room.post(phone(&room, 3), "m2", "never lands", false);
+    crate::append::clear_append_failure();
+    assert!(
+        matches!(refused, Err(PostError::ReadOnly)),
+        "a transcript the room cannot explain is not adopted"
+    );
+    assert!(
+        matches!(room.post(phone(&room, 3), "m3", "also refused", false), Err(PostError::ReadOnly)),
+        "and the room stays read-only, not just for the one post"
+    );
 }

@@ -32,8 +32,10 @@
 
 use std::fmt;
 
+mod append;
 mod events;
 mod history;
+mod names;
 mod log;
 mod members;
 mod mention;
@@ -48,7 +50,7 @@ pub use events::{Event, MemberEvent, Take};
 pub use mention::calls_ai;
 pub use history::{Page, PageError};
 pub use room::{PostError, Room};
-pub use roster::NameError;
+pub use names::NameError;
 
 /// A room member: the host, the AI, or a member the room's roster minted.
 /// The host and the AI are their own variants so a device id can never

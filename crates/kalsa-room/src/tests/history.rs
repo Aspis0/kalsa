@@ -72,6 +72,14 @@ fn a_cursor_beyond_either_end_is_an_empty_page_not_an_error() {
     assert!(before_newest.messages.is_empty(), "nothing older than the oldest");
     let before_zero = room.page_before(0, 100).unwrap();
     assert!(before_zero.messages.is_empty(), "below the floor, still an empty page");
+    let past = room.page_before(u64::MAX, 100).unwrap();
+    assert!(
+        past.messages.is_empty(),
+        "a cursor far past the newest names a place the transcript never reached"
+    );
+    // One past the newest is allowed: everything is older than that.
+    let whole = room.page_before(2, 100).unwrap();
+    assert_eq!(whole.messages.iter().map(|m| m.seq).collect::<Vec<_>>(), vec![1]);
 }
 
 #[test]

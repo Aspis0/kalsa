@@ -172,3 +172,23 @@ fn two_subscribers_each_follow_at_their_own_pace() {
     assert_eq!(take, Take::TimedOut, "a cursor at the end waits for news");
     assert!(second.is_empty());
 }
+
+#[test]
+fn an_empty_room_opens_its_first_stream_from_zero() {
+    let (_dir, room) = open("subscribe_empty_resume");
+    assert_eq!(
+        room.resume_after_seq(0),
+        Some(0),
+        "seen = 0 is a real cursor when the newest is nothing"
+    );
+    assert_eq!(room.resume_after_seq(1), None, "one past nothing never happened");
+    let mut cursor = room.resume_after_seq(0).unwrap();
+    let mut out = Vec::new();
+    assert_eq!(
+        room.read_since(&mut cursor, Instant::now() + SHORT, &mut out),
+        Take::TimedOut,
+        "an empty room's first stream opens, and waits"
+    );
+    say(&room, 3, "m1", "hello");
+    assert_eq!(room.resume_after_seq(0), Some(0), "0 stays real behind the newest");
+}

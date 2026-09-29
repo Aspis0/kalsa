@@ -1,7 +1,7 @@
 //! The roster: enrollment, retirement, and the name rules.
 
-use super::{open, phone, scratch, say};
-use crate::{MemberId, NameError, Room, RoomError};
+use super::{reopen, open, phone, room_dir, scratch, say};
+use crate::{MemberId, NameError, RoomError};
 
 #[test]
 fn a_device_gets_one_member_id_for_the_life_of_the_room() {
@@ -12,7 +12,7 @@ fn a_device_gets_one_member_id_for_the_life_of_the_room() {
     assert_ne!(first, other);
     drop(room);
 
-    let reopened = Room::open(&dir).expect("the room opens again");
+    let reopened = reopen(&dir).expect("the room opens again");
     assert_eq!(
         reopened.enroll(3).expect("the roster survived"),
         first,
@@ -34,6 +34,8 @@ fn a_forgotten_member_retires_and_a_returning_device_is_new() {
         room.post(member, "m2", "refused", false).is_err(),
         "a retired member cannot post",
     );
+    assert!(room.is_former(member), "the door's mark for a former member");
+    assert!(!room.is_former(crate::MemberId::Host), "the host never left");
     assert_eq!(
         room.name_of(member),
         Some("Mamma".to_string()),
@@ -43,13 +45,14 @@ fn a_forgotten_member_retires_and_a_returning_device_is_new() {
 
     let again = room.enroll(3).expect("the device pairs again");
     assert_ne!(again, member, "a returning device id is a fresh member");
+    assert!(!room.is_former(again), "the returning device is no former member");
     assert_eq!(room.name_of(again), None, "and inherits no name");
     let page = room.newest_page(10).unwrap();
     assert_eq!(page.messages[0].member, member, "past entries keep their author");
 
     room.forget_device(9).expect("an unknown device is success");
     drop(room);
-    let reopened = Room::open(&dir).expect("the retirement survived the restart");
+    let reopened = reopen(&dir).expect("the room opens again");
     assert_eq!(reopened.member_of(3), Some(again));
 }
 
@@ -139,16 +142,16 @@ fn the_hosts_name_comes_from_the_host_path_alone() {
 
 #[test]
 fn a_roster_that_names_a_reserved_id_refuses_the_room() {
-    let dir = scratch("members_roster_reserved");
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = room_dir(&scratch("members_roster_reserved"));
     std::fs::write(
         dir.join("room-roster.json"),
         r#"{"v":1,"next_member":2,"devices":{"3":1},"retired":[],"names":{"4294967295":"Hand"},"host_name":null}"#,
     )
     .unwrap();
+    let verdict = reopen(&dir);
     assert!(
         matches!(
-            Room::open(&dir),
+            verdict,
             Err(RoomError::Corrupt("a name is stored for a reserved member id"))
         ),
         "a reserved key is a hand edit claiming to name the host or the AI",
@@ -157,15 +160,14 @@ fn a_roster_that_names_a_reserved_id_refuses_the_room() {
 
 #[test]
 fn a_roster_name_the_store_would_refuse_refuses_the_room() {
-    let dir = scratch("members_roster_name");
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = room_dir(&scratch("members_roster_name"));
     std::fs::write(
         dir.join("room-roster.json"),
         r#"{"v":1,"next_member":2,"devices":{"3":1},"retired":[],"names":{"1":"Kalsa"},"host_name":null}"#,
     )
     .unwrap();
     assert!(matches!(
-        Room::open(&dir),
+        reopen(&dir),
         Err(RoomError::Corrupt("a stored name is not one the store would take"))
     ));
 }
@@ -177,12 +179,42 @@ fn a_corrupt_roster_refuses_the_room_and_touches_nothing() {
     drop(room);
     std::fs::write(dir.join("room-roster.json"), b"{not json").unwrap();
     assert!(matches!(
-        Room::open(&dir),
+        reopen(&dir),
         Err(RoomError::Corrupt("roster file does not parse"))
     ));
     assert_eq!(
         std::fs::read(dir.join("room-roster.json")).unwrap(),
         b"{not json".to_vec(),
         "the corrupt bytes are the owner's to read, not the store's to rewrite"
+    );
+}
+
+#[test]
+fn lookalikes_of_kalsa_do_not_get_the_name() {
+    let (_dir, room) = open("members_lookalikes");
+    let member = phone(&room, 3);
+    // A Cyrillic twin letter makes the name mixed-script, not "Kalsa".
+    assert!(matches!(room.set_name(member, "Kals\u{0430}"), Err(NameError::MixedScripts)));
+    // Fullwidth dress maps to ASCII, spaces (any Unicode space) are
+    // removed for this comparison: all of these ARE the assistant.
+    for taken in ["\u{FF2B}\u{FF41}\u{FF4C}\u{FF53}\u{FF41}", "K alsa", "Kal\u{2003}sa", "K A L S A"] {
+        assert!(
+            matches!(room.set_name(member, taken), Err(NameError::Reserved)),
+            "{taken:?} is Kalsa in a dress"
+        );
+    }
+}
+
+#[test]
+fn a_name_in_one_script_is_fine_whatever_the_script() {
+    let (_dir, room) = open("members_scripts");
+    let member = phone(&room, 3);
+    for good in ["Nicolò", "Zoë", "Анна", "Μαρία"] {
+        assert!(room.set_name(member, good).is_ok(), "{good} is one script");
+        room.set_name(member, "Placeholder").unwrap();
+    }
+    assert!(
+        matches!(room.set_name(member, "An\u{043D}\u{0430}"), Err(NameError::MixedScripts)),
+        "Latin A-n beside Cyrillic letters is the lookalike mix"
     );
 }

@@ -37,6 +37,11 @@ use crate::recovery;
 use crate::{MemberId, RoomError};
 
 pub(crate) const LOG_NAME: &str = "room-log.jsonl";
+/// Version 1 names THIS shape, `kind` included. No transcript written
+/// before the field existed is anywhere in the world: the crate has never
+/// been wired into the app, so no file predates it — a v1 line without
+/// `kind` cannot occur, and the version is not bumped for a reader that
+/// will never meet one.
 const LINE_VERSION: u8 = 1;
 /// The most text one entry may carry, in UTF-8 bytes.
 pub(crate) const MAX_TEXT_BYTES: usize = 8000;

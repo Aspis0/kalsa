@@ -78,7 +78,13 @@ impl Room {
     /// re-derivable from room info and carries no seq of its own.
     pub fn resume_after_seq(&self, seen: u64) -> Option<usize> {
         let state = self.lock_state();
-        let newest = state.messages.last()?.seq;
+        // An empty room's newest is 0, so `seen = 0` is a real cursor
+        // there — the one a room's first stream opens from.
+        let newest = state
+            .messages
+            .last()
+            .map(|message| message.seq)
+            .unwrap_or(0);
         if seen > newest {
             return None;
         }

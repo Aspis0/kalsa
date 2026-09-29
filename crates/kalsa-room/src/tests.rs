@@ -37,10 +37,27 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
+/// Opens a room in a fresh scratch DATA directory and hands back the
+/// room's own directory (`<data>/room`) — where every file the store
+/// keeps lives.
 fn open(name: &str) -> (PathBuf, Room) {
-    let dir = scratch(name);
-    let room = Room::open(&dir).expect("a fresh room opens");
-    (dir, room)
+    let data = scratch(name);
+    let room = Room::open(&data).expect("a fresh room opens");
+    (data.join("room"), room)
+}
+
+/// Reopens the room whose own directory this is: `Room::open` takes the
+/// DATA directory, the tests hold the room's.
+fn reopen(room_dir: &std::path::Path) -> Result<Room, crate::RoomError> {
+    Room::open(room_dir.parent().expect("a room dir has a parent"))
+}
+
+/// The room's own directory inside a scratch data dir, created empty for
+/// the tests that damage files before the first open.
+fn room_dir(dir: &std::path::Path) -> PathBuf {
+    let dir = dir.join("room");
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
 }
 
 /// The member a paired device is, enrolling it on first sight.

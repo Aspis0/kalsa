@@ -18,6 +18,10 @@ use crate::RoomError;
 /// caller opens read-only. A copy that succeeded before a rewrite that
 /// failed leaves a spare copy behind; the next open simply makes another,
 /// and nothing is ever lost for trying.
+///
+/// After a recovery that landed, the NEWEST two damaged copies are all
+/// that stay: damage is rare, two whole transcripts of it is already an
+/// extravagance, and older ones would accumulate at full size forever.
 pub(super) fn recover(path: &Path, bytes: &[u8], prefix_len: usize) -> bool {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -27,7 +31,39 @@ pub(super) fn recover(path: &Path, bytes: &[u8], prefix_len: usize) -> bool {
     if kalsa_pairing::store::write_owner_only(&damaged, bytes).is_err() {
         return false;
     }
-    kalsa_pairing::store::write_owner_only(path, &bytes[..prefix_len]).is_ok()
+    if kalsa_pairing::store::write_owner_only(path, &bytes[..prefix_len]).is_err() {
+        return false;
+    }
+    prune_damaged(path, &damaged);
+    true
+}
+
+/// Removes the older damaged copies beyond the two newest, the one just
+/// written among them. Sorted by name, which the nanosecond stamp keeps in
+/// time order; a removal that fails is left for the next recovery — a
+/// stale copy costs disk, never correctness.
+fn prune_damaged(path: &Path, keep_newest: &Path) {
+    let Some(dir) = path.parent() else {
+        return;
+    };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    let mut copies: Vec<std::path::PathBuf> = entries
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            let kept = path == keep_newest;
+            let named = path
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("room-log.damaged-"));
+            named && !kept
+        })
+        .collect();
+    copies.sort();
+    let excess = copies.len().saturating_sub(1);
+    for stale in copies.into_iter().take(excess) {
+        let _ = fs::remove_file(stale);
+    }
 }
 
 /// Rewrites the newline a complete last entry lost. Nothing is dropped, so

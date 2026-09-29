@@ -138,8 +138,11 @@ the final `a`, if there is one, is neither alphanumeric in Unicode terms
 nor an underscore. So `"@kalsa, ciao"`, `"(@Kalsa)"` and `"@Kalsa's"` count;
 `"email@kalsa.io"`, `"josé2@Kalsa"` and `"café@Kalsa"` (an alphanumeric
 character sits before the `@`) and `"@Kalsabot"` (one sits after the word)
-do not. Detection runs on the raw text, before any processing, and the flag
-travels with the message.
+do not. The rule in one sentence: a letter or digit hugging the token
+means the `@` belongs to a word or an address, not to a call. Detection
+runs on the raw text, before any processing, and the computer applies it
+itself — the request's `call_ai` flag is the second way to call, not a
+duty of the caller.
 
 ## 6. My name — `PUT /kalsa/room/name`
 
@@ -150,13 +153,21 @@ travels with the message.
 Answers `200` with `{"member_id": 3, "name": "Marco"}`. The name is
 trimmed, then must be 1–40 UTF-8 bytes with no control characters and no
 format, bidi or zero-width characters (the invisible Unicode ranges that
-make two names look like one). "Kalsa" in any casing is refused, as is any
-name another live member or the host already wears; comparisons happen
-after trimming and lowercasing, so "MARCO" does not dodge "Marco". Two
-names that differ only in Unicode composition (é as one character or as
-two) are different names in v1 — an honest limit, said plainly. Setting
-the same name again changes nothing. A rename broadcasts a `member` event
-(§7) and does not touch messages already posted.
+make two names look like one). "Kalsa" is refused in any casing — and the
+computer folds the common lookalikes before comparing: fullwidth
+characters count as their ASCII twins, every Unicode space counts as a
+space with runs collapsed, and the comparison to "Kalsa" ignores spaces
+entirely, so "Ｋａｌｓａ" and "K alsa" get nothing. A name may not mix Latin
+letters with Cyrillic or Greek ones — the mix that makes "Kalsа" with a
+Cyrillic а convincing; a name in one script, whatever script ("Nicolò",
+"Анна", "Μαρία"), is fine. These rules catch the common lookalikes, not
+every conceivable one. Any name another live member or the host already
+wears is refused; comparisons happen after trimming and lowercasing, so
+"MARCO" does not dodge "Marco". Two names that differ only in Unicode
+composition (é as one character or as two) are different names in v1 — an
+honest limit, said plainly. Setting the same name again changes nothing. A
+rename broadcasts a `member` event (§7) and does not touch messages
+already posted.
 
 ## 7. Ordering: the seq and the event stream
 
@@ -255,11 +266,13 @@ codes above; `name_taken` and `client_msg_id_reused` are 409, the rest 400.
 A damaged transcript is recovered, not fatal. The room reopens on the
 longest intact run of entries; everything the damage held is gone from
 history, and the damaged bytes are preserved whole beside the transcript
-(`room-log.damaged-<time>.jsonl`, owner-only) for the owner to read. If
-even that recovery write fails, the room serves reads and refuses posts
-until a restart repairs it. Members see a room that continues from the
-last intact message — no client-facing event exists for the recovery in
-v1; the room simply continues.
+(`room-log.damaged-<time>.jsonl`, owner-only) for the owner to read. The
+two newest copies are all that stay — the store prunes older ones after a
+successful recovery — and any copy may be deleted by the owner whenever:
+nothing reads them again. If even the recovery write fails, the room
+serves reads and refuses posts until a restart repairs it. Members see a
+room that continues from the last intact message — no client-facing event
+exists for the recovery in v1; the room simply continues.
 
 A host asleep or off is not an error: phones queue outgoing posts locally
 and retry them, `client_msg_id` makes the retry idempotent, and on
