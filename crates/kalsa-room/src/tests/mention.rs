@@ -23,7 +23,6 @@ fn an_alphanumeric_neighbour_makes_it_not_a_call() {
     for text in [
         "email@kalsa.io",
         "josé2@Kalsa",
-        "café@Kalsa",
         "@Kalsabot",
         "@kalsa2",
         "@Kalsa_x",
@@ -31,6 +30,19 @@ fn an_alphanumeric_neighbour_makes_it_not_a_call() {
     ] {
         assert!(!calls_ai(text), "{text:?} is an address or another name");
     }
+}
+
+#[test]
+fn combining_marks_belong_to_the_word_in_either_spelling() {
+    // NFC é is one character; NFD is e + U+0301. Both are an accented café
+    // in front of the @, and the rule must read them the same way.
+    assert!(!calls_ai("caf\u{e9}@Kalsa"), "NFC café is an address");
+    assert!(!calls_ai("cafe\u{0301}@Kalsa"), "NFD café is an address too");
+    assert!(calls_ai("caf\u{e9} @Kalsa"), "a space still separates the word");
+    // A mark right after the word is part of it: @Kalsa-acute is not the
+    // assistant's name, whatever follows the marks.
+    assert!(!calls_ai("@Kalsa\u{0301}"));
+    assert!(!calls_ai("@Kalsa\u{0301}\u{0301}'s brother aside, hi"));
 }
 
 #[test]

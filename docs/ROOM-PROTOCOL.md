@@ -128,7 +128,12 @@ Query parameters, all optional:
   client. It exists because the host may be asleep when a message is
   written: the phone queues the message locally and retries the POST until
   it succeeds, and the id makes the retry harmless.
-- `text` (required): 1–8000 UTF-8 bytes.
+- `text` (required): 1–8000 UTF-8 bytes. The whole request body is capped
+  at 16 KiB before it is read: JSON escaping can make a text within 8000
+  bytes exceed the cap (a quote-heavy 7900-byte text can escape past it),
+  and the answer is then `413 too_large` — the text is legal, the body is
+  not; shortening the text or letting the client library do the escaping
+  resolves it.
 - `call_ai` (optional, default `false`): the explicit call button.
 
 The answer for a fresh post AND for an idempotent retry — the same
@@ -163,7 +168,11 @@ the final `a`, if there is one, is neither alphanumeric in Unicode terms
 nor an underscore. So `"@kalsa, ciao"`, `"(@Kalsa)"` and `"@Kalsa's"` count;
 `"email@kalsa.io"`, `"josé2@Kalsa"` and `"café@Kalsa"` (an alphanumeric
 character sits before the `@`) and `"@Kalsabot"` (one sits after the word)
-do not. The rule in one sentence: a letter or digit hugging the token
+do not. Combining marks belong to the word they decorate: the rule skips
+back over them to the base character before the `@` (so "café@Kalsa" is
+not a call in either spelling of é — NFC one character, NFD base plus
+U+0301), and a mark right after the word counts as part of it ("@Kalsa"
+plus U+0301 is not the assistant's name). The rule in one sentence: a letter or digit hugging the token
 means the `@` belongs to a word or an address, not to a call. Detection
 runs on the raw text, before any processing, and the computer applies it
 itself — the request's `call_ai` flag is the second way to call, not a
@@ -294,6 +303,7 @@ its visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
 | Thing | Limit | Refusal |
 |---|---|---|
 | message text | 1–8000 UTF-8 bytes | `413 too_large` (empty: `400`) |
+| request body | 16 KiB whole, any room route | `413 too_large`: the text may be legal and the escaped body not |
 | display name | §6 | `400` / `413` / `409 name_taken` |
 | client_msg_id | 1–64 chars ASCII 0x21–0x7E | `400 bad_request` |
 | client_msg_id reuse | same id, different content | `409 client_msg_id_reused` |
