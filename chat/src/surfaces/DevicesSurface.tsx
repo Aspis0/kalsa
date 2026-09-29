@@ -4,6 +4,7 @@ import { lastKnown } from "../lib/slotGate";
 import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
 import { useRowFold } from "./useRowFold";
+import { useDeviceBeats } from "./useDeviceBeats";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
@@ -210,6 +211,8 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // The fold is the hook's business: this page only asks for it and reads
   // whether one is running.
   const fold = useRowFold();
+  // The beat a row plays after the owner's Allow lands on it.
+  const beats = useDeviceBeats(state?.devices);
 
   const refresh = useCallback(async (): Promise<void> => {
     // No read STARTS while a row folds — all this line claims. A read
@@ -313,11 +316,17 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       .catch(() => {});
   }
 
-  function allowDevice(id: number): void {
+  function allowDevice(actedId: number, rowId: number): void {
     // This only writes the store: the door's new set is rebuilt by the app's
     // own brain_state poll (start_door_if_paired, useBrain's 1 s tick), the
-    // same ride a Forget takes, and this page's poll redraws the rows.
-    void invoke("brain_pairing_allow_device", { id }).catch(() => {});
+    // same ride a Forget takes, and this page's poll redraws the rows. The
+    // beat below lands on the row the owner saw — for a pairing-again
+    // Allow the command acts on the request while the row that stays is
+    // its seat, so the two ids travel together until the answer separates
+    // them.
+    beats.expect(actedId, rowId);
+    void invoke("brain_pairing_allow_device", { id: actedId })
+      .catch(() => beats.revoke(actedId));
   }
 
   function forgetAndRefresh(): void {
@@ -505,6 +514,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             if (hidesOnSeat(device, devices)) return null;
             const name = device.label ?? (host ? "This computer" : `device ${device.id}`);
             const request = requests.get(device.id);
+            // The beat after Allow: the sentence and its checkmark hold the
+            // row for a moment, then it settles into the ordinary detail.
+            const connected = beats.connectedId === device.id;
             return (
               <div
                 key={device.id}
@@ -514,15 +526,27 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
               >
                 <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
-                  {device.waiting
-                    ? "Waiting for your OK."
-                    : request
-                      ? pairingAgain(name)
-                      : (device.phone ?? "")}
+                  {connected ? (
+                    <>
+                      <svg className="surface-check" viewBox="0 0 12 10" aria-hidden="true">
+                        <path
+                          className="surface-check-path"
+                          d="M1 5.5 4.5 9 11 1.5"
+                        />
+                      </svg>
+                      {`${name} is connected.`}
+                    </>
+                  ) : device.waiting ? (
+                    "Waiting for your OK."
+                  ) : request ? (
+                    pairingAgain(name)
+                  ) : (
+                    (device.phone ?? "")
+                  )}
                 </span>
                 {host ? null : device.waiting ? (
                   <>
-                    <button type="button" className="btn-quiet" onClick={() => allowDevice(device.id)}>
+                    <button type="button" className="btn-quiet" onClick={() => allowDevice(device.id, device.id)}>
                       Allow
                     </button>
                     <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
@@ -534,7 +558,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                   // takes the request back and leaves this phone, its label
                   // and its credential exactly where they are.
                   <>
-                    <button type="button" className="btn-quiet" onClick={() => allowDevice(request.id)}>
+                    <button type="button" className="btn-quiet" onClick={() => allowDevice(request.id, device.id)}>
                       Allow
                     </button>
                     <button type="button" className="btn-quiet" onClick={() => denyRequest(request.id)}>

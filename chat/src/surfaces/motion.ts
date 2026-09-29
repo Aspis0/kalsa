@@ -7,6 +7,10 @@
 // that removes it, so the box and the beat cannot drift apart.
 export const FOLD_MS = 450;
 
+// How long a row the owner just allowed holds its "is connected." beat
+// before settling into the ordinary allowed row.
+export const SUCCESS_HOLD_MS = 1600;
+
 // The same read App.tsx makes: under reduced motion nothing is animated, so
 // a forgotten row is simply gone — which is how it always went.
 export function reducedMotion(): boolean {

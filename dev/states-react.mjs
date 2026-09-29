@@ -78,6 +78,13 @@ const MANY_DEVICES = [
   ...ONE_DEVICE,
   { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone" },
 ];
+// The beat after Allow: a waiting phone the owner admits, and the house
+// every later read answers with once the store has it.
+const WAITING_PHONE = { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true };
+const ADMITTED_HOUSE = [
+  HOST_DEVICE,
+  { id: 1, label: "Paired phone", phone: "phone with 2 GB of model weights", kind: "phone" },
+];
 
 function advancedDto(extra = {}) {
   return {
@@ -286,6 +293,16 @@ const scenarios = [
   // Allow on the seat's row asks for the WAITING record behind it, never the
   // seat the owner already admitted.
   ["Pairing", "an allowed pairing-again asks for the waiting id", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow" }],
+  // The beat after Allow: the next poll that shows the phone admitted says
+  // "{label} is connected." on the row the owner is watching, holds it a
+  // beat, and settles into the ordinary row. A phone the page never saw
+  // waiting says nothing — an allowed row on a later poll is not a
+  // transition this page watched.
+  ["Pairing", "an allowed phone says connected for a beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 2600 }],
+  ["Pairing", "the connected beat settles into the row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 4600 }],
+  ["Pairing", "an allowed pairing-again lands its beat on the seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 2600 }],
+  ["Pairing", "an already-allowed phone says nothing on a later poll", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, waitMs: 2600 }],
+  ["Pairing", "a connected beat under reduced motion is still said", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Allow", waitMs: 2600 }],
   // The seat was forgotten while its request waited: the request has no row
   // to sit on, so it draws its own — a waiting record like any other, with
   // its own id on its buttons.
@@ -354,6 +371,11 @@ function installBridge() {
           invoke(command, args) {
             if (command === "brain_pairing_allow_device") {
               allowIds.push(args?.id ?? -1);
+              // The store changed: every read after the Allow answers with
+              // the admitted house, the way the real store would.
+              if (bridgeState.pairingAfterAllow) {
+                bridgeState.pairing = bridgeState.pairingAfterAllow;
+              }
               return Promise.resolve(null);
             }
             if (command === "brain_pairing_forget_device") {

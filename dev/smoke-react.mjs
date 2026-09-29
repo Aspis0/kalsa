@@ -810,6 +810,50 @@ try {
         problems.push(`Allow asks for the waiting record, never the seat: ${heading}`);
       }
     }
+    // The beat after Allow: only a transition this page watched — a waiting
+    // row it drew, an Allow it pressed, and the poll that answered — says
+    // "is connected.", and it says it on the row the owner saw. The beat
+    // lives in a row's detail slot, so the page's own "could not check
+    // whether a phone is connected." is not it.
+    const connectedDetails = deviceDetails.filter((detail) => detail.endsWith(" is connected."));
+    const beatCard =
+      heading.includes("says connected for a beat") ||
+      heading.includes("lands its beat on the seat") ||
+      heading.includes("a connected beat under reduced motion");
+    if (heading.startsWith("Pairing") && connectedDetails.length > 0 && !beatCard) {
+      problems.push(`only the beat after an Allow this page watched may say "is connected.": ${heading}`);
+    }
+    if (heading.includes("an allowed phone says connected for a beat")) {
+      if (!deviceDetails.includes("Paired phone is connected.")) {
+        problems.push(`the beat after Allow must say the phone is connected: ${heading}`);
+      }
+    }
+    if (heading.includes("the connected beat settles into the row")) {
+      if (connectedDetails.length > 0) {
+        problems.push(`the beat must settle back into the ordinary row: ${heading}`);
+      }
+      if (!deviceDetails.includes("phone with 2 GB of model weights")) {
+        problems.push(`after the beat the row shows its ordinary detail again: ${heading}`);
+      }
+    }
+    if (heading.includes("an allowed pairing-again lands its beat on the seat")) {
+      if (!deviceDetails.includes("Paired phone 4 is connected.")) {
+        problems.push(`the beat lands on the seat the owner sees: ${heading}`);
+      }
+      if (deviceDetails.includes("Paired phone 5 is connected.")) {
+        problems.push(`the beat must never name the request's own record: ${heading}`);
+      }
+    }
+    if (heading.includes("an already-allowed phone says nothing")) {
+      if (connectedDetails.length > 0) {
+        problems.push(`a phone allowed before this page looked says nothing: ${heading}`);
+      }
+    }
+    if (heading.includes("a connected beat under reduced motion")) {
+      if (!deviceDetails.includes("Paired phone is connected.")) {
+        problems.push(`under reduced motion the beat is still said, statically: ${heading}`);
+      }
+    }
     if (heading.includes("a seat forgotten while its request waits")) {
       if (!deviceNames.includes("Paired phone 5")) {
         problems.push(`a request whose seat left draws its own row: ${heading}`);

@@ -1,6 +1,16 @@
 /* Shared vocabulary for the ported surfaces (Brain, Models, Server,
    Devices, Advanced). Chat's own tokens and button classes only. */
 
+/* The page's CSS-side motion tokens: the loops and one-shot beats that
+   never need a JS timer. The JS-timed beats (the fold, the connected
+   hold) live in surfaces/motion.ts. Every animation below sits inside the
+   no-preference block, so under reduced motion none of them exists at all
+   — the dots and pulses are simply not applied, and what remains (the
+   check, the live dot's colour) is static information. */
+.surface-page {
+  --beat-draw-ms: 400ms;
+}
+
 /* One column for the whole app: the surfaces take the chat's own measure, so
    the writing bar starts as wide as the column its first message lands in and
    the brain→chat morph has almost nothing to stretch (THE-BRAIN-IS-THE-HOME
@@ -179,4 +189,39 @@
   flex: none;
   color: var(--silence);
   font-size: 0.78rem;
+}
+
+/* The beat after Allow: the check draws its stroke once beside the
+   sentence. Its resting state is the drawn check, so a page that never
+   animates still shows it, finished. */
+.surface-check {
+  width: 0.8em;
+  height: 0.7em;
+  margin-right: 0.3rem;
+  vertical-align: -0.05em;
+}
+
+.surface-check-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surface-check-path {
+    animation: surface-check-draw var(--beat-draw-ms) ease-out;
+  }
+
+  @keyframes surface-check-draw {
+    from {
+      stroke-dashoffset: 16;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
 }
