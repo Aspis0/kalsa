@@ -454,3 +454,10 @@ moves from repacked q6_K_8x8 to the plain Q6_K kernel: same bytes, different acc
 on the plain Q6_K kernel. For the hexagon one-copy config the fix does not fire (output selects HTP);
 options there: (b) Q4_0 tied embedding in the GGUF (-269 MiB, KLD owed), (c) loader tie policy
 (-220 MiB, lm_head CPU only), (a) raw Q6_K DSP reader (largest).
+
+Follow-up `048603398` (audit fixes: tie-only gate, adopt only from the plain CPU buft, null guard,
+`-ot` wins, moved-tensor log back to "(and 99 others)", comment and message corrected). Mac CPU-only:
+none RSS 2,122 -> 1,692 MB, mmap 3,257 -> 3,042 MB; tg16 67.34 -> 66.66 (none). KLD vs the
+e71421fd9 build, `-c 512 --chunks 20` on a 229 KB repo-docs text, default repack, `-lm none`:
+mean **0.000042**, max 0.000789, same top token **99.63 %**. Candidate for the shipped chain
+(cherry-pick onto the engine main line) after an S23 decode check of the plain-Q6_K lm_head.
