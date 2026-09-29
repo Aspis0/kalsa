@@ -434,3 +434,23 @@ A raw HVX mat-vec already exists (`htp/matmul-ops.c:1625` `hvx_mv_2d_raw_q4_0_fl
 Cheapest next step (no code): S23 tg128 one-copy with `GGML_HEXAGON_MM_SELECT=1` vs two-copy HTP
 decode (22.09 tok/s) - if raw NPU decode is close, NPU decode from the shared raw copy is viable and
 the 4x8 layout only matters for the CPU decode lane.
+
+## Tied embedding loaded twice (2026-09-29, mimo, Mac CPU-only, engine spike/tied-embd-onecopy 1622f44bd, not pushed)
+
+LFM2.5-2.6B has no `output.weight`; `src/models/lfm2.cpp:43` creates the output from
+`token_embd.weight` (Q6_K, 205.08 MiB) with `TENSOR_DUPLICATED`. With CPU repack on, the input copy
+lands in plain CPU (GET_ROWS) and the tied output in CPU_REPACK, so the upstream same-context sharing
+check never fires and the embedding is held twice - in the SHIPPED configuration too (mmap + repack).
+Fix: when both bufts resolve to the CPU device, the duplicate adopts the original's buft and is shared.
+
+| llama-bench `-p16 -n16 -r5 -ngl 0` | buffers before -> after (MiB) | peak RSS before -> after |
+|---|---|---|
+| `--load-mode none` | 206.07 + 1511.20 -> 206.07 + 1306.12 | 2,122 -> 1,690 MB (-432 MB) |
+| `--load-mode mmap` | 1503.20 mapped + 1511.20 -> 1503.20 + 1306.12 | 3,258 -> 3,043 MB (-215 MB) |
+
+Speed flat on the Mac (tg16 67.34 -> 66.72). PPL `-c 128 --chunks 4`: 6.2399 -> 6.2435 (the lm_head
+moves from repacked q6_K_8x8 to the plain Q6_K kernel: same bytes, different accumulation);
+`-nr` control bit-identical 6.2044. Owed: hostile audit (running), S23 decode speed with the lm_head
+on the plain Q6_K kernel. For the hexagon one-copy config the fix does not fire (output selects HTP);
+options there: (b) Q4_0 tied embedding in the GGUF (-269 MiB, KLD owed), (c) loader tie policy
+(-220 MiB, lm_head CPU only), (a) raw Q6_K DSP reader (largest).
