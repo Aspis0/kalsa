@@ -318,3 +318,24 @@ the embedding lookup and the tied output matmul, so the two costs are not separa
 this path is still the known problem (tg128 raw 1.59 vs two-copy 19.67, graph hopping; product
 decode = CPU on the -HOST buffer, ~16 tok/s). Next: make the R1 placement the default for the
 raw path in the engine (not an `-ot` string), then an app-level check.
+
+## CPU decode on one copy: thread/core sweep (S23, 2026-09-29, luna `e6f4f924`)
+
+Topology: A510 cpu0-2, A715 cpu3-4, A710 cpu5-6, X3 cpu7. tg128 -r 3, `-ngl 0`; raw = `HTP0:0-HOST`
+one copy, no repack; repacked = CPU repack. Raw logs on the Mac `/tmp/cpu-sweep-20260929/logs/`.
+
+| config | raw tok/s | repacked tok/s | ratio |
+|---|---|---|---|
+| default, 1 / 2 / 3 / 4 thr | 7.29 / 9.21 / 10.99 / 12.19 | 10.85 / 13.97 / 15.75 / 17.54 | 0.66-0.70 |
+| default, 5 thr | **16.07** | **23.57** | 0.682 |
+| X3 only, 1 thr | 6.90 | 9.01 | 0.766 |
+| X3+A715, 3 thr | 10.73 | 14.36 | 0.747 |
+| A715 only, 2 thr | 4.97 | 8.42 | 0.590 |
+| cpu3-7, 5 thr | 14.07 | 21.15 | 0.665 |
+
+Reading: no thread count or mask recovers the gap; the ratio stays ~0.68 at every width, so the cost
+is per-row kernel work, not placement. Recon (luna `663ae5c5`): raw batch-1 runs one row at a time
+(`ggml_vec_dot_q4_0_q8_0`, `arch/arm/quants.c:531-566`), the repacked path runs 4 rows per step
+sharing the activation loads (`ggml_gemv_q4_0_4x8_q8_0`, `arch/arm/repack.cpp:273-336`). Next lever:
+a multi-row gemv reading the raw 18-byte blocks. Raw 6-thread arm hung (exit 137 after 718 s), not
+investigated; one repacked arm stopped at thermal status 3 and was rerun after cooling.
