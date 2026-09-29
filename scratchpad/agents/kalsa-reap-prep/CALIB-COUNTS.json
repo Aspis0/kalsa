@@ -1,0 +1,50 @@
+{
+  "total": 1280,
+  "per_language": {
+    "fr": 204,
+    "zh": 208,
+    "it": 384,
+    "es": 204,
+    "en": 280
+  },
+  "per_category": {
+    "chat": 820,
+    "reasoning": 240,
+    "toolcall": 100,
+    "code": 120
+  },
+  "quota_matrix": {
+    "it/chat": 264,
+    "it/reasoning": 120,
+    "en/chat": 36,
+    "en/reasoning": 24,
+    "en/code": 120,
+    "en/toolcall": 100,
+    "es/chat": 172,
+    "es/reasoning": 32,
+    "fr/chat": 172,
+    "fr/reasoning": 32,
+    "zh/chat": 176,
+    "zh/reasoning": 32
+  },
+  "filled_matrix": {
+    "it/reasoning": 120,
+    "es/reasoning": 32,
+    "fr/reasoning": 32,
+    "zh/reasoning": 32,
+    "en/reasoning": 24,
+    "it/chat": 264,
+    "es/chat": 172,
+    "fr/chat": 172,
+    "en/chat": 36,
+    "zh/chat": 176,
+    "en/toolcall": 100,
+    "en/code": 120
+  },
+  "skips": {
+    "short": 576,
+    "dupe": 16
+  },
+  "seed": 42,
+  "unfilled": {}
+}
