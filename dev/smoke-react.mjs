@@ -942,11 +942,13 @@ try {
     }
     // A row that waits for the owner breathes, and an entrance is a beat
     // that ends: wherever the card reads from, no is-entering survives.
-    // The reduced-motion card is the exception this rule names: there the
-    // row waits too, and wears nothing.
+    // Two cards are the exceptions this rule names: the reduced-motion
+    // card, where the row waits and wears nothing, and the card that reads
+    // inside the entrance's own beat on purpose.
     if (
       deviceDetails.some((detail) => detail === "Waiting for your OK.") &&
-      !heading.includes("under reduced motion")
+      !heading.includes("under reduced motion") &&
+      !heading.includes("arrive together")
     ) {
       const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
       const breathing = deviceClasses.filter((name) => name.includes("is-waiting")).length;
@@ -955,6 +957,15 @@ try {
       }
       if (deviceClasses.some((name) => name.includes("is-entering"))) {
         problems.push(`the entrance is a beat that ends, and the row it brought breathes on its own: ${heading}`);
+      }
+    }
+    if (heading.includes("two waiting rows arrive together")) {
+      const entering = deviceClasses.filter((name) => name.includes("is-entering")).length;
+      if (entering !== 2) {
+        problems.push(`each arriving row takes its own entrance: ${heading} (${entering} of 2)`);
+      }
+      if (!deviceDetails.includes("Waiting for your OK.")) {
+        problems.push(`both arrivals are waiting rows: ${heading}`);
       }
     }
     if (heading.includes("the buttons come back once the store has answered")) {

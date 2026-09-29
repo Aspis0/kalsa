@@ -32,9 +32,9 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
   const previous = useRef<BeatDevice[] | null>(null);
   // One hold per row: two Allows in one poll are two beats, not one.
   const holds = useRef(new Map<number, ReturnType<typeof setTimeout>>());
-  // The unfold's own clock: once it has played, the entering state is gone
-  // and the row's other classes (the breath) take over.
-  const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Each entrance keeps its own clock: one row arriving must not end
+  // another's entrance, and a page that goes away leaves none behind.
+  const enteringTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const live = useRef(true);
 
   // A page that goes away mid-beat leaves nothing behind.
@@ -44,7 +44,8 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
       live.current = false;
       for (const hold of holds.current.values()) clearTimeout(hold);
       holds.current.clear();
-      if (enteringTimer.current !== null) clearTimeout(enteringTimer.current);
+      for (const entrance of enteringTimers.current.values()) clearTimeout(entrance);
+      enteringTimers.current.clear();
     };
   }, []);
 
@@ -102,15 +103,28 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
         .filter((device) => device.waiting === true && !seen.has(device.id))
         .map((device) => device.id);
       if (entering.length > 0) {
-        setEnteringIds(new Set(entering));
         // The entrance is a beat, not a state: once it has played the row
         // is an ordinary waiting row, and the classes it no longer wears
         // stop deferring to it.
-        if (enteringTimer.current !== null) clearTimeout(enteringTimer.current);
-        enteringTimer.current = setTimeout(() => {
-          enteringTimer.current = null;
-          if (live.current) setEnteringIds(() => new Set());
-        }, FOLD_MS);
+        setEnteringIds((prior) => {
+          const next = new Set(prior);
+          for (const id of entering) next.add(id);
+          return next;
+        });
+        for (const id of entering) {
+          if (enteringTimers.current.has(id)) continue;
+          const entrance = setTimeout(() => {
+            enteringTimers.current.delete(id);
+            if (live.current) {
+              setEnteringIds((prior) => {
+                const next = new Set(prior);
+                next.delete(id);
+                return next;
+              });
+            }
+          }, FOLD_MS);
+          enteringTimers.current.set(id, entrance);
+        }
       }
     }
   }, [devices]);

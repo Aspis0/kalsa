@@ -365,6 +365,11 @@ const scenarios = [
   // breath, not the entrance.
   // Under reduced motion it simply appears, saying the same thing.
   ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: PAIRING_POLL_MS + FOLD_MS + 300 }],
+  // Two waiting phones arrive in one answer: each row takes its own
+  // entrance, one no sooner than the other. The card reads inside the
+  // entrance's own beat, which is the only place the two can be told apart
+  // from one shared entrance.
+  ["Pairing", "two waiting rows arrive together and each unfolds", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }, { id: 3, label: "Waiting phone 3", phone: "phone with 4 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: PAIRING_POLL_MS + 200 }],
   // The store answered the press (allowed, beat landed) and the phone then
   // asked again: the earlier release is what gives this row its buttons
   // back — a decision still held from the first press would leave them
