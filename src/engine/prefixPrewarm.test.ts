@@ -11,6 +11,7 @@ import {
   makeStaticPrefixMeasurement,
   parseStaticPrefixMeasurements,
   prewarmFailureIsPersistent,
+  platformSevereSkipReason,
   serializeStaticPrefixMeasurements,
   shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
@@ -397,5 +398,15 @@ describe("isSystemOnlyTemplateFailure", () => {
     expect(isSystemOnlyTemplateFailure(undefined)).toBe(false);
     expect(isSystemOnlyTemplateFailure(null)).toBe(false);
     expect(isSystemOnlyTemplateFailure(42)).toBe(false);
+  });
+});
+
+describe("platformSevereSkipReason", () => {
+  test("skips at Android SEVERE (3) and above, never below", () => {
+    expect(platformSevereSkipReason(3)).toBe("platform_severe");
+    expect(platformSevereSkipReason(6)).toBe("platform_severe");
+    expect(platformSevereSkipReason(2)).toBeNull();
+    expect(platformSevereSkipReason(0)).toBeNull();
+    expect(platformSevereSkipReason(null)).toBeNull();
   });
 });

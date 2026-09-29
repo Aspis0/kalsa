@@ -69,6 +69,7 @@ import {
   startGovernorBatteryTrace,
   stopGovernorBatteryTrace,
 } from "./governorBatterySampler";
+import { getCurrentGovernorThermalStatus } from "./platformThermalStatus";
 import {
   applyBenchSampling,
   readBenchOracleParams,
@@ -308,6 +309,7 @@ import {
   prewarmStopReason,
   prewarmFailureIsPersistent,
   prewarmGivenUp,
+  platformSevereSkipReason,
   shouldSkipStaticPrefixPrewarm,
   staticPrefixMeasurementKey,
   staticPrefixIdentity,
@@ -1038,6 +1040,13 @@ export async function queueStaticPrefixPrewarm(
   toolChoiceMode?: ToolChoiceMode,
 ): Promise<void> {
   if (!EAGER_PREFIX_PREWARM) return;
+  // Owner lever (SEVERE+, 2026-09-29): no background work. Checked first so
+  // a severe platform logs platform_severe instead of a lesser reason.
+  const severeReason = platformSevereSkipReason(await getCurrentGovernorThermalStatus());
+  if (severeReason) {
+    logPrewarmSkip(severeReason);
+    return;
+  }
   // facts-in-system and the static prefix prewarm cannot coexist. The prewarm
   // runs at boot, when the conversation's facts do not exist yet, so it can
   // only ever warm a system prompt WITHOUT them — while with

@@ -29,6 +29,7 @@
  * Android `PowerManager` thermal-status constants (API 29+). Only the numeric
  * value matters here; the names mirror the platform for readers of native code.
  */
+export const THERMAL_STATUS_SEVERE = 3;
 export const THERMAL_STATUS_CRITICAL = 4;
 export const THERMAL_STATUS_EMERGENCY = 5;
 export const THERMAL_STATUS_SHUTDOWN = 6;

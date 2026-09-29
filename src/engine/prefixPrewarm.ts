@@ -9,6 +9,7 @@ import {
   WINDOW_CHARS_PER_TOKEN,
   WINDOW_RESERVE_TOKENS,
 } from "../context/windowProfile";
+import { THERMAL_STATUS_SEVERE } from "./thermalHardGate";
 
 export type PrewarmToolLike = {
   type?: string;
@@ -548,4 +549,14 @@ export function assembleStaticPrefix(input: {
     systemChars: systemText.length,
     toolCount: tools.length,
   };
+}
+
+/**
+ * Owner lever (2026-09-29): Android SEVERE and above means no background
+ * work, and a prewarm is background load. Returns the skip reason so the
+ * caller logs the shape it already logs; null (quiet platform, iOS, failed
+ * read) means the platform skips nothing.
+ */
+export function platformSevereSkipReason(status: number | null): string | null {
+  return status !== null && status >= THERMAL_STATUS_SEVERE ? "platform_severe" : null;
 }
