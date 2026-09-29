@@ -288,6 +288,10 @@ describe("the join keys reach every line an analyst stitches", () => {
     expect(serviceSource).toContain("routePush: turnRoutePush");
   });
 
+  test("KALSA_GOVERNOR spreads the platform-status fields from stats", () => {
+    expect(serviceSource).toContain("...governorPlatformLogFields(stats)");
+  });
+
   test("the runtime-fallback marker and its retry share one id + attempt", () => {
     // The marker names the retry that follows; the retry reuses the send's
     // id (never a fresh mint) and bumps the attempt, and the turn's

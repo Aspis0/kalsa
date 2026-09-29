@@ -30,6 +30,7 @@ import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
   buildGovernorParams,
+  governorPlatformLogFields,
   htpArchFor,
   readBenchGovernorForce,
   readBenchNpuLane,
@@ -594,5 +595,13 @@ describe("platform_thermal_status in the thermo feed", () => {
       platform_thermal_status: 6,
     });
     expect(NativeModules.GovernorBattery.readThermo).not.toHaveBeenCalled();
+  });
+});
+
+describe("KALSA_GOVERNOR platform-status log fields", () => {
+  test("carry the two stats values under their snake_case keys", () => {
+    expect(
+      governorPlatformLogFields({ platform_thermal_status: 3, state_source: "platform" }),
+    ).toEqual({ platform_thermal_status: 3, state_source: "platform" });
   });
 });

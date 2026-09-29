@@ -60,6 +60,7 @@ import { getCachedDeviceProfile } from "./deviceProfile";
 import {
   buildGovernorPlanLog,
   buildGovernorParams,
+  governorPlatformLogFields,
   readBenchGovernorForce,
   readBenchNpuLane,
   readGovernorThermo,
@@ -1824,6 +1825,7 @@ async function emitGovernorTelemetry(
           routePush: turnRoutePush,
           completionResult,
         }),
+        ...governorPlatformLogFields(stats),
       })}`,
     );
     if (stats.failure_reason) {

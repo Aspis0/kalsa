@@ -208,6 +208,17 @@ export function buildGovernorPlanLog(
   };
 }
 
+/** The platform-status keys of the KALSA_GOVERNOR line, from governor stats. */
+export function governorPlatformLogFields(stats: {
+  platform_thermal_status: number;
+  state_source: string;
+}): { platform_thermal_status: number; state_source: string } {
+  return {
+    platform_thermal_status: stats.platform_thermal_status,
+    state_source: stats.state_source,
+  };
+}
+
 function gpuFit(
   model: GovernorModel,
   profile: DeviceProfile,
