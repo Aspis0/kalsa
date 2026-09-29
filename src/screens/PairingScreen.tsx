@@ -123,6 +123,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   const doorReady = isAllowedPairingUrl(fields.doorUrl);
   const sessionRef = useRef<PairingSession | null>(null);
   const deskAbortRef = useRef<AbortController | null>(null);
+  // Setters past unmount are the race the async ceremony always risks: the
+  // flag is flipped in the same cleanup that aborts the desk requests.
+  const aliveRef = useRef(true);
   const activeInviteRef = useRef<PairingSquare | null>(null);
   const startedInitialInvite = useRef<PairingSquare | null>(null);
 
@@ -131,6 +134,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       // Back or unmount: a desk request still in flight must stop here and
       // shut its tunnel, not finish against a screen that is gone.
       deskAbortRef.current?.abort();
+      aliveRef.current = false;
     },
     [],
   );
@@ -153,7 +157,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       deadlineMs: CONFIRM_DEADLINE_MS,
       perProbeTimeoutMs: CONFIRM_PROBE_TIMEOUT_MS,
       unreachableAfter: CONFIRM_UNREACHABLE_AFTER,
-      onPhase: setConfirmPhase,
+      onPhase: (phase) => {
+        if (aliveRef.current) setConfirmPhase(phase);
+      },
     }).then((outcome) => {
       if (outcome.result === "aborted") return;
       if (outcome.result === "paired") {
@@ -161,12 +167,13 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         // tells the chat which remote failures predate it. Fire-and-forget —
         // a failed stamp write only means nothing is ever marked stale.
         void markPairingCompleted().catch(() => undefined);
-        setState("paired");
+        if (aliveRef.current) setState("paired");
         return;
       }
       // The cap is the only thing that can end a 401-only poll: refused,
       // revoked and still-pending all answer 401 to the phone.
       logPairingFail("confirm_timeout", null);
+      if (!aliveRef.current) return;
       setFailureStage("confirm_timeout");
       setState("not-confirmed");
     });
@@ -249,7 +256,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
             phone: declarationForModel(currentModelId),
             signal,
             fetcher: useIrohDesk ? createDeskPairingFetch(square.node, signal) : undefined,
-            onFailure: (stage) => setFailureStage((current) => current ?? stage),
+            onFailure: (stage) => {
+              if (aliveRef.current) setFailureStage((current) => current ?? stage);
+            },
             onDiagnostic: diagnosticsEnabled
               ? (record) => console.log("KALSA_PAIRING_DIAGNOSTIC", JSON.stringify(record))
               : undefined,
@@ -297,10 +306,11 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       // throw reaching here escaped every named stage and must still leave
       // its one line in logcat.
       logPairingFail("unexpected", null);
+      if (!aliveRef.current) return;
       setFailureStage((current) => current ?? "unexpected");
       setState("refused");
     } finally {
-      setBusy(false);
+      if (aliveRef.current) setBusy(false);
     }
   };
 
@@ -329,23 +339,35 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   // Which host names the current phase: the desk (port included) while
   // claiming, the door while waiting; an outcome outranks the name.
   const pairHost = pairHosts === null ? null : busy ? pairHosts.claim : pairHosts.confirm;
+  const yourComputer = t("pairing.yourComputer");
   const status: { testID: string; text: string; error: boolean } =
-    pairHost !== null && (busy || state === "waiting")
-      ? { testID: "pairing.withHost", text: t("pairing.withHost", { host: pairHost }), error: false }
-      : busy
-        ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
-        // The reason renders either here (details collapsed) or next to the
-        // disabled button inside the form — never both: one placement per view.
-        : state === "refused"
-          ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
-          : !doorReady && !showManual
-            ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
-            : state === "paired"
-              ? { testID: "pairing.paired", text: t("pairing.paired"), error: false }
-              : state === "not-confirmed"
-                ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
-                : state === "waiting"
-                  ? { testID: "pairing.waiting", text: t("pairing.waiting"), error: false }
+    state === "waiting"
+      ? // The wait is an Allow wait: name the screen to look at. Nothing in
+        // this state may sound like "connected" — the phone is paired only
+        // when the poll below says so (Jelly pairing run, issue 3).
+        {
+          testID: "pairing.waiting",
+          text: t("pairing.waitingAllow", { computer: pairHost ?? yourComputer }),
+          error: false,
+        }
+      : pairHost !== null && busy
+        ? { testID: "pairing.withHost", text: t("pairing.withHost", { host: pairHost }), error: false }
+        : busy
+          ? { testID: "pairing.busy", text: t("pairing.working"), error: false }
+          // The reason renders either here (details collapsed) or next to the
+          // disabled button inside the form — never both: one placement per view.
+          : state === "refused"
+            ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
+            : !doorReady && !showManual
+              ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
+              : state === "paired"
+                ? {
+                    testID: "pairing.paired",
+                    text: t("pairing.pairedWith", { computer: pairHost ?? yourComputer }),
+                    error: false,
+                  }
+                : state === "not-confirmed"
+                  ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
                   : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
   return (

@@ -479,8 +479,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     manualHide: "Hide manual details",
     doorRequired: "Set your computer's address on this phone before pairing.",
     refused: "Can't reach your computer, or it refused the pairing. Try again.",
-    waiting: "Confirm on your computer",
-    paired: "Paired with your computer",
+    waitingAllow: "Waiting for you to press Allow on {computer}",
+    pairedWith: "Paired with {computer}",
+    yourComputer: "your computer",
     goToChat: "Go to chat",
     notConfirmed:
       "Not confirmed on your computer — it may have been refused or timed out.",

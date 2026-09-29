@@ -427,11 +427,11 @@ describe("PairingScreen", () => {
       tailnet,
       { node, pairedVia: "iroh" },
     );
-    // The claim went to a scanned host, never a typed one: the status names
-    // it through the whole confirmation wait.
-    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("Pairing with paired.example.ts.net…");
-    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
+    // The claim went to a scanned host, never a typed one; the Allow wait
+    // names the screen to look at — the door host the poll is asking.
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
+      .toBe("Waiting for you to press Allow on paired.example.ts.net");
+    expect(renderer.root.findAllByProps({ testID: "pairing.withHost" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 
@@ -468,9 +468,9 @@ describe("PairingScreen", () => {
       "https://paired.example.ts.net",
       { node: "", pairedVia: "https" },
     );
-    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("Pairing with paired.example.ts.net…");
-    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
+      .toBe("Waiting for you to press Allow on paired.example.ts.net");
+    expect(renderer.root.findAllByProps({ testID: "pairing.withHost" })).toHaveLength(0);
     await act(async () => renderer.unmount());
   });
 
@@ -491,11 +491,11 @@ describe("PairingScreen", () => {
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("Pairing with paired.example.ts.net…");
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
+      .toBe("Waiting for you to press Allow on paired.example.ts.net");
 
-    // A manual edit takes the screen back to its own addresses: the line
-    // about the scanned host must not outlive the scan it came from.
+    // A manual edit takes the screen back to its own addresses: the name
+    // of the scanned host must not outlive the scan it came from.
     await act(async () => {
       renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.onChangeText(
         "https://typed.example:8443",
@@ -547,9 +547,10 @@ describe("PairingScreen", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    // Waiting: the confirmation polls the door, no port — the line follows.
-    expect(renderer.root.findByProps({ testID: "pairing.withHost" }).props.children)
-      .toBe("Pairing with paired.example.ts.net…");
+    // Waiting: the confirmation polls the door, no port — the Allow line
+    // follows it.
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
+      .toBe("Waiting for you to press Allow on paired.example.ts.net");
     await act(async () => renderer.unmount());
   });
 
@@ -574,7 +575,7 @@ describe("PairingScreen", () => {
       "https://paired.example.ts.net:8443/pair/claim",
       "https://paired.example.ts.net:8443/pair/complete",
     ]);
-    expect(renderer.root.findByProps({ testID: "pairing.withHost" })).toBeDefined();
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
 
     // The confirmation gives up: the scan button comes back.
     await act(async () => {
@@ -736,7 +737,10 @@ describe("PairingScreen", () => {
     expect(bodies[1]).toContain('"weights_bytes":1234');
     expect(bodies[1]).toContain('"battery_powered":true');
     expect(bodies[1]).not.toContain('"weights_bytes":0');
-    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children).toBe("pairing.waiting");
+    // Manual entry has no scanned host: the Allow line names the generic
+    // computer (the bare-key mock keeps the key visible in the sentence).
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
+      .toBe("Waiting for you to press Allow on pairing.yourComputer");
     await act(async () => renderer.unmount());
   });
 
@@ -946,7 +950,7 @@ describe("PairingScreen", () => {
     });
 
     expect(renderer.root.findByProps({ testID: "pairing.paired" }).props.children)
-      .toBe("pairing.paired");
+      .toBe("Paired with pairing.yourComputer");
     // The Allow verdict is the moment the current pairing began: the stamp
     // the chat compares old remote failures against.
     expect(markPairingCompleted).toHaveBeenCalledTimes(1);

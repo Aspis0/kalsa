@@ -474,8 +474,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     manualHide: "Nascondi i dettagli manuali",
     doorRequired: "Imposta l'indirizzo del tuo computer su questo telefono prima del collegamento.",
     refused: "Non riesci a raggiungere il tuo computer, oppure ha rifiutato il collegamento. Riprova.",
-    waiting: "Conferma sul computer",
-    paired: "Collegato al tuo computer",
+    waitingAllow: "In attesa che tu prema Consenti su {computer}",
+    pairedWith: "Collegato a {computer}",
+    yourComputer: "il tuo computer",
     goToChat: "Vai alla chat",
     notConfirmed:
       "Non confermato sul tuo computer — potrebbe essere stato rifiutato o essere scaduto.",
