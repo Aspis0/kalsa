@@ -114,6 +114,7 @@ pub fn decide(
         detected,
         None,
         &OsLaunch,
+        &store::ensure_probe_model,
         progress,
     )
 }
@@ -142,17 +143,20 @@ pub fn decide_cpu(
         detected,
         Some(ServerBackend::Cpu),
         &OsLaunch,
+        &store::ensure_probe_model,
         progress,
     )
 }
 
-/// The whole walk, with the store root and the process launcher injected.
+/// The whole walk, with the store root, the process launcher and the probe
+/// model's fetch injected.
 pub(crate) fn decide_in(
     root: &Path,
     platform: Option<Platform>,
     detected: Backend,
     only: Option<ServerBackend>,
     launch: &dyn Launch,
+    fetch_probe_model: &dyn Fn(&Path, &mut dyn FnMut(Progress)) -> Result<PathBuf, StoreError>,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Decision, DecideError> {
     let Some(platform) = platform else {
@@ -189,7 +193,7 @@ pub(crate) fn decide_in(
         }
         // Its build is gone from disk: decide again from the top.
     }
-    let model = store::ensure_probe_model(root, progress).map_err(map_probe_model_error)?;
+    let model = fetch_probe_model(root, progress).map_err(map_probe_model_error)?;
     let port = probe::free_loopback_port()
         .map_err(|e| DecideError::CannotAcquire(format!("no free loopback port: {e}")))?;
     let params = ProbeParams::for_port(port);
@@ -346,8 +350,16 @@ mod tests {
     #[test]
     fn a_platform_with_no_build_is_reported_not_improvised() {
         let root = scratch("no-platform");
-        let err = decide_in(&root, None, Backend::Cpu, None, &OsLaunch, &mut |_| {})
-            .expect_err("nothing is published for it");
+        let err = decide_in(
+            &root,
+            None,
+            Backend::Cpu,
+            None,
+            &OsLaunch,
+            &store::ensure_probe_model,
+            &mut |_| {},
+        )
+        .expect_err("nothing is published for it");
         assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
         assert_eq!(
             std::fs::read_dir(&root).expect("root").count(),
@@ -418,14 +430,30 @@ mod tests {
 
     #[test]
     fn a_probe_model_fetched_on_a_dead_wire_is_the_networks_verdict() {
-        // First run, DNS blocked: the walk dies at the probe model, before
-        // any candidate. That is the same fact the candidate loop reports
-        // (`d.is_network()`), so it wears the same verdict — the wire's own
-        // words travelling in the variant, with no backend to name.
-        let unreachable = StoreError::Download(DownloadError::Unreachable(
-            std::io::Error::new(std::io::ErrorKind::TimedOut, "connection timed out"),
-        ));
-        let err = map_probe_model_error(unreachable);
+        // Driven through the walk itself: the probe model's fetch is a seam
+        // of `decide_in`, and on the wire the walk dies there — before any
+        // candidate, so the launch below must never fire. The verdict is
+        // the wire's own words travelling in the variant, with no backend
+        // to name — the same fact the candidate loop reports
+        // (`d.is_network()`), so it wears the same verdict.
+        let root = scratch("dead-wire");
+        let dead_wire = |_root: &Path,
+                         _progress: &mut dyn FnMut(Progress)|
+         -> Result<PathBuf, StoreError> {
+            Err(StoreError::Download(DownloadError::Unreachable(
+                std::io::Error::new(std::io::ErrorKind::TimedOut, "connection timed out"),
+            )))
+        };
+        let err = decide_in(
+            &root,
+            Some(Platform::MacArm64),
+            Backend::Metal,
+            None,
+            &NeverProbe,
+            &dead_wire,
+            &mut |_| {},
+        )
+        .expect_err("the walk dies at the probe model, before any candidate");
         match &err {
             DecideError::EngineUnreachable {
                 probe_model_reason,
@@ -441,15 +469,28 @@ mod tests {
         }
         // The Display/log text keeps them too.
         assert!(err.to_string().contains("timed out"), "{err}");
+
         // A full disk is still this machine's fact, wire or no wire.
-        let full = StoreError::Io(std::io::Error::new(
-            std::io::ErrorKind::StorageFull,
-            "no space left",
-        ));
-        assert!(matches!(
-            map_probe_model_error(full),
-            DecideError::StorageFull
-        ));
+        let full_disk = |_root: &Path,
+                         _progress: &mut dyn FnMut(Progress)|
+         -> Result<PathBuf, StoreError> {
+            Err(StoreError::Io(std::io::Error::new(
+                std::io::ErrorKind::StorageFull,
+                "no space left",
+            )))
+        };
+        let err = decide_in(
+            &root,
+            Some(Platform::MacArm64),
+            Backend::Metal,
+            None,
+            &NeverProbe,
+            &full_disk,
+            &mut |_| {},
+        )
+        .expect_err("nothing can be written for the probe model");
+        assert!(matches!(err, DecideError::StorageFull), "{err}");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -459,8 +500,16 @@ mod tests {
         // failed, it is a machine we publish nothing for, and the difference
         // is the sentence the user reads.
         let root = scratch("intel-mac");
-        let err = decide_in(&root, Some(Platform::MacX64), Backend::Metal, None, &OsLaunch, &mut |_| {})
-            .expect_err("no engine is published for an Intel Mac");
+        let err = decide_in(
+            &root,
+            Some(Platform::MacX64),
+            Backend::Metal,
+            None,
+            &OsLaunch,
+            &store::ensure_probe_model,
+            &mut |_| {},
+        )
+        .expect_err("no engine is published for an Intel Mac");
         assert!(matches!(err, DecideError::NoBuildForThisMachine), "{err}");
         assert_eq!(
             std::fs::read_dir(&root).expect("root").count(),
@@ -555,8 +604,16 @@ mod tests {
         )
         .expect("the probe model, linked rather than copied");
 
-        let err = decide_in(&root, Some(platform), Backend::Cpu, None, &OsLaunch, &mut |_| {})
-            .expect_err("nothing can be written to a disk this full");
+        let err = decide_in(
+            &root,
+            Some(platform),
+            Backend::Cpu,
+            None,
+            &OsLaunch,
+            &store::ensure_probe_model,
+            &mut |_| {},
+        )
+        .expect_err("nothing can be written to a disk this full");
         assert!(matches!(err, DecideError::StorageFull), "{err}");
     }
 
@@ -627,8 +684,16 @@ mod tests {
         )
         .expect("save verdict");
 
-        let decision = decide_in(&root, Some(platform), detected, None, &NeverProbe, &mut |_| {})
-            .expect("a standing verdict answers without probing");
+        let decision = decide_in(
+            &root,
+            Some(platform),
+            detected,
+            None,
+            &NeverProbe,
+            &store::ensure_probe_model,
+            &mut |_| {},
+        )
+        .expect("a standing verdict answers without probing");
         assert_eq!(decision.backend, backend);
         assert_eq!(decision.exe, exe, "the on-disk build is the answer");
         let _ = std::fs::remove_dir_all(&root);
@@ -697,8 +762,8 @@ mod tests {
     }
 
     /// A launcher whose whole job is to fail the test if the walk ever
-    /// reaches the probe: a machine with a standing verdict must never
-    /// launch anything.
+    /// launches: a standing verdict must probe nothing, and a walk dead at
+    /// the probe model has no candidate left to try.
     struct NeverProbe;
 
     impl Launch for NeverProbe {
@@ -708,7 +773,7 @@ mod tests {
             _args: &[String],
             _inherit: Option<&std::fs::File>,
         ) -> std::io::Result<Box<dyn Running>> {
-            panic!("the probe ran although a verdict was standing");
+            panic!("the walk launched a probe where none may run");
         }
     }
 }
