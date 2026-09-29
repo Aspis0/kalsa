@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FOLD_MS, SUCCESS_HOLD_MS } from "./motion";
+import { BEAT_MS, FOLD_MS } from "./motion";
 
 // What the beat needs from a device record: identity and the wait. The
 // page's fuller records satisfy it structurally.
@@ -118,7 +118,7 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
         next.delete(rowId);
         return next;
       });
-    }, SUCCESS_HOLD_MS);
+    }, BEAT_MS);
     holds.current.set(rowId, hold);
   }
 

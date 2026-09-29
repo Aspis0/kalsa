@@ -1,16 +1,18 @@
 /* Shared vocabulary for the ported surfaces (Brain, Models, Server,
    Devices, Advanced). Chat's own tokens and button classes only. */
 
-/* The page's CSS-side motion tokens: the loops and one-shot beats that
-   never need a JS timer. The JS-timed beats (the fold, the connected
-   hold) live in surfaces/motion.ts. Every animation below sits inside the
-   no-preference block, so under reduced motion none of them exists at all
-   — the dots and pulses are simply not applied, and what remains (the
-   check, the live dot's colour) is static information. */
+/* The page's motion tokens. The two tempos the page must TIME live in
+   surfaces/motion.ts and arrive here as variables on the page root:
+   --beat-ms (the connected hold, the waiting breath, the live pulse —
+   one number) and --beat-unfold-ms (the fold and its reverse, the
+   entrance). The two beats only CSS ever needs — the check's draw, the
+   connecting dots' stagger — are declared here and nowhere else. Every
+   animation sits inside the no-preference block below, so under reduced
+   motion none of them exists at all: the dots and the entrance are simply
+   not applied, and what remains (the drawn check, the live dot's colour,
+   a still waiting row) is static information. */
 .surface-page {
   --beat-draw-ms: 400ms;
-  --beat-breath-ms: 1600ms;
-  --beat-live-ms: 1600ms;
   --beat-dot-ms: 1200ms;
 }
 
@@ -226,6 +228,24 @@
   background: var(--accent);
 }
 
+/* The waiting row's breath, at rest: a wash that covers the row's box and
+   sits invisible until the loop below fades it in and out. At rest it is
+   nothing, so a page that never animates shows a still row. */
+.surface-device.is-waiting {
+  position: relative;
+}
+
+.surface-device.is-waiting::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: rgba(var(--surface-muted-rgb), 0.35);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  opacity: 0;
+  pointer-events: none;
+}
+
 .surface-check-path {
   fill: none;
   stroke: var(--accent);
@@ -250,31 +270,31 @@
     }
   }
 
-  /* A row that needs the owner breathes: a soft background-and-border
-     pulse, slow enough to read as "needs you" and never as alarm. */
-  .surface-device.is-waiting {
-    animation: surface-row-breath var(--beat-breath-ms) ease-in-out infinite;
+  /* A row that needs the owner breathes. The wash is a pseudo-element
+     whose opacity is all the keyframes touch — the compositor carries the
+     loop, and the row's own colours never repaint. */
+  .surface-device.is-waiting::after {
+    animation: surface-row-breath var(--beat-ms) ease-in-out infinite;
   }
 
   @keyframes surface-row-breath {
     0%,
     100% {
-      background: var(--surface);
-      border-color: var(--border);
+      opacity: 0;
     }
     50% {
-      background: var(--surface-muted);
-      border-color: var(--border-strong);
+      opacity: 1;
     }
   }
 
   /* The reverse of the fold: a waiting row that newly appears unfolds into
-     the list instead of popping. The animation itself — including the
-     fold's own duration — arrives as an inline style from the page, so the
-     two beats cannot drift apart; this only keeps the row's children inside
-     the box while it is still small. */
+     the list instead of popping, on the fold's own number. The page drops
+     this class once the entrance has played, and the breath is all that is
+     left. Until then the row keeps its children inside the box while it is
+     still small. */
   .surface-device.is-entering {
     overflow: hidden;
+    animation: surface-row-unfold var(--beat-unfold-ms) ease;
   }
 
   @keyframes surface-row-unfold {
@@ -294,7 +314,7 @@
   /* The live dot: a phone the door is serving right now. The dot itself is
      information and stays under reduced motion; only its pulse stops. */
   .surface-device-live {
-    animation: surface-live var(--beat-live-ms) ease-in-out infinite;
+    animation: surface-live var(--beat-ms) ease-in-out infinite;
   }
 
   @keyframes surface-live {

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
 import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
 import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
-import { FOLD_MS, reducedMotion } from "./motion";
+import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential, useBrain } from "./useBrain";
 import "./surfaces.css";
@@ -33,6 +34,13 @@ const FRESH_LINES: Record<string, string> = {
   expired: "The previous square expired — this one is fresh.",
   "wrong-code": "A square that did not match was replaced — this one is fresh.",
 };
+
+// The tempos the CSS beats read, set once on the page root: the numbers
+// live in motion.ts and nowhere else.
+const beatVars = {
+  "--beat-ms": `${BEAT_MS}ms`,
+  "--beat-unfold-ms": `${FOLD_MS}ms`,
+} as CSSProperties;
 
 interface PairedDevice {
   id: number;
@@ -485,7 +493,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   }
 
   return (
-    <div className="surface-page">
+    <div className="surface-page" style={beatVars}>
       <h2>Pairing</h2>
       {headline ? <p className="surface-headline">{headline}</p> : null}
       <div className="surface-sentence-line">
@@ -544,22 +552,19 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             const connected = beats.connected.has(device.id);
             // A row waiting for the owner's decision breathes, and a waiting
             // row that just arrived unfolds in — the reverse of the fold,
-            // timed by the same number. Under reduced motion neither exists.
+            // on the fold's own number. Under reduced motion neither exists.
             const needsOwner = !connected && (device.waiting === true || request !== undefined);
             const entering = !motionless && beats.enteringIds.has(device.id);
             const classes =
               "surface-device" +
               (needsOwner && !motionless ? " is-waiting" : "") +
               (entering ? " is-entering" : "");
-            const entrance = entering
-              ? { animation: `surface-row-unfold ${FOLD_MS}ms ease` }
-              : undefined;
             return (
               <div
                 key={device.id}
                 className={classes}
                 ref={fold.refFor(device.id)}
-                style={fold.styleFor(device.id) ?? entrance}
+                style={fold.styleFor(device.id)}
               >
                 {activeIds.has(device.id) ? (
                   <span className="surface-device-live" aria-hidden="true" />
