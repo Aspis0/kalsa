@@ -665,7 +665,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceClasses, deviceDetails, allowIds, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceClasses, deviceDetails, allowIds, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced, liveDots, connectingDots } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -911,6 +911,23 @@ try {
       if (!deviceDetails.includes("Waiting for your OK.")) {
         problems.push(`under reduced motion the waiting row still says the wait: ${heading}`);
       }
+    }
+    // The claiming sentence carries its wordless indicator; under reduced
+    // motion the page draws none, and the sentence stands alone.
+    if (heading.includes("a phone is connecting")) {
+      if (connectingDots !== 1) {
+        problems.push(`the claiming sentence carries its animated indicator: ${heading}`);
+      }
+    }
+    // The live dot: only a row the door itself names, and never a word —
+    // the dot is the whole statement.
+    if (heading.includes("a phone being served right now")) {
+      if (liveDots !== 1) {
+        problems.push(`the row of a phone the door is serving carries the live dot: ${heading}`);
+      }
+    }
+    if (heading.startsWith("Pairing") && !heading.includes("being served") && liveDots !== 0) {
+      problems.push(`only a row the door names may carry the live dot: ${heading}`);
     }
     if (heading.includes("an invitation is taking longer than usual")) {
       if (!all.includes("This is taking longer than usual. If the invitation appears below, copy its link from there.")) {

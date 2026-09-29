@@ -69,8 +69,10 @@ export interface BrainState {
   metrics?: {
     decode_tokens_per_second?: number;
     // Who the door is serving right now, with the kind that tells this
-    // computer's own traffic from a phone's.
-    active_devices?: { kind?: string }[];
+    // computer's own traffic from a phone's. The id is the pairing store's
+    // own device id — the door's set is built from that store — so the
+    // Devices page may match it against the rows it draws.
+    active_devices?: { id?: number; kind?: string }[];
     // The door's own reads for the panel: residents, the capacity they are
     // counted against, and the directory scan. Absent or null is "no number",
     // which renders no row.

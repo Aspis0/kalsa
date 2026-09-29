@@ -247,6 +247,10 @@ const scenarios = [
   ["Pairing", "a fresh square after the old one expired", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "expired" }) }],
   ["Pairing", "a fresh square after one did not match", "devices", { pairing: pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "wrong-code" }) }],
   ["Pairing", "a phone is connecting", "devices", { pairing: pairingDto("claiming") }],
+  // The door is serving one of the paired phones right now: its row carries
+  // the live dot (the id is the pairing store's own, the same space the
+  // rows are drawn from — the Rust side builds it from that store).
+  ["Pairing", "a phone being served right now", "devices", { pairing: pairedHouse(), state: { kind: "running", metrics: { active_devices: [{ id: 1, label: "Paired phone", kind: "phone" }] } }, invites: { discarded: false, invites: [] } }],
   ["Pairing", "paired; another phone can be paired", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a phone waits for the owner's OK", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a phone waits for the owner's OK, its response still in flight", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }], delivery_pending: true, door_port: 8131, desk_port: 8134 }) }],
@@ -390,7 +394,13 @@ function installBridge() {
               if (bridgeState.forgetFails) return Promise.reject(new Error("the store refused"));
               return Promise.resolve(null);
             }
-            if (command === "brain_state") return Promise.resolve(bridgeState.state ?? null);
+            // A card that names no brain state gets a stopped one, never a
+            // null: a null answer means "not known", and the shared poll
+            // keeps what the LAST card that named one knew — so a served
+            // phone would light rows on every later card.
+            if (command === "brain_state") {
+              return Promise.resolve(bridgeState.state ?? { kind: "stopped" });
+            }
             if (command === "brain_pairing") {
               // The shapes a real open takes: a read that has not answered
               // yet (it awaits two Tailscale CLI calls), and reads after the
@@ -556,6 +566,14 @@ function extract(panel, heading, automatic = []) {
     // The motion classes the rows wear, in row order: which rows breathe,
     // which unfold in — and that reduced motion wears none.
     deviceClasses: rowEls.map((el) => String(el.className ?? "")),
+    // The two indicators with no words: the live dot on a served row, the
+    // three dots beside the claiming sentence.
+    liveDots: elements(panel, (el) =>
+      String(el.className ?? "").split(" ").includes("surface-device-live"),
+    ).length,
+    connectingDots: elements(panel, (el) =>
+      String(el.className ?? "").split(" ").includes("surface-connecting"),
+    ).length,
     deviceDetails: detailEls.map(elementText),
     inviteNames: inviteEls.map(elementText),
     // The field a refused clipboard leaves behind, by value: this is the one

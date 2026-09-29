@@ -10,6 +10,8 @@
 .surface-page {
   --beat-draw-ms: 400ms;
   --beat-breath-ms: 1600ms;
+  --beat-live-ms: 1600ms;
+  --beat-dot-ms: 1200ms;
 }
 
 /* One column for the whole app: the surfaces take the chat's own measure, so
@@ -59,6 +61,18 @@
   color: var(--silence);
   font-size: 0.92rem;
   line-height: 1.6;
+}
+
+/* The sentence and its wordless companion (the claiming dots) share one
+   line; a state with no companion is just the sentence, alone. */
+.surface-sentence-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.surface-sentence-line .surface-sentence {
+  flex: 1;
 }
 
 .surface-quiet {
@@ -202,6 +216,16 @@
   vertical-align: -0.05em;
 }
 
+/* The live dot's resting shape: a small dot in the accent colour, beside
+   the name of the phone it belongs to. */
+.surface-device-live {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .surface-check-path {
   fill: none;
   stroke: var(--accent);
@@ -264,6 +288,58 @@
     }
     to {
       max-height: 5rem;
+    }
+  }
+
+  /* The live dot: a phone the door is serving right now. The dot itself is
+     information and stays under reduced motion; only its pulse stops. */
+  .surface-device-live {
+    animation: surface-live var(--beat-live-ms) ease-in-out infinite;
+  }
+
+  @keyframes surface-live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /* The claiming sentence's three dots, staggered so they read as one
+     wave. Pure decoration: under reduced motion the page does not draw
+     them at all. */
+  .surface-connecting {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 0.4rem;
+    vertical-align: 0.12em;
+  }
+
+  .surface-connecting span {
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--silence);
+    animation: surface-dot var(--beat-dot-ms) ease-in-out infinite;
+  }
+
+  .surface-connecting span:nth-child(2) {
+    animation-delay: calc(var(--beat-dot-ms) / 6);
+  }
+
+  .surface-connecting span:nth-child(3) {
+    animation-delay: calc(var(--beat-dot-ms) / 3);
+  }
+
+  @keyframes surface-dot {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    50% {
+      opacity: 1;
     }
   }
 }

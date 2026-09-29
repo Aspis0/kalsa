@@ -7,7 +7,7 @@ import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
-import { forgetLocalCredential } from "./useBrain";
+import { forgetLocalCredential, useBrain } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
@@ -214,6 +214,15 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   const fold = useRowFold();
   // The beat a row plays after the owner's Allow lands on it.
   const beats = useDeviceBeats(state?.devices);
+  // The brain's own 1 s read, for the one fact this page wants from it:
+  // which devices the door is serving right now.
+  const brain = useBrain();
+  const motionless = reducedMotion();
+  const activeIds = new Set(
+    (brain.state?.metrics?.active_devices ?? [])
+      .map((device) => device.id)
+      .filter((id): id is number => typeof id === "number"),
+  );
 
   const refresh = useCallback(async (): Promise<void> => {
     // No read STARTS while a row folds — all this line claims. A read
@@ -473,7 +482,16 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     <div className="surface-page">
       <h2>Pairing</h2>
       {headline ? <p className="surface-headline">{headline}</p> : null}
-      <p className="surface-sentence">{sentence}</p>
+      <div className="surface-sentence-line">
+        <p className="surface-sentence">{sentence}</p>
+        {state?.state === "claiming" && !motionless ? (
+          <span className="surface-connecting" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+        ) : null}
+      </div>
       {qrSvg ? <div className="surface-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : null}
       {fresh && FRESH_LINES[fresh] ? <p className="surface-quiet">{FRESH_LINES[fresh]}</p> : null}
       {note ? <p className="surface-quiet">{note}</p> : null}
@@ -521,7 +539,6 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // A row waiting for the owner's decision breathes, and a waiting
             // row that just arrived unfolds in — the reverse of the fold,
             // timed by the same number. Under reduced motion neither exists.
-            const motionless = reducedMotion();
             const needsOwner = !connected && (device.waiting === true || request !== undefined);
             const entering = !motionless && beats.enteringIds.has(device.id);
             const classes =
@@ -538,6 +555,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 ref={fold.refFor(device.id)}
                 style={fold.styleFor(device.id) ?? entrance}
               >
+                {activeIds.has(device.id) ? (
+                  <span className="surface-device-live" aria-hidden="true" />
+                ) : null}
                 <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
                   {connected ? (
