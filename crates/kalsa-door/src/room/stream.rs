@@ -56,17 +56,22 @@ pub struct Seats {
 }
 
 impl Seats {
-    /// Takes a seat for a new stream, closing the oldest beyond the cap by
-    /// setting its retire flag — its thread sees the flag within a second
-    /// and closes the socket.
+    /// Takes a seat for a new stream, closing this device's oldest beyond
+    /// the cap by setting its retire flag — its thread sees the flag
+    /// within a second and closes the socket. Every OTHER device's rows
+    /// stay: the cap is per device, and one house's phones do not share
+    /// seats.
     fn take(&self, device: DeviceId) -> Arc<AtomicBool> {
         let mut live = self
             .live
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        live.retain(|(held, _)| *held == device);
-        while live.len() >= PER_DEVICE {
-            let (_, oldest) = live.remove(0);
+        while live.iter().filter(|(held, _)| *held == device).count() >= PER_DEVICE {
+            let position = live
+                .iter()
+                .position(|(held, _)| *held == device)
+                .expect("the count above found one");
+            let (_, oldest) = live.remove(position);
             oldest.store(true, Ordering::SeqCst);
         }
         let seat = Arc::new(AtomicBool::new(false));
@@ -89,30 +94,31 @@ pub(super) fn serve(
     mut client: TcpStream,
     room: &Arc<Room>,
     ctx: Ctx,
-    last_event_id: Option<&[u8]>,
-    client_epoch: Option<&[u8]>,
-    origin: Option<&[u8]>,
+    member: kalsa_room::MemberId,
+    head: &crate::request::UnsealedHead,
     deadline: Instant,
 ) {
+    let (last_event_id, client_epoch, origin) =
+        (head.last_event_id.as_deref(), head.room_epoch.as_deref(), head.origin.as_deref());
     // The epoch of the cached seqs was checked ahead of the routes; the
     // stream itself only names the epoch it speaks. A non-numeric
     // Last-Event-ID names nothing and is answered, not streamed.
     let _ = client_epoch;
     // A member's replay never reaches before their join: a Last-Event-ID
     // below it is raised to it, so the replay begins where their history
-    // does. The host has no floor; a member the room cannot place is
-    // refused rather than guessed at.
-    let floor = match room.member_of(ctx.device.value()) {
-        None => None,
-        Some(member) => match super::floor_of(room, member) {
-            Some(join) => Some(join - 1),
-            None => {
-                eprintln!("kalsa door: a member with no join point opened a stream");
-                let answer = json_error(500, origin, "internal", "The room's store failed on disk.");
-                let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
-                return;
-            }
-        },
+    // does. The member is the one the door enrolled for this request — not
+    // a fresh lookup, which a forget between the two could turn into a
+    // stranger's whole transcript. The host has no floor; a member the
+    // room cannot place is refused, exactly as history refuses one.
+    let floor = match super::floor_of(room, member) {
+        Some(join) if member != kalsa_room::MemberId::Host => Some(join - 1),
+        Some(_) => None,
+        None => {
+            eprintln!("kalsa door: a member with no join point opened a stream");
+            let answer = json_error(500, origin, "internal", "The room's store failed on disk.");
+            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            return;
+        }
     };
     // A fresh follower starts from now; a reconnect resumes after the seq
     // it last saw. A cursor above the newest claims events that never
@@ -148,6 +154,13 @@ pub(super) fn serve(
     let seat = seats.take(device);
     let spawned = std::thread::Builder::new().name("kalsa-door-room-stream".into()).spawn(
         move || {
+            // The guard, not a call at the end: a stream that unwinds
+            // still hands its seat back, or the cap would count the dead.
+            let _seat_held = SeatGuard {
+                seats: Arc::clone(&seats),
+                device,
+                seat: Arc::clone(&seat),
+            };
             follow(Follower {
                 client,
                 room,
@@ -155,15 +168,28 @@ pub(super) fn serve(
                 cursor,
                 origin,
                 deadline,
-                seat: Arc::clone(&seat),
+                seat,
             });
-            seats.give(device, &seat);
         },
     );
     if spawned.is_err() {
         // No thread, no stream: the socket closes and the phone's next
         // attempt starts a fresh one. The entry it leaves behind is not
         // worth an error body nobody is positioned to read.
+    }
+}
+
+/// Returns a follower's seat on every way out of its thread, an unwind
+/// included.
+struct SeatGuard {
+    seats: Arc<Seats>,
+    device: DeviceId,
+    seat: Arc<AtomicBool>,
+}
+
+impl Drop for SeatGuard {
+    fn drop(&mut self) {
+        self.seats.give(self.device, &self.seat);
     }
 }
 

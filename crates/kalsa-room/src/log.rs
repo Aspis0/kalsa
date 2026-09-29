@@ -179,28 +179,40 @@ pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
         }
     } else if complete < bytes.len() {
         let mut checker = Checker::of(&messages);
-        match serde_json::from_slice::<Record>(&bytes[complete..])
-            .ok()
-            .and_then(|record| checker.check(record, messages.len() as u64 + 1))
-        {
-            Some(message) => {
-                if recovery::repair_newline(path) {
-                    messages.push(message);
-                } else {
-                    // The fragment stays on disk; the room must not append
-                    // after it. Nothing is dropped, so no copy is owed.
-                    writable = false;
-                }
-            }
-            None => {
-                // The unparsable tail is not a complete line: nobody was
-                // ever served it, so dropping it is the one recovery that
-                // costs nothing acknowledged and keeps the epoch.
+        match serde_json::from_slice::<Record>(&bytes[complete..]) {
+            // A line that does not PARSE is a torn write: it never was a
+            // complete entry, nobody was ever served it, and dropping it
+            // costs nothing acknowledged — the one recovery that keeps the
+            // epoch.
+            Err(_) => {
                 writable = recovery::recover(path, &bytes, valid);
                 if writable {
                     recovery = Recovery::Tail;
                 }
             }
+            Ok(record) => match checker.check(record, messages.len() as u64 + 1) {
+                Some(message) => {
+                    if recovery::repair_newline(path) {
+                        messages.push(message);
+                    } else {
+                        // The fragment stays on disk; the room must not
+                        // append after it. Nothing is dropped, so no copy
+                        // is owed.
+                        writable = false;
+                    }
+                }
+                // A line that parses but breaks a rule — a seq out of
+                // order, a key reused — is a complete line this store
+                // refuses to have written: it is dropped as middle damage
+                // and the epoch moves, because a complete line is
+                // something a client may have read.
+                None => {
+                    writable = recovery::recover(path, &bytes, valid);
+                    if writable {
+                        recovery = Recovery::Middle;
+                    }
+                }
+            },
         }
     }
     let file = OpenOptions::new().read(true).append(true).open(path)?;

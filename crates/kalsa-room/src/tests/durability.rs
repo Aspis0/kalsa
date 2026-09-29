@@ -271,7 +271,31 @@ fn the_room_id_is_stable_and_the_epoch_moves_only_with_recovery() {
         Some(4),
         "the late member's floor survives a tail recovery untouched"
     );
+    let tail_epoch = tail_recovered.epoch();
     drop(tail_recovered);
+
+    // A complete last line that parses but breaks a rule — a seq out of
+    // order — is middle damage however it ended: a complete line is
+    // something a client may have read, so the epoch moves for it.
+    let wrong_seq = LINE_ONE.replace("\"seq\":1", "\"seq\":9");
+    let whole = std::fs::read_to_string(log_path(&dir)).unwrap();
+    let terminated = format!("{whole}{wrong_seq}\n");
+    std::fs::write(log_path(&dir), &terminated).unwrap();
+    let rule_broken = reopen(&dir).expect("the rule-breaking line is dropped");
+    assert_ne!(
+        rule_broken.epoch(),
+        tail_epoch,
+        "a terminated line failing a rule re-mints the epoch"
+    );
+    let broken_epoch = rule_broken.epoch();
+    drop(rule_broken);
+    std::fs::write(log_path(&dir), terminated.trim_end_matches('\n')).unwrap();
+    let unterminated = reopen(&dir).expect("the unterminated rule-breaker opens");
+    assert_ne!(
+        unterminated.epoch(),
+        broken_epoch,
+        "and so does the same line without its newline"
+    );
 
     // Middle damage: acknowledged entries are gone, the epoch moves, and
     // a join past what survived is clamped to just past it.

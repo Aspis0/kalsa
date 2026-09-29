@@ -27,13 +27,21 @@ pub fn set_host_display_name(room: &Room, name: &str) -> Result<String, String> 
 /// The owner's forget, applied to the room the moment the button is
 /// pressed: the member retires and its posts are refused at once, before
 /// the once-a-second poll swaps the credential set — the poll remains the
-/// safety net for every other path a store can change.
-pub fn forget_now(brain: &crate::Brain, device: u32) {
+/// safety net for every other path a store can change. A room-write
+/// failure is RETURNED, not swallowed: the pairing store has already
+/// forgotten the device, and the owner is told the room will catch up
+/// rather than shown a silent success.
+pub fn forget_now(brain: &crate::Brain, device: u32) -> Result<(), String> {
     if let Some(room) = brain.room.get() {
         if let Err(error) = room.forget_device(device) {
             eprintln!("kalsa-brain: the room could not forget a device: {error}");
+            return Err(
+                "This device was forgotten, but the room could not record it; it will catch up on the next check."
+                    .to_string(),
+            );
         }
     }
+    Ok(())
 }
 
 /// Brings the room's roster to the pairing store's new state: a device

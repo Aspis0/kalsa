@@ -92,17 +92,12 @@ pub(super) fn serve(
         let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
         return;
     };
-    let Ok(member) = door.room.enroll(device.value()) else {
-        let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
-        let answer = json_error(500, origin, "internal", store_failed());
-        let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
-        return;
-    };
-    // The epoch guard, once, ahead of every route: a phone that cached a
-    // different transcript is told to drop it and refetch before it reads
-    // one byte of this one — history and posts included, because a reused
-    // seq on a stale cache is wrong in both. An absent header is a phone
-    // that cached nothing and checks nothing.
+    // The epoch guard, once, ahead of every route AND of the enrollment:
+    // a phone that cached a different transcript is told to drop it and
+    // refetch before it reads one byte of this one or mints anything in
+    // it — history and posts included, because a reused seq on a stale
+    // cache is wrong in both. An absent header is a phone that cached
+    // nothing and checks nothing.
     if let Some(held) = head.room_epoch.as_deref() {
         if held != door.room.epoch().as_bytes() {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
@@ -116,6 +111,12 @@ pub(super) fn serve(
             return;
         }
     }
+    let Ok(member) = door.room.enroll(device.value()) else {
+        let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
+        let answer = json_error(500, origin, "internal", store_failed());
+        let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+        return;
+    };
     match (path_of(&head.target), &head.method[..]) {
         (b"/kalsa/room/info", b"GET") => {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
@@ -151,9 +152,8 @@ pub(super) fn serve(
                     device,
                     seats: Arc::clone(&door.seats),
                 },
-                head.last_event_id.as_deref(),
-                head.room_epoch.as_deref(),
-                origin,
+                member,
+                head,
                 deadline,
             );
         }

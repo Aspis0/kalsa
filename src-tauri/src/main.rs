@@ -1780,8 +1780,7 @@ fn brain_pairing_forget_device(desk: State<Desk>, brain: State<Brain>, id: u32) 
     })?;
     // The room follows at once, not at the next poll: the member's posts
     // stop the moment the owner's finger leaves the button.
-    room::forget_now(&brain, id);
-    Ok(())
+    room::forget_now(&brain, id)
 }
 
 /// The owner pressed Allow: the phone that completed its ceremony may now

@@ -586,6 +586,58 @@ fn a_cached_epoch_from_before_a_recovery_is_refused() {
 }
 
 #[test]
+fn the_cap_is_per_device_and_other_devices_keep_their_seats() {
+    let (door, _room, [_, one, two]) = room_of();
+    let a = format!("Bearer {one}");
+    // Device A at the cap, device B with one stream of its own.
+    let mut a_first = stream_get(door.address(), &a, "/kalsa/room/events", None);
+    assert!(Reader::until(&mut a_first, b"text/event-stream", Duration::from_secs(5)).contains("200"));
+    let mut a_second = stream_get(door.address(), &a, "/kalsa/room/events", None);
+    let _ = Reader::until(&mut a_second, b"text/event-stream", Duration::from_secs(5));
+    let b_bearer = format!("Bearer {two}");
+    let mut b_stream = stream_get(door.address(), &b_bearer, "/kalsa/room/events", None);
+    assert!(
+        Reader::until(&mut b_stream, b"text/event-stream", Duration::from_secs(5)).contains("200"),
+        "B's stream opened beside A's two"
+    );
+
+    // A's third closes A's OLDEST; B's stream is untouched and keeps
+    // receiving — which is the proof it was not B's seat the cap took.
+    let mut a_third = stream_get(door.address(), &a, "/kalsa/room/events", None);
+    assert!(Reader::until(&mut a_third, b"text/event-stream", Duration::from_secs(5)).contains("200"));
+    let mut closed = false;
+    let deadline = std::time::Instant::now() + Duration::from_secs(6);
+    a_first.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    while std::time::Instant::now() < deadline {
+        let mut chunk = [0u8; 256];
+        match a_first.read(&mut chunk) {
+            Ok(0) => {
+                closed = true;
+                break;
+            }
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
+    assert!(closed, "A's oldest closed at A's own cap");
+    post(
+        door.address(),
+        Some(&a),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"cap","text":"is B still there?"}"#,
+    );
+    let heard = Reader::until(&mut b_stream, b"cap", Duration::from_secs(5));
+    assert!(
+        heard.contains("id:") && heard.contains("is B still there?"),
+        "B's stream lived through A's cap: {heard}"
+    );
+    let _ = a_second.shutdown(std::net::Shutdown::Both);
+    let _ = a_third.shutdown(std::net::Shutdown::Both);
+    let _ = b_stream.shutdown(std::net::Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
 fn a_third_stream_of_one_device_closes_the_oldest_and_keeps_the_newest() {
     let (door, _room, [_, one, _]) = room_of();
     let bearer = format!("Bearer {one}");
@@ -619,5 +671,46 @@ fn a_third_stream_of_one_device_closes_the_oldest_and_keeps_the_newest() {
     assert!(closed, "the oldest stream was closed by the cap");
     let _ = second.shutdown(std::net::Shutdown::Both);
     let _ = third.shutdown(std::net::Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
+fn a_member_the_room_cannot_place_is_refused_not_shown_everything() {
+    let phone = credential();
+    let host = credential();
+    // A roster from before join points: device 3 holds member 1, and no
+    // joined entry names where that member's history begins. The door
+    // refuses rather than guess a floor of nothing.
+    let data = scratch("room-floorless");
+    let room_dir = data.join("room");
+    std::fs::create_dir_all(&room_dir).unwrap();
+    std::fs::write(
+        room_dir.join("room-roster.json"),
+        r#"{"v":1,"next_member":2,"devices":{"3":1},"retired":[],"names":{},"host_name":null}"#,
+    )
+    .unwrap();
+    let room = Arc::new(Room::open(&data).unwrap());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        1,
+        devices_labeled(&[(HOST, "This computer", &host), (3, "Paired phone", &phone)]),
+        2,
+        EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .start()
+    .unwrap();
+    let bearer = format!("Bearer {phone}");
+    // The phone's device id in the door's set must match the roster's.
+    let answer = get(door.address(), Some(&bearer), "/kalsa/room/history");
+    assert!(
+        answer.starts_with(b"HTTP/1.1 500"),
+        "history refuses a member with no floor: {}",
+        text_of(&answer)
+    );
+    let stream = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    drop(stream);
     door.shutdown();
 }
