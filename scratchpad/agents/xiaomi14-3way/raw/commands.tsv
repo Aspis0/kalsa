@@ -1,0 +1,16 @@
+tag	command
+A-cpu-1	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -ngl 0
+A-cpu-2	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -ngl 0
+A-gpu-1	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -dev GPUOpenCL -ngl 99
+A-gpu-2	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -dev GPUOpenCL -ngl 99
+A-npu-1	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -dev HTP0 -ngl 99 -nkvo
+A-npu-2	./bin/llama-completion -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -lm none -f /data/local/tmp/xiaomi-3way-20260929/prompt.txt -n 127 --ignore-eos --seed 1 --temp 0 --no-conversation -c 2048 -b 2048 -ub 1024 -t 5 -fa 1 --no-warmup --perf --simple-io --no-display-prompt -lv 4 -dev HTP0 -ngl 99 -nkvo
+B-cpu-1	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 0 -dev none -fa 1 --no-warmup -o md
+B-cpu-2	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 0 -dev none -fa 1 --no-warmup -o md
+B-cpu-3	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 0 -dev none -fa 1 --no-warmup -o md
+B-gpu-1	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev GPUOpenCL -fa 1 --no-warmup -o md
+B-gpu-2	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev GPUOpenCL -fa 1 --no-warmup -o md
+B-gpu-3	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev GPUOpenCL -fa 1 --no-warmup -o md
+B-npu-1	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev HTP0 -fa 1 --no-warmup -o md
+B-npu-2	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev HTP0 -fa 1 --no-warmup -o md
+B-npu-3	./bin/llama-bench -m /data/local/tmp/xiaomi-3way-20260929/ship.gguf -p 0 -n 256 -r 1 -t 5 -ngl 99 -dev HTP0 -fa 1 --no-warmup -o md
