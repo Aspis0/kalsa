@@ -420,3 +420,17 @@ Cause: instruction count per row per block (nibble -8 subtracts plus a per-row f
 not bandwidth. No compute-only change on the raw layout closes it; XOR storage closes ~40 %.
 Conclusion: for one-copy decode at repack speed the shared copy should BE the q4_0_4x8 layout
 (same bytes per weight) and the NPU reader must read those tiles. Recon on the Hexagon side started.
+
+## Hexagon side of a q4_0_4x8 shared copy: recon (2026-09-29, luna, read-only, engine e71421fd9)
+
+Neither DSP reader takes q4_0_4x8 today: the fused HMX reader indexes 18-byte blocks
+(`htp/hmx-mm-kernels-raw.h:62`), the flat path DMAs raw rows and transposes them
+(`htp/matmul-ops.c:345-352`). CPU repacked kernels dispatch only for tensors in the CPU_REPACK
+buffer type (`ggml-cpu/repack.cpp:5412,5486`), so a 4x8 tensor in HTP0-HOST would not reach
+`ggml_gemv_q4_0_4x8_q8_0` without a dispatch change. Estimate: DSP 4x8 reader + wiring L, DMA
+staging of 8 four-row bands per 32-row tile M, HOST repack + CPU trait dispatch M.
+A raw HVX mat-vec already exists (`htp/matmul-ops.c:1625` `hvx_mv_2d_raw_q4_0_flat`) but default
+`GGML_HEXAGON_MM_SELECT=3` refuses raw batch-1 (`ggml-hexagon.cpp:2222-2224`); `MM_SELECT=1` admits it.
+Cheapest next step (no code): S23 tg128 one-copy with `GGML_HEXAGON_MM_SELECT=1` vs two-copy HTP
+decode (22.09 tok/s) - if raw NPU decode is close, NPU decode from the shared raw copy is viable and
+the 4x8 layout only matters for the CPU decode lane.
