@@ -60,7 +60,6 @@ import { getCachedDeviceProfile } from "./deviceProfile";
 import {
   buildGovernorPlanLog,
   buildGovernorParams,
-  governorPlatformLogFields,
   readBenchGovernorForce,
   readBenchNpuLane,
   readGovernorThermo,
@@ -70,6 +69,7 @@ import {
   stopGovernorBatteryTrace,
 } from "./governorBatterySampler";
 import { getCurrentGovernorThermalStatus } from "./platformThermalStatus";
+import { withNativeCallTimeout } from "./nativeCallTimeout";
 import {
   applyBenchSampling,
   readBenchOracleParams,
@@ -1040,13 +1040,6 @@ export async function queueStaticPrefixPrewarm(
   toolChoiceMode?: ToolChoiceMode,
 ): Promise<void> {
   if (!EAGER_PREFIX_PREWARM) return;
-  // Owner lever (SEVERE+, 2026-09-29): no background work. Checked first so
-  // a severe platform logs platform_severe instead of a lesser reason.
-  const severeReason = platformSevereSkipReason(await getCurrentGovernorThermalStatus());
-  if (severeReason) {
-    logPrewarmSkip(severeReason);
-    return;
-  }
   // facts-in-system and the static prefix prewarm cannot coexist. The prewarm
   // runs at boot, when the conversation's facts do not exist yet, so it can
   // only ever warm a system prompt WITHOUT them — while with
@@ -1137,6 +1130,15 @@ export async function queueStaticPrefixPrewarm(
       }
       if (disposing || !context) {
         logPrewarm({ op: "skip", reason: !context ? "no_context" : "disposing" });
+        return;
+      }
+      // Owner lever (SEVERE+, 2026-09-29): no background work. Read when the
+      // job actually starts — the queue head is pinned to refuse before any
+      // state-dependent work (prefixPrewarmHarness) — and the read is bounded
+      // inside getCurrentGovernorThermalStatus.
+      const severeReason = platformSevereSkipReason(await getCurrentGovernorThermalStatus());
+      if (severeReason) {
+        logPrewarmSkip(severeReason);
         return;
       }
       const engine = context;
@@ -1699,41 +1701,6 @@ const ENGINE_AUX_CALL_TIMEOUT_MS = 15_000;
  */
 const TOOL_EXEC_TIMEOUT_MS = 300_000;
 
-/**
- * Race one uncovered await against a timeout that REJECTS, so each caller's
- * existing failure path owns the fallback. The real promise is never
- * cancelled: its late settlement is swallowed (same contract as the raced
- * stopCompletion in disposeEngineLocked) and the timer is always cleared.
- *
- * KNOWN LIMIT: this is the plain JS timer, which Android suspends while the
- * activity is paused, so the bound covers the foreground only. That is the
- * opposite of the generation watchdogs, which were deliberately moved to the
- * native timer for exactly this reason. Moving these too needs a device to
- * validate the timer's lifecycle against dispose, so it stays a follow-up
- * rather than an unverified change.
- */
-async function withNativeCallTimeout<T>(
-  p: Promise<T>,
-  timeoutMs: number,
-  label: string,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const raced = Promise.race([
-    p,
-    new Promise<never>((resolve, reject) => {
-      timer = setTimeout(() => {
-        reject(new Error(`${label} did not settle within ${timeoutMs}ms`));
-      }, timeoutMs);
-    }),
-  ]);
-  // The race stops listening once the timeout wins; swallow the loser's late
-  // rejection so RN never logs an unhandled rejection for it.
-  p.catch(() => undefined);
-  return raced.finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  });
-}
-
 async function refreshGovernorBeforeCompletion(
   engine: LlamaContext,
   thermoLogState: { invalidLogged: boolean } = { invalidLogged: false },
@@ -1834,7 +1801,8 @@ async function emitGovernorTelemetry(
           routePush: turnRoutePush,
           completionResult,
         }),
-        ...governorPlatformLogFields(stats),
+        platform_thermal_status: stats.platform_thermal_status,
+        state_source: stats.state_source,
       })}`,
     );
     if (stats.failure_reason) {

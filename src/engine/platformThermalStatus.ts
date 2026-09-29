@@ -17,6 +17,7 @@
  * missing method, malformed snapshot, or thrown call resolves to "not gated".
  */
 import { isAndroidThermalHardGated, isIosThermalHardGated } from "./thermalHardGate";
+import { withNativeCallTimeout } from "./nativeCallTimeout";
 import {
   addPlatformThermalListener as addNativePlatformThermalListener,
   getCurrentPlatformThermalState,
@@ -97,10 +98,22 @@ export function readToGovernorStatus(
   return status;
 }
 
-/** One governor-feed read per completion; a throw reads as absent, never fatal. */
+// WHY 1 s: the feed read runs inside the watchdog-free window before a
+// completion (refreshGovernorBeforeCompletion) and at prewarm job start, so a
+// hung native call may cost at most this much before the status is dropped
+// to absent — never a hang, never a block.
+const GOVERNOR_STATUS_READ_TIMEOUT_MS = 1_000;
+
+/** One bounded governor-feed read per completion; timeout or throw reads as
+ *  absent, never fatal. */
 export async function getCurrentGovernorThermalStatus(): Promise<number | null> {
   try {
-    return readToGovernorStatus(await getCurrentPlatformThermalState());
+    const read = await withNativeCallTimeout(
+      getCurrentPlatformThermalState(),
+      GOVERNOR_STATUS_READ_TIMEOUT_MS,
+      "platform thermal read",
+    );
+    return readToGovernorStatus(read);
   } catch {
     return null;
   }

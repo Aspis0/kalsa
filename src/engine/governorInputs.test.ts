@@ -30,7 +30,6 @@ import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
   buildGovernorParams,
-  governorPlatformLogFields,
   htpArchFor,
   readBenchGovernorForce,
   readBenchNpuLane,
@@ -539,6 +538,10 @@ describe("platform_thermal_status in the thermo feed", () => {
     (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue(null);
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   test("an Android status rides the battery profile", async () => {
     (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue({
       platform: "android",
@@ -596,12 +599,16 @@ describe("platform_thermal_status in the thermo feed", () => {
     });
     expect(NativeModules.GovernorBattery.readThermo).not.toHaveBeenCalled();
   });
-});
 
-describe("KALSA_GOVERNOR platform-status log fields", () => {
-  test("carry the two stats values under their snake_case keys", () => {
-    expect(
-      governorPlatformLogFields({ platform_thermal_status: 3, state_source: "platform" }),
-    ).toEqual({ platform_thermal_status: 3, state_source: "platform" });
+  test("a never-resolving platform read is bounded: the profile builds without the field", async () => {
+    jest.useFakeTimers();
+    (getCurrentPlatformThermalState as jest.Mock).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    const pending = readGovernorThermo();
+    await jest.advanceTimersByTimeAsync(1_000);
+    const snapshot = await pending;
+    expect(snapshot).toMatchObject({ thermo_source: "battery", sensor_valid: true });
+    expect(snapshot).not.toHaveProperty("platform_thermal_status");
   });
 });

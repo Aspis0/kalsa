@@ -288,8 +288,9 @@ describe("the join keys reach every line an analyst stitches", () => {
     expect(serviceSource).toContain("routePush: turnRoutePush");
   });
 
-  test("KALSA_GOVERNOR spreads the platform-status fields from stats", () => {
-    expect(serviceSource).toContain("...governorPlatformLogFields(stats)");
+  test("KALSA_GOVERNOR carries the platform-status fields from stats", () => {
+    expect(serviceSource).toContain("platform_thermal_status: stats.platform_thermal_status");
+    expect(serviceSource).toContain("state_source: stats.state_source");
   });
 
   test("the runtime-fallback marker and its retry share one id + attempt", () => {

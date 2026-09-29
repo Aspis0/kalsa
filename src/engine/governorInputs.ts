@@ -208,17 +208,6 @@ export function buildGovernorPlanLog(
   };
 }
 
-/** The platform-status keys of the KALSA_GOVERNOR line, from governor stats. */
-export function governorPlatformLogFields(stats: {
-  platform_thermal_status: number;
-  state_source: string;
-}): { platform_thermal_status: number; state_source: string } {
-  return {
-    platform_thermal_status: stats.platform_thermal_status,
-    state_source: stats.state_source,
-  };
-}
-
 function gpuFit(
   model: GovernorModel,
   profile: DeviceProfile,
@@ -364,8 +353,7 @@ function profileFrom(value: unknown): ThermoProfile | null {
 export async function readGovernorThermo(): Promise<ThermoSnapshot> {
   // One platform read per completion, at the battery read's cadence; null
   // (iOS, unsupported, failed read) omits the key entirely, which the engine
-  // treats as an absent platform vote. The bench override still wins for the
-  // battery fields — this attaches to whichever profile it returns.
+  // treats as an absent platform vote.
   const platformStatus = await getCurrentGovernorThermalStatus();
   const platform =
     platformStatus === null ? {} : { platform_thermal_status: platformStatus };
@@ -373,6 +361,9 @@ export async function readGovernorThermo(): Promise<ThermoSnapshot> {
     const bench = await AsyncStorage.getItem(BENCH_THERMO_KEY);
     if (bench) {
       const profile = profileFrom(JSON.parse(bench));
+      // The live platform status rides even under the bench override, on
+      // purpose: safety outranks arm determinism, and a frozen thermo
+      // already disables engine stops.
       if (profile) return { ...profile, ...platform, thermo_source: "bench-skin" };
     }
   } catch {
