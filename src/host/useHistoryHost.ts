@@ -197,8 +197,16 @@ export function useHistoryHost(params: HistoryHostParams): {
         // preservation copy — the write gate stays closed meanwhile, and one
         // refused write beats a blank wedged chat.
         if (begun.messages.length) {
-          setMessages(begun.messages);
-          messagesRef.current = begun.messages;
+          // A pairing may have completed while this load was in flight:
+          // sanitize ran with the stamp read BEFORE it. Re-mark with the
+          // latest stamp seen (no-op when none arrived); the subscription's
+          // own re-mark hit an empty list here and would have been lost.
+          const stamped = markStaleRemoteFailures(
+            begun.messages,
+            latestStampRef.current,
+          );
+          setMessages(stamped);
+          messagesRef.current = stamped;
         }
         setHistoryLoaded(true);
         return historyGuard.settleHistoryLoad();
@@ -263,6 +271,11 @@ export function useHistoryHost(params: HistoryHostParams): {
     // the LocaleProvider ready gate).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
+  // The latest completion stamp this mount has seen. A pairing completing
+  // WHILE a history load is still in flight would otherwise be lost: the
+  // load sanitized with the stamp it read before the completion, and its
+  // install would overwrite the (empty) list the subscription re-marked.
+  const latestStampRef = useRef<number | null>(null);
   // A pairing completing must reach the OPEN conversation too: returning
   // from the pairing screen does not re-run the load effect (the
   // conversation never changed), so the live list is re-marked here — the
@@ -275,6 +288,7 @@ export function useHistoryHost(params: HistoryHostParams): {
           .catch(() => null)
           .then((stamp) => {
             if (stamp === null) return;
+            latestStampRef.current = stamp;
             setMessages((prev) => markStaleRemoteFailures(prev, stamp));
           });
       }),
