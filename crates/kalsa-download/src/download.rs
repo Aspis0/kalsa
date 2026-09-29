@@ -43,14 +43,7 @@ pub fn download(
     let free = disk::free_bytes(part_path.parent().unwrap_or(Path::new(".")))?;
     let mut part = PartFile::claim(part_path)?;
     let have = part.len()?;
-    let remaining = match have.cmp(&expected_size) {
-        Ordering::Less => expected_size - have,
-        // Everything is already there; fetch will not move a byte.
-        Ordering::Equal => 0,
-        // Longer than the promise is not a prefix of it; fetch restarts from
-        // zero, so the whole file has to fit.
-        Ordering::Greater => expected_size,
-    };
+    let remaining = resume_remaining(have, expected_size);
     let needed = remaining.saturating_add(SPACE_MARGIN);
     if free < needed {
         // A part we created empty is ours to take back; a resumed one is the
@@ -84,18 +77,43 @@ pub fn download(
 }
 
 /// The room a whole set of files needs, asked once before the first of them
-/// moves: the same margin `download` keeps, so a multi-file plan that cannot
-/// finish is refused before any of its bytes land. The directory is created
-/// when absent — the probe needs one that exists, and creating it moves no
-/// bytes.
-pub fn ensure_space(dir: &Path, bytes: u64) -> Result<(), DownloadError> {
+/// moves: for each file the bytes its download would still move after any
+/// `.part` resumes — the same arithmetic [`download`] applies per file —
+/// plus the margin it keeps, so a multi-file plan that cannot finish is
+/// refused before any of its bytes land and a resumed one is not over-asked.
+/// The directory is created when absent — the probe needs one that exists,
+/// and creating it moves no bytes.
+pub fn ensure_space(dir: &Path, files: &[(PathBuf, u64)]) -> Result<(), DownloadError> {
     std::fs::create_dir_all(dir)?;
     let free = disk::free_bytes(dir)?;
-    let needed = bytes.saturating_add(SPACE_MARGIN);
+    let mut needed = SPACE_MARGIN;
+    for (dest, expected_size) in files {
+        let have = part_path(dest)
+            .ok()
+            .and_then(|part| std::fs::metadata(part).ok())
+            .map_or(0, |meta| meta.len());
+        needed = needed.saturating_add(resume_remaining(have, *expected_size));
+    }
     if free < needed {
         return Err(DownloadError::NotEnoughSpace { free, needed });
     }
     Ok(())
+}
+
+/// What a download of `expected_size` will still move, given the bytes
+/// already sitting in its `.part`: a shorter part resumes, a complete one
+/// moves nothing, a longer one is not a prefix of the promise and restarts
+/// from zero. One function, shared by the download and the combined
+/// preflight, so the two never disagree.
+fn resume_remaining(have: u64, expected_size: u64) -> u64 {
+    match have.cmp(&expected_size) {
+        Ordering::Less => expected_size - have,
+        // Everything is already there; fetch will not move a byte.
+        Ordering::Equal => 0,
+        // Longer than the promise is not a prefix of it; fetch restarts
+        // from zero, so the whole file has to fit.
+        Ordering::Greater => expected_size,
+    }
 }
 
 /// `<dest>.part`, next to the destination: same filesystem, so the final
@@ -268,18 +286,32 @@ mod tests {
     }
 
     #[test]
-    fn the_combined_preflight_answers_for_a_set_of_files() {
+    fn the_combined_preflight_asks_only_for_what_would_move() {
         // The same promise `download` makes per file, asked once for a whole
-        // plan: the margin rides it, a room-sized set passes, and an
-        // impossible one names the bytes it needed.
+        // plan — and resume-aware: a `.part` already on the disk shrinks the
+        // ask by exactly its bytes, the same arithmetic the download itself
+        // will apply, so a plan that would just fit with its parts present is
+        // not refused as though it started from zero.
         let dir = scratch("dl-space-set");
-        ensure_space(&dir, 0).expect("nothing is always affordable");
-        ensure_space(&dir, 1024).expect("a kilobyte fits any real disk");
-        let err = ensure_space(&dir, u64::MAX / 2).expect_err("no disk has this");
+        let dest = dir.join("model.gguf");
+        let files = vec![(dest.clone(), 1024u64)];
+        ensure_space(&dir, &[]).expect("nothing is always affordable");
+        ensure_space(&dir, &files).expect("a kilobyte fits any real disk");
+        // A partial part shrinks the need by its bytes: the refusal names
+        // the remainder plus the margin, not the whole promise.
+        fs::write(dir.join("model.gguf.part"), &[0u8; 512]).expect("part");
+        let err = ensure_space(
+            &dir,
+            &[(dest.clone(), u64::MAX / 2)],
+        )
+        .expect_err("no disk holds this");
         let DownloadError::NotEnoughSpace { needed, .. } = &err else {
             panic!("expected not-enough-space, got {err:?}");
         };
-        assert!(*needed > u64::MAX / 2, "the margin is part of the need");
+        assert_eq!(*needed, u64::MAX / 2 - 512 + SPACE_MARGIN);
+        // A complete part asks for the margin alone: nothing would move.
+        fs::write(dir.join("model.gguf.part"), &[0u8; 8]).expect("part");
+        ensure_space(&dir, &[(dest, 8)]).expect("only the margin is needed");
         let _ = fs::remove_dir_all(&dir);
     }
 

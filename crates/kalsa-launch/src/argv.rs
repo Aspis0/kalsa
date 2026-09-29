@@ -51,9 +51,15 @@ impl ServerArgs {
                 argv.extend(["--n-gpu-layers".to_string(), ALL_LAYERS.to_string()]);
             }
             // The build would offload every layer by default, so CPU decode
-            // has to be stated, not implied.
+            // has to be stated, not implied. The drafter follows the target
+            // onto the CPU: the fork's own default for it is auto, which
+            // would offload the drafter alone against a CPU target
+            // (common/arg.cpp:4217).
             crate::args::Offload::ForcedOff => {
                 argv.extend(["--n-gpu-layers".to_string(), "0".to_string()]);
+                if self.draft.is_some() {
+                    argv.extend(["--n-gpu-layers-draft".to_string(), "0".to_string()]);
+                }
             }
             crate::args::Offload::NoGpuBuild => {}
             // No flag: the engine's default (auto) plus `fit` decides the
@@ -252,7 +258,10 @@ mod tests {
         let found = argv
             .windows(sequence.len())
             .any(|window| window == sequence.as_slice());
-        assert!(found, "the draft block is one contiguous sequence: {argv:?}");
+        assert!(
+            found,
+            "the draft block is one contiguous sequence: {argv:?}"
+        );
         // A different target cache type carries the drafter with it.
         let mut f16 = some_args();
         f16.kv_cache = crate::args::KvCache::F16;
@@ -284,6 +293,38 @@ mod tests {
                 "{flag} must not render without a drafter: {argv:?}"
             );
         }
+    }
+
+    /// The drafter's placement follows the target's: a CPU-decoded target
+    /// pins its drafter to the CPU too (the fork's default is auto, which
+    /// would offload the drafter alone), and every other placement leaves
+    /// the drafter at the engine's default.
+    #[test]
+    fn a_cpu_decoded_target_pins_its_drafter_to_the_cpu_and_no_other_does() {
+        let draft = || {
+            Some(crate::args::Draft {
+                model_path: PathBuf::from("/models/mtp.gguf"),
+                n_max: 3,
+            })
+        };
+        let mut forced_off = some_args();
+        forced_off.offload = crate::args::Offload::ForcedOff;
+        forced_off.draft = draft();
+        let argv = forced_off.argv();
+        assert_eq!(rendered_value(&argv, "--n-gpu-layers"), "0");
+        assert_eq!(rendered_value(&argv, "--n-gpu-layers-draft"), "0");
+
+        let mut all = some_args();
+        all.draft = draft();
+        let all_argv = all.argv();
+        assert_eq!(rendered_value(&all_argv, "--n-gpu-layers"), "all");
+        assert!(
+            !all_argv.contains(&"--n-gpu-layers-draft".to_string()),
+            "an offloaded target leaves the drafter at the engine default: {all_argv:?}"
+        );
+        // And no drafter, no placement flag for one.
+        let bare = some_args().argv();
+        assert!(!bare.contains(&"--n-gpu-layers-draft".to_string()));
     }
 
     /// EngineFitted renders NO `--n-gpu-layers`: the engine's default (auto)

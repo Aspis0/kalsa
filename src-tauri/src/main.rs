@@ -23,6 +23,7 @@ mod measurement;
 mod metrics;
 mod options;
 mod pairing;
+mod placement;
 mod road;
 mod startup;
 mod tailnet;
