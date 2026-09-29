@@ -626,6 +626,16 @@ brake only (held app `19368426`).
   3. "Connected to the Mac" is shown both before and after Allow - waiting-for-Allow is not
      distinguished from paired.
   4. Owner wants a success moment after Allow (no earlier record found; decision pending).
+- **All four fixed on app main `815c5360` (2026-09-29, GLM `c3ecdac4`, audits luna `2b2cffea` +
+  `69e3954a`, remaining findings judged by the coordinator):** `remote.brain.failure` log line with
+  {road, stage, code} (codes allow-listed by shape, no URLs/tokens); failures before a completed
+  pairing render as past, also in the open conversation; 401 on a paired desk -> "This computer no
+  longer knows this phone. Pair again." (owner copy), 401 on a manual server -> "The computer
+  refused this token. Check it in Settings."; the wait says "Allow on {computer}", paired only after
+  the poll, superseded polls abort; success banner after Allow. Not device-tested yet (needs a CI
+  APK: Actions minutes out). Accepted: wall-clock rollback can misclassify stale; pre-existing
+  failures (no `failureSource`) stay unclassified. Main's full jest has 5 pre-existing failures
+  (remoteEngine.lifecycle/Iroh/RoadFallback, overlayDoorRoutes) - separate fix owed.
 
 ### One-copy CPU + NPU: correct on S23, too slow as built on 8 Elite
 
