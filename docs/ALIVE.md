@@ -738,13 +738,17 @@ lab `scratchpad/agents/onecopy-gpu/`) imports one dma-buf through OpenCL for raw
 probe imports and small shapes are correct; on the full model the GPU looked stalled. Diagnosis
 (engine `0285aae40`, lab `1ecbcbfe`): most likely **slow, not hung** - raw GEMM **4.75 GFLOPS** vs
 ~**437** for the normal path (~92x), ~9 min per pass; the import did happen (INFO hidden by the log
-threshold; wrapper now uses `-v`). Next: rerun with the `--model-shapes` probe and a 20-min wait. The HMX-on-raw
-estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a fused raw-to-fp16
-HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not measured. First S23
-run of raw weights on HMX (`onecopy-hmx-numerics`, engine `9d5eaf681`, lab `9a356250`): 1,316
-`hmx-tiled` matmuls on `-HOST`, KLD **0.000928** vs two-copy HMX **0.000892**, but **inconclusive**:
-no `hmx-mm-2d:` FARF line and unmatched opsets. Open: matched-opset rerun, fused reader + pp512 on
-the 8 Elite, rpcmem CPU-read bandwidth probe when the S23 is unplugged.
+threshold; wrapper now uses `-v`). Next: rerun with the `--model-shapes` probe and a 20-min wait. The HMX-on-raw reader works on the S23 (`scratchpad/agents/onecopy-hmx-numerics/REPORT.md`; engine
+`spike/onecopy-hmx-raw`, not pushed). Automatic placement (`4eb2618fb`, no `-ot`) with
+`GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1 --load-mode none -ngl 99 -dev HTP0`: pp512 **851.5**
+tok/s one-copy vs **876.4** two-copy, KLD **0.000892**. Buffers: HTP0-HOST 1,306 MiB (shared with the
+CPU), HTP0 220 MiB, CPU 205 MiB; `token_embd` lands on HTP, cause under recon. Guard `f8ee54d37` +
+`e71421fd9`: under mmap the loader moves these weights to plain CPU memory; the backend now refuses
+them instead of crashing, the loader warns once, and the run falls back to CPU (pp128 **37.9** vs
+**622** without mmap). So one-copy needs no-mmap loading in the app: owner decision, RAM and
+load-time numbers owed on the S23. Open: CPU decode on raw Q4_0 is **0.62-0.64** of the repacked path
+on the S23 (tg128, interleaved); a multi-row raw gemv (`spike/onecopy-cpu-gemv` `1dd83c245`) moved it
+only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold until decode is fixed.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):

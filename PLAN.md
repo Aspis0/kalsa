@@ -707,15 +707,17 @@ workgroup size were ruled out on paper. Next (correctness, plugged OK): rerun wi
 `--model-shapes` probe self-test and a 20-min wait on G1. Even if correct, the raw GPU GEMM needs a
 real kernel before it is usable.
 
-The HMX-on-raw estimate is complete (`scratchpad/agents/onecopy-hmx-estimate/`, `db12e4b1`): a
-fused raw-to-fp16 HMX reader is the path worth building, with **900–1,600 tok/s estimated**, not
-measured. First step built and run on the S23 (`scratchpad/agents/onecopy-hmx-numerics/`, engine
-`spike/onecopy-hmx-raw` `9d5eaf681`, lab `9a356250`): raw `-HOST` weights now run on HMX (1,316
-`hmx-tiled` matmuls, EXIT 0). KLD one-copy **0.000928** vs two-copy HMX **0.000892**. Verdict
-**inconclusive, not PASS**: the `hmx-mm-2d:` FARF proof line is absent in both arms, and the opsets
-differ (two-copy also puts norms, `SSM_CONV` and `result_output` on HTP). Governor S3+ remains on
-hold. Next: rerun with a placement-matched opset and FARF enabled; then the fused reader and pp512 on
-the 8 Elite (QDC, Opus medium); the rpcmem CPU-read bandwidth probe when the S23 is unplugged.
+The HMX-on-raw reader works on the S23 (`scratchpad/agents/onecopy-hmx-numerics/REPORT.md`; engine
+`spike/onecopy-hmx-raw`, not pushed). Automatic placement (`4eb2618fb`, no `-ot`) with
+`GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1 --load-mode none -ngl 99 -dev HTP0`: pp512 **851.5**
+tok/s one-copy vs **876.4** two-copy, KLD **0.000892**. Buffers: HTP0-HOST 1,306 MiB (shared with the
+CPU), HTP0 220 MiB, CPU 205 MiB; `token_embd` lands on HTP, cause under recon. Guard `f8ee54d37` +
+`e71421fd9`: under mmap the loader moves these weights to plain CPU memory; the backend now refuses
+them instead of crashing, the loader warns once, and the run falls back to CPU (pp128 **37.9** vs
+**622** without mmap). So one-copy needs no-mmap loading in the app: owner decision, RAM and
+load-time numbers owed on the S23. Open: CPU decode on raw Q4_0 is **0.62-0.64** of the repacked path
+on the S23 (tg128, interleaved); a multi-row raw gemv (`spike/onecopy-cpu-gemv` `1dd83c245`) moved it
+only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold until decode is fixed.
 
 ## Gates and dates (recovered 2026-09-21)
 
