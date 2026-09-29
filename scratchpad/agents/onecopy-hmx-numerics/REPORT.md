@@ -363,3 +363,25 @@ with mmap(+mlock), so one-copy needs `--load-mode none` (with mmap the page cach
 copy; an rpcmem copy would be the second). With mmap and the env on, a raw weight in a CPU buffer
 can reach the HTP compute path, which casts `t->buffer->context` to its shared buffer without a
 type check (`ggml-hexagon.cpp` ~:2329): crash risk, guard needed before any app use.
+
+## Guard: foreign weights refused, mmap warns (2026-09-29, e71421fd9)
+
+Engine `spike/onecopy-hmx-raw` `f8ee54d37` + audit touch-ups `e71421fd9` (not pushed).
+`supports_op` refuses any op whose quantized WEIGHTS-usage src is outside the hexagon buffer
+family; `add_tensor`/`fit_tensor` assert a hexagon buffer; the loader warns once when mmap
+rewrites a Q4_0 HTP host-buft tensor with `GGML_HEXAGON_HOSTBUF` + `GGML_HEXAGON_RAW_HMX` set.
+Hostile audit (space-bunny): no over-refusal found; missing `<mutex>`/`<cstdlib>`, an
+over-broad warning and an undocumented dependency on `llama-model.cpp:1825` fixed in
+`e71421fd9`. Its "nothing was compiled" claim was false (it looked outside the container).
+
+S23 (SM8550, v73 skel `3b0066ab`, llama-bench `117f33e8`, ship LFM2.5-2.6B Q4_0, battery 24 %
+unplugged, thermal status 0; a correctness check, not a measurement), `-ngl 99 -dev HTP0
+-p 128 -ub 128 -r 1 -t 5`, both env vars set:
+
+| load mode | exit | warning | weights | pp128 tok/s |
+|---|---|---|---|---|
+| none (llama-bench default in this fork) | 0 | no | HTP0-HOST 1306 MiB + HTP0 220 + CPU 205 | 622 |
+| mmap | 0 | yes, once | CPU_Mapped 1512 MiB | 37.9 (matmuls fall back to CPU) |
+
+Under mmap the run no longer reaches the hexagon compute path with a CPU buffer: it completes on
+CPU and says why. Note: the device name in this build is `HTP0`, not `HTP0:0`.
