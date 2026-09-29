@@ -190,3 +190,40 @@ measured KLD differs by 0.000054 (about one SD) and PPL drifts in opposite direc
 equal. Unexplained; hypothesis (unverified): P0 issues ~47x more HMX calls (chunked raw push), so the
 accumulation order/precision across chunks differs from Q0's. To be explained before or inside the
 fused raw-to-fp16 reader work.
+
+## 2026-09-29 - fused raw->fp16 HMX reader: correctness and first timing (S23 v73)
+
+Engine `spike/onecopy-hmx-raw` (not pushed): `ee137ee24` fused reader (GLM), audit space-bunny
+`3ee8aa3b` found the scale never read and a wrong rotate (the "simulator validation" in the report
+was a failing scratch probe, admitted by the coder); fixed in `8a6840991`, committed simulator
+harness `3d14787b9` + cleanup `a18a233ec`/`7d1f41918` (re-audit `27656745`: SHIP). Coordinator ran
+`tests/hexagon-sim/run-raw-reader.sh` twice: EXIT=0, ALL PASS (n_k 64/336, rows 32/96, shifts 0/2,
+wrap-crossing spans, canary). Device artifacts: `llama-perplexity` `1b4992bb...`, v73 skel `df578d80...`.
+
+**Correctness (luna `df94cf71`, lines re-read by the coordinator):**
+
+| arm | EXIT | Mean KLD | PPL(Q) | Same top p |
+|---|---|---|---|---|
+| P0 fused raw, run 1 / run 2 | 0 / 0 | 0.000946 / 0.000946 | 32.486482 / 32.486482 | 97.843 % |
+| Q0 two-copy, run 1 / run 2 | 0 / 0 | 0.000892 / 0.000892 | 32.205994 / 32.205994 | 97.843 % |
+| P0 env off (flat raw) | 0 | 0.001701 | 31.723906 | 97.451 % |
+
+Runs are bit-deterministic; opsets P0 == Q0 (empty diff). The fused reader gives EXACTLY the
+two-stage path's numbers (rerun 2 above), so the reader is not the cause of the P0/Q0 gap. New lead:
+in P0 many activations live in the `HTP0:0-HOST` buffer (execute-op lines with HOST sources: ADD 464,
+RMS_NORM 472, ROPE 128, FLASH_ATTN_EXT 64, GET_ROWS 184, SET_ROWS 128, besides MUL_MAT 1316); in Q0
+none. Next discriminator: per-tensor exact hashes (debug callback from `c939a135d`) P0 vs Q0, first
+diverging tensor.
+
+**Timing, unplugged (luna `9c8ff7f7`, llama-bench -ub 512 -r 3, fusion off; rows re-read):**
+
+| arm | pp512 tok/s | tg128 tok/s | model memory |
+|---|---|---|---|
+| Q0 two-copy HMX | 873.86 ± 8.35 / 849.78 ± 21.61 | 19.66 / 20.09 | 1525.87 MiB HTP0 |
+| P0 one-copy fused raw HMX | 125.25 ± 0.15 / 122.94 ± 0.47 | **1.22** (run 1 aborted: `dspqueue_write failed: 0x00000001`, exit 134) | 219.75 MiB HTP0 + 1306.12 MiB HOST |
+| PF one-copy flat (old) | pp128 31.18 | - | same as P0 |
+
+Verdict: the fused reader is 4x the flat path but still **~7x slower than two-copy** in prefill
+(estimate was 900-1600 on the 8 Elite: not met on S23). Decode through the raw HMX path is unusable
+(1.22 tok/s) and crashed once. Open: where the prefill time goes (reader vs raw DMA vs pipeline
+overlap); why decode collapses and the dspqueue_write failure.
