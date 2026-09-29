@@ -318,6 +318,20 @@ pub enum Offload {
     EngineFitted,
 }
 
+/// The speculative drafter beside the model: the assistant file the engine
+/// verifies against, and how many tokens it may propose per step. One fact,
+/// not two — no drafter, no draft flags — so the renderer has no half-set
+/// state to guard.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Draft {
+    pub model_path: PathBuf,
+    pub n_max: u32,
+}
+
+/// The proposal width until a real Turn-on measures 2/3/4: the spec doc's
+/// sweep peaks at 3 (24.7 tok/s on en_code against 22.7 at 4 and 18.1 at 2).
+pub const DEFAULT_DRAFT_N_MAX: u32 = 3;
+
 /// The exact arguments the server is started with, as data: a test asserts
 /// "the context is N" here, and the sentinel hands back a reduced
 /// configuration by writing fields, not by editing strings.
@@ -374,6 +388,12 @@ pub struct ServerArgs {
     /// message gets. `None` fields render no flag: a card that published
     /// nothing gets the engine's own default, never an invented number.
     pub sampling: kalsa_catalog::Sampling,
+    /// The speculative drafter, when the chosen row ships with one and its
+    /// file is proven on disk: rendered as the draft-mtp block, the drafter
+    /// sharing this launch's KV type (the engine refuses to share cache
+    /// cells with a drafter whose KV type differs). `None` renders no draft
+    /// flags at all.
+    pub draft: Option<Draft>,
 }
 
 /// The settings the UI may show after the command line has been built.

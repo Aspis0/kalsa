@@ -118,6 +118,7 @@ fn the_second_turn_is_measured_against_the_first() {
         // the save routes, so the shared temp directory is enough.
         slot_save_path: std::env::temp_dir(),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     };
     let mut argv = args.argv();
     // Harness-only variants, appended after the plan: what a changed launch

@@ -83,6 +83,21 @@ pub fn download(
     }
 }
 
+/// The room a whole set of files needs, asked once before the first of them
+/// moves: the same margin `download` keeps, so a multi-file plan that cannot
+/// finish is refused before any of its bytes land. The directory is created
+/// when absent — the probe needs one that exists, and creating it moves no
+/// bytes.
+pub fn ensure_space(dir: &Path, bytes: u64) -> Result<(), DownloadError> {
+    std::fs::create_dir_all(dir)?;
+    let free = disk::free_bytes(dir)?;
+    let needed = bytes.saturating_add(SPACE_MARGIN);
+    if free < needed {
+        return Err(DownloadError::NotEnoughSpace { free, needed });
+    }
+    Ok(())
+}
+
 /// `<dest>.part`, next to the destination: same filesystem, so the final
 /// rename is atomic and never crosses a mount point.
 fn part_path(dest: &Path) -> Result<PathBuf, DownloadError> {
@@ -249,6 +264,22 @@ mod tests {
         assert_eq!(server.requests.lock().expect("requests").len(), 0);
         assert!(!dest.exists());
         assert!(!dir.join("model.gguf.part").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_combined_preflight_answers_for_a_set_of_files() {
+        // The same promise `download` makes per file, asked once for a whole
+        // plan: the margin rides it, a room-sized set passes, and an
+        // impossible one names the bytes it needed.
+        let dir = scratch("dl-space-set");
+        ensure_space(&dir, 0).expect("nothing is always affordable");
+        ensure_space(&dir, 1024).expect("a kilobyte fits any real disk");
+        let err = ensure_space(&dir, u64::MAX / 2).expect_err("no disk has this");
+        let DownloadError::NotEnoughSpace { needed, .. } = &err else {
+            panic!("expected not-enough-space, got {err:?}");
+        };
+        assert!(*needed > u64::MAX / 2, "the margin is part of the need");
         let _ = fs::remove_dir_all(&dir);
     }
 

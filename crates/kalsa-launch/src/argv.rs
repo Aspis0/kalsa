@@ -73,6 +73,25 @@ impl ServerArgs {
             "--cache-type-v".to_string(),
             self.kv_cache.flag().to_string(),
         ]);
+        // The drafter must share the target's KV type or the engine refuses
+        // to share cache cells (llama-kv-cache.cpp:108): the draft cache
+        // flags mirror the target's, whatever the owner chose for it.
+        if let Some(draft) = &self.draft {
+            argv.extend([
+                "--model-draft".to_string(),
+                draft.model_path.display().to_string(),
+                "--spec-type".to_string(),
+                "draft-mtp".to_string(),
+                "--spec-draft-n-max".to_string(),
+                draft.n_max.to_string(),
+                "--spec-draft-n-min".to_string(),
+                "0".to_string(),
+                "--spec-draft-type-k".to_string(),
+                self.kv_cache.flag().to_string(),
+                "--spec-draft-type-v".to_string(),
+                self.kv_cache.flag().to_string(),
+            ]);
+        }
         // The row's publisher sampling, as the server's default for THIS
         // model. Each value renders its own flag and only when the row
         // carries one: a card that published nothing gets the engine's own
@@ -198,6 +217,72 @@ mod tests {
             parallel: crate::args::DEFAULT_PARALLEL,
             slot_save_path: PathBuf::from("/slots"),
             sampling: kalsa_catalog::Sampling::default(),
+            draft: None,
+        }
+    }
+
+    /// The drafter block, exactly and in order: the file, the MTP mode, the
+    /// proposal width, the floor, and the draft KV types mirroring the
+    /// target's — the engine refuses to share cells with a drafter whose KV
+    /// type differs, so the flags follow whatever the owner chose for the
+    /// target.
+    #[test]
+    fn the_draft_block_renders_as_one_sequence_mirroring_the_targets_cache_type() {
+        let mut args = some_args();
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp-gemma-4-12B-it-Q8_0.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        let sequence = [
+            "--model-draft",
+            "/models/mtp-gemma-4-12B-it-Q8_0.gguf",
+            "--spec-type",
+            "draft-mtp",
+            "--spec-draft-n-max",
+            "3",
+            "--spec-draft-n-min",
+            "0",
+            "--spec-draft-type-k",
+            "q8_0",
+            "--spec-draft-type-v",
+            "q8_0",
+        ]
+        .map(String::from);
+        let found = argv
+            .windows(sequence.len())
+            .any(|window| window == sequence.as_slice());
+        assert!(found, "the draft block is one contiguous sequence: {argv:?}");
+        // A different target cache type carries the drafter with it.
+        let mut f16 = some_args();
+        f16.kv_cache = crate::args::KvCache::F16;
+        f16.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp-gemma-4-12B-it-Q8_0.gguf"),
+            n_max: 3,
+        });
+        let f16_argv = f16.argv();
+        assert_eq!(rendered_value(&f16_argv, "--spec-draft-type-k"), "f16");
+        assert_eq!(rendered_value(&f16_argv, "--spec-draft-type-v"), "f16");
+        assert_eq!(rendered_value(&f16_argv, "--cache-type-k"), "f16");
+    }
+
+    /// No drafter, no draft flags: a launch without one must not hint the
+    /// engine into a speculative mode it has no drafter for.
+    #[test]
+    fn a_launch_without_a_drafter_renders_no_draft_flags() {
+        let argv = some_args().argv();
+        for flag in [
+            "--model-draft",
+            "--spec-type",
+            "--spec-draft-n-max",
+            "--spec-draft-n-min",
+            "--spec-draft-type-k",
+            "--spec-draft-type-v",
+        ] {
+            assert!(
+                !argv.contains(&flag.to_string()),
+                "{flag} must not render without a drafter: {argv:?}"
+            );
         }
     }
 

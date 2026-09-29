@@ -618,6 +618,7 @@ mod tests {
             parallel: kalsa_launch::DEFAULT_PARALLEL,
             slot_save_path: PathBuf::from("/slots"),
             sampling: kalsa_catalog::Sampling::default(),
+            draft: None,
         };
         let maxima = ContextMaxima {
             // The real machine's figures for the row on disk: a maximum well

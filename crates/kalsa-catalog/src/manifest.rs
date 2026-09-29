@@ -1144,9 +1144,11 @@ pub fn usable() -> impl Iterator<Item = UsableEntry<'static>> {
 /// Each usable row paired with its own Q8 variant, when the variant passes
 /// the same [`ModelEntry::standing`] gate as its row. Paired by structure
 /// here, where the table nests it — a variant belongs to the row that
-/// carries it, never to whichever row matches its values.
-pub(crate) fn usable_with_q8(
-) -> impl Iterator<Item = (UsableEntry<'static>, Option<UsableEntry<'static>>)> {
+/// carries it, never to whichever row matches its values. The shell's
+/// on-disk lookup searches this pairing, so a served variant's file is
+/// found wherever the table nests it.
+pub fn usable_with_q8() -> impl Iterator<Item = (UsableEntry<'static>, Option<UsableEntry<'static>>)>
+{
     usable_with_q8_in(DOWNLOADABLE)
 }
 

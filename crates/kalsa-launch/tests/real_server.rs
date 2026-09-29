@@ -113,6 +113,7 @@ fn launch_args(
         // not one, and this harness exercises the launch, not the tier.
         slot_save_path: std::env::temp_dir(),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     }
 }
 
@@ -263,6 +264,7 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         // not one, and this harness exercises the launch, not the tier.
         slot_save_path: std::env::temp_dir(),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

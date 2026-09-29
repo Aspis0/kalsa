@@ -57,6 +57,7 @@ fn rule_args() -> ServerArgs {
         parallel: 1,
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     }
 }
 

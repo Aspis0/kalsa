@@ -26,10 +26,10 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_catalog::{
-    fits, memory_budget, rows, usable, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel,
-    CHOOSER_CONTEXT_TOKENS,
+    fits, memory_budget, rows, usable, usable_with_q8, ChoiceInput, Decision, DownloadPlan,
+    ModelEntry, PhoneModel, CHOOSER_CONTEXT_TOKENS,
 };
-use kalsa_download::{default_roots, download};
+use kalsa_download::{default_roots, download, ensure_space};
 // The cheap first pass over stores that name blobs by digest; find_local
 // stays underneath it, so this is an optimization on top of the engine the
 // download path already used.
@@ -279,11 +279,12 @@ pub(crate) fn run(
             // Consent is the stored row itself, checked against the row
             // about to be placed; without it nothing is used — not even a
             // copy already on disk.
-            let path = place_model(&plan, root, consented(chosen, row), progress)?;
+            let placed = place_model(&plan, root, consented(chosen, row), progress)?;
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
-                path,
+                placed.weights,
+                placed.drafter,
                 row,
                 reason,
                 // The digest of the row whose file was just placed: the
@@ -670,15 +671,30 @@ pub(crate) fn require_reliable(measurement: &Measurement) -> Result<(), StartupF
     }
 }
 
-/// Puts the chosen model on disk, against the plan's digest. The plan is
-/// not optional: the catalog's pick always carries its file's address.
+/// The plan's files where they answer from: the weights, and the drafter
+/// when the plan carries one. Built by [`acquire_model`], which proves
+/// every path it hands back against its digest before it returns.
+#[derive(Debug, PartialEq)]
+struct PlacedModel {
+    weights: PathBuf,
+    drafter: Option<PathBuf>,
+}
+
+/// Puts the plan's files on disk, against their digests. The plan is not
+/// optional: the catalog's pick always carries its file's address.
 fn place_model(
     plan: &DownloadPlan,
     root: &Path,
     consented: bool,
     progress: &mut dyn FnMut(Progress),
-) -> Result<PathBuf, StartupFailure> {
-    acquire_model(plan, &root.join("models"), &default_roots(), consented, progress)
+) -> Result<PlacedModel, StartupFailure> {
+    acquire_model(
+        plan,
+        &root.join("models"),
+        &default_roots(),
+        consented,
+        progress,
+    )
 }
 
 /// Whether the row's file already answers on this disk, by the same two
@@ -701,76 +717,166 @@ pub(crate) fn model_on_disk(root: &Path, entry: &ModelEntry) -> bool {
     find_reusable(&default_roots(), source.bytes, source.sha256).is_some()
 }
 
-/// The row's own source, from the catalog's menu: the pinned address the
-/// download is held to. `None` — the row is not on the menu, or carries no
+/// The row's own source, from the catalog's pairing: the pinned address the
+/// download is held to. A served Q8 variant is an entry in its own right,
+/// nested under its row, so the search walks rows and their variants — the
+/// table's own structure, not a copy of the rule that decides which one a
+/// machine serves. `None` — the row is not on the menu, or carries no
 /// identified file — means there is no file to look for.
 fn entry_source(entry: &ModelEntry) -> Option<&'static kalsa_catalog::GgufSource> {
-    Some(
-        usable()
-            .find(|row| {
-                let row = row.entry();
-                row.repo == entry.repo
-                    && row.display_name == entry.display_name
-                    && row.quant == entry.quant
-                    && row.weights_bytes == entry.weights_bytes
-            })?
-            .source(),
-    )
+    let is_the_entry = |candidate: &ModelEntry| {
+        candidate.repo == entry.repo
+            && candidate.display_name == entry.display_name
+            && candidate.quant == entry.quant
+            && candidate.weights_bytes == entry.weights_bytes
+    };
+    usable_with_q8()
+        .find_map(|(row, variant)| {
+            if is_the_entry(row.entry()) {
+                return Some(row);
+            }
+            variant.filter(|variant| is_the_entry(variant.entry()))
+        })
+        .map(|found| found.source())
 }
 
-/// Puts the chosen model on disk, against the plan's digest. The consent
-/// gate comes first, before the disk is even looked at: without the owner's
+/// Puts the plan's files on disk, against their digests. The consent gate
+/// comes first, before the disk is even looked at: without the owner's
 /// stored pick no copy — here or in another program's store — is used and no
-/// byte is fetched. A copy already on disk is then hash-checked or
-/// digest-found before any download happens. Another program's stores are
-/// searched cheap pass first (`kalsa-reuse`: stores that NAME blobs by their
-/// digest cost a stat, and the store whose name claims our digest is read
-/// once to confirm), with `find_local` underneath for stores that name files
-/// like files. `roots` is handed in rather than taken from the environment
-/// so the search is a fact a test can pin.
+/// byte is fetched. Each file is then proven present (this app's copy
+/// re-hashed, or a digest-verified one in another program's store, searched
+/// cheap pass first — `kalsa-reuse`: stores that NAME blobs by their digest
+/// cost a stat, and the store whose name claims our digest is read once to
+/// confirm — with `find_local` underneath for stores that name files like
+/// files) or fetched into the same models directory, the weights first and
+/// the drafter after. `roots` is handed in rather than taken from the
+/// environment so the search is a fact a test can pin. Progress reports ONE
+/// total for the whole plan — the weights plus everything beside them —
+/// with bytes the disk already holds counted as done from the start; and
+/// the room for everything still missing is asked once, before the first
+/// byte of any of it moves, so a plan whose second file does not fit is
+/// refused before its first one lands.
 fn acquire_model(
     plan: &DownloadPlan,
     models_dir: &Path,
     roots: &[PathBuf],
     consented: bool,
     progress: &mut dyn FnMut(Progress),
-) -> Result<PathBuf, StartupFailure> {
-    let name = plan.url.rsplit('/').next().unwrap_or_default();
-    if name.is_empty() {
-        // A plan whose address has no file name cannot be verified, or even
-        // stored: refuse rather than invent a plausible name.
-        return Err(StartupFailure::WeightsUnverified);
-    }
+) -> Result<PlacedModel, StartupFailure> {
+    let weights_name = plan_file_name(&plan.url)?;
     // A model is used or fetched only for the owner's stored pick — the
     // automatic pick with nothing stored stops here, before the disk is
     // consulted at all.
     if !consented {
         return Err(StartupFailure::AwaitingChoice);
     }
-    let path = models_dir.join(name);
-    if file_digest_is(&path, plan.bytes, plan.sha256) {
-        return Ok(path);
+    let drafter = match &plan.drafter {
+        Some(file) => Some((plan_file_name(&file.url)?, file)),
+        None => None,
+    };
+    let weights_path = models_dir.join(weights_name);
+    let drafter_path = drafter.map(|(name, _)| models_dir.join(name));
+    let weights_proven = proven_file(&weights_path, plan.bytes, plan.sha256, roots);
+    let drafter_proven = match (drafter, &drafter_path) {
+        (Some((_, file)), Some(path)) => proven_file(path, file.bytes, file.sha256, roots),
+        _ => None,
+    };
+    let mut missing = 0u64;
+    if weights_proven.is_none() {
+        missing += plan.bytes;
     }
-    // A digest-verified copy under ollama, LM Studio or the HF cache beats
-    // any download, and it is only ever read. A "not found" from the reuse
-    // pass is an optimization failing, never a verdict: find_local still
-    // runs underneath it.
-    if let Some(found) = find_reusable(roots, plan.bytes, plan.sha256) {
-        return Ok(found);
+    if let (None, Some((_, file))) = (&drafter_proven, drafter) {
+        missing += file.bytes;
     }
-    progress(Progress::ModelBytes {
-        done: 0,
-        total: plan.bytes,
-    });
+    if missing > 0 {
+        ensure_space(models_dir, missing).map_err(StartupFailure::from)?;
+    }
+    let total = plan.total_bytes();
+    let mut done = 0u64;
+    progress(Progress::ModelBytes { done, total });
+    let weights = match weights_proven {
+        Some(path) => {
+            done += plan.bytes;
+            path
+        }
+        None => {
+            fetch_file(
+                &plan.url,
+                &weights_path,
+                plan.bytes,
+                plan.sha256,
+                done,
+                total,
+                progress,
+            )?;
+            done += plan.bytes;
+            weights_path
+        }
+    };
+    progress(Progress::ModelBytes { done, total });
+    let drafter = match (drafter, drafter_proven) {
+        (Some((name, file)), None) => {
+            let path = models_dir.join(name);
+            fetch_file(
+                &file.url,
+                &path,
+                file.bytes,
+                file.sha256,
+                done,
+                total,
+                progress,
+            )?;
+            done += file.bytes;
+            Some(path)
+        }
+        (_, Some(path)) => {
+            done += plan.drafter.as_ref().map_or(0, |file| file.bytes);
+            Some(path)
+        }
+        (None, None) => None,
+    };
+    progress(Progress::ModelBytes { done, total });
+    Ok(PlacedModel { weights, drafter })
+}
+
+/// The file name a pinned address must end with: a plan whose address has
+/// no name cannot be verified, or even stored: refuse rather than invent a
+/// plausible name.
+fn plan_file_name(url: &str) -> Result<&str, StartupFailure> {
+    match url.rsplit('/').next() {
+        Some(name) if !name.is_empty() => Ok(name),
+        _ => Err(StartupFailure::WeightsUnverified),
+    }
+}
+
+/// One pinned file already proven on this disk: this app's own copy,
+/// re-hashed, or a digest-verified copy in another program's store. `None`
+/// means the promised bytes are not here and must be fetched.
+fn proven_file(path: &Path, bytes: u64, sha256: &str, roots: &[PathBuf]) -> Option<PathBuf> {
+    if file_digest_is(path, bytes, sha256) {
+        return Some(path.to_path_buf());
+    }
+    find_reusable(roots, bytes, sha256)
+}
+
+/// One file fetched into `path`, its progress relayed into the plan's one
+/// total at the offset of everything already accounted for.
+fn fetch_file(
+    url: &str,
+    path: &Path,
+    bytes: u64,
+    sha256: &str,
+    base: u64,
+    total: u64,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<(), StartupFailure> {
     let mut relay = |p: kalsa_download::Progress| {
         progress(Progress::ModelBytes {
-            done: p.bytes_done,
-            total: p.bytes_total,
-        })
+            done: base + p.bytes_done,
+            total,
+        });
     };
-    download(&plan.url, &path, plan.bytes, plan.sha256, &mut relay)
-        .map_err(StartupFailure::from)?;
-    Ok(path)
+    download(url, path, bytes, sha256, &mut relay).map_err(StartupFailure::from)
 }
 
 /// The automatic pick reduced to the one fact the ask-first gate needs:
@@ -805,6 +911,7 @@ fn planned_config(
         backend,
         exe,
         model,
+        None,
         row,
         TEST_REASON.to_string(),
         TEST_SHA256,
@@ -859,6 +966,7 @@ fn planned_config_with_overrides(
     backend: ServerBackend,
     exe: PathBuf,
     model: PathBuf,
+    drafter: Option<PathBuf>,
     row: &ModelEntry,
     reason: String,
     model_sha256: &str,
@@ -956,6 +1064,12 @@ fn planned_config_with_overrides(
     if let Some(seconds) = overrides.idle_unload_seconds {
         plan.args.idle_unload_seconds = seconds;
     }
+    // The drafter rides the launch only as a proven file: acquire_model
+    // verified it before this ran, and the engine cannot load half a pair.
+    plan.args.draft = drafter.map(|model_path| kalsa_launch::Draft {
+        model_path,
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
     let args = plan.args;
     // What the panel shows beside the context control: the context the
     // launcher picks with no owner choice, and the launcher's own two KV
@@ -1064,6 +1178,8 @@ fn dev_config_with_overrides(
         // so it renders no sampling flags and the engine keeps its own
         // defaults.
         sampling: kalsa_catalog::Sampling::default(),
+        // And no drafter: the developer pinned one file and owns its bytes.
+        draft: None,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -1350,8 +1466,9 @@ mod tests {
             &mut |_| {},
         )
         .expect("the pinned copy in the digest store is on this disk");
-        assert_eq!(found, blob, "the cheap pass must answer first, not {found:?}");
-        assert_ne!(found, friendly);
+        assert_eq!(found.weights, blob, "the cheap pass must answer first, not {:?}", found.weights);
+        assert_ne!(found.weights, friendly);
+        assert!(found.drafter.is_none());
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&friendly_root);
         let _ = std::fs::remove_dir_all(&blob_root);
@@ -1396,7 +1513,7 @@ mod tests {
             &mut |_| {},
         )
         .expect("the honest copy is still found");
-        assert_eq!(found, friendly);
+        assert_eq!(found.weights, friendly);
         assert!(
             !root.join("models").join("weights.gguf").exists(),
             "nothing was downloaded: reuse answered"
@@ -1409,7 +1526,10 @@ mod tests {
     /// A loopback HTTP server answering every request with the same body:
     /// what a HuggingFace resolve endpoint looks like to this walk, without
     /// touching a real network.
-    fn serve(body: &'static [u8]) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    fn serve(
+        body: &'static [u8],
+        file: &str,
+    ) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
@@ -1429,7 +1549,7 @@ mod tests {
                 let _ = stream.flush();
             }
         });
-        (format!("http://{addr}/stories260K.gguf"), requests)
+        (format!("http://{addr}/{file}"), requests)
     }
 
     /// The machine these tests decide for, and a row on the menu that is not
@@ -1494,7 +1614,7 @@ mod tests {
         // with a distinct verdict and costs zero bytes; with it the file is
         // fetched and digest-verified as always. The gate holds before the
         // disk is consulted, so a copy already here is not consent either.
-        let (url, requests) = serve(PLAN_BODY);
+        let (url, requests) = serve(PLAN_BODY, "stories260K.gguf");
         let root = scratch("ask-placement");
         let plan = DownloadPlan {
             url: url.clone(),
@@ -1514,7 +1634,7 @@ mod tests {
             "the gate must cost no bytes: the download was never called"
         );
         let placed = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
-        assert_eq!(std::fs::read(&placed).expect("read"), PLAN_BODY);
+        assert_eq!(std::fs::read(&placed.weights).expect("read"), PLAN_BODY);
         let again = place_model(&plan, &root, false, &mut |_| {})
             .expect_err("the file on disk is not the owner's pick");
         assert!(matches!(again, StartupFailure::AwaitingChoice), "{again:?}");
@@ -1531,7 +1651,7 @@ mod tests {
         // token does not name is not placed from a local copy either. The
         // stub behind the loopback URL counts requests, so a broken gate
         // would show up here as bytes — and the catalog is never asked.
-        let (url, requests) = serve(PLAN_BODY);
+        let (url, requests) = serve(PLAN_BODY, "stories260K.gguf");
         let root = scratch("stale-local-copy");
         let models = root.join("models");
         std::fs::create_dir_all(&models).expect("mkdir");
@@ -1606,6 +1726,7 @@ mod tests {
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             row,
             reason,
             plan.sha256,
@@ -2125,10 +2246,12 @@ mod tests {
     // same thing a row does — pins bytes to a digest known in advance.
     const PLAN_BODY: &[u8] = b"kalsa-brain loopback weights for the download plan test";
     const PLAN_SHA256: &str = "44dff4aa25ed679690893bf2e5b6f68362763235d2b136c980b7da9c147ef626";
+    const DRAFTER_BODY: &[u8] = b"kalsa-brain loopback drafter for the download plan test";
+    const DRAFTER_SHA256: &str = "9393736b554ca60cd555c0c9ea4104988ef92531db290000d20a5bf74426cb7f";
 
     #[test]
     fn a_plan_downloads_the_weights_and_verifies_the_digest() {
-        let (url, requests) = serve(PLAN_BODY);
+        let (url, requests) = serve(PLAN_BODY, "stories260K.gguf");
         let root = scratch("plan");
         let plan = DownloadPlan {
             url,
@@ -2136,17 +2259,17 @@ mod tests {
             sha256: PLAN_SHA256,
             drafter: None,
         };
-        let path = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
+        let placed = place_model(&plan, &root, true, &mut |_| {}).expect("downloaded");
         assert_eq!(
-            std::fs::read(&path).expect("read"),
+            std::fs::read(&placed.weights).expect("read"),
             PLAN_BODY,
             "what landed is what the digest promised"
         );
         assert_eq!(digest_of(PLAN_BODY), PLAN_SHA256);
         // A second pass with the file already on disk downloads nothing: the
         // on-disk bytes are re-hashed, and the server must not be asked again.
-        let path_again = place_model(&plan, &root, true, &mut |_| {}).expect("from disk");
-        assert_eq!(path_again, path);
+        let again = place_model(&plan, &root, true, &mut |_| {}).expect("from disk");
+        assert_eq!(again, placed);
         assert_eq!(
             requests.load(std::sync::atomic::Ordering::SeqCst),
             1,
@@ -2158,7 +2281,7 @@ mod tests {
     #[test]
     fn a_download_that_does_not_match_the_digest_is_thrown_away() {
         let body = &b"bytes a hostile link would serve"[..];
-        let (url, _addr) = serve(body);
+        let (url, _addr) = serve(body, "stories260K.gguf");
         let root = scratch("corrupt");
         let plan = DownloadPlan {
             url,
@@ -2647,6 +2770,7 @@ mod tests {
                 ServerBackend::Metal,
                 exe,
                 PathBuf::from("/models/chosen.gguf"),
+                None,
                 row,
                 TEST_REASON.to_string(),
                 TEST_SHA256,
@@ -2701,6 +2825,7 @@ mod tests {
             ServerBackend::Cpu,
             fork.clone(),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -2855,6 +2980,7 @@ mod tests {
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -2894,6 +3020,7 @@ mod tests {
                 ServerBackend::Metal,
                 PathBuf::from("/server/llama-server"),
                 PathBuf::from("/models/chosen.gguf"),
+                None,
                 row,
                 TEST_REASON.to_string(),
                 TEST_SHA256,
@@ -2955,6 +3082,7 @@ mod tests {
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -2983,6 +3111,7 @@ mod tests {
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -3147,5 +3276,193 @@ mod tests {
     #[test]
     fn ram_bytes_reports_something_on_this_machine() {
         assert!(ram_bytes() > 0, "the platform refused to say its RAM");
+    }
+
+    #[test]
+    fn a_served_q8_entry_is_found_by_the_catalogs_own_pairing() {
+        // The variant is an entry in its own right, nested under its row:
+        // the on-disk lookup must find its pinned source through the same
+        // pairing — or a served Q8 pick would read "not on disk" forever and
+        // re-download on every start. The row's own entry still answers too.
+        let row = kalsa_catalog::DOWNLOADABLE
+            .iter()
+            .find(|row| row.model.repo == "google/gemma-4-12B-it")
+            .expect("the row that carries a variant");
+        let variant = row.q8.as_ref().expect("the variant");
+        let served = entry_source(&variant.model).expect("the variant's source is found");
+        assert!(
+            served.url().ends_with("/gemma-4-12B-it-Q8_0.gguf"),
+            "{}",
+            served.url()
+        );
+        assert_eq!(served.bytes, 12_669_647_328);
+        let base = entry_source(&row.model).expect("the row's own source is found");
+        assert!(base.url().ends_with("/gemma-4-12B-it-Q4_K_M.gguf"));
+    }
+
+    #[test]
+    fn a_plan_whose_drafter_does_not_fit_is_refused_before_the_weights_land() {
+        // The combined preflight: the weights alone fit this disk, the
+        // drafter beside them does not, and the refusal must arrive before
+        // any byte moves — no multi-gigabyte file landed to be told "full".
+        let (url, requests) = serve(PLAN_BODY, "weights.gguf");
+        let root = scratch("space-preflight");
+        let plan = DownloadPlan {
+            url: url.clone(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+            drafter: Some(kalsa_catalog::DownloadFile {
+                url: "https://unused.invalid/mtp-gemma-4-12B-it-Q8_0.gguf".to_string(),
+                bytes: u64::MAX / 2,
+                sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+            }),
+        };
+        let err = place_model(&plan, &root, true, &mut |_| {})
+            .expect_err("no disk holds the drafter's promise");
+        assert!(
+            matches!(err, StartupFailure::NotEnoughDisk(Some(_))),
+            "the storage-full verdict, with the shortfall: {err:?}"
+        );
+        assert_eq!(
+            requests.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the weights must not be asked for first"
+        );
+        assert!(
+            !root.join("models").join("weights.gguf").exists(),
+            "the refusal must cost no bytes"
+        );
+        // The premise, not a coincidence: the same weights with no drafter
+        // fit this disk and place.
+        let fits = DownloadPlan {
+            drafter: None,
+            ..plan
+        };
+        place_model(&fits, &root, true, &mut |_| {}).expect("the weights alone fit");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_missing_drafter_beside_present_weights_is_fetched_alone() {
+        // The weights proven on disk and the drafter not: only the drafter
+        // is fetched, after the weights, into the same models directory —
+        // and once both are proven, neither is asked for again.
+        let root = scratch("drafter-only");
+        let models = root.join("models");
+        std::fs::create_dir_all(&models).expect("mkdir");
+        std::fs::write(models.join("weights.gguf"), PLAN_BODY).expect("the weights are here");
+        let (drafter_url, drafter_requests) = serve(DRAFTER_BODY, "mtp-weights.gguf");
+        let plan = DownloadPlan {
+            url: "https://unused.invalid/weights.gguf".to_string(),
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+            drafter: Some(kalsa_catalog::DownloadFile {
+                url: drafter_url,
+                bytes: DRAFTER_BODY.len() as u64,
+                sha256: DRAFTER_SHA256,
+            }),
+        };
+        let placed = place_model(&plan, &root, true, &mut |_| {}).expect("only the drafter moves");
+        assert_eq!(placed.weights, models.join("weights.gguf"));
+        assert_eq!(
+            placed.drafter.as_ref().expect("the drafter is placed"),
+            &models.join("mtp-weights.gguf")
+        );
+        assert_eq!(
+            std::fs::read(models.join("mtp-weights.gguf")).expect("read"),
+            DRAFTER_BODY
+        );
+        assert_eq!(
+            drafter_requests.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "one fetch for the drafter, none for the weights"
+        );
+        let again = place_model(&plan, &root, true, &mut |_| {}).expect("both proven");
+        assert_eq!(again, placed);
+        assert_eq!(
+            drafter_requests.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "a proven drafter is never re-fetched"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_plan_reports_one_total_for_both_files() {
+        // One number for the whole plan: every reading the page sees carries
+        // the weights-plus-drafter total, and the last one closes at it.
+        let (url, _requests) = serve(PLAN_BODY, "weights.gguf");
+        let (drafter_url, _drafter_requests) = serve(DRAFTER_BODY, "mtp-weights.gguf");
+        let root = scratch("one-total");
+        let plan = DownloadPlan {
+            url,
+            bytes: PLAN_BODY.len() as u64,
+            sha256: PLAN_SHA256,
+            drafter: Some(kalsa_catalog::DownloadFile {
+                url: drafter_url,
+                bytes: DRAFTER_BODY.len() as u64,
+                sha256: DRAFTER_SHA256,
+            }),
+        };
+        let mut seen: Vec<(u64, u64)> = Vec::new();
+        place_model(&plan, &root, true, &mut |step| {
+            if let Progress::ModelBytes { done, total } = step {
+                seen.push((done, total));
+            }
+        })
+        .expect("both files place");
+        let total = (PLAN_BODY.len() + DRAFTER_BODY.len()) as u64;
+        assert!(
+            seen.iter().all(|(_, reported)| *reported == total),
+            "every reading carries the one total: {seen:?}"
+        );
+        assert_eq!(seen.last(), Some(&(total, total)), "{seen:?}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_proven_drafter_rides_the_launch_args_and_nothing_else_changes() {
+        // The wiring, not the renderer: a drafter proven on disk reaches the
+        // launch args as the one draft fact, beside an otherwise unchanged
+        // plan for the same row.
+        let machine = machine(Backend::Cpu);
+        let row = rows()
+            .find(|entry| {
+                entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0"
+            })
+            .expect("a row that funds the fixture machine");
+        let base = |drafter: Option<PathBuf>| {
+            planned_config_with_overrides(
+                ServerBackend::Cpu,
+                PathBuf::from("/server/llama-server"),
+                PathBuf::from("/models/chosen.gguf"),
+                drafter,
+                row,
+                TEST_REASON.to_string(),
+                TEST_SHA256,
+                &machine,
+                1,
+                PathBuf::from("/state/server.state"),
+                PathBuf::from("/slots"),
+                LaunchOverrides::default(),
+            )
+            .expect("the row funds the fixture machine")
+        };
+        let without = base(None);
+        assert!(
+            without.info.args.draft.is_none(),
+            "no proven drafter, no draft flags"
+        );
+        let with = base(Some(PathBuf::from("/models/mtp-chosen.gguf")));
+        assert_eq!(
+            with.info.args.draft,
+            Some(kalsa_launch::Draft {
+                model_path: PathBuf::from("/models/mtp-chosen.gguf"),
+                n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+            })
+        );
+        // Everything else is the same launch.
+        assert_eq!(with.info.args.context_tokens, without.info.args.context_tokens);
+        assert_eq!(with.server.argv.len(), without.server.argv.len() + 12);
     }
 }

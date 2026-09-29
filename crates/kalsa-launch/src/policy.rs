@@ -135,6 +135,9 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         parallel,
         slot_save_path: input.slot_save_path.clone(),
         sampling: input.model.sampling,
+        // The plan sizes the launch; the drafter rides it only when the
+        // caller has proven the file on disk, so it is the caller's to set.
+        draft: None,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will

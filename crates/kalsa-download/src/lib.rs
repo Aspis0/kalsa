@@ -28,7 +28,7 @@ mod resolve;
 mod reuse;
 mod verify;
 
-pub use download::download;
+pub use download::{download, ensure_space};
 pub use reuse::{default_roots, find_local};
 
 #[cfg(test)]

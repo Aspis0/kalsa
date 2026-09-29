@@ -334,6 +334,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
         parallel: kalsa_launch::DEFAULT_PARALLEL,
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     };
     if let Ok(mut launch) = brain.launch.lock() {
         *launch = Some(startup::LaunchInfo {
@@ -461,6 +462,7 @@ fn launch_args(model: &str, port: u16) -> kalsa_launch::ServerArgs {
         parallel: kalsa_launch::DEFAULT_PARALLEL,
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
+        draft: None,
     }
 }
 
