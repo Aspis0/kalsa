@@ -13,19 +13,18 @@ import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
 import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain";
-import { FOLD_MS } from "../chat/src/surfaces/motion";
+import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
+import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
 
-// The bench's copies of the page's own clocks: the pairing poll the
-// surface runs on (DevicesSurface's POLL_MS) and the beat a landed Allow
-// holds (motion.ts's BEAT_MS). The beat cards wait THESE numbers out —
-// one poll plus a margin to read inside the hold, both numbers plus a
-// margin to read after it — never a wall-clock guess.
-const PAIRING_POLL_MS = 2000;
-const BEAT_HOLD_MS = 1600;
+// The page's own clocks, read from the source: the pairing poll the
+// surface runs on, the fold and its reverse, and the beat a landed Allow
+// holds. The beat cards wait these numbers out — one poll plus a margin
+// to read inside the hold, both numbers plus a margin to read after it —
+// never a wall-clock guess.
 
 const REASON_PORT =
   "Another program is in the way. Restarting the computer usually clears it.";
@@ -325,30 +324,30 @@ const scenarios = [
   // beat, and settles into the ordinary row. A phone the page never saw
   // waiting says nothing — an allowed row on a later poll is not a
   // transition this page watched.
-  ["Pairing", "an allowed phone says connected for a beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
-  ["Pairing", "the connected beat settles into the row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + BEAT_HOLD_MS + 1000 }],
-  ["Pairing", "an allowed pairing-again lands its beat on the seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
-  ["Pairing", "an already-allowed phone says nothing on a later poll", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, waitMs: PAIRING_POLL_MS + 600 }],
+  ["Pairing", "an allowed phone says connected for a beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS + 600 }],
+  ["Pairing", "the connected beat settles into the row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS + BEAT_MS + 1000 }],
+  ["Pairing", "an allowed pairing-again lands its beat on the seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS + 600 }],
+  ["Pairing", "an already-allowed phone says nothing on a later poll", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, waitMs: POLL_MS + 600 }],
   // The race this pins: an Allow whose store answer arrives as the record
   // GONE — the same shape a Refuse leaves. The beat keys on the answer
   // saying allowed, never on the record merely leaving, so a phone the
   // owner did not get is never "connected". (The buttons going down after
   // one press is the other half; its card is below.)
-  ["Pairing", "an allow the store answers with the record gone says no beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
+  ["Pairing", "an allow the store answers with the record gone says no beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS + 600 }],
   // One press is enough: the row holds its decision until the store's next
   // answer makes the outcome visible, and nothing lands while it waits. A
   // second press lands on the held button and must not ask again.
   ["Pairing", "a row holds its decision until the store answers", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow" }],
   // The Allow's store answer arrives as a REPLACEMENT request on the same
   // seat: the old ask is gone, the phone did not get in, and no beat lands.
-  ["Pairing", "a replaced request arms nothing", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST_2], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
+  ["Pairing", "a replaced request arms nothing", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST_2], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS + 600 }],
   // A Refuse the store refuses: the decision was never taken, so the row
   // gets its buttons back at once — they must not stay down forever.
   ["Pairing", "a refused request the store rejects gives the buttons back", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Refuse" }],
   // Two Allows riding one poll answer: each row holds its own beat, and
   // neither drops the other's.
-  ["Pairing", "two allows in one poll each hold their beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE, WAITING_PHONE_2], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_TWO, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
-  ["Pairing", "a connected beat under reduced motion is still said", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Allow", waitMs: PAIRING_POLL_MS + 600 }],
+  ["Pairing", "two allows in one poll each hold their beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE, WAITING_PHONE_2], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_TWO, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", clickThen: "Allow", waitMs: POLL_MS + 600 }],
+  ["Pairing", "a connected beat under reduced motion is still said", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Allow", waitMs: POLL_MS + 600 }],
   // The seat was forgotten while its request waited: the request has no row
   // to sit on, so it draws its own — a waiting record like any other, with
   // its own id on its buttons.
@@ -364,17 +363,17 @@ const scenarios = [
   // the entrance has had its whole beat — what must hold after it is the
   // breath, not the entrance.
   // Under reduced motion it simply appears, saying the same thing.
-  ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: PAIRING_POLL_MS + FOLD_MS + 300 }],
+  ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: POLL_MS + FOLD_MS + 300 }],
   // Two waiting phones arrive in one answer: each row takes its own
   // entrance, one no sooner than the other. The card reads inside the
   // entrance's own beat, which is the only place the two can be told apart
   // from one shared entrance.
-  ["Pairing", "two waiting rows arrive together and each unfolds", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }, { id: 3, label: "Waiting phone 3", phone: "phone with 4 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: PAIRING_POLL_MS + 200 }],
+  ["Pairing", "two waiting rows arrive together and each unfolds", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }, { id: 3, label: "Waiting phone 3", phone: "phone with 4 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: POLL_MS + 200 }],
   // The store answered the press (allowed, beat landed) and the phone then
   // asked again: the earlier release is what gives this row its buttons
   // back — a decision still held from the first press would leave them
   // down forever.
-  ["Pairing", "the buttons come back once the store has answered", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), pairingSwapAfter: 2, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: PAIRING_POLL_MS * 2 + 600 }],
+  ["Pairing", "the buttons come back once the store has answered", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), pairingSwapAfter: 2, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: POLL_MS * 2 + 600 }],
   ["Pairing", "a waiting row under reduced motion stands still", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
@@ -406,6 +405,14 @@ const scenarios = [
   ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],
   ["firstpage/service", "the credential read never runs without a door", "empty", { setup: setupArm("running", "pending", false, "x") }],
 ];
+
+/** The runaway bound for the whole bench: every card's declared wait,
+    summed, plus room for the renders and settles between them. A guard,
+    not a target. */
+export function benchTimeoutMs() {
+  const waits = scenarios.reduce((sum, [, , , data]) => sum + (data?.waitMs ?? 0), 0);
+  return waits + 30000;
+}
 
 let bridgeState = {};
 let eventHandlers = new Set();

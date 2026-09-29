@@ -282,17 +282,18 @@ async function loadRenderer() {
   return { dir, renderer };
 }
 
-// The hung-first-read card waits out the page's 8 s bound, and the pairing
-// cards each wait out their own poll windows, so this run is measured in
-// minutes' halves. The bound is a runaway guard, not a target.
-const timeout = setTimeout(() => {
-  console.error("React smoke timed out");
-  process.exit(2);
-}, 150000);
+let timeout = null;
 
 try {
   installDom();
   const { dir, renderer } = await loadRenderer();
+  // The runaway guard, derived from what the cards declare they will
+  // wait: the sum of every card's wait plus room for the renders and
+  // settles between them. Not a target — a guard.
+  timeout = setTimeout(() => {
+    console.error("React smoke timed out");
+    process.exit(2);
+  }, renderer.benchTimeoutMs());
   const results = await renderer.renderStates();
   const problems = [];
   // The reduced-motion gate is a fact about the stylesheet, not the DOM:
@@ -1289,5 +1290,5 @@ try {
   console.error(error.stack ?? error);
   process.exitCode = 1;
 } finally {
-  clearTimeout(timeout);
+  if (timeout !== null) clearTimeout(timeout);
 }

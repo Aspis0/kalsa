@@ -11,7 +11,9 @@ import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential, useBrain } from "./useBrain";
 import "./surfaces.css";
 
-const POLL_MS = 2000;
+// The poll this page runs while it is open. Read by the review bench,
+// which waits its cadence out rather than guessing wall-clock numbers.
+export const POLL_MS = 2000;
 
 // The owner's line about capacity, kept whole because dev/smoke-react.mjs
 // keeps its own copy and enforces it. "Four" mirrors WORKERS in

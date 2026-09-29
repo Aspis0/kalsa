@@ -1,10 +1,13 @@
-// The reduced-motion gate, checked where the fake DOM cannot look: every
-// animation and transition the surfaces declare must live inside the
-// `@media (prefers-reduced-motion: no-preference)` block, so a reader who
-// asked for stillness gets it — no loop survives outside the gate, and the
-// gate itself must exist. Run by dev/smoke-react.mjs; exits through its
-// problem list.
-import { readFileSync } from "node:fs";
+// The reduced-motion gate, checked where the fake DOM cannot look. Scope,
+// exactly: every animation and transition DECLARED IN A STYLESHEET UNDER
+// chat/src/surfaces/ must live inside that file's
+// `@media (prefers-reduced-motion: no-preference)` block, and the block
+// must exist. Not covered: stylesheets elsewhere in the app (Thread.css,
+// Sidebar.css and the other component sheets), and transitions the pages
+// declare in JS — the row fold's inline transition, which motion.ts gates
+// with its own reduced-motion read. Run by dev/smoke-react.mjs; exits
+// through its problem list.
+import { readdirSync, readFileSync } from "node:fs";
 
 const GUARD = "@media (prefers-reduced-motion: no-preference)";
 
@@ -18,6 +21,7 @@ export function motionCssProblems(css) {
   const stack = [];
   let pending = "";
   let guardSeen = false;
+  let animated = false;
   for (const part of rules.split(/([{}])/)) {
     if (part === "{") {
       const inside = stack.includes(true);
@@ -30,22 +34,29 @@ export function motionCssProblems(css) {
       pending = "";
     } else {
       pending += part;
-      if (/\banimation\b|\btransition\b/.test(part) && !stack.includes(true)) {
-        problems.push(`an animation outside the reduced-motion gate: ${part.trim()}`);
+      if (/\banimation\b|\btransition\b/.test(part)) {
+        animated = true;
+        if (!stack.includes(true)) {
+          problems.push(`an animation outside the reduced-motion gate: ${part.trim()}`);
+        }
       }
     }
   }
-  if (!guardSeen) {
+  // A file that animates nothing needs no gate; one that does needs one.
+  if (animated && !guardSeen) {
     problems.push("the reduced-motion gate is missing: no no-preference block exists");
   }
   return problems;
 }
 
-/** The check over the surfaces' own stylesheet. */
+/** The check over every stylesheet the surfaces carry, each named. */
 export function checkSurfacesCss() {
-  const css = readFileSync(
-    new URL("../chat/src/surfaces/surfaces.css", import.meta.url),
-    "utf8",
-  );
-  return motionCssProblems(css);
+  const dir = new URL("../chat/src/surfaces/", import.meta.url);
+  const problems = [];
+  for (const name of readdirSync(dir).filter((file) => file.endsWith(".css")).sort()) {
+    for (const problem of motionCssProblems(readFileSync(new URL(name, dir), "utf8"))) {
+      problems.push(`${name}: ${problem}`);
+    }
+  }
+  return problems;
 }
