@@ -821,6 +821,15 @@ weights with our GGUF engine (if not, it is a second copy and a second runtime, 
 one-kernel), and the sign-up terms. Note: Pixel's GPU is a Mali, so the Mali step already covers the
 Tensor GPU.
 
+**iPhone engine (owner, 2026-09-29):** llama.cpp (our fork) on Metal, through the binding - same
+engine, same GGUF, same governor, one kernel. Apple's unified memory lets Metal use the weights
+without a copy, so one-copy comes for free there. Core ML / the Apple Neural Engine is NOT the plan:
+it needs its own model format and cannot share weights with the GGUF (a second copy and a second
+runtime). It stays a later research lane for prefill only, and only if Metal prefill proves too hot
+on a real iPhone. Today iOS runs llama.rn's prebuilt upstream Metal xcframework; the fork's iOS source
+build (`RNLLAMA_BUILD_FROM_SOURCE=1`) has never been attempted. The Mac checks Metal correctness; speed,
+heat and the iOS memory limit need a real iPhone.
+
 The order is the owner's to set. The committed near-term work is:
 
 1. Finish the device measurement of ciswire recall-after-eviction on Qwen (Xiaomi), using the
