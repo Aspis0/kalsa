@@ -952,6 +952,11 @@ try {
         problems.push(`the row of a phone the door is serving carries the live dot: ${heading}`);
       }
     }
+    if (heading.includes("the computer itself being served")) {
+      if (liveDots !== 0) {
+        problems.push(`this computer's own chat must not light a phone's dot: ${heading}`);
+      }
+    }
     if (heading.startsWith("Pairing") && !heading.includes("being served") && liveDots !== 0) {
       problems.push(`only a row the door names may carry the live dot: ${heading}`);
     }

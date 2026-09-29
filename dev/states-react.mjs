@@ -257,6 +257,10 @@ const scenarios = [
   // the live dot (the id is the pairing store's own, the same space the
   // rows are drawn from — the Rust side builds it from that store).
   ["Pairing", "a phone being served right now", "devices", { pairing: pairedHouse(), state: { kind: "running", metrics: { active_devices: [{ id: 1, label: "Paired phone", kind: "phone" }] } }, invites: { discarded: false, invites: [] } }],
+  // The host is a device at the door too: this computer's own chat being
+  // served must not light a dot on "This computer" — the dot speaks about
+  // phones, and the page's own typing is not a phone asking.
+  ["Pairing", "the computer itself being served carries no dot", "devices", { pairing: pairedHouse(), state: { kind: "running", metrics: { active_devices: [{ id: 0, label: "This computer", kind: "host" }] } }, invites: { discarded: false, invites: [] } }],
   ["Pairing", "paired; another phone can be paired", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a phone waits for the owner's OK", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }) }],
   ["Pairing", "a phone waits for the owner's OK, its response still in flight", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, { id: 1, label: "Waiting phone", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true }], delivery_pending: true, door_port: 8131, desk_port: 8134 }) }],

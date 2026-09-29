@@ -223,11 +223,14 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // The beat a row plays after the owner's Allow lands on it.
   const beats = useDeviceBeats(state?.devices);
   // The brain's own 1 s read, for the one fact this page wants from it:
-  // which devices the door is serving right now.
+  // which phones the door is serving right now. The host is in that set
+  // whenever this computer's own chat is talking — the dot speaks about
+  // phones, so the host is counted out of it.
   const brain = useBrain();
   const motionless = reducedMotion();
   const activeIds = new Set(
     (brain.state?.metrics?.active_devices ?? [])
+      .filter((device) => device.kind !== "host")
       .map((device) => device.id)
       .filter((id): id is number => typeof id === "number"),
   );
