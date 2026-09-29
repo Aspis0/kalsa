@@ -4,12 +4,17 @@
 //! course: at or above [`Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] a row that
 //! carries a Q8_0 variant is served as that variant — but only when the
 //! variant's own candidate clears every gate the row's own file faces below
-//! (fit, the reading floor, the row's dense line). Anything less and the row
-//! keeps its own file, unchanged: the swap is all or nothing, so a machine
-//! never loses a row it would have run by trying to upgrade it.
+//! (fit, the reading floor, the roomy-machine rule, the row's dense line).
+//! Anything less and the row keeps its own file, unchanged: the swap is all
+//! or nothing, so a machine never loses a row it would have run by trying
+//! to upgrade it. The dense line is asked here unconditionally while
+//! `runnable_on` asks it only once some row clears one — the safe side:
+//! a variant held back here can still run as its row's own file.
 
 use crate::candidate::{candidate, Candidate};
-use crate::choice::{dense_speed_floor, provably_too_slow, ChoiceInput};
+use crate::choice::{
+    dense_speed_floor, full_precision_file, provably_too_slow, ChoiceInput, ROOMY_RAM_BYTES,
+};
 use crate::footprint::{fits_footprint, memory_budget, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
 
@@ -18,43 +23,42 @@ use crate::manifest::{self, ModelEntry, UsableEntry};
 /// 2026-09-29, set at the M1 Pro's published 200 GB/s so the bigger file
 /// goes to the machines whose memory bus can carry it. The figure compared
 /// is the bandwidth the chooser is given (`ChoiceInput::bandwidth_bytes_per_second`).
-pub const Q8_MIN_BANDWIDTH_BYTES_PER_SECOND: f64 = 200.0e9;
+pub(crate) const Q8_MIN_BANDWIDTH_BYTES_PER_SECOND: f64 = 200.0e9;
 
-/// The file one row is served as: its own, or the Q8 variant when the rule
-/// fires and the variant clears the gates on its own numbers.
-pub(crate) fn serve<'a>(
-    row: UsableEntry<'a>,
-    variant: Option<UsableEntry<'a>>,
-    input: &ChoiceInput,
-    budget: &MemoryBudget,
-) -> UsableEntry<'a> {
-    let Some(variant) = variant else {
-        return row;
-    };
-    if input.bandwidth_bytes_per_second < Q8_MIN_BANDWIDTH_BYTES_PER_SECOND {
-        return row;
-    }
-    // The same predicates `runnable_on` applies to every candidate, asked
-    // here so the swap either happens whole or not at all: a variant that
-    // fails one never reaches the gates as its row's answer.
-    let upgraded = candidate(variant, input);
-    let clears = fits_footprint(upgraded.entry, &upgraded.footprint, budget)
-        && !provably_too_slow(&upgraded.decode)
-        && dense_speed_floor(upgraded.entry).is_none_or(|line| upgraded.decode.floor() >= line);
-    clears.then_some(variant).unwrap_or(row)
+/// Whether a candidate clears, on its own numbers, the gates the chooser
+/// applies below — the same predicates `runnable_on` applies to every
+/// candidate, asked here so the swap either happens whole or not at all.
+fn clears_the_gates(candidate: &Candidate, input: &ChoiceInput, budget: &MemoryBudget) -> bool {
+    fits_footprint(candidate.entry, &candidate.footprint, budget)
+        && !provably_too_slow(&candidate.decode)
+        && dense_speed_floor(candidate.entry).is_none_or(|line| candidate.decode.floor() >= line)
+        && !(full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES)
 }
 
-/// The chooser's candidates, one per row, served as the rule decides — each
-/// beside its owning row's entry, paired by structure where the table nests
-/// it.
-pub(crate) fn resolved(input: &ChoiceInput) -> Vec<(&'static ModelEntry, Candidate<'static>)> {
+/// The chooser's candidates over any pairing: one per row, served as the
+/// rule decides, each candidate built once and returned beside its owning
+/// row's entry — paired by structure where the table nests it.
+pub(crate) fn resolved_in<'a>(
+    pairs: impl Iterator<Item = (UsableEntry<'a>, Option<UsableEntry<'a>>)>,
+    input: &ChoiceInput,
+) -> Vec<(&'a ModelEntry, Candidate<'a>)> {
     let budget = memory_budget(input.backend, input.ram_bytes);
-    manifest::usable_with_q8()
+    pairs
         .map(|(row, variant)| {
-            let served = serve(row, variant, input, &budget);
-            (row.entry(), candidate(served, input))
+            let base = candidate(row, input);
+            let served = variant
+                .filter(|_| input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND)
+                .map(|variant| candidate(variant, input))
+                .filter(|upgraded| clears_the_gates(upgraded, input, &budget))
+                .unwrap_or(base);
+            (row.entry(), served)
         })
         .collect()
+}
+
+/// The chooser's candidates, one per row, served as the rule decides.
+pub(crate) fn resolved(input: &ChoiceInput) -> Vec<(&'static ModelEntry, Candidate<'static>)> {
+    resolved_in(manifest::usable_with_q8(), input)
 }
 
 /// The menu as the chooser serves it on this machine: one entry per row —
@@ -64,7 +68,15 @@ pub(crate) fn resolved(input: &ChoiceInput) -> Vec<(&'static ModelEntry, Candida
 pub fn served(input: &ChoiceInput) -> Vec<UsableEntry<'static>> {
     let budget = memory_budget(input.backend, input.ram_bytes);
     manifest::usable_with_q8()
-        .map(|(row, variant)| serve(row, variant, input, &budget))
+        .map(|(row, variant)| match variant {
+            Some(variant)
+                if input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND
+                    && clears_the_gates(&candidate(variant, input), input, &budget) =>
+            {
+                variant
+            }
+            _ => row,
+        })
         .collect()
 }
 
@@ -145,11 +157,34 @@ mod tests {
             Prediction::Measured {
                 tokens_per_second, ..
             } => assert!(
-                (tokens_per_second - 23.90).abs() < 1e-9,
+                (tokens_per_second - 19.81).abs() < 1e-9,
                 "{tokens_per_second}"
             ),
             other => panic!("in band, the Q8 anchor is the answer: {other:?}"),
         }
+    }
+
+    #[test]
+    fn the_served_q8_prediction_never_exceeds_the_q4_one() {
+        // The two anchors are one build's ratio apart (23.90/24.66), scaled
+        // onto the row's own anchor — so on the machine both describe, the
+        // file the rule serves must never read faster than the one it
+        // replaces. 19.81 against 20.44 at 400 GB/s.
+        let input = mac(64, 400.0);
+        let (row, variant) = manifest::usable_with_q8()
+            .find(|(row, _)| row.entry().repo == "google/gemma-4-12B-it")
+            .expect("the row with a variant");
+        let (_, served) = resolved_in(std::iter::once((row, variant)), &input)
+            .pop()
+            .expect("the pairing answers once");
+        assert_eq!(served.entry.quant, "Q8_0", "the premise: Q8 is served here");
+        let q4 = candidate(row, &input);
+        assert!(
+            served.decode.floor() <= q4.decode.floor(),
+            "Q8 at {:.2} must not outrun Q4 at {:.2}",
+            served.decode.floor(),
+            q4.decode.floor()
+        );
     }
 
     #[test]
@@ -250,10 +285,11 @@ mod tests {
             fits_footprint(q8.entry, &q8.footprint, &budget),
             "the premise: memory is not what stops this variant"
         );
-        assert_eq!(
-            serve(row, Some(variant), &input, &budget).entry().quant,
-            "Q4_K_M"
-        );
+        let served = resolved_in(usable_with_q8_in(&table), &input)
+            .pop()
+            .map(|(_, served)| served)
+            .expect("the pairing answers once");
+        assert_eq!(served.entry.quant, "Q4_K_M");
     }
 
     #[test]

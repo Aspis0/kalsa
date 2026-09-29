@@ -643,8 +643,8 @@ fn a_q8_variant_is_its_row_except_for_the_bigger_file() {
         assert!(up.weights_bytes > base.weights_bytes, "{}", base.repo);
         assert_ne!(up.measured_decode, base.measured_decode, "{}", base.repo);
     }
-    // And the pairing the chooser walks is the variant rows, gated exactly
-    // as their owners are: one today, keyed by the row that owns it.
+    // And the pairing the chooser walks: each entry gated by its own
+    // standing — one variant on the menu today, keyed by its row.
     let keyed: Vec<(&str, &str)> = usable_with_q8()
         .filter_map(|(_, variant)| variant)
         .map(|variant| (variant.entry().repo, variant.entry().quant))

@@ -766,9 +766,9 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // row's own argv, q8_0 KV, 65_536 context), so the cache arithmetic
     // carries over.
     //
-    // The anchor is the spec doc's llama-bench tg128 for THIS file: 23.90
-    // against Q4's 24.66 on the same build (its lines 386–387) — the same
-    // protocol as the row's own 20.44 anchor (COMPUTE-BUFFERS-DENSE.md:430).
+    // The anchor is the row's own 20.44 scaled by the same-build llama-bench
+    // ratio 23.90/24.66 (SPEC-GEMMA12B-MTP doc lines 386–387) = 19.81: Q8
+    // measured slower than Q4 on one build, never faster.
     DownloadableEntry {
         model: ModelEntry {
             repo: "google/gemma-4-12B-it",
@@ -863,11 +863,11 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
                 dense_equivalent: None,
                 kv_assumption_undercounts: false,
                 measured_decode: Some(MeasuredDecode {
-                    tokens_per_second: 23.90,
+                    tokens_per_second: 19.81,
                     backend: Backend::Metal,
                     bandwidth_bytes_per_second: 400.0e9,
-                    measured_on: "M1 Max (llama-bench tg128, Metal, flash-attention, all layers \
-                                  on GPU, fork build 11205), 2026-09-29",
+                    measured_on: "M1 Max (the row's 20.44 anchor × the same-build llama-bench \
+                                  Q8/Q4 ratio 23.90/24.66), 2026-09-29",
                 }),
                 trained_context_tokens: Some(131_072),
                 stale: None,
