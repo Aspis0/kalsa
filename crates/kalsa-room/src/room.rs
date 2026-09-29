@@ -1,38 +1,43 @@
-//! The room's state and rules: posting with idempotency, history pages,
-//! and the subscribe primitive. The transcript file underneath it is
-//! `log`'s business, the display names are `names`' business; who the
-//! members are is nobody's here.
+//! The room itself: opening the store, posting with idempotency, and
+//! history pages. The transcript file is `log`'s business, the roster is
+//! `roster`'s, enrollment and names are `members`', the live stream is
+//! `events`'.
+//!
+//! Two locks, one rule each. The WRITE lock serializes writers and holds
+//! every disk fsync; the STATE lock guards only what readers see, so a
+//! reader never waits on a writer's fsync — the entry is appended and
+//! synced first, then published into the readers' state under the short
+//! lock, then the waiters are woken. Writers take the locks in one order
+//! (write, then state) and readers take only state, so the two never
+//! circle; the write lock is held across the publish, which is what keeps
+//! one seq order under concurrency.
 
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::{Condvar, Mutex, MutexGuard};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::events::StoredEvent;
 use crate::log::{self, Message};
-use crate::names::{self, NameError};
-use crate::{MemberId, RoomError};
+use crate::roster::{self, Roster};
+use crate::{Entry, MemberId, RoomError};
 
-/// The most text one message may carry, in UTF-8 bytes.
-const MAX_TEXT_BYTES: usize = 8000;
-/// The most a client message id may be. ASCII graphic characters only, so
-/// it survives logs, JSON, and a phone's storage unchanged.
-const MAX_CLIENT_MSG_ID: usize = 64;
-
-/// What `read_since` got for its wait.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Take {
-    Events,
-    TimedOut,
-}
-
-/// Why a post was refused. The caller turns these into sentences; the store
-/// only refuses.
+/// Why a post was refused. The words below are all a client ever sees; the
+/// io error stays in the value for the app's local log, where paths
+/// belong.
 #[derive(Debug)]
 pub enum PostError {
     EmptyText,
     TextTooLong,
     BadClientMsgId,
+    /// One client_msg_id, one message: a retry with different words or a
+    /// different flag is a disagreement, not a retry.
+    ClientIdReused,
+    NotAMember,
+    /// The transcript could not be repaired at open. Reads serve what is
+    /// intact; writes are refused until a reopen succeeds.
+    ReadOnly,
     Io(std::io::Error),
 }
 
@@ -42,241 +47,292 @@ impl std::fmt::Display for PostError {
             Self::EmptyText => f.write_str("a message needs text"),
             Self::TextTooLong => f.write_str("the message is too long"),
             Self::BadClientMsgId => f.write_str("the client message id is malformed"),
-            Self::Io(error) => write!(f, "room store: {error}"),
+            Self::ClientIdReused => {
+                f.write_str("that client message id was already used for a different message")
+            }
+            Self::NotAMember => f.write_str("that member cannot post in this room"),
+            Self::ReadOnly => {
+                f.write_str("the room's transcript needs repair; posts are refused until it is reopened")
+            }
+            Self::Io(_) => f.write_str("the room's store failed on disk"),
         }
     }
 }
 
-/// The open room. Shared as `Arc<Room>`: one writer at a time under the
-/// lock, any number of readers, new entries waking every waiter.
 pub struct Room {
-    inner: Mutex<Inner>,
-    signal: Condvar,
+    pub(crate) dir: PathBuf,
+    write: Mutex<Writer>,
+    state: Mutex<State>,
+    pub(crate) signal: Condvar,
 }
 
-struct Inner {
-    /// The transcript, seq-ascending by construction: entry `i` has seq
-    /// `i + 1`. This is what makes a cursor an index and history a slice.
-    messages: Vec<Message>,
-    /// The idempotency table: `(member, client_msg_id)` to the seq it
-    /// already got. Rebuilt from the transcript at every open, so a retry
-    /// that crosses a restart still finds its message.
-    by_client: HashMap<(u32, String), u64>,
-    /// Display names members set. A member absent here is showing its
-    /// device label, which the pairing store holds, not this crate.
-    names: HashMap<MemberId, String>,
+pub(crate) struct Writer {
     file: File,
-    names_path: PathBuf,
+    writable: bool,
+}
+
+pub(crate) struct State {
+    pub(crate) messages: Vec<Arc<Message>>,
+    /// (author, client_msg_id) → the seq it got. Only member entries are
+    /// keyed: an AI entry has no idempotency key.
+    pub(crate) by_client: HashMap<(MemberId, String), u64>,
+    pub(crate) events: Vec<StoredEvent>,
+    pub(crate) roster: Roster,
 }
 
 impl Room {
     /// Opens the room in `dir`, which the app owns and must already exist —
-    /// the same rule the pairing store states. Creates the transcript file
-    /// if this is the room's first opening, recovers a torn last line if it
-    /// is not, and refuses a transcript that disagrees with itself.
+    /// the same rule the pairing store states. The directory is narrowed
+    /// to owner-only (the transcript, the roster and the damaged-byte
+    /// copies all live in it); the transcript is created owner-only or
+    /// recovered from damage; a roster the store cannot trust refuses the
+    /// room whole.
     pub fn open(dir: &Path) -> Result<Self, RoomError> {
-        let file = OpenOptions::new()
-            .read(true)
-            .append(true)
-            .create(true)
-            .open(dir.join("room-log.jsonl"))?;
-        let names_path = dir.join("room-names.json");
-        let messages = log::load(&file)?;
-        let by_client = rebuild_by_client(&messages)?;
-        let names = names::load(&names_path)?;
+        tighten_dir(dir)?;
+        let opened = log::open(&dir.join(log::LOG_NAME))?;
+        let roster = roster::load(&dir.join(roster::ROSTER_NAME))?;
+        let messages: Vec<Arc<Message>> = opened.messages.into_iter().map(Arc::new).collect();
+        let events = messages
+            .iter()
+            .map(|message| StoredEvent::Message(Arc::clone(message)))
+            .collect();
         Ok(Self {
-            inner: Mutex::new(Inner {
+            dir: dir.to_path_buf(),
+            write: Mutex::new(Writer {
+                file: opened.file,
+                writable: opened.writable,
+            }),
+            state: Mutex::new(State {
+                by_client: by_client_of(&messages),
                 messages,
-                by_client,
-                names,
-                file,
-                names_path,
+                events,
+                roster,
             }),
             signal: Condvar::new(),
         })
     }
 
     /// Appends one message and answers it. The same `(member,
-    /// client_msg_id)` never posts twice: the seq the first attempt got is
-    /// the seq every retry sees, so a phone that queues messages while the
-    /// host sleeps can retry on every wake without a duplicate ever
-    /// landing.
+    /// client_msg_id)`, with the same text and flag, never posts twice:
+    /// the seq the first attempt got is the seq every retry sees, so a
+    /// phone that queues messages while the host sleeps can retry on every
+    /// wake without a duplicate ever landing. The same id with DIFFERENT
+    /// words or flag is refused: one id, one message.
     pub fn post(
         &self,
         member: MemberId,
         client_msg_id: &str,
         text: &str,
         call_ai: bool,
-    ) -> Result<Message, PostError> {
-        if client_msg_id.is_empty()
-            || client_msg_id.len() > MAX_CLIENT_MSG_ID
-            || !client_msg_id
-                .bytes()
-                .all(|byte| (0x21..=0x7e).contains(&byte))
-        {
+    ) -> Result<Entry, PostError> {
+        if !log::is_client_msg_id(client_msg_id) {
             return Err(PostError::BadClientMsgId);
         }
         if text.is_empty() {
             return Err(PostError::EmptyText);
         }
-        if text.len() > MAX_TEXT_BYTES {
+        if text.len() > log::MAX_TEXT_BYTES {
             return Err(PostError::TextTooLong);
         }
-        let mut inner = self.lock();
-        if let Some(seq) = inner.by_client.get(&(member.value(), client_msg_id.to_string())) {
-            return Ok(inner.messages[*seq as usize - 1].clone());
+        let mut writer = self.lock_write();
+        if !writer.writable {
+            return Err(PostError::ReadOnly);
         }
-        let message = Message {
-            seq: inner.messages.len() as u64 + 1,
-            member,
-            client_msg_id: client_msg_id.to_string(),
-            text: text.to_string(),
-            time: now(),
-            call_ai,
+        let fresh = {
+            let state = self.lock_state();
+            if !state.roster.is_live(member) {
+                return Err(PostError::NotAMember);
+            }
+            match state
+                .by_client
+                .get(&(member, client_msg_id.to_string()))
+                .copied()
+            {
+                Some(seq) => {
+                    let stored = &state.messages[seq as usize - 1];
+                    if stored.text == text && stored.call_ai == call_ai {
+                        return Ok(Entry::of(stored));
+                    }
+                    return Err(PostError::ClientIdReused);
+                }
+                None => Message {
+                    seq: state.messages.len() as u64 + 1,
+                    member,
+                    client_msg_id: client_msg_id.to_string(),
+                    text: text.to_string(),
+                    time: now(),
+                    call_ai,
+                },
+            }
         };
-        // Disk first, memory second: an entry exists when it is on disk,
-        // not when a `Vec` says so. If the append's fate is uncertain, the
-        // reload learns it from the file — a write that landed is found and
-        // answered as the idempotent replay it now is; a torn fragment is
-        // truncated away and the refusal is honest.
-        if let Err(error) = log::append(&inner.file, &message) {
-            inner.messages = match log::load(&inner.file) {
-                Ok(messages) => messages,
-                Err(recovery) => return Err(PostError::Io(io_of(recovery))),
-            };
-            inner.by_client = rebuild_by_client(&inner.messages)
-                .map_err(|error| PostError::Io(io_of(error)))?;
-            return match inner.by_client.get(&(member.value(), client_msg_id.to_string())) {
-                Some(seq) => Ok(inner.messages[*seq as usize - 1].clone()),
-                None => Err(PostError::Io(error)),
-            };
+        if let Err(error) = log::append(&mut writer.file, &fresh) {
+            return self.after_failed_append(&mut writer, fresh, error);
         }
-        inner.by_client.insert(
-            (member.value(), client_msg_id.to_string()),
-            message.seq,
-        );
-        inner.messages.push(message.clone());
-        drop(inner);
-        self.signal.notify_all();
-        Ok(message)
+        Ok(self.land(fresh))
     }
 
-    /// Sets the member's display name. Setting the name it already has
-    /// changes nothing and writes nothing. The file is published before the
-    /// memory changes, on the same disk-first rule as a post.
-    pub fn set_name(&self, member: MemberId, name: &str) -> Result<String, NameError> {
-        let name = names::valid(name)?;
-        let mut inner = self.lock();
-        if inner.names.get(&member).map(String::as_str) == Some(name.as_str()) {
-            return Ok(name);
+    /// The AI's own finished answer, appended to the transcript like any
+    /// entry — its own seq, no idempotency key, because nobody retries an
+    /// AI turn by id. The flag is true because an answer belongs to a
+    /// called turn, the only way the AI ever speaks (the protocol's
+    /// `ai_message` shape).
+    pub fn post_ai(&self, text: &str) -> Result<Entry, PostError> {
+        if text.is_empty() {
+            return Err(PostError::EmptyText);
         }
-        let mut updated = inner.names.clone();
-        updated.insert(member, name.clone());
-        names::publish(&inner.names_path, &updated).map_err(NameError::Io)?;
-        inner.names = updated;
-        Ok(name)
+        if text.len() > log::MAX_TEXT_BYTES {
+            return Err(PostError::TextTooLong);
+        }
+        let mut writer = self.lock_write();
+        if !writer.writable {
+            return Err(PostError::ReadOnly);
+        }
+        let fresh = {
+            let state = self.lock_state();
+            Message {
+                seq: state.messages.len() as u64 + 1,
+                member: MemberId::Ai,
+                client_msg_id: String::new(),
+                text: text.to_string(),
+                time: now(),
+                call_ai: true,
+            }
+        };
+        if let Err(error) = log::append(&mut writer.file, &fresh) {
+            return self.after_failed_append(&mut writer, fresh, error);
+        }
+        Ok(self.land(fresh))
     }
 
-    /// The display name a member set, if it set one.
-    pub fn name_of(&self, member: MemberId) -> Option<String> {
-        self.lock().names.get(&member).cloned()
-    }
-
-    /// Up to `limit` entries older than `before`, oldest first — the page a
-    /// scroll-up asks for. `before` beyond the newest is the whole
-    /// transcript's tail, which is also what a page with no cursor means.
-    pub fn page_before(&self, before: u64, limit: usize) -> Vec<Message> {
-        let inner = self.lock();
-        let end = inner
-            .messages
-            .partition_point(|message| message.seq < before);
-        let start = end.saturating_sub(limit);
-        inner.messages[start..end].to_vec()
-    }
-
-    /// Up to `limit` entries newer than `after`, oldest first — the page a
-    /// catch-up asks for.
-    pub fn page_after(&self, after: u64, limit: usize) -> Vec<Message> {
-        let inner = self.lock();
-        let start = inner
-            .messages
-            .partition_point(|message| message.seq <= after);
-        let end = (start + limit).min(inner.messages.len());
-        inner.messages[start..end].to_vec()
-    }
-
-    /// The cursor a fresh subscriber starts from to see only what happens
-    /// from now on. Cursor 0 replays the whole transcript.
-    pub fn next_cursor(&self) -> usize {
-        self.lock().messages.len()
-    }
-
-    /// Blocks until transcript entries after `cursor` exist or the deadline
-    /// passes, then hands them out in order and moves the cursor past them.
-    /// The door's job log is the shape being copied (`kalsa-door/src/jobs.rs`):
-    /// wait on the shared condvar, clone under the lock, serve outside it.
-    pub fn read_since(
+    /// The append's fate is unknown, so the file is asked. A reopen that
+    /// finds the entry proves it landed — answer it as the entry it now
+    /// is; anything else refuses, read-only when the reopen could not
+    /// repair, the io error itself when it could and the entry simply is
+    /// not there.
+    fn after_failed_append(
         &self,
-        cursor: &mut usize,
-        deadline: Instant,
-        out: &mut Vec<Message>,
-    ) -> Take {
-        let mut inner = self.lock();
-        loop {
-            if *cursor < inner.messages.len() {
-                out.extend(inner.messages[*cursor..].iter().cloned());
-                *cursor = inner.messages.len();
-                return Take::Events;
-            }
-            let Some(wait) = deadline.checked_duration_since(Instant::now()) else {
-                return Take::TimedOut;
-            };
-            let (next, timed_out) = self
-                .signal
-                .wait_timeout(inner, wait)
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            inner = next;
-            if timed_out.timed_out() && Instant::now() >= deadline {
-                return Take::TimedOut;
-            }
+        writer: &mut Writer,
+        message: Message,
+        error: std::io::Error,
+    ) -> Result<Entry, PostError> {
+        let reopened = log::open(&self.dir.join(log::LOG_NAME))
+            .map_err(|failure| PostError::Io(io_of(failure)))?;
+        writer.file = reopened.file;
+        writer.writable = reopened.writable;
+        let landed = reopened
+            .messages
+            .last()
+            .filter(|landed| {
+                landed.seq == message.seq
+                    && landed.member == message.member
+                    && landed.client_msg_id == message.client_msg_id
+                    && landed.text == message.text
+            })
+            .cloned();
+        match landed {
+            Some(landed) => Ok(self.land(landed)),
+            None if !writer.writable => Err(PostError::ReadOnly),
+            None => Err(PostError::Io(error)),
         }
     }
 
-    fn lock(&self) -> MutexGuard<'_, Inner> {
-        self.inner
+    /// Publishes a durable entry to the readers: the memory, the
+    /// idempotency key, the numbered event, then the wake. Called with the
+    /// write lock held, after the entry is on disk — the disk leads, the
+    /// memory follows, and a reader between the two sees the room as it
+    /// was, never a room that is not.
+    fn land(&self, message: Message) -> Entry {
+        let shared = Arc::new(message);
+        {
+            let mut state = self.lock_state();
+            if shared.member != MemberId::Ai {
+                state
+                    .by_client
+                    .insert((shared.member, shared.client_msg_id.clone()), shared.seq);
+            }
+            state.events.push(StoredEvent::Message(Arc::clone(&shared)));
+            state.messages.push(Arc::clone(&shared));
+        }
+        self.notify();
+        Entry::of(&shared)
+    }
+
+    // Poison policy, decided once for both locks: a panicked critical
+    // section does not lock the room out. Every write is disk-first — the
+    // file is the truth and memory only catches up — so the state a panic
+    // leaves behind is at worst BEHIND the file, never ahead of it. The
+    // one divergence a panic can strand (the instant between a successful
+    // fsync and the memory publish) heals at the next reopen; a panic
+    // inside the publish itself is a bug no policy here could paper over.
+    // The door's job log keeps the same discipline.
+
+    pub(crate) fn lock_write(&self) -> MutexGuard<'_, Writer> {
+        self.write
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
-}
 
-/// Rebuilds the idempotency table from a transcript. A `(member,
-/// client_msg_id)` appearing twice would mean the store promised one seq
-/// for an id and logged another — corrupt, not to be served.
-fn rebuild_by_client(messages: &[Message]) -> Result<HashMap<(u32, String), u64>, RoomError> {
-    let mut by_client = HashMap::new();
-    for message in messages {
-        let key = (message.member.value(), message.client_msg_id.clone());
-        if by_client.insert(key, message.seq).is_some() {
-            return Err(RoomError::Corrupt(
-                "one client message id holds two transcript entries",
-            ));
-        }
+    pub(crate) fn lock_state(&self) -> MutexGuard<'_, State> {
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
-    Ok(by_client)
+
+    pub(crate) fn notify(&self) {
+        self.signal.notify_all();
+    }
 }
 
+/// The idempotency table off a transcript the loader already validated:
+/// one key on two entries is refused there, so it cannot happen here —
+/// collect, don't re-check.
+fn by_client_of(messages: &[Arc<Message>]) -> HashMap<(MemberId, String), u64> {
+    messages
+        .iter()
+        .filter(|message| message.member != MemberId::Ai)
+        .map(|message| {
+            (
+                (message.member, message.client_msg_id.clone()),
+                message.seq,
+            )
+        })
+        .collect()
+}
+
+/// Unix seconds, and 0 — an honest unknown — on a clock set before the
+/// epoch: never a panic, and never inside a lock's critical section.
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("the clock is set after 1970")
-        .as_secs()
+        .map(|since| since.as_secs())
+        .unwrap_or(0)
 }
 
-/// A failed append's recovery failure, as the io error the caller sees. A
-/// corrupt transcript is not retryable, so it does not become one.
+/// A recovery failure as the io error the caller sees. A corrupt file is
+/// not retryable, so it does not become one.
 fn io_of(error: RoomError) -> std::io::Error {
     match error {
         RoomError::Io(error) => error,
         RoomError::Corrupt(why) => std::io::Error::other(why),
+        RoomError::RosterFull => std::io::Error::other("the room has more members than it can name"),
     }
+}
+
+/// The room's directory is owner-only: the transcript, the roster and the
+/// damaged-byte copies all live in it, and a wider directory would undo
+/// their 0600 files for anyone who can walk the path. Narrowed, never
+/// widened: a directory already stricter than 0700 is the owner's choice.
+#[cfg(unix)]
+fn tighten_dir(dir: &Path) -> Result<(), RoomError> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = std::fs::metadata(dir)?.permissions().mode() & 0o777;
+    if mode & !0o700 != 0 {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn tighten_dir(_dir: &Path) -> Result<(), RoomError> {
+    Ok(())
 }

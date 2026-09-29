@@ -1,63 +1,112 @@
 //! The transcript file: `room-log.jsonl`, one JSON line per entry, in the
-//! order they were accepted.
+//! order they were accepted — and the recovery that keeps damage from
+//! costing the room.
 //!
 //! An append-log and a published document fail differently, which is why
 //! this file does not ride the pairing store's temp-and-rename publication:
 //! publishing would rewrite the whole transcript on every message. Here the
-//! atomic unit is the line — written in one `write_all`, `sync_all`ed
-//! before the caller counts it — so a crash leaves either the complete line
-//! or a torn fragment, and nothing before it.
+//! atomic unit is the line — one `write_all`, `sync_all` before the caller
+//! counts it — so a crash leaves either the complete line or a torn
+//! fragment, and nothing before it.
 //!
-//! A torn fragment is recovered at load: a tail that parses but lost its
-//! newline has the newline rewritten; a tail that does not parse is
-//! truncated back to the last complete line. Both recoveries happen before
-//! the room opens, so an append can never land against a damaged tail.
-//! Damage anywhere else — a middle line that will not parse, numbering with
-//! a gap or a repeat, a line from a newer format — refuses the room. The
-//! numbering check is possible because seqs are minted as `index + 1` and
-//! never otherwise; a file that disagrees was not written by this store.
+//! Damage has two shapes and neither is fatal. A TORN TAIL (an incomplete
+//! last line) is cut back to the last complete line; a tail that parses but
+//! lost only its newline has the newline rewritten. MIDDLE DAMAGE — a line
+//! that does not parse, numbering with a gap or a repeat, a record from a
+//! newer format, one idempotency key on two entries — recovers the LONGEST
+//! VALID PREFIX: every byte the recovery drops is first copied, byte for
+//! byte, to `room-log.damaged-<time>.jsonl` beside the transcript
+//! (owner-only, the pairing publication), and the live file is rewritten to
+//! the prefix. Nothing is dropped without its copy existing. When even that
+//! write fails, the file is left exactly as it was and the room opens
+//! READ-ONLY: reads serve the intact prefix, posts are refused, and the
+//! next open tries the recovery again.
+//!
+//! The file and the directory the first creation lands in are owner-only.
+//! An existing file wider than `0600` is narrowed at open — the transcript
+//! sits beside credentials and is nobody else's to read.
 
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::collections::HashSet;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::MemberId;
-use crate::RoomError;
+use crate::recovery;
+use crate::{MemberId, RoomError};
 
-/// The line format this build writes and the only one it reads.
+pub(crate) const LOG_NAME: &str = "room-log.jsonl";
 const LINE_VERSION: u8 = 1;
+/// The most text one entry may carry, in UTF-8 bytes.
+pub(crate) const MAX_TEXT_BYTES: usize = 8000;
+/// The most a client message id may be, ASCII graphic characters only, so
+/// it survives logs, JSON, and a phone's storage unchanged.
+pub(crate) const MAX_CLIENT_MSG_ID: usize = 64;
 
-/// One transcript entry as it is stored: the disk's shell for a [`Message`].
-#[derive(Clone, Serialize, Deserialize)]
+/// How a line says who wrote it. `member` is a phone or the host; `ai` is
+/// the assistant's own finished answer, which takes a seq like any entry
+/// but carries no idempotency key — nobody retries an AI turn by id.
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+enum LineKind {
+    #[serde(rename = "member")]
+    Member,
+    #[serde(rename = "ai")]
+    Ai,
+}
+
+#[derive(Serialize, Deserialize)]
 struct Record {
     v: u8,
+    kind: LineKind,
     seq: u64,
     client_msg_id: String,
-    member_id: u32,
+    member: u32,
     text: String,
     time: u64,
     call_ai: bool,
 }
 
-impl Record {
-    fn of(message: &Message) -> Self {
-        Self {
-            v: LINE_VERSION,
-            seq: message.seq,
-            client_msg_id: message.client_msg_id.clone(),
-            member_id: message.member.value(),
-            text: message.text.clone(),
-            time: message.time,
-            call_ai: message.call_ai,
-        }
-    }
+/// One transcript entry, in memory. Not the public shape: the door never
+/// hands a `client_msg_id` to anyone (the protocol's answers and pages do
+/// not carry it), so the public [`crate::Entry`] drops it and this keeps it
+/// for the store's idempotency work. `Debug` is written by hand because a
+/// derived one would print what people wrote.
+#[derive(Clone)]
+pub(crate) struct Message {
+    pub(crate) seq: u64,
+    pub(crate) member: MemberId,
+    pub(crate) client_msg_id: String,
+    pub(crate) text: String,
+    pub(crate) time: u64,
+    pub(crate) call_ai: bool,
+}
 
-    fn message(&self) -> Message {
-        Message {
+impl std::fmt::Debug for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "entry {} by {:?} at {} ({} bytes)",
+            self.seq,
+            self.member,
+            self.time,
+            self.text.len()
+        )
+    }
+}
+
+impl Message {
+    fn record(&self) -> Record {
+        Record {
+            v: LINE_VERSION,
+            kind: if self.member == MemberId::Ai {
+                LineKind::Ai
+            } else {
+                LineKind::Member
+            },
             seq: self.seq,
-            member: MemberId::device(self.member_id),
             client_msg_id: self.client_msg_id.clone(),
+            member: self.member.wire(),
             text: self.text.clone(),
             time: self.time,
             call_ai: self.call_ai,
@@ -65,89 +114,163 @@ impl Record {
     }
 }
 
-/// One transcript entry as the room hands it out.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Message {
-    pub seq: u64,
-    pub member: MemberId,
-    pub client_msg_id: String,
-    pub text: String,
-    pub time: u64,
-    pub call_ai: bool,
+/// The one client_msg_id rule, shared by the posting path and the loader:
+/// whatever the store refuses to write, it also refuses to read back.
+pub(crate) fn is_client_msg_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_CLIENT_MSG_ID
+        && id.bytes().all(|byte| (0x21..=0x7e).contains(&byte))
+}
+
+/// What `open` found on disk: the entries the room may serve, the handle to
+/// append with, and whether appending is allowed at all.
+pub(super) struct Opened {
+    pub(super) messages: Vec<Message>,
+    pub(super) file: File,
+    pub(super) writable: bool,
+}
+
+pub(super) fn open(path: &Path) -> Result<Opened, RoomError> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let file = recovery::create(path)?;
+            return Ok(Opened {
+                messages: Vec::new(),
+                file,
+                writable: true,
+            });
+        }
+        Err(error) => return Err(error.into()),
+    };
+    recovery::tighten(path)?;
+    let complete = match bytes.iter().rposition(|byte| *byte == b'\n') {
+        Some(last) => last + 1,
+        // No newline anywhere: the whole file is a tail, and the tail gets
+        // the recovery rules, not the refusal a middle line would earn.
+        None => 0,
+    };
+    let (mut messages, valid) = parse_prefix(&bytes, complete);
+    let mut writable = true;
+    if valid < complete {
+        writable = recovery::recover(path, &bytes, valid);
+    } else if complete < bytes.len() {
+        let mut checker = Checker::of(&messages);
+        match serde_json::from_slice::<Record>(&bytes[complete..])
+            .ok()
+            .and_then(|record| checker.check(record, messages.len() as u64 + 1))
+        {
+            Some(message) => {
+                if recovery::repair_newline(path) {
+                    messages.push(message);
+                } else {
+                    // The fragment stays on disk; the room must not append
+                    // after it. Nothing is dropped, so no copy is owed.
+                    writable = false;
+                }
+            }
+            None => writable = recovery::recover(path, &bytes, valid),
+        }
+    }
+    let file = OpenOptions::new().read(true).append(true).open(path)?;
+    Ok(Opened {
+        messages,
+        file,
+        writable,
+    })
 }
 
 /// Appends one entry as a single complete line and makes it stick. The
-/// caller holds the room's lock: this file has one writer per process, the
-/// same single-writer assumption every store in this app states.
-pub(super) fn append(mut file: &File, message: &Message) -> std::io::Result<()> {
-    let mut line = serde_json::to_vec(&Record::of(message))
-        .expect("a transcript record always serializes");
+/// caller holds the room's write lock: one writer per process, the same
+/// single-writer assumption every store in this app states.
+pub(super) fn append(file: &mut File, message: &Message) -> std::io::Result<()> {
+    let mut line =
+        serde_json::to_vec(&message.record()).expect("a transcript record always serializes");
     line.push(b'\n');
     file.write_all(&line)?;
     file.sync_all()
 }
 
-/// Reads the whole transcript back, recovering a torn last line first. The
-/// file handle is the open room's own: append mode writes at the end
-/// regardless of the read cursor this function leaves behind.
-pub(super) fn load(mut file: &File) -> Result<Vec<Message>, RoomError> {
-    let mut bytes = Vec::new();
-    let mut reader = file;
-    reader.seek(SeekFrom::Start(0))?;
-    reader.read_to_end(&mut bytes)?;
+/// Walks the complete-line region, accepting entries until the first line
+/// that fails any rule, and answers the accepted prefix with the byte
+/// offset it ends at.
+fn parse_prefix(bytes: &[u8], complete: usize) -> (Vec<Message>, usize) {
+    let mut messages = Vec::new();
+    let mut checker = Checker::of(&[]);
+    let mut start = 0;
+    while start < complete {
+        let end = start + bytes[start..complete]
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .expect("the complete region ends at a newline");
+        match serde_json::from_slice::<Record>(&bytes[start..end])
+            .ok()
+            .and_then(|record| checker.check(record, messages.len() as u64 + 1))
+        {
+            Some(message) => messages.push(message),
+            None => return (messages, start),
+        }
+        start = end + 1;
+    }
+    (messages, complete)
+}
 
-    // No newline anywhere means the whole file is the tail: the very first
-    // append was torn. There are no complete lines, and the tail gets the
-    // recovery, not the refusal.
-    let (complete, tail) = match bytes.iter().rposition(|byte| *byte == b'\n') {
-        Some(last) => (&bytes[..=last], Some(&bytes[last + 1..])),
-        None => (&bytes[..0], (!bytes.is_empty()).then_some(&bytes[..])),
-    };
-    let mut messages = parse_lines(complete)?;
-    let torn_newline = match tail {
-        None | Some([]) => false,
-        Some(tail) => match serde_json::from_slice::<Record>(tail) {
-            Ok(record) => {
-                messages.push(record.message());
-                true
-            }
-            Err(_) => {
-                truncate(file, complete.len())?;
-                false
-            }
-        },
-    };
-    for (index, message) in messages.iter().enumerate() {
-        if message.seq != index as u64 + 1 {
-            return Err(RoomError::Corrupt(
-                "transcript numbering has a gap or a repeat",
-            ));
+/// The per-line and cross-line rules a transcript must satisfy to be
+/// served: the version, the kind's agreement with its member, the
+/// numbering, the shape limits, and one idempotency key per member entry.
+struct Checker {
+    seen: HashSet<(u32, String)>,
+}
+
+impl Checker {
+    fn of(messages: &[Message]) -> Self {
+        Self {
+            seen: messages
+                .iter()
+                .filter(|message| message.member != MemberId::Ai)
+                .map(|message| (message.member.wire(), message.client_msg_id.clone()))
+                .collect(),
         }
     }
-    if torn_newline {
-        file.write_all(b"\n")?;
-        file.sync_all()?;
-    }
-    Ok(messages)
-}
 
-/// Parses complete newline-terminated lines. One bad line in the middle is
-/// not a torn tail — it is corruption this store cannot date, and refusing
-/// is the only honest answer.
-fn parse_lines(complete: &[u8]) -> Result<Vec<Message>, RoomError> {
-    complete
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| match serde_json::from_slice::<Record>(line) {
-            Ok(record) if record.v == LINE_VERSION => Ok(record.message()),
-            Ok(_) => Err(RoomError::Corrupt("transcript line is from a newer format")),
-            Err(_) => Err(RoomError::Corrupt("a transcript line does not parse")),
+    fn check(&mut self, record: Record, expected_seq: u64) -> Option<Message> {
+        let member = MemberId::from_wire(record.member);
+        let kind = if member == MemberId::Ai {
+            LineKind::Ai
+        } else {
+            LineKind::Member
+        };
+        if record.v != LINE_VERSION
+            || kind != record.kind
+            || record.seq != expected_seq
+            || record.text.is_empty()
+            || record.text.len() > MAX_TEXT_BYTES
+        {
+            return None;
+        }
+        match record.kind {
+            LineKind::Ai => {
+                if !record.client_msg_id.is_empty() {
+                    return None;
+                }
+            }
+            LineKind::Member => {
+                if !is_client_msg_id(&record.client_msg_id)
+                    || !self
+                        .seen
+                        .insert((record.member, record.client_msg_id.clone()))
+                {
+                    return None;
+                }
+            }
+        }
+        Some(Message {
+            seq: record.seq,
+            member,
+            client_msg_id: record.client_msg_id,
+            text: record.text,
+            time: record.time,
+            call_ai: record.call_ai,
         })
-        .collect()
-}
-
-/// Cuts a torn tail off so the next append lands on a clean end.
-fn truncate(file: &File, keep: usize) -> std::io::Result<()> {
-    file.set_len(keep as u64)?;
-    file.sync_all()
+    }
 }

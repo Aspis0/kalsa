@@ -1,36 +1,53 @@
-//! The subscribe primitive: a waiter sees new entries in order, a fresh
-//! cursor sees only the future, cursor zero replays everything.
+//! The live stream: order, waiting, cursors for a fresh follower and a
+//! reconnect, the unnumbered member news, and the bad cursor.
 
 use std::time::{Duration, Instant};
 
-use super::{member, open, say};
-use crate::Take;
+use super::{open, phone, say};
+use crate::{Event, MemberEvent, Take};
 
 const SHORT: Duration = Duration::from_millis(50);
 
+fn messages(events: &[Event]) -> Vec<u64> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            Event::Message(entry) => Some(entry.seq),
+            Event::Member(_) => None,
+        })
+        .collect()
+}
+
 #[test]
-fn a_waiter_woken_by_a_post_receives_entries_in_order_without_duplicates() {
+fn a_waiter_receives_entries_in_order_without_duplicates() {
     let (_dir, room) = open("subscribe_order");
-    say(&room, member(3), "m1", "already here");
-    let mut cursor = room.next_cursor();
+    say(&room, 3, "m1", "already here");
     let room = std::sync::Arc::new(room);
+    let mut cursor = room.next_cursor();
 
     let writer = {
         let room = room.clone();
         std::thread::spawn(move || {
-            say(&room, member(3), "m2", "one");
-            say(&room, member(4), "m3", "two");
+            say(&room, 3, "m2", "one");
+            say(&room, 4, "m3", "two");
         })
     };
     let mut out = Vec::new();
+    // Two posts may wake the waiter separately or together; drain until
+    // the writer is done and the stream is quiet.
     let deadline = Instant::now() + Duration::from_secs(2);
-    let take = room.read_since(&mut cursor, deadline, &mut out);
+    let mut last = Take::TimedOut;
+    while Instant::now() < deadline && messages(&out) != vec![2, 3] {
+        last = room.read_since(&mut cursor, deadline, &mut out);
+    }
     writer.join().unwrap();
+    while Instant::now() < deadline && messages(&out) != vec![2, 3] {
+        room.read_since(&mut cursor, deadline, &mut out);
+    }
 
-    assert_eq!(take, Take::Events);
-    assert_eq!(out.iter().map(|m| m.seq).collect::<Vec<_>>(), vec![2, 3]);
-    assert_eq!(out[0].text, "one");
-    assert_eq!(cursor, 3);
+    assert_eq!(last, Take::Events);
+    assert_eq!(messages(&out), vec![2, 3]);
+    assert_eq!(cursor, room.next_cursor());
 }
 
 #[test]
@@ -41,47 +58,117 @@ fn a_quiet_wait_times_out_and_leaves_the_cursor_where_it_was() {
     let take = room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
     assert_eq!(take, Take::TimedOut);
     assert!(out.is_empty());
-    assert_eq!(cursor, 0);
+    assert_eq!(cursor, room.next_cursor());
 }
 
 #[test]
 fn cursor_zero_replays_the_whole_transcript() {
     let (_dir, room) = open("subscribe_replay");
-    say(&room, member(3), "m1", "one");
-    say(&room, member(4), "m2", "two");
+    say(&room, 3, "m1", "one");
+    say(&room, 4, "m2", "two");
     let mut cursor = 0;
     let mut out = Vec::new();
     let take = room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
     assert_eq!(take, Take::Events);
-    assert_eq!(out.len(), 2);
+    assert_eq!(messages(&out), vec![1, 2]);
+}
+
+#[test]
+fn a_rename_reaches_a_live_subscriber() {
+    let (_dir, room) = open("subscribe_rename");
+    let member = phone(&room, 3);
+    let mut cursor = room.next_cursor();
+    room.set_name(member, "Marco").expect("the name sets");
+
+    let mut out = Vec::new();
+    let take = room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
+    assert_eq!(take, Take::Events);
+    assert_eq!(
+        out,
+        vec![Event::Member(MemberEvent::Renamed {
+            member,
+            name: "Marco".to_string(),
+        })]
+    );
+}
+
+#[test]
+fn a_forgotten_member_reaches_a_live_subscriber() {
+    let (_dir, room) = open("subscribe_left");
+    let member = phone(&room, 3);
+    let mut cursor = room.next_cursor();
+    room.forget_device(3).expect("the device is forgotten");
+
+    let mut out = Vec::new();
+    room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
+    assert_eq!(out, vec![Event::Member(MemberEvent::Left { member })]);
+}
+
+#[test]
+fn a_reconnect_resumes_after_its_last_seq_and_skips_what_came_before() {
+    let (_dir, room) = open("subscribe_resume");
+    say(&room, 3, "m1", "one");
+    let member = phone(&room, 3);
+    room.set_name(member, "Marco").expect("the name sets");
+    say(&room, 4, "m2", "two");
+
+    // A client that last saw seq 2 missed nothing before it: the rename
+    // that predates its cursor is skipped, not replayed.
+    let mut cursor = room.resume_after_seq(2).expect("seq 2 is a real cursor");
+    let mut out = Vec::new();
+    let take = room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
+    assert_eq!(take, Take::TimedOut);
+    assert!(out.is_empty());
+
+    // A client that last saw seq 1 gets the news after it, in order.
+    let mut cursor = room.resume_after_seq(1).expect("seq 1 is a real cursor");
+    let mut out = Vec::new();
+    room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
+    assert_eq!(
+        out,
+        vec![
+            Event::Member(MemberEvent::Renamed {
+                member,
+                name: "Marco".to_string(),
+            }),
+            Event::Message(room.page_after(1, 1).unwrap().messages.remove(0)),
+        ]
+    );
+}
+
+#[test]
+fn a_cursor_beyond_the_stream_is_refused_not_waited_on() {
+    let (_dir, room) = open("subscribe_bad_cursor");
+    say(&room, 3, "m1", "one");
+    let beyond = room.next_cursor() + 1;
+    let mut cursor = beyond;
+    let mut out = Vec::new();
+    assert_eq!(
+        room.read_since(&mut cursor, Instant::now() + SHORT, &mut out),
+        Take::BadCursor
+    );
+    assert!(
+        room.resume_after_seq(2).is_none(),
+        "a Last-Event-ID above the newest seq claims events that never happened"
+    );
+    assert!(room.resume_after_seq(1).is_some());
 }
 
 #[test]
 fn two_subscribers_each_follow_at_their_own_pace() {
     let (_dir, room) = open("subscribe_two");
-    say(&room, member(3), "m1", "one");
+    say(&room, 3, "m1", "one");
     let mut behind = room.next_cursor();
-    say(&room, member(3), "m2", "two");
+    say(&room, 3, "m2", "two");
     let mut caught_up = room.next_cursor();
     assert_ne!(behind, caught_up, "one subscriber sat out the second entry");
 
     let mut first = Vec::new();
     room.read_since(&mut behind, Instant::now() + SHORT, &mut first);
-    assert_eq!(first.iter().map(|m| m.seq).collect::<Vec<_>>(), vec![2]);
+    assert_eq!(messages(&first), vec![2]);
 
     let mut second = Vec::new();
     let take = room.read_since(&mut caught_up, Instant::now() + SHORT, &mut second);
-    assert_eq!(take, Take::TimedOut, "a cursor at the end waits for new entries");
+    assert_eq!(take, Take::TimedOut, "a cursor at the end waits for news");
     assert!(second.is_empty());
-}
-
-#[test]
-fn a_name_change_alone_is_never_handed_to_a_waiter_as_an_entry() {
-    let (_dir, room) = open("subscribe_names");
-    let mut cursor = room.next_cursor();
-    room.set_name(member(3), "Marco").expect("the name sets");
-    let mut out = Vec::new();
-    let take = room.read_since(&mut cursor, Instant::now() + SHORT, &mut out);
-    assert_eq!(take, Take::TimedOut);
-    assert!(out.is_empty(), "the stream carries transcript entries; names are read, not pushed, in this store");
 }
