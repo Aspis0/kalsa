@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "../chat/node_modules/esbuild/lib/main.js";
+import { checkSurfacesCss } from "./check-motion-css.mjs";
 
 class FakeNode {
   constructor(tagName, ownerDocument, nodeType = 1, data = "") {
@@ -291,6 +292,9 @@ try {
   const { dir, renderer } = await loadRenderer();
   const results = await renderer.renderStates();
   const problems = [];
+  // The reduced-motion gate is a fact about the stylesheet, not the DOM:
+  // the fake DOM cannot render it, so the bench reads the CSS itself.
+  problems.push(...checkSurfacesCss());
   const EXPECTED_SAMPLING_WIRES = [
     "adaptive_decay",
     "adaptive_target",
@@ -943,6 +947,14 @@ try {
     if (heading.includes("a phone is connecting")) {
       if (connectingDots !== 1) {
         problems.push(`the claiming sentence carries its animated indicator: ${heading}`);
+      }
+    }
+    if (heading.includes("a claiming phone under reduced motion")) {
+      if (connectingDots !== 0) {
+        problems.push(`under reduced motion the claiming sentence stands alone: ${heading}`);
+      }
+      if (!sentence.includes("A phone is connecting right now.")) {
+        problems.push(`the sentence itself stays: ${heading}`);
       }
     }
     // The live dot: only a row the door itself names, and never a word —
