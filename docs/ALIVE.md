@@ -116,6 +116,47 @@ document that produced them is named instead.
   verified unmoved at `1577495b9` afterwards (`scratchpad/agents/cok-residual/REPORT.md` sec. 9,
   re-verified with `git ls-remote`).
 
+## Phone speed table (on-device only, every number with its source)
+
+Built 2026-09-29 from a lab-wide extraction; every row below was re-read by the coordinator on
+its source line. Rows are comparable only inside one row (same kit, same run); across rows the
+tool, prompt length, threads and build differ. Not included: numbers without device + model +
+backend in the same report, VOID/REFUTED runs, simulator/desktop numbers, published figures.
+
+**Ship model LFM2.5-2.6B QAD-Q4_0** (sha `a247afd6…`; `ship.gguf` in the heat kits is this file)
+
+| device (SoC) | run | prefill CPU / GPU / NPU | decode CPU / GPU / NPU | source |
+|---|---|---|---|---|
+| Galaxy S23 (8 Gen 2, v73) | heat arms, ~962-tok prompt | 97.12 / 138.44 / **653.98** tok/s | 22.41 (t5) / — / — | `scratchpad/agents/s23-heat-arms-engine/REPORT.md:86-88,97` |
+| Galaxy S23 | backend hopping, tg256 median | — | 22.13 / 14.03 / 22.09 tok/s | `scratchpad/agents/s23-backend-hopping-heat/REPORT.md:12-14` |
+| Galaxy S23 | 3-way control, kit `f25f0c1c5`, 1010-tok prompt, tg126 | 10,389.45 / 7,326.37 / **1,558.10** ms | 21.14 / 11.18 / 12.96 tok/s | `scratchpad/agents/xiaomi14-3way/REPORT.md:16-19` |
+| Xiaomi 14 (8 Gen 3, v75) | 3-way, kit `f25f0c1c5`, 1010-tok, tg126 / tg256 | 7,542.59 / 6,855.27 / **1,447.97** ms | 27.53 / 13.26 / 16.24 (tg126); **29.21** / 15.49 / 23.33 (tg256) | `scratchpad/agents/xiaomi14-3way/REPORT.md:16-20` |
+| 8 Elite QRD8750 (v79) | heat arms, ~962-tok | 197.9 / 290.0 / **1,046.4** tok/s | — | `scratchpad/agents/qdc-8elite-heat-arms/REPORT.md:25-27` |
+| 8 Elite QRD8750 | hopping heat, tg256 | — | **39.0** / 30.3 / 29.1 tok/s | `scratchpad/agents/qdc-8elite-hopping-heat/REPORT.md:79-81` |
+| 8 Elite QRD8750 | NPU v79 cell, pp512 / tg128 | 211.1 / — / **1,512.2** tok/s | 38.49 / — / 23.47 tok/s | `scratchpad/agents/qdc-8elite-npu-v79/REPORT.md:93` |
+| 8 Gen 3 QRD8650 | build `5c3979438`, -t 4 taskset f0, pp512 / tg128 | 16.26 / **284.18** / — tok/s | 11.56 / **23.42** / — tok/s | `scratchpad/agents/qdc-8g3-govbench-55/REPORT.md:47-48` |
+| 7+ Gen 3 QRD7675 | build `5c3979438`, same flags | 13.77 / **151.78** / — tok/s | 10.27 / **17.26** / — tok/s | `scratchpad/agents/qdc-7pg3-govbench-52/REPORT.md:53-54` |
+
+Reading: NPU prefill is 3.6x (8 Elite) to 4.7x (S23, Xiaomi 14) the GPU wherever both ran; CPU decode is the fastest decode on
+every Snapdragon measured in 2026-09 builds (NPU equals it only on the S23 tg256). The QRD rows
+come from an August build whose CPU prefill (16 tok/s) is far below the September kits (~134 tok/s
+on the same 8 Gen 3 SoC): compare them only with each other.
+
+**Other models (one run each; flags differ per campaign)**
+
+| device | model | run | prefill | decode | source |
+|---|---|---|---|---|---|
+| Galaxy S23 | Qwen3.5-2B Q4_K_M | llama-cli `bin_fix2`, 490-tok prompt, tg128 | CPU 39.01 / GPU 101.44 tok/s | CPU 8.13 / GPU 5.26 tok/s | `reports/moe-s23-idle-ideas.md:110-113` |
+| Galaxy S23 | Qwen3.6-35B-A3B KEXP (MoE, streamed) | n=200, CPU vs GPU-trunk split | — | CPU **2.901** / split 2.025 tok/s | `reports/moe-k4-split.md:305-311` |
+| Jelly Star (Helio G99, Mali) | Qwen3.5-2B Q4_K_M | CPU, -t 2, n=200 | — | 8.04 tok/s | `reports/moe-g99-freetier.md:64` |
+| Jelly Star | LFM2.5-8B-A1B Q4_K_M (MoE) | CPU, -t 2, experts k=4 / 3 / 2 | — | 10.60 / 12.28 / 14.38 tok/s | `reports/moe-g99-freetier.md:65-67` |
+| Jelly Star | LFM2.5-8B-A1B KEXP / REAP-50 | CPU, k=4 | — | KEXP 8.83; REAP-50 10.68 tok/s | `reports/moe-g99-freetier.md:232-233` |
+| 8 Elite QRD8750 | Marco-Mini-Instruct KEXP Q4_K_M | build `5c3979438`, pp512 / tg128 | GPU 274.24 / CPU 107.84 tok/s | GPU 48.83 / CPU 61.16 tok/s | `scratchpad/agents/qdc-8elite-speed-kexp/REPORT.md:36-37` |
+
+Gaps: no NPU numbers for any model other than the ship model; no Jelly GPU (Mali path not
+measured, `archive-gpu-cells/REPORT.md:510-512`). The raw extraction (56 rows, with its errors) is
+not kept in the lab; this table is the curated result.
+
 ## Closed workstreams
 
 ### 2026-09-21 (21/09, night) — KV-cache workstream closed; vision pivots to LFM2.5-VL
