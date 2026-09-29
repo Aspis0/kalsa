@@ -21,7 +21,7 @@ describe("isAndroidThermalHardGated", () => {
   });
 
   it("does NOT gate below CRITICAL (throttling / reduction signals)", () => {
-    // NONE=0, PERCEPTIBLE=1, SEVERE=2 — none of these block new turns.
+    // 0 NONE, 1 LIGHT, 2 MODERATE, 3 SEVERE — none of these block new turns.
     expect(isAndroidThermalHardGated(0)).toBe(false);
     expect(isAndroidThermalHardGated(1)).toBe(false);
     expect(isAndroidThermalHardGated(2)).toBe(false);
