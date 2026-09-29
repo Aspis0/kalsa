@@ -252,3 +252,22 @@ prologue change is correct but gains ~0, the raw DMA was already overlapped).
   Worst family ffn_down (k 10752): P0 reader 1891 ms vs Q0 77 ms. HMX compute is equal; the reader
   is ~25x on device (3.75x in the simulator) and the raw DMA ~10.8x. The one-copy prefill is
   bound by the reader + raw DMA, not by HMX.
+
+### 2026-09-29 - read-only diagnosis (luna `c3134e12`) of the c8d data
+
+- The `-HOST` buffer type already reports `is_host=true` (`ggml-hexagon.cpp:2114`); the regular HTP
+  buft is false (`:2109`) and must stay so (its getter de-repacks tiled layouts). Decode is slow
+  because raw-weight matmuls run on the CPU while the rest of the graph stays on HTP: the P0 decode
+  log shows `graph splits = 2 (with bs=128), 198 (with bs=1)` - per token the graph hops
+  CPU<->HTP ~200 times. Coordinator reading: 198 hops x a few ms of sync is the 1.47 tok/s; the
+  governor design (prefill NPU, decode CPU) wants the WHOLE decode graph on the CPU reading the
+  -HOST buffer in place (22.6 tok/s measured on the 8 Elite for that case).
+- Raw DMA: same heap and cache flags as the normal buffer (`:548-553`, `:2058-2079`); the
+  difference is the descriptor shape - raw pushes one 2-D row per weight row (`matmul-ops.c:356-363`)
+  vs tile-shaped transfers (`:2741-2751`). Knobs: only `GGML_HEXAGON_HOSTBUF_UNCACHED` / `_FLUSH`.
+- Reader: `HVX_W_DEQUANT` intervals exclude DMA waits (`matmul-ops.c:1834-1840`, pop before the
+  reader `:2762-2776`), so the 25x is real reader time on device (sim: 3.75x).
+- q6_K read-back from the regular HTP buffer is NOT lossless: `repack_tiled_q6_K`'s reverse path
+  rounds the combined scales through fp16 and re-derives `d` (`ggml-hexagon.cpp:1396-1398`,
+  `:1481-1504`) although the comment (`:1407`) says "losslessly". Engine defect candidate for any
+  q6_K weight read back from an HTP buffer - this is the P0/Q0 embedding difference.
