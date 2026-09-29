@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use kalsa_runtime::{free_loopback_port, serve, ServeError};
 
 use crate::candidates::Candidate;
-use crate::sample::{request, serves_id};
+use crate::sample::{request_ask, serves_id, Ask, GRID_ASK};
 use crate::winner::{Outcome, Refusal};
 
 /// The owner's budget for the whole tune: one to two minutes extra on a
@@ -80,7 +80,29 @@ pub fn measure_candidates(
         resolved,
         TOTAL_BUDGET,
         || started.elapsed(),
-        |candidate, exe| run_lifetime(state_root, candidate, exe, &build),
+        |candidate, exe| run_lifetime(state_root, candidate, exe, &build, &GRID_ASK),
+        progress,
+    )
+}
+
+/// The draft dimension's own measurement: the same rounds, budget and
+/// lifetime discipline over the caller's ask — every setting measured on
+/// one chat-like text at the row's own sampling, so the comparison is like
+/// with like on traffic like the owner's. The grid's ask is untouched; a
+/// rate from here never meets a grid rate in a comparison.
+pub fn measure_draft_candidates(
+    resolved: &[(Candidate, PathBuf)],
+    state_root: &Path,
+    ask: &Ask,
+    build: impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
+    progress: &mut dyn FnMut(usize, usize),
+) -> Vec<(Candidate, Outcome)> {
+    let started = Instant::now();
+    rounds(
+        resolved,
+        TOTAL_BUDGET,
+        || started.elapsed(),
+        |candidate, exe| run_lifetime(state_root, candidate, exe, &build, ask),
         progress,
     )
 }
@@ -169,6 +191,7 @@ fn run_lifetime(
     candidate: &Candidate,
     resolved_exe: &PathBuf,
     build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
+    ask: &Ask,
 ) -> Result<Vec<f64>, Refusal> {
     let port = free_loopback_port().map_err(|_| Refusal::DidNotStart)?;
     let (exe, argv) = build(candidate, resolved_exe, port);
@@ -186,10 +209,11 @@ fn run_lifetime(
     let nonce = fresh_nonce().ok_or(Refusal::DidNotStart)?;
     let mut argv = without_aliases(argv);
     argv.extend(["--alias".to_string(), nonce.clone()]);
-    let mut server = serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
-        ServeError::DidNotStart => Refusal::DidNotStart,
-        ServeError::NotReady { .. } => Refusal::NotReady,
-    })?;
+    let mut server =
+        serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
+            ServeError::DidNotStart => Refusal::DidNotStart,
+            ServeError::NotReady { .. } => Refusal::NotReady,
+        })?;
     // Before the first request and after the last: the port must be
     // serving OUR id. The window opens before the engine binds
     // (`llama_backend_init()`, kalsallama `server.cpp:109`, long before
@@ -204,9 +228,9 @@ fn run_lifetime(
         let n_predict = if attempt < WARMUP_REQUESTS {
             WARMUP_N_PREDICT
         } else {
-            crate::sample::N_PREDICT
+            ask.n_predict
         };
-        let rate = request(server.address(), REQUEST_TIMEOUT, n_predict);
+        let rate = request_ask(server.address(), REQUEST_TIMEOUT, ask, n_predict);
         if attempt >= WARMUP_REQUESTS {
             if let Some(rate) = rate {
                 rates.push(rate);
@@ -231,7 +255,10 @@ fn fresh_nonce() -> Option<String> {
 fn nonce_from<E>(fill: impl FnOnce(&mut [u8]) -> Result<(), E>) -> Option<String> {
     let mut bytes = [0u8; 16];
     fill(&mut bytes).ok()?;
-    let hex = bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    let hex = bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     Some(format!("kalsa-tune-{hex}"))
 }
 

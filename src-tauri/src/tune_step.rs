@@ -178,6 +178,42 @@ pub(crate) fn measure_with_rule(
     )
 }
 
+/// The draft dimension's production measurement: the second ask, built
+/// from the row's own catalog sampling with a fixed seed — the same launch
+/// builder, so the pairing of candidate and argv cannot be lost between
+/// here and the spawn.
+pub(crate) fn measure_drafts_with_rule(
+    root: &Path,
+    resolved: &[(kalsa_tune::Candidate, PathBuf)],
+    rule: &ServerArgs,
+    counts: &mut dyn FnMut(usize, usize),
+) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)> {
+    let ask = kalsa_tune::Ask {
+        prompt: kalsa_tune::DRAFT_PROMPT,
+        temperature: rule.sampling.temperature,
+        top_p: rule.sampling.top_p,
+        top_k: rule.sampling.top_k,
+        seed: Some(kalsa_tune::DRAFT_SEED),
+        n_predict: kalsa_tune::DRAFT_N_PREDICT,
+    };
+    kalsa_tune::measure_draft_candidates(
+        resolved,
+        root,
+        &ask,
+        |candidate, exe, port| {
+            tuned_launch(
+                rule,
+                exe,
+                candidate.threads,
+                candidate.offload,
+                candidate.draft,
+                port,
+            )
+        },
+        counts,
+    )
+}
+
 /// The tune step itself: look the winner up by fingerprint; keep it on a
 /// hit; on a miss measure (when there is anything to compare), save — only
 /// when every candidate ran — and keep the best. An incomplete tune is
@@ -197,6 +233,11 @@ pub(crate) fn tune_launch(
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
     ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
+    measure_draft: impl Fn(
+        &[(kalsa_tune::Candidate, PathBuf)],
+        &ServerArgs,
+        &mut dyn FnMut(usize, usize),
+    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
 ) {
     // The plan's own launch, kept before anything may rewrite it: the rule
     // to fall back to, and the config main.rs retries with when a tuned
@@ -205,7 +246,16 @@ pub(crate) fn tune_launch(
     let rule_info = prepared.info.args.clone();
     prepared.rule_launch = Some((rule.clone(), rule_info.clone()));
     let result = catch_unwind(AssertUnwindSafe(|| {
-        tune_launch_inner(prepared, machine, root, main, memo, progress, measure)
+        tune_launch_inner(
+            prepared,
+            machine,
+            root,
+            main,
+            memo,
+            progress,
+            measure,
+            measure_draft,
+        )
     }));
     if result.is_err() {
         // One line, no argv: a panic here is our bug, and the walk's plan
@@ -225,6 +275,11 @@ fn tune_launch_inner(
     memo: &mut Memo,
     progress: &mut dyn FnMut(Progress),
     measure: impl Fn(
+        &[(kalsa_tune::Candidate, PathBuf)],
+        &ServerArgs,
+        &mut dyn FnMut(usize, usize),
+    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
+    measure_draft: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
@@ -289,12 +344,13 @@ fn tune_launch_inner(
                 })
             });
             // The draft dimension, on the launch the grid chose and only on
-            // it: the plan's drafter at n_max 2, 3 and 4, each its own
-            // lifetime, beside the winner's own target-only trial as the
-            // "off" every one of them has to beat. A draft lifetime that
-            // refuses simply loses; "off" wins by default.
+            // it: off re-measured here beside n_max 2, 3 and 4 — four
+            // lifetimes, all on one chat-like ask, so the settings compare
+            // like with like on text like the owner's. A draft lifetime
+            // that refuses simply loses; "off" wins on its own numbers.
             let grid_winner = kalsa_tune::winner(&results);
             let mut expected = candidates.len();
+            let mut draft_results = Vec::new();
             if rule_args.draft.is_some() {
                 if let Some(win) = &grid_winner {
                     // The winner's exe resolved once for the draft pass or
@@ -311,35 +367,37 @@ fn tune_launch_inner(
                     )
                     .ok()
                     {
-                        let draft_ns = [2, 3, 4];
-                        let draft_resolved: Vec<_> = draft_ns
+                        let settings = [None, Some(2), Some(3), Some(4)];
+                        let draft_resolved: Vec<_> = settings
                             .iter()
-                            .map(|&n_max| {
-                                (
-                                    kalsa_tune::Candidate {
-                                        draft: Some(n_max),
-                                        ..shape
-                                    },
-                                    exe.clone(),
-                                )
-                            })
+                            .map(|&draft| (kalsa_tune::Candidate { draft, ..shape }, exe.clone()))
                             .collect();
                         let base = results.len();
-                        expected += draft_ns.len();
-                        results.extend(measure(
-                            &draft_resolved,
-                            &rule_args,
-                            &mut |done, planned| {
+                        // Four lifetimes run; one record entry replaces the
+                        // grid winner's own trial, so the file gains three.
+                        expected += settings.len() - 1;
+                        draft_results =
+                            measure_draft(&draft_resolved, &rule_args, &mut |done, planned| {
                                 progress(Progress::Tuning {
                                     done: base + done,
                                     total: base + planned,
                                 })
-                            },
-                        ));
+                            });
+                        // The off trial IS the winning shape: the grid's own
+                        // trial of it (a different ask) leaves the record, or
+                        // the file would hold one launch twice.
+                        results.retain(|(trial, _)| *trial != shape);
+                        results.extend(draft_results.iter().cloned());
                     }
                 }
             }
-            let winner = kalsa_tune::winner(&results);
+            // The verdict: the draft dimension's own when it ran — its four
+            // on one ask — and the grid's otherwise.
+            let winner = if draft_results.is_empty() {
+                kalsa_tune::winner(&results)
+            } else {
+                kalsa_tune::winner(&draft_results)
+            };
             let ran = results.len();
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
@@ -493,9 +551,24 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
                 tune_label(&winner.candidate),
                 winner.best
             );
+            // A record with a draft dimension holds two asks: the winner's
+            // own shape's trials on the second ask, the rest on the grid's.
+            // The runner-up must be the winner's ask, or its figure would
+            // out-rank the winner's inside the parentheses.
+            let shape = |candidate: &kalsa_tune::Candidate| {
+                (candidate.backend, candidate.threads, candidate.offload)
+            };
+            let same_ask = shape(&winner.candidate);
+            let drafted = record
+                .trials
+                .iter()
+                .filter(|(candidate, _)| shape(candidate) == same_ask)
+                .count()
+                > 1;
             let alternative = record
                 .trials
                 .iter()
+                .filter(|(candidate, _)| !drafted || shape(candidate) == same_ask)
                 .filter_map(|(candidate, kept)| match kept {
                     kalsa_tune::record::Kept::Best(rate) if *candidate != winner.candidate => {
                         Some((*candidate, *rate))

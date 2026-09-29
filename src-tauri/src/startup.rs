@@ -33,9 +33,9 @@ use kalsa_download::default_roots;
 // The cheap first pass over stores that name blobs by digest; find_local
 // stays underneath it, so this is an optimization on top of the engine the
 // download path already used.
-use kalsa_reuse::find_reusable;
 use kalsa_launch::{KvCache, LaunchInput, Offload, ServerArgs, ServerSettings};
 use kalsa_probe::Measurement;
+use kalsa_reuse::find_reusable;
 use kalsa_runtime::ServerBackend;
 use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
@@ -43,8 +43,8 @@ use sha2::{Digest, Sha256};
 
 use crate::capability::{CHOSEN_REASON, PHONE_FREE_REASON};
 use crate::failure::StartupFailure;
-use crate::placement::place_model;
 use crate::options::LaunchOverrides;
+use crate::placement::place_model;
 
 /// Loopback port. The phone reaches it through a tunnel, never over the LAN.
 pub(crate) const PORT: u16 = 8130;
@@ -261,22 +261,16 @@ pub(crate) fn run(
             // the model choice falls through to the processor while the
             // graphics candidate must still be offered for measuring.
             let main = (backend, exe.clone());
-            let step = choose_with_processor_fallback(
-                (backend, exe),
-                &machine,
-                phone,
-                chosen,
-                || {
+            let step =
+                choose_with_processor_fallback((backend, exe), &machine, phone, chosen, || {
                     progress(Progress::Deciding);
-                    kalsa_runtime::decide_cpu(
-                        machine.measurement.will_run_on,
-                        &mut |p| progress(Progress::RuntimeBytes {
+                    kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
+                        progress(Progress::RuntimeBytes {
                             done: p.bytes_done,
                             total: p.bytes_total,
-                        }),
-                    )
-                },
-            );
+                        })
+                    })
+                });
             let (build, exe, plan, row, reason) = match step {
                 Ok(step) => step,
                 // `AwaitingChoice` out of the walk names a token nothing
@@ -297,7 +291,10 @@ pub(crate) fn run(
             let drafter = placed
                 .drafter
                 .zip(plan.drafter.as_ref())
-                .map(|(path, file)| DrafterLaunch { path, sha256: file.sha256 });
+                .map(|(path, file)| DrafterLaunch {
+                    path,
+                    sha256: file.sha256,
+                });
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
@@ -320,7 +317,9 @@ pub(crate) fn run(
             let mut memo = crate::tune_step::Memo {
                 cores: (
                     kalsa_probe::physical_cores(),
-                    std::thread::available_parallelism().ok().map(|cores| cores.get()),
+                    std::thread::available_parallelism()
+                        .ok()
+                        .map(|cores| cores.get()),
                 ),
                 processor: None,
             };
@@ -333,6 +332,9 @@ pub(crate) fn run(
                 progress,
                 |resolved, rule, inner| {
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
+                },
+                |resolved, rule, inner| {
+                    crate::tune_step::measure_drafts_with_rule(root, resolved, rule, inner)
                 },
             );
             return Ok(prepared);
@@ -418,15 +420,17 @@ fn choose_model(
         // recomputation beside it. A row that fits but does not run is the
         // floors' verdict. Both keep the choice; the card arm hands the
         // over-budget case to the processor budget.
-        return Err(if fits(
-            row,
-            input.context_tokens,
-            &memory_budget(input.backend, input.ram_bytes),
-        ) {
-            StartupFailure::NothingFastEnough
-        } else {
-            StartupFailure::ChosenModelUnfundable
-        });
+        return Err(
+            if fits(
+                row,
+                input.context_tokens,
+                &memory_budget(input.backend, input.ram_bytes),
+            ) {
+                StartupFailure::NothingFastEnough
+            } else {
+                StartupFailure::ChosenModelUnfundable
+            },
+        );
     }
     automatic_choice(&input, phone)
 }
@@ -446,8 +450,8 @@ fn automatic_choice(
         // runs `choose` only when a phone is in the input it is given, and
         // the phone-free question never asks for one.
         None => {
-            let run = kalsa_catalog::largest_that_runs_well(&input)
-                .map_err(StartupFailure::from)?;
+            let run =
+                kalsa_catalog::largest_that_runs_well(&input).map_err(StartupFailure::from)?;
             Ok((run.download, run.entry, PHONE_FREE_REASON.to_string()))
         }
         Some(_) => {
@@ -491,7 +495,16 @@ pub(crate) fn choose_with_processor_fallback(
     phone: Option<PhoneModel>,
     chosen: Option<&str>,
     decide_processor: impl FnOnce() -> Result<kalsa_runtime::Decision, kalsa_runtime::DecideError>,
-) -> Result<(ServerBackend, PathBuf, DownloadPlan, &'static ModelEntry, String), StartupFailure> {
+) -> Result<
+    (
+        ServerBackend,
+        PathBuf,
+        DownloadPlan,
+        &'static ModelEntry,
+        String,
+    ),
+    StartupFailure,
+> {
     let (winner, exe) = build;
     let budgets_the_card = matches!(winner, ServerBackend::Vulkan);
     match choose_model(winner, machine, phone, chosen) {
@@ -824,7 +837,10 @@ fn planned_parallel(exe: &Path, requested: u32) -> u32 {
 /// all, where the caller's own [`kalsa_launch::plan`] then refuses at one slot
 /// exactly as it did before.
 fn funded_parallel(requested: u32, funds: impl Fn(u32) -> bool) -> u32 {
-    (1..=requested.max(1)).rev().find(|slots| funds(*slots)).unwrap_or(1)
+    (1..=requested.max(1))
+        .rev()
+        .find(|slots| funds(*slots))
+        .unwrap_or(1)
 }
 
 fn planned_config_with_overrides(
@@ -1004,7 +1020,10 @@ fn dev_config_with_overrides(
     // times the seats is therefore the maximum this path will promise;
     // Advanced may lower it, but cannot silently ask an unbudgeted run for
     // more.
-    if overrides.context_tokens.is_some_and(|context| context > maximum) {
+    if overrides
+        .context_tokens
+        .is_some_and(|context| context > maximum)
+    {
         return Err(StartupFailure::ContextTooLarge {
             maximum_tokens: maximum,
             cache: None,
@@ -1302,7 +1321,10 @@ mod tests {
         assert_eq!(row.repo, automatic.entry.repo);
         assert_eq!(row.quant, automatic.entry.quant);
         assert_eq!(row.weights_bytes, automatic.entry.weights_bytes);
-        assert_eq!(plan.url, automatic.download.url, "the same file, byte for byte");
+        assert_eq!(
+            plan.url, automatic.download.url,
+            "the same file, byte for byte"
+        );
         assert_eq!(plan.bytes, automatic.download.bytes);
         assert_eq!(plan.sha256, automatic.download.sha256);
         assert_eq!(reason, PHONE_FREE_REASON, "and the same sentence");
@@ -1366,7 +1388,10 @@ mod tests {
         let machine = machine(Backend::Cpu);
         let failure = choose_model(ServerBackend::Cpu, &machine, None, Some("not-a-token"))
             .expect_err("a stale choice must not choose something else");
-        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
+        assert!(
+            matches!(failure, StartupFailure::AwaitingChoice),
+            "{failure:?}"
+        );
     }
 
     #[test]
@@ -1397,7 +1422,10 @@ mod tests {
             &mut |_| {},
         )
         .expect_err("a choice this walk cannot honour must not start");
-        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
+        assert!(
+            matches!(failure, StartupFailure::AwaitingChoice),
+            "{failure:?}"
+        );
         assert!(
             crate::options::load(&state_file).model.is_none(),
             "the stale choice is forgotten, so Home offers the pick again"
@@ -1418,8 +1446,9 @@ mod tests {
         let machine = machine(Backend::Cpu);
         let without_file = rows()
             .find(|entry| {
-                !kalsa_catalog::usable()
-                    .any(|candidate| candidate.entry().repo == entry.repo && candidate.entry().quant == entry.quant)
+                !kalsa_catalog::usable().any(|candidate| {
+                    candidate.entry().repo == entry.repo && candidate.entry().quant == entry.quant
+                })
             })
             .expect("the catalog carries rows with no file");
         assert!(
@@ -1434,7 +1463,10 @@ mod tests {
             Some(&model_token(without_file)),
         )
         .expect_err("a row with nothing to fetch stops the walk");
-        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
+        assert!(
+            matches!(failure, StartupFailure::AwaitingChoice),
+            "{failure:?}"
+        );
     }
 
     /// The owner's ruling: a card whose budget, after the margin, holds no
@@ -1463,7 +1495,10 @@ mod tests {
         let expected = choose_model(ServerBackend::Cpu, &machine, None, None)
             .expect("the processor budget is 32 GiB of RAM");
         let (build, exe, plan, row, reason) = choose_with_processor_fallback(
-            (ServerBackend::Vulkan, PathBuf::from("/builds/vulkan-server.exe")),
+            (
+                ServerBackend::Vulkan,
+                PathBuf::from("/builds/vulkan-server.exe"),
+            ),
             &machine,
             None,
             None,
@@ -1477,7 +1512,10 @@ mod tests {
         .expect("the fallback picks");
         assert_eq!(build, ServerBackend::Cpu, "the processor build decides");
         assert_eq!(exe, PathBuf::from("/builds/cpu-server.exe"));
-        assert_eq!(row.repo, expected.1.repo, "the processor build's own choice");
+        assert_eq!(
+            row.repo, expected.1.repo,
+            "the processor build's own choice"
+        );
         assert_eq!(plan.sha256, expected.0.sha256, "its own pinned file");
         assert!(
             !PROCESSOR_FALLBACK_REASON.contains("processor"),
@@ -1716,7 +1754,10 @@ mod tests {
         assert_eq!(backend, ServerBackend::Cpu, "the processor build won");
         assert_eq!(row.display_name, chosen.display_name, "the chosen row ran");
         let prefixed = format!("{PROCESSOR_FALLBACK_REASON} {CHOSEN_REASON}");
-        assert_eq!(reason, prefixed, "the reason says who chose and what sized it");
+        assert_eq!(
+            reason, prefixed,
+            "the reason says who chose and what sized it"
+        );
     }
 
     #[test]
@@ -1736,7 +1777,10 @@ mod tests {
         };
         let cpu_input = choice_input(ServerBackend::Cpu, &machine, None);
         let chosen = usable().next().expect("the menu has rows").entry();
-        assert!(row_for_token(&model_token(chosen)).is_some(), "a menu row resolves");
+        assert!(
+            row_for_token(&model_token(chosen)).is_some(),
+            "a menu row resolves"
+        );
         assert!(
             rows().all(|entry| !fits(
                 entry,
@@ -1838,8 +1882,7 @@ mod tests {
         // And the pick is honest about fitting the machine it was chosen
         // for, priced at the same one-token context the chooser uses.
         let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
-        let footprint =
-            kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS);
+        let footprint = kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS);
         assert!(
             footprint.total_bytes() <= budget.usable_bytes,
             "the pick fits the budget it was sized against"
@@ -2011,9 +2054,7 @@ mod tests {
         let spoken = crate::failure::words(&err);
         assert!(spoken.contains("disagreed by 35%"), "{spoken}");
         assert!(
-            spoken.starts_with(
-                "This computer could not be measured just now — it may be busy. "
-            ),
+            spoken.starts_with("This computer could not be measured just now — it may be busy. "),
             "{spoken}"
         );
         assert!(
@@ -2034,7 +2075,8 @@ mod tests {
             "{err:?}"
         );
         // And a real row is found on everything the selection carries.
-        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
+        let row = rows()
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let found = chosen_row(row.repo, row.display_name, row.quant, row.weights_bytes)
             .expect("the row is in the catalog");
@@ -2086,7 +2128,8 @@ mod tests {
             detected,
             "a GPU build decodes in the card"
         );
-        let row = rows().find(|entry| entry.display_name == "Google Gemma 4 26B")
+        let row = rows()
+            .find(|entry| entry.display_name == "Google Gemma 4 26B")
             .expect("the test row left the catalog");
         let config = planned_config(
             ServerBackend::Cpu,
@@ -2132,12 +2175,14 @@ mod tests {
         let (plan, row, reason) =
             choose_model(ServerBackend::Cpu, &machine, None, None).expect("the tier is not empty");
         assert_ne!(
-            row.repo,
-            "google/gemma-4-12B-it",
+            row.repo, "google/gemma-4-12B-it",
             "a row that cannot fund the window is not offered"
         );
         assert_eq!(row.repo, "google/gemma-4-E4B-it");
-        assert_eq!(reason, PHONE_FREE_REASON, "no phone, so the phone-free words");
+        assert_eq!(
+            reason, PHONE_FREE_REASON,
+            "no phone, so the phone-free words"
+        );
         // The plan and the row travel together by construction — the model
         // step answers with the file its own row pins — so the plan still
         // names a real, pinned file.
@@ -2153,7 +2198,8 @@ mod tests {
         // of 466 MiB. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
-        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
+        let row = rows()
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2329,7 +2375,10 @@ mod tests {
             )
         };
 
-        let fork = engine_dir("seats-inlet", Some(b"a module carrying x-kalsa-slot inside"));
+        let fork = engine_dir(
+            "seats-inlet",
+            Some(b"a module carrying x-kalsa-slot inside"),
+        );
         let three = run_three(fork.clone()).expect("three seats of the big row are fundable");
         assert_eq!(three.info.args.parallel, 3, "three devices, three seats");
         assert!(
@@ -2338,7 +2387,10 @@ mod tests {
             three.server.argv.join(" ")
         );
 
-        let blind = engine_dir("seats-no-inlet", Some(b"a module that never heard of the door"));
+        let blind = engine_dir(
+            "seats-no-inlet",
+            Some(b"a module that never heard of the door"),
+        );
         let one = run_three(blind.clone()).expect("one seat is fundable");
         assert_eq!(
             one.info.args.parallel, 1,
@@ -2367,7 +2419,10 @@ mod tests {
             measurement: measured(80.0e9, Backend::Cpu),
             ram_bytes: 6_700_000_000,
         };
-        let fork = engine_dir("seats-unfunded", Some(b"a module carrying x-kalsa-slot inside"));
+        let fork = engine_dir(
+            "seats-unfunded",
+            Some(b"a module carrying x-kalsa-slot inside"),
+        );
         let config = planned_config_with_overrides(
             ServerBackend::Cpu,
             fork.clone(),
@@ -2466,10 +2521,7 @@ mod tests {
             &mut |_| {},
         )
         .expect_err("the dev path has a conservative context ceiling");
-        assert!(matches!(
-            err,
-            StartupFailure::ContextTooLarge { .. }
-        ));
+        assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
         assert!(crate::failure::words(&err).contains("Choose a smaller context"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -2517,7 +2569,8 @@ mod tests {
 
     #[test]
     fn a_catalog_context_above_the_funded_maximum_is_rejected() {
-        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
+        let row = rows()
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2683,7 +2736,8 @@ mod tests {
 
     #[test]
     fn a_model_the_machine_cannot_fund_stops_the_walk_honestly() {
-        let row = rows().find(|entry| entry.display_name == "Google Gemma 4 E4B")
+        let row = rows()
+            .find(|entry| entry.display_name == "Google Gemma 4 E4B")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2738,7 +2792,8 @@ mod tests {
 
     #[test]
     fn a_metal_machine_gets_the_full_offload_the_budget_accounted_for() {
-        let row = rows().find(|entry| entry.display_name == "Liquid LFM 2.5")
+        let row = rows()
+            .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Metal),
@@ -2854,9 +2909,7 @@ mod tests {
         // plan for the same row.
         let machine = machine(Backend::Cpu);
         let row = rows()
-            .find(|entry| {
-                entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0"
-            })
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0")
             .expect("a row that funds the fixture machine");
         let base = |drafter: Option<crate::startup::DrafterLaunch>| {
             planned_config_with_overrides(
@@ -2892,7 +2945,10 @@ mod tests {
             })
         );
         // Everything else is the same launch.
-        assert_eq!(with.info.args.context_tokens, without.info.args.context_tokens);
+        assert_eq!(
+            with.info.args.context_tokens,
+            without.info.args.context_tokens
+        );
         assert_eq!(with.server.argv.len(), without.server.argv.len() + 12);
     }
 }

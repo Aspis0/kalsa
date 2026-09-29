@@ -15,6 +15,48 @@ pub(crate) const N_PREDICT: u64 = 64;
 /// paragraph no model is tempted to end early or refuse.
 const PROMPT: &str = "Write a short paragraph about the history of the bicycle.";
 
+/// One request's whole ask, as a per-request body needs it: the text, the
+/// sampling, the seed, the length. Two asks exist — the grid's and the
+/// draft dimension's — and a rate only ever compares against rates of the
+/// SAME ask.
+pub struct Ask {
+    pub prompt: &'static str,
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    pub top_k: Option<u32>,
+    /// Fixed across every request of a comparison, so the text is the same
+    /// work for every setting measured against it.
+    pub seed: Option<u32>,
+    pub n_predict: u64,
+}
+
+/// The grid's ask, unchanged: one short factual prompt, greedy, 64 tokens.
+pub(crate) const GRID_ASK: Ask = Ask {
+    prompt: PROMPT,
+    temperature: Some(0.0),
+    top_p: None,
+    top_k: None,
+    seed: None,
+    n_predict: N_PREDICT,
+};
+
+/// The draft dimension's prompt: one Italian-and-English request for plain
+/// prose — chat-like text, mixed languages, nothing a model answers in code
+/// or lists — because speculation's gain depends on the text and the grid's
+/// short factual prompt sits at the optimistic end of what acceptance runs.
+pub const DRAFT_PROMPT: &str = "Per il nostro appartamento a Milano sto cercando di capire \
+    come funziona il riscaldamento: l'impianto è vecchio e una stanza resta sempre fredda. \
+    Could you explain in plain prose, senza elenchi e senza codice, what usually causes one \
+    room to stay cold and what you would check first?";
+
+/// The seed every draft-ask request carries: the same text for every
+/// setting, so the four settings are compared on the same work.
+pub const DRAFT_SEED: u32 = 42;
+
+/// The draft dimension's length: a chat-turn's worth of generated tokens,
+/// twice the grid's, so a per-step overhead has room to amortise.
+pub const DRAFT_N_PREDICT: u64 = 128;
+
 /// The decode rate the server itself measured, or nothing: fewer tokens
 /// than ordered (the answer proved less than we asked for), no timings
 /// block, or a rate that is not a positive finite number — none of those
@@ -81,7 +123,10 @@ fn agent(timeout: Duration) -> ureq::Agent {
 
 /// One POST to `/completion`, shared by the tune's samples and the check.
 fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
-    let body = completion_body(n_predict);
+    post_body(addr, timeout, completion_body(n_predict))
+}
+
+fn post_body(addr: SocketAddr, timeout: Duration, body: String) -> Result<String, SendFailed> {
     match agent(timeout)
         .post(&format!("http://{addr}/completion"))
         .timeout(timeout)
@@ -129,17 +174,48 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Op
     rate_from(&post(addr, timeout, n_predict).ok()?, n_predict)
 }
 
+/// One POST of one ask at one length: the draft dimension's own request.
+pub(crate) fn request_ask(
+    addr: SocketAddr,
+    timeout: Duration,
+    ask: &Ask,
+    n_predict: u64,
+) -> Option<f64> {
+    rate_from(
+        &post_body(addr, timeout, completion_body_for(ask, n_predict)).ok()?,
+        n_predict,
+    )
+}
+
 /// The exact ask, with the token count the caller chose: the same prompt,
 /// the same flags, a different `n_predict` for the warm-up.
 fn completion_body(n_predict: u64) -> String {
-    serde_json::json!({
-        "prompt": PROMPT,
-        "n_predict": n_predict,
-        "ignore_eos": true,
-        "temperature": 0.0,
-        "cache_prompt": false,
-    })
-    .to_string()
+    completion_body_for(&GRID_ASK, n_predict)
+}
+
+/// The body one ask sends at one length: everything the ask carries, and
+/// nothing it does not — an unset sampling field is absent, not defaulted,
+/// so the server's own launch-time default (the row's choice, already in
+/// argv) is what applies.
+fn completion_body_for(ask: &Ask, n_predict: u64) -> String {
+    let mut body = serde_json::Map::new();
+    body.insert("prompt".to_string(), serde_json::json!(ask.prompt));
+    body.insert("n_predict".to_string(), serde_json::json!(n_predict));
+    body.insert("ignore_eos".to_string(), serde_json::json!(true));
+    body.insert("cache_prompt".to_string(), serde_json::json!(false));
+    if let Some(temperature) = ask.temperature {
+        body.insert("temperature".to_string(), serde_json::json!(temperature));
+    }
+    if let Some(top_p) = ask.top_p {
+        body.insert("top_p".to_string(), serde_json::json!(top_p));
+    }
+    if let Some(top_k) = ask.top_k {
+        body.insert("top_k".to_string(), serde_json::json!(top_k));
+    }
+    if let Some(seed) = ask.seed {
+        body.insert("seed".to_string(), serde_json::json!(seed));
+    }
+    serde_json::Value::Object(body).to_string()
 }
 
 /// True when the port lists OUR nonce among `/v1/models`'s entries — the
@@ -257,7 +333,10 @@ mod tests {
             }],
         })
         .to_string();
-        assert!(id_among(&aliases_body, nonce), "our nonce in aliases is ours");
+        assert!(
+            id_among(&aliases_body, nonce),
+            "our nonce in aliases is ours"
+        );
         let nowhere_body = serde_json::json!({
             "object": "list",
             "data": [{
@@ -267,9 +346,15 @@ mod tests {
             }],
         })
         .to_string();
-        assert!(!id_among(&nowhere_body, nonce), "neither id nor aliases: not ours");
+        assert!(
+            !id_among(&nowhere_body, nonce),
+            "neither id nor aliases: not ours"
+        );
         assert!(!id_among(r#"{"data":[]}"#, nonce), "no entries: no proof");
-        assert!(!id_among(r#"{"data":[{"object":"model"}]}"#, nonce), "no id: no proof");
+        assert!(
+            !id_among(r#"{"data":[{"object":"model"}]}"#, nonce),
+            "no id: no proof"
+        );
         assert!(!id_among("not json at all", nonce), "unparsable: no proof");
     }
 
@@ -310,7 +395,10 @@ mod tests {
     #[test]
     fn an_answer_without_timings_is_no_sample() {
         assert_eq!(rate_from(r#"{"content":"hi"}"#, N_PREDICT), None);
-        assert_eq!(rate_from(r#"{"timings":{"predicted_n":64}}"#, N_PREDICT), None);
+        assert_eq!(
+            rate_from(r#"{"timings":{"predicted_n":64}}"#, N_PREDICT),
+            None
+        );
         assert_eq!(rate_from("not json at all", N_PREDICT), None);
     }
 }
@@ -429,10 +517,7 @@ mod check_tests {
         /// that never answered would be refused too, so the refusals are
         /// only meaningful when this holds.
         fn reply_written(&self) -> bool {
-            matches!(
-                self.sent.recv_timeout(Duration::from_secs(2)),
-                Ok(true)
-            )
+            matches!(self.sent.recv_timeout(Duration::from_secs(2)), Ok(true))
         }
     }
 
@@ -449,11 +534,7 @@ mod check_tests {
             String::from_utf8_lossy(fake)
         );
         let (addr, sent) = stub_server_reported(requests, reply);
-        Redirect {
-            addr,
-            target,
-            sent,
-        }
+        Redirect { addr, target, sent }
     }
 
     /// The distinction the check hangs on: a request that ran out of time is
@@ -530,9 +611,8 @@ mod check_tests {
                 };
                 std::thread::spawn(move || {
                     use std::io::Write;
-                    let _ = stream.write_all(
-                        b"HTTP/1.1 200 OK\r\ncontent-length: 1000\r\n\r\nshort",
-                    );
+                    let _ =
+                        stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 1000\r\n\r\nshort");
                     std::thread::sleep(std::time::Duration::from_millis(400));
                 });
             }
@@ -605,10 +685,7 @@ mod check_tests {
                 matches!(sent.recv_timeout(Duration::from_secs(2)), Ok(true)),
                 "the {status} was never sent, so the refusal above means nothing"
             );
-            assert!(
-                !seen,
-                "a {status} body is not our server's listing"
-            );
+            assert!(!seen, "a {status} body is not our server's listing");
         }
     }
 }

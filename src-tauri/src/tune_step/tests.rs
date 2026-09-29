@@ -109,6 +109,16 @@ fn scratch(name: &str) -> PathBuf {
 
 const CORES: (Option<usize>, Option<usize>) = (Some(10), Some(10));
 
+/// The draft seam most tests never reach: a call there is a bug in the
+/// test's premise (no drafter, or a kept record), so it says so loudly.
+fn draft_seam() -> impl Fn(
+    &[(kalsa_tune::Candidate, PathBuf)],
+    &ServerArgs,
+    &mut dyn FnMut(usize, usize),
+) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)> {
+    |_, _, _| panic!("this test's launch must not measure a draft dimension")
+}
+
 /// The one builder: binary, threads, offload and port — nothing else in
 /// argv may move.
 #[test]
@@ -246,6 +256,7 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
         &mut memo,
         &mut progress,
         |_, _, _| panic!("a kept record must not measure"),
+        draft_seam(),
     );
 
     assert!(
@@ -308,6 +319,7 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
                 })
                 .collect()
         },
+        draft_seam(),
     );
 
     assert!(
@@ -366,6 +378,7 @@ fn a_single_candidate_is_skipped_and_never_measured() {
         &mut memo,
         &mut progress,
         |_, _, _| panic!("one candidate must not be measured"),
+        draft_seam(),
     );
 
     assert!(
@@ -558,6 +571,7 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
             *captured.borrow_mut() = resolved.to_vec();
             vec![]
         },
+        draft_seam(),
     );
     assert!(
         captured
@@ -605,6 +619,7 @@ fn an_incomplete_tune_is_not_saved() {
                 (resolved[2].0, kalsa_tune::Outcome::Measured(vec![66.0])),
             ]
         },
+        draft_seam(),
     );
     // The winner of what ran (the third candidate, 10 threads) launches…
     assert_eq!(
@@ -662,6 +677,7 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
                 .map(|(candidate, _)| (*candidate, kalsa_tune::Outcome::Measured(vec![66.0])))
                 .collect()
         },
+        draft_seam(),
     );
     // The processor candidates were dropped by the memoized failure — one
     // lifetime ran, three candidates exist — so this is incomplete.
@@ -748,6 +764,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
                 })
                 .collect()
         },
+        draft_seam(),
     );
 
     assert_eq!(
@@ -801,6 +818,7 @@ fn a_panicking_tune_leaves_the_plan_standing() {
         &mut memo,
         &mut progress,
         |_, _, _| panic!("the measure exploded"),
+        draft_seam(),
     );
     assert_eq!(
         prepared.server.argv, rule.argv,
@@ -831,7 +849,9 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
 /// The draft dimension: on the launch the grid chose, the plan's drafter at
 /// n_max 2, 3 and 4 gets its own lifetimes beside the winner's own
 /// target-only trial; the fastest is kept, persisted with the rest of the
-/// record, and a later start reuses it without measuring again.
+/// The draft dimension: four lifetimes — off re-measured here beside n_max
+/// 2, 3 and 4 — all on the second ask; the fastest is kept, persisted with
+/// the rest of the record, and a later start reuses it without measuring.
 #[test]
 fn a_draft_winner_is_measured_persisted_and_reused() {
     let dir = scratch("draft-winner");
@@ -850,7 +870,8 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         processor: Some(Ok(PathBuf::from("/stub-cpu"))),
     };
     let mut progress = |_: Progress| {};
-    let passes = std::cell::Cell::new(0usize);
+    let grid_passes = std::cell::Cell::new(0usize);
+    let draft_shapes = std::cell::RefCell::new(Vec::<Vec<Option<u32>>>::new());
     tune_launch(
         &mut prepared,
         &machine,
@@ -859,19 +880,36 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            passes.set(passes.get() + 1);
+            grid_passes.set(grid_passes.get() + 1);
             counts(resolved.len(), resolved.len());
             resolved
                 .iter()
                 .map(|(candidate, _)| {
-                    // The grid is target-only: the graphics shape leads.
-                    // The draft pass proposes beside it: 3 wins, 2 and 4
-                    // lose on their numbers.
+                    // The grid's own ask: the graphics shape leads.
+                    let outcome = if matches!(candidate.offload, Offload::EngineFitted) {
+                        kalsa_tune::Outcome::Measured(vec![40.0])
+                    } else {
+                        kalsa_tune::Outcome::Measured(vec![10.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            draft_shapes.borrow_mut().push(
+                resolved
+                    .iter()
+                    .map(|(candidate, _)| candidate.draft)
+                    .collect(),
+            );
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    // The second ask: every setting measured on it, off
+                    // included, and 3 wins on its numbers.
                     let outcome = match candidate.draft {
-                        None if matches!(candidate.offload, Offload::EngineFitted) => {
-                            kalsa_tune::Outcome::Measured(vec![40.0])
-                        }
-                        None => kalsa_tune::Outcome::Measured(vec![10.0]),
+                        None => kalsa_tune::Outcome::Measured(vec![42.0]),
                         Some(2) => kalsa_tune::Outcome::Measured(vec![44.0]),
                         Some(3) => kalsa_tune::Outcome::Measured(vec![50.0]),
                         Some(_) => kalsa_tune::Outcome::Measured(vec![46.0]),
@@ -881,10 +919,17 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
                 .collect()
         },
     );
+    assert_eq!(grid_passes.get(), 1, "the grid measured once");
+    let shapes = draft_shapes.borrow();
     assert_eq!(
-        passes.get(),
-        2,
-        "the grid, then the draft dimension on its winner"
+        shapes.len(),
+        1,
+        "then the draft dimension measured once, on the grid's winner"
+    );
+    assert_eq!(
+        shapes[0],
+        vec![None, Some(2), Some(3), Some(4)],
+        "four lifetimes: off re-measured beside 2, 3 and 4"
     );
     let argv = prepared.server.argv.join(" ");
     assert!(
@@ -899,9 +944,22 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
     );
     let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
     assert!(line.contains("drafter 3"), "{line}");
+    assert!(
+        line.contains("50.0"),
+        "the number is the second ask's: {line}"
+    );
+    // The record holds the draft dimension's own off entry, not the grid's
+    // trial of the same launch: three grid candidates, one replaced, four
+    // draft entries.
+    let digest = prepared.info.model_sha256.as_deref().unwrap();
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let record =
+        kalsa_tune::record::load(&dir, digest, &fingerprint).expect("the record was saved");
+    assert_eq!(record.trials.len(), 3 - 1 + 4, "{:?}", record.trials);
 
-    // A later start: the record answers, nothing is measured, and the same
-    // drafter setting is applied from it.
+    // A later start: the record answers, nothing is measured on either ask,
+    // and the same drafter setting is applied from it.
     let mut again = prepared_with("/main-gpu", {
         let mut args = rule_args();
         args.draft = Some(LaunchDraft {
@@ -918,7 +976,8 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _| panic!("a kept record must not measure"),
+        |_, _, _| panic!("a kept record must not measure the grid"),
+        |_, _, _| panic!("a kept record must not measure the draft dimension"),
     );
     assert!(
         again.server.argv.join(" ").contains("--spec-draft-n-max 3"),
@@ -928,7 +987,8 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
 }
 
 /// A draft lifetime that fails simply loses: refused drafts leave the
-/// target-only winner standing, and that verdict is what persists.
+/// A draft lifetime that fails simply loses: refused n_maxes leave the
+/// re-measured off standing, and that verdict is what persists.
 #[test]
 fn a_failing_draft_candidate_loses() {
     let dir = scratch("draft-refused");
@@ -959,12 +1019,25 @@ fn a_failing_draft_candidate_loses() {
             resolved
                 .iter()
                 .map(|(candidate, _)| {
-                    let outcome = if candidate.draft.is_some() {
-                        kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::DidNotStart)
-                    } else if matches!(candidate.offload, Offload::EngineFitted) {
+                    let outcome = if matches!(candidate.offload, Offload::EngineFitted) {
                         kalsa_tune::Outcome::Measured(vec![40.0])
                     } else {
                         kalsa_tune::Outcome::Measured(vec![10.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = if candidate.draft.is_some() {
+                        kalsa_tune::Outcome::Refused(kalsa_tune::Refusal::DidNotStart)
+                    } else {
+                        // The second ask's off, measured here.
+                        kalsa_tune::Outcome::Measured(vec![48.0])
                     };
                     (*candidate, outcome)
                 })
@@ -974,7 +1047,7 @@ fn a_failing_draft_candidate_loses() {
     let argv = prepared.server.argv.join(" ");
     assert!(
         !argv.contains("--model-draft"),
-        "every draft lifetime refused: the target-only winner stands: {argv}"
+        "every n_max refused: the off measured on the same ask stands: {argv}"
     );
     assert!(prepared.info.args.draft.is_none());
 
@@ -995,7 +1068,8 @@ fn a_failing_draft_candidate_loses() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _| panic!("a kept record must not measure"),
+        |_, _, _| panic!("a kept record must not measure the grid"),
+        |_, _, _| panic!("a kept record must not measure the draft dimension"),
     );
     assert!(
         !again.server.argv.join(" ").contains("--model-draft"),
@@ -1034,9 +1108,92 @@ fn a_launch_without_a_drafter_measures_no_draft_lifetimes() {
                 .map(|(candidate, _)| (*candidate, kalsa_tune::Outcome::Measured(vec![40.0])))
                 .collect()
         },
+        draft_seam(),
     );
     assert_eq!(passes.get(), 1, "the grid alone: no drafter, no draft pass");
     assert!(!prepared.server.argv.join(" ").contains("--model-draft"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Off can win the second ask outright, numbers against numbers, on the
+/// very launch the grid measured: the verdict is the draft dimension's own
+/// four on that ask, never the grid's borrowed figure.
+#[test]
+fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
+    let dir = scratch("draft-off-wins");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = if matches!(candidate.offload, Offload::EngineFitted) {
+                        // The grid's ask reads faster than the second one —
+                        // different text, different rate.
+                        kalsa_tune::Outcome::Measured(vec![30.0])
+                    } else {
+                        // A near-top on the grid's ask: mixing asks would
+                        // hand this figure the verdict.
+                        kalsa_tune::Outcome::Measured(vec![29.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = match candidate.draft {
+                        None => kalsa_tune::Outcome::Measured(vec![25.0]),
+                        Some(2) => kalsa_tune::Outcome::Measured(vec![20.0]),
+                        Some(3) => kalsa_tune::Outcome::Measured(vec![22.0]),
+                        Some(_) => kalsa_tune::Outcome::Measured(vec![21.0]),
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+    );
+    let argv = prepared.server.argv.join(" ");
+    assert!(
+        !argv.contains("--model-draft"),
+        "off won the second ask: speculation is not kept: {argv}"
+    );
+    // The grid's 40.0 — a different ask's figure for the same launch — must
+    // not have decided anything: the line carries the second ask's number.
+    let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
+    assert!(
+        line.contains("graphics"),
+        "the grid's winner kept its shape: {line}"
+    );
+    assert!(line.contains("25.0"), "the verdict's own number: {line}");
+    assert!(
+        !line.contains("29.0"),
+        "a grid-ask figure out-ranks nothing here: {line}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -1072,11 +1229,22 @@ fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
             resolved
                 .iter()
                 .map(|(candidate, _)| {
+                    let outcome = if matches!(candidate.offload, Offload::EngineFitted) {
+                        kalsa_tune::Outcome::Measured(vec![40.0])
+                    } else {
+                        kalsa_tune::Outcome::Measured(vec![10.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
                     let outcome = match candidate.draft {
-                        None if matches!(candidate.offload, Offload::EngineFitted) => {
-                            kalsa_tune::Outcome::Measured(vec![40.0])
-                        }
-                        None => kalsa_tune::Outcome::Measured(vec![10.0]),
+                        None => kalsa_tune::Outcome::Measured(vec![42.0]),
                         Some(3) => kalsa_tune::Outcome::Measured(vec![50.0]),
                         Some(_) => kalsa_tune::Outcome::Measured(vec![45.0]),
                     };
