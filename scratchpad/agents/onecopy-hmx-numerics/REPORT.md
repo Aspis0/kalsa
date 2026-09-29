@@ -339,3 +339,27 @@ is per-row kernel work, not placement. Recon (luna `663ae5c5`): raw batch-1 runs
 sharing the activation loads (`ggml_gemv_q4_0_4x8_q8_0`, `arch/arm/repack.cpp:273-336`). Next lever:
 a multi-row gemv reading the raw 18-byte blocks. Raw 6-thread arm hung (exit 137 after 718 s), not
 investigated; one repacked arm stopped at thermal status 3 and was rerun after cooling.
+
+## Automatic one-copy placement `4eb2618fb` on the S23 (2026-09-29, luna `88ee306b`)
+
+Engine `4eb2618fb` (GLM): the loader's weight probe no longer hands Q4_0 matmul weights to the
+repacking `HTP0:0` buft when `GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1`, so they land in
+`HTP0:0-HOST` with no `-ot`. Device hashes: llama-bench `d56d2940…`, llama-perplexity `962039b3…`,
+v73 skel `3b0066ab…`. Command: `-dev HTP0:0 -t 5 -ngl 99 -b 512 -p 512 -r 1 --load-mode none -v`.
+
+| arm | round 1 | round 2 | buffers (MiB) |
+|---|---|---|---|
+| A one-copy, env on, no `-ot` | 851.53 | 851.41 | CPU 205.08, HTP0 219.75, HTP0-HOST 1306.12 |
+| T two-copy, env off | 876.70 | 876.04 | CPU 205.08, HTP0 1525.87 |
+
+KLD arm A: mean 0.000892 ± 0.000052, max 0.011580, top-1 97.843 %. Raw logs on the Mac
+`/tmp/onecopy-hmx-81c0/auto/`. Not as predicted: `token_embd.weight` was added to HTP and the output
+matmul ran there; the speed is 97 % of two-copy anyway (cause not established). Without `-dev
+HTP0:0` the bench split across OpenCL and HTP (249.07 tok/s).
+
+Conditions found by the audit (space-bunny `c22cf700`, verified): under mmap the loader rewrites
+any device host buft to the CPU buft (`src/llama-model-loader.cpp:1262-1269`), and the app loads
+with mmap(+mlock), so one-copy needs `--load-mode none` (with mmap the page cache is already one
+copy; an rpcmem copy would be the second). With mmap and the env on, a raw weight in a CPU buffer
+can reach the HTP compute path, which casts `t->buffer->context` to its shared buffer without a
+type check (`ggml-hexagon.cpp` ~:2329): crash risk, guard needed before any app use.
