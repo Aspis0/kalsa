@@ -13,8 +13,8 @@
 
 use kalsa_catalog::{
     candidate_footprint, capability_basis, choose, largest_that_runs_well, memory_budget,
-    quicker_alternative, Backend, ChoiceInput, Decision, DownloadPlan, Parameters, PhoneModel,
-    Prediction, CHOOSER_CONTEXT_TOKENS, GIB,
+    quicker_alternative, served, Backend, ChoiceInput, Decision, DownloadPlan, Parameters,
+    PhoneModel, Prediction, CHOOSER_CONTEXT_TOKENS, GIB,
 };
 
 fn main() {
@@ -79,10 +79,11 @@ fn main() {
         "{:<42} {:>10} {:>7} {:>8} {:>22}",
         "row", "weights", "fits", "capable", "decode"
     );
-    for usable in kalsa_catalog::usable() {
+    // The menu as the chooser serves it on this machine — the Q8 rule
+    // applied, the drafter charged — so the table cannot disagree with the
+    // pick below: the same resolution decides both.
+    for usable in served(&input) {
         let entry = usable.entry();
-        // The chooser's own footprint for the row — the row's drafter
-        // included — so this column never disagrees with the pick below.
         let footprint = candidate_footprint(usable, &input);
         let fits = kalsa_catalog::fits_footprint(entry, &footprint, &budget);
         let capable = input

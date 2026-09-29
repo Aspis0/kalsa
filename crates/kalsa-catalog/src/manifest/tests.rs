@@ -1,8 +1,19 @@
 use super::{
-    excluded, excluded_in, q8_variants, rows, usable, usable_in, DenseEquivalent, GgufSource,
-    Licence, Q8Variant, Standing, CATALOG, DOWNLOADABLE,
+    excluded, excluded_in, rows, usable, usable_in, usable_with_q8, usable_with_q8_in,
+    DenseEquivalent, GgufSource, Licence, Q8Variant, Standing, CATALOG, DOWNLOADABLE,
 };
 use crate::footprint::ASSUMED_KV_BYTES_PER_TOKEN;
+
+/// Every entry a table-wide invariant must cover: the rows of both tables
+/// and every variant entry nested under them — a variant is served as its
+/// own entry, so it owes the table the same facts.
+fn every_entry() -> impl Iterator<Item = &'static super::ModelEntry> {
+    rows().chain(
+        DOWNLOADABLE
+            .iter()
+            .filter_map(|row| row.q8.as_ref().map(|variant| &variant.model)),
+    )
+}
 
 #[test]
 fn a_research_only_licence_never_reaches_the_chooser_and_keeps_its_reason() {
@@ -259,7 +270,7 @@ fn every_row_has_a_name_a_person_can_say() {
 
 #[test]
 fn every_row_passes_the_axes_and_the_floor() {
-    for entry in rows() {
+    for entry in every_entry() {
         let total = entry.parameters.total().count();
         let active = entry.parameters.active().count();
         assert!(
@@ -279,9 +290,12 @@ fn only_the_download_rows_know_where_their_weights_live() {
     // A repo name written from memory is how a download 404s a week later:
     // the research rows never asked the API, so they carry no address at
     // all — and no address is exactly what keeps them out of the chooser.
+    // A variant's file is an address too, and is held to the same list.
     let pinned: Vec<&str> = DOWNLOADABLE
         .iter()
-        .map(|row| row.source.repo)
+        .flat_map(|row| {
+            std::iter::once(row.source.repo).chain(row.q8.iter().map(|variant| variant.source.repo))
+        })
         .collect();
     assert_eq!(
         pinned,
@@ -289,6 +303,7 @@ fn only_the_download_rows_know_where_their_weights_live() {
             "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
             "unsloth/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
+            "bartowski/gemma-4-12B-it-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
@@ -380,10 +395,17 @@ fn a_source_serves_its_exact_file_at_its_commit() {
 fn the_download_rows_carry_their_exact_bytes() {
     // Figures verified against the Hugging Face response headers
     // (`x-linked-size`) for the pinned file of each repo, verbatim:
-    // rounding a measurement would be throwing the measurement away.
+    // rounding a measurement would be throwing the measurement away. The
+    // variant's file is a download too, and carries its own exact bytes.
     let bytes: Vec<(&str, u64)> = DOWNLOADABLE
         .iter()
-        .map(|row| (row.model.repo, row.model.weights_bytes))
+        .flat_map(|row| {
+            std::iter::once((row.model.repo, row.model.weights_bytes)).chain(
+                row.q8
+                    .iter()
+                    .map(|variant| (variant.model.repo, variant.model.weights_bytes)),
+            )
+        })
         .collect();
     assert_eq!(
         bytes,
@@ -392,6 +414,7 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("google/gemma-4-E4B-it", 4_977_171_584),
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("google/gemma-4-12B-it", 7_662_533_088),
+            ("google/gemma-4-12B-it", 12_669_647_328),
             ("LiquidAI/LFM2.5-2.6B", 2_874_779_648),
             ("LiquidAI/LFM2.5-2.6B", 5_403_158_528),
             ("Qwen/Qwen3.8-27B", 16_464_440_224),
@@ -467,13 +490,19 @@ fn every_download_row_carries_the_context_its_header_declares() {
     // publisher trained it for. Without that figure the budget funds a window
     // out of memory alone — 547,503 tokens for a model trained at 262,144 —
     // and the model answers worse for it. A research row has no file and so no
-    // header: None is the honest value there, never a guess.
+    // header: None is the honest value there, never a guess. A variant is the
+    // same model in a different file, and its own header is the one that
+    // counts when it is served.
     for row in DOWNLOADABLE {
-        let tokens = row
-            .model
-            .trained_context_tokens
-            .unwrap_or_else(|| panic!("{}: read context_length from its GGUF", row.model.repo));
-        assert!(tokens >= 4_096, "{}: {tokens} is not a context", row.model.repo);
+        for entry in [&row.model]
+            .into_iter()
+            .chain(row.q8.as_ref().map(|variant| &variant.model))
+        {
+            let tokens = entry
+                .trained_context_tokens
+                .unwrap_or_else(|| panic!("{}: read context_length from its GGUF", entry.repo));
+            assert!(tokens >= 4_096, "{}: {tokens} is not a context", entry.repo);
+        }
     }
     for entry in CATALOG {
         assert!(
@@ -614,10 +643,30 @@ fn a_q8_variant_is_its_row_except_for_the_bigger_file() {
         assert!(up.weights_bytes > base.weights_bytes, "{}", base.repo);
         assert_ne!(up.measured_decode, base.measured_decode, "{}", base.repo);
     }
-    // And the variant stream is the variant rows, gated exactly as their
-    // owners are: one today, keyed by the row that owns it.
-    let keyed: Vec<(&str, &str)> = q8_variants()
-        .map(|(owner, variant)| (owner.repo, variant.entry().quant))
+    // And the pairing the chooser walks is the variant rows, gated exactly
+    // as their owners are: one today, keyed by the row that owns it.
+    let keyed: Vec<(&str, &str)> = usable_with_q8()
+        .filter_map(|(_, variant)| variant)
+        .map(|variant| (variant.entry().repo, variant.entry().quant))
         .collect();
     assert_eq!(keyed, [("google/gemma-4-12B-it", "Q8_0")]);
+}
+
+#[test]
+fn a_gated_variant_never_reaches_the_chooser_even_where_its_row_does() {
+    // The variant goes through its row's own gate, not around it: stale (or
+    // refused, or unmeasured-cache) describes the variant's entry too, and
+    // a machine whose bandwidth would take it is still served the row's own
+    // file.
+    let mut row = *DOWNLOADABLE
+        .iter()
+        .find(|row| row.model.repo == "google/gemma-4-12B-it")
+        .expect("the row that carries a variant");
+    row.q8.as_mut().expect("the variant").model.stale =
+        Some("superseded in its tier, for the test");
+    let table = [row];
+    let pairs: Vec<_> = usable_with_q8_in(&table).collect();
+    assert_eq!(pairs.len(), 1, "the row itself stays on the menu");
+    assert!(pairs[0].1.is_none(), "the gated variant does not");
+    assert_eq!(pairs[0].0.entry().quant, "Q4_K_M");
 }

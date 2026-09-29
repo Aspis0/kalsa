@@ -755,22 +755,20 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // reads belongs with the launch wiring that will actually run one.
     //
     // The Q8 file (2026-09-29, owner decision): on a machine whose bandwidth
-    // is at least [`crate::choice::Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] AND
-    // where the Q8 weights, the drafter and this row's memory accounting fit
-    // the budget, the row is served as Q8_0 instead of Q4_K_M; below the
-    // line, or where it does not fit, exactly as before. Same repo and
-    // commit as the Q4 file: `curl -sIL` on its resolve URL returned
-    // x-linked-size 12_669_647_328 and x-linked-etag the sha256 below, and
-    // paths-info at the commit agrees on both. The header is the same
-    // model's (the spec doc served this file under the row's own argv, q8_0
-    // KV, 65_536 context), so the cache arithmetic carries over.
+    // is at least [`crate::q8::Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] AND where
+    // the Q8 candidate clears every gate the Q4 one would face — fit, the
+    // reading floor, the row's dense line — the row is served as Q8_0
+    // instead of Q4_K_M; below the line, or where it would not, exactly as
+    // before. Same repo and commit as the Q4 file: `curl -sIL` on its
+    // resolve URL returned x-linked-size 12_669_647_328 and x-linked-etag
+    // the sha256 below, and paths-info at the commit agrees on both. The
+    // header is the same model's (the spec doc served this file under the
+    // row's own argv, q8_0 KV, 65_536 context), so the cache arithmetic
+    // carries over.
     //
-    // Its decode anchor is the doc's own Q8_0 no-spec rate on the final fork
-    // build — greedy it_short 19.62 (line 319, the fork A/B table) — read at
-    // the same protocol family as this row's 20.44: its Q4 twin is 19.86
-    // (line 309), so the anchor ratio puts Q8 about 4% under Q4, in line
-    // with the measured 1.1–3.0% decode gap (line 376) and erring against
-    // the bigger file.
+    // The anchor is the spec doc's llama-bench tg128 for THIS file: 23.90
+    // against Q4's 24.66 on the same build (its lines 386–387) — the same
+    // protocol as the row's own 20.44 anchor (COMPUTE-BUFFERS-DENSE.md:430).
     DownloadableEntry {
         model: ModelEntry {
             repo: "google/gemma-4-12B-it",
@@ -865,12 +863,11 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
                 dense_equivalent: None,
                 kv_assumption_undercounts: false,
                 measured_decode: Some(MeasuredDecode {
-                    tokens_per_second: 19.62,
+                    tokens_per_second: 23.90,
                     backend: Backend::Metal,
                     bandwidth_bytes_per_second: 400.0e9,
-                    measured_on: "M1 Max (Metal, q8_0 KV cache, flash-attention, all layers \
-                                  on GPU, context 65536, no-spec A arm, greedy it_short), \
-                                  2026-09-29",
+                    measured_on: "M1 Max (llama-bench tg128, Metal, flash-attention, all layers \
+                                  on GPU, fork build 11205), 2026-09-29",
                 }),
                 trained_context_tokens: Some(131_072),
                 stale: None,
@@ -1144,27 +1141,39 @@ pub fn usable() -> impl Iterator<Item = UsableEntry<'static>> {
     usable_in(DOWNLOADABLE)
 }
 
-/// Each row's Q8 variant beside the row that owns it. The pair is what keeps
-/// the lookup honest when one repo ships two rows (LiquidAI's two
-/// compressions): a variant replaces ITS row, never the repo. Existence here
-/// is not an offer — the chooser's bandwidth rule decides when a variant is
-/// served, and until then the row's own file is the row.
-pub fn q8_variants() -> impl Iterator<Item = (&'static ModelEntry, UsableEntry<'static>)> {
-    DOWNLOADABLE
-        .iter()
-        .filter(|row| row.model.is_usable())
-        .filter_map(|row| {
-            row.q8.as_ref().map(|variant| {
-                (
-                    &row.model,
-                    UsableEntry {
-                        entry: &variant.model,
-                        source: &variant.source,
-                        drafter: row.drafter.as_ref(),
-                    },
-                )
-            })
-        })
+/// Each usable row paired with its own Q8 variant, when the variant passes
+/// the same [`ModelEntry::standing`] gate as its row. Paired by structure
+/// here, where the table nests it — a variant belongs to the row that
+/// carries it, never to whichever row matches its values.
+pub(crate) fn usable_with_q8(
+) -> impl Iterator<Item = (UsableEntry<'static>, Option<UsableEntry<'static>>)> {
+    usable_with_q8_in(DOWNLOADABLE)
+}
+
+/// The pairing over any table, the seam tests write synthetic rows through:
+/// [`usable_with_q8`] is this fed the real table.
+pub(crate) fn usable_with_q8_in(
+    rows: &[DownloadableEntry],
+) -> impl Iterator<Item = (UsableEntry<'_>, Option<UsableEntry<'_>>)> {
+    rows.iter().filter(|row| row.model.is_usable()).map(|row| {
+        let variant = row
+            .q8
+            .as_ref()
+            .filter(|variant| variant.model.is_usable())
+            .map(|variant| UsableEntry {
+                entry: &variant.model,
+                source: &variant.source,
+                drafter: row.drafter.as_ref(),
+            });
+        (
+            UsableEntry {
+                entry: &row.model,
+                source: &row.source,
+                drafter: row.drafter.as_ref(),
+            },
+            variant,
+        )
+    })
 }
 
 /// The gate itself, over any table, so a test can run the menu's exact

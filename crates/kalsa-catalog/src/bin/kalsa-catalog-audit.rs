@@ -15,8 +15,8 @@ mod audit_config;
 use kalsa_catalog::{
     audit::{inspect, RowAssessment},
     choose, fits_footprint, largest_that_runs_well, memory_budget, quicker_alternative,
-    ChoiceInput, Decision, DownloadPlan, PhoneModel, Prediction, RefusalReason, RunnableRow,
-    Standing, CATALOG, GIB,
+    ChoiceInput, Decision, DownloadFile, DownloadPlan, PhoneModel, Prediction, RefusalReason,
+    RunnableRow, Standing, CATALOG, GIB,
 };
 
 use audit_config::Config;
@@ -89,10 +89,11 @@ fn print_tier(tier: u64, base: ChoiceInput) {
                 url,
                 bytes,
                 sha256,
-                ..
+                drafter,
             } = &selection.download;
             println!("  download: {url}");
             println!("            {bytes} bytes, sha256 {sha256}");
+            print_drafter(drafter, &selection.download);
             Some((selection.repo, selection.quant, selection.weights_bytes))
         }
         // No phone is not no choice: the page answers "what can this
@@ -188,10 +189,25 @@ fn print_winner(row: &RunnableRow) {
         url,
         bytes,
         sha256,
-        ..
+        drafter,
     } = &row.download;
     println!("  download: {url}");
     println!("            {bytes} bytes, sha256 {sha256}");
+    print_drafter(drafter, &row.download);
+}
+
+/// The drafter beside the winner's weights, with the one total both cost —
+/// the same line the pick itself prints.
+fn print_drafter(drafter: &Option<DownloadFile>, plan: &DownloadPlan) {
+    if let Some(drafter) = drafter {
+        println!("  drafter:  {}", drafter.url);
+        println!(
+            "            {} bytes, sha256 {} — {} with the weights",
+            drafter.bytes,
+            drafter.sha256,
+            gibs(plan.total_bytes())
+        );
+    }
 }
 
 fn on_the_menu(

@@ -116,10 +116,8 @@ pub fn decode_prediction(entry: UsableEntry<'_>, input: &ChoiceInput) -> Predict
 /// prediction below, which says out loud that it is estimated.
 pub const MEASURED_BANDWIDTH_TOLERANCE: f64 = 0.25;
 
-/// The chooser's own footprint for this row on this machine — the same
-/// candidate construction `choose` runs, the row's drafter included. One
-/// copy of that arithmetic exists; this is the window onto it for callers
-/// outside the catalog, beside [`decode_prediction`].
+/// The chooser's own footprint for this row — the same construction
+/// `choose` runs, drafter included; the window for callers outside.
 pub fn candidate_footprint(entry: UsableEntry<'_>, input: &ChoiceInput) -> Footprint {
     candidate(entry, input).footprint
 }
@@ -129,10 +127,8 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     let drafter = entry.drafter();
     let entry = entry.entry();
     let mut footprint = footprint_bytes(entry, input.context_tokens);
-    // The drafter is resident wherever the row runs, so the fit charges it;
-    // it is NOT charged to the decode traffic, whose anchors are no-spec
-    // target-only rates — pricing a drafter's reads belongs with the launch
-    // wiring that will actually run one.
+    // Resident wherever the row runs, so the fit charges it; not in the
+    // decode traffic — the anchors are no-spec target-only rates.
     footprint.drafter_bytes = drafter.map(|file| file.bytes).unwrap_or(0);
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
     // these two the wrong way round is the mistake the separate types prevent.

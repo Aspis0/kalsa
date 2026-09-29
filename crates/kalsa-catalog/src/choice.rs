@@ -14,11 +14,12 @@
 
 use kalsa_probe::Backend;
 
-use crate::candidate::{candidate, Candidate, Prediction};
+use crate::candidate::{Candidate, Prediction};
 use crate::footprint::{fits_footprint, memory_budget, Footprint, MemoryBudget, GIB};
 use crate::licence::Licence;
-use crate::manifest::{self, DenseEquivalent, ModelEntry};
+use crate::manifest::{DenseEquivalent, ModelEntry};
 use crate::parameters::Parameters;
+use crate::q8;
 use crate::rationale::{details, gib_text, plain_reason, render};
 
 /// The phone's model, as the pairing handshake reports it.
@@ -117,52 +118,6 @@ pub const LARGE_DENSE_PARAMETERS: u64 = 20_000_000_000;
 /// relief candidate is held to the phone's own class rather than allowed to be
 /// a downgrade.
 pub const SAME_CLASS_BAND: f64 = 0.85;
-
-/// The bandwidth at or above which a row that carries a Q8_0 file is served
-/// as Q8_0 instead of its smaller compression — the owner's rule of
-/// 2026-09-29, set at the M1 Pro's published 200 GB/s so the bigger file
-/// goes to the machines whose memory bus can carry it. Below the line, or
-/// wherever the bigger file does not fit the budget, the row is exactly what
-/// it was. The figure compared is the bandwidth the chooser is given
-/// (`ChoiceInput::bandwidth_bytes_per_second`).
-pub const Q8_MIN_BANDWIDTH_BYTES_PER_SECOND: f64 = 200.0e9;
-
-/// The owner's quant rule, applied before any gate sees the candidates: at
-/// or above [`Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`], a row with a Q8_0 variant
-/// is replaced by that variant — when the Q8 weights, the drafter and the
-/// row's existing memory accounting fit the budget, which is checked here so
-/// the replacement either happens whole or not at all. Below the line, or
-/// where it does not fit, the candidates come back exactly as they went in.
-fn resolve_q8_variants<'a>(
-    candidates: Vec<Candidate<'a>>,
-    input: &ChoiceInput,
-    budget: &MemoryBudget,
-) -> Vec<Candidate<'a>> {
-    if input.bandwidth_bytes_per_second < Q8_MIN_BANDWIDTH_BYTES_PER_SECOND {
-        return candidates;
-    }
-    let variants: Vec<_> = manifest::q8_variants().collect();
-    candidates
-        .into_iter()
-        .flat_map(|base| {
-            match variants.iter().find(|(owner, _)| {
-                owner.repo == base.entry.repo
-                    && owner.quant == base.entry.quant
-                    && owner.weights_bytes == base.entry.weights_bytes
-            }) {
-                Some((_, variant)) => {
-                    let upgraded = candidate(*variant, input);
-                    if fits_footprint(upgraded.entry, &upgraded.footprint, budget) {
-                        vec![upgraded]
-                    } else {
-                        vec![base]
-                    }
-                }
-                None => vec![base],
-            }
-        })
-        .collect()
-}
 
 /// The capability rule, on the quantity it was always supposed to compare.
 ///
@@ -903,16 +858,12 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
     }
 
     let budget = memory_budget(input.backend, input.ram_bytes);
-    // The owner's Q8 rule runs first, so every gate below sees the file the
-    // machine will actually be served — never both compressions of a row it
-    // has already answered.
-    let candidates = resolve_q8_variants(
-        manifest::usable()
-            .map(|entry| candidate(entry, input))
-            .collect(),
-        input,
-        &budget,
-    );
+    // The owner's Q8 rule decides each row's file first, so every gate below
+    // sees the file the machine will actually be served.
+    let candidates: Vec<Candidate> = q8::resolved(input)
+        .into_iter()
+        .map(|(_, candidate)| candidate)
+        .collect();
 
     // A candidate fits the chosen budget entirely or it is not a candidate for
     // this path. Measured upstream: 18.49 tok/s fully on the GPU, 12.19 on the
@@ -1026,7 +977,7 @@ pub fn dense_speed_floor(entry: &ModelEntry) -> Option<f64> {
 /// end below reading speed means the model is not usable interactively. A
 /// floor below the line is unknown, not slow, and on the faster path the
 /// model will run on it may not be slow at all.
-fn provably_too_slow(decode: &Prediction) -> bool {
+pub(crate) fn provably_too_slow(decode: &Prediction) -> bool {
     matches!(decode, Prediction::Range { .. }) && decode.floor() < MINIMUM_TOKENS_PER_SECOND
 }
 
@@ -1262,171 +1213,5 @@ mod tests {
             Some(phone)
         )
         .is_none());
-    }
-
-    // ── the Q8 rule ────────────────────────────────────────────────────────
-    // The owner's 2026-09-29 decision, at the machines the decision names.
-    // What these pin is the row's own resolution — which file the chooser
-    // would serve for Gemma 4 12B — not which row leads a tier, which is
-    // the walk's separate business.
-
-    use crate::footprint::memory_budget;
-    use crate::manifest;
-
-    /// A Mac: unified memory, the stated bandwidth, the chooser's window.
-    fn mac(ram_gib: u64, bandwidth_gbps: f64) -> ChoiceInput {
-        ChoiceInput {
-            backend: Backend::Metal,
-            ram_bytes: ram_gib * crate::footprint::GIB,
-            bandwidth_bytes_per_second: bandwidth_gbps * 1e9,
-            bandwidth_is_lower_bound: false,
-            compute_flops_per_second: 100.0e9,
-            context_tokens: CHOOSER_CONTEXT_TOKENS,
-            phone: None,
-        }
-    }
-
-    /// Every row's candidate after the Q8 rule has had its say: the variant
-    /// having replaced its row where the rule serves it, the row's own file
-    /// where it does not.
-    fn resolved(input: &ChoiceInput) -> Vec<Candidate<'static>> {
-        let budget = memory_budget(input.backend, input.ram_bytes);
-        resolve_q8_variants(
-            manifest::usable()
-                .map(|entry| candidate(entry, input))
-                .collect(),
-            input,
-            &budget,
-        )
-    }
-
-    /// The one candidate the rule leaves for Gemma 4 12B — one file or the
-    /// other, never both.
-    fn the_twelve_b<'a>(candidates: &'a [Candidate<'static>]) -> &'a Candidate<'static> {
-        let found: Vec<&Candidate> = candidates
-            .iter()
-            .filter(|candidate| candidate.entry.repo == "google/gemma-4-12B-it")
-            .collect();
-        assert_eq!(
-            found.len(),
-            1,
-            "the row answers once, one file or the other: {}",
-            found.len()
-        );
-        found[0]
-    }
-
-    #[test]
-    fn a_hundred_gb_s_mac_keeps_q4_and_gains_the_drafter() {
-        // 16 GiB / 100 GB/s: under the Q8 line, so the row is the Q4 file it
-        // always was — and the drafter rides either way, charged to the fit.
-        let candidates = resolved(&mac(16, 100.0));
-        let twelve_b = the_twelve_b(&candidates);
-        assert_eq!(twelve_b.entry.quant, "Q4_K_M");
-        let drafter = twelve_b.drafter.expect("the row ships a drafter");
-        assert_eq!(drafter.file, "mtp-gemma-4-12B-it-Q8_0.gguf");
-        assert_eq!(drafter.bytes, 465_109_152);
-        assert_eq!(twelve_b.footprint.drafter_bytes, 465_109_152);
-    }
-
-    #[test]
-    fn a_four_hundred_gb_s_mac_with_room_is_served_q8() {
-        // 64 GiB / 400 GB/s: over the line, and the Q8 weights plus the
-        // drafter plus the row's accounting fit the 48 GiB budget many times
-        // over — so the variant replaced the Q4 file, with its own pin and
-        // its own measured rate.
-        let candidates = resolved(&mac(64, 400.0));
-        let twelve_b = the_twelve_b(&candidates);
-        assert_eq!(twelve_b.entry.quant, "Q8_0");
-        assert_eq!(twelve_b.source.file, "gemma-4-12B-it-Q8_0.gguf");
-        assert_eq!(twelve_b.source.bytes, 12_669_647_328);
-        assert!(twelve_b.drafter.is_some(), "the drafter rides the variant");
-        // In the measurement's band the prediction is the Q8 anchor, not the
-        // Q4 row's rate riding the bigger file's bytes.
-        match twelve_b.decode {
-            Prediction::Measured {
-                tokens_per_second, ..
-            } => assert!(
-                (tokens_per_second - 19.62).abs() < 1e-9,
-                "{tokens_per_second}"
-            ),
-            other => panic!("in band, the Q8 anchor is the answer: {other:?}"),
-        }
-    }
-
-    #[test]
-    fn exactly_at_the_line_q8_takes_the_row_where_it_fits_the_budget() {
-        // 32 GiB / 200 GB/s — exactly at the line. The arithmetic the fit
-        // rests on: 12_669_647_328 of Q8 weights + 465_109_152 of drafter +
-        // 536_870_912 of compute buffers + 65_536 tokens at the row's
-        // measured 8_704 bytes = 570_425_344; the total 14_242_052_736 sits
-        // well inside the 24 GiB budget's 25_769_803_776, so the variant
-        // replaces the Q4 file here too.
-        let machine = mac(32, 200.0);
-        let candidates = resolved(&machine);
-        let twelve_b = the_twelve_b(&candidates);
-        assert_eq!(twelve_b.entry.quant, "Q8_0");
-        let budget = memory_budget(machine.backend, machine.ram_bytes);
-        assert_eq!(twelve_b.footprint.total_bytes(), 14_242_052_736);
-        assert!(twelve_b.footprint.total_bytes() <= budget.usable_bytes);
-    }
-
-    #[test]
-    fn a_hundred_and_ninety_nine_gb_s_mac_stays_on_q4() {
-        // One GB/s under the line: the bigger file is not the row's answer,
-        // however much room the machine has.
-        let candidates = resolved(&mac(64, 199.0));
-        assert_eq!(the_twelve_b(&candidates).entry.quant, "Q4_K_M");
-    }
-
-    #[test]
-    fn the_q8_file_does_not_take_the_row_where_it_does_not_fit() {
-        // 16 GiB / 400 GB/s: over the line, but the Q8 weights, the drafter
-        // and the row's accounting need 13.3 GiB against the 12 GiB budget —
-        // so the rule leaves the row exactly as it was.
-        let candidates = resolved(&mac(16, 400.0));
-        let twelve_b = the_twelve_b(&candidates);
-        assert_eq!(twelve_b.entry.quant, "Q4_K_M");
-    }
-
-    #[test]
-    fn a_row_without_a_drafter_carries_none_through_the_whole_plan() {
-        // Every other row runs alone: no placeholder drafter in any
-        // candidate, whatever the rule does to the Gemma row beside them.
-        let candidates = resolved(&mac(64, 400.0));
-        for other in candidates
-            .iter()
-            .filter(|candidate| candidate.entry.repo != "google/gemma-4-12B-it")
-        {
-            assert!(other.drafter.is_none(), "{}", other.entry.repo);
-        }
-        // And the plan itself, end to end through the public walk: the
-        // 18 GiB Mac at 400 GB/s is where the Q8 row leads, so its plan is
-        // the one place the drafter's fetch line and the one total can be
-        // pinned as a pick would carry them.
-        let pick = largest_that_runs_well(&mac(18, 400.0)).expect("an 18 GiB Mac runs the Q8 row");
-        assert_eq!(pick.entry.repo, "google/gemma-4-12B-it");
-        assert_eq!(pick.entry.quant, "Q8_0");
-        let drafter = pick
-            .download
-            .drafter
-            .as_ref()
-            .expect("the plan fetches the drafter");
-        assert!(
-            drafter.url.ends_with("/mtp-gemma-4-12B-it-Q8_0.gguf"),
-            "{}",
-            drafter.url
-        );
-        assert_eq!(drafter.bytes, 465_109_152);
-        assert_eq!(pick.download.total_bytes(), 12_669_647_328 + 465_109_152);
-        // A pick without a drafter plans only its own file.
-        let lfm_pick = largest_that_runs_well(&ChoiceInput {
-            bandwidth_bytes_per_second: 85.0e9,
-            ..mac(8, 85.0)
-        })
-        .expect("the 8 GiB tier runs the LFM file");
-        assert_eq!(lfm_pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
-        assert!(lfm_pick.download.drafter.is_none());
-        assert_eq!(lfm_pick.download.total_bytes(), lfm_pick.download.bytes);
     }
 }
