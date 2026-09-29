@@ -189,3 +189,30 @@ report per-rep and median °C·s/token, tok/s, and peak unit-zone temperatures.
 Do not infer a win from a single peak; show the trajectories and spread. Energy
 is outside this cell. Preserve command exit codes as `EXIT=<real status>` and
 do not infer success from a pipeline's last process.
+
+## Amendment 2026-09-28 — recover the skipped HTP prefill block
+
+During the registered order, P-NPU ×12 did not start: after P-CPU ×6, the
+10-minute cooldown ended at 33.2 °C (status 0), so the block was `VOID hot`.
+After all registered arms and the decode proof, the phone was cool again
+(battery 30.5 °C, status 0, Awake, unplugged, tracing 0). To finish the HTP
+trajectory requested in A, run a supplemental P-NPU ×12 block now, with the
+same prompt, binary flags, no cooldown inside, and all per-run gates. Keep it
+separate from the fixed-order primary result: report its own block-relative
+temperature trajectory and label cross-block comparisons descriptive because
+the supplemental block follows GPU and decode work.
+
+The first session sampler achieved median 2 s, maximum 3 s intervals, rather
+than the planned 1 s. The supplemental block will use a lighter collector;
+report its measured interval distribution and do not merge its samples with
+the first session.
+
+## Amendment 2026-09-28 — repeat decode with near-1 Hz sampling
+
+The registered decode arms were completed, but their sampler also achieved a
+2 s median interval (3 s maximum). After the separate decode-only HTP proof
+passed with the `llama-bench -v` debug switch, repeat the same nine decode arms
+in the same alternating order, with the same 60 s tails, cooldowns, and gates,
+using the fast collector. The fast collector measured 1.091 s median and
+1.140 s maximum during an idle check. Keep the original decode data raw but
+supersede it with the repeated set in the final B results.

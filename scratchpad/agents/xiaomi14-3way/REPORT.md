@@ -24,7 +24,21 @@ is fastest on CPU (29 tok/s), NPU second (23), OpenCL last. Same picture as the 
 CPU. The CPU frequency cap dropped during B (P2/P5 2.63 -> 2.32 GHz, P7 2.17 -> 1.94 GHz) while
 Android thermal status stayed 0 - the known Xiaomi trap; B's later arms ran capped.
 
-Caveat: kits differ (static new kit vs the S23's shared-lib kit). An S23 control run with the SAME
-kit is in progress; this table gets its column when it lands. `--list-devices` does not list CPU on
+## Same-kit S23 control (luna `de2374d8`, 2026-09-29, unplugged; lines re-read by the coordinator)
+
+| measure | Xiaomi 14 | S23, same kit | S23, old kit |
+|---|---|---|---|
+| A prefill CPU ms | 7542.59 | 10640.55 warm (19710.51 cold 1st) | 10389.45 |
+| A prefill GPU ms | 6855.27 | 7318.33 | 7326.37 |
+| A prefill NPU ms | 1447.97 | 1550.71 | 1558.10 |
+| A decode CPU / GPU / NPU tok/s | 27.53 / 13.26 / 16.24 | 20.66 / 12.62 / 15.10 | 21.14 / 11.18 / 12.96 |
+| B tg256 CPU / GPU / NPU | 29.21 / 15.49 / 23.33 | 14.89 (10.95-21.28) / 13.41 / 22.12 | 22.13 / 14.03 / 22.09 |
+
+The kit is not a confound: on the S23 the new kit reproduces the old one on GPU and NPU. The S23
+CPU decode in B is throttled (battery up to 38.8 C, thermal status 1; reps 14.89 / 10.95 / 21.28),
+so the S23 B-CPU column is heat, not engine. Same-kit Xiaomi vs S23: CPU prefill 1.41x faster,
+GPU and NPU prefill only ~1.07x faster; the NPU v73 and v75 are close on this model.
+
+Caveat: kits differ (static new kit vs the S23's shared-lib kit). `--list-devices` does not list CPU on
 this build; the CPU route was proven with `-dev none -ngl 0`. Raw summaries in `raw/`; full logs in
 `/tmp/xiaomi-3way/` (not in the lab).
