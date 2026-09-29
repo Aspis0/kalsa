@@ -11,7 +11,8 @@
 pub mod record;
 pub use record::fingerprint;
 pub use sample::{
-    checked_rate, Answer, Ask, CHECK_TIMEOUT, DRAFT_N_PREDICT, DRAFT_PROMPT, DRAFT_SEED,
+    checked_rate, Answer, Ask, CHECK_TIMEOUT, DRAFT_MIN_GENERATED, DRAFT_N_PREDICT, DRAFT_PROMPT,
+    DRAFT_SEED,
 };
 
 mod measure;

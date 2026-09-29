@@ -28,6 +28,15 @@ pub struct Ask {
     /// work for every setting measured against it.
     pub seed: Option<u32>,
     pub n_predict: u64,
+    /// True for the draft ask: it goes to `/v1/chat/completions` as one user
+    /// message — the product's own road, chat template and all — and stops
+    /// at EOS, because forced tokens past the answer are repetitive text a
+    /// drafter accepts trivially.
+    pub chat: bool,
+    /// The fewest generated tokens a measured answer must hold to count:
+    /// the grid's `ignore_eos` guarantees its full order, an EOS-stopped
+    /// chat answer only promises this floor.
+    pub min_generated: u64,
 }
 
 /// The grid's ask, unchanged: one short factual prompt, greedy, 64 tokens.
@@ -38,6 +47,8 @@ pub(crate) const GRID_ASK: Ask = Ask {
     top_k: None,
     seed: None,
     n_predict: N_PREDICT,
+    chat: false,
+    min_generated: N_PREDICT,
 };
 
 /// The draft dimension's prompt: one Italian-and-English request for plain
@@ -56,6 +67,11 @@ pub const DRAFT_SEED: u32 = 42;
 /// The draft dimension's length: a chat-turn's worth of generated tokens,
 /// twice the grid's, so a per-step overhead has room to amortise.
 pub const DRAFT_N_PREDICT: u64 = 128;
+
+/// The fewest generated tokens a draft answer must hold: an EOS-stopped
+/// answer shorter than this says less than a turn of chat, and a rate off
+/// it would rank a refusal-shaped lifetime as a measurement.
+pub const DRAFT_MIN_GENERATED: u64 = 48;
 
 /// The decode rate the server itself measured, or nothing: fewer tokens
 /// than ordered (the answer proved less than we asked for), no timings
@@ -123,14 +139,19 @@ fn agent(timeout: Duration) -> ureq::Agent {
 
 /// One POST to `/completion`, shared by the tune's samples and the check.
 fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
-    post_body(addr, timeout, completion_body(n_predict))
+    post_to(addr, timeout, "/completion", &completion_body(n_predict))
 }
 
-fn post_body(addr: SocketAddr, timeout: Duration, body: String) -> Result<String, SendFailed> {
+fn post_to(
+    addr: SocketAddr,
+    timeout: Duration,
+    path: &str,
+    body: &str,
+) -> Result<String, SendFailed> {
     match agent(timeout)
-        .post(&format!("http://{addr}/completion"))
+        .post(&format!("http://{addr}{path}"))
         .timeout(timeout)
-        .send_string(&body)
+        .send_string(body)
     {
         // The body has its own deadline; running out of time while reading
         // it is the same timeout as anywhere else.
@@ -175,33 +196,42 @@ pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Op
 }
 
 /// One POST of one ask at one length: the draft dimension's own request.
+/// The chat road answers with the same `timings` block the raw one does —
+/// `res["timings"] = stats.to_json()` in `to_json_oaicompat_chat()`
+/// (kalsallama tools/server/server-task.cpp:456), and `stats.to_json()`
+/// carries `predicted_n`/`predicted_ms`/`predicted_per_second` counted over
+/// every generated token, reasoning included (server-common.cpp:92-95) — so
+/// one reader serves both roads.
 pub(crate) fn request_ask(
     addr: SocketAddr,
     timeout: Duration,
     ask: &Ask,
     n_predict: u64,
 ) -> Option<f64> {
+    let (path, body) = ask_body(ask, n_predict);
     rate_from(
-        &post_body(addr, timeout, completion_body_for(ask, n_predict)).ok()?,
-        n_predict,
+        &post_to(addr, timeout, path, &body).ok()?,
+        ask.min_generated,
     )
 }
 
-/// The exact ask, with the token count the caller chose: the same prompt,
-/// the same flags, a different `n_predict` for the warm-up.
-fn completion_body(n_predict: u64) -> String {
-    completion_body_for(&GRID_ASK, n_predict)
-}
-
-/// The body one ask sends at one length: everything the ask carries, and
-/// nothing it does not — an unset sampling field is absent, not defaulted,
-/// so the server's own launch-time default (the row's choice, already in
-/// argv) is what applies.
-fn completion_body_for(ask: &Ask, n_predict: u64) -> String {
+/// The endpoint and the body one ask sends at one length: the raw road the
+/// grid has always used, or the chat road with the ask as one user message
+/// and the length as `max_tokens` — EOS ends the answer, `ignore_eos` is
+/// the grid's alone.
+fn ask_body(ask: &Ask, n_predict: u64) -> (&'static str, String) {
     let mut body = serde_json::Map::new();
-    body.insert("prompt".to_string(), serde_json::json!(ask.prompt));
-    body.insert("n_predict".to_string(), serde_json::json!(n_predict));
-    body.insert("ignore_eos".to_string(), serde_json::json!(true));
+    if ask.chat {
+        body.insert(
+            "messages".to_string(),
+            serde_json::json!([{ "role": "user", "content": ask.prompt }]),
+        );
+        body.insert("max_tokens".to_string(), serde_json::json!(n_predict));
+    } else {
+        body.insert("prompt".to_string(), serde_json::json!(ask.prompt));
+        body.insert("n_predict".to_string(), serde_json::json!(n_predict));
+        body.insert("ignore_eos".to_string(), serde_json::json!(true));
+    }
     body.insert("cache_prompt".to_string(), serde_json::json!(false));
     if let Some(temperature) = ask.temperature {
         body.insert("temperature".to_string(), serde_json::json!(temperature));
@@ -215,7 +245,18 @@ fn completion_body_for(ask: &Ask, n_predict: u64) -> String {
     if let Some(seed) = ask.seed {
         body.insert("seed".to_string(), serde_json::json!(seed));
     }
-    serde_json::Value::Object(body).to_string()
+    let path = if ask.chat {
+        "/v1/chat/completions"
+    } else {
+        "/completion"
+    };
+    (path, serde_json::Value::Object(body).to_string())
+}
+
+/// The grid's body at one length: the same prompt, the same flags, a
+/// different `n_predict` for the warm-up.
+fn completion_body(n_predict: u64) -> String {
+    ask_body(&GRID_ASK, n_predict).1
 }
 
 /// True when the port lists OUR nonce among `/v1/models`'s entries — the
@@ -360,6 +401,66 @@ mod tests {
 
     /// The warm-up and the measured requests differ in exactly one field.
     #[test]
+    /// The two roads: the grid's raw POST pins its order with `ignore_eos`;
+    /// the draft ask goes to the chat road as one user message, ends at EOS
+    /// (no `ignore_eos` anywhere), and carries the seed and the row's
+    /// sampling.
+    #[test]
+    fn the_draft_ask_takes_the_chat_road_and_stops_at_eos() {
+        let draft = Ask {
+            prompt: DRAFT_PROMPT,
+            temperature: Some(1.0),
+            top_p: Some(0.95),
+            top_k: Some(64),
+            seed: Some(DRAFT_SEED),
+            n_predict: DRAFT_N_PREDICT,
+            chat: true,
+            min_generated: DRAFT_MIN_GENERATED,
+        };
+        let (path, body) = ask_body(&draft, DRAFT_N_PREDICT);
+        assert_eq!(path, "/v1/chat/completions");
+        assert!(
+            body.contains("\"role\":\"user\"") && body.contains("riscaldamento"),
+            "one user message with the ask's text: {body}"
+        );
+        assert!(body.contains("\"max_tokens\":128"), "{body}");
+        assert!(
+            !body.contains("ignore_eos"),
+            "an EOS-stopped answer is the point: {body}"
+        );
+        assert!(body.contains("\"seed\":42"), "{body}");
+        assert!(body.contains("\"temperature\":1.0"), "{body}");
+        let (grid_path, grid_body) = ask_body(&GRID_ASK, N_PREDICT);
+        assert_eq!(grid_path, "/completion");
+        assert!(grid_body.contains("\"ignore_eos\":true"), "{grid_body}");
+    }
+
+    /// An EOS-stopped answer below the floor is not a sample; at or above it
+    /// is, whatever the order said.
+    #[test]
+    fn a_short_chat_answer_is_refused_by_the_floor() {
+        let draft = Ask {
+            prompt: DRAFT_PROMPT,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            seed: None,
+            n_predict: DRAFT_N_PREDICT,
+            chat: true,
+            min_generated: DRAFT_MIN_GENERATED,
+        };
+        assert_eq!(
+            rate_from(&body(47, 12.0), draft.min_generated),
+            None,
+            "under the floor: not a measurement"
+        );
+        assert_eq!(
+            rate_from(&body(48, 12.0), draft.min_generated),
+            Some(12.0),
+            "at the floor: the answer said enough"
+        );
+    }
+
     fn the_warm_up_asks_for_fewer_tokens_than_the_measurement() {
         let warm = completion_body(8);
         assert!(warm.contains("\"n_predict\":8"), "{warm}");

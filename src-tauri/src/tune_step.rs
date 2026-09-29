@@ -195,6 +195,8 @@ pub(crate) fn measure_drafts_with_rule(
         top_k: rule.sampling.top_k,
         seed: Some(kalsa_tune::DRAFT_SEED),
         n_predict: kalsa_tune::DRAFT_N_PREDICT,
+        chat: true,
+        min_generated: kalsa_tune::DRAFT_MIN_GENERATED,
     };
     kalsa_tune::measure_draft_candidates(
         resolved,
@@ -349,16 +351,16 @@ fn tune_launch_inner(
             // like with like on text like the owner's. A draft lifetime
             // that refuses simply loses; "off" wins on its own numbers.
             let grid_winner = kalsa_tune::winner(&results);
-            let mut expected = candidates.len();
+            let grid_ran = results.len();
             let mut draft_results = Vec::new();
+            // An unresolved exe for the draft pass leaves the picture
+            // incomplete — unsaved, so the next start retries rather than
+            // pinning the drafter off a dimension it never measured.
+            let mut draft_exe_resolved = true;
             if rule_args.draft.is_some() {
                 if let Some(win) = &grid_winner {
-                    // The winner's exe resolved once for the draft pass or
-                    // not at all: an unresolved one leaves the dimension
-                    // unmeasured — and unmeasured is not saved, so the next
-                    // start tries again.
                     let shape = win.candidate;
-                    if let Some(exe) = exe_for(
+                    match exe_for(
                         &shape,
                         (main.0, &main.1),
                         &mut memo.processor,
@@ -367,38 +369,53 @@ fn tune_launch_inner(
                     )
                     .ok()
                     {
-                        let settings = [None, Some(2), Some(3), Some(4)];
-                        let draft_resolved: Vec<_> = settings
-                            .iter()
-                            .map(|&draft| (kalsa_tune::Candidate { draft, ..shape }, exe.clone()))
-                            .collect();
-                        let base = results.len();
-                        // Four lifetimes run; one record entry replaces the
-                        // grid winner's own trial, so the file gains three.
-                        expected += settings.len() - 1;
-                        draft_results =
-                            measure_draft(&draft_resolved, &rule_args, &mut |done, planned| {
-                                progress(Progress::Tuning {
-                                    done: base + done,
-                                    total: base + planned,
+                        Some(exe) => {
+                            // Off first: the budget cuts the tail, and a cut
+                            // n_max is a setting that lost, not a hole in the
+                            // record. The pass is complete when off was
+                            // measured — even off cut reads as the dimension
+                            // answering "off", never an endless re-tune.
+                            let settings = [None, Some(2), Some(3), Some(4)];
+                            let draft_resolved: Vec<_> = settings
+                                .iter()
+                                .map(|&draft| {
+                                    (kalsa_tune::Candidate { draft, ..shape }, exe.clone())
                                 })
-                            });
-                        // The off trial IS the winning shape: the grid's own
-                        // trial of it (a different ask) leaves the record, or
-                        // the file would hold one launch twice.
-                        results.retain(|(trial, _)| *trial != shape);
-                        results.extend(draft_results.iter().cloned());
+                                .collect();
+                            let base = results.len();
+                            draft_results =
+                                measure_draft(&draft_resolved, &rule_args, &mut |done, planned| {
+                                    progress(Progress::Tuning {
+                                        done: base + done,
+                                        total: base + planned,
+                                    })
+                                });
+                            if draft_results
+                                .first()
+                                .is_some_and(|(trial, _)| trial.draft.is_none())
+                            {
+                                // The off trial IS the winning shape: the
+                                // grid's own trial of it (a different ask)
+                                // leaves the record, or the file would hold
+                                // one launch twice.
+                                results.retain(|(trial, _)| *trial != shape);
+                                results.extend(draft_results.iter().cloned());
+                            }
+                        }
+                        None => draft_exe_resolved = false,
                     }
                 }
             }
-            // The verdict: the draft dimension's own when it ran — its four
-            // on one ask — and the grid's otherwise.
-            let winner = if draft_results.is_empty() {
-                kalsa_tune::winner(&results)
-            } else {
+            // The verdict: the draft dimension's own when its off was
+            // measured — its trials on one ask — and the grid's otherwise.
+            let winner = if draft_results
+                .first()
+                .is_some_and(|(trial, _)| trial.draft.is_none())
+            {
                 kalsa_tune::winner(&draft_results)
+            } else {
+                kalsa_tune::winner(&results)
             };
-            let ran = results.len();
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
@@ -407,16 +424,19 @@ fn tune_launch_inner(
                     .map(|(candidate, outcome)| (candidate, (&outcome).into()))
                     .collect(),
             };
-            // Every candidate must have RUN once: a budget cut in round
-            // one or an exe that could not be resolved leaves a partial
-            // picture, and saving it would lock the next start out of the
-            // re-run that would complete it. This start's winner still
-            // launches — it just is not remembered.
+            // Every grid candidate must have RUN once, and the draft pass's
+            // exe must have resolved: anything else is a partial picture,
+            // and saving it would lock the next start out of the re-run that
+            // would complete it. The draft pass's own budget cuts are not
+            // holes — off measured, the cut n_maxes lost; even off cut reads
+            // as the dimension answering "off" — so a slow machine never
+            // re-tunes forever. This start's winner still launches — it just
+            // is not remembered.
             // A refusal is a candidate that ran — it was attempted and
             // answered, `DidNotStart` included; only a candidate whose
             // lifetime never began (the budget cut round one, or an exe
             // that could not be resolved) makes the picture incomplete.
-            if ran == expected {
+            if grid_ran == candidates.len() && draft_exe_resolved {
                 if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
                     // Best effort: a record that cannot be written costs a
                     // re-tune next start, never this launch.
@@ -425,7 +445,7 @@ fn tune_launch_inner(
             } else {
                 eprintln!(
                     "kalsa-brain: the tune ran {} of {} candidates; not saved — the next start tries again",
-                    ran,
+                    grid_ran,
                     candidates.len()
                 );
             }

@@ -1197,6 +1197,166 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A budget that fits only off and one n_max: the cut settings are losers,
+/// not holes — the record is saved over what ran, and the next start reuses
+/// it without measuring anything.
+#[test]
+fn a_budget_cut_draft_pass_still_saves_and_is_reused() {
+    let dir = scratch("draft-cut");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            resolved
+                .iter()
+                .map(|(candidate, _)| {
+                    let outcome = if matches!(candidate.offload, Offload::EngineFitted) {
+                        kalsa_tune::Outcome::Measured(vec![40.0])
+                    } else {
+                        kalsa_tune::Outcome::Measured(vec![10.0])
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            // The window fits off and n_max 2 only; 3 and 4 never began.
+            resolved
+                .iter()
+                .take(2)
+                .map(|(candidate, _)| {
+                    let outcome = match candidate.draft {
+                        None => kalsa_tune::Outcome::Measured(vec![40.0]),
+                        _ => kalsa_tune::Outcome::Measured(vec![50.0]),
+                    };
+                    (*candidate, outcome)
+                })
+                .collect()
+        },
+    );
+    // Saved: the next start answers from the record, neither ask measured.
+    let mut again = prepared_with("/main-gpu", {
+        let mut args = rule_args();
+        args.draft = Some(LaunchDraft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+        });
+        args
+    });
+    again.info.drafter_sha256 = Some("cafe1234".to_string());
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("a kept record must not measure the grid"),
+        |_, _, _| panic!("a kept record must not measure the draft dimension"),
+    );
+    assert!(
+        again.server.argv.join(" ").contains("--spec-draft-n-max 2"),
+        "the cut pass's own winner is the verdict: {:?}",
+        again.server.argv
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A winner whose exe cannot be resolved for the draft pass leaves the
+/// picture incomplete: nothing is saved, and the next start measures again
+/// instead of reusing a record that pinned the drafter off a dimension it
+/// never measured.
+#[test]
+fn an_unresolvable_draft_exe_leaves_the_tune_unsaved() {
+    let dir = scratch("draft-no-exe");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut args = rule_args();
+    args.draft = Some(LaunchDraft {
+        model_path: PathBuf::from("/models/mtp.gguf"),
+        n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
+    });
+    let mut prepared = prepared_with("/main-gpu", args);
+    prepared.info.drafter_sha256 = Some("cafe1234".to_string());
+    // The processor build refuses: the grid drops its candidate, and the
+    // seam below still answers for one — the defensive case, where a
+    // winner arrives whose build nobody can launch.
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Err(StartupFailure::DownloadCorrupted)),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            // The seam answers for the whole grid the resolution loop
+            // planned — including the processor candidates it dropped when
+            // the build refused — so the count reads complete and the
+            // winner is a shape nobody can launch.
+            let mut outcomes: Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)> = resolved
+                .iter()
+                .map(|(candidate, _)| (*candidate, kalsa_tune::Outcome::Measured(vec![10.0])))
+                .collect();
+            outcomes.push((
+                kalsa_tune::Candidate {
+                    backend: ServerBackend::Cpu,
+                    threads: Some(8),
+                    offload: Offload::NoGpuBuild,
+                    draft: None,
+                },
+                kalsa_tune::Outcome::Measured(vec![50.0]),
+            ));
+            outcomes.push((
+                kalsa_tune::Candidate {
+                    backend: ServerBackend::Cpu,
+                    threads: Some(10),
+                    offload: Offload::NoGpuBuild,
+                    draft: None,
+                },
+                kalsa_tune::Outcome::Measured(vec![9.0]),
+            ));
+            outcomes
+        },
+        |_, _, _| panic!("a draft pass with no exe must not measure"),
+    );
+    let digest = prepared.info.model_sha256.as_deref().unwrap();
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    assert!(
+        kalsa_tune::record::load(&dir, digest, &fingerprint).is_none(),
+        "incomplete is unsaved: the next start retries the drafter"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The processor alternative carries the chosen drafter too, pinned to the
 /// CPU beside its own `--n-gpu-layers 0`.
 #[test]
