@@ -139,6 +139,9 @@ class FakeNode {
   }
 
   click() {
+    // A disabled button does not click, the way a real one does not: the
+    // invariant lives in the DOM, not in every caller's filter.
+    if (this.disabled) return;
     this.dispatchEvent({
       type: "click",
       target: this,
