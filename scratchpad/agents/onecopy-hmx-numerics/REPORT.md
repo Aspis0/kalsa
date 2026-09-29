@@ -163,3 +163,30 @@ are visible; both runs complete and produce finite, close KLD/PPL. The specified
 differ. Do not treat the KLD proximity as proof of raw-HMX equivalence. The optional env-off control
 was skipped. Raw command logs, op tables, device strings and gates are retained locally under
 `raw/s23-20260928-hmx/` (raw dumps are ignored by the lab repository).
+
+### 2026-09-28 rerun 2 (S23, plugged: correctness only) - placement-matched, FARF on
+
+Device run by luna 1e8ee666; lines re-read by the coordinator from `/tmp/onecopy-hmx-dbg/` (raw logs
+not in the lab: the P0 adsprpc logcat alone is 841 MB).
+
+- Build `build-onecopy-hmx-v73-dbg` (GLM 0c452cc5): same commit `9d5eaf681`, only
+  `-DGGML_HEXAGON_HTP_DEBUG=ON` (`FARF_HIGH=1` in all 29 skel compile commands). `llama-perplexity`
+  `b0679554...efcc`, `libggml-htp-v73.so` `a5b9e7d5...af66`; device hashes match.
+- FARF: `llama-perplexity.farf` = `0x1F` in the first ADSP_LIBRARY_PATH dir; lines captured with
+  `logcat -s adsprpc` (they never reach the perplexity log - why rerun 1 counted 0).
+- Placement: P0 `-ot '(blk\.[0-9]+\.(attn_norm|ffn_norm|attn_q_norm|attn_k_norm|shortconv\.conv)|token_embd_norm)\.weight=HTP0:0,token_embd\.weight=HTP0:0,.*=HTP0:0-HOST'`
+  (P5 pattern + tied output weight on the normal buffer). `opset.sh` tables: **identical** (diff exit 0).
+
+| arm | EXIT | HTP MUL_MAT | `hmx-mm-2d:` (logcat) | Mean KLD | Max KLD | Same top p | PPL(Q)/PPL(base) |
+|---|---|---|---|---|---|---|---|
+| P0-hmx raw one-copy | 0 | 1320 (1316 from `-HOST`) | 65076, wtype 2 | 0.000946 ± 0.000052 | 0.011872 | 97.843 % | 1.004622 |
+| Q0-hmx normal buffer | 0 | 1320 | 1397, wtype 2 | 0.000892 ± 0.000052 | 0.011580 | 97.843 % | 0.995948 |
+
+No `dsp-error` / `NO-SUPPORT` / `ABORT` in either arm.
+
+Verdict: **PASS on execution and placement** (raw weights ran through the HMX kernel with matched
+opsets). **Numerics close, not identical**: the design predicted P0 == Q0 exactly (byte-identical tiles);
+measured KLD differs by 0.000054 (about one SD) and PPL drifts in opposite directions. Same-top-p is
+equal. Unexplained; hypothesis (unverified): P0 issues ~47x more HMX calls (chunked raw push), so the
+accumulation order/precision across chunks differs from Q0's. To be explained before or inside the
+fused raw-to-fp16 reader work.
