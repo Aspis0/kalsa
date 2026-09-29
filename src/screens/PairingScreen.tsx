@@ -151,13 +151,30 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   // Bumped on every edit and every new run: a confirmation poll from an
   // abandoned attempt must neither stamp completion nor set "paired".
   const confirmGenRef = useRef(0);
+  // The running poll's own abort: superseded polls stop probing at once,
+  // instead of riding the old credential to the 3-minute deadline.
+  const confirmAbortRef = useRef<AbortController | null>(null);
+
+  /** Abandon the running confirmation: its verdict is void and its probes
+   *  against the OLD credential stop now, not at the deadline. */
+  const supersedeConfirmation = () => {
+    confirmGenRef.current += 1;
+    confirmAbortRef.current?.abort();
+    confirmAbortRef.current = null;
+  };
 
   const startConfirmation = (paired: SavedPairingCredential) => {
     const generation = confirmGenRef.current;
-    const signal = deskSignal();
+    const screenSignal = deskSignal();
+    // The poll's abort is its own, linked to the screen-wide signal so Back
+    // or unmount reaches it exactly like every other desk request.
+    const pollAbort = new AbortController();
+    const onScreenAbort = () => pollAbort.abort();
+    screenSignal.addEventListener("abort", onScreenAbort);
+    confirmAbortRef.current = pollAbort;
     void pollForAllowance({
       probe: pairedPropsProbe(paired),
-      signal,
+      signal: pollAbort.signal,
       intervalMs: CONFIRM_POLL_INTERVAL_MS,
       deadlineMs: CONFIRM_DEADLINE_MS,
       perProbeTimeoutMs: CONFIRM_PROBE_TIMEOUT_MS,
@@ -168,6 +185,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         }
       },
     }).then((outcome) => {
+      // The poll is done: stop forwarding the screen's abort, and drop the
+      // controller only if a newer poll has not replaced it.
+      screenSignal.removeEventListener("abort", onScreenAbort);
+      if (confirmAbortRef.current === pollAbort) confirmAbortRef.current = null;
       if (outcome.result === "aborted") return;
       // An edit or a newer attempt replaced this poll: its verdict belongs
       // to a pairing the screen no longer holds.
@@ -201,8 +222,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
     sessionRef.current = null;
     activeInviteRef.current = null;
     // The edit abandons any confirmation still polling the previous
-    // attempt: its verdict must land nowhere (no stamp, no paired state).
-    confirmGenRef.current += 1;
+    // attempt: verdict void, probes stopped, no stamp, no paired state.
+    supersedeConfirmation();
     setState((current) => current === "refused" ? current : "ready");
     setPairHosts(null);
     setFields((current) => ({ ...current, [key]: value }));
@@ -212,7 +233,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
     // A new attempt invalidates any confirmation left over from the last one.
-    confirmGenRef.current += 1;
+    supersedeConfirmation();
     // Address resolution: a scan brings its own addresses (tailnet) or
     // means the configured prefill — never the previous scan's tailnet-
     // derived host; a manual run uses the typed fields.

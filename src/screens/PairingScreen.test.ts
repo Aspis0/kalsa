@@ -1001,6 +1001,54 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("an edit stops the abandoned poll's probes at once", async () => {
+    installFetch(200);
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    // A poll that honors its signal and keeps probing every 5 ms, like the
+    // real one: the assertion is that the probes STOP once the edit lands.
+    let probeCount = 0;
+    const { pollForAllowance } = jest.requireMock("../pairing/pairingConfirmation") as {
+      pollForAllowance: jest.Mock;
+    };
+    pollForAllowance.mockImplementationOnce(
+      (options: { signal?: AbortSignal; probe: (signal?: AbortSignal) => Promise<unknown> }) =>
+        new Promise((resolve) => {
+          const timer = setInterval(() => {
+            if (options.signal?.aborted === true) {
+              clearInterval(timer);
+              resolve({ result: "aborted" });
+              return;
+            }
+            probeCount += 1;
+            void Promise.resolve(options.probe(options.signal)).catch(
+              () => undefined,
+            );
+          }, 5);
+        }),
+    );
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => {
+      await sleep(25);
+    });
+    const before = probeCount;
+    expect(before).toBeGreaterThan(2);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.onChangeText(
+        "https://typed.example:8443",
+      );
+      await sleep(30);
+    });
+    // Superseded: no further request carries the old credential.
+    expect(probeCount).toBe(before);
+    await act(async () => renderer.unmount());
+  });
+
   test("the cap ends the wait as not confirmed, logs confirm_timeout, and Retry restarts the poll", async () => {
     installFetch(200);
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
