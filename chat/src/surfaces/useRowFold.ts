@@ -1,19 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-
-// How long a forgotten row takes to fold out of the list before it leaves
-// it. One number: it times both the CSS the row animates with and the timer
-// that removes it, so the box and the beat cannot drift apart.
-const FOLD_MS = 250;
-
-// The same read App.tsx makes: under reduced motion nothing is animated, so
-// a forgotten row is simply gone — which is how it always went.
-function reducedMotion(): boolean {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
+import { FOLD_MS, reducedMotion } from "./motion";
 
 // Two frames: one for the browser to take the height the row stands as, one
 // to move away from it — a transition needs both sides computed apart. Not

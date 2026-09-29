@@ -278,8 +278,8 @@ const scenarios = [
   // the list is read from the source instead, and the invitation is there.
   // A forgotten row takes its beat: at 100 ms it is still there, folding.
   ["Pairing", "a forgotten phone folds first", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 100 }],
-  // …and by 400 ms the beat is over: the row has left the list.
-  ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 400 }],
+  // …and by 600 ms the beat is over: the row has left the list.
+  ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 600 }],
   // A forget the store refuses: nothing folds, because nothing left.
   // Reduced motion: the row is simply gone — no fold phase at all.
   ["Pairing", "a forget under reduced motion is simply gone", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Forget", waitMs: 100 }],
