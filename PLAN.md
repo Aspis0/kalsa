@@ -857,6 +857,9 @@ Phases (each gated):
 1. **Prune:** one REAP observation pass, then several ratios from the same saliency (25/50/65/75 %),
    each converted to GGUF and scored EN/IT vs the unpruned base; keep the smallest that holds.
    Prep (fork pin, calibration set, pod script, estimate) on the Mac first: `scratchpad/agents/kalsa-reap-prep/`.
+   **Owner constraint:** the Kalsa MoE must run on phones AND PCs with 8 GB and 16 GB of RAM. The pruning
+   ratio is chosen against that: resident on 16 GB where it fits, and on 8 GB either a deep prune or our
+   expert streaming (`--moe-stream`: Qwen3.6 KEXP already decodes on the 8 GB S23 at 5.70 tok/s).
    Pod: one-layer REAP observer smoke, then 50 % on RunPod; gate on
    held-out EN/IT + tool calls vs the unpruned base. Budget cap $40 floor / $120 soft / $150 stop.
 2. **Kalsa SFT:** BF16 LoRA (Axolotl; Unsloth for Qwen3.5-MoE), router frozen, 2-5k curated EN/IT
