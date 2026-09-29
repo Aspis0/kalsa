@@ -3,6 +3,7 @@ import { NativeModules } from "react-native";
 import type { DeviceProfile } from "./deviceProfile";
 import type { ModelInfo } from "./ModelRegistry";
 import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
+import { getCurrentGovernorThermalStatus } from "./platformThermalStatus";
 
 const MIB = 1024 * 1024;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
@@ -57,6 +58,7 @@ type ThermoProfile = {
   t_idle_valid?: boolean;
   t_idle_c?: number;
   trend_c_per_min?: number;
+  platform_thermal_status?: number;
 };
 
 type ThermoSnapshot = ThermoProfile & {
@@ -349,11 +351,18 @@ function profileFrom(value: unknown): ThermoProfile | null {
 }
 
 export async function readGovernorThermo(): Promise<ThermoSnapshot> {
+  // One platform read per completion, at the battery read's cadence; null
+  // (iOS, unsupported, failed read) omits the key entirely, which the engine
+  // treats as an absent platform vote. The bench override still wins for the
+  // battery fields — this attaches to whichever profile it returns.
+  const platformStatus = await getCurrentGovernorThermalStatus();
+  const platform =
+    platformStatus === null ? {} : { platform_thermal_status: platformStatus };
   try {
     const bench = await AsyncStorage.getItem(BENCH_THERMO_KEY);
     if (bench) {
       const profile = profileFrom(JSON.parse(bench));
-      if (profile) return { ...profile, thermo_source: "bench-skin" };
+      if (profile) return { ...profile, ...platform, thermo_source: "bench-skin" };
     }
   } catch {
     // A malformed bench value must not block the production battery path.
@@ -363,7 +372,7 @@ export async function readGovernorThermo(): Promise<ThermoSnapshot> {
     const module = NativeModules.GovernorBattery as BatteryModule | undefined;
     const battery = module?.readThermo ? await module.readThermo() : null;
     const profile = profileFrom(battery);
-    if (profile) return { ...profile, thermo_source: "battery" };
+    if (profile) return { ...profile, ...platform, thermo_source: "battery" };
   } catch {
     // Missing native module is expected on host/iOS; it makes the profile invalid.
   }

@@ -80,3 +80,28 @@ export async function getPlatformThermalHardGate(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Android status for the governor thermo feed: an integer 0..6, or null when
+ * no platform status exists (iOS, unsupported, unknown, malformed). Null is
+ * "omit the key": the engine treats an absent status as no platform vote.
+ */
+export function readToGovernorStatus(
+  read: ThermalPlatformRead | null | undefined,
+): number | null {
+  if (!read || read.supported !== true || read.platform !== "android") return null;
+  const status = read.androidStatus;
+  if (typeof status !== "number" || !Number.isInteger(status) || status < 0 || status > 6) {
+    return null;
+  }
+  return status;
+}
+
+/** One governor-feed read per completion; a throw reads as absent, never fatal. */
+export async function getCurrentGovernorThermalStatus(): Promise<number | null> {
+  try {
+    return readToGovernorStatus(await getCurrentPlatformThermalState());
+  } catch {
+    return null;
+  }
+}

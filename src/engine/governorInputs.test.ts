@@ -17,8 +17,15 @@ jest.mock("react-native", () => ({
   },
 }));
 
+jest.mock("../../modules/kalsa-thermal/src", () => ({
+  addPlatformThermalListener: jest.fn(),
+  getCurrentPlatformThermalState: jest.fn(async () => null),
+  isPlatformThermalModuleAvailable: jest.fn(() => false),
+}));
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeModules } from "react-native";
+import { getCurrentPlatformThermalState } from "../../modules/kalsa-thermal/src";
 import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
@@ -514,5 +521,78 @@ describe("governor inputs", () => {
       plugged: false,
       thermo_source: "battery",
     });
+  });
+});
+
+describe("platform_thermal_status in the thermo feed", () => {
+  const batteryPoll = {
+    battTempTenthsC: 320,
+    battLevelPct: 80,
+    plugged: false,
+    sensorValid: true,
+  };
+
+  beforeEach(() => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue(batteryPoll);
+    (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue(null);
+  });
+
+  test("an Android status rides the battery profile", async () => {
+    (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue({
+      platform: "android",
+      supported: true,
+      androidStatus: 3,
+    });
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      thermo_source: "battery",
+      platform_thermal_status: 3,
+    });
+  });
+
+  test("iOS and an absent reader omit the key", async () => {
+    (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue({
+      platform: "ios",
+      supported: true,
+      iosState: "serious",
+    });
+    const onIos = await readGovernorThermo();
+    expect(onIos).not.toHaveProperty("platform_thermal_status");
+
+    (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue(null);
+    const absent = await readGovernorThermo();
+    expect(absent).not.toHaveProperty("platform_thermal_status");
+  });
+
+  test("a throwing platform read is absent, not fatal", async () => {
+    (getCurrentPlatformThermalState as jest.Mock).mockRejectedValue(new Error("thermal boom"));
+    const snapshot = await readGovernorThermo();
+    expect(snapshot).toMatchObject({ thermo_source: "battery", sensor_valid: true });
+    expect(snapshot).not.toHaveProperty("platform_thermal_status");
+  });
+
+  test("the bench override wins the battery fields and keeps the live status", async () => {
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockClear();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        batt_temp_tenths_c: 410,
+        batt_level_pct: 55,
+        plugged: true,
+        sensor_valid: true,
+        t_idle_valid: true,
+        t_idle_c: 35,
+      }),
+    );
+    (getCurrentPlatformThermalState as jest.Mock).mockResolvedValue({
+      platform: "android",
+      supported: true,
+      androidStatus: 6,
+    });
+    await expect(readGovernorThermo()).resolves.toMatchObject({
+      batt_temp_tenths_c: 410,
+      thermo_source: "bench-skin",
+      platform_thermal_status: 6,
+    });
+    expect(NativeModules.GovernorBattery.readThermo).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,13 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 jest.mock("react-native", () => ({ NativeModules: {} }));
 
+// The thermo feed now imports the platform thermal reader; without a linked
+// native runtime expo's module import cannot parse, so fail open like the
+// other governor tests do.
+jest.mock("expo-modules-core", () => ({
+  requireOptionalNativeModule: () => null,
+}));
+
 import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import { buildGovernorParams, buildGovernorPlanLog } from "./governorInputs";

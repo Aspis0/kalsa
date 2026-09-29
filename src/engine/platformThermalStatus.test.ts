@@ -5,8 +5,10 @@ jest.mock("expo-modules-core", () => ({
 }));
 
 import {
+  getCurrentGovernorThermalStatus,
   getPlatformThermalHardGate,
   isPlatformThermalApiAvailable,
+  readToGovernorStatus,
   readToHardGate,
   type ThermalPlatformRead,
 } from "./platformThermalStatus";
@@ -63,5 +65,33 @@ describe("getPlatformThermalHardGate — fail open", () => {
     // Even a very high zone0-style number must NOT gate here — the hard gate
     // is driven only by the platform thermal signal.
     await expect(getPlatformThermalHardGate()).resolves.toBe(false);
+  });
+});
+
+describe("readToGovernorStatus — the governor thermo feed", () => {
+  it("returns the Android integer status 0..6", () => {
+    expect(readToGovernorStatus({ platform: "android", supported: true, androidStatus: 3 })).toBe(3);
+    expect(readToGovernorStatus({ platform: "android", supported: true, androidStatus: 0 })).toBe(0);
+    expect(readToGovernorStatus({ platform: "android", supported: true, androidStatus: 6 })).toBe(6);
+  });
+
+  it("is absent for iOS, unsupported, unknown or malformed reads", () => {
+    expect(readToGovernorStatus({ platform: "ios", supported: true, iosState: 3 })).toBeNull();
+    expect(
+      readToGovernorStatus({ platform: "android", supported: false, androidStatus: 3 }),
+    ).toBeNull();
+    expect(readToGovernorStatus({ platform: null, supported: false })).toBeNull();
+    expect(readToGovernorStatus(null)).toBeNull();
+    expect(readToGovernorStatus({ platform: "android", supported: true })).toBeNull();
+    expect(
+      readToGovernorStatus({ platform: "android", supported: true, androidStatus: 3.5 }),
+    ).toBeNull();
+    expect(
+      readToGovernorStatus({ platform: "android", supported: true, androidStatus: 7 }),
+    ).toBeNull();
+  });
+
+  it("reads absent through the live query when no native module is linked", async () => {
+    await expect(getCurrentGovernorThermalStatus()).resolves.toBeNull();
   });
 });
