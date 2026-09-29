@@ -190,6 +190,7 @@ export const it: typeof en = {
       "Il tuo computer ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
     remoteBrainFailServer:
       "Il tuo computer ha risposto con un errore ({status}). Forse si sta ancora avviando: riprova tra un momento.",
+    remoteBrainFailUnpaired: "Questo computer non riconosce più questo telefono. Associalo di nuovo.",
     remoteBrainFailBusy:
       "Il tuo computer sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
     remoteBrainFailStaleInit:

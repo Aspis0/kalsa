@@ -96,11 +96,11 @@ describe("remote.brain.failure lines from the engine paths", () => {
       status: 401,
       json: async () => ({}),
     });
-    // The probe alone shows in the UI; the line is the INIT's failure.
+    // The probe speaks the same 401 code the chat transport produces, so
+    // init and chat map to one message downstream.
     await expect(
       initRemoteEngine("", "kalsa-remote-mac", { locale: "en" }),
-    ).rejects.toThrow("models HTTP 401");
-    // The probe's own spelling is "models HTTP 401"; the log normalizes.
+    ).rejects.toThrow("remote_brain_http_401");
     expect(failureLines(logSpy)).toEqual([
       { road: "https", stage: "init", reason: "remote_brain_http_401" },
     ]);

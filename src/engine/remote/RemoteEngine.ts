@@ -175,11 +175,14 @@ export async function testRemoteConnection(): Promise<{
     } else {
       const health = await jsonGet(base, "/health", token, doorFetch, probe.signal);
       if (!health.ok) {
+        // A 401 from either read is the desk not knowing this credential —
+        // the same code the chat transport produces, one mapping downstream.
+        const unauthorized = models.status === 401 || health.status === 401;
         return {
           ok: false,
           modelId: configured || null,
           road: road.road,
-          error: `models HTTP ${models.status}`,
+          error: unauthorized ? "remote_brain_http_401" : `models HTTP ${models.status}`,
         };
       }
     }

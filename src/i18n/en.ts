@@ -191,6 +191,7 @@ export const en = {
       "Your computer stopped replying. Try again, or switch to the model on this phone in Settings.",
     remoteBrainFailServer:
       "Your computer answered with an error ({status}). It may still be starting up — try again in a moment.",
+    remoteBrainFailUnpaired: "This computer no longer knows this phone. Pair again.",
     remoteBrainFailBusy:
       "Your computer is still answering the previous request. Wait a moment and try again.",
     remoteBrainFailStaleInit:

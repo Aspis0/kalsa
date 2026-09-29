@@ -25,6 +25,9 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   invalid_scheme: "settings.remoteBrainUrlInvalid",
   // Status 0 means the request never got an HTTP answer at all.
   remote_brain_http_0: "settings.remoteBrainFailNetwork",
+  // 401 on the remote road has one meaning the user can act on: the desk
+  // forgot (or revoked) this phone. Every other status stays generic.
+  remote_brain_http_401: "settings.remoteBrainFailUnpaired",
 };
 
 /** HTTP failures carry the status: remote_brain_http_500. */

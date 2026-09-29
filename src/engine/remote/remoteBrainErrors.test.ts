@@ -65,6 +65,12 @@ describe("humanRemoteBrainError", () => {
     );
   });
 
+  test("401 on the remote road says the desk no longer knows this phone", () => {
+    expect(humanRemoteBrainError("remote_brain_http_401", t)).toBe(
+      "settings.remoteBrainFailUnpaired",
+    );
+  });
+
   test("isInternalErrorCode flags machine codes and spares user copy", () => {
     expect(isInternalErrorCode("remote_brain_network")).toBe(true);
     expect(isInternalErrorCode("remote_brain_http_500")).toBe(true);
