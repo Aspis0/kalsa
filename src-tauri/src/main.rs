@@ -559,7 +559,11 @@ impl Brain {
         // A waiting phone has no door until the owner allows it: its
         // credential answers the door's ordinary 401, and Allow reaches
         // this same set on the next pass - the path a forget rides.
-        let entries = stored_devices
+        let host_credential = stored_devices
+            .iter()
+            .find(|device| device.kind == DeviceKind::Host)
+            .map(|device| device.handshake.credential_hex());
+        let mut entries = stored_devices
             .into_iter()
             .filter(|device| !device.waiting)
             .map(|device| {
@@ -571,6 +575,16 @@ impl Brain {
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| "The authenticated door could not read its credential.".to_string())?;
+        // The room's AI guest takes its own seat beside the household —
+        // derived from this computer's own credential, so the set is the
+        // same set every second until the host's own credential changes,
+        // and the guest's turns lease the seat like any device instead of
+        // borrowing the host's private chat.
+        if let Some(host_credential) = host_credential.as_deref() {
+            if let Some(guest) = kalsa_door::guest_entry(host_credential) {
+                entries.push(guest);
+            }
+        }
         let devices =
             kalsa_door::Devices::new(entries).map_err(|_| {
                 "The authenticated door could not read its credential.".to_string()

@@ -8,7 +8,7 @@ use std::time::Instant;
 use kalsa_room::MemberId;
 use serde_json::{json, Value};
 
-use super::answers::{entry_json, json_error, json_ok, read_body, store_failed};
+use super::answers::{entry_json, json_error, json_ok, name_of, read_body, store_failed};
 use super::{BAD_QUERY, MALFORMED, NO_ID, NO_NAME};
 use super::RoomDoor;
 use crate::devices::Devices;
@@ -60,22 +60,39 @@ pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
         "epoch": door.room.epoch(),
         "you": you.wire(),
         "members": members,
-        "ai": ai_state(),
+        "ai": ai_state(&door.room, devices, you, door.room.turn_state().state, None),
     })
 }
 
-/// The AI's visible state, the one shape both `info`'s `ai` object and the
-/// stream's opening `ai_status` snapshot answer with. R2 has no AI: idle
-/// through and through — but the two places a phone reads it can never
-/// drift apart, because there is one constructor.
-pub(super) fn ai_state() -> Value {
+/// The AI's visible state, the one shape `info`'s `ai` object, the
+/// stream's opening snapshot, and every `ai_status` event answer with —
+/// one constructor, so the three can never drift apart. `state` is the
+/// word this answer is for (a transition's own word on an event, the
+/// queue's live word otherwise); the names are resolved here, from the
+/// live queue, because names are the door's to give and the queue's to
+/// order. Names only, ever.
+pub(super) fn ai_state(
+    room: &Room,
+    devices: &Devices,
+    you: MemberId,
+    state: &'static str,
+    note: Option<&str>,
+) -> Value {
+    let turns = room.turn_state();
+    let running = turns.running.map(|member| name_of(room, devices, member));
+    let queue: Vec<String> = turns
+        .pending
+        .iter()
+        .map(|member| name_of(room, devices, *member))
+        .collect();
     json!({
-        "state": "idle",
-        "busy": false,
-        "running": null,
-        "queue": [],
+        "state": state,
+        "busy": turns.running.is_some() || !turns.pending.is_empty(),
+        "running": running,
+        "queue": queue,
         "who": null,
-        "you_pending": false,
+        "you_pending": turns.running == Some(you) || turns.pending.contains(&you),
+        "note": note,
     })
 }
 
@@ -161,7 +178,8 @@ pub(super) fn history(door: &RoomDoor, devices: &Devices, member: MemberId, targ
 /// the body is read by nobody.
 pub(super) fn post(
     client: &mut TcpStream,
-    door: &RoomDoor,
+    door: &Arc<RoomDoor>,
+    shared: &std::sync::Arc<crate::proxy::Shared>,
     head: &UnsealedHead,
     member: MemberId,
     origin: Option<&[u8]>,
@@ -181,12 +199,29 @@ pub(super) fn post(
     };
     let call_ai = value.get("call_ai").and_then(Value::as_bool).unwrap_or(false);
     match door.room.post(member, client_msg_id, text, call_ai) {
-        Ok(entry) => json_ok(
-            origin,
-            // The AI half of a called message arrives with its step; until
-            // then the flag lands and the call is not claimed.
-            &json!({"seq": entry.seq, "time": entry.time, "ai_call": null, "refusal": null}),
-        ),
+        Ok(entry) => {
+            // A called message takes its place in the queue — the store
+            // already derived the call from the flag or the token — and
+            // the answer says which happened. The message itself landed
+            // either way.
+            let called = entry.call_ai;
+            let (ai_call, refusal) = if !called {
+                (json!(null), json!(null))
+            } else {
+                match door.room.submit_call(member, client_msg_id) {
+                    Ok(kalsa_room::CallTaken::Queued) => (json!("queued"), json!(null)),
+                    Ok(kalsa_room::CallTaken::Starts(turn)) => {
+                        super::turn::spawn(door, shared, member, turn);
+                        (json!("queued"), json!(null))
+                    }
+                    Err(_) => (json!("refused"), json!("already_pending")),
+                }
+            };
+            json_ok(
+                origin,
+                &json!({"seq": entry.seq, "time": entry.time, "ai_call": ai_call, "refusal": refusal}),
+            )
+        }
         Err(error) => post_error(origin, &error),
     }
 }

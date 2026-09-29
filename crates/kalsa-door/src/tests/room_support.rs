@@ -33,6 +33,23 @@ pub(super) fn devices_labeled(entries: &[(u32, &str, &str)]) -> Devices {
     Devices::new(entries).unwrap()
 }
 
+/// [`devices_labeled`] with the room's own guest seated beside the
+/// household — the set the app builds, first entry the host.
+pub(super) fn seated_labeled(entries: &[(u32, &str, &str)]) -> Devices {
+    let host = entries
+        .first()
+        .map(|(_, _, token)| token.to_string())
+        .unwrap_or_default();
+    let mut list: Vec<DeviceEntry> = entries
+        .iter()
+        .map(|(id, label, token)| {
+            DeviceEntry::new(DeviceId::new(*id), label.to_string(), token.to_string()).unwrap()
+        })
+        .collect();
+    list.push(crate::guest_entry(&host).expect("the guest seats"));
+    Devices::new(list).unwrap()
+}
+
 /// One request, one answer: the door's own model, and the room's routes
 /// are ordinary answers.
 pub(super) fn raw(

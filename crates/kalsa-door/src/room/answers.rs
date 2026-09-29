@@ -34,6 +34,11 @@ pub(super) fn entry_json(room: &Room, devices: &Devices, entry: &kalsa_room::Ent
     if room.is_former(entry.member) {
         value["former"] = json!(true);
     }
+    // The AI's answer says how much of the room it was built on: the
+    // honest number behind the older messages that fell off the budget.
+    if entry.member == kalsa_room::MemberId::Ai {
+        value["read"] = json!(entry.read);
+    }
     value
 }
 
@@ -76,6 +81,16 @@ pub(super) fn json_ok(origin: Option<&[u8]>, value: &Value) -> Vec<u8> {
     .into_iter()
     .chain(body)
     .collect()
+}
+
+/// Success with nothing to say — the door's own 204 shape, origin headers
+/// and no Content-Length.
+pub(super) fn json_ok_no_content(origin: Option<&[u8]>) -> Vec<u8> {
+    format!(
+        "HTTP/1.1 204 No Content\r\n{}Connection: close\r\n\r\n",
+        crate::cors::origin_headers(origin)
+    )
+    .into_bytes()
 }
 
 pub(super) fn json_error(status: u16, origin: Option<&[u8]>, code: &str, message: &str) -> Vec<u8> {

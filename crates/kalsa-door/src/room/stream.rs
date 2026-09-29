@@ -14,10 +14,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use kalsa_room::{Event, MemberEvent, Room, Take};
+use kalsa_room::{AiEvent, Event, MemberEvent, MemberId, Room, Take};
 
 use super::answers::{entry_json, json_error};
-use super::routes::ai_state;
 use super::BAD_LAST_EVENT_ID;
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
@@ -169,6 +168,7 @@ pub(super) fn serve(
                 origin,
                 deadline,
                 seat,
+                you: member,
             });
         },
     );
@@ -205,6 +205,9 @@ struct Follower {
     deadline: Instant,
     /// This stream's retire flag, checked beside the door's own cuts.
     seat: Arc<AtomicBool>,
+    /// The member this stream serves — the frame's `you_pending` and the
+    /// AI state's names are read for them.
+    you: MemberId,
 }
 
 fn follow(follower: Follower) {
@@ -216,6 +219,7 @@ fn follow(follower: Follower) {
         origin,
         deadline,
         seat,
+        you,
     } = follower;
     let mut client = client;
     let mut cursor = cursor;
@@ -241,13 +245,14 @@ fn follow(follower: Follower) {
     }
     // One state snapshot before anything else — the same object `info`
     // answers with, framed — so a phone connecting mid-turn knows a turn
-    // is running. R2 has no AI: idle through and through, but the frame
-    // R3 fills is first from now on.
-    let mut snapshot = b"event: ai_status\ndata: ".to_vec();
-    snapshot.extend_from_slice(
-        &serde_json::to_vec(&ai_state()).expect("the state always serializes"),
-    );
-    snapshot.extend_from_slice(b"\n\n");
+    // is running and where it stands in the line.
+    let snapshot = {
+        let devices = ctx.set.current();
+        frame_of(
+            b"ai_status",
+            &super::routes::ai_state(&room, &devices, you, room.turn_state().state, None),
+        )
+    };
     if proxy::write_with_deadline(&mut client, &snapshot, deadline).is_err() {
         return;
     }
@@ -262,7 +267,7 @@ fn follow(follower: Follower) {
         match room.read_since(&mut cursor, slice, &mut out) {
             Take::Events => {
                 for event in &out {
-                    let frame = frame(&room, &devices, event);
+                    let frame = frame(&room, &devices, you, event);
                     if proxy::write_with_deadline(&mut client, &frame, deadline).is_err() {
                         return;
                     }
@@ -285,8 +290,19 @@ fn follow(follower: Follower) {
     }
 }
 
+/// One unnumbered event as SSE bytes: the name, the json, the blank line.
+fn frame_of(name: &[u8], value: &serde_json::Value) -> Vec<u8> {
+    let mut frame = Vec::with_capacity(64);
+    frame.extend_from_slice(b"event: ");
+    frame.extend_from_slice(name);
+    frame.extend_from_slice(b"\ndata: ");
+    frame.extend_from_slice(&serde_json::to_vec(value).expect("the value always serializes"));
+    frame.extend_from_slice(b"\n\n");
+    frame
+}
+
 /// One event as SSE bytes.
-fn frame(room: &Room, devices: &Devices, event: &Event) -> Vec<u8> {
+fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8> {
     match event {
         Event::Message(entry) => {
             let event_name = if entry.member == kalsa_room::MemberId::Ai {
@@ -294,16 +310,23 @@ fn frame(room: &Room, devices: &Devices, event: &Event) -> Vec<u8> {
             } else {
                 "message"
             };
-            let data = serde_json::to_vec(&entry_json(room, devices, entry))
-                .expect("an entry always serializes");
-            let mut frame = Vec::with_capacity(data.len() + 48);
-            frame.extend_from_slice(
-                format!("id: {}\nevent: {event_name}\ndata: ", entry.seq).as_bytes(),
-            );
-            frame.extend_from_slice(&data);
+            // The numbered identity sits first, as SSE ids do: the seq is
+            // the entry's own, echoed back on reconnect.
+            let mut frame = format!("id: {}\nevent: ", entry.seq).into_bytes();
+            frame.extend_from_slice(event_name.as_bytes());
+            frame.extend_from_slice(b"\ndata: ");
+            frame.extend_from_slice(&serde_json::to_vec(&entry_json(room, devices, entry)).expect("an entry always serializes"));
             frame.extend_from_slice(b"\n\n");
             frame
         }
+        Event::Ai(AiEvent::Status { state, note }) => {
+            let value = super::routes::ai_state(room, devices, you, state, note.as_deref());
+            frame_of(b"ai_status", &value)
+        }
+        Event::Ai(AiEvent::Delta { turn, text }) => frame_of(
+            b"ai_delta",
+            &serde_json::json!({"turn": turn, "text": text}),
+        ),
         Event::Member(event) => {
             let (action, member, name) = match event {
                 MemberEvent::Joined { member, name } => ("joined", *member, Some(name.clone())),
@@ -312,17 +335,14 @@ fn frame(room: &Room, devices: &Devices, event: &Event) -> Vec<u8> {
                 // keeps for exactly this.
                 MemberEvent::Left { member } => ("left", *member, room.name_of(*member)),
             };
-            let data = serde_json::json!({
-                "action": action,
-                "member_id": member.wire(),
-                "name": name,
-            });
-            let data = serde_json::to_vec(&data).expect("a member event always serializes");
-            let mut frame = Vec::with_capacity(data.len() + 32);
-            frame.extend_from_slice(b"event: member\ndata: ");
-            frame.extend_from_slice(&data);
-            frame.extend_from_slice(b"\n\n");
-            frame
+            frame_of(
+                b"member",
+                &serde_json::json!({
+                    "action": action,
+                    "member_id": member.wire(),
+                    "name": name,
+                }),
+            )
         }
     }
 }

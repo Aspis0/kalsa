@@ -11,21 +11,20 @@
 mod answers;
 mod routes;
 mod stream;
+mod turn;
 
-use answers::{json_error, json_ok, store_failed};
+use answers::{json_error, json_ok, json_ok_no_content, store_failed};
 use routes::{floor_of, history, info, post, set_name};
 
 use std::net::TcpStream;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Instant;
 
 use kalsa_room::Room;
 
-use crate::devices::{DeviceId, Devices};
+use crate::devices::{DeviceEntry, DeviceId, Devices};
 use crate::proxy;
 use crate::request::UnsealedHead;
-use crate::slots::DeviceSet;
 
 /// The room this door serves, and the device id the host seats. Built by
 /// [`crate::Door::with_room`]; a door without one answers every room route
@@ -38,6 +37,24 @@ pub(crate) struct RoomDoor {
     seats: Arc<stream::Seats>,
 }
 
+/// The AI guest's entry in the device set: the reserved top device id, a
+/// label of its own name, and a credential derived from the host's — a
+/// labeled SHA-256, the same shape as the door's own cache salts. Derived,
+/// not random, because the app rebuilds its device set every second and a
+/// fresh secret each time would look like a change and churn the door; a
+/// stable derivation keeps the set equal until the host's own credential
+/// changes. Held in the set, written nowhere, never sent to a phone — a
+/// client cannot derive it without the host's secret.
+pub fn guest_entry(host_credential: &str) -> Option<DeviceEntry> {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(b"kalsa-room-seat-v1");
+    hasher.update(host_credential.as_bytes());
+    let digest: [u8; 32] = hasher.finalize().into();
+    let credential: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+    DeviceEntry::new(DeviceId::new(turn::ROOM_DEVICE), "Kalsa", credential).ok()
+}
+
 impl RoomDoor {
     pub(crate) fn new(room: Arc<Room>, host: DeviceId) -> Self {
         Self {
@@ -46,6 +63,7 @@ impl RoomDoor {
             seats: Arc::new(stream::Seats::default()),
         }
     }
+
 }
 
 /// One sentence per refusal, and no more: this is all a client sees. The
@@ -57,6 +75,7 @@ const BAD_QUERY: &str = "The room reads after, before and limit as plain numbers
 const NO_ID: &str = "A message needs a client_msg_id and a text.";
 const NO_NAME: &str = "A name needs a name field.";
 const BAD_LAST_EVENT_ID: &str = "The room resumes from a numeric Last-Event-ID.";
+const NO_CALL_TO_WITHDRAW: &str = "There is no call of yours waiting in this room.";
 
 pub(super) fn owns(target: &[u8]) -> bool {
     path_of(target).starts_with(b"/kalsa/room/")
@@ -69,14 +88,14 @@ fn path_of(target: &[u8]) -> &[u8] {
 }
 
 /// What the door hands a room request it has authenticated: the head, the
-/// device the credential named, the live set, and the room itself.
+/// device the credential named, and the door's shared state — the set, the
+/// stop flag, the room, and the engine port the room's turns dial.
 pub(super) struct Request<'a> {
     pub(super) head: &'a UnsealedHead,
     pub(super) device: DeviceId,
     pub(super) devices: &'a Devices,
     pub(super) room: Option<&'a Arc<RoomDoor>>,
-    pub(super) stop: &'a Arc<AtomicBool>,
-    pub(super) set: &'a Arc<DeviceSet>,
+    pub(super) shared: &'a Arc<crate::proxy::Shared>,
 }
 
 pub(super) fn serve(
@@ -84,7 +103,7 @@ pub(super) fn serve(
     request: Request<'_>,
     deadline: Instant,
 ) {
-    let Request { head, device, devices, room: room_door, stop, set } = request;
+    let Request { head, device, devices, room: room_door, shared } = request;
     let origin = head.origin.as_deref();
     let Some(door) = room_door else {
         let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
@@ -129,8 +148,22 @@ pub(super) fn serve(
             let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/messages", b"POST") => {
-            let answer = post(&mut client, door, head, member, origin, deadline);
+            let answer = post(&mut client, door, shared, head, member, origin, deadline);
             let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+        }
+        (b"/kalsa/room/call", b"DELETE") => {
+            let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
+            // §5.5: a member withdraws their own call — pending, or the
+            // turn it started. Nobody withdraws anyone else's.
+            match door.room.withdraw_call(member) {
+                kalsa_room::Withdrawn::Nothing => {
+                    let answer = json_error(404, origin, "no_call", NO_CALL_TO_WITHDRAW);
+                    let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+                }
+                _ => {
+                    let _ = proxy::write_with_deadline(&mut client, &json_ok_no_content(origin), deadline);
+                }
+            }
         }
         (b"/kalsa/room/name", b"PUT") => {
             let answer = set_name(&mut client, door, head, member, origin, deadline);
@@ -147,8 +180,8 @@ pub(super) fn serve(
                 client,
                 &door.room,
                 stream::Ctx {
-                    set: Arc::clone(set),
-                    stop: Arc::clone(stop),
+                    set: Arc::clone(&shared.set),
+                    stop: Arc::clone(&shared.stop),
                     device,
                     seats: Arc::clone(&door.seats),
                 },

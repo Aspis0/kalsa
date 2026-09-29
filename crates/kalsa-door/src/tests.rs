@@ -24,8 +24,10 @@ mod props;
 mod paging_support;
 mod paging_sweep;
 mod revocation;
+mod room_engine;
 mod room_routes;
 mod room_support;
+mod room_turn;
 mod slot_routes;
 mod slots;
 mod support;
@@ -525,11 +527,12 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
             super::HEAD_PATIENCE,
             upstream_port,
             1,
-            &proxy::Shared {
+            &Arc::new(proxy::Shared {
                 stop,
                 set: devices,
                 room: None,
-            },
+                port: 1,
+            }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &active,
@@ -800,11 +803,12 @@ fn a_connection_past_its_lifetime_is_cut() {
             super::HEAD_PATIENCE,
             1,
             1,
-            &proxy::Shared {
+            &Arc::new(proxy::Shared {
                 stop,
                 set: devices,
                 room: None,
-            },
+                port: 1,
+            }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &active,

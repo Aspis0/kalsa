@@ -152,11 +152,21 @@ with the bytes.
 
 - `seq` and `time` are assigned by the computer: `seq` is the transcript
   number (§7), `time` is unix seconds UTC. Client clocks are never used.
-- `ai_call` is reserved for the AI guest and is `null` in this version —
-  no call is claimed or queued yet. When the guest lands it answers
-  `"queued"` or `"refused"`, with `refusal` carrying the honest sentence (a
-  member with a call already pending is refused; the message itself still
-  posts).
+- `ai_call` is real: `"queued"` when the call was taken (its turn begins
+  at once or joins the line), `"refused"` when not — with `refusal`
+  carrying the code. One code exists today: `already_pending`, for a member
+  who calls again while one call of theirs waits or runs. The message
+  itself still posts either way; only the call is refused. An idempotent
+  retry of the same `client_msg_id` is never a refusal.
+
+### Withdrawing a call — `DELETE /kalsa/room/call`
+
+A member withdraws their own call: a pending one leaves the line, a
+running one stops its turn. There is nothing to withdraw of anyone
+else's — the answer to that is `404 no_call`. The room broadcasts an
+`ai_status` `cancelled` either way; a stopped turn stores no half answer.
+The host may stop any turn from the computer itself — that is not a phone
+route.
 
 ### The "@Kalsa" rule, exactly
 
@@ -277,9 +287,12 @@ data: {"text":"It is "}
   was known by).
 - `ai_status` — the visible turn state, after every change and once as
   the first frame of every stream: `state` is `idle` / `queued` /
-  `thinking` / `answering` / `done` / `refused`, `who` the name whose call
-  it is about, plus the same `running`/`queue` view as info. Names only,
-  ever.
+  `thinking` / `answering` / `waiting` / `done` / `refused` /
+  `cancelled` / `stopped`, plus the same `running`/`queue`/
+  `you_pending` view as info, and `note` — one honest sentence on the
+  moves that owe one (a wait for a seat, a refusal, a stop), `null`
+  otherwise. Names only, ever.
+- `ai_delta` — `{"turn": <id>, "text": <chunk>}` while answering.
 - `ai_delta` — a chunk of the answer being streamed, during `answering`.
   One turn streams at a time; a client assembles chunks until `ai_message`
   gives it the final text, which replaces the assembly.
@@ -293,10 +306,31 @@ delivered at most once, replay never reorders. Between connections, the
 Anyone may call. A call is a message with `call_ai: true` or a text
 matching §5's rule — the call and the message that carried it are one
 transcript entry. At most one call per member may be pending; a second is
-refused in the POST response (`ai_call: "refused"` plus the honest
-sentence), never silently. One AI turn runs at a time and the turn order is
-visible to everyone, names only — the rules themselves, the rotation and
-its visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
+refused in the POST response (`ai_call: "refused"` plus the code), never
+silently. One AI turn runs at a time and the turn order is visible to
+everyone, names only — the rules themselves, the rotation and its
+visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
+
+The guest takes its own seat at this computer's engine, beside the
+household. When every seat is busy the call does not fail: it stays in the
+line with an `ai_status` `waiting` whose note says the computer is busy —
+the turn begins when a seat comes back.
+
+On its turn the guest receives the room transcript — ALL of it that fits
+its context budget; no member's join floor binds the AI, because the room
+it answers in is one room. Messages are formatted with display names and
+preceded by a short system prompt; nothing is sent to the model while
+people talk. When older messages do not fit, the OLDEST fall off and the
+finished `ai_message` carries `"read": N` — how many of the room's
+messages the answer was built on; N smaller than the room's length is the
+room saying so. Reasoning is the computer's own channel: the desktop chat
+shows it beside an answer, the room carries the answer alone, and no
+reasoning token is streamed or stored. `ai_delta` chunks carry their turn
+id so a phone can assemble one turn and discard stale partials; the
+assembled deltas equal the `ai_message` text. A turn that dies mid-answer
+— the model server stops, the stream truncates — is announced with an
+`ai_status` `stopped` and its note, and NOTHING is stored for it: no half
+answer ever enters history.
 
 ## 9. Sizes, errors, limits
 
@@ -307,6 +341,8 @@ its visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
 | display name | §6 | `400` / `413` / `409 name_taken` |
 | client_msg_id | 1–64 chars ASCII 0x21–0x7E | `400 bad_request` |
 | client_msg_id reuse | same id, different content | `409 client_msg_id_reused` |
+| a second call of one member | while one waits or runs | `ai_call: "refused"`, `refusal: "already_pending"` |
+| nothing of yours to withdraw | `DELETE /kalsa/room/call` | `404 no_call` |
 | history limit | 1–200 | `400 bad_request` |
 | Last-Event-ID | at or below newest seq | `400 bad_cursor` |
 | cached epoch | not the current epoch | `409 epoch_changed` |

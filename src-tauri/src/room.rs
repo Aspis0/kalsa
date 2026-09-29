@@ -44,6 +44,17 @@ pub fn forget_now(brain: &crate::Brain, device: u32) -> Result<(), String> {
     Ok(())
 }
 
+/// The owner stops the room's running turn (HOUSEHOLD-RULES §5.5 — "the
+/// machine's owner can always stop the machine"). Whoever called it is
+/// told it stopped; whatever waits keeps its place. R4's room view calls
+/// this; nothing in this step does, on order.
+#[allow(dead_code)]
+pub fn stop_turn(brain: &crate::Brain) {
+    if let Some(room) = brain.room.get() {
+        room.host_stop_turn();
+    }
+}
+
 /// Brings the room's roster to the pairing store's new state: a device
 /// that left the set leaves the room (its member retired, its open stream
 /// cut by the same `set_devices` the caller made, the `left` event
@@ -53,14 +64,15 @@ pub fn reconcile(room: &Room, host: DeviceId, old: &Devices, new: &Devices) {
     let old_ids: std::collections::HashSet<u32> = old.entries().map(|(id, _)| id.value()).collect();
     let new_ids: std::collections::HashSet<u32> = new.entries().map(|(id, _)| id.value()).collect();
     for (id, _) in old.entries() {
-        if id != host && !new_ids.contains(&id.value()) {
+        // The guest's seat is the room's own, not a member's.
+        if id != host && id.value() != kalsa_door::ROOM_DEVICE && !new_ids.contains(&id.value()) {
             if let Err(error) = room.forget_device(id.value()) {
                 eprintln!("kalsa-brain: the room could not forget a device: {error}");
             }
         }
     }
     for (id, label) in new.entries() {
-        if id != host && !old_ids.contains(&id.value()) {
+        if id != host && id.value() != kalsa_door::ROOM_DEVICE && !old_ids.contains(&id.value()) {
             if let Ok(member) = room.enroll(id.value()) {
                 room.publish_member(MemberEvent::Joined {
                     member,

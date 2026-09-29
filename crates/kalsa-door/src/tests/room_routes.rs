@@ -372,18 +372,24 @@ fn a_live_follower_sees_a_rename_and_the_assistant_needs_no_call() {
         "the rename reached the follower unnumbered: {renamed}"
     );
 
-    // A called message carries its flag without claiming an AI turn.
+    // A called message queues its turn; this door has no guest seat
+    // minted, so the turn says so honestly and the message still stands.
     let posted = body_json(&post(
         door.address(),
         Some(&bearer),
         "/kalsa/room/messages",
         r#"{"client_msg_id":"call","text":"hey @Kalsa what time is it?","call_ai":false}"#,
     ));
-    assert_eq!(posted["ai_call"], serde_json::Value::Null);
+    assert_eq!(posted["ai_call"], "queued");
     let called = Reader::until(&mut follower, b"id:", Duration::from_secs(5));
     assert!(
         called.contains("\"call_ai\":true") && called.contains("event: message"),
         "the entry reached the follower numbered: {called}"
+    );
+    let refused = Reader::until(&mut follower, b"ai_status", Duration::from_secs(5));
+    assert!(
+        refused.contains("\"refused\"") && refused.contains("no seat at its own engine"),
+        "a door without the guest's seat refuses the turn honestly: {refused}"
     );
     let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();

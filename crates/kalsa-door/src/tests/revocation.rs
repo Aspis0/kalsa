@@ -228,11 +228,12 @@ fn the_request_write_holds_the_gate_against_a_forget() {
                 crate::HEAD_PATIENCE,
                 upstream_port,
                 1,
-                &proxy::Shared {
+                &Arc::new(proxy::Shared {
                     stop,
                     set,
                     room: None,
-                },
+                    port: 1,
+                }),
                 &crate::paging::Chats::new(1, None, None, None),
                 &registry,
                 &active,
@@ -307,11 +308,12 @@ fn a_revoked_device_is_refused_without_opening_an_upstream_socket() {
                 crate::HEAD_PATIENCE,
                 upstream_port,
                 1,
-                &proxy::Shared {
+                &Arc::new(proxy::Shared {
                     stop,
                     set,
                     room: None,
-                },
+                    port: 1,
+                }),
                 &crate::paging::Chats::new(1, None, None, None),
                 &registry,
                 &active,

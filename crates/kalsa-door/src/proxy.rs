@@ -87,6 +87,9 @@ pub(super) struct Shared {
     pub(super) stop: Arc<AtomicBool>,
     pub(super) set: Arc<DeviceSet>,
     pub(super) room: Option<Arc<crate::room::RoomDoor>>,
+    /// The engine's loopback port, for the room's turns — everything else
+    /// reaches the engine through a client's own request.
+    pub(super) port: u16,
 }
 
 pub(super) fn handle(
@@ -95,7 +98,7 @@ pub(super) fn handle(
     head_patience: Duration,
     upstream_port: u16,
     capacity: u32,
-    shared: &Shared,
+    shared: &Arc<Shared>,
     chats: &paging::Chats,
     registry: &Registry,
     active: &ActiveDevices,
@@ -223,8 +226,7 @@ pub(super) fn handle(
                 device,
                 devices: &current,
                 room: shared.room.as_ref(),
-                stop: &shared.stop,
-                set: &shared.set,
+                shared,
             },
             deadline,
         );

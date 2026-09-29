@@ -72,6 +72,10 @@ mod token;
 mod tests;
 
 pub use devices::{DeviceEntry, DeviceId, Devices};
+pub use room::guest_entry;
+/// The device id the room's AI guest sits at: the reserved top of the
+/// range, above every id a pairing store mints.
+pub const ROOM_DEVICE: u32 = u32::MAX;
 pub use slots::EnginePrivateHeaders;
 pub(crate) use slots::{DeviceSet, LeaseError};
 
@@ -456,6 +460,11 @@ impl Door {
     /// computer's own user seats in it — the room's name and the host's
     /// default display name come from that device's label. A door built
     /// without a room serves nothing under the prefix.
+    ///
+    /// The room's name comes from the host device's label; the room's AI
+    /// guest is seated by the caller, with [`guest_entry`] added where the
+    /// device set was built — the host's seat is the host's private chat,
+    /// and a guest does not borrow it.
     pub fn with_room(mut self, room: Arc<kalsa_room::Room>, host: DeviceId) -> Self {
         self.room = Some(Arc::new(room::RoomDoor::new(room, host)));
         self
