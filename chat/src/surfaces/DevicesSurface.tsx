@@ -8,7 +8,7 @@ import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
-import { forgetLocalCredential, useBrain } from "./useBrain";
+import { forgetLocalCredential, PHONE_IN_USE_SENTENCE, useBrain } from "./useBrain";
 import "./surfaces.css";
 
 const POLL_MS = 2000;
@@ -573,7 +573,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                   <span
                     className="surface-device-live"
                     role="img"
-                    aria-label={`${name} is using this computer right now.`}
+                    aria-label={PHONE_IN_USE_SENTENCE}
                   />
                 ) : null}
                 <span className="surface-device-name">{name}</span>

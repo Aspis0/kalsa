@@ -20,6 +20,12 @@ const ASLEEP_SENTENCE =
     it did not work; two sentences for one fact is how they come to disagree. */
 export const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
 
+/** What a phone being served right now is doing, in the approved words.
+    Shared because the Devices page's live dot says it to screen readers —
+    the row beside the dot already names the phone — and a second spelling
+    of one sentence is how two pages come to disagree. */
+export const PHONE_IN_USE_SENTENCE = "Your phone is using this computer right now.";
+
 /** The disk tier's numbers as `brain_state` answers them: three separate
     reads of the running door, not one instant. The residency count and the
     disk scan take their own locks, so they can be a moment apart, and a poll
@@ -492,7 +498,7 @@ export function brainWords(
         headline: asleep && deviceCount === 0 ? "On, asleep" : "On",
         sentence:
           deviceCount > 0
-            ? "Your phone is using this computer right now."
+            ? PHONE_IN_USE_SENTENCE
             : asleep
               ? ASLEEP_SENTENCE
               : "This computer is ready for you.",
