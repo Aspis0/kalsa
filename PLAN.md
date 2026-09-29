@@ -860,6 +860,9 @@ Phases (each gated):
    **Owner constraint:** the Kalsa MoE must run on phones AND PCs with 8 GB and 16 GB of RAM. The pruning
    ratio is chosen against that: resident on 16 GB where it fits, and on 8 GB either a deep prune or our
    expert streaming (`--moe-stream`: Qwen3.6 KEXP already decodes on the 8 GB S23 at 5.70 tok/s).
+   **Owner gate:** the pruned Kalsa must beat the shipped LFM2.5-2.6B by a wide margin ("stravincere"),
+   otherwise it is not worth shipping. Benchmarks against LFM2.5-2.6B on the same devices: EN/IT quality,
+   reasoning, tool calls, plus decode/prefill speed and RAM at the chosen quant.
    Pod: one-layer REAP observer smoke, then 50 % on RunPod; gate on
    held-out EN/IT + tool calls vs the unpruned base. Budget cap $40 floor / $120 soft / $150 stop.
 2. **Kalsa SFT:** BF16 LoRA (Axolotl; Unsloth for Qwen3.5-MoE), router frozen, 2-5k curated EN/IT
