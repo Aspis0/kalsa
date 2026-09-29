@@ -576,6 +576,10 @@ chips. The other half of that row (skip the background prewarm, cut our own stea
 The pause-as-last-resort rung with resume ≤1 and the 10-minute cap is built as the emergency
 brake only (held app `19368426`).
 
+### Scope (owner, 2026-09-29)
+
+Focus now: DENSE models in Q4_0 (one-copy NPU prefill reader, governor). MoE and our own quantizations (KEXP, REAP, streamed experts) are later: the raw reader covers only `MUL_MAT` on Q4_0, not `MUL_MAT_ID` experts or other formats.
+
 ### Thermal plan approved by the owner (2026-09-29)
 
 Trigger: one S23 turn went Android status 0 -> 3 while the governor logged FAST (battery-only
