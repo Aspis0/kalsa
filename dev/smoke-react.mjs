@@ -665,7 +665,7 @@ try {
     "The previous square expired — this one is fresh.",
     "A square that did not match was replaced — this one is fresh.",
   ];
-  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceDetails, allowIds, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
+  for (const { heading, headline, sentence, all, qr, fresh, buttons, deviceNames, foldingRows, deviceClasses, deviceDetails, allowIds, inviteNames, fallbackLinks, disabledButtons, forgetIds, documentText, documentFields, doorPort, deskPort, deskPreferred, pairingState, hasAdvanced } of results) {
     if (qr) {
       if (sentence.trim() !== CAMERA_INSTRUCTION) problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
       if (!all.includes(AWARENESS)) problems.push(`a waiting square must say who can see it: ${heading}`);
@@ -877,6 +877,39 @@ try {
       }
       if (!forgetIds.includes(5)) {
         problems.push(`Deny must act on the waiting record: ${heading}`);
+      }
+      if (!deviceClasses.some((name) => name.includes("is-waiting"))) {
+        problems.push(`the seat carrying a pairing-again request breathes with its row: ${heading}`);
+      }
+    }
+    // A row that waits for the owner breathes, and only a waiting row that
+    // newly appears unfolds in — the page's opening rows stand still. The
+    // reduced-motion card is the exception this rule names: there the row
+    // waits too, and wears nothing.
+    if (
+      deviceDetails.some((detail) => detail === "Waiting for your OK.") &&
+      !heading.includes("under reduced motion")
+    ) {
+      const waitingRows = deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
+      const breathing = deviceClasses.filter((name) => name.includes("is-waiting")).length;
+      if (breathing !== waitingRows) {
+        problems.push(`every row waiting for the OK breathes, and nothing else does: ${heading} (${breathing} of ${waitingRows})`);
+      }
+      const unfolds = heading.includes("a waiting row appears on a later poll");
+      const entering = deviceClasses.filter((name) => name.includes("is-entering")).length;
+      if (unfolds && entering !== 1) {
+        problems.push(`a waiting row that newly appears unfolds in: ${heading}`);
+      }
+      if (!unfolds && entering !== 0) {
+        problems.push(`a row the page opened with does not unfold in: ${heading}`);
+      }
+    }
+    if (heading.includes("a waiting row under reduced motion")) {
+      if (deviceClasses.some((name) => name.includes("is-waiting") || name.includes("is-entering"))) {
+        problems.push(`under reduced motion a waiting row wears no motion classes: ${heading}`);
+      }
+      if (!deviceDetails.includes("Waiting for your OK.")) {
+        problems.push(`under reduced motion the waiting row still says the wait: ${heading}`);
       }
     }
     if (heading.includes("an invitation is taking longer than usual")) {

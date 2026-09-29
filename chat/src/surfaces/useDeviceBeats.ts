@@ -12,11 +12,13 @@ interface BeatDevice {
     "connected" right now, and the bookkeeping that starts and ends it. */
 export function useDeviceBeats(devices: BeatDevice[] | undefined) {
   const [connectedId, setConnectedId] = useState<number | null>(null);
+  const [enteringIds, setEnteringIds] = useState<ReadonlySet<number>>(() => new Set());
   // The Allows this page pressed: from the record the command acts on to
   // the row the owner saw it on — the same id, except a pairing-again
   // request, whose Allow acts on the request while the row that stays is
   // its seat.
   const pending = useRef(new Map<number, number>());
+  const previous = useRef<BeatDevice[] | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const live = useRef(true);
 
@@ -30,7 +32,22 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
   }, []);
 
   useEffect(() => {
-    const house = Array.isArray(devices) ? devices : [];
+    // No answer yet is not an empty house: the baseline the beats diff
+    // against is the first answer the page draws, never the page's own
+    // opening blank.
+    const house = Array.isArray(devices) ? devices : null;
+    if (house === null) return;
+    const before = previous.current;
+    previous.current = house;
+    // The first answer is the page's opening state, not a change: rows
+    // that are there from it stand, they do not arrive.
+    if (before !== null) {
+      const seen = new Set(before.map((device) => device.id));
+      const entering = house
+        .filter((device) => device.waiting === true && !seen.has(device.id))
+        .map((device) => device.id);
+      if (entering.length > 0) setEnteringIds(new Set(entering));
+    }
     if (pending.current.size === 0) return;
     const current = new Map(house.map((device) => [device.id, device]));
     for (const [actedId, rowId] of [...pending.current]) {
@@ -51,6 +68,9 @@ export function useDeviceBeats(devices: BeatDevice[] | undefined) {
 
   return {
     connectedId,
+    /** The waiting records that appeared with the last answer — the rows
+        that should unfold in instead of popping. */
+    enteringIds,
     /** Remember an Allow this page pressed, before its answer can land. */
     expect: (actedId: number, rowId: number) => {
       pending.current.set(actedId, rowId);

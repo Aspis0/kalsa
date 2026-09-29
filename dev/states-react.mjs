@@ -313,6 +313,11 @@ const scenarios = [
   // buttons answer for the newest ceremony: the one the store would keep.
   ["Pairing", "two requests on one seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, { id: 5, label: "Paired phone 5", phone: "phone with 2 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }, { id: 6, label: "Paired phone 6", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true, pairing_again: 4 }], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
   ["Pairing", "a phone is pairing again", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Refuse" }],
+  // A waiting phone arrives while the page is open: its row unfolds in and
+  // breathes like every row that needs the owner. Under reduced motion it
+  // simply appears, saying the same thing.
+  ["Pairing", "a waiting row appears on a later poll", "devices", { pairing: pairedHouse(), pairingSwapAfter: 1, pairingSwapped: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [...ONE_DEVICE, { id: 2, label: "Waiting phone", phone: "phone with 3 GB of model weights", kind: "phone", waiting: true }], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, waitMs: 2600 }],
+  ["Pairing", "a waiting row under reduced motion does not breathe", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true }],
   ["Pairing", "an invitation that answers late", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, inviteCreateLate: INVITE_LINK, inviteListFillsAfterCreate: true, click: "Invite by link", waitMs: 10000 }],
   // The first pairing read awaits two Tailscale CLI calls, so "no answer yet"
   // is a state of its own: the page says it is checking and offers nothing to
@@ -396,6 +401,14 @@ function installBridge() {
               }
               if (bridgeState.pairingFailsAfter && pairingReads++ > 0) {
                 return Promise.reject(new Error("stub: the pairing read rejected"));
+              }
+              // A phone that shows up while the page is already open: every
+              // read after the Nth answers with the other house.
+              if (
+                bridgeState.pairingSwapAfter !== undefined &&
+                pairingReads++ >= bridgeState.pairingSwapAfter
+              ) {
+                return Promise.resolve(bridgeState.pairingSwapped ?? bridgeState.pairing ?? null);
               }
               return Promise.resolve(bridgeState.pairing ?? null);
             }
@@ -517,7 +530,9 @@ function extract(panel, heading, automatic = []) {
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
   // A row whose box is already giving way — fading out under its own
   // transition — which is the fold itself, not the list being shorter.
-  const rowEls = elements(panel, (el) => el.className === "surface-device");
+  const rowEls = elements(panel, (el) =>
+    String(el.className ?? "").split(" ").includes("surface-device"),
+  );
   const foldingRows = rowEls.filter((el) => String(el.style?.opacity ?? "1") === "0").length;
   const detailEls = elements(panel, (el) => el.className === "surface-device-detail");
   const inviteEls = elements(panel, (el) => el.className === "surface-invite-name");
@@ -538,6 +553,9 @@ function extract(panel, heading, automatic = []) {
     qr: Boolean(qrEl),
     deviceNames: deviceEls.map(elementText),
     foldingRows,
+    // The motion classes the rows wear, in row order: which rows breathe,
+    // which unfold in — and that reduced motion wears none.
+    deviceClasses: rowEls.map((el) => String(el.className ?? "")),
     deviceDetails: detailEls.map(elementText),
     inviteNames: inviteEls.map(elementText),
     // The field a refused clipboard leaves behind, by value: this is the one

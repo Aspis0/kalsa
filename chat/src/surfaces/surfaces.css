@@ -9,6 +9,7 @@
    check, the live dot's colour) is static information. */
 .surface-page {
   --beat-draw-ms: 400ms;
+  --beat-breath-ms: 1600ms;
 }
 
 /* One column for the whole app: the surfaces take the chat's own measure, so
@@ -222,6 +223,47 @@
     }
     to {
       stroke-dashoffset: 0;
+    }
+  }
+
+  /* A row that needs the owner breathes: a soft background-and-border
+     pulse, slow enough to read as "needs you" and never as alarm. */
+  .surface-device.is-waiting {
+    animation: surface-row-breath var(--beat-breath-ms) ease-in-out infinite;
+  }
+
+  @keyframes surface-row-breath {
+    0%,
+    100% {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    50% {
+      background: var(--surface-muted);
+      border-color: var(--border-strong);
+    }
+  }
+
+  /* The reverse of the fold: a waiting row that newly appears unfolds into
+     the list instead of popping. The animation itself — including the
+     fold's own duration — arrives as an inline style from the page, so the
+     two beats cannot drift apart; this only keeps the row's children inside
+     the box while it is still small. */
+  .surface-device.is-entering {
+    overflow: hidden;
+  }
+
+  @keyframes surface-row-unfold {
+    from {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top-width: 0;
+      border-bottom-width: 0;
+      opacity: 0;
+    }
+    to {
+      max-height: 5rem;
     }
   }
 }

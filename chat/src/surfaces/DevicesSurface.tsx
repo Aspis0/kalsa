@@ -5,6 +5,7 @@ import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
 import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
+import { FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential } from "./useBrain";
 import "./surfaces.css";
@@ -517,12 +518,25 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // The beat after Allow: the sentence and its checkmark hold the
             // row for a moment, then it settles into the ordinary detail.
             const connected = beats.connectedId === device.id;
+            // A row waiting for the owner's decision breathes, and a waiting
+            // row that just arrived unfolds in — the reverse of the fold,
+            // timed by the same number. Under reduced motion neither exists.
+            const motionless = reducedMotion();
+            const needsOwner = !connected && (device.waiting === true || request !== undefined);
+            const entering = !motionless && beats.enteringIds.has(device.id);
+            const classes =
+              "surface-device" +
+              (needsOwner && !motionless ? " is-waiting" : "") +
+              (entering ? " is-entering" : "");
+            const entrance = entering
+              ? { animation: `surface-row-unfold ${FOLD_MS}ms ease` }
+              : undefined;
             return (
               <div
                 key={device.id}
-                className="surface-device"
+                className={classes}
                 ref={fold.refFor(device.id)}
-                style={fold.styleFor(device.id)}
+                style={fold.styleFor(device.id) ?? entrance}
               >
                 <span className="surface-device-name">{name}</span>
                 <span className="surface-device-detail">
