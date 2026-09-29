@@ -598,6 +598,14 @@ weights make three ready backends affordable); (5) a rate lever only if measured
 token; (6) brake = the existing native CRITICAL only. Step 1a (engine) started 2026-09-29 on
 `feat/governor-platform-status` from `45f097b74`.
 
+**Agnostic ranking (owner, 2026-09-29):** "which backend is cooler" must not be hard-coded (S23 GPU
+is hot; another phone may differ). Design: a per-SoC prior from lab tables, then the governor
+learns energy per token per backend per phase from real turns (battery current x voltage,
+unplugged only), with an occasional exploratory turn on another backend while cool. No install-time
+calibration test. Gate before any build: an S23 run proving the battery current separates
+NPU/GPU/CPU per turn above noise; the result goes back to the owner before design work. This step
+sits between (1) and (4).
+
 ### NPU prefill: validated, wired, landed — disabled by default
 
 - **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md`
