@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, Text, View } from "react-native";
+import { Check } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
 import { useLocale } from "../i18n";
@@ -360,15 +361,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
             ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
             : !doorReady && !showManual
               ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
-              : state === "paired"
-                ? {
-                    testID: "pairing.paired",
-                    text: t("pairing.pairedWith", { computer: pairHost ?? yourComputer }),
-                    error: false,
-                  }
-                : state === "not-confirmed"
-                  ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
-                  : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
+              : state === "not-confirmed"
+                ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
+                : { testID: "pairing.hint", text: t("pairing.scanHint"), error: false };
 
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 60, backgroundColor: colors.page }}>
@@ -403,9 +398,13 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
           >
             <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.scan")}</Text>
           </Pressable>
-          <Text testID={status.testID} style={[type.secondary, { color: status.error ? colors.danger : colors.ink2 }]}>
-            {status.text}
-          </Text>
+          {/* The paired state speaks through the banner below; this line is
+              for every other state. */}
+          {state !== "paired" ? (
+            <Text testID={status.testID} style={[type.secondary, { color: status.error ? colors.danger : colors.ink2 }]}>
+              {status.text}
+            </Text>
+          ) : null}
           {failureStage ? (
             <Text testID="pairing.failure.stage" style={[type.secondary, { color: colors.danger }]}>
               {t("pairing.failedAt", { stage: t(FAILURE_STAGE_KEYS[failureStage]) })}
@@ -417,21 +416,42 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
             </Text>
           ) : null}
           {state === "paired" ? (
-            <Pressable
-              testID="pairing.paired.done"
-              accessibilityRole="button"
-              accessibilityLabel={t("pairing.goToChat")}
-              onPress={() => onDone?.()}
-              style={({ pressed }) => ({
-                minHeight: 48,
-                borderRadius: radius.button,
-                alignItems: "center" as const,
-                justifyContent: "center" as const,
-                backgroundColor: pressed ? colors.brandDeep : colors.brand,
-              })}
-            >
-              <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.goToChat")}</Text>
-            </Pressable>
+            <>
+              {/* The moment the poll returns paired: one unmistakable success
+                  row beside the one action that leaves for the chat. Existing
+                  pieces only — an icon and text on the panel. */}
+              <View
+                testID="pairing.paired.banner"
+                style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}
+              >
+                <Check size={20} color={colors.brand} strokeWidth={2} />
+                <Text
+                  testID="pairing.paired"
+                  accessibilityRole="text"
+                  accessibilityLabel={t("pairing.pairedWith", {
+                    computer: pairHost ?? yourComputer,
+                  })}
+                  style={[type.bodyStrong, { color: colors.ink }]}
+                >
+                  {t("pairing.pairedWith", { computer: pairHost ?? yourComputer })}
+                </Text>
+              </View>
+              <Pressable
+                testID="pairing.paired.done"
+                accessibilityRole="button"
+                accessibilityLabel={t("pairing.goToChat")}
+                onPress={() => onDone?.()}
+                style={({ pressed }) => ({
+                  minHeight: 48,
+                  borderRadius: radius.button,
+                  alignItems: "center" as const,
+                  justifyContent: "center" as const,
+                  backgroundColor: pressed ? colors.brandDeep : colors.brand,
+                })}
+              >
+                <Text style={[type.bodyStrong, { color: colors.onBrand }]}>{t("pairing.goToChat")}</Text>
+              </Pressable>
+            </>
           ) : state === "not-confirmed" ? (
             <Pressable
               testID="pairing.retry"

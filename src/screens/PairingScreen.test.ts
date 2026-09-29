@@ -45,6 +45,12 @@ jest.mock("./SettingsHeader", () => ({
   SettingsHeader: (props: Record<string, unknown>) =>
     require("react").createElement("SettingsHeader", props),
 }));
+
+// The success banner's checkmark: a named stub, the icon library is native.
+jest.mock("lucide-react-native", () => ({
+  Check: (props: Record<string, unknown>) =>
+    require("react").createElement("Check", props),
+}));
 jest.mock("../engine/ModelRegistry", () => ({
   MODEL_REGISTRY: [{ id: "local-model", file: "local.gguf", sizeBytes: 1234 }],
 }));
@@ -951,6 +957,11 @@ describe("PairingScreen", () => {
 
     expect(renderer.root.findByProps({ testID: "pairing.paired" }).props.children)
       .toBe("Paired with pairing.yourComputer");
+    // The success moment: checkmark + the sentence in one banner row, with
+    // the plain status line hidden - one placement per view.
+    expect(renderer.root.findByProps({ testID: "pairing.paired.banner" })).toBeDefined();
+    // and the scan hint does not surface under it.
+    expect(renderer.root.findAllByProps({ testID: "pairing.hint" })).toHaveLength(0);
     // The Allow verdict is the moment the current pairing began: the stamp
     // the chat compares old remote failures against.
     expect(markPairingCompleted).toHaveBeenCalledTimes(1);
