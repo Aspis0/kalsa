@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Prove the installed engine is the fork commit the lockfile names, file for file.
 #
-# `npm ci` already binds the install to one tarball through the lockfile's integrity
-# hash. This gate answers the other half: that the tarball is what Aspis0/kalsa.rn
-# holds at that commit, that nothing has edited node_modules/llama.rn since, that
-# package.json names the same fork sha, and that the engine inside is the sha
-# native/kalsallama.pin declares.
+# The lockfile's integrity hash is NOT a witness for this git dependency: it
+# did not change across commits with different content. What binds the install
+# is the resolved commit, and what this gate proves is that the files match it:
+# that the tarball is what Aspis0/kalsa.rn holds at that commit, that nothing
+# has edited node_modules/llama.rn since, that package.json names the same fork
+# sha, and that the engine inside is the sha native/kalsallama.pin declares.
 # It is a manual gate — the old road's assert-vendor-pristine.sh in its new shape.
 #
 # Exit 0 = identical. 1 = divergent, first differing path printed. 2 = cannot decide.
