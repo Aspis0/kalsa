@@ -148,8 +148,12 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
 
   /** The saved credential as the confirmation poll reads it. */
   const pairedRef = useRef<SavedPairingCredential | null>(null);
+  // Bumped on every edit and every new run: a confirmation poll from an
+  // abandoned attempt must neither stamp completion nor set "paired".
+  const confirmGenRef = useRef(0);
 
   const startConfirmation = (paired: SavedPairingCredential) => {
+    const generation = confirmGenRef.current;
     const signal = deskSignal();
     void pollForAllowance({
       probe: pairedPropsProbe(paired),
@@ -159,10 +163,15 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       perProbeTimeoutMs: CONFIRM_PROBE_TIMEOUT_MS,
       unreachableAfter: CONFIRM_UNREACHABLE_AFTER,
       onPhase: (phase) => {
-        if (aliveRef.current) setConfirmPhase(phase);
+        if (generation === confirmGenRef.current && aliveRef.current) {
+          setConfirmPhase(phase);
+        }
       },
     }).then((outcome) => {
       if (outcome.result === "aborted") return;
+      // An edit or a newer attempt replaced this poll: its verdict belongs
+      // to a pairing the screen no longer holds.
+      if (generation !== confirmGenRef.current) return;
       if (outcome.result === "paired") {
         // Allow is the moment the current pairing began: the stamp is what
         // tells the chat which remote failures predate it. Fire-and-forget —
@@ -191,6 +200,9 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   const update = (key: keyof PairingFields, value: string) => {
     sessionRef.current = null;
     activeInviteRef.current = null;
+    // The edit abandons any confirmation still polling the previous
+    // attempt: its verdict must land nowhere (no stamp, no paired state).
+    confirmGenRef.current += 1;
     setState((current) => current === "refused" ? current : "ready");
     setPairHosts(null);
     setFields((current) => ({ ...current, [key]: value }));
@@ -199,6 +211,8 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   const run = async (scanned?: PairingSquare) => {
     Keyboard.dismiss();
     if (busy || state === "waiting") return;
+    // A new attempt invalidates any confirmation left over from the last one.
+    confirmGenRef.current += 1;
     // Address resolution: a scan brings its own addresses (tailnet) or
     // means the configured prefill — never the previous scan's tailnet-
     // derived host; a manual run uses the typed fields.
@@ -269,7 +283,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         ? await session.retryComplete()
         : await session.begin();
       if (!credential) {
-        setState("refused");
+        if (aliveRef.current) setState("refused");
         return;
       }
       // Back was pressed while the ceremony ran: the screen owns nothing
@@ -287,11 +301,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         // write fails — a save of the pairing's config failed).
         await setRemoteServerModelId("");
       } catch {
+        // The save's stage line is global diagnostics and logs regardless;
+        // the setters stop here if the screen is already gone.
         logPairingFail("save", null);
+        if (!aliveRef.current) return;
         setFailureStage((current) => current ?? "save");
         setState("refused");
         return;
       }
+      // The save awaited: Back may have landed while it ran. Nothing below
+      // may start a confirmation poll against a screen that is gone.
+      if (!aliveRef.current || signal.aborted) return;
       const paired: SavedPairingCredential = {
         credential: bytesToHex(credential),
         doorUrl: doorUrl.trim(),

@@ -972,6 +972,35 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("an edit abandons the running Allow poll: its verdict lands nowhere", async () => {
+    installFetch(200);
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+
+    // The owner edits the address: the previous attempt is abandoned.
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.deskUrl" }).props.onChangeText(
+        "https://typed.example:8443",
+      );
+    });
+    expect(renderer.root.findAllByProps({ testID: "pairing.waiting" })).toHaveLength(0);
+
+    // The abandoned poll's Allow verdict must neither pair the EDITED
+    // attempt nor stamp a completion nothing earned.
+    await act(async () => {
+      mockConfirmControl.resolve?.({ result: "paired" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(renderer.root.findAllByProps({ testID: "pairing.paired" })).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: "pairing.paired.banner" })).toHaveLength(0);
+    expect(markPairingCompleted).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
   test("the cap ends the wait as not confirmed, logs confirm_timeout, and Retry restarts the poll", async () => {
     installFetch(200);
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
