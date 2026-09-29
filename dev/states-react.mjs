@@ -306,6 +306,15 @@ const scenarios = [
   ["Pairing", "the connected beat settles into the row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 4600 }],
   ["Pairing", "an allowed pairing-again lands its beat on the seat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 2600 }],
   ["Pairing", "an already-allowed phone says nothing on a later poll", "devices", { pairing: pairedHouse(), invites: { discarded: false, invites: [] }, waitMs: 2600 }],
+  // The race this pins: an Allow whose store answer arrives as the record
+  // GONE — the same shape a Refuse leaves. The beat keys on the answer
+  // saying allowed, never on the record merely leaving, so a phone the
+  // owner did not get is never "connected". (The buttons going down after
+  // one press is the other half; its card is below.)
+  ["Pairing", "an allow the store answers with the record gone says no beat", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow", waitMs: 2600 }],
+  // One press is enough: the row holds its decision until the store's next
+  // answer makes the outcome visible, and nothing lands while it waits.
+  ["Pairing", "a row holds its decision until the store answers", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Allow" }],
   ["Pairing", "a connected beat under reduced motion is still said", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, WAITING_PHONE], door_port: 8131, desk_port: 8134 }), pairingAfterAllow: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ADMITTED_HOUSE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Allow", waitMs: 2600 }],
   // The seat was forgotten while its request waited: the request has no row
   // to sit on, so it draws its own — a waiting record like any other, with

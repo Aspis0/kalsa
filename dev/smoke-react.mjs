@@ -278,12 +278,13 @@ async function loadRenderer() {
   return { dir, renderer };
 }
 
-// The hung-first-read card waits out the page's 8 s bound, so this run is
-// measured in tens of seconds rather than the few it used to take.
+// The hung-first-read card waits out the page's 8 s bound, and the pairing
+// cards each wait out their own poll windows, so this run is measured in
+// minutes' halves. The bound is a runaway guard, not a target.
 const timeout = setTimeout(() => {
   console.error("React smoke timed out");
   process.exit(2);
-}, 60000);
+}, 150000);
 
 try {
   installDom();
@@ -847,6 +848,22 @@ try {
     if (heading.includes("an already-allowed phone says nothing")) {
       if (connectedDetails.length > 0) {
         problems.push(`a phone allowed before this page looked says nothing: ${heading}`);
+      }
+    }
+    if (heading.includes("an allow the store answers with the record gone")) {
+      if (connectedDetails.length > 0) {
+        problems.push(`a record the answer took away is not a connected phone: ${heading}`);
+      }
+      if (deviceNames.includes("Paired phone")) {
+        problems.push(`the answer the store gave leaves no row behind: ${heading}`);
+      }
+    }
+    if (heading.includes("a row holds its decision until the store answers")) {
+      if (!disabledButtons.includes("Allow") || !disabledButtons.includes("Refuse")) {
+        problems.push(`one press holds both buttons until the store answers: ${heading}`);
+      }
+      if (connectedDetails.length > 0) {
+        problems.push(`a decision the store has not answered lands nothing: ${heading}`);
       }
     }
     if (heading.includes("a connected beat under reduced motion")) {

@@ -308,8 +308,11 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
 
   // Refuse a request riding on its seat's row: the waiting record behind it
   // goes, the seat and its phone stay — the row is not the record, so
-  // nothing folds.
+  // nothing folds. The beat a pending Allow might have landed goes with it:
+  // the same poll answer resolves an Allow and a Refuse, so the beat keys
+  // on the button the owner pressed, never on the record merely leaving.
   function denyRequest(id: number): void {
+    beats.deny(id);
     void invoke("brain_pairing_forget_device", { id }).catch(() => {});
   }
 
@@ -319,6 +322,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   // resolved — so what follows is presentation only, and a failure means the
   // row never moved at all.
   function forgetDevice(id: number): void {
+    // What leaves may carry a pending decision with it: the record itself,
+    // or the seat an Allow was going to land on.
+    beats.revokeTouching(id);
     void invoke("brain_pairing_forget_device", { id })
       .then(() => {
         if (live.current) fold.begin(id, () => removeRow(id));
@@ -580,22 +586,24 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 </span>
                 {host ? null : device.waiting ? (
                   <>
-                    <button type="button" className="btn-quiet" onClick={() => allowDevice(device.id, device.id)}>
+                    <button type="button" className="btn-quiet" disabled={beats.decided.has(device.id)} onClick={() => allowDevice(device.id, device.id)}>
                       Allow
                     </button>
-                    <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
+                    <button type="button" className="btn-quiet" disabled={beats.decided.has(device.id)} onClick={() => forgetDevice(device.id)}>
                       Refuse
                     </button>
                   </>
                 ) : request ? (
                   // The buttons belong to the REQUEST, not the seat: Deny
                   // takes the request back and leaves this phone, its label
-                  // and its credential exactly where they are.
+                  // and its credential exactly where they are. One press is
+                  // enough — the row holds its decision until the store's
+                  // next answer.
                   <>
-                    <button type="button" className="btn-quiet" onClick={() => allowDevice(request.id, device.id)}>
+                    <button type="button" className="btn-quiet" disabled={beats.decided.has(request.id)} onClick={() => allowDevice(request.id, device.id)}>
                       Allow
                     </button>
-                    <button type="button" className="btn-quiet" onClick={() => denyRequest(request.id)}>
+                    <button type="button" className="btn-quiet" disabled={beats.decided.has(request.id)} onClick={() => denyRequest(request.id)}>
                       Refuse
                     </button>
                   </>
