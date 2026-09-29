@@ -7,9 +7,19 @@
  * stamp.
  */
 import { toPersistableHistoryMessages } from "../engine/historyPersistable";
-import { sanitizeHistoryMessages } from "./historyMessages";
+import { markStaleRemoteFailures, sanitizeHistoryMessages } from "./historyMessages";
 
 const PAIRING_AT = 1_700_000_100_000;
+
+/** A minimal assistant message at `createdAt`, for the live-rule cases. */
+function baseMessage(createdAt: number) {
+  return {
+    id: `m-${createdAt}`,
+    role: "assistant" as const,
+    text: "⚠️ Could not reach your computer.",
+    createdAt,
+  };
+}
 
 function failedRemoteRecord(createdAt: number, reason = "Could not reach your computer."): Record<string, unknown> {
   return {
@@ -89,6 +99,49 @@ describe("stale-pairing stamping at restore", () => {
     );
     expect(message.failureSource).toBeUndefined();
     expect(message.failureStale).toBeUndefined();
+  });
+});
+
+describe("markStaleRemoteFailures — the live rule", () => {
+  test("marks only old remote failures; keeps the reference when nothing changes", () => {
+    const oldRemote = {
+      ...baseMessage(PAIRING_AT - 1),
+      failed: true,
+      failureSource: "remote" as const,
+    };
+    const newRemote = {
+      ...baseMessage(PAIRING_AT + 1),
+      failed: true,
+      failureSource: "remote" as const,
+    };
+    const oldLocal = {
+      ...baseMessage(PAIRING_AT - 1),
+      failed: true,
+      failureReason: "local decode crash",
+    };
+    const messages = [oldRemote, newRemote, oldLocal];
+    const next = markStaleRemoteFailures(messages, PAIRING_AT);
+    expect(next[0].failureStale).toBe(true);
+    expect(next[1].failureStale).toBeUndefined();
+    expect(next[2].failureStale).toBeUndefined();
+    // Already-marked stays marked, and a clean list returns the SAME array:
+    // a completion event on an unaffected conversation is a no-op render.
+    expect(markStaleRemoteFailures(next, PAIRING_AT)).toBe(next);
+    expect(markStaleRemoteFailures([newRemote], PAIRING_AT)).toBeInstanceOf(Array);
+    expect(markStaleRemoteFailures([newRemote], PAIRING_AT)[0]).toBe(newRemote);
+  });
+
+  test("no stamp (null, undefined, NaN) marks nothing", () => {
+    const old = {
+      ...baseMessage(PAIRING_AT - 1),
+      failed: true,
+      failureSource: "remote" as const,
+    };
+    for (const stamp of [null, undefined, Number.NaN]) {
+      const marked = markStaleRemoteFailures([old], stamp);
+      expect(marked).toBeInstanceOf(Array);
+      expect(marked[0].failureStale).toBeUndefined();
+    }
   });
 });
 

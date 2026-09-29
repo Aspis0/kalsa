@@ -40,6 +40,36 @@ export function buildPersistableMessages(
   return toPersistableHistoryMessages(messagesSnapshot, opts) as Message[];
 }
 
+/**
+ * Mark remote failures older than the stamp as stale (`failureStale`):
+ * the one rule both restore and a live completion apply — a remote failure
+ * from BEFORE the current pairing's completion belongs to a previous
+ * pairing and must not read as this one's live state. Pure, idempotent,
+ * and reference-preserving when nothing changes (a no-op re-render).
+ */
+export function markStaleRemoteFailures(
+  messages: Message[],
+  staleBefore: number | null | undefined,
+): Message[] {
+  if (typeof staleBefore !== "number" || !Number.isFinite(staleBefore)) {
+    return messages;
+  }
+  let changed = false;
+  const next = messages.map((message) => {
+    if (
+      message.failed === true &&
+      message.failureSource === "remote" &&
+      message.failureStale !== true &&
+      message.createdAt < staleBefore
+    ) {
+      changed = true;
+      return { ...message, failureStale: true };
+    }
+    return message;
+  });
+  return changed ? next : messages;
+}
+
 /** Validate every field (even nested) of a persisted history payload: a
  *  corrupt record is skipped or clipped, never thrown on. */
 export function sanitizeHistoryMessages(
@@ -92,17 +122,6 @@ export function sanitizeHistoryMessages(
       // before the flag simply have no source and render as they always did.
       if (record.failureSource === "remote") {
         message.failureSource = "remote";
-        // One stamp at restore keeps the render a pure read: a remote
-        // failure OLDER than the current pairing's completion belongs to a
-        // previous pairing, and must not read as this one's live state.
-        const staleBefore = stamps?.remoteStaleBefore;
-        if (
-          typeof staleBefore === "number" &&
-          Number.isFinite(staleBefore) &&
-          message.createdAt < staleBefore
-        ) {
-          message.failureStale = true;
-        }
       }
     }
     if (record.edited === true) {
@@ -230,5 +249,7 @@ export function sanitizeHistoryMessages(
     }
     result.push(message);
   }
-  return result;
+  // One stamp at restore keeps the render a pure read; the live completion
+  // path applies the same rule through the same function.
+  return markStaleRemoteFailures(result, stamps?.remoteStaleBefore);
 }

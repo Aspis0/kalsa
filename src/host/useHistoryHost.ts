@@ -22,8 +22,11 @@ import {
   type HistoryWriteTicket,
 } from "../chat/historyWriteGuard";
 import { createHistoryWriter, type HistoryWriter } from "./historyWrite";
-import { buildPersistableMessages, sanitizeHistoryMessages } from "./historyMessages";
-import { getPairingCompletedAt } from "../pairing/pairingCompletedAt";
+import { buildPersistableMessages, markStaleRemoteFailures, sanitizeHistoryMessages } from "./historyMessages";
+import {
+  getPairingCompletedAt,
+  subscribePairingCompleted,
+} from "../pairing/pairingCompletedAt";
 import {
   messagesKey,
   previewFromMessages,
@@ -260,6 +263,23 @@ export function useHistoryHost(params: HistoryHostParams): {
     // the LocaleProvider ready gate).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
+  // A pairing completing must reach the OPEN conversation too: returning
+  // from the pairing screen does not re-run the load effect (the
+  // conversation never changed), so the live list is re-marked here — the
+  // same pure rule the load applies. Volatile only: no persist is needed
+  // (the projection drops the flag) and a reload re-derives it.
+  useEffect(
+    () =>
+      subscribePairingCompleted(() => {
+        void getPairingCompletedAt()
+          .catch(() => null)
+          .then((stamp) => {
+            if (stamp === null) return;
+            setMessages((prev) => markStaleRemoteFailures(prev, stamp));
+          });
+      }),
+    [],
+  );
   return {
     messages,
     messagesRef,
