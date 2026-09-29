@@ -937,10 +937,10 @@ try {
         problems.push(`the seat carrying a pairing-again request breathes with its row: ${heading}`);
       }
     }
-    // A row that waits for the owner breathes, and only a waiting row that
-    // newly appears unfolds in — the page's opening rows stand still. The
-    // reduced-motion card is the exception this rule names: there the row
-    // waits too, and wears nothing.
+    // A row that waits for the owner breathes, and an entrance is a beat
+    // that ends: wherever the card reads from, no is-entering survives.
+    // The reduced-motion card is the exception this rule names: there the
+    // row waits too, and wears nothing.
     if (
       deviceDetails.some((detail) => detail === "Waiting for your OK.") &&
       !heading.includes("under reduced motion")
@@ -950,13 +950,16 @@ try {
       if (breathing !== waitingRows) {
         problems.push(`every row waiting for the OK breathes, and nothing else does: ${heading} (${breathing} of ${waitingRows})`);
       }
-      const unfolds = heading.includes("a waiting row appears on a later poll");
-      const entering = deviceClasses.filter((name) => name.includes("is-entering")).length;
-      if (unfolds && entering !== 1) {
-        problems.push(`a waiting row that newly appears unfolds in: ${heading}`);
+      if (deviceClasses.some((name) => name.includes("is-entering"))) {
+        problems.push(`the entrance is a beat that ends, and the row it brought breathes on its own: ${heading}`);
       }
-      if (!unfolds && entering !== 0) {
-        problems.push(`a row the page opened with does not unfold in: ${heading}`);
+    }
+    if (heading.includes("the buttons come back once the store has answered")) {
+      if (disabledButtons.includes("Allow") || disabledButtons.includes("Refuse")) {
+        problems.push(`a decision the store answered does not hold the next ask's buttons: ${heading}`);
+      }
+      if (!deviceDetails.includes("Waiting for your OK.")) {
+        problems.push(`the phone asking again is a waiting row like any other: ${heading}`);
       }
     }
     if (heading.includes("a waiting row under reduced motion")) {
