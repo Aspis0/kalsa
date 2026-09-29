@@ -271,3 +271,19 @@ prologue change is correct but gains ~0, the raw DMA was already overlapped).
   rounds the combined scales through fp16 and re-derives `d` (`ggml-hexagon.cpp:1396-1398`,
   `:1481-1504`) although the comment (`:1407`) says "losslessly". Engine defect candidate for any
   q6_K weight read back from an HTP buffer - this is the P0/Q0 embedding difference.
+
+### 2026-09-29 - whole-graph CPU decode on the one-copy buffer (S23, unplugged, luna `7e08682d`; rows re-read)
+
+llama-bench -t 5, engine c8d215de2:
+
+| arm | weights | graph splits | tg128 tok/s | pp512 tok/s |
+|---|---|---|---|---|
+| C0 CPU, repacked | CPU buffer | 1 | 23.77 +- 1.60 | 96.66 |
+| C0n CPU, no repack | CPU buffer | 1 | 15.95 +- 1.07 | 34.49 |
+| C1 CPU, one copy | HTP0:0-HOST rpcmem (1525.87 MiB) | 1 | **15.97 +- 1.26** | 18.95 |
+| C2 P0 (CPU<->HTP hopping) | HOST + HTP | 198-199 | 1.38 +- 0.20 | 120.86 |
+
+Reading: on the S23 the CPU reads the rpcmem buffer at full speed (C1 = C0n); the whole decode cost
+of one copy is the lost CPU repack (-33 %: 15.97 vs 23.77). The 1.4 tok/s was the hopping, not the
+memory. Governor shape for one copy on the S23 today: prefill on the NPU (fused raw reader, 125 tok/s,
+being optimised) + decode on the CPU at ~16 tok/s, vs two copies ~862 / ~20-24.
