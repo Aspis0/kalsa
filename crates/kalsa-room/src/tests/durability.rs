@@ -66,7 +66,7 @@ fn the_ai_entry_survives_the_restart_like_any_other() {
     let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 2);
     assert_eq!(page.messages[1].member, crate::MemberId::Ai);
-    let next = room.post_ai("Still 17:00.").unwrap();
+    let next = room.post_ai("Still 17:00.", 0).unwrap();
     assert_eq!(next.seq, 3);
 }
 

@@ -9,6 +9,7 @@ mod members;
 mod mention;
 mod permissions;
 mod post;
+mod queue;
 mod subscribe;
 
 use std::path::PathBuf;

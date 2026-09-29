@@ -70,6 +70,11 @@ struct Record {
     text: String,
     time: u64,
     call_ai: bool,
+    /// Absent in every line written before the AI guest existed, which no
+    /// released build ever wrote; the default is the honest "nothing was
+    /// read" for an entry nobody made.
+    #[serde(default)]
+    read: u32,
 }
 
 /// One transcript entry, in memory. Not the public shape: the door never
@@ -85,6 +90,8 @@ pub(crate) struct Message {
     pub(crate) text: String,
     pub(crate) time: u64,
     pub(crate) call_ai: bool,
+    /// How many messages the AI read for this entry; 0 on members' lines.
+    pub(crate) read: u32,
 }
 
 impl std::fmt::Debug for Message {
@@ -115,6 +122,7 @@ impl Message {
             text: self.text.clone(),
             time: self.time,
             call_ai: self.call_ai,
+            read: self.read,
         }
     }
 }
@@ -315,6 +323,7 @@ impl Checker {
             text: record.text,
             time: record.time,
             call_ai: record.call_ai,
+            read: record.read,
         })
     }
 }

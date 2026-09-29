@@ -90,7 +90,7 @@ fn concurrent_writers_keep_one_order_and_a_reader_sees_no_gaps() {
         .iter()
         .filter_map(|event| match event {
             Event::Message(entry) => Some(entry.seq),
-            Event::Member(_) => None,
+            Event::Member(_) | Event::Ai(_) => None,
         })
         .collect();
     let mut unique = delivered.clone();

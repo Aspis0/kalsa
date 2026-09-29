@@ -21,6 +21,22 @@ use crate::{Entry, MemberId};
 pub enum Event {
     Message(Entry),
     Member(MemberEvent),
+    Ai(AiEvent),
+}
+
+/// The AI guest's unnumbered news: a status change (the word says which),
+/// or a chunk of the answer being streamed, carrying the turn it belongs
+/// to so a phone can assemble one turn and discard stale partials.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AiEvent {
+    /// The state the room moved to, and the one-line note some moves owe
+    /// the room — a refusal, a wait, a stop. `None` on the moves that
+    /// explain themselves.
+    Status {
+        state: &'static str,
+        note: Option<&'static str>,
+    },
+    Delta { turn: u64, text: String },
 }
 
 /// The unnumbered news: who appeared, who is called what now, who left.
@@ -41,6 +57,7 @@ pub enum MemberEvent {
 pub(crate) enum StoredEvent {
     Message(Arc<Message>),
     Member(MemberEvent),
+    Ai(AiEvent),
 }
 
 /// What a blocking read got.
@@ -62,6 +79,15 @@ impl Room {
         {
             let mut state = self.lock_state();
             state.events.push(StoredEvent::Member(event));
+        }
+        self.notify();
+    }
+
+    /// The AI guest's news, the same road: one push, one order, no seq.
+    pub fn publish_ai(&self, event: AiEvent) {
+        {
+            let mut state = self.lock_state();
+            state.events.push(StoredEvent::Ai(event));
         }
         self.notify();
     }
@@ -113,6 +139,7 @@ impl Room {
                 out.extend(state.events[*cursor..].iter().map(|event| match event {
                     StoredEvent::Message(message) => Event::Message(Entry::of(message)),
                     StoredEvent::Member(event) => Event::Member(event.clone()),
+                    StoredEvent::Ai(event) => Event::Ai(event.clone()),
                 }));
                 *cursor = state.events.len();
                 return Take::Events;

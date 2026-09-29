@@ -45,6 +45,7 @@ mod names;
 mod log;
 mod members;
 mod mention;
+mod queue;
 mod recovery;
 mod roster;
 mod room;
@@ -52,8 +53,9 @@ mod room;
 #[cfg(test)]
 mod tests;
 
-pub use events::{Event, MemberEvent, Take};
+pub use events::{AiEvent, Event, MemberEvent, Take};
 pub use mention::calls_ai;
+pub use queue::{CallRefused, CallTaken, Withdrawn};
 pub use history::{Page, PageError};
 pub use room::{PostError, Room};
 pub use names::NameError;
@@ -107,6 +109,10 @@ pub struct Entry {
     pub text: String,
     pub time: u64,
     pub call_ai: bool,
+    /// How many of the room's messages the AI read to write this one —
+    /// the honest number behind "the room must say so" when older
+    /// messages fell off the context budget. Zero on members' entries.
+    pub read: u32,
 }
 
 impl Entry {
@@ -117,6 +123,7 @@ impl Entry {
             text: message.text.clone(),
             time: message.time,
             call_ai: message.call_ai,
+            read: message.read,
         }
     }
 }

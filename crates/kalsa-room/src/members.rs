@@ -5,7 +5,7 @@ use crate::events::MemberEvent;
 use crate::names::{self as name_rules, NameError};
 use crate::roster::{self, ROSTER_NAME};
 use crate::room::Room;
-use crate::{MemberId, RoomError};
+use crate::{Entry, MemberId, RoomError};
 
 impl Room {
     /// The member a pairing device is in this room, minting a member id at
@@ -51,6 +51,15 @@ impl Room {
     /// set, and the label would be somebody else's.
     pub fn device_of(&self, member: MemberId) -> Option<u32> {
         self.lock_state().roster.device_of(member)
+    }
+
+    /// The whole transcript for the AI's turn — no member's join floor
+    /// binds it, because the room the guest answers in is one room, not
+    /// one member's slice of it. Order and count are the driver's to
+    /// budget against the context.
+    pub fn entries_for_ai(&self) -> Vec<Entry> {
+        let state = self.lock_state();
+        state.messages.iter().map(|message| Entry::of(message)).collect()
     }
 
     /// The first seq a member may see — their join point. `None` is no

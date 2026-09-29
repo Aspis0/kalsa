@@ -69,6 +69,7 @@ impl Room {
                     text: text.to_string(),
                     time: now(),
                     call_ai,
+                    read: 0,
                 },
             }
         };
@@ -82,8 +83,9 @@ impl Room {
     /// entry — its own seq, no idempotency key, because nobody retries an
     /// AI turn by id. The flag is true because an answer belongs to a
     /// called turn, the only way the AI ever speaks (the protocol's
-    /// `ai_message` shape).
-    pub fn post_ai(&self, text: &str) -> Result<Entry, PostError> {
+    /// `ai_message` shape), and `read` says how much of the room the
+    /// answer was built on.
+    pub fn post_ai(&self, text: &str, read: u32) -> Result<Entry, PostError> {
         if text.is_empty() {
             return Err(PostError::EmptyText);
         }
@@ -103,6 +105,7 @@ impl Room {
                 text: text.to_string(),
                 time: now(),
                 call_ai: true,
+                read,
             }
         };
         if let Err(error) = append(&mut writer.file, &fresh) {

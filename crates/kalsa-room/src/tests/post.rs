@@ -140,11 +140,11 @@ fn a_member_nobody_enrolled_and_the_ai_cannot_post_here() {
 fn the_ai_entry_takes_the_next_seq_without_an_idempotency_key() {
     let (_dir, room) = open("post_ai_entry");
     say(&room, 3, "m1", "the question");
-    let answer = room.post_ai("It is 17:00.").expect("the answer lands");
+    let answer = room.post_ai("It is 17:00.", 0).expect("the answer lands");
     assert_eq!(answer.seq, 2);
     assert_eq!(answer.member, MemberId::Ai);
     assert!(answer.call_ai, "an answer belongs to a called turn");
-    let again = room.post_ai("And now it is 17:01.").expect("no key to collide with");
+    let again = room.post_ai("And now it is 17:01.", 0).expect("no key to collide with");
     assert_eq!(again.seq, 3, "every AI entry is its own entry");
     let page = room.newest_page(1, 100).unwrap();
     assert_eq!(page.messages.len(), 3);

@@ -81,6 +81,7 @@ pub(crate) struct State {
     pub(crate) by_client: HashMap<(MemberId, String), u64>,
     pub(crate) events: Vec<StoredEvent>,
     pub(crate) roster: Roster,
+    pub(crate) queue: crate::queue::Queue,
 }
 
 impl Room {
@@ -128,6 +129,7 @@ impl Room {
                 messages,
                 events,
                 roster,
+                queue: crate::queue::Queue::new(),
             }),
             signal: Condvar::new(),
         })
