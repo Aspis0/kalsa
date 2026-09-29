@@ -16,10 +16,8 @@ import { irohModulePresent } from "../remote/irohBridge";
 import { logPairingFail, type PairingFailStage } from "../pairing/pairingFailLog";
 import { markPairingCompleted } from "../pairing/pairingCompletedAt";
 import { setRemoteServerModelId } from "../engine/remote/remoteSettings";
-import {
-  savePairingCredential,
-  type SavedPairingCredential,
-} from "../pairing/pairingCredentialStore";
+import { savePairingCredential } from "../pairing/pairingCredentialStore";
+import type { SavedPairingCredential } from "../pairing/pairingRecord";
 import {
   pairedPropsProbe,
   pollForAllowance,

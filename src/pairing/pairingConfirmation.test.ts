@@ -10,7 +10,7 @@ jest.mock("../remote/doorRoad", () => ({
 }));
 
 import { establishDoorRoad, doorFetchFor } from "../remote/doorRoad";
-import type { SavedPairingCredential } from "./pairingCredentialStore";
+import type { SavedPairingCredential } from "./pairingRecord";
 import {
   confirmationVerdict,
   pairedPropsProbe,

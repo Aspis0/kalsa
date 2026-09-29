@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { getPairingCredential, savePairingCredential } from "./pairingCredentialStore";
+import { getPairingCredential, savePairingCredential, setPairingRoomId } from "./pairingCredentialStore";
 
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
@@ -94,6 +94,55 @@ describe("pairing credential storage boundary", () => {
     await expect(savePairingCredential(new Uint8Array(31), "https://desktop.example")).rejects.toThrow(
       "invalid pairing credential",
     );
+    expect(secureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  test("the record gains its room id without losing a field", async () => {
+    secureStore.setItemAsync.mockResolvedValue();
+    await savePairingCredential(new Uint8Array(32).fill(0xab), "https://desktop.example", {
+      node: "ab".repeat(32),
+      pairedVia: "iroh",
+    });
+    secureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({
+        credential: "ab".repeat(32),
+        doorUrl: "https://desktop.example",
+        node: "ab".repeat(32),
+        pairedVia: "iroh",
+      }),
+    );
+    await setPairingRoomId("room-7");
+    expect(secureStore.setItemAsync).toHaveBeenLastCalledWith(
+      "kalsa.pairing.credential.v3",
+      JSON.stringify({
+        credential: "ab".repeat(32),
+        doorUrl: "https://desktop.example",
+        node: "ab".repeat(32),
+        pairedVia: "iroh",
+        roomId: "room-7",
+      }),
+    );
+    secureStore.getItemAsync.mockResolvedValue(secureStore.setItemAsync.mock.calls[1][1]);
+    await expect(getPairingCredential()).resolves.toEqual({
+      credential: "ab".repeat(32),
+      doorUrl: "https://desktop.example",
+      node: "ab".repeat(32),
+      pairedVia: "iroh",
+      roomId: "room-7",
+    });
+  });
+
+  test("with no readable record the room stamp writes nothing", async () => {
+    secureStore.getItemAsync.mockResolvedValue(null);
+    await setPairingRoomId("room-7");
+    expect(secureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  test("a damaged record is never stamped", async () => {
+    secureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({ credential: "bad", doorUrl: "https://desktop.example" }),
+    );
+    await setPairingRoomId("room-7");
     expect(secureStore.setItemAsync).not.toHaveBeenCalled();
   });
 });

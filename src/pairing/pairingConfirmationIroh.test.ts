@@ -13,7 +13,7 @@ jest.mock("../remote/irohBridge", () => ({
 
 import { openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";
-import type { SavedPairingCredential } from "./pairingCredentialStore";
+import type { SavedPairingCredential } from "./pairingRecord";
 import { pairedPropsProbe, pollForAllowance } from "./pairingConfirmation";
 
 const PAIRED: SavedPairingCredential = {

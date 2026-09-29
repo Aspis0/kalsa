@@ -11,7 +11,7 @@
  */
 
 import { canSendAuthorization, joinRemoteApiUrl } from "../engine/remote/remoteUrl";
-import type { SavedPairingCredential } from "./pairingCredentialStore";
+import type { SavedPairingCredential } from "./pairingRecord";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../remote/doorRoad";
 
 export type ConfirmationResponse = { status: number; bodyEmpty: boolean };

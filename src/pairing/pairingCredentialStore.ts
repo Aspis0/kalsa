@@ -1,17 +1,18 @@
 import * as SecureStore from "expo-secure-store";
 import { isValidNodeHex, type Road } from "../remote/road";
+import {
+  decodePairingRecord,
+  encodePairingRecord,
+  type SavedPairingCredential,
+} from "./pairingRecord";
 
 const STORAGE_KEY = "kalsa.pairing.credential.v3";
 
-export type SavedPairingCredential = {
-  credential: string;
-  doorUrl: string;
-  /** The paired desktop's iroh node id; null on records saved without one. */
-  node: string | null;
-  /** The road the pairing ceremony itself used; null when unknown. */
-  pairedVia: Road | null;
-};
-
+/**
+ * The ACTIVE pairing — the one chat's door reads. A completed ceremony
+ * overwrites it wholesale; keeping several computers side by side is the
+ * per-room map's job (roomPairingStore), one successful room info at a time.
+ */
 export async function savePairingCredential(
   credential: Uint8Array,
   doorUrl: string,
@@ -19,41 +20,40 @@ export async function savePairingCredential(
 ): Promise<void> {
   if (credential.length !== 32) throw new Error("invalid pairing credential");
   const credentialHex = Array.from(credential, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  const record: Record<string, string> = { credential: credentialHex, doorUrl };
+  const node = isValidNodeHex(pairing?.node) ? pairing.node : null;
+  const via = pairing?.pairedVia;
   // An unparseable node never fails a pairing that already succeeded; it
   // just leaves this credential on the HTTPS road, with no pairing road
   // ever recorded — the door then refuses to fall back anywhere.
-  if (isValidNodeHex(pairing?.node)) {
-    record.node = pairing.node;
-    const via = pairing?.pairedVia;
-    if (via === "iroh" || via === "https") {
-      record.pairedVia = via;
-    }
-  }
-  await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(record));
+  const record: SavedPairingCredential = {
+    credential: credentialHex,
+    doorUrl,
+    node,
+    pairedVia: node !== null && (via === "iroh" || via === "https") ? via : null,
+  };
+  await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(encodePairingRecord(record)));
 }
 
 export async function getPairingCredential(): Promise<SavedPairingCredential | null> {
-  const raw = await SecureStore.getItemAsync(STORAGE_KEY);
-  if (raw == null) return null;
   try {
-    const value = JSON.parse(raw) as Record<string, unknown>;
-    if (
-      typeof value.credential !== "string" ||
-      !/^[0-9a-f]{64}$/.test(value.credential) ||
-      typeof value.doorUrl !== "string"
-    ) return null;
-    // Records from before the iroh step simply have no node: they read as
-    // node null and keep the HTTPS road they always had. A record with a
-    // node but no pairedVia never authorises an HTTPS door fallback.
-    return {
-      credential: value.credential,
-      doorUrl: value.doorUrl,
-      node: isValidNodeHex(value.node) ? value.node : null,
-      pairedVia:
-        value.pairedVia === "iroh" || value.pairedVia === "https" ? value.pairedVia : null,
-    };
+    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    if (raw == null) return null;
+    return decodePairingRecord(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+/**
+ * Stamp the active record with the room the first successful room info
+ * named; every other field survives untouched. No readable record means
+ * nothing to stamp — the write is skipped rather than inventing one.
+ */
+export async function setPairingRoomId(roomId: string): Promise<void> {
+  const record = await getPairingCredential();
+  if (record === null) return;
+  await SecureStore.setItemAsync(
+    STORAGE_KEY,
+    JSON.stringify(encodePairingRecord({ ...record, roomId })),
+  );
 }
