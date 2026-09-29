@@ -6,6 +6,10 @@
    (`e8065c7cf`, includes Gemma MTP; merge-tree was clean) -> dry run on main (windows,
    publish=false) -> tag -> publish -> verify digests -> report to kalsa-brain
    (`edd8034a-6e58-4ff8-a18f-2d56da9ba61a`).
+   PREPARED 2026-09-29: merge commit `d389de2fb` (parents `e8065c7cf` + `43a317fde`, only
+   `.github/workflows/kalsa-server.yml` changes, actionlint EXIT 0), kept locally as ref
+   `refs/kalsa-local/v113-merge` in `~/Projects/kalsallama-onecopy-hmx` (worktree /tmp/kalsallama-v113).
+   Tomorrow: check origin/main is still `e8065c7cf`, then push `d389de2fb:main` (fast-forward).
 2. **New debuggable APK** from app `main` (`2fe1f214` or later; governor platform status end to end:
    engine `d07d0181b`, binding `c0bbbd35`). On the S23: NPU-lane soak, pairing test, governor
    platform-status check (KALSA_GOVERNOR keys), in-app current test with AsyncStorage
