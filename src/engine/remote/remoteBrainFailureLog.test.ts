@@ -20,6 +20,11 @@ describe("remoteBrainFailureReason", () => {
     const truncated = new Error("another sentence") as Error & { code: string };
     truncated.code = "truncated";
     expect(remoteBrainFailureReason(truncated)).toBe("truncated");
+    const removed = new Error("a sentence over it") as Error & { code: string };
+    removed.code = "removed";
+    expect(remoteBrainFailureReason(removed)).toBe("removed");
+    // init rethrows the probe's removed verdict as the bare token.
+    expect(remoteBrainFailureReason(new Error("removed"))).toBe("removed");
   });
 
   test("the probe's status spelling becomes the http code", () => {

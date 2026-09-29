@@ -4,24 +4,28 @@
  * one promise no result may break — a credential never appears in a
  * message.
  *
- * Error fixture provenance (message strings are the door's own):
+ * Error fixture provenance (message strings are the door's own,
+ * cited against kalsa-brain's working tree at HEAD c40c6a12):
  *
  * errorBadRequest.json  mod.rs:74 BAD_QUERY, emitted for after+before at
- *                       routes.rs:151-152
- * errorNameTaken.json   names.rs:45 (NameError::Taken), routes.rs:272
+ *                       routes.rs:154-155
+ * errorNameTaken.json   names.rs:45 (NameError::Taken), routes.rs:275
  * errorMsgIdReused.json room.rs:51 (PostError::ClientIdReused),
- *                       routes.rs:236
- * errorTooLarge.json    room.rs:48 (PostError::TextTooLong), routes.rs:235
+ *                       routes.rs:239
+ * errorTooLarge.json    room.rs:48 (PostError::TextTooLong), routes.rs:238
+ * errorBodyTooLarge.json routes.rs:192 — the 16 KiB body cap's own 413
+ * errorNameTooLarge.json routes.rs:254 — the same cap on the name route
  * errorEpochChanged.json mod.rs:126-127 (the epoch guard on every route)
  * errorNoRoom.json      mod.rs:71 NO_ROOM, mod.rs:110
- * errorReadOnly.json    room.rs:55 (PostError::ReadOnly), routes.rs:237
+ * errorReadOnly.json    room.rs:55 (PostError::ReadOnly), routes.rs:240
  * errorNotFound.json    mod.rs:72 UNKNOWN_ROUTE, mod.rs:195
  * errorInternal.json    answers.rs:69 store_failed, mod.rs:135
  * errorBadCursor.json   mod.rs:77 BAD_LAST_EVENT_ID, emitted stream.rs:136
  * 401                    an empty body, §1
  *
- * too_large and bad_cursor are mapped directly: once the local bounds
- * and the encoded-body check have run, no P2 route can provoke them.
+ * too_large (in all three sentences) and bad_cursor are mapped directly:
+ * once the local bounds and the encoded-body check have run, no P2 route
+ * can provoke the server's 413s.
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
@@ -35,19 +39,22 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
 
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
-import { markPairingRemoved } from "../pairing/pairingCredentialStore";
+import { bindPairingRoom, markPairingRemoved } from "../pairing/pairingCredentialStore";
 import { requiresRoomResync, roomErrorFromResponse } from "./roomError";
 import { fetchRoomHistory, fetchRoomInfo, postRoomMessage, putRoomName } from "./roomApi";
 import errorBadRequestFixture from "./fixtures/errorBadRequest.json";
 import errorBadCursorFixture from "./fixtures/errorBadCursor.json";
+import errorBodyTooLargeFixture from "./fixtures/errorBodyTooLarge.json";
 import errorEpochChangedFixture from "./fixtures/errorEpochChanged.json";
 import errorMsgIdReusedFixture from "./fixtures/errorMsgIdReused.json";
 import errorInternalFixture from "./fixtures/errorInternal.json";
 import errorNameTakenFixture from "./fixtures/errorNameTaken.json";
+import errorNameTooLargeFixture from "./fixtures/errorNameTooLarge.json";
 import errorNoRoomFixture from "./fixtures/errorNoRoom.json";
 import errorNotFoundFixture from "./fixtures/errorNotFound.json";
 import errorReadOnlyFixture from "./fixtures/errorReadOnly.json";
 import errorTooLargeFixture from "./fixtures/errorTooLarge.json";
+import historyFixture from "./fixtures/history.json";
 import infoFixture from "./fixtures/info.json";
 
 const CREDENTIAL = "ab".repeat(32);
@@ -91,6 +98,7 @@ function installDoor(setup: DoorSetup) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  (bindPairingRoom as jest.MockedFunction<typeof bindPairingRoom>).mockResolvedValue([]);
 });
 
 test("400 bad_request carries the door's sentence", async () => {
@@ -117,6 +125,20 @@ test("401 on a manual door is still removed, but there is no record to mark", as
 
   await expect(fetchRoomInfo()).resolves.toMatchObject({ ok: false, error: { code: "removed" } });
   expect(markPairingRemoved).not.toHaveBeenCalled();
+});
+
+test("a 401 also forgets the epoch that pairing had cached", async () => {
+  installDoor({ status: 200, body: infoFixture, localId: "p-lid-e401" });
+  await fetchRoomInfo();
+
+  installDoor({ status: 401, body: EMPTY_BODY, localId: "p-lid-e401" });
+  await fetchRoomInfo();
+
+  // The door config is a fixed mock, so a request still goes out after
+  // the mark — and it must carry no Kalsa-Room-Epoch.
+  const fetcher = installDoor({ status: 200, body: historyFixture, localId: "p-lid-e401" });
+  await fetchRoomHistory({});
+  expect(fetcher.mock.calls[0][1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
 });
 
 test("409 name_taken keeps its code and sentence", async () => {
@@ -228,6 +250,17 @@ test("413 too_large: mapped for the text bound the client now pre-checks", () =>
   expect(roomErrorFromResponse(413, errorTooLargeFixture)).toEqual({
     code: "too_large",
     message: "the message is too long",
+  });
+});
+
+test("413 too_large: the body cap's own sentences map to the same code", () => {
+  expect(roomErrorFromResponse(413, errorBodyTooLargeFixture)).toEqual({
+    code: "too_large",
+    message: "The message is too long.",
+  });
+  expect(roomErrorFromResponse(413, errorNameTooLargeFixture)).toEqual({
+    code: "too_large",
+    message: "The name is too long.",
   });
 });
 

@@ -17,6 +17,7 @@ import {
   remoteUrlGateError,
 } from "../engine/remote/remoteUrl";
 import { bindPairingRoom, markPairingRemoved } from "../pairing/pairingCredentialStore";
+import { isPairingStoreDamaged } from "../pairing/pairingMap";
 import { doorFetchFor, establishDoorRoad } from "../remote/doorRoad";
 import {
   checkClientMsgId,
@@ -27,6 +28,7 @@ import {
 } from "./roomBounds";
 import {
   malformedRoomResponse,
+  removedRoomError,
   roomErrorFromResponse,
   type RoomError,
   type RoomResult,
@@ -93,7 +95,7 @@ async function roomRequest(
     // §2: a record this room already refused stops sending its bearer —
     // the 401 needs no round trip to be known.
     if (door.pairing !== null && door.pairing.removed) {
-      return { result: refused(roomErrorFromResponse(401, null)), localId };
+      return { result: refused(removedRoomError()), localId };
     }
     const gate = remoteUrlGateError(door.url);
     if (gate !== null) return { result: refused({ code: "door_unusable", message: gate }), localId };
@@ -124,11 +126,13 @@ async function roomRequest(
       const error = roomErrorFromResponse(response.status, await readErrorBody(response));
       if (localId !== null && error.code === "removed") {
         // §2's mark: kept even though the refusal stands either way — the
-        // record survives, only its bearer is retired for this room.
+        // record survives, only its bearer is retired for this room. The
+        // epoch goes with it: a pairing nobody may call again sends nothing.
+        roomEpochs.delete(localId);
         try {
           await markPairingRemoved(localId);
         } catch {
-          // The next401 marks again; an unreadable map is its own error.
+          // The next 401 marks again; an unreadable map is its own error.
         }
       }
       if (localId !== null && error.code === "epoch_changed") {
@@ -142,6 +146,17 @@ async function roomRequest(
       return { result: refused(malformedRoomResponse()), localId };
     }
   } catch (error) {
+    // The store's own verdict stays its own: the UI must be able to say a
+    // damaged pairing store is what stands between it and the room.
+    if (isPairingStoreDamaged(error)) {
+      return {
+        result: refused({
+          code: "pairing_store_damaged",
+          message: "The pairing store on this phone is damaged.",
+        }),
+        localId: null,
+      };
+    }
     return {
       result: refused({ code: "unreachable", message: transportMessage(error) }),
       localId: null,
@@ -166,7 +181,10 @@ export async function fetchRoomInfo(options?: RoomCallOptions): Promise<RoomResu
   if (localId !== null) {
     roomEpochs.set(localId, info.epoch);
     try {
-      await bindPairingRoom(localId, info.roomId);
+      const dropped = await bindPairingRoom(localId, info.roomId);
+      // A record superseded while its epoch sat in the cache (this one or
+      // an older one the bind lost the room to) never sends that epoch.
+      for (const superseded of dropped) roomEpochs.delete(superseded);
     } catch {
       // The read stands; the map surfaces its own damage on its next access.
     }

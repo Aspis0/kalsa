@@ -34,7 +34,10 @@ export function remoteBrainFailureReason(error: unknown): string {
   if (error instanceof Error) {
     if (OWN_CODE.test(error.message)) return error.message;
     const code = (error as { code?: unknown }).code;
-    if (code === "interrupted" || code === "truncated") return code;
+    if (code === "interrupted" || code === "truncated" || code === "removed") return code;
+    // The probe's removed verdict is thrown as the bare token — init
+    // rethrows probe.error verbatim — and it is ours, so it logs as itself.
+    if (error.message === "removed") return "removed";
     const probe = PROBE_HTTP.exec(error.message);
     if (probe) return `remote_brain_http_${probe[1]}`;
   }

@@ -5,7 +5,7 @@
  * thrown message a credential could hide in.
  *
  * info.json used as a 200 body: ROOM-PROTOCOL.md §3's example, verbatim
- * (keys at crates/kalsa-door/src/room/routes.rs:58-63).
+ * (keys at crates/kalsa-door/src/room/routes.rs:61-66, HEAD c40c6a12).
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({

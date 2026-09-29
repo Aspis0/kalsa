@@ -6,7 +6,8 @@
  * to send its bearer anywhere before a road is even chosen.
  *
  * info.json/history.json provenance: ROOM-PROTOCOL.md §3/§4 examples
- * with the door's entry keys (answers.rs:26-33, routes.rs:58-63).
+ * with the door's entry keys (answers.rs:26-33, routes.rs:61-66; HEAD
+ * c40c6a12).
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -30,6 +31,7 @@ import historyFixture from "./fixtures/history.json";
 import infoFixture from "./fixtures/info.json";
 
 const DOOR = "https://desk.example";
+const MAP_KEY = "kalsa.pairing.rooms.v2";
 
 function installDoor(responses: Array<{ match: string; body: unknown; status?: number }>) {
   const fetcher = jest.fn(async (url: string, _init: Parameters<DoorFetch>[1]) => {
@@ -98,4 +100,17 @@ test("a 401 marks the REAL record, and the next call sends no bearer at all", as
   // The door config itself now says removed: no road, no request, no bearer.
   expect(fetcher.mock.calls.length).toBe(callsAfter401);
   expect(establishDoorRoad).toHaveBeenCalledTimes(1);
+});
+
+test("a damaged pairing store is its own typed outcome, and quotes nothing from the blob", async () => {
+  await savePairingCredential(new Uint8Array(32).fill(0xef), DOOR);
+  const leaked = "deadbeef".repeat(8);
+  stored[MAP_KEY] = `{"credential":"${leaked}", "records":`; // broken JSON holding a secret-looking string
+  const fetcher = installDoor([{ match: "/info", body: infoFixture }]);
+
+  const result = await fetchRoomInfo();
+
+  expect(result).toMatchObject({ ok: false, error: { code: "pairing_store_damaged" } });
+  expect(JSON.stringify(result)).not.toContain(leaked);
+  expect(fetcher).not.toHaveBeenCalled();
 });

@@ -12,6 +12,9 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(async (key: string, value: string) => {
     stored[key] = value;
   }),
+  deleteItemAsync: jest.fn(async (key: string) => {
+    delete stored[key];
+  }),
 }));
 
 import * as SecureStore from "expo-secure-store";
@@ -52,21 +55,21 @@ test("an info binds the record whose credential made the call, not the current a
   expect(all[1]).toMatchObject({ credential: "cd".repeat(32), roomId: null });
 });
 
-test("binding the room a record already owns writes nothing", async () => {
+test("binding the room a record already owns writes nothing and drops nothing", async () => {
   const localA = await pair(0xab, DOOR_A);
   await bindPairingRoom(localA, "room-1");
   setItem.mockClear();
 
-  await bindPairingRoom(localA, "room-1");
+  await expect(bindPairingRoom(localA, "room-1")).resolves.toEqual([]);
 
   expect(setItem).not.toHaveBeenCalled();
 });
 
-test("a local id with no record left binds nothing and writes nothing", async () => {
+test("a local id with no record left binds nothing, writes nothing, drops nothing", async () => {
   await pair(0xab, DOOR_A);
   setItem.mockClear();
 
-  await bindPairingRoom("p-ghost", "room-1");
+  await expect(bindPairingRoom("p-ghost", "room-1")).resolves.toEqual([]);
 
   expect(setItem).not.toHaveBeenCalled();
   expect((await listPairings())[0].roomId).toBeNull();
@@ -78,7 +81,7 @@ describe("one room, contested by a re-pair", () => {
     await bindPairingRoom(localA, "room-1");
     const localB = await pair(0xcd, DOOR_B);
 
-    await bindPairingRoom(localB, "room-1");
+    await expect(bindPairingRoom(localB, "room-1")).resolves.toEqual([localA]);
 
     const all = await listPairings();
     expect(all).toHaveLength(1);
@@ -91,7 +94,7 @@ describe("one room, contested by a re-pair", () => {
     await bindPairingRoom(localB, "room-1");
     const localA = (await listPairings())[0].localId;
 
-    await bindPairingRoom(localA, "room-1");
+    await expect(bindPairingRoom(localA, "room-1")).resolves.toEqual([localA]);
 
     const all = await listPairings();
     expect(all).toHaveLength(1);
@@ -108,7 +111,7 @@ test("a room id of __proto__ compares as itself and never vanishes", async () =>
   expect((await listPairings())[0].roomId).toBe("__proto__");
 
   // The contested-room scan must find it too: the newer pairing takes it over.
-  await bindPairingRoom(localB, "__proto__");
+  await expect(bindPairingRoom(localB, "__proto__")).resolves.toEqual([localA]);
   const all = await listPairings();
   expect(all).toHaveLength(1);
   expect(all[0]).toMatchObject({ localId: localB, roomId: "__proto__" });

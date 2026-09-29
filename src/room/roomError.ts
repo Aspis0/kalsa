@@ -32,6 +32,8 @@ export type RoomErrorCode =
   | "invalid_input"
   /** Refused locally: the encoded body is over the 16 KiB the door reads. */
   | "body_too_large"
+  /** The pairing store on this phone is damaged: backed up, writes refused. */
+  | "pairing_store_damaged"
   /** No door may carry this request: URL gate, or no bearer for a remote door. */
   | "door_unusable"
   /** The transport failed: dial, request or abort. */
@@ -88,6 +90,13 @@ export function roomErrorFromResponse(status: number, body: unknown): RoomError 
     code: "unexpected",
     message: parsed.message ?? `unexpected room response (HTTP ${status})`,
   };
+}
+
+/** The one 401 verdict, for every path that refuses BEFORE a request:
+ *  the room routes, the chat engine, wherever the record itself already
+ *  says the door will not have it. */
+export function removedRoomError(): RoomError {
+  return roomErrorFromResponse(401, null);
 }
 
 /** The one resync signal, in one function: a room answer saying the epoch

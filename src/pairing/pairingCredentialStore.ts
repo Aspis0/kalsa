@@ -57,10 +57,12 @@ export async function listPairings(): Promise<PairingRecord[]> {
  * is dropped (a re-pair of one computer); the dropped record is always
  * an older entry, so it is never the last one and never the active
  * pointer. A record already gone has nothing to bind; a bound room is a
- * no-op.
+ * no-op. Returns the local ids this call dropped, so the caller can
+ * retire whatever belonged to them — the cached epoch, for one.
  */
-export async function bindPairingRoom(localId: string, roomId: string): Promise<void> {
+export async function bindPairingRoom(localId: string, roomId: string): Promise<string[]> {
   if (roomId.length === 0) throw new Error("invalid room id");
+  const dropped: string[] = [];
   await mutatePairingMap((state) => {
     const target = state.records.find((record) => record.localId === localId);
     if (target === undefined || target.roomId === roomId) return false;
@@ -70,13 +72,16 @@ export async function bindPairingRoom(localId: string, roomId: string): Promise<
     if (owner !== undefined) {
       if (state.records.indexOf(owner) > state.records.indexOf(target)) {
         state.records.splice(state.records.indexOf(target), 1);
+        dropped.push(target.localId);
         return true;
       }
       state.records.splice(state.records.indexOf(owner), 1);
+      dropped.push(owner.localId);
     }
     target.roomId = roomId;
     return true;
   });
+  return dropped;
 }
 
 /** The room answered 401: the record stays (its credential, its room, its

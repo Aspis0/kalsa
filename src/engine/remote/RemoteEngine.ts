@@ -17,6 +17,7 @@ import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
 import type { RemoteDoorConfig } from "./remoteDoorConfig";
+import { removedRoomError } from "../../room/roomError";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
 import { createIrohChatXhr } from "../../remote/irohChatXhr";
 import type { IrohTunnel } from "../../remote/irohHttp";
@@ -135,6 +136,11 @@ export async function testRemoteConnection(): Promise<{
   const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
   try {
     const door = await getRemoteDoorConfig();
+    if (door.pairing?.removed) {
+      // The room already refused this phone: its bearer does not go on a
+      // chat request either — the same verdict the room routes give.
+      return { ok: false, modelId: configured || null, error: removedRoomError().code };
+    }
     const base = door.url;
     const urlGate = remoteUrlGateError(base);
     if (urlGate) {
@@ -336,6 +342,7 @@ export async function streamRemoteAssistantTurn(
     const ours =
       failure.message.startsWith("remote_brain_") ||
       control.code === "interrupted" ||
+      control.code === "removed" ||
       control.superseded === true;
     callbacks.onError(ours ? failure : new Error("remote_brain_internal"));
   };
@@ -347,6 +354,15 @@ export async function streamRemoteAssistantTurn(
     return;
   }
   if (!stillMine()) return;
+  if (door.pairing !== null && door.pairing.removed) {
+    // The room's own verdict, before any byte or bearer: the UI reads the
+    // same "removed" the room client would have answered.
+    const removed = removedRoomError();
+    const err = new Error(removed.message) as Error & { code: string };
+    err.code = removed.code;
+    reportPreStreamError(err);
+    return;
+  }
   const base = door.url;
   const urlGate = remoteUrlGateError(base);
   if (urlGate) {
@@ -635,8 +651,9 @@ export async function streamRemoteAssistantTurn(
   });
   } catch (err) {
     if (!closed) {
-      // Boundary pass-through: only our own codes and the two control signals
-      // AppShell must see unchanged — the "interrupted" code marker and the
+      // Boundary pass-through: only our own codes and the control signals
+      // AppShell must see unchanged — the "interrupted" code marker, the
+      // "removed" verdict of a room that refused this phone, and the
       // superseded flag — may cross verbatim. Anything else (any snake_case
       // token a dependency might throw) becomes remote_brain_internal, so the
       // UI can only ever render human copy (re-audit 2, R2-1).
@@ -645,6 +662,7 @@ export async function streamRemoteAssistantTurn(
       const ours =
         failure.message.startsWith("remote_brain_") ||
         control.code === "interrupted" ||
+        control.code === "removed" ||
         control.superseded === true;
       finishOnce(ours ? failure : new Error("remote_brain_internal"));
     }

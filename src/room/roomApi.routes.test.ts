@@ -4,24 +4,30 @@
  * store (a bind under the local id that made the call) and the epoch
  * every later route sends once one is known.
  *
- * Fixture provenance — every field traced to the contract or the door:
+ * Fixture provenance — every field traced to the contract or the door
+ * (citations against kalsa-brain's working tree, HEAD c40c6a12):
  *
  * info.json — ROOM-PROTOCOL.md §3's example, verbatim. The door writes
  *   the same keys: room_name/room_id/epoch/you/members/ai at
- *   crates/kalsa-door/src/room/routes.rs:58-63; member rows at
- *   routes.rs:53-55 (the AI) and routes.rs:99-103 (entry_member); the
- *   ai object's busy/running/queue/you_pending at routes.rs:90-94 — the
- *   door also answers state/who (routes.rs:89,93), fields §1 says to
+ *   crates/kalsa-door/src/room/routes.rs:61-66; member rows at
+ *   routes.rs:56-58 (the AI) and routes.rs:102-106 (entry_member); the
+ *   ai object's busy/running/queue/you_pending at routes.rs:93-97 — the
+ *   door also answers state/who (routes.rs:92,96), fields §1 says to
  *   ignore.
  * history.json — key set and order from the door's entry_json,
  *   answers.rs:26-33 (seq, epoch, member_id, name, time, text, call_ai),
  *   former set only for a gone author at answers.rs:34-36, page wrapper
- *   at routes.rs:170-172. Values: §4's message for the live author; the
+ *   at routes.rs:173-175. Values: §4's message for the live author; the
  *   second entry is §7's message and member examples.
  * post.json — seq/time from §5's answer example; ai_call and refusal
  *   null exactly as the door answers a message that called nobody
- *   (routes.rs:207-209, shape at routes.rs:222).
- * name.json — §6's answer example, the same keys as routes.rs:260.
+ *   (routes.rs:210-212, shape at routes.rs:225).
+ * postQueued.json — seq/time from §5's answer example; "queued" and a
+ *   null refusal from the door's Queued branch (routes.rs:215, the same
+ *   shape at routes.rs:225).
+ * postRefused.json — seq/time next in §5's numbering; "refused" and the
+ *   refusal token "already_pending" from routes.rs:220 (shape:225).
+ * name.json — §6's answer example, the same keys as routes.rs:263.
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
@@ -41,6 +47,8 @@ import historyFixture from "./fixtures/history.json";
 import infoFixture from "./fixtures/info.json";
 import nameFixture from "./fixtures/name.json";
 import postFixture from "./fixtures/post.json";
+import postQueuedFixture from "./fixtures/postQueued.json";
+import postRefusedFixture from "./fixtures/postRefused.json";
 
 const CREDENTIAL = "ab".repeat(32);
 const EPOCH = "8a7b6c5d4e3f20112233445566778899";
@@ -72,6 +80,7 @@ function installDoor(status: number, body: unknown, localId: string | null = "p-
 
 beforeEach(() => {
   jest.resetAllMocks();
+  (bindPairingRoom as jest.MockedFunction<typeof bindPairingRoom>).mockResolvedValue([]);
 });
 
 test("info: bearer on the wire, the room bound under the calling record, no epoch header yet", async () => {
@@ -203,19 +212,18 @@ test("post: id, text and flag go out; the null-ai_call ack comes back typed", as
   });
 });
 
-test("post: queued and refused answers the guest will send are typed as they are named", async () => {
-  installDoor(200, { seq: 43, time: 1791000018, ai_call: "queued", refusal: null });
+test("post: queued and refused answers are typed as the door writes them", async () => {
+  installDoor(200, postQueuedFixture);
   await expect(
     postRoomMessage({ clientMsgId: "b3f1c3", text: "hi" }),
-  ).resolves.toEqual({ ok: true, value: { seq: 43, time: 1791000018, aiCall: "queued", refusal: null } });
+  ).resolves.toEqual({ ok: true, value: { seq: 42, time: 1791000017, aiCall: "queued", refusal: null } });
 
-  // routes.rs:217 answers a second pending call refused, honestly.
-  installDoor(200, { seq: 44, time: 1791000019, ai_call: "refused", refusal: "already_pending" });
+  installDoor(200, postRefusedFixture);
   await expect(
     postRoomMessage({ clientMsgId: "b3f1c4", text: "hi again" }),
   ).resolves.toEqual({
     ok: true,
-    value: { seq: 44, time: 1791000019, aiCall: "refused", refusal: "already_pending" },
+    value: { seq: 43, time: 1791000018, aiCall: "refused", refusal: "already_pending" },
   });
 });
 
@@ -275,6 +283,23 @@ test("the epoch: cached from info, sent on every route, dropped on 409, silent u
   (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(fetcher);
   await fetchRoomHistory({});
   expect(fetcher.mock.calls.at(-1)?.[1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
+});
+
+test("a record superseded while its epoch sat cached stops sending that epoch", async () => {
+  const fetcher = installDoor(200, infoFixture, "p-lid-supersede");
+
+  await fetchRoomInfo();
+  await fetchRoomHistory({});
+  expect(fetcher.mock.calls[1][1].headers["Kalsa-Room-Epoch"]).toBe(infoFixture.epoch);
+
+  // The next bind files the room under a newer pairing and reports THIS record dropped.
+  (bindPairingRoom as jest.MockedFunction<typeof bindPairingRoom>).mockResolvedValue([
+    "p-lid-supersede",
+  ]);
+  await fetchRoomInfo();
+  await fetchRoomHistory({});
+
+  expect(fetcher.mock.calls[3][1].headers["Kalsa-Room-Epoch"]).toBeUndefined();
 });
 
 test("a bind that fails never fails a read that succeeded", async () => {
