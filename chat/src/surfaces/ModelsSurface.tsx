@@ -17,13 +17,15 @@ const MODEL_REASON_FALLBACK = "A model is chosen for this computer every time yo
 
 interface ModelsSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
+  model: string;
+  onModelChange: (model: string) => void;
 }
 
 // The Models surface says what this computer is running and owns the advanced
 // launch controls. The chooser remains in Rust; this page reads its answer — the
 // model and the reason it gave for this start — and sends explicit edits back to
 // the start command.
-export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
+export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfaceProps) {
   const [state, setState] = useState<BrainState | null>(null);
 
   useEffect(() => {
@@ -109,6 +111,8 @@ export function ModelsSurface({ onNavigate }: ModelsSurfaceProps) {
       ) : null}
       <AdvancedPanel
         save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}
+        model={model}
+        onModelChange={onModelChange}
       />
     </div>
   );

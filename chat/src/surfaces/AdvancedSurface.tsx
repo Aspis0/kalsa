@@ -5,11 +5,19 @@ import "./surfaces.css";
 
 // The Advanced surface: the same panel the Models surface owns, standing alone,
 // sending all three launch controls back to the start command.
-export function AdvancedSurface() {
+export function AdvancedSurface({
+  model,
+  onModelChange,
+}: {
+  model: string;
+  onModelChange: (model: string) => void;
+}) {
   return (
     <div className="surface-page">
       <AdvancedPanel
         save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}
+        model={model}
+        onModelChange={onModelChange}
       />
       <SamplingPanel />
     </div>

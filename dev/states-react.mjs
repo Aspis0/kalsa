@@ -784,8 +784,27 @@ function componentFor(kind, data) {
     });
   }
   if (kind === "server") return React.createElement(ServerSurface);
-  if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
-  if (kind === "advanced") return React.createElement(AdvancedSurface);
+  if (kind === "models") {
+    return React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(ModelsSurface, {
+        onNavigate: () => {},
+        model: data?.model ?? "",
+        onModelChange: () => {},
+      }),
+    );
+  }
+  if (kind === "advanced") {
+    return React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(AdvancedSurface, {
+        model: data?.model ?? "",
+        onModelChange: () => {},
+      }),
+    );
+  }
   if (kind === "room") {
     if (data?.copyProbe) {
       const REFUSALS = [
@@ -1041,7 +1060,13 @@ export async function renderAdvancedProbe(data) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(AdvancedSurface));
+  root.render(
+    React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+    ),
+  );
   await settle();
   const toggle = first(panel, (el) => el.tagName === "BUTTON" && elementText(el) === "Show settings");
   if (toggle) {
@@ -1067,7 +1092,13 @@ export async function renderAdvancedFieldProbe(data) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(AdvancedSurface));
+  root.render(
+    React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+    ),
+  );
   await settle();
   const toggle = first(panel, (el) => el.tagName === "BUTTON" && elementText(el) === "Show settings");
   toggle?.click();
@@ -1098,7 +1129,13 @@ export async function renderAdvancedCacheProbe(data) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(AdvancedSurface));
+  root.render(
+    React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+    ),
+  );
   await settle();
   const toggle = first(panel, (el) => el.tagName === "BUTTON" && elementText(el) === "Show settings");
   toggle?.click();

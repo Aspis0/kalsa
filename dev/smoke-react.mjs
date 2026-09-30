@@ -1353,7 +1353,7 @@ try {
       key: ["This computer has not made its own connection key yet.", "Devices"],
       "key-read": ["This computer could not read its own connection key.", "Devices"],
       "key-junk": ["This computer has not made its own connection key yet.", "Devices"],
-      settings: ["This computer has no model name yet.", "Open settings"],
+      settings: ["This computer has no model name yet.", "Open Advanced"],
       ready: ["Write your first message below to begin.", null],
     };
     const armName = Object.keys(FIRST_PAGE).find((arm) =>

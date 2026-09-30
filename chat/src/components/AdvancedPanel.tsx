@@ -3,6 +3,8 @@ import { available, invoke } from "../lib/tauri";
 import { LAUNCH_KNOBS } from "../lib/knobs/launch";
 import type { LaunchKnob } from "../lib/knobs/types";
 import { bytesText } from "../surfaces/MachineCard";
+import { loadSettings, saveSettings } from "../lib/settings";
+import { useLanguage } from "../i18n/useLanguage";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
 import "./AdvancedPanel.css";
@@ -193,7 +195,23 @@ function cacheHelp(dto: AdvancedDto | null): string {
     ? `Automatic is ${dto.kv_cache_automatic}.`
     : "The app will read the machine before choosing a cache type.";
 }
-export function AdvancedPanel({ save }: { save: AdvancedSave }) {
+interface AdvancedPanelProps {
+  save: AdvancedSave;
+  /** The stored model name and where its edits go: the same settings field
+      the Settings page kept, so the dev path's typed name reaches the chat
+      without a reload. */
+  model?: string;
+  onModelChange?: (model: string) => void;
+}
+
+export function AdvancedPanel({ save, model: modelProp, onModelChange }: AdvancedPanelProps) {
+  const { table } = useLanguage();
+  const advanced = table.advanced;
+  // The model name lives in the app's settings record — the same field the
+  // Settings page kept — read once and written on blur, the way a knob's
+  // typed value commits.
+  const [model, setModel] = useState(() => modelProp ?? loadSettings().model);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [dto, setDto] = useState<AdvancedDto | null>(null);
   const [context, setContext] = useState("");
   const [idle, setIdle] = useState("");
@@ -299,6 +317,34 @@ export function AdvancedPanel({ save }: { save: AdvancedSave }) {
           Server settings, and a button to reveal them. */}
       <KnobInfoScope>
         <div className="advanced-body">
+          <label className="settings-field">
+            <span>{advanced.modelName}</span>
+            <input
+              type="text"
+              value={model}
+              onChange={(event) => {
+                setModel(event.target.value);
+                setModelError(null);
+              }}
+              onBlur={() => {
+                const name = model.trim();
+                if (!name) {
+                  setModelError(advanced.modelNameError);
+                  return;
+                }
+                saveSettings({ ...loadSettings(), model: name });
+                onModelChange?.(name);
+              }}
+              placeholder={advanced.modelNamePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {modelError ? (
+              <p className="settings-error" role="alert">
+                {modelError}
+              </p>
+            ) : null}
+          </label>
           <p className="advanced-note">
             {dto
               ? dto.running

@@ -3,7 +3,13 @@ import type { HostKeyState } from "../surfaces/useBrain";
 
 /** What the first page has to offer before a message can be written: which
     sentence-button pair it shows, each borrowed from the page that fixes it. */
-export type SetupArm = "server" | "service" | "starting" | "key" | "settings" | null;
+export type SetupArm =
+  | "server"
+  | "service"
+  | "starting"
+  | "key"
+  | "advanced"
+  | null;
 
 /** The machine's own state as the first page's arm. Every arm reuses words
     the UI already shows, so one fact has one sentence wherever the owner
@@ -41,7 +47,7 @@ export type SetupArm = "server" | "service" | "starting" | "key" | "settings" | 
       restarting the app. Wording is the owner's (2026-09-25): "This
       computer's chat connection is not working right now." with "Go to
       Devices";
-    - running, door up, no model name → Settings.
+    - running, door up, no model name → Advanced (where the field lives).
     Each arm is pinned in `dev/smoke-react.mjs`. */
 export function setupArm(
   kind: string | null,
@@ -66,7 +72,9 @@ export function setupArm(
       // The door's address is known and the read is still in flight:
       // getting ready — the transient arm.
       if (credential === "pending") return "starting";
-      return model.trim() ? null : "settings";
+      // The model name is typed where the field lives now: the Advanced
+      // panel, beside the other development knobs.
+      return model.trim() ? null : "advanced";
     default:
       // No answer yet reads as off only for as long as the poll's first
       // answer takes — its own second — and off/stopped/failed/stopping
@@ -82,7 +90,7 @@ interface EmptyStateProps {
       else arrives as null, and the key arm then speaks the not-made-yet
       sentence instead. */
   credentialMessage: string | null;
-  onOpenSettings: () => void;
+  onOpenAdvanced: () => void;
   onOpenServer: () => void;
   onOpenDevices: () => void;
 }
@@ -91,7 +99,7 @@ interface EmptyStateProps {
 export function EmptyState({
   setup,
   credentialMessage,
-  onOpenSettings,
+  onOpenAdvanced,
   onOpenServer,
   onOpenDevices,
 }: EmptyStateProps) {
@@ -131,11 +139,11 @@ export function EmptyState({
             Devices
           </button>
         </>
-      ) : setup === "settings" ? (
+      ) : setup === "advanced" ? (
         <>
           <p className="empty-copy">This computer has no model name yet.</p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenSettings}>
-            Open settings
+          <button type="button" className="btn-primary btn-large" onClick={onOpenAdvanced}>
+            Open Advanced
           </button>
         </>
       ) : (

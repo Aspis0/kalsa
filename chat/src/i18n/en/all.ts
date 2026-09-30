@@ -2,6 +2,7 @@
 
 import { CHROME, SETTINGS } from "./chrome";
 import { COMPOSER, BRAIN_BAR } from "./composer";
+import { ADVANCED } from "./advanced";
 import { ROOM, type RoomTable } from "./room";
 
 export interface English {
@@ -9,6 +10,7 @@ export interface English {
   settings: typeof SETTINGS;
   composer: typeof COMPOSER;
   brainBar: typeof BRAIN_BAR;
+  advanced: typeof ADVANCED;
   room: RoomTable;
 }
 
@@ -17,5 +19,6 @@ export const ENGLISH: English = {
   settings: SETTINGS,
   composer: COMPOSER,
   brainBar: BRAIN_BAR,
+  advanced: ADVANCED,
   room: ROOM,
 };

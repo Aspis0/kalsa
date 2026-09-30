@@ -1143,7 +1143,7 @@ export function App() {
                   <EmptyState
                     setup={setup}
                     credentialMessage={credentialMessage}
-                    onOpenSettings={() => openSurface("settings")}
+                    onOpenAdvanced={() => openSurface("advanced")}
                     onOpenServer={() => openSurface("server")}
                     onOpenDevices={() => openSurface("devices")}
                   />
@@ -1220,13 +1220,28 @@ export function App() {
               }}
             />
           ) : surface === "models" ? (
-            <ModelsSurface onNavigate={openSurface} />
+            <ModelsSurface
+              onNavigate={openSurface}
+              model={settings.model}
+              onModelChange={(name) => {
+                const next = { ...settings, model: name };
+                setSettings(next);
+                saveSettings(next);
+              }}
+            />
           ) : surface === "server" ? (
             <ServerSurface />
           ) : surface === "devices" ? (
             <DevicesSurface onNavigate={openSurface} />
           ) : surface === "advanced" ? (
-            <AdvancedSurface />
+            <AdvancedSurface
+              model={settings.model}
+              onModelChange={(name) => {
+                const next = { ...settings, model: name };
+                setSettings(next);
+                saveSettings(next);
+              }}
+            />
           ) : null}
         </ErrorBoundary>
       </main>

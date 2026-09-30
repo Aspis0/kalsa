@@ -15,33 +15,25 @@ interface SettingsFormProps {
 }
 
 /**
- * The Settings surface: the search switch, then the model this computer asks
- * its own server for.
- *
- * The switch is a privacy control, not a field of that form. It used to share
- * the form's Save, which returns early unless a server address and model are
- * filled in — and on a normal install they are not, because the brain runs on
- * this computer. So the switch could never be changed, and it defaults to on.
+ * The Settings surface: the search switch, the theme, and the language.
+ * The switch is a privacy control, not a field of a form — it used to
+ * share the form's Save, which returns early unless a server address and
+ * model are filled in — and on a normal install they are not, because the
+ * brain runs on this computer. So the switch could never be changed, and
+ * it defaults to on.
  */
 export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: SettingsFormProps) {
-  const [model, setModel] = useState(initial.model);
-  const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const { table, override, choose } = useLanguage();
   const t = table.settings;
 
   function save(): void {
-    setSaved(false);
-    if (!model.trim()) {
-      setError(t.modelNameError);
-      return;
-    }
-    setError(null);
-    // The switch rides along as the value App already holds — not as a field of
-    // this form. Omitting it would store a record without it, and a record
-    // without it reads back as `true`: Save would quietly turn the switch on.
+    // The model name is typed on the Advanced page now; Save carries the
+    // stored one unchanged, and the web-switch rides along as the value App
+    // already holds — omitting it would store a record without it, and a
+    // record without it reads back as `true`.
     onSave({
-      model: model.trim(),
+      model: initial.model,
       webTools: initial.webTools,
     });
     setSaved(true);
@@ -95,24 +87,7 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
 
       <p className="settings-lede">{t.lede}</p>
 
-      <label className="settings-field">
-        <span>{t.modelName}</span>
-        <input
-          type="text"
-          value={model}
-          onChange={(event) => setModel(event.target.value)}
-          placeholder={t.modelNamePlaceholder}
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </label>
-
-      {error ? (
-        <p className="settings-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {saved && !error ? <p className="settings-saved">{t.saved}</p> : null}
+      {saved ? <p className="settings-saved">{t.saved}</p> : null}
 
       <div className="settings-actions">
         <button type="button" className="btn-primary" onClick={save}>
