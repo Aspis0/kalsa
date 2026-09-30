@@ -24,7 +24,7 @@ export const SHELL = {
     "stoppedBeforeFinishing": "Kalsa 中途停下了。请再问一次。",
     "attachedOne": (name: string) => `已附加 ${name}。`,
     "attachedMany": (count: number) => `已附加 ${count} 个文件。`,
-    "attachmentFailed": "Kalsa 无法添加这个文件。请另选一个。",
+    "attachmentFailed": "Kalsa 无法添加这个文件。请重新选择它。",
     "storageFull": "Kalsa 的存储已满，新消息将不会保存。删除旧对话来腾出空间。",
     "holdWaiting": "正在等待 Kalsa…",
     "holdExpired": "Kalsa 无法打开这条对话。请再试。",

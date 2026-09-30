@@ -23,5 +23,5 @@ export const FILES = {
     "tooBig": "这个文件对 Kalsa 来说太大了。请试一个更小的。",
     "unreadable": "Kalsa 无法读取这个文件。它可能已损坏或被密码锁定。",
     "noText": "Kalsa 在这个文件里没有找到文字。如果是扫描件，她暂时读不了。",
-    "couldNotOpen": "Kalsa 无法打开这个文件。请另选一个。",
+    "couldNotOpen": "Kalsa 无法打开这个文件。请重新选择它。",
   };

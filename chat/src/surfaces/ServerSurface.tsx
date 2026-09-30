@@ -5,10 +5,10 @@ import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
 import "./surfaces.css";
 
-function rateText(t: { notMeasuredYet: string }, machine: English["machine"], tag: string, rate: number | undefined): string {
-  return typeof rate === "number" && Number.isFinite(rate) && rate > 0
-    ? speedLine(machine, tag, rate)
-    : t.notMeasuredYet;
+function rateText(machine: English["machine"], tag: string, rate: number | undefined): string {
+  // An absent rate reaches speedLine's own guard: not a number is not a
+  // speed, and the sentence says so rather than the figure.
+  return speedLine(machine, tag, rate ?? Number.NaN);
 }
 
 // The Power surface: one glance tells the owner whether Kalsa is on and what
@@ -47,7 +47,7 @@ export function ServerSurface() {
               <div className="surface-metrics">
                 <div className="surface-metric">
                   <span className="surface-metric-label">{t.decode}</span>
-                  <strong className="surface-metric-value">{rateText(t, table.machine, tag, metrics.decode_tokens_per_second)}</strong>
+                  <strong className="surface-metric-value">{rateText(table.machine, tag, metrics.decode_tokens_per_second)}</strong>
                   <span className="surface-metric-detail">{t.measuredByServer}</span>
                 </div>
                 <div className="surface-metric">

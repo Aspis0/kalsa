@@ -5,7 +5,7 @@ export const POWER = {
     "couldNotTell": "无法读取 Kalsa 的状态。请再试。",
     "tryAgain": "再试一次",
     "stopping": "Kalsa 正在关闭…",
-    "puttingAway": "正在收起助手。",
+    "puttingAway": "Kalsa 正在关闭。下次她会以你的选择启动。",
     "starting": "Kalsa 正在启动…",
     "gettingReady": "正在准备。在较旧的电脑上可能需要一分钟。",
     "didNotStart": "Kalsa 没能启动。请再试。",

@@ -5,7 +5,7 @@ export const POWER = {
     "couldNotTell": "L'état de Kalsa n'a pas pu être lu. Réessaie.",
     "tryAgain": "Réessaie",
     "stopping": "Kalsa s'éteint…",
-    "puttingAway": "Elle range l'assistante.",
+    "puttingAway": "Kalsa s'éteint. La prochaine fois, elle repart avec ton choix.",
     "starting": "Kalsa démarre…",
     "gettingReady": "Ça se prépare. Sur un ordinateur plus vieux, cela peut prendre une minute.",
     "didNotStart": "Kalsa n'a pas démarré. Réessaie.",

@@ -6,7 +6,7 @@ export const POWER = {
   couldNotTell: "Kalsa's state couldn't be read. Try again.",
   tryAgain: "Try again",
   stopping: "Kalsa is turning off…",
-  puttingAway: "Putting the assistant away.",
+  puttingAway: "Kalsa is turning off. Next time she starts with your choice.",
   starting: "Kalsa is starting…",
   gettingReady: "Getting ready. On an older computer this can take a minute.",
   didNotStart: "Kalsa couldn't start. Try again.",

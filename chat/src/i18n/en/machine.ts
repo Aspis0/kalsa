@@ -9,7 +9,6 @@ export const MACHINE = {
   chosenForComputer: "Chosen for this computer",
   fallbackReason: "Kalsa picks what works best each time you turn her on.",
   stopping: "Stopping",
-  puttingAway: "Kalsa is turning off. Next time she starts with your choice.",
   chosenAndStarting: "Chosen and starting",
   startingSentence: "A model has been chosen for this computer. It is starting now.",
   notRunning: "Not running",
@@ -22,6 +21,7 @@ export const MACHINE = {
   runningNow: "Running now.",
   thisComputerMachine: "this computer",
   // The speed words: both a plain phrase and the figure it rests on.
+  notMeasuredYet: "Not measured yet",
   speedFast: (rate: string) => `Answers quickly · ${rate} tokens/s`,
   speedSteady: (rate: string) => `Answers at a steady pace · ${rate} tokens/s`,
   speedSlow: (rate: string) => `Takes a moment · ${rate} tokens/s`,

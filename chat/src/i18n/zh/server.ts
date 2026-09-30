@@ -2,7 +2,6 @@
 
 export const SERVER = {
     "eyebrow": "状态",
-    "notMeasuredYet": "尚未测量",
     "connected": "已连接",
     "notConnected": "未连接",
     "decode": "速度",

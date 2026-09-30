@@ -620,8 +620,8 @@ try {
   if (!STOPPING_CARD) {
     problems.push("the harness is missing the draining state the page must speak about");
   } else {
-    if (!STOPPING_CARD.all.includes("Putting the assistant away.")) {
-      problems.push("a drain must say it is putting the assistant away");
+    if (!STOPPING_CARD.all.includes("Kalsa is turning off. Next time she starts with your choice.")) {
+      problems.push("a drain must say Kalsa is turning off and will return with the owner's choice");
     }
     if (STOPPING_CARD.all.includes("Starting")) {
       problems.push("a drain was told as a start");

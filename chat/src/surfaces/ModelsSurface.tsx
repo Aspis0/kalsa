@@ -70,7 +70,7 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
         // claims not to know the one thing the state reported is a false
         // sentence standing on screen for the whole teardown.
         headline = t.stopping;
-        sentence = t.puttingAway;
+        sentence = table.power.puttingAway;
         break;
       case "starting":
         headline = t.chosenAndStarting;

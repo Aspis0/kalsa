@@ -24,7 +24,7 @@ export const SHELL = {
     "stoppedBeforeFinishing": "Kalsa se detuvo antes de terminar. Pregunta de nuevo.",
     "attachedOne": (name: string) => `${name} adjuntado.`,
     "attachedMany": (count: number) => `${count} archivos adjuntados.`,
-    "attachmentFailed": "Kalsa no pudo añadir este archivo. Elige otro.",
+    "attachmentFailed": "Kalsa no pudo añadir este archivo. Vuelve a elegirlo.",
     "storageFull": "El espacio de Kalsa está lleno, así que los mensajes nuevos no se guardarán. Elimina conversaciones viejas para hacer sitio.",
     "holdWaiting": "Esperando a Kalsa…",
     "holdExpired": "Kalsa no pudo abrir esta conversación. Prueba de nuevo.",
