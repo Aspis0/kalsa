@@ -692,7 +692,8 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   6.4.0.2 verified by sha256 `b4a57a77...` (GitHub asset digest), QAIC host stubs as the engine's `build_idl`,
   `persist-credentials: false`, and a post-build assertion that the hexagon lib really contains the backend. Hostile
   audit `app-ci-hexagon-recon/AUDIT.md` applied (its "lane-on throws" REFUTED: it read stale local node_modules).
-  Debuggable APK run `36763920662` in progress; the S23 NPU-lane check is next.
+  Debuggable APK run `36763920662` GREEN; the coordinator verified 137 `ggml-hex` strings in the hexagon lib (was 0).
+  First APK ever with the NPU host backend; the S23 NPU-lane check is next.
   (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
   `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
 
