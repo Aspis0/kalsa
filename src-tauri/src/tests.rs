@@ -3502,3 +3502,30 @@ fn a_waiting_record_with_no_allowed_seat_names_none() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+
+/// The room view's commands exist and are reachable from the webview: the
+/// source must define each one as a command AND list it in the handler
+/// table, because a command missing from either half is invisible to the
+/// page in a way no runtime test catches (the invoke would just fail).
+#[test]
+fn the_room_commands_are_reachable_and_registered() {
+    let main_rs = include_str!("main.rs");
+    let room_rs = include_str!("room.rs");
+    let commands = [
+        "brain_room",
+        "brain_room_history",
+        "brain_room_post",
+        "brain_room_set_name",
+        "brain_room_stop",
+    ];
+    for command in commands {
+        assert!(
+            room_rs.contains(&format!("pub fn {command}(")),
+            "{command} must be defined as a command"
+        );
+        assert!(
+            main_rs.contains(&format!("room::{command}")),
+            "{command} must be listed in the handler table"
+        );
+    }
+}

@@ -104,6 +104,9 @@ struct Brain {
     /// the brain still runs, and the door's room routes answer with the one
     /// honest sentence instead of a room that pretends.
     room: OnceLock<Arc<kalsa_room::Room>>,
+    /// The room's event feed stop flag, set by the app's exit path so the
+    /// follower thread ends with the window it feeds.
+    room_events: OnceLock<Arc<std::sync::atomic::AtomicBool>>,
     /// How many Turn offs the owner has asked for. A walk captures it at its
     /// start and re-checks it before each start it makes: a stop taken
     /// mid-walk is never undone by the launch that follows.
@@ -317,6 +320,7 @@ impl Brain {
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
             room: OnceLock::new(),
+            room_events: OnceLock::new(),
         }
     }
 
@@ -1899,6 +1903,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_allow_device,
             brain_pairing_forget,
             brain_host_credential,
+            room::brain_room,
+            room::brain_room_history,
+            room::brain_room_post,
+            room::brain_room_set_name,
+            room::brain_room_stop,
             invites::brain_invite_create,
             invites::brain_invite_list,
             invites::brain_invite_link,
@@ -2012,7 +2021,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &file.parent().unwrap_or_else(|| std::path::Path::new("")),
             ) {
                 Ok(opened) => {
+                    // A second set can only mean the hook ran twice; the
+                    // room is opened once and the first one is the room.
                     let _ = app.state::<Brain>().room.set(Arc::new(opened));
+                    room::spawn_event_pump(app.handle().clone(), &app.state::<Brain>());
                 }
                 Err(error) => {
                     eprintln!("kalsa-brain: the room could not be opened: {error}");
@@ -2078,6 +2090,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 desk.listener.shutdown();
             }
             if let Some(brain) = app.try_state::<Brain>() {
+                room::stop_event_pump(&brain);
                 brain.stop_door();
                 brain.supervisor.shutdown();
             }
