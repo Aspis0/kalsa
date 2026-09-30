@@ -21,6 +21,12 @@ pub(super) enum Reply {
     RefuseStatus(u16),
     /// Accept and say nothing at all: the caller hangs.
     Hang,
+    /// Refuse with 413 only when the request body exceeds the cap: the
+    /// engine that ran out of context for what it was handed.
+    RefuseIfOver(usize),
+    /// The SSE head and one delta, then silence forever: a stream that
+    /// stalls without dying.
+    Stall,
 }
 
 /// What the fake saw on one connection: the request head and body.
@@ -82,15 +88,21 @@ fn accept(listener: TcpListener, seen: Arc<Mutex<Vec<Seen>>>, replies: Arc<Mutex
         let Ok(mut stream) = stream else {
             continue;
         };
-        // Each connection consumes the next reply; past the script's end
-        // the engine says nothing, forever.
+        // Each connection consumes the next reply, except the two that
+        // describe a standing engine (a size cap, a stall) — those apply
+        // to every connection until the script moves past them. Past the
+        // script's end the engine says nothing, forever.
+        let standing = matches!(
+            replies.lock().unwrap().first(),
+            Some(Reply::RefuseIfOver(_)) | Some(Reply::Stall)
+        );
         let reply = replies
             .lock()
             .unwrap()
             .first()
             .cloned()
             .unwrap_or(Reply::Hang);
-        if !replies.lock().unwrap().is_empty() {
+        if !standing && !replies.lock().unwrap().is_empty() {
             replies.lock().unwrap().remove(0);
         }
         let seen = Arc::clone(&seen);
@@ -100,7 +112,10 @@ fn accept(listener: TcpListener, seen: Arc<Mutex<Vec<Seen>>>, replies: Arc<Mutex
 
 fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
     let request = read_request(stream);
-    seen.lock().unwrap().push(request);
+    // The size-capped refusal reads the body before choosing, so the
+    // record keeps it and the cap borrows it back.
+    let body_length = request.body.len();
+    seen.lock().unwrap().push(request.clone());
     match reply {
         Reply::SseBroken(piece) => {
             let head =
@@ -122,6 +137,28 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
                 "HTTP/1.1 {status} Refused\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
             );
             let _ = stream.write_all(response.as_bytes());
+        }
+        Reply::RefuseIfOver(cap) => {
+            if body_length > cap {
+                let _ = stream.write_all(
+                    b"HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            } else {
+                let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+                if stream.write_all(head.as_bytes()).is_err() {
+                    return;
+                }
+                let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"fitted\"}}]}\n\n");
+                let _ = stream.write_all(b"data: [DONE]\n\n");
+            }
+        }
+        Reply::Stall => {
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            if stream.write_all(head.as_bytes()).is_err() {
+                return;
+            }
+            let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"then nothing\"}}]}\n\n");
+            thread::sleep(Duration::from_secs(120));
         }
         // Hold the connection open, saying nothing: the caller hangs. The
         // thread sleeps rather than returning, because returning closes

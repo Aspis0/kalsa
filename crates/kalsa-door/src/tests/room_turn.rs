@@ -95,6 +95,8 @@ pub(super) fn await_answer(room: &Room) -> kalsa_room::Entry {
 
 /// Reads the stream until the needle, tolerating the write side being
 /// still open.
+pub(super) use crate::room::turn::{stall_for, stall_reset};
+
 pub(super) fn heard(stream: &mut std::net::TcpStream, needle: &[u8]) -> String {
     Reader::until(stream, needle, Duration::from_secs(6))
 }
@@ -474,8 +476,13 @@ fn a_busy_computer_keeps_the_call_waiting_for_a_seat() {
 #[test]
 fn an_engine_failure_mid_answer_is_honest_and_stores_nothing() {
     // The stream starts, delivers one piece, and the socket dies without
-    // the terminal event: the turn says what happened and keeps nothing.
-    let (door, room, _fake, [_, one, _]) = room_at(vec![Reply::SseBroken("half ".to_string())]);
+    // the terminal event — twice, because the first failure is retried.
+    // The second is the one the room is told about, and nothing half is
+    // stored.
+    let (door, room, _fake, [_, one, _]) = room_at(vec![
+        Reply::SseBroken("half ".to_string()),
+        Reply::SseBroken("half ".to_string()),
+    ]);
     let bearer = format!("Bearer {one}");
     let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
     post(
@@ -484,10 +491,9 @@ fn an_engine_failure_mid_answer_is_honest_and_stores_nothing() {
         "/kalsa/room/messages",
         r#"{"client_msg_id":"a1","text":"@Kalsa break"}"#,
     );
-    let stopped = heard(&mut follower, b"stopped");
+    let stopped = heard(&mut follower, b"engine_problem");
     assert!(
-        stopped.contains("\"note_code\":\"stopped\"")
-            && stopped.contains("Kalsa stopped before finishing. Ask again."),
+        stopped.contains("Kalsa ran into a problem on this computer"),
         "the room said what happened: {stopped}"
     );
     let page = room.newest_page(1, 10).unwrap();
@@ -504,7 +510,8 @@ fn an_engine_failure_mid_answer_is_honest_and_stores_nothing() {
 
 #[test]
 fn an_engine_that_never_answers_refuses_the_turn_honestly() {
-    let (door, room, _fake, [_, one, _]) = room_at(vec![Reply::Refuse]);
+    // Refused, retried, refused again: the second is the sentence.
+    let (door, room, _fake, [_, one, _]) = room_at(vec![Reply::Refuse, Reply::Refuse]);
     let bearer = format!("Bearer {one}");
     post(
         door.address(),

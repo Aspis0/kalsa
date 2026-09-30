@@ -321,13 +321,18 @@ served least recently breaks only an exact tie (HOUSEHOLD-RULES.md
 visibility).
 
 The guest takes its own engine seat at this computer, beside the
-household. When every seat is busy the call does not fail: it stays in the
-line with an `ai_status` `waiting` whose note says the computer is busy —
-the turn begins when a seat comes back. On its turn the guest spends at
-most a stated share (60%) of its slot's context — the launch's
-`--ctx-size / --parallel`, tokens estimated at four bytes each when no
-tokenizer is available — and the
-`read` count on the answer says what that bought.
+household — its own seat, never the host's private chat. A turn HOLDS its
+seat from its first request until the turn ends; private chats use their
+own seats and never share it. When every seat is busy the call does not
+fail: it stays in the line with an `ai_status` `waiting` whose note says
+the computer is busy — the turn begins when a seat comes back. On its
+turn the guest spends at most a stated share (60%) of its slot's context
+— the launch's `--ctx-size / --parallel`, tokens estimated at four bytes
+each when no tokenizer is available — and the `read` count on the answer
+says what that bought. A turn ends when its answer ends, when it is
+withdrawn or stopped, or when the engine falls silent for 60 seconds — a
+stall; a long, live answer is never cut, and the seat is held for all of
+it.
 
 The line itself is memory: a computer that restarts forgets every pending
 call, and nothing retroactive is announced on startup. What a phone
@@ -381,6 +386,7 @@ Every error carries a stable machine `code` and its English fallback in
 | `too_large` | The message or name is too long. |
 | `client_msg_id_reused` | This message id was already used for different content. |
 | `name_taken` | That name is reserved or already in use. |
+| `name_framing` | A name cannot hold the speaker brackets. |
 | `no_call` | You have no question waiting. |
 | `epoch_changed` | The room's transcript restarted; drop what was cached and read it again. |
 | `no_room` | The room is not open on this computer. |
@@ -401,12 +407,9 @@ The `ai_status` note codes and English fallbacks are:
 |---|---|
 | `busy_waiting` | Kalsa is busy with another conversation. You keep your turn. |
 | `unavailable` | Kalsa can't answer in this room right now. |
-| `stopped` | Kalsa stopped before finishing. Ask again. |
 | `empty_answer` | Kalsa had no answer to that. |
 | `could_not_start` | Kalsa couldn't start. Try again. |
-| `engine_refused` | Kalsa couldn't answer that just now. |
-| `context_refused` | Kalsa couldn't fit that conversation. Try again. |
-| `patience_ended` | Kalsa took too long to finish. Ask again. |
+| `engine_problem` | Kalsa ran into a problem on this computer and couldn't answer. Ask again. |
 
 A damaged transcript is recovered, not fatal. The room reopens on the
 longest intact run of entries; everything the damage held is gone from

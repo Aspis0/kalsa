@@ -26,6 +26,9 @@ pub enum NameError {
     /// not takeable.
     Reserved,
     Taken,
+    /// The name holds a bracket — the transcript's speaker-frame
+    /// characters, which no member name may wear.
+    Framing,
     NotAMember,
     Io(std::io::Error),
 }
@@ -43,6 +46,7 @@ impl std::fmt::Display for NameError {
             }
             Self::Reserved => f.write_str("that name belongs to the assistant"),
             Self::Taken => f.write_str("someone in this room already wears that name"),
+            Self::Framing => f.write_str("a name cannot hold the speaker brackets"),
             Self::NotAMember => f.write_str("that member is not in this room"),
             Self::Io(_) => f.write_str("the room's store failed on disk"),
         }
@@ -68,6 +72,14 @@ pub fn valid(name: &str) -> Result<String, NameError> {
     }
     if mixes_scripts(name) {
         return Err(NameError::MixedScripts);
+    }
+    // The transcript frames a speaker as "[name] words"; a bracket in a
+    // member-chosen name could close the frame and forge another speaker
+    // even after the framing site strips them, so the characters are
+    // refused here outright. Owner-given labels never pass through here —
+    // the strip at the framing site remains theirs.
+    if name.contains('[') || name.contains(']') {
+        return Err(NameError::Framing);
     }
     Ok(name.to_string())
 }
