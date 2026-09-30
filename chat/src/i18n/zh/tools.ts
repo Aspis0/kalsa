@@ -24,6 +24,8 @@ export const TOOLS = {
     "moreWaiting": (count: number) => `Kalsa 在这次之后还有 ${count} 项要核查。`,
     "sendIt": "发送",
     "refuse": "拒绝",
+    "webSearchFailed": "Kalsa 现在无法搜索网络。请再试。",
+    "webPageTooLong": "那个页面对 Kalsa 来说太长，读不了。",
     "findings": {
       "copiedText": "复制的文字",
       "npmToken": "一个登录代码",

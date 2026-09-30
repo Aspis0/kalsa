@@ -198,23 +198,46 @@ impl InviteSet {
     }
 }
 
-/// The page's words for a refusal. Plain English, and nothing of the
-/// invitation inside: an error string is shown to a person, and a code must
-/// never reach one by that road.
-fn words(error: InviteError) -> String {
+/// A command's failure as the wire carries it: a stable code the webview
+/// renders in the owner's language, and the English sentence a phone client
+/// or an unknown code still shows.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct CommandError {
+    code: String,
+    params: serde_json::Value,
+    text: String,
+}
+
+impl CommandError {
+    fn new(code: &str, text: &str) -> Self {
+        Self {
+            code: code.into(),
+            params: serde_json::Value::Null,
+            text: text.into(),
+        }
+    }
+}
+
+/// The owner-approved sentence per refusal, and the code beside it. The
+/// no-road sentence points at the Advanced switch, which is the actual fix.
+fn message(error: InviteError) -> CommandError {
     match error {
-        InviteError::NoNode => NO_ROAD.to_string(),
-        InviteError::Full => {
-            "This computer already has as many invitations as it can hold. Cancel one to \
-             make another."
-                .to_string()
-        }
-        InviteError::Offer(_) => "This invitation could not be made. Try again.".to_string(),
-        InviteError::Io(_) => {
-            "This invitation could not be saved. Check this computer's permissions and try \
-             again."
-                .to_string()
-        }
+        InviteError::NoNode => CommandError::new(
+            "invite.no_road",
+            "Invites need the internet connection. Turn it on in Advanced.",
+        ),
+        InviteError::Full => CommandError::new(
+            "invite.full",
+            "You already have the most invites at once. Cancel one to make a new one.",
+        ),
+        InviteError::Offer(_) => CommandError::new(
+            "invite.could_not_make",
+            "Kalsa couldn't make the invite. Try again.",
+        ),
+        InviteError::Io(_) => CommandError::new(
+            "invite.could_not_save",
+            "Kalsa couldn't save the invitation. Try again.",
+        ),
     }
 }
 
@@ -227,9 +250,9 @@ fn words(error: InviteError) -> String {
 pub(crate) async fn brain_invite_create(
     brain: State<'_, Brain>,
     desk: State<'_, Desk>,
-) -> Result<String, String> {
+) -> Result<String, CommandError> {
     let Some(node) = brain.road_node_id() else {
-        return Err(NO_ROAD.to_string());
+        return Err(message(InviteError::NoNode));
     };
     let tailnet = crate::tailnet_now(&brain, &desk).await;
     let link = desk
@@ -241,8 +264,8 @@ pub(crate) async fn brain_invite_create(
             tailnet.as_deref(),
             SystemTime::now(),
         )
-        .map_err(words)?;
-    link.ok_or_else(|| "This invitation could not be made. Try again.".to_string())
+        .map_err(message)?;
+    link.ok_or_else(|| message(InviteError::Offer(kalsa_pairing::OfferError::Entropy)))
 }
 
 /// Everything the page lists: the ids, the deadlines, and whether startup
@@ -255,19 +278,24 @@ pub(crate) fn brain_invite_list(desk: State<Desk>) -> InviteListDto {
 /// The link for an id the page is showing, so the owner can copy it again
 /// while it is still out.
 #[tauri::command]
-pub(crate) fn brain_invite_link(desk: State<Desk>, id: u32) -> Result<String, String> {
+pub(crate) fn brain_invite_link(desk: State<Desk>, id: u32) -> Result<String, CommandError> {
     desk.desk
         .invites()
         .link(id, SystemTime::now())
-        .ok_or_else(|| "That invitation is no longer valid.".to_string())
+        .ok_or_else(|| {
+            CommandError::new(
+                "invite.expired",
+                "This invite has expired. Make a new one.",
+            )
+        })
 }
 
 /// The owner takes an invitation back. An id the set does not hold changes
 /// nothing and answers `Ok` — the page's own refresh is what tells it the
 /// invitation is already gone.
 #[tauri::command]
-pub(crate) fn brain_invite_cancel(desk: State<Desk>, id: u32) -> Result<(), String> {
-    desk.desk.invites().cancel(id).map_err(words)
+pub(crate) fn brain_invite_cancel(desk: State<Desk>, id: u32) -> Result<(), CommandError> {
+    desk.desk.invites().cancel(id).map_err(message)
 }
 
 #[cfg(test)]

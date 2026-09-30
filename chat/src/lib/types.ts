@@ -20,6 +20,9 @@ export interface ToolRun {
   arguments: string;
   /** What the tool answered — this is what the model read. Bounded upstream. */
   result: string;
+  /** The stable code a Rust refusal carried, for the screen; the wire
+      and the stored text keep the English the model reads. */
+  resultCode?: string;
   /**
    * `refused` is a call that never became an exchange on the wire: one the
    * stream never named, one whose turn ended for another reason, or one with no

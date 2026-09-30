@@ -1,9 +1,21 @@
 import { useLanguage } from "../i18n/useLanguage";
+import type { English } from "../i18n/en/all";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
+
+/** The web refusals' sentences, by the code Rust put on them. */
+function webWords(t: English["tools"], code: string): string {
+  const table: Record<string, string> = {
+    "web.search_failed": t.webSearchFailed,
+    "web.page_too_long": t.webPageTooLong,
+    "web.page_failed": t.pageNotOpened,
+    "web.open_failed": t.pageNotOpened,
+  };
+  return table[code] ?? code;
+}
 
 /**
  * What Kalsa did before she answered: one quiet, collapsed line per check. The page never loads anything from the network for this — no favicon,
@@ -75,7 +87,13 @@ function ToolRow({ run }: { run: ToolRun }) {
           </p>
         ) : null}
         {failed ? (
-          <p className="tool-failure">{run.result === TOOL_STOPPED ? t.stopped : run.result}</p>
+          <p className="tool-failure">
+            {run.result === TOOL_STOPPED
+              ? t.stopped
+              : run.resultCode?.startsWith("web.")
+                ? webWords(t, run.resultCode)
+                : run.result}
+          </p>
         ) : null}
         {!failed && sources.length > 0 ? (
           <ul className="tool-sources">

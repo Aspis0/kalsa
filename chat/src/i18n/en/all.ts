@@ -51,6 +51,8 @@ export interface English {
     startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   };
 }
 

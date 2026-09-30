@@ -80,9 +80,17 @@ pub(crate) struct ListingDto {
 }
 
 #[tauri::command]
-pub(crate) async fn brain_files_list(path: String) -> Result<ListingDto, String> {
-    blocking(move || {
-        let listing = kalsa_files::list_dir(Path::new(&path)).map_err(|error| error.to_string())?;
+pub(crate) async fn brain_files_list(path: String) -> Result<ListingDto, FileCommandError> {
+    // The listing's own error names the path it was given; it is logged and
+    // folded into a coded refusal, never forwarded.
+    tauri::async_runtime::spawn_blocking(move || {
+        let listing = kalsa_files::list_dir(Path::new(&path)).map_err(|error| {
+            eprintln!("kalsa-brain: files list failed: {error}");
+            FileCommandError::new(
+                "files.list_failed",
+                "Kalsa can't open this file. Choose another.",
+            )
+        })?;
         Ok(ListingDto {
             path: path_to_string(&listing.path),
             entries: listing.entries,
@@ -91,14 +99,27 @@ pub(crate) async fn brain_files_list(path: String) -> Result<ListingDto, String>
         })
     })
     .await
+    .map_err(|_| {
+        FileCommandError::new("files.list_failed", "Kalsa can't open this file. Choose another.")
+    })?
 }
 
 /// The bytes of one file, up to `MAX_FILE_BYTES`. The page wraps the
 /// buffer in a `File` and runs the extractor it already has, so no
 /// document parsing happens here.
 #[tauri::command]
-pub(crate) async fn brain_files_read(path: String) -> Result<tauri::ipc::Response, String> {
-    let bytes = blocking(move || read_capped(Path::new(&path), MAX_FILE_BYTES)).await?;
+pub(crate) async fn brain_files_read(
+    path: String,
+) -> Result<tauri::ipc::Response, FileCommandError> {
+    // The blocking helper's own failure (the pool refusing the task) is a
+    // framework surprise, folded into the plain pick-another sentence.
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        read_capped(Path::new(&path), MAX_FILE_BYTES)
+    })
+    .await
+    .map_err(|_| {
+        FileCommandError::new("files.unsupported", "Kalsa can't open this file. Choose another.")
+    })??;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
@@ -108,36 +129,76 @@ pub(crate) async fn brain_files_read(path: String) -> Result<tauri::ipc::Respons
 /// Then read through [`read_bounded`], so the cap bounds the WORK, not just
 /// the answer: a file that grows after the metadata check is still read to
 /// at most `max_bytes + 1`, never to whatever it has become.
-fn read_capped(path: &Path, max_bytes: u64) -> Result<Vec<u8>, String> {
-    let real = kalsa_files::resolve(path).map_err(|error| {
-        format!("{}: {}", path_to_string(path), error)
+/// A files command's refusal: a stable code the webview renders in the
+/// owner's language, and a log-grade English text a phone client or an
+/// unknown code falls back to. OS error text and paths never ride in
+/// `text`'s on-screen road — `from_io` folds every system refusal into the
+/// two sentences the owner can act on.
+#[derive(Debug, serde::Serialize)]
+pub(crate) struct FileCommandError {
+    code: String,
+    params: serde_json::Value,
+    text: String,
+}
+
+impl FileCommandError {
+    fn new(code: &str, text: &str) -> Self {
+        Self {
+            code: code.into(),
+            params: serde_json::Value::Null,
+            text: text.into(),
+        }
+    }
+
+    fn from_io(error: &std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::NotFound => Self::new(
+                "files.not_found",
+                "Kalsa can't open this file. Choose another.",
+            ),
+            std::io::ErrorKind::PermissionDenied => Self::new(
+                "files.permission_denied",
+                "Kalsa can't open this file. Choose another.",
+            ),
+            _ => Self::new("files.unsupported", "Kalsa can't open this file. Choose another."),
+        }
+    }
+}
+
+impl std::fmt::Display for FileCommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.text)
+    }
+}
+
+fn read_capped(path: &Path, max_bytes: u64) -> Result<Vec<u8>, FileCommandError> {
+    let real = kalsa_files::resolve(path).map_err(|error| match error {
+        kalsa_files::ScopeError::Unresolvable(io) => FileCommandError::from_io(&io),
     })?;
-    let meta = std::fs::metadata(&real)
-        .map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
+    let meta = std::fs::metadata(&real).map_err(|error| FileCommandError::from_io(&error))?;
     if meta.is_dir() {
-        return Err(format!(
-            "{} is a folder — pick a file inside it.",
-            path_to_string(&real)
-        ));
+        return Err(FileCommandError::new("files.is_folder", "That's a folder. Pick a file inside it."));
     }
     if !meta.is_file() {
-        return Err(format!(
-            "{} is not a regular file — pipes and devices never end, so it is not read.",
-            path_to_string(&real)
+        // Pipes and devices never end, so the read never starts; the words
+        // are the same plain pick-another as any unreadable kind.
+        return Err(FileCommandError::new(
+            "files.unsupported",
+            "Kalsa can't open this file. Choose another.",
         ));
     }
-    let over = |size: u64| {
-        format!(
-            "{} is {size} bytes; the page reads at most {max_bytes} bytes (32 MB).",
-            path_to_string(&real)
-        )
+    let over = |size: u64| FileCommandError {
+        code: "files.too_large".into(),
+        params: serde_json::json!({ "limit": format!("{} MB", max_bytes / (1024 * 1024)) }),
+        text: format!("that file is {size} bytes, over this app's {max_bytes}-byte read cap"),
     };
     let size = meta.len();
     if size > max_bytes {
         return Err(over(size));
     }
-    let file = std::fs::File::open(&real).map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
-    let bytes = read_bounded(file, max_bytes).map_err(|error| format!("{}: {error}", path_to_string(&real)))?;
+    let file = std::fs::File::open(&real).map_err(|error| FileCommandError::from_io(&error))?;
+    let bytes =
+        read_bounded(file, max_bytes).map_err(|error| FileCommandError::from_io(&error))?;
     let read_len = bytes.len() as u64;
     if read_len > max_bytes {
         return Err(over(read_len));
@@ -413,13 +474,13 @@ mod tests {
         let big = tree.write("big.pdf", &contents);
 
         let error = read_capped(&big, MAX_FILE_BYTES).expect_err("over the cap");
+        // The owner's sentence carries no figures; the code names the cause
+        // and the log text keeps the sizes.
+        assert_eq!(error.code, "files.too_large", "{error:?}");
+        assert_eq!(error.params["limit"], "32 MB", "{error:?}");
         assert!(
-            error.contains(&contents.len().to_string()),
-            "the message says the actual size: {error}"
-        );
-        assert!(
-            error.contains(&MAX_FILE_BYTES.to_string()),
-            "the message says the limit: {error}"
+            error.text.contains(&contents.len().to_string()),
+            "the log text says the actual size: {error:?}"
         );
 
         // Under the cap the same path reads.
@@ -480,8 +541,8 @@ mod tests {
             .expect("the refusal is immediate — a timeout means the read blocked");
         let error = answer.expect_err("a FIFO is not a readable file");
         assert!(
-            error.contains("not a regular file"),
-            "the refusal names what it refused: {error}"
+            matches!(error.code.as_str(), "files.unsupported"),
+            "the refusal folds a non-file into the plain pick-another: {error:?}"
         );
     }
 

@@ -4,6 +4,8 @@ export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa 还不能在这台电脑上运行。请检查应用更新。",
@@ -36,5 +38,18 @@ export const RUST: {
   },
   app: {
     unexpected: () => "Kalsa 未能完成。请再试。",
+  },
+  invite: {
+    "invite.no_road": () => "邀请需要互联网连接。请在「高级」里打开。",
+    "invite.full": () => "同时的邀请数已经到顶。请取消一个再发新的。",
+    "invite.could_not_make": () => "Kalsa 未能生成邀请。请再试。",
+    "invite.could_not_save": () => "Kalsa 未能保存邀请。请再试。",
+    "invite.expired": () => "这个邀请已过期。请发一个新的。",
+  },
+  pairing: {
+    "pairing.save_failed": () => "Kalsa 未能保存这个更改。请再试。",
+    "pairing.phone_with_ai": (params, tag) => `带有自己 AI 的手机（${new Intl.NumberFormat(tag).format(Number(params.gb))} GB）`,
+    "pairing.phone_without_ai": () => "没有自己 AI 的手机",
+    "pairing.host_forget": () => "无法忘记这台电脑自己的连接。",
   },
 };

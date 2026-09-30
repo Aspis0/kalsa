@@ -4,7 +4,7 @@
 
 export type RustSentence = (params: Record<string, unknown>, tag: string) => string;
 
-export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence> } = {
+export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence> } = {
   startup: {
     cannot_run_yet: () => "Kalsa can't run on this computer yet. Check for an app update.",
     no_suitable_choice: () =>
@@ -40,5 +40,18 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
   },
   app: {
     unexpected: () => "Kalsa couldn't do that. Try again.",
+  },
+  invite: {
+    "invite.no_road": () => "Invites need the internet connection. Turn it on in Advanced.",
+    "invite.full": () => "You already have the most invites at once. Cancel one to make a new one.",
+    "invite.could_not_make": () => "Kalsa couldn't make the invite. Try again.",
+    "invite.could_not_save": () => "Kalsa couldn't save the invitation. Try again.",
+    "invite.expired": () => "This invite has expired. Make a new one.",
+  },
+  pairing: {
+    "pairing.save_failed": () => "Kalsa couldn't save this change. Try again.",
+    "pairing.phone_with_ai": (params, tag) => `Phone with its own AI (${new Intl.NumberFormat(tag).format(Number(params.gb))} GB)`,
+    "pairing.phone_without_ai": () => "Phone without its own AI",
+    "pairing.host_forget": () => "This computer's own connection cannot be forgotten.",
   },
 };

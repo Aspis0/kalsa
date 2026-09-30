@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyText } from "../lib/clipboard";
 import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { useLanguage } from "../i18n/useLanguage";
+import { rustSentence } from "../lib/rustText";
 import "./surfaces.css";
 
 /** One row of `brain_invite_list`: the id the buttons name, and the moment
@@ -56,6 +57,7 @@ interface InvitePanelProps {
 // clipboard that refuses gets a field the owner can select from.
 export function InvitePanel({ invites, onList }: InvitePanelProps) {
   const { table, tag } = useLanguage();
+  const rust = table.rust;
   const t = table.invite;
   const [notice, setNotice] = useState<string | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
       // as they are, with nothing of the invitation inside them.
       if (stillMine()) {
         setWaiting(null);
-        setCommandError(error instanceof Error ? error.message : String(error));
+        setCommandError(rustSentence(rust, error, tag));
       }
     } finally {
       clearTimeout(bound);
@@ -157,7 +159,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
       } catch (error) {
         // The invitation is gone — spent, cancelled or expired. The command
         // says so in its own words, and the next list read drops the row.
-        if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
+        if (live.current) setCommandError(rustSentence(rust, error, tag));
       }
     })();
   }
@@ -178,7 +180,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
         }
       })
       .catch((error: unknown) => {
-        if (live.current) setCommandError(error instanceof Error ? error.message : String(error));
+        if (live.current) setCommandError(rustSentence(rust, error, tag));
       });
   }
 

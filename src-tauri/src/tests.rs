@@ -682,7 +682,7 @@ fn a_road_that_cannot_open_leaves_the_door_serving() {
     wait_for_road(&brain, road::RoadState::Unavailable);
     assert_eq!(
         brain.road.sentence(),
-        "The internet road could not open on this computer. The other roads to it still work."
+        "Internet connection could not open on this computer."
     );
     brain.stop_door();
     assert!(matches!(brain.road.snapshot(), road::RoadState::Closed));
@@ -706,8 +706,9 @@ fn a_road_turned_off_by_its_switch_stays_closed_while_the_door_serves() {
     assert!(!panel.internet_road);
     assert_eq!(
         panel.iroh_sentence,
-        "The internet road is turned off. The phone reaches this computer the Tailscale way."
+        "Internet connection is off. The phone connects through Tailscale."
     );
+    assert_eq!(panel.iroh_code.as_deref(), Some("road.off"));
 }
 
 #[test]

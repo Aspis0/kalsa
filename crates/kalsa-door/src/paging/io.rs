@@ -7,7 +7,7 @@
 use std::fs;
 use std::path::Path;
 
-use super::{answer, Residency, Slot};
+use super::{answer_json, Residency, Slot};
 use crate::engine::{Call, Engine};
 
 /// The suffix a save is written under until it is known to hold anything. The
@@ -26,6 +26,25 @@ const SLOT_UNKNOWN: &str = "The engine could not be reached, so the state of thi
 const FILES: &str = "The door could not put the saved chat in place, so nothing changed.";
 const NO_SLOT: &str = "The door lost track of this device's slot.";
 
+impl ChatError {
+    /// The stable code the webview renders in the owner's language. Every
+    /// saved-chat failure reads the same to the person waiting — the chat
+    /// did not open, try again — and the distinctions live in the codes for
+    /// the log.
+    fn code(&self) -> &'static str {
+        match self {
+            Self::Unreachable => "door.engine_unreachable",
+            Self::Save => "door.save_refused",
+            Self::Restore => "door.restore_failed",
+            Self::Empty => "door.slot_empty",
+            Self::Unknown => "door.slot_unknown",
+            Self::SlotRefused => "door.slot_refused",
+            Self::Files => "door.files",
+            Self::NoSlot => "door.no_slot",
+        }
+    }
+}
+
 /// What a failed action tells the client. The statuses are the door's own
 /// vocabulary — 400 for the client's request, 501 for a door the app never
 /// built the tier into, 502 for the engine — and the sentence is what a UI can
@@ -43,15 +62,27 @@ pub(super) enum ChatError {
 
 impl ChatError {
     pub(super) fn answer(self, origin: Option<&[u8]>) -> Vec<u8> {
+        // The body is JSON — a code the page renders in the owner's
+        // language, and the English sentence a phone client or an unknown
+        // code falls back to. The status stays the protocol's own.
+        let status = match self {
+            Self::NoSlot => 500,
+            _ => 502,
+        };
+        let body = serde_json::json!({ "code": self.code(), "text": self.text() }).to_string();
+        answer_json(status, origin, &body)
+    }
+
+    fn text(&self) -> &'static str {
         match self {
-            Self::Unreachable => answer(502, origin, ENGINE),
-            Self::Save => answer(502, origin, SAVE_REFUSED),
-            Self::Restore => answer(502, origin, RESTORE_FAILED),
-            Self::Empty => answer(502, origin, SLOT_EMPTY),
-            Self::Unknown => answer(502, origin, SLOT_UNKNOWN),
-            Self::SlotRefused => answer(502, origin, SLOT_REFUSED),
-            Self::Files => answer(502, origin, FILES),
-            Self::NoSlot => answer(500, origin, NO_SLOT),
+            Self::Unreachable => ENGINE,
+            Self::Save => SAVE_REFUSED,
+            Self::Restore => RESTORE_FAILED,
+            Self::Empty => SLOT_EMPTY,
+            Self::Unknown => SLOT_UNKNOWN,
+            Self::SlotRefused => SLOT_REFUSED,
+            Self::Files => FILES,
+            Self::NoSlot => NO_SLOT,
         }
     }
 }

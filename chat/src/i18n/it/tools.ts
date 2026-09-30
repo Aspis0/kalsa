@@ -24,6 +24,8 @@ export const TOOLS = {
     "moreWaiting": (count: number) => `Kalsa ha ancora ${count} controlli da fare dopo questo.`,
     "sendIt": "Mandalo",
     "refuse": "Rifiuta",
+    "webSearchFailed": "Kalsa non è riuscita a cercare sul web in questo momento. Riprova.",
+    "webPageTooLong": "Quella pagina è troppo lunga perché Kalsa la legga.",
     "findings": {
       "copiedText": "testo copiato",
       "npmToken": "un codice di accesso",

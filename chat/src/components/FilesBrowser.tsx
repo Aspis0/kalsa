@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
+import { rustSentence } from "../lib/rustText";
 import { available, listen } from "../lib/tauri";
 import { filesList, filesRoots, filesSearch } from "../lib/files";
 import type { DiskEntry, SearchEvent, SearchHit } from "../lib/files";
@@ -39,8 +40,9 @@ function sizeOf(bytes: number): string {
  * nothing, the same rule every surface follows.
  */
 export function FilesBrowser({ onAttach }: FilesBrowserProps) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.browser;
+  const rust = table.rust;
   const [starters, setStarters] = useState<{ label: string; path: string }[]>([]);
   const [folders, setFolders] = useState<Record<string, Folder>>({});
   const [truncated, setTruncated] = useState<Record<string, boolean>>({});
@@ -132,7 +134,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
     } catch (error) {
       setFolders((prev) => ({
         ...prev,
-        [path]: { error: error instanceof Error ? error.message : String(error) },
+        [path]: { error: rustSentence(rust, error, tag) },
       }));
     }
   }
@@ -175,7 +177,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
       }
     } catch (error) {
       if (liveId.current === id) {
-        setSearchError(error instanceof Error ? error.message : String(error));
+        setSearchError(rustSentence(rust, error, tag));
       }
     } finally {
       if (liveId.current === id) setSearching(false);

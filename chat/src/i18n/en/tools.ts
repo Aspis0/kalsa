@@ -27,6 +27,8 @@ export const TOOLS = {
   moreWaiting: (count: number) => `Kalsa has ${count} more to check after this one.`,
   sendIt: "Send it",
   refuse: "Refuse",
+  webSearchFailed: "Kalsa couldn't search the web just now. Try again.",
+  webPageTooLong: "That page is too long for Kalsa to read.",
   // What the detector saw, by the kind it reports.
   findings: {
     copiedText: "copied text",

@@ -244,6 +244,8 @@ pub(crate) struct AdvancedDto {
     /// The second road to the door, in words for being human. Absent
     /// secrets: the node id is public, failures are the road's own.
     pub(crate) iroh_sentence: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) iroh_code: Option<String>,
     pub(crate) internet_road: bool,
     pub(crate) running: bool,
     /// The tune's line for this launch, composed once in `tune_step` —
@@ -321,6 +323,7 @@ pub(crate) fn dto(
         desk_port: None,
         desk_port_preferred: false,
         iroh_sentence,
+        iroh_code: None,
         internet_road: overrides.internet_road,
         running,
         tune: active.and_then(|info| {
@@ -718,4 +721,11 @@ mod tests {
             &json,
         );
     }
+}
+
+/// The DTO with its road code beside the English sentence. A separate step
+/// because `dto`'s callers are many; the code is the only field this adds.
+pub(crate) fn with_iroh_code(mut dto: AdvancedDto, code: String) -> AdvancedDto {
+    dto.iroh_code = Some(code);
+    dto
 }

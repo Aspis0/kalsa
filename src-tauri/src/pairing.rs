@@ -117,6 +117,10 @@ pub(crate) struct PairingDto {
     qr_svg: Option<String>,
     refreshed: Option<&'static str>,
     phone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_params: Option<serde_json::Value>,
     /// The whole house: every stored device, its id, its label and its
     /// capability sentence. `forget_device(id)` removes one.
     devices: Vec<PairedDeviceDto>,
@@ -142,6 +146,10 @@ pub(crate) struct PairedDeviceDto {
     label: String,
     kind: &'static str,
     phone: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_params: Option<serde_json::Value>,
     /// The owner has not allowed this device yet: its credential answers
     /// the door's 401 until Allow, and the page draws Allow/Refuse with
     /// no success sentence for it.
@@ -384,6 +392,14 @@ impl Desk {
                     // The capability sentence is a phone's; a host has none to
                     // give, and the row's rendering is a later commit's decision.
                     phone: device.handshake.phone.map_or_else(String::new, phone_label),
+                    phone_code: device
+                        .handshake
+                        .phone
+                        .map(|model| phone_label_code(model).0),
+                    phone_params: device
+                        .handshake
+                        .phone
+                        .map(|model| phone_label_code(model).1),
                     waiting: device.waiting,
                     pairing_again,
                 }
@@ -758,6 +774,8 @@ fn dto(state: &State, devices: Vec<PairedDeviceDto>, delivery_pending: bool) -> 
         qr_svg: None,
         refreshed: None,
         phone: None,
+            phone_code: None,
+            phone_params: None,
         devices: Vec::new(),
         delivery_pending: false,
         failure: None,
@@ -787,6 +805,8 @@ fn dto(state: &State, devices: Vec<PairedDeviceDto>, delivery_pending: bool) -> 
         State::Paired { phone } => PairingDto {
             state: "paired",
             phone: Some(phone_label(*phone)),
+            phone_code: Some(phone_label_code(*phone).0),
+            phone_params: Some(phone_label_code(*phone).1),
             devices,
             delivery_pending,
             ..empty
@@ -818,6 +838,22 @@ fn phone_label(phone: PhoneModel) -> String {
         format!(
             "phone with {} GB of model weights",
             phone.weights_bytes / 1_000_000_000
+        )
+    }
+}
+
+/// The label as the page renders it: a code and the whole-GB figure, so the
+/// words are the chosen language's and the number is a value, not text.
+fn phone_label_code(phone: PhoneModel) -> (String, serde_json::Value) {
+    if phone.weights_bytes == 0 {
+        (
+            "pairing.phone_without_ai".into(),
+            serde_json::json!({}),
+        )
+    } else {
+        (
+            "pairing.phone_with_ai".into(),
+            serde_json::json!({ "gb": phone.weights_bytes / 1_000_000_000 }),
         )
     }
 }

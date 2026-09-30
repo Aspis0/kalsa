@@ -50,21 +50,59 @@ impl WebCalls {
     }
 }
 
+/// A web command's refusal: a stable code the page renders in the owner's
+/// language, and the English sentence the model reads — the wire language
+/// is English whatever the interface speaks, so `text` is the tool result
+/// the model gets. Provider words and HTTP statuses never travel.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct WebCommandError {
+    code: String,
+    text: String,
+}
+
+impl WebCommandError {
+    fn new(code: &str, text: &str) -> Self {
+        Self { code: code.into(), text: text.into() }
+    }
+
+    fn from_web(error: kalsa_web::WebError, searching: bool) -> Self {
+        let (code, text) = match (&error, searching) {
+            (kalsa_web::WebError::Oversize, _) => (
+                "web.page_too_long",
+                "That page is too long for Kalsa to read.",
+            ),
+            (_, true) => (
+                "web.search_failed",
+                "Kalsa couldn't search the web just now. Try again.",
+            ),
+            (_, false) => (
+                "web.page_failed",
+                "Kalsa couldn't open that page. Try again.",
+            ),
+        };
+        let _ = error;
+        Self::new(code, text)
+    }
+}
+
 /// Search the web for `query` and return what the model will read.
 #[tauri::command]
 pub(crate) async fn brain_web_search(
     id: u64,
     query: String,
     calls: State<'_, WebCalls>,
-) -> Result<String, String> {
+) -> Result<String, WebCommandError> {
     let stop = calls.start(id);
     let outcome =
         tauri::async_runtime::spawn_blocking(move || kalsa_web::search(&query, &stop)).await;
     calls.finish(id);
     match outcome {
         Ok(Ok(text)) => Ok(text),
-        Ok(Err(error)) => Err(error.to_string()),
-        Err(_) => Err("The search did not finish. Trying again usually works.".to_string()),
+        Ok(Err(error)) => Err(WebCommandError::from_web(error, true)),
+        Err(_) => Err(WebCommandError::new(
+            "web.search_failed",
+            "Kalsa couldn't search the web just now. Try again.",
+        )),
     }
 }
 
@@ -76,14 +114,17 @@ pub(crate) async fn brain_web_fetch(
     id: u64,
     url: String,
     calls: State<'_, WebCalls>,
-) -> Result<String, String> {
+) -> Result<String, WebCommandError> {
     let stop = calls.start(id);
     let outcome = tauri::async_runtime::spawn_blocking(move || kalsa_web::fetch(&url, &stop)).await;
     calls.finish(id);
     match outcome {
         Ok(Ok(text)) => Ok(text),
-        Ok(Err(error)) => Err(error.to_string()),
-        Err(_) => Err("The page did not finish loading. Trying again usually works.".to_string()),
+        Ok(Err(error)) => Err(WebCommandError::from_web(error, false)),
+        Err(_) => Err(WebCommandError::new(
+            "web.page_failed",
+            "Kalsa couldn't open that page. Try again.",
+        )),
     }
 }
 
@@ -103,18 +144,20 @@ pub(crate) fn brain_web_stop(id: u64, calls: State<WebCalls>) {
 /// invented, so the answer is not "trust the page to have checked": it is a
 /// command that checks, here, every time, and only then hands the address over.
 #[tauri::command]
-pub(crate) fn brain_open_url(url: String) -> Result<(), String> {
+pub(crate) fn brain_open_url(url: String) -> Result<(), WebCommandError> {
     open_checked(&url)
 }
 
 /// The check and the hand-off, apart from the command so that the refusal can
 /// be tested without opening anything. **Only refused addresses belong in a
 /// test**: anything that gets past the gate really does reach the browser.
-fn open_checked(url: &str) -> Result<(), String> {
-    kalsa_web::openable(url).map_err(|error| error.to_string())?;
+fn open_checked(url: &str) -> Result<(), WebCommandError> {
+    kalsa_web::openable(url).map_err(|error| WebCommandError::from_web(error, false))?;
     open_in_browser(url).map_err(|_| {
-        "That address could not be opened. This computer may have nothing set up to open links."
-            .to_string()
+        WebCommandError::new(
+            "web.open_failed",
+            "This computer couldn't open the link.",
+        )
     })
 }
 
@@ -166,10 +209,14 @@ mod tests {
             "http://foo.127.0.0.1.nip.io:8130/",
         ] {
             match open_checked(address) {
-                Err(said) => assert!(
-                    said.contains("not a public web page"),
-                    "{address} was refused, but not in the gate's words: {said}"
-                ),
+                Err(said) => {
+                    assert_eq!(said.code, "web.page_failed", "{address}: {said:?}");
+                    assert_eq!(
+                        said.text,
+                        "Kalsa couldn't open that page. Try again.",
+                        "{address}: the private address reads as any other page failure"
+                    );
+                }
                 Ok(()) => panic!("{address} was handed to this computer's browser"),
             }
         }

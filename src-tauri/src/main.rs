@@ -762,12 +762,17 @@ impl Brain {
         let overrides = options::load(state_file);
         let launch = self.launch.lock().ok();
         let active = launch.as_ref().and_then(|stored| stored.as_ref());
-        let iroh_sentence = if overrides.internet_road {
-            self.road.sentence()
+        let message = if overrides.internet_road {
+            self.road.message()
         } else {
-            road::OFF_SENTENCE.to_string()
+            road::RoadSentence {
+                code: "road.off".into(),
+                text: road::OFF_SENTENCE.to_string(),
+            }
         };
-        options::dto(overrides, active, self.door_port(), iroh_sentence)
+        let iroh_sentence = message.text;
+        let dto = options::dto(overrides, active, self.door_port(), iroh_sentence);
+        options::with_iroh_code(dto, message.code)
     }
 
     fn set_advanced(
@@ -1875,7 +1880,11 @@ async fn brain_pairing_retry(brain: State<'_, Brain>, desk: State<'_, Desk>) -> 
 /// The owner says a device is no longer part of the house. The others keep
 /// their credentials and their ids.
 #[tauri::command]
-fn brain_pairing_forget_device(desk: State<Desk>, brain: State<Brain>, id: u32) -> Result<(), String> {
+fn brain_pairing_forget_device(
+    desk: State<Desk>,
+    brain: State<Brain>,
+    id: u32,
+) -> Result<(), CommandError> {
     // This computer's own record has no Forget. The page does not draw the
     // button, and this refuses the call anyway: forgetting the host would
     // take the app's own credential out of the store while the running door
@@ -1884,18 +1893,24 @@ fn brain_pairing_forget_device(desk: State<Desk>, brain: State<Brain>, id: u32) 
     // model. The store can still forget a host (its escape hatch must empty
     // any file); this page's one-device gesture may not.
     if desk.desk.is_host(id) {
-        return Err(
-            "This computer's own connection cannot be forgotten; it is the key this app uses on this computer."
-                .to_string(),
-        );
+        // Unreachable from the page — the host row draws no Forget — and
+        // kept as a coded refusal for defense in depth and the log.
+        eprintln!("kalsa-brain: a forget reached the host record ({id})");
+        return Err(CommandError::new(
+            "pairing.host_forget",
+            "This computer's own connection cannot be forgotten.",
+        ));
     }
     desk.desk.forget_device(id).map_err(|_| {
-        "This device could not be forgotten. Fixing permissions and trying again may help."
-            .to_string()
+        CommandError::new(
+            "pairing.save_failed",
+            "Kalsa couldn't save this change. Try again.",
+        )
     })?;
     // The room follows at once, not at the next poll: the member's posts
     // stop the moment the owner's finger leaves the button.
-    room::forget_now(&brain, id)
+    room::forget_now(&brain, id)?;
+    Ok(())
 }
 
 /// The owner pressed Allow: the phone that completed its ceremony may now
@@ -1903,10 +1918,12 @@ fn brain_pairing_forget_device(desk: State<Desk>, brain: State<Brain>, id: u32) 
 /// this command only flips the record, and the running door learns the new
 /// set through the same once-a-second reconcile a forget rides.
 #[tauri::command]
-fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), String> {
+fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), CommandError> {
     desk.desk.allow_device(id).map_err(|_| {
-        "This device could not be allowed. Fixing permissions and trying again may help."
-            .to_string()
+        CommandError::new(
+            "pairing.save_failed",
+            "Kalsa couldn't save this change. Try again.",
+        )
     })
 }
 
@@ -1957,9 +1974,16 @@ fn forget_store_and_keep_own_seat(desk: &pairing::Desk) -> Result<(), String> {
 /// way out of `StoreUnavailable`; a read error is never silently treated as
 /// an unpaired computer.
 #[tauri::command]
-fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), String> {
+fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), CommandError> {
     brain.stop_door();
-    forget_store_and_keep_own_seat(&desk.desk)
+    // The hatch's own words are logged by the helper; a refusal here is a
+    // coded save failure like any other store write.
+    forget_store_and_keep_own_seat(&desk.desk).map_err(|_| {
+        CommandError::new(
+            "pairing.save_failed",
+            "Kalsa couldn't save this change. Try again.",
+        )
+    })
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

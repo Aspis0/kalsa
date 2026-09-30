@@ -377,6 +377,26 @@ fn answer(status: u16, origin: Option<&[u8]>, words: &str) -> Vec<u8> {
     .into_bytes()
 }
 
+/// The door's coded error answer: a JSON body with the page's code and the
+/// English fallback, typed as JSON so the page can tell it from stray
+/// upstream text.
+fn answer_json(status: u16, origin: Option<&[u8]>, body: &str) -> Vec<u8> {
+    let reason = match status {
+        400 => "Bad Request",
+        404 => "Not Found",
+        500 => "Internal Server Error",
+        501 => "Not Implemented",
+        _ => "Bad Gateway",
+    };
+    format!(
+        "HTTP/1.1 {status} {reason}\r\n{}Content-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        cors::origin_headers(origin),
+        body.len()
+    )
+    .into_bytes()
+}
+
 /// Success, and nothing to say. A 204 must not carry a `Content-Length`.
 fn no_content(origin: Option<&[u8]>) -> Vec<u8> {
     format!(

@@ -97,10 +97,13 @@ export interface ToolPhrases {
   argumentsNotValid: string;
 }
 
-/** What a tool answered, and whether that answer is a result or a refusal. */
+/** What a tool answered, and whether that answer is a result or a refusal.
+    `resultCode` is the Rust refusal's code for the screen; `text` stays the
+    English the model reads. */
 export interface ToolOutcome {
   text: string;
   ok: boolean;
+  resultCode?: string;
 }
 
 /** No new words for this long means the server is gone, not slow. */
@@ -211,10 +214,29 @@ async function slotRoute(
       body: JSON.stringify({ id }),
     });
     if (response.status === 204) return { kind: "ok" };
-    const message = (await response.text()).trim();
-    if (response.status === 501) return { kind: "no-tier", message: message || DOOR_SILENT };
-    return message
-      ? { kind: "refused", message }
+    const body = (await response.text()).trim();
+    // A coded body is this door's own refusal: the code marks it as
+    // app-owned, so the shell says it in the owner's language. The plain
+    // text road is a legacy door or a proxy — shown as it arrived.
+    if (response.status === 501) {
+      return { kind: "no-tier", message: body || DOOR_SILENT };
+    }
+    try {
+      const parsed = JSON.parse(body) as { code?: unknown };
+      if (parsed && typeof parsed.code === "string") {
+        return {
+          kind: "refused",
+          message: typeof (parsed as { text?: unknown }).text === "string"
+            ? (parsed as { text: string }).text
+            : DOOR_SILENT,
+          silent: true,
+        };
+      }
+    } catch {
+      // Not JSON: the legacy plain-text road below.
+    }
+    return body
+      ? { kind: "refused", message: body }
       : { kind: "refused", message: DOOR_SILENT, silent: true };
   } catch {
     // The door never answered. The chat's own requests say the server is

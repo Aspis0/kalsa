@@ -89,8 +89,13 @@ export async function executeToolCall(
     }
     return { text: `There is no tool called “${name}”.`, ok: false };
   } catch (error) {
-    // The Rust side answers a failure with a sentence; anything else is a
-    // surprise and is passed on as it reads.
+    // A coded refusal from Rust: the wire keeps the English the model
+    // reads, the code rides along for the screen.
+    const coded = error as { code?: unknown; text?: unknown };
+    if (coded !== null && typeof coded === "object" && typeof coded.code === "string" && typeof coded.text === "string") {
+      return { text: coded.text, ok: false, resultCode: coded.code };
+    }
+    // Anything else is a surprise and is passed on as it reads.
     const detail = error instanceof Error ? error.message : String(error);
     return { text: `${name} could not run: ${detail}`, ok: false };
   }

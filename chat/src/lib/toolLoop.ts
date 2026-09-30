@@ -129,6 +129,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
 
       let state: ToolRun["state"] = problem === null ? "ok" : "failed";
       let result = problem ?? "";
+      let resultCode: string | undefined;
       if (problem === null) {
         const answered = await untilStopped(() => runTool!(call.name, args, signal), signal);
         if (answered === null) {
@@ -136,9 +137,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
           throw new ChatRequestError("aborted", "Stopped", undefined, url);
         }
         result = answered.text;
+        resultCode = answered.resultCode;
         state = answered.ok ? "ok" : "failed";
       }
-      options.onToolRun?.({ ...started, result: kept(result), state });
+      options.onToolRun?.({ ...started, result: kept(result), resultCode, state });
       results.push(result);
     }
 

@@ -4,6 +4,8 @@ export const RUST: {
   startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa aún no puede funcionar en este equipo. Busca una actualización de la app.",
@@ -36,5 +38,18 @@ export const RUST: {
   },
   app: {
     unexpected: () => "Kalsa no pudo hacerlo. Prueba de nuevo.",
+  },
+  invite: {
+    "invite.no_road": () => "Las invitaciones necesitan la conexión a internet. Actívala en Avanzado.",
+    "invite.full": () => "Ya tienes el máximo de invitaciones a la vez. Cancela una para hacer una nueva.",
+    "invite.could_not_make": () => "Kalsa no pudo hacer la invitación. Prueba de nuevo.",
+    "invite.could_not_save": () => "Kalsa no pudo guardar la invitación. Prueba de nuevo.",
+    "invite.expired": () => "Esta invitación ha caducado. Haz una nueva.",
+  },
+  pairing: {
+    "pairing.save_failed": () => "Kalsa no pudo guardar este cambio. Prueba de nuevo.",
+    "pairing.phone_with_ai": (params, tag) => `Teléfono con IA propia (${new Intl.NumberFormat(tag).format(Number(params.gb))} GB)`,
+    "pairing.phone_without_ai": () => "Teléfono sin IA propia",
+    "pairing.host_forget": () => "La conexión de este equipo no se puede olvidar.",
   },
 };

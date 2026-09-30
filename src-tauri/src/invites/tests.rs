@@ -6,7 +6,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use kalsa_pairing::InviteError;
 
-use super::{words, InviteSet};
+use super::{InviteSet};
 use kalsa_pairing::OfferError;
 
 const REACHABLE: &str = "http://127.0.0.1:8134";
@@ -152,7 +152,7 @@ fn every_refusal_the_page_can_be_told_carries_no_secret() {
         InviteError::Io(std::io::Error::other("permission denied (os error 13)")),
     ];
     for error in refusals {
-        let text = words(error);
+        let text = crate::invites::message(error).text;
         assert!(!text.contains(&code), "a live code in the page's words: {text}");
         assert!(!text.contains("kalsa.io"), "{text}");
         // The shape, not just the instance: a one-time code is 32 hex

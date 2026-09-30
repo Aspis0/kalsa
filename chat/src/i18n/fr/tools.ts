@@ -24,6 +24,8 @@ export const TOOLS = {
     "moreWaiting": (count: number) => `Kalsa a encore ${count} vérifications après celle-ci.`,
     "sendIt": "Envoyer",
     "refuse": "Refuser",
+    "webSearchFailed": "Kalsa n'a pas pu chercher sur le web pour l'instant. Réessaie.",
+    "webPageTooLong": "Cette page est trop longue pour que Kalsa la lise.",
     "findings": {
       "copiedText": "texte copié",
       "npmToken": "un code de connexion",

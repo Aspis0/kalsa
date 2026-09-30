@@ -36,7 +36,35 @@ const OPEN_BUDGET: Duration = Duration::from_secs(15);
 /// What the panel says when the switch has the road off — the owner's own
 /// choice, not a failure, so the words name it as one.
 pub(crate) const OFF_SENTENCE: &str =
-    "The internet road is turned off. The phone reaches this computer the Tailscale way.";
+    "Internet connection is off. The phone connects through Tailscale.";
+
+/// The road's sentence as the wire carries it: a stable code beside the
+/// English the webview falls back to for an unknown code.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct RoadSentence {
+    pub code: String,
+    pub text: String,
+}
+
+/// The code for a road state, and the approved sentence beside it.
+pub(crate) fn sentence_with_code(state: &RoadState) -> RoadSentence {
+    let (code, text) = match state {
+        RoadState::Closed => (
+            "road.waiting",
+            "Internet connection is waiting for the server to run.",
+        ),
+        RoadState::Opening => ("road.opening", "Internet connection is opening."),
+        RoadState::Open { node_id } => (
+            "road.open",
+            "Internet connection is on.",
+        ),
+        RoadState::Unavailable => (
+            "road.unavailable",
+            "Internet connection could not open on this computer.",
+        ),
+    };
+    RoadSentence { code: code.into(), text: text.into() }
+}
 
 /// Where the node's secret key lives: beside the pairing file, the same
 /// neighborhood as `door.port`. The bytes in it never travel; the public id
@@ -142,14 +170,12 @@ impl Road {
     /// made to be shown; no secret state of this road ever reaches a
     /// sentence, a log meant for the screen, or an event payload.
     pub(crate) fn sentence(&self) -> String {
-        match self.snapshot() {
-            RoadState::Closed => "The internet road is waiting for the server to run.".to_string(),
-            RoadState::Opening => "The internet road is opening.".to_string(),
-            RoadState::Open { node_id } => {
-                format!("The internet road is open. The phone can find this computer by {node_id}.")
-            }
-            RoadState::Unavailable => "The internet road could not open on this computer. The other roads to it still work.".to_string(),
-        }
+        sentence_with_code(&self.snapshot()).text
+    }
+
+    /// The sentence as the wire carries it: code beside English.
+    pub(crate) fn message(&self) -> RoadSentence {
+        sentence_with_code(&self.snapshot())
     }
 
     /// Starts an attempt: the state goes to Opening and the caller's attempt
@@ -336,9 +362,11 @@ mod tests {
             road.snapshot(),
             RoadState::Open { node_id: node_id.clone() },
         );
+        // The approved sentence drops the node id; the Open state still
+        // carries it for the log.
         assert!(
-            road.sentence().contains(&node_id),
-            "an open road does not name the identity the phone dials"
+            matches!(road.snapshot(), RoadState::Open { node_id: ref id } if *id == node_id),
+            "an open road keeps the identity the phone dials in its state"
         );
         road.close();
         assert!(matches!(road.snapshot(), RoadState::Closed));
@@ -348,15 +376,18 @@ mod tests {
     #[test]
     fn the_road_says_itself_in_words_a_human_can_act_on() {
         let road = Road::new();
-        assert_eq!(road.sentence(), "The internet road is waiting for the server to run.");
+        assert_eq!(road.sentence(), "Internet connection is waiting for the server to run.");
+        assert_eq!(road.message().code, "road.waiting");
         road.begin();
-        assert_eq!(road.sentence(), "The internet road is opening.");
+        assert_eq!(road.sentence(), "Internet connection is opening.");
+        assert_eq!(road.message().code, "road.opening");
         road.close();
         let epoch = road.begin();
         road.finish(epoch, None);
         assert_eq!(
             road.sentence(),
-            "The internet road could not open on this computer. The other roads to it still work."
+            "Internet connection could not open on this computer."
         );
+        assert_eq!(road.message().code, "road.unavailable");
     }
 }

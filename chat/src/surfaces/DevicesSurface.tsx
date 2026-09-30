@@ -8,6 +8,7 @@ import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
+import { codeSentence } from "../lib/rustText";
 import { forgetLocalCredential, useBrain } from "./useBrain";
 import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
@@ -33,6 +34,10 @@ interface PairedDevice {
   id: number;
   label?: string;
   phone?: string;
+  /** The capability label as a code beside the English; the screen renders
+      the code, the English stays for phone clients. */
+  phone_code?: string;
+  phone_params?: Record<string, unknown>;
   // The store's kind. "host" is this computer's own record; a phone is a
   // pairing result. Absent reads as a phone, the reading this page always had.
   kind?: "phone" | "host";
@@ -52,6 +57,8 @@ interface PairingState {
   qr_svg?: string | null;
   refreshed?: "expired" | "wrong-code" | null;
   phone?: string | null;
+  phone_code?: string | null;
+  phone_params?: Record<string, unknown> | null;
   devices?: PairedDevice[];
   delivery_pending?: boolean;
   door_port?: number | null;
@@ -207,7 +214,7 @@ function HeldButton({
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.devices;
   // The last pairing answer this page knows. A read that rejects, or one
   // that answers nothing, leaves it standing: "I could not ask" is not
@@ -607,6 +614,8 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                     t.waitingOkRow
                   ) : request ? (
                     t.pairingAgain(name)
+                  ) : device.phone_code ? (
+                    codeSentence(table.rust, device.phone_code, device.phone_params ?? {}, tag)
                   ) : (
                     (device.phone ?? "")
                   )}

@@ -73,7 +73,7 @@ fn a_repair_that_fails_too_says_the_slot_is_empty() {
     let response = activate(address, Some(&token), first);
     assert_eq!(status_of(&response), 502, "{}", body_text(&response));
     assert!(
-        body_text(&response).contains("slot is now empty"),
+        body_text(&response).contains("door.slot_empty"),
         "the door did not tell the truth about the slot: {}",
         body_text(&response)
     );

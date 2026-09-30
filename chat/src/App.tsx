@@ -24,6 +24,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { RoomSurface } from "./surfaces/RoomSurface";
 import { useLanguage } from "./i18n/useLanguage";
+import { rustSentence } from "./lib/rustText";
 import type { Table } from "./i18n";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
@@ -80,7 +81,7 @@ function surfaceLabel(surface: SurfaceKey, table: Table): string {
 }
 
 export function App() {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   // The stable callbacks below read the table through this ref, so a
   // language chosen mid-session reaches the next turn's words.
   const words = useRef(table);
@@ -413,7 +414,7 @@ export function App() {
         extracted.length === 1 ? t.attachedOne(extracted[0].name) : t.attachedMany(extracted.length),
       );
     } catch (error) {
-      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotOpen);
+      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
       setLiveMessage(t.attachmentFailed);
     }
   }
@@ -429,9 +430,15 @@ export function App() {
       await attachFiles([new File([bytes], name)]);
     } catch (error) {
       setAttachStatus(
-        error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotOpen,
+        error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
       );
     }
+  }
+
+  // A files-command refusal carries a code; the sentence is the table's,
+  // and a plain string (an unexpected helper) shows as it came.
+  function filesSentence(error: unknown): string {
+    return rustSentence(table.rust, error, tag);
   }
 
   // The extractor reports a code; the sentence is the table's.
