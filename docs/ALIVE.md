@@ -749,6 +749,11 @@ them instead of crashing, the loader warns once, and the run falls back to CPU (
 load-time numbers owed on the S23. Open: CPU decode on raw Q4_0 is **0.62-0.64** of the repacked path
 on the S23 (tg128, interleaved); a multi-row raw gemv (`spike/onecopy-cpu-gemv` `1dd83c245`) moved it
 only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold until decode is fixed.
+2026-09-30 (S23): NPU decode on the shared copy now works - raw Q4_0 DSP matvec 0.13 -> **11.82** tok/s
+(`c5a218321`, audit fixes `cc9c541f2`), KLD identical to two copies, vs two copies **22.2** and one-copy
+CPU **10.63**; the per-token raw->tile conversion is the remaining cost, a raw-row matvec is in progress.
+Tied embedding shared with the CPU copy (`048603398`): peak RSS **-204 MiB** (no mmap) / **-225 MiB**
+(mmap), CPU decode unchanged.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):

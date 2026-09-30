@@ -613,7 +613,11 @@ Ranking rule (owner, 2026-09-29): pick the backend with the least heat/energy pe
 above a tok/s usability floor; a slower backend wins if it stays above the floor. 8 Elite NPU decode
 (29.1 tok/s, 27 % cooler per token than CPU at 39.0) is a win, S23 NPU decode (22.09 vs CPU 22.13,
 skin 0.17 vs 0.25 °C·s/token) too. Consequence for one-copy: decode must stay runnable on the NPU from
-the shared copy (raw Q4_0 at batch 1 on HTP is refused today and falls to CPU; S23 test owed).
+the shared copy. S23 2026-09-30 (`onecopy-hmx-numerics/REPORT.md`, engine `spike/onecopy-hmx-raw`): raw
+Q4_0 decode on the DSP went 0.13 -> 11.82 tok/s (`c5a218321`/`cc9c541f2`, KLD identical to two copies)
+vs two copies 22.2 and one-copy CPU 10.63; the per-token raw->tile conversion is the cost. A raw-row HVX
+matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expected 19-23 tok/s) is in progress (`93ade4886`,
+checkpoint, not yet verified).
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated, wired, landed — disabled by default
