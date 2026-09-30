@@ -1,4 +1,41 @@
-# Coordinator state - 2026-09-30 night (session 3f035b4e) - READ THIS BLOCK FIRST
+# Coordinator state - 2026-09-30 evening handoff (session 3f035b4e) - READ THIS BLOCK FIRST
+
+Nothing is running: no pod, no delegate (all archived), S23 idle. Owner asked to stop here.
+
+1. **Hexagon (NPU) is in the APK for the first time.** Before: app CI had no Hexagon SDK and built "hexagon_opencl"
+   with 0 Hexagon code (lane degraded `htp-device-missing`; recon + audit `agents/app-ci-hexagon-recon/`).
+   Now: binding `feat/governor-platform-status` `b4a13d9a` (pushed; lane OFF never sees HTP; GGML_HEXAGON_DEVICES=1;
+   host tests 10/10 re-run) + app main `c26ba8bc` (pushed; SDK 6.4.0.2 sha256 b4a57a77..., QAIC host stubs,
+   persist-credentials false, APK assertion; provenance EXIT 0). Debuggable APK run `36763920662` green; coordinator
+   verified 137 `ggml-hex` strings in the lib (was 0). APK sha256 f1de5ced..., local copy /tmp/apk-c26ba8bc/.
+   NEXT: install -r on the S23; `kalsa.bench.npu_lane=on` + route gpu -> KALSA_GOVERNOR must show npu_device HTP0,
+   npu_fallback null, prefill on HTP; lane off -> nothing on HTP and no regression; watch startup (one FastRPC
+   session). Then milestone 1 NPU arm.
+2. **One-copy raw-row matvec** (engine `~/Projects/kalsallama-onecopy-hmx`, `spike/onecopy-hmx-raw`; pushed only up to
+   `cc9c541f2`; local `93ade4886`, `974a31e79`, `ceb89bedc`). `974a31e79` on the S23: 15.51 tok/s one copy vs 22.41
+   two copies, KLD 0.004608 (better). Audit FIX FIRST -> fixed in `ceb89bedc` (sim gate re-run EXIT=0 by me).
+   NEXT: hostile audit of `ceb89bedc` (model != Sonnet), then ONE S23 ABBA session with the probe arms
+   (`GGML_HEXAGON_RAWROW_PROBE=1` DMA only, `=2` dot only, `=4` no act l2fetch, `GGML_HEXAGON_RAW_LOCAL=1`,
+   `GGML_HEXAGON_HOSTBUF_UNCACHED=1`; base `GGML_HEXAGON_RAW_HMX=1 GGML_HEXAGON_HOSTBUF=1`) + KLD ub 1; the host/DSP
+   wiring of ceb89bedc never ran on a phone. Artifacts: llama-bench c8ee6e79, llama-perplexity 56392cda,
+   libggml-htp-v73 2808f70f (build dir build-onecopy-hmx-fused-v73). Recipe: REPORT.md "Raw-row matvec 974a31e79".
+3. **Governor milestone 1** (`agents/governor-m1-current/`, audit applied): in-app current live at 1 Hz; separation
+   UNTESTED (no idle window); energy/1k prefill 54 vs 224 J mostly duration. NEXT: idle window + incremental energy,
+   NPU arm with the new APK. Harness /tmp/m1/turn.sh + split.py (copies in the report's raw/).
+4. **Kalsa MoE gate probe (Runpod)**: NO results. Two pods, 5 launches, each self-stopped on a plumbing bug (fixed in
+   `kalsa-reap-prep/podprobe/`, all pushed). Spend ~$1.5 of the $10 cap. The 5th failure stage is unknown (host GPU
+   taken, pod deleted). NEXT: run stages ONE BY ONE on a pod with direct SSH (public IP), launch the chain only after
+   the LFM arm writes its results; budget ~$8.5 left vs ~11-12 h at $0.69/h -> ask the owner to drop an arm.
+   Launch facts: image `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04` with `minCudaVersion 12.4`
+   (exact allowedCudaVersions finds nothing), POD_PYBASE=python3; fork is private -> ship the source via the HF bundle
+   `bundle/probe-bundle.tgz` (sha256 7d8d14fa...) or rsync; proxy SSH accepts piped commands (`ssh -tt`), no scp.
+   Pod key can STOP but not DELETE its pod (verified). Runpod SSH key `kalsa-coordinator` registered.
+   HF: private dataset `Kalsa-ai/kalsa-gate-probe-results`; token scoped to it in Keychain `kalsa-hf-probe`/`Kalsa-ai`;
+   the owner pasted it in chat -> ROTATE after the probe.
+5. v1.1.3: tag pushed, fork CI quota; re-dispatch `gh workflow run kalsa-server.yml -R Aspis0/kalsallama --ref main
+   -f release_tag=kalsa-server-v1.1.3` when minutes return, then tell kalsa-brain.
+
+## 2026-09-30 night (session 3f035b4e) - earlier block
 
 Owner 2026-09-30 night: NO pod (REAP) tonight or tomorrow; focus NPU + governor. GLM (zcode-acp)
 starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=Flash right after create.
