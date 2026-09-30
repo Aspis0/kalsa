@@ -513,3 +513,44 @@ peak RSS from `toybox time -v`. Unplugged, 63 -> 62 %, battery 28.9-33.0 C, Awak
   resident. In the app no-mmap = `LLAMA_LOAD_MODE_MLOCK` (binding `JSIParams.cpp:353-358`) - not measured here.
 - Verdict: ship candidate. Next: cherry-pick `1622f44bd` + `048603398` onto the engine main line, then
   the pin chain.
+
+## Raw Q4_0 decode on the DSP: c5a218321 on the S23 (2026-09-30, coordinator)
+
+Engine `spike/onecopy-hmx-raw` `c5a218321` (Sonnet `f05b444f`: HVX raw->tile conversion
+`htp/q4_0-raw-tile-hvx.h` feeding the tiled matvec `hvx_mv_2d_raw_q4_0`; raw decode reaches the DSP
+under `GGML_HEXAGON_RAW_HMX=1` without MM_SELECT/min-batch; `GGML_HEXAGON_RAW_DECODE=0` sends it back to
+the CPU). Artifacts sha256: llama-bench `25f50f50...`, llama-perplexity `14f3e87d...`, v73 skel
+`a2eb8971...` (match the coder's report). Dir `/data/local/tmp/govhtp/onecopy-rawdec/`.
+
+Sim gate (coordinator re-run): `run-raw-tiles.sh` EXIT=0 (110 cases); `--negative-control 2` EXIT=1.
+
+**Correctness (plugged, allowed for numerics):** perplexity `-c 512 -b 512 -ub 1 --chunks 2` (1,024 single-token
+decodes) vs `cause-cpu-base.logits`: one copy and two copies IDENTICAL to every printed digit - mean
+KLD 0.005313 +- 0.000383, max 0.094590, same top p 97.059 %, PPL(Q) 33.994233. One copy: 168,448
+MUL_MAT on `-HOST` weights executed on the DSP; two copies: 0. Errors 0 in both.
+
+**Speed (unplugged, 99 -> 96 %, battery 27.1-32.1 C, Awake, thermal 0; ABBA, 90 s gaps;
+`-p 512 -n 128 -ub 512 -r 3 -t 5 -ngl 99 -dev HTP0 --load-mode none`, `GGML_HEXAGON_OPFUSION=0`):**
+
+| Arm | pp512 tok/s | tg128 tok/s |
+|---|---:|---:|
+| two copies A | 885.93 +- 2.96 | 22.19 +- 0.06 |
+| one copy, decode on DSP A | 862.91 +- 4.69 | 11.82 +- 0.02 |
+| one copy, decode on CPU (`RAW_DECODE=0`) | 843.83 +- 14.31 | 10.63 +- 0.31 |
+| one copy, decode on DSP B | 859.45 +- 6.48 | 11.82 +- 0.03 |
+| two copies B | 879.36 +- 9.28 | 22.30 +- 0.29 |
+
+- Raw DSP decode 0.13 -> **11.82 tok/s** (x91), and it now beats one-copy CPU decode (10.63), which
+  per the heat tables is also the hotter lane. It is still **53 % of two copies** (22.2-22.3).
+- Consistent with the coder's sim cycle counts: conversion ~150 pcycles/tile vs the dot ~90-120, so
+  the per-token raw->tile conversion more than doubles the matvec compute. Decode is compute-bound
+  on the conversion, not on DDR.
+- Peak RSS from `time -v` (~276-285 MiB in every arm) does not count rpcmem/DSP-mapped memory: NOT a
+  memory comparison.
+- Hostile audit (luna `5e1368fb`): FIX FIRST - NHVX=1 host/DSP kernel mismatch (hard failure), F16
+  src1 admitted but read as F32, short-K (n_k < 7) vector over-read past the 640-byte slot, stale
+  comments. None is on the LFM2 path measured here. Fixes in progress (same coder).
+
+Next lever: stop converting per token. Options: a fused matvec that reads raw 18-byte blocks in
+registers (no tile store/reload), or a weight layout both the CPU repack kernels and the DSP read
+natively (the q4_0_4x8 shared-layout decision).
