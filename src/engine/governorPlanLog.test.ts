@@ -14,7 +14,11 @@ jest.mock("expo-modules-core", () => ({
 
 import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
-import { buildGovernorParams, buildGovernorPlanLog } from "./governorInputs";
+import {
+  buildGovernorParams,
+  buildGovernorPlanLog,
+  type BenchNpuLanePref,
+} from "./governorInputs";
 
 const s23 = {
   modelName: "SM-S911U",
@@ -39,7 +43,8 @@ describe("governor plan log", () => {
     };
     const governor = buildGovernorParams(model, s23, memory);
 
-    expect(buildGovernorPlanLog(model, memory, governor, undefined)).toEqual({
+    const plan = buildGovernorPlanLog(model, memory, governor, undefined);
+    expect(plan).toEqual({
       gpu_fit: "Fit",
       decode_repack: true,
       required_mib_with_repack: 4518.12,
@@ -48,7 +53,21 @@ describe("governor plan log", () => {
       bench_norepack_forced: null,
       npu_device: null,
       npu_fallback: null,
+      npu_lane: "off",
     });
+    // Instruments parse this line: the pre-npu_lane keys keep their order
+    // and npu_lane is appended.
+    expect(Object.keys(plan)).toEqual([
+      "gpu_fit",
+      "decode_repack",
+      "required_mib_with_repack",
+      "required_mib_without_repack",
+      "available_mib",
+      "bench_norepack_forced",
+      "npu_device",
+      "npu_fallback",
+      "npu_lane",
+    ]);
     expect(
       buildGovernorPlanLog(
         model,
@@ -89,11 +108,36 @@ describe("governor plan log", () => {
       npu_fit: "Fit",
       decode_repack: false,
     });
-    expect(buildGovernorPlanLog(model, memory, governor, undefined)).toMatchObject({
+    expect(
+      buildGovernorPlanLog(model, memory, governor, undefined, "auto"),
+    ).toMatchObject({
       npu_device: "HTP0",
       npu_fallback: null,
       decode_repack: false,
+      npu_lane: "auto",
     });
+  });
+
+  test("reports the requested lane pref verbatim, defaulting an absent one to off", () => {
+    const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const memory = {
+      availableMemoryBytes: 4519 * 1024 ** 2,
+      totalMemoryBytes: 8 * 1024 ** 3,
+      contextTokens: 8192,
+      ubatch: 256,
+      mmap: true,
+      offloadedBytes: model.sizeBytes,
+    };
+    const governor = buildGovernorParams(model, s23, memory);
+    const laneOf = (pref?: BenchNpuLanePref) =>
+      buildGovernorPlanLog(model, memory, governor, undefined, pref).npu_lane;
+
+    expect(laneOf("auto")).toBe("auto");
+    expect(laneOf("on")).toBe("on");
+    expect(laneOf("off")).toBe("off");
+    // readBenchNpuLane maps absent/invalid storage to undefined, and the
+    // plan reports the value the gate resolves that to — not "auto".
+    expect(laneOf(undefined)).toBe("off");
   });
 
   test("records a computed NoFit plan even when GPU prefill is forced", () => {

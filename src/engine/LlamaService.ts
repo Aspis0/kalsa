@@ -2415,6 +2415,7 @@ export function initEngine(
             },
             governorBase,
             benchNoRepack,
+            benchNpuLane,
           ),
         )}`,
       );

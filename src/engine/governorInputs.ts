@@ -188,6 +188,7 @@ export function buildGovernorPlanLog(
     npu_fallback?: string | null;
   },
   benchNoRepack: boolean | undefined,
+  npuLanePref?: BenchNpuLanePref,
 ) {
   const withRepack = lanePrice(model, memory, true);
   const withoutRepack = lanePrice(model, memory, false);
@@ -205,6 +206,10 @@ export function buildGovernorPlanLog(
     // GPU degrade is reported on KALSA_GOVERNOR via the stats fields.
     npu_device: governor.npu_device ?? null,
     npu_fallback: governor.npu_fallback ?? null,
+    // The pref ASKED for, not the resolved lane, so a crash can be
+    // attributed to lane on vs off: absent/invalid reads resolve to off
+    // (readBenchNpuLane → the gate's default), never to auto.
+    npu_lane: npuLanePref ?? "off",
   };
 }
 

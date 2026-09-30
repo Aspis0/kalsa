@@ -25,6 +25,9 @@ describe("governor plan log emission shape", () => {
       /if \(governorBase != null && pricedModel != null && !governorRuntimeOff\) \{\s*console\.log\(/,
     );
     expect(emission).toContain("governorBase,");
+    // The plan line carries the pref ASKED for (kalsa.bench.npu_lane), so a
+    // crash is attributable to lane on vs off.
+    expect(emission).toContain("benchNpuLane,");
     expect(emission).not.toContain("governorLoad");
   });
 });
