@@ -332,7 +332,13 @@ each when no tokenizer is available — and the `read` count on the answer
 says what that bought. A turn ends when its answer ends, when it is
 withdrawn or stopped, or when the engine falls silent for 60 seconds — a
 stall; a long, live answer is never cut, and the seat is held for all of
-it.
+it. Only a content delta or the terminal `[DONE]` event resets that
+silence clock; SSE comments, keep-alives and empty lines do not.
+
+An engine HTTP 400 or 413 is treated as a too-large request: the room halves
+the transcript it reads and retries. That response does not diagnose the
+cause. If a request still cannot succeed after the room has reduced the
+transcript as far as it can, the turn ends with `engine_problem`.
 
 The line itself is memory: a computer that restarts forgets every pending
 call, and nothing retroactive is announced on startup. What a phone

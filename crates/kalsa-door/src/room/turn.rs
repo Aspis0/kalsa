@@ -59,9 +59,9 @@ const SEAT_POLL: Duration = Duration::from_secs(2);
 /// turn is still alive.
 const READ_SLICE: Duration = Duration::from_secs(1);
 
-/// How long the engine may fall silent before the turn is a stall: no
-/// delta, no keep-alive byte, nothing. A long answer is never cut — only
-/// a silent one is. Tests shrink it through [`stall_for`].
+/// How long the engine may go without answer content before the turn is a
+/// stall. Transport keep-alives do not count. Tests shrink it through
+/// [`stall_for`].
 const STALL_PATIENCE: Duration = Duration::from_secs(60);
 
 /// The stall seam: a process-wide override in milliseconds, because the
@@ -319,10 +319,9 @@ fn ask_the_engine(
     let mut reader = BufReader::new(engine);
     let mut answer = String::new();
     let mut answered = false;
-    // The silence clock: reset by every byte the engine sends, ended by
-    // [`STALL_PATIENCE`] of nothing. There is no clock on the whole
-    // answer — a long, live answer is never cut.
-    let mut last_byte = Instant::now();
+    // The stall clock follows answer content, not transport keep-alives.
+    // There is no clock on the whole answer — a long, live answer is never cut.
+    let mut last_content = Instant::now();
     let stall = stall_patience();
     loop {
         if !door.room.turn_alive(turn) {
@@ -339,12 +338,12 @@ fn ask_the_engine(
             // without [DONE] and never announces it complete, and neither
             // does the room.
             Ok(0) => return Exchange::Failed,
-            Ok(_) => last_byte = Instant::now(),
+            Ok(_) => {}
             Err(error)
                 if error.kind() == std::io::ErrorKind::WouldBlock
                     || error.kind() == std::io::ErrorKind::TimedOut =>
             {
-                if last_byte.elapsed() >= stall {
+                if last_content.elapsed() >= stall {
                     return Exchange::Failed;
                 }
                 continue;
@@ -364,15 +363,22 @@ fn ask_the_engine(
                     return Exchange::Failed;
                 }
             }
+            if last_content.elapsed() >= stall {
+                return Exchange::Failed;
+            }
             continue;
         };
         let payload = payload.trim_end();
         if payload == "[DONE]" {
+            last_content = Instant::now();
             // The terminal event was seen: the answer's own end, and the
             // socket's close after it changes nothing.
             return Exchange::Answered(answer);
         }
         let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
+            if last_content.elapsed() >= stall {
+                return Exchange::Failed;
+            }
             continue;
         };
         // Content only: reasoning is the computer's own channel — the
@@ -382,11 +388,18 @@ fn ask_the_engine(
             .pointer("/choices/0/delta/content")
             .and_then(|content| content.as_str())
         else {
+            if last_content.elapsed() >= stall {
+                return Exchange::Failed;
+            }
             continue;
         };
         if text.is_empty() {
+            if last_content.elapsed() >= stall {
+                return Exchange::Failed;
+            }
             continue;
         }
+        last_content = Instant::now();
         if !answered {
             answered = true;
             door.room.mark_turn(turn, true);
@@ -399,11 +412,10 @@ fn ask_the_engine(
     }
 }
 
-/// The transcript budget in bytes, from the per-slot context the launch
-/// actually funded (`--ctx-size / --parallel`). Tokens are estimated at
-/// four bytes each — no tokenizer sits in this crate, and the estimate is
-/// stated as one: the budget errs small, and the truncation marker on the
-/// answer says what that bought either way.
+/// The prompt budget in bytes, from the per-slot context the launch
+/// actually funded (`--ctx-size / --parallel`), including the system
+/// prompt. Tokens are estimated at four bytes each — no tokenizer sits in
+/// this crate, and the truncation marker says what that bought either way.
 fn budget_of(slot_context: Option<u64>) -> usize {
     match slot_context {
         Some(tokens) => ((tokens.saturating_mul(BUDGET_SHARE) / 100) as usize).saturating_mul(4),
@@ -420,7 +432,7 @@ fn window(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> (Vec<Ent
     // Cloned, not borrowed: the window is one turn's working set, the
     // room's transcript is household-sized, and one turn runs at a time.
     let mut kept: Vec<Entry> = Vec::new();
-    let mut bytes = 0usize;
+    let mut bytes = SYSTEM_PROMPT.len();
     for entry in entries.iter().rev() {
         let name = frame_name(&door.room, &devices, entry.member);
         let cost = name.len() + entry.text.len() + 8;
@@ -454,8 +466,9 @@ fn halve_budget(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> Op
             let name = frame_name(&door.room, &devices, entry.member);
             name.len() + entry.text.len() + 8
         })
-        .sum::<usize>();
-    Some(bytes.max(1))
+        .sum::<usize>()
+        .saturating_add(SYSTEM_PROMPT.len());
+    Some(bytes.max(SYSTEM_PROMPT.len() + 1))
 }
 
 /// The transcript one turn is built on, newest-first into the budget, then

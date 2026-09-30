@@ -27,6 +27,8 @@ pub(super) enum Reply {
     /// The SSE head and one delta, then silence forever: a stream that
     /// stalls without dying.
     Stall,
+    /// SSE comments at a steady pace without ever sending answer content.
+    KeepAlive,
 }
 
 /// What the fake saw on one connection: the request head and body.
@@ -94,7 +96,7 @@ fn accept(listener: TcpListener, seen: Arc<Mutex<Vec<Seen>>>, replies: Arc<Mutex
         // script's end the engine says nothing, forever.
         let standing = matches!(
             replies.lock().unwrap().first(),
-            Some(Reply::RefuseIfOver(_)) | Some(Reply::Stall)
+            Some(Reply::RefuseIfOver(_)) | Some(Reply::Stall) | Some(Reply::KeepAlive)
         );
         let reply = replies
             .lock()
@@ -159,6 +161,18 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
             }
             let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"then nothing\"}}]}\n\n");
             thread::sleep(Duration::from_secs(120));
+        }
+        Reply::KeepAlive => {
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            if stream.write_all(head.as_bytes()).is_err() {
+                return;
+            }
+            loop {
+                if stream.write_all(b": keep-alive\n\n").is_err() {
+                    return;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
         }
         // Hold the connection open, saying nothing: the caller hangs. The
         // thread sleeps rather than returning, because returning closes

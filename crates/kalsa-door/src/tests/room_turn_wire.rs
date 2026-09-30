@@ -159,6 +159,28 @@ fn a_stalled_stream_is_an_engine_problem_and_stores_nothing() {
 }
 
 #[test]
+fn keep_alive_comments_do_not_extend_the_stall_patience() {
+    super::room_turn::stall_for(Duration::from_millis(400));
+    let (door, _room, _fake, [_, one, _]) = room_at(vec![Reply::KeepAlive]);
+    let bearer = format!("Bearer {one}");
+    let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    post(
+        door.address(),
+        Some(&bearer),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"a1","text":"@Kalsa answer"}"#,
+    );
+    let result = heard(&mut follower, b"engine_problem");
+    assert!(
+        result.contains("Kalsa ran into a problem on this computer"),
+        "keep-alive comments do not count as answer content: {result}"
+    );
+    super::room_turn::stall_reset();
+    let _ = follower.shutdown(Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
 fn a_member_name_cannot_wear_the_speaker_brackets() {
     let (door, room, fake, [_, one, _]) = room_at(vec![Reply::Sse(vec!["ok".to_string()])]);
     let bearer = format!("Bearer {one}");
