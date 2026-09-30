@@ -707,6 +707,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   First APK ever with the NPU host backend; the S23 NPU-lane check is next.
   (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
   `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
+- **2026-09-30 night: S23 check of APK c26ba8bc FAILED** (`scratchpad/agents/s23-npu-lane-c26ba8bc/REPORT.md`).
+  Lane on: plan resolves (`npu_device HTP0`, `npu_fallback null`), then every load aborts in the governor ctor:
+  `pre-allocated tensor (cache_v_l2 (view)) in a buffer (HTP0) that cannot run the operation (SET_ROWS)`. One
+  lane-off route-gpu abort is claimed but not proven by a lane log line. Cold start: no regression, one FastRPC
+  session. HTP prefill never ran; milestone-1 NPU arm not run. Diagnosis + fix delegated (binding
+  `feat/governor-platform-status`); the lane stays default OFF and nothing ships until a device re-check passes.
 
 ### Pairing: iroh and invite links
 

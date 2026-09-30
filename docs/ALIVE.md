@@ -717,7 +717,9 @@ and the **step-5 device soak is pending**. 2026-09-30: no CI APK has ever carrie
 backend (app CI has no Hexagon SDK: "building CPU-only"; the S23 lane degrades with
 `htp-device-missing`); fixed and pushed 30/09 evening: binding `b4a13d9a` (lane off never sees HTP, one DSP session)
 + app `c26ba8bc` (SDK sha256-pinned, QAIC stubs, APK assertion), recon and audit in `app-ci-hexagon-recon/`. APK
-`36763920662` green, Hexagon verified in the lib (first APK ever with it); S23 NPU-lane check next. Design and steps:
+`36763920662` green, Hexagon verified in the lib (first APK ever with it); S23 NPU-lane check next. S23 check 30/09 night
+FAILED: with the lane on the governor's prefill context puts the V cache in an HTP0 buffer and the load aborts on
+SET_ROWS (`s23-npu-lane-c26ba8bc/REPORT.md`); fix in progress, lane stays default off. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
