@@ -20,7 +20,7 @@ export const ROOM: RoomTable = {
   namePlaceholder: "Il tuo nome",
   youAre: (name: string) => `Tu sei ${name}`,
   left: " · non è più qui",
-  askedKalsa: "ha chiesto a Kalsa · ",
+  askedKalsa: "ha chiesto a Kalsa ·",
   readLast: (count: number) =>
     count === 1 ? " · ha letto l'ultimo messaggio" : ` · ha letto gli ultimi ${count} messaggi`,
   notes: {
@@ -34,6 +34,6 @@ export const ROOM: RoomTable = {
     "name_reserved": "Kalsa è il nome dell'assistente. Scegline un altro.",
     "name_framing": "I nomi non possono contenere [ o ].",
     "name_mixed_scripts": "Usa le lettere di un solo alfabeto nel nome.",
-    "name_too_long": "Quel nome è troppo lungo. Prova più corto."
+    "name_too_long": "Quel nome è troppo lungo. Prova con uno più corto."
   },
 };

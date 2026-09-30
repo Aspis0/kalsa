@@ -20,7 +20,7 @@ export const ROOM: RoomTable = {
   namePlaceholder: "Ton nom",
   youAre: (name: string) => `Tu es ${name}`,
   left: " · n'est plus là",
-  askedKalsa: "a demandé à Kalsa · ",
+  askedKalsa: "a demandé à Kalsa ·",
   readLast: (count: number) =>
     count === 1 ? " · a lu le dernier message" : ` · a lu les ${count} derniers messages`,
   notes: {

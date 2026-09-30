@@ -4,7 +4,7 @@ export const COMPOSER = {
     "placeholder": "Escribe un mensaje…",
     "messageAria": "Mensaje",
     "send": "Enviar",
-    "stopGenerating": "Detener la generación",
+    "stopGenerating": "Detener la respuesta",
     "attachAria": "Adjuntar un archivo",
     "thinkingOn": "Encender la reflexión",
     "thinkingOff": "Apagar la reflexión"

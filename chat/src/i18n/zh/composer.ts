@@ -4,7 +4,7 @@ export const COMPOSER = {
     "placeholder": "写一条消息…",
     "messageAria": "消息",
     "send": "发送",
-    "stopGenerating": "停止生成",
+    "stopGenerating": "停止回答",
     "attachAria": "附加文件",
     "thinkingOn": "开启思考",
     "thinkingOff": "关闭思考"
