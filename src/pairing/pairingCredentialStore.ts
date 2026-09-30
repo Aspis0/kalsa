@@ -49,6 +49,13 @@ export async function listPairings(): Promise<PairingRecord[]> {
   return (await readPairingMap()).records;
 }
 
+/** The record for one local id, or null when it no longer exists (a
+ *  newer pairing took its room, or it never was). */
+export async function getPairing(localId: string): Promise<PairingRecord | null> {
+  const state = await readPairingMap();
+  return state.records.find((record) => record.localId === localId) ?? null;
+}
+
 /**
  * File `roomId` under the record whose credential answered the info.
  * The local id comes from the request that made the call, never from a

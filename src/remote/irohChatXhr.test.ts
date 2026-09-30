@@ -99,6 +99,25 @@ describe("the iroh chat XHR", () => {
     expect(tunnel.shutdowns).toBeGreaterThan(0);
   });
 
+  test("exposes response headers — the room stream reads Kalsa-Room-Epoch through them", async () => {
+    const head =
+      "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nKalsa-Room-Epoch: e-42\r\nTransfer-Encoding: chunked\r\n\r\n";
+    const tunnel = new FakeTunnel([ascii(head), ascii("0\r\n\r\n")]);
+    const { xhr } = makeXhr(tunnel);
+    let epoch: string | null = null;
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 2) epoch = xhr.getResponseHeader?.("Kalsa-Room-Epoch") ?? null;
+    };
+
+    xhr.open("GET", "https://desktop.example:9443/kalsa/room/events");
+    xhr.send();
+    await drain();
+
+    expect(epoch).toBe("e-42");
+    expect(xhr.getResponseHeader?.("kalsa-room-epoch")).toBe("e-42");
+    expect(xhr.getResponseHeader?.("x-missing")).toBeNull();
+  });
+
   test("a non-2xx response stops at the head without reading or reporting the body", async () => {
     const head = "HTTP/1.1 503 Busy\r\nContent-Length: 4\r\n\r\n";
     const tunnel = new FakeTunnel([ascii(head), ascii("oops")]);

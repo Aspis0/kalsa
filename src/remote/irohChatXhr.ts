@@ -39,6 +39,7 @@ export function createIrohChatXhr(
   let method = "";
   let url = "";
   const requestHeaders: Record<string, string> = {};
+  let responseHeaders: Record<string, string> = {};
   let tunnel: IrohTunnel | null = null;
   let finished = false;
 
@@ -72,6 +73,7 @@ export function createIrohChatXhr(
         return;
       }
       xhr.status = response.status;
+      responseHeaders = response.headers;
       xhr.readyState = HEADERS_RECEIVED;
       // The transport finishes a non-2xx here (and aborts us); a 2xx falls
       // through to the body.
@@ -115,6 +117,9 @@ export function createIrohChatXhr(
     setRequestHeader: (name, value) => {
       requestHeaders[name] = value;
     },
+    // Header names arrive lowercased from the parser; the lookup follows
+    // HTTP and matches case-insensitively for the room stream's epoch.
+    getResponseHeader: (name) => responseHeaders[name.toLowerCase()] ?? null,
     send: (bodyText) => {
       void run(bodyText ?? "");
     },

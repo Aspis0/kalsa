@@ -56,6 +56,35 @@ export type RoomPostAck = {
 
 export type RoomNameAck = { memberId: number; name: string };
 
+/** A `member` frame from the stream: the action §7 names, the row's id,
+ *  and the name — null only for a `left` the room has no name for. */
+export type RoomMemberEvent = {
+  action: "joined" | "renamed" | "left";
+  memberId: number;
+  name: string | null;
+};
+
+/** An `ai_status` frame: the same view info's `ai` answers (§7). The
+ *  core four are in the contract's example and every door frame; the
+ *  rest ride the door's frames and are typed when present. */
+export type RoomAiStatus = {
+  state: string;
+  who: string | null;
+  running: string | null;
+  queue: string[];
+  busy?: boolean;
+  youPending?: boolean;
+  noteCode?: string | null;
+  note?: string | null;
+};
+
+/** An `ai_delta` frame — one chunk of the answer being assembled (§7). */
+export type RoomAiDelta = {
+  /** The turn this chunk belongs to, when the door names one. */
+  turn?: number;
+  text: string;
+};
+
 function asObject(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -145,7 +174,9 @@ export function parseRoomInfo(value: unknown): RoomInfo | null {
   return { roomName, members, ai, you, roomId, epoch };
 }
 
-function parseMessage(value: unknown): RoomHistoryMessage | null {
+/** One history entry — the shape history pages, `message` and
+ *  `ai_message` frames, and the stream's dedupe all share. */
+export function parseRoomHistoryEntry(value: unknown): RoomHistoryMessage | null {
   const message = asObject(value);
   if (message === null) return null;
   const seq = asCounter(message.seq);
@@ -186,7 +217,7 @@ export function parseRoomHistoryPage(value: unknown): RoomHistoryPage | null {
   if (hasOlder === null || hasNewer === null || !Array.isArray(page.messages)) return null;
   const messages: RoomHistoryMessage[] = [];
   for (const entry of page.messages) {
-    const message = parseMessage(entry);
+    const message = parseRoomHistoryEntry(entry);
     if (message === null) return null;
     messages.push(message);
   }
@@ -214,4 +245,63 @@ export function parseRoomNameAck(value: unknown): RoomNameAck | null {
   const name = asString(ack.name);
   if (memberId === null || name === null) return null;
   return { memberId, name };
+}
+
+export function parseRoomMemberEvent(value: unknown): RoomMemberEvent | null {
+  const member = asObject(value);
+  if (member === null) return null;
+  const action = member.action;
+  if (action !== "joined" && action !== "renamed" && action !== "left") return null;
+  const memberId = asMemberId(member.member_id);
+  if (memberId === null) return null;
+  if (member.name === null) return { action, memberId, name: null };
+  const name = asString(member.name);
+  return name === null ? null : { action, memberId, name };
+}
+
+export function parseRoomAiStatus(value: unknown): RoomAiStatus | null {
+  const status = asObject(value);
+  if (status === null) return null;
+  const state = asString(status.state);
+  // state/who/running/queue are §7's example and every door frame; busy,
+  // you_pending, note_code and note ride the door's frames only and are
+  // typed when present, absent when not.
+  const who =
+    status.who === null ? null : typeof status.who === "string" ? status.who : undefined;
+  const running =
+    status.running === null
+      ? null
+      : typeof status.running === "string"
+        ? status.running
+        : undefined;
+  if (state === null || who === undefined || running === undefined) return null;
+  if (!Array.isArray(status.queue)) return null;
+  const queue: string[] = [];
+  for (const entry of status.queue) {
+    const name = asString(entry);
+    if (name === null) return null;
+    queue.push(name);
+  }
+  const parsed: RoomAiStatus = { state, who, running, queue };
+  const busy = asBoolean(status.busy);
+  const youPending = asBoolean(status.you_pending);
+  if (busy !== null) parsed.busy = busy;
+  if (youPending !== null) parsed.youPending = youPending;
+  if (typeof status.note_code === "string" || status.note_code === null) {
+    parsed.noteCode = status.note_code as string | null;
+  }
+  if (typeof status.note === "string" || status.note === null) {
+    parsed.note = status.note as string | null;
+  }
+  return parsed;
+}
+
+export function parseRoomAiDelta(value: unknown): RoomAiDelta | null {
+  const delta = asObject(value);
+  if (delta === null) return null;
+  const text = asString(delta.text);
+  if (text === null) return null;
+  if (delta.turn === undefined) return { text };
+  const turn = asCounter(delta.turn);
+  return turn === null ? null : { turn, text };
 }

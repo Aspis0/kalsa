@@ -9,14 +9,23 @@
  * later read of "the active record" — is what gets the room bound, what
  * keys the cached epoch the door guard checks, and what a 401 marks.
  */
-import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
+import {
+  doorConfigForPairing,
+  getRemoteDoorConfig,
+  getRemoteDoorToken,
+  type RemoteDoorConfig,
+} from "../engine/remote/remoteDoorConfig";
 import {
   canSendAuthorization,
   isNonLoopback,
   joinRemoteApiUrl,
   remoteUrlGateError,
 } from "../engine/remote/remoteUrl";
-import { bindPairingRoom, markPairingRemoved } from "../pairing/pairingCredentialStore";
+import {
+  bindPairingRoom,
+  getPairing,
+  markPairingRemoved,
+} from "../pairing/pairingCredentialStore";
 import { isPairingStoreDamaged } from "../pairing/pairingMap";
 import { doorFetchFor, establishDoorRoad } from "../remote/doorRoad";
 import {
@@ -34,6 +43,11 @@ import {
   type RoomResult,
 } from "./roomError";
 import {
+  cachedRoomEpoch,
+  forgetRoomEpoch,
+  noteRoomEpoch,
+} from "./roomEpochs";
+import {
   parseRoomHistoryPage,
   parseRoomInfo,
   parseRoomNameAck,
@@ -44,11 +58,13 @@ import {
   type RoomPostAck,
 } from "./roomWire";
 
-export type RoomCallOptions = { signal?: AbortSignal };
-
-/** The epoch each pairing last read — this process only. A restart forgets
- *  it, and an absent header is a phone that cached nothing (§7). */
-const roomEpochs = new Map<string, string>();
+export type RoomCallOptions = {
+  signal?: AbortSignal;
+  /** Whose pairing this call rides: the record with this local id — the
+   *  event stream's resync refetches for the room IT is attached to —
+   *  or, absent, the active pairing the chat door reads. */
+  roomLocalId?: string;
+};
 
 /** Only our own codes cross to a caller: a thrown message may quote
  *  anything, and nothing may ever quote a credential. */
@@ -73,6 +89,45 @@ async function readErrorBody(response: { json: () => Promise<unknown> }): Promis
 
 type RoomCall = { result: RoomResult<unknown>; localId: string | null };
 
+export type RoomCallDoor = { door: RemoteDoorConfig; localId: string | null; token: string | null };
+
+/** The door, bearer and pre-request verdicts one room call or event
+ *  stream rides: the record named by roomLocalId, or the active pairing
+ *  (manual door included). A pairing this room refused — or one that no
+ *  longer exists — answers removed before a byte; an unusable door is
+ *  typed; a damaged store throws for the caller to surface. */
+export async function roomDoorForCall(
+  roomLocalId?: string,
+): Promise<{ ok: true; value: RoomCallDoor } | { ok: false; error: RoomError }> {
+  let door: RemoteDoorConfig;
+  if (roomLocalId !== undefined) {
+    const record = await getPairing(roomLocalId);
+    if (record === null) {
+      // Nothing left to dial — a record a newer pairing superseded has no
+      // bearer to send anywhere, and reads like one the room refused.
+      return { ok: false, error: removedRoomError() };
+    }
+    door = doorConfigForPairing(record);
+  } else {
+    door = await getRemoteDoorConfig();
+  }
+  // §2: a record this room already refused stops sending its bearer —
+  // the 401 needs no round trip to be known.
+  if (door.pairing !== null && door.pairing.removed) {
+    return { ok: false, error: removedRoomError() };
+  }
+  const gate = remoteUrlGateError(door.url);
+  if (gate !== null) return { ok: false, error: { code: "door_unusable", message: gate } };
+  const token = await getRemoteDoorToken(door);
+  if (token === null && isNonLoopback(door.url)) {
+    return {
+      ok: false,
+      error: { code: "door_unusable", message: "remote_brain_token_required" },
+    };
+  }
+  return { ok: true, value: { door, localId: door.pairing?.localId ?? null, token } };
+}
+
 /** One route call: local bounds, door, bearer, road, request, status →
  *  typed result — plus the room-side effects a status owes (401 marks,
  *  a dead epoch is dropped). */
@@ -90,22 +145,9 @@ async function roomRequest(
     if (oversized !== null) return { result: refused(oversized), localId: null };
   }
   try {
-    const door = await getRemoteDoorConfig();
-    const localId = door.pairing?.localId ?? null;
-    // §2: a record this room already refused stops sending its bearer —
-    // the 401 needs no round trip to be known.
-    if (door.pairing !== null && door.pairing.removed) {
-      return { result: refused(removedRoomError()), localId };
-    }
-    const gate = remoteUrlGateError(door.url);
-    if (gate !== null) return { result: refused({ code: "door_unusable", message: gate }), localId };
-    const token = await getRemoteDoorToken(door);
-    if (token === null && isNonLoopback(door.url)) {
-      return {
-        result: refused({ code: "door_unusable", message: "remote_brain_token_required" }),
-        localId,
-      };
-    }
+    const resolved = await roomDoorForCall(options?.roomLocalId);
+    if (!resolved.ok) return { result: refused(resolved.error), localId: null };
+    const { door, localId, token } = resolved.value;
     const road = await establishDoorRoad(door, options?.signal);
     const fetcher = doorFetchFor(road);
     const url = joinRemoteApiUrl(door.url, path) + (query.length > 0 ? `?${query.join("&")}` : "");
@@ -113,8 +155,8 @@ async function roomRequest(
     if (encodedBody !== undefined) headers["Content-Type"] = "application/json";
     if (token !== null && canSendAuthorization(url)) headers.Authorization = `Bearer ${token}`;
     if (localId !== null) {
-      const epoch = roomEpochs.get(localId);
-      if (epoch !== undefined) headers["Kalsa-Room-Epoch"] = epoch;
+      const epoch = cachedRoomEpoch(localId);
+      if (epoch !== null) headers["Kalsa-Room-Epoch"] = epoch;
     }
     const response = await fetcher(url, {
       method,
@@ -128,7 +170,7 @@ async function roomRequest(
         // §2's mark: kept even though the refusal stands either way — the
         // record survives, only its bearer is retired for this room. The
         // epoch goes with it: a pairing nobody may call again sends nothing.
-        roomEpochs.delete(localId);
+        forgetRoomEpoch(localId);
         try {
           await markPairingRemoved(localId);
         } catch {
@@ -136,7 +178,7 @@ async function roomRequest(
         }
       }
       if (localId !== null && error.code === "epoch_changed") {
-        roomEpochs.delete(localId);
+        forgetRoomEpoch(localId);
       }
       return { result: refused(error), localId };
     }
@@ -179,12 +221,12 @@ export async function fetchRoomInfo(options?: RoomCallOptions): Promise<RoomResu
   const info = parseRoomInfo(result.value);
   if (info === null) return refused(malformedRoomResponse());
   if (localId !== null) {
-    roomEpochs.set(localId, info.epoch);
+    noteRoomEpoch(localId, info.epoch);
     try {
       const dropped = await bindPairingRoom(localId, info.roomId);
       // A record superseded while its epoch sat in the cache (this one or
       // an older one the bind lost the room to) never sends that epoch.
-      for (const superseded of dropped) roomEpochs.delete(superseded);
+      for (const superseded of dropped) forgetRoomEpoch(superseded);
     } catch {
       // The read stands; the map surfaces its own damage on its next access.
     }

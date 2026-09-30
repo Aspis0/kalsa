@@ -1,4 +1,5 @@
 import { getPairingCredential } from "../../pairing/pairingCredentialStore";
+import type { PairingRecord } from "../../pairing/pairingRecord";
 import { getRemoteBrainToken } from "./remoteSecret";
 import { getRemoteBrainUrl } from "./remoteSettings";
 import type { Road } from "../../remote/road";
@@ -20,16 +21,7 @@ export type RemoteDoorConfig = {
 /** A completed pairing owns its door, credential, node and pairing road as one indivisible choice. */
 export async function getRemoteDoorConfig(): Promise<RemoteDoorConfig> {
   const paired = await getPairingCredential();
-  if (paired) {
-    return {
-      url: paired.doorUrl,
-      pairedCredential: paired.credential,
-      node: paired.node,
-      pairedVia: paired.pairedVia,
-      source: "pairing",
-      pairing: { localId: paired.localId, removed: paired.removed === true },
-    };
-  }
+  if (paired) return doorConfigForPairing(paired);
   return {
     url: getRemoteBrainUrl(),
     pairedCredential: null,
@@ -37,6 +29,20 @@ export async function getRemoteDoorConfig(): Promise<RemoteDoorConfig> {
     pairedVia: null,
     source: "manual",
     pairing: null,
+  };
+}
+
+/** The same choice applied to ANY record, not just the active one — the
+ *  room client's per-room calls and the event stream build their door
+ *  from the record the request is for, captured in one read. */
+export function doorConfigForPairing(paired: PairingRecord): RemoteDoorConfig {
+  return {
+    url: paired.doorUrl,
+    pairedCredential: paired.credential,
+    node: paired.node,
+    pairedVia: paired.pairedVia,
+    source: "pairing",
+    pairing: { localId: paired.localId, removed: paired.removed === true },
   };
 }
 

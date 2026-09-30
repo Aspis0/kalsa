@@ -57,6 +57,10 @@ export type XhrLike = {
   setRequestHeader: (name: string, value: string) => void;
   send: (body?: string) => void;
   abort: () => void;
+  /** Response headers where the road has them: RN's XHR always did, and
+   *  the room stream reads Kalsa-Room-Epoch through it — chat never needed
+   *  it, so the member stays optional. */
+  getResponseHeader?: (name: string) => string | null;
   onreadystatechange: ((this: XhrLike) => void) | null;
   onprogress: ((this: XhrLike) => void) | null;
   onerror: ((this: XhrLike) => void) | null;
