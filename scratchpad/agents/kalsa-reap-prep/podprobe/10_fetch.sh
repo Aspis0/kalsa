@@ -52,7 +52,7 @@ assert_pinned "$QWEN35_2B_REPO" "$QWEN35_2B_SHA"
 [ -n "${HF_TOKEN:-}" ] || { echo "10: HF_TOKEN needed for the ship LFM pull" >&2; exit 2; }
 if [ ! -f "$MODELS/ship/LFM2.5-2.6B-QAD-Q4_0.gguf" ]; then
   "$HF" download "$HF_RESULTS_REPO" "ship/LFM2.5-2.6B-QAD-Q4_0.gguf" \
-    --repo-type dataset --local-dir "$MODELS/ship" >/dev/null
+    --repo-type dataset --local-dir "$MODELS" >/dev/null  # path_in_repo already carries ship/
 fi
 got=$(sha256sum "$MODELS/ship/LFM2.5-2.6B-QAD-Q4_0.gguf" | awk '{print $1}')
 [ "$got" = "$LFM_SHIP_SHA256" ] \

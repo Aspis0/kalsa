@@ -11,7 +11,14 @@ set -uo pipefail
 # shellcheck source=env.sh
 . "$(dirname "$0")/env.sh"
 
-token_cat() { cat "$SECRETS/hf_token" 2>/dev/null; }
+# SSH sessions do not inherit the container env: take the pod id and the
+# pod-scoped key from PID 1 when absent, or the money guard never arms.
+if [ -z "${RUNPOD_POD_ID:-}" ] && [ -r /proc/1/environ ]; then
+  eval "$(tr '\0' '\n' < /proc/1/environ | grep -E '^RUNPOD_(POD_ID|API_KEY)=' | sed 's/^/export /')"
+fi
+# nvcc lives outside the non-login PATH on the runpod/pytorch images
+export PATH="/usr/local/cuda/bin:$PATH"
+token_cat() { tr -d '\n\r' < "$SECRETS/hf_token" 2>/dev/null; }
 
 # Stop THIS pod: REST first, GraphQL podStop as fallback (the coordinator
 # could not tell which of the two acted on the test pod — keep both). Logs

@@ -194,7 +194,7 @@ the MCP is the path; adjust names to the MCP tool's fields):
 - GPU type: `NVIDIA L40` (48 GB; community cloud acceptable). RTX PRO 5000
   48 GB also fits every arm at ~$0.82/h — then set `PROBE_BUDGET_H=10.5`,
   `PROBE_HARD_STOP_H=11.5`.
-- Image: `runpod/pytorch:1.4.0-cu1290-torch271-ubuntu2204` — tag verified
+- Image: `runpod/pytorch:1.4.0-cu1281-torch271-ubuntu2204` — tag verified
   on Docker Hub 2026-09-30 (torch 2.7.1, CUDA 12.9; the previous
   `2.7.1-cuda12.8.0-…` tag does not exist).
 - Container disk: 40 GB · Volume: 200 GB mounted at `/workspace`.
