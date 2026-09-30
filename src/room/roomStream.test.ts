@@ -31,9 +31,11 @@ import {
   getPairingCredential,
   markPairingRemoved,
 } from "../pairing/pairingCredentialStore";
-import { FakeRoomXhr, installFakeRoomXhr } from "./fakeRoomXhr";
+import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
 import infoFixture from "./fixtures/info.json";
-import { openRoomStream, reconnectDelayMs, type RoomStreamEvent } from "./roomStream";
+import { noteRoomEpoch, resetRoomEpochs } from "./roomEpochs";
+import { reconnectDelayMs } from "./roomBackoff";
+import { openRoomStream, type RoomStreamEvent } from "./roomStream";
 
 const LOCAL_ID = "p-lid-stream";
 const EPOCH = "e-stream-1";
@@ -100,6 +102,7 @@ let randomSpy: jest.SpyInstance;
 beforeEach(() => {
   jest.useFakeTimers();
   installFakeRoomXhr();
+  resetRoomEpochs();
   jest.resetAllMocks();
   // After the reset: resetting a spy strips the implementation too.
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
@@ -184,6 +187,8 @@ test("a cut stream resumes from its last seq with the epoch — no gap, no dupli
 
   const delivered = events.filter((event) => event.type === "message");
   expect(delivered.map((event) => (event as { entry: { seq: number } }).entry.seq)).toEqual([1, 2, 3]);
+  // The cut was announced before the reconnect began (§7's UI cue).
+  expect(events).toContainEqual({ type: "disconnected" });
   // The reconnect fetched info once (§7) and told the listener (§7).
   expect(events.some((event) => event.type === "refetched")).toBe(true);
   const fetcher = (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mock.results[0]
@@ -192,24 +197,89 @@ test("a cut stream resumes from its last seq with the epoch — no gap, no dupli
   handle.close();
 });
 
-test("pings keep the stream alive; silence past twice the interval kills it and redials", async () => {
-  const handle = openRoomStream(LOCAL_ID, () => undefined);
+test("every ping — four virtual minutes of them — keeps the one wire alive; silence then kills it", async () => {
+  const events: RoomStreamEvent[] = [];
+  const handle = openRoomStream(LOCAL_ID, (event) => events.push(event));
   await settle();
   const first = FakeRoomXhr.latest();
   first.head(200, { "Kalsa-Room-Epoch": EPOCH });
   first.chunk(entryFrame("message", 1));
 
-  for (const at of [15_000, 15_000]) {
-    await jest.advanceTimersByTimeAsync(at);
+  // 16 pings at the door's 15 s interval: every one of them is a byte
+  // that must reset the dead-window — a healthy stream is never killed.
+  for (let ping = 0; ping < 16; ping += 1) {
+    await jest.advanceTimersByTimeAsync(15_000);
     first.chunk(": ping\n\n");
   }
   expect(FakeRoomXhr.instances).toHaveLength(1);
 
-  // 36 s of nothing past the last byte: the30 s window passes at a 5 s
-  // check, the dead wire closes, the backoff (pinned to 500 ms) redials.
+  // Now36 s of nothing: the30 s window passes at a 5 s check, the dead
+  // wire is cut with a disconnected event, the backoff redials.
   await jest.advanceTimersByTimeAsync(36_000);
   await settle();
-  expect(FakeRoomXhr.instances.length).toBe(2);
+  expect(FakeRoomXhr.instances).toHaveLength(2);
+  expect(events).toContainEqual({ type: "disconnected" });
+  handle.close();
+});
+
+test("the backoff restarts only on health — a delivered entry, never the bare head", async () => {
+  const handle = openRoomStream(LOCAL_ID, () => undefined);
+  await settle();
+
+  // Two quick cuts:500 ms (attempt 0), then 1000 ms (attempt 1) — the
+  // 2xx head in between resets nothing.
+  FakeRoomXhr.latest().head(200, { "Kalsa-Room-Epoch": EPOCH });
+  FakeRoomXhr.latest().end();
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(2);
+  FakeRoomXhr.latest().head(200, { "Kalsa-Room-Epoch": EPOCH });
+  FakeRoomXhr.latest().end();
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(2); // still waiting out the 1000 ms
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(3);
+
+  // A delivered entry earns a fresh backoff: the next cut is 500 ms again.
+  const third = FakeRoomXhr.latest();
+  third.head(200, { "Kalsa-Room-Epoch": EPOCH });
+  third.chunk(entryFrame("message", 1));
+  third.end();
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(4);
+  handle.close();
+});
+
+test("sixty seconds of a quiet-but-alive stream restarts the backoff too", async () => {
+  const handle = openRoomStream(LOCAL_ID, () => undefined);
+  await settle();
+
+  // Walk the backoff up to 2000 ms: two cuts (500, then 1000)…
+  FakeRoomXhr.latest().head(200, { "Kalsa-Room-Epoch": EPOCH });
+  FakeRoomXhr.latest().end();
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  FakeRoomXhr.latest().head(200, { "Kalsa-Room-Epoch": EPOCH });
+  FakeRoomXhr.latest().end();
+  await jest.advanceTimersByTimeAsync(1_000);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(3);
+
+  // …then a stream that just stays up, fed by pings, past the healthy
+  // window: its cut is answered at the floor again (500 ms, not 2000).
+  const third = FakeRoomXhr.latest();
+  third.head(200, { "Kalsa-Room-Epoch": EPOCH });
+  for (let ping = 0; ping < 5; ping += 1) {
+    await jest.advanceTimersByTimeAsync(15_000);
+    third.chunk(": ping\n\n");
+  }
+  third.end();
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(4);
   handle.close();
 });
 

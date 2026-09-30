@@ -26,7 +26,8 @@ import {
   markPairingRemoved,
 } from "../pairing/pairingCredentialStore";
 import { bindRoomStreamsToAppState, type AppStateSource } from "./roomAppState";
-import { FakeRoomXhr, installFakeRoomXhr } from "./fakeRoomXhr";
+import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
+import { resetRoomEpochs } from "./roomEpochs";
 import { subscribeRoomEvents } from "./roomSubscriptions";
 
 const EPOCH = "e-life-1";
@@ -69,6 +70,7 @@ let randomSpy: jest.SpyInstance;
 beforeEach(() => {
   jest.useFakeTimers();
   installFakeRoomXhr();
+  resetRoomEpochs();
   jest.resetAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
   (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockResolvedValue({

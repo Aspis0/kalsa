@@ -28,6 +28,12 @@ export type RoomEventsOutcome =
   | { kind: "failed" };
 
 export type RoomEventsHandlers = {
+  /** New bytes arrived — pings and comments included. This is the
+   *  stream's heartbeat: the dead-window is measured from here. */
+  onActivity: () => void;
+  /** The wire exists — delivered BEFORE send, so even a synchronous head
+   *  finds it already assigned. */
+  onWire: (wire: RoomEventsWire) => void;
   /** The 2xx head, with the epoch the response names (the door's
    *  `Kalsa-Room-Epoch`), null when the road gave no header. */
   onOpen: (epochHeader: string | null) => void;
@@ -77,12 +83,26 @@ export async function openRoomEvents(
     if (settled) return;
     const text = xhr.responseText ?? "";
     if (text.length <= consumed) return;
+    // Every growth of the body is a byte the door sent — a ping counts.
+    handlers.onActivity();
     const messages = parser.push(text.slice(consumed));
     consumed = text.length;
     for (const message of messages) {
       if (settled) return; // a handler may have closed us mid-batch
       handlers.onMessage(message);
     }
+  };
+
+  const handle: RoomEventsWire = {
+    close: () => {
+      if (settled) return;
+      settled = true;
+      try {
+        xhr.abort();
+      } catch {
+        // A transport that refuses to abort is still a closed wire to us.
+      }
+    },
   };
 
   xhr.open("GET", url);
@@ -117,17 +137,10 @@ export async function openRoomEvents(
   xhr.onerror = () => done({ kind: "failed" });
   xhr.ontimeout = () => done({ kind: "failed" });
   xhr.onabort = () => done({ kind: "failed" });
+  // The listener holds the wire before send(): a transport that reports
+  // its head synchronously must still find it assigned.
+  handlers.onWire(handle);
   xhr.send();
 
-  return {
-    close: () => {
-      if (settled) return;
-      settled = true;
-      try {
-        xhr.abort();
-      } catch {
-        // A transport that refuses to abort is still a closed wire to us.
-      }
-    },
-  };
+  return handle;
 }

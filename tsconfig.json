@@ -10,7 +10,8 @@
     "App.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.js"
+    "src/**/*.js",
+    "test-support/**/*.ts"
   ],
   "exclude": [
     "src/**/*.test.ts"

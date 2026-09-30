@@ -26,7 +26,9 @@ export type RoomFrameEvent =
   | { type: "ai_message"; entry: RoomHistoryMessage }
   | { type: "member"; member: RoomMemberEvent }
   | { type: "ai_status"; status: RoomAiStatus }
-  | { type: "ai_delta"; delta: RoomAiDelta };
+  /** One chunk, with the turn's assembly so far — the text a viewer
+   *  renders until ai_message replaces it with the final answer (§7). */
+  | { type: "ai_delta"; delta: RoomAiDelta; assembled: string };
 
 export type FrameVerdict =
   | { kind: "event"; event: RoomFrameEvent }
@@ -45,10 +47,18 @@ export type RoomFrameDispatch = {
   /** The history page's floor: every seq at or below it is a duplicate
    *  the replay would hand back anyway. */
   setFloor(messages: readonly RoomHistoryMessage[]): void;
+  /** Drop the partial answer: a reconnect or resync starts the
+   *  assembly over — whatever survives, the next ai_status and
+   *  ai_message will say (§7). */
+  discardAssembly(): void;
 };
 
 export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch {
   let lastSeq = 0;
+  /** The one turn answering right now: chunk id → text so far. One turn
+   *  streams at a time (§7), so a single slot is the whole assembly —
+   *  a chunk from another turn starts it fresh, never appends. */
+  let assembly: { turn: number | undefined; text: string } | null = null;
 
   const parseJson = (data: string): unknown => {
     try {
@@ -68,6 +78,9 @@ export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch 
         if (cached === null) noteRoomEpoch(roomLocalId, entry.epoch);
         if (entry.seq <= lastSeq) return { kind: "skip" };
         lastSeq = entry.seq;
+        // The final text replaces the assembly — for its turn, and for
+        // any partial a stopped turn left behind (§7).
+        if (message.event === "ai_message") assembly = null;
         return { kind: "event", event: { type: message.event, entry } };
       }
       if (message.event === "member") {
@@ -80,13 +93,22 @@ export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch 
       }
       if (message.event === "ai_delta") {
         const delta = parseRoomAiDelta(parseJson(message.data));
-        return delta === null ? { kind: "skip" } : { kind: "event", event: { type: "ai_delta", delta } };
+        if (delta === null) return { kind: "skip" };
+        if (assembly !== null && (delta.turn === undefined || assembly.turn === delta.turn)) {
+          assembly = { turn: assembly.turn, text: assembly.text + delta.text };
+        } else {
+          assembly = { turn: delta.turn, text: delta.text };
+        }
+        return { kind: "event", event: { type: "ai_delta", delta, assembled: assembly.text } };
       }
       return { kind: "skip" };
     },
     resumeFrom: () => lastSeq,
     setFloor: (messages) => {
       lastSeq = messages.reduce((max, entry) => Math.max(max, entry.seq), 0);
+    },
+    discardAssembly: () => {
+      assembly = null;
     },
   };
 }

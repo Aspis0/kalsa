@@ -24,7 +24,8 @@ import {
   getPairingCredential,
   markPairingRemoved,
 } from "../pairing/pairingCredentialStore";
-import { FakeRoomXhr, installFakeRoomXhr } from "./fakeRoomXhr";
+import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
+import { resetRoomEpochs } from "./roomEpochs";
 import { pauseRoomStreams, resumeRoomStreams, subscribeRoomEvents } from "./roomSubscriptions";
 import type { RoomStreamEvent } from "./roomStream";
 
@@ -52,19 +53,21 @@ let randomSpy: jest.SpyInstance;
 beforeEach(() => {
   jest.useFakeTimers();
   installFakeRoomXhr();
+  resetRoomEpochs();
   jest.resetAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
   (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockResolvedValue({
     road: "https",
   });
-  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue({
-    localId: "p-lid-subs",
+  // Every room's own record, as the store would answer for its local id.
+  (getPairing as jest.MockedFunction<typeof getPairing>).mockImplementation(async (localId) => ({
+    localId,
     credential: "ab".repeat(32),
     doorUrl: "https://desk.example",
     node: null,
     pairedVia: null,
     roomId: null,
-  });
+  }));
   (getPairingCredential as jest.MockedFunction<typeof getPairingCredential>).mockResolvedValue(null);
   (bindPairingRoom as jest.MockedFunction<typeof bindPairingRoom>).mockResolvedValue([]);
   (markPairingRemoved as jest.MockedFunction<typeof markPairingRemoved>).mockResolvedValue(
@@ -126,4 +129,32 @@ test("pause closes the wire and its timers; resume redials from the seq it saw",
   expect(redial.requestHeaders["Last-Event-ID"]).toBe("1");
   expect(redial.requestHeaders["Kalsa-Room-Epoch"]).toBe(EPOCH);
   leave();
+});
+
+test("only one room streams at a time: the room on screen wins the device's seat", async () => {
+  const onScreen: RoomStreamEvent[] = [];
+  const previous: RoomStreamEvent[] = [];
+  const leavePrevious = subscribeRoomEvents("p-lid-previous", (event) => previous.push(event));
+  await settle();
+  const previousWire = FakeRoomXhr.latest();
+  previousWire.head(200, { "Kalsa-Room-Epoch": EPOCH });
+  previousWire.chunk(entryFrame(1));
+  expect(previous.filter((event) => event.type === "message")).toHaveLength(1);
+
+  const leaveOnScreen = subscribeRoomEvents("p-lid-subs", (event) => onScreen.push(event));
+  // The door retires the oldest of its two seats silently — we close
+  // ours first, so the cap never decides for us.
+  expect(previousWire.aborted).toBe(true);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(2);
+  const onScreenWire = FakeRoomXhr.latest();
+  onScreenWire.head(200, { "Kalsa-Room-Epoch": EPOCH });
+  onScreenWire.chunk(entryFrame(2));
+
+  expect(onScreen.filter((event) => event.type === "message")).toHaveLength(1);
+  expect(previous.filter((event) => event.type === "message")).toHaveLength(1); // nothing after the cut
+
+  leavePrevious(); // its entry is already gone: a no-op, never a second cut
+  leaveOnScreen();
+  expect(onScreenWire.aborted).toBe(true);
 });

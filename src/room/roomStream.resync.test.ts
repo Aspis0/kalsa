@@ -1,15 +1,14 @@
 /**
- * What the stream does with the room's verdicts: a response epoch that
- * disagrees with the cache, a 409 epoch_changed, a 400 bad_cursor and a
- * live entry from another epoch all mean one thing — resync (drop the
- * epoch, refetch info + history, reopen on the new floor); a401 marks
- * the pairing removed and ends the stream for good; a record that is
- * gone or already refused never dials at all.
+ * The resync half of the stream's verdicts: a response epoch that
+ * disagrees with the cache, a 409 epoch_changed, a 400 bad_cursor, an
+ * entry from another epoch — all one resync (drop the epoch, refetch
+ * info + history, reopen on the page's floor), every round through the
+ * backoff, and three fruitless rounds the end of the session.
  *
  * Frame and status shapes: the numbered frame from stream.rs:316-324,
  * the head/epoch header from stream.rs:232-237, and §9's error bodies —
  * epoch_changed (mod.rs:126-127), bad_cursor (mod.rs:77 via
- * stream.rs:136), 401 an empty body (§1).
+ * stream.rs:136).
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
 jest.mock("../pairing/pairingCredentialStore", () => ({
@@ -31,9 +30,9 @@ import {
   getPairingCredential,
   markPairingRemoved,
 } from "../pairing/pairingCredentialStore";
-import { FakeRoomXhr, installFakeRoomXhr } from "./fakeRoomXhr";
+import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
 import infoFixture from "./fixtures/info.json";
-import { noteRoomEpoch } from "./roomEpochs";
+import { noteRoomEpoch, resetRoomEpochs } from "./roomEpochs";
 import { openRoomStream, type RoomStreamEvent } from "./roomStream";
 
 const CREDENTIAL = "ab".repeat(32);
@@ -55,7 +54,11 @@ function pairingRecord(localId: string, extra: Partial<NonNullable<RecordOf>> = 
 }
 
 function entryFrame(seq: number, epoch: string): string {
-  const entry = {
+  return `id: ${seq}\nevent: message\ndata: ${JSON.stringify(entryPayload(seq, epoch))}\n\n`;
+}
+
+function entryPayload(seq: number, epoch: string) {
+  return {
     seq,
     epoch,
     member_id: 3,
@@ -64,7 +67,6 @@ function entryFrame(seq: number, epoch: string): string {
     text: `m${seq}`,
     call_ai: false,
   };
-  return `id: ${seq}\nevent: message\ndata: ${JSON.stringify(entry)}\n\n`;
 }
 
 function errorBody(code: string, message: string): string {
@@ -81,7 +83,10 @@ function serveRefetch(epoch: string, pageFloor: number): jest.Mock {
     json: async () => {
       if (url.includes("/history")) {
         return {
-          messages: pageFloor === 0 ? [] : [entryFramePayload(pageFloor - 1, epoch), entryFramePayload(pageFloor, epoch)],
+          messages:
+            pageFloor === 0
+              ? []
+              : [entryPayload(pageFloor - 1, epoch), entryPayload(pageFloor, epoch)],
           has_older: pageFloor > 0,
           has_newer: false,
         };
@@ -93,18 +98,6 @@ function serveRefetch(epoch: string, pageFloor: number): jest.Mock {
   return fetcher;
 }
 
-function entryFramePayload(seq: number, epoch: string) {
-  return {
-    seq,
-    epoch,
-    member_id: 3,
-    name: "Marco",
-    time: 1791000000 + seq,
-    text: `m${seq}`,
-    call_ai: false,
-  };
-}
-
 async function settle(): Promise<void> {
   for (let i = 0; i < 30; i += 1) await Promise.resolve();
 }
@@ -114,6 +107,7 @@ let randomSpy: jest.SpyInstance;
 beforeEach(() => {
   jest.useFakeTimers();
   installFakeRoomXhr();
+  resetRoomEpochs();
   jest.resetAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
   (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockResolvedValue({
@@ -146,6 +140,8 @@ test("a response epoch the cache disagrees with: resync, then reopen on the new 
   const first = FakeRoomXhr.latest();
   expect(first.requestHeaders["Kalsa-Room-Epoch"]).toBe(EPOCH_ONE);
   first.head(200, { "Kalsa-Room-Epoch": EPOCH_TWO });
+  // The resync itself comes back through the backoff — never hot.
+  await jest.advanceTimersByTimeAsync(500);
   await settle();
 
   expect(first.aborted).toBe(true);
@@ -159,7 +155,7 @@ test("a response epoch the cache disagrees with: resync, then reopen on the new 
   handle.close();
 });
 
-test("409 epoch_changed is the same resync: refetch, reopen, no backoff wait", async () => {
+test("409 epoch_changed is the same resync: refetch and reopen through the backoff", async () => {
   const localId = "p-lid-409";
   (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(pairingRecord(localId));
   serveRefetch(EPOCH_TWO, 42);
@@ -171,7 +167,8 @@ test("409 epoch_changed is the same resync: refetch, reopen, no backoff wait", a
   first.head(409);
   first.chunk(errorBody("epoch_changed", "The room's transcript restarted; drop what was cached and read it again."));
   first.end();
-  await settle(); // cycle runs at once: the door already answered
+  await jest.advanceTimersByTimeAsync(500); // one backoff round, then the refetch
+  await settle();
 
   expect(events.filter((event) => event.type === "resynced")).toHaveLength(1);
   const second = FakeRoomXhr.latest();
@@ -194,6 +191,7 @@ test("400 bad_cursor resyncs too — the floor drops to the page's newest seq", 
   first.head(400);
   first.chunk(errorBody("bad_cursor", "The room resumes from a numeric Last-Event-ID."));
   first.end();
+  await jest.advanceTimersByTimeAsync(500);
   await settle();
 
   expect(events.filter((event) => event.type === "resynced")).toHaveLength(1);
@@ -216,6 +214,7 @@ test("an entry from another epoch under a live stream resyncs mid-flight", async
   first.head(200, { "Kalsa-Room-Epoch": EPOCH_ONE });
   first.chunk(entryFrame(1, EPOCH_ONE));
   first.chunk(entryFrame(2, EPOCH_TWO)); // a recovery ran while we watched
+  await jest.advanceTimersByTimeAsync(500);
   await settle();
 
   expect(events.filter((event) => event.type === "message")).toHaveLength(1);
@@ -224,50 +223,40 @@ test("an entry from another epoch under a live stream resyncs mid-flight", async
   handle.close();
 });
 
-test("401 marks the pairing removed, tells the listener, and never redials", async () => {
-  const localId = "p-lid-401";
+test("three fruitless resyncs in a row stop the session with a typed error", async () => {
+  const localId = "p-lid-loop";
   (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(pairingRecord(localId));
-  serveRefetch(EPOCH_ONE, 0);
-  noteRoomEpoch(localId, EPOCH_ONE);
+  serveRefetch(EPOCH_ONE, 42);
   const events: RoomStreamEvent[] = [];
   const handle = openRoomStream(localId, (event) => events.push(event));
   await settle();
 
-  const first = FakeRoomXhr.latest();
-  first.head(401); // the door's refusal is an empty body (§1)
-  first.end();
+  // The door 409s every attempt: each round waits out a longer backoff
+  // (500, 1000, 2000 ms with the jitter pinned) before it may refetch.
+  const refuseWith409 = (xhr: FakeRoomXhr) => {
+    xhr.head(409);
+    xhr.chunk(errorBody("epoch_changed", "The room's transcript restarted; drop what was cached and read it again."));
+    xhr.end();
+  };
+  refuseWith409(FakeRoomXhr.latest());
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  refuseWith409(FakeRoomXhr.latest());
+  await jest.advanceTimersByTimeAsync(1_000);
+  await settle();
+  refuseWith409(FakeRoomXhr.latest());
+  await jest.advanceTimersByTimeAsync(2_000);
   await settle();
 
-  expect(markPairingRemoved).toHaveBeenCalledWith(localId);
-  expect(events).toEqual([{ type: "removed" }]);
+  expect(events.filter((event) => event.type === "resynced")).toHaveLength(2);
+  expect(events[events.length - 1]).toEqual({
+    type: "error",
+    code: "resync_failed",
+    message: "The room could not be resynced after 3 attempts.",
+  });
+  expect(FakeRoomXhr.instances).toHaveLength(3);
   await jest.advanceTimersByTimeAsync(120_000);
-  expect(FakeRoomXhr.instances).toHaveLength(1);
-  handle.close();
-});
-
-test("a record the store no longer holds is removed without ever dialling", async () => {
-  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(null);
-  const events: RoomStreamEvent[] = [];
-
-  const handle = openRoomStream("p-lid-gone", (event) => events.push(event));
   await settle();
-
-  expect(events).toEqual([{ type: "removed" }]);
-  expect(FakeRoomXhr.instances).toHaveLength(0);
-  expect(establishDoorRoad).not.toHaveBeenCalled();
-  handle.close();
-});
-
-test("a record this room already refused is removed without ever dialling", async () => {
-  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(
-    pairingRecord("p-lid-refused", { removed: true }),
-  );
-  const events: RoomStreamEvent[] = [];
-
-  const handle = openRoomStream("p-lid-refused", (event) => events.push(event));
-  await settle();
-
-  expect(events).toEqual([{ type: "removed" }]);
-  expect(FakeRoomXhr.instances).toHaveLength(0);
+  expect(FakeRoomXhr.instances).toHaveLength(3); // stopped: no fourth dial
   handle.close();
 });

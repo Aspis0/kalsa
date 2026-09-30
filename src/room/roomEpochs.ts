@@ -21,3 +21,8 @@ export function cachedRoomEpoch(localId: string): string | null {
 export function forgetRoomEpoch(localId: string): void {
   epochs.delete(localId);
 }
+
+/** Test seam: a case that cares about the cache starts with none. */
+export function resetRoomEpochs(): void {
+  epochs.clear();
+}

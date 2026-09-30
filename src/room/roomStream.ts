@@ -1,25 +1,30 @@
 /**
  * One room's live stream as a state machine: connect over the wire,
- * hand frames to the dispatch that dedupes them, resume with
- * Last-Event-ID and the cached epoch, and decide what every ending
- * means — capped backoff with jitter when the door is unreachable, one
- * resync (drop the epoch, refetch info + history, reopen) when the
- * cursor or epoch is dead, and stop for good on401. One wire at a time:
- * a reconnect closes the old before the new opens, so the door's
- * per-device seat cap is never raced.
+ * hand frames to the dispatch that dedupes and assembles them, resume
+ * with Last-Event-ID and the cached epoch, and decide what every ending
+ * means — capped backoff with jitter when the door is unreachable, a
+ * resync through that same backoff when the cursor or epoch is dead
+ * (three fruitless resyncs in a row are the end), and stop for good on
+ * 401 or 404. One wire at a time: a reconnect closes the old before the
+ * new opens, so the door's per-device seat cap is never raced. The
+ * backoff restarts only after a healthy stream — up a minute, or an
+ * entry delivered — never on the bare head.
  *
  * Privacy: this module logs nothing — never message text, a name, or the
  * bearer. Its output is the typed events a listener receives.
  */
 import { markPairingRemoved } from "../pairing/pairingCredentialStore";
 import { isPairingStoreDamaged } from "../pairing/pairingMap";
-import { fetchRoomHistory, fetchRoomInfo, roomDoorForCall } from "./roomApi";
+import { roomDoorForCall } from "./roomApi";
 import { cachedRoomEpoch, forgetRoomEpoch, noteRoomEpoch } from "./roomEpochs";
-import { roomErrorFromResponse, type RoomError } from "./roomError";
+import type { RoomError } from "./roomError";
+import { reconnectDelayMs } from "./roomBackoff";
+import { createRoomFrameDispatch, type RoomFrameEvent } from "./roomStreamDispatch";
+import { refetchInfo, refetchResync } from "./roomStreamRefetch";
 import {
-  createRoomFrameDispatch,
-  type RoomFrameEvent,
-} from "./roomStreamDispatch";
+  roomStreamStatusAction,
+  type RoomStreamStopCode,
+} from "./roomStreamStatus";
 import {
   openRoomEvents,
   type RoomEventsOutcome,
@@ -32,16 +37,10 @@ import type { RoomHistoryPage, RoomInfo } from "./roomWire";
  *  — ping included — means the stream is dead, not quiet. */
 const PING_TIMEOUT_MS = 30_000;
 const IDLE_CHECK_MS = 5_000;
-const BACKOFF_BASE_MS = 1_000;
-const BACKOFF_CAP_MS = 30_000;
-
-/** Capped exponential backoff with half-jitter: attempt 0 lands in
- *  [500, 1000) ms, and no attempt exceeds the cap. */
-export function reconnectDelayMs(attempt: number): number {
-  const growth = BACKOFF_BASE_MS * 2 ** Math.min(Math.max(attempt, 0), 16);
-  const capped = Math.min(BACKOFF_CAP_MS, growth);
-  return Math.floor(capped / 2 + Math.random() * (capped / 2));
-}
+/** Up this long, or an entry delivered, earns a fresh backoff. */
+const HEALTHY_STREAM_MS = 60_000;
+/** Resyncs with no numbered entry between them before the session gives up. */
+const MAX_CONSECUTIVE_RESYNC = 3;
 
 export type RoomStreamEvent =
   | RoomFrameEvent
@@ -52,7 +51,12 @@ export type RoomStreamEvent =
    *  is the transcript's new floor. */
   | { type: "resynced"; info: RoomInfo; history: RoomHistoryPage }
   /** The room refused this pairing: the stream is over for good. */
-  | { type: "removed" };
+  | { type: "removed" }
+  /** The open wire ended — the door cut it or the transport failed — and
+   *  a reconnect follows; the UI's cue to say so. */
+  | { type: "disconnected" }
+  /** A terminal stop with no retry behind it. */
+  | { type: "error"; code: RoomStreamStopCode; message: string };
 
 export type RoomStreamHandle = {
   /** Background: close the wire and the timers, keep the resume state. */
@@ -71,16 +75,19 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
   let paused = false;
   /** Bumped whenever the session moves on: stale callbacks check it. */
   let generation = 0;
+  let cycling = false;
   let wire: RoomEventsWire | null = null;
   let dial: AbortController | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let idleTimer: ReturnType<typeof setInterval> | null = null;
   let attempt = 0;
   let needsResync = false;
+  let resyncStreak = 0;
   /** The next open's info is already the resync's; it needs no refetch. */
   let infoFresh = false;
   let everConnected = false;
   let lastByteAt = 0;
+  let connectedSince: number | null = null;
 
   const emit = (event: RoomStreamEvent): void => {
     try {
@@ -113,6 +120,7 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
     dial = null;
     dropWire();
     clearReconnect();
+    connectedSince = null;
     if (idleTimer !== null) {
       clearInterval(idleTimer);
       idleTimer = null;
@@ -150,78 +158,99 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
     }, delay);
   };
 
+  /** A dead epoch or cursor: forget it (an epoch guard would refuse the
+   *  refetch itself), drop any waiting timer, and come back through the
+   *  backoff — a persistent409 must never hot-loop. */
   const beginResync = (): void => {
-    // The cache (or the cursor) is dead before the refetch starts (§7).
     needsResync = true;
     forgetRoomEpoch(roomLocalId);
     dropWire();
-    void cycle();
+    clearReconnect();
+    scheduleReconnect();
   };
 
   const handleStatus = (outcome: Extract<RoomEventsOutcome, { kind: "status" }>): void => {
-    let body: unknown = null;
-    try {
-      body = outcome.body === "" ? null : JSON.parse(outcome.body);
-    } catch {
-      body = null;
-    }
-    const error = roomErrorFromResponse(outcome.status, body);
-    if (error.code === "removed") return refuse(error);
-    if (error.code === "epoch_changed" || error.code === "bad_cursor") {
-      needsResync = true;
-      if (error.code === "epoch_changed") forgetRoomEpoch(roomLocalId);
-      void cycle();
+    const action = roomStreamStatusAction(outcome.status, outcome.body);
+    if (action.kind === "removed") return refuse(action.error);
+    if (action.kind === "stop") {
+      stop();
+      emit({ type: "error", code: action.code, message: action.message });
       return;
     }
+    if (action.kind === "resync") {
+      if (action.forgetEpoch) forgetRoomEpoch(roomLocalId);
+      return beginResync();
+    }
+    // A retry: through the backoff, never hot — and any timer a previous
+    // ending left behind is replaced, not raced.
+    clearReconnect();
     scheduleReconnect();
   };
 
   /** §7's resync: one info and one history page rebuild the floor before
-   *  the stream reopens. False = something else already decided what
-   *  happens next (a refusal, a backoff, a stale generation). */
+   *  the stream reopens — through the backoff, counted, and stopped
+   *  after MAX_CONSECUTIVE_RESYNC fruitless rounds. False = something
+   *  else already decided what happens next. */
   const runResync = async (gen: number): Promise<boolean> => {
-    const info = await fetchRoomInfo({ roomLocalId });
+    const outcome = await refetchResync(roomLocalId);
     if (!ready(gen)) return false;
-    if (!info.ok) {
-      if (info.error.code === "removed") refuse(info.error);
-      else scheduleReconnect();
+    if (outcome.kind === "refused") {
+      refuse(outcome.error);
       return false;
     }
-    const history = await fetchRoomHistory({}, { roomLocalId });
-    if (!ready(gen)) return false;
-    if (!history.ok) {
-      if (history.error.code === "removed") refuse(history.error);
-      else scheduleReconnect(); // needsResync stands: the retry redoes both
+    if (outcome.kind === "retry") {
+      // needsResync stands: the next round redoes both fetches.
+      scheduleReconnect();
+      return false;
+    }
+    resyncStreak += 1;
+    if (resyncStreak >= MAX_CONSECUTIVE_RESYNC) {
+      stop();
+      emit({
+        type: "error",
+        code: "resync_failed",
+        message: `The room could not be resynced after ${MAX_CONSECUTIVE_RESYNC} attempts.`,
+      });
       return false;
     }
     needsResync = false;
     // Every resync trigger invalidates the old floor — a dead epoch's
     // seqs or a cursor that claimed past the end — so the page's own
     // newest seq is the only thing worth resuming after.
-    frames.setFloor(history.value.messages);
-    attempt = 0;
+    frames.setFloor(outcome.value.history.messages);
     infoFresh = true;
-    emit({ type: "resynced", info: info.value, history: history.value });
+    emit({ type: "resynced", info: outcome.value.info, history: outcome.value.history });
     return true;
   };
 
   /** The reconnect's one info call (§7) — the stream stands even if the
    *  refetch fails; only the room's refusal stops it. */
   const refreshInfo = async (gen: number): Promise<void> => {
-    const info = await fetchRoomInfo({ roomLocalId });
+    const outcome = await refetchInfo(roomLocalId);
     if (!ready(gen)) return;
-    if (!info.ok) {
-      if (info.error.code === "removed") refuse(info.error);
+    if (outcome.kind === "refused") {
+      refuse(outcome.error);
       return;
     }
-    emit({ type: "refetched", info: info.value });
+    if (outcome.kind === "done") emit({ type: "refetched", info: outcome.value });
   };
 
   const handlersFor = (gen: number): RoomEventsHandlers => ({
+    onActivity: () => {
+      if (ready(gen)) lastByteAt = Date.now();
+    },
+    onWire: (opened) => {
+      if (!ready(gen)) return;
+      wire = opened;
+      lastByteAt = Date.now();
+    },
     onOpen: (epochHeader) => {
       if (!ready(gen)) return;
-      attempt = 0;
+      connectedSince = Date.now();
       lastByteAt = Date.now();
+      // A reconnect starts the partial answer over: whatever survives, the
+      // first ai_status and the next ai_message will say (§7).
+      frames.discardAssembly();
       const cached = cachedRoomEpoch(roomLocalId);
       if (epochHeader !== null) {
         if (cached !== null && cached !== epochHeader) return beginResync();
@@ -234,22 +263,35 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
     onMessage: (message) => {
       if (!ready(gen)) return;
       const verdict = frames.dispatch(message);
-      if (verdict.kind === "event") emit(verdict.event);
-      else if (verdict.kind === "epoch_died") beginResync();
+      if (verdict.kind === "event") {
+        if (verdict.event.type === "message" || verdict.event.type === "ai_message") {
+          // A delivered entry is the health that earns a fresh backoff,
+          // and it ends any run of fruitless resyncs.
+          attempt = 0;
+          resyncStreak = 0;
+        }
+        emit(verdict.event);
+      } else if (verdict.kind === "epoch_died") {
+        beginResync();
+      }
     },
     onDone: (outcome) => {
       if (!ready(gen)) return;
       wire = null;
+      connectedSince = null;
       if (outcome.kind === "status") return handleStatus(outcome);
+      // The open wire ended — the door cut it or the transport failed.
+      emit({ type: "disconnected" });
       scheduleReconnect();
     },
   });
 
   const cycle = async (): Promise<void> => {
-    if (closed || paused) return;
-    const gen = ++generation;
-    dial = new AbortController();
+    if (cycling || closed || paused) return;
+    cycling = true;
     try {
+      const gen = ++generation;
+      dial = new AbortController();
       if (needsResync && !(await runResync(gen))) return;
       if (!ready(gen)) return;
       const resolved = await roomDoorForCall(roomLocalId);
@@ -265,31 +307,33 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
         },
         handlersFor(gen),
       );
-      if (!ready(gen)) {
-        opened.close();
-        return;
-      }
-      wire = opened;
-      lastByteAt = Date.now();
+      if (!ready(gen)) opened.close();
     } catch (error) {
-      if (!ready(gen)) return;
       // A store the user must repair, not a network the next dial can win:
       // retrying would read a known-damaged map every backoff window.
       if (isPairingStoreDamaged(error)) {
         stop();
-        return;
+      } else if (!closed && !paused) {
+        scheduleReconnect();
       }
-      scheduleReconnect();
+    } finally {
+      cycling = false;
     }
   };
 
   const startIdleWatch = (): void => {
     if (idleTimer !== null) return;
     idleTimer = setInterval(() => {
-      if (closed || paused || wire === null) return;
+      if (closed || paused) return;
+      if (wire !== null && connectedSince !== null && Date.now() - connectedSince >= HEALTHY_STREAM_MS) {
+        connectedSince = null;
+        attempt = 0; // up this long: the next cut restarts the backoff
+      }
+      if (wire === null) return;
       if (Date.now() - lastByteAt <= PING_TIMEOUT_MS) return;
       // Nothing — ping included — for twice the door's interval: dead.
       dropWire();
+      emit({ type: "disconnected" });
       scheduleReconnect();
     }, IDLE_CHECK_MS);
   };

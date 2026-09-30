@@ -4,7 +4,7 @@
  * same callbacks RN's XHR fires: head (status + headers), body chunks,
  * refusal, cut.
  */
-import type { XhrLike } from "../engine/remote/openaiTransport";
+import type { XhrLike } from "../src/engine/remote/openaiTransport";
 
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;

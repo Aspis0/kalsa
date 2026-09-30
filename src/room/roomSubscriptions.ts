@@ -16,10 +16,18 @@ type Entry = {
 
 const entries = new Map<string, Entry>();
 
-/** Listen to a room's stream. The same room never opens a second wire:
- *  the events fan out to every listener, and the returned function
- *  leaves the last listener holding the door. */
+/** Listen to a room's stream — and only that room's: the door allows
+ *  two streams per device and silently retires the oldest, so this app
+ *  keeps at most one live stream (the room on screen); every other room
+ *  refreshes through info/history when it is opened. The same room
+ *  shares its one wire across listeners, and the returned function
+ *  leaves the last listener holding it. */
 export function subscribeRoomEvents(roomLocalId: string, listener: Listener): () => void {
+  for (const [otherRoom, entry] of [...entries]) {
+    if (otherRoom === roomLocalId) continue;
+    entry.handle.close();
+    entries.delete(otherRoom);
+  }
   let entry = entries.get(roomLocalId);
   if (entry === undefined) {
     const listeners = new Set<Listener>([listener]);
