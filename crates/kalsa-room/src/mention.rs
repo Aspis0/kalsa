@@ -17,19 +17,25 @@ fn is_mark(c: char) -> bool {
 }
 
 pub fn calls_ai(text: &str) -> bool {
+    calls_ai_at(text).is_some()
+}
+
+/// The same rule, answering with the byte index of the token it matched —
+/// the caller that highlights the call needs where, not whether.
+pub fn calls_ai_at(text: &str) -> Option<usize> {
     const WORD: [char; 5] = ['k', 'a', 'l', 's', 'a'];
     let chars: Vec<char> = text.chars().collect();
-    (0..chars.len()).any(|start| {
+    (0..chars.len()).find_map(|start| {
         let end = start + 6;
         if end > chars.len() || chars[start] != '@' {
-            return false;
+            return None;
         }
         if chars[start + 1..end]
             .iter()
             .zip(WORD)
             .any(|(c, letter)| c.to_ascii_lowercase() != letter)
         {
-            return false;
+            return None;
         }
         // Marks bind to the base they follow: walk past them to the
         // character the boundary rule is actually about.
@@ -40,7 +46,7 @@ pub fn calls_ai(text: &str) -> bool {
         let before_ok = before == 0 || !blocks_before(chars[before - 1]);
         let after_ok = chars.get(end).is_none_or(|c| !blocks_after(*c));
         let after_ok = after_ok && chars.get(end).is_none_or(|c| !is_mark(*c));
-        before_ok && after_ok
+        (before_ok && after_ok).then_some(start)
     })
 }
 

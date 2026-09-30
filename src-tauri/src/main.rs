@@ -105,8 +105,9 @@ struct Brain {
     /// honest sentence instead of a room that pretends.
     room: OnceLock<Arc<kalsa_room::Room>>,
     /// The room's event feed stop flag, set by the app's exit path so the
-    /// follower thread ends with the window it feeds.
-    room_events: OnceLock<Arc<std::sync::atomic::AtomicBool>>,
+    /// follower thread ends with the window it feeds. Under a mutex so a
+    /// second spawn attempt walks away instead of doubling the feed.
+    room_events: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
     /// How many Turn offs the owner has asked for. A walk captures it at its
     /// start and re-checks it before each start it makes: a stop taken
     /// mid-walk is never undone by the launch that follows.
@@ -320,7 +321,7 @@ impl Brain {
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
             room: OnceLock::new(),
-            room_events: OnceLock::new(),
+            room_events: Mutex::new(None),
         }
     }
 

@@ -15,15 +15,17 @@ pub fn host_post(
     client_msg_id: &str,
     text: &str,
     call_ai: bool,
-) -> Result<Entry, String> {
+) -> Result<Entry, kalsa_room::PostError> {
     room.post(kalsa_room::MemberId::Host, client_msg_id, text, call_ai)
-        .map_err(|error| error.to_string())
 }
 
 /// The host's own display name — the one path that sets it. Phones reach
 /// theirs through the door; the host is on this computer.
-pub fn set_host_display_name(room: &Room, name: &str) -> Result<String, String> {
-    room.set_host_name(name).map_err(|error| error.to_string())
+pub fn set_host_display_name(
+    room: &Room,
+    name: &str,
+) -> Result<String, kalsa_room::NameError> {
+    room.set_host_name(name)
 }
 
 /// The owner's forget, applied to the room the moment the button is
@@ -224,6 +226,9 @@ pub struct RoomAiDto {
 
 #[derive(Serialize)]
 pub struct RoomInfoDto {
+    /// The transcript's epoch (ROOM-PROTOCOL.md §7): the page keeps it and
+    /// replaces — never merges — what it holds when it moves.
+    pub epoch: String,
     /// The room could not be opened on this computer. The page shows its
     /// one quiet sentence and nothing else; there is nothing to fix here.
     pub open: bool,
@@ -247,48 +252,52 @@ pub struct RoomEntryDto {
     /// The AI's own answer carries how many of the room's messages it
     /// read; `None` on everyone else's.
     pub read: Option<u32>,
-    /// The id the sender minted, echoed so the page can match its own
-    /// optimistic message to the landed one.
-    pub client_msg_id: String,
 }
 
 /// The pairing store's device labels, for the display names the room
-/// itself does not hold. Read per command: the store is the labels' home
-/// and the page refreshes anyway.
-fn device_labels(desk: &crate::Desk) -> HashMap<u32, String> {
-    kalsa_pairing::store::load_devices(&desk.pairing_file)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|device| (device.id, device.label))
-        .collect()
+/// itself does not hold, plus the host's own label read from the Host
+/// record — the fallback for the host's name must be THIS computer's, not
+/// whichever phone a hash map happens to hand back first. Read per
+/// command: the store is the labels' home and the page refreshes anyway.
+struct Labels {
+    by_device: HashMap<u32, String>,
+    host: String,
+}
+
+fn device_labels(desk: &crate::Desk) -> Labels {
+    let stored = kalsa_pairing::store::load_devices(&desk.pairing_file).unwrap_or_default();
+    let host = stored
+        .iter()
+        .find(|device| device.kind == DeviceKind::Host)
+        .map(|device| device.label.clone())
+        .unwrap_or_else(|| "This computer".to_string());
+    Labels {
+        by_device: stored
+            .into_iter()
+            .map(|device| (device.id, device.label))
+            .collect(),
+        host,
+    }
 }
 
 /// The display name and the former mark for one member — the host, a
 /// phone, or the AI. A former member without a stored name is shown as
 /// the doc's fallback: the label went with the device.
-fn display_name(
-    room: &Room,
-    labels: &HashMap<u32, String>,
-    member: kalsa_room::MemberId,
-) -> String {
+fn display_name(room: &Room, labels: &Labels, member: kalsa_room::MemberId) -> String {
     match member {
         kalsa_room::MemberId::Ai => "Kalsa".to_string(),
-        kalsa_room::MemberId::Host => room.name_of(member).unwrap_or_else(|| {
-            labels
-                .values()
-                .next()
-                .cloned()
-                .unwrap_or_else(|| "This computer".to_string())
-        }),
+        kalsa_room::MemberId::Host => {
+            room.name_of(member).unwrap_or_else(|| labels.host.clone())
+        }
         kalsa_room::MemberId::Member(_) => room.name_of(member).unwrap_or_else(|| {
             room.device_of(member)
-                .and_then(|device| labels.get(&device).cloned())
+                .and_then(|device| labels.by_device.get(&device).cloned())
                 .unwrap_or_else(|| "Former member".to_string())
         }),
     }
 }
 
-fn member_dto(room: &Room, labels: &HashMap<u32, String>, member: kalsa_room::MemberId, kind: &'static str) -> RoomMemberDto {
+fn member_dto(room: &Room, labels: &Labels, member: kalsa_room::MemberId, kind: &'static str) -> RoomMemberDto {
     RoomMemberDto {
         member_id: member.wire(),
         name: display_name(room, labels, member),
@@ -297,7 +306,7 @@ fn member_dto(room: &Room, labels: &HashMap<u32, String>, member: kalsa_room::Me
     }
 }
 
-fn entry_dto(room: &Room, labels: &HashMap<u32, String>, entry: &Entry) -> RoomEntryDto {
+fn entry_dto(room: &Room, labels: &Labels, entry: &Entry) -> RoomEntryDto {
     RoomEntryDto {
         seq: entry.seq,
         member_id: entry.member.wire(),
@@ -307,7 +316,6 @@ fn entry_dto(room: &Room, labels: &HashMap<u32, String>, entry: &Entry) -> RoomE
         time: entry.time,
         call_ai: entry.call_ai,
         read: (entry.member == kalsa_room::MemberId::Ai).then_some(entry.read),
-        client_msg_id: String::new(),
     }
 }
 
@@ -317,6 +325,7 @@ fn entry_dto(room: &Room, labels: &HashMap<u32, String>, entry: &Entry) -> RoomE
 pub fn brain_room(desk: tauri::State<'_, crate::Desk>, brain: tauri::State<'_, crate::Brain>) -> Result<RoomInfoDto, String> {
     let Some(room) = brain.room.get() else {
         return Ok(RoomInfoDto {
+            epoch: String::new(),
             open: false,
             room_name: String::new(),
             you: kalsa_room::MemberId::Host.wire(),
@@ -340,6 +349,7 @@ pub fn brain_room(desk: tauri::State<'_, crate::Desk>, brain: tauri::State<'_, c
     members.push(member_dto(room, &labels, kalsa_room::MemberId::Ai, "ai"));
     let turns = room.turn_state();
     Ok(RoomInfoDto {
+        epoch: room.epoch(),
         open: true,
         room_name: stored
             .iter()
@@ -370,7 +380,7 @@ pub fn brain_room_history(
     after: Option<u64>,
     before: Option<u64>,
     limit: Option<usize>,
-) -> Result<Vec<RoomEntryDto>, String> {
+) -> Result<Vec<RoomEntryDto>, RoomCommandError> {
     let Some(room) = brain.room.get() else {
         return Ok(Vec::new());
     };
@@ -381,7 +391,7 @@ pub fn brain_room_history(
         (None, Some(before)) => room.page_before(1, before, limit),
         (None, None) => room.newest_page(1, limit),
     }
-    .map_err(|error| error.to_string())?;
+    .map_err(|_| RoomCommandError { code: "bad_request" })?;
     Ok(page
         .messages
         .iter()
@@ -391,6 +401,21 @@ pub fn brain_room_history(
 
 /// The host's own message into the room, with the call flag the button
 /// carries — the store itself adds a call for "@Kalsa" in the text.
+/// Why a call was not taken, as a stable code: the page translates the
+/// ones a user can act on and stays silent on the rest.
+struct CallOutcome {
+    ai_call: Option<&'static str>,
+    refusal: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+pub struct RoomPostDto {
+    #[serde(flatten)]
+    pub entry: RoomEntryDto,
+    pub ai_call: Option<&'static str>,
+    pub refusal: Option<&'static str>,
+}
+
 #[tauri::command]
 pub fn brain_room_post(
     brain: tauri::State<'_, crate::Brain>,
@@ -398,15 +423,42 @@ pub fn brain_room_post(
     client_msg_id: String,
     text: String,
     call_ai: bool,
-) -> Result<RoomEntryDto, String> {
+) -> Result<RoomPostDto, RoomCommandError> {
     let Some(room) = brain.room.get() else {
-        return Err(CLOSED_ROOM.to_string());
+        return Err(RoomCommandError::internal());
     };
-    let entry = host_post(room, &client_msg_id, &text, call_ai)?;
+    let entry = host_post(room, &client_msg_id, &text, call_ai).map_err(command_error)?;
     let labels = device_labels(&desk);
-    let mut dto = entry_dto(room, &labels, &entry);
-    dto.client_msg_id = client_msg_id;
-    Ok(dto)
+    let dto = entry_dto(room, &labels, &entry);
+    let outcome = if !entry.call_ai {
+        CallOutcome { ai_call: None, refusal: None }
+    } else {
+        // The message landed; the call is taken only if a running door can
+        // drive it — a queue nobody serves would hold the host's call
+        // until restart, which is a lie the page cannot see past.
+        let door = brain
+            .door
+            .lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().map(|active| Arc::clone(&active.door)));
+        match door {
+            Some(door) => match room.submit_call(kalsa_room::MemberId::Host, &client_msg_id) {
+                Ok(kalsa_room::CallTaken::Starts(turn)) => {
+                    if door.drive_room_turn(kalsa_room::MemberId::Host, turn) {
+                        CallOutcome { ai_call: Some("queued"), refusal: None }
+                    } else {
+                        CallOutcome { ai_call: Some("refused"), refusal: Some("could_not_start") }
+                    }
+                }
+                Ok(kalsa_room::CallTaken::Queued) => {
+                    CallOutcome { ai_call: Some("queued"), refusal: None }
+                }
+                Err(_) => CallOutcome { ai_call: Some("refused"), refusal: Some("already_pending") },
+            },
+            None => CallOutcome { ai_call: Some("refused"), refusal: Some("could_not_start") },
+        }
+    };
+    Ok(RoomPostDto { entry: dto, ai_call: outcome.ai_call, refusal: outcome.refusal })
 }
 
 /// The host's own display name in this room.
@@ -414,11 +466,11 @@ pub fn brain_room_post(
 pub fn brain_room_set_name(
     brain: tauri::State<'_, crate::Brain>,
     name: String,
-) -> Result<String, String> {
+) -> Result<String, RoomCommandError> {
     let Some(room) = brain.room.get() else {
-        return Err(CLOSED_ROOM.to_string());
+        return Err(RoomCommandError::internal());
     };
-    set_host_display_name(room, &name)
+    set_host_display_name(room, &name).map_err(name_command_error)
 }
 
 /// The host stops the running answer. `false` when nothing is running:
@@ -429,9 +481,49 @@ pub fn brain_room_stop(brain: tauri::State<'_, crate::Brain>) -> Result<bool, St
     Ok(stop_turn(brain.inner()))
 }
 
-/// The sentence behind every command when the room never opened: one
-/// fact, nothing to fix, no technical word.
-const CLOSED_ROOM: &str = "The room opens when the assistant runs.";
+/// Why a command did not do what it was asked: a stable code the page
+/// translates (or stays silent on), never the store's own words. The
+/// doc's error table is the code list.
+#[derive(Serialize)]
+pub struct RoomCommandError {
+    pub code: &'static str,
+}
+
+impl RoomCommandError {
+    fn internal() -> Self {
+        Self { code: "internal" }
+    }
+}
+
+
+fn command_error(error: kalsa_room::PostError) -> RoomCommandError {
+    match error {
+        kalsa_room::PostError::TextTooLong => RoomCommandError { code: "too_large" },
+        kalsa_room::PostError::ClientIdReused => RoomCommandError { code: "client_msg_id_reused" },
+        kalsa_room::PostError::ReadOnly => RoomCommandError { code: "read_only" },
+        kalsa_room::PostError::EmptyText
+        | kalsa_room::PostError::BadClientMsgId
+        | kalsa_room::PostError::NotAMember => {
+            RoomCommandError { code: "bad_request" }
+        }
+        kalsa_room::PostError::Io(_) => RoomCommandError::internal(),
+    }
+}
+
+fn name_command_error(error: kalsa_room::NameError) -> RoomCommandError {
+    match error {
+        kalsa_room::NameError::TooLong => RoomCommandError { code: "too_large" },
+        kalsa_room::NameError::Reserved | kalsa_room::NameError::Taken => {
+            RoomCommandError { code: "name_taken" }
+        }
+        kalsa_room::NameError::Framing => RoomCommandError { code: "name_framing" },
+        kalsa_room::NameError::Empty
+        | kalsa_room::NameError::Invisible
+        | kalsa_room::NameError::MixedScripts
+        | kalsa_room::NameError::NotAMember => RoomCommandError { code: "bad_request" },
+        kalsa_room::NameError::Io(_) => RoomCommandError::internal(),
+    }
+}
 
 /// The room's live news, fed to the webview as Tauri events: one follower
 /// thread reads the room's own event log and re-emits each event as
@@ -441,8 +533,21 @@ pub fn spawn_event_pump(app: tauri::AppHandle, brain: &crate::Brain) {
     let Some(room) = brain.room.get() else {
         return;
     };
-    let stop = Arc::new(AtomicBool::new(false));
-    brain.room_events.get_or_init(|| Arc::clone(&stop));
+    // The flag is created under the lock and the second caller walks away
+    // with nothing: a pump that nobody holds the stop flag for would run
+    // past the app's exit, and two pumps would double every event.
+    let stop = {
+        let mut guard = brain
+            .room_events
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if guard.as_ref().is_some() {
+            return;
+        }
+        let stop = Arc::new(AtomicBool::new(false));
+        *guard = Some(Arc::clone(&stop));
+        stop
+    };
     let room = Arc::clone(room);
     let reader = std::thread::Builder::new()
         .name("kalsa-room-events".into())
@@ -473,7 +578,12 @@ pub fn spawn_event_pump(app: tauri::AppHandle, brain: &crate::Brain) {
 /// Stops the event pump — the app's exit path calls this, so the follower
 /// thread never outlives the window it feeds.
 pub fn stop_event_pump(brain: &crate::Brain) {
-    if let Some(stop) = brain.room_events.get() {
+    if let Some(stop) = brain
+        .room_events
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .as_ref()
+    {
         stop.store(true, Ordering::SeqCst);
     }
 }
@@ -485,15 +595,20 @@ fn event_payload(
     app: &tauri::AppHandle,
     event: kalsa_room::Event,
 ) -> Result<serde_json::Value, String> {
+    let empty = Labels {
+        by_device: HashMap::new(),
+        host: "This computer".to_string(),
+    };
     let labels = app
         .try_state::<crate::Desk>()
         .map(|desk| device_labels(&desk))
-        .unwrap_or_default();
+        .unwrap_or(empty);
     Ok(match event {
         kalsa_room::Event::Message(entry) => {
             let dto = entry_dto(room, &labels, &entry);
             serde_json::json!({
                 "kind": if entry.member == kalsa_room::MemberId::Ai { "ai_message" } else { "message" },
+                "epoch": room.epoch(),
                 "seq": dto.seq,
                 "member_id": dto.member_id,
                 "name": dto.name,

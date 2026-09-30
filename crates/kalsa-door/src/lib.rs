@@ -345,6 +345,11 @@ pub struct RunningDoor {
     chats: Arc<paging::Chats>,
     upstream_port: u16,
     threads: Mutex<Vec<JoinHandle<()>>>,
+    /// The room this door serves and the workers' shared state, when the
+    /// caller gave the door a room: the pieces its driver needs, kept so
+    /// the app can drive the host's own calls without the HTTP door.
+    room: Option<Arc<crate::room::RoomDoor>>,
+    shared: Option<Arc<crate::proxy::Shared>>,
 }
 
 impl Door {
@@ -576,6 +581,22 @@ impl RunningDoor {
         // door, so such a file sits until the next set change or the next
         // start of the door.
         self.chats.sweep(&self.devices);
+    }
+
+    /// Starts the room's driver for a call the room's queue already took.
+    /// The desktop's host posts through the app, not through the door's
+    /// HTTP routes, so the running door is the one piece that can turn the
+    /// call into a turn. `false` when this door hosts no room: the caller
+    /// owes the refusal, and nothing was queued for a driver that does not
+    /// exist.
+    pub fn drive_room_turn(&self, member: kalsa_room::MemberId, turn: u64) -> bool {
+        match (&self.room, &self.shared) {
+            (Some(room), Some(shared)) => {
+                crate::room::turn::spawn(room, shared, member, turn);
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Stop accepting and wait for the bounded thread set to leave.

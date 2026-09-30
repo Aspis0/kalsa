@@ -119,7 +119,7 @@ pub(crate) const ROOM_DEVICE: u32 = u32::MAX;
 
 /// Starts the queue's driver for a turn that `submit` began. One at a
 /// time by construction: the room only answers `Starts` when nothing runs.
-pub(super) fn spawn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, member: MemberId, turn: u64) {
+pub(crate) fn spawn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, member: MemberId, turn: u64) {
     let driving = Arc::clone(door);
     let shared = Arc::clone(shared);
     let spawned = std::thread::Builder::new()

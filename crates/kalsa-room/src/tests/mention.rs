@@ -88,3 +88,19 @@ fn cjk_boundaries_call_without_splitting_latin_words() {
         assert!(!calls_ai(text), "{text:?} does not call");
     }
 }
+
+#[test]
+fn the_parity_vectors_agree_with_the_javascript_mirror() {
+    // A Greek-range character that is not a letter is not word-joining,
+    // but only because the rule asks for alphabetic first — the ranges
+    // alone would take it.
+    assert!(crate::mention::calls_ai_at("\u{0374}@Kalsa").is_none(), "U+0374 does not call");
+    // Kelvin sign: full lowercasing would read it as K; the rule lowercases
+    // ASCII only.
+    assert!(crate::mention::calls_ai_at("@\u{212A}alsa").is_none(), "Kelvin K does not call");
+    // A combining mark outside any hand-listed range still walks back to
+    // its base: the category is the rule, not a table.
+    assert!(crate::mention::calls_ai_at("a\u{0F71}@Kalsa").is_none(), "Tibetan mark walks back");
+    // The index is where the highlight goes.
+    assert_eq!(crate::mention::calls_ai_at("say @Kalsa now"), Some(4));
+}

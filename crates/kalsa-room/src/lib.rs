@@ -54,7 +54,7 @@ mod room;
 mod tests;
 
 pub use events::{AiEvent, Event, MemberEvent, Take};
-pub use mention::calls_ai;
+pub use mention::{calls_ai, calls_ai_at};
 pub use queue::{CallRefused, CallTaken, Withdrawn};
 pub use history::{Page, PageError};
 pub use room::{PostError, Room};

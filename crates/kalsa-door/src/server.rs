@@ -144,6 +144,8 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         chats,
         upstream_port,
         threads: Mutex::new(threads),
+        room: door.room,
+        shared: Some(shared),
     })
 }
 

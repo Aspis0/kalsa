@@ -449,7 +449,9 @@ try {
   for (const { heading, sentence, button, working, walk, qr } of results) {
     // The matcher's probe renders lists, not actions: a card that exists
     // to be read back is not a dead end.
-    if (heading.startsWith("Room — the @Kalsa rule")) continue;
+    if (heading.startsWith("Room — the @Kalsa rule") || heading.startsWith("Room — the feed reducer")) {
+      continue;
+    }
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
     const pressable = button && !button.disabled && button.text.trim() !== "";
     const progressButton = button && button.disabled && (button.text === "Measuring…" || button.text === "Starting" || button.text === "Stopping");
@@ -1178,12 +1180,30 @@ try {
         if (!all.includes("Kalsa is busy with another conversation. You keep your turn.")) {
           problems.push(`Room — the busy note must be shown by its code: ${heading}`);
         }
-        if (buttons.includes("Stop")) {
-          problems.push(`Room — waiting is not answering; no Stop: ${heading}`);
+        // The turn still runs while it waits (the stop can act on it), so
+        // Stop stays: the rule is "shows exactly when it can act".
+        if (!buttons.includes("Stop")) {
+          problems.push(`Room — a waiting turn can still be stopped: ${heading}`);
         }
       }
       if (heading.includes("idle: no Stop") && buttons.includes("Stop")) {
         problems.push(`Room — idle must not offer Stop: ${heading}`);
+      }
+      if (heading.includes("thinking")) {
+        // A turn runs while Kalsa thinks: the stop can act, so it shows.
+        if (!buttons.includes("Stop")) {
+          problems.push(`Room — a thinking turn must offer Stop: ${heading}`);
+        }
+        if (!all.includes("Kalsa is answering Marco.")) {
+          problems.push(`Room — a thinking turn names who it is for: ${heading}`);
+        }
+      }
+      if (heading.includes("the feed reducer")) {
+        for (const verdict of ["LIVE-KEPT: yes", "MERGED: LAND1+LAND2", "EPOCH-REPLACED: yes", "NO-DUPLICATE: yes"]) {
+          if (!all.includes(verdict)) {
+            problems.push(`Room — feed reducer must hold "${verdict}": ${heading}`);
+          }
+        }
       }
       if (heading.includes("the @Kalsa rule")) {
         // Each probe line is prefixed by its verdict, so one text stream

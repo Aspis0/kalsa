@@ -18,6 +18,7 @@ import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
+import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/useRoomFeed";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -203,11 +204,11 @@ const scenarios = [
   ["Status", "running, with a slowdown announced", "server", { state: stateDto("running", { throttled: true }) }],
 
   // --- The room (the host's view) ---
-  ["Room", "empty room", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+  ["Room", "empty room", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
   ], ai: { state: "idle", running: null, queue: [], you_pending: false } }, roomHistory: [] }],
-  ["Room", "messages from several members, one left the room", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+  ["Room", "messages from several members, one left the room", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 3, name: "Marco", kind: "phone", former: false },
     { member_id: 4, name: "Mamma", kind: "phone", former: true },
@@ -217,7 +218,7 @@ const scenarios = [
     { seq: 2, member_id: 4, name: "Mamma", former: true, text: "saving me a seat", time: 1791000060, call_ai: false, read: null, client_msg_id: "" },
     { seq: 3, member_id: 4294967294, name: "Kalsa", former: false, text: "It is 17:00.", time: 1791000120, call_ai: true, read: 2, client_msg_id: "" },
   ] }],
-  ["Room", "Kalsa answering, Stop visible", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+  ["Room", "Kalsa answering, Stop visible", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 3, name: "Marco", kind: "phone", former: false },
     { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
@@ -226,7 +227,12 @@ const scenarios = [
   ], roomEvents: [
     { kind: "ai_delta", turn: 1, text: "It is 17:00, and the" },
   ] }],
-  ["Room", "waiting with the busy note", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+  ["Room", "thinking: Stop visible", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "thinking", running: "Marco", queue: [], you_pending: false } }, roomHistory: [] }],
+    ["Room", "waiting with the busy note", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 3, name: "Marco", kind: "phone", former: false },
     { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
@@ -235,14 +241,20 @@ const scenarios = [
       note: "Kalsa is busy with another conversation. You keep your turn.",
       running: "Marco", queue: [], you_pending: false },
   ] }],
-  ["Room", "idle: no Stop", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+  ["Room", "idle: no Stop", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
   ], ai: { state: "idle", running: null, queue: [], you_pending: false } }, roomHistory: [] }],
 
   // The @Kalsa rule, mirrored from the Rust matcher: what the highlighter
   // calls and what it does not, in one card the smoke bench reads back.
-  ["Room", "the @Kalsa rule, mirrored", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [], ai: { state: "idle", running: null, queue: [], you_pending: false } }, mentionProbe: true }],
+  ["Room", "the @Kalsa rule, mirrored", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [], ai: { state: "idle", running: null, queue: [], you_pending: false } }, mentionProbe: true }],
+
+  // The feed's own rules, driven through the pure reducer the page runs:
+  // a history page must not wipe what the live news delivered, an epoch
+  // must replace instead of merge, and a Stop must show whenever a turn
+  // runs (thinking included).
+  ["Room", "the feed reducer: merge, epoch, live", "room", { reducerProbe: true }],
 
   ["Model", "running: the choice is automatic", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: AUTO_REASON } }],
   ["Model", "running: a phone was paired and compared", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: PHONE_REASON } }],
@@ -746,6 +758,28 @@ function componentFor(kind, data) {
   if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
   if (kind === "advanced") return React.createElement(AdvancedSurface);
   if (kind === "room") {
+    if (data?.reducerProbe) {
+      const lines = [];
+      // A delta lands live, then the history page arrives carrying the
+      // same seq: the page keeps both the live text and the landed entry.
+      let feed = emptyFeed();
+      feed = reduceEvent(feed, { kind: "ai_delta", turn: 1, text: "KALSA-LIVE" });
+      feed = mergeHistory(feed, "e1", [
+        { seq: 1, member_id: 3, name: "Marco", former: false, text: "LAND1", time: 1, call_ai: false, read: null },
+        { seq: 2, member_id: 3, name: "Marco", former: false, text: "LAND2", time: 2, call_ai: false, read: null },
+      ]);
+      lines.push(`LIVE-KEPT: ${feed.live?.text === "KALSA-LIVE" ? "yes" : "no"}`);
+      lines.push(`MERGED: ${feed.entries.map((entry) => entry.text).join("+")}`);
+      // An epoch move replaces: the old seqs name different words now.
+      feed = reduceEvent(feed, { kind: "message", epoch: "e2", seq: 1, member_id: 3, name: "Marco", former: false, text: "NEW-EPOCH", time: 3, call_ai: false, read: null });
+      lines.push(`EPOCH-REPLACED: ${feed.entries.length === 1 && feed.entries[0].text === "NEW-EPOCH" ? "yes" : "no"}`);
+      // A duplicate seq cannot double an entry.
+      const before = feed.entries.length;
+      feed = reduceEvent(feed, { kind: "message", epoch: "e2", seq: 1, member_id: 3, name: "Marco", former: false, text: "NEW-EPOCH", time: 3, call_ai: false, read: null });
+      lines.push(`NO-DUPLICATE: ${feed.entries.length === before ? "yes" : "no"}`);
+      return React.createElement("div", null,
+        React.createElement("p", { className: "room-reducer" }, lines.join("\n")));
+    }
     if (data?.mentionProbe) {
       // The mirrored @Kalsa rule, read back as rendered lists: the CALLS
       // card names the texts that call, the SILENT card the ones that do

@@ -3520,8 +3520,8 @@ fn the_room_commands_are_reachable_and_registered() {
     ];
     for command in commands {
         assert!(
-            room_rs.contains(&format!("pub fn {command}(")),
-            "{command} must be defined as a command"
+            room_rs.contains(&format!("#[tauri::command]\npub fn {command}(")),
+            "{command} must carry the command attribute"
         );
         assert!(
             main_rs.contains(&format!("room::{command}")),
