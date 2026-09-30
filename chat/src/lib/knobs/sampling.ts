@@ -6,7 +6,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "temperature",
     label: "Temperature",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "number",
     // The schema has no upper limit; this is a generous UI guard rail, not a measurement.
@@ -20,7 +20,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dynatemp_range",
     label: "Dynamic temperature range",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "number",
     // No schema upper limit; this is a generous UI guard rail, not a measurement.
@@ -34,7 +34,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dynatemp_exponent",
     label: "Dynamic temperature exponent",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "number",
     min: 0,
@@ -47,7 +47,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "top_k",
     label: "Top K",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "integer",
     min: 0,
@@ -60,7 +60,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "top_p",
     label: "Top P",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "number",
     min: 0,
@@ -73,7 +73,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "min_p",
     label: "Minimum probability",
-    group: "Randomness",
+    group: "randomness",
     level: "message",
     kind: "number",
     min: 0,
@@ -86,7 +86,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "typical_p",
     label: "Typical probability",
-    group: "How much it trims",
+    group: "trimming",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -100,7 +100,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "top_n_sigma",
     label: "Top N spread",
-    group: "How much it trims",
+    group: "trimming",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -114,7 +114,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "xtc_probability",
     label: "Exclude top choices chance",
-    group: "How much it trims",
+    group: "trimming",
     level: "message",
     kind: "number",
     min: 0,
@@ -127,7 +127,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "xtc_threshold",
     label: "Exclude top choices threshold",
-    group: "How much it trims",
+    group: "trimming",
     level: "message",
     kind: "number",
     min: 0,
@@ -140,7 +140,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "min_keep",
     label: "Minimum kept choices",
-    group: "How much it trims",
+    group: "trimming",
     level: "message",
     kind: "integer",
     min: 0,
@@ -153,7 +153,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "repeat_penalty",
     label: "Repetition penalty",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -167,7 +167,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "repeat_last_n",
     label: "Repetition lookback",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "integer",
     min: 0,
@@ -180,7 +180,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "frequency_penalty",
     label: "Frequency penalty",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -194,7 +194,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "presence_penalty",
     label: "Presence penalty",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -208,7 +208,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dry_multiplier",
     label: "DRY repetition multiplier",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -222,7 +222,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dry_base",
     label: "DRY base",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "number",
     // No schema limit; this is a UI guard rail, not a measurement.
@@ -236,7 +236,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dry_allowed_length",
     label: "DRY allowed length",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "integer",
     min: 0,
@@ -249,7 +249,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "dry_penalty_last_n",
     label: "DRY lookback",
-    group: "Repetition",
+    group: "repetition",
     level: "message",
     kind: "integer",
     min: 0,
@@ -262,7 +262,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "mirostat",
     label: "Mirostat mode",
-    group: "Alternative samplers",
+    group: "alternative",
     level: "message",
     kind: "integer",
     min: 0,
@@ -275,7 +275,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "mirostat_tau",
     label: "Mirostat target",
-    group: "Alternative samplers",
+    group: "alternative",
     level: "message",
     kind: "number",
     // No schema limit; zero has no useful target-entropy meaning here.
@@ -289,7 +289,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "mirostat_eta",
     label: "Mirostat learning rate",
-    group: "Alternative samplers",
+    group: "alternative",
     level: "message",
     kind: "number",
     // No schema limit; these are UI guard rails, not measurements.
@@ -303,7 +303,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "adaptive_target",
     label: "Adaptive target",
-    group: "Alternative samplers",
+    group: "alternative",
     level: "message",
     kind: "number",
     // The server accepts float32 minimum; this is that limit, not a UI invention.
@@ -317,7 +317,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "adaptive_decay",
     label: "Adaptive decay",
-    group: "Alternative samplers",
+    group: "alternative",
     level: "message",
     kind: "number",
     min: 0,
@@ -330,7 +330,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "seed",
     label: "Random seed",
-    group: "This answer",
+    group: "thisAnswer",
     level: "message",
     kind: "integer",
     // No schema numeric limit; these are UI guard rails, and sentinels stay automatic.
@@ -346,7 +346,7 @@ export const SAMPLING_KNOBS: readonly SamplingKnob[] = [
   {
     wire: "max_tokens",
     label: "Maximum new tokens",
-    group: "This answer",
+    group: "thisAnswer",
     level: "message",
     kind: "integer",
     min: -1,

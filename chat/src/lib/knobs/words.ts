@@ -27,17 +27,9 @@ export function launchWords(words: KnobWords, knob: { wire: string; label: strin
   };
 }
 
-/** The group's word, keyed as the knobs name it. */
+/** The group's heading. `group` is the stable id the knobs carry; the
+    heading lives only in the words tables. */
 export function groupWord(words: KnobWords, group: string): string {
-  const keys: Record<string, string> = {
-    "Randomness": "randomness",
-    "How much it trims": "trimming",
-    "Repetition": "repetition",
-    "Alternative samplers": "alternative",
-    "This answer": "thisAnswer",
-    "Start settings": "start",
-  };
-  const key = keys[group];
   const named = words.groups as Record<string, string>;
-  return (key && named[key]) || group;
+  return named[group] ?? group;
 }

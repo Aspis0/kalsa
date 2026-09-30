@@ -4,7 +4,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "ctx-size",
     label: "Context size",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "integer",
     whatItIs: "Context size is how much of the conversation the model can hold while answering.",
@@ -14,7 +14,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "batch-size",
     label: "Batch size",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "integer",
     min: 64,
@@ -27,7 +27,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "ubatch-size",
     label: "Micro-batch size",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "integer",
     min: 64,
@@ -40,7 +40,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "cache-type-k/cache-type-v",
     label: "KV cache type",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "choice",
     options: ["q8_0", "f16"],
@@ -51,7 +51,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "sleep-idle-seconds",
     label: "Unload after idle",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "integer",
     min: 60,
@@ -64,7 +64,7 @@ export const LAUNCH_KNOBS: readonly LaunchKnob[] = [
   {
     wire: "internet_road",
     label: "Internet road",
-    group: "Start settings",
+    group: "start",
     level: "start",
     kind: "boolean",
     options: ["off", "on"],

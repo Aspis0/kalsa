@@ -25,7 +25,7 @@ import { TABLES, LANGUAGES } from "../chat/src/i18n";
 import { LANGUAGE_KEY } from "../chat/src/i18n/useLanguage";
 import { completionBody } from "../chat/src/lib/chat";
 import { buildPinnedContext } from "../chat/src/lib/attachments";
-import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
+import { loadSampling, samplingFault, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 
 // The English table read directly: the parity walker and the probe cards
 // compare against it without mounting the provider.
@@ -495,6 +495,17 @@ const scenarios = [
 /** The runaway bound for the whole bench: every card's declared wait,
     summed, plus room for the renders and settles between them. A guard,
     not a target. */
+/** The sampling fault as an English sentence. Bench-only: the app speaks
+    the owner's language through `samplingProblemWords`. */
+export function samplingProblem(sampling) {
+  const fault = samplingFault(sampling);
+  if (!fault) return null;
+  const label = fault.knob.label;
+  if (fault.kind === "finite") return `${label} must be a finite number; got ${fault.value}.`;
+  if (fault.kind === "whole") return `${label} must be a whole number; got ${fault.value}.`;
+  return `${label} must be between ${fault.low} and ${fault.high}; got ${fault.value}.`;
+}
+
 export function benchTimeoutMs() {
   const waits = scenarios.reduce((sum, [, , , data]) => sum + (data?.waitMs ?? 0), 0);
   return waits + 30000;
@@ -1182,14 +1193,15 @@ export async function renderStartFailureProbe(data) {
 }
 
 export {
+  LANGUAGES,
   REASON_UNFUNDABLE,
+  TABLES,
   MODEL_BYTES,
   advancedDto,
   brainWords,
   buildPinnedContext,
   completionBody,
   loadSampling,
-  samplingProblem,
   samplingWire,
   saveSampling,
   SAMPLING_KNOBS,

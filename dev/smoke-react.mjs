@@ -434,6 +434,19 @@ try {
   if (stoppedHistory.status !== "ok" || stoppedHistory.historyTokens < 5) {
     problems.push("the stopped-run accounting must count the sent sentence, not the code");
   }
+  // Every knob's words exist in every language: the English fallback is a
+  // safety net, not a row a language may quietly skip.
+  for (const knob of renderer.SAMPLING_KNOBS) {
+    for (const lang of renderer.LANGUAGES) {
+      const knobs = renderer.TABLES[lang].knobs;
+      for (const field of ["label", "whatItIs", "whatItsFor"]) {
+        const said = knobs[`${knob.wire}.${field}`];
+        if (typeof said !== "string" || said.trim() === "") {
+          problems.push(`knob ${knob.wire} has no ${field} in "${lang}"`);
+        }
+      }
+    }
+  }
   if (renderer.samplingProblem({ top_k: 7.5 }) === null) problems.push("fractional integer sampling value was accepted");
   if (renderer.samplingProblem({ top_p: 5 }) === null) problems.push("out-of-range sampling value was accepted");
   const invalidWire = renderer.samplingWire({ ...chosenSampling, top_k: 7.5, top_p: 5 });

@@ -87,16 +87,6 @@ export function samplingFault(sampling: Sampling): { knob: SamplingKnob; kind: "
   return null;
 }
 
-/** The fault as a sentence. English, for callers without the words table. */
-export function samplingProblem(sampling: Sampling): string | null {
-  const fault = samplingFault(sampling);
-  if (!fault) return null;
-  const label = fault.knob.label;
-  if (fault.kind === "finite") return `${label} must be a finite number; got ${fault.value}.`;
-  if (fault.kind === "whole") return `${label} must be a whole number; got ${fault.value}.`;
-  return `${label} must be between ${fault.low} and ${fault.high}; got ${fault.value}.`;
-}
-
 /** The fault in the owner's language. */
 export function samplingProblemWords(words: KnobWords, sampling: Sampling): string | null {
   const fault = samplingFault(sampling);

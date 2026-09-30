@@ -103,7 +103,7 @@ export function SamplingPanel(): JSX.Element {
       <KnobInfoScope>
         <div className="sampling-groups">
           {groups.map((group, at) => {
-            const groupId = `sampling-group-${group.toLowerCase().replaceAll(" ", "-")}`;
+            const groupId = `sampling-group-${group}`;
             const rows = SAMPLING_KNOBS.filter((row) => row.group === group);
             const open = openGroup === group;
             return (
