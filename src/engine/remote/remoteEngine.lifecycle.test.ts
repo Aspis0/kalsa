@@ -1180,7 +1180,7 @@ describe("RemoteEngine lifecycle", () => {
     log.mockRestore();
   });
 
-  test("a failed iroh connect falls back once per operation with one connect_failed line", async () => {
+  test("a failed iroh connect falls back once per operation and logs no road line of its own", async () => {
     const { setRemoteServerModelId } = await import("./remoteSettings");
     const { irohModulePresent, openIrohTunnel } = await import("../../remote/irohBridge");
     const node = "ab".repeat(32);
@@ -1222,17 +1222,12 @@ describe("RemoteEngine lifecycle", () => {
       streamOpenAiChat: jest.Mock;
     };
     expect(streamOpenAiChat.mock.calls[0][2]).toBeUndefined();
+    // The fallback itself is silent: the road line belongs to the native
+    // dial (irohBridge, mocked out here), and no engine line carries the node.
     const lines = log.mock.calls
       .filter((args) => args[0] === "KALSA_ROAD")
       .map((args) => JSON.parse(args[1] as string));
-    expect(lines).toEqual([
-      { road: "https", reason: "connect_failed", node8: node.slice(0, 8) },
-      { road: "https", reason: "connect_failed", node8: node.slice(0, 8) },
-    ]);
-    const payloads = log.mock.calls
-      .filter((args) => args[0] === "KALSA_ROAD")
-      .map((args) => args[1] as string);
-    expect(payloads.join("")).not.toContain(node);
+    expect(lines).toEqual([]);
     log.mockRestore();
   });
 });

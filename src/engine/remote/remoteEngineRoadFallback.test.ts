@@ -209,15 +209,14 @@ describe("the door road fallback through RemoteEngine", () => {
     expect(wire.method).toBe("POST");
     expect(wire.url).toBe(`${DOOR_URL}/v1/chat/completions`);
     expect(wire.headers).toContainEqual(["Authorization", `Bearer ${CREDENTIAL}`]);
-    // One connect attempt per operation, then exactly one fallback line each.
+    // One connect attempt per operation, then the paired URL each time. The
+    // fallback is silent at engine level: the road line belongs to the
+    // native dial bridge (mocked out here).
     expect(openTunnelMockCalls()).toEqual([
       [NODE, "door"],
       [NODE, "door"],
     ]);
-    expect(roadLines()).toEqual([
-      { road: "https", reason: "connect_failed", node8: NODE.slice(0, 8) },
-      { road: "https", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
+    expect(roadLines()).toEqual([]);
   });
 
   test("an iroh-paired credential never sends its bearer over HTTPS when the dial fails", async () => {
@@ -230,9 +229,9 @@ describe("the door road fallback through RemoteEngine", () => {
     expect(probe.error).toBe("remote_brain_network");
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(FakeXhr.sent).toHaveLength(0);
-    expect(roadLines()).toEqual([
-      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
+    // The refusal is silent at engine level too — and not one HTTPS byte
+    // carried the bearer.
+    expect(roadLines()).toEqual([]);
   });
 
   test("a dial that dies after a successful probe fails the turn like an unreachable desk", async () => {
@@ -265,13 +264,11 @@ describe("the door road fallback through RemoteEngine", () => {
 
     expect(errors).toEqual(["remote_brain_network"]);
     expect(done).toBe(false);
-    // No HTTPS byte anywhere: not the probe, not the failed turn.
+    // No HTTPS byte anywhere: not the probe, not the failed turn. The dial
+    // outcomes ride the bridge's own road lines, none at engine level.
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(FakeXhr.sent).toHaveLength(0);
-    expect(roadLines()).toEqual([
-      { road: "iroh", reason: "connected", node8: NODE.slice(0, 8) },
-      { road: "iroh", reason: "connect_failed", node8: NODE.slice(0, 8) },
-    ]);
+    expect(roadLines()).toEqual([]);
   });
 });
 

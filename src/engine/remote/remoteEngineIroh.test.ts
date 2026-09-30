@@ -2,7 +2,8 @@
  * The iroh door road end to end through RemoteEngine: with a paired node
  * and the module present, the probe's GETs and the chat turn's POST ride
  * fake door tunnels — the bearer credential on the tunnel wire, real SSE
- * parsing, zero global fetch — and each operation logs one iroh line.
+ * parsing, zero global fetch — with the road lines left to the native dial
+ * bridge (irohBridge records them itself).
  */
 
 jest.mock("@react-native-async-storage/async-storage", () => {
@@ -172,14 +173,12 @@ describe("the iroh road through RemoteEngine", () => {
 
     // Not one byte took the HTTPS road.
     expect(fetchSpy).not.toHaveBeenCalled();
+    // The connected dial's road line belongs to the native bridge (mocked
+    // out here): the engine itself logs none, and none may carry the node id.
     const lines = log.mock.calls
       .filter((args) => args[0] === "KALSA_ROAD")
       .map((args) => args[1] as string);
-    expect(lines.map((line) => JSON.parse(line))).toEqual([
-      { road: "iroh", reason: "connected", node8: NODE.slice(0, 8) },
-      { road: "iroh", reason: "connected", node8: NODE.slice(0, 8) },
-    ]);
-    expect(lines.join("")).not.toContain(NODE);
+    expect(lines).toEqual([]);
     log.mockRestore();
   });
 });
