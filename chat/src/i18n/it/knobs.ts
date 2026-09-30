@@ -4,7 +4,7 @@
 export const KNOBS = {
   groups: {
     randomness: "Casualità",
-    trimming: "Quanto taglia",
+    trimming: "Quanto riduce",
     repetition: "Ripetizione",
     alternative: "Campionatori alternativi",
     thisAnswer: "Questa risposta",
@@ -30,7 +30,7 @@ export const KNOBS = {
   "temperature.whatItsFor": "Valori più alti rendono le risposte più varie e meno prevedibili; valori più bassi le rendono più stabili e ripetibili.",
   "temperature.usualValues": "0,8 è il punto di partenza di llama.cpp oggi; valori più bassi fanno risposte più stabili.",
   "dynatemp_range.label": "Intervallo di temperatura dinamica",
-  "dynatemp_range.whatItIs": "È quanto la temperatura può muoversi su o giù quando il modello giudica la prossima scelta più o meno prevedibile.",
+  "dynatemp_range.whatItIs": "Indica quanto la temperatura può salire o scendere quando il modello giudica la prossima scelta più o meno prevedibile.",
   "dynatemp_range.whatItsFor": "Può aggiungere varietà quando il modello è sicuro e freno quando è incerto; zero lascia la temperatura ferma.",
   "dynatemp_exponent.label": "Esponente della temperatura dinamica",
   "dynatemp_exponent.whatItIs": "Decide quanto fortemente l'incertezza del modello cambia la temperatura dinamica.",

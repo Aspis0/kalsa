@@ -12,11 +12,11 @@ export const RUST: {
     no_suitable_choice: () => "Kalsa non ha ancora un'AI che giri bene su questo computer. Controlla se c'è un aggiornamento dell'app.",
     connection_lost: () => "Kalsa non ha potuto scaricare quello che le serve. Controlla la connessione e riprova.",
     network_blocks_download: () => "Kalsa non ha potuto scaricare quello che le serve su questa rete. Prova un'altra rete.",
-    download_failed: () => "Kalsa non ha finito di scaricare. Riprova più tardi.",
+    download_failed: () => "Kalsa non è riuscita a finire il download. Riprova più tardi.",
     needs_check: () => "Kalsa deve controllare questo computer prima di poter partire. Riprova.",
     choice_too_large: () => "Questa AI è troppo grande per questo computer. Scegline una più piccola nella pagina AI.",
     choice_unavailable: () => "Kalsa non è riuscita a partire con questa AI. Scegline un'altra nella pagina AI.",
-    conversation_too_long: () => "Questa lunghezza della conversazione è troppo per questa AI. Scegline una più piccola nelle Avanzate.",
+    conversation_too_long: () => "La conversazione è troppo lunga per questa AI. Scegli una lunghezza più breve nelle Avanzate.",
     check_failed: () => "Kalsa non è riuscita a controllare questo computer. Aspetta un momento e riprova.",
     could_not_start: () => "Kalsa non è riuscita a partire. Riprova.",
     awaiting_choice: () => "Kalsa non è ancora pronta. Vai alla Home e premi Avvia.",
@@ -48,7 +48,10 @@ export const RUST: {
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa non è riuscita a salvare questa modifica. Riprova.",
-    "pairing.phone_with_ai": (params, tag) => `Telefono con una sua AI (${new Intl.NumberFormat(tag).format(Number(params.gb))} GB)`,
+    "pairing.phone_with_ai": (params, tag) =>
+      typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
+        ? `Telefono con una sua AI (${new Intl.NumberFormat(tag).format(params.gb)} GB)`
+        : "Telefono senza una sua AI",
     "pairing.phone_without_ai": () => "Telefono senza una sua AI",
     "pairing.host_forget": () => "La connessione di questo computer non si può dimenticare.",
   },

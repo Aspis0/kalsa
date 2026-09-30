@@ -115,6 +115,7 @@ const EXAMPLES = {
   "advanced.whatItDoes": (fn) => fn("Temperatura"),
   "advanced.explanationAria": (fn) => fn("Temperatura"),
   "browser.skippedEntries": (fn, _area, num) => fn(num(3)),
+  "rust.pairing.pairing.phone_with_ai": (fn) => fn({ gb: 2 }),
   "browser.searchingIn": (fn) => fn("/Users/marco"),
   "browser.skippedSome": (fn, _area, num) => fn(num(12)),
   "markdown.withAlt": (fn) => fn("un gatto"),

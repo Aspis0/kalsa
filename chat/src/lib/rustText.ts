@@ -38,9 +38,11 @@ export function rustSentence(rust: English["rust"], value: unknown, tag = "en"):
   if (typeof message.code !== "string") {
     return typeof message.text === "string" ? message.text : String(value);
   }
+  // A code this table has no row for is a newer Rust than this build: the
+  // plain sentence, never the raw code.
   return (
     codeSentence(rust, message.code, message.params ?? {}, tag) ??
     message.text ??
-    message.code
+    rust.app.unexpected({}, tag)
   );
 }

@@ -121,6 +121,9 @@ export type HostKeyState = "answered" | "missing" | "pending";
 // panic, "[object Object]" — must never reach the first page as this
 // computer's state: it becomes null and the page falls back to the
 // not-made-yet sentence. null also means "not refused".
+// Matched by exact English on purpose: these are `brain_host_credential`'s
+// own Rust sentences, still arriving as text — moving them into the tables
+// means giving the command a code first.
 const HOST_CREDENTIAL_REFUSALS = [
   "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.",
   "This computer could not read its own connection key.",

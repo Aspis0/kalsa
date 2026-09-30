@@ -50,7 +50,10 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa couldn't save this change. Try again.",
-    "pairing.phone_with_ai": (params, tag) => `Phone with its own AI (${new Intl.NumberFormat(tag).format(Number(params.gb))} GB)`,
+    "pairing.phone_with_ai": (params, tag) =>
+      typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
+        ? `Phone with its own AI (${new Intl.NumberFormat(tag).format(params.gb)} GB)`
+        : "Phone without its own AI",
     "pairing.phone_without_ai": () => "Phone without its own AI",
     "pairing.host_forget": () => "This computer's own connection cannot be forgotten.",
   },

@@ -48,7 +48,10 @@ export const RUST: {
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa n'a pas pu enregistrer ce changement. Réessaie.",
-    "pairing.phone_with_ai": (params, tag) => `Téléphone avec sa propre IA (${new Intl.NumberFormat(tag).format(Number(params.gb))} Go)`,
+    "pairing.phone_with_ai": (params, tag) =>
+      typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
+        ? `Téléphone avec sa propre IA (${new Intl.NumberFormat(tag).format(params.gb)} Go)`
+        : "Téléphone sans IA propre",
     "pairing.phone_without_ai": () => "Téléphone sans IA propre",
     "pairing.host_forget": () => "La connexion de cet ordinateur ne peut pas être oubliée.",
   },

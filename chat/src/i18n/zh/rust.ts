@@ -48,7 +48,10 @@ export const RUST: {
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa 未能保存这个更改。请再试。",
-    "pairing.phone_with_ai": (params, tag) => `带有自己 AI 的手机（${new Intl.NumberFormat(tag).format(Number(params.gb))} GB）`,
+    "pairing.phone_with_ai": (params, tag) =>
+      typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
+        ? `带有自己 AI 的手机（${new Intl.NumberFormat(tag).format(params.gb)} GB）`
+        : "没有自己 AI 的手机",
     "pairing.phone_without_ai": () => "没有自己 AI 的手机",
     "pairing.host_forget": () => "无法忘记这台电脑自己的连接。",
   },
