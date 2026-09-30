@@ -713,6 +713,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   lane-off route-gpu abort is claimed but not proven by a lane log line. Cold start: no regression, one FastRPC
   session. HTP prefill never ran; milestone-1 NPU arm not run. Diagnosis + fix delegated (binding
   `feat/governor-platform-status`); the lane stays default OFF and nothing ships until a device re-check passes.
+- **Fix (2026-09-30 night):** binding `17446ac4` sets `no_kv_offload` on the HTP prefill context only (KV and the
+  LFM2 r/s state on host; the abort class is closed, audit `AUDIT-17446ac4.md`) + `c8471449` (scope pin proven by a
+  mutation, true comment); pushed. App main `f012dd1f` (pin c8471449; the fix itself is its parent 17446ac4) +
+  `aea90427` (`npu_lane` = the REQUESTED pref on KALSA_GOVERNOR_PLAN; it is not proof native saw the lane - read
+  `npu_device` for that), audit SHIP (`AUDIT-app-aea90427.md`), provenance EXIT 0, pushed; debuggable APK run
+  `36786856764`. OPEN, device must measure: with KV on host the engine keeps all attention (FA, q4_0 V, ubatch
+  256) on the CPU: ~60 splits/ubatch; HTP prefill may lose to OpenCL. The lab spike that won ran FA off, f16 KV,
+  ubatch 512. Also: the provenance script comment "integrity hash is NOT a witness" is false (npm pack reproduces it).
 
 ### Pairing: iroh and invite links
 
