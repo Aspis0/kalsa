@@ -625,3 +625,109 @@ The sections above stay as written; these corrections override them.
 
 Net: DSP decode on one copy is plausibly cooler than CPU decode on the same weights. The effect size is not
 established. n >= 5 ABBA with an active-decode-only window is owed.
+
+## Raw-row matvec `974a31e79` on the S23 (2026-09-30, device agent)
+
+Engine `spike/onecopy-hmx-raw` `974a31e79` ("raw-row matvec verified under hexagon-sim, unrolled, one
+shared admission predicate"), build dir `build-onecopy-hmx-fused-v73`. Question: does ONE copy of the
+weights (raw GGUF Q4_0 in an rpcmem HOST buffer) now decode on the DSP as fast as TWO copies?
+Previous one-copy build `c5a218321` measured 11.82 tok/s tg128 vs two copies 22.19; design expectation
+19-23 tok/s.
+
+Artifacts — local SHA-256 computed before push, device `sha256sum` after push: all three MATCH, both
+EXIT=0. Pushed ONLY to the new dir `/data/local/tmp/govhtp/onecopy-rawrow/{bin,dsp}`.
+
+| Artifact | SHA-256 |
+|---|---|
+| `bin/llama-bench` | `9ed9d8b8520c9aa7ef60e1b409972a44296b16b116308d6c07d2f4b6cb7d2f28` |
+| `bin/llama-perplexity` | `807a1cf3da6cee8bf7cc6ce92e79f4fdddcc74b5211b6fedc929d4e5ac0d2a65` |
+| `ggml/src/ggml-hexagon/libggml-htp-v73.so` | `71b98521ea473f6be9932c99cedfdafc4028e0239e2d70eb4ac52a2a1df9f50f` |
+
+Recipe: the previous run's scripts (`/data/local/tmp/govhtp/onecopy-rawdec/kld.sh`, `speed.sh`) were
+re-read from the phone and reproduced VERBATIM with only the dir changed to `onecopy-rawrow` (so
+`ADSP_LIBRARY_PATH="/data/local/tmp/govhtp/onecopy-rawrow/dsp;$R/lib"`, `LD_LIBRARY_PATH=$R/lib`).
+Note: like the previous scripts, NO `GGML_HEXAGON_DEVICES` is set and the device is `-dev HTP0` —
+that supersedes the task's `GGML_HEXAGON_DEVICES=HTP0:0` shorthand, per "reproduce the previous run
+exactly, changing only the binaries".
+
+Correctness command (per arm; KLD step ran UNPLUGGED, which is stricter than the allowed plugged):
+
+```sh
+env GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_OPFUSION=0 [GGML_HEXAGON_RAW_HMX=1 GGML_HEXAGON_HOSTBUF=1] \
+  $D/bin/llama-perplexity -m $M -f $R/input/kld_english_fixture.txt -c 512 -b 512 -ub 1 -ngl 99 \
+  -dev HTP0 -lm none --no-warmup --chunks 2 \
+  --kl-divergence-base $R/input/cause-cpu-base.logits --kl-divergence -lv 5
+```
+
+| Arm | EXIT | HTP MUL_MAT | raw `-HOST` MUL_MAT on DSP | Mean KLD ± SD | Max KLD | Same top p | Mean PPL(Q) | errors |
+|---|---|---:|---:|---|---:|---:|---|---:|
+| one copy, raw-row matvec | 0 | 168,960 | 168,448 | **0.004608 ± 0.000243** | 0.042651 | 97.059 ± 0.749 % | 33.920876 ± 5.178269 | 0 |
+| two copies | 0 | 168,960 | 0 | 0.005313 ± 0.000383 | 0.094590 | 97.059 ± 0.749 % | 33.994233 ± 5.169415 | 0 |
+
+The two-copy arm reproduces `c5a218321`/`cc9c541f2` to every printed digit (0.005313 / 0.094590 /
+97.059 % / 33.994233), so the recipe is faithfully reproduced. The one-copy raw-row KLD is BETTER than
+the old raw→tile path (mean −13 %, max 0.0427 vs 0.0946) at identical same-top-p. Gate "KLD must not
+get worse": **PASS**.
+
+Speed command (per arm; ABBA order, 90 s gaps):
+
+```sh
+env GGML_HEXAGON_OPFUSION=0 [GGML_HEXAGON_RAW_HMX=1 GGML_HEXAGON_HOSTBUF=1 [GGML_HEXAGON_RAW_DECODE=0]] \
+  toybox time -v $D/bin/llama-bench -m $M -p 512 -n 128 -ub 512 -r 3 -t 5 -ngl 99 -dev HTP0 --load-mode none
+```
+
+Gates at EVERY arm (start AND after): battery level 51→49 %, ac=false usb=false wireless=false
+(UNPLUGGED throughout), mWakefulness=Awake, `persist.traced.enable` = 0, thermal status 0. Battery
+temperature per arm below (°C, start→after).
+
+| Arm | pp512 tok/s | tg128 tok/s | battery °C start→after |
+|---|---:|---:|---|
+| two copies A | 882.26 ± 10.89 | 22.22 ± 0.23 | 31.7 → 31.8 |
+| one copy, decode on DSP A | 856.39 ± 8.06 | **15.55 ± 0.10** | 32.2 → 32.3 |
+| one copy, decode on CPU (`RAW_DECODE=0`) | 828.44 ± 10.33 | 12.79 ± 0.21 | 32.3 → 35.2 |
+| one copy, decode on DSP B | 859.00 ± 8.89 | **15.46 ± 0.02** | 33.4 → 34.0 |
+| two copies B | 874.80 ± 12.81 | 22.59 ± 0.12 | 32.6 → 33.9 |
+
+Pair means (A,B): two copies 22.41, one copy DSP **15.51**, one copy CPU 12.79. Raw-row DSP decode is
+**69 % of two copies** (was 53 % / 11.82 on `c5a218321`, +31 %), and still beats one-copy CPU decode.
+The 19-23 design expectation is **NOT met** (15.5 = 82 % of the low end). Prefill is unaffected:
+one-copy pp512 pair mean 857.7 = 97.6 % of two-copy 878.5, same as before.
+
+Profile command (first attempt WITHOUT `-v`: EXIT=0, tg32 14.69, but zero per-op lines — the hexagon
+profile logs are debug-level and llama-bench needs `-v`; rerun with `-v`):
+
+```sh
+env GGML_HEXAGON_RAW_HMX=1 GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_PROFILE=1 GGML_HEXAGON_VERBOSE=1 \
+  toybox time -v $D/bin/llama-bench -m $M -p 0 -n 32 -r 1 -t 5 -ngl 99 -dev HTP0 --load-mode none -v
+```
+
+EXIT=0, tg32 13.70 under verbose logging (use shares, not absolutes). 32 tokens, 19,382 `profile-op`
+lines (aggregate: `raw/rawrow-2026-09-30/profile-tg32-ops.txt`; the 12.7 MB log stays on the phone and
+Mac `/tmp/rawrow/`):
+
+| DSP time (tg32, one copy) | usec | share | per token |
+|---|---:|---:|---:|
+| MUL_MAT (matvec) | 1,749,167 | 88.8 % | 54.7 ms |
+| all other ops (FLASH_ATTN_EXT 43.2, CONCAT 41.5, SSM_CONV 33.3, SWIGLU 27.6, MUL 21.2, CPY 19.6, ADD 11.7, RMS_NORM 10.7, ROPE 4.5, GET_ROWS 4.1, SET_ROWS 2.4, SCALE 0.2 ms) | 220,654 | 11.2 % | 6.9 ms |
+| OPBATCH minus op sum (gaps/submit) | 13,577 | 0.7 % | 0.4 ms |
+
+MUL_MAT families (usec; ms/token): ffn_gate 448.4 k / 14.0, ffn_up 446.7 k / 14.0, ffn_down 338.9 k /
+10.6, shortconv in_proj 199.4 k / 6.2, tied `token_embd` output **q6_K 2048x128000** 154.0 k / 4.8,
+shortconv out_proj 79.0 k / 2.5, attn q/out/v/k 82.7 k / 2.6. Every MUL_MAT logs the kernel tag
+`hvx-tiled` — the raw-row reader is NOT separately named, so there is no on-device
+conversion-vs-dot split; n=1 decode shapes on `profile-op` lines confirm decode ran on the DSP.
+
+- The remaining 2.2x to two copies is inside the matvec itself (conversion vs dot vs DDR not separable
+  on device), plus ~0.5 ms/token of activation-arrangement ops that two copies also pay.
+- The tied q6_K output matmul alone is 4.8 ms/token (~9 % of matvec time) — a placement cost the
+  raw-row work did not touch.
+- `RAW_DECODE=0` (CPU) improved 10.63 → 12.79 vs `c5a218321`'s run: different binary, not attributed.
+
+Could NOT be verified: on-device split of raw conversion vs dot (kernel tag shared); the two KLD
+verbose logs (193 MB each) stay on the phone — only summaries/tables copied; the speed session started
+warmer than the previous one (31.7 vs 27.1 °C battery) — comparability rests on ABBA, the tight A/B
+spreads (≤ 0.6 %), and the two-copy arms reproducing 22.2-22.6. Error greps: KLD logs ERR=0
+(`dsp-error|NO-SUPPORT|CRASH|GGML_ABORT|GGML_ASSERT|Segmentation`), speed logs 0 matches, profile log
+1 match which is the benign startup line `set_abort_callback: call` — no real abort/error anywhere.
+All runs EXIT=0. Screen left on (keyevent 224 at end; final state 48 %, 30.1 °C, Awake). No stale
+llama processes on the phone. Nothing committed.

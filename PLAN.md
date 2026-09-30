@@ -645,7 +645,12 @@ the audit fixes `cc9c541f2` the only sample is 10.98 +- 0.45 taken without cool-
 speed is unmeasured. Same aggregate KLD as two copies to printed precision (not a logit-by-logit check); two
 copies 22.2, one-copy CPU 10.63. The raw->tile conversion is the likely cost (simulation, not separated on the
 phone). A raw-row HVX matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expected 19-23 tok/s) is in progress
-(`93ade4886`, checkpoint, not yet verified). Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md`
+(`93ade4886` + `974a31e79`): sim gate re-run by the coordinator (EXIT=0, 80 cases); S23 2026-09-30
+(`onecopy-hmx-numerics/REPORT.md` "Raw-row matvec 974a31e79"): one-copy DSP decode **15.51 tok/s** (ABBA pair
+mean, was 11.82) = 69 % of two copies (22.41), one-copy CPU 12.79; mean KLD 0.004608 vs two copies 0.005313 (better,
+same top p). Design target 19-23 NOT met: the sim predicts raw-row compute ~equal to tiled (96 vs 86 Pcycles/tile at
+K=2048, 70 vs 84 at K=10752), so the 1.45x gap on the phone is likely the memory path (rpcmem HOST buffer), not
+compute - hypothesis, split pending. Code audit pending. Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md`
 "Decode heat per token on one copy", n = 2 per arm, descriptive only): in the speed-matched A pair (12.27 vs
 12.21 tok/s) one-copy DSP decode was ~35 % lower skin area and ~13 % lower battery area per token than one-copy
 CPU; the A+B means (-45 % / -33 %) mix unequal speeds (CPU-B 9.60 tok/s). The area includes load, warmup and a

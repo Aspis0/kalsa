@@ -765,8 +765,10 @@ only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold un
 2026-09-30 (S23): NPU decode on the shared copy now runs - raw Q4_0 HVX matvec on the DSP, **11.82** tok/s
 tg128 on `c5a218321`; after the audit fixes `cc9c541f2` only one uncooled sample (10.98 +- 0.45), clean
 speed unmeasured. Same aggregate KLD as two copies to printed precision (not logit-by-logit); two copies
-**22.2**, one-copy CPU **10.63**. The raw->tile conversion is the likely cost (simulation); a raw-row
-matvec is in progress.
+**22.2**, one-copy CPU **10.63**. The raw->tile conversion was the cost: the raw-row matvec `974a31e79`
+(no per-token conversion) reaches **15.51** tok/s on the S23 (69 % of two copies, CPU 12.79), KLD 0.004608 (better
+than two copies' 0.005313). Target 19-23 not met; the sim says compute is on par with tiled, so the remaining gap is
+likely the host-buffer memory path (hypothesis). Code audit pending.
 Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
 12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
 (CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
