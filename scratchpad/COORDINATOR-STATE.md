@@ -26,6 +26,15 @@ starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=F
   Decide the order before re-running; do not push a throwaway kalsa-server-* tag (it would publish).
 - **Rooms R3 (AI guest)** SHIP by desk at local brain `0b287126` (not pushed; a 400/413 clause coming).
   Phone R3 work queued after NPU/governor.
+  Name refusals split (brain `4a183704`, §9, pushed after v1.1.3): `name_reserved` 409, `name_mixed_scripts`
+  400, `name_too_long` 413 (message `too_large` unchanged); `name_taken` 409, `name_framing` 400,
+  `bad_request` (empty/invisible -> show nothing, keep old name). Owner-approved EN copy per code in the
+  desk message of 2026-09-30 (already_pending, name_taken, name_reserved, name_framing,
+  name_mixed_scripts, name_too_long) - localize by code (EN/IT/ES/FR/ZH):
+  already_pending "You already have a question waiting for Kalsa."; name_taken "Someone in this room
+  already uses that name. Pick another."; name_reserved "Kalsa is the assistant's name. Pick another.";
+  name_framing "Names can't use [ or ]."; name_mixed_scripts "Use letters from one alphabet in your
+  name."; name_too_long "That name is too long. Try a shorter one."
 
 ## Queue for 2026-09-30 (GitHub Actions quota resets; S23 must be charged, then unplugged)
 
