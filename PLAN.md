@@ -644,7 +644,7 @@ session. Two copies lowest per token (0.28 skin C·s/tok at 21.5 tok/s). Hostile
 `onecopy-hmx-numerics/REPORT.md` "Hostile review 2026-09-30".
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
-### NPU prefill: validated, wired, landed — disabled by default
+### NPU prefill: validated in the CLI, wired in code — NOT in any app APK yet
 
 - **Validated equivalent to OpenCL:** `scratchpad/agents/governor-htp-prefill-spike/REPORT.md`
   (commit `e69ff684`) —
@@ -660,6 +660,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
     `kalsa.bench.npu_lane = auto | on | off`), then `335f9c8d` (pin bump, provenance gate
     exit 0, space-bunny SHIP). Device APK CI build `36434636903` is building.
 - Status: **on `origin/main` at `335f9c8d`, default OFF, APK building; step-5 device soak pending**
+- **2026-09-30: no CI APK has ever carried the Hexagon host backend.** App CI has no Hexagon SDK
+  (run `36733967953` log: "Hexagon SDK not found — building CPU-only"); `librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so`
+  has 0 Hexagon symbols while the DSP skels ship in `assets/ggml-hexagon/`; on the S23 the lane degrades with
+  `npu_fallback: "htp-device-missing"`. The host build also needs QAIC stubs (binding `CMakeLists.txt:109-120`).
+  Recon: `scratchpad/agents/app-ci-hexagon-recon/REPORT.md` (no retained APK among 11 scanned had it). Fix in
+  progress: app CI gets the pinned SDK + host QAIC artifacts + an APK assertion (coder `a0a34d08`).
   (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
   `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
 

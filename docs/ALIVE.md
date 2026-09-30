@@ -704,7 +704,7 @@ pause is only an emergency brake, so the platform-pause implementation (app `193
 **held**. The lever map `governor-thermal-ladder/LEVERS.md` (`3e00ccea`) keeps every lever
 except its "MODERATE -> CPU prefill" rung, which the heat data **refutes**.
 
-**NPU prefill: validated, wired, landed - disabled by default.** The spike
+**NPU prefill: validated in the CLI, wired in code - not in any app APK yet.** The spike
 (`scratchpad/agents/governor-htp-prefill-spike/REPORT.md`, commit `e69ff684`) gave an EQUIVALENT three-prompt
 handoff verdict vs OpenCL (mean agreement 99.306 %, mean KLD 0.000853797 inside OpenCL's
 0.000706-0.000956 range; identical commit bytes; 1,089 `HTP0 execute-op MUL_MAT` lines). The
@@ -713,7 +713,9 @@ chain: engine `feat/governor-npu-prefill` `45f097b74`; binding `4e0837f8` then `
 copies the fields before the closure); app `origin/main` `2fb5ee4a` then **`335f9c8d` (pin
 bump, provenance exit 0)**. The lane is **default OFF** on main, the bench key
 `kalsa.bench.npu_lane = auto | on | off` drives A/B, device APK CI `36434636903` is building,
-and the **step-5 device soak is pending**. Design and steps:
+and the **step-5 device soak is pending**. 2026-09-30: no CI APK has ever carried the Hexagon host
+backend (app CI has no Hexagon SDK: "building CPU-only"; the S23 lane degrades with
+`htp-device-missing`); CI fix in progress, recon `app-ci-hexagon-recon/REPORT.md`. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
