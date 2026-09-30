@@ -24,7 +24,7 @@ export const ROOM: RoomTable = {
   readLast: (count: number) =>
     count === 1 ? " · leyó el último mensaje" : ` · leyó los últimos ${count} mensajes`,
   notes: {
-    "busy_waiting": "Kalsa está ocupado con otra conversación. Conservas tu turno.",
+    "busy_waiting": "Kalsa está ocupada con otra conversación. Conservas tu turno.",
     "unavailable": "Kalsa no puede responder en esta sala ahora mismo.",
     "empty_answer": "Kalsa no tuvo respuesta para eso.",
     "could_not_start": "Kalsa no pudo arrancar. Inténtalo de nuevo.",

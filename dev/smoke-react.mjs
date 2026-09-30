@@ -1183,7 +1183,7 @@ try {
       if (heading.startsWith("Room — in ")) {
         const want = heading.includes("Chinese")
           ? ["停止", "Kalsa 正在回答Marco。"]
-          : ["Kalsa risponderà prima a Marco, poi Luca.", "Chiedi a Kalsa"];
+          : ["Kalsa risponderà prima a Marco, poi a Luca.", "Chiedi a Kalsa"];
         const missing = want.filter((wanted) => !all.includes(wanted));
         if (missing.length > 0) {
           problems.push(`Room — ${heading}: missing ${JSON.stringify(missing)}`);

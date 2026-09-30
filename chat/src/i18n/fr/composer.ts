@@ -12,7 +12,7 @@ export const COMPOSER = {
 
 export const BRAIN_BAR = {
     "placeholder": "Dis quelque chose…",
-    "writeAria": "Écrire au cerveau",
+    "writeAria": "Message",
     "send": "Envoyer",
     "chat": "Discussion",
     "room": "Salon",
