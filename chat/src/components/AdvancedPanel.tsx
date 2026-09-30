@@ -302,6 +302,18 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
     setSaving(false);
   }
 
+  /** The one write of the record, and the only road to onModelChange: the
+      app's memory learns the name only when the write really landed, so it
+      never holds a name storage cannot give back. */
+  function commitName(): void {
+    const name = model.trim();
+    if (!name) {
+      setModelError(advanced.modelNameError);
+      return;
+    }
+    if (saveSettings({ ...loadSettings(), model: name })) onModelChange?.(name);
+  }
+
   // What the context control needs this render: the machine's ceiling, the
   // launcher's automatic figure, and the presets this machine funds.
   const maximum = contextMaximum(dto, cache);
@@ -326,14 +338,11 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
                 setModel(event.target.value);
                 setModelError(null);
               }}
-              onBlur={() => {
-                const name = model.trim();
-                if (!name) {
-                  setModelError(advanced.modelNameError);
-                  return;
-                }
-                saveSettings({ ...loadSettings(), model: name });
-                onModelChange?.(name);
+              onBlur={commitName}
+              onKeyDown={(event) => {
+                // Enter commits what was typed — the keyboard should not
+                // need a detour out of the field to be heard.
+                if (event.key === "Enter") commitName();
               }}
               placeholder={advanced.modelNamePlaceholder}
               autoComplete="off"

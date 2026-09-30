@@ -66,11 +66,15 @@ export function loadSettings(): ChatSettings {
   }
 }
 
-export function saveSettings(settings: ChatSettings): void {
+/** True when the record landed in storage. A false is private mode and its
+ *  kin — the session keeps working from memory, and the caller can choose
+ *  not to promise the save to anyone else. */
+export function saveSettings(settings: ChatSettings): boolean {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    return true;
   } catch {
-    // Private mode etc: the session keeps working in memory.
+    return false;
   }
 }
 
