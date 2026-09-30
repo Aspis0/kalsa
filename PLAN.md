@@ -626,15 +626,22 @@ NPU/GPU/CPU per turn above noise; the result goes back to the owner before desig
 sits between (1) and (4).
 Ranking rule (owner, 2026-09-29): pick the backend with the least heat/energy per token among those
 above a tok/s usability floor; a slower backend wins if it stays above the floor. 8 Elite NPU decode
-(29.1 tok/s, 27 % cooler per token than CPU at 39.0) is a win, S23 NPU decode (22.09 vs CPU 22.13,
-skin 0.17 vs 0.25 °C·s/token) too. Consequence for one-copy: decode must stay runnable on the NPU from
-the shared copy. S23 2026-09-30 (`onecopy-hmx-numerics/REPORT.md`, engine `spike/onecopy-hmx-raw`): raw
-Q4_0 decode on the DSP went 0.13 -> 11.82 tok/s (`c5a218321`/`cc9c541f2`, KLD identical to two copies)
-vs two copies 22.2 and one-copy CPU 10.63; the per-token raw->tile conversion is the cost. A raw-row HVX
-matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expected 19-23 tok/s) is in progress (`93ade4886`,
-checkpoint, not yet verified). Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md` "Decode heat per
-token on one copy", n = 2 per arm): one-copy DSP decode ~45 % cooler per token (skin) than one-copy CPU decode at
-equal speed (12.2 tok/s); two copies coolest per token (0.28 skin C·s/tok at 21.5 tok/s).
+(29.1 tok/s, 27 % cooler per token than CPU at 39.0) is a win; S23 NPU decode (22.09 vs CPU 22.13,
+skin 0.17 vs 0.25 °C·s/token) is directionally lower but the ranges overlap: plausible, not a proven win.
+Consequence for one-copy: decode must stay runnable on the NPU from the shared copy. S23 2026-09-30
+(`onecopy-hmx-numerics/REPORT.md`, engine `spike/onecopy-hmx-raw`): raw Q4_0 decode on the DSP (HVX matvec)
+measured 11.82 tok/s tg128 on `c5a218321` (an earlier tg2/tg4 smoke gave 0.13; not a controlled ratio); after
+the audit fixes `cc9c541f2` the only sample is 10.98 +- 0.45 taken without cool-down, so clean post-audit
+speed is unmeasured. Same aggregate KLD as two copies to printed precision (not a logit-by-logit check); two
+copies 22.2, one-copy CPU 10.63. The raw->tile conversion is the likely cost (simulation, not separated on the
+phone). A raw-row HVX matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expected 19-23 tok/s) is in progress
+(`93ade4886`, checkpoint, not yet verified). Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md`
+"Decode heat per token on one copy", n = 2 per arm, descriptive only): in the speed-matched A pair (12.27 vs
+12.21 tok/s) one-copy DSP decode was ~35 % lower skin area and ~13 % lower battery area per token than one-copy
+CPU; the A+B means (-45 % / -33 %) mix unequal speeds (CPU-B 9.60 tok/s). The area includes load, warmup and a
+120 s idle tail (54-77 % of the skin area), so it is not active-decode-only heat; baselines rose through the
+session. Two copies lowest per token (0.28 skin C·s/tok at 21.5 tok/s). Hostile review of these results:
+`onecopy-hmx-numerics/REPORT.md` "Hostile review 2026-09-30".
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated, wired, landed — disabled by default
@@ -734,7 +741,7 @@ workgroup size were ruled out on paper. Next (correctness, plugged OK): rerun wi
 real kernel before it is usable.
 
 The HMX-on-raw reader works on the S23 (`scratchpad/agents/onecopy-hmx-numerics/REPORT.md`; engine
-`spike/onecopy-hmx-raw`, not pushed). Automatic placement (`4eb2618fb`, no `-ot`) with
+`spike/onecopy-hmx-raw`, pushed at `cc9c541f2`). Automatic placement (`4eb2618fb`, no `-ot`) with
 `GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1 --load-mode none -ngl 99 -dev HTP0`: pp512 **851.5**
 tok/s one-copy vs **876.4** two-copy, KLD **0.000892**. Buffers: HTP0-HOST 1,306 MiB (shared with the
 CPU), HTP0 220 MiB, CPU 205 MiB; `token_embd` lands on HTP, cause under recon. Guard `f8ee54d37` +

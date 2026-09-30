@@ -596,3 +596,32 @@ DSP battery 0.204 / skin 0.284 C·s per token.
   from the coldest phone, which inflates its rise (0.590 vs 0.242 for the same arm later). Direction is consistent
   in both pairs for skin; treat magnitudes as rough. This addresses Fable's H4 (governor plan) only partly: n >= 5
   ABBA is still owed.
+
+## Hostile review 2026-09-30 (luna `25ca22be`, gpt-6-luna; coordinator verified the load-bearing lines)
+
+The sections above stay as written; these corrections override them.
+
+- **Speed after the audit fixes is unmeasured.** 11.82 tok/s tg128 belongs to `c5a218321`. The only
+  `cc9c541f2` sample is 10.98 +- 0.45, taken right after two perplexity passes with no cool-down. A clean
+  ABBA is still owed. CONFIRMED (lines "tg128 one copy on DSP: 10.98 +- 0.45 tok/s (was 11.82)").
+- **"x91" is not a controlled speedup.** 0.13 came from a tg2/tg4 smoke and 11.82 from tg128.
+- **"45 % cooler at equal speed" is wrong.** Only the A pair is speed-matched (12.27 vs 12.21 tok/s): skin
+  0.576 vs 0.883 = -35 %, battery 0.590 vs 0.681 = -13 %. The -45 % / -33 % pair means mix CPU-B at 9.60
+  with DSP-B at 12.26. CONFIRMED from the table above.
+- **The area is not active-decode heat.** The window starts at process invocation, so it includes model
+  load and warmup, plus a 120 s idle tail. The reviewer attributes 54-77 % of each skin area to the tail. CPU-B
+  also ran 109 s against 86 s for the DSP. CONFIRMED (method line above).
+- **"The CPU arm throttled" is not shown.** CPU-B was slower and reached status 1, but DSP-B also reached
+  status 1. No frequency trace was taken, so the cause is not identified.
+- **"KLD identical" means the same aggregate summary to printed precision.** It is not a logit-by-logit
+  check. The paths differ: 168,448 raw DSP MUL_MAT against 0.
+- **The conversion-bound attribution comes from simulation.** The phone does not separate conversion
+  from the dot product, or either from DDR.
+- **Tied embedding.** The RSS figures are CLI process peak RSS (`toybox time -v`), not device RAM or the
+  app's MLOCK path. S23 output quality with the plain-Q6_K lm_head was not measured.
+- **±0.00 is not run-to-run spread.** With `-r 1` it is the degenerate within-run sd. The reviewer's
+  trapezoidal areas differ from the table by at most ~0.003 C·s/token.
+- **Decode kernel.** The measured decode kernel is HVX (`hvx_mv_2d_raw_q4_0`), not HMX.
+
+Net: DSP decode on one copy is plausibly cooler than CPU decode on the same weights. The effect size is not
+established. n >= 5 ABBA with an active-decode-only window is owed.

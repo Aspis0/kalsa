@@ -747,7 +747,7 @@ probe imports and small shapes are correct; on the full model the GPU looked sta
 (engine `0285aae40`, lab `1ecbcbfe`): most likely **slow, not hung** - raw GEMM **4.75 GFLOPS** vs
 ~**437** for the normal path (~92x), ~9 min per pass; the import did happen (INFO hidden by the log
 threshold; wrapper now uses `-v`). Next: rerun with the `--model-shapes` probe and a 20-min wait. The HMX-on-raw reader works on the S23 (`scratchpad/agents/onecopy-hmx-numerics/REPORT.md`; engine
-`spike/onecopy-hmx-raw`, not pushed). Automatic placement (`4eb2618fb`, no `-ot`) with
+`spike/onecopy-hmx-raw`, pushed at `cc9c541f2`). Automatic placement (`4eb2618fb`, no `-ot`) with
 `GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_RAW_HMX=1 --load-mode none -ngl 99 -dev HTP0`: pp512 **851.5**
 tok/s one-copy vs **876.4** two-copy, KLD **0.000892**. Buffers: HTP0-HOST 1,306 MiB (shared with the
 CPU), HTP0 220 MiB, CPU 205 MiB; `token_embd` lands on HTP, cause under recon. Guard `f8ee54d37` +
@@ -757,13 +757,17 @@ them instead of crashing, the loader warns once, and the run falls back to CPU (
 load-time numbers owed on the S23. Open: CPU decode on raw Q4_0 is **0.62-0.64** of the repacked path
 on the S23 (tg128, interleaved); a multi-row raw gemv (`spike/onecopy-cpu-gemv` `1dd83c245`) moved it
 only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold until decode is fixed.
-2026-09-30 (S23): NPU decode on the shared copy now works - raw Q4_0 DSP matvec 0.13 -> **11.82** tok/s
-(`c5a218321`, audit fixes `cc9c541f2`), KLD identical to two copies, vs two copies **22.2** and one-copy
-CPU **10.63**; the per-token raw->tile conversion is the remaining cost, a raw-row matvec is in progress.
-Heat per decoded token on the same weights (n = 2 per arm, rising baselines): DSP skin **0.49** vs CPU **0.88**
-C·s/token at ~12.2 tok/s; two copies **0.28** at 21.5 tok/s.
-Tied embedding shared with the CPU copy (`048603398`): peak RSS **-204 MiB** (no mmap) / **-225 MiB**
-(mmap), CPU decode unchanged.
+2026-09-30 (S23): NPU decode on the shared copy now runs - raw Q4_0 HVX matvec on the DSP, **11.82** tok/s
+tg128 on `c5a218321`; after the audit fixes `cc9c541f2` only one uncooled sample (10.98 +- 0.45), clean
+speed unmeasured. Same aggregate KLD as two copies to printed precision (not logit-by-logit); two copies
+**22.2**, one-copy CPU **10.63**. The raw->tile conversion is the likely cost (simulation); a raw-row
+matvec is in progress.
+Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
+12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
+(CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
+Tied embedding shared with the CPU copy (`048603398`): CLI peak RSS (`toybox time -v`) **-204 MiB** (no
+mmap) / **-225 MiB** (mmap), CPU decode speed unchanged; S23 output quality with the plain-Q6_K lm_head
+and the app memory path are not measured yet.
 
 **App and pairing - main, all reviewed** (every sha below verified an ancestor of
 `origin/main`):
