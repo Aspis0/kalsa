@@ -11,6 +11,19 @@ import { roomNote } from "./roomNotes";
 import { useRoomFeed } from "./useRoomFeed";
 import "./RoomSurface.css";
 
+/** The waiting line, in queue order: who is next, then the rest joined
+    the way English lists them. */
+export function queueLine(queue: string[]): string {
+  if (queue.length === 0) return "";
+  const [next, ...rest] = queue;
+  if (rest.length === 0) return `Kalsa will answer ${next} next.`;
+  const last = rest[rest.length - 1];
+  const earlier = rest.slice(0, -1);
+  const thenPart =
+    earlier.length > 0 ? `then ${earlier.join(", ")} and ${last}` : `then ${last}`;
+  return `Kalsa will answer ${next} next, ${thenPart}.`;
+}
+
 export function RoomSurface() {
   const feed = useRoomFeed();
   const { info, note, entries, live } = feed;
@@ -46,7 +59,7 @@ export function RoomSurface() {
   if (!available() || (info !== null && !info.open)) {
     return (
       <div className="surface-page room-page">
-        <p className="surface-quiet">The room opens when the assistant runs.</p>
+        <p className="surface-quiet">Turn on Kalsa to use the room.</p>
       </div>
     );
   }
@@ -129,7 +142,7 @@ export function RoomSurface() {
           </button>
         ) : null}
         {!turnRunning && ai && ai.queue.length > 0 ? (
-          <p className="surface-quiet">Waiting to ask Kalsa: {ai.queue.join(", ")}</p>
+          <p className="surface-quiet">{queueLine(ai.queue)}</p>
         ) : null}
         {noteLine ? <p className="surface-quiet">{noteLine}</p> : null}
       </div>

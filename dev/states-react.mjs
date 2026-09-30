@@ -16,7 +16,7 @@ import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain
 import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
 import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
-import { RoomSurface } from "../chat/src/surfaces/RoomSurface";
+import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
 import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/useRoomFeed";
 import { completionBody } from "../chat/src/lib/chat";
@@ -255,6 +255,14 @@ const scenarios = [
   // must replace instead of merge, and a Stop must show whenever a turn
   // runs (thinking included).
   ["Room", "the feed reducer: merge, epoch, live", "room", { reducerProbe: true }],
+  ["Room", "the queue line: one, two, three", "room", { queueProbe: true }],
+  ["Room", "queue: three waiting, real line", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4, name: "Luca", kind: "phone", former: false },
+    { member_id: 5, name: "Sofia", kind: "phone", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "queued", running: null, queue: ["Marco", "Luca", "Sofia"], you_pending: false } }, roomHistory: [] }],
 
   ["Model", "running: the choice is automatic", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: AUTO_REASON } }],
   ["Model", "running: a phone was paired and compared", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: PHONE_REASON } }],
@@ -758,6 +766,14 @@ function componentFor(kind, data) {
   if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
   if (kind === "advanced") return React.createElement(AdvancedSurface);
   if (kind === "room") {
+    if (data?.queueProbe) {
+      return React.createElement("div", null,
+        React.createElement("p", { className: "room-queue-line" }, [
+          queueLine(["Marco"]),
+          queueLine(["Marco", "Luca"]),
+          queueLine(["Marco", "Luca", "Sofia"]),
+        ].join("\n")));
+    }
     if (data?.reducerProbe) {
       const lines = [];
       // A delta lands live, then the history page arrives carrying the

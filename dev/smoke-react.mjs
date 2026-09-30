@@ -449,7 +449,11 @@ try {
   for (const { heading, sentence, button, working, walk, qr } of results) {
     // The matcher's probe renders lists, not actions: a card that exists
     // to be read back is not a dead end.
-    if (heading.startsWith("Room — the @Kalsa rule") || heading.startsWith("Room — the feed reducer")) {
+    if (
+      heading.startsWith("Room — the @Kalsa rule") ||
+      heading.startsWith("Room — the feed reducer") ||
+      heading.startsWith("Room — the queue line")
+    ) {
       continue;
     }
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
@@ -1196,6 +1200,33 @@ try {
         }
         if (!all.includes("Kalsa is answering Marco.")) {
           problems.push(`Room — a thinking turn names who it is for: ${heading}`);
+        }
+      }
+      if (heading.includes("closed room")) {
+        if (!all.includes("Turn on Kalsa to use the room.")) {
+          problems.push(`Room — a closed room must point at the switch: ${heading}`);
+        }
+        if (buttons.length > 0) {
+          problems.push(`Room — a closed room offers nothing to press: ${heading}`);
+        }
+      }
+      if (heading.includes("the queue line")) {
+        // The owner's three forms, exactly: one name alone, two with
+        // "then", three with the list and "and" before the last.
+        const forms = [
+          "Kalsa will answer Marco next.",
+          "Kalsa will answer Marco next, then Luca.",
+          "Kalsa will answer Marco next, then Luca and Sofia.",
+        ];
+        for (const wanted of forms) {
+          if (!all.includes(wanted)) {
+            problems.push(`Room — queue line must say "${wanted}": ${heading}`);
+          }
+        }
+      }
+      if (heading.includes("queue: three waiting")) {
+        if (!all.includes("Kalsa will answer Marco next, then Luca and Sofia.")) {
+          problems.push(`Room — the card's queue line must be the three-name form: ${heading}`);
         }
       }
       if (heading.includes("the feed reducer")) {
