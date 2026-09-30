@@ -48,12 +48,24 @@ jobs:
     # tools/HEXAGON_Tools/19.0.04). The npm package omits scripts/, so the
     # binding cannot download the SDK itself here — scripts/prepare-hexagon-host.sh
     # does, with these same versions. Bumping the binding pin means re-checking
-    # these two values.
+    # these values. The sha256 is the release-asset digest from the GitHub
+    # API (repos/snapdragon-toolchain/hexagon-sdk/releases/tags/v6.4.0.2,
+    # assets[].digest); prepare-hexagon-host.sh verifies every archive
+    # against it — restored cache included — before extracting or running
+    # anything from it.
     env:
       HEXAGON_SDK_VERSION: "6.4.0.2"
       HEXAGON_TOOLS_VERSION: "19.0.04"
+      HEXAGON_SDK_SHA256: "b4a57a774795cf12da19a777a5d306e970905bf9758a4c4765e5e4593428ae0b"
     steps:
+      # persist-credentials: false — nothing after the checkout runs
+      # authenticated git (the fork dep, codeload fetch and SDK release are
+      # all public; assert-engine-provenance.sh uses anonymous curl), and
+      # the job later executes SDK binaries (qaic) that must not be able to
+      # read a stored github.token.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -184,12 +196,17 @@ jobs:
       # compiles the same hexagon-named variant for x86_64, where linking
       # the SDK's android_aarch64 libcdsprpc.so cannot work. Not exporting
       # the roots keeps x86_64 CPU-only, exactly as before.
-      - name: Cache the Hexagon SDK
+      # The cache holds the SDK ARCHIVE, never the extracted tree: a cache
+      # hit restores the archive, prepare-hexagon-host.sh re-verifies its
+      # sha256 and extracts it fresh — so the digest gate covers restored
+      # caches exactly like downloads, and the key (which carries the
+      # digest) invalidates itself when the pin changes.
+      - name: Cache the Hexagon SDK archive
         if: contains(inputs.abi, 'arm64-v8a')
         uses: actions/cache@v4
         with:
-          path: ~/.hexagon-sdk
-          key: hexagon-sdk-${{ env.HEXAGON_SDK_VERSION }}
+          path: ~/.hexagon-sdk-archive
+          key: hexagon-sdk-${{ env.HEXAGON_SDK_VERSION }}-${{ env.HEXAGON_SDK_SHA256 }}
       - name: Prepare the Hexagon SDK and QAIC host artifacts
         if: contains(inputs.abi, 'arm64-v8a')
         run: bash scripts/prepare-hexagon-host.sh
