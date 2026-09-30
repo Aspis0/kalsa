@@ -5,6 +5,7 @@
  * raced. Unsubscribing the last listener closes the stream; background
  * pauses every stream and foreground resumes each from its own cursor.
  */
+import { subscribeRoomQueue } from "./roomQueue";
 import { openRoomStream, type RoomStreamEvent } from "./roomStream";
 
 type Listener = (event: RoomStreamEvent) => void;
@@ -12,6 +13,8 @@ type Listener = (event: RoomStreamEvent) => void;
 type Entry = {
   handle: ReturnType<typeof openRoomStream>;
   listeners: Set<Listener>;
+  /** The queue hook that keeps the stream's floor covering sent seqs. */
+  leaveQueue: () => void;
 };
 
 const entries = new Map<string, Entry>();
@@ -40,7 +43,15 @@ export function subscribeRoomEvents(roomLocalId: string, listener: Listener): ()
         }
       }
     });
-    entry = { handle, listeners };
+    // A post the queue completes itself raises this stream's floor: the
+    // entry the door carries for it is a duplicate the dispatch drops —
+    // the one bubble, whichever channel reported it first.
+    const leaveQueue = subscribeRoomQueue(roomLocalId, (event) => {
+      if (event.type === "sent" && typeof event.item.seq === "number") {
+        handle.markDelivered(event.item.seq);
+      }
+    });
+    entry = { handle, listeners, leaveQueue };
     entries.set(roomLocalId, entry);
   } else {
     entry.listeners.add(listener);
@@ -52,6 +63,7 @@ export function subscribeRoomEvents(roomLocalId: string, listener: Listener): ()
     live = false;
     subscribed.listeners.delete(listener);
     if (subscribed.listeners.size === 0) {
+      subscribed.leaveQueue();
       subscribed.handle.close();
       entries.delete(roomLocalId);
     }

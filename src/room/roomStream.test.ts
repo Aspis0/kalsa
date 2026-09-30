@@ -34,7 +34,7 @@ import {
 import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
 import infoFixture from "./fixtures/info.json";
 import { noteRoomEpoch, resetRoomEpochs } from "./roomEpochs";
-import { reconnectDelayMs } from "./roomBackoff";
+import { backoffDelayMs } from "./roomBackoff";
 import { openRoomStream, type RoomStreamEvent } from "./roomStream";
 
 const LOCAL_ID = "p-lid-stream";
@@ -284,13 +284,13 @@ test("sixty seconds of a quiet-but-alive stream restarts the backoff too", async
 });
 
 test("the backoff grows exponentially and never leaves its jittered half-band", () => {
-  expect(reconnectDelayMs(0)).toBe(500);
-  expect(reconnectDelayMs(1)).toBe(1_000);
-  expect(reconnectDelayMs(3)).toBe(4_000); // random pinned to 0 = the band's floor
-  expect(reconnectDelayMs(5)).toBe(15_000); // 32 s capped at 30 s, halved by the pin
-  expect(reconnectDelayMs(50)).toBe(15_000);
+  expect(backoffDelayMs(0)).toBe(500);
+  expect(backoffDelayMs(1)).toBe(1_000);
+  expect(backoffDelayMs(3)).toBe(4_000); // random pinned to 0 = the band's floor
+  expect(backoffDelayMs(5)).toBe(15_000); // 32 s capped at 30 s, halved by the pin
+  expect(backoffDelayMs(50)).toBe(15_000);
   randomSpy.mockRestore();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0.999999);
-  expect(reconnectDelayMs(5)).toBeLessThan(30_000);
-  expect(reconnectDelayMs(50)).toBeGreaterThanOrEqual(15_000);
+  expect(backoffDelayMs(5)).toBeLessThan(30_000);
+  expect(backoffDelayMs(50)).toBeGreaterThanOrEqual(15_000);
 });

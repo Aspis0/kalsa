@@ -18,8 +18,9 @@ import { isPairingStoreDamaged } from "../pairing/pairingMap";
 import { roomDoorForCall } from "./roomApi";
 import { cachedRoomEpoch, forgetRoomEpoch, noteRoomEpoch } from "./roomEpochs";
 import type { RoomError } from "./roomError";
-import { reconnectDelayMs } from "./roomBackoff";
+import { backoffDelayMs } from "./roomBackoff";
 import { createRoomFrameDispatch, type RoomFrameEvent } from "./roomStreamDispatch";
+import { flushRoomQueue } from "./roomQueue";
 import { refetchInfo, refetchResync } from "./roomStreamRefetch";
 import {
   roomStreamStatusAction,
@@ -63,6 +64,8 @@ export type RoomStreamHandle = {
   pause(): void;
   /** Foreground: dial again from where this session left off. */
   resume(): void;
+  /** The queue just sent this seq: the stream must not deliver it twice. */
+  markDelivered(seq: number): void;
   /** The subscription is over: stop for good, keep nothing. */
   close(): void;
 };
@@ -150,7 +153,7 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
 
   const scheduleReconnect = (): void => {
     if (closed || paused || reconnectTimer !== null) return;
-    const delay = reconnectDelayMs(attempt);
+    const delay = backoffDelayMs(attempt);
     attempt += 1;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -259,6 +262,8 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
       if (everConnected && !infoFresh) void refreshInfo(gen);
       infoFresh = false;
       everConnected = true;
+      // The room answers again — whatever waited out the outage posts now.
+      void flushRoomQueue(roomLocalId);
     },
     onMessage: (message) => {
       if (!ready(gen)) return;
@@ -354,6 +359,7 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
       startIdleWatch();
       void cycle();
     },
+    markDelivered: (seq) => frames.markDelivered(seq),
     close: stop,
   };
 }

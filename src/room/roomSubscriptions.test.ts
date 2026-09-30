@@ -11,13 +11,23 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   bindPairingRoom: jest.fn(),
   markPairingRemoved: jest.fn(),
 }));
+const stored: Record<string, string> = {};
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async () => null,
-  setItem: async () => undefined,
+  getItem: async (key: string) => stored[key] ?? null,
+  setItem: async (key: string, value: string) => {
+    stored[key] = value;
+  },
+  removeItem: async (key: string) => {
+    delete stored[key];
+  },
+}));
+jest.mock("expo-crypto", () => ({
+  getRandomBytes: jest.fn(),
 }));
 jest.mock("../engine/remote/remoteSecret", () => ({ getRemoteBrainToken: jest.fn() }));
 
-import { doorFetchFor, establishDoorRoad } from "../remote/doorRoad";
+import { getRandomBytes } from "expo-crypto";
+import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
 import {
   bindPairingRoom,
   getPairing,
@@ -26,6 +36,7 @@ import {
 } from "../pairing/pairingCredentialStore";
 import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
 import { resetRoomEpochs } from "./roomEpochs";
+import { enqueueRoomMessage, subscribeRoomQueue, type RoomQueueEvent } from "./roomQueue";
 import { pauseRoomStreams, resumeRoomStreams, subscribeRoomEvents } from "./roomSubscriptions";
 import type { RoomStreamEvent } from "./roomStream";
 
@@ -45,7 +56,8 @@ function entryFrame(seq: number): string {
 }
 
 async function settle(): Promise<void> {
-  for (let i = 0; i < 30; i += 1) await Promise.resolve();
+  // The queue's lock → write → announce chain runs deep; drain generously.
+  for (let i = 0; i < 300; i += 1) await Promise.resolve();
 }
 
 let randomSpy: jest.SpyInstance;
@@ -56,6 +68,11 @@ beforeEach(() => {
   resetRoomEpochs();
   jest.resetAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
+  // resetAllMocks strips factory implementations: restore the mint.
+  (getRandomBytes as unknown as jest.Mock).mockImplementation(
+    (length: number) => new Uint8Array(length).fill(0x5a),
+  );
+  for (const key of Object.keys(stored)) delete stored[key];
   (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockResolvedValue({
     road: "https",
   });
@@ -157,4 +174,41 @@ test("only one room streams at a time: the room on screen wins the device's seat
   leavePrevious(); // its entry is already gone: a no-op, never a second cut
   leaveOnScreen();
   expect(onScreenWire.aborted).toBe(true);
+});
+
+test("a post the queue completes itself shows once: the stream's own copy is dropped", async () => {
+  const streamEvents: RoomStreamEvent[] = [];
+  const queueEvents: RoomQueueEvent[] = [];
+  (doorFetchFor as jest.MockedFunction<typeof doorFetchFor>).mockReturnValue(
+    jest.fn(async (url: string) => ({
+      ok: true,
+      status: 200,
+      isBodyEmpty: async () => false,
+      json: async () =>
+        url.includes("/messages")
+          ? { seq: 42, time: 1_791_000_042, ai_call: null, refusal: null }
+          : { messages: [], has_older: false, has_newer: false },
+    })) as unknown as DoorFetch,
+  );
+
+  const leaveStream = subscribeRoomEvents("p-lid-subs", (event) => streamEvents.push(event));
+  const leaveQueue = subscribeRoomQueue("p-lid-subs", (event) => queueEvents.push(event));
+  await settle();
+  const wire = FakeRoomXhr.latest();
+  wire.head(200, { "Kalsa-Room-Epoch": EPOCH });
+
+  await enqueueRoomMessage("p-lid-subs", { text: "from the queue" });
+  await settle();
+  expect(queueEvents.filter((event) => event.type === "sent")).toHaveLength(1);
+
+  // The door carries its own copy of the same entry: the queue's sent
+  // verdict raised the floor, so the dispatch drops it — one bubble.
+  wire.chunk(entryFrame(42));
+  wire.chunk(entryFrame(43));
+  await settle();
+
+  const delivered = streamEvents.filter((event) => event.type === "message");
+  expect(delivered.map((event) => (event as { entry: { seq: number } }).entry.seq)).toEqual([43]);
+  leaveStream();
+  leaveQueue();
 });

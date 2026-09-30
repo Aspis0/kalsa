@@ -116,3 +116,17 @@ test("discardAssembly drops the partial — what a reconnect does with it", () =
     assembled: "resume",
   });
 });
+
+test("markDelivered covers a seq the queue sent itself: the stream never repeats it", () => {
+  const dispatch = createRoomFrameDispatch(LOCAL_ID);
+
+  dispatch.markDelivered(50);
+
+  expect(dispatch.resumeFrom()).toBe(50);
+  expect(dispatch.dispatch(frame(`id: 50\nevent: message\ndata: ${entryData(50)}\n\n`)).kind).toBe(
+    "skip",
+  );
+  expect(dispatch.dispatch(frame(`id: 51\nevent: message\ndata: ${entryData(51)}\n\n`)).kind).toBe(
+    "event",
+  );
+});

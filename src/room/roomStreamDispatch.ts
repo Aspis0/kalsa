@@ -47,6 +47,9 @@ export type RoomFrameDispatch = {
   /** The history page's floor: every seq at or below it is a duplicate
    *  the replay would hand back anyway. */
   setFloor(messages: readonly RoomHistoryMessage[]): void;
+  /** The queue just SENT this seq itself: the stream's copy of it is a
+   *  duplicate to drop, and the resume floor must cover it too. */
+  markDelivered(seq: number): void;
   /** Drop the partial answer: a reconnect or resync starts the
    *  assembly over — whatever survives, the next ai_status and
    *  ai_message will say (§7). */
@@ -105,7 +108,12 @@ export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch 
     },
     resumeFrom: () => lastSeq,
     setFloor: (messages) => {
+      // A resync's page REPLACES the floor: the old epoch's seqs and the
+      // dead cursor are exactly what we are resuming away from.
       lastSeq = messages.reduce((max, entry) => Math.max(max, entry.seq), 0);
+    },
+    markDelivered: (seq) => {
+      if (seq > lastSeq) lastSeq = seq;
     },
     discardAssembly: () => {
       assembly = null;
