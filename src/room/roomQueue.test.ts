@@ -1,12 +1,12 @@
 /**
- * The queue's compose and outcomes: bounds (and the 16 KiB encoded cap)
- * checked before anything is stored or minted, ONE crypto-grade id per
- * message, strict FIFO past terminal failures,409 reused never posting
- * that id again,404 failing,401 holding the shelf, and exactly one post
- * in flight per room — a flush arriving mid-send earns a rerun, never a
- * stranded message. §5 ids, §9 refusals, door sentences quoted from
- * kalsa-brain: reused (kalsa-room/src/room.rs:51), not_found
- * (mod.rs:72 via mod.rs:195).
+ * The queue's compose and outcomes: §9's bounds (and the 16 KiB encoded
+ * cap) checked before anything is stored or minted, ONE crypto-grade id
+ * per message, strict FIFO past terminal failures, 409 reused never
+ * posting that id again, 404 failing, 401 holding the shelf with the
+ * door's sentence on the item, and exactly one post in flight per room —
+ * a flush arriving mid-send earns a rerun, never a stranded message.
+ * Door sentences quoted from kalsa-brain: reused (kalsa-room/src/room.rs:51),
+ * not_found (mod.rs:72 via mod.rs:195).
  */
 const stored: Record<string, string> = {};
 /** Distinct ids per mint (the contract's one-id-per-message rule makes
@@ -29,8 +29,10 @@ jest.mock("expo-crypto", () => ({
   }),
 }));
 jest.mock("./roomApi", () => ({ postRoomMessage: jest.fn() }));
+jest.mock("../pairing/pairingCredentialStore", () => ({ getPairing: jest.fn() }));
 
 import { getRandomBytes } from "expo-crypto";
+import { getPairing } from "../pairing/pairingCredentialStore";
 import { postRoomMessage } from "./roomApi";
 import {
   enqueueRoomMessage,
@@ -39,7 +41,7 @@ import {
   subscribeRoomQueue,
   type RoomQueueEvent,
 } from "./roomQueue";
-import type { RoomQueueItem } from "./roomQueueStore";
+import { type RoomQueueItem, type RoomQueueSent } from "./roomQueueStore";
 import type { RoomErrorCode, RoomResult } from "./roomError";
 import type { RoomPostAck } from "./roomWire";
 
@@ -75,13 +77,20 @@ beforeEach(() => {
   mintSequence.counter = 0;
   for (const key of Object.keys(stored)) delete stored[key];
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockReset();
+  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue({
+    localId: LOCAL,
+    credential: "ab".repeat(32),
+    doorUrl: "https://desk.example",
+    node: null,
+    pairedVia: null,
+    roomId: null,
+  });
 });
 
 afterEach(() => {
   randomSpy.mockRestore();
   jest.useRealTimers();
 });
-
 test("compose validates at §9's bounds, mints once, and the sent verdict retires the item", async () => {
   const events: RoomQueueEvent[] = [];
   const leave = subscribeRoomQueue(LOCAL, (event) => events.push(event));
@@ -146,13 +155,14 @@ test("strict FIFO: a terminal failure never blocks the room's later messages", a
     expect.objectContaining({ text: "first", state: "failed", error: { code: "bad_request", message: "refused" } }),
   ]);
   const sent = events.filter((event) => event.type === "sent");
-  expect(sent.map((event) => (event as { item: RoomQueueItem }).item.seq)).toEqual([41, 42]);
+  expect(sent.map((event) => (event as { item: RoomQueueSent }).item.seq)).toEqual([41, 42]);
   leave();
 });
 
 test.each([["client_msg_id_reused"], ["not_found"], ["too_large"]])(
   "%s is terminal: failed with the typed reason, never posted again",
   async (code) => {
+    const leave = subscribeRoomQueue(LOCAL, () => undefined);
     (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValueOnce(
       errorResult(code as RoomErrorCode, "one id, one message"),
     );
@@ -169,10 +179,12 @@ test.each([["client_msg_id_reused"], ["not_found"], ["too_large"]])(
     await jest.advanceTimersByTimeAsync(120_000);
     await settle();
     expect(postRoomMessage).toHaveBeenCalledTimes(1); // no timer, no resend
+    leave();
   },
 );
 
-test("401 holds the whole shelf: items stay waiting and nothing probes again", async () => {
+test("401 holds the whole shelf: items stay waiting, the sentence stored, nothing retries", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
     errorResult("removed", "This phone is no longer a member of the room."),
   );
@@ -181,8 +193,14 @@ test("401 holds the whole shelf: items stay waiting and nothing probes again", a
   await enqueueRoomMessage(LOCAL, { text: "two" });
   await settle();
 
+  // The attempted head carries the room's sentence for P5 ("removed
+  // from <room>"); both stay queued.
   await expect(shelf()).resolves.toEqual([
-    expect.objectContaining({ text: "one", state: "queued" }),
+    expect.objectContaining({
+      text: "one",
+      state: "queued",
+      error: { code: "removed", message: "This phone is no longer a member of the room." },
+    }),
     expect.objectContaining({ text: "two", state: "queued" }),
   ]);
   // Two local attempts: the head's, plus the flush that was already
@@ -193,9 +211,11 @@ test("401 holds the whole shelf: items stay waiting and nothing probes again", a
   await jest.advanceTimersByTimeAsync(300_000);
   await settle();
   expect(postRoomMessage).toHaveBeenCalledTimes(2);
+  leave();
 });
 
 test("exactly one post in flight: a flush mid-send waits its turn, an enqueue is never stranded", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
   const releases: Array<(result: RoomResult<RoomPostAck>) => void> = [];
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockImplementation(
     () => new Promise((resolve) => releases.push(resolve)),
@@ -228,4 +248,6 @@ test("exactly one post in flight: a flush mid-send waits its turn, an enqueue is
     { clientMsgId: idOf(2), text: "b", callAi: false },
   ]);
   await expect(shelf()).resolves.toEqual([]);
+  leave();
 });
+

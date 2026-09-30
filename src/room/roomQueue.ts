@@ -4,24 +4,34 @@
  * every retry), strict FIFO with exactly one post in flight per room,
  * and a verdict for every outcome: sent (removed from the shelf, its
  * seq handed out once so the stream's copy dedupes), terminal failure
- * (the id is burned), a hold (items stay queued), or a capped-backoff
- * retry of the SAME id. Flushes ride the triggers — open/reconnect
- * (wired by the stream), foreground (through resume), enqueue itself —
- * never background timers, which RN stops anyway.
+ * (the id is burned), a hold carrying the door's sentence on the item,
+ * or a capped-backoff retry of the SAME id.
+ *
+ * Nothing posts for a room nobody is subscribed to: a session exists
+ * only while a listener holds it, the last one out drops it (its timer
+ * included), and the next subscribe or stream open probes again. The
+ * triggers are that open and the foreground reconnect — never
+ * background work, which RN stops anyway. A pairing that no longer
+ * exists leaves its shelf behind only once: the next probe deletes it.
  *
  * Privacy: this module never logs message text or the client_msg_id.
  */
+import { getPairing } from "../pairing/pairingCredentialStore";
 import { backoffDelayMs } from "./roomBackoff";
-import { forgetRoomEpoch } from "./roomEpochs";
 import { postRoomMessage } from "./roomApi";
 import type { RoomResult } from "./roomError";
 import { roomQueueAttempt } from "./roomQueueOutcome";
 import {
+  deleteRoomQueue,
   loadRoomQueue,
   mutateRoomQueue,
   type RoomQueueItem,
+  type RoomQueueSent,
 } from "./roomQueueStore";
 import { checkEncodedBody, checkRoomText } from "./roomBounds";
+
+/** The shelf's cap; compose refuses beyond it with a typed queue_full. */
+const MAX_QUEUE_ITEMS = 200;
 
 export type RoomQueueEvent =
   /** The shelf after every mutation — what a waiting list renders. */
@@ -29,7 +39,7 @@ export type RoomQueueEvent =
   /** Removed from the queue with the door's verdict: reconcile with the
    *  stream by seq, and the entry the stream carries for it never shows
    *  as a second bubble. */
-  | { type: "sent"; item: RoomQueueItem };
+  | { type: "sent"; item: RoomQueueSent };
 
 type Listener = (event: RoomQueueEvent) => void;
 
@@ -43,19 +53,14 @@ type RoomQueueSession = {
   attempt: number;
 };
 
+/** Created by a subscription, dropped by the last unsubscribe: sessions
+ *  with no listeners are looked up, never conjured. */
 const sessions = new Map<string, RoomQueueSession>();
 
-function session(localId: string): RoomQueueSession {
-  let existing = sessions.get(localId);
-  if (existing === undefined) {
-    existing = { listeners: new Set(), inFlight: false, pendingRerun: false, retryTimer: null, attempt: 0 };
-    sessions.set(localId, existing);
-  }
-  return existing;
-}
-
 function emit(localId: string, event: RoomQueueEvent): void {
-  for (const listener of [...session(localId).listeners]) {
+  const room = sessions.get(localId);
+  if (room === undefined) return;
+  for (const listener of [...room.listeners]) {
     try {
       listener(event);
     } catch {
@@ -64,18 +69,32 @@ function emit(localId: string, event: RoomQueueEvent): void {
   }
 }
 
-async function announce(localId: string): Promise<RoomQueueItem[]> {
+async function announce(localId: string): Promise<void> {
+  if (sessions.get(localId) === undefined) return;
   const items = await loadRoomQueue(localId);
   emit(localId, { type: "changed", items });
-  return items;
 }
 
-/** One crypto-grade id per message, minted at compose and never again:
- *  expo-crypto is the app's random source (package.json), required on
- *  first use so importing the queue loads nothing native. */
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** One crypto-grade id per message, minted at compose and never again.
+ *  Platform CSPRNGs only: expo-crypto first (the app's source, lazily
+ *  required so importing the queue loads nothing native), a runtime's
+ *  Web Crypto second — Hermes has none (see pairingTransport), and a
+ *  weakened PRNG is never an option for an id that must be unguessable. */
 function newClientMsgId(): string {
-  const { getRandomBytes } = require("expo-crypto") as typeof import("expo-crypto");
-  return Array.from(getRandomBytes(16), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  try {
+    const { getRandomBytes } = require("expo-crypto") as typeof import("expo-crypto");
+    return hex(getRandomBytes(16));
+  } catch {
+    const web = (
+      globalThis as { crypto?: { getRandomValues?: (array: Uint8Array) => Uint8Array } }
+    ).crypto;
+    if (web?.getRandomValues !== undefined) return hex(web.getRandomValues(new Uint8Array(16)));
+    throw new Error("no secure random source for client_msg_id");
+  }
 }
 
 /** The current shelf in order (what a waiting list first renders). */
@@ -84,13 +103,29 @@ export function getRoomQueue(localId: string): Promise<RoomQueueItem[]> {
 }
 
 export function subscribeRoomQueue(localId: string, listener: Listener): () => void {
-  const room = session(localId);
-  room.listeners.add(listener);
+  let room = sessions.get(localId);
+  if (room === undefined) {
+    room = { listeners: new Set(), inFlight: false, pendingRerun: false, retryTimer: null, attempt: 0 };
+    sessions.set(localId, room);
+  }
+  const held = room;
+  held.listeners.add(listener);
   let live = true;
+  // The next subscribe probes: an owed backoff is respected (kick's own
+  // rule), and a fresh session starts at the floor.
+  void kick(localId);
   return () => {
     if (!live) return;
     live = false;
-    room.listeners.delete(listener);
+    held.listeners.delete(listener);
+    if (held.listeners.size > 0) return;
+    // The last one out takes the session — its retry timer included —
+    // so no POST can ever run for a room nobody is watching.
+    if (held.retryTimer !== null) {
+      clearTimeout(held.retryTimer);
+      held.retryTimer = null;
+    }
+    sessions.delete(localId);
   };
 }
 
@@ -111,7 +146,22 @@ export async function enqueueRoomMessage(
     JSON.stringify({ client_msg_id: "0".repeat(32), text: message.text, call_ai: callAi }),
   );
   if (bodyProblem !== null) return { ok: false, error: bodyProblem };
-  const clientMsgId = newClientMsgId();
+  const existing = await loadRoomQueue(localId);
+  if (existing.length >= MAX_QUEUE_ITEMS) return { ok: false, error: queueFull() };
+  let clientMsgId: string;
+  try {
+    clientMsgId = newClientMsgId();
+  } catch {
+    // Never a raw throw: the text was not stored, and the caller is
+    // told why so it can try compose again.
+    return {
+      ok: false,
+      error: {
+        code: "client_msg_id_unavailable",
+        message: "No secure source could mint this message's client_msg_id.",
+      },
+    };
+  }
   const item: RoomQueueItem = {
     clientMsgId,
     text: message.text,
@@ -119,16 +169,26 @@ export async function enqueueRoomMessage(
     createdAt: Date.now(),
     state: "queued",
   };
-  await mutateRoomQueue(localId, (items) => {
-    items.push(item);
+  let pushed = false;
+  await mutateRoomQueue(localId, (draft) => {
+    // Re-checked under the lock: a racing compose may have filled it.
+    if (draft.length >= MAX_QUEUE_ITEMS) return false;
+    draft.push(item);
+    pushed = true;
     return true;
   });
+  if (!pushed) return { ok: false, error: queueFull() };
   await announce(localId);
-  void flushRoomQueue(localId);
+  void kick(localId);
   return { ok: true, value: { clientMsgId } };
 }
 
-/** Drop one item — the only way a failed (or abandoned) message leaves. */
+function queueFull(): { code: "queue_full"; message: string } {
+  return { code: "queue_full", message: `At most ${MAX_QUEUE_ITEMS} messages may wait for a room.` };
+}
+
+/** Drop one item — the only way a failed (or abandoned) message leaves;
+ *  P5's discard, and the shelf-empty shelf simply writes back empty. */
 export async function discardRoomQueueItem(localId: string, clientMsgId: string): Promise<void> {
   await mutateRoomQueue(localId, (items) => {
     const at = items.findIndex((item) => item.clientMsgId === clientMsgId);
@@ -139,12 +199,27 @@ export async function discardRoomQueueItem(localId: string, clientMsgId: string)
   await announce(localId);
 }
 
-/** An external flush (open, reconnect, foreground, enqueue): the wait is
+/** After an enqueue: go now unless a backoff is already owed — the owed
+ *  round picks this message up with the rest of the shelf (§9). */
+async function kick(localId: string): Promise<void> {
+  const room = sessions.get(localId);
+  if (room === undefined || room.listeners.size === 0) return;
+  if (room.retryTimer !== null) return;
+  room.attempt = 0; // each item starts at the floor
+  if (room.inFlight) {
+    room.pendingRerun = true;
+    return;
+  }
+  await runAttempt(localId);
+}
+
+/** An external flush (stream open, reconnect, foreground): the wait is
  *  over — drop any pending timer, start the backoff from scratch, go.
  *  A flush that finds the one flight already running leaves a rerun for
  *  its end, so an item enqueued mid-send is never stranded. */
 export async function flushRoomQueue(localId: string): Promise<void> {
-  const room = session(localId);
+  const room = sessions.get(localId);
+  if (room === undefined || room.listeners.size === 0) return;
   if (room.retryTimer !== null) {
     clearTimeout(room.retryTimer);
     room.retryTimer = null;
@@ -158,7 +233,7 @@ export async function flushRoomQueue(localId: string): Promise<void> {
 }
 
 function scheduleRetry(localId: string, room: RoomQueueSession): void {
-  if (room.retryTimer !== null) return;
+  if (room.retryTimer !== null || room.listeners.size === 0) return;
   const delay = backoffDelayMs(room.attempt);
   room.attempt += 1;
   room.retryTimer = setTimeout(() => {
@@ -171,10 +246,20 @@ function scheduleRetry(localId: string, room: RoomQueueSession): void {
  *  its outcome says, the next — until the shelf holds nothing sendable
  *  right now. */
 async function runAttempt(localId: string): Promise<void> {
-  const room = session(localId);
-  if (room.inFlight) return;
+  const room = sessions.get(localId);
+  if (room === undefined || room.inFlight || room.listeners.size === 0) return;
   room.inFlight = true;
   try {
+    // A pairing that no longer exists (a newer one took its room) has
+    // no home for these messages: the shelf goes the next time anyone
+    // probes it. A removed-but-present pairing keeps its shelf (§ F: the
+    // user discards that one).
+    const record = await getPairing(localId);
+    if (record === null) {
+      await deleteRoomQueue(localId);
+      emit(localId, { type: "changed", items: [] });
+      return;
+    }
     for (;;) {
       let items: RoomQueueItem[];
       try {
@@ -223,22 +308,20 @@ async function runAttempt(localId: string): Promise<void> {
           return true;
         });
         await announce(localId);
+        room.attempt = 0; // terminal: the next item starts at the floor
         continue; // terminal — the next queued item is the new head
       }
-      // hold or retry: this item goes back to waiting, in its place.
+      // hold or retry: this item goes back to waiting, in its place,
+      // with the door's sentence stored where P5 can read it.
       await mutateRoomQueue(localId, (draft) => {
         const target = draft.find((item) => item.clientMsgId === head.clientMsgId);
         if (target === undefined) return false;
         target.state = "queued";
+        target.error = verdict.error;
         return true;
       });
       await announce(localId);
-      if (verdict.kind === "retry") {
-        // epoch_changed: the cached epoch dies with this round's refusals,
-        // so the same id goes out bare on the retry and lands as new (§5).
-        if (verdict.forgetEpoch) forgetRoomEpoch(localId);
-        scheduleRetry(localId, room);
-      }
+      if (verdict.kind === "retry") scheduleRetry(localId, room);
       return; // hold: no timer; a trigger decides when to probe again
     }
   } catch {

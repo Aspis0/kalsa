@@ -132,3 +132,28 @@ test("a blob that will not parse is backed up once and never overwritten", async
   expect(backups).toHaveLength(1); // once — the second refusal rewrote nothing
   expect(stored[`${KEY}.damaged`]).toBe(raw);
 });
+
+test("a bad element costs only itself: kept in the backup once, the rest survive", async () => {
+  const raw = JSON.stringify({
+    items: [
+      { clientMsgId: "keep-1", text: "one", callAi: false, createdAt: 1, state: "queued" },
+      { clientMsgId: 42, text: "lost to corruption", callAi: false, createdAt: 2, state: "queued" },
+      { clientMsgId: "keep-2", text: "two", callAi: false, createdAt: 3, state: "sending" },
+    ],
+  });
+  stored[KEY] = raw;
+
+  const items = await loadRoomQueue(LOCAL);
+
+  expect(items.map((entry) => entry.clientMsgId)).toEqual(["keep-1", "keep-2"]);
+  expect(items[1].state).toBe("queued"); // the heal rides along
+  expect(stored[`${KEY}.damaged`]).toBe(raw); // the dropped element's text, preserved
+
+  // The shelf stays usable: survivors write back, the backup never rewrites.
+  await mutateRoomQueue(LOCAL, (draft) => {
+    draft.push(item("keep-3"));
+    return true;
+  });
+  expect(JSON.parse(stored[KEY]).items).toHaveLength(3);
+  expect(stored[`${KEY}.damaged`]).toBe(raw);
+});

@@ -23,10 +23,12 @@ jest.mock("expo-crypto", () => ({
   getRandomBytes: jest.fn((length: number) => new Uint8Array(length).fill(0x7e)),
 }));
 jest.mock("./roomApi", () => ({ postRoomMessage: jest.fn() }));
+jest.mock("../pairing/pairingCredentialStore", () => ({ getPairing: jest.fn() }));
 
 import { getRandomBytes } from "expo-crypto";
+import { getPairing } from "../pairing/pairingCredentialStore";
 import { postRoomMessage } from "./roomApi";
-import { cachedRoomEpoch, noteRoomEpoch, resetRoomEpochs } from "./roomEpochs";
+import { resetRoomEpochs } from "./roomEpochs";
 import {
   enqueueRoomMessage,
   flushRoomQueue,
@@ -63,6 +65,14 @@ beforeEach(() => {
   resetRoomEpochs();
   for (const key of Object.keys(stored)) delete stored[key];
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockReset();
+  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue({
+    localId: LOCAL,
+    credential: "ab".repeat(32),
+    doorUrl: "https://desk.example",
+    node: null,
+    pairedVia: null,
+    roomId: null,
+  });
 });
 
 afterEach(() => {
@@ -98,8 +108,8 @@ test("a lost response retries the same id — the door's same seq sends once, no
   leave();
 });
 
-test("409 epoch_changed forgets the epoch and posts the same id again (§5)", async () => {
-  noteRoomEpoch(LOCAL, "epoch-died");
+test("409 epoch_changed posts the same id again (§5)", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
     .mockResolvedValueOnce(
       errorResult("epoch_changed", "The room's transcript restarted; drop what was cached and read it again."),
@@ -109,7 +119,8 @@ test("409 epoch_changed forgets the epoch and posts the same id again (§5)", as
   await enqueueRoomMessage(LOCAL, { text: "written while the recovery ran" });
   await settle();
 
-  expect(cachedRoomEpoch(LOCAL)).toBeNull(); // the dead epoch went first
+  // The epoch drop itself is roomApi's on the 409 (roomApi.ts's
+  // epoch_changed branch) — the queue only owes the SAME id after it.
   await expect(getRoomQueue(LOCAL)).resolves.toEqual([
     expect.objectContaining({ state: "queued" }),
   ]);
@@ -123,9 +134,11 @@ test("409 epoch_changed forgets the epoch and posts the same id again (§5)", as
   expect(attempts).toHaveLength(2);
   expect(attempts[0].clientMsgId).toBe(attempts[1].clientMsgId); // the SAME id lands as new
   await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
 });
 
-test("503 read_only keeps the message queued and comes back through the backoff", async () => {
+test("503 read_only keeps the message queued — with the door's sentence — and backs off", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
     .mockResolvedValueOnce(errorResult("read_only", "the room's transcript needs repair; posts are refused until it is reopened"))
     .mockResolvedValueOnce(sentResult(44));
@@ -133,9 +146,13 @@ test("503 read_only keeps the message queued and comes back through the backoff"
   await enqueueRoomMessage(LOCAL, { text: "retry later" });
   await settle();
 
-  // Not failed — still waiting, with the reason nowhere near it.
-  await expect(getRoomQueue(LOCAL)).resolves.toEqual([
-    expect.objectContaining({ state: "queued", text: "retry later" }),
+  // Not failed — still waiting, and the reason rides the item for P5.
+  await expect(getRoomQueue(LOCAL)).resolves.toMatchObject([
+    {
+      state: "queued",
+      text: "retry later",
+      error: { code: "read_only" },
+    },
   ]);
   expect(postRoomMessage).toHaveBeenCalledTimes(1);
 
@@ -144,9 +161,11 @@ test("503 read_only keeps the message queued and comes back through the backoff"
 
   expect(postRoomMessage).toHaveBeenCalledTimes(2);
   await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
 });
 
 test("kill and restart: the shelf restores as queued and sends with its stored id", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
   const KEY = roomQueueKey(LOCAL);
   stored[KEY] = JSON.stringify({
     items: [
@@ -176,4 +195,5 @@ test("kill and restart: the shelf restores as queued and sends with its stored i
   );
   expect(mint).not.toHaveBeenCalled(); // the id was already owned by the message
   await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
 });

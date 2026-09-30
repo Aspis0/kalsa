@@ -6,9 +6,10 @@
  *
  * Discipline: one in-process lock per room, one write per mutation, and
  * a blob that will not parse is backed up once under its own key and
- * never overwritten — writes refuse and the read surfaces the damage,
- * because the queue holds the only copy of a message nobody has seen.
- * An item persisted "sending" belongs to a process that died mid-POST;
+ * never overwritten. A single bad ELEMENT is this shelf's different
+ * rule: this is message text, not credentials — the damaged raw is
+ * preserved once in the backup and the valid items survive the read. An
+ * item persisted "sending" belongs to a process that died mid-POST;
  * every read heals it to "queued" — the same client_msg_id makes the
  * retry harmless (§5).
  */
@@ -17,13 +18,14 @@ import type { RoomError } from "./roomError";
 const KEY_PREFIX = "kalsa.roomqueue.";
 
 /** Minimal KV surface the store needs; AsyncStorage satisfies it. */
-export type RoomQueueStorage = {
+type RoomQueueStorage = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem?(key: string): Promise<void>;
 };
 
-export type RoomQueueItemState = "queued" | "sending" | "sent" | "failed";
+/** What the shelf ever holds: sent is an event, never a stored state. */
+export type RoomQueueItemState = "queued" | "sending" | "failed";
 
 export type RoomQueueItem = {
   /** Minted once at compose time; every retry reuses it (§5). */
@@ -32,11 +34,21 @@ export type RoomQueueItem = {
   callAi: boolean;
   createdAt: number;
   state: RoomQueueItemState;
-  /** The door's verdict once sent. */
-  seq?: number;
-  time?: number;
-  /** The typed refusal that failed it (terminal). */
+  /** The typed refusal that failed it (terminal), or — while it waits —
+   *  the last attempt's reason (read_only, removed, unreachable…), so P5
+   *  can say what the room answered. */
   error?: RoomError;
+};
+
+/** A message the door took: the reconcile signal, never stored. */
+export type RoomQueueSent = {
+  clientMsgId: string;
+  text: string;
+  callAi: boolean;
+  createdAt: number;
+  state: "sent";
+  seq: number;
+  time: number;
 };
 
 export function roomQueueKey(localId: string): string {
@@ -44,14 +56,7 @@ export function roomQueueKey(localId: string): string {
 }
 
 function damagedQueueError(): Error {
-  const error = new Error("room queue damaged") as Error & { code: string };
-  error.code = "room_queue_damaged";
-  return error;
-}
-
-/** Whether an error from any queue operation is the damaged-shelf verdict. */
-export function isRoomQueueDamaged(error: unknown): boolean {
-  return error instanceof Error && (error as { code?: unknown }).code === "room_queue_damaged";
+  return new Error("room queue damaged");
 }
 
 function storage(): RoomQueueStorage {
@@ -59,7 +64,33 @@ function storage(): RoomQueueStorage {
   return require("@react-native-async-storage/async-storage") as RoomQueueStorage;
 }
 
-function parseItems(raw: string): RoomQueueItem[] | null {
+function decodeItem(value: unknown): RoomQueueItem | null {
+  if (typeof value !== "object" || value === null) return null;
+  const stored = value as Record<string, unknown>;
+  if (typeof stored.clientMsgId !== "string" || typeof stored.text !== "string") return null;
+  if (typeof stored.createdAt !== "number") return null;
+  const state = stored.state;
+  if (state !== "queued" && state !== "sending" && state !== "failed") return null;
+  const item: RoomQueueItem = {
+    clientMsgId: stored.clientMsgId,
+    text: stored.text,
+    callAi: stored.callAi === true,
+    createdAt: stored.createdAt,
+    // A process that died mid-POST left "sending" behind; the id makes
+    // re-sending it as new impossible to duplicate (§5).
+    state: state === "sending" ? "queued" : state,
+  };
+  if (typeof stored.error === "object" && stored.error !== null) {
+    item.error = stored.error as RoomError;
+  }
+  return item;
+}
+
+type Envelope = { items: RoomQueueItem[]; dropped: boolean };
+
+/** The envelope decides the verdict; one bad element only costs itself —
+ *  its bytes live on in the backup the caller writes. */
+function parseEnvelope(raw: string): Envelope | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -70,30 +101,13 @@ function parseItems(raw: string): RoomQueueItem[] | null {
   const envelope = parsed as Record<string, unknown>;
   if (!Array.isArray(envelope.items)) return null;
   const items: RoomQueueItem[] = [];
+  let dropped = false;
   for (const value of envelope.items) {
-    if (typeof value !== "object" || value === null) return null;
-    const stored = value as Record<string, unknown>;
-    if (typeof stored.clientMsgId !== "string" || typeof stored.text !== "string") return null;
-    if (typeof stored.createdAt !== "number") return null;
-    const state = stored.state;
-    if (state !== "queued" && state !== "sending" && state !== "failed") return null;
-    const item: RoomQueueItem = {
-      clientMsgId: stored.clientMsgId,
-      text: stored.text,
-      callAi: stored.callAi === true,
-      createdAt: stored.createdAt,
-      // A process that died mid-POST left "sending" behind; the id makes
-      // re-sending it as new impossible to duplicate (§5).
-      state: state === "sending" ? "queued" : state,
-    };
-    if (typeof stored.seq === "number") item.seq = stored.seq;
-    if (typeof stored.time === "number") item.time = stored.time;
-    if (typeof stored.error === "object" && stored.error !== null) {
-      item.error = stored.error as RoomError;
-    }
-    items.push(item);
+    const item = decodeItem(value);
+    if (item === null) dropped = true;
+    else items.push(item);
   }
-  return items;
+  return { items, dropped };
 }
 
 const locks = new Map<string, Promise<void>>();
@@ -106,15 +120,25 @@ async function withQueueLock<T>(localId: string, task: () => Promise<T>): Promis
   return result;
 }
 
+async function keepDamagedOnce(localId: string, raw: string): Promise<void> {
+  const key = `${roomQueueKey(localId)}.damaged`;
+  const kept = await storage().getItem(key);
+  if (kept === null) await storage().setItem(key, raw);
+}
+
 async function loadUnlocked(localId: string): Promise<RoomQueueItem[]> {
-  const key = roomQueueKey(localId);
-  const raw = await storage().getItem(key);
+  const raw = await storage().getItem(roomQueueKey(localId));
   if (raw == null) return [];
-  const items = parseItems(raw);
-  if (items !== null) return items;
-  // The shelf holds unsent text: back it up once, never overwrite it.
-  const kept = await storage().getItem(`${key}.damaged`);
-  if (kept === null) await storage().setItem(`${key}.damaged`, raw);
+  const parsed = parseEnvelope(raw);
+  if (parsed !== null) {
+    // Bad elements: preserved once in the backup, gone from the shelf —
+    // the survivors keep their texts and the queue stays usable.
+    if (parsed.dropped) await keepDamagedOnce(localId, raw);
+    return parsed.items;
+  }
+  // Not our blob at all: keep its bytes once, refuse every write, surface
+  // the damage — the only copy of its texts must not be overwritten.
+  await keepDamagedOnce(localId, raw);
   throw damagedQueueError();
 }
 
@@ -125,7 +149,7 @@ export function loadRoomQueue(localId: string): Promise<RoomQueueItem[]> {
 
 /** One mutation: one lock hold, one write — skipped when the change
  *  reports it changed nothing. The (healed) draft comes back either way,
- * * so callers can emit their snapshot from the same values they saved. */
+ *  so callers can emit their snapshot from the same values they saved. */
 export async function mutateRoomQueue(
   localId: string,
   change: (items: RoomQueueItem[]) => boolean,
@@ -134,5 +158,15 @@ export async function mutateRoomQueue(
     const items = await loadUnlocked(localId);
     if (change(items)) await storage().setItem(roomQueueKey(localId), JSON.stringify({ items }));
     return items;
+  });
+}
+
+/** A pairing's shelf leaves with it (superseded, or the user discards
+ *  the room): the key goes, the backup of any damaged raw stays. */
+export async function deleteRoomQueue(localId: string): Promise<void> {
+  await withQueueLock(localId, async () => {
+    const store = storage();
+    if (store.removeItem) await store.removeItem(roomQueueKey(localId));
+    else await store.setItem(roomQueueKey(localId), JSON.stringify({ items: [] }));
   });
 }

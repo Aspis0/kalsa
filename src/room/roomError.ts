@@ -32,6 +32,10 @@ export type RoomErrorCode =
   | "invalid_input"
   /** Refused locally: the encoded body is over the 16 KiB the door reads. */
   | "body_too_large"
+  /** Refused locally: no secure random source could mint the id. */
+  | "client_msg_id_unavailable"
+  /** Refused locally: the shelf already holds its 200-message cap. */
+  | "queue_full"
   /** The pairing store on this phone is damaged: backed up, writes refused. */
   | "pairing_store_damaged"
   /** No door may carry this request: URL gate, or no bearer for a remote door. */

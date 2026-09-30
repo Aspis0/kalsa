@@ -41,6 +41,8 @@ import { pauseRoomStreams, resumeRoomStreams, subscribeRoomEvents } from "./room
 import type { RoomStreamEvent } from "./roomStream";
 
 const EPOCH = "e-subs-1";
+/** Distinct ids per mint: identity is load-bearing (§5), never constant. */
+const mintSequence = { counter: 0 };
 
 function entryFrame(seq: number): string {
   const entry = {
@@ -69,9 +71,11 @@ beforeEach(() => {
   jest.resetAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
   // resetAllMocks strips factory implementations: restore the mint.
-  (getRandomBytes as unknown as jest.Mock).mockImplementation(
-    (length: number) => new Uint8Array(length).fill(0x5a),
-  );
+  mintSequence.counter = 0;
+  (getRandomBytes as unknown as jest.Mock).mockImplementation((length: number) => {
+    const byte = (mintSequence.counter++ % 250) + 1;
+    return new Uint8Array(length).fill(byte);
+  });
   for (const key of Object.keys(stored)) delete stored[key];
   (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockResolvedValue({
     road: "https",

@@ -117,16 +117,29 @@ test("discardAssembly drops the partial — what a reconnect does with it", () =
   });
 });
 
-test("markDelivered covers a seq the queue sent itself: the stream never repeats it", () => {
+test("an ack skips exactly its own copy and never blinds the resume floor", () => {
   const dispatch = createRoomFrameDispatch(LOCAL_ID);
 
-  dispatch.markDelivered(50);
+  // The queue's sent ack for 42 arrives BEFORE any frame does.
+  dispatch.markDelivered(42);
+  expect(dispatch.resumeFrom()).toBe(0); // an ack moves no floor
 
-  expect(dispatch.resumeFrom()).toBe(50);
-  expect(dispatch.dispatch(frame(`id: 50\nevent: message\ndata: ${entryData(50)}\n\n`)).kind).toBe(
-    "skip",
-  );
-  expect(dispatch.dispatch(frame(`id: 51\nevent: message\ndata: ${entryData(51)}\n\n`)).kind).toBe(
-    "event",
-  );
+  // 41 is still delivered — an ack for a LATER seq must never skip it.
+  expect(
+    dispatch.dispatch(frame(`id: 41\nevent: message\ndata: ${entryData(41)}\n\n`)).kind,
+  ).toBe("event");
+  expect(dispatch.resumeFrom()).toBe(41);
+
+  // 42's own copy is dropped exactly once, and only now — contiguously —
+  // does the floor cover it: resumeFrom is 42 after BOTH frames.
+  expect(
+    dispatch.dispatch(frame(`id: 42\nevent: message\ndata: ${entryData(42)}\n\n`)).kind,
+  ).toBe("skip");
+  expect(dispatch.resumeFrom()).toBe(42);
+
+  // Any later replay of 42 is a plain duplicate at the floor.
+  expect(
+    dispatch.dispatch(frame(`id: 42\nevent: message\ndata: ${entryData(42)}\n\n`)).kind,
+  ).toBe("skip");
+  expect(dispatch.resumeFrom()).toBe(42);
 });

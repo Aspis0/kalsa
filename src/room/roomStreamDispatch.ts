@@ -47,8 +47,9 @@ export type RoomFrameDispatch = {
   /** The history page's floor: every seq at or below it is a duplicate
    *  the replay would hand back anyway. */
   setFloor(messages: readonly RoomHistoryMessage[]): void;
-  /** The queue just SENT this seq itself: the stream's copy of it is a
-   *  duplicate to drop, and the resume floor must cover it too. */
+  /** The queue sent this seq itself: skip ITS copy when the stream
+   *  carries it — without ever moving the resume floor, which may only
+   *  advance on entries this stream actually delivered. */
   markDelivered(seq: number): void;
   /** Drop the partial answer: a reconnect or resync starts the
    *  assembly over — whatever survives, the next ai_status and
@@ -58,6 +59,11 @@ export type RoomFrameDispatch = {
 
 export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch {
   let lastSeq = 0;
+  /** Seqs this room's queue completed itself: their stream copies are
+   *  shown once (the sent event), never again here. Bounded — an ack
+   *  whose entry never comes is the first re-delivered, and it is a
+   *  duplicate either way. */
+  let ackedSeqs = new Set<number>();
   /** The one turn answering right now: chunk id → text so far. One turn
    *  streams at a time (§7), so a single slot is the whole assembly —
    *  a chunk from another turn starts it fresh, never appends. */
@@ -80,6 +86,17 @@ export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch 
         if (cached !== null && entry.epoch !== cached) return { kind: "epoch_died" };
         if (cached === null) noteRoomEpoch(roomLocalId, entry.epoch);
         if (entry.seq <= lastSeq) return { kind: "skip" };
+        if (ackedSeqs.has(entry.seq)) {
+          // Our own post's copy: skipped exactly once — and the floor
+          // moves only when the entry is the very next one, so an ack
+          // heard BEFORE the entries before it can never blind the
+          // resume past them (never skip past an undelivered seq).
+          if (entry.seq === lastSeq + 1) {
+            ackedSeqs.delete(entry.seq);
+            lastSeq = entry.seq;
+          }
+          return { kind: "skip" };
+        }
         lastSeq = entry.seq;
         // The final text replaces the assembly — for its turn, and for
         // any partial a stopped turn left behind (§7).
@@ -108,12 +125,20 @@ export function createRoomFrameDispatch(roomLocalId: string): RoomFrameDispatch 
     },
     resumeFrom: () => lastSeq,
     setFloor: (messages) => {
-      // A resync's page REPLACES the floor: the old epoch's seqs and the
-      // dead cursor are exactly what we are resuming away from.
+      // A resync's page REPLACES the floor: the old epoch's seqs, the
+      // dead cursor, and that epoch's acks all go with them.
+      ackedSeqs = new Set();
       lastSeq = messages.reduce((max, entry) => Math.max(max, entry.seq), 0);
     },
     markDelivered: (seq) => {
-      if (seq > lastSeq) lastSeq = seq;
+      // An ack is a promise about ONE entry, never about the gap before
+      // it: record it, leave the resume floor exactly where it is.
+      if (seq <= lastSeq) return;
+      ackedSeqs.add(seq);
+      if (ackedSeqs.size > 256) {
+        const oldest = ackedSeqs.values().next().value;
+        if (oldest !== undefined) ackedSeqs.delete(oldest);
+      }
     },
     discardAssembly: () => {
       assembly = null;
