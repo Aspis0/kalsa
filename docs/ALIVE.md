@@ -732,8 +732,10 @@ results do not transfer to the S23 (`scratchpad/agents/qdc-8elite-onecopy-cost/R
 **Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
 `32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
 platform status only once per completion (never during generation); MODERATE and SEVERE collapse into one state;
-LOWBAT falls back to CPU prefill; admission deltas are unmeasured and uniform. Next on the S23: milestone 1, does
-in-app battery current separate NPU/GPU/CPU per turn. Correction: `s23-backend-hopping-heat` has a REPORT (28/09),
+LOWBAT falls back to CPU prefill; admission deltas are unmeasured and uniform. Milestone 1 on the S23
+(`governor-m1-current/REPORT.md`, audit pending): the in-app current is live at 1 Hz (99.7-100 % of rows change),
+but mean current does not separate GPU from CPU prefill (thermal history dominates); energy per 1k prefill tokens
+does, 54 vs 224 J (4.1x, sd 3 J). Rank on energy per token. NPU arm impossible until the APK carries Hexagon. Correction: `s23-backend-hopping-heat` has a REPORT (28/09),
 where CPU and HTP decode heat ranges overlap, so "NPU decode wins on S23" is plausible, not proven.
 
 **Governor one-copy is gated on speed.** Design: lab commits `4d606e4f`, `5a94d88c`, `df4a18d1`,
