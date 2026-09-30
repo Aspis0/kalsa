@@ -23,6 +23,7 @@ import { CrescentNav } from "./components/CrescentNav";
 import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
+import { RoomSurface } from "./surfaces/RoomSurface";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
@@ -70,6 +71,7 @@ interface GateAsk {
 
 function surfaceLabel(surface: SurfaceKey): string {
   if (surface === "brain") return "Home";
+  if (surface === "room") return "Room";
   return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
 }
 
@@ -940,6 +942,9 @@ export function App() {
   // offers — see the rule in `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
     { key: "brain", label: "Home", onSelect: () => openSurface("brain") },
+    // The room, between the chat and the settings: the host's view of the
+    // house's shared conversation.
+    { key: "room", label: "Room", onSelect: () => openSurface("room") },
     { key: "settings", label: "Settings", onSelect: () => openSurface("settings") },
   ];
 
@@ -953,7 +958,7 @@ export function App() {
           if (gateShown) answerGate(gateShown.id, false);
           else if (navOpen) setNavOpen(false);
           else if (drawerOpen) setDrawerOpen(false);
-          else if (surface === "chat") openSurface("brain");
+          else if (surface === "chat" || surface === "room") openSurface("brain");
         }
       }}
     >
@@ -1085,6 +1090,7 @@ export function App() {
               onNavigate={openSurface}
               onWrite={writeFromBrain}
               onOpenChat={() => openSurface("chat")}
+              onOpenRoom={() => openSurface("room")}
             />
           ) : surface === "chat" ? (
             <div className="chat-layout">
@@ -1184,6 +1190,8 @@ export function App() {
                 onClose={() => setPanelOpen(false)}
               />
             </div>
+          ) : surface === "room" ? (
+            <RoomSurface />
           ) : surface === "settings" ? (
             <SettingsForm
               initial={settings}

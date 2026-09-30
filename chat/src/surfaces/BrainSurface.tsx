@@ -27,6 +27,8 @@ interface BrainSurfaceProps {
   onWrite: (text: string) => void;
   // For someone who wants the chat without writing anything.
   onOpenChat: () => void;
+  // The room, beside the chat in the bar.
+  onOpenRoom: () => void;
 }
 
 // A first run is a machine with no stored choice. An install from before
@@ -41,7 +43,7 @@ function firstRun(capability: Capability | null): boolean {
 // reads "stopped" is started here, on the spot, so getting ready never
 // waits behind a tab. The walk's failures are not retried by themselves —
 // they are spoken, and they wait for Try again.
-export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfaceProps) {
+export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: BrainSurfaceProps) {
   const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const [text, setText] = useState("");
   // The chooser's answer, read on mount and whenever a turn-on lands — the
@@ -240,6 +242,9 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat }: BrainSurfacePr
         </button>
         <button type="button" className="brain-bar-action brain-bar-chat" onClick={onOpenChat}>
           Chat
+        </button>
+        <button type="button" className="brain-bar-action brain-bar-chat" onClick={onOpenRoom}>
+          Room
         </button>
       </form>
     </div>

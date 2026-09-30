@@ -16,6 +16,8 @@ import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain
 import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
 import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
+import { RoomSurface } from "../chat/src/surfaces/RoomSurface";
+import { callsAi } from "../chat/src/lib/roomMention";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -199,6 +201,48 @@ const scenarios = [
   ["Status", "failed, deliberately long reason (wrap test)", "server", { state: { ...stateDto("failed"), reason: REASON_LONG } }],
   ["Status", "state unreadable", "server", { state: null }],
   ["Status", "running, with a slowdown announced", "server", { state: stateDto("running", { throttled: true }) }],
+
+  // --- The room (the host's view) ---
+  ["Room", "empty room", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "idle", running: null, queue: [], you_pending: false } }, roomHistory: [] }],
+  ["Room", "messages from several members, one left the room", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4, name: "Mamma", kind: "phone", former: true },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "idle", running: null, queue: [], you_pending: false } }, roomHistory: [
+    { seq: 1, member_id: 3, name: "Marco", former: false, text: "dinner at eight?", time: 1791000000, call_ai: false, read: null, client_msg_id: "" },
+    { seq: 2, member_id: 4, name: "Mamma", former: true, text: "saving me a seat", time: 1791000060, call_ai: false, read: null, client_msg_id: "" },
+    { seq: 3, member_id: 4294967294, name: "Kalsa", former: false, text: "It is 17:00.", time: 1791000120, call_ai: true, read: 2, client_msg_id: "" },
+  ] }],
+  ["Room", "Kalsa answering, Stop visible", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "answering", running: "Marco", queue: [], you_pending: false } }, roomHistory: [
+    { seq: 1, member_id: 3, name: "Marco", former: false, text: "@Kalsa what time is it?", time: 1791000000, call_ai: true, read: null, client_msg_id: "" },
+  ], roomEvents: [
+    { kind: "ai_delta", turn: 1, text: "It is 17:00, and the" },
+  ] }],
+  ["Room", "waiting with the busy note", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "waiting", running: "Marco", queue: [], you_pending: false } }, roomEvents: [
+    { kind: "ai_status", state: "waiting", note_code: "busy_waiting",
+      note: "Kalsa is busy with another conversation. You keep your turn.",
+      running: "Marco", queue: [], you_pending: false },
+  ] }],
+  ["Room", "idle: no Stop", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "idle", running: null, queue: [], you_pending: false } }, roomHistory: [] }],
+
+  // The @Kalsa rule, mirrored from the Rust matcher: what the highlighter
+  // calls and what it does not, in one card the smoke bench reads back.
+  ["Room", "the @Kalsa rule, mirrored", "room", { room: { open: true, room_name: "Studio", you: 4294967295, members: [], ai: { state: "idle", running: null, queue: [], you_pending: false } }, mentionProbe: true }],
 
   ["Model", "running: the choice is automatic", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: AUTO_REASON } }],
   ["Model", "running: a phone was paired and compared", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: PHONE_REASON } }],
@@ -416,6 +460,7 @@ export function benchTimeoutMs() {
 
 let bridgeState = {};
 let eventHandlers = new Set();
+let roomEventHandlers = new Set();
 let propsReads = 0;
 let pairingReads = 0;
 let inviteListReads = 0;
@@ -423,6 +468,7 @@ let forgetIds = [];
 let allowIds = [];
 
 function installBridge() {
+  roomEventHandlers = new Set();
   propsReads = 0;
   pairingReads = 0;
   inviteListReads = 0;
@@ -459,6 +505,22 @@ function installBridge() {
             // null: a null answer means "not known", and the shared poll
             // keeps what the LAST card that named one knew — so a served
             // phone would light rows on every later card.
+            if (command === "brain_room") {
+              return Promise.resolve(bridgeState.room ?? { open: false, room_name: "", you: 4294967295, members: [], ai: { state: "idle", running: null, queue: [], you_pending: false } });
+            }
+            if (command === "brain_room_history") {
+              return Promise.resolve(bridgeState.roomHistory ?? []);
+            }
+            if (command === "brain_room_post") {
+              const entry = bridgeState.roomPostAnswer ?? {
+                seq: 900, member_id: 4294967295, name: "This computer", former: false,
+                text: args?.text ?? "", time: 1791000000, call_ai: Boolean(args?.callAi),
+                read: null, client_msg_id: args?.client_msg_id ?? "",
+              };
+              return Promise.resolve(entry);
+            }
+            if (command === "brain_room_set_name") return Promise.resolve(args?.name ?? "");
+            if (command === "brain_room_stop") return Promise.resolve(true);
             if (command === "brain_state") {
               return Promise.resolve(bridgeState.state ?? { kind: "stopped" });
             }
@@ -522,7 +584,14 @@ function installBridge() {
         event: {
           listen(name, handler) {
             if (name === "brain_progress") eventHandlers.add(handler);
-            return Promise.resolve(() => eventHandlers.delete(handler));
+            if (name === "room-event") {
+              roomEventHandlers.add(handler);
+              const queued = bridgeState.roomEvents ?? [];
+              for (const payload of queued) handler(payload);
+            }
+            return Promise.resolve(() => {
+              roomEventHandlers.delete(handler);
+            });
           },
         },
       };
@@ -676,6 +745,31 @@ function componentFor(kind, data) {
   if (kind === "server") return React.createElement(ServerSurface);
   if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
   if (kind === "advanced") return React.createElement(AdvancedSurface);
+  if (kind === "room") {
+    if (data?.mentionProbe) {
+      // The mirrored @Kalsa rule, read back as rendered lists: the CALLS
+      // card names the texts that call, the SILENT card the ones that do
+      // not. The vectors are the Rust tests' own.
+      const CALLS = ["请问@Kalsa", "@Kalsa你好", "你好，@Kalsa", "hey @Kalsa, ciao", "(@Kalsa)", "@Kalsa's"];
+      const SILENT = ["marco@kalsa.io", "josé@Kalsa", "café@Kalsa", "cafe\u0301@Kalsa", "@Kalsabot", "@Kalsa\u0301"];
+      return React.createElement(
+        "div",
+        null,
+        // Each verdict is prefixed, so the bench reads both directions from
+        // one text stream. The kalsa.io vector is labelled without the
+        // domain: the harness's own rule keeps a link off the rendered page.
+        React.createElement("p", { className: "room-calls" },
+          CALLS.map((text) => (callsAi(text) ? `CALL: ${text}` : `MISSED: ${text}`)).join("\n")),
+        React.createElement("p", { className: "room-silent" },
+          SILENT.map((text) => {
+            const verdict = callsAi(text) ? "WRONGLY CALLS" : "SILENT";
+            const label = text.includes("kalsa.io") ? "marco [at] kalsa [dot] io" : text;
+            return `${verdict}: ${label}`;
+          }).join("\n")),
+      );
+    }
+    return React.createElement(RoomSurface);
+  }
   return React.createElement(DevicesSurface, { onNavigate: () => {} });
 }
 

@@ -1,0 +1,119 @@
+/* The host's room, beside the chat's own pieces: the same tokens, a thread
+   of plain lines, and one bar. */
+
+.room-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.room-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex: 0 0 auto;
+}
+
+.room-name-chip {
+  border: none;
+  background: none;
+  color: var(--silence);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.room-name-chip:hover,
+.room-name-chip:focus-visible {
+  color: var(--ink, inherit);
+}
+
+.room-name {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.room-name-input {
+  max-width: 14rem;
+}
+
+.room-thread {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.4rem 0.2rem;
+}
+
+.room-line {
+  margin: 0 0 0.55rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.room-line-name {
+  font-weight: 600;
+}
+
+.room-left {
+  color: var(--silence);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.room-asked {
+  color: var(--silence);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.room-read {
+  color: var(--silence);
+  font-size: 0.8rem;
+}
+
+.room-mention {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 3px;
+  padding: 0 0.15rem;
+}
+
+.room-live {
+  opacity: 0.85;
+}
+
+.room-turn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  min-height: 1.4rem;
+}
+
+.room-turn .surface-quiet {
+  margin: 0;
+}
+
+.room-stop {
+  border: 1px solid currentColor;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  padding: 0.15rem 0.7rem;
+  cursor: pointer;
+}
+
+.room-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+}
+
+.room-bar .brain-bar-input {
+  flex: 1;
+}

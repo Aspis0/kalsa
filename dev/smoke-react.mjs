@@ -447,6 +447,9 @@ try {
     "Write your first message below to begin.",
   ];
   for (const { heading, sentence, button, working, walk, qr } of results) {
+    // The matcher's probe renders lists, not actions: a card that exists
+    // to be read back is not a dead end.
+    if (heading.startsWith("Room — the @Kalsa rule")) continue;
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
     const pressable = button && !button.disabled && button.text.trim() !== "";
     const progressButton = button && button.disabled && (button.text === "Measuring…" || button.text === "Starting" || button.text === "Stopping");
@@ -1135,6 +1138,70 @@ try {
     // of the page that fixes THAT arm (states-react titles carry the arm,
     // and its scenarios build the arm through setupArm — the mapping App
     // runs, so a broken mapping reddens its own arm's check here).
+    // The room's cards: what the host's view must always say and never
+    // say, read off the same rendered copy every other card is read with.
+    if (heading.startsWith("Room — ")) {
+      if (heading.includes("empty room")) {
+        if (!all.includes("No messages yet. Say something, or ask Kalsa.")) {
+          problems.push(`Room — empty room must say so: ${heading}`);
+        }
+        if (buttons.includes("Stop")) {
+          problems.push(`Room — empty room must not offer Stop: ${heading}`);
+        }
+        if (!buttons.includes("Ask Kalsa")) {
+          problems.push(`Room — empty room must still offer Ask Kalsa: ${heading}`);
+        }
+      }
+      if (heading.includes("messages from several members")) {
+        for (const wanted of ["dinner at eight?", "saving me a seat", "It is 17:00."]) {
+          if (!all.includes(wanted)) problems.push(`Room — the transcript must carry "${wanted}": ${heading}`);
+        }
+        if (!all.includes("· left")) {
+          problems.push(`Room — a former member must be marked: ${heading}`);
+        }
+        if (!all.includes("read the last 2")) {
+          problems.push(`Room — Kalsa's answer must say what it read: ${heading}`);
+        }
+      }
+      if (heading.includes("Kalsa answering")) {
+        if (!buttons.includes("Stop")) {
+          problems.push(`Room — an answering turn must offer Stop: ${heading}`);
+        }
+        if (!all.includes("Kalsa is answering Marco.")) {
+          problems.push(`Room — the turn must name who it answers: ${heading}`);
+        }
+        if (!all.includes("It is 17:00, and the")) {
+          problems.push(`Room — the live answer must stream into the page: ${heading}`);
+        }
+      }
+      if (heading.includes("waiting with the busy note")) {
+        if (!all.includes("Kalsa is busy with another conversation. You keep your turn.")) {
+          problems.push(`Room — the busy note must be shown by its code: ${heading}`);
+        }
+        if (buttons.includes("Stop")) {
+          problems.push(`Room — waiting is not answering; no Stop: ${heading}`);
+        }
+      }
+      if (heading.includes("idle: no Stop") && buttons.includes("Stop")) {
+        problems.push(`Room — idle must not offer Stop: ${heading}`);
+      }
+      if (heading.includes("the @Kalsa rule")) {
+        // Each probe line is prefixed by its verdict, so one text stream
+        // answers both directions without a second read.
+        for (const wanted of ["请问@Kalsa", "@Kalsa你好", "你好，@Kalsa", "hey @Kalsa, ciao", "(@Kalsa)", "@Kalsa's"]) {
+          if (!all.includes(`CALL: ${wanted}`)) problems.push(`Room — @Kalsa rule: "${wanted}" must call`);
+        }
+        for (const wanted of ["josé@Kalsa", "café@Kalsa", "@Kalsabot", "@Kalsa\u0301"]) {
+          if (!all.includes(`SILENT: ${wanted}`)) problems.push(`Room — @Kalsa rule: "${wanted}" must not call`);
+        }
+        if (!all.includes("SILENT: marco [at] kalsa [dot] io")) {
+          problems.push(`Room — @Kalsa rule: "marco@kalsa.io" must not call`);
+        }
+        if (all.includes("WRONGLY CALLS")) {
+          problems.push(`Room — @Kalsa rule: the mirror calls something it must not`);
+        }
+      }
+    }
     const FIRST_PAGE = {
       off: ["This computer is not running anything right now.", "Go to Server"],
       service: ["This computer's chat connection is not working right now.", "Go to Devices"],

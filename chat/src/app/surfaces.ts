@@ -1,6 +1,7 @@
 export type SurfaceKey =
   | "brain"
   | "chat"
+  | "room"
   | "models"
   | "server"
   | "devices"
@@ -22,9 +23,9 @@ export interface SurfaceDefinition {
 
 /**
  * The settings surfaces, carried by the brain page — the app's home. The
- * brain and the chat are not on this list on purpose (THE-BRAIN-IS-THE-HOME.md
- * §1, §5): the chat is reached by writing in the bar, never by selecting a
- * tab, and surfaces live in this one place.
+ * brain, the chat and the room are not on this list on purpose
+ * (THE-BRAIN-IS-THE-HOME.md §1, §5): the chat is reached by writing in the
+ * bar, the room sits beside it, and neither is ever a tab.
  */
 export const SURFACES: SurfaceDefinition[] = [
   // `Server` is here because it reports this machine's own server — its state,
