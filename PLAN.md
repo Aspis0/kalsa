@@ -542,8 +542,9 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
 | `scratchpad/agents/qdc-8elite-hopping-heat/` | `a6ec6507` | 8 Elite skin area per prefill NPU/GPU/CPU **23/79/75 °C·s**; NPU decode **0.229** vs CPU **0.315** vs GPU **0.326 °C·s/token**, at **29.1/39.0/30.3 tok/s** (NPU/CPU/GPU); **no NPU skin crossover through 12 back-to-back prefills** |
 
 - **CPU prefill is never cooler**: on both chips CPU is the worst of the three on the heat-area
-  axis (S23 battery-area rows P-*; 8 Elite skin-area 52.3 vs 45.5/21.2). `s23-backend-hopping-heat/` has a PREREG but
-  no REPORT yet — no claim from it.
+  axis (S23 battery-area rows P-*; 8 Elite skin-area 52.3 vs 45.5/21.2). `s23-backend-hopping-heat/REPORT.md` (28/09):
+  S23 tg256 decode CPU 22.13 / OpenCL 14.03 / HTP 22.09 tok/s, battery 0.20 / 0.43 / 0.14 C·s per token (medians);
+  CPU and HTP ranges overlap, so "HTP decode cooler than CPU" is a direction, not a proven gap.
 - **The GPU table (the one the owner kept)**, for the routing design:
 
   | chip | prefill CPU | prefill GPU | prefill NPU | decode CPU | decode GPU | decode NPU |
@@ -556,6 +557,20 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
   where it is the only accelerator we ship for — iPhone (Metal) and the Mali phone (whose Mali
   path is currently NOT MEASURED / failing, `archive-gpu-cells/REPORT.md:510-512,757`). No claim
   is made about Adreno 830 kernel tuning: no such measurement exists in the lab.
+
+### Governor plan to follow (owner, 2026-09-30)
+
+**The governor work follows `scratchpad/agents/governor-plan-fable/PLAN.md`** (Fable 5.1, built from our
+measurements and code, lab commit `32d65d53`). Eight milestones, de-risking first: (1) does in-app battery
+current separate NPU/GPU/CPU per turn on the S23 (pass: changes on >= 90 % of 1 Hz rows and per-phase mean differs
+by > 3x idle std-dev; else no energy learning, heat priors only); (2) thermo push every 10 s during generation;
+(3) three-rung ladder MODERATE/SEVERE/CRITICAL, no CPU prefill fallback on LOWBAT; (4) per-backend admission deltas
+from the heat tables; (5) `getThermalHeadroom` probe; (6) energy-per-token learning (only if 1 passes); (7) mid-turn
+NPU <-> CPU decode hop on one copy (needs the fast raw DSP decode); (8) AIMD pace lever for persistent SEVERE.
+Each milestone: one coder, one hostile audit, one device check. It records five contradictions in today's code
+(MODERATE/SEVERE collapsed, unmeasured uniform admission deltas, per-turn-only thermo cadence, CPU prefill on LOWBAT,
+dead trend rule) and that the three governor engine lines diverge. Open owner decisions: decode tok/s floor, ranking
+metric, exploratory turns, no-mmap in the app, merge order of the engine lines.
 
 ### Owner direction (2026-09-28)
 

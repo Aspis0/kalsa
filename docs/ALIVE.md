@@ -694,7 +694,8 @@ hit the same wall: the status-3 abort stopped it after one submitted prompt. Rec
 - **No NPU heat crossover in 12 back-to-back prefills** (same cell, §A).
 - **Fewer decode threads show no clear benefit on the S23** (battery medians overlap within
   1-3 %, skin rises as threads fall: D-t5/t3/t2 = 22.41 / 18.49 / 15.16 tok/s).
-- `s23-backend-hopping-heat/` has a PREREG only, no REPORT - nothing claimed from it.
+- `s23-backend-hopping-heat/REPORT.md` (28/09): S23 tg256 decode CPU 22.13 / OpenCL 14.03 / HTP 22.09 tok/s,
+  battery 0.20 / 0.43 / 0.14 C·s per token; CPU and HTP ranges overlap - a direction, not a proven gap.
 
 **Owner direction (2026-09-28; decisions in `PLAN.md`, "Verified state, 2026-09-28"):** CPU is
 out of prefill; NPU first and GPU when the NPU is hot; decode hops CPU <-> NPU <-> GPU by heat; never
@@ -725,6 +726,13 @@ decode tg128 measured **38.3 tok/s** repacked, **34.6** no-repack, and **22.6** 
 rpcmem weights. Memory was **1,526 vs 3,448 MiB** across separate processes, about **1.9 GiB saved**.
 The v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD is unmeasured. These 8 Elite
 results do not transfer to the S23 (`scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`).
+
+**Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
+`32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
+platform status only once per completion (never during generation); MODERATE and SEVERE collapse into one state;
+LOWBAT falls back to CPU prefill; admission deltas are unmeasured and uniform. Next on the S23: milestone 1, does
+in-app battery current separate NPU/GPU/CPU per turn. Correction: `s23-backend-hopping-heat` has a REPORT (28/09),
+where CPU and HTP decode heat ranges overlap, so "NPU decode wins on S23" is plausible, not proven.
 
 **Governor one-copy is gated on speed.** Design: lab commits `4d606e4f`, `5a94d88c`, `df4a18d1`,
 `7ac42dec`. Engine branch `feat/governor-onecopy` is not pushed: S1 `1d39fd0dd` + `49676fd7a`;
