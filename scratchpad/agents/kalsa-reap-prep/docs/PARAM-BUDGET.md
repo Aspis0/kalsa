@@ -67,7 +67,7 @@ on-pod HF dir sizes are the text sizes above **+0.89 GB each**:
 
 The GGUFs stay **text-only**: `convert_hf_to_gguf.py` writes an mmproj only
 with `--mmproj` (`convert_hf_to_gguf.py:117-118` — "Export multimodal
-projector (mmproj) for vision models"), which `pod/40_convert.sh` never
+projector (mmproj) for vision models"), which `mac/30_convert.sh` never
 passes, so vision weights never enter any GGUF and the GGUF size table above
 is unchanged. One mmproj can later be converted from the BASE checkpoint if
 vision is ever wanted (moep's own export docstring notes the tower is copied
@@ -96,13 +96,21 @@ budgets, so the 8 GB phone and the 8 GB PC always run the streaming path
 set and reports/research-newmoe-candidates.md for CalaQwen = Qwen3.6-35B-A3B
 KEXP on the S23 at 5.70 tok/s with streaming, 30.7 MiB/tok, hit 80.7%).
 
-Streaming cost scales with the routed pool that remains: at k=6 the model
-routes 40 × 6 × 3,145,728 = 755M expert params/token, so a 65% prune carries
-264M and a 75% prune 189M — 2.9× / 4.0× less routed byte traffic than shipped
-CalaQwen at the same k, with a smaller expert pool (90 or 64 per layer instead
-of 256) that raises the cache hit rate. The 16 GB phone is the only class with
-resident options (65%/75% at Q4_0/Q4_K_M).
+**Active compute does NOT shrink with the pool** (review-confirmed correction
+2026-09-30 — the old claim "a 65% prune carries 264M routed params/token" was
+wrong): each token still routes to k routed + 1 shared FULL-SIZE experts, so
+per-token routed params stay ~40 × 9 × 3,145,728 ≈ 1.13B no matter the prune
+ratio. Pruning shrinks total parameters — RAM and download size — not
+per-token work. What a smaller pool changes is streaming-cache economics:
+fewer distinct experts to page raises the hit rate at the same cache budget
+(CalaQwen measured 30.7 MiB/tok streamed at the full 256-expert pool —
+reports/research-newmoe-candidates.md — with decode compute-bound at
+~5.70 tok/s on the S23). A 3B-active MoE therefore cannot beat the 2.6B
+dense LFM on speed; expert pruning is a RAM play, which is why the owner
+target (2026-09-30) is PC + 16 GB phones resident and LFM stays on the
+8 GB class.
 
-Practical reading for the ratio gate: **65% and 75% prunes are the only ones
-that fit the 16 GB phone resident**; 50% is a 16 GB PC resident / 16 GB phone
-streaming artifact; 0%/25% are measurement baselines, never ship states.
+Practical reading after the owner decision: the work narrows to ONE ratio
+(50%) and only if the $0 Mac probe clears the gate; the per-ratio numbers
+above stay for reference. 50% Q4_0 (10.43 GB) is 16 GB PC resident, 16 GB
+phone streaming; 50% Q4_K_M (11.42 GB) is 16 GB PC resident only.

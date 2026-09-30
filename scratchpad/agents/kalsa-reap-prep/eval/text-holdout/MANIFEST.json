@@ -1,0 +1,66 @@
+{
+ "licence": "public-domain works; Project Gutenberg eBook boilerplate stripped; gate corpus, hold-out",
+ "built": "2026-09-30",
+ "books": {
+  "en": {
+   "bytes": 737948,
+   "sha256": "0ab24fe06fdc27186e8d424a24bf8f9e3f8a6132a1bc4c4b8c36e35379ddc9a6",
+   "sources": [
+    {
+     "gutenberg_id": 1342,
+     "title": "Pride and Prejudice",
+     "author": "Jane Austen",
+     "stripped_bytes": 737948
+    }
+   ]
+  },
+  "it": {
+   "bytes": 1452627,
+   "sha256": "92cd69cbfe6b73414415c284fc387f432a38ac4741de90bbd0e117b7e5f43b95",
+   "sources": [
+    {
+     "gutenberg_id": 45334,
+     "title": "I promessi sposi",
+     "author": "Alessandro Manzoni",
+     "stripped_bytes": 1452627
+    }
+   ]
+  },
+  "es": {
+   "bytes": 2205997,
+   "sha256": "d3e2f9556214adcf5c1afb4a4b2fee8961f90dc2ee9635bdfe5f5564c73c993b",
+   "sources": [
+    {
+     "gutenberg_id": 2000,
+     "title": "Don Quijote",
+     "author": "Miguel de Cervantes Saavedra",
+     "stripped_bytes": 2205997
+    }
+   ]
+  },
+  "fr": {
+   "bytes": 1056252,
+   "sha256": "b165739b0122259dc41589b6e33a5cbc3e1992b0ccc2d30d3801cf841ce50120",
+   "sources": [
+    {
+     "gutenberg_id": 798,
+     "title": "Le rouge et le noir",
+     "author": "Stendhal",
+     "stripped_bytes": 1056252
+    }
+   ]
+  },
+  "zh": {
+   "bytes": 2643727,
+   "sha256": "6484f4963b639a1d67664981ff5e56487d44179b52218749f45d360c3acf13f5",
+   "sources": [
+    {
+     "gutenberg_id": 24264,
+     "title": "紅樓夢 (A Dream of Red Mansions)",
+     "author": "Cao Xueqin",
+     "stripped_bytes": 2643727
+    }
+   ]
+  }
+ }
+}

@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Build the FASE-C holdout sets (runnable before the pod).
+"""Build the eval-gate holdout sets (runnable before the pod).
 
   gsm8k-200.jsonl — 200 fixed GSM8K test items (seed 42), MIT licence
-  tools-100.jsonl — 100 hermes function-calling dialogues that are NOT in the
-                    calibration set (content-hash disjoint), Apache-2.0
+  tools-100.jsonl — 100 function-calling dialogues from hermes'
+                    func-calling.json (Apache-2.0). The file is a DIFFERENT
+                    generator from the calibration's tool rows (glaive-
+                    function-calling-5k.json) — the 2026-09-30 review
+                    flagged same-file holdouts as favouring whichever model
+                    trained on the generator. Content-hash disjointness vs
+                    the calibration rows is still checked.
 
 Both are written to eval/ next to this script, each row carrying the licence
-and the pinned source revision. Hermes tools are EN-only — no permissively
-licensed multilingual tool-call source exists (EVAL-GATE.md says so).
+and the pinned source revision. Hermes/glaive tools are EN-only — no
+permissively licensed multilingual tool-call source exists (EVAL-GATE.md).
 
 Usage: build_holdouts.py <calib_jsonl> [out_dir]
 """
@@ -24,6 +29,7 @@ from huggingface_hub import hf_hub_download
 
 GSM8K_REV = "740312add88f781978c0658806c59bc2815b9866"
 HERMES_REV = "dae3e1d28cfbcf4b915c04ea1e072030529b4bda"
+HOLDOUT_FILE = "func-calling.json"
 TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.S)
 HERMES_ROLE = {"system": "system", "human": "user", "gpt": "assistant",
                "assistant": "assistant", "tool": "tool"}
@@ -64,7 +70,7 @@ def build_gsm8k(out_dir: pathlib.Path) -> int:
 
 def build_tools(out_dir: pathlib.Path, calib: set[str]) -> int:
     path_in = hf_hub_download("NousResearch/hermes-function-calling-v1",
-                              "func-calling.json", repo_type="dataset",
+                              HOLDOUT_FILE, repo_type="dataset",
                               revision=HERMES_REV)
     rows = json.load(open(path_in))
     held, seen = [], set()
@@ -98,14 +104,15 @@ def build_tools(out_dir: pathlib.Path, calib: set[str]) -> int:
             "id": f"tools-100-{len(held):03d}",
             "prompt_messages": msgs[: last_user + 1],
             "expect": expect,
-            "source": "NousResearch/hermes-function-calling-v1:func-calling.json",
+            "source": f"NousResearch/hermes-function-calling-v1:{HOLDOUT_FILE}",
             "license": "apache-2.0", "source_revision": HERMES_REV,
         })
     path = out_dir / "tools-100.jsonl"
     with open(path, "w") as f:
         for r in held:
             f.write(json.dumps(r) + "\n")
-    print(f"tools-100: {len(held)} items -> {path} (apache-2.0, {HERMES_REV[:12]})")
+    print(f"tools-100: {len(held)} items -> {path} "
+          f"(apache-2.0, {HOLDOUT_FILE}, {HERMES_REV[:12]})")
     return len(held)
 
 

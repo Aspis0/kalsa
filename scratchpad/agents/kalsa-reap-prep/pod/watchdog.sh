@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # watchdog.sh — global deadline enforcement, independent of the stages.
 # Responsibility: kill the job when the deadline passes, whatever the stages
-# are doing. The orchestrator's own trap then terminates the pod.
+# are doing. The orchestrator's own trap then handles upload/terminate.
 # Usage: watchdog.sh <DEADLINE_EPOCH> <JOB_PID> [POLL_SECONDS=20]
 set -uo pipefail
 
@@ -19,13 +19,14 @@ while :; do
   now=$(date +%s)
   if [ "$now" -ge "$DEADLINE" ]; then
     echo "watchdog: DEADLINE HIT at $now (>= $DEADLINE) — killing job tree" >> "$LOG"
-    # TERM the whole process group of the job, then KELL after 60s stragglers
-    pkill -TERM -P "$JOB_PID" 2>/dev/null
+    # TERM the job's whole process group (run_all's trap still runs), then
+    # KILL after 60s stragglers; fall back to per-PID if the group is gone
+    kill -TERM -- "-$JOB_PID" 2>/dev/null || pkill -TERM -P "$JOB_PID" 2>/dev/null
     kill -TERM "$JOB_PID" 2>/dev/null
     sleep 60
-    pkill -KILL -P "$JOB_PID" 2>/dev/null
+    kill -KILL -- "-$JOB_PID" 2>/dev/null || pkill -KILL -P "$JOB_PID" 2>/dev/null
     kill -KILL "$JOB_PID" 2>/dev/null
-    echo "watchdog: job tree killed; run_all trap will terminate the pod" >> "$LOG"
+    echo "watchdog: job tree killed; run_all trap will upload/terminate" >> "$LOG"
     exit 0
   fi
   sleep "$POLL"

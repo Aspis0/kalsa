@@ -37,7 +37,7 @@ n_shards=$(find "$MODEL_DIR" -maxdepth 1 -name 'model-*.safetensors' | wc -l | t
 [ "$n_shards" = "26" ] || { echo "10: expected 26 shards, found $n_shards" >&2; exit 1; }
 test -f "$MODEL_DIR/tokenizer.json" || { echo "10: tokenizer.json missing" >&2; exit 1; }
 "$ROOT/.venv-kalsa/bin/python" - "$MODEL_DIR" <<'EOF'
-import struct, sys, pathlib
+import json, struct, sys, pathlib
 p = next(sorted(pathlib.Path(sys.argv[1]).glob("model-00001-of-*.safetensors")))
 with open(p, "rb") as f:
     head = f.read(262144)

@@ -23,7 +23,6 @@ def main() -> int:
         return 2
     tok_dir, calib, out = sys.argv[1], pathlib.Path(sys.argv[2]), sys.argv[3]
     tok = AutoTokenizer.from_pretrained(tok_dir)
-    sep = tok.eos_token or "<|im_end|>"
     blocks = []
     for line in open(calib):
         row = json.loads(line)
