@@ -572,13 +572,15 @@ Each milestone: one coder, one hostile audit, one device check. It records five 
 dead trend rule) and that the three governor engine lines diverge. Open owner decisions: decode tok/s floor, ranking
 metric, exploratory turns, no-mmap in the app, merge order of the engine lines.
 
-**Milestone 1 result (S23, 2026-09-30, `scratchpad/agents/governor-m1-current/REPORT.md`; coordinator re-derived two
-turns from raw; hostile audit pending):** in-app current changes on 99.7-100 % of 1 Hz rows (pass). Mean current
-does NOT separate GPU from CPU prefill (1260 vs 1019 mA, below 3x the between-turn sd of 243 mA): thermal history
-moves phase means more than the backend does (the same CPU decode differs by 636 mA between arms). The energy
-integral does separate: 54 +- 3 J (GPU) vs 224 +- 3 J (CPU) per 1k prefill tokens, 4.1x, because the backend sets
-the duration. Consequence: learn and rank on energy per token, not on mean current. NPU arm impossible: the CI APK
-has no Hexagon host backend (see "NPU prefill"). n = 3 per arm, whole-phone current incl. screen.
+**Milestone 1 result (S23, 2026-09-30; partial GPU/CPU-prefill trace, `scratchpad/agents/governor-m1-current/REPORT.md`,
+hostile audit `AUDIT.md` applied):** the in-app sampler changed on 99.7-100 % of valid adjacent readings (live at 1 Hz).
+Across three GPU-prefill and three CPU-prefill turns the prefill mean-current difference was ~242 mA. No idle window was
+captured (the sampler runs only during a turn), so the plan's 3x idle-sd test is UNTESTED; backend-current separation is
+not established. The whole-phone prefill-window integral was ~54 vs ~224 J per 1k tokens (assumed mA scale), but it
+includes screen and device load and largely follows the prefill durations (GPU 77-105 vs CPU 16-21 tok/s), so it does not
+establish incremental backend energy and does not by itself justify energy learning. Decode was CPU in every turn; no NPU
+arm (CPU-only CI APK). Next for this milestone: an idle window in the same trace (baseline sd) and incremental energy
+(minus idle) per phase; NPU arm once the APK carries Hexagon.
 
 ### Owner direction (2026-09-28)
 
