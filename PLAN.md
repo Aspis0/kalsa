@@ -558,6 +558,18 @@ Numbers and records: `docs/ALIVE.md`, "2026-09-24/25", and `scratchpad/COORDINAT
   path is currently NOT MEASURED / failing, `archive-gpu-cells/REPORT.md:510-512,757`). No claim
   is made about Adreno 830 kernel tuning: no such measurement exists in the lab.
 
+### Engine: one line + upstream (owner, 2026-09-30 night)
+
+The fork exists to take upstream easily, but two lines had diverged: `feat/governor-platform-status` (phone app pin
+`d07d0181b`, 50 commits not in main) and `main` (desktop v1.1.3, Gemma MTP, vcredist; 26 not in feat). Owner:
+`main` is the ONLY engine line for app and desktop. Step A: merge feat into main. Step B: merge upstream b11304
+(301 commits; trial: 8 files / 28 hunks, none in Hexagon on this line); conflicts are resolved by taking upstream's
+file and replaying our commits onto it, not by hand-blending. Each step: host + Android (docker) build, governor
+tests with the ship GGUF, one audit by another model. Then binding vendor bump -> app pin -> APK -> S23 regression;
+desktop v1.1.4 when the fork's CI is back. The one-copy spike keeps its base until its ABBA is measured. Fork
+already pruned to 3 branches (REPOS.md); feat/* becomes an archive tag after step A lands. Making the fork public
+is PARKED (owner); the recon was stopped before any verdict.
+
 ### Governor plan to follow (owner, 2026-09-30)
 
 **The governor work follows `scratchpad/agents/governor-plan-fable/PLAN.md`** (Fable 5.1, built from our

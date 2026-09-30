@@ -741,6 +741,10 @@ private HF dataset `Kalsa-ai/kalsa-gate-probe-results`; PLAN.md "Owner decision 
 Retry 2026-09-30 evening with every arm (owner): A40 pod at $0.49/h, stages one by one, chain only after the LFM
 arm's results land; spend capped at ~$9.6 of the $10.
 
+**Engine single line (2026-09-30 night, owner):** `main` of the fork is the only engine line for phone and desktop;
+feat/governor-platform-status merges into it, then upstream b11304 (conflicts: take upstream, replay our commits).
+The fork was pruned to 3 branches + archive tags; going public is parked. PLAN.md "Engine: one line + upstream".
+
 **Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
 `32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
 platform status only once per completion (never during generation); MODERATE and SEVERE collapse into one state;
