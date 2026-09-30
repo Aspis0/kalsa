@@ -159,6 +159,16 @@ function skipReasons(): string[] {
   return logLines("KALSA_EAGER_SKIP").map((p) => JSON.parse(p).reason);
 }
 
+/**
+ * The fake clock covers the app's timers only: React's act defers its
+ * act-call warnings through nested queueMicrotask calls, and where the jest
+ * environment fakes queueMicrotask (node 20 does, node 26 does not) those
+ * jobs linger in the clock and getTimerCount would count them.
+ */
+function fakeAppTimers(): void {
+  jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   (getBenchEagerDelayMs as jest.Mock).mockResolvedValue(0);
@@ -194,7 +204,7 @@ describe("eager kick at bench delay 0 (default path)", () => {
 
 describe("eager kick with a bench delay armed", () => {
   test("unmount during the wait cancels it: no load, host_teardown skip line", async () => {
-    jest.useFakeTimers();
+    fakeAppTimers();
     (getBenchEagerDelayMs as jest.Mock).mockResolvedValue(8000);
     const ensure = jest.fn(async () => true);
     const { Probe } = makeHarness(ensure);
@@ -211,7 +221,7 @@ describe("eager kick with a bench delay armed", () => {
   });
 
   test("a flip to the remote/computer mode during the wait never loads the local model", async () => {
-    jest.useFakeTimers();
+    fakeAppTimers();
     (getBenchEagerDelayMs as jest.Mock).mockResolvedValue(8000);
     const ensure = jest.fn(async (_model: ModelInfo) => true);
     const { Probe } = makeHarness(ensure);
@@ -229,7 +239,7 @@ describe("eager kick with a bench delay armed", () => {
   });
 
   test("a send during the wait loads immediately, and the wait ends as already_loaded", async () => {
-    jest.useFakeTimers();
+    fakeAppTimers();
     (getBenchEagerDelayMs as jest.Mock).mockResolvedValue(8000);
     const ensure = jest.fn(async () => true);
     const { Probe, refs } = makeHarness(ensure);
@@ -253,7 +263,7 @@ describe("eager kick with a bench delay armed", () => {
   });
 
   test("with no send and no switch, the wait fires and loads exactly once", async () => {
-    jest.useFakeTimers();
+    fakeAppTimers();
     (getBenchEagerDelayMs as jest.Mock).mockResolvedValue(8000);
     const ensure = jest.fn(async () => true);
     const { Probe } = makeHarness(ensure);
