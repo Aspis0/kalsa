@@ -350,7 +350,36 @@ fn ask_the_engine(
             }
             Err(_) => return Exchange::Failed,
         }
-        let Some(payload) = line.strip_prefix("data: ") else {
+        let mut carried_content = false;
+        if let Some(payload) = line.strip_prefix("data: ") {
+            let payload = payload.trim_end();
+            if payload == "[DONE]" {
+                // The terminal event was seen: the answer's own end, and the
+                // socket's close after it changes nothing.
+                return Exchange::Answered(answer);
+            }
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) {
+                // Content only: reasoning is the computer's own channel — the
+                // desktop chat shows it beside the answer, the room carries the
+                // answer alone, and no reasoning token is streamed or stored.
+                if let Some(text) = value
+                    .pointer("/choices/0/delta/content")
+                    .and_then(|content| content.as_str())
+                    .filter(|text| !text.is_empty())
+                {
+                    carried_content = true;
+                    if !answered {
+                        answered = true;
+                        door.room.mark_turn(turn, true);
+                    }
+                    answer.push_str(text);
+                    door.room.publish_ai(AiEvent::Delta {
+                        turn,
+                        text: text.to_string(),
+                    });
+                }
+            }
+        } else {
             // The status line: a refusal for size halves the transcript
             // and goes again; any other refusal is a failure like a
             // broken stream.
@@ -363,52 +392,12 @@ fn ask_the_engine(
                     return Exchange::Failed;
                 }
             }
-            if last_content.elapsed() >= stall {
-                return Exchange::Failed;
-            }
-            continue;
-        };
-        let payload = payload.trim_end();
-        if payload == "[DONE]" {
+        }
+        if carried_content {
             last_content = Instant::now();
-            // The terminal event was seen: the answer's own end, and the
-            // socket's close after it changes nothing.
-            return Exchange::Answered(answer);
+        } else if last_content.elapsed() >= stall {
+            return Exchange::Failed;
         }
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
-            if last_content.elapsed() >= stall {
-                return Exchange::Failed;
-            }
-            continue;
-        };
-        // Content only: reasoning is the computer's own channel — the
-        // desktop chat shows it beside the answer, the room carries the
-        // answer alone, and no reasoning token is streamed or stored.
-        let Some(text) = value
-            .pointer("/choices/0/delta/content")
-            .and_then(|content| content.as_str())
-        else {
-            if last_content.elapsed() >= stall {
-                return Exchange::Failed;
-            }
-            continue;
-        };
-        if text.is_empty() {
-            if last_content.elapsed() >= stall {
-                return Exchange::Failed;
-            }
-            continue;
-        }
-        last_content = Instant::now();
-        if !answered {
-            answered = true;
-            door.room.mark_turn(turn, true);
-        }
-        answer.push_str(text);
-        door.room.publish_ai(AiEvent::Delta {
-            turn,
-            text: text.to_string(),
-        });
     }
 }
 
