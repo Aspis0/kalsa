@@ -493,3 +493,23 @@ Logs: `/data/local/tmp/govhtp/onecopy-guard/npudec/`.
 
 Next: an HVX raw-Q4_0 matvec (vectorised conversion or a kernel that reads raw 18-byte blocks
 directly), then this table again with min batch 1. Target: >= the two-copy 22.58 tok/s.
+
+## Tied embedding share on the S23 (2026-09-30, coordinator, engine 048603398 vs e71421fd9)
+
+CPU-only llama-bench built in the toolchain container (`ghcr.io/snapdragon-toolchain/arm64-android:v0.7`,
+NDK r29, `-march=armv8.7a+fp16+dotprod+i8mm`, static): before = `e71421fd9` (sha256 `27e204fa...`),
+after = `048603398` (sha256 `246177bf...`). Model `heat3way/ship.gguf`, `-p 0 -n 128 -r 3 -t 5 -ngl 0`,
+peak RSS from `toybox time -v`. Unplugged, 63 -> 62 %, battery 28.9-33.0 C, Awake. Order ABBA with
+60 s gaps. Logs: `/data/local/tmp/govhtp/tied-embd/`.
+
+| load mode | before tg128 | after tg128 | before max RSS | after max RSS | saved |
+|---|---:|---:|---:|---:|---:|
+| none | 23.39 +- 1.43 | 23.41 +- 1.48 | 1,777 MiB | 1,573 MiB | **204 MiB** |
+| mmap | 22.99 +- 1.59 | 23.11 +- 1.56 | 3,091 MiB | 2,866 MiB | **225 MiB** |
+
+- Decode unchanged within noise; the saving matches the duplicated Q6_K `token_embd` (205 MiB).
+- mmap vs none (for the owner's no-mmap decision, CLI only, not the app's MLOCK path): peak RSS with
+  mmap is ~1.3 GiB higher in both builds, because the mapped file pages AND the CPU_REPACK copy are both
+  resident. In the app no-mmap = `LLAMA_LOAD_MODE_MLOCK` (binding `JSIParams.cpp:353-358`) - not measured here.
+- Verdict: ship candidate. Next: cherry-pick `1622f44bd` + `048603398` onto the engine main line, then
+  the pin chain.
