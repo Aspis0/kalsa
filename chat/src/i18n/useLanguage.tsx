@@ -2,7 +2,7 @@
 // reader re-renders at once. The override persists beside the app's other
 // settings; without one, the system's best language among the five wins.
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { TABLES, systemLanguage, type Language, type Table } from ".";
 
@@ -33,6 +33,8 @@ function writeOverride(choice: Stored): void {
 interface LanguageChoice {
   language: Language;
   table: Table;
+  /** The BCP-47 tag the page declares itself in (`zh-Hans`, not `zh`). */
+  tag: string;
   /** The override as stored: "system" or a language code. */
   override: Stored;
   choose: (choice: Stored) => void;
@@ -46,6 +48,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const language = override === "system" ? systemLanguage() : override;
     return {
       language,
+      tag: language === "zh" ? "zh-Hans" : language,
       table: TABLES[language],
       override,
       choose: (choice) => {
@@ -54,6 +57,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       },
     };
   }, [override]);
+  // The document's own declaration follows the choice: a screen reader
+  // reads the page in the language the page is written in.
+  useEffect(() => {
+    document.documentElement.lang = value.tag;
+  }, [value.tag]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
@@ -63,8 +71,3 @@ export function useLanguage(): LanguageChoice {
   return choice;
 }
 
-/** For the bench, which mounts surfaces without the provider: the English
-    table read directly. */
-export function english(): Table {
-  return TABLES.en;
-}

@@ -3,22 +3,26 @@
 import type { RoomTable } from "../en/room";
 
 export const ROOM: RoomTable = {
-  listJoin: (items) => items.join(" et "),
+  listJoin: (items) => {
+    if (items.length < 3) return items.join(" et ");
+    return `${items.slice(0, -1).join(", ")} et ${items[items.length - 1]}`;
+  },
   closedRoom: "Allume Kalsa pour utiliser le salon.",
   emptyRoom: "Pas encore de messages. Dis quelque chose, ou demande à Kalsa.",
   answering: (name: string) => `Kalsa répond à ${name}.`,
   queueNext: (name: string) => `Kalsa répondra d'abord à ${name}.`,
   queueThen: (name: string, rest: string) => `Kalsa répondra d'abord à ${name}, puis ${rest}.`,
-  stop: "Arrêter",
-  askKalsa: "Demander à Kalsa",
+  stop: "Arrête",
+  askKalsa: "Demande à Kalsa",
   writePlaceholder: "Écris, ou tape @Kalsa…",
   writeAria: "Message",
   nameAria: "Ton nom",
   namePlaceholder: "Ton nom",
   youAre: (name: string) => `Tu es ${name}`,
-  left: " · parti",
+  left: " · n'est plus là",
   askedKalsa: "a demandé à Kalsa · ",
-  readLast: (count: number) => ` · a lu les ${count} derniers`,
+  readLast: (count: number) =>
+    count === 1 ? " · a lu le dernier message" : ` · a lu les ${count} derniers messages`,
   notes: {
     "busy_waiting": "Kalsa est occupé avec une autre conversation. Tu gardes ton tour.",
     "unavailable": "Kalsa ne peut pas répondre dans ce salon pour le moment.",

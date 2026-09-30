@@ -19,11 +19,16 @@ import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
 import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/roomFeed";
-import { english, LanguageProvider } from "../chat/src/i18n/useLanguage";
+import { LanguageProvider } from "../chat/src/i18n/useLanguage";
 import { TABLES, LANGUAGES } from "../chat/src/i18n";
+
 import { LANGUAGE_KEY } from "../chat/src/i18n/useLanguage";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
+
+// The English table read directly: the parity walker and the probe cards
+// compare against it without mounting the provider.
+const english = () => TABLES.en;
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
 
 // The page's own clocks, read from the source: the pairing poll the
@@ -264,6 +269,8 @@ const scenarios = [
     { member_id: 3, name: "Marco", kind: "phone", former: false },
     { member_id: 4, name: "Luca", kind: "phone", former: false },
   ], ai: { state: "queued", running: null, queue: ["Marco", "Luca"], you_pending: false } }, roomHistory: [] }],
+  // "工作室" is a device-label fixture the card carries, not table copy:
+  // the room name comes from the pairing store's label for this computer.
   ["Room", "in Chinese: Kalsa answering", "room", { language: "zh", room: { epoch: "e1", open: true, room_name: "工作室", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 3, name: "Marco", kind: "phone", former: false },
@@ -962,7 +969,7 @@ export function checkKeyParity() {
     }
     if (typeof englishValue === "string") {
       if (typeof value !== "string") problems.push(`${lang}.${path}: not a string`);
-      else if (value === "") problems.push(`${lang}.${path}: empty string`);
+      else if (value.trim() === "") problems.push(`${lang}.${path}: empty string`);
       return;
     }
     if (typeof englishValue === "object" && englishValue !== null) {

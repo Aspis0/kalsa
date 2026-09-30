@@ -320,11 +320,11 @@ try {
   // The waiting line, whole-message per language: Italian and Chinese both
   // prove a table actually drives rendering, not just type-checks.
   const italian = renderer.queueLineIn("it");
-  if (italian !== "Kalsa risponderà prima a Marco, poi Luca e Sofia.") {
+  if (italian !== "Kalsa risponderà prima a Marco, poi a Luca e Sofia.") {
     problems.push(`i18n it: the waiting line must be whole-message Italian: "${italian}"`);
   }
   const chinese = renderer.queueLineIn("zh");
-  if (chinese !== "Kalsa 将先回答Marco，然后Luca、Sofia。") {
+  if (chinese !== "Kalsa 将先回答Marco，然后回答Luca和Sofia。") {
     problems.push(`i18n zh: the waiting line must be whole-message Chinese: "${chinese}"`);
   }
   const EXPECTED_SAMPLING_WIRES = [
@@ -1271,7 +1271,7 @@ try {
         }
       }
       if (heading.includes("in Italian")) {
-        if (!all.includes("Kalsa risponderà prima a Marco, poi Luca.")) {
+        if (!all.includes("Kalsa risponderà prima a Marco, poi a Luca.")) {
           problems.push(`Room — the Italian line must be whole-message: ${heading}`);
         }
         if (!all.includes("Stanza") && !all.includes("Studio")) {

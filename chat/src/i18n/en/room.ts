@@ -24,7 +24,10 @@ export interface RoomTable {
 }
 
 export const ROOM: RoomTable = {
-  listJoin: (items) => items.join(" and "),
+  listJoin: (items) => {
+    if (items.length < 3) return items.join(" and ");
+    return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  },
   closedRoom: "Turn on Kalsa to use the room.",
   emptyRoom: "No messages yet. Say something, or ask Kalsa.",
   answering: (name) => `Kalsa is answering ${name}.`,
@@ -38,7 +41,7 @@ export const ROOM: RoomTable = {
   namePlaceholder: "Your name",
   youAre: (name) => `You are ${name}`,
   left: " · left",
-  askedKalsa: "asked Kalsa · ",
+  askedKalsa: "asked Kalsa ·",
   readLast: (count) => ` · read the last ${count}`,
   notes: {
     busy_waiting: "Kalsa is busy with another conversation. You keep your turn.",

@@ -124,7 +124,7 @@ export function RoomSurface() {
               :{" "}
             </span>
             {entry.call_ai && entry.member_id !== info?.you ? (
-              <span className="room-asked">{room.askedKalsa}</span>
+              <span className="room-asked">{room.askedKalsa} </span>
             ) : null}
             <RoomText text={entry.text} />
             {entry.read !== null && entry.read !== undefined ? (

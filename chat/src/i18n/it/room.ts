@@ -3,7 +3,10 @@
 import type { RoomTable } from "../en/room";
 
 export const ROOM: RoomTable = {
-  listJoin: (items) => items.join(" e "),
+  listJoin: (items) => {
+    if (items.length < 3) return items.join(" e ");
+    return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+  },
   closedRoom: "Accendi Kalsa per usare la stanza.",
   emptyRoom: "Ancora nessun messaggio. Dì qualcosa, o chiedi a Kalsa.",
   answering: (name: string) => `Kalsa sta rispondendo a ${name}.`,
