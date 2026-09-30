@@ -457,6 +457,18 @@ fn automatic_choice(
         Some(_) => {
             let selection = match kalsa_catalog::choose(&input) {
                 Decision::Pick(selection) => selection,
+                // The phone decides whether this computer is an upgrade,
+                // never whether the brain can run: "nothing beats your
+                // phone" is a verdict on the upgrade, and the walk answers
+                // it by starting anyway with the machine-only pick, said to
+                // nobody — the owner's ruling.
+                Decision::Refuse(refusal)
+                    if refusal.reason == kalsa_catalog::RefusalReason::NothingBetter =>
+                {
+                    let run =
+                        kalsa_catalog::largest_that_runs_well(&input).map_err(StartupFailure::from)?;
+                    return Ok((run.download, run.entry, FALLBACK_PICK_REASON.to_string()));
+                }
                 Decision::Refuse(refusal) => return Err(refusal.into()),
             };
             let row = chosen_row(
@@ -469,6 +481,11 @@ fn automatic_choice(
         }
     }
 }
+
+/// The sentence for the pick the walk starts when the phone comparison
+/// refused: the machine-only answer, chosen with no phone in the question.
+pub(crate) const FALLBACK_PICK_REASON: &str =
+    "Kalsa picked this because it runs well on this computer.";
 
 /// Why the walk starts the processor build after the graphics build's
 /// catalog answer refused: the card's memory holds no row this app ships —
@@ -511,9 +528,10 @@ pub(crate) fn choose_with_processor_fallback(
         Ok((plan, row, reason)) => Ok((winner, exe, plan, row, reason)),
         // Only a refusal that says "this budget could not hold a model"
         // buys the fallback — `NothingFits` for the automatic answer,
-        // `ChosenModelUnfundable` for a chosen row. NothingBetter (a phone
-        // was compared) and NothingFastEnough (the floors, which the
-        // processor would only fail harder) are other facts, other words.
+        // `ChosenModelUnfundable` for a chosen row. NothingFastEnough (the
+        // floors, which the processor would only fail harder) is another
+        // fact, other words; NothingBetter cannot arrive — the phone
+        // comparison's refusal is taken by the machine-only fallback above.
         Err(graphics_refusal)
             if budgets_the_card
                 && matches!(
@@ -1533,11 +1551,12 @@ mod tests {
     }
 
     #[test]
-    fn a_nothing_better_gpu_refusal_does_not_fall_back() {
-        // The guard, pinned from the refusal side: rows that FIT the card
-        // next to a phone no shipped row beats produce the phone
-        // comparison's NothingFits sibling — NothingBetter — and that one
-        // must not trigger the fallback or its sentence (finding 1).
+    fn a_nothing_better_phone_refusal_starts_the_machine_only_pick() {
+        // The owner's ruling: the phone decides whether this computer is an
+        // upgrade, never whether the brain can run. Rows that FIT the card
+        // next to a phone no shipped row beats used to refuse with the
+        // phone comparison's NothingBetter; the walk now answers it by
+        // starting the machine-only pick, silently.
         let machine = Machine {
             measurement: measured(
                 80.9e9,
@@ -1553,16 +1572,26 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: None,
         };
-        assert!(
-            matches!(
-                choose_model(ServerBackend::Vulkan, &machine, Some(phone), None),
-                Err(StartupFailure::NothingBetter)
-            ),
-            "the fixture must produce the phone comparison's refusal"
+        let (plan, row, reason) =
+            choose_model(ServerBackend::Vulkan, &machine, Some(phone), None)
+                .expect("the machine-only pick starts");
+        let machine_only =
+            choose_model(ServerBackend::Vulkan, &machine, None, None).expect("the plain answer");
+        assert_eq!(
+            plan.sha256, machine_only.0.sha256,
+            "the same file the phone-free question picks"
+        );
+        assert_eq!(row.repo, machine_only.1.repo, "the same row");
+        assert_eq!(
+            reason, FALLBACK_PICK_REASON,
+            "said as the fallback pick, never as a phone comparison: {reason}"
         );
 
+        // The processor fallback's guard is untouched: the card's budget
+        // answer is what that fallback exists for, and the machine-only
+        // pick above never reaches it.
         let calls = std::cell::Cell::new(0);
-        let err = choose_with_processor_fallback(
+        let started = choose_with_processor_fallback(
             (
                 ServerBackend::Vulkan,
                 PathBuf::from("/builds/vulkan-server.exe"),
@@ -1578,12 +1607,12 @@ mod tests {
                 })
             },
         )
-        .expect_err("a phone refusal is not the card's to override");
-        assert!(matches!(err, StartupFailure::NothingBetter), "{err:?}");
+        .expect("the machine-only pick starts through the fallback path too");
+        assert_eq!(started.3.repo, row.repo, "the same row survives both roads");
         assert_eq!(
             calls.get(),
             0,
-            "the processor decide must run for NothingFits and nothing else"
+            "the card's budget held the row, so the processor decide never runs"
         );
     }
 
@@ -2006,13 +2035,13 @@ mod tests {
         );
         let spoken = crate::failure::words(&err);
         // The whole sentence, pinned once: the place could not be made for
-        // reasons this walk cannot tell apart, and freeing disk space is not
-        // among the ones that help (a file where the folder belongs is
-        // `NotADirectory`).
+        // reasons this walk cannot tell apart, so the sentence is the one
+        // plain retry.
+        assert_eq!(spoken, "Kalsa couldn't start. Try again.");
         assert_eq!(
-            spoken,
-            "The assistant could not prepare the place on this computer where chats are \
-             kept, so it did not start."
+            err.code_and_params().0,
+            "startup.could_not_start",
+            "the unwritable slot path rides under the plain retry code"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -2049,17 +2078,10 @@ mod tests {
         };
         assert_eq!(notes.len(), 1, "the probe's own notes travel, unchanged");
         assert!(notes[0].contains("disagreed by 35%"), "{notes:?}");
-        // And the reason reaches the owner's sentence: the probe's words sit
-        // between the opening and the advice that were already approved.
-        let spoken = crate::failure::words(&err);
-        assert!(spoken.contains("disagreed by 35%"), "{spoken}");
-        assert!(
-            spoken.starts_with("This computer could not be measured just now — it may be busy. "),
-            "{spoken}"
-        );
-        assert!(
-            spoken.ends_with("Waiting a moment and turning on again usually works."),
-            "{spoken}"
+        // The sentence hides the probe's words and says what the owner can do.
+        assert_eq!(
+            crate::failure::words(&err),
+            "Kalsa couldn't check this computer. Wait a moment and try again."
         );
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -2522,7 +2544,11 @@ mod tests {
         )
         .expect_err("the dev path has a conservative context ceiling");
         assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
-        assert!(crate::failure::words(&err).contains("Choose a smaller context"));
+        assert_eq!(
+            crate::failure::words(&err),
+            "This conversation length is too long for this AI. Choose a smaller one in \
+             Advanced."
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -2649,16 +2675,17 @@ mod tests {
         // Above the default, still funded: honoured as asked.
         let raised = run(Some(131_072)).expect("a choice above the default is honoured");
         assert_eq!(raised.info.args.context_tokens, 131_072);
-        // Above the machine's maximum: refused, with the number in the words.
+        // Above the machine's maximum: refused. The approved sentence names
+        // the fix, not the figure.
         let err = run(Some(262_145)).expect_err("one token above the maximum is refused");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
         );
-        let spoken = crate::failure::words(&err);
-        assert!(
-            spoken.contains("262144"),
-            "the refusal must name the machine's maximum: {spoken}"
+        assert_eq!(
+            crate::failure::words(&err),
+            "This conversation length is too long for this AI. Choose a smaller one in \
+             Advanced."
         );
     }
 
@@ -2703,9 +2730,9 @@ mod tests {
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
         );
-        // The refusal must carry the figure and the cache it was funded
-        // for: the owner is told what to choose below, not just that the
-        // request was too large.
+        // The approved sentence tells the owner what to do and leaves the
+        // figures out; the enum arm still carries the funded maximum and
+        // the cache it was funded for, pinned here.
         // The other half of the premise: the same window fits q8_0.
         let fits_q8 = planned_config_with_overrides(
             ServerBackend::Cpu,
@@ -2723,15 +2750,18 @@ mod tests {
         )
         .expect("65536 fits the q8_0 cache");
         assert_eq!(fits_q8.info.args.context_tokens, 65_536);
-        let spoken = crate::failure::words(&err);
-        assert!(
-            spoken.contains("38035"),
-            "the refusal must name the funded maximum: {spoken}"
+        assert_eq!(
+            crate::failure::words(&err),
+            "This conversation length is too long for this AI. Choose a smaller one in \
+             Advanced."
         );
-        assert!(
-            spoken.contains("f16"),
-            "the refusal must name the chosen cache: {spoken}"
-        );
+        match err {
+            StartupFailure::ContextTooLarge { maximum_tokens, cache } => {
+                assert_eq!(maximum_tokens, 38_035, "the funded maximum travels");
+                assert!(matches!(cache, Some(KvCache::F16)), "{cache:?}");
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]
@@ -2784,8 +2814,7 @@ mod tests {
         .expect_err("a model whose trained length reads as zero is not started");
         assert_eq!(
             crate::failure::words(&err),
-            "The model chosen for this computer does not say how long a conversation \
-             it was built for, so it was not started. An app update may fix this.",
+            "Kalsa couldn't start with this AI. Pick another one on the AI page.",
             "{err:?}"
         );
     }

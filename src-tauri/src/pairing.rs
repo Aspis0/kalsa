@@ -1914,6 +1914,8 @@ mod tests {
         // The other arm of the same enum, as the page reads a failure.
         let failed = serde_json::to_string(&crate::StateDto::Failed {
             reason: crate::failure::words(&StartupFailure::NothingFits),
+            reason_code: StartupFailure::NothingFits.code_and_params().0.to_string(),
+            reason_params: serde_json::json!({}),
         })
         .unwrap();
         assert!(

@@ -31,7 +31,7 @@ export function ServerSurface() {
   const deviceCount = (metrics.active_devices ?? []).filter(
     (device) => device.kind !== "host",
   ).length;
-  const words = brainWords(state, heldFailure, busy, power);
+  const words = brainWords(state, heldFailure, busy, table);
 
   return (
     <div className="surface-page">

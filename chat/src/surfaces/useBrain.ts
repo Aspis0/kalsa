@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { available, invoke, listen } from "../lib/tauri";
+import { rustSentence } from "../lib/rustText";
 import { TABLES } from "../i18n";
 import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import { lastKnown, standingOf } from "../lib/slotGate";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
@@ -42,7 +44,13 @@ export interface TierFacts {
     until the worker has torn the server down and written `stopped`. */
 export interface BrainState {
   kind: "stopped" | "starting" | "stopping" | "running" | "failed";
+  /// The English sentence, kept for phone clients and logs; the desktop
+  /// renders `reason_code` in the owner's language and falls back to this.
   reason?: string;
+  /// The stable code `failure.rs` put on the failure.
+  reason_code?: string;
+  /// The values that sentence may name (a GB figure).
+  reason_params?: Record<string, unknown>;
   // Only on `running`: the DOOR's OpenAI-style address, and `null` while
   // the door is not up. The engine's own port is deliberately not offered
   // as a fallback — the page's own chat is a device at the door, and the
@@ -399,8 +407,9 @@ export function brainWords(
   state: BrainState | null,
   heldFailure: string | null,
   busy: boolean,
-  words: English["power"] = TABLES.en.power,
+  table: English = TABLES.en,
 ): BrainWords {
+  const words = table.power;
   const running = state?.kind === "running";
   if (!state) {
     return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
@@ -493,8 +502,15 @@ export function brainWords(
         running: true,
       };
     }
-    case "failed":
-      return { headline: words.stopped, sentence: state.reason ?? "", button: words.tryAgain, enabled: true, running };
+    case "failed": {
+      // The code picks the sentence in the owner's language; the English
+      // `reason` is the fallback a phone client or an unknown code shows.
+      const sentence = rustSentence(
+        table.rust,
+        { code: state.reason_code, params: state.reason_params, text: state.reason },
+      );
+      return { headline: words.stopped, sentence, button: words.tryAgain, enabled: true, running };
+    }
     default:
       return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
   }
@@ -507,6 +523,7 @@ export function brainWords(
  * held facts are always exactly one surface's.
  */
 export function useBrain() {
+  const { table, tag } = useLanguage();
   const read = useSyncExternalStore(subscribeBrainRead, getBrainRead);
   const state = read.state;
   // A start that failed keeps its own sentence on the page against the poll,
@@ -579,7 +596,7 @@ export function useBrain() {
       }
     } catch (error) {
       if (state.kind === "stopped" || state.kind === "failed") {
-        holdFailure(String(error));
+        holdFailure(rustSentence(table.rust, error, tag));
       } else {
         // Held against the polls: the brain is (still) not down, and the
         // sentence stays until that honestly changes.
@@ -613,7 +630,7 @@ export function useBrain() {
       publish();
       await invoke("brain_start");
     } catch (error) {
-      failure = String(error);
+      failure = rustSentence(table.rust, error, tag);
       holdFailure(failure);
     }
     setBusy(false);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { rustSentence } from "../lib/rustText";
 import { useLanguage } from "../i18n/useLanguage";
 import { MachineCard } from "./MachineCard";
 import type { Capability } from "./MachineCard";
@@ -53,6 +54,7 @@ interface FirstRunProps {
 // purpose: a reopened app with nothing chosen begins at Start again.
 export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }: FirstRunProps) {
   const { table, tag } = useLanguage();
+  const rust = table.rust;
   const t = table.setup;
   const gb = (bytes: number): string => gigabytes(bytes, tag);
   const [step, setStep] = useState<Step>({ kind: "start" });
@@ -66,7 +68,7 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
       onChecked();
       setStep({ kind: "pick", suggestions });
     } catch (failure) {
-      setError(String(failure));
+      setError(rustSentence(rust, failure, tag));
       setStep({ kind: "start" });
     }
     clearWalkStep();

@@ -918,6 +918,59 @@ where
     })
 }
 
+/// A command's failure as the wire carries it: a stable code the webview
+/// renders in the owner's language, and the English sentence a phone client
+/// or an unknown code still shows. Tauri serializes the rejection payload,
+/// so the page receives this object, never prose to parse.
+#[derive(Clone, Debug, Serialize)]
+struct CommandError {
+    code: String,
+    #[serde(skip_serializing_if = "serde_json::Value::is_null")]
+    params: serde_json::Value,
+    text: String,
+}
+
+impl From<failure::StartupFailure> for CommandError {
+    fn from(failure: failure::StartupFailure) -> Self {
+        let message = failure.message();
+        Self {
+            code: message.code,
+            params: message.params,
+            text: message.text,
+        }
+    }
+}
+
+impl CommandError {
+    fn new(code: &str, text: &str) -> Self {
+        Self {
+            code: code.into(),
+            params: serde_json::Value::Null,
+            text: text.into(),
+        }
+    }
+}
+
+/// A helper's plain-string rejection is a framework or OS surprise this
+/// file never worded: it travels under one generic code, its own text
+/// riding as the fallback and the log line, never as a sentence to parse.
+impl From<&str> for CommandError {
+    fn from(text: &str) -> Self {
+        Self::from(text.to_string())
+    }
+}
+
+impl From<String> for CommandError {
+    fn from(text: String) -> Self {
+        eprintln!("kalsa-brain: {text}");
+        Self {
+            code: "app.unexpected".into(),
+            params: serde_json::Value::Null,
+            text,
+        }
+    }
+}
+
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum StateDto {
@@ -957,9 +1010,13 @@ enum StateDto {
         asleep: Option<bool>,
         metrics: metrics::RuntimeMetricsDto,
     },
-    /// Already in the user's words, produced only by `failure::words`.
     Failed {
+        /// The English sentence, kept for phone clients and logs.
         reason: String,
+        /// The stable code the webview renders in the owner's language.
+        reason_code: String,
+        /// The values that sentence may name (a GB figure).
+        reason_params: serde_json::Value,
     },
 }
 
@@ -1030,8 +1087,11 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
         ServerState::Failed { reason } => {
             brain.stop_door();
             desk.desk.stop_serving();
+            let message = failure::StartupFailure::Supervisor(reason).message();
             StateDto::Failed {
-                reason: failure::words(&failure::StartupFailure::Supervisor(reason)),
+                reason: message.text,
+                reason_code: message.code,
+                reason_params: message.params,
             }
         }
     }
@@ -1172,14 +1232,18 @@ fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::C
 /// resolved here: the next launch resolves it, and a token nothing answers to is
 /// ignored there with a sentence — a choice must never be able to stop the walk.
 #[tauri::command]
-fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<(), String> {
+fn brain_choose_model(
+    app: tauri::AppHandle,
+    token: Option<String>,
+) -> Result<(), CommandError> {
     let state_file = state_file(&app)?;
     let mut next = options::load(&state_file);
     next.model = token
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
     next.validate()?;
-    options::save(&state_file, next).map_err(|_| "The choice could not be saved.".to_string())
+    options::save(&state_file, next)
+        .map_err(|_| CommandError::new("choice.save_failed", "Kalsa couldn't save this choice. Try again."))
 }
 
 /// "Start": measure this computer (a reliable kept measurement stands) and
@@ -1189,9 +1253,12 @@ fn brain_choose_model(app: tauri::AppHandle, token: Option<String>) -> Result<()
 async fn brain_test(
     app: tauri::AppHandle,
     brain: State<'_, Brain>,
-) -> Result<first_run::Suggestions, String> {
+) -> Result<first_run::Suggestions, CommandError> {
     let Some(_stops_seen) = brain.begin_walk(|| {}) else {
-        return Err("The assistant is already starting.".into());
+        return Err(CommandError::new(
+            "startup.already_starting",
+            "Kalsa is already starting. Wait a moment.",
+        ));
     };
     let _walk = WalkGuard(&brain);
     let ram_bytes = startup::ram_bytes();
@@ -1213,7 +1280,12 @@ async fn brain_test(
             (measurement, measurement::now_unix(SystemTime::now()), ram_bytes)
         })
         .await
-        .map_err(|_| "The check did not finish. Trying again usually works.".to_string())?;
+        .map_err(|_| {
+            CommandError::new(
+                "startup.check_failed",
+                "Kalsa couldn't check this computer. Wait a moment and try again.",
+            )
+        })?;
         keep_measurement(&brain, Some(reading), record_dir.as_deref());
     }
     let measurement = brain
@@ -1222,7 +1294,10 @@ async fn brain_test(
         .ok()
         .and_then(|stored| stored.clone())
         .ok_or_else(|| {
-            "This computer could not be measured. Trying again usually works.".to_string()
+            CommandError::new(
+                "startup.check_failed",
+                "Kalsa couldn't check this computer. Wait a moment and try again.",
+            )
         })?;
     let chosen = first_run::stored_choice(&state_file).is_some();
     let capability::CapabilityDto::Measured {
@@ -1232,7 +1307,7 @@ async fn brain_test(
         ..
     } = capability::dto(&measurement, ram_bytes, phone, chosen, &runtime_root)
     else {
-        return Err(failure::words(&failure::StartupFailure::MachineNotMeasured));
+        return Err(failure::StartupFailure::MachineNotMeasured.into());
     };
     let entries = unique_rows(
         [model, quicker]
@@ -1243,18 +1318,26 @@ async fn brain_test(
     );
     tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, &runtime_root))
         .await
-        .map_err(|_| "The check did not finish. Trying again usually works.".to_string())
+        .map_err(|_| {
+            CommandError::new(
+                "startup.check_failed",
+                "Kalsa couldn't check this computer. Wait a moment and try again.",
+            )
+        })
 }
 
 #[tauri::command]
-async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), String> {
+async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), CommandError> {
     let state_file = state_file(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     first_run::require_choice(&state_file, server_override.is_some() || model_override.is_some())
-        .map_err(|failure| failure::words(&failure))?;
+        .map_err(CommandError::from)?;
     let Some(stops_seen) = brain.begin_walk(|| {}) else {
-        return Err("The assistant is already starting.".into());
+        return Err(CommandError::new(
+            "startup.already_starting",
+            "Kalsa is already starting. Wait a moment.",
+        ));
     };
     // Every `?` below returns through this: the claim (and the door's
     // raise) must not stay stuck behind a fallible call.
@@ -1319,7 +1402,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             &runtime_root,
             &mut progress,
         )
-        .map_err(|failure| failure::words(&failure));
+        .map_err(CommandError::from);
         // The measurement rides the refusal too: a walk that failed still
         // measured a real machine.
         (verdict, measured)
@@ -1331,7 +1414,10 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref(), stops_seen),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
-        Err(_) => Err("The starting did not finish. Trying again usually works.".into()),
+        Err(_) => Err(CommandError::new(
+            "startup.could_not_start",
+            "Kalsa couldn't start. Try again.",
+        )),
     };
     // The claim releases here (WalkGuard) — after settlement, retry
     // included: no second Turn on may queue behind an open start verdict.
@@ -1345,7 +1431,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 /// where the record is written minutes of download later) and the RAM the
 /// measured `Machine` was built with.
 type Walk = (
-    Result<startup::PreparedStart, String>,
+    Result<startup::PreparedStart, CommandError>,
     Option<(Measurement, u64, u64)>,
 );
 
@@ -1363,7 +1449,7 @@ fn settle_walk(
     walked: Walk,
     record_dir: Option<&Path>,
     stops_seen: u64,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     keep_measurement(brain, walked.1, record_dir);
     match walked.0 {
         Ok(mut prepared) => {
@@ -1432,7 +1518,7 @@ fn settle_walk(
             brain.record_engine(&engine, outcome);
             Ok(())
         }
-        Err(sentence) => Err(sentence),
+        Err(message) => Err(message),
     }
 }
 

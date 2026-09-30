@@ -9,6 +9,8 @@
 //! notes were written for the user, numbers included, and they are the only
 //! words in the app that name the exact reason a measurement failed.
 
+use serde::Serialize;
+
 use kalsa_catalog::RefusalReason;
 use kalsa_download::DownloadError;
 use kalsa_launch::KvCache;
@@ -97,6 +99,89 @@ pub(crate) enum StartupFailure {
     ModelFileUnwritable,
 }
 
+/// The failure as the wire carries it: a stable code the webview renders in
+/// the owner's language, the values that sentence may name, and the English
+/// sentence a phone client or an unknown code still shows.
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct FailureMessage {
+    pub code: String,
+    pub params: serde_json::Value,
+    pub text: String,
+}
+
+impl StartupFailure {
+    /// The stable code and its user-useful values. Exhaustive over the
+    /// enum; a code is never derived from English text, and a param is
+    /// never a path, a credential or a probe note.
+    pub(crate) fn code_and_params(&self) -> (&'static str, serde_json::Value) {
+        match self {
+            Self::Supervisor(failure) => match failure {
+                Failure::PortTaken
+                | Failure::InstanceUnreadable { .. }
+                | Failure::InstanceUnwritable { .. } => ("startup.restart", serde_json::json!({})),
+                Failure::ServerNotStarted { .. } => {
+                    ("startup.could_not_start", serde_json::json!({}))
+                }
+                Failure::ServerExited { .. } => ("startup.stopped", serde_json::json!({})),
+                Failure::NotReady { .. } => ("startup.took_too_long", serde_json::json!({})),
+                Failure::UnsafeBinding { .. } => ("startup.cannot_run_yet", serde_json::json!({})),
+                Failure::StopUnconfirmed { .. } => {
+                    ("startup.stop_unconfirmed", serde_json::json!({}))
+                }
+            },
+            Self::NoBuildForThisMachine | Self::NoBackendWorked => {
+                ("startup.cannot_run_yet", serde_json::json!({}))
+            }
+            Self::ServerUnverified
+            | Self::DownloadCorrupted
+            | Self::DownloadRefused => ("startup.download_failed", serde_json::json!({})),
+            Self::ServerFetchFailed | Self::ConnectionLost => {
+                ("startup.connection_lost", serde_json::json!({}))
+            }
+            Self::MachineNotMeasured => ("startup.needs_check", serde_json::json!({})),
+            Self::NothingFits | Self::NothingFastEnough | Self::NothingBetter => {
+                ("startup.no_suitable_choice", serde_json::json!({}))
+            }
+            Self::EngineUnreachable => {
+                ("startup.network_blocks_download", serde_json::json!({}))
+            }
+            Self::ChosenModelUnfundable => ("startup.choice_too_large", serde_json::json!({})),
+            Self::ChosenModelContextUnreadable | Self::ChosenModelUnresolved => {
+                ("startup.choice_unavailable", serde_json::json!({}))
+            }
+            Self::ContextTooLarge { .. } => {
+                ("startup.conversation_too_long", serde_json::json!({}))
+            }
+            Self::MeasurementUnreliable(_) => ("startup.check_failed", serde_json::json!({})),
+            Self::SlotSavePathUnwritable => {
+                ("startup.could_not_start", serde_json::json!({}))
+            }
+            Self::AwaitingChoice => ("startup.awaiting_choice", serde_json::json!({})),
+            Self::WeightsUnverified => ("startup.choice_unavailable", serde_json::json!({})),
+            Self::NotEnoughDisk(short) => (
+                "startup.disk_full",
+                match short {
+                    // Rounded up like the sentence's own figure: freeing the
+                    // named amount must be enough.
+                    Some(short) => serde_json::json!({ "gb": (*short as f64 / 1e8).ceil() / 10.0 }),
+                    None => serde_json::json!({}),
+                },
+            ),
+            Self::ModelFileUnwritable => ("startup.could_not_start", serde_json::json!({})),
+        }
+    }
+
+    /// The wire form: code, params, and the English fallback.
+    pub(crate) fn message(&self) -> FailureMessage {
+        let (code, params) = self.code_and_params();
+        FailureMessage {
+            code: code.into(),
+            params,
+            text: words(self),
+        }
+    }
+}
+
 /// The words for a failure. Fail closed: exhaustive over
 /// [`StartupFailure`], which is exhaustive over everything the walk can
 /// report.
@@ -104,175 +189,119 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
     match failure {
         StartupFailure::Supervisor(failure) => supervisor_words(failure),
         StartupFailure::NoBuildForThisMachine => {
-            "No version of the assistant has been built for this kind of computer yet. \
-             An app update may add one."
-                .into()
+            "Kalsa can't run on this computer yet. Check for an app update.".into()
         }
         StartupFailure::ServerUnverified => {
-            "The assistant's server could not be checked against its publisher's record, \
-             so nothing was installed. Trying again later usually works."
-                .into()
+            "Kalsa couldn't finish downloading. Try again later.".into()
         }
         StartupFailure::NoBackendWorked => {
-            "None of the ways of running the assistant work on this computer. \
-             An app update may fix this."
-                .into()
+            "Kalsa can't run on this computer yet. Check for an app update.".into()
         }
         StartupFailure::ServerFetchFailed => {
-            "The assistant's server could not be brought onto this computer. \
-             Checking the connection and trying again usually works."
+            "Kalsa couldn't download what she needs. Check your connection and try again."
                 .into()
         }
         StartupFailure::MachineNotMeasured => {
-            "This computer has not been measured yet. Measuring it first, \
-             then turning on, usually works."
-                .into()
+            "Kalsa needs to check this computer before she can start. Try again.".into()
         }
         StartupFailure::NothingFits => {
-            "No model that fits this computer is available yet. An app update may add one.".into()
+            "Kalsa doesn't have an AI that runs well on this computer yet. \
+             Check for an app update."
+                .into()
         }
+        // The owner's ruling: the phone never gates the brain. This arm is
+        // unreachable from the automatic walk — the fallback takes the
+        // comparison's refusal — and keeps a truthful sentence for as long
+        // as the enum arm exists.
         StartupFailure::NothingBetter => {
-            "Nothing available would run your phone's models better than the phone \
-             already does. Trying again after an app update may change this."
+            "Kalsa doesn't have an AI that runs well on this computer yet. \
+             Check for an app update."
                 .into()
         }
         StartupFailure::NothingFastEnough => {
-            "Everything that fits this computer would run too slowly to use. \
-             An app update may add faster options."
+            "Kalsa doesn't have an AI that runs well on this computer yet. \
+             Check for an app update."
                 .into()
         }
         StartupFailure::EngineUnreachable => {
-            "This network blocks the download of the assistant's engine. Try another \
-             network, or ask whoever manages this network to allow dl.kalsa.io."
+            "Kalsa couldn't download what she needs on this network. Try another network."
                 .into()
         }
         StartupFailure::ChosenModelUnfundable => {
-            "The model chosen for this computer needs more memory than the computer can \
-             give it, even to start. An app update may bring a smaller option."
+            "This AI is too big for this computer. Pick a smaller one on the AI page."
                 .into()
         }
         StartupFailure::ChosenModelContextUnreadable => {
-            "The model chosen for this computer does not say how long a conversation \
-             it was built for, so it was not started. An app update may fix this."
-                .into()
+            "Kalsa couldn't start with this AI. Pick another one on the AI page.".into()
         }
         StartupFailure::ContextTooLarge {
             maximum_tokens,
             cache,
-        } => match cache {
-            Some(cache) => format!(
-                "This context is larger than the {maximum_tokens} tokens the chosen model \
-                 can hold on this computer with the {} cache. Choose a smaller context in \
-                 Advanced and try again.",
-                cache.flag()
-            ),
-            None => format!(
-                "This context is larger than the {maximum_tokens} tokens this development \
-                 setup allows. Choose a smaller context in Advanced and try again."
-            ),
-        },
-        StartupFailure::ChosenModelUnresolved => {
-            "The model chosen for this computer could not be matched to its catalogue \
-             entry, so it was not started. An app update may fix this."
+        } => {
+            let _ = (maximum_tokens, cache);
+            "This conversation length is too long for this AI. Choose a smaller one in \
+             Advanced."
                 .into()
         }
-        StartupFailure::MeasurementUnreliable(notes) => measurement_unreliable_words(notes),
+        StartupFailure::ChosenModelUnresolved => {
+            "Kalsa couldn't start with this AI. Pick another one on the AI page.".into()
+        }
+        StartupFailure::MeasurementUnreliable(_) => {
+            "Kalsa couldn't check this computer. Wait a moment and try again.".into()
+        }
         StartupFailure::SlotSavePathUnwritable => {
-            "The assistant could not prepare the place on this computer where chats are \
-             kept, so it did not start."
-                .into()
+            "Kalsa couldn't start. Try again.".into()
         }
         StartupFailure::AwaitingChoice => {
             "Kalsa isn't set up yet. Go to Home and press Start.".into()
         }
         StartupFailure::WeightsUnverified => {
-            "The model chosen for this computer cannot yet be verified against its \
-             publisher, so it was not downloaded. A future app update finishes this."
-                .into()
+            "Kalsa couldn't start with this AI. Pick another one on the AI page.".into()
         }
         StartupFailure::NotEnoughDisk(Some(short)) => format!(
-            "Not enough space. Free up {:.1} GB and try again.",
+            "Kalsa needs more space. Free up {:.1} GB and try again.",
             // Rounded up: freeing the figure shown must be enough.
             (*short as f64 / 1e8).ceil() / 10.0
         ),
-        StartupFailure::NotEnoughDisk(None) => "Not enough space. Free up some room and try again.".into(),
+        StartupFailure::NotEnoughDisk(None) => {
+            "Kalsa needs more space. Free up some room and try again.".into()
+        }
         StartupFailure::DownloadCorrupted => {
-            "The model download did not match the publisher's record, so it was \
-             thrown away. Trying again usually works."
-                .into()
+            "Kalsa couldn't finish downloading. Try again later.".into()
         }
         StartupFailure::ConnectionLost => {
-            "The download stopped. Check your internet and try again.".into()
+            "Kalsa couldn't download what she needs. Check your connection and try again."
+                .into()
         }
         StartupFailure::DownloadRefused => {
-            "The server that publishes the model did not allow the download just now. \
-             Trying again later usually works."
-                .into()
+            "Kalsa couldn't finish downloading. Try again later.".into()
         }
         StartupFailure::ModelFileUnwritable => {
-            "This computer could not use the model file on its own disk. Trying again \
-             usually works; if it keeps failing, another program may be holding the file."
-                .into()
+            "Kalsa couldn't start. Try again.".into()
         }
     }
-}
-
-/// The measurement failure, told in three parts: the approved opening, the
-/// probe's own reason, the approved advice. The notes were written where the
-/// numbers were; this only stands them up as sentences between the words that
-/// were already approved — every note that fired, since a machine can fail two
-/// checks at once. When no note arrived, the standing sentence says all that
-/// was known.
-fn measurement_unreliable_words(notes: &[String]) -> String {
-    const OPENING: &str = "This computer could not be measured just now — it may be busy.";
-    const ADVICE: &str = "Waiting a moment and turning on again usually works.";
-    let mut spoken = String::from(OPENING);
-    for note in notes {
-        let mut sentence = note.trim().to_string();
-        if let Some(first) = sentence.get_mut(..1) {
-            first.make_ascii_uppercase();
-        }
-        sentence.push('.');
-        spoken.push(' ');
-        spoken.push_str(&sentence);
-    }
-    spoken.push(' ');
-    spoken.push_str(ADVICE);
-    spoken
 }
 
 /// The supervisor's sentences, verbatim from when the supervisor was the
 /// only thing that could fail.
 fn supervisor_words(failure: &Failure) -> String {
     match failure {
-        Failure::PortTaken => "Another program is in the way. Restarting the computer usually clears it.".into(),
-        Failure::InstanceUnreadable { .. } => {
-            "A copy of the assistant left over from earlier is stuck. Restarting the computer usually clears it.".into()
+        Failure::PortTaken
+        | Failure::InstanceUnreadable { .. }
+        | Failure::InstanceUnwritable { .. } => {
+            "Kalsa couldn't start. Restart this computer and try again.".into()
         }
-        Failure::InstanceUnwritable { .. } => {
-            "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".into()
-        }
-        Failure::ServerNotStarted { .. } => {
-            "The assistant did not start. Turning it on again usually works; if it keeps failing, the app may need to be installed again.".into()
-        }
-        Failure::ServerExited { .. } => {
-            "The assistant stopped on its own. Turning it on again usually works.".into()
-        }
-        Failure::NotReady { .. } => {
-            "The assistant took too long to get ready. Turning it on again usually works.".into()
-        }
+        Failure::ServerNotStarted { .. } => "Kalsa couldn't start. Try again.".into(),
+        Failure::ServerExited { .. } => "Kalsa stopped by herself. Turn her on again.".into(),
+        Failure::NotReady { .. } => "Kalsa took too long to get ready. Try again.".into(),
         Failure::UnsafeBinding { .. } => {
-            "The assistant was about to start in an unsafe way and stopped itself. An app \
-             update may fix this."
-                .into()
+            "Kalsa can't run on this computer yet. Check for an app update.".into()
         }
         // The measures are deliberately NOT printed: they are this crate's
         // own vocabulary (pids, ports, walk details) and the file's rule is
         // that a `detail` payload never crosses into a sentence.
         Failure::StopUnconfirmed { .. } => {
-            "The assistant's server could not be confirmed gone when it was turned off, so the \
-             app has not reported it as off. Restarting the computer usually clears it."
-                .into()
+            "Kalsa may still be running. Restart this computer to turn her off.".into()
         }
     }
 }
@@ -414,92 +443,78 @@ mod tests {
 
     #[test]
     fn a_wire_that_blocked_every_engine_fetch_names_the_network() {
-        // The owner-approved copy, verbatim: the network is the fixable
-        // fact, and the sentence names the host to allow. The build's
-        // NoBackendWorked words would send an owner on a filtered network
-        // to wait for an update that cannot help.
+        // The network is the fixable fact, and the sentence names it — the
+        // builds' NoBackendWorked words would send an owner on a filtered
+        // network to wait for an update that cannot help.
         let spoken = words(&StartupFailure::from(DecideError::EngineUnreachable {
             probe_model_reason: None,
             attempts: vec![],
         }));
         assert_eq!(
             spoken,
-            "This network blocks the download of the assistant's engine. Try another \
-             network, or ask whoever manages this network to allow dl.kalsa.io."
+            "Kalsa couldn't download what she needs on this network. Try another network."
         );
-        // A probe that ran and failed is a different fact and keeps the
-        // builds' own sentence.
-        assert!(words(&StartupFailure::from(DecideError::NothingWorked {
-            attempts: vec![]
-        }))
-        .contains("None of the ways"));
-    }
-
-    /// The causes the user cannot act on, named one by one. A failure joins this
-    /// list only by an edit here, and that edit is the claim that no true
-    /// instruction exists to give. `SlotSavePathUnwritable` is the app
-    /// failing to prepare its own directory under the data directory it was
-    /// given: a fact about the filesystem, not about what the user typed.
-    fn unrecoverable(failure: &StartupFailure) -> bool {
-        matches!(failure, StartupFailure::SlotSavePathUnwritable)
+        assert_eq!(
+            StartupFailure::from(DecideError::EngineUnreachable {
+                probe_model_reason: None,
+                attempts: vec![],
+            })
+            .code_and_params()
+            .0,
+            "startup.network_blocks_download"
+        );
+        // A probe that ran and failed is a different fact and keeps its own
+        // sentence.
+        assert!(
+            words(&StartupFailure::from(DecideError::NothingWorked {
+                attempts: vec![]
+            }))
+            .contains("app update")
+        );
     }
 
     #[test]
     fn every_failure_says_what_the_user_can_do() {
         // Each sentence points somewhere: again, an update, a restart, the
-        // Model page, the phone. A dead end is not a sentence — unless it is
-        // declared, and a declared one must not also hand out advice.
+        // AI page. A dead end is not a sentence.
         for failure in every_failure() {
             let spoken = words(&failure);
-            let actionable = ["again", "update", "restart", "measure", "pair", "space", "try"]
+            let actionable = ["again", "update", "restart", "measure", "pair", "space", "try", "wait", "home", "pick"]
                 .iter()
                 .any(|word| spoken.to_ascii_lowercase().contains(word));
-            assert!(actionable || unrecoverable(&failure), "{failure:?} is a dead end: {spoken}");
-            assert!(
-                !(actionable && unrecoverable(&failure)),
-                "{failure:?} is declared a dead end but still advises: {spoken}"
-            );
+            assert!(actionable, "{failure:?} is a dead end: {spoken}");
         }
     }
 
     #[test]
-    fn the_measurement_failure_says_what_the_probe_saw() {
-        // The probe's notes, in the order they fired, standing as sentences
-        // between the approved opening and the approved advice.
+    fn the_measurement_failure_hides_the_probe_notes() {
+        // The probe's notes are its own words with numbers in them; the
+        // sentence says what the owner can do and nothing else, whatever
+        // fired below.
         let spoken = words(&StartupFailure::MeasurementUnreliable(vec![
             "the repetitions disagreed by 35%: something else was using this machine \
              while it was measured"
                 .to_string(),
-            "this process received 0.5 cores while the probe ran 10 threads: the machine \
-             is busy"
-                .to_string(),
         ]));
         assert_eq!(
             spoken,
-            "This computer could not be measured just now — it may be busy. \
-             The repetitions disagreed by 35%: something else was using this machine \
-             while it was measured. \
-             This process received 0.5 cores while the probe ran 10 threads: the machine \
-             is busy. \
-             Waiting a moment and turning on again usually works."
+            "Kalsa couldn't check this computer. Wait a moment and try again."
         );
-    }
-
-    #[test]
-    fn a_measurement_failure_without_notes_says_the_standing_sentence() {
-        // No note arrived, so there is no reason to tell; the sentence must
-        // be exactly what it has always been.
         assert_eq!(
             words(&StartupFailure::MeasurementUnreliable(Vec::new())),
-            "This computer could not be measured just now — it may be busy. \
-             Waiting a moment and turning on again usually works."
+            "Kalsa couldn't check this computer. Wait a moment and try again."
+        );
+        assert_eq!(
+            StartupFailure::MeasurementUnreliable(vec![])
+                .code_and_params()
+                .0,
+            "startup.check_failed"
         );
     }
 
     /// The thirds, as the production sites split them: a file this machine
-    /// refused says so in the owner's own words; a wire failure keeps the
-    /// connection sentence it always had; an HTTP status names the server,
-    /// because "connection" would be false for an answer the publisher sent.
+    /// refused is a start failure; a wire failure names the connection; an
+    /// HTTP refusal and a corrupt download land on the later sentence.
     #[test]
     fn a_local_download_error_names_the_file_and_a_network_one_names_the_connection() {
         let local = StartupFailure::from(DownloadError::Io(std::io::Error::new(
@@ -507,11 +522,7 @@ mod tests {
             "os error 5",
         )));
         assert!(matches!(local, StartupFailure::ModelFileUnwritable));
-        assert_eq!(
-            words(&local),
-            "This computer could not use the model file on its own disk. Trying again \
-             usually works; if it keeps failing, another program may be holding the file."
-        );
+        assert_eq!(words(&local), "Kalsa couldn't start. Try again.");
 
         let network = StartupFailure::from(DownloadError::Network(std::io::Error::new(
             std::io::ErrorKind::ConnectionReset,
@@ -520,35 +531,50 @@ mod tests {
         assert!(matches!(network, StartupFailure::ConnectionLost));
         assert_eq!(
             words(&network),
-            "The download stopped. Check your internet and try again."
+            "Kalsa couldn't download what she needs. Check your connection and try again."
         );
 
         let short = StartupFailure::from(DownloadError::NotEnoughSpace {
             free: 1_000_000_000,
             needed: 3_050_000_000,
         });
-        assert_eq!(words(&short), "Not enough space. Free up 2.1 GB and try again.");
+        assert_eq!(
+            words(&short),
+            "Kalsa needs more space. Free up 2.1 GB and try again."
+        );
+        let (code, params) = short.code_and_params();
+        assert_eq!(code, "startup.disk_full");
+        assert_eq!(params["gb"], 2.1);
 
         let refused = StartupFailure::from(DownloadError::Refused { status: 403 });
         assert!(matches!(refused, StartupFailure::DownloadRefused));
-        assert_eq!(
-            words(&refused),
-            "The server that publishes the model did not allow the download just now. \
-             Trying again later usually works."
-        );
+        assert_eq!(words(&refused), "Kalsa couldn't finish downloading. Try again later.");
 
         // The overrun arrives as a size mismatch — the stream ran past the
-        // publisher's promise — and the part was thrown away for it, which
-        // is exactly what this sentence says.
+        // publisher's promise — and the part was thrown away for it.
         let overrun = StartupFailure::from(DownloadError::SizeMismatch {
             expected: 1024 * 1024,
             actual: 1024 * 1024 + 64 * 1024,
         });
         assert!(matches!(overrun, StartupFailure::DownloadCorrupted));
-        assert_eq!(
-            words(&overrun),
-            "The model download did not match the publisher's record, so it was \
-             thrown away. Trying again usually works."
-        );
+        assert_eq!(words(&overrun), "Kalsa couldn't finish downloading. Try again later.");
+    }
+
+    /// Every code is stable and non-empty, and the disk's GB rides as a
+    /// param the webview formats itself.
+    #[test]
+    fn every_failure_carries_a_code() {
+        for failure in every_failure() {
+            let (code, params) = failure.code_and_params();
+            assert!(code.starts_with("startup."), "{failure:?} code {code}");
+            assert!(params.is_object(), "{failure:?} params {params}");
+            assert_eq!(
+                failure.message().text,
+                words(&failure),
+                "{failure:?} fallback text drifts from words()"
+            );
+        }
+        let short = StartupFailure::NotEnoughDisk(None);
+        assert_eq!(short.code_and_params().1, serde_json::json!({}));
     }
 }

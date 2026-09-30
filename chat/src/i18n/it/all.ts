@@ -21,6 +21,7 @@ import { KNOBS } from "./knobs";
 import { SAMPLING } from "./sampling";
 import { BROWSER } from "./browser";
 import { MARKDOWN } from "./markdown";
+import { RUST } from "./rust";
 import type { English } from "../en/all";
 
 export const ITALIAN: English = {
@@ -47,4 +48,5 @@ export const ITALIAN: English = {
   sampling: SAMPLING,
   browser: BROWSER,
   markdown: MARKDOWN,
+  rust: RUST,
 };

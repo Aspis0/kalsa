@@ -119,7 +119,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
   }, [state, act, capability]);
 
   const power = table.power;
-  const words = brainWords(state, heldFailure, busy, power);
+  const words = brainWords(state, heldFailure, busy, table);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
