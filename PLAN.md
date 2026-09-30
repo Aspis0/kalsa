@@ -667,6 +667,12 @@ RAW_LOCAL is a no-op, the probe value is not logged and the flat VTCM fallback k
 gates first (coder on `spike/onecopy-hmx-raw`, then one audit by another model), push the new DSP .so with the host
 lib, then ONE S23 ABBA session gated on the `hvx-rawrow` path tag. Lead hypothesis: raw DMA row stride 18*n_k not
 128-B aligned on the ffn matvecs (38.6 of 54.7 ms/token).
+Gates fixed in `df538c50c` (pushed; audit `AUDIT-df538c50c.md`). Coordinator ruling on that audit: RAW_LOCAL is
+DROPPED from the session - the device and -HOST buffers are the same rpcmem system-heap allocation, so it cannot
+split the memory path (its comment at ggml-hexagon.cpp ~2270 is false; fix in the next commit on the branch). The
+teardown counters are a validity signal only (fallback > 0 = arm invalid), not a matvec count. ABBA arms: two copies,
+one-copy base, RAWROW_PROBE=1, =2, =4, HOSTBUF_UNCACHED=1; gates: `hvx-rawrow` tag, init env line, no "ignoring
+invalid", `--load-mode none`, host lib + DSP .so pushed together.
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated in the CLI, wired in code — NOT in any app APK yet

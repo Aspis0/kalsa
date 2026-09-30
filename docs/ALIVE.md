@@ -782,6 +782,8 @@ Hostile audit of `ceb89bedc` (2026-09-30, `onecopy-hmx-numerics/AUDIT-ceb89bedc.
 the probes can silently measure the wrong thing (RAW_LOCAL a no-op under HOSTBUF, probe value never logged, a VTCM
 fallback to flat keeps the probe). Those gates are fixed before the S23 session. The auditor's lead hypothesis is
 the raw DMA row stride `18*n_k`, not 128-byte aligned on the ffn matvecs; the probe arm `=2` decides.
+Gates fixed and pushed in `df538c50c`; its audit showed RAW_LOCAL cannot split the memory path (same rpcmem heap
+as the host buffer), so the S23 session runs PROBE=1/2/4 and HOSTBUF_UNCACHED only.
 Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
 12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
 (CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
