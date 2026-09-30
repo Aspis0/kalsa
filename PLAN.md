@@ -650,7 +650,12 @@ phone). A raw-row HVX matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expecte
 mean, was 11.82) = 69 % of two copies (22.41), one-copy CPU 12.79; mean KLD 0.004608 vs two copies 0.005313 (better,
 same top p). Design target 19-23 NOT met: the sim predicts raw-row compute ~equal to tiled (96 vs 86 Pcycles/tile at
 K=2048, 70 vs 84 at K=10752), so the 1.45x gap on the phone is likely the memory path (rpcmem HOST buffer), not
-compute - hypothesis, split pending. Code audit pending. Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md`
+compute - hypothesis, split pending. Hostile audit (`AUDIT-RAWROW-974a31e79.md`): FIX FIRST (F16/strided
+activations, K<256 offload, VTCM sizing, repeated Q8 groups); fixed in `ceb89bedc` (Sonnet), sim gate re-run by the
+coordinator EXIT=0 (main + edge + over-read, 8 negatives), NOT yet audited, NOT pushed, host/DSP wiring never run on a
+phone. It carries env-gated probes for one S23 ABBA session: `GGML_HEXAGON_RAWROW_PROBE=1` (DMA only), `=2` (dot
+only), `=4` (no activation l2fetch), `GGML_HEXAGON_RAW_LOCAL=1` (same kernel on a DSP-local raw copy), and
+`GGML_HEXAGON_HOSTBUF_UNCACHED=1`. Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md`
 "Decode heat per token on one copy", n = 2 per arm, descriptive only): in the speed-matched A pair (12.27 vs
 12.21 tok/s) one-copy DSP decode was ~35 % lower skin area and ~13 % lower battery area per token than one-copy
 CPU; the A+B means (-45 % / -33 %) mix unequal speeds (CPU-B 9.60 tok/s). The area includes load, warmup and a
@@ -681,6 +686,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `npu_fallback: "htp-device-missing"`. The host build also needs QAIC stubs (binding `CMakeLists.txt:109-120`).
   Recon: `scratchpad/agents/app-ci-hexagon-recon/REPORT.md` (no retained APK among 11 scanned had it). Fix in
   progress: app CI gets the pinned SDK + host QAIC artifacts + an APK assertion (coder `a0a34d08`).
+- **2026-09-30 evening: fix landed and pushed.** Binding `feat/governor-platform-status` `b4a13d9a` (lane OFF never
+  sees HTP, prefill and decode lists, explicit lists too; `GGML_HEXAGON_DEVICES` 16 -> 1; host tests 10/10 re-run by the
+  coordinator). App main `c26ba8bc`: pin `kalsa.rn#b4a13d9a` (provenance EXIT 0, 1121 files), CI downloads Hexagon SDK
+  6.4.0.2 verified by sha256 `b4a57a77...` (GitHub asset digest), QAIC host stubs as the engine's `build_idl`,
+  `persist-credentials: false`, and a post-build assertion that the hexagon lib really contains the backend. Hostile
+  audit `app-ci-hexagon-recon/AUDIT.md` applied (its "lane-on throws" REFUTED: it read stale local node_modules).
+  Debuggable APK run `36763920662` in progress; the S23 NPU-lane check is next.
   (steps 1-4 done: engine, binding, app, heat arms). Design, steps and degrade rules:
   `scratchpad/agents/governor-npu-prefill/DESIGN.md` (commit `2ac99cd5`).
 
@@ -906,6 +918,14 @@ Phases (each gated):
 1. **Prune:** one REAP observation pass, then several ratios from the same saliency (25/50/65/75 %),
    each converted to GGUF and scored EN/IT vs the unpruned base; keep the smallest that holds.
    Prep (fork pin, calibration set, pod script, estimate) on the Mac first: `scratchpad/agents/kalsa-reap-prep/`.
+   **2026-09-30 update (owner):** target narrowed to PC + 16 GB phones (LFM stays on 8 GB); want 2-3 B active, faster
+   than dense Qwen3.5-4B, better than LFM2.5; the $15 REAP pod was dropped after the $0 Mac probe (REAP20 and
+   unpruned Qwen3.6 beat LFM on bpb/GSM8K but decode 0.45x/0.39x LFM on Metal). Instead a one-shot **quality gate
+   probe** on Runpod (owner cap $10; Fable reviews 1-3 in `kalsa-reap-prep/REVIEW-FABLE-*.md`): arms LFM ship,
+   RAZOR-19B-A3B (arXiv 2609.30465), Qwen3.5-4B, Qwen3.6 unpruned top-k 4, top-k 4 + k2=16 renorm (arXiv 2609.04575,
+   engine `spike/topk-k2-renorm` `a2f252fbd`), Qwen3.5-2B; results to the private HF dataset
+   `Kalsa-ai/kalsa-gate-probe-results`. Speed on 16 GB is NOT measured by this probe. Status and launch lessons:
+   `scratchpad/COORDINATOR-STATE.md` (2026-09-30 blocks).
    **Owner constraint:** the Kalsa MoE must run on phones AND PCs with 8 GB and 16 GB of RAM. The pruning
    ratio is chosen against that: resident on 16 GB where it fits, and on 8 GB either a deep prune or our
    expert streaming (`--moe-stream`: Qwen3.6 KEXP already decodes on the 8 GB S23 at 5.70 tok/s).

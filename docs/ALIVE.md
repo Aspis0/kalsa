@@ -715,7 +715,9 @@ bump, provenance exit 0)**. The lane is **default OFF** on main, the bench key
 `kalsa.bench.npu_lane = auto | on | off` drives A/B, device APK CI `36434636903` is building,
 and the **step-5 device soak is pending**. 2026-09-30: no CI APK has ever carried the Hexagon host
 backend (app CI has no Hexagon SDK: "building CPU-only"; the S23 lane degrades with
-`htp-device-missing`); CI fix in progress, recon `app-ci-hexagon-recon/REPORT.md`. Design and steps:
+`htp-device-missing`); fixed and pushed 30/09 evening: binding `b4a13d9a` (lane off never sees HTP, one DSP session)
++ app `c26ba8bc` (SDK sha256-pinned, QAIC stubs, APK assertion), recon and audit in `app-ci-hexagon-recon/`. APK
+`36763920662` building; S23 NPU-lane check next. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
@@ -728,6 +730,10 @@ decode tg128 measured **38.3 tok/s** repacked, **34.6** no-repack, and **22.6** 
 rpcmem weights. Memory was **1,526 vs 3,448 MiB** across separate processes, about **1.9 GiB saved**.
 The v79 flat kernel KLD was **0.0193** for both layouts; HMX KLD is unmeasured. These 8 Elite
 results do not transfer to the S23 (`scratchpad/agents/qdc-8elite-onecopy-cost/REPORT.md`).
+
+**Kalsa MoE for PC + 16 GB (2026-09-30):** after the $0 Mac probe the REAP pod was dropped; a one-shot quality gate
+probe runs on Runpod (cap $10: LFM, RAZOR-19B, Qwen3.5-4B, Qwen3.6 top-k 4 and k2=16, Qwen3.5-2B), results in the
+private HF dataset `Kalsa-ai/kalsa-gate-probe-results`; PLAN.md "Owner decision 2026-09-29" has the arms.
 
 **Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
 `32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
@@ -768,7 +774,8 @@ speed unmeasured. Same aggregate KLD as two copies to printed precision (not log
 **22.2**, one-copy CPU **10.63**. The raw->tile conversion was the cost: the raw-row matvec `974a31e79`
 (no per-token conversion) reaches **15.51** tok/s on the S23 (69 % of two copies, CPU 12.79), KLD 0.004608 (better
 than two copies' 0.005313). Target 19-23 not met; the sim says compute is on par with tiled, so the remaining gap is
-likely the host-buffer memory path (hypothesis). Code audit pending.
+likely the host-buffer memory path (hypothesis). Audit fixes `ceb89bedc` (sim-verified, not yet audited or pushed)
+add env probes to split memory vs compute in one S23 session.
 Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
 12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
 (CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
