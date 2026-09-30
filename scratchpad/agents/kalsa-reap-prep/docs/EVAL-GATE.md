@@ -1,12 +1,13 @@
 # Eval gate: Kalsa-REAP vs shipped LFM2.5-2.6B (fixed 2026-09-30)
 
 Defines what a gate session must measure and the exact "wins clearly"
-thresholds. Fixed per the Fable 5.1 review (sections T7/T8, top changes 3–4)
-and the owner decision of 2026-09-30 (PC + 16 GB phones; LFM stays on 8 GB;
-$0 probe first; one ratio, 50 %). Every cell is measured **paired**: same
-models' items, same llama.cpp build, same session, greedy. **Q8_0 and the
-25 % arm are dropped** — the pod produces one ratio (50 %), quants Q4_0 +
-Q4_K_M.
+thresholds. Fixed per the Fable 5.1 review (T7/T8), the owner decision of
+2026-09-30 (PC + 16 GB phones; LFM stays on 8 GB; $0 probe first; one
+ratio, 50 %) and the Fable-2 review (thinking ON, single BOS, raw
+outputs, post-cutoff corpus). Every cell is measured **paired**: same
+items/documents, same llama.cpp build, same session, greedy. **Q8_0 and
+the 25 % arm are dropped** — the pod produces one ratio (50 %), quants
+Q4_0 + Q4_K_M.
 
 ## Baseline anchors already in the lab (not re-derived)
 
@@ -31,7 +32,7 @@ exist so a suspicious Kalsa number can be cross-read immediately.
 
 | metric | instrument | notes |
 |---|---|---|
-| bpb × 5 languages | `eval/run_bpb_eval.py` over `corpus/text-holdout/` | ≥ 500 KB/language non-Wikipedia held-out text (public-domain PG books, `MANIFEST.json` has licences+hashes); leading 600 KB per language, 8 segments; per-language **bootstrap CI** on the Kalsa−LFM diff |
+| bpb × 5 languages | `eval/run_bpb_eval.py` over `corpus/postcutoff/` | ≥ 50 documents/language, every document a Wikipedia article CREATED after 2026-07-01 (post-cutoff by construction; per-doc title/pageid/revid in `MANIFEST.json`, CC-BY-SA-4.0); per-document bpb, **bootstrap CI over documents** on the Kalsa−LFM diff |
 | GSM8K pass@1 | `eval/run_gen_eval.py --dataset gsm8k` (200 items, greedy, seed-42 slice) | strict last-number match on think-stripped output; **paired bootstrap CI** |
 | Tool calls pass@1 | `eval/run_gen_eval.py --dataset tools` (100 items) | holdout built from hermes' **glaive-function-calling-5k.json — a different generator from the calibration's func-calling files** (review T7); scoring is dialect-fair (see below); **paired bootstrap CI** |
 | decode tok/s | `llama-bench` tg128, labeled by device (Mac probe / S23 gate) | Mac numbers are Mac numbers, never presented as phone ones |
@@ -40,9 +41,9 @@ exist so a suspicious Kalsa number can be cross-read immediately.
 ## What "fixed" means here (review → change)
 
 - **Tool scoring is format-fair.** LFM2.5 renders `<|tool_call_start|>[name(args)]<|tool_call_end|>` (read from its GGUF `tokenizer.chat_template`, see `eval/show_chat_template.py`); Qwen renders `<tool_call>{json}</tool_call>`. `eval/toolcalls.py` parses both into (name, args) and the scorer applies the same name+superset-args rule. A model no longer loses for speaking the other dialect.
-- **`--no-display-prompt` on every generation** — the echoed prompt contains digits (GSM8K), so a scorer on plain stdout could pass without any generation.
-- **Thinking is handled identically for both models: off.** LFM2.5's template has no thinking switch, so enabling it for Qwen would compare different settings; the gate measures the one-pass assistant. Any `<think>` block is stripped before matching, and an unclosed `<think>` (budget exhausted mid-reasoning) counts as a miss.
-- **bpb corpus**: `corpus/text-holdout/` replaces multi5 as the gate corpus (multi5 stays for F0 continuity). Containment-checked against the calibration set (`eval/check_holdout_disjoint.py`, 80-char windows at every alignment, fail at row containment > 0.5) — Jaccard was structurally ~0 and proved nothing.
+- **Thinking ON for every model, n_predict ≥ 4096** (product parity; at 1024, LFM always-reasoning hit the cap on 3/4 regenerated items). Either reasoning dialect is stripped before matching: Qwen `<think>…</think>`, LFM QAD `[Start thinking]…[End thinking]`; unclosed reasoning at the cap is a miss.
+- **Prompts go through the server's `/v1/chat/completions`** — the server owns template + tokenization, which kills the doubled BOS the raw-prompt `/completion` path produced; the pod runner greps the server log for the `2 BOS` warning and flags any arm that shows it. Raw model output is stored per item in the results JSON.
+- **bpb corpus**: `corpus/postcutoff/` (per-document, post-cutoff Wikipedia creations, built by `eval/build_postcutoff_corpus.py`) replaces both multi5 and the memorised-Gutenberg set. Containment-checked against the calibration (`eval/check_holdout_disjoint.py`, 80-char windows at every alignment, fail at row containment > 0.5).
 - **CIs on every gate metric**: `eval/bootstrap_ci.py`, paired percentile bootstrap (10k resamples, seed 42), diff CI per language / per holdout.
 - **Arms**: ratio 50 % only (owner decision 2026-09-30); quants Q4_0 + Q4_K_M only; Q8_0 dropped.
 

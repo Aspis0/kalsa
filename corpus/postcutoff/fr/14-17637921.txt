@@ -1,0 +1,50 @@
+Fabasoft AG est un groupe autrichien du secteur des logiciels dont le siège se trouve à Linz, en Haute-Autriche. Le nom Fabasoft est formé à partir des noms de ses fondateurs et du mot « software » : Fallmann Bauernfeind Software. L'entreprise développe et commercialise des logiciels destinés aux processus métier numériques, à la gestion de contenu d'entreprise et à la collaboration dans le cloud. L'un de ses produits est la Fabasoft eGov-Suite, utilisée par des administrations publiques en Autriche et en Allemagne.
+
+
+== Historique ==
+
+Helmut Fallmann et Leopold Bauernfeind fondent l'entreprise en 1988. Les actions de Fabasoft AG sont cotées au Prime Standard de la Bourse de Francfort depuis le 1er octobre 1999.
+En novembre 2013, l'entreprise lance un service de cloud destiné aux entreprises, dont les données sont stockées dans des centres de données situés en Autriche, en Allemagne et en Suisse. En mai 2019, Fabasoft acquiert une participation de 60 % dans la société munichoise Xpublisher GmbH, qui développe des logiciels pour les rédactions et l'édition.
+Le cofondateur Leopold Bauernfeind quitte le directoire le 30 juin 2022, et Helmut Fallmann en devient président. Oliver Albl, responsable du développement technique, et Matthias Wodniok entrent également au directoire.
+En septembre 2022, Fabasoft acquiert une participation majoritaire dans 4teamwork AG, une entreprise de logiciels et de technologies établie à Berne. Celle-ci fusionne avec Fabasoft Schweiz AG pour former Fabasoft 4teamwork AG, ensuite renommée Fabasoft Schweiz AG. En octobre 2024, la filiale Hon24 Immobilien GmbH achète pour environ 15 millions d'euros l'immeuble de bureaux jusqu'alors loué au siège du groupe, dans la Honauerstraße à Linz.
+
+
+== Structure du groupe ==
+Fabasoft AG, établie à Linz, est la société mère chargée de l'administration du groupe. La Fallmann & Bauernfeind Privatstiftung, fondation privée créée par les fondateurs de l'entreprise, détient 42,90 % des actions, tandis que les 57,10 % restants constituent le flottant. Le groupe est présent sur dix sites en Autriche, en Allemagne, en Suisse et aux États-Unis et collabore avec des partenaires commerciaux et d'intégration dans d'autres pays.
+Au cours de l'exercice 2025-2026, le groupe réalise un chiffre d'affaires d'environ 90 millions d'euros et emploie 505 personnes. Les dépenses de recherche et développement s'élèvent à 26,5 millions d'euros, soit 29,4 % du chiffre d'affaires.
+Depuis 2012, Fabasoft participe au Pacte mondial des Nations unies, qui engage les dirigeants d'entreprise à respecter des principes de durabilité et d'autres objectifs liés à l'ONU.
+
+
+=== Sociétés du groupe ===
+Le groupe réunit les sociétés suivantes :
+
+Mindbreeze GmbH, à Linz, développe des logiciels de recherche, d'entreprise et d'intelligence artificielle ; Fabasoft AG en détient 85,5 %.
+Fabasoft Xpublisher GmbH, à Munich, qui développe des systèmes destinés aux rédactions et à l'édition. Fabasoft AG détient une participation de 95 %.
+Fabasoft Schweiz AG, à Berne, qui développe des logiciels pour les autorités publiques suisses. Fabasoft AG détient une participation de 70 %.
+Fabasoft Talents GmbH, à Linz, qui développe des logiciels d'apprentissage mobile et de gestion numérique des dossiers du personnel.
+Hon24 Immobilien GmbH, à Linz, qui détient l'immeuble de bureaux du siège du groupe.
+
+
+== Produits ==
+Outre la Fabasoft eGov-Suite, une application d'administration électronique, Fabasoft développe des logiciels dans le cloud destinés aux processus métier nécessitant le traitement de nombreux documents. Ses clients sont notamment des autorités fédérales et régionales, des communes, des organismes représentatifs et des entreprises privées. L'entreprise commercialise ses produits dans le cloud sous le nom Fabasphere.
+Le logiciel d'administration électronique permet de déposer des demandes en ligne, de traiter électroniquement des procédures administratives, d'échanger des documents sous forme électronique entre les administrations et les citoyens et d'archiver les dossiers à valeur probante. En 2001, la République d'Autriche attribue à Fabasoft, au Centre fédéral autrichien de calcul et à IBM le marché portant sur l'introduction du système fédéral de gestion électronique des dossiers ELAK. ELAK est utilisé dans huit des neuf Länder autrichiens.
+Fabasoft Cloud sert à stocker des documents et à traiter les processus métier qui leur sont associés. Les centres de données se trouvent en Autriche, en Allemagne et en Suisse.
+Dans le domaine de la gestion de contenu d'entreprise, Fabasoft propose des logiciels certifiés MoReq2 destinés à la saisie, à la gestion et à l'archivage de documents ainsi qu'à l'automatisation des processus métier.
+Les autres produits sont Fabasoft Approve, destiné à la gestion documentaire et à la gestion de la qualité dans l'industrie, Fabasoft Boards, destiné à la gestion numérique des réunions, Fabasoft Contracts, destiné à la gestion des contrats, Fabasoft DORA, destiné à la gestion de l'externalisation par les entreprises financières, Fabasoft OneGov, destiné à la gestion des activités des autorités suisses, Fabasoft Talents, destiné aux dossiers numériques du personnel, et Xpublisher, un système destiné aux rédactions et à l'édition.
+Le service Fabasoft Cloud est également répertorié comme conforme au code de conduite européen pour les services de cloud, un code de conduite approuvé au titre du RGPD.
+
+
+== Distinctions ==
+En mai 2013, Fabasoft reçoit l'EuroCloud Germany Award pour une application de cloud développée conjointement avec Daimler AG. Dans l'indice de l'innovation 2024 du cabinet de conseil Ernst & Young, Fabasoft présente la plus forte intensité de recherche et développement parmi les entreprises autrichiennes cotées examinées, avec des dépenses équivalant à 31,5 % de son chiffre d'affaires.
+
+
+== Voir aussi ==
+Fabasoft eGov-Suite
+
+
+== Notes et références ==
+
+
+== Liens externes ==
+Site officiel
+Liste des organismes autrichiens certifiés ISO/IEC 20000 (en anglais)

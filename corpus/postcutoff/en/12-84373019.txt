@@ -1,0 +1,53 @@
+The southeastern gentoo penguin ( SOWTH-ee-stern-JEN-too) (P. kerguelensis) is a species of penguin in the genus Pygoscelis. This species is endemic to the Kerguelen Islands in the southern Indian Ocean and is also believed to inhabit nearby Heard Island.
+Previously considered part of the gentoo penguin species (Pygoscelis papua), P. kerguelensis was formally identified and described as a distinct species in 2026 based on an integrated genomic analysis. This discovery makes it the first new penguin species described by science in over 100 years, since Eudyptes moseleyi was named in 1921.
+
+
+== Taxonomy and evolution ==
+For more than a century, gentoo penguin taxonomy was a subject of debate among biologists. Historically, the group was classified as a single species with several subspecies. However, a comprehensive genomic study published in the journal Communications Biology by an international research team led by the University of Chile and the University of California, Berkeley revealed that the gentoo penguin complex consists of four genetically distinct evolutionary lineages.
+Based on the General Lineage Concept framework, these four lineages were elevated and described as independent species:
+
+Pygoscelis papua (northern gentoo penguin) – restricted to the Falkland Islands/Malvinas and Martillo Island.
+Pygoscelis ellsworthi (southern gentoo penguin) – distributed across the Antarctic Peninsula, South Shetland Islands, South Orkney Islands, and South Georgia.
+Pygoscelis taeniata (eastern gentoo penguin) – inhabits the Crozet, Marion, and Macquarie Islands.
+Pygoscelis kerguelensis (southeastern gentoo penguin) – inhabits the Kerguelen Islands and Heard Island.
+Divergence time estimates indicate that these four species began separating approximately 300,000 to 500,000 years ago during the Pleistocene epoch. This speciation process was driven by geographic isolation, philopatry (the tendency to return to the same nesting site each year), and oceanographic boundaries like the Antarctic Polar Front restricting gene flow between populations.
+The species is categorized as a cryptic species, meaning it is physically very similar or nearly indistinguishable from its close relatives, but possesses significant genetic differences.
+
+
+=== Type specimen ===
+Holotype: AMNH SKIN 525824, an adult male collected by Robert Hall at the Kerguelen Islands on December 31, 1897, housed at the American Museum of Natural History.
+Etymology: The specific name kerguelensis refers to the Kerguelen Islands, the locality where the species was identified.
+
+
+== Description and morphology ==
+Visually, P. kerguelensis shares an identical color pattern with other gentoo penguins: a black head with a white patch extending across the crown from eye to eye, a dark slate-gray back, a white chest and belly, an orange bill with a black tip, and orange/pink feet.
+P. kerguelensis is intermediate in body size. It is smaller than the northern gentoo penguin (P. papua), larger than the southern gentoo penguin (P. e. ellsworthi), and relatively similar in size to the eastern gentoo penguin (P. taeniata).
+Average morphological measurements for P. kerguelensis include:
+
+Culmen length: 53.96 mm
+Bill width at base: 15.56 mm
+Bill height at gonys angle: 15.05 mm
+Tarsus length: 31.87 mm
+Middle toe length: 63.64 mm
+
+
+== Genomic adaptations and behavior ==
+Genomic analyses reveal signals of positive selection in P. kerguelensis that support adaptations to a seasonal Subantarctic environment:
+
+Neural Plasticity and Muscle Adaptation: Enrichment of genes related to synaptic signaling (such as CHRNB3, GRIN2A, MEF2C) as well as muscle structural adaptations (such as BMP4, CACNB2, PDEV4B) supporting efficient movement and foraging behavior.
+Vocal Learning: Selection on glutamate receptor genes (GRM1, GRM8, GRIN2A, CADPS2) involved in avian vocalization systems. Differences in calls/vocalizations are thought to contribute to reproductive isolation.
+Unlike emperor or Adélie penguins, which have specialized diets, P. kerguelensis and its relatives are dietary generalists (consuming fish, krill, squid, and cuttlefish). Ample local food availability means they do not need to migrate far from breeding colonies, reinforcing genetic isolation between islands.
+
+
+== Threats and conservation ==
+Although gentoo penguins were globally categorized by the IUCN as Least Concern prior to this, this taxonomic split highlights the specific vulnerabilities of each distinct species. Its isolated population on small islands makes P. kerguelensis particularly vulnerable to environmental shifts.
+Species Distribution Modeling (SDM) projections under a moderate climate change scenario (RCP 4.5) for the year 2050 indicate that P. kerguelensis could lose a large portion of suitable marine habitat around the Kerguelen Islands due to rising sea temperatures and shifts in primary productivity. Because of the highly isolated nature of the islands, the species has limited options to relocate or colonize new areas. In addition to climate change, other threats include the potential spread of avian influenza and disturbances from invasive species on land.
+Researchers urge international conservation bodies and relevant governments to treat P. kerguelensis as a separate evaluation unit on the IUCN Red List to formulate appropriate protection measures.
+
+
+== See also ==
+Gentoo penguin
+Kerguelen Islands
+
+
+== References ==

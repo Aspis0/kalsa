@@ -109,6 +109,49 @@ def parse_tool_calls(reply: str) -> list[tuple[str, dict]]:
     return out
 
 
+def _scalar_eq(a, b) -> bool:
+    """Type-lenient scalar equality: models emit 2 vs "2" vs 2.0 for the same
+    value; anything else (str, bool, None) compares as its trimmed string."""
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return str(a).strip() == str(b).strip()
+
+
+def canonical(v):
+    """Order-insensitive canonical form: dict keys sorted, lists sorted by
+    their canonical serialisation (schemas here never order-signify)."""
+    if isinstance(v, dict):
+        return {k: canonical(v[k]) for k in sorted(v)}
+    if isinstance(v, (list, tuple)):
+        return sorted((canonical(x) for x in v), key=repr)
+    return v
+
+
+def args_match(args: dict, want: dict) -> bool:
+    """want ⊆ args under the canonical form (order-insensitive)."""
+    if not isinstance(args, dict):
+        return False
+    cargs = canonical(args)
+    for k, v in want.items():
+        if k not in cargs:
+            return False
+        a, b = cargs[k], canonical(v)
+        if isinstance(a, (dict, list)) != isinstance(b, (dict, list)):
+            return False
+        if isinstance(b, dict):
+            if not args_match(a, b):
+                return False
+        elif isinstance(b, list):
+            if len(a) != len(b) or any(not _scalar_eq(x, y)
+                                       for x, y in zip(sorted(a, key=repr),
+                                                       sorted(b, key=repr))):
+                return False
+        elif not _scalar_eq(a, b):
+            return False
+    return True
+
+
 def _split_top(body: str) -> list[str]:
     """Split 'f(a=1), g(b=2)' on top-level commas (quote/paren aware)."""
     parts, depth, quote, cur = [], 0, "", []

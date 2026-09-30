@@ -8,7 +8,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from toolcalls import parse_tool_calls  # noqa: E402
+from toolcalls import args_match, parse_tool_calls  # noqa: E402
 
 QWEN = 'Sure. <tool_call>{"name": "get_weather", "arguments": {"city": "Rome", "unit": "c"}}</tool_call>'
 LFM = "Calling now.\n<|tool_call_start|>[get_weather(city='Rome', unit='c')]<|tool_call_end|>"
@@ -35,11 +35,30 @@ def main() -> int:
         ("no call", "The answer is 42.", []),
         ("garbage json", '<tool_call>{not json}</tool_call>', []),
     ]
+    match_cases = [
+        ("order-insensitive list",
+         {"tags": ["b", "a"]}, {"tags": ["a", "b"]}, True),
+        ("numeric string vs int", {"limit": "10"}, {"limit": 10}, True),
+        ("float vs int", {"t": 1.0}, {"t": 1}, True),
+        ("nested dict equal", {"o": {"x": 1, "y": "z"}},
+         {"o": {"y": "z", "x": 1}}, True),
+        ("missing key", {"a": 1}, {"a": 1, "b": 2}, False),
+        ("wrong value", {"a": 1}, {"a": 2}, False),
+        ("list length differs", {"t": [1, 2]}, {"t": [1, 2, 3]}, False),
+        ("bool vs string not equal", {"u": "true"}, {"u": True}, False),
+    ]
     failed = 0
     for name, reply, want in cases:
         got = parse_tool_calls(reply)
         if got != want:
             print(f"FAIL {name}:\n  got  {got}\n  want {want}")
+            failed += 1
+        else:
+            print(f"ok   {name}")
+    for name, args, want, expect in match_cases:
+        got = args_match(args, want)
+        if got != expect:
+            print(f"FAIL {name}: args_match -> {got}, want {expect}")
             failed += 1
         else:
             print(f"ok   {name}")

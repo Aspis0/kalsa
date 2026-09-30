@@ -1,0 +1,30 @@
+Given Imaging Ltd. es una empresa israelí de tecnología médica con sede en Yokneam Illit, dedicada al desarrollo y la fabricación de dispositivos para el diagnóstico de enfermedades del tracto gastrointestinal. Fue fundada en 1998 por el ingeniero Gavriel Iddan y Gavriel Meron para comercializar la cápsula endoscópica, una cámara del tamaño de una pastilla que el paciente ingiere, y fue la primera compañía en llevar esa tecnología al mercado. Cotizó en el Nasdaq y en la Bolsa de Tel Aviv hasta 2014, cuando fue adquirida por Covidien por unos 860 millones de dólares. Desde 2015 forma parte de Medtronic.
+
+
+== Historia ==
+
+
+=== Orígenes ===
+Iddan era ingeniero electroóptico en Rafael, la empresa estatal israelí de desarrollo de armamento, donde trabajaba en tecnología de misiles guiados. Durante un año sabático en Boston, a comienzos de la década de 1980, un gastroenterólogo israelí que era su vecino le planteó el desafío de diseñar un endoscopio capaz de recorrer todo el tubo digestivo. Hasta entonces, los gastroscopios y colonoscopios permitían examinar los extremos del aparato digestivo, pero el intestino delgado, de unos seis metros de longitud, era de difícil acceso y en algunos casos requería cirugía exploratoria.
+La propuesta de Iddan consistió en dividir el sistema en tres partes: una cápsula con una cámara miniatura y un transmisor, un grabador que el paciente lleva consigo y un programa para procesar las imágenes y que el médico las revise después. La aparición de los sensores de imagen CMOS de bajo consumo hizo posible alimentar la cápsula con baterías durante todo el recorrido. Iddan firmó la patente en 1997 y presentó el dispositivo en la revista Nature en el año 2000.
+
+
+=== Fundación y lanzamiento ===
+Iddan fundó Given Imaging en 1998 junto con Gavriel Meron. El primer producto, la cápsula PillCam SB para el intestino delgado, recibió la autorización de la Administración de Alimentos y Medicamentos de los Estados Unidos en 2001 y salió al mercado ese mismo año. La compañía se adelantó así a fabricantes establecidos de endoscopios: la japonesa Olympus, líder mundial en endoscopios convencionales, recién presentó su propia cápsula en noviembre de 2004.
+
+
+=== Adquisición ===
+El 8 de diciembre de 2013, Covidien anunció un acuerdo para adquirir la totalidad de las acciones de Given Imaging a 30 dólares cada una, por un total aproximado de 860 millones de dólares. La operación se cerró el 27 de febrero de 2014 y la empresa dejó de cotizar en bolsa. Covidien incorporó el negocio a su línea de cirugía avanzada y estimó que aportaría entre 40 y 50 millones de dólares de ingresos por trimestre. En 2015, Covidien fue adquirida por Medtronic, con lo que Given Imaging pasó a integrar esa compañía.
+
+
+== Productos ==
+La cápsula PillCam SB mide 11 por 26 milímetros y pesa 3,7 gramos. Contiene una cámara, seis LED, dos baterías de óxido de plata y un transmisor de radio. Durante su recorrido por el tubo digestivo, de unas ocho horas, envía imágenes a un grabador que el paciente lleva en la cintura; el procedimiento no requiere sedación. Posteriormente la empresa desarrolló versiones para el colon, como la PillCam Colon.
+
+
+== Reconocimientos ==
+Iddan fue finalista del Premio al Inventor Europeo, otorgado por la Oficina Europea de Patentes, por el desarrollo de la cápsula. Ejemplares de la PillCam forman parte de las colecciones del Science Museum de Londres y del museo Cooper Hewitt de Nueva York.
+
+
+== Véase también ==
+Cápsula endoscópica
+Gavriel Iddan

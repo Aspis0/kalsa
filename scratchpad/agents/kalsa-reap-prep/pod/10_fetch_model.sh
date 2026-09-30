@@ -38,13 +38,16 @@ n_shards=$(find "$MODEL_DIR" -maxdepth 1 -name 'model-*.safetensors' | wc -l | t
 test -f "$MODEL_DIR/tokenizer.json" || { echo "10: tokenizer.json missing" >&2; exit 1; }
 "$ROOT/.venv-kalsa/bin/python" - "$MODEL_DIR" <<'EOF'
 import json, struct, sys, pathlib
-p = next(sorted(pathlib.Path(sys.argv[1]).glob("model-00001-of-*.safetensors")))
-with open(p, "rb") as f:
+# sorted(...)[0], NOT next(...): next() on a list raises TypeError and this
+# stage died on exactly that (Fable-2 review, confirmed on disk)
+shards = sorted(pathlib.Path(sys.argv[1]).glob("model-00001-of-*.safetensors"))
+assert shards, "no first shard found"
+with open(shards[0], "rb") as f:
     head = f.read(262144)
 n = struct.unpack("<Q", head[:8])[0]
 keys = list(json.loads(head[8:8+n]))
 assert keys, "shard header empty"
-print(f"10: shard header ok ({len(keys)} tensors in {p.name})")
+print(f"10: shard header ok ({len(keys)} tensors in {shards[0].name})")
 EOF
 
 touch "$OK"

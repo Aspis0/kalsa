@@ -1,0 +1,94 @@
+Gardnerina angustata  (Gardner) R.M.King & H.Rob., 1981 è una specie di pianta angiosperma dicotiledoni della famiglia delle Asteraceae, sottofamiglia Asteroideae, tribù Eupatorieae e sottotribù Ageratinae.  Gardnerina angustata è l'unica specie del genere  Gardnerina  R.M.King & H.Rob., 1981.
+
+
+== Etimologia ==
+Il nome generico (Gardnerina) è stato dato in riferimento al botanico George Gardner (1812-1849). L'epiteto specifico (angustata) deriva dal greco e significa "stretto".
+Il nome scientifico della specie è stato definito dai botanici George Gardner (1812-1849), Robert Merrill King (1930-2007) e Harold Ernest Robinson (1932-2020) nella pubblicazione "Phytologia; Designed to Expedite Botanical Publication. New York" (Phytologia 49: 2) del 1981. Il nome scientifico del genere è stato definito nella stessa pubblicazione.
+
+
+== Descrizione ==
+Portamento. La specie di questa voce ha un habitus di tipo erbaceo con cicli biologici brevemente perenni.
+Fusto. La parte aerea in genere è eretta o decombente, semplice o ramosa. 
+Foglie. Le foglie lungo il caule sono disposte in modo opposto; alternate distalmente. La forma è varia da ovata a romboide con margini dentati o lobati.
+Infiorescenza. Le sinflorescenze sono composte da alcuni capolini terminali. I capolini sono di tipo discoide e sono formati da un involucro, con forme da cilindriche a campanulate, composto da 10-12 brattee, al cui interno un ricettacolo fa da base ai fiori del disco (quelli del raggio sono assenti). Le brattee, con forme lanceolate, sono persistenti e disposte in modo embricato su due serie. Il ricettacolo, glabro, è piatto con o senza pagliette a protezione della base dei fiori
+Fiori.  I fiori sono tetra-ciclici (formati cioè da 4 verticilli: calice – corolla – androceo – gineceo) e pentameri (calice e corolla formati da 5 elementi); sono più o meno numerosi (da 12 a 15) con forme brevemente tubulose di tipo attinomorfo; sono inoltre ermafroditi.
+
+Formula fiorale:
+*/x K 
+  
+    
+      
+        ∞
+      
+    
+    {\displaystyle \infty }
+  
+, [C (5), A (5)], G 2 (infero), achenio 
+Calice: i sepali del calice sono ridotti ad una coroncina di squame.
+Corolla: (solo fiori del disco) la corolla ha la forma di un imbuto ed è percorsa da ghiandole stipitate nella metà inferiore. I lobi sono 5 e relativamente allungati (da 1,25 a 1,5 volte più lunghi che larghi); la superficie è papillosa; il colore è bianco.
+Androceo: l'androceo è formato da 5 stami sorretti da filamenti generalmente liberi; gli stami sono connati e formano un manicotto circondante lo stilo; la forma delle antere è cilindrica. La parte apicale delle antere è provvista di brevi appendici. Il polline è sferico con un diametro medio di circa 25 micron;  è tricolporato (con tre aperture sia di tipo a fessura che di tipo isodiametrico o poro) ed è echinato (con punte sporgenti).
+Gineceo: il gineceo è composto da due carpelli formanti un ovario infero uniloculare. La base dello stilo raramente è allargata e normalmente è glabra. Gli stigmi hanno una forma lineare-clavata; possono inoltre essere papillosi.
+Frutti. I frutti sono degli acheni senza pappo. La forma dell'achenio è subprismatica con 5 coste. Nella parte sommitale è presente un carpoforo. 
+
+
+== Biologia ==
+ Riproduzione. Questa specie si riproduce per impollinazione tramite il vento (impollinazione anemogama) o insetti.
+Dispersione. La dispersione dei semi avviene inizialmente a causa del vento (dispersione anemocora); una volta caduti a terra sono dispersi soprattutto da insetti tipo formiche (mirmecoria) o da altri animali (zoocoria); gli uncini delle brattee dell'involucro (se presenti) si agganciano ai peli degli animali di passaggio disperdendo così anche su lunghe distanze i semi della pianta.
+
+
+== Distribuzione e habitat ==
+La specie di questa voce è distribuita in Brasile centrale.
+
+
+== Sistematica ==
+La famiglia delle Asteraceae (o Compositae, nomen conservandum) è la più numerosa del mondo vegetale, comprende oltre 23000 specie distribuite in 1720 generi. La famiglia attualmente (2021) è divisa in 16 sottofamiglie; la sottofamiglia Asteroideae è una di queste e rappresenta l'evoluzione più recente di tutta la famiglia.
+
+
+=== Sinonimi ===
+Sono elencati alcuni sinonimi per questa entità:
+
+Alomia angustata (Gardner) Benth. ex Baker 
+Piqueria angustata  Gardner 
+
+
+=== Filogenesi ===
+Questa specie appartiene alla sottotribù Ageratinae della tribù Eupatorieae; entrambi appartengono al clade denominato Phytomelanic cipsela o chiamato anche gruppo "Heliantheae Alliance", caratterizzato dalla presenza nella cipsela di uno strato di fitomelanina. La sottotribù è caratterizzata da lobi della corolla normalmente lisci sulla faccia interna, e dal pappo formato da barbe o da una corona di scaglie, oppure è assente, mai è formato da setole.
+Il genere  Gardnerina potrebbe essere "gruppo fratello" del "Chapada Diamantina clade", tuttavia la difficoltà di reperire materiale fresco limita la possibilità di stabilire la radice del clade e la posizione chiave di altri generi importanti. Il "Chapada Diamantina clade" è un gruppo monofiletico di Eupatorieae composto da 26 specie distribuite in sei generi endemici delle alte quote della Chapada Diamantina, nel settore nord‑orientale della Espinhaço Range (Bahia, Brasile). 
+Alcuni caratteri distintivi della specie:
+
+la corolla ha la forma di un imbuto ed è percorsa da ghiandole stipitate nella metà inferiore;
+i capolini sono formati da 12 – 15 fiori;
+le brattee sono disposte in due serie e sono da 10 a 12;
+la distribuzione di queste piante è un endemismo del Brasile.
+
+
+== Note ==
+
+
+== Bibliografia ==
+Kadereit J.W. & Jeffrey C., The Families and Genera of Vascular Plants, Volume VIII. Asterales., Berlin, Heidelberg, 2007.
+V.A. Funk, A. Susanna, T.F. Steussy & R.J. Bayer, Systematics, Evolution, and Biogeography of Compositae, Vienna, International Association for Plant Taxonomy (IAPT), 2009.
+Judd S.W. et al, Botanica Sistematica - Un approccio filogenetico, Padova, Piccin Nuova Libraria, 2007, ISBN 978-88-299-1824-9.
+Strasburger E, Trattato di Botanica. Volume secondo, Roma, Antonio Delfino Editore, 2007, ISBN 88-7287-344-4.
+Alfonso Susanna et al., The classification of the Compositae: A tribute to Vicki Ann Funk (1947–2019, in Taxon, vol. 69, n. 4, 2020,  pp. 807-814.
+Jennifer R. Mandel, Rebecca B. Dikow, Carolina M. Siniscalchi, Ramhari Thapa, Linda E. Watson and Vicki A. Funk, A fully resolved backbone phylogeny reveals numerous dispersals and explosive diversifications throughout the history of Asteraceae, in PNAS, vol. 116, n. 28, 2019,  pp. 14083-14088.
+Caifei Zhang, Chien-Hsun Huang, Mian Liu, Yi Hu, Jose L. Panero, Federico Luebert, Tiangang Gao, Hong Ma, Phylotranscriptomic insights into Asteraceae diversity, polyploidy, and morphological innovation, in JIPB, vol. 63, n. 7, 2021,  pp. 1273-1293.
+
+
+== Voci correlate ==
+Generi di Asteraceae
+
+
+== Altri progetti ==
+
+ Wikispecies contiene informazioni su Gardnerina
+
+
+== Collegamenti esterni ==
+(EN) Gardnerina angustata, su Catalogue of Life. 
+(EN) Gardnerina angustata, su gbif.org, Global Biodiversity Information Facility. 
+(EN) Gardnerina angustata, su npgsweb.ars-grin.gov. 
+(EN) Gardnerina angustata, su International Plant Names Index. 
+(EN) Gardnerina angustata, su WoRMS. 
+ Gardnerina angustata Royal Botanic Gardens KEW - Database
+ Gardnerina Royal Botanic Gardens KEW - Database

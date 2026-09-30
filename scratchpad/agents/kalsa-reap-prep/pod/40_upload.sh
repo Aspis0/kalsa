@@ -48,8 +48,12 @@ cp "$RUN"/keep_reap_*.json "$STAGE/"                        # deterministic re-c
 cp "$RUN"/*.summary.json "$STAGE/" 2>/dev/null || true
 cp "$RUN"/*.log "$STAGE/" 2>/dev/null || true
 
-# HF_TOKEN is already this stage's environment; the hf CLI reads it from there
-"$HF" upload "$HF_REPO" "$STAGE" --repo-type model
+# HF_TOKEN is already this stage's environment; the hf CLI reads it from
+# there. The third argument is the path-in-repo: uploading a bare directory
+# lands its files at the repo ROOT, while the verification below (and every
+# consumer) reads them under upload-staging/ — that mismatch is why the old
+# upload never verified (Fable-2).
+"$HF" upload "$HF_REPO" "$STAGE" "upload-staging" --repo-type model
 
 # verify: everything we promised is on the remote
 "$ROOT/.venv-kalsa/bin/python" - "$HF_REPO" <<'EOF'

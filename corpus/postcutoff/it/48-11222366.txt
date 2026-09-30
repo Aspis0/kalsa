@@ -1,0 +1,42 @@
+(528381) 2008 ST291 è un oggetto transnettuniano risonante (risonanza 1:6) situato nella regione più esterna del sistema solare, che impiega quasi mille anni per completare un'orbita attorno al Sole. È stato scoperto il 24 settembre 2008 dagli astronomi statunitensi Megan E. Schwamb, Michael Brown e David Rabinowitz presso l'Osservatorio di Monte Palomar in California, senza alcuna immagine di precovery nota in precedenza.
+
+
+== Numerazione e denominazione ==
+Questo corpo minore è stato numerato dal Minor Planet Center il 18 maggio 2019 (M.P.C. 114657). Al 2026, non ha ancora ricevuto un nome.
+
+
+== Orbita e classificazione ==
+
+2008 ST291 ha un'orbita che si trova in risonanza 1:6 con quella di Nettuno, il che significa che completa all'incirca 1 orbita per ogni 6 orbite compiute dal Nettuno.
+Effettua una rivoluzione completa attorno al Sole a una distanza di 42,3–157,5 au una volta ogni 998 anni e 4 mesi (semiasse maggiore di 99,89 au). La sua orbita ha un eccentricità di 0,58 e un inclinazione di 21° rispetto al eclittica. Al 2019, 2008 ST291 si trovata a 60,9 au dal Sole,  era giunto al perielio nel 1954.
+
+
+== Caratteristiche fisiche ==
+Basandosi su una magnitudine assoluta di 4,4, 2008 ST291 è stimato dal Johnston's Archive essere di circa 536 chilometri (333 mi) di diametro, assumendo un albedo tipico di 0,126 per altri oggetti in risonanza con Nettuno. L'astronomo Mike Brown stima un valore leggermente superiore di 549 chilometri (341 mi) utilizzando un albedo di 0,09 e una magnitudine più debole di 4,6. L'Asteroid Dynamic Site registra una magnitudine più brillante di 4,3, corrispondente a 612 chilometri (380 mi) utilizzando lo stesso albedo (e la stessa formula di Brown).
+Considerando la media di queste magnitudini e un intervallo di albedo standard presunto per il corpo minore di 0,25~0,05, si ricava un range di diametri possibili di 345–773 chilometri (214–480 mi) .
+
+
+== Note ==
+
+
+=== Annotazioni ===
+
+
+=== Fonti ===
+
+
+== Voci correlate ==
+Oggetti transnettuniani
+
+
+== Altri progetti ==
+
+ Wikimedia Commons contiene immagini o altri file su (528381) 2008 ST291
+
+
+== Collegamenti esterni ==
+Orbit Fit and Astrometric record for 528381, su boulder.swri.edu. , Marc W. Buie, SwRI
+List Of Centaurs and Scattered-Disk Objects, su minorplanetcenter.net. , Minor Planet Center
+(528381) 2008 ST291, su newton.spacedys.com. presso AstDyS-2, Asteroids—Dynamic Site
+Ephemeris, su newton.spacedys.com.  · Observation prediction · Orbital info · Proper elements · Observational info
+(528381) 2008 ST291, su ssd.jpl.nasa.gov. presso il JPL Small-Body Database

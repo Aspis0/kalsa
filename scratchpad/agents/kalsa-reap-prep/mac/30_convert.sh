@@ -22,6 +22,9 @@ IMAT_TXT="${IMAT_TXT:-$KALSA_MODELS/reap-calib/calib-imatrix.txt}"
 RUNS="$KALSA_MODELS/reap-src/runs"
 OUT="${OUT:-$KALSA_MODELS/reap-src/gguf}"
 QUANTS="Q4_0 Q4_K_M"
+# lowercase quant names for filenames, precomputed: ${q,,} is bash-4 syntax
+# and this script must run under macOS's stock bash 3.2
+declare -a QUANTS_LC=(q4_0 q4_k_m)
 
 SRC="${1:?usage: 30_convert.sh <pruned-dir> <tag>}"
 TAG="${2:?usage: 30_convert.sh <pruned-dir> <tag>}"
@@ -32,10 +35,12 @@ test -f "$IMAT_TXT" || { echo "30: imatrix text missing ($IMAT_TXT)" >&2; exit 1
 bf16="$OUT/kalsa-$TAG-bf16.gguf"
 imat="$OUT/kalsa-$TAG-imatrix.gguf"
 
+i=0
 for q in $QUANTS; do
   if [ ! -f "$RUNS/30_convert_${TAG}_${q}.ok" ]; then
-    rm -f "$OUT/kalsa-$TAG-${q,,}.gguf"   # partial artifact is not a state
+    rm -f "$OUT/kalsa-$TAG-${QUANTS_LC[$i]}.gguf"   # partial artifact is not a state
   fi
+  i=$((i + 1))
 done
 if [ -f "$RUNS/30_convert_${TAG}_Q4_0.ok" ] && [ -f "$RUNS/30_convert_${TAG}_Q4_K_M.ok" ]; then
   echo "30_convert: $TAG already verified OK"; exit 0
@@ -49,10 +54,11 @@ PYTHONPATH="$LLAMA_DIR" "$PY" "$LLAMA_DIR/convert_hf_to_gguf.py" \
 "$LLAMA_BIN/llama-imatrix" -m "$bf16" -f "$IMAT_TXT" -o "$imat" 2>&1 | tail -3
 test -s "$imat" || { echo "30: imatrix empty for $TAG" >&2; rm -f "$bf16"; exit 1; }
 
+i=0
 for q in $QUANTS; do
-  gguf="$OUT/kalsa-$TAG-${q,,}.gguf"
+  gguf="$OUT/kalsa-$TAG-${QUANTS_LC[$i]}.gguf"
   okf="$RUNS/30_convert_${TAG}_${q}.ok"
-  [ -f "$okf" ] && continue
+  [ -f "$okf" ] && { i=$((i + 1)); continue; }
   "$LLAMA_BIN/llama-quantize" --imatrix "$imat" "$bf16" "$gguf" "$q" 2>&1 | tail -3
   # load check: --single-turn + stdin closed so llama-cli can never fall into
   # its interactive loop (that hang cost 19 CPU-minutes once); --no-display-
@@ -66,6 +72,7 @@ for q in $QUANTS; do
   fi
   grep -m1 -E "n_expert" "$OUT/kalsa-$TAG-load.log" || true
   touch "$okf"
+  i=$((i + 1))
 done
 
 rm -f "$bf16" "$imat"

@@ -53,9 +53,11 @@ with urllib.request.urlopen(req, timeout=30) as r:
     rev = json.load(r)["sha"]
 def sha(p):
     return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+jsonl = cdir / "kalsa-reap-calib.jsonl"
 staging = {"repo": repo, "revision": rev,
-           "sha256_jsonl": sha(cdir / "kalsa-reap-calib.jsonl"),
-           "sha256_imatrix": sha(cdir / "calib-imatrix.txt")}
+           "sha256_jsonl": sha(jsonl),
+           "sha256_imatrix": sha(cdir / "calib-imatrix.txt"),
+           "n_rows": sum(1 for _ in open(jsonl))}
 (lab / "calib" / "staging.json").write_text(json.dumps(staging, indent=2))
 print(json.dumps(staging, indent=2))
 EOF

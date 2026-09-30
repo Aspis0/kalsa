@@ -1,0 +1,56 @@
+Epapatelo est un genre fossile de ptérosaures ptérodactyloïdes. On n'en connaît que l'espèce type Epapatelo otyikokolo, découverte en Angola dans des couches du Crétacé supérieur.
+
+
+== Historique ==
+
+Le genre Epapatelo et l'espèce Epapatelo otyikokolo sont décrits en 2022 par les sept paléontologues Alexandra E. Fernandes (d), Octávio Mateus, Brian Andres, Michael J. Polcyn, Anne S. Schulp, António Olímpio Gonçalves et Louis L. Jacobs.
+
+
+=== Fossiles ===
+Selon Paleobiology Database en 2026, le genre Epapatelo a une seule collection référencée de fossiles, du Maastrichtien du Crétacé supérieur, c'est-à-dire date de 72,2-66 Ma avant notre ère.
+
+
+== Étymologie ==
+Le nom scientifique Epapatelo otyikokolo est dérivé du nhaneca, la langue de la population nomade locale. Le nom de genre, Epapatelo, signifie « aile », et l'épithète spécifique, otyikokolo, signifie « lézard ».
+
+
+== Découvertes ==
+Epapatelo (signifiant « aile ») est un genre fossile de ptérosaure ptéranodontien provenant de la formation de Mocuio (Crétacé supérieur), dans la province de Namibe, en Angola. Ce genre comprend une seule espèce, E. otyikokolo, connue grâce à des ossements partiels du membre antérieur gauche.
+Depuis 2005, le projet PaleoAngola mène des fouilles à Bentiaba. Pour la première fois dans l'histoire, des restes de ptérosaures ont été découverts en Angola. Les fossiles mis au jour comprennent quatorze spécimens appartenant à au moins onze individus. Deux d'entre eux représentent le nouveau taxon Epapatelo.
+En 2022, l'espèce type Epapatelo otyikokolo a été nommée et décrite par Alexandra E. Fernandes, Octávio Mateus, Brian Andres, Michael J. Polcyn, Anne S. Schulp, António Olímpio Gonçalves et Louis L. Jacobs. 
+L'holotype, MGUAN-PA650, a été découvert dans une couche de grès de la formation de Mocuio, un dépôt marin datant du Maastrichtien inférieur (entre 71,64 et 71,4 millions d'années). Il se compose d'un humérus gauche partiel articulé avec un cubitus gauche. Le paratype, MGUAN-PA661, consiste en un cubitus et un radius gauches articulés. Tous ces os sont préservés en trois dimensions, sans compression significative. Ils ont été recueillis sur une surface de quinze hectares. Le plésiosaure Cardiocorax a également été découvert dans la formation de Mocuio.
+
+
+== Description ==
+L'envergure de l'holotype a été estimée à 4,8 m. Le paratype devait être un individu plus grand, avec une envergure de 5,6 m. Certains restes découverts à Bentiaba suggèrent une taille encore plus importante. La longueur du quatrième métacarpien de l'holotype a été estimée par extrapolation à environ 46 cm. Ailleurs en Angola, un quatrième doigt de la main (partiel) a été découvert ; il mesure au moins 83 cm.
+
+
+== Classification ==
+En 2022, Fernandes et al. ont décrit Epapatelo comme un nouveau ptéranodontien d'Angola. Incluant Epapatelo dans l'analyse phylogénétique de Longrich et al. de 2018, ils ont récupéré un nouveau clade, Aponyctosauria, composé des Nyctosauridae, Alcione, Simurghia et Epapatelo :
+
+
+== Notes et références ==
+
+
+== Voir aussi ==
+
+
+=== Bibliographie ===
+ : document utilisé comme source pour la rédaction de cet article.
+
+
+==== Publication originale ====
+[2022] (en) Alexandra E. Fernandes, Octávio Mateus, Brian Andres, Michael J. Polcyn, Anne S. Schulp, António Olímpio Gonçalves et Louis L. Jacobs, « Pterosaurs from the Late Cretaceous of Angola », Diversity, MDPI, vol. 14, no 9,‎ 9 septembre 2022, p. 741 (ISSN 1424-2818, OCLC 471432019, DOI 10.3390/D14090741). .
+
+
+=== Articles connexes ===
+La liste des genres de ptérosaures
+La phylogénie des ptérosaures
+Le vol du ptérosaure
+
+
+=== Liens externes ===
+
+Ressources relatives au vivant : Interim Register of Marine and Nonmarine Genera Paleobiology Database The Taxonomicon ZooBank  
+
+ Portail des ptérosaures   Portail de l’Angola

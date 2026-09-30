@@ -1,0 +1,88 @@
+Galaxy AI es el conjunto de funciones de inteligencia artificial desarrollado por Samsung Electronics para sus dispositivos móviles de la marca Galaxy. Se presentó el 17 de enero de 2024 junto con la gama Samsung Galaxy S24 y posteriormente se extendió a otros teléfonos, tabletas y dispositivos vestibles mediante actualizaciones de la capa de personalización One UI.​​
+No se trata de una aplicación independiente, sino de una capa tecnológica integrada en el sistema y en las aplicaciones nativas del fabricante, que combina procesamiento local en el dispositivo con procesamiento en la nube según la carga de trabajo.​​
+
+
+== Historia ==
+
+
+=== Presentación (2024) ===
+Samsung presentó Galaxy AI el 17 de enero de 2024 durante el evento Galaxy Unpacked celebrado en San José (California), junto con los Galaxy S24, S24+ y S24 Ultra. Para su desarrollo, la compañía combinó modelos propios con tecnología de Gemini de Google.​​
+A lo largo de 2024, la actualización One UI 6.1 llevó parte de las funciones a dispositivos de la generación anterior, entre ellos la gama Samsung Galaxy S23 y las tabletas Galaxy Tab S9.​
+
+
+=== Expansión (2025) ===
+Con One UI 7, lanzada en 2025, Samsung introdujo las interfaces Now Bar y Now Brief, y distribuyó las funciones de forma desigual según el modelo: los dispositivos más antiguos de gama alta recibieron un subconjunto reducido de herramientas.​
+En septiembre de 2025 se filtraron las primeras funciones previstas para One UI 8.5, entre ellas herramientas de traducción en reuniones y un asistente de lectura.​
+
+
+=== One UI 8.5 y One UI 9 (2026) ===
+One UI 8.5 se estrenó con la gama Samsung Galaxy S26 e incorporó, entre otras novedades, el filtrado de llamadas asistido por IA, el resumen y la priorización de notificaciones, y la generación encadenada de imágenes en Photo Assist sin necesidad de guardar cada paso intermedio. La actualización también integró la tecnología de Perplexity en el asistente Bixby.​​
+Durante la fase beta de One UI 8.5, varias funciones inicialmente exclusivas de la gama Galaxy S26 —filtrado de llamadas, edición generativa de Creative Studio, Photo Assist, el borrador de audio y AI Select— se extendieron a la gama Galaxy S25, mientras que otras, como Now Nudge o el resumen de notificaciones, quedaron fuera.​
+One UI 9, basada en Android 17, llegó primero a los plegables Galaxy Z Fold8, Z Fold8 Ultra y Z Flip8 y posteriormente a la gama Galaxy S26.​
+
+
+== Funcionamiento ==
+Galaxy AI emplea un modelo de procesamiento híbrido. Las tareas que implican datos sensibles o que requieren baja latencia se ejecutan localmente en el dispositivo, mientras que las operaciones generativas de mayor coste computacional se derivan a servidores. El usuario puede restringir el procesamiento al propio dispositivo desde los ajustes de privacidad, a costa de un rendimiento menor en determinadas funciones.​​
+La protección de los datos se apoya en la plataforma Samsung Knox. Según el fabricante, un motor de datos personales recopila y cifra la información en el dispositivo mediante los componentes KEEP y Knox Vault, y la tecnología Knox Matrix Trust Chain permite que los dispositivos Galaxy conectados se verifiquen entre sí y aíslen posibles amenazas.​
+
+
+== Funciones ==
+La disponibilidad de cada función varía según el modelo, la versión de One UI, el país y el idioma.​
+
+
+=== Comunicación ===
+
+Fuentes: Samsung España y Xataka.​​
+
+
+=== Personalización ===
+
+Fuentes: Samsung España y Xataka Móvil.​​
+
+
+=== Productividad ===
+
+Fuentes: Samsung España, Xataka y Xataka Móvil.​​​
+
+
+=== Creatividad ===
+
+Fuentes: Samsung España y Xataka Móvil.​​
+
+
+=== Salud ===
+
+Fuente: Samsung España.​
+
+
+== Idiomas ==
+Samsung amplió progresivamente la cobertura lingüística de Galaxy AI desde su lanzamiento. A fecha de julio de 2026, la compañía indica que la función Now Nudge admite dieciséis idiomas —coreano, inglés, francés, español, italiano, alemán, polaco, portugués, japonés, chino simplificado, tailandés, vietnamita, hindi, árabe, indonesio y ruso— y que Photo Assist admite cuarenta y uno.​
+
+
+== Dispositivos compatibles ==
+Según Samsung, Galaxy AI está disponible en teléfonos a partir de la gama Galaxy S24, así como en tabletas y dispositivos vestibles como los Galaxy Watch y los Galaxy Buds, con un grado de compatibilidad que depende del modelo y de la versión del sistema operativo.​
+El reparto de funciones ha sido desigual entre generaciones: con One UI 7, Samsung limitó determinadas herramientas —entre ellas el borrador de audio— en los modelos anteriores a la gama Galaxy S25, mientras mantuvo disponibles para todos los dispositivos compatibles funciones como Now Bar, el asistente de escritura o la integración con Gemini.​
+
+
+== Modelo de acceso ==
+En el momento del lanzamiento, Samsung anunció que las funciones de Galaxy AI serían gratuitas en los dispositivos compatibles al menos hasta finales de 2025, lo que generó incertidumbre sobre un eventual modelo de suscripción. En enero de 2026 la compañía modificó la nota legal de sus productos para indicar que las funciones básicas de Galaxy AI proporcionadas por Samsung son gratuitas, sin fecha límite, y reservó la posibilidad de servicios de pago para funciones avanzadas futuras o para herramientas de terceros.​
+
+
+== Recepción ==
+La acogida de Galaxy AI en la prensa especializada española ha sido desigual. Xataka describió el planteamiento inicial como una base tecnológica transversal más que como una aplicación concreta, y señaló que Samsung podía marcar el camino al resto del sector en materia de inteligencia artificial en teléfonos, del mismo modo que lo había hecho antes con las pantallas grandes y los plegables.​
+Las críticas se han concentrado en la fragmentación de la oferta. Xataka Móvil calificó de recorte la política de distribución de funciones entre generaciones, al comprobar que modelos de gama alta relativamente recientes quedaban excluidos de herramientas destacadas.​ La misma publicación observó posteriormente que, de las novedades de One UI 8.5, las más útiles en el uso diario resultaron ser las menos llamativas —el resumen y la priorización de notificaciones y el filtrado de llamadas— frente a las funciones generativas más publicitadas.​
+La ambigüedad sobre la gratuidad del servicio fue otro punto recurrente de crítica hasta su aclaración en enero de 2026.​
+
+
+== Véase también ==
+One UI
+Bixby
+Samsung Knox
+Inteligencia artificial generativa
+
+
+== Referencias ==
+
+
+== Enlaces externos ==
+«Galaxy AI». Samsung España.

@@ -1,34 +1,30 @@
 #!/usr/bin/env python3
-"""Greedy generation scorer for the eval gate, via our llama.cpp build.
+"""Generation scorer for the eval gate, via our llama.cpp server (or CLI).
 
-Runs on the Mac (or any box with a llama.cpp build) against any GGUF.
-Rendering uses the model's own tokenizer chat template; scoring is
-format-fair and prompt-blind:
-  gsm8k  — last number of the reply (after think-strip) equals answer_number
-  tools  — a tool call (either the Qwen or the LFM dialect, eval/toolcalls.py)
-           whose name matches and whose args are a superset of the expected
+Runs on the Mac or the Runpod probe against any GGUF. Probe mode is
+`--server`: POST /v1/chat/completions so the SERVER applies the model's own
+chat template and tokenizes once — the probe's raw-prompt path caused a
+double BOS (the server prepends BOS to text that already starts with the
+BOS special token; the fork warns "final prompt starts with 2 BOS tokens",
+llama-vocab.cpp). The CLI path stays for single-artifact checks locally.
 
-Fixed conditions for every model (2026-09-30 review):
-  thinking OFF (enable_thinking=False) — LFM2.5's template has no thinking
-    switch, so enabling it anywhere would compare different settings; the
-    gate measures the one-pass assistant. Any reasoning section a model
-    emits anyway is stripped before matching, in BOTH dialects: Qwen's
-    <think>...</think> and LFM QAD's "[Start thinking] ... [End thinking]"
-    plain-text markers (that model never emits </think>). An unclosed
-    <think> with no bracket closer (budget exhausted mid-reasoning) is a
-    miss.
-  --no-display-prompt on the CLI path — and even so, this fork's llama-cli
-    ECHOES the -f prompt in conversation mode (verified 2026-09-30), so the
-    probe runs against llama-server (/completion returns clean JSON with no
-    echo, one model load for the whole holdout). The CLI path stays for
-    single-artifact checks.
-  --single-turn, no tty — llama-cli otherwise stays interactive and hangs.
-  Per-item pass/fail is written to --out for paired bootstrap CIs
-    (eval/bootstrap_ci.py).
+Product-parity conditions (owner + Fable-2 review, 2026-09-30):
+  thinking ON for every model — the product runs thinking on. The Qwen
+    template takes enable_thinking=true via chat_template_kwargs; LFM's
+    template always opens a think block, so it reasons regardless and the
+    flag is simply ignored there. Either reasoning dialect is stripped
+    before matching: Qwen's <think>...</think> and LFM QAD's
+    "[Start thinking] ... [End thinking]".
+  n_predict >= 4096 (default here) — at 1024, 3 of 4 regenerated LFM GSM8K
+    items hit the cap mid-reasoning and scored as misses.
+  raw model output (content) is stored per item in --out for auditing.
+  tools match on canonicalised JSON (order-insensitive, type-lenient
+    scalars): eval/toolcalls.py args_match — not str(args).
 
-Usage: run_gen_eval.py --dataset gsm8k|tools --holdout <jsonl> --llama <bin>
-                       --model <gguf> --tokenizer <dir> [--limit N]
-                       [--server URL] --out results.json
+Usage: run_gen_eval.py --dataset gsm8k|tools --holdout <jsonl> --out r.json
+                       (--server URL [--max-tokens 4096] |
+                        --llama <bin dir> --model <gguf> --tokenizer <dir>)
+                       [--limit N]
 """
 
 import argparse
@@ -40,9 +36,8 @@ import subprocess
 import sys
 import urllib.request
 
+from toolcalls import args_match, parse_tool_calls
 from transformers import AutoTokenizer
-
-from toolcalls import parse_tool_calls
 
 NUMBER_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 THINK_RE = re.compile(r"<think>.*?</think>", re.S)
@@ -50,15 +45,30 @@ UNCLOSED_THINK_RE = re.compile(r"<think>(?!.*?</think>)", re.S)
 LFM_END_THINKING = "[End thinking]"
 
 
+def chat_completion(server: str, messages: list, max_tokens: int,
+                    timeout: int = 1800) -> str:
+    body = json.dumps({
+        "messages": messages, "temperature": 0.0,
+        "max_tokens": max_tokens, "stream": False,
+        # the product runs thinking on; LFM's template ignores the kwarg
+        "chat_template_kwargs": {"enable_thinking": True},
+    }).encode()
+    req = urllib.request.Request(
+        f"{server}/v1/chat/completions", data=body,
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = json.load(r)
+    return data["choices"][0]["message"].get("content", "") or ""
+
+
 def generate(binary: str, model: str, prompt: str, n: int) -> str:
-    # -f (raw file): conversation-mode llama-cli would re-template a -p prompt;
-    # the prompt here is already rendered by the model's own chat template.
-    # The prompt file is pid-tagged: two runners must not share it.
+    # CLI fallback: prompt pre-rendered by the model's template (thinking on).
+    # pid-tagged temp file: two runners must not share one.
     tmp = pathlib.Path(f"/tmp/kalsa-gen-prompt-{os.getpid()}.txt")
     tmp.write_text(prompt, encoding="utf-8")
     out = subprocess.run(
         [binary, "-m", model, "-f", str(tmp), "-n", str(n), "--temp", "0",
-         "--no-warmup", "-c", "4096", "--single-turn", "--simple-io",
+         "--no-warmup", "-c", "8192", "--single-turn", "--simple-io",
          "--no-display-prompt"],
         stdin=subprocess.DEVNULL,
         capture_output=True, text=True, timeout=3600)
@@ -70,16 +80,6 @@ def generate(binary: str, model: str, prompt: str, n: int) -> str:
     return reply
 
 
-def generate_server(server: str, prompt: str, n: int, timeout: int = 1200) -> str:
-    body = json.dumps({"prompt": prompt, "n_predict": n, "temperature": 0.0,
-                       "cache_prompt": False}).encode()
-    req = urllib.request.Request(
-        f"{server}/completion", data=body,
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.load(r).get("content", "")
-
-
 def strip_reasoning(reply: str) -> str:
     """Remove the model's reasoning section, whichever dialect it speaks."""
     if LFM_END_THINKING in reply:
@@ -89,7 +89,7 @@ def strip_reasoning(reply: str) -> str:
 
 def score_text(reply: str, item: dict) -> bool:
     if LFM_END_THINKING not in reply and UNCLOSED_THINK_RE.search(reply):
-        return False  # ran out of budget inside reasoning; no answer emitted
+        return False  # still inside reasoning at the token cap; no answer
     nums = NUMBER_RE.findall(strip_reasoning(reply).replace(",", ""))
     return bool(nums) and nums[-1] == item["answer_number"].replace(",", "")
 
@@ -99,9 +99,7 @@ def score_tools(reply: str, item: dict) -> bool:
     want_name = expect.get("name")
     want_args = expect.get("arguments") if isinstance(expect.get("arguments"), dict) else {}
     for name, args in parse_tool_calls(strip_reasoning(reply)):
-        if name != want_name:
-            continue
-        if all(str(args.get(k)) == str(v) for k, v in want_args.items()):
+        if name == want_name and args_match(args, want_args):
             return True
     return False
 
@@ -110,50 +108,48 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", choices=["gsm8k", "tools"], required=True)
     ap.add_argument("--holdout", required=True)
-    ap.add_argument("--llama", help="llama.cpp build/bin dir (CLI path)")
     ap.add_argument("--server", help="llama-server base URL (probe path)")
-    ap.add_argument("--model")
-    ap.add_argument("--tokenizer", required=True)
+    ap.add_argument("--llama", help="llama.cpp build/bin dir (CLI path)")
+    ap.add_argument("--model", help="GGUF for the CLI path")
+    ap.add_argument("--tokenizer", help="tokenizer dir for the CLI path")
+    ap.add_argument("--max-tokens", type=int, default=4096)
     ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--out", required=True, help="per-item JSON for bootstrap CIs")
+    ap.add_argument("--out", required=True, help="per-item JSON incl. raw outputs")
     a = ap.parse_args()
-    if not a.server and not (a.llama and a.model):
-        ap.error("need --server, or --llama + --model")
+    if not a.server and not (a.llama and a.model and a.tokenizer):
+        ap.error("need --server, or --llama + --model + --tokenizer")
 
-    tok = AutoTokenizer.from_pretrained(a.tokenizer)
+    def gen(messages: list) -> str:
+        if a.server:
+            return chat_completion(a.server, messages, a.max_tokens)
+        prompt = AutoTokenizer.from_pretrained(a.tokenizer).apply_chat_template(
+            messages, add_generation_prompt=True, tokenize=False,
+            enable_thinking=True)
+        return generate(a.llama, a.model, prompt, a.max_tokens)
+
     items = [json.loads(l) for l in open(a.holdout)]
     if a.limit:
         items = items[: a.limit]
 
-    def gen(prompt: str) -> str:
-        if a.server:
-            return generate_server(a.server, prompt, 1024)
-        binary = str(pathlib.Path(a.llama) / "llama-cli")
-        return generate(binary, a.model, prompt, 1024)
-
     results = []
     for i, item in enumerate(items):
         if a.dataset == "gsm8k":
-            prompt = tok.apply_chat_template(
-                [{"role": "user", "content": item["question"]}],
-                add_generation_prompt=True, tokenize=False,
-                enable_thinking=False)
-            hit = score_text(gen(prompt), item)
+            raw = gen([{"role": "user", "content": item["question"]}])
+            hit = score_text(raw, item)
         else:
-            prompt = tok.apply_chat_template(
-                item["prompt_messages"], add_generation_prompt=True,
-                tokenize=False, enable_thinking=False)
-            hit = score_tools(gen(prompt), item)
-        results.append({"id": item["id"], "pass": int(hit)})
+            raw = gen(item["prompt_messages"])
+            hit = score_tools(raw, item, args_match)
+        results.append({"id": item["id"], "pass": int(hit), "raw": raw})
         print(f"[{i + 1}/{len(items)}] {item['id']} -> {'PASS' if hit else 'FAIL'}",
               flush=True)
 
     ok = sum(r["pass"] for r in results)
     pathlib.Path(a.out).write_text(json.dumps({
-        "dataset": a.dataset, "model": a.model or a.server, "n": len(results),
-        "ok": ok, "items": results}, indent=1))
+        "dataset": a.dataset, "model": a.model or a.server,
+        "max_tokens": a.max_tokens, "n": len(results), "ok": ok,
+        "items": results}, indent=1))
     print(f"\n{a.dataset}: {ok}/{len(results)} = {ok / max(1, len(results)):.3f}"
-          f" (per-item -> {a.out})")
+          f" (raw outputs -> {a.out})")
     return 0
 
 

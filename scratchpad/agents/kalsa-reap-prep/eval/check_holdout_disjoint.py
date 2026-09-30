@@ -34,9 +34,13 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     calib_path, corpus_dir = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+    # corpus may be flat (<lang>.txt) or per-document (<lang>/<doc>.txt)
     corpora = {}
     for f in sorted(corpus_dir.glob("*.txt")):
         corpora[f.stem] = norm(f.read_text(encoding="utf-8"))
+    for f in sorted(corpus_dir.glob("*/*.txt")):
+        corpora.setdefault(f.parent.name, "")
+        corpora[f.parent.name] += "\n" + f.read_text(encoding="utf-8")
 
     worst = ("none", 0.0)
     n_rows = 0

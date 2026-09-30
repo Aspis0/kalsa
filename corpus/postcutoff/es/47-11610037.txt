@@ -1,0 +1,258 @@
+La teoría de modelos abstractos (en inglés, abstract model theory) es un área de la teoría de modelos que estudia propiedades generales de los sistemas lógicos mediante su comportamiento semántico, con independencia, en la medida de lo posible, de una sintaxis particular. Históricamente se desarrolló como el estudio modeloteórico de las extensiones de la lógica de primer orden, especialmente mediante cuantificadores generalizados, lógicas infinitarias y lógicas de orden superior.​​
+Su resultado histórico más influyente es el teorema de Lindström, que caracteriza la lógica de primer orden mediante dos de sus propiedades modeloteóricas fundamentales: la compacidad y el teorema descendente de Löwenheim-Skolem.​​
+
+
+== Lógica abstracta ==
+El concepto central de la teoría es el de lógica abstracta. En una formulación general, una lógica abstracta puede representarse mediante una terna
+
+  
+    
+      
+        
+          
+            L
+          
+        
+        =
+        (
+        S
+        ,
+        F
+        ,
+        ⊨
+        )
+        ,
+      
+    
+    {\displaystyle {\mathcal {L}}=(S,F,\vDash ),}
+  
+
+donde 
+  
+    
+      
+        S
+      
+    
+    {\displaystyle S}
+  
+ es una clase de estructuras, 
+  
+    
+      
+        F
+      
+    
+    {\displaystyle F}
+  
+ una clase de sentencias y
+
+  
+    
+      
+        ⊨
+         
+        ⊆
+        S
+        ×
+        F
+      
+    
+    {\displaystyle \vDash \ \subseteq S\times F}
+  
+
+es una relación de satisfacción. Si 
+  
+    
+      
+        A
+        ∈
+        S
+      
+    
+    {\displaystyle A\in S}
+  
+ y 
+  
+    
+      
+        φ
+        ∈
+        F
+      
+    
+    {\displaystyle \varphi \in F}
+  
+, la expresión
+
+  
+    
+      
+        A
+        ⊨
+        φ
+      
+    
+    {\displaystyle A\vDash \varphi }
+  
+
+significa que la estructura 
+  
+    
+      
+        A
+      
+    
+    {\displaystyle A}
+  
+ satisface la sentencia 
+  
+    
+      
+        φ
+      
+    
+    {\displaystyle \varphi }
+  
+.​
+En las formulaciones clásicas se imponen además condiciones de invariancia bajo isomorfismo, cambio de vocabulario y reductos. También pueden exigirse propiedades de clausura bajo operaciones como conjunción y negación.​
+Esta abstracción permite comparar lógicas diferentes a partir de propiedades comunes de sus clases de modelos. En formulaciones más amplias, el mismo marco puede aplicarse también a la lógica proposicional, la lógica modal, la lógica intuicionista, lógicas multivaluadas y otras lógicas no clásicas.​
+
+
+== Propiedades modeloteóricas ==
+La teoría de modelos abstractos estudia qué propiedades de la lógica de primer orden se conservan, fallan o caracterizan determinadas extensiones. Entre las principales se encuentran la compacidad, las propiedades de Löwenheim-Skolem, la interpolación y la definibilidad.​
+Una lógica abstracta satisface la propiedad de compacidad si, para todo conjunto 
+  
+    
+      
+        T
+      
+    
+    {\displaystyle T}
+  
+ de sentencias, si todo subconjunto finito 
+  
+    
+      
+        
+          T
+          
+            0
+          
+        
+        ⊆
+        T
+      
+    
+    {\displaystyle T_{0}\subseteq T}
+  
+ tiene un modelo, entonces 
+  
+    
+      
+        T
+      
+    
+    {\displaystyle T}
+  
+ tiene un modelo.​
+En su forma descendente numerable, la propiedad de Löwenheim-Skolem exige que toda sentencia satisfacible tenga un modelo numerable.
+Otra propiedad central es la interpolación de Craig. Si 
+  
+    
+      
+        φ
+        ⊨
+        ψ
+      
+    
+    {\displaystyle \varphi \models \psi }
+  
+, se busca una sentencia 
+  
+    
+      
+        θ
+      
+    
+    {\displaystyle \theta }
+  
+ tal que
+
+  
+    
+      
+        φ
+        ⊨
+        θ
+        
+        
+          y
+        
+        
+        θ
+        ⊨
+        ψ
+        ,
+      
+    
+    {\displaystyle \varphi \models \theta \qquad {\text{y}}\qquad \theta \models \psi ,}
+  
+
+y cuyo vocabulario no lógico esté contenido en la intersección de los vocabularios de 
+  
+    
+      
+        φ
+      
+    
+    {\displaystyle \varphi }
+  
+ y 
+  
+    
+      
+        ψ
+      
+    
+    {\displaystyle \psi }
+  
+.​ Estrechamente relacionadas se encuentran la propiedad de definibilidad de Beth y diversas propiedades de separación.​
+
+
+== Teorema de Lindström ==
+En su formulación clásica, el teorema de Lindström establece que la lógica de primer orden es, salvo equivalencia, la lógica abstracta clásica más expresiva que extiende a la lógica de primer orden y satisface simultáneamente la compacidad y el teorema descendente de Löwenheim-Skolem.​​
+El teorema proporciona una caracterización de la lógica de primer orden formulada exclusivamente mediante propiedades modeloteóricas, sin depender de la forma concreta de sus fórmulas. Resultados posteriores de tipo Lindström han buscado caracterizaciones semejantes para lógicas infinitarias, modales, topológicas y otras familias de lógicas.​
+
+
+== Historia ==
+Un antecedente inmediato fue el trabajo de Andrzej Mostowski sobre cuantificadores generalizados. En «On a Generalization of Quantifiers» (1957), Mostowski estudió extensiones de la lógica de primer orden obtenidas añadiendo nuevos cuantificadores y obtuvo una caracterización modeloteórica de los cuantificadores de primer orden dentro de una determinada clase de extensiones.​​
+Per Lindström amplió este programa primero al estudio de cuantificadores generalizados más amplios y, posteriormente, a sistemas lógicos definidos mediante condiciones modeloteóricas generales.​ Su artículo «On Extensions of Elementary Logic» (1969) introdujo la caracterización que pasó a conocerse como teorema de Lindström,​siendo considerado el momento definitorio de la teoría de modelos abstractos.​
+A finales de la década de 1960, tanto Mostowski como Lindström investigaron además las condiciones bajo las cuales las extensiones de la lógica de primer orden conservaban la interpolación de Craig. Esta cuestión contribuyó al desarrollo del concepto general de lógica abstracta.​
+A comienzos de la década de 1970, Jon Barwise amplió estos métodos a la lógica infinitaria y desarrolló una formulación en la que la sintaxis y la semántica de las lógicas abstractas se trataban explícitamente. En «Axioms for Abstract Model Theory» (1974) empleó además herramientas de teoría de categorías para formular la relación entre vocabularios, sintaxis e interpretaciones.​​
+Durante las décadas de 1970 y 1980, Johann A. Makowsky y Saharon Shelah desarrollaron sistemáticamente las relaciones entre compacidad, interpolación y definibilidad de Beth en lógicas abstractas.​ En la segunda parte de ese trabajo estudiaron, entre otras, la lógica estacionaria, la lógica positiva y extensiones mediante cuantificadores de cardinalidad y cofinalidad, obteniendo contraejemplos a distintas formas de los teoremas de Beth y Craig.​
+Desde entonces, el marco de la teoría de modelos abstractos se ha extendido al estudio de lógicas no clásicas y ha sido propuesto como una base semántica para la lógica universal, donde permite comparar diferentes sistemas lógicos mediante propiedades comunes de sus relaciones de satisfacción.​
+
+
+== Véase también ==
+Teoría de modelos
+Lógica de primer orden
+Cuantificador generalizado
+Lógica infinitaria
+Teorema de compacidad
+Teorema de Löwenheim-Skolem
+Teorema de interpolación de Craig
+Teorema de definibilidad de Beth
+Lógica de segundo orden
+
+
+== Referencias ==
+
+
+== Bibliografía ==
+Barwise, K. Jon (1974). «Axioms for Abstract Model Theory». Annals of Mathematical Logic 7 (2-3): 221-265. doi:10.1016/0003-4843(74)90016-3. 
+García-Matos, Marta; Väänänen, Jouko (2007). «Abstract Model Theory as a Framework for Universal Logic».  En Beziau, Jean-Yves, ed. Logica Universalis: Towards a General Theory of Logic (2.ª edición). Basilea: Birkhäuser. pp. 19-33. ISBN 978-3-7643-8353-4. doi:10.1007/978-3-7643-8354-1_2. 
+Lindström, Per (1969). «On Extensions of Elementary Logic». Theoria 35 (1): 1-11. doi:10.1111/j.1755-2567.1969.tb00356.x. 
+Mostowski, Andrzej (1957). «On a Generalization of Quantifiers». Fundamenta Mathematicae 44 (1): 12-36. doi:10.4064/fm-44-1-12-36. 
+Väänänen, Jouko (2004). «Barwise: Abstract Model Theory and Generalized Quantifiers». The Bulletin of Symbolic Logic 10 (1): 37-53. doi:10.2178/bsl/1080330273. 
+Väänänen, Jouko (2008). «The Craig Interpolation Theorem in Abstract Model Theory». Synthese 164 (3): 401-420. doi:10.1007/s11229-008-9357-z.

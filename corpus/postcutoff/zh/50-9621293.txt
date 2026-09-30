@@ -1,0 +1,97 @@
+巴勒斯公司（Burroughs Corporation）是美国一家大型商用设备制造商。公司1886年由威廉·苏厄德·巴勒斯创办，当时名为美国算术机公司。它的发展历程与计算技术的许多重大演进同步，早期生产机械式加法机，后来转向可编程记账机，再进入计算机领域。它曾是全球最大的大型计算机生产商之一，同时也生产打字机、打印机等配套设备。
+20世纪60年代，公司推出一系列大型计算机，因运行高级语言时的性能表现广受好评，这些产品构成了公司整个70年代的业务核心。此后超级小型计算机兴起，高端市场又被IBM System/360及其后续的370系列主导，巴勒斯的市场不断萎缩。1986年，公司收购了昔日的竞争对手斯佩里UNIVAC，将双方业务合并，组建優利系統。
+
+
+== 早期历史 ==
+
+1886年，美国算术机公司在密苏里州圣路易斯成立，生产和销售威廉·苏厄德·巴勒斯发明的加法机。巴勒斯是垮掉的一代作家威廉·柏洛茲的祖父。1904年，也就是巴勒斯去世六年后，公司迁往底特律，并更名为巴勒斯加法机公司，很快成为美国最大的加法机企业。
+
+
+== 产品线演进 ==
+加法机产品线最初从最基础的手摇1型起步，只能做加法。其设计有若干创新，最突出的是一个阻尼器，用来控制操作杆扳动的速度，使机械结构能够稳定准确地运作。机器还配备全键盘，每个十进制数位都有单独一列1到9的按键，按键按下后会锁住，并通过互锁结构防止同一数位有两个以上按键被锁住。借助锁定，操作员在扳动操作杆前可以快速核对输入的数字是否正确。输入的数字和最终结果会打印在机器后部的纸卷上，既不用担心操作员抄错答案，也留下一份可供日后核对的计算记录。
+2型机器名为“复式”（duplex），采用相同的基本结构，能够分别保留两个合计数。6型为记账工作设计，可以直接做减法。
+约在1910年收购派克加法机公司（Pike Adding Machine Company）后，巴勒斯推出了3型和4型加法机。相比老型号，这两款有显著改进，操作员可以看到纸带上打印的内容，机器也因此被称为“可见式”。
+1925年，巴勒斯推出一款小得多的机器，名为“便携式”，共有8型（不能做减法）和具备减法功能的9型两款。此后又陆续推出P600以及最高端的P612，可依据活动滑架的位置实现有限的编程。产品线进一步扩充，加入J系列十键机器，单指即可完成计算；还有5型（后称C系列）键驱动计算器，包括手动和电动辅助的按键计算器。
+20世纪60年代末，巴勒斯赞助研发的“nixie管”催生了带电子显示的计算器。巴勒斯开发了一系列能力各异、且功能逐步增强的加法机。其中具有革命性的是Sensimatic，能够半自动地完成许多业务功能。它有一个可编程的活动滑架用来记总分类账，在过账过程中可以存储9、18或27个余额，并配合一台名为Crossfooter的机械式加法器工作。Sensimatic后来发展为Sensitronic，能把余额存储在记账卡自带的磁条上，卡片插入滑架时余额就读入累加器。Sensitronic之后又有E1000、E2000、E3000、E4000、E6000和E8000，这些都是支持读卡/穿孔机和行式打印机的计算机系统。
+再往后，巴勒斯销售的已不只是加法机，还包括打字机。
+
+
+== 进入计算机领域 ==
+
+公司历史上最大的转变发生在1953年，巴勒斯加法机公司更名为巴勒斯公司，开始进军数字计算机产品，最初面向银行机构。这一步始于1956年6月收购位于加利福尼亚州帕萨迪纳的ElectroData公司，它是联合工程公司分拆出来的企业，母公司原本设计测试仪器，并与帕萨迪纳的加州理工学院有合作关系。ElectroData造出了Datatron 205，当时还在研制Datatron 220。这场结合带来的第一款主要计算机产品是电子管计算机B205。1968年，公司生产了L和TC系列（例如TC500，即终端计算机500），它配备高尔夫球打印机，最初只有1K（64位）的磁盘存储器。这些机器作为B5500/6500/6700系统的分行终端很受欢迎，在银行业卖得很好，也常常连接到非巴勒斯的大型机上。配合这些产品，巴勒斯还制造了种类齐全的支票处理设备，通常作为B200/B300等中型系统以及B2700或B1700等更大型系统的终端使用。
+20世纪50年代，巴勒斯与联邦储备银行合作，开发并以计算机处理磁墨字符识别（MICR）技术，专门用于处理银行支票。巴勒斯制造了专用的MICR/OCR分拣/阅读机，接入其中型计算机产品线（2700/3700/4700）以及B200/B300系统，这让公司在银行业的计算机业务中扎下根来。
+
+
+== 计算机行业中的一支力量 ==
+巴勒斯是20世纪60年代美国九大计算机公司之一，规模最大的是IBM，其余包括霍尼韦尔、NCR公司、控制資料公司（CDC）、通用电气（GE）、迪吉多（DEC）、RCA以及斯佩里·兰德（UNIVAC产品线）。论销售额，巴勒斯始终远远排在IBM之后。事实上IBM的市场份额比其他所有公司加起来还大得多，这一阵营因此常被称为“IBM和七个小矮人”。到1972年，GE和RCA已退出大型机业务，IBM之外剩下的五家公司被称为BUNCH，这是一个由各家首字母组成的首字母缩略词。
+与此同时，巴勒斯也是一个强有力的竞争者。和IBM一样，它试图为客户提供完整的产品线，包括自行设计的打印机、硬盘驱动器、磁带驱动器、计算机打印纸和打字机色带。
+
+
+=== 发展与创新 ===
+巴勒斯公司开发了三种极具创新性的计算机体系结构，都基于“面向语言设计”的设计理念。它们的机器指令集偏向一种或多种高级编程语言，例如ALGOL、COBOL或Fortran。三种体系结构都属于大型机级别：
+
+巴勒斯大型系统从1961年的B5000起步。几年后B5500问世，大型旋转磁盘取代磁鼓成为主要的外部存储介质。B5000系列使用了世界上第一套带虚拟内存的多道程序设计操作系统。20世纪60年代后期又有B6500/B6700，70年代中期是B7700，80年代则是A系列。这些机器底层体系结构相近，一直延续至今，成为優利系統的ClearPath MCP产品线：它们是堆栈机，设计上用扩展版ALGOL 60编程。其操作系统名为MCP（主控程序，这个名字后来被《Tron》的编剧借用），几乎比UNIX早了十年，用ESPOL（面向执行系统的编程语言，ALGOL的小幅扩展）、DCALGOL（数据通信ALGOL）以及后来的NEWP（对ALGOL进一步扩展）写成。命令界面后来发展成一种编译型的结构化语言，带有声明、语句和过程，称为WFL（工作流语言）。
+在体系结构上，这些机器采用带标记体系结构，字长48位，可区分程序指令和数据，在硬件层面实现内存保护。系统还围绕模块化的多处理设计构建，可以逐步增加多个CPU、存储模块以及专用的I/O和通信处理器，以扩展性能和容错能力。
+在银行这类要求不间断运行的行业，巴勒斯大型系统几乎打入了每一家大银行，包括联邦储备银行。巴勒斯为环球银行金融电信协会（SWIFT）构建了骨干电子交换系统，SWIFT于1977年发出第一条报文，優利系統至今仍是SWIFT的供应商。
+
+巴勒斯生产了B2500等“中型系统”计算机，主要面向商业领域，设计上为高效执行COBOL而优化。它包含一个基于BCD（二进制编码十进制）的运算器，用十进制而非二进制来存储和寻址主存。这些系统的编号从巴勒斯B2500一直到B49xx，之后是優利系統V系列的V340到V560。
+巴勒斯生产了B1700等“小型系统”计算机，设计上采用微程序，每个进程都可能拥有自己的虚拟机，以求最匹配运行程序所选用的编程语言。
+最小的通用计算机是B700“微处理器”，既可作为独立系统，也可用作专用的数据通信或磁盘子系统控制器。
+巴勒斯制造了种类齐全的会计机，包括Sensimatic、L5000、B80等独立系统，以及TC500等专用终端和专门的支票处理设备。
+1982年，巴勒斯开始生产个人电脑，即以16位的Intel 8086/8088系列芯片作为处理器的B20和B25产品线。它们运行BTOS操作系统，这是巴勒斯从Convergent科技公司获得许可的Convergent科技操作系统。这些机器组建了早期的局域网，让工作组用户共享一块硬盘。根据与巴勒斯达成的协议，这些微型计算机后来在中国昆明制造，供中国使用。
+20世纪60年代初，巴勒斯与伊利诺伊大学合作，采用多处理器体系结构研制ILLIAC IV计算机。ILLIAC最多可配备128个并行处理器，而B6700和B7700总共只能容纳7个CPU和/或I/O单元（第8个单元是存储器测试仪）。
+巴勒斯在宾夕法尼亚州佩奥利的大谷实验室制造军用计算机，例如D825（前缀“D”表示用于国防工业）。有学者认为D825是第一台真正的多处理器计算机。佩奥利还是国防与航天集团营销部的所在地。
+1964年，巴勒斯完成了D830，这是D825的另一个变体，专为航空订票等实时应用设计。1965年9月环球航空（TWA）订购一台后，巴勒斯将其命名为B8300。1968年，一套带三个指令处理器的系统安装在TWA位于新泽西州罗克利的订票中心。这套名为George、应用程序用JOVIAL编写的系统，原计划支持约4000台终端，但在高负载下因文件系统磁盘分配错误而反复崩溃，增加第四个处理器也无济于事。1970年末问题得到解决，系统趋于稳定，而就在问题解决的同时，取消项目的决定也已作出。TWA取消了项目，转而采购一台IBM System/36075型、两台IBM System/360 65型以及IBM的PARS软件用于订票系统。TWA起诉巴勒斯未履行合同，巴勒斯则反诉，称基础系统确实可用，问题出在TWA的应用软件上，两家最终达成庭外和解。
+巴勒斯开发了D825的半尺寸版本D82，把字长从48位缩减到24位，并简化了指令集。D82最多可拥有32768字的磁芯存储器，并继续使用独立的指令和I/O处理器。巴勒斯向加拿大航空售出一台D82，用于处理发自蒙特利尔和魁北克的订票业务。该设计进一步改进、体积大幅缩小，成为1965年完成的D84机器。一台存储4096字的D84处理器/存储单元仅占约40升（1.4立方英尺）。这套系统成功用于两个军事项目：用于检查空军F-111戰鬥轟炸機电子设备的现场测试系统，以及用于控制陆军潘兴1和1a导弹系统倒计时与发射的系统。
+
+
+== 与斯佩里合并 ==
+
+1986年9月，巴勒斯公司与斯佩里公司合并，组建優利系統。合并后的公司一度保留巴勒斯处理器作为A系列和V系列产品线。随着大型系统市场从专有体系结构转向通用服务器，公司最终放弃了V系列，不过截至2010年仍有客户使用V系列系统。截至2017年，優利系統继续开发和销售A系列，即现在的ClearPath。
+
+
+== 巴勒斯支付系统 ==
+
+2010年，優利系統把支付系统部门出售给总部在加利福尼亚的私人投资公司马林股权合伙公司，后者将其注册为巴勒斯支付系统公司（后来直接称巴勒斯公司），总部设在密歇根州普利茅斯。
+
+
+== 流行文化中的出现 ==
+从20世纪50年代末起，巴勒斯B205的硬件就作为道具出现在许多好莱坞电视和电影作品中。例如，一台B205控制台常在电视剧《蝙蝠侠》中作为“蝙蝠计算机”出现，也在《迷失太空》中作为飞行计算机。B205磁带机则常见于《时间隧道》和《航向深海》等剧集。
+巴勒斯的设备还出现在电影《愤怒的红色星球》中。
+
+
+== 参考文献 ==
+
+
+== 延伸阅读 ==
+Allweiss, Jack A., "Evolution of Burroughs Stack Architecture - Mainframe Computers", 2010
+Barton, Robert S. "A New Approach to the Functional Design of a Digital Computer" Proc. western joint computer Conf. ACM (1961).
+Gray, George. Some Burroughs Transistor Computers. Unisys History Newsletter. March 1999, 3 (1). （原始内容存档于October 1, 2016）. 
+Gray, George. Burroughs Third-Generation Computers. Unisys History Newsletter. October 1999, 3 (5). （原始内容存档于September 26, 2017）. 
+Hauck, E.A., Dent, Ben A. "Burroughs B6500/B7500 Stack Mechanism", SJCC (1968) pp. 245–251.
+Martin, Ian L. (2012) "Too far ahead of its time: Barclays, Burroughs and real-time banking", IEEE Annals of the History of Computing 34(2), pp. 5–19. ISSN 1058-6180. (Draft version)
+Mayer, Alastair J.W., "The Architecture of the Burroughs B5000 - 20 Years Later and Still Ahead of the Times?", ACM Computer Architecture News, 1982 (archived at the Southwest Museum of Engineering, Communications and Computation. Glendale, Arizona)
+McKeeman, William M. "Language Directed Computer Design", FJCC (1967) pp. 413–417.
+Morgan, Bryan, "Total to Date: The Evolution of the Adding Machine: The Story of Burroughs", Burroughs Adding Machine Limited London, 1953.
+Organick, Elliot I. "Computer System Organization The B5700/B6700 series", Academic Press (1973)
+Wilner, Wayne T. "Design of the B1700", FJCC pp. 489–497 (1972).
+Wilner, Wayne T., "B1700 Design and Implementation", Burroughs Corporation, Santa Barbara Plant, Goleta, California, May 1972.
+
+
+== 外部链接 ==
+
+Burroughs Corporation Records Charles Babbage Institute University of Minnesota, Minneapolis. Collection contains the records of the Burroughs Corporation, and its predecessors the American Arithmometer Company and Burroughs Adding Machine Company. Materials include corporate records, photographs, films and video tapes, scrapbooks, papers of employees and the records of companies acquired by Burroughs. CBI's Burroughs Corporation Records includes over 100,000 photographs depicting the entire visual history of Burroughs from its origin as the American Arithmometer Corporation in 1886 to its merger with the Sperry Corporation to form the Unisys Corporation in 1986.
+Burroughs Corporation Photo Database at the Charles Babbage Institute University of Minnesota. The searchable photo database permits browsing and retrieval of over 550 historical images.
+"Burroughs B 5000 Conference, OH 98", Oral history on 6 September 1985, Marina del Ray, California. Charles Babbage Institute, University of Minnesota, Minneapolis. The Burroughs 5000 computer series is discussed by individuals responsible for its development and marketing from 1957 through the 1960s in a 1985 conference sponsored by AFIPS and Burroughs Corporation.
+Oral history interview with Isaac Levin Auerbach Charles Babbage Institute University of Minnesota. Auerbach discusses his work at Burroughs 1949–1957 managing development for the SAGE project, BEAM I computer, the Intercontinental Ballistic Missile System, a magnetic core encryption communications system, and Atlas missile.
+Oral history interview with Robert V. D. Campbell. Discusses his work at Burroughs (1949–1966) as director of research and in program planning.
+Oral history interview with Alfred Doughty Cavanaugh Cavanaugh discusses the work of his grandfather, A. J. Doughty, with William Seward Burroughs and the Burroughs Adding Machine Company.
+Oral history interview with Carel Sellenraad Charles Babbage Institute University of Minnesota. Sellenraad describes his long association with Burroughs Adding Machine Company, and the impact of World Wars I & II on the sales and service of calculators, and adding and bookkeeping machines in Europe.
+Oral history interview with Ovid M. Smith Charles Babbage Institute University of Minnesota. Smith reviews his 46½ year career at Burroughs Adding Machine Company (later Burroughs Corporation).
+"Early Burroughs Machines", University of Virginia's Computer Museum.
+Older Burroughs computer manuals online
+Burroughs computers such as the D825 at BRL
+An historical Burroughs Adding Machine Company/Burroughs site
+Unofficial list of Burroughs manufacturing plants and labs
+Ian Joyner's Burroughs page
+The Burroughs B5900 and E-Mode: A bridge to 21st Century Computing - Jack Allweiss

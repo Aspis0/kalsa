@@ -1,0 +1,78 @@
+The Companies (Amendment) Act 1990 (No. 27 of 1990; officially the Companies (Amendment) Act, 1990) was an Act of the Oireachtas which introduced the corporate rescue procedure known as examinership into Irish company law. Enacted on 29 August 1990, it allowed an insolvent or potentially insolvent company to obtain temporary protection from its creditors while a court-appointed examiner investigated whether the business, or a viable part of it, could survive as a going concern and, where appropriate, prepared a compromise or scheme of arrangement with its creditors and members.
+The Act was enacted as emergency legislation during the financial crisis affecting the Goodman beef-processing group following Iraq's invasion of Kuwait in August 1990. The crisis threatened one of Ireland's largest industrial groups and prompted the recall of Dáil Éireann from its summer recess. Although the 1990 Act became closely associated with the Goodman rescue, the concept of examinership pre-dated the crisis: legislation introduced in 1987 had already proposed a court-appointed examiner and a three-month period of protection for ailing but potentially viable companies.
+The Act remained the principal statutory basis for examinership for almost 25 years. It was substantially amended by the Companies (Amendment) (No. 2) Act 1999, which tightened the conditions for obtaining court protection and strengthened safeguards for creditors. The 1990 Act was repealed, subject to savings and transitional provisions, by the Companies Act 2014. The examinership system was retained and consolidated in Part 10 of that Act.
+
+
+== Background ==
+
+
+=== Earlier proposals for corporate rescue ===
+Before 1990, Irish insolvency law provided comparatively limited means of rescuing a company once secured creditors moved to enforce their rights. Receivership and liquidation were primarily mechanisms for realising assets rather than restructuring a viable business.
+A corporate rescue procedure had already been proposed in the Companies (No. 2) Bill 1987. During its second-stage debate in the Seanad in May 1987, the proposed procedure was described as a "radical new legal mechanism" for the rescue or reconstruction of companies which were experiencing financial difficulties but remained potentially viable.
+The 1987 proposal envisaged a court-appointed examiner and a three-month period during which the company would be protected from winding-up proceedings, the appointment of a receiver, execution of debts and enforcement of security. The purpose was to provide a temporary "breathing space" in which a business could be reorganised and an agreement reached with its creditors. The proposal drew comparisons during parliamentary debate with corporate-rescue mechanisms then developing in the United Kingdom and United States.
+Although that wider company-law reform had not been enacted by August 1990, the existence of the earlier proposal meant that much of the conceptual basis for examinership had already been developed when the Goodman crisis arose.
+
+
+=== Goodman crisis ===
+By the late 1980s, companies controlled by businessman Larry Goodman had become a major part of the Irish beef-processing and export industry. The group was heavily involved in exports to the Middle East, including Iraq.
+Iraq invaded Kuwait on 2 August 1990. The resulting international crisis and restrictions on trade placed the Goodman group under severe financial pressure. Contemporary and later accounts linked the group's difficulties to its exposure to Iraqi customers and to the wider disruption of an export market on which the Irish beef industry had become heavily dependent.
+The government of Charles Haughey recalled the Dáil during its summer recess. The Companies (Amendment) Bill 1990 was formally presented by the Minister for Industry and Commerce on 27 August 1990. It passed Dáil Éireann on 28 August and both Houses of the Oireachtas on 29 August.
+The Act was signed and commenced on 29 August 1990.
+The circumstances of its passage subsequently became politically controversial because of the immediate benefit of the new procedure to the Goodman companies. During the later Beef Tribunal, allegations were made concerning political favouritism towards Goodman. The tribunal rejected a number of allegations of improper political influence, including claims concerning the circumstances in which the 1990 legislation had been introduced.
+
+
+== Examinership procedure ==
+
+
+=== Appointment of an examiner ===
+Section 2 empowered the court to appoint an examiner where a company was, or was likely to become, unable to pay its debts and no winding-up order had already been made. A petition could be presented by the company itself, its directors, a creditor or prospective creditor, or members holding at least one-tenth of its voting share capital.
+The original legislation did not require the petitioner to establish the later statutory test of a "reasonable prospect of survival". Section 2 instead provided that the court could in particular appoint an examiner where doing so would be likely to facilitate the survival of the company, or all or part of its undertaking, as a going concern.
+An examiner was not ordinarily intended to replace the company's directors or assume day-to-day control. The examiner's principal functions were to investigate the company's financial position, assess whether all or part of the enterprise could survive and, where appropriate, formulate a rescue proposal.
+
+
+=== Protection from creditors ===
+The presentation of a petition placed the company under the protection of the court. Under the original Act the protection period ordinarily lasted for up to three months, subject to statutory provisions allowing additional time in connection with the preparation and consideration of the examiner's proposals.
+While a company was protected, creditors were prevented from taking a number of enforcement measures against it. Winding-up proceedings could not be commenced, a receiver could not be appointed and security over the company's assets could not ordinarily be enforced. The moratorium was intended to prevent individual creditors from dismantling a potentially viable enterprise before a rescue could be investigated.
+The company normally continued trading during the protection period. The Act also permitted an examiner, with the necessary statutory or court authority, to incur or certify liabilities required to support the company's continued operation.
+
+
+=== Examination of the company ===
+Under the original Act, an examiner was required to investigate the company's affairs and report to the court. The report was to address matters including the company's assets and liabilities, the causes of its difficulties, whether the company or part of its undertaking was capable of surviving as a going concern, and whether a compromise or scheme of arrangement would facilitate that survival.
+If the examiner concluded that all or part of the undertaking was capable of survival and that attempting to continue it would be more advantageous to creditors and members as a whole than a winding-up, section 18 required the examiner to formulate proposals for a compromise or scheme of arrangement.
+
+
+=== Scheme of arrangement ===
+The rescue plan could divide creditors and members into classes and provide different treatment for different classes. It could involve the reduction or restructuring of debts, the introduction of new investment, changes to the company's management or constitution and other measures intended to permit the surviving business to continue.
+The examiner was required to convene meetings of the affected classes to consider the proposals. Under the original legislation, confirmation generally required acceptance by at least one impaired class of members and one impaired class of creditors.
+Final approval rested with the court. The court could confirm, modify or reject the proposals. It was prohibited from confirming a scheme whose sole or primary purpose was tax avoidance and was required to be satisfied that the proposals were fair and equitable towards dissenting classes and were not unfairly prejudicial to an interested party.
+Once confirmed, the scheme became binding on the company and the affected classes of creditors and members.
+
+
+== Goodman International examinership ==
+The Goodman group became the first major test of the new legislation. Companies within the group sought the protection of the court shortly after the Act entered into force.
+On 28 January 1991, High Court President Liam Hamilton delivered judgment confirming, with modifications, proposals for a scheme of arrangement involving Goodman International and related companies.
+Hamilton emphasised that the purpose of the Act was not to provide indefinite protection to every insolvent company or simply to deprive creditors of their existing rights. Continued protection depended on the possibility of the business surviving and on a rescue being more advantageous to the relevant interests than liquidation.
+The successful restructuring demonstrated the practical operation of the new procedure and established examinership as an alternative to immediate receivership or liquidation for financially distressed companies.
+
+
+== Judicial interpretation ==
+
+
+=== Re Atlantic Magnetics ===
+One of the most influential early decisions under the Act was Re Atlantic Magnetics Ltd [1993] 2 IR 561. The Supreme Court considered, among other issues, the threshold for appointing an examiner and the balance between the rescue objectives of the legislation and the rights of secured creditors.
+The High Court had approached the question by asking whether there was "some reasonable prospect" of survival. On appeal, the Supreme Court adopted the less demanding formulation of whether there was "some prospect of survival".
+The decision was subsequently regarded as having set a comparatively low threshold for entry into examinership. The Company Law Review Group later concluded that the test was insufficiently demanding and could permit companies with poor prospects of long-term survival to obtain protection at the expense of creditors.
+Other early cases, including Re Holidair Ltd [1994] 1 IR 434, considered the interaction between examinership, secured lending and the examiner's ability to obtain finance for a company during the protection period.
+
+
+== 1994 review ==
+The non-statutory Company Law Review Group reviewed the operation of the Act in its first report, published in December 1994. It concluded that the legislation's criteria for admission to examinership were "not onerous enough" and recommended requiring a reasonable prospect of survival before an examiner could be appointed.
+The Review Group said that examinership was intended to enable companies to overcome temporary financial difficulties and preserve viable businesses, rather than merely postpone an inevitable failure.
+Among its principal recommendations were the introduction of an independent accountant's report before the petition was heard, a reduction in the maximum protection period, a specific right for creditors to be heard at the petition stage and stronger protection of secured creditors.
+The group was particularly concerned about the effects of examinership on creditors. During court protection they could be prevented from enforcing debts and securities, while a subsequently confirmed scheme could write down the amounts owed to them.
+
+
+== 1999 reforms ==
+Many of the Review Group's recommendations were implemented by the Companies (Amendment) (No. 2) Act 1999.
+The 1999 Act replaced the original section 2 test with an express requirement that the court must be satisfied that there is a "reasonable prospect of the survival of the company and the whole or any part of its undertaking as a going concern" before appointing an examiner.
+It also required most petitions to be accompanied by a report from an independent accountant. The report was requi

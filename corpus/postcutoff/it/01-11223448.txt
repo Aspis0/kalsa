@@ -1,0 +1,71 @@
+L'invarianza idraulica è il principio secondo il quale una trasformazione del territorio, per un evento di riferimento, non deve aumentare la portata di piena dei deflussi meteorici immessi nel corpo idrico o nella rete di drenaggio che li riceve. Il principio trova applicazione nella pianificazione urbanistica e nella progettazione delle opere di gestione delle acque piovane, per compensare gli effetti dell'impermeabilizzazione del suolo e delle modifiche al drenaggio.
+Un concetto correlato è l'invarianza idrologica, che riguarda anche il volume delle acque scaricate. Nella definizione adottata dalla Regione Lombardia, l'invarianza idraulica limita le portate massime rispetto alla situazione precedente all'urbanizzazione, mentre quella idrologica limita sia le portate sia i volumi.
+
+
+== Effetti delle trasformazioni del territorio ==
+La sostituzione di superfici permeabili con edifici, strade e pavimentazioni modifica la risposta del territorio alle precipitazioni. La riduzione dell'infiltrazione e della capacità di invaso, insieme alla maggiore rapidità di convogliamento delle acque, può produrre deflussi più concentrati nel tempo e portate di picco maggiori. L'impermeabilizzazione può inoltre ridurre la ricarica delle falde. Le misure di invarianza compensano tali modifiche attraverso invasi e, dove possibile, dispositivi di infiltrazione.
+
+
+== Invarianza idraulica e invarianza idrologica ==
+La portata esprime la quantità d'acqua che attraversa una sezione nell'unità di tempo; il volume rappresenta la quantità complessivamente defluita nell'intervallo considerato. Il controllo del massimo della portata e quello del volume costituiscono quindi obiettivi distinti.
+La laminazione consiste nell'accumulare temporaneamente parte del deflusso e rilasciarlo con portata limitata. Riduce il picco e prolunga il deflusso: il solo rallentamento dello scarico non equivale alla riduzione del volume totale scaricato. La riduzione dei volumi può essere perseguita mediante infiltrazione, evapotraspirazione o utilizzo dell'acqua raccolta.
+
+
+== Soluzioni per la gestione dei deflussi ==
+Il risultato può essere ottenuto combinando opere di accumulo e regolazione dello scarico con interventi che favoriscono infiltrazione, evapotraspirazione e riuso. Il drenaggio urbano sostenibile comprende soluzioni superficiali e interrate, vegetate e non vegetate, selezionate in funzione delle caratteristiche del sito. Le opere possono essere disposte in successione, dal controllo presso il punto di formazione del deflusso fino agli invasi a valle.
+
+
+=== Vasche interrate e accumuli sotterranei ===
+Le vasche interrate consentono di immagazzinare temporaneamente l'acqua meteorica sotto la superficie del terreno. Nelle configurazioni destinate alla laminazione, lo scarico viene regolato per limitare la portata inviata al ricettore.
+Gli accumuli possono comprendere sistemi modulari geocellulari, costituiti da elementi con un'elevata proporzione di vuoti. Possono essere impiegati per l'accumulo oppure per l'infiltrazione nel terreno circostante, secondo la configurazione. La funzione dell'opera dipende dunque anche dal sistema di scarico. Il controllo dei sedimenti e l'accesso per la manutenzione sono aspetti della loro gestione.
+
+
+=== Bacini a cielo aperto ===
+I bacini di detenzione accumulano il deflusso in depressioni del terreno e lo rilasciano lentamente. Possono essere normalmente asciutti oppure comprendere una parte permanentemente allagata. Quando la configurazione lo permette, le aree asciutte possono avere anche usi ricreativi. La sola detenzione produce una riduzione limitata dei volumi; l'eventuale infiltrazione dipende dalle condizioni del terreno e dalla tutela delle acque sotterranee.
+
+
+=== Infiltrazione e bioritenzione ===
+Pozzi e strutture disperdenti offrono un volume temporaneo di accumulo dal quale l'acqua passa nel terreno. La capacità di smaltimento dipende dalle proprietà del suolo e dalla superficie di contatto; possono essere necessari pretrattamenti per proteggere il sistema e le acque sotterranee.
+Le aree di bioritenzione e i rain garden raccolgono l'acqua in depressioni vegetate. Il deflusso attraversa gli strati del sistema e, secondo la configurazione, infiltra nel terreno o viene raccolto da un drenaggio. Canali vegetati possono rallentare e filtrare l'acqua lungo il percorso.
+
+
+=== Pavimentazioni permeabili ===
+Le pavimentazioni permeabili lasciano attraversare l'acqua verso strati sottostanti di accumulo. L'acqua può successivamente infiltrare nel terreno o defluire attraverso un drenaggio. Una superficie permeabile può pertanto far parte di un sistema di infiltrazione oppure di detenzione con scarico controllato, a seconda delle condizioni del sottosuolo e dei vincoli di protezione della falda.
+
+
+=== Coperture verdi e Blue Green Roof ===
+I tetti verdi e i giardini pensili intercettano e accumulano parte della precipitazione nella vegetazione e nel substrato. L'acqua viene successivamente restituita all'atmosfera per evaporazione e traspirazione oppure allontanata attraverso il drenaggio. Il comportamento durante un evento dipende anche dallo stato di saturazione del substrato e dall'intensità della pioggia.
+Le coperture blue-green (BGR) integrano la vegetazione con un ulteriore strato di accumulo dell'acqua meteorica. Uno studio sperimentale su prototipi installati in quattro città italiane ha analizzato la riduzione del deflusso e il comportamento termico di coperture multistrato.
+Per gli accumuli in copertura, la regolazione dello scarico consente di rallentare il rilascio verso la rete fognaria o verso altre opere di gestione. Il contributo alla laminazione deve essere valutato nel progetto del sistema di drenaggio, in relazione ai volumi disponibili e alle portate scaricate.
+
+
+=== Raccolta e riuso dell'acqua piovana ===
+Le cisterne raccolgono acqua da coperture e altre superfici per impieghi successivi. Se opportunamente progettati, i sistemi di recupero possono ridurre portate e volumi del deflusso e il fabbisogno di acqua di rete. La prestazione idraulica dipende dal progetto: il semplice deposito dell'acqua per il riuso non definisce, da solo, la capacità di laminazione.
+
+
+== Progettazione e manutenzione ==
+Il dimensionamento considera precipitazioni di progetto, superfici scolanti, trasformazione della pioggia in deflusso, eventuale infiltrazione, volume degli invasi, regolazione degli scarichi e tempi di svuotamento. Sono rilevanti la disponibilità effettiva del volume prima dell'evento, il funzionamento del ricettore e la gestione delle precipitazioni che superano la capacità di progetto. La manutenzione riguarda l'intero sistema, dagli ingressi alle opere di accumulo e agli organi di controllo.
+Le vasche di prima pioggia hanno una finalità distinta: raccolgono la prima parte del deflusso che necessita di trattamento. Questa funzione qualitativa va distinta dalla compensazione delle portate mediante laminazione.
+
+
+== Applicazione in Italia ==
+La disciplina dell'invarianza idraulica è contenuta in disposizioni regionali e strumenti di pianificazione territoriale e di bacino. Tra i riferimenti regionali figurano:
+
+In Lombardia, la legge regionale 15 marzo 2016, n. 4, ha introdotto nell'articolo 58 bis della legge regionale 11 marzo 2005, n. 12, i principi di invarianza idraulica e idrologica e di drenaggio urbano sostenibile. I criteri e i metodi applicativi sono disciplinati dal regolamento regionale 23 novembre 2017, n. 7, successivamente modificato, fra gli altri, dal regolamento regionale 28 marzo 2025, n. 3.
+In Veneto, la deliberazione della Giunta regionale n. 1322 del 10 maggio 2006 ha inserito il principio nelle indicazioni per la valutazione di compatibilità idraulica degli strumenti urbanistici. Il procedimento è disciplinato dalla deliberazione n. 2948 del 6 ottobre 2009, il cui allegato tecnico prevede misure compensative per le trasformazioni dell'uso del suolo che modificano la permeabilità superficiale.
+In Friuli Venezia Giulia, il decreto del Presidente della Regione 27 marzo 2018, n. 083/Pres., ha emanato il regolamento applicativo previsto dall'articolo 14, comma 1, lettera k), della legge regionale 29 aprile 2015, n. 11, sulla difesa del suolo e l'utilizzazione delle acque. Il regolamento comprende metodi e criteri tecnici per la valutazione delle trasformazioni territoriali.
+Nelle Marche, l'articolo 31 della legge regionale 30 novembre 2023, n. 19, prevede verifiche di compatibilità idraulica per gli strumenti di pianificazione e misure compensative per le trasformazioni del suolo che modificano la permeabilità. La legge ha abrogato la precedente legge regionale n. 22 del 2011; in base alle disposizioni transitorie continuano ad applicarsi i criteri della deliberazione della Giunta regionale n. 53 del 2014, modificata dalla n. 671 del 2017, fino all'applicazione dei corrispondenti nuovi atti attuativi.
+La regolazione quantitativa dei deflussi si distingue dalla disciplina degli scarichi e del trattamento delle acque meteoriche. Su quest'ultimo aspetto, l'articolo 113 del decreto legislativo 3 aprile 2006, n. 152 demanda alle regioni il controllo degli scarichi meteorici da reti separate e la disciplina dei casi nei quali le acque di prima pioggia e di lavaggio delle aree esterne devono essere convogliate e trattate per tutelare la qualità dei corpi idrici.
+
+
+== Note ==
+
+
+== Voci correlate ==
+Idrologia
+Ciclo dell'acqua
+Bacino di espansione
+Fognatura
+Acque di prima pioggia
+Verde pensile
+Nature-based solutions

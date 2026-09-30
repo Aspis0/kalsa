@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Bits-per-byte over the gate's held-out text, via our llama.cpp build.
+"""Per-document bits-per-byte over the post-cutoff corpus, via llama.cpp.
 
-Each language file is split into contiguous byte segments (default 8);
-llama-perplexity runs per segment and bpb = log2(ppl) * n_tokens / n_bytes
-with the model's own tokenizer. The overall bpb is the byte-weighted mean of
-the segment bpbs, which is exactly the whole-file value because pooled
-nats/ln2 add across segments. Per-segment values go to --out as JSON, giving
-run_gen_eval-style units for the paired bootstrap CIs in bootstrap_ci.py.
+Corpus layout: <corpus>/<lang>/<doc>.txt (eval/build_postcutoff_corpus.py).
+Each DOCUMENT is one evaluation unit: llama-perplexity runs once per doc
+(one model load per doc — the fork's server exposes logprobs for generated
+tokens only, so teacher-forced NLL needs the CLI), bpb = log2(ppl) *
+n_tokens / n_bytes with the model's own tokenizer. The per-language value is
+the byte-weighted mean; per-doc values go to --out for the paired bootstrap
+over documents (eval/bootstrap_ci.py).
 
 Usage: run_bpb_eval.py --llama <build/bin> --model <gguf> --tokenizer <dir>
                        --corpus <corpus_dir> --out bpb.json
-                       [--langs en,it,es,fr,zh] [--segments 8]
+                       [--langs en,it,es,fr,zh] [--ctx 8192]
 """
 
 import argparse
@@ -27,14 +28,15 @@ PPL_RE = re.compile(r"final estimate:\s*PPL\s*=\s*([0-9.]+)", re.IGNORECASE)
 PPL_RE_FALLBACK = re.compile(r"PPL:\s*([0-9.]+)")
 
 
-def run_perplexity(binary: str, model: str, text_file: pathlib.Path) -> float:
+def run_perplexity(binary: str, model: str, text_file: pathlib.Path,
+                   ctx: int) -> float:
     out = subprocess.run(
         [binary, "-m", model, "-f", str(text_file), "--no-warmup",
-         "-c", "4096", "-b", "4096"],
-        capture_output=True, text=True, timeout=7200)
+         "-ngl", "99", "-c", str(ctx), "-b", "2048"],
+        capture_output=True, text=True, timeout=3600)
     log = out.stdout + out.stderr
     if out.returncode != 0:
-        sys.exit(f"bpb: llama-perplexity rc={out.returncode} on {text_file.name}\n{log[-800:]}")
+        sys.exit(f"bpb: llama-perplexity rc={out.returncode} on {text_file}\n{log[-800:]}")
     hits = PPL_RE.findall(log) or PPL_RE_FALLBACK.findall(log)
     if not hits:
         sys.exit(f"bpb: no PPL in output for {text_file.name}\n{log[-400:]}")
@@ -46,56 +48,43 @@ def main() -> int:
     ap.add_argument("--llama", required=True, help="llama.cpp build/bin dir")
     ap.add_argument("--model", required=True)
     ap.add_argument("--tokenizer", required=True)
-    ap.add_argument("--corpus", required=True)
-    ap.add_argument("--out", required=True, help="per-segment JSON for CIs")
+    ap.add_argument("--corpus", required=True,
+                    help="dir with <lang>/<doc>.txt per language")
+    ap.add_argument("--out", required=True, help="per-doc JSON for CIs")
     ap.add_argument("--langs", default="en,it,es,fr,zh")
-    ap.add_argument("--segments", type=int, default=8)
-    ap.add_argument("--max-bytes", type=int, default=600_000,
-                    help="evaluate the leading N bytes per language (the "
-                         "corpus files are longer; 600 KB >= the 500 KB gate "
-                         "floor and keeps the big-model runs tractable)")
+    ap.add_argument("--ctx", type=int, default=8192,
+                    help="per-doc context; docs are capped at ~12 KB by the "
+                         "builder, so 8192 tokens covers every doc in one pass")
     a = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(a.tokenizer)
     binary = str(pathlib.Path(a.llama) / "llama-perplexity")
     corpus = pathlib.Path(a.corpus)
-    tmp = pathlib.Path("/tmp/kalsa-bpb")
-    tmp.mkdir(exist_ok=True)
     report = {}
 
     for lang in a.langs.split(","):
-        data = (corpus / f"{lang}.txt").read_bytes()[: a.max_bytes]
-        edge = len(data) // a.segments
-        segs = [data[i * edge:(i + 1) * edge] for i in range(a.segments - 1)]
-        segs.append(data[(a.segments - 1) * edge:])   # last one absorbs the remainder
-        # a raw byte slice can cut a UTF-8 sequence in half; drop the broken
-        # edge bytes (<=3 per boundary) and count only what is evaluated
-        segs = [s.decode("utf-8", errors="ignore").encode("utf-8") for s in segs]
-
-        seg_bpbs, tot_bytes, tot_wsum = [], 0, 0.0
-        for i, seg in enumerate(segs):
-            work = tmp / f"{lang}-{i}.txt"
-            work.write_bytes(seg)
-            n_bytes = len(seg)
-            n_tok = len(tok(seg.decode("utf-8"), add_special_tokens=False)["input_ids"])
-            ppl = run_perplexity(binary, a.model, work)
+        docs = sorted((corpus / lang).glob("*.txt"))
+        assert docs, f"no documents under {corpus / lang}"
+        doc_bpbs, doc_bytes = [], []
+        for i, doc in enumerate(docs):
+            text = doc.read_text(encoding="utf-8")
+            n_bytes = len(text.encode())
+            n_tok = len(tok(text, add_special_tokens=False)["input_ids"])
+            ppl = run_perplexity(binary, a.model, doc, a.ctx)
             bpb = math.log2(ppl) * n_tok / n_bytes
-            seg_bpbs.append(round(bpb, 5))
-            tot_bytes += n_bytes
-            tot_wsum += bpb * n_bytes
-            print(f"{lang} seg {i + 1}/{len(segs)}: bytes {n_bytes} tok {n_tok} "
-                  f"ppl {ppl:.4f} bpb {bpb:.4f}", flush=True)
-        overall = tot_wsum / tot_bytes
-        report[lang] = {"segments": seg_bpbs, "bytes": tot_bytes,
-                        "overall_bpb": round(overall, 5)}
-        print(f"== {lang}: overall bpb {overall:.4f} ({tot_bytes} bytes) ==")
+            doc_bpbs.append(round(bpb, 5))
+            doc_bytes.append(n_bytes)
+            print(f"{lang} doc {i + 1}/{len(docs)}: {doc.name} bytes {n_bytes} "
+                  f"tok {n_tok} ppl {ppl:.4f} bpb {bpb:.4f}", flush=True)
+        total = sum(doc_bytes)
+        overall = sum(b * n for b, n in zip(doc_bpbs, doc_bytes)) / total
+        report[lang] = {"docs": doc_bpbs, "bytes": total,
+                        "n_docs": len(docs), "overall_bpb": round(overall, 5)}
+        print(f"== {lang}: overall bpb {overall:.4f} "
+              f"({len(docs)} docs, {total} bytes) ==")
 
     pathlib.Path(a.out).write_text(json.dumps(report, indent=1))
-    print("\n| lang | bpb |")
-    print("|---|---|")
-    for lang, r in report.items():
-        print(f"| {lang} | {r['overall_bpb']:.4f} |")
-    print(f"per-segment -> {a.out}")
+    print(f"per-document -> {a.out}")
     return 0
 
 

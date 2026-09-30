@@ -1,0 +1,2512 @@
+{
+ "built": "2026-09-30",
+ "after": "2026-07-01T00:00:00Z",
+ "license": "cc-by-sa-4.0 (per Wikipedia; attribution via title/pageid/revid recorded per document)",
+ "languages": {
+  "en": {
+   "n_docs": 55,
+   "bytes": 291914,
+   "docs": [
+    {
+     "file": "en/00-84374077.txt",
+     "title": "1975 Osaka television affiliation switch",
+     "pageid": 84374077,
+     "revid": 1377681345,
+     "created": "2026-09-30T15:01:40Z",
+     "sha256": "dbdccb564e330007b115c778efb10e01916bd150a6fce0c1b0ef8083466dc0a3",
+     "bytes": 5258
+    },
+    {
+     "file": "en/01-84373989.txt",
+     "title": "Ambrish Verma",
+     "pageid": 84373989,
+     "revid": 1377679751,
+     "created": "2026-09-30T14:47:08Z",
+     "sha256": "2b0f9efa3b071945785a757bf34a16a9e7fa0a0fc2419a2106ff91da01af8902",
+     "bytes": 3377
+    },
+    {
+     "file": "en/02-84373953.txt",
+     "title": "Chow Shu-kai",
+     "pageid": 84373953,
+     "revid": 1377679116,
+     "created": "2026-09-30T14:42:12Z",
+     "sha256": "2126ac354d57501b5429c58ce9537bc79e5bb7bfb1924287a20da735c1c8455b",
+     "bytes": 10981
+    },
+    {
+     "file": "en/03-84373899.txt",
+     "title": "Companies (Amendment) Act 1990",
+     "pageid": 84373899,
+     "revid": 1377678400,
+     "created": "2026-09-30T14:35:19Z",
+     "sha256": "93d0d94026aba54689e60f56c9db23503e6c08dfe26ce9cfef4c7b8dadae07db",
+     "bytes": 12005
+    },
+    {
+     "file": "en/04-84373856.txt",
+     "title": "Brittaniclus",
+     "pageid": 84373856,
+     "revid": 1377677613,
+     "created": "2026-09-30T14:28:40Z",
+     "sha256": "cc6b17c2cb3c0bb815234663aba85f7e22bbe8c5a872410b4b1c4cf7ab3d8099",
+     "bytes": 6298
+    },
+    {
+     "file": "en/05-84373777.txt",
+     "title": "2025 NAIA Football National Championship",
+     "pageid": 84373777,
+     "revid": 1377676339,
+     "created": "2026-09-30T14:17:00Z",
+     "sha256": "0eb6c98c0acb5a514ab98685fe24492f6ebbd1f095fcc4a8922a0d824363b0f1",
+     "bytes": 3623
+    },
+    {
+     "file": "en/06-84373570.txt",
+     "title": "INOXCVA",
+     "pageid": 84373570,
+     "revid": 1377673437,
+     "created": "2026-09-30T13:50:28Z",
+     "sha256": "94983ad68f29f7271ad1cef512f48687d8be263e6bc1361c9b156cc0912d9806",
+     "bytes": 5199
+    },
+    {
+     "file": "en/07-84373569.txt",
+     "title": "Kebedech Seyoum",
+     "pageid": 84373569,
+     "revid": 1377673370,
+     "created": "2026-09-30T13:49:48Z",
+     "sha256": "b25384901e07ea717eac0efa135f027af127d59e48112ee4c94f7ee681bc14b6",
+     "bytes": 10823
+    },
+    {
+     "file": "en/08-84373484.txt",
+     "title": "Luke Anear",
+     "pageid": 84373484,
+     "revid": 1377672050,
+     "created": "2026-09-30T13:37:18Z",
+     "sha256": "50fe96d6471f68c2e262e055e3dd63e2466c8dec0fa6eacaaa69b939b9141932",
+     "bytes": 2587
+    },
+    {
+     "file": "en/09-84373366.txt",
+     "title": "27 Colliergate",
+     "pageid": 84373366,
+     "revid": 1377669933,
+     "created": "2026-09-30T13:22:24Z",
+     "sha256": "87c31e4e6b97ed39924d88f5aa1e7398da6554a661c7fdc65f5b0ce3b0bb6667",
+     "bytes": 3916
+    },
+    {
+     "file": "en/10-84373150.txt",
+     "title": "Social Welfare Bureau",
+     "pageid": 84373150,
+     "revid": 1377665863,
+     "created": "2026-09-30T12:45:11Z",
+     "sha256": "3ff8689761c1de69a1a1d41e1c136ba3eb150b560d7e255dcfe0d7d3a2a7ab1d",
+     "bytes": 5000
+    },
+    {
+     "file": "en/11-84373118.txt",
+     "title": "Shewanesh Abraha",
+     "pageid": 84373118,
+     "revid": 1377665297,
+     "created": "2026-09-30T12:40:00Z",
+     "sha256": "e6c154fc9f66c0b4b610044814af7cc7f7219bc58849ae90695daf53c7d9ee9b",
+     "bytes": 12070
+    },
+    {
+     "file": "en/12-84373019.txt",
+     "title": "Southeastern gentoo penguin",
+     "pageid": 84373019,
+     "revid": 1377662729,
+     "created": "2026-09-30T12:17:58Z",
+     "sha256": "28037eb2faf5462ccf9c3574a17238310563bc8acb5497625e75f9c95e27b4ef",
+     "bytes": 5435
+    },
+    {
+     "file": "en/13-84372965.txt",
+     "title": "2026 Swedish government formation",
+     "pageid": 84372965,
+     "revid": 1377661252,
+     "created": "2026-09-30T12:05:51Z",
+     "sha256": "2fb54ed5efc44cdda0a49bdb74b3b0ee84a6b8ebe0fb27d84c0759b0a97eec2a",
+     "bytes": 4515
+    },
+    {
+     "file": "en/14-84372885.txt",
+     "title": "Flydubai Flight 1073",
+     "pageid": 84372885,
+     "revid": 1377659262,
+     "created": "2026-09-30T11:42:40Z",
+     "sha256": "d4f933aaa3f931dc1477871abfcfee9fc2c908b9f8ef14f7d27a89e6082c0447",
+     "bytes": 2823
+    },
+    {
+     "file": "en/15-84372809.txt",
+     "title": "Adventz Group",
+     "pageid": 84372809,
+     "revid": 1377657459,
+     "created": "2026-09-30T11:22:34Z",
+     "sha256": "3a3f7716737ea2e6a4d6ee0a842d651fcadae9b194e9b1293555703fe30b6cf3",
+     "bytes": 8252
+    },
+    {
+     "file": "en/16-84372794.txt",
+     "title": "Engage Perfumes",
+     "pageid": 84372794,
+     "revid": 1377656999,
+     "created": "2026-09-30T11:18:20Z",
+     "sha256": "1b0af7081af7fae3d65894435fb9e4275a2988fd9779f428469f69596f8e9b14",
+     "bytes": 5059
+    },
+    {
+     "file": "en/17-84372751.txt",
+     "title": "Jeju Fortress",
+     "pageid": 84372751,
+     "revid": 1377656123,
+     "created": "2026-09-30T11:08:00Z",
+     "sha256": "87259668fd80224156ca7e5e77fb2e2cbcda7b9e1d15fc8bb08f374162882bee",
+     "bytes": 12206
+    },
+    {
+     "file": "en/18-84372704.txt",
+     "title": "Station No. 4 of the Polish General Staff",
+     "pageid": 84372704,
+     "revid": 1377655041,
+     "created": "2026-09-30T10:54:59Z",
+     "sha256": "e269e98cd6c89114845c2ab49d6eb99bc5b3568abb9c2b8fa3d9e46a9ab308e5",
+     "bytes": 12073
+    },
+    {
+     "file": "en/19-84372619.txt",
+     "title": "Death flights (Chile)",
+     "pageid": 84372619,
+     "revid": 1377653157,
+     "created": "2026-09-30T10:37:36Z",
+     "sha256": "492858b2fdb8a5a3b3e00c2e4e61f4ccd45321c54b7d210b29f1d4b2ab1263af",
+     "bytes": 11009
+    },
+    {
+     "file": "en/20-84372605.txt",
+     "title": "Battle of Rubas River",
+     "pageid": 84372605,
+     "revid": 1377652856,
+     "created": "2026-09-30T10:34:08Z",
+     "sha256": "4409fee55c01d840324a55ec573a641a45ed9b3513efc4302a3dbfe39cbd0e0f",
+     "bytes": 2644
+    },
+    {
+     "file": "en/21-84372362.txt",
+     "title": "William H. Gocher",
+     "pageid": 84372362,
+     "revid": 1377646547,
+     "created": "2026-09-30T09:26:48Z",
+     "sha256": "52045d5f6fd2d8b8a6ec6d0a0068570cef3432c671f2264af2b8314309278135",
+     "bytes": 4613
+    },
+    {
+     "file": "en/22-84372284.txt",
+     "title": "Didymin",
+     "pageid": 84372284,
+     "revid": 1377644767,
+     "created": "2026-09-30T09:07:25Z",
+     "sha256": "2abb62725c6a7a711bb06fc1c11dc37730762fe752ab5d1f70425448f0d0817d",
+     "bytes": 4537
+    },
+    {
+     "file": "en/23-84372167.txt",
+     "title": "Jim Harding (basketball)",
+     "pageid": 84372167,
+     "revid": 1377642588,
+     "created": "2026-09-30T08:46:35Z",
+     "sha256": "b66df37830f22a582a5704f1cb2d2977101cfd714a8132351cefbfcbd3a504c1",
+     "bytes": 4202
+    },
+    {
+     "file": "en/24-84372050.txt",
+     "title": "Outeiro do Circo",
+     "pageid": 84372050,
+     "revid": 1377640353,
+     "created": "2026-09-30T08:25:47Z",
+     "sha256": "fe0c7438794721e228529cd457f379d5405c0cc053e58f17c21bd49c450248ed",
+     "bytes": 4278
+    },
+    {
+     "file": "en/25-84372036.txt",
+     "title": "Heard Island and McDonald Islands Marine Reserve",
+     "pageid": 84372036,
+     "revid": 1377639973,
+     "created": "2026-09-30T08:22:40Z",
+     "sha256": "dcd79735c160e4f74136fc7104593aed570afa2c19ab72f0a08024170aea13b3",
+     "bytes": 12002
+    },
+    {
+     "file": "en/26-84372016.txt",
+     "title": "Cecilia Rovaretti",
+     "pageid": 84372016,
+     "revid": 1377639572,
+     "created": "2026-09-30T08:18:43Z",
+     "sha256": "bdd847d28dbccfd5f11ad7d3227af44b49e7e98ef292254f9e9fa2329b216487",
+     "bytes": 5429
+    },
+    {
+     "file": "en/27-84371996.txt",
+     "title": "Life Regiment of Horse (1667–1791)",
+     "pageid": 84371996,
+     "revid": 1377639295,
+     "created": "2026-09-30T08:16:10Z",
+     "sha256": "0f397c1e766b3b9c7b7f483752d0f8dcb42bce0810681ae2f54967ade3187c6f",
+     "bytes": 3249
+    },
+    {
+     "file": "en/28-84371923.txt",
+     "title": "2026 Suhandinata Cup group stage",
+     "pageid": 84371923,
+     "revid": 1377637501,
+     "created": "2026-09-30T08:01:03Z",
+     "sha256": "7a1633e71a50c377ddfcdb6d351f854781747428a4a3d9c51ceca45d69fdd549",
+     "bytes": 2869
+    },
+    {
+     "file": "en/29-84371853.txt",
+     "title": "Albert Abdi",
+     "pageid": 84371853,
+     "revid": 1377635309,
+     "created": "2026-09-30T07:43:20Z",
+     "sha256": "24096c5d44548d7dff48b6f0d01019c4b89da671140216824890a89721bc3ca1",
+     "bytes": 2572
+    },
+    {
+     "file": "en/30-84371805.txt",
+     "title": "Bidvest McCarthy",
+     "pageid": 84371805,
+     "revid": 1377634087,
+     "created": "2026-09-30T07:33:00Z",
+     "sha256": "36cb1e2dcc86af8511df1d7b2b12ffc3cf2d0a1a56bdec91386684f10d39584e",
+     "bytes": 4512
+    },
+    {
+     "file": "en/31-84371544.txt",
+     "title": "Gibsons, York",
+     "pageid": 84371544,
+     "revid": 1377624139,
+     "created": "2026-09-30T06:16:21Z",
+     "sha256": "cddfb70c52c63e5c5a6bc84271755509f08bc2ba5cae14c6b6e6abe5c3a3f313",
+     "bytes": 3421
+    },
+    {
+     "file": "en/32-84371503.txt",
+     "title": "Little Sisters of the Poor Home for the Aged (Melbourne, Victoria)",
+     "pageid": 84371503,
+     "revid": 1377623363,
+     "created": "2026-09-30T06:08:06Z",
+     "sha256": "04bc7489a156ac75cdc9fb34e109233cab2be04d77cb515149452bc1c6f8cec5",
+     "bytes": 5890
+    },
+    {
+     "file": "en/33-84371501.txt",
+     "title": "Tananarive Conference (1961)",
+     "pageid": 84371501,
+     "revid": 1377623344,
+     "created": "2026-09-30T06:07:52Z",
+     "sha256": "ace61a2a45892f943d7a8b640f433e3c0462475dbe342c8bca0bf1de5ea1d8ad",
+     "bytes": 3687
+    },
+    {
+     "file": "en/34-84371468.txt",
+     "title": "Hompa Hongwanji Buddhist Temple",
+     "pageid": 84371468,
+     "revid": 1377622547,
+     "created": "2026-09-30T06:00:14Z",
+     "sha256": "f15a095bb7a0976b1178c703e13d844e8379e79aa00f198fcedc238f89a733d6",
+     "bytes": 4016
+    },
+    {
+     "file": "en/35-84371467.txt",
+     "title": "List of renewable energy companies by country",
+     "pageid": 84371467,
+     "revid": 1377622514,
+     "created": "2026-09-30T05:59:56Z",
+     "sha256": "d688eed326b62fa07c86a74033493e65bf662cf6490eed04ee0244f3c2a2ab4f",
+     "bytes": 3691
+    },
+    {
+     "file": "en/36-84371420.txt",
+     "title": "Amar Mukunda",
+     "pageid": 84371420,
+     "revid": 1377620602,
+     "created": "2026-09-30T05:47:20Z",
+     "sha256": "e3de138c554bf8f034570cdad007d5577645c89cd2b252b19ad765fe09a1fcf5",
+     "bytes": 4174
+    },
+    {
+     "file": "en/37-84371413.txt",
+     "title": "Lefty Ervin",
+     "pageid": 84371413,
+     "revid": 1377620296,
+     "created": "2026-09-30T05:44:57Z",
+     "sha256": "a02655daf69379ef18df222a0c7a54f4941c21003f62ed6b03ecc5c4db5ca9ab",
+     "bytes": 3281
+    },
+    {
+     "file": "en/38-84371337.txt",
+     "title": "Shimo-Shakujii",
+     "pageid": 84371337,
+     "revid": 1377617780,
+     "created": "2026-09-30T05:24:20Z",
+     "sha256": "89dcd0320ae08ef56934024d0afef3e26608a382214d80d432889d769abb1405",
+     "bytes": 3981
+    },
+    {
+     "file": "en/39-84371206.txt",
+     "title": "Dev Lemons",
+     "pageid": 84371206,
+     "revid": 1377614654,
+     "created": "2026-09-30T04:56:35Z",
+     "sha256": "cbe2ff860a8785753991645bede2754b140298bca12090dd6d1c3eede7c11011",
+     "bytes": 2620
+    },
+    {
+     "file": "en/40-84371076.txt",
+     "title": "Serhiy Fil",
+     "pageid": 84371076,
+     "revid": 1377611826,
+     "created": "2026-09-30T04:34:16Z",
+     "sha256": "936a1afbfa241ce533e1b169a89fe603c029732f6a1fe5444e20bc7a242c366c",
+     "bytes": 3729
+    },
+    {
+     "file": "en/41-84371007.txt",
+     "title": "Tergestino dialect",
+     "pageid": 84371007,
+     "revid": 1377610117,
+     "created": "2026-09-30T04:24:38Z",
+     "sha256": "7e608a82de03ff7ab3bcd78f34801f548c49a0f0b271aeafa4c836b3ef10697a",
+     "bytes": 12024
+    },
+    {
+     "file": "en/42-84371001.txt",
+     "title": "Muglisano dialect",
+     "pageid": 84371001,
+     "revid": 1377609702,
+     "created": "2026-09-30T04:22:28Z",
+     "sha256": "f0fc8545a5f1465707a0133df4fb04110b60c371ef7f54c876c157823d52d571",
+     "bytes": 7715
+    },
+    {
+     "file": "en/43-84370916.txt",
+     "title": "2024 NAIA Football National Championship",
+     "pageid": 84370916,
+     "revid": 1377606010,
+     "created": "2026-09-30T04:03:19Z",
+     "sha256": "2a9b36d31c748598e39202d2bc4aa43b361863c4e2fc81b842e8905f961f0591",
+     "bytes": 2695
+    },
+    {
+     "file": "en/44-84370859.txt",
+     "title": "Bundoora Park Homestead",
+     "pageid": 84370859,
+     "revid": 1377604055,
+     "created": "2026-09-30T03:53:36Z",
+     "sha256": "9f2c9b5f417207da02b383e0c2a8b64851c971f845060718d0771f5df024c5e9",
+     "bytes": 4780
+    },
+    {
+     "file": "en/45-84370551.txt",
+     "title": "Squash at the 2028 Summer Olympics – Qualification",
+     "pageid": 84370551,
+     "revid": 1377592889,
+     "created": "2026-09-30T02:56:02Z",
+     "sha256": "1668650983c04946d67c353e1eb1261e0521ca790f98fa87c26f0e5d764a8faf",
+     "bytes": 3381
+    },
+    {
+     "file": "en/46-84370465.txt",
+     "title": "The Traitors Telugu",
+     "pageid": 84370465,
+     "revid": 1377589257,
+     "created": "2026-09-30T02:37:07Z",
+     "sha256": "36811b3bb1ecb69178365696259c9ffdc7784c182de8c26b5d544029d53755fc",
+     "bytes": 2812
+    },
+    {
+     "file": "en/47-84370414.txt",
+     "title": "Potomac Valley",
+     "pageid": 84370414,
+     "revid": 1377586684,
+     "created": "2026-09-30T02:25:36Z",
+     "sha256": "e57639dab046d584362f2a609bab23a6b745c44231c051172f78374a04142a5f",
+     "bytes": 2977
+    },
+    {
+     "file": "en/48-84370312.txt",
+     "title": "Valeriy Holenko",
+     "pageid": 84370312,
+     "revid": 1377579658,
+     "created": "2026-09-30T01:59:12Z",
+     "sha256": "7b63b3988296fdafc068f6dccd98220df47b3228742ad3be9b9a37146e8ad5b5",
+     "bytes": 6012
+    },
+    {
+     "file": "en/49-84370301.txt",
+     "title": "Ian MacHattie",
+     "pageid": 84370301,
+     "revid": 1377579095,
+     "created": "2026-09-30T01:57:25Z",
+     "sha256": "d85fb9b16cf81b08e3338644ebc0e7c4d4981c936572cc0ebf5a40d01bef14a2",
+     "bytes": 2544
+    },
+    {
+     "file": "en/50-84370300.txt",
+     "title": "Sigit Suryantoro Widiyanto",
+     "pageid": 84370300,
+     "revid": 1377579036,
+     "created": "2026-09-30T01:57:13Z",
+     "sha256": "b3f5af2d1d389bdd3123a5e6a25567f1412d36bfed40ab5534d61a6cea8879a9",
+     "bytes": 3010
+    },
+    {
+     "file": "en/51-84370016.txt",
+     "title": "Ken Benson",
+     "pageid": 84370016,
+     "revid": 1377566887,
+     "created": "2026-09-30T01:08:46Z",
+     "sha256": "e5386d28033a1e5880ba1fd8a995de0f6778d3355493bf934c8e840c2cd8af05",
+     "bytes": 3604
+    },
+    {
+     "file": "en/52-84369827.txt",
+     "title": "Ultimate Impact: Reborn",
+     "pageid": 84369827,
+     "revid": 1377563498,
+     "created": "2026-09-30T00:55:03Z",
+     "sha256": "e1ffdaac3f92130a132d968938be583e691463e1691ddad68f450931fd5b8f87",
+     "bytes": 2524
+    },
+    {
+     "file": "en/53-84369678.txt",
+     "title": "Mercedes Roffé",
+     "pageid": 84369678,
+     "revid": 1377561625,
+     "created": "2026-09-30T00:45:43Z",
+     "sha256": "46247ccb2009d180b31202142fc0a0c3e0d7b92735069b1e01d723d76a48f5f1",
+     "bytes": 2612
+    },
+    {
+     "file": "en/54-84369676.txt",
+     "title": "Patagonotothen squamiceps",
+     "pageid": 84369676,
+     "revid": 1377561531,
+     "created": "2026-09-30T00:45:07Z",
+     "sha256": "b8a1772950abda569fd6c412a749f97b721f94de892d38af8ddd1e14b731a64f",
+     "bytes": 3318
+    }
+   ]
+  },
+  "it": {
+   "n_docs": 55,
+   "bytes": 338006,
+   "docs": [
+    {
+     "file": "it/00-11223455.txt",
+     "title": "Sant Ambroeus Football Club",
+     "pageid": 11223455,
+     "revid": 152697621,
+     "created": "2026-09-30T15:40:04Z",
+     "sha256": "8f17fa0e566dba339839df7e9751e5e3620e98724b4c195d7decd9f94c749ae9",
+     "bytes": 6160
+    },
+    {
+     "file": "it/01-11223448.txt",
+     "title": "Invarianza idraulica",
+     "pageid": 11223448,
+     "revid": 152697556,
+     "created": "2026-09-30T15:35:34Z",
+     "sha256": "84257f7b801b6bb983b29aee5128b8bddbc703a1634e96607146b23222de8a12",
+     "bytes": 9540
+    },
+    {
+     "file": "it/02-11223408.txt",
+     "title": "Aramis Gianinazzi",
+     "pageid": 11223408,
+     "revid": 152696850,
+     "created": "2026-09-30T14:42:31Z",
+     "sha256": "bbe982e023210dfdc1c5bc50e79bbddb5545b3ad442e697bf14b3258c2462b37",
+     "bytes": 5903
+    },
+    {
+     "file": "it/03-11223406.txt",
+     "title": "Pramod Bhagat",
+     "pageid": 11223406,
+     "revid": 152696845,
+     "created": "2026-09-30T14:41:32Z",
+     "sha256": "7146e136a30fbe1dcab35ba757997c5415ba91c084e6820ff07fd9d0587273bd",
+     "bytes": 9220
+    },
+    {
+     "file": "it/04-11223370.txt",
+     "title": "Cronologia di Palermo",
+     "pageid": 11223370,
+     "revid": 152696711,
+     "created": "2026-09-30T14:26:57Z",
+     "sha256": "2017ecb74a61fc7e9661a37793bfa60e2472b982a4f790e5f7f0e42e2421eb06",
+     "bytes": 12076
+    },
+    {
+     "file": "it/05-11223294.txt",
+     "title": "Lago Kathleen",
+     "pageid": 11223294,
+     "revid": 152696223,
+     "created": "2026-09-30T13:48:45Z",
+     "sha256": "e27b44ce4c5bd246c6c24c408ad69890f09bd899442d2d2c1992c4baa235461a",
+     "bytes": 3941
+    },
+    {
+     "file": "it/06-11223264.txt",
+     "title": "Tiziana rocca",
+     "pageid": 11223264,
+     "revid": 152695573,
+     "created": "2026-09-30T13:24:12Z",
+     "sha256": "25310a4f8cbb479f3a6e65d439dc7f8b050b62638cf8adbd3e09a065455ef32b",
+     "bytes": 5628
+    },
+    {
+     "file": "it/07-11223261.txt",
+     "title": "Lamberto (filosofo)",
+     "pageid": 11223261,
+     "revid": 152695536,
+     "created": "2026-09-30T13:22:57Z",
+     "sha256": "f2137d3f31249eb4cadb358de56e720c3b50122efd9b3bbbc1b1a67fd99656ee",
+     "bytes": 12137
+    },
+    {
+     "file": "it/08-11223198.txt",
+     "title": "Emergenza radioattiva",
+     "pageid": 11223198,
+     "revid": 152694776,
+     "created": "2026-09-30T12:58:29Z",
+     "sha256": "605809e04fb40c5968addd9e613d41956ca487c18e7536b77d757d80aedabb29",
+     "bytes": 7079
+    },
+    {
+     "file": "it/09-11223188.txt",
+     "title": "Luca Viscusi",
+     "pageid": 11223188,
+     "revid": 152694483,
+     "created": "2026-09-30T12:45:54Z",
+     "sha256": "a7b020b6d6ed0bd75c01223aa2cd6e0166a692552f039fdcefb63047d90b9805",
+     "bytes": 7434
+    },
+    {
+     "file": "it/10-11223165.txt",
+     "title": "Il Cavatore",
+     "pageid": 11223165,
+     "revid": 152694226,
+     "created": "2026-09-30T12:38:22Z",
+     "sha256": "63ae4e40fe7c43dc8467581c139b3bdad63de971908374d16b6b690775043650",
+     "bytes": 5279
+    },
+    {
+     "file": "it/11-11223158.txt",
+     "title": "Tomáš Seidan",
+     "pageid": 11223158,
+     "revid": 152694086,
+     "created": "2026-09-30T12:34:10Z",
+     "sha256": "9207d84c52673080f1c32002a3eea08ae224da79ca52fd9807d8f39ae3a712e5",
+     "bytes": 6117
+    },
+    {
+     "file": "it/12-11223150.txt",
+     "title": "Bertramka",
+     "pageid": 11223150,
+     "revid": 152693771,
+     "created": "2026-09-30T12:24:08Z",
+     "sha256": "772f931e9a60b19913ddd06d3438ce78d15e200c3b5dbd39ce2054e21eac03b6",
+     "bytes": 8723
+    },
+    {
+     "file": "it/13-11223129.txt",
+     "title": "Smíchov",
+     "pageid": 11223129,
+     "revid": 152693176,
+     "created": "2026-09-30T12:03:48Z",
+     "sha256": "30c5e1c7cb95777188a104fe3d4ca9f2d1cd3df14f71602544946b20d30c80b8",
+     "bytes": 10111
+    },
+    {
+     "file": "it/14-11223115.txt",
+     "title": "Justin Ellis (calciatore)",
+     "pageid": 11223115,
+     "revid": 152693071,
+     "created": "2026-09-30T12:00:30Z",
+     "sha256": "a24cdcfc9a1d59b26a76d73545b5bca8e21edd4197611d51120fd51868142465",
+     "bytes": 8064
+    },
+    {
+     "file": "it/15-11223108.txt",
+     "title": "RCA Photophone",
+     "pageid": 11223108,
+     "revid": 152692810,
+     "created": "2026-09-30T11:52:25Z",
+     "sha256": "78f1b06b9fc1dcbc83b4d3381bee22478c88f038557f4348609c23e7814702dc",
+     "bytes": 12152
+    },
+    {
+     "file": "it/16-11223088.txt",
+     "title": "Palazzo Silva-Tarouca",
+     "pageid": 11223088,
+     "revid": 152692289,
+     "created": "2026-09-30T11:28:47Z",
+     "sha256": "755fab0268c149af4fbb1288e37dae85287bf18c7819c1afdb40692f7722c762",
+     "bytes": 6131
+    },
+    {
+     "file": "it/17-11223066.txt",
+     "title": "Palazzo Pachta di Rájov (Celetná 31)",
+     "pageid": 11223066,
+     "revid": 152691757,
+     "created": "2026-09-30T11:07:56Z",
+     "sha256": "7b5664752c30610217ed8ace920b3f523c8ec0b42422dd9caacc8772ba623ba3",
+     "bytes": 5785
+    },
+    {
+     "file": "it/18-11223050.txt",
+     "title": "Uncle Meat (film)",
+     "pageid": 11223050,
+     "revid": 152691582,
+     "created": "2026-09-30T10:58:43Z",
+     "sha256": "c9510584b3ca5a1398fd8c979624599170bc5e64f7acd840bd533d73b672ec96",
+     "bytes": 4398
+    },
+    {
+     "file": "it/19-11223048.txt",
+     "title": "Portheimka",
+     "pageid": 11223048,
+     "revid": 152691546,
+     "created": "2026-09-30T10:55:53Z",
+     "sha256": "24d2debd63a5ad083ce8a08a9b134fe799820db11fe70d2b1101255dfee9b6a9",
+     "bytes": 6707
+    },
+    {
+     "file": "it/20-11223045.txt",
+     "title": "NOUR (serie televisiva)",
+     "pageid": 11223045,
+     "revid": 152691318,
+     "created": "2026-09-30T10:45:25Z",
+     "sha256": "c2a3f80b4dc283c66808909b12d8193536c48c970680df38f0d1582e181250be",
+     "bytes": 4246
+    },
+    {
+     "file": "it/21-11223027.txt",
+     "title": "Villa Amerika",
+     "pageid": 11223027,
+     "revid": 152691202,
+     "created": "2026-09-30T10:38:56Z",
+     "sha256": "1546c3568436c841c6826969d7e7f562187e09f61bbba99b64aafe2d167445d3",
+     "bytes": 6128
+    },
+    {
+     "file": "it/22-11223007.txt",
+     "title": "Mirko Savoretti",
+     "pageid": 11223007,
+     "revid": 152690873,
+     "created": "2026-09-30T10:19:30Z",
+     "sha256": "94ebdd1632888c76782eaaeadcb50eef2db4940332e69d5b0463bec0dcefbb72",
+     "bytes": 5831
+    },
+    {
+     "file": "it/23-11223004.txt",
+     "title": "Siripong Teamarrom",
+     "pageid": 11223004,
+     "revid": 152690853,
+     "created": "2026-09-30T10:17:20Z",
+     "sha256": "c5e71a73ec9c59c23026bba7f7bab2233639163f83bf25bf050898893bf534b5",
+     "bytes": 5210
+    },
+    {
+     "file": "it/24-11223002.txt",
+     "title": "Chiesa di San Bartolomeo (Praga)",
+     "pageid": 11223002,
+     "revid": 152690709,
+     "created": "2026-09-30T10:02:16Z",
+     "sha256": "3491613f33133214cef8256968590a37420e855c70f1e19ff954b30fde929515",
+     "bytes": 5523
+    },
+    {
+     "file": "it/25-11222987.txt",
+     "title": "Dominic Zvada",
+     "pageid": 11222987,
+     "revid": 152690538,
+     "created": "2026-09-30T09:54:02Z",
+     "sha256": "67c29fee0e1e16abbea0d41d92b01ff8af824962d821e316289b0d6114d2c23f",
+     "bytes": 3430
+    },
+    {
+     "file": "it/26-11222981.txt",
+     "title": "Chiesa di San Tommaso (Praga)",
+     "pageid": 11222981,
+     "revid": 152690406,
+     "created": "2026-09-30T09:48:49Z",
+     "sha256": "3c75acb969f159d4a76d182f00d6606cd2022e9e5d90a3d271215e0cda3f5c1d",
+     "bytes": 7308
+    },
+    {
+     "file": "it/27-11222979.txt",
+     "title": "C.T.M.A. Voyager 2",
+     "pageid": 11222979,
+     "revid": 152690241,
+     "created": "2026-09-30T09:41:44Z",
+     "sha256": "54b899b9a9f361159e0fadc916ac17674dcb75deeda4b457f1b0398fad772043",
+     "bytes": 3911
+    },
+    {
+     "file": "it/28-11222958.txt",
+     "title": "Esmei Anne-Marcelle Diombo",
+     "pageid": 11222958,
+     "revid": 152689989,
+     "created": "2026-09-30T09:32:01Z",
+     "sha256": "828f68a93112768e826f1d214573e4f0367e64414dc548ff83c4c8e2a5e3e954",
+     "bytes": 3851
+    },
+    {
+     "file": "it/29-11222957.txt",
+     "title": "Chiesa di San Giovanni Nepomuceno (Hradčany)",
+     "pageid": 11222957,
+     "revid": 152689914,
+     "created": "2026-09-30T09:28:23Z",
+     "sha256": "c9b02b59c6a44e37c2a3c8b95264bf35f0efed12fc5511adad3ab94a9f0e7a60",
+     "bytes": 5359
+    },
+    {
+     "file": "it/30-11222956.txt",
+     "title": "Chiesa dei Santi Giacomo e Andrea",
+     "pageid": 11222956,
+     "revid": 152689865,
+     "created": "2026-09-30T09:25:14Z",
+     "sha256": "183981a411592845708f9fbcac0910ed456743a82f4d801873858bdb532b5bc9",
+     "bytes": 3622
+    },
+    {
+     "file": "it/31-11222938.txt",
+     "title": "Mauro Roggero",
+     "pageid": 11222938,
+     "revid": 152689586,
+     "created": "2026-09-30T09:12:17Z",
+     "sha256": "eaba51a2488c619755584de2aa80fc0ba29d5543148ab9bc0469dc812fad360f",
+     "bytes": 6361
+    },
+    {
+     "file": "it/32-11222909.txt",
+     "title": "Invalidovna (Praga)",
+     "pageid": 11222909,
+     "revid": 152688815,
+     "created": "2026-09-30T08:38:51Z",
+     "sha256": "c4fa3daaaec866b76483c7989861d42ca4863810a3cecbc239df687c10402713",
+     "bytes": 8023
+    },
+    {
+     "file": "it/33-11222905.txt",
+     "title": "Alfredo Malagodi",
+     "pageid": 11222905,
+     "revid": 152688651,
+     "created": "2026-09-30T08:32:23Z",
+     "sha256": "5a3e8afceb4771fd8c57485ac5ff778b8bb8c720516f3fe15ab4e19f9ead3f87",
+     "bytes": 4226
+    },
+    {
+     "file": "it/34-11222862.txt",
+     "title": "Luca Franzetti",
+     "pageid": 11222862,
+     "revid": 152688026,
+     "created": "2026-09-30T07:49:43Z",
+     "sha256": "ad5d8c6b5da4ffe7354fcac95a41d7883baa04611a57cc7be76cf3c0fb19c74c",
+     "bytes": 12372
+    },
+    {
+     "file": "it/35-11222805.txt",
+     "title": "Caterina luciano",
+     "pageid": 11222805,
+     "revid": 152687098,
+     "created": "2026-09-30T07:09:46Z",
+     "sha256": "03be013ecebdb76128b94d5cbe97d24269c9e5c50a6b6aad6e0b809a0b8319e2",
+     "bytes": 5549
+    },
+    {
+     "file": "it/36-11222804.txt",
+     "title": "Gardnerina",
+     "pageid": 11222804,
+     "revid": 152687087,
+     "created": "2026-09-30T07:09:24Z",
+     "sha256": "96c71d089174d74004cf9cdb68660ce94c4ff7fc49e66bd64a9d5ec8a8452569",
+     "bytes": 7456
+    },
+    {
+     "file": "it/37-11222740.txt",
+     "title": "Candace Nelson",
+     "pageid": 11222740,
+     "revid": 152685912,
+     "created": "2026-09-30T04:39:01Z",
+     "sha256": "b949723b72f42084f8f46d7c89c3bf6545ffee2de4e9755e960fd1200f4bbdf0",
+     "bytes": 4062
+    },
+    {
+     "file": "it/38-11222667.txt",
+     "title": "Battaglia di Burton Bridge",
+     "pageid": 11222667,
+     "revid": 152685269,
+     "created": "2026-09-30T00:44:47Z",
+     "sha256": "4854461d05784b4f6bf7c3db66646813dc04fc5c6a3bdb2ef9de1d9e5060019e",
+     "bytes": 3040
+    },
+    {
+     "file": "it/39-11222609.txt",
+     "title": "Leonardo Mourglia",
+     "pageid": 11222609,
+     "revid": 152684543,
+     "created": "2026-09-29T22:35:43Z",
+     "sha256": "8269f0ef91e13418d8a97d95f882a2173d9d1ea38a944ff80d83e252f0f3041a",
+     "bytes": 5105
+    },
+    {
+     "file": "it/40-11222532.txt",
+     "title": "Assemblea di Natale del 1888",
+     "pageid": 11222532,
+     "revid": 152683601,
+     "created": "2026-09-29T21:17:05Z",
+     "sha256": "d818d3e1a1552fe5f190496b93edb79e5e7b3b0af7a7125bb364b7faaed375c8",
+     "bytes": 7587
+    },
+    {
+     "file": "it/41-11222495.txt",
+     "title": "Micky Sébastian",
+     "pageid": 11222495,
+     "revid": 152683030,
+     "created": "2026-09-29T20:37:21Z",
+     "sha256": "848f09e31a2e9fefb4575400b7c49f94903d352130079218f06377d7a20dc022",
+     "bytes": 5026
+    },
+    {
+     "file": "it/42-11222472.txt",
+     "title": "Başçavuş",
+     "pageid": 11222472,
+     "revid": 152682809,
+     "created": "2026-09-29T20:15:36Z",
+     "sha256": "f12f1a926de3f38c00b8936e660e02a00f082daba18b26e789b694da502564fb",
+     "bytes": 3408
+    },
+    {
+     "file": "it/43-11222448.txt",
+     "title": "Timo Cavelius",
+     "pageid": 11222448,
+     "revid": 152682552,
+     "created": "2026-09-29T19:49:39Z",
+     "sha256": "6535af66424c3abdd1202e1fbcaf2998ec5055fbf35e2646e7ed6522ad179df7",
+     "bytes": 2894
+    },
+    {
+     "file": "it/44-11222438.txt",
+     "title": "Groupe Holder",
+     "pageid": 11222438,
+     "revid": 152682412,
+     "created": "2026-09-29T19:35:27Z",
+     "sha256": "46565fa39ffb6230cceffc3916df0a8c757426787958399e21810086aab0a64b",
+     "bytes": 4278
+    },
+    {
+     "file": "it/45-11222423.txt",
+     "title": "Chantal Pegolo",
+     "pageid": 11222423,
+     "revid": 152682259,
+     "created": "2026-09-29T19:20:27Z",
+     "sha256": "3b1d0531aa6489af217bdefee28ec1e20cc48ad9e33a559788c97bb3aa5e8ad2",
+     "bytes": 3900
+    },
+    {
+     "file": "it/46-11222418.txt",
+     "title": "Maynard Harrison Smith",
+     "pageid": 11222418,
+     "revid": 152682216,
+     "created": "2026-09-29T19:17:07Z",
+     "sha256": "32a062811b91da3e37416f54a8b9483dd901ce95baacc1b8832f1532036effc2",
+     "bytes": 12059
+    },
+    {
+     "file": "it/47-11222394.txt",
+     "title": "Chiesa san pietro siracusa",
+     "pageid": 11222394,
+     "revid": 152681873,
+     "created": "2026-09-29T18:53:20Z",
+     "sha256": "282fbaababc67796c7d5320332130ad2684d212b2cf28000b9ef7af1148a87f5",
+     "bytes": 4655
+    },
+    {
+     "file": "it/48-11222366.txt",
+     "title": "(528381) 2008 ST291",
+     "pageid": 11222366,
+     "revid": 152681506,
+     "created": "2026-09-29T18:26:50Z",
+     "sha256": "29090ea58ab45ca2613218fdc8a58bf14b33ed9f26be49f14c781d81a637a831",
+     "bytes": 2607
+    },
+    {
+     "file": "it/49-11222316.txt",
+     "title": "Hary Susanto",
+     "pageid": 11222316,
+     "revid": 152681007,
+     "created": "2026-09-29T17:37:47Z",
+     "sha256": "3e5b1106b552c32fce24307077b3b0c212ee83183d6c73aec2148627d95b59f6",
+     "bytes": 5557
+    },
+    {
+     "file": "it/50-11222312.txt",
+     "title": "Gran Premio del Bahrein 2026",
+     "pageid": 11222312,
+     "revid": 152680865,
+     "created": "2026-09-29T17:24:29Z",
+     "sha256": "49e4c39f06e1e67d7da1a4a9dbabfe2c3affb01a7907cc68e521148d60e2f035",
+     "bytes": 4819
+    },
+    {
+     "file": "it/51-11222299.txt",
+     "title": "Caye Caulker",
+     "pageid": 11222299,
+     "revid": 152680803,
+     "created": "2026-09-29T17:20:11Z",
+     "sha256": "7c4783a596e3878394b11dfc35d6202d338520c5c930c88ceff44306c930cc9f",
+     "bytes": 3454
+    },
+    {
+     "file": "it/52-11222295.txt",
+     "title": "Paul (azienda)",
+     "pageid": 11222295,
+     "revid": 152680699,
+     "created": "2026-09-29T17:12:11Z",
+     "sha256": "028b05f3fa9f30eedde8bf21d125d77926276da958a140ae8d87c58d071eb9b4",
+     "bytes": 5961
+    },
+    {
+     "file": "it/53-11222214.txt",
+     "title": "Episodi di Ludwig (prima stagione)",
+     "pageid": 11222214,
+     "revid": 152679753,
+     "created": "2026-09-29T16:07:18Z",
+     "sha256": "e21dee8a0e0c7766d87c8296ff4944d102e1a41d9374b13edd712af13e003149",
+     "bytes": 5503
+    },
+    {
+     "file": "it/54-11222197.txt",
+     "title": "Gaia Segato",
+     "pageid": 11222197,
+     "revid": 152679642,
+     "created": "2026-09-29T15:59:09Z",
+     "sha256": "67dccfb3e93a1ebce5406f2a8b2c3bc6730e88abb08f7372b9e8462930be09e6",
+     "bytes": 3100
+    }
+   ]
+  },
+  "es": {
+   "n_docs": 55,
+   "bytes": 325198,
+   "docs": [
+    {
+     "file": "es/00-11610473.txt",
+     "title": "Ateneo de la Sociedad Rural Argentina",
+     "pageid": 11610473,
+     "revid": 175597131,
+     "created": "2026-09-30T15:26:23Z",
+     "sha256": "5f69ba4d45c58cf8d6fad57c93dbd362a5c44525a14a286e4ed103bd1c4e2f07",
+     "bytes": 6993
+    },
+    {
+     "file": "es/01-11610470.txt",
+     "title": "Ricardo carreira",
+     "pageid": 11610470,
+     "revid": 175597118,
+     "created": "2026-09-30T15:24:42Z",
+     "sha256": "c506d60d79e234f4484b5d6ca2427e0676dea489e9b9b1149b84a2e3f275bb5e",
+     "bytes": 10230
+    },
+    {
+     "file": "es/02-11610469.txt",
+     "title": "Bachilleres de la Universidad de Guadalajara",
+     "pageid": 11610469,
+     "revid": 175597085,
+     "created": "2026-09-30T15:21:17Z",
+     "sha256": "76ff9b1ded4ae2d985e7d872b77ed2d15de446c63916010a9ff7480df03597a4",
+     "bytes": 6766
+    },
+    {
+     "file": "es/03-11610445.txt",
+     "title": "Vuelo 1073 de Flydubai",
+     "pageid": 11610445,
+     "revid": 175596677,
+     "created": "2026-09-30T14:38:31Z",
+     "sha256": "87db2134fc8052c3498c69e99b7b00ecf9837313102414ec0d6a579c5b3debfa",
+     "bytes": 3060
+    },
+    {
+     "file": "es/04-11610424.txt",
+     "title": "Galaxy AI",
+     "pageid": 11610424,
+     "revid": 175596424,
+     "created": "2026-09-30T14:16:05Z",
+     "sha256": "c3fdc0fe7c46da79ca7fd11ef1d4b67d2773b6785eee74a1043c0b1815297ef7",
+     "bytes": 6696
+    },
+    {
+     "file": "es/05-11610410.txt",
+     "title": "Terremoto de Fez de 1624",
+     "pageid": 11610410,
+     "revid": 175596362,
+     "created": "2026-09-30T14:11:02Z",
+     "sha256": "22f1c6ab817c98d6bcfc3f65102960c2b40f7c96909b6bdedd0ec5a5984f8e66",
+     "bytes": 2892
+    },
+    {
+     "file": "es/06-11610409.txt",
+     "title": "Leninade",
+     "pageid": 11610409,
+     "revid": 175596352,
+     "created": "2026-09-30T14:10:04Z",
+     "sha256": "d2e97ffbe25eb26917c857ec661cc30bd867086e3c28832ac1f22ac863ba3d49",
+     "bytes": 3010
+    },
+    {
+     "file": "es/07-11610365.txt",
+     "title": "José Luis de Diego",
+     "pageid": 11610365,
+     "revid": 175595633,
+     "created": "2026-09-30T12:47:20Z",
+     "sha256": "8e89a8b3b3c090ebb55ed15ea7673e0e181cb531571cece87664b3c8181b95ae",
+     "bytes": 7084
+    },
+    {
+     "file": "es/08-11610357.txt",
+     "title": "Given Imaging",
+     "pageid": 11610357,
+     "revid": 175595516,
+     "created": "2026-09-30T12:33:08Z",
+     "sha256": "684b286bf1400d5703273d564679a0f6e613bed07591fbd9163ebab7412e257a",
+     "bytes": 3597
+    },
+    {
+     "file": "es/09-11610342.txt",
+     "title": "Enzo Paci",
+     "pageid": 11610342,
+     "revid": 175595121,
+     "created": "2026-09-30T11:49:03Z",
+     "sha256": "d153e52e8d1fa7167143f2b9f82061b5c99db4ca24b826cf1821f6395b83e908",
+     "bytes": 12320
+    },
+    {
+     "file": "es/10-11610324.txt",
+     "title": "Paula O. Jakobi",
+     "pageid": 11610324,
+     "revid": 175594802,
+     "created": "2026-09-30T11:14:18Z",
+     "sha256": "63cf6bd4a710d4b78c51ecedef39e8b83cf21158eeb7208901b41fb831b1ef90",
+     "bytes": 2783
+    },
+    {
+     "file": "es/11-11610296.txt",
+     "title": "Cristo crucificado (cementerio de San Francisco)",
+     "pageid": 11610296,
+     "revid": 175594214,
+     "created": "2026-09-30T10:03:38Z",
+     "sha256": "4d8b6b20f460fe97515fa89a7f03ed3a9b9fccca74e886c1383568114013afec",
+     "bytes": 12277
+    },
+    {
+     "file": "es/12-11610294.txt",
+     "title": "Juanita Groisman",
+     "pageid": 11610294,
+     "revid": 175594198,
+     "created": "2026-09-30T10:02:20Z",
+     "sha256": "268c90cf424a4c7b145db091203e58f3abfb47152a3a216d2a73934f218e06db",
+     "bytes": 5570
+    },
+    {
+     "file": "es/13-11610258.txt",
+     "title": "Abdallah Al-Khatib",
+     "pageid": 11610258,
+     "revid": 175593705,
+     "created": "2026-09-30T09:04:59Z",
+     "sha256": "995ad0a43d42b250c79d38e799d6b0ff625fe555b9a96a3077ea277ed3308a41",
+     "bytes": 3554
+    },
+    {
+     "file": "es/14-11610252.txt",
+     "title": "Turning Point Suffragist Memorial",
+     "pageid": 11610252,
+     "revid": 175593633,
+     "created": "2026-09-30T08:57:04Z",
+     "sha256": "ff214a5dc123f6d5243793b2b7c6ea64fb01a799e16e8e947853397405c01d0a",
+     "bytes": 3333
+    },
+    {
+     "file": "es/15-11610243.txt",
+     "title": "Gertrude Crocker",
+     "pageid": 11610243,
+     "revid": 175593349,
+     "created": "2026-09-30T08:16:52Z",
+     "sha256": "059ef98d50f96a398dfc43bd5ea5d49923aef80ce2e69cbadecdb7bba99011a0",
+     "bytes": 3137
+    },
+    {
+     "file": "es/16-11610237.txt",
+     "title": "Jexs (youtuber)",
+     "pageid": 11610237,
+     "revid": 175593199,
+     "created": "2026-09-30T07:56:46Z",
+     "sha256": "86098e7eddc31bca4fa218bf0c408d49de4a3f9e49c6eaecb6c951d5e065419a",
+     "bytes": 4268
+    },
+    {
+     "file": "es/17-11610236.txt",
+     "title": "Oscar Wambrauw",
+     "pageid": 11610236,
+     "revid": 175593187,
+     "created": "2026-09-30T07:54:53Z",
+     "sha256": "58a740639cb61c92d49b3a7ed61e26c526dbeb870be80a59ead64448b842c2db",
+     "bytes": 5242
+    },
+    {
+     "file": "es/18-11610227.txt",
+     "title": "Liga Mexicana del Pacífico 2026-27",
+     "pageid": 11610227,
+     "revid": 175592855,
+     "created": "2026-09-30T07:22:55Z",
+     "sha256": "a9efd697e0b690e8319bb945a65cd113e9e2f2d2eb432f26c6f37e4217b7d93a",
+     "bytes": 4164
+    },
+    {
+     "file": "es/19-11610224.txt",
+     "title": "Escoles Fonlladosa",
+     "pageid": 11610224,
+     "revid": 175592793,
+     "created": "2026-09-30T07:13:11Z",
+     "sha256": "cc70b757a4b3af0e2f7ace52ce7a6053d963c33e681bb0c3d04ab3c8bf882525",
+     "bytes": 3981
+    },
+    {
+     "file": "es/20-11610222.txt",
+     "title": "Mary A. Nolan",
+     "pageid": 11610222,
+     "revid": 175592767,
+     "created": "2026-09-30T07:09:46Z",
+     "sha256": "f1ff031c74e9a60f35a6c89ca857b92250ad7d426dc05bc29a439505b7fc51c9",
+     "bytes": 4462
+    },
+    {
+     "file": "es/21-11610211.txt",
+     "title": "Corte de Montblanch (1333)",
+     "pageid": 11610211,
+     "revid": 175592536,
+     "created": "2026-09-30T06:41:55Z",
+     "sha256": "ce23af8f369749624710bef0dceacf2eb3134693fe7c0f318db0138346119fd9",
+     "bytes": 3095
+    },
+    {
+     "file": "es/22-11610210.txt",
+     "title": "Cristina Capdevila Aguilera",
+     "pageid": 11610210,
+     "revid": 175592531,
+     "created": "2026-09-30T06:41:14Z",
+     "sha256": "099acc764b76f921e49ddd2a1820ce4047818efb2f5e9d4b3d0febb7e047d64d",
+     "bytes": 12255
+    },
+    {
+     "file": "es/23-11610204.txt",
+     "title": "Game Night (Brooklyn Nine-Nine)",
+     "pageid": 11610204,
+     "revid": 175592475,
+     "created": "2026-09-30T06:35:12Z",
+     "sha256": "7b1ccfb54629ac8feb7fb73724f3ada5fef7cf87dc9920ea75d1a0226b51d336",
+     "bytes": 6171
+    },
+    {
+     "file": "es/24-11610194.txt",
+     "title": "John La Montagne",
+     "pageid": 11610194,
+     "revid": 175592247,
+     "created": "2026-09-30T05:57:28Z",
+     "sha256": "c373e5de9d67dc1fe4b9fcad7aea1e2501fd0c01aa776f91f28f7cf533fee433",
+     "bytes": 3614
+    },
+    {
+     "file": "es/25-11610191.txt",
+     "title": "Someone Hertz",
+     "pageid": 11610191,
+     "revid": 175592171,
+     "created": "2026-09-30T05:44:59Z",
+     "sha256": "8a52c2094201e89c549a0ef0dda4301b635ca90512f9cc36eb9b09515527a8ed",
+     "bytes": 3766
+    },
+    {
+     "file": "es/26-11610188.txt",
+     "title": "Walther Enkerlin",
+     "pageid": 11610188,
+     "revid": 175592095,
+     "created": "2026-09-30T05:32:49Z",
+     "sha256": "46a2dea1526130d27b2e229aa67db458c89b3ea585f39b9130741c420dc02ab3",
+     "bytes": 3003
+    },
+    {
+     "file": "es/27-11610187.txt",
+     "title": "Bombz Zapata",
+     "pageid": 11610187,
+     "revid": 175592094,
+     "created": "2026-09-30T05:32:39Z",
+     "sha256": "4394950c78c285a9f529165adc466b6ac8238aa0ba1f651847d55537527a7323",
+     "bytes": 3685
+    },
+    {
+     "file": "es/28-11610184.txt",
+     "title": "Senado de Monferrato",
+     "pageid": 11610184,
+     "revid": 175591996,
+     "created": "2026-09-30T05:11:42Z",
+     "sha256": "4df1f3a72ba5a1b5b102ff3e8f4493c83b8ab0549a6e1e3f9ab9d31aed910f99",
+     "bytes": 4083
+    },
+    {
+     "file": "es/29-11610168.txt",
+     "title": "Corte de Tortosa (1331)",
+     "pageid": 11610168,
+     "revid": 175591707,
+     "created": "2026-09-30T04:26:09Z",
+     "sha256": "848f6b66f8dfa2bfe8d6ce8994f090fd1342667b7cd9aae3408da6e9d4f066a9",
+     "bytes": 3499
+    },
+    {
+     "file": "es/30-11610162.txt",
+     "title": "Cristina Lombana",
+     "pageid": 11610162,
+     "revid": 175591649,
+     "created": "2026-09-30T04:16:28Z",
+     "sha256": "8f21688e94a5af3aed0c2b9edec759296ee566d6c9f0512b159c07dcc680012e",
+     "bytes": 6885
+    },
+    {
+     "file": "es/31-11610156.txt",
+     "title": "Fotografía de Lionel Messi y Lamine Yamal de 2007",
+     "pageid": 11610156,
+     "revid": 175591462,
+     "created": "2026-09-30T03:52:23Z",
+     "sha256": "0426d5de02c8c4042a6c251bd94f5e4cd74a77eb5d21c2a393c21b05892e938a",
+     "bytes": 11423
+    },
+    {
+     "file": "es/32-11610152.txt",
+     "title": "Eduardo Yong Motta",
+     "pageid": 11610152,
+     "revid": 175591384,
+     "created": "2026-09-30T03:44:33Z",
+     "sha256": "91c0305c23229515ae8c02c85665f5560ec8d893d9cf6cd5218c705e3388f8d3",
+     "bytes": 3812
+    },
+    {
+     "file": "es/33-11610142.txt",
+     "title": "Movimiento Black Power",
+     "pageid": 11610142,
+     "revid": 175591255,
+     "created": "2026-09-30T03:32:21Z",
+     "sha256": "098b5d5111072f3ee11fee994fbb9fc099c60946bab3f91d40d57130fe1d47bc",
+     "bytes": 12298
+    },
+    {
+     "file": "es/34-11610135.txt",
+     "title": "Bernard Krause",
+     "pageid": 11610135,
+     "revid": 175591111,
+     "created": "2026-09-30T03:17:20Z",
+     "sha256": "9b29e9eb9b938a6b5bcc2530501501768898fa7b9e1caf13fe2d6943c4e3fe10",
+     "bytes": 12280
+    },
+    {
+     "file": "es/35-11610133.txt",
+     "title": "LIII Festival Internacional de la Cultura de Boyacá 2026",
+     "pageid": 11610133,
+     "revid": 175591067,
+     "created": "2026-09-30T03:10:23Z",
+     "sha256": "6bdbca8f9fef9d978ab5511ec5bde32b7c018bad5bc5bce0eb2a1877693a4a5c",
+     "bytes": 6610
+    },
+    {
+     "file": "es/36-11610111.txt",
+     "title": "Oswaldo Pajares",
+     "pageid": 11610111,
+     "revid": 175590541,
+     "created": "2026-09-30T02:16:49Z",
+     "sha256": "beaed01c3d98e9c5f29f1979944ad6934d647542470ecc3856f492054e5e9391",
+     "bytes": 5979
+    },
+    {
+     "file": "es/37-11610108.txt",
+     "title": "Francisco Benedito",
+     "pageid": 11610108,
+     "revid": 175590471,
+     "created": "2026-09-30T02:09:57Z",
+     "sha256": "453e746ebb973829b430f6463df9f2898c994d37d7a47477a22e1ba6c41257ed",
+     "bytes": 3020
+    },
+    {
+     "file": "es/38-11610088.txt",
+     "title": "José Barbosa Gonçalves",
+     "pageid": 11610088,
+     "revid": 175589742,
+     "created": "2026-09-30T00:52:01Z",
+     "sha256": "2c94bc860f236f710c8c36bf190abb70413457168b4afe249fde4226047bec01",
+     "bytes": 4972
+    },
+    {
+     "file": "es/39-11610085.txt",
+     "title": "UPORFA",
+     "pageid": 11610085,
+     "revid": 175589637,
+     "created": "2026-09-30T00:41:53Z",
+     "sha256": "28451c72e610bceb210a6cd0a23cd7cbad839b6adbb613d27127a050cbf5c195",
+     "bytes": 4364
+    },
+    {
+     "file": "es/40-11610079.txt",
+     "title": "Feminicidio de Yuliana Samboní",
+     "pageid": 11610079,
+     "revid": 175589560,
+     "created": "2026-09-30T00:31:38Z",
+     "sha256": "c1e2ddf1ded6fa2e4729ddb9a2d3f573d015956e04b9c42c4636c3098ab390fc",
+     "bytes": 10192
+    },
+    {
+     "file": "es/41-11610063.txt",
+     "title": "Francisco Antônio de Salles",
+     "pageid": 11610063,
+     "revid": 175589194,
+     "created": "2026-09-29T23:59:57Z",
+     "sha256": "f35512c6f0557cfadaf1ead18ed2df82c35933e3a1be1a760816894fad00262a",
+     "bytes": 3138
+    },
+    {
+     "file": "es/42-11610060.txt",
+     "title": "Depiladora electrica",
+     "pageid": 11610060,
+     "revid": 175589189,
+     "created": "2026-09-29T23:59:54Z",
+     "sha256": "67e56d31f8d2a5886a5000e304db17a631fc7517a88da06700f9c526935b67f7",
+     "bytes": 4687
+    },
+    {
+     "file": "es/43-11610055.txt",
+     "title": "Isidoro Ngei Ko Lat",
+     "pageid": 11610055,
+     "revid": 175589019,
+     "created": "2026-09-29T23:45:07Z",
+     "sha256": "7f7367060e1491b64a1cd9afca971b4f65ce08d30060b09671ac5005937d5554",
+     "bytes": 3800
+    },
+    {
+     "file": "es/44-11610044.txt",
+     "title": "Los Concretos",
+     "pageid": 11610044,
+     "revid": 175588761,
+     "created": "2026-09-29T23:22:37Z",
+     "sha256": "038609bdd15703dc5d9724c41544a88b55211349be8cd53682d9bc7da0ae1f69",
+     "bytes": 3063
+    },
+    {
+     "file": "es/45-11610043.txt",
+     "title": "Conflicto de la Administración Trump con los medios de comunicación",
+     "pageid": 11610043,
+     "revid": 175588757,
+     "created": "2026-09-29T23:22:10Z",
+     "sha256": "6d3d112dec63ea317d0b44827380592aeb72316b2e8f399620aab09eca44fd21",
+     "bytes": 12323
+    },
+    {
+     "file": "es/46-11610039.txt",
+     "title": "Nessa Barrett",
+     "pageid": 11610039,
+     "revid": 175588680,
+     "created": "2026-09-29T23:14:12Z",
+     "sha256": "65184d04ebb65b5844aad0d48c784ac788e453d395685ba14001a9dd82a01003",
+     "bytes": 8235
+    },
+    {
+     "file": "es/47-11610037.txt",
+     "title": "Teoría de modelos abstractos",
+     "pageid": 11610037,
+     "revid": 175588601,
+     "created": "2026-09-29T23:02:24Z",
+     "sha256": "92641c4f120da692604771bb9a8fda0a332045bced9e928d096b05f1a3d7b1c5",
+     "bytes": 8637
+    },
+    {
+     "file": "es/48-11610030.txt",
+     "title": "Cris Lora",
+     "pageid": 11610030,
+     "revid": 175588312,
+     "created": "2026-09-29T22:35:55Z",
+     "sha256": "f7eb12c47b99e3ad3d4c3dd1659b82ff2658959c3ef4fd8e66c45ad0283ec2f0",
+     "bytes": 4120
+    },
+    {
+     "file": "es/49-11610024.txt",
+     "title": "Lida Uquillas",
+     "pageid": 11610024,
+     "revid": 175588249,
+     "created": "2026-09-29T22:29:59Z",
+     "sha256": "71f841ce281d8d176c8d8529333bb59cb5d6ca8612459d9bee463b2d574a9850",
+     "bytes": 3315
+    },
+    {
+     "file": "es/50-11610016.txt",
+     "title": "Charles Criswell King",
+     "pageid": 11610016,
+     "revid": 175588074,
+     "created": "2026-09-29T22:18:02Z",
+     "sha256": "2596205d1bbaf0e3d5f33190a496ba8413bccbcea1dc847d69f75bd5034176ca",
+     "bytes": 7428
+    },
+    {
+     "file": "es/51-11610007.txt",
+     "title": "Mausoleo de Reza Shah",
+     "pageid": 11610007,
+     "revid": 175587857,
+     "created": "2026-09-29T22:02:55Z",
+     "sha256": "819ffd375b5804a55fb8607c7d00de79ea5ed306ab52dbe0f32e94868dc272ac",
+     "bytes": 8118
+    },
+    {
+     "file": "es/52-11610003.txt",
+     "title": "Federación Santiago Watt",
+     "pageid": 11610003,
+     "revid": 175587812,
+     "created": "2026-09-29T21:59:47Z",
+     "sha256": "389d1f92162328fa5cb5e327842f71399910cdb68dc9e2d70b472161f66679e3",
+     "bytes": 2568
+    },
+    {
+     "file": "es/53-11610002.txt",
+     "title": "Unabomber (Película)",
+     "pageid": 11610002,
+     "revid": 175587776,
+     "created": "2026-09-29T21:56:20Z",
+     "sha256": "fe032e2c159b5531cba8fa59d5b0ba58c8e0a3f4512cf09c2f9b4d1c537241d7",
+     "bytes": 3913
+    },
+    {
+     "file": "es/54-11609999.txt",
+     "title": "Katherina Bach",
+     "pageid": 11609999,
+     "revid": 175587733,
+     "created": "2026-09-29T21:53:37Z",
+     "sha256": "4972e57c72f462febef68528975c8381615d19455aabda6b912d5d339cfef541",
+     "bytes": 11428
+    }
+   ]
+  },
+  "fr": {
+   "n_docs": 55,
+   "bytes": 321369,
+   "docs": [
+    {
+     "file": "fr/00-17638377.txt",
+     "title": "Intégrité électorale",
+     "pageid": 17638377,
+     "revid": 239945805,
+     "created": "2026-09-30T15:39:47Z",
+     "sha256": "b602f21430d157771ff469a2d173beafbbcd2f21a3c98cc4470a3f16fe951c1b",
+     "bytes": 5100
+    },
+    {
+     "file": "fr/01-17638375.txt",
+     "title": "Yuzuriha",
+     "pageid": 17638375,
+     "revid": 239945759,
+     "created": "2026-09-30T15:38:18Z",
+     "sha256": "7e3ff3fb95dc07f52d6c74293c3d391cb42434a746f69422a366ede490cb2461",
+     "bytes": 3822
+    },
+    {
+     "file": "fr/02-17638293.txt",
+     "title": "Saladares del Guadalentín",
+     "pageid": 17638293,
+     "revid": 239944673,
+     "created": "2026-09-30T15:01:27Z",
+     "sha256": "bf2d8872e98e375e7d4fe3dfbf5bf873dbe28eca652dcf86b6b52e40fc738e56",
+     "bytes": 4061
+    },
+    {
+     "file": "fr/03-17638280.txt",
+     "title": "Coupe continentale de hockey sur glace 2026-2027",
+     "pageid": 17638280,
+     "revid": 239944577,
+     "created": "2026-09-30T14:57:39Z",
+     "sha256": "f8a73135b83945e7b8cdd4c8ba36c0a93cd27abd96a8013bb90b4eb86299ad91",
+     "bytes": 2708
+    },
+    {
+     "file": "fr/04-17638275.txt",
+     "title": "Ingeborg Ter Laak",
+     "pageid": 17638275,
+     "revid": 239944521,
+     "created": "2026-09-30T14:55:17Z",
+     "sha256": "d3ae6513a7fca1cf8d8aa3ea3a33581878b1d0b201e075f871aeae045d2a35f3",
+     "bytes": 2964
+    },
+    {
+     "file": "fr/05-17638264.txt",
+     "title": "Illibuck",
+     "pageid": 17638264,
+     "revid": 239944440,
+     "created": "2026-09-30T14:51:55Z",
+     "sha256": "c671448f440f529689c9ace752d57de5bdb758ba37c2ffabbae30c1074e7dced",
+     "bytes": 3450
+    },
+    {
+     "file": "fr/06-17638237.txt",
+     "title": "Sander Smit",
+     "pageid": 17638237,
+     "revid": 239944222,
+     "created": "2026-09-30T14:43:24Z",
+     "sha256": "c9367c97963b050ab254a5629f9ba0fdaa09ba6ecae4af021b9eec4ae8fa9eba",
+     "bytes": 3235
+    },
+    {
+     "file": "fr/07-17638191.txt",
+     "title": "Bataille de Marj al-Saffar (1126)",
+     "pageid": 17638191,
+     "revid": 239943748,
+     "created": "2026-09-30T14:25:26Z",
+     "sha256": "d9f1bc97a3ca29c1f21106f1cb522f86acc931b1ab7a8c01c4a21d47cf9c4f28",
+     "bytes": 2965
+    },
+    {
+     "file": "fr/08-17638174.txt",
+     "title": "Château d Abzac",
+     "pageid": 17638174,
+     "revid": 239943495,
+     "created": "2026-09-30T14:14:01Z",
+     "sha256": "f3851c5b4e9ba1f84a4f143fadc2ea915722cf5a30dda911ad9705bde51ef818",
+     "bytes": 8668
+    },
+    {
+     "file": "fr/09-17638173.txt",
+     "title": "Vol Flydubai 1073",
+     "pageid": 17638173,
+     "revid": 239943484,
+     "created": "2026-09-30T14:13:33Z",
+     "sha256": "14ca782e0adf5a4fd64f010f9af0a2ee4885ff08def702b07a6963dba53077ab",
+     "bytes": 3863
+    },
+    {
+     "file": "fr/10-17638134.txt",
+     "title": "Thomas Coffin",
+     "pageid": 17638134,
+     "revid": 239942859,
+     "created": "2026-09-30T13:52:52Z",
+     "sha256": "58b671dcec76317ef3068a45242bf831b42c0aa0b0e0ed154cbbda572b3ffdae",
+     "bytes": 2608
+    },
+    {
+     "file": "fr/11-17638009.txt",
+     "title": "Fishbourne (Sussex de l'Ouest)",
+     "pageid": 17638009,
+     "revid": 239941651,
+     "created": "2026-09-30T13:10:01Z",
+     "sha256": "122ecae90f9acda0a966818dabb273f4843e6f0cd8bc23e99d90dad6e44940d9",
+     "bytes": 4083
+    },
+    {
+     "file": "fr/12-17637934.txt",
+     "title": "Lachie Miller",
+     "pageid": 17637934,
+     "revid": 239940998,
+     "created": "2026-09-30T12:46:22Z",
+     "sha256": "6618c06ed5364ce28ffcfd085953911b035fb29d4cef7a38d4617618f45c92f8",
+     "bytes": 9951
+    },
+    {
+     "file": "fr/13-17637923.txt",
+     "title": "Paul-Emmanuel Loiret",
+     "pageid": 17637923,
+     "revid": 239940830,
+     "created": "2026-09-30T12:40:26Z",
+     "sha256": "f1fde76a12909c9884cfafc1e6fdc1a87c2bed7e87a29332102a49d9687866fe",
+     "bytes": 11489
+    },
+    {
+     "file": "fr/14-17637921.txt",
+     "title": "Fabasoft",
+     "pageid": 17637921,
+     "revid": 239940794,
+     "created": "2026-09-30T12:39:01Z",
+     "sha256": "73f83ec57d94e1d0415ff3860859c9df4a0ebbe8cad2c7678dcfbf4fc9885f35",
+     "bytes": 6192
+    },
+    {
+     "file": "fr/15-17637919.txt",
+     "title": "Tout Faire",
+     "pageid": 17637919,
+     "revid": 239940786,
+     "created": "2026-09-30T12:38:39Z",
+     "sha256": "d56b2589a34eb7a758eec50fa82aef13d40555309a5a7fee6b10baa07eb180d0",
+     "bytes": 5313
+    },
+    {
+     "file": "fr/16-17637918.txt",
+     "title": "Worlds End (2026)",
+     "pageid": 17637918,
+     "revid": 239940777,
+     "created": "2026-09-30T12:38:06Z",
+     "sha256": "e9b7e3c8be1a346fb02b6c84ea3c8ef199eb05694d6f1078dba78f489253d200",
+     "bytes": 2938
+    },
+    {
+     "file": "fr/17-17637887.txt",
+     "title": "Thomas Shelby",
+     "pageid": 17637887,
+     "revid": 239940404,
+     "created": "2026-09-30T12:24:58Z",
+     "sha256": "20113e341858be9e61fe8413305bd649a315c3ab76e938546b7284a18aeb6c0f",
+     "bytes": 12322
+    },
+    {
+     "file": "fr/18-17637867.txt",
+     "title": "Quantum Gate (Jeux vidéo)",
+     "pageid": 17637867,
+     "revid": 239940140,
+     "created": "2026-09-30T12:14:52Z",
+     "sha256": "6a70ca0bc1a606584ef1dd6937088a9814d4289a04818b2ded9647d9f0d0c082",
+     "bytes": 9134
+    },
+    {
+     "file": "fr/19-17637861.txt",
+     "title": "Mansour Thiam",
+     "pageid": 17637861,
+     "revid": 239940043,
+     "created": "2026-09-30T12:10:53Z",
+     "sha256": "625e51e609bc9f5ee5205c34df0cdea0a90886f445b47fa9bb4b2b104a298a9d",
+     "bytes": 2889
+    },
+    {
+     "file": "fr/20-17637822.txt",
+     "title": "Kyeahoo (esport)",
+     "pageid": 17637822,
+     "revid": 239939526,
+     "created": "2026-09-30T11:47:07Z",
+     "sha256": "2580bbbfecd3c7389b0477bbee940e32e6743a86da15657e98c04abd15749f9a",
+     "bytes": 3644
+    },
+    {
+     "file": "fr/21-17637812.txt",
+     "title": "Busio (esport)",
+     "pageid": 17637812,
+     "revid": 239939393,
+     "created": "2026-09-30T11:40:25Z",
+     "sha256": "9185ddd3e27bbaed7dfda428eefb5f11876d509a0c987b1e53734a73345f7c3c",
+     "bytes": 4274
+    },
+    {
+     "file": "fr/22-17637802.txt",
+     "title": "Hermès d'Aigion",
+     "pageid": 17637802,
+     "revid": 239939251,
+     "created": "2026-09-30T11:33:12Z",
+     "sha256": "1c2e09e5bb8f070876f2c5ff3f83177ac384cd543b0e9075566a05b3fc9207b9",
+     "bytes": 2770
+    },
+    {
+     "file": "fr/23-17637797.txt",
+     "title": "Noam Sinseau",
+     "pageid": 17637797,
+     "revid": 239939170,
+     "created": "2026-09-30T11:29:03Z",
+     "sha256": "fe487449a7e01af757651ead9281e80292629a3997358246a0dde484ce3631f2",
+     "bytes": 3667
+    },
+    {
+     "file": "fr/24-17637789.txt",
+     "title": "Mouvement lycéen et blocus de septembre 2026 en France",
+     "pageid": 17637789,
+     "revid": 239939068,
+     "created": "2026-09-30T11:24:20Z",
+     "sha256": "6d2b35e668087bd63b1f1ac2e0cefcee1a2f35f961946824b88529156b97a956",
+     "bytes": 8466
+    },
+    {
+     "file": "fr/25-17637788.txt",
+     "title": "Hitachi Rail GTS France",
+     "pageid": 17637788,
+     "revid": 239939066,
+     "created": "2026-09-30T11:24:04Z",
+     "sha256": "286ffbfe2a44396486513aa0524765432870d5838d36e5483996d715319c347d",
+     "bytes": 2746
+    },
+    {
+     "file": "fr/26-17637738.txt",
+     "title": "Charme vainqueur",
+     "pageid": 17637738,
+     "revid": 239938144,
+     "created": "2026-09-30T10:41:12Z",
+     "sha256": "97a3ae7364de9afd6c5b05521bc7f84c875aa131a07e99aeadbd393a2a97bc9f",
+     "bytes": 3069
+    },
+    {
+     "file": "fr/27-17637715.txt",
+     "title": "Michaël Galy",
+     "pageid": 17637715,
+     "revid": 239937817,
+     "created": "2026-09-30T10:27:35Z",
+     "sha256": "2766df8d372d2ed68d5c33a63ab5ded4b300db2d500628e45f2ee6c013f92d14",
+     "bytes": 5201
+    },
+    {
+     "file": "fr/28-17637712.txt",
+     "title": "BROHAN Kevin",
+     "pageid": 17637712,
+     "revid": 239937770,
+     "created": "2026-09-30T10:25:12Z",
+     "sha256": "92a250a4bf44baf163c1d6efe4c177a77c1c2bd0801445c112989d1b1e780aa0",
+     "bytes": 4605
+    },
+    {
+     "file": "fr/29-17637681.txt",
+     "title": "Frontière entre l'Arabie saoudite et le Soudan",
+     "pageid": 17637681,
+     "revid": 239937286,
+     "created": "2026-09-30T10:03:41Z",
+     "sha256": "90e0a0bb11033c773d187b416f29ec0abc4c6ec0974d5c4c51cfec0aa577c393",
+     "bytes": 2903
+    },
+    {
+     "file": "fr/30-17637671.txt",
+     "title": "Mystery (groupe)",
+     "pageid": 17637671,
+     "revid": 239937141,
+     "created": "2026-09-30T09:57:23Z",
+     "sha256": "b6c0e1f8b2441934f9ae409a07425d893a43d2fb59fa5b328baf196d0a5eee75",
+     "bytes": 12007
+    },
+    {
+     "file": "fr/31-17637638.txt",
+     "title": "Sierra de las Moreras",
+     "pageid": 17637638,
+     "revid": 239936653,
+     "created": "2026-09-30T09:35:46Z",
+     "sha256": "dc219c0df5b3e663262f86358b7a68ad03715acebe147b97bab049ae080bdf84",
+     "bytes": 4037
+    },
+    {
+     "file": "fr/32-17637628.txt",
+     "title": "Mal de ojo (film, 2022)",
+     "pageid": 17637628,
+     "revid": 239936517,
+     "created": "2026-09-30T09:29:50Z",
+     "sha256": "655abb8bae30fd007894d4d422fc413a5db929d1538977fc37c2b63c28673f46",
+     "bytes": 4290
+    },
+    {
+     "file": "fr/33-17637617.txt",
+     "title": "Saison 2017-2018 du RSC Anderlecht",
+     "pageid": 17637617,
+     "revid": 239936387,
+     "created": "2026-09-30T09:24:01Z",
+     "sha256": "b0d6a3fa689567ada4c465a0690fdda3d555fe1fd1d35aac5d0b2603276ce1a0",
+     "bytes": 4617
+    },
+    {
+     "file": "fr/34-17637562.txt",
+     "title": "Before (série télévisée)",
+     "pageid": 17637562,
+     "revid": 239935534,
+     "created": "2026-09-30T08:49:21Z",
+     "sha256": "a0c425b762e3a09b45da2d1c3a192cb0de3a38a4b306ac55e83fb3108ee16b9f",
+     "bytes": 3598
+    },
+    {
+     "file": "fr/35-17637519.txt",
+     "title": "Epapatelo",
+     "pageid": 17637519,
+     "revid": 239934722,
+     "created": "2026-09-30T08:19:48Z",
+     "sha256": "2e505a151bc3d5bef53ded309007a6c46e73aa9020db54a6ec1fe660fd9120d3",
+     "bytes": 3944
+    },
+    {
+     "file": "fr/36-17637508.txt",
+     "title": "Groupe allégorique des familles Dumas et Creuset",
+     "pageid": 17637508,
+     "revid": 239934558,
+     "created": "2026-09-30T08:11:39Z",
+     "sha256": "528befcaf70980577a6e99008ec05bee3b4535470c666f16b875643a80be8457",
+     "bytes": 4223
+    },
+    {
+     "file": "fr/37-17637499.txt",
+     "title": "Brad O'Neill",
+     "pageid": 17637499,
+     "revid": 239934371,
+     "created": "2026-09-30T08:02:26Z",
+     "sha256": "5d46d224c844d6e1238e54644eec58649f5c6bf68f3098cdcf4d3ed49b89183b",
+     "bytes": 9036
+    },
+    {
+     "file": "fr/38-17637470.txt",
+     "title": "Claude Balogoun",
+     "pageid": 17637470,
+     "revid": 239933769,
+     "created": "2026-09-30T07:32:24Z",
+     "sha256": "c7475a01201a6fa5e32df65fa574e20548423451a31159e0e78b339687bcb428",
+     "bytes": 2771
+    },
+    {
+     "file": "fr/39-17637466.txt",
+     "title": "Casinò Lugano",
+     "pageid": 17637466,
+     "revid": 239933689,
+     "created": "2026-09-30T07:27:24Z",
+     "sha256": "5d2fbf20431916a23ba596a5879281bbb333ebe8e3c66233507d4c88946e6dee",
+     "bytes": 2783
+    },
+    {
+     "file": "fr/40-17637442.txt",
+     "title": "Vols de mise au point et de qualification du lanceur Starship",
+     "pageid": 17637442,
+     "revid": 239933246,
+     "created": "2026-09-30T07:07:05Z",
+     "sha256": "a84c119716712a81274554101b7ceb9adbb411cd2fc5b0022daab72e9c0dba43",
+     "bytes": 12481
+    },
+    {
+     "file": "fr/41-17637381.txt",
+     "title": "Tomáš Taraba",
+     "pageid": 17637381,
+     "revid": 239932526,
+     "created": "2026-09-30T06:09:53Z",
+     "sha256": "2ad8e0ffeaf5472b3c8b116fef90cffd0ad242e312c546c570d2cffbcc05555e",
+     "bytes": 5164
+    },
+    {
+     "file": "fr/42-17637380.txt",
+     "title": "Noa-Lynn van Leuven",
+     "pageid": 17637380,
+     "revid": 239932491,
+     "created": "2026-09-30T06:04:41Z",
+     "sha256": "b2417d756404498cef4e9b34472db37f012fd43760ed21c186efce6083d6b7c6",
+     "bytes": 6810
+    },
+    {
+     "file": "fr/43-17637379.txt",
+     "title": "La Course de dindon",
+     "pageid": 17637379,
+     "revid": 239932485,
+     "created": "2026-09-30T06:04:10Z",
+     "sha256": "c64dd4b9a141d3a120ddc08d731b72a58a878e9077a2d99d238e9d5937f34e6c",
+     "bytes": 8096
+    },
+    {
+     "file": "fr/44-17637374.txt",
+     "title": "Sora saura pas",
+     "pageid": 17637374,
+     "revid": 239932437,
+     "created": "2026-09-30T05:59:10Z",
+     "sha256": "7ff3438c65a51ad0ee33c0d4fa991661eade9a7c171fa9264b6fc589a76ff5ed",
+     "bytes": 7955
+    },
+    {
+     "file": "fr/45-17637364.txt",
+     "title": "Drôle de chrétien",
+     "pageid": 17637364,
+     "revid": 239932246,
+     "created": "2026-09-30T05:44:06Z",
+     "sha256": "81a6e3e4ee9b8e7905fe4aef17694f9c74f857a1cd4673924440e1ad47a98904",
+     "bytes": 9413
+    },
+    {
+     "file": "fr/46-17637362.txt",
+     "title": "Conflit d'intérêt (South Park)",
+     "pageid": 17637362,
+     "revid": 239932162,
+     "created": "2026-09-30T05:37:20Z",
+     "sha256": "310847e110649d9cec2686a003e546fd8372b4eab7fd7c4fbe3591cf596710e1",
+     "bytes": 9274
+    },
+    {
+     "file": "fr/47-17637357.txt",
+     "title": "Fini le wok",
+     "pageid": 17637357,
+     "revid": 239932068,
+     "created": "2026-09-30T05:28:48Z",
+     "sha256": "7f9c88da443dc056d9cbb361cbd766fd5e66cea1e047265a774995703e2ab636",
+     "bytes": 4877
+    },
+    {
+     "file": "fr/48-17637328.txt",
+     "title": "Pris en flag'ornerie",
+     "pageid": 17637328,
+     "revid": 239931641,
+     "created": "2026-09-30T04:50:59Z",
+     "sha256": "95f4ffaf6c8552c3a444df2976cb34c9eac73a1c004dcc0d7d3c285273cadb7d",
+     "bytes": 9047
+    },
+    {
+     "file": "fr/49-17637327.txt",
+     "title": "Candace Nelson",
+     "pageid": 17637327,
+     "revid": 239931632,
+     "created": "2026-09-30T04:50:26Z",
+     "sha256": "2624de20e218815c41b82d2ca623224d965154afe206b52d47feb23ac972674c",
+     "bytes": 4415
+    },
+    {
+     "file": "fr/50-17637324.txt",
+     "title": "Gagner sa croute",
+     "pageid": 17637324,
+     "revid": 239931579,
+     "created": "2026-09-30T04:45:20Z",
+     "sha256": "1a5b5c620ceb8fd49ec7edca22c9d42f39a4695c20005dea54b5826337cc0213",
+     "bytes": 10368
+    },
+    {
+     "file": "fr/51-17637313.txt",
+     "title": "Gare de Chayama – Kyōto-Geijutsudaigaku",
+     "pageid": 17637313,
+     "revid": 239931077,
+     "created": "2026-09-30T03:42:33Z",
+     "sha256": "fb11c1c0623ae6e90365626203e754f2f860f4f5b969bddc71fd182d0ecda5f4",
+     "bytes": 6986
+    },
+    {
+     "file": "fr/52-17637305.txt",
+     "title": "South Park : La Fin de l'Obésité",
+     "pageid": 17637305,
+     "revid": 239930958,
+     "created": "2026-09-30T03:23:55Z",
+     "sha256": "366775dc118538f86552643fbbad8110f81576771d629db6dd5a2a17715f37ba",
+     "bytes": 8366
+    },
+    {
+     "file": "fr/53-17637302.txt",
+     "title": "South Park (Ne convient pas aux enfants)",
+     "pageid": 17637302,
+     "revid": 239930918,
+     "created": "2026-09-30T03:19:32Z",
+     "sha256": "a9cb7c63ec8a98bbfad9ac986f2a0048d432664ac352619d1a31ddd7629994de",
+     "bytes": 8126
+    },
+    {
+     "file": "fr/54-17637301.txt",
+     "title": "South Park : Joining the Panderverse",
+     "pageid": 17637301,
+     "revid": 239930878,
+     "created": "2026-09-30T03:13:43Z",
+     "sha256": "5e3f0f222f36234699cd24ab33f4981165bfc31ef797bcd69381bc78cdcec167",
+     "bytes": 9585
+    }
+   ]
+  },
+  "zh": {
+   "n_docs": 55,
+   "bytes": 644490,
+   "docs": [
+    {
+     "file": "zh/00-9622906.txt",
+     "title": "杰维斯号驱逐舰",
+     "pageid": 9622906,
+     "revid": 94669218,
+     "created": "2026-09-30T14:41:29Z",
+     "sha256": "019c94ed6b700d3ce2d4247f5b02e47cea1eecdb847238bf73824ef02b7743de",
+     "bytes": 9792
+    },
+    {
+     "file": "zh/01-9622811.txt",
+     "title": "格里安·拉特",
+     "pageid": 9622811,
+     "revid": 94667638,
+     "created": "2026-09-30T13:14:03Z",
+     "sha256": "598811adc08f42262e22a2df5460ef29bcd94811f5f143a36bf5e8d40b85e095",
+     "bytes": 11890
+    },
+    {
+     "file": "zh/02-9622769.txt",
+     "title": "德氏鱘",
+     "pageid": 9622769,
+     "revid": 94666420,
+     "created": "2026-09-30T12:00:08Z",
+     "sha256": "3be81a279395ce86c467ea0c19edcae34938eb39057cdcd6de878d4fe9c805a8",
+     "bytes": 7080
+    },
+    {
+     "file": "zh/03-9622649.txt",
+     "title": "林肯Blackwood",
+     "pageid": 9622649,
+     "revid": 94663979,
+     "created": "2026-09-30T09:31:08Z",
+     "sha256": "fdcdc6e5328d13e8fc00eaf1aa27dad9882f178aa445b9a63860cae64e51f9f4",
+     "bytes": 8632
+    },
+    {
+     "file": "zh/04-9622648.txt",
+     "title": "林肯Versailles",
+     "pageid": 9622648,
+     "revid": 94663959,
+     "created": "2026-09-30T09:30:20Z",
+     "sha256": "fb0cb776c4db3405e9de0b6f25d7ef2d028b878b3f89de3d18fbcbc0f4d9de25",
+     "bytes": 5841
+    },
+    {
+     "file": "zh/05-9622636.txt",
+     "title": "福特Puma (跨界车)",
+     "pageid": 9622636,
+     "revid": 94663810,
+     "created": "2026-09-30T09:22:29Z",
+     "sha256": "81b3e82dcf067b5261191709b329ffbc4ee18d2332532a169ca895a1e71251d1",
+     "bytes": 6089
+    },
+    {
+     "file": "zh/06-9622629.txt",
+     "title": "福特Ka",
+     "pageid": 9622629,
+     "revid": 94663686,
+     "created": "2026-09-30T09:16:25Z",
+     "sha256": "1772c51853a758760df470e3f2e134bd3a69382f8416c2f53e8d18980ec65912",
+     "bytes": 17697
+    },
+    {
+     "file": "zh/07-9622624.txt",
+     "title": "福特F-150 Lightning",
+     "pageid": 9622624,
+     "revid": 94663641,
+     "created": "2026-09-30T09:14:32Z",
+     "sha256": "2538ea24804378ccf0f44bbe8c92e53655388f01e3b63bf150e685f609560401",
+     "bytes": 7338
+    },
+    {
+     "file": "zh/08-9622617.txt",
+     "title": "福特Maverick (2022)",
+     "pageid": 9622617,
+     "revid": 94663558,
+     "created": "2026-09-30T09:11:03Z",
+     "sha256": "8721e71ba6c172e2c0eb968b504dca1c85548cb6f2479413f76731738c581325",
+     "bytes": 8237
+    },
+    {
+     "file": "zh/09-9622606.txt",
+     "title": "福特Territory (澳大利亚)",
+     "pageid": 9622606,
+     "revid": 94663462,
+     "created": "2026-09-30T09:06:18Z",
+     "sha256": "8cc924fbae278ded5a5c2424a86b43ae0bd6b69d5239808dba0ebbed23fd7c90",
+     "bytes": 10411
+    },
+    {
+     "file": "zh/10-9622590.txt",
+     "title": "福特领界",
+     "pageid": 9622590,
+     "revid": 94663319,
+     "created": "2026-09-30T09:00:07Z",
+     "sha256": "485c574943fd6f12036bcefd96a68bd9ee949f08bcce265a002a1a78a79ff2c2",
+     "bytes": 5752
+    },
+    {
+     "file": "zh/11-9622464.txt",
+     "title": "名人崇拜综合症",
+     "pageid": 9622464,
+     "revid": 94661392,
+     "created": "2026-09-30T07:19:26Z",
+     "sha256": "46017f231f32aaecbbb2f86e6c3767d77a0ca507e3bac7b6d652c6c33fd1b982",
+     "bytes": 7765
+    },
+    {
+     "file": "zh/12-9622450.txt",
+     "title": "Dart (消歧义)",
+     "pageid": 9622450,
+     "revid": 94661164,
+     "created": "2026-09-30T07:05:59Z",
+     "sha256": "1f06b6e520500d00da7eb451b78f9d6c829604dd01a4757fd140a38f577f2d95",
+     "bytes": 5170
+    },
+    {
+     "file": "zh/13-9622417.txt",
+     "title": "达特",
+     "pageid": 9622417,
+     "revid": 94660629,
+     "created": "2026-09-30T06:31:47Z",
+     "sha256": "088d16a8f6079c6002f2ca7630b8b5fc0c6f979a079f6d9f4709cf27f1e77d69",
+     "bytes": 15903
+    },
+    {
+     "file": "zh/14-9622390.txt",
+     "title": "哈萨克族芨芨草编织技艺",
+     "pageid": 9622390,
+     "revid": 94660163,
+     "created": "2026-09-30T06:03:48Z",
+     "sha256": "317d01a34a6f992eeae400c20daf10f40c179189f4234f76923f53aa291072e4",
+     "bytes": 8087
+    },
+    {
+     "file": "zh/15-9622354.txt",
+     "title": "上总之海路",
+     "pageid": 9622354,
+     "revid": 94658776,
+     "created": "2026-09-30T04:39:25Z",
+     "sha256": "8afe2608a0fabab800a02daf1058a1f00e65dda56d3ecfb28ab458d144495716",
+     "bytes": 8389
+    },
+    {
+     "file": "zh/16-9622342.txt",
+     "title": "法吉奥汽车",
+     "pageid": 9622342,
+     "revid": 94658649,
+     "created": "2026-09-30T04:30:04Z",
+     "sha256": "6ae099ddc89f3ab5f9e007e5341da4881994acd17be8efd4e47da1ff47ab83b2",
+     "bytes": 5988
+    },
+    {
+     "file": "zh/17-9622311.txt",
+     "title": "肯沃斯",
+     "pageid": 9622311,
+     "revid": 94657915,
+     "created": "2026-09-30T03:41:07Z",
+     "sha256": "a02110b3ce5b9d390d4e9cc1dbad284a52482a7dc8bddf94e11afa3280a325aa",
+     "bytes": 24168
+    },
+    {
+     "file": "zh/18-9622302.txt",
+     "title": "塔赫塔卡拉查山口之战",
+     "pageid": 9622302,
+     "revid": 94657718,
+     "created": "2026-09-30T03:29:57Z",
+     "sha256": "5f2adcebd3c94194f30dbad7b70f07f7a61242612fd2c94b253093879fc32ffb",
+     "bytes": 13294
+    },
+    {
+     "file": "zh/19-9622266.txt",
+     "title": "彼得比尔特",
+     "pageid": 9622266,
+     "revid": 94657055,
+     "created": "2026-09-30T02:49:27Z",
+     "sha256": "b2f9ded736549d4986844f75229932641fe6c78021903f8cfe667e50aacdc4c3",
+     "bytes": 22417
+    },
+    {
+     "file": "zh/20-9622201.txt",
+     "title": "吉普Patriot",
+     "pageid": 9622201,
+     "revid": 94655666,
+     "created": "2026-09-30T01:19:05Z",
+     "sha256": "e211945fc413f7a404842fa94d93273516bace04e1f3ef13570c4369f2f68857",
+     "bytes": 8557
+    },
+    {
+     "file": "zh/21-9622146.txt",
+     "title": "耆那教與錫克教",
+     "pageid": 9622146,
+     "revid": 94654120,
+     "created": "2026-09-29T23:30:34Z",
+     "sha256": "32c7f6faef719c6bb1ed4dd33877ab69a2f0b415dacba2b0a84249317957cf74",
+     "bytes": 27227
+    },
+    {
+     "file": "zh/22-9622130.txt",
+     "title": "加爾維斯頓港",
+     "pageid": 9622130,
+     "revid": 94653890,
+     "created": "2026-09-29T23:11:39Z",
+     "sha256": "5c78f1405e91febf4218f12c9f7b082628e31ca4e19bb774ef38deb4d223194a",
+     "bytes": 6276
+    },
+    {
+     "file": "zh/23-9622111.txt",
+     "title": "中国共产党中央第一次扩大会议",
+     "pageid": 9622111,
+     "revid": 94653478,
+     "created": "2026-09-29T22:35:56Z",
+     "sha256": "11cb5e5a608a841c4467d42c4e62fcea3ce9e6915c1c69d249254a9b6da67067",
+     "bytes": 9335
+    },
+    {
+     "file": "zh/24-9622053.txt",
+     "title": "必需基因",
+     "pageid": 9622053,
+     "revid": 94651473,
+     "created": "2026-09-29T19:50:26Z",
+     "sha256": "910dd766ba6c1d88257d33524ed40d5c1c2254a9e60d6d867b2b46d5dd104d6d",
+     "bytes": 24815
+    },
+    {
+     "file": "zh/25-9622050.txt",
+     "title": "蕭泰然作品列表",
+     "pageid": 9622050,
+     "revid": 94651266,
+     "created": "2026-09-29T19:35:36Z",
+     "sha256": "c8d3e304d437ef74c7230f372bb756d9ebf34f564aeb14b2087176d5c34f4e8d",
+     "bytes": 6112
+    },
+    {
+     "file": "zh/26-9622041.txt",
+     "title": "最小基因组",
+     "pageid": 9622041,
+     "revid": 94651023,
+     "created": "2026-09-29T19:15:57Z",
+     "sha256": "c2f7f8ce1f5f465b07849d3da378c94f976ff5befaeb5ee314ff361e7f31cc21",
+     "bytes": 16972
+    },
+    {
+     "file": "zh/27-9622037.txt",
+     "title": "路易斯·索拉",
+     "pageid": 9622037,
+     "revid": 94650813,
+     "created": "2026-09-29T18:58:49Z",
+     "sha256": "60e0eb5f408b846c37b9e7ecdfbe543fba6776fb2cc167a6867339aded0123c9",
+     "bytes": 6796
+    },
+    {
+     "file": "zh/28-9622025.txt",
+     "title": "实验室支原体",
+     "pageid": 9622025,
+     "revid": 94650509,
+     "created": "2026-09-29T18:38:23Z",
+     "sha256": "d15e79cb0f7f2b14bfd28541853d6df42ce3a955462a68b8d35d9fd6623751be",
+     "bytes": 14735
+    },
+    {
+     "file": "zh/29-9621984.txt",
+     "title": "反物质的引力相互作用",
+     "pageid": 9621984,
+     "revid": 94649286,
+     "created": "2026-09-29T17:19:21Z",
+     "sha256": "1e99af52219ae702f8bd0ad0c1f4773da9ad98e6984c56bc59c439175ec3bb26",
+     "bytes": 9724
+    },
+    {
+     "file": "zh/30-9621972.txt",
+     "title": "镜像物质",
+     "pageid": 9621972,
+     "revid": 94649015,
+     "created": "2026-09-29T16:59:04Z",
+     "sha256": "e98f8a42f949bc2fec59b10596195c7f01d238c9dff93cfe0a3f3241785979ff",
+     "bytes": 7050
+    },
+    {
+     "file": "zh/31-9621950.txt",
+     "title": "镜像生命",
+     "pageid": 9621950,
+     "revid": 94648377,
+     "created": "2026-09-29T16:21:04Z",
+     "sha256": "a7adba3cf5c81f383b56451c48c56cc1e6fcf3ee2527fad3f656b6d0d8d5909d",
+     "bytes": 9078
+    },
+    {
+     "file": "zh/32-9621780.txt",
+     "title": "蓝鳃太阳鱼号潜艇",
+     "pageid": 9621780,
+     "revid": 94643616,
+     "created": "2026-09-29T12:31:07Z",
+     "sha256": "5ea8a57f00be7013252c540ada71aab9604e50141f37ed2cf5ec7fa647002561",
+     "bytes": 16837
+    },
+    {
+     "file": "zh/33-9621762.txt",
+     "title": "多伙伴连续共生模型",
+     "pageid": 9621762,
+     "revid": 94643290,
+     "created": "2026-09-29T12:12:03Z",
+     "sha256": "e41bad179a9776ee01bf87386f8317a48e3b49aa3fdde2f07a627892f2d69bc8",
+     "bytes": 8858
+    },
+    {
+     "file": "zh/34-9621761.txt",
+     "title": "曼尼普尔舞",
+     "pageid": 9621761,
+     "revid": 94643247,
+     "created": "2026-09-29T12:10:08Z",
+     "sha256": "9f9f62384b5521356ee166c83e7787e6226115ef60e4a0997a0b109b1f30b363",
+     "bytes": 18466
+    },
+    {
+     "file": "zh/35-9621741.txt",
+     "title": "商人公会 (俄罗斯帝国)",
+     "pageid": 9621741,
+     "revid": 94642596,
+     "created": "2026-09-29T11:44:10Z",
+     "sha256": "c6fb217999e6cf7bbc8a855dd7c6109483a8034930fdf21d4123e3e0e04ec8b7",
+     "bytes": 8596
+    },
+    {
+     "file": "zh/36-9621658.txt",
+     "title": "第四域生命",
+     "pageid": 9621658,
+     "revid": 94640861,
+     "created": "2026-09-29T10:07:23Z",
+     "sha256": "d1a7a8c8b7b5bcb08a96d49cf98bc7e87c68c226eb511d2cd9f37895a104d7bf",
+     "bytes": 7399
+    },
+    {
+     "file": "zh/37-9621622.txt",
+     "title": "吉普大切诺基 (WK2)",
+     "pageid": 9621622,
+     "revid": 94640061,
+     "created": "2026-09-29T09:08:12Z",
+     "sha256": "ef4d206331698264ea98060c51280bd8931752ee7e7fd58e3cf517fed3a36558",
+     "bytes": 17325
+    },
+    {
+     "file": "zh/38-9621621.txt",
+     "title": "喀里斯坦之战",
+     "pageid": 9621621,
+     "revid": 94640026,
+     "created": "2026-09-29T09:05:20Z",
+     "sha256": "8f86a895c1034516e526236f938fcc0d1a49413a5ba27a3bd62a9b581094b656",
+     "bytes": 10687
+    },
+    {
+     "file": "zh/39-9621613.txt",
+     "title": "福莱纳卡车",
+     "pageid": 9621613,
+     "revid": 94639906,
+     "created": "2026-09-29T08:56:55Z",
+     "sha256": "0897f51f8c9d45fa236dc97e92fe79f6b5dd1ad19ad00b69bbe71c9e8ac0f5e2",
+     "bytes": 17093
+    },
+    {
+     "file": "zh/40-9621578.txt",
+     "title": "吉普牧马人 (JK)",
+     "pageid": 9621578,
+     "revid": 94639435,
+     "created": "2026-09-29T08:20:35Z",
+     "sha256": "9bcf57d025c748c6eba2ed940f58b079ce541f39fb7067533460b7d2ae6a176d",
+     "bytes": 23809
+    },
+    {
+     "file": "zh/41-9621575.txt",
+     "title": "吉普牧马人 (TJ)",
+     "pageid": 9621575,
+     "revid": 94639410,
+     "created": "2026-09-29T08:18:45Z",
+     "sha256": "b3e0024dd6b998169a5b3fad5628e56ebf343e70b3fc6c79f621ee0c7a23394c",
+     "bytes": 11956
+    },
+    {
+     "file": "zh/42-9621572.txt",
+     "title": "吉普牧马人 (YJ)",
+     "pageid": 9621572,
+     "revid": 94639390,
+     "created": "2026-09-29T08:17:32Z",
+     "sha256": "544e8de0c201d93490241d793b32cb1b9f507d0caf15752efb0f5af0b7dc0649",
+     "bytes": 8340
+    },
+    {
+     "file": "zh/43-9621565.txt",
+     "title": "吉普大切诺基 (ZJ)",
+     "pageid": 9621565,
+     "revid": 94639310,
+     "created": "2026-09-29T08:12:09Z",
+     "sha256": "d75d87cd71d31721ee99cc70cead9a293a1ddf060b4bff5793deac131aa1c167",
+     "bytes": 24473
+    },
+    {
+     "file": "zh/44-9621564.txt",
+     "title": "吉普大切诺基 (WK)",
+     "pageid": 9621564,
+     "revid": 94639283,
+     "created": "2026-09-29T08:10:33Z",
+     "sha256": "db3a25d304323784b778fe4739a7788a27d46fe6071078e02bd3d22941f7d466",
+     "bytes": 12443
+    },
+    {
+     "file": "zh/45-9621560.txt",
+     "title": "吉普大切诺基 (WJ)",
+     "pageid": 9621560,
+     "revid": 94639214,
+     "created": "2026-09-29T08:07:34Z",
+     "sha256": "889dcfcac15ea480194c484817e9c78544a740dfb92fa2a2304390df9b2f2d08",
+     "bytes": 16979
+    },
+    {
+     "file": "zh/46-9621514.txt",
+     "title": "帕维尔·特列季亚科夫",
+     "pageid": 9621514,
+     "revid": 94638707,
+     "created": "2026-09-29T07:35:12Z",
+     "sha256": "dc8d25a96ce9407d05705a17872a44a832e2ded085758aec84bb57dce69e1b75",
+     "bytes": 9852
+    },
+    {
+     "file": "zh/47-9621361.txt",
+     "title": "IBM与七个小矮人",
+     "pageid": 9621361,
+     "revid": 94635821,
+     "created": "2026-09-29T03:54:40Z",
+     "sha256": "ff22d6ea61ca4d8c9e841ae5817e73c78008481c5b079c86098dd80acd342cf7",
+     "bytes": 6147
+    },
+    {
+     "file": "zh/48-9621337.txt",
+     "title": "斯佩里公司",
+     "pageid": 9621337,
+     "revid": 94635378,
+     "created": "2026-09-29T03:22:48Z",
+     "sha256": "21035cc08c8e64d92ada649dbfbf3646893e0a5ee9fa106c2b2b032ac678988c",
+     "bytes": 11152
+    },
+    {
+     "file": "zh/49-9621334.txt",
+     "title": "埃克特-莫奇利计算机公司",
+     "pageid": 9621334,
+     "revid": 94635328,
+     "created": "2026-09-29T03:19:36Z",
+     "sha256": "5b6f6ef71a26d4bfe926f1b8a418447b3d0f3c12080b49d5f113919f889215f0",
+     "bytes": 6949
+    },
+    {
+     "file": "zh/50-9621293.txt",
+     "title": "巴勒斯公司",
+     "pageid": 9621293,
+     "revid": 94634661,
+     "created": "2026-09-29T02:31:47Z",
+     "sha256": "d121d24172fd0d7b93c0e072673624191c0e57880f0e1888c2c0812f9d5194c8",
+     "bytes": 16522
+    },
+    {
+     "file": "zh/51-9621069.txt",
+     "title": "Go! Go! Nippon!",
+     "pageid": 9621069,
+     "revid": 94630247,
+     "created": "2026-09-28T18:35:58Z",
+     "sha256": "632ef837ae83179c57dd6fddba174749471b044b1026eaa2b813003eff64a643",
+     "bytes": 6629
+    },
+    {
+     "file": "zh/52-9621038.txt",
+     "title": "北美維基會議",
+     "pageid": 9621038,
+     "revid": 94629773,
+     "created": "2026-09-28T17:52:39Z",
+     "sha256": "a2c8189138a6e0dd0cd0fb212e866dfc92ac952001cb8f5857fde06726d37832",
+     "bytes": 7452
+    },
+    {
+     "file": "zh/53-9620937.txt",
+     "title": "1977年橫濱美軍F-4墜毀事件",
+     "pageid": 9620937,
+     "revid": 94628383,
+     "created": "2026-09-28T16:03:41Z",
+     "sha256": "d4143210cebdee8ef977f741a80ce256309b9e21353143656371ea279281ad3d",
+     "bytes": 8218
+    },
+    {
+     "file": "zh/54-9620927.txt",
+     "title": "胡小偉",
+     "pageid": 9620927,
+     "revid": 94628218,
+     "created": "2026-09-28T15:52:40Z",
+     "sha256": "b6f267ee90e77a8f05a6343d094b8b48a1dc54679bfb418a264274ba6fbc79cf",
+     "bytes": 11691
+    }
+   ]
+  }
+ }
+}

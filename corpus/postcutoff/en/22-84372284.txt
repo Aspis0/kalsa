@@ -1,0 +1,42 @@
+Didymin (also known as isosakuranetin 7-O-rutinoside or neoponcirin) is an O-methylated flavanone glycoside occurring naturally in citrus fruits, consisting of the flavanone isosakuranetin linked to the disaccharide rutinose.
+
+
+== Occurrence ==
+
+
+=== History of isolation ===
+Didymin was first described in 1965 by German scientists Carl Heinz Brieskorn and Gerhard Meister, who identified isosakuranetin-7-rhamnosidoglucoside in the leaves of Monarda didyma L. The structure of didymin was subsequently clarified and confirmed by total synthesis in 1968 by Wagner, Hörhammer, Aurnhammer, and Farkas.
+
+
+=== Distribution in plants ===
+Didymin is found in a variety of citrus fruits, including mandarin oranges, sweet oranges, grapefruit, and lemons, as well as in Origanum vulgare (oregano). In immature dropped fruits of Citrus sinensis, didymin has been quantified alongside other flavanone glycosides such as hesperidin and narirutin, with its content being better preserved by freeze-drying than by hot-air oven drying. It was first identified in grapefruit as a tasteless rutinoside-type flavanone glycoside, in contrast to the bitter neohesperidoside-type glycosides such as naringin. It is also present in chenpi (dried citrus peel), a traditional ingredient in Chinese medicine.
+
+
+== Biological activities ==
+
+
+=== Antioxidant activity ===
+Didymin exhibits antioxidant properties by scavenging free radicals and reducing reactive oxygen species (ROS). In neuronal cell studies, it was found to protect cells against hydrogen peroxide-induced oxidative damage, increase cell viability, and stimulate antioxidant defence enzymes including superoxide dismutase, catalase, and glutathione peroxidase. Didymin is among the flavonoids present in orange juice that have been associated with a reduction in markers of oxidative stress and DNA damage.
+
+
+=== Neuroprotective activity ===
+In vitro studies have demonstrated that didymin can rescue neuronal cells from oxidative damage. In a membrane-based neuronal cell model, it inhibited hydrogen peroxide-induced mitochondrial dysfunction, reduced caspase-3 activation, and suppressed JNK phosphorylation, suggesting potential relevance for neurodegenerative diseases associated with oxidative stress.
+
+
+=== Anticancer activity ===
+Didymin has been studied for its effects on various cancer cell lines in vitro. In human hepatocellular carcinoma (HepG2) cells, it inhibited cell viability, migration, and colony formation, induced apoptosis, and caused G2/M cell cycle arrest. These effects were associated with changes in the Bcl-2/Bax ratio and activation of caspase-mediated apoptosis, as well as upregulation of Raf kinase inhibitor protein (RKIP) and suppression of the ERK/MAPK and PI3K/Akt pathways.
+
+
+=== Cardioprotective activity ===
+Didymin has been shown to protect against doxorubicin-induced cardiotoxicity in mouse models and cardiomyocyte cell cultures, reducing oxidative stress, mitochondrial dysfunction, and apoptosis via activation of the PI3K/Akt/Nrf2 signalling pathway. In endothelial cell studies, didymin prevented hyperglycaemia-induced dysfunction and death in human umbilical vein endothelial cells (HUVECs) by reducing ROS generation, lipid peroxidation, and inflammatory cytokine release, and by inhibiting NF-κB activation.
+
+
+=== Metabolic activity ===
+Several studies have investigated didymin's potential in metabolic disorders. In high-fat diet mouse models, didymin reduced postprandial blood glucose levels and improved insulin secretion by enhancing mitochondrial biogenesis and function in pancreatic beta cells. In a separate study, didymin alleviated metabolic dysfunction-associated fatty liver disease (MAFLD) in mice by activating Sirt1, thereby stimulating lipophagy and mitochondrial biogenesis. In insulin-resistant HepG2 cells, didymin enhanced glucose uptake and activated insulin receptor substrate-1, PI3K, Akt, and glycogen synthase kinase-3 (GSK-3), while inhibiting key enzymes of gluconeogenesis.
+
+
+=== Geroprotective activity ===
+Didymin is the principal flavonoid constituent of Monarda didyma L. (scarlet beebalm) extract, occurring at concentrations approximately 80-fold higher than the only other detectable flavonoid, isosakuranetin. In a randomized clinical trial, supplementation with 100 mg/day of Monarda didyma L. extract over 12 weeks was associated with reduced telomere attrition and improvements in markers of biological aging and quality of life, with the effects attributed primarily to didymin.
+
+
+== References ==

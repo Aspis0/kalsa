@@ -10,6 +10,7 @@ databricks-dolly-15k (CC-BY-SA-3.0) even though the collection ships
 Apache-2.0, so those rows are tagged cc-by-sa-3.0.
 """
 
+import hashlib
 import json
 import random
 
@@ -56,7 +57,11 @@ def aya_pairs(repo: str, config: str, lang: str, sample: int):
     want = AYA_LANG[repo][lang]
     if want is None:
         return
-    rng = random.Random((SAMPLE_SEED, repo, config, lang).__hash__())
+    # stable integer seed: str.__hash__ is salted per process (PYTHONHASHSEED),
+    # so the old tuple-hash seed was not reproducible across runs
+    seed = int(hashlib.sha256(
+        f"{SAMPLE_SEED}|{repo}|{config}|{lang}".encode()).hexdigest()[:15], 16)
+    rng = random.Random(seed)
     for pf in parquet_files(repo, config):
         table = pq.read_table(hf_hub_download(repo, pf, repo_type="dataset",
                                               revision=REVISIONS[repo]),

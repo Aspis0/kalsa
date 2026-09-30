@@ -1,0 +1,90 @@
+IBM与七个小矮人（英語：IBM and the Seven Dwarfs）是指在美国计算机历史上，在20世纪60年代至70年代初与IBM公司竞争的七家公司。IBM占据主导市场份额，常被称为“白雪公主”，这七家竞争对手则在大型计算机市场艰难维持立足之地。
+“七个小矮人”时代代表了行业转向小型计算机和个人电脑之前，大型计算机竞争的顶峰。
+
+
+== 起源 ==
+
+
+=== 小矮人收购的种子公司 ===
+
+
+=== 行业整合与结局 ===
+通用电气和RCA退出后，该群体最终缩减为“BUNCH”。下表列出每位“小矮人”的命运及最终形成的实体。
+
+
+== 日本因素：合作伙伴与竞争对手 ==
+20世纪60至70年代，日本通商产业省（MITI）鼓励本国制造商与美国“小矮人”结成战略联盟，以获取同IBM竞争所需的技术。
+
+
+=== 与“小矮人”的战略联盟 ===
+IBM在日本保有全资子公司（日本IBM），美国小矮人则通过技术转让和与日本企业合资进入市场：
+
+日立与RCA：1961年日立与RCA签订技术协议，由此产生的HITAC 8000系列主要基于RCA Spectra 70架构，该架构设计为与IBM System/360兼容。
+NEC与霍尼韦尔：NEC于1962年与霍尼韦尔合作，NEAC 2200系列采用霍尼韦尔技术开发。霍尼韦尔后来收购GE计算机部门，NEC得以使用GCOS操作系统，成为其后来ACOS系统的基础。
+东芝与通用电气：东芝的大型系统采用GE技术。1970年GE退出市场后，东芝最终把大型机战略转向与NEC的ACOS联盟。
+三菱电机与冲电气及UNIVAC：这些公司与斯佩里兰德（UNIVAC）组建了名为冲UNIVAC的合资企业，得以在日本制造和销售基于UNIVAC的系统。
+
+
+=== “不结盟”的例外：富士通 ===
+与国内对手不同，富士通在20世纪60年代初的热潮中拒绝了与美国“小矮人”的直接合作，转而通过FONTAC项目专注国内研发。但它后来采取“兼容”战略，投资阿姆达尔公司（由前IBM员工吉恩·阿姆达尔创立），使富士通得以生产世界上最早的IBM兼容大型机。
+
+
+== RCA的欧洲合作伙伴 ==
+1961年欧洲计算机制造商协会（ECMA）的成立，由ICT、IBM（欧洲部门）和布尔的首席执行官发起。最初组织会议的主要参与者有：
+
+IBM——美国（欧洲部门）
+布尔（布尔机器公司）——法国
+ICT（国际计算机与制表机公司）——英国
+费兰蒂——英国
+英国电气——英国
+AEI（联合电气工业公司）——英国
+Leo计算机公司——英国
+埃利奥特兄弟公司——英国
+标准电话电缆公司（STC）——英国
+西门子——西德
+楚泽——西德
+德律风根——西德
+奥利维蒂——意大利
+西门子于1964年获得RCA许可，制造基于RCA Spectra 70的计算机，以西门子System 4004为名销售。
+英国电气于1965年获得RCA许可，制造基于RCA Spectra 70的计算机，以英国电气System 4为名销售。
+20世纪60年代末，英国政府通过技术部（MinTech）寻求整合英国计算机工业，打造能与IBM竞争的企业，促成1968年国际计算机有限公司（ICL）成立。
+ICL的失败：
+
+英国技术部把英国电气并入ICL造成“架构冲突”，ICL被迫同时支持国产ICT 1900系列和英国电气的RCA系统，分散了资源，削弱了对抗IBM的力量。
+CII-西门子-飞利浦于1972年组建Unidata联盟，制造与IBM兼容的“Unidata 7.000系列”计算机。
+ICL拒绝加入推动IBM兼容的Unidata联盟，选择与IBM兼容彻底决裂，出于把自家计算机标榜为对抗IBM的“国家冠军”的民族主义利益。
+英国支持不足和法国的民族主义利益，使欧洲统一计算机架构未能挑战IBM的主导地位。
+
+
+== 向BUNCH时代过渡 ==
+从七个小矮人向BUNCH的过渡，主要因为GE和RCA发现，与IBM System/360架构竞争所需的巨额研发成本难以为继。
+1971年RCA退出，把客户群和技术出售给斯佩里兰德（UNIVAC），实际上终结了RCA与英国未来的合作，例如源自RCA Spectra 70的英国电气System 4。ICL凭借ICL 2900系列从“模仿”转向“创新”。
+GE（1970年）和RCA（1971年）退出在日本市场造成“冲击”，其合作伙伴（东芝和日立）突然失去主要技术来源，导致通商产业省主导把日本工业重组为三个集团，以对抗IBM的System/370：
+
+
+== 遗产 ==
+到20世纪80年代，日本制造商已从小矮人的“初级伙伴”成长为IBM在全球的主要挑战者，最终收购了若干昔日的导师。值得注意的是，富士通最终收购阿姆达尔和ICL，NEC则与布尔（霍尼韦尔计算机业务的继承者）保持长期合作。
+
+
+== 参见 ==
+计算机硬件历史——关于“第三代”计算的背景。
+插接兼容制造商——若干竞争对手与IBM软件生态共存所用的商业模式。
+白雪公主与七个小矮人
+
+
+== 参考文献 ==
+
+
+== 参考书目 ==
+Campbell-Kelly, Martin. ICL: A Business and Technical History. Oxford University Press. 1989. 
+Ceruzzi, Paul E. (2003). A History of Modern Computing. MIT Press.
+Cortada, James W. Before the Computer: IBM, NCR, Burroughs, and Remington Rand and the Industry They Created, 1865-1956. Princeton, New Jersey: Princeton University Press. 1993. ISBN 9781400872763. 
+Fransman, Martin (1995). Japan's Computer and Communications Industry. Oxford University Press.
+Gray, George T.; Smith, Ronald Q. Before the B5000: Burroughs Computers, 1951-1963. IEEE Ann. Hist. Comput. 2003, 25 (2): 50–61. Bibcode:2003IAHC...25b..50G. doi:10.1109/MAHC.2003.1203058.  含有連結內容需訂閱查看的頁面 (link)
+Green, Tom. Bright Boys: The Making of Information Technology. CRC Press. 2010. ISBN 978-1-4398-6522-4. 
+McGee, Russell C. (2004). My Adventures with Dwarfs: A Personal History in Mainframe Computers. 在线版.
+Oldfield, Homer R. (1996). King of the Seven Dwarfs: General Electric's Ambiguous Challenge to the Computer Industry. IEEE Computer Society Press.
+
+
+== 外部链接 ==
+大型机：日本计算简史，来自IPSJ计算机博物馆

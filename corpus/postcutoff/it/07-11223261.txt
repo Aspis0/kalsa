@@ -1,0 +1,64 @@
+Lamberto (fl. XIII secolo) è stato un filosofo e logico francese, la cui identificazione e biografia sono discusse.
+È noto soprattutto come autore della "Summa logicae", opera rappresentativa del rinnovamento della logica medievale del Duecento.
+
+
+== Biografia: identità e collocazione cronologica ==
+Le fonti enciclopediche italiane lo indicano tradizionalmente come Lamberto di Auxerre, filosofo e logico francese del XIII secolo, senza discutere l'accertamento dell'autore della "Summa logicae". 
+
+
+=== Identificazione ===
+La questione dell'accertamento identitario rimane dibattuta: la "Stanford Encyclopedia of Philosophy" osserva che l'unico dato sicuro è il nome Lambertus, attestato in più manoscritti, mentre le ulteriori indicazioni trasmesse dalla tradizione manoscritta non concordano fra loro.
+Un codice conservato a Troyes, "Fonds ancien 2402", lo designa come magister Lambertus de Liniaco castro, cioè Lamberto di Ligny-le-Châtel; il manoscritto già conservato a Cambridge, nel Massachusetts, presso l'Episcopal Theological School, con segnatura "210", oggi in collezione privata e registrato come "IRHT CP 0366", lo definisce a f. 47rb «frater de Sancto Victore», mentre il codice "Padova, Biblioteca Universitaria, 647" lo identifica come frate dell'Ordine dei frati predicatori. 
+A partire dal XV secolo, alcuni storici presentarono l'autore come un canonico di Auxerre appartenente all'Ordine dei frati predicatori.
+Nella storiografia moderna sono state proposte le identificazioni dell'autore della "Summa" con Lamberto di Ligny-le-Châtel e con Lamberto di Lagny-sur-Marne. Franco Alessio sostenne la prima, collegando Lamberto di Ligny-le-Châtel al domenicano di Auxerre; Alain de Libera sostenne invece l'identificazione con Lamberto di Lagny. 
+Thomas S. Maloney, inizialmente favorevole all'ipotesi di Lagny, nell'introduzione alla traduzione del 2015 della "Logica" giudicò più probabile l'identificazione con Lamberto di Ligny-le-Châtel. 
+Una ricostruzione biografica lo presenta inoltre come frate domenicano ad Auxerre e maestro delle arti a Parigi intorno al 1250, contemporaneamente a Guglielmo di Sherwood.
+Come rileva Sara L. Uckelman, questi diversi orientamenti non hanno condotto a un consenso definitivo sull'identità dell'autore.
+
+
+=== Focalizzazione storica ===
+Non di meno, resta discussa la contestualizzazione cronologica dell'arco di attività dell'autore. Le fonti di tradizione manoscritta e i repertori enciclopedici lo collocano genericamente nel XIII secolo; la datazione dell'opera e le diverse ricostruzioni biografiche proposte dagli studiosi lo situano comunque intorno alla metà del secolo, senza consentire peraltro di stabilire con sicurezza le date di nascita e di morte.
+Per la composizione della "Summa" sono state proposte datazioni più circoscritte: de Libera la colloca fra il 1250 e il 1255, mentre altri studi indicano più genericamente il periodo 1250–1260. Il repertorio FAMA propone invece una datazione al 1260–1265.
+
+
+== Tradizione manoscritta ==
+La "Summa Lamberti", registrata nei repertori anche con i titoli "Summulae logicales" e "Logica", è trasmessa da manoscritti conservati in diverse biblioteche europee e in raccolte private. Le indicazioni relative all'autore contenute nei testimoni di Troyes, Cambridge e Padova costituiscono una parte della documentazione sulla quale si fonda la discussione della sua identità.
+Il repertorio FAMA registra diciassette schede manoscritte per le "Summulae logicales"; Lambertus Marie de Rijk censiva undici testimoni nel 1969, mentre Alain de Libera e Thomas Kaeppeli ne elencavano quindici.
+
+
+=== Testimoni e attribuzioni dell'opera ===
+  
+ʍ Il manoscritto "Troyes, Médiathèque Jacques-Chirac, Fonds ancien 2402" è un codice membranaceo di 95 fogli, disposto su due colonne e datato al 1281 nel repertorio Mirabile. Il catalogo francese lo descrive come "Summule (Logices) magistri Lamberti de Liniaco Castro", proponendo dubitativamente l'identificazione dell'autore con Lamberto d'Auxerre. Una nota a f. 95v ricorda il chierico Lamberto de Syvriaco come copista per Ruggero de Cheminon e l'acquisto del volume da parte di Giovanni de Asconio nel novembre 1281. Il codice appartenne all'abbazia cistercense di Clairvaux, dove ebbe la segnatura "S. 92".
+
+ʍ Il manoscritto definito dall'archivio digitale "Mirabile" "Cambridge, MA, Episcopal Theological School Library, 210", registrato poi come "IRHT CP 0366", è un codice pergamenaceo di 60 fogli. Trasmette la "Summa" ai ff. 1–47, seguita da altri testi logici e grammaticali; l'explicit designa l'autore come Lamberto, frate di Saint-Victor. Il catalogo della vendita di Christie's lo attribuisce alla Francia settentrionale, probabilmente Parigi, nel terzo quarto del XIII secolo; il repertorio "FAMA. Œuvres latines médiévales à succès" dell’IRHT-CNRS propone invece il periodo 1276–1300. Donato nel 1921 dal reverendo Appleton Grannis alla biblioteca dell'"Episcopal Theological School", fu successivamente posto in vendita da Christie's il 19 novembre 2003; ARCA ne registra la collocazione in una collezione privata.
+
+ʍ Il manoscritto "Padova, Biblioteca Universitaria, 647" è un codice membranaceo del XIV secolo, di 138 fogli, che contiene le "Summulae logicales" ai ff. 49r–137r. La notizia a f. 131v presenta l'autore come un frate dell'Ordine dei Predicatori chiamato Lamberto. Il colophon lo collega inoltre all'insegnamento al re di Navarra e alla successiva elaborazione dell'opera a Parigi.
+
+
+=== Altri testimoni e provenienze ===
+ʍ Il codice "Parigi, Bibliothèque nationale de France, latino 16617", membranaceo e anteriore al 1306, contiene la "Summa" ai ff. 64v–131r, insieme alle "Introductiones in logicam" e ai "Syncategoremata" di Guglielmo di Sherwood e ad altri testi di logica, grammatica e retorica. Appartenuto a Pietro di Limoges e da lui lasciato alla Sorbona, è attestato nel catalogo della biblioteca del collegio della Sorbona del 1338; passò alla Biblioteca nazionale nel 1796.
+ʍ Il manoscritto "Firenze, Biblioteca Nazionale Centrale, Conventi soppressi B.9.1145", membranaceo e databile alla metà del XIV secolo, tramanda le "Summulae logicales" ai ff. 1ra–138rb. Un ex libris a f. 138rb ne documenta il possesso da parte del domenicano Andrea di Giovanni de' Galli, baccelliere fiorentino. Il codice appartenne successivamente al convento di Santa Maria Novella di Firenze, nel cui patrimonio è registrato dalla fine del XV all'inizio del XIX secolo.
+ʍ Il manoscritto "Parigi, Bibliothèque nationale de France, latino 13966", della fine del XIII secolo, comprende 118 fogli e trasmette le "Summulae logicales" ai ff. 1–87. Mirabile ne registra la provenienza dalle abbazie benedettine di Saint-Pierre di Corbie e di Saint-Germain-des-Prés.
+ʍ Il codice "Parigi, Bibliothèque nationale de France, latino 13967", anch'esso contenente le "Summulae logicales", è membranaceo, consta di 106 fogli ed è datato all'aprile 1318. Fra i possessori sono registrati Iohannes Felicis de Vallan in Puseio, Iohannes de Rupis e l'abbazia di Saint-Germain-des-Prés.
+ʍ Il manoscritto "Semur-en-Auxois, Bibliothèque municipale, 2", pergamenaceo del XIII secolo, è costituito da 64 fogli su due colonne e contiene le "Summulae logicales". Appartenne al convento carmelitano della città.
+ʍ Il codice "Montecassino, Archivio dell'Abbazia, 362" è un manoscritto pergamenaceo composito, datato ai secoli XIII–XIV e scritto in minuscola gotica. La descrizione catalografica registra una raccolta logica associata ai nomi di Pietro Ispano, Lamberto d'Auxerre e Tommaso d'Aquino, comprendente "Summulae logicales", "De fallaciis cum commentariis" e "Ars opponendi et respondendi".
+
+
+== Opere ==
+La "Summa Lamberti", ossia la "Summa" di Lamberto, l'opera principale dello scrittore, è registrata nei repertori anche con i titoli "Summulae logicales" e "Logica", desunti dalla tradizione manoscritta. 
+Secondo la ricostruzione di Lambertus Marie de Rijk, l'opera è articolata in undici parti dedicate rispettivamente a introduzione, predicabili, sillogistica, topici dialettici, topici sofistici, suppositio («supposizione»), appellatio («appellazione»), restrictio («restrizione»), ampliatio («ampliamento»), distribuzione e relazione; nella tradizione editoriale moderna tali sezioni sono talvolta accorpate diversamente.
+Non sono state identificate con sicurezza altre opere, logiche o di altro genere, attribuibili allo stesso autore.
+
+
+=== Profilo dell'opera ===
+La "Summa" si inserisce nella cosiddetta logica modernorum («logica dei moderni»), l'insieme degli sviluppi della logica medievale affermatisi dalla fine del XII secolo su temi non direttamente trattati nella logica aristotelica. Tra questi ebbe particolare rilievo la teoria delle proprietà dei termini (proprietates terminorum, «proprietà dei termini»), alla quale appartengono nozioni quali suppositio («supposizione»), appellatio («appellazione»), restrictio («restrizione»), ampliatio («ampliamento»), distribuzione e relazione; tale indirizzo è generalmente ricondotto al Terminismo.
+Nella trattazione delle proprietà dei termini Lamberto attribuisce particolare rilievo alla suppositio («supposizione»), intesa come la funzione referenziale assunta da un termine all'interno della proposizione. Distingue fra suppositio naturalis («supposizione naturale»), riferita all'insieme degli individui ai quali un termine può naturalmente applicarsi, e suppositio accidentalis («supposizione accidentale»), determinata invece dall'uso concreto del termine nella proposizione e dalle restrizioni introdotte, fra l'altro, dal tempo verbale. Nello studio del 1971 dedicato allo sviluppo della nozione nella logica medievale, de Rijk esamina la suppositio naturalis come supposizione non contestuale, riferita al termine considerato indipendentemente dal suo impiego in una determinata proposizione.
+Lamberto prende inoltre in esame gli impieghi autoreferenziali dei termini nell'ambito della suppositio simplex («supposizione semplice»), un aspetto che Buonocore mette in relazione con successivi sviluppi della logica medievale, in particolare con il pensiero di Guglielmo di Ockham.
+Nell'impostazione della disciplina Lamberto mantiene distinta la logica o analitica dalla dialettica: la prima è intesa come scienza del sillogismo in generale, mentre la seconda riguarda specificamente il sillogismo dialettico o apparentemente dialettico. Tale distinzione si inserisce nella tradizione medievale che, accanto all'uso ampio di «dialettica» come sinonimo dell'intera logica, conservava anche un significato più ristretto riferito all'argomentazione probabile.
+
+
+==== Proprietà dei termini ====
+Lamberto distingue la significatio («significazione») dalla suppositio: la prima appartiene al termine considerato in sé, mentre la seconda, intesa propriamente come proprietà logica del termine, sorge quando il termine è impiegato all'interno di una proposizione; il caso della suppositio naturalis, considerata indipendentemente dal contesto, presenta la particolarità ricordata sopra. Per Lamberto, fra i diversi significati attribuiti alla parola suppositio, interessa propriamente alla logica quello in cui un termine viene assunto per se stesso, per la cosa significata oppure per uno o più individui compresi sotto di essa.
+L'appellatio («appellazione») viene a sua volta distinta in più accezioni; nel significato propriamente logico indica l'assunzione di un termine per uno o più individui realmente esistenti. La nozione, di origine grammaticale, riceve così in Lamberto un significato tecnico più ristretto rispetto agli usi precedenti.
+La restrictio («restrizione») e l'ampliatio («ampliamento») modificano invece l'estensione della suppositio di un termine: la prima ne restringe il campo di riferimento, la seconda lo amplia. Lamberto distingue inoltre una restrizione naturalis («naturale»), determinata da un elemento aggiunto al termine, e una restrizione usualis («d'uso»), dipendente dal contesto linguistico e dall'uso corrente.
+Nel capitolo conclu

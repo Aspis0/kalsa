@@ -26,6 +26,14 @@ SECRETS="${POD_SECRETS_DIR:-/root/.secrets}"
 KEEP_ALIVE="${POD_KEEP_ALIVE:-0}"     # 1 = do not terminate (debug only)
 DESTROY_ON_FAILED_UPLOAD="${POD_DESTROY_ON_FAILED_UPLOAD:-0}"
 
+# Become a process-group leader so watchdog.sh can kill -TERM -- -$$ and take
+# the WHOLE job tree (stages and their children) in one signal; re-exec under
+# setsid exactly once. Guarded by an env var the re-exec sets.
+if [ "${KALSA_JOB_SESSION:-}" != "1" ] && command -v setsid >/dev/null 2>&1; then
+  export KALSA_JOB_SESSION=1
+  exec setsid bash "$0" "$@"
+fi
+
 # spend state survives crash-resume
 mkdir -p "$RUN"
 if [ ! -f "$RUN/spend-state.env" ]; then
@@ -54,6 +62,12 @@ results_uploaded() { [ -f "$RUN/40_upload.ok" ]; }
 # shellcheck disable=SC2329  # invoked from the EXIT trap string below
 mini_upload_or_keep() { # failure path: push the ~1 MB, keep the pod if it won't land
   local rc
+  # nothing to salvage (e.g. stage 20 never produced stats) -> terminating
+  # destroys nothing; keeping the pod alive would bill for an empty volume
+  if [ ! -f "$RUN/profile.stats.pt" ] && ! ls "$RUN"/keep_reap_*.json >/dev/null 2>&1; then
+    echo "run_all: no stats/keep-set on disk — nothing to salvage; terminating." >&2
+    return 0
+  fi
   rc=1
   for _ in 1 2 3; do
     if HF_TOKEN="$(hf_token_cat)" timeout 60 bash "$LAB/40_upload.sh" --mini; then
@@ -96,12 +110,16 @@ for entry in $STAGES; do
     exit 3
   fi
   timeout_s=$(awk -v h="$reserve_h" 'BEGIN {printf "%d", h*3600}')
+  # plain timeout (NOT --foreground): without --foreground, timeout runs the
+  # stage in its own process group and signals the WHOLE group on expiry —
+  # --foreground left the stage's GPU children (python, curl, hf) running
+  # past the timeout (Fable-2 review).
   if [[ "$NEEDS_TOKEN" == *" $stage "* ]]; then
     HF_TOKEN="$(hf_token_cat)" \
-      timeout --foreground -k 120 "$timeout_s" bash "$LAB/${stage}.sh" \
+      timeout -k 120 "$timeout_s" bash "$LAB/${stage}.sh" \
       2>&1 | tee -a "$RUN/${stage}.log"
   else
-    env -u HF_TOKEN timeout --foreground -k 120 "$timeout_s" \
+    env -u HF_TOKEN timeout -k 120 "$timeout_s" \
       bash "$LAB/${stage}.sh" 2>&1 | tee -a "$RUN/${stage}.log"
   fi
   rc=${PIPESTATUS[0]}
