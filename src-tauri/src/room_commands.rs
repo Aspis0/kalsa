@@ -95,14 +95,13 @@ fn command_error(error: kalsa_room::PostError) -> RoomCommandError {
 
 fn name_command_error(error: kalsa_room::NameError) -> RoomCommandError {
     match error {
-        kalsa_room::NameError::TooLong => RoomCommandError { code: "too_large" },
-        kalsa_room::NameError::Reserved | kalsa_room::NameError::Taken => {
-            RoomCommandError { code: "name_taken" }
-        }
+        kalsa_room::NameError::TooLong => RoomCommandError { code: "name_too_long" },
+        kalsa_room::NameError::Reserved => RoomCommandError { code: "name_reserved" },
+        kalsa_room::NameError::Taken => RoomCommandError { code: "name_taken" },
         kalsa_room::NameError::Framing => RoomCommandError { code: "name_framing" },
+        kalsa_room::NameError::MixedScripts => RoomCommandError { code: "name_mixed_scripts" },
         kalsa_room::NameError::Empty
         | kalsa_room::NameError::Invisible
-        | kalsa_room::NameError::MixedScripts
         | kalsa_room::NameError::NotAMember => RoomCommandError { code: "bad_request" },
         kalsa_room::NameError::Io(_) => RoomCommandError::internal(),
     }

@@ -19,6 +19,8 @@ import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
 import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/roomFeed";
+import { roomNote } from "../chat/src/surfaces/roomNotes";
+import { roomNameError } from "../chat/src/surfaces/roomNameError";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -256,6 +258,7 @@ const scenarios = [
   // runs (thinking included).
   ["Room", "the feed reducer: merge, epoch, live", "room", { reducerProbe: true }],
   ["Room", "the queue line: one, two, three", "room", { queueProbe: true }],
+  ["Room", "the copy table: refusal and name sentences", "room", { copyProbe: true }],
   ["Room", "queue: three waiting, real line", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
     { member_id: 3, name: "Marco", kind: "phone", former: false },
@@ -766,6 +769,23 @@ function componentFor(kind, data) {
   if (kind === "models") return React.createElement(ModelsSurface, { onNavigate: () => {} });
   if (kind === "advanced") return React.createElement(AdvancedSurface);
   if (kind === "room") {
+    if (data?.copyProbe) {
+      const REFUSALS = [
+        ["already_pending", "You already have a question waiting for Kalsa."],
+      ];
+      const NAMES = [
+        ["name_taken", "Someone in this room already uses that name. Pick another."],
+        ["name_reserved", "Kalsa is the assistant's name. Pick another."],
+        ["name_framing", "Names can't use [ or ]."],
+        ["name_mixed_scripts", "Use letters from one alphabet in your name."],
+        ["name_too_long", "That name is too long. Try a shorter one."],
+      ];
+      const line = (pairs, render) =>
+        pairs.map(([code, wanted]) => `${render(code) === wanted ? "GOOD" : "WRONGLY"}: ${code}`).join("\n");
+      return React.createElement("div", null,
+        React.createElement("p", { className: "room-copy" },
+          line(REFUSALS, (code) => roomNote(code, null)) + "\n" + line(NAMES, roomNameError)));
+    }
     if (data?.queueProbe) {
       return React.createElement("div", null,
         React.createElement("p", { className: "room-queue-line" }, [

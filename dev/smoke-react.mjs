@@ -452,7 +452,8 @@ try {
     if (
       heading.startsWith("Room — the @Kalsa rule") ||
       heading.startsWith("Room — the feed reducer") ||
-      heading.startsWith("Room — the queue line")
+      heading.startsWith("Room — the queue line") ||
+      heading.startsWith("Room — the copy table")
     ) {
       continue;
     }
@@ -1208,6 +1209,40 @@ try {
         }
         if (buttons.length > 0) {
           problems.push(`Room — a closed room offers nothing to press: ${heading}`);
+        }
+      }
+      if (heading.includes("refusal: already pending")) {
+        if (!all.includes("You already have a question waiting for Kalsa.")) {
+          problems.push(`Room — the pending refusal must be said: ${heading}`);
+        }
+      }
+      const NAME_SENTENCES = [
+        ["name: taken", "Someone in this room already uses that name. Pick another."],
+        ["name: reserved", "Kalsa is the assistant's name. Pick another."],
+        ["name: framing", "Names can't use [ or ]."],
+        ["name: mixed scripts", "Use letters from one alphabet in your name."],
+        ["name: too long", "That name is too long. Try a shorter one."],
+      ];
+      for (const [needle, wanted] of NAME_SENTENCES) {
+        if (heading.includes(needle) && !all.includes(wanted)) {
+          problems.push(`Room — ${needle} must say "${wanted}": ${heading}`);
+        }
+      }
+      if (heading.includes("the copy table")) {
+        for (const code of [
+          "already_pending",
+          "name_taken",
+          "name_reserved",
+          "name_framing",
+          "name_mixed_scripts",
+          "name_too_long",
+        ]) {
+          if (!all.includes(`GOOD: ${code}`)) {
+            problems.push(`Room — copy table must render the sentence for "${code}": ${heading}`);
+          }
+        }
+        if (all.includes("WRONGLY")) {
+          problems.push(`Room — copy table rendered a wrong sentence`);
         }
       }
       if (heading.includes("the queue line")) {

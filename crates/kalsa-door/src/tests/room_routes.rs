@@ -264,7 +264,8 @@ fn a_name_is_set_through_the_member_path_and_the_assistants_is_not() {
         r#"{"name":"Kalsa"}"#,
     );
     assert!(taken.starts_with(b"HTTP/1.1 409"));
-    assert_eq!(body_json(&taken)["error"]["code"], "name_taken");
+    // The assistant's own name is its own refusal, not a collision.
+    assert_eq!(body_json(&taken)["error"]["code"], "name_reserved");
     door.shutdown();
 }
 

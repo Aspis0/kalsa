@@ -391,8 +391,11 @@ Every error carries a stable machine `code` and its English fallback in
 | `bad_request` | The room reads a JSON body of the shape its route defines. |
 | `too_large` | The message or name is too long. |
 | `client_msg_id_reused` | This message id was already used for different content. |
-| `name_taken` | That name is reserved or already in use. |
-| `name_framing` | A name cannot hold the speaker brackets. |
+| `name_taken` | Someone in this room already uses that name. Pick another. |
+| `name_reserved` | Kalsa is the assistant's name. Pick another. |
+| `name_framing` | Names can't use [ or ]. |
+| `name_mixed_scripts` | Use letters from one alphabet in your name. |
+| `name_too_long` | That name is too long. Try a shorter one. |
 | `no_call` | You have no question waiting. |
 | `epoch_changed` | The room's transcript restarted; drop what was cached and read it again. |
 | `no_room` | The room is not open on this computer. |

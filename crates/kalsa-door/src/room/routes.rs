@@ -293,12 +293,14 @@ pub(super) fn set_name(
 fn name_error(origin: Option<&[u8]>, error: &kalsa_room::NameError) -> Vec<u8> {
     use kalsa_room::NameError as E;
     match error {
-        E::Empty | E::Invisible | E::MixedScripts | E::NotAMember => {
+        E::Empty | E::Invisible | E::NotAMember => {
             json_error(400, origin, "bad_request", &error.to_string())
         }
+        E::MixedScripts => json_error(400, origin, "name_mixed_scripts", &error.to_string()),
         E::Framing => json_error(400, origin, "name_framing", &error.to_string()),
-        E::TooLong => json_error(413, origin, "too_large", &error.to_string()),
-        E::Reserved | E::Taken => json_error(409, origin, "name_taken", &error.to_string()),
+        E::TooLong => json_error(413, origin, "name_too_long", &error.to_string()),
+        E::Reserved => json_error(409, origin, "name_reserved", &error.to_string()),
+        E::Taken => json_error(409, origin, "name_taken", &error.to_string()),
         E::Io(_) => json_error(500, origin, "internal", store_failed()),
     }
 }

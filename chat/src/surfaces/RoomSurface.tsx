@@ -9,6 +9,7 @@ import { available } from "../lib/tauri";
 import { RoomText } from "../lib/roomMention";
 import { roomNote } from "./roomNotes";
 import { useRoomFeed } from "./useRoomFeed";
+import { roomNameError } from "./roomNameError";
 import "./RoomSurface.css";
 
 /** The waiting line, in queue order: who is next, then the rest joined
@@ -65,6 +66,8 @@ export function RoomSurface() {
   }
 
   const noteLine = roomNote(note?.code, note?.text);
+  const refusalLine = roomNote(feed.refusal?.code, null);
+  const nameLine = roomNameError(feed.nameError?.code);
 
   return (
     <div className="surface-page room-page">
@@ -100,6 +103,7 @@ export function RoomSurface() {
               onChange={(event) => setNameDraft(event.target.value)}
               onBlur={() => void saveName()}
             />
+            {nameLine ? <span className="room-name-error">{nameLine}</span> : null}
           </form>
         ) : null}
       </header>
@@ -144,6 +148,7 @@ export function RoomSurface() {
         {!turnRunning && ai && ai.queue.length > 0 ? (
           <p className="surface-quiet">{queueLine(ai.queue)}</p>
         ) : null}
+        {refusalLine ? <p className="surface-quiet">{refusalLine}</p> : null}
         {noteLine ? <p className="surface-quiet">{noteLine}</p> : null}
       </div>
 
