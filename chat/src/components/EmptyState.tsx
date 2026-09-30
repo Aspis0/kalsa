@@ -1,5 +1,6 @@
 import "./EmptyState.css";
 import type { HostKeyState } from "../surfaces/useBrain";
+import { useLanguage } from "../i18n/useLanguage";
 
 /** What the first page has to offer before a message can be written: which
     sentence-button pair it shows, each borrowed from the page that fixes it. */
@@ -103,6 +104,7 @@ export function EmptyState({
   onOpenServer,
   onOpenDevices,
 }: EmptyStateProps) {
+  const { table } = useLanguage();
   return (
     <div className="empty">
       <div className="empty-mark" aria-hidden="true">
@@ -141,9 +143,9 @@ export function EmptyState({
         </>
       ) : setup === "advanced" ? (
         <>
-          <p className="empty-copy">This computer has no model name yet.</p>
+          <p className="empty-copy">{table.advanced.noModelYet}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenAdvanced}>
-            Open Advanced
+            {table.advanced.addModelName}
           </button>
         </>
       ) : (

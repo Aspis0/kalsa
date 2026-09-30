@@ -1224,9 +1224,10 @@ export function App() {
               onNavigate={openSurface}
               model={settings.model}
               onModelChange={(name) => {
-                const next = { ...settings, model: name };
-                setSettings(next);
-                saveSettings(next);
+                // The panel's blur is the one writer of the record; this
+                // only keeps the app's own memory current so the chat uses
+                // the new name without a reload.
+                setSettings({ ...settings, model: name });
               }}
             />
           ) : surface === "server" ? (
@@ -1237,9 +1238,9 @@ export function App() {
             <AdvancedSurface
               model={settings.model}
               onModelChange={(name) => {
-                const next = { ...settings, model: name };
-                setSettings(next);
-                saveSettings(next);
+                // Memory only — the panel's blur already wrote the record,
+                // and a second writer here would race it with a staler base.
+                setSettings({ ...settings, model: name });
               }}
             />
           ) : null}

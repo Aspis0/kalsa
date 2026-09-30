@@ -28,7 +28,7 @@ export const ROOM: RoomTable = {
     "unavailable": "Kalsa no puede responder en esta sala ahora mismo.",
     "empty_answer": "Kalsa no tuvo respuesta para eso.",
     "could_not_start": "Kalsa no pudo arrancar. Inténtalo de nuevo.",
-    "engine_problem": "Kalsa tuvo un problema en este computer y no pudo responder. Inténtalo de nuevo.",
+    "engine_problem": "Kalsa tuvo un problema en este equipo y no pudo responder. Inténtalo de nuevo.",
     "already_pending": "Ya tienes una pregunta esperando a Kalsa.",
     "name_taken": "Alguien en esta sala ya usa ese nombre. Elige otro.",
     "name_reserved": "Kalsa es el nombre del asistente. Elige otro.",

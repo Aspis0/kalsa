@@ -200,17 +200,17 @@ interface AdvancedPanelProps {
   /** The stored model name and where its edits go: the same settings field
       the Settings page kept, so the dev path's typed name reaches the chat
       without a reload. */
-  model?: string;
+  model: string;
   onModelChange?: (model: string) => void;
 }
 
 export function AdvancedPanel({ save, model: modelProp, onModelChange }: AdvancedPanelProps) {
   const { table } = useLanguage();
   const advanced = table.advanced;
-  // The model name lives in the app's settings record — the same field the
-  // Settings page kept — read once and written on blur, the way a knob's
-  // typed value commits.
-  const [model, setModel] = useState(() => modelProp ?? loadSettings().model);
+  // The name arrives as the stored value and is written on blur — the same
+  // commit a knob's typed value makes. The one writer of the record is that
+  // blur; onModelChange only carries the name to the app's memory.
+  const [model, setModel] = useState(modelProp);
   const [modelError, setModelError] = useState<string | null>(null);
   const [dto, setDto] = useState<AdvancedDto | null>(null);
   const [context, setContext] = useState("");

@@ -1,5 +1,7 @@
 export const ADVANCED = {
   modelName: "Nom du modèle",
-  modelNamePlaceholder: "mon-modele",
-  modelNameError: "Écris le nom du modèle pour que cet ordinateur sache quel fichier utiliser.",
+  modelNamePlaceholder: "mon-modèle",
+  modelNameError: "Écris le nom du modèle.",
+  noModelYet: "Cet ordinateur n'a pas encore le nom du modèle.",
+  addModelName: "Ajoute le nom du modèle",
 };

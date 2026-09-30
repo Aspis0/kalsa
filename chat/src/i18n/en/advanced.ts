@@ -4,5 +4,9 @@
 export const ADVANCED = {
   modelName: "Model name",
   modelNamePlaceholder: "my-model",
-  modelNameError: "Enter the model's name so this computer knows which file to use.",
+  modelNameError: "Enter the model's name.",
+  // The first page's arm when no name is stored. The words live here, not on
+  // the first page, because the button opens this panel.
+  noModelYet: "This computer has no model name yet.",
+  addModelName: "Add the model name",
 };

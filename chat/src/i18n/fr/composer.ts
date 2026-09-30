@@ -16,6 +16,6 @@ export const BRAIN_BAR = {
     "send": "Envoyer",
     "chat": "Discussion",
     "room": "Salon",
-    "thisComputer": "Ce computer"
+    "thisComputer": "Cet ordinateur"
   };
 

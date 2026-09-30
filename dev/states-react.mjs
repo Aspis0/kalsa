@@ -485,7 +485,7 @@ const scenarios = [
   ["firstpage/key", "the door stood up but could not hand its key over", "empty", { setup: setupArm("running", "missing", true, "") }],
   ["firstpage/key-read", "the store would not let the key be read", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: credentialRefusalText("This computer could not read its own connection key.") }],
   ["firstpage/key-junk", "a rejection this app never wrote says nothing", "empty", { setup: setupArm("running", "missing", true, ""), credentialMessage: credentialRefusalText("[object Object]") }],
-  ["firstpage/settings", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
+  ["firstpage/advanced", "the door is up but unnamed", "empty", { setup: setupArm("running", "answered", true, "") }],
   ["firstpage/ready", "ready to write", "empty", { setup: setupArm("running", "answered", true, "x") }],
   ["firstpage/service", "the engine runs but the local service stopped", "empty", { setup: setupArm("running", "answered", false, "x") }],
   ["firstpage/service", "the credential read never runs without a door", "empty", { setup: setupArm("running", "pending", false, "x") }],
@@ -775,13 +775,18 @@ function componentFor(kind, data) {
   if (kind === "empty") {
     // The first page off the app: its arms come from the same mapping App
     // runs, so the scenario pins the mapping and the rendered words both.
-    return React.createElement(EmptyState, {
-      setup: data?.setup,
-      credentialMessage: data?.credentialMessage ?? null,
-      onOpenSettings: () => {},
-      onOpenServer: () => {},
-      onOpenDevices: () => {},
-    });
+    // The provider is needed for the arm that reads the advanced table.
+    return React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(EmptyState, {
+        setup: data?.setup,
+        credentialMessage: data?.credentialMessage ?? null,
+        onOpenAdvanced: () => {},
+        onOpenServer: () => {},
+        onOpenDevices: () => {},
+      }),
+    );
   }
   if (kind === "server") return React.createElement(ServerSurface);
   if (kind === "models") {

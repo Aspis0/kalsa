@@ -6,8 +6,8 @@ export const COMPOSER = {
     "send": "Enviar",
     "stopGenerating": "Detener la respuesta",
     "attachAria": "Adjuntar un archivo",
-    "thinkingOn": "Encender la reflexión",
-    "thinkingOff": "Apagar la reflexión"
+    "thinkingOn": "Activar la reflexión",
+    "thinkingOff": "Desactivar la reflexión"
   };
 
 export const BRAIN_BAR = {
@@ -16,6 +16,6 @@ export const BRAIN_BAR = {
     "send": "Enviar",
     "chat": "Chat",
     "room": "Sala",
-    "thisComputer": "Este computer"
+    "thisComputer": "Este equipo"
   };
 
