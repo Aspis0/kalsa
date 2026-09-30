@@ -110,35 +110,35 @@ export function EmptyState({
       <div className="empty-mark" aria-hidden="true">
         <span />
       </div>
-      <h2 className="empty-title">Talk to your model.</h2>
+      <h2 className="empty-title">{table.firstPage.title}</h2>
       {setup === "server" ? (
         <>
-          <p className="empty-copy">This computer is not running anything right now.</p>
+          <p className="empty-copy">{table.firstPage.serverArm}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenServer}>
-            Go to Server
+            {table.firstPage.goToServer}
           </button>
         </>
       ) : setup === "service" ? (
         <>
-          <p className="empty-copy">This computer's chat connection is not working right now.</p>
+          <p className="empty-copy">{table.firstPage.serviceArm}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenDevices}>
-            Go to Devices
+            {table.firstPage.goToDevices}
           </button>
         </>
       ) : setup === "starting" ? (
         <>
-          <p className="empty-copy">Getting ready. On an older computer this can take a minute.</p>
+          <p className="empty-copy">{table.firstPage.startingArm}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenServer}>
-            Go to Server
+            {table.firstPage.goToServer}
           </button>
         </>
       ) : setup === "key" ? (
         <>
           <p className="empty-copy">
-            {credentialMessage || "This computer has not made its own connection key yet."}
+            {credentialMessage || table.firstPage.keyArm}
           </p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenDevices}>
-            Devices
+            {table.firstPage.devices}
           </button>
         </>
       ) : setup === "advanced" ? (
@@ -149,7 +149,7 @@ export function EmptyState({
           </button>
         </>
       ) : (
-        <p className="empty-copy">Write your first message below to begin.</p>
+        <p className="empty-copy">{table.firstPage.ready}</p>
       )}
     </div>
   );

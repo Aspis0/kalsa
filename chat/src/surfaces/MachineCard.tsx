@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import "./surfaces.css";
 import "./BrainSurface.css";
 
@@ -76,10 +78,11 @@ type Speed = ModelOption["speed"];
 const GIB = 1024 ** 3;
 const MIB = 1024 ** 2;
 
-export function bytesText(bytes: number): string {
-  if (bytes < GIB) return `${Math.round(bytes / MIB)} MiB`;
+export function bytesText(bytes: number, tag = "en"): string {
+  if (bytes < GIB) return `${new Intl.NumberFormat(tag).format(Math.round(bytes / MIB))} MiB`;
   const value = bytes / GIB;
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} GiB`;
+  const shown = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+  return `${Number.isInteger(value) ? new Intl.NumberFormat(tag).format(value) : shown} GiB`;
 }
 
 // A memory RATE is decimal, because every figure it will ever be compared
@@ -87,35 +90,37 @@ export function bytesText(bytes: number): string {
 // GB/s. Dividing those bytes by 1024^3 and writing "GB/s" printed 183.5 for
 // a 197 GB/s machine — a number that appears nowhere else, and the shot
 // fixture had been bent to 183.5 to match it.
-function rateText(bytesPerSecond: number): string {
+function rateText(bytesPerSecond: number, tag: string): string {
   const value = bytesPerSecond / 1e9;
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} GB/s`;
+  const shown = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+  return `${Number.isInteger(value) ? new Intl.NumberFormat(tag).format(value) : shown} GB/s`;
 }
 
 // One speed formatter, following the Server page's convention. A measured
 // rate keeps its figure here and names its machine in the detail line: it is
 // a fact about one computer, never a property of the model.
-function speedText(speed: Speed): string {
+function speedText(t: English["machine"], speed: Speed, tag: string): string {
+  const oneDecimal = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   switch (speed.shape) {
     case "range":
-      return `${speed.low.toFixed(1)}–${speed.high.toFixed(1)} tokens/s`;
+      return t.speedRange(oneDecimal.format(speed.low), oneDecimal.format(speed.high));
     case "at_least":
-      return `At least ${speed.value.toFixed(1)} tokens/s`;
+      return t.speedAtLeast(oneDecimal.format(speed.value));
     case "measured":
-      return `${speed.value.toFixed(1)} tokens/s`;
+      return t.speedMeasured(oneDecimal.format(speed.value));
   }
 }
 
-function speedDetail(speed: Speed): string {
+function speedDetail(t: English["machine"], speed: Speed): string {
   switch (speed.shape) {
     case "range":
-      return "estimated from memory speed";
+      return t.detailRange;
     case "at_least":
-      return "a lower bound, not a prediction";
+      return t.detailAtLeast;
     // "last": a measured figure is a reading from one moment on one
     // machine — an engine or driver change since can have moved it.
     case "measured":
-      return `last measured on ${speed.machine}`;
+      return t.detailMeasured(speed.machine);
   }
 }
 
@@ -124,20 +129,19 @@ function speedDetail(speed: Speed): string {
 // the model will use is a floor and is said as one ("at least"), never as a
 // figure the machine may not reach; and a graphics card whose memory could not
 // be read is not counted in the budget, which changes what the number means.
-function machineSentence(machine: Machine): string {
+function machineSentence(t: English["machine"], machine: Machine, tag: string): string {
   const parts = [
-    `${bytesText(machine.ram_bytes)} of memory, ${bytesText(machine.budget_bytes)} free for a model, ` +
-      `running on ${machine.runs_on}.`,
+    t.memorySentence(bytesText(machine.ram_bytes, tag), bytesText(machine.budget_bytes, tag), machine.runs_on),
   ];
   if (!machine.gpu_accounted_for) {
-    parts.push("The graphics card's memory could not be read, so it is not counted.");
+    parts.push(t.gpuUnreadable);
   }
-  const rate = rateText(machine.bandwidth_bytes_per_second);
+  const rate = rateText(machine.bandwidth_bytes_per_second, tag);
   parts.push(
     {
-      measured: `Memory speed was measured at ${rate} — the path a model would use.`,
-      floor: `Memory speed was measured on the processor: at least ${rate}, and a model would run on something faster.`,
-      chip: `Memory reaches about ${rate} where a model decodes — this chip's published figure, at the share one like it was measured at.`,
+      measured: t.bandwidthMeasured(rate),
+      floor: t.bandwidthFloor(rate),
+      chip: t.bandwidthChip(rate),
     }[machine.bandwidth_basis],
   );
   return parts.join(" ");
@@ -148,17 +152,16 @@ function machineSentence(machine: Machine): string {
 // nothing left over, and "null tokens of context" is not a fact to print.
 // `speed` is the figure the head already chose — the tune's own number
 // where one exists, the prediction otherwise.
-function modelDetail(model: ModelOption, speed: Speed): string {
-  const held = `${model.quant} · ${bytesText(model.download_bytes)} on disk`;
+function modelDetail(t: English["machine"], model: ModelOption, speed: Speed, tag: string): string {
   // "up to": the figure is the largest context the memory funds, and the
   // speed beside it is priced at the chooser's window — the 65,536 tokens
   // the rule judged the row in — not at that context. Saying it flat would
   // put two numbers on one line that cannot both hold at once.
   const context =
     typeof model.context_tokens === "number"
-      ? ` · up to ${model.context_tokens.toLocaleString()} tokens of context`
+      ? ` · ${t.upToContext(new Intl.NumberFormat(tag).format(model.context_tokens))}`
       : "";
-  return `${held}${context} · ${speedDetail(speed)}`;
+  return `${t.onDisk(model.quant, bytesText(model.download_bytes, tag))}${context} · ${speedDetail(t, speed)}`;
 }
 
 // The machine card: the numbers the chooser used, and the model it chose. It is
@@ -179,30 +182,28 @@ function Option({
   busy?: boolean;
   onChoose?: (token: string) => void;
 }) {
+  const { table, tag } = useLanguage();
+  const t = table.machine;
   const [confirming, setConfirming] = useState(false);
   const isRunning = running != null && running === model.name;
   // The tune's own number replaces the prediction when this machine has
   // one; "measured on this computer" is then the truth of the figure.
   const speed: Speed =
     model.measured != null
-      ? { shape: "measured", value: model.measured, machine: "this computer" }
+      ? { shape: "measured", value: model.measured, machine: t.thisComputerMachine }
       : model.speed;
   return (
     <div className="machine-option">
       <p className="machine-option-head">
         <strong className="machine-option-name">{model.name}</strong>
-        <span className="machine-option-speed">{speedText(speed)}</span>
-        {isRunning ? <span className="machine-option-running">Running now.</span> : null}
+        <span className="machine-option-speed">{speedText(t, speed, tag)}</span>
+        {isRunning ? <span className="machine-option-running">{t.runningNow}</span> : null}
       </p>
-      <p className="machine-option-detail">{modelDetail(model, speed)}</p>
+      <p className="machine-option-detail">{modelDetail(t, model, speed, tag)}</p>
       <p className="machine-option-reason">{model.reason}</p>
       {isRunning ? null : model.id === null || onChoose === undefined ? null : confirming ? (
         <div className="machine-option-choose">
-          <p>
-            The assistant stops and starts again on {model.name}. If this model is not on this
-            computer yet it is downloaded first — {bytesText(model.download_bytes)} — so this is not
-            instant.
-          </p>
+          <p>{t.confirmSwitch(model.name, bytesText(model.download_bytes, tag))}</p>
           <div className="machine-option-actions">
             <button
               type="button"
@@ -213,10 +214,10 @@ function Option({
                 onChoose(model.id as string);
               }}
             >
-              Start again on {model.name}
+              {t.startAgainOn(model.name)}
             </button>
             <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
-              Cancel
+              {t.cancel}
             </button>
           </div>
         </div>
@@ -227,7 +228,7 @@ function Option({
           disabled={busy}
           onClick={() => setConfirming(true)}
         >
-          Use this model
+          {t.useThisModel}
         </button>
       )}
     </div>
@@ -246,12 +247,10 @@ export function MachineCard({
   busy?: boolean;
   onChoose?: (token: string) => void;
 }) {
+  const { table, tag } = useLanguage();
+  const t = table.machine;
   if (capability.kind !== "measured") {
-    return (
-      <p className="surface-quiet">
-        This computer has not been measured yet; turning the assistant on measures it.
-      </p>
-    );
+    return <p className="surface-quiet">{t.notMeasured}</p>;
   }
 
   const { machine, model, quicker, refusal } = capability;
@@ -261,19 +260,19 @@ export function MachineCard({
   const second = model ? quicker : null;
 
   return (
-    <section className="machine-card" aria-label="This computer and what it would run">
-      <p className="surface-eyebrow">This computer</p>
-      <p className="surface-sentence">{machineSentence(machine)}</p>
+    <section className="machine-card" aria-label={t.cardAria}>
+      <p className="surface-eyebrow">{t.thisComputer}</p>
+      <p className="surface-sentence">{machineSentence(t, machine, tag)}</p>
 
       <p className="surface-eyebrow">
-        {second ? "What it would run — pick one" : "What it would run"}
+        {second ? t.whatItWouldRunPick : t.whatItWouldRun}
       </p>
       {model ? (
         <>
           <Option model={model} running={running} busy={busy} onChoose={onChoose} />
           {second ? <Option model={second} running={running} busy={busy} onChoose={onChoose} /> : null}
           <details className="machine-working">
-            <summary>Show the working</summary>
+            <summary>{t.showWorking}</summary>
             <p className="machine-working-body">{model.details}</p>
             {second ? <p className="machine-working-body">{second.details}</p> : null}
             {/* Once, under both, and in the drawer rather than on the card:
@@ -281,8 +280,7 @@ export function MachineCard({
                 length they were priced at and fall from there. On the card it
                 was dev material in the middle of a choice. */}
             <p className="machine-working-body">
-              These speeds are for a conversation of about{" "}
-              {model.speed_context_tokens.toLocaleString()} tokens, and they drop as it grows.
+              {t.speedsHeld(new Intl.NumberFormat(tag).format(model.speed_context_tokens))}
             </p>
           </details>
         </>

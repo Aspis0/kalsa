@@ -29,7 +29,8 @@ export interface ConversationStore {
   putAttachment(convId: string, attachment: Attachment): void;
   /** Detach into history (kept, re-attachable) — never deletes the text. */
   removeAttachment(convId: string, attachmentId: string): void;
-  /** Last persist failure, if any (quota). Null after a successful write. */
+  /** Last persist failure, if any, as the code "storage-full"; the shell
+      owns the sentence. Null after a successful write. */
   getWriteError(): string | null;
   clearWriteError(): void;
   subscribe(listener: () => void): () => void;
@@ -224,9 +225,9 @@ function metaFor(conversation: Conversation): ConversationMeta {
   };
 }
 
-export function titleFor(firstText: string): string {
+export function titleFor(firstText: string, fallback = "New conversation"): string {
   const oneLine = firstText.replace(/\s+/g, " ").trim();
-  if (!oneLine) return "New conversation";
+  if (!oneLine) return fallback;
   return oneLine.length > 46 ? `${oneLine.slice(0, 46).trimEnd()}…` : oneLine;
 }
 

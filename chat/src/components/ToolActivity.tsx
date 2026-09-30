@@ -1,3 +1,5 @@
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
@@ -21,6 +23,8 @@ export function ToolActivity({ runs }: { runs: ToolRun[] }) {
 }
 
 function ToolRow({ run }: { run: ToolRun }) {
+  const { table } = useLanguage();
+  const t = table.tools;
   const args = readArguments(run.name, run.arguments).args;
   const query = typeof args.query === "string" ? args.query : "";
   const asked = typeof args.url === "string" ? args.url.trim() : "";
@@ -38,17 +42,17 @@ function ToolRow({ run }: { run: ToolRun }) {
         {run.state === "running" ? (
           <span className="tool-working">
             <span />
-            {running(run.name)}
+            {running(t, run.name)}
           </span>
         ) : (
-          <span>{summaryOf(run.name, failed, query, url ?? asked)}</span>
+          <span>{summaryOf(t, run.name, failed, query, url ?? asked)}</span>
         )}
       </summary>
       <div className="tool-detail">
-        {query ? <p className="tool-query">Searched for: {query}</p> : null}
+        {query ? <p className="tool-query">{t.searchedForLabel} {query}</p> : null}
         {asked ? (
           <p className="tool-query">
-            Asked for: {url ? <Openable url={url}>{hostOf(url)}</Openable> : asked}
+            {t.askedForLabel} {url ? <Openable url={url}>{hostOf(url)}</Openable> : asked}
           </p>
         ) : null}
         {failed ? <p className="tool-failure">{run.result}</p> : null}
@@ -66,24 +70,24 @@ function ToolRow({ run }: { run: ToolRun }) {
   );
 }
 
-function running(name: string): string {
-  if (name === "web_fetch") return "Opening the page…";
-  if (name === "web_search") return "Searching the web…";
-  if (!name) return "A tool call arrived unnamed…";
-  return `Running ${name}…`;
+function running(t: English["tools"], name: string): string {
+  if (name === "web_fetch") return t.openingPage;
+  if (name === "web_search") return t.searchingWeb;
+  if (!name) return t.unnamedRunning;
+  return t.running(name);
 }
 
-function summaryOf(name: string, failed: boolean, query: string, url: string): string {
-  if (!name) return failed ? "A tool call arrived unnamed" : "Ran an unnamed tool";
+function summaryOf(t: English["tools"], name: string, failed: boolean, query: string, url: string): string {
+  if (!name) return failed ? t.unnamedFailed : t.ranUnnamed;
   if (name === "web_fetch") {
-    return failed ? "That page could not be opened" : `Read ${url ? hostOf(url) : "a page"}`;
+    return failed ? t.pageNotOpened : t.read(url ? hostOf(url) : t.aPage);
   }
 
   if (name === "web_search") {
-    if (failed) return "That search did not run";
-    return query ? `Searched for “${query}”` : "Searched the web";
+    if (failed) return t.searchDidNotRun;
+    return query ? t.searchedFor(query) : t.searchedWeb;
   }
-  return failed ? `${name} did not run` : `Ran ${name}`;
+  return failed ? t.didNotRun(name) : t.ran(name);
 }
 
 function hostOf(url: string): string {

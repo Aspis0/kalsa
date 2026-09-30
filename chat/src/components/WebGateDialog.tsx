@@ -1,4 +1,5 @@
 import type { GateCheck } from "../lib/tools/registry";
+import { useLanguage } from "../i18n/useLanguage";
 import "./WebGateDialog.css";
 
 /**
@@ -23,41 +24,41 @@ export function WebGateDialog({
   waiting?: number;
   onAnswer: (id: string, allow: boolean) => void;
 }) {
+  const { table } = useLanguage();
+  const t = table.tools;
   const search = check.tool === "web_search";
-  const docs = check.documents.length === 1 ? "One document is attached" : `${check.documents.length} documents are attached`;
+  const docs = check.documents.length === 1 ? t.oneDocument : t.documentsAttached(check.documents.length);
   return (
     <section className="webgate" role="alertdialog" aria-modal="false" aria-labelledby="webgate-title">
-      <h2 id="webgate-title">{search ? "A search is waiting to leave the app." : "A page request is waiting to leave the app."}</h2>
-      <p className="webgate-why">
-        {docs} to this conversation, so every web call is shown here first, before anything is sent.
-      </p>
+      <h2 id="webgate-title">{search ? t.searchWaitingTitle : t.pageWaitingTitle}</h2>
+      <p className="webgate-why">{t.gateWhy(docs)}</p>
       <p className="webgate-label">
-        The exact text that would be sent {search ? "as the search" : "as the address"}:
+        {search ? t.exactTextSearch : t.exactTextPage}
       </p>
       <pre className="webgate-outgoing">{check.outgoing}</pre>
       {check.findings.length > 0 ? (
         <ul className="webgate-findings">
           {check.findings.map((finding, at) => (
             <li key={at}>
-              <strong>{finding.kind}</strong>
-              {finding.source ? <span> from {finding.source}</span> : null}: <span className="webgate-matched">“{finding.matched}”</span>
+              <strong>{t.findings[finding.kind] ?? finding.kind}</strong>
+              {finding.source ? <span>{t.findingFrom(finding.source)}</span> : null}: <span className="webgate-matched">“{finding.matched}”</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="webgate-clean">Nothing recognisable was found in it.</p>
+        <p className="webgate-clean">{t.nothingRecognisable}</p>
       )}
       {waiting > 0 ? (
         <p className="webgate-why">
-          {waiting === 1 ? "Another call is waiting behind this one." : `${waiting} more calls are waiting behind this one.`}
+          {waiting === 1 ? t.oneMoreWaiting : t.moreWaiting(waiting)}
         </p>
       ) : null}
       <div className="webgate-actions">
         <button type="button" className="webgate-allow" onClick={() => onAnswer(id, true)} autoFocus>
-          Send it
+          {t.sendIt}
         </button>
         <button type="button" className="webgate-refuse" onClick={() => onAnswer(id, false)}>
-          Refuse
+          {t.refuse}
         </button>
       </div>
     </section>

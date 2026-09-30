@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConversationMeta } from "../lib/types";
+import { useLanguage } from "../i18n/useLanguage";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -22,20 +23,22 @@ function dayStart(when: number): number {
   return d.getTime();
 }
 
+// The group names are table keys, not words: the map below is keyed by them
+// and the words come from the chosen language.
 function groupOf(updatedAt: number, today: number): string {
   const day = 86_400_000;
   const age = today - dayStart(updatedAt);
-  if (age < day) return "Today";
-  if (age < 2 * day) return "Yesterday";
-  if (age < 7 * day) return "This week";
-  return "Earlier";
+  if (age < day) return "today";
+  if (age < 2 * day) return "yesterday";
+  if (age < 7 * day) return "thisWeek";
+  return "earlier";
 }
 
-const GROUP_ORDER = ["Today", "Yesterday", "This week", "Earlier"];
+const GROUP_ORDER = ["today", "yesterday", "thisWeek", "earlier"];
 
-function stamp(when: number): string {
+function stamp(when: number, tag: string): string {
   try {
-    return new Date(when).toLocaleString();
+    return new Intl.DateTimeFormat(tag).format(when);
   } catch {
     return "";
   }
@@ -52,6 +55,8 @@ export function Sidebar({
   onRename,
   onDelete,
 }: SidebarProps) {
+  const { table, tag } = useLanguage();
+  const t = table.sidebar;
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
   const [armingDelete, setArmingDelete] = useState<string | null>(null);
@@ -82,6 +87,9 @@ export function Sidebar({
       map.get(g)?.push(c);
     }
     return { map, total: filtered.length };
+    // The words for the groups come from the table at render, so the memo
+    // does not depend on the language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, query]);
 
   function commitRename(): void {
@@ -99,10 +107,10 @@ export function Sidebar({
       {drawerOpen ? (
         <div className="drawer-backdrop" aria-hidden="true" onClick={onCloseDrawer} />
       ) : null}
-      <aside className={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label="Conversations">
+      <aside className={`sidebar${drawerOpen ? " sidebar-open" : ""}`} aria-label={t.aria}>
         <div className="sidebar-search">
           <label className="visually-hidden" htmlFor="conversation-search">
-            Search conversations
+            {t.searchAria}
           </label>
           <input
             id="conversation-search"
@@ -110,26 +118,26 @@ export function Sidebar({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search"
+            placeholder={t.searchPlaceholder}
             autoComplete="off"
           />
-          <kbd title="Focus search">⌘K</kbd>
+          <kbd title={t.focusSearch}>⌘K</kbd>
         </div>
 
         <button type="button" className="sidebar-new" onClick={onNew}>
-          + New chat
+          {t.newChat}
         </button>
 
         <div className="sidebar-list">
           {query.trim() && groups.total === 0 ? (
-            <p className="sidebar-no-match">No conversations match “{query.trim()}”.</p>
+            <p className="sidebar-no-match">{t.noMatch(query.trim())}</p>
           ) : null}
           {GROUP_ORDER.map((group) => {
             const items = groups.map.get(group) ?? [];
             if (items.length === 0) return null;
             return (
-              <section key={group} aria-label={group}>
-                <h3 className="sidebar-group">{group}</h3>
+              <section key={group} aria-label={t.groups[group] ?? group}>
+                <h3 className="sidebar-group">{t.groups[group] ?? group}</h3>
                 {items.map((conv) => {
                   if (rendered >= RENDER_CAP) return null;
                   rendered++;
@@ -142,7 +150,7 @@ export function Sidebar({
                         className="sidebar-rename"
                         autoFocus
                         defaultValue={editing.draft}
-                        aria-label="Conversation title"
+                        aria-label={t.titleAria}
                         maxLength={80}
                         onChange={(event) =>
                           setEditing({ id: conv.id, draft: event.target.value })
@@ -166,7 +174,7 @@ export function Sidebar({
                       >
                         <span className="sidebar-row-top">
                           {isStreaming ? (
-                            <span className="sidebar-live" aria-label=" (generating)">
+                            <span className="sidebar-live" aria-label={t.liveAria}>
                               <span aria-hidden="true" />
                             </span>
                           ) : null}
@@ -184,7 +192,7 @@ export function Sidebar({
                             setEditing({ id: conv.id, draft: conv.title });
                           }}
                         >
-                          Rename
+                          {t.rename}
                         </button>
                         {armingDelete === conv.id ? (
                           <button
@@ -199,15 +207,15 @@ export function Sidebar({
                               if (event.key === "Escape") setArmingDelete(null);
                             }}
                           >
-                            Sure?
+                            {t.sure}
                           </button>
                         ) : (
                           <button type="button" onClick={() => setArmingDelete(conv.id)}>
-                            Delete
+                            {t.delete}
                           </button>
                         )}
                       </span>
-                      <span className="visually-hidden">{stamp(conv.updatedAt)}</span>
+                      <span className="visually-hidden">{stamp(conv.updatedAt, tag)}</span>
                     </div>
                   );
                 })}
@@ -215,9 +223,7 @@ export function Sidebar({
             );
           })}
           {capped ? (
-            <p className="sidebar-capped">
-              Showing the first {RENDER_CAP} of {groups.total} matches.
-            </p>
+            <p className="sidebar-capped">{t.capped(RENDER_CAP, groups.total)}</p>
           ) : null}
         </div>
       </aside>

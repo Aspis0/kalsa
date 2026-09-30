@@ -49,7 +49,13 @@ export interface ActiveChat {
 /** What the app tells the user about the slot. `failed` distinguishes a door
     that refused (an alert: the chat did not open) from one built without the
     tier (a status: the chat opened and the door only says what it cannot do). */
+/** The app-owned sentences a notice can carry, so the shell can say them in
+    the owner's language; a notice without one carries the door's own words,
+    which arrive as text and are shown as they came. */
+export type SlotOwn = "hold-waiting" | "hold-expired" | "door-silent";
+
 export interface SlotNotice {
+  own?: SlotOwn;
   failed: boolean;
   message: string;
 }
@@ -230,14 +236,14 @@ export function createSlotGate(holdMs = HOLD_MS): SlotGate {
     // request, no slot, above all no mint; the wait speaks and a deadline
     // ends it as an error — no address or no key is a wait forever otherwise.
     while (access.kind === "unready") {
-      notice = { failed: false, message: HOLD_WAITING };
+      notice = { failed: false, message: HOLD_WAITING, own: "hold-waiting" };
       publish();
       if (await changed(holdMs)) {
-        notice = { failed: true, message: HOLD_EXPIRED };
+        notice = { failed: true, message: HOLD_EXPIRED, own: "hold-expired" };
         return { opened: null, notice };
       }
     }
-    if (notice?.message === HOLD_WAITING) { notice = null; publish(); }
+    if (notice?.own === "hold-waiting") { notice = null; publish(); }
     // The chat may have been deleted while this waited its turn: asking the
     // door for a conversation the window has removed would take the slot for it.
     if (gone.has(id)) return { opened: null, notice: null };
@@ -258,7 +264,12 @@ export function createSlotGate(holdMs = HOLD_MS): SlotGate {
       answer = { kind: "ok" };
     }
     if (answer.kind === "refused") {
-      return { opened: null, notice: { failed: true, message: answer.message } };
+      return {
+        opened: null,
+        notice: answer.silent
+          ? { failed: true, message: answer.message, own: "door-silent" }
+          : { failed: true, message: answer.message },
+      };
     }
     // Deleted while the door was answering: the door took a chat this window
     // has removed, and it does not become the active one.

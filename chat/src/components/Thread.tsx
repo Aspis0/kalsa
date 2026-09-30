@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { UIEvent } from "react";
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import { Markdown } from "./Markdown";
 import { ThoughtCloud } from "./ThoughtCloud";
 import { ToolActivity } from "./ToolActivity";
@@ -23,48 +25,24 @@ interface ThreadProps {
   onRetry: (messageId: string) => void;
 }
 
-function errorCopy(kind: ChatErrorKind, status?: number): { title: string; body: string } {
+function errorCopy(t: English["thread"], kind: ChatErrorKind, status?: number): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
       return status === 403
-        ? {
-            title: "The server refused the key.",
-            body: "It answered 403 — the key works but is not allowed here. Check it in Settings and try again.",
-          }
-        : {
-            title: "The server did not accept the key.",
-            body: "It answered 401 — the token is missing, wrong, or expired. Check it in Settings and try again.",
-          };
+        ? { title: t.refusedTitle, body: t.refusedBody }
+        : { title: t.unacceptedTitle, body: t.unacceptedBody };
     case "network":
-      return {
-        title: "The server could not be reached.",
-        body: "Check the address in Settings and that the server is running, then try again.",
-      };
+      return { title: t.unreachableTitle, body: t.unreachableBody };
     case "bad-response":
-      return {
-        title: "The server answered, but not as a chat stream.",
-        body: "The reply was not event-stream data — this address may serve a web page or a different API. Check it in Settings and try again.",
-      };
+      return { title: t.notAStreamTitle, body: t.notAStreamBody };
     case "truncated":
-      return {
-        title: "The answer stopped halfway.",
-        body: "The connection closed before the end — what arrived is above. Try again for the full answer.",
-      };
+      return { title: t.stoppedHalfwayTitle, body: t.stoppedHalfwayBody };
     case "timeout":
-      return {
-        title: "The server took too long to answer.",
-        body: "A full minute with no new words, so the request was dropped. Try again.",
-      };
+      return { title: t.tooSlowTitle, body: t.tooSlowBody };
     case "oversize":
-      return {
-        title: "This exceeds the context.",
-        body: "Even without the older turns, this message plus its attachments don't fit. Remove a file or shorten the message.",
-      };
+      return { title: t.exceedsTitle, body: t.exceedsBody };
     default:
-      return {
-        title: "The server answered with an error.",
-        body: `It answered ${status ?? "with an error"}. Wait a moment and try again.`,
-      };
+      return { title: t.errorTitle, body: t.errorBody(status) };
   }
 }
 
@@ -78,9 +56,9 @@ function Thinking() {
   );
 }
 
-function stamp(when: number): string {
+function stamp(when: number, tag: string): string {
   try {
-    return new Date(when).toLocaleString();
+    return new Intl.DateTimeFormat(tag).format(when);
   } catch {
     return "";
   }
@@ -99,6 +77,8 @@ function AssistantRow({
   tail?: string;
   onRetry: (messageId: string) => void;
 }) {
+  const { table, tag } = useLanguage();
+  const t = table.thread;
   const failedHere = failed !== null && failed.messageId === message.id;
   const hasReasoning = (message.reasoning ?? "") !== "";
   const toolRuns = message.toolRuns ?? [];
@@ -110,7 +90,7 @@ function AssistantRow({
   const showNoAnswer =
     hasReasoning && message.content === "" && !streaming && !failedHere && !message.stopped;
   return (
-    <div className="row row-assistant" title={stamp(message.createdAt)}>
+    <div className="row row-assistant" title={stamp(message.createdAt, tag)}>
       <div className="assistant-body">
         {hasReasoning ? (
           <ThoughtCloud
@@ -126,31 +106,31 @@ function AssistantRow({
         {showThinking ? (
           <>
             <Thinking />
-            <span className="visually-hidden">Waiting for the first word</span>
+            <span className="visually-hidden">{t.waitingFirstWord}</span>
           </>
         ) : message.content ? (
           <Markdown text={message.content} />
         ) : null}
         {message.stopped && !failedHere ? (
-          <p className="row-note">Stopped early — showing what arrived.</p>
+          <p className="row-note">{t.stoppedEarly}</p>
         ) : null}
         {showNoAnswer ? (
           <div className="no-answer">
-            <p>The model thought but gave no answer.</p>
+            <p>{t.noAnswer}</p>
             <button type="button" className="btn-quiet" onClick={() => onRetry(message.id)}>
-              Try again
+              {t.tryAgain}
             </button>
           </div>
         ) : null}
         {failedHere ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(failed.kind, failed.status).title}</p>
-            <p className="error-body">{errorCopy(failed.kind, failed.status).body}</p>
-            {failed.url ? <p className="error-url">Called: {failed.url}</p> : null}
+            <p className="error-title">{errorCopy(t, failed.kind, failed.status).title}</p>
+            <p className="error-body">{errorCopy(t, failed.kind, failed.status).body}</p>
+            {failed.url ? <p className="error-url">{t.called(failed.url)}</p> : null}
             {failed.detail ? <p className="error-detail">{failed.detail}</p> : null}
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
-                Try again
+                {t.tryAgain}
               </button>
             </div>
           </div>
@@ -167,6 +147,7 @@ export function Thread({
   tails,
   onRetry,
 }: ThreadProps) {
+  const { table, tag } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
 
@@ -197,12 +178,12 @@ export function Thread({
         className="thread"
         onScroll={handleScroll}
         aria-busy={streaming}
-        aria-label="Conversation"
+        aria-label={table.thread.threadAria}
       >
         <div className="thread-column">
           {messages.map((message) =>
             message.role === "user" ? (
-              <div className="row row-user" key={message.id} title={stamp(message.createdAt)}>
+              <div className="row row-user" key={message.id} title={stamp(message.createdAt, tag)}>
                 <div className="user-bubble" data-message-id={message.id}>
                   {message.content}
                 </div>
@@ -222,7 +203,7 @@ export function Thread({
       </div>
       {!pinned ? (
         <button type="button" className="jump-bottom" onClick={jumpToBottom}>
-          Back to latest ↓
+          {table.thread.backToLatest}
         </button>
       ) : null}
     </div>

@@ -8,9 +8,9 @@ import { FirstRun } from "./FirstRun";
 import { SetupProgress } from "./SetupProgress";
 import { available, invoke } from "../lib/tauri";
 import { lastKnown } from "../lib/slotGate";
-import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
-import "./surfaces.css";
+import { brainWords, useBrain } from "./useBrain";
 import { useLanguage } from "../i18n/useLanguage";
+import "./surfaces.css";
 import "./BrainSurface.css";
 
 // The opening's one automatic attempt to bring the brain up, as a fact of
@@ -118,7 +118,8 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
     if (state.kind === "stopped" && !firstRun(capability)) void act();
   }, [state, act, capability]);
 
-  const words = brainWords(state, heldFailure, busy);
+  const power = useLanguage().table.power;
+  const words = brainWords(state, heldFailure, busy, power);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -167,7 +168,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
                 was pressed on. The hook produced it all along and only the
                 Server page read it, so the owner pressed Turn off here,
                 nothing happened, and here said nothing about it. */}
-            <p className="surface-sentence">{stopFailure ? STOP_FAILURE : words.sentence}</p>
+            <p className="surface-sentence">{stopFailure ? power.stopFailure : words.sentence}</p>
             <div className="surface-actions">
               <button
                 type="button"

@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { copyText } from "../lib/clipboard";
 import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
+import { useLanguage } from "../i18n/useLanguage";
 import "./surfaces.css";
-
-// The create is slow, not failed: the shell may still mint, so the
-// invitation would appear in the list below and its link can be copied
-// from there.
-const SLOW_CREATE =
-  "This is taking longer than usual. If the invitation appears below, copy its link from there.";
-
-// Said once, when the invite file could not be read at startup: those
-// invitations were thrown away rather than honoured, and the owner is told
-// plainly. dev/smoke-react.mjs keeps its own copy of this sentence.
-const DISCARDED_INVITES =
-  "Earlier invitations could not be read, so they were cancelled for safety.";
 
 /** One row of `brain_invite_list`: the id the buttons name, and the moment
  *  it dies. Never a code — the link comes from `brain_invite_link`, asked
@@ -30,18 +19,18 @@ export interface InviteList {
   invites: InviteRow[];
 }
 
-/** The moment an invite dies, in the owner's own locale: the time when it
+/** The moment an invite dies, in the owner's own language: the time when it
  *  is today, "tomorrow at …" when it falls on the next day, and the date
  *  beyond that. An invite lives a day, so those three cover everything it
  *  can be, and the day is named exactly where naming it matters. */
-function untilTime(expiresAtSeconds: number): string {
+function untilTime(t: { tomorrowAt: (time: string) => string }, expiresAtSeconds: number, tag: string): string {
   const when = new Date(expiresAtSeconds * 1000);
-  const time = when.toLocaleTimeString();
+  const time = new Intl.DateTimeFormat(tag, { timeStyle: "short" }).format(when);
   if (when.toDateString() === new Date().toDateString()) return time;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  if (when.toDateString() === tomorrow.toDateString()) return `tomorrow at ${time}`;
-  return when.toLocaleString();
+  if (when.toDateString() === tomorrow.toDateString()) return t.tomorrowAt(time);
+  return new Intl.DateTimeFormat(tag).format(when);
 }
 
 /** The newest invitation in a list: ids only ever move forward, so the
@@ -66,6 +55,8 @@ interface InvitePanelProps {
 // themselves are never rendered — they go to the clipboard, and only a
 // clipboard that refuses gets a field the owner can select from.
 export function InvitePanel({ invites, onList }: InvitePanelProps) {
+  const { table, tag } = useLanguage();
+  const t = table.invite;
   const [notice, setNotice] = useState<string | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
   const [linkFallback, setLinkFallback] = useState<string | null>(null);
@@ -115,7 +106,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
     const bound = setTimeout(() => {
       if (!stillMine()) return;
       clock.missed = true;
-      setWaiting(SLOW_CREATE);
+      setWaiting(t.slowCreate);
     }, PAIRING_ASK_BOUND_MS);
     try {
       const link = await invoke<string>("brain_invite_create");
@@ -130,9 +121,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
         if (listed) onList(listed);
         const newest = listed ? newestInvite(listed.invites) : null;
         setNotice(
-          newest
-            ? `Link copied. It works once, until ${untilTime(newest.expires_at)}. Send it only to the person you want to add.`
-            : "Link copied. It works once, for one day. Send it only to the person you want to add.",
+          newest ? t.copiedUntil(untilTime(t, newest.expires_at, tag)) : t.copiedOneDay,
         );
       } else {
         if (stillMine()) setLinkFallback(link);
@@ -203,7 +192,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
           disabled={creating}
           onClick={() => void createInvite()}
         >
-          Invite by link
+          {t.inviteByLink}
         </button>
       </div>
       {commandError ? <p className="surface-note">{commandError}</p> : null}
@@ -218,11 +207,11 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
           className="surface-link"
           readOnly
           value={linkFallback}
-          aria-label="Invitation link"
+          aria-label={t.invitationLinkAria}
           onFocus={(event) => event.currentTarget.select()}
         />
       ) : null}
-      {invites?.discarded ? <p className="surface-quiet">{DISCARDED_INVITES}</p> : null}
+      {invites?.discarded ? <p className="surface-quiet">{t.discarded}</p> : null}
       {rows.length > 0 ? (
         <div className="surface-devices">
           {rows.map((invite) => (
@@ -230,12 +219,12 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
             // copy rules count PHONE rows by that class, and a countdown is
             // not a phone.
             <div key={invite.id} className="surface-invite">
-              <span className="surface-invite-name">Expires {untilTime(invite.expires_at)}</span>
+              <span className="surface-invite-name">{t.expires(untilTime(t, invite.expires_at, tag))}</span>
               <button type="button" className="btn-quiet" onClick={() => copyLink(invite.id)}>
-                Copy link
+                {t.copyLink}
               </button>
               <button type="button" className="btn-quiet" onClick={() => cancelInvite(invite.id)}>
-                Cancel invite
+                {t.cancelInvite}
               </button>
             </div>
           ))}

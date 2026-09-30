@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLanguage } from "../i18n/useLanguage";
 import type { SurfaceKey } from "../app/surfaces";
 import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
 import { available, invoke } from "../lib/tauri";
@@ -13,8 +14,6 @@ const POLL_MS = 2000;
 /** Shown only when the launch record carried no reason: the development path,
  *  where the developer pinned a file and no catalog choice was made. It states
  *  nothing about a phone, because on this path a phone played no part. */
-const MODEL_REASON_FALLBACK = "A model is chosen for this computer every time you turn on.";
-
 interface ModelsSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
   model: string;
@@ -26,6 +25,8 @@ interface ModelsSurfaceProps {
 // model and the reason it gave for this start — and sends explicit edits back to
 // the start command.
 export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfaceProps) {
+  const { table } = useLanguage();
+  const t = table.machine;
   const [state, setState] = useState<BrainState | null>(null);
 
   useEffect(() => {
@@ -52,15 +53,15 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
   let sentence: string;
   let button: string | null = null;
   if (!state) {
-    sentence = "This page could not check what this computer is running. Trying again usually works.";
+    sentence = t.couldNotCheck;
   } else {
     switch (state.kind) {
       case "running":
         // The name the catalog chose is already on the wire; showing it is the
         // point. The sentence is the reason the shell gave for THIS start, not
         // a general rule about how choosing works.
-        headline = state.model ? `Running ${state.model}` : "Chosen for this computer";
-        sentence = state.reason ?? MODEL_REASON_FALLBACK;
+        headline = state.model ? t.running(state.model) : t.chosenForComputer;
+        sentence = state.reason ?? t.fallbackReason;
         break;
       case "stopping":
         // The drain, in this page's own subject: the model this computer had
@@ -68,21 +69,20 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
         // poll has just said exactly what is happening, and a page that
         // claims not to know the one thing the state reported is a false
         // sentence standing on screen for the whole teardown.
-        headline = "Stopping";
-        sentence =
-          "This computer is putting the model away. When you turn it on again it will run the model you picked.";
+        headline = t.stopping;
+        sentence = t.puttingAway;
         break;
       case "starting":
-        headline = "Chosen and starting";
-        sentence = "A model has been chosen for this computer. It is starting now.";
+        headline = t.chosenAndStarting;
+        sentence = t.startingSentence;
         break;
       case "failed":
-        headline = "Not running";
-        sentence = "This computer is not running right now. The Server page says why.";
+        headline = t.notRunning;
+        sentence = t.notRunningSentence;
         break;
       case "stopped":
-        sentence = "Kalsa is off. Go to Home to start it.";
-        button = "Go to Server";
+        sentence = t.offSentence;
+        button = t.goToServer;
         break;
       default: {
         // Exhaustive over the shared `kind`: a state the wire grows without
@@ -98,8 +98,8 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
 
   return (
     <div className="surface-page">
-      <p className="surface-eyebrow">MODEL</p>
-      <h2>How this computer thinks</h2>
+      <p className="surface-eyebrow">{t.eyebrow}</p>
+      <h2>{t.howItThinks}</h2>
       {headline ? <p className="surface-headline">{headline}</p> : null}
       <p className="surface-sentence">{sentence}</p>
       {button ? (

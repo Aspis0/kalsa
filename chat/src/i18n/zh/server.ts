@@ -1,0 +1,25 @@
+// 从已批准的英文文案翻译。
+
+export const SERVER = {
+    "eyebrow": "状态",
+    "notMeasuredYet": "尚未测量",
+    "tokensPerSecond": (rate: string) => `${rate} token/s`,
+    "connected": "已连接",
+    "notConnected": "未连接",
+    "decode": "解码",
+    "measuredByServer": "由服务器测量",
+    "devices": "设备",
+    "liveConnection": "实时连接",
+    "throttled": "这台电脑有意放慢运行，以保护自己。回答比平时需要更长时间。",
+    "residentChats": "常驻聊天",
+    "residentsOfCapacity": (residents: number, capacity: number) => `${residents} / ${capacity}`,
+    "inDoorSlotMap": "来自门的槽位表",
+    "savedOnDisk": "已存入磁盘",
+    "filesUnreadable": (files: number, unreadable: number) => `读取了 ${files} 个文件，${unreadable} 个不可读 —— 总数不完整`,
+    "filesFromScan": (files: number) => `${files} 个文件，来自对保存目录的一次扫描`,
+    "twoDevices": "两台设备解码",
+    "eachX": (rate: string) => `各 ${rate}x`,
+    "perSlot": (a: string, b: string) => `每槽 ${a}x / ${b}x`,
+    "together": (per: string, aggregate: string) => `${per}，合计 ${aggregate}x`,
+    "concurrencyDetail": (tag: string, platform: string) => `相对单台设备的解码速率，而非耗时 —— 测自 ${tag}，${platform}`,
+  };

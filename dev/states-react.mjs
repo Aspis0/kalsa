@@ -1040,7 +1040,7 @@ export async function renderServerProbe(data, step = null) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(ServerSurface));
+  root.render(React.createElement(LanguageProvider, null, React.createElement(ServerSurface)));
   await settle();
   if (step !== null) {
     for (const handler of eventHandlers) handler(step);
@@ -1170,7 +1170,7 @@ export async function renderStartFailureProbe(data) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(ServerSurface));
+  root.render(React.createElement(LanguageProvider, null, React.createElement(ServerSurface)));
   await settle();
   first(panel, (el) => el.tagName === "BUTTON")?.click();
   await settle();

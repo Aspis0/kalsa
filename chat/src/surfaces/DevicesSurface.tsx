@@ -9,33 +9,18 @@ import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { forgetLocalCredential, useBrain } from "./useBrain";
+import { useLanguage } from "../i18n/useLanguage";
+import type { English } from "../i18n/en/all";
 import "./surfaces.css";
 
 // The poll this page runs while it is open. Read by the review bench,
 // which waits its cadence out rather than guessing wall-clock numbers.
 export const POLL_MS = 2000;
 
-// The owner's line about capacity, kept whole because dev/smoke-react.mjs
-// keeps its own copy and enforces it. "Four" mirrors WORKERS in
-// crates/kalsa-door/src/lib.rs:88 — change both together.
-const CAPACITY_LINE =
-  "Up to four phones can get answers at the same time. If more ask at once, the others wait a few seconds for their turn.";
-
 // The approved ways to say the square is the way in, that it was replaced,
-// and who may use it. dev/smoke-react.mjs keeps its own copy of these on the
-// review side and enforces them — rewording here means updating there on
+// and who may use it live in the devices table; dev/smoke-react.mjs keeps
+// its own English copy and enforces it — rewording means updating both on
 // purpose, or failing the check.
-const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
-const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";
-// The seat's row says the request in the owner's own words, beside the
-// other approved lines: dev/smoke-react.mjs keeps its own copy of these and
-// enforces them, so a rewording here is a decision made twice.
-const pairingAgain = (label: string): string => `${label} is pairing again.`;
-
-const FRESH_LINES: Record<string, string> = {
-  expired: "The previous square expired — this one is fresh.",
-  "wrong-code": "A square that did not match was replaced — this one is fresh.",
-};
 
 // The tempos the CSS beats read, set once on the page root: the numbers
 // live in motion.ts and nowhere else.
@@ -105,41 +90,36 @@ function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): boolean {
   return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
 }
 
-function pairedSentence(dto: PairingState): string {
+function pairedSentence(t: English["devices"], dto: PairingState): string {
   const house = Array.isArray(dto.devices) ? dto.devices : [];
   const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
   const waiting = phones.filter((device) => device.waiting === true);
   const approved = phones.filter((device) => device.waiting !== true);
   const pending = dto.delivery_pending === true;
-  const undelivered = pending
-    ? ", and one phone has not received its connection yet"
-    : "";
+  const undelivered = pending ? t.undeliveredClause : "";
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
-      const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? "your phone";
-      const owed = pending ? "; the phone still needs to receive its connection" : "";
-      return `This computer is waiting for your OK to work with ${name}${owed}.`;
+      const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? t.yourPhone;
+      const owed = pending ? t.owedPending : "";
+      return t.waitingNamed(name, owed);
     }
-    return `This computer is waiting for your OK to work with ${waiting.length} paired phones${undelivered}.`;
+    return t.waitingCount(waiting.length, undelivered);
   }
   if (waiting.length > 0) {
-    const are = waiting.length === 1 ? "is" : "are";
-    return `This computer has ${phones.length} paired phones; ${waiting.length} ${are} waiting for your OK${undelivered}.`;
+    return waiting.length === 1
+      ? t.mixedOne(phones.length, undelivered)
+      : t.mixedMany(phones.length, waiting.length, undelivered);
   }
   if (approved.length === 0) {
     return pending
-      ? `This computer saved the connection for ${dto.phone ?? "your phone"}; a phone is still waiting to receive its connection.`
-      : `This computer now works with ${dto.phone ?? "your phone"}.`;
+      ? t.savedPending(dto.phone ?? t.yourPhone)
+      : t.worksWith(dto.phone ?? t.yourPhone);
   }
   if (approved.length === 1) {
-    const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? "your phone";
-    return pending
-      ? `This computer saved the connection for ${name}; a phone is still waiting to receive its connection.`
-      : `This computer now works with ${name}.`;
+    const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? t.yourPhone;
+    return pending ? t.savedPending(name) : t.worksWith(name);
   }
-  return pending
-    ? `This computer now works with ${approved.length} paired phones; the newest is still waiting to receive its connection.`
-    : `This computer now works with ${approved.length} paired phones.`;
+  return pending ? t.worksWithCountPending(approved.length) : t.worksWithCount(approved.length);
 }
 
 // Whether every phone in the house still waits for the owner's OK. The
@@ -161,6 +141,7 @@ function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
 // rule keeps pointing at the preferred port, which now leads somewhere
 // else or nowhere.
 function tailscaleNote(
+  t: English["devices"],
   doorPort: number | null | undefined,
   deskPort: number | null | undefined,
   deskOnPreferred: boolean,
@@ -178,18 +159,16 @@ function tailscaleNote(
   // rule exists, so the sentence only states where the desk is and what
   // the desk command must say.
   const moved =
-    isPort(deskPort) && !deskOnPreferred
-      ? ` The pairing desk is on ${deskPort} this time — point the desk command at this number.`
-      : "";
+    isPort(deskPort) && !deskOnPreferred ? t.deskMoved(deskPort) : "";
   // Each road is named only when its command is: a sentence about a road
   // with no command would be a promise the note does not keep.
   const where =
     isPort(doorPort) && isPort(deskPort)
-      ? "The phone chats at this computer's tailnet name and pairs at that name with :8443."
+      ? t.chatsAndPairs
       : isPort(doorPort)
-        ? "The phone chats at this computer's tailnet name."
-        : "The phone pairs at this computer's tailnet name with :8443.";
-  return `Run for Tailscale: ${commands}. ${where}${moved}`;
+        ? t.chatsAt
+        : t.pairsAt;
+  return `${t.runForTailscale(commands)} ${where}${moved}`;
 }
 
 interface DevicesSurfaceProps {
@@ -228,6 +207,8 @@ function HeldButton({
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
+  const { table } = useLanguage();
+  const t = table.devices;
   // The last pairing answer this page knows. A read that rejects, or one
   // that answers nothing, leaves it standing: "I could not ask" is not
   // "there is no phone connected".
@@ -418,20 +399,21 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     switch (state.state) {
       case "idle":
         onAction = () => onNavigate("server");
-        sentence = "This computer is not running yet, so there is nothing for your phone to connect to.";
-        button = "Go to Server";
+        sentence = t.notRunningYet;
+        button = t.goToServer;
         break;
       case "waiting":
         // No square yet is its own honest moment, not a camera instruction.
         if (!state.qr_svg) {
-          sentence = "The square is not ready yet — it will appear here in a moment.";
+          sentence = t.squareNotReady;
           break;
         }
-        sentence = CAMERA_INSTRUCTION;
+        sentence = t.cameraInstruction;
         qrSvg = state.qr_svg;
         fresh = state.refreshed ?? null;
-        note = AWARENESS;
+        note = t.awareness;
         tailscale = tailscaleNote(
+          t,
           state.door_port,
           state.desk_port,
           state.desk_port_preferred !== false,
@@ -439,15 +421,16 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         break;
       case "claiming":
         onAction = retry;
-        sentence = "A phone is connecting right now.";
-        button = "Cancel";
+        sentence = t.claiming;
+        button = t.cancel;
         break;
       case "paired":
         onAction = retry;
-        headline = everyPhoneWaiting(state.devices) ? "Waiting for your OK" : "Paired";
-        sentence = pairedSentence(state);
-        button = "Pair another phone";
+        headline = everyPhoneWaiting(state.devices) ? t.waitingForOkHeadline : t.pairedHeadline;
+        sentence = pairedSentence(t, state);
+        button = t.pairAnother;
         tailscale = tailscaleNote(
+          t,
           state.door_port,
           state.desk_port,
           state.desk_port_preferred !== false,
@@ -458,46 +441,44 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         if (state.failure === "could-not-read") {
           onAction = forgetAndRefresh;
           onAlt = () => void refresh();
-          headline = "Could not check";
-          sentence =
-            "This computer could not read its existing phone connection. Fixing permissions and trying again may help.";
-          button = "Forget and pair again";
-          alt = "Try again";
+          headline = t.couldNotReadHeadline;
+          sentence = t.couldNotReadSentence;
+          button = t.forgetAndPairAgain;
+          alt = t.tryAgain;
           break;
         }
         if (state.failure === "service-unavailable") {
           onAction = () => onNavigate("server");
-          headline = "Pairing unavailable";
-          sentence = "The local pairing service stopped. Restart the app to make pairing available again.";
-          button = "Go to Server";
+          headline = t.unavailableHeadline;
+          sentence = t.unavailableSentence;
+          button = t.goToServer;
           break;
         }
         onAction = retry;
-        headline = "Could not finish";
+        headline = t.couldNotFinishHeadline;
         // True for both roads: a square can be drawn again, an invitation
         // can be sent again, and neither promises that the last attempt
         // will come back on its own.
-        sentence =
-          "This computer could not save the new phone. Start the pairing again, or send a new invite.";
-        button = "Try again";
+        sentence = t.couldNotSaveSentence;
+        button = t.tryAgain;
         break;
       default:
         onAction = () => void refresh();
-        sentence = "This page could not check whether a phone is connected. Trying again usually works.";
-        button = "Try again";
+        sentence = t.couldNotCheckSentence;
+        button = t.tryAgain;
     }
   } else if (!settled) {
     // Still the first read: say so plainly and offer no retry — there is
     // nothing to retry yet, and "could not check" would be false.
-    sentence = "Checking for your phone…";
+    sentence = t.checking;
   } else {
     // Settled with nothing to show: the read rejected, hung past the bound,
     // or cannot run at all. "Try again" is offered only where a retry can
     // actually ask — outside the webview there is nothing to ask.
-    sentence = "This page could not check whether a phone is connected. Trying again usually works.";
+    sentence = t.couldNotCheckSentence;
     if (available()) {
       onAction = () => void refresh();
-      button = "Try again";
+      button = t.tryAgain;
     }
   }
 
@@ -528,7 +509,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
 
   return (
     <div className="surface-page" style={beatVars}>
-      <h2>Pairing</h2>
+      <h2>{t.title}</h2>
       {headline ? <p className="surface-headline">{headline}</p> : null}
       <div className="surface-sentence-line">
         <p className="surface-sentence">{sentence}</p>
@@ -541,7 +522,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
         ) : null}
       </div>
       {qrSvg ? <div className="surface-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : null}
-      {fresh && FRESH_LINES[fresh] ? <p className="surface-quiet">{FRESH_LINES[fresh]}</p> : null}
+      {fresh && (fresh === "expired" || fresh === "wrong-code") ? (
+        <p className="surface-quiet">{fresh === "expired" ? t.freshExpired : t.freshWrongCode}</p>
+      ) : null}
       {note ? <p className="surface-quiet">{note}</p> : null}
       {tailscale ? <p className="surface-quiet">{tailscale}</p> : null}
       {button || alt ? (
@@ -579,7 +562,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
             // request waited leaves it nowhere to sit, and a ceremony that
             // is waiting must never be hidden.
             if (hidesOnSeat(device, devices)) return null;
-            const name = device.label ?? (host ? "This computer" : `device ${device.id}`);
+            const name = device.label ?? (host ? t.thisComputerLabel : t.deviceLabel(device.id));
             const request = requests.get(device.id);
             // The beat after Allow: the sentence and its checkmark hold the
             // row for a moment, then it settles into the ordinary detail.
@@ -618,12 +601,12 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                           d="M1 5.5 4.5 9 11 1.5"
                         />
                       </svg>
-                      {`${name} is connected.`}
+                      {t.connectedSentence(name)}
                     </>
                   ) : device.waiting ? (
-                    "Waiting for your OK."
+                    t.waitingOkRow
                   ) : request ? (
-                    pairingAgain(name)
+                    t.pairingAgain(name)
                   ) : (
                     (device.phone ?? "")
                   )}
@@ -634,13 +617,13 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                       held={beats.decided.has(device.id)}
                       onPress={() => allowDevice(device.id, device.id)}
                     >
-                      Allow
+                      {t.allow}
                     </HeldButton>
                     <HeldButton
                       held={beats.decided.has(device.id)}
                       onPress={() => forgetDevice(device.id)}
                     >
-                      Refuse
+                      {t.refuse}
                     </HeldButton>
                   </>
                 ) : request ? (
@@ -654,18 +637,18 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                       held={beats.decided.has(request.id)}
                       onPress={() => allowDevice(request.id, device.id)}
                     >
-                      Allow
+                      {t.allow}
                     </HeldButton>
                     <HeldButton
                       held={beats.decided.has(request.id)}
                       onPress={() => denyRequest(request.id)}
                     >
-                      Refuse
+                      {t.refuse}
                     </HeldButton>
                   </>
                 ) : (
                   <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
-                    Forget
+                    {t.forget}
                   </button>
                 )}
               </div>
@@ -673,7 +656,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
           })}
         </div>
       ) : null}
-      {hasPairedPhone ? <p className="surface-quiet">{CAPACITY_LINE}</p> : null}
+      {hasPairedPhone ? <p className="surface-quiet">{t.capacityLine}</p> : null}
     </div>
   );
 }

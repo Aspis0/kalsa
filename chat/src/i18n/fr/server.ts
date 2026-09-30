@@ -1,0 +1,25 @@
+// Traduit du copy anglais approuvé.
+
+export const SERVER = {
+    "eyebrow": "ÉTAT",
+    "notMeasuredYet": "Pas encore mesuré",
+    "tokensPerSecond": (rate: string) => `${rate} tokens/s`,
+    "connected": "Connecté",
+    "notConnected": "Non connecté",
+    "decode": "Décodage",
+    "measuredByServer": "Mesuré par le serveur",
+    "devices": "Appareils",
+    "liveConnection": "Connexion active",
+    "throttled": "Cet ordinateur va plus lentement exprès, pour se protéger. Les réponses prennent plus de temps que d'habitude.",
+    "residentChats": "Discussions résidentes",
+    "residentsOfCapacity": (residents: number, capacity: number) => `${residents} sur ${capacity}`,
+    "inDoorSlotMap": "Dans la carte des slots de la porte",
+    "savedOnDisk": "Enregistré sur disque",
+    "filesUnreadable": (files: number, unreadable: number) => `${files} fichiers lus, ${unreadable} illisibles — total incomplet`,
+    "filesFromScan": (files: number) => `${files} fichiers, d'un scan du répertoire d'enregistrement`,
+    "twoDevices": "Deux appareils en décodage",
+    "eachX": (rate: string) => `${rate}x chacun`,
+    "perSlot": (a: string, b: string) => `${a}x / ${b}x par slot`,
+    "together": (per: string, aggregate: string) => `${per}, ${aggregate}x ensemble`,
+    "concurrencyDetail": (tag: string, platform: string) => `Vitesse de décodage face à un seul appareil, pas temps écoulé — mesurée sur ${tag}, ${platform}`,
+  };

@@ -81,6 +81,20 @@ export interface StreamOptions {
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;
+  /** The sentences a tool round can end in, in the owner's language. They are
+      both shown and sent back as the call's answer, so the model reads them
+      too. Absent means English. */
+  toolPhrases?: ToolPhrases;
+}
+
+/** The tool round's own words, threaded from the caller's language table. */
+export interface ToolPhrases {
+  noRoundLeft: string;
+  turnEnded: (reason: string) => string;
+  nameNeverArrived: string;
+  stopped: string;
+  argumentsTooLong: string;
+  argumentsNotValid: (name: string) => string;
 }
 
 /** What a tool answered, and whether that answer is a result or a refusal. */
@@ -155,7 +169,10 @@ export async function fetchContextSize(
 export type SlotAnswer =
   | { kind: "ok" }
   | { kind: "no-tier"; message: string }
-  | { kind: "refused"; message: string };
+  // `silent` marks the refusal whose message is this module's own DOOR_SILENT
+  // rather than a sentence the door wrote, so the shell can say it in the
+  // owner's language instead of quoting it.
+  | { kind: "refused"; message: string; silent?: boolean };
 
 /**
  * The one sentence the app owns. It exists for the case the door sent none:
@@ -196,11 +213,13 @@ async function slotRoute(
     if (response.status === 204) return { kind: "ok" };
     const message = (await response.text()).trim();
     if (response.status === 501) return { kind: "no-tier", message: message || DOOR_SILENT };
-    return { kind: "refused", message: message || DOOR_SILENT };
+    return message
+      ? { kind: "refused", message }
+      : { kind: "refused", message: DOOR_SILENT, silent: true };
   } catch {
     // The door never answered. The chat's own requests say the server is
     // unreachable; this one says what that leaves behind for the slot.
-    return { kind: "refused", message: DOOR_SILENT };
+    return { kind: "refused", message: DOOR_SILENT, silent: true };
   }
 }
 

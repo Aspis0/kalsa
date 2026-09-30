@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "../i18n/useLanguage";
 import { MachineCard } from "./MachineCard";
 import type { Capability } from "./MachineCard";
 import { SetupProgress } from "./SetupProgress";
@@ -31,11 +32,10 @@ type Step =
   | { kind: "working"; suggestions: Suggestions }
   | { kind: "failed"; suggestions: Suggestions; error: string };
 
-const TAGLINES = ["Smarter answers.", "Faster answers."];
-
 // Decimal, like the download progress line that follows this screen.
-function gigabytes(bytes: number): string {
-  return `${(bytes / 1e9).toFixed(1)} GB`;
+function gigabytes(bytes: number, tag: string): string {
+  const value = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(bytes / 1e9);
+  return `${value} GB`;
 }
 
 interface FirstRunProps {
@@ -52,6 +52,9 @@ interface FirstRunProps {
 // Start → check → pick one → confirm the download → it runs. Local on
 // purpose: a reopened app with nothing chosen begins at Start again.
 export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }: FirstRunProps) {
+  const { table, tag } = useLanguage();
+  const t = table.setup;
+  const gb = (bytes: number): string => gigabytes(bytes, tag);
   const [step, setStep] = useState<Step>({ kind: "start" });
   const [error, setError] = useState<string | null>(null);
 
@@ -82,18 +85,18 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
 
   let body;
   if (starting) {
-    body = <p className="surface-verdict">Starting…</p>;
+    body = <p className="surface-verdict">{t.starting}</p>;
   } else if (step.kind === "checking") {
-    body = <p className="surface-verdict">Checking your computer…</p>;
+    body = <p className="surface-verdict">{t.checkingComputer}</p>;
   } else if (liveStep) {
     body = <SetupProgress step={liveStep} />;
   } else if (step.kind === "working") {
-    body = <p className="surface-verdict">Getting ready…</p>;
+    body = <p className="surface-verdict">{t.gettingReady}</p>;
   } else if (step.kind === "failed") {
     const { suggestions, error } = step;
     body = (
       <section className="first-run-pick">
-        <p className="surface-verdict">The model was not set up.</p>
+        <p className="surface-verdict">{t.notSetUp}</p>
         <p className="surface-sentence">{error}</p>
         <div className="surface-actions">
           <button
@@ -101,7 +104,7 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
             className="btn-primary"
             onClick={() => setStep({ kind: "pick", suggestions })}
           >
-            Try again
+            {t.tryAgain}
           </button>
         </div>
       </section>
@@ -110,20 +113,20 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     const { option, suggestions } = step;
     body = (
       <section className="first-run-confirm">
-        <p className="surface-verdict">Download {gigabytes(option.download_bytes)}?</p>
+        <p className="surface-verdict">{t.downloadQ(gb(option.download_bytes))}</p>
         <p className="surface-sentence">
-          Kalsa needs {option.drafter ? "these files" : "this file"} to run {option.name}.
+          {option.drafter ? t.needsFiles(option.name) : t.needsFile(option.name)}
         </p>
         <div className="surface-actions">
           <button type="button" className="btn-primary" onClick={() => void choose(suggestions, option)}>
-            Download
+            {t.download}
           </button>
           <button
             type="button"
             className="btn-quiet"
             onClick={() => setStep({ kind: "pick", suggestions })}
           >
-            Cancel
+            {t.cancel}
           </button>
         </div>
       </section>
@@ -132,22 +135,22 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     const { suggestions } = step;
     body = (
       <section className="first-run-pick">
-        <p className="surface-verdict">Pick a model</p>
+        <p className="surface-verdict">{t.pickModel}</p>
         {suggestions.refusal !== null && <p className="surface-sentence">{suggestions.refusal}</p>}
         {suggestions.options.map((option, index) => (
           <div key={option.id} className="first-run-option">
             <strong className="first-run-option-name">{option.name}</strong>
-            <span>{TAGLINES[index] ?? TAGLINES[1]}</span>
+            <span>{[t.smarter, t.faster][index] ?? t.faster}</span>
             <span className="first-run-option-size">
-              {option.on_disk ? "Already on your computer" : `${gigabytes(option.download_bytes)} download`}
+              {option.on_disk ? t.alreadyOnComputer : t.downloadSize(gb(option.download_bytes))}
             </span>
             <button type="button" className="btn-primary" onClick={() => use(suggestions, option)}>
-              Use this
+              {t.useThis}
             </button>
           </div>
         ))}
         <details className="first-run-details">
-          <summary>Show details</summary>
+          <summary>{t.showDetails}</summary>
           <MachineCard capability={capability} />
         </details>
       </section>
@@ -156,15 +159,15 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     body = (
       <div className="brain-presence">
         <button type="button" className="first-run-start" onClick={() => void check()}>
-          Start
+          {t.start}
         </button>
-        <p className="surface-sentence">Kalsa checks your computer and suggests a model.</p>
+        <p className="surface-sentence">{t.suggests}</p>
         {error !== null && (
           <>
             <p className="surface-sentence">{error}</p>
             <div className="surface-actions">
               <button type="button" className="btn-quiet" onClick={() => void check()}>
-                Try again
+                {t.tryAgain}
               </button>
             </div>
           </>

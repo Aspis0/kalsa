@@ -1,30 +1,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { available, invoke, listen } from "../lib/tauri";
+import { TABLES } from "../i18n";
+import type { English } from "../i18n/en/all";
 import { lastKnown, standingOf } from "../lib/slotGate";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
 const POLL_MS = 1000;
-const COULD_NOT_TELL =
-  "This page could not tell whether the assistant is running. Trying again usually works.";
-
-/** What a released model costs the owner, in one sentence. The release itself
-    is the server's (`--sleep-idle-seconds`); this only says what their next
-    message will find. */
-const ASLEEP_SENTENCE =
-  "The model is not in memory right now. Your next message brings it back, which takes a few seconds.";
-
-/** What a refused turn-off says. Shared, because the home page is where the
-    owner presses Turn off and the Server page is where they go looking when
-    it did not work; two sentences for one fact is how they come to disagree. */
-export const STOP_FAILURE = "The assistant did not turn off. Closing this window will stop it.";
-
-/** What a phone being served right now is doing, in the approved words.
-    Shared because the Devices page's live dot says it to screen readers —
-    the row beside the dot already names the phone — and a second spelling
-    of one sentence is how two pages come to disagree. */
-export const PHONE_IN_USE_SENTENCE = "Your phone is using this computer right now.";
 
 /** The disk tier's numbers as `brain_state` answers them: three separate
     reads of the running door, not one instant. The residency count and the
@@ -409,15 +392,18 @@ export interface BrainWords {
 
 // The brain's state in words, shared by the brain page (presence only) and
 // the Server surface (which adds its metrics). One decision, so the two
-// pages can never disagree about the same machine.
+// pages can never disagree about the same machine. The words are the power
+// area of the caller's table; a caller with none gets English, which is
+// what the bench's own calls expect.
 export function brainWords(
   state: BrainState | null,
   heldFailure: string | null,
   busy: boolean,
+  words: English["power"] = TABLES.en.power,
 ): BrainWords {
   const running = state?.kind === "running";
   if (!state) {
-    return { headline: "Not known", sentence: COULD_NOT_TELL, button: "Try again", enabled: true, running };
+    return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
   }
   // A turn-on under way owns the page, whatever it was saying before. Without
   // this, Try again on a machine that refuses the same way twice leaves the
@@ -431,18 +417,18 @@ export function brainWords(
   // just asked for the machine to go quiet that it is Starting.
   if (state.kind === "stopping") {
     return {
-      headline: "Stopping",
-      sentence: "Putting the assistant away.",
-      button: "Stopping",
+      headline: words.stopping,
+      sentence: words.puttingAway,
+      button: words.stopping,
       enabled: false,
       running,
     };
   }
   if (state.kind === "starting" || (busy && !running)) {
     return {
-      headline: "Starting",
-      sentence: "Getting ready. On an older computer this can take a minute.",
-      button: "Starting",
+      headline: words.starting,
+      sentence: words.gettingReady,
+      button: words.starting,
       enabled: false,
       running,
     };
@@ -456,9 +442,9 @@ export function brainWords(
   // covers the drain behind it, and the two say the same words on purpose.
   if (busy && running) {
     return {
-      headline: "Stopping",
-      sentence: "Putting the assistant away.",
-      button: "Stopping",
+      headline: words.stopping,
+      sentence: words.puttingAway,
+      button: words.stopping,
       enabled: false,
       running,
     };
@@ -469,9 +455,9 @@ export function brainWords(
       // running brain. "Off" would deny the attempt; "Stopped" would claim
       // something was halted that never began.
       return {
-        headline: heldFailure ? "Did not start" : "Off",
-        sentence: heldFailure ?? "This computer is not running anything right now.",
-        button: heldFailure ? "Try again" : "Turn on",
+        headline: heldFailure ? words.didNotStart : words.off,
+        sentence: heldFailure ?? words.notRunningAnything,
+        button: heldFailure ? words.tryAgain : words.turnOn,
         enabled: true,
         running,
       };
@@ -495,22 +481,22 @@ export function brainWords(
       // stderr this app never held. `null` is not guessed into either answer.
       const asleep = state.asleep === true;
       return {
-        headline: asleep && deviceCount === 0 ? "On, asleep" : "On",
+        headline: asleep && deviceCount === 0 ? words.onAsleep : words.on,
         sentence:
           deviceCount > 0
-            ? PHONE_IN_USE_SENTENCE
+            ? words.phoneInUse
             : asleep
-              ? ASLEEP_SENTENCE
-              : "This computer is ready for you.",
-        button: "Turn off",
+              ? words.asleepSentence
+              : words.readyForYou,
+        button: words.turnOff,
         enabled: true,
         running: true,
       };
     }
     case "failed":
-      return { headline: "Stopped", sentence: state.reason ?? "", button: "Try again", enabled: true, running };
+      return { headline: words.stopped, sentence: state.reason ?? "", button: words.tryAgain, enabled: true, running };
     default:
-      return { headline: "Not known", sentence: COULD_NOT_TELL, button: "Try again", enabled: true, running };
+      return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
   }
 }
 

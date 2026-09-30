@@ -7,7 +7,7 @@ import type { Theme } from "./lib/settings";
 import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
 import { ensureContextSize, hasContextSize } from "./lib/contextSize";
 import { createSlotGate } from "./lib/slotGate";
-import type { ActiveChat, DoorAccess } from "./lib/slotGate";
+import type { ActiveChat, DoorAccess, SlotNotice } from "./lib/slotGate";
 import { streamChatCompletion } from "./lib/toolLoop";
 import type { ChatErrorKind } from "./lib/chat";
 import { loadSampling, samplingWire } from "./lib/sampling";
@@ -77,8 +77,12 @@ function surfaceLabel(surface: SurfaceKey, chrome: { home: string; room: string;
 }
 
 export function App() {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const chrome = table.chrome;
+  const t = table.shell;
+  // One formatter for every figure the shell says, so the separators agree
+  // with the words around them.
+  const num = (value: number): string => new Intl.NumberFormat(tag).format(value);
   // The brain is the home: the app opens on it, and the chat is reached by
   // writing in its bar — never by selecting a tab (THE-BRAIN-IS-THE-HOME.md).
   const [surface, setSurface] = useState<SurfaceKey>("brain");
@@ -87,7 +91,7 @@ export function App() {
   // The chat is not part of the path: leaving it is the crescent's job.
   const [path, setPath] = useState<SurfaceKey[]>([]);
   const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
-  const [writeError, setWriteError] = useState<string | null>(null);
+  const [storageFull, setStorageFull] = useState(false);
   // What the door answered about a slot, when the answer is not a plain
   // success. `failed` is the difference between a warning and a refusal: a door
   // built without the disk tier (501) leaves the chat open and only says so,
@@ -95,7 +99,7 @@ export function App() {
   // must be read as the door wrote it — never softened, and never turned into
   // "the slot is empty", which the door reserves for the one case it knows
   // that about.
-  const [slotNotice, setSlotNotice] = useState<{ failed: boolean; message: string } | null>(null);
+  const [slotNotice, setSlotNotice] = useState<SlotNotice | null>(null);
   // The disk tier's one road to an active chat: the gate owns which chat is
   // active, and it changes only after the door has answered.
   // `useSyncExternalStore` is what removes the setter — there is no state here
@@ -159,7 +163,8 @@ export function App() {
     () =>
       store.subscribe(() => {
         setConversations(store.list());
-        setWriteError(store.getWriteError());
+        // A code, not a sentence — the words are the table's below.
+        setStorageFull(store.getWriteError() === "storage-full");
       }),
     [],
   );
@@ -323,7 +328,7 @@ export function App() {
       setCtxInfo({ endpoint, nctx: known });
       return known;
     }
-    if (announce) setAttachStatus("Checking context size…");
+    if (announce) setAttachStatus(t.checkingContext);
     const nctx = await ensureContextSize(nctxCache.current, endpoint, () =>
       fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token),
     );
@@ -376,9 +381,7 @@ export function App() {
       convId = fresh.id;
     }
     const target = convId;
-    setAttachStatus(
-      list.length === 1 ? `Reading ${list[0].name}…` : `Reading ${list.length} files…`,
-    );
+    setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
     try {
       const extracted: Attachment[] = [];
       for (const file of list) {
@@ -396,24 +399,18 @@ export function App() {
           have: trial.have,
         });
         setAttachStatus(null);
-        setLiveMessage("Attachment refused: it does not fit the context.");
+        setLiveMessage(t.attachmentRefused);
         return;
       }
       for (const attachment of extracted) store.putAttachment(target, attachment);
       setAttachStatus(null);
       setPanelOpen(true);
       setLiveMessage(
-        extracted.length === 1
-          ? `${extracted[0].name} attached.`
-          : `${extracted.length} files attached.`,
+        extracted.length === 1 ? t.attachedOne(extracted[0].name) : t.attachedMany(extracted.length),
       );
     } catch (error) {
-      if (error instanceof AttachmentError) {
-        setAttachStatus(error.message);
-      } else {
-        setAttachStatus("That file could not be read.");
-      }
-      setLiveMessage("Attachment failed.");
+      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotRead);
+      setLiveMessage(t.attachmentFailed);
     }
   }
 
@@ -422,16 +419,29 @@ export function App() {
   // accounting, the store — is the composer's clip path, shared not copied.
   async function attachFromDisk(path: string, name: string): Promise<void> {
     setRefusal(null);
-    setAttachStatus(`Reading ${name}…`);
+    setAttachStatus(t.readingOne(name));
     try {
       const bytes = await filesRead(path);
       await attachFiles([new File([bytes], name)]);
     } catch (error) {
       setAttachStatus(
-        error instanceof AttachmentError
-          ? error.message
-          : `${name} could not be read from this computer.`,
+        error instanceof AttachmentError ? refusalSentence(error) : table.files.notFromComputer(name),
       );
+    }
+  }
+
+  // The extractor reports a code and its parts; the sentence is the table's.
+  function refusalSentence(error: AttachmentError): string {
+    const r = error.refusal;
+    switch (error.failure) {
+      case "unsupported":
+        return r.app && r.modern ? table.files.unsupportedLegacy(r.name, r.app, r.modern) : table.files.unsupportedKind(r.name);
+      case "too-big":
+        return table.files.tooBig(r.name, num(r.mb ?? 0));
+      case "unreadable":
+        return table.files.unreadable(r.name);
+      case "empty":
+        return table.files.noText(r.name);
     }
   }
 
@@ -455,7 +465,7 @@ export function App() {
       gateAsks.current.push(ask);
       setGateShown(gateAsks.current[0] ?? null);
       setGateWaiting(Math.max(0, gateAsks.current.length - 1));
-      setLiveMessage("A web call is waiting for your say-so.");
+      setLiveMessage(t.gateWaiting);
       if (signal.aborted) {
         settle(false);
         return;
@@ -492,10 +502,16 @@ export function App() {
           [assistantId]: {
             messageId: assistantId,
             kind: "oversize",
-            detail: `≈${ctx.docTokens.toLocaleString()} file + ≈${ctx.historyTokens.toLocaleString()} history + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${ctx.need.toLocaleString()} of ≈${ctx.have.toLocaleString()} context tokens.`,
+            detail: t.oversizeDetail(
+              num(ctx.docTokens),
+              num(ctx.historyTokens),
+              num(CONTEXT_RESERVE_TOKENS),
+              num(ctx.need),
+              num(ctx.have),
+            ),
           },
         }));
-        setLiveMessage("The message no longer fits the context.");
+        setLiveMessage(t.noLongerFits);
         return;
       }
       const history = ctx.wire;
@@ -508,7 +524,7 @@ export function App() {
         delete next[assistantId];
         return next;
       });
-      setLiveMessage("Responding. Waiting for the first word.");
+      setLiveMessage(t.waitingFirstWord);
       let firstToken = true;
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
@@ -610,10 +626,18 @@ export function App() {
               confirm: (check) => askOwner(check, runSignal),
             }),
           onToolRun: ingestToolRun,
+          toolPhrases: {
+            noRoundLeft: table.tools.noRoundLeft,
+            turnEnded: table.tools.turnEnded,
+            nameNeverArrived: table.tools.nameNeverArrived,
+            stopped: table.tools.stopped,
+            argumentsTooLong: table.tools.argumentsTooLong,
+            argumentsNotValid: table.tools.argumentsNotValid,
+          },
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
               thoughtStartedAt = performance.now();
-              setLiveMessage("Thinking.");
+              setLiveMessage(t.thinking);
             }
             ingest("reasoning", text);
           },
@@ -621,7 +645,7 @@ export function App() {
             if (firstToken) {
               firstToken = false;
               answerStartedAt = performance.now();
-              setLiveMessage("Responding.");
+              setLiveMessage(t.responding);
             }
             ingest("content", token);
           },
@@ -634,13 +658,11 @@ export function App() {
             ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
             : undefined;
         persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
-        setLiveMessage(
-          !hasAnswer && hasThought ? "Thinking complete, no answer arrived." : "Response complete.",
-        );
+        setLiveMessage(!hasAnswer && hasThought ? t.thinkingComplete : t.responseComplete);
       } catch (error) {
         if (error instanceof ChatRequestError && error.kind === "aborted") {
           persistLive({ stopped: true });
-          setLiveMessage("Response stopped. Partial text kept.");
+          setLiveMessage(t.responseStopped);
         } else {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
@@ -654,11 +676,7 @@ export function App() {
           };
           persistLive();
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
-          setLiveMessage(
-            kind === "truncated"
-              ? "The answer stopped halfway. Details shown in the conversation."
-              : "The response failed. Error details shown in the conversation.",
-          );
+          setLiveMessage(kind === "truncated" ? t.stoppedHalfway : t.responseFailed);
         }
       } finally {
         dropLive();
@@ -691,7 +709,7 @@ export function App() {
     if (!conv) {
       conv = {
         id: opened ? opened.id : uid(),
-        title: titleFor(text),
+        title: titleFor(text, t.newConversation),
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messages: [],
@@ -931,14 +949,28 @@ export function App() {
   }
 
   const empty = !active || active.messages.length === 0;
-  const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface, chrome);
+  const title = surface === "chat" ? (active ? active.title : t.crescentChat) : surfaceLabel(surface, chrome);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 
   // The gate's own sentence, when it owes one: only a hand-over the door
   // refused, which has no caller to return its answer to. Shown through the same
-  // banner as the opens this shell asked for.
-  const notice = slotNotice ?? slot.notice;
+  // banner as the opens this shell asked for. An app-owned code speaks the
+  // table; anything else is the door's own sentence, shown as it arrived.
+  const rawNotice: SlotNotice | null = slotNotice ?? slot.notice;
+  const notice = rawNotice
+    ? {
+        failed: rawNotice.failed,
+        text:
+          rawNotice.own === "hold-waiting"
+            ? t.holdWaiting
+            : rawNotice.own === "hold-expired"
+              ? t.holdExpired
+              : rawNotice.own === "door-silent"
+                ? t.doorSilent
+                : rawNotice.message,
+      }
+    : null;
 
   // The crescent lives in the chat alone. Its entries are destinations, and
   // the component drops the page you are on and anything that page already
@@ -988,7 +1020,7 @@ export function App() {
             aria-expanded={drawerOpen}
             aria-label={chrome.showConversations}
           >
-            Conversations
+            {t.conversations}
           </button>
           <span className="topbar-mark" aria-hidden="true" />
           <h1>{title}</h1>
@@ -1022,7 +1054,7 @@ export function App() {
                   strokeLinecap="round"
                 />
               </svg>
-              Settings
+              {chrome.settings}
             </button>
           ) : null}
           {surface !== "brain" && surface !== "chat" ? (
@@ -1030,7 +1062,7 @@ export function App() {
               type="button"
               className="topbar-btn"
               onClick={goBack}
-              aria-label={`Back to ${surfaceLabel(backTarget, chrome)}`}
+              aria-label={t.backTo(surfaceLabel(backTarget, chrome))}
             >
               {surfaceLabel(backTarget, chrome)}
             </button>
@@ -1041,20 +1073,20 @@ export function App() {
               className="topbar-btn"
               onClick={() => setPanelOpen((o) => !o)}
               aria-expanded={panelOpen}
-              aria-label="Toggle the files panel"
+              aria-label={t.toggleFilesAria}
             >
-              Files
+              {t.files}
             </button>
           ) : null}
         </div>
       </header>
 
       <main className="stage">
-        {writeError ? (
+        {storageFull ? (
           <div className="storage-banner" role="alert">
-            <span>{writeError}</span>
+            <span>{t.storageFull}</span>
             <button type="button" onClick={() => store.clearWriteError()}>
-              Dismiss
+              {t.dismiss}
             </button>
           </div>
         ) : null}
@@ -1069,7 +1101,7 @@ export function App() {
             className={notice.failed ? "storage-banner" : "refusal-banner"}
             role={notice.failed ? "alert" : "status"}
           >
-            <span>{notice.message}</span>
+            <span>{notice.text}</span>
             <button
               type="button"
               onClick={() => {
@@ -1077,7 +1109,7 @@ export function App() {
                 gate.dismissNotice();
               }}
             >
-              Dismiss
+              {t.dismiss}
             </button>
           </div>
         ) : null}
@@ -1125,17 +1157,23 @@ export function App() {
               >
                 {dragging ? (
                   <div className="drop-overlay" aria-hidden="true">
-                    <span>Drop files to attach them to this conversation</span>
+                    <span>{t.dropToAttach}</span>
                   </div>
                 ) : null}
                 {refusal ? (
                   <div className="refusal-banner" role="alert">
                     <span>
-                      <strong>{refusal.names} {refusal.names.includes(",") ? "don't" : "doesn't"} fit.</strong>
-                      {` File ≈${refusal.docTokens.toLocaleString()} + history ≈${refusal.historyTokens.toLocaleString()} + ≈${CONTEXT_RESERVE_TOKENS.toLocaleString()} kept free for the answer = ≈${refusal.need.toLocaleString()} of ≈${refusal.have.toLocaleString()} context tokens. Nothing was attached or cut.`}
+                      <strong>{refusal.names.includes(",") ? t.dontFit(refusal.names) : t.doesntFit(refusal.names)}</strong>
+                      {t.refusalBody(
+                        num(refusal.docTokens),
+                        num(refusal.historyTokens),
+                        num(CONTEXT_RESERVE_TOKENS),
+                        num(refusal.need),
+                        num(refusal.have),
+                      )}
                     </span>
                     <button type="button" onClick={() => setRefusal(null)}>
-                      Dismiss
+                      {t.dismiss}
                     </button>
                   </div>
                 ) : null}

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { PropsWithChildren } from "react";
 import type { KnobCopy } from "../lib/knobs/types";
+import { useLanguage } from "../i18n/useLanguage";
 import "./KnobInfo.css";
 
 interface KnobInfoContextValue {
@@ -25,6 +26,8 @@ function inside(root: HTMLElement, target: EventTarget | null): boolean {
 }
 
 export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
+  const { table } = useLanguage();
+  const t = table.advanced;
   const local = useState<string | null>(null);
   const context = useContext(KnobInfoContext);
   const openId = context?.openId ?? local[0];
@@ -85,7 +88,7 @@ export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
         type="button"
         className="knob-info-trigger"
         ref={triggerRef}
-        aria-label={`What ${knob.label} does`}
+        aria-label={t.whatItDoes(knob.label)}
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={toggle}
@@ -97,15 +100,15 @@ export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
           className="knob-info-popover"
           id={panelId}
           role="region"
-          aria-label={`${knob.label} explanation`}
+          aria-label={t.explanationAria(knob.label)}
           style={{ left: popoverPosition.left, top: popoverPosition.top }}
         >
-          <span className="knob-info-heading">What it is</span>
+          <span className="knob-info-heading">{t.whatItIs}</span>
           <span>{knob.whatItIs}</span>
-          <span className="knob-info-heading">What it’s for</span>
+          <span className="knob-info-heading">{t.whatItsFor}</span>
           <span>{knob.whatItsFor}</span>
-          <span className="knob-info-heading">Usual values</span>
-          <span>{knob.usualValues ?? "There is no widely agreed value for this one."}</span>
+          <span className="knob-info-heading">{t.usualValues}</span>
+          <span>{knob.usualValues ?? t.noUsualValue}</span>
         </span>
       ) : null}
     </span>

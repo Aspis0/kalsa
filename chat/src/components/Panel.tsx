@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { Attachment } from "../lib/attachments";
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import { BudgetMeter } from "./BudgetMeter";
 import { FilesBrowser } from "./FilesBrowser";
 import "./Panel.css";
@@ -17,10 +19,10 @@ interface PanelProps {
   onClose: () => void;
 }
 
-function metaLine(a: Attachment): string {
+function metaLine(t: English["files"], a: Attachment): string {
   const parts: string[] = [a.kind];
-  if (a.pages !== undefined) parts.push(a.pages === 1 ? "1 page" : `${a.pages} pages`);
-  parts.push(`≈${a.tokens} tokens`);
+  if (a.pages !== undefined) parts.push(a.pages === 1 ? t.onePage : t.pages(a.pages));
+  parts.push(t.tokens(String(a.tokens)));
   return parts.join(" · ");
 }
 
@@ -41,6 +43,8 @@ export function Panel({
 }: PanelProps) {
   // Attached is the default so an arriving attachment is the first thing
   // the panel shows — the behaviour the panel had before it grew a tab.
+  const { table } = useLanguage();
+  const t = table.files;
   const [tab, setTab] = useState<"files" | "attached">("attached");
   const active = attachments.filter((a) => a.active);
   const history = attachments.filter((a) => !a.active);
@@ -49,9 +53,9 @@ export function Panel({
   return (
     <>
       {open ? <div className="panel-backdrop" aria-hidden="true" onClick={onClose} /> : null}
-      <aside className={`panel${open ? " panel-open" : ""}`} aria-label="Files">
+      <aside className={`panel${open ? " panel-open" : ""}`} aria-label={t.panelAria}>
         <div className="panel-head">
-          <div className="panel-tabs" role="tablist" aria-label="Files panel">
+          <div className="panel-tabs" role="tablist" aria-label={t.tabsAria}>
             <button
               type="button"
               role="tab"
@@ -60,7 +64,7 @@ export function Panel({
               className={`panel-tab${tab === "files" ? " is-on" : ""}`}
               onClick={() => setTab("files")}
             >
-              Files
+              {t.filesTab}
             </button>
             <button
               type="button"
@@ -70,10 +74,10 @@ export function Panel({
               className={`panel-tab${tab === "attached" ? " is-on" : ""}`}
               onClick={() => setTab("attached")}
             >
-              Attached
+              {t.attachedTab}
             </button>
           </div>
-          <button type="button" className="panel-close" onClick={onClose} aria-label="Close panel">
+          <button type="button" className="panel-close" onClick={onClose} aria-label={t.closeAria}>
             ×
           </button>
         </div>
@@ -89,11 +93,7 @@ export function Panel({
             />
 
             {active.length === 0 ? (
-              <p className="panel-empty">
-                No files attached. Drop a text, markdown, CSV, PDF, Word or PowerPoint file on the
-                conversation, use the clip in the composer, or pick one from this computer under
-                Files.
-              </p>
+              <p className="panel-empty">{t.empty}</p>
             ) : (
               <ul className="panel-list">
                 {active.map((a) => (
@@ -102,10 +102,10 @@ export function Panel({
                       <span className="panel-name" title={a.name}>
                         {a.name}
                       </span>
-                      <span className="panel-meta">{metaLine(a)}</span>
+                      <span className="panel-meta">{metaLine(t, a)}</span>
                     </div>
                     <button type="button" className="panel-remove" onClick={() => onRemove(a.id)}>
-                      Remove
+                      {t.remove}
                     </button>
                   </li>
                 ))}
@@ -114,7 +114,7 @@ export function Panel({
 
             {history.length > 0 ? (
               <>
-                <h3 className="panel-sub">Previously attached</h3>
+                <h3 className="panel-sub">{t.previouslyAttached}</h3>
                 <ul className="panel-list">
                   {history.map((a) => (
                     <li key={a.id} className="panel-row panel-row-history">
@@ -122,14 +122,14 @@ export function Panel({
                         <span className="panel-name" title={a.name}>
                           {a.name}
                         </span>
-                        <span className="panel-meta">{metaLine(a)}</span>
+                        <span className="panel-meta">{metaLine(t, a)}</span>
                       </div>
                       <button
                         type="button"
                         className="panel-reattach"
                         onClick={() => onReattach(a.id)}
                       >
-                        Reattach
+                        {t.reattach}
                       </button>
                     </li>
                   ))}

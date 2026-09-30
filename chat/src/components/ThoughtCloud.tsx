@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import "./ThoughtCloud.css";
 
 interface ThoughtCloudProps {
@@ -18,11 +20,11 @@ function lastLine(reasoning: string): string {
   return (lines.at(-1) ?? "").slice(-140);
 }
 
-function summary(reasoningMs?: number): string {
-  if (reasoningMs === undefined) return "Thinking";
-  if (reasoningMs < 1000) return "Thought for less than a second";
+function summary(t: English["thread"], reasoningMs?: number): string {
+  if (reasoningMs === undefined) return t.thinking;
+  if (reasoningMs < 1000) return t.thoughtUnderASecond;
   const seconds = Math.round(reasoningMs / 100) / 10;
-  return `Thought for ${seconds} s`;
+  return t.thoughtFor(String(seconds));
 }
 
 /**
@@ -37,6 +39,8 @@ function summary(reasoningMs?: number): string {
  * token). Transform and opacity only, always.
  */
 export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answered, tail }: ThoughtCloudProps) {
+  const { table } = useLanguage();
+  const t = table.thread;
   const [open, setOpen] = useState(false);
   const [settling, setSettling] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -44,7 +48,7 @@ export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answe
   const arrivals = useRef<number[]>([]);
   const lastTempoWrite = useRef(0);
   const bodyId = `thought-${messageId}`;
-  const ticker = (tail ?? lastLine(reasoning)).replace(/\s+$/, "").slice(-140) || "Thinking…";
+  const ticker = (tail ?? lastLine(reasoning)).replace(/\s+$/, "").slice(-140) || t.thinkingDots;
 
   const rising = working && !answered;
 
@@ -87,12 +91,12 @@ export function ThoughtCloud({ messageId, reasoning, reasoningMs, working, answe
         onClick={() => setOpen((o) => !o)}
       >
         <span className="thought-face">
-          {working ? ticker : summary(reasoningMs)}
+          {working ? ticker : summary(t, reasoningMs)}
         </span>
-        <span className="thought-toggle">{open ? "Hide ▲" : "Show thinking ▼"}</span>
+        <span className="thought-toggle">{open ? t.hide : t.showThinking}</span>
       </button>
       {open ? (
-        <div className="thought-body" id={bodyId} role="region" aria-label="Model thinking" tabIndex={0}>
+        <div className="thought-body" id={bodyId} role="region" aria-label={t.thinkingAria} tabIndex={0}>
           {reasoning}
         </div>
       ) : null}

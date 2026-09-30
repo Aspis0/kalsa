@@ -1,5 +1,5 @@
 import { ChatRequestError, completionsUrl } from "./chat";
-import type { StreamOptions } from "./chat";
+import type { StreamOptions, ToolPhrases } from "./chat";
 import { runRound } from "./streamRound";
 import { readArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
@@ -29,10 +29,21 @@ const MAX_TOOL_ROUNDS = 4;
  * transcript — the transcript keeps the assistant's answer with the tool runs
  * beside it (see `ToolRun`), and the wire is rebuilt from that next turn.
  */
+/** The phrases every caller without a table hears. */
+const ENGLISH_PHRASES: ToolPhrases = {
+  noRoundLeft: "There was no round left to run this, so the answer had to be in words.",
+  turnEnded: (reason) => `The server sent a tool call but ended the turn as “${reason}”, so nothing was run.`,
+  nameNeverArrived: "The stream ended before this call's name arrived, so nothing was run.",
+  stopped: "Stopped before this finished.",
+  argumentsTooLong: "The arguments for this call were longer than this app accepts, so nothing was run. Try again with a shorter query or address.",
+  argumentsNotValid: (name) => `The arguments for “${name}” were not valid JSON, so nothing was run. Try the call again with proper JSON.`,
+};
+
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
   const { signal } = options;
   const tools = options.tools ?? [];
   const runTool = options.runTool;
+  const say: ToolPhrases = options.toolPhrases ?? ENGLISH_PHRASES;
   const url = completionsUrl(options.endpoint);
   const conversation = [...options.messages];
   const toolRounds = tools.length > 0 && runTool ? MAX_TOOL_ROUNDS : 0;
@@ -81,8 +92,8 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         options,
         calls,
         forTools(answered.finishReason)
-          ? "There was no round left to run this, so the answer had to be in words."
-          : `The server sent a tool call but ended the turn as “${answered.finishReason}”, so nothing was run.`,
+          ? say.noRoundLeft
+          : say.turnEnded(answered.finishReason ?? ""),
       );
       if (askForWords) {
         forceWords = true;
@@ -95,11 +106,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // wire: `function.name: ""` is a malformed request. It is still recorded,
     // so the thread says what happened rather than showing nothing.
     const runnable = calls.filter((call) => call.name !== "");
-    refuse(
-      options,
-      calls.filter((call) => call.name === ""),
-      "The stream ended before this call's name arrived, so nothing was run.",
-    );
+    refuse(options, calls.filter((call) => call.name === ""), say.nameNeverArrived);
     if (runnable.length === 0) return;
 
     // Serial on purpose, like the phone (LlamaService.ts:5030): two searches at
@@ -107,7 +114,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // to be paired with their calls in order anyway.
     const results: string[] = [];
     for (const call of runnable) {
-      const { args, problem } = readArguments(call.name, call.arguments, call.cut);
+      const { args, problem } = readArguments(call.name, call.arguments, call.cut, {
+        tooLong: say.argumentsTooLong,
+        notValid: say.argumentsNotValid,
+      });
       const started: ToolRun = {
         id: call.id,
         name: call.name,
@@ -122,7 +132,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       if (problem === null) {
         const answered = await untilStopped(() => runTool!(call.name, args, signal), signal);
         if (answered === null) {
-          options.onToolRun?.({ ...started, result: "Stopped before this finished.", state: "failed" });
+          options.onToolRun?.({ ...started, result: say.stopped, state: "failed" });
           throw new ChatRequestError("aborted", "Stopped", undefined, url);
         }
         result = answered.text;

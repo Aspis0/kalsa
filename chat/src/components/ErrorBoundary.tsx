@@ -1,8 +1,11 @@
 import { Component } from "react";
 import type { ReactNode } from "react";
+import type { English } from "../i18n/en/all";
+import { useLanguage } from "../i18n/useLanguage";
 import "./ErrorBoundary.css";
 
 interface ErrorBoundaryProps {
+  crash: English["crash"];
   children: ReactNode;
 }
 
@@ -12,9 +15,11 @@ interface ErrorBoundaryState {
 
 /**
  * Last resort for corrupt data or render bugs: a static fallback that can
- * never crash itself (no store, no props, no markdown) with two ways out.
+ * never crash itself (no store, no children, no markdown — the words it
+ * shows are the static language table, read once before the fall) with two
+ * ways out.
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { crashed: false };
 
   static getDerivedStateFromError(): ErrorBoundaryState {
@@ -43,20 +48,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (!this.state.crashed) return this.props.children;
     return (
       <div className="error-boundary" role="alert">
-        <h2>Something went wrong.</h2>
-        <p>
-          The conversation view could not be drawn — usually this means the
-          saved data is damaged. Your settings are untouched.
-        </p>
+        <h2>{this.props.crash.title}</h2>
+        <p>{this.props.crash.body}</p>
         <div className="error-boundary-actions">
           <button type="button" className="btn-primary" onClick={() => window.location.reload()}>
-            Reload the app
+            {this.props.crash.reload}
           </button>
           <button type="button" className="btn-quiet" onClick={() => this.eraseAndReload()}>
-            Erase local data and start fresh
+            {this.props.crash.erase}
           </button>
         </div>
       </div>
     );
   }
+}
+
+/** The class is the catcher; this wrapper only hands it the chosen words. */
+export function ErrorBoundary({ children }: { children: ReactNode }) {
+  const { table } = useLanguage();
+  return <ErrorBoundaryClass crash={table.crash}>{children}</ErrorBoundaryClass>;
 }

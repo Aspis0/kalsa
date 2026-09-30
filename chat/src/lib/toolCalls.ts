@@ -102,6 +102,14 @@ function freeId(taken: Set<string>, wanted: string): string {
   return `${wanted}-${nth}`;
 }
 
+/** The two sentences an unread argument list can end in. They are both shown
+    and sent back as the call's answer, so the model reads them in the owner's
+    language; the English defaults keep every caller without a table working. */
+export interface ArgumentPhrases {
+  tooLong: string;
+  notValid: (name: string) => string;
+}
+
 /**
  * Parse a call's arguments, once, when the call is complete. Malformed JSON is
  * the tool's problem, not the stream's — the sentence returned is what the
@@ -111,28 +119,26 @@ export function readArguments(
   name: string,
   argumentsText: string,
   cut = false,
+  phrases?: ArgumentPhrases,
 ): {
   args: Record<string, unknown>;
   problem: string | null;
 } {
-  if (cut) return { args: {}, problem: tooLong };
+  const say: ArgumentPhrases = phrases ?? {
+    tooLong: "The arguments for this call were longer than this app accepts, so nothing was run. Try again with a shorter query or address.",
+    notValid: (tool) => `The arguments for “${tool}” were not valid JSON, so nothing was run. Try the call again with proper JSON.`,
+  };
+  if (cut) return { args: {}, problem: say.tooLong };
   const raw = argumentsText.trim();
   if (raw === "") return { args: {}, problem: null };
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { args: {}, problem: notValid(name) };
+    return { args: {}, problem: say.notValid(name) };
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { args: {}, problem: notValid(name) };
+    return { args: {}, problem: say.notValid(name) };
   }
   return { args: parsed as Record<string, unknown>, problem: null };
-}
-
-const tooLong =
-  "The arguments for this call were longer than this app accepts, so nothing was run. Try again with a shorter query or address.";
-
-function notValid(name: string): string {
-  return `The arguments for “${name}” were not valid JSON, so nothing was run. Try the call again with proper JSON.`;
 }

@@ -1,4 +1,5 @@
 import type { TierFacts } from "../surfaces/useBrain";
+import type { English } from "../i18n/en/all";
 
 /** One card's text: the Server page maps these into cards, React stays out
     of this module so the words can be tested without an app. */
@@ -10,7 +11,7 @@ export interface TierRow {
 
 /** Bytes as a short line, base 1024. No KB-per-token anything: this formats
     what the directory scan measured, and derives nothing from it. */
-export function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number, tag = "en"): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
@@ -18,7 +19,8 @@ export function formatBytes(bytes: number): string {
     value /= 1024;
     unit += 1;
   }
-  return unit === 0 ? `${value} B` : `${value.toFixed(1)} ${units[unit]}`;
+  const shown = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+  return unit === 0 ? `${new Intl.NumberFormat(tag).format(value)} B` : `${shown} ${units[unit]}`;
 }
 
 /**
@@ -33,25 +35,25 @@ export function formatBytes(bytes: number): string {
  * converts or completes them — `unreadable` only ever adds a warning that the
  * total is short.
  */
-export function tierRows(tier: TierFacts | null | undefined): TierRow[] {
+export function tierRows(tier: TierFacts | null | undefined, t: English["server"], tag = "en"): TierRow[] {
   if (!tier) return [];
   const rows: TierRow[] = [
     {
-      label: "Resident chats",
-      value: `${tier.residents} of ${tier.capacity}`,
+      label: t.residentChats,
+      value: t.residentsOfCapacity(tier.residents, tier.capacity),
       // The source, named: the door's own map — not `active_devices`, which
       // counts requests in flight and answers 0 at rest.
-      detail: "In the door's slot map",
+      detail: t.inDoorSlotMap,
     },
   ];
   if (tier.disk) {
     rows.push({
-      label: "Saved on disk",
-      value: formatBytes(tier.disk.bytes),
+      label: t.savedOnDisk,
+      value: formatBytes(tier.disk.bytes, tag),
       detail:
         tier.disk.unreadable > 0
-          ? `${tier.disk.files} files read, ${tier.disk.unreadable} unreadable — total incomplete`
-          : `${tier.disk.files} files, from a scan of the save directory`,
+          ? t.filesUnreadable(tier.disk.files, tier.disk.unreadable)
+          : t.filesFromScan(tier.disk.files),
     });
   }
   return rows;
@@ -93,21 +95,19 @@ export const CONCURRENCY = {
     number is attributed to the release artifact (PLAN-DISK-TIER §9). The
     gate reads the constant, not a live lookup: the row and its source
     identity are the same object, so they cannot drift apart. */
-export function concurrencyRow(): TierRow | null {
+export function concurrencyRow(t: English["server"]): TierRow | null {
   const { release, ratios } = CONCURRENCY;
   if (release.status !== "matched") return null;
   const slots = [ratios.slot0, ratios.slot1].map((r) => r.toFixed(2));
   // "each" only while both slots read the same at the shown precision;
   // otherwise the row names both, because one averaged figure would be a
   // number the artifact never wrote down.
-  const perDevice =
-    slots[0] === slots[1] ? `${slots[0]}x each` : `${slots[0]}x / ${slots[1]}x per slot`;
   return {
-    label: "Two devices decoding",
+    label: t.twoDevices,
     // The value is the number's line: the two figures and nothing else.
     // What the figures MEAN, and which artifact they came from, live in the
     // detail — the row this panel already uses to name its sources.
-    value: `${perDevice}, ${ratios.aggregate.toFixed(2)}x together`,
-    detail: `Decode rate vs one device, not wall time — measured on ${release.tag}, ${release.platform}/${release.backend}`,
+    value: t.together(slots[0] === slots[1] ? t.eachX(slots[0]) : t.perSlot(slots[0], slots[1]), ratios.aggregate.toFixed(2)),
+    detail: t.concurrencyDetail(release.tag, `${release.platform}/${release.backend}`),
   };
 }
