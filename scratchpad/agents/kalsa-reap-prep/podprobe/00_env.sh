@@ -19,7 +19,12 @@ if [ ! -x "$PY" ]; then
   "${POD_PYBASE:-python3.12}" -m venv --system-site-packages "$ROOT/.venv-probe"
 fi
 "$ROOT/.venv-probe/bin/pip" install --quiet --disable-pip-version-check \
-  "transformers==5.16.0" "huggingface_hub[cli]>=1.5,<2.0" "sentencepiece"
+  "transformers==5.16.0" "sentencepiece"
+# --ignore-installed: a system-site hub (e.g. the bundle fetch) satisfies pip
+# but leaves no venv/bin/hf, and the container disk is wiped on every restart
+"$ROOT/.venv-probe/bin/pip" install --quiet --disable-pip-version-check \
+  --ignore-installed "huggingface_hub[cli]>=1.5,<2.0"
+test -x "$ROOT/.venv-probe/bin/hf" || { echo "00: venv has no hf CLI" >&2; exit 1; }
 "$PY" -c "import torch; assert torch.cuda.is_available()" \
   || { echo "00: no CUDA visible — wrong image?" >&2; exit 1; }
 
