@@ -632,7 +632,9 @@ the shared copy. S23 2026-09-30 (`onecopy-hmx-numerics/REPORT.md`, engine `spike
 Q4_0 decode on the DSP went 0.13 -> 11.82 tok/s (`c5a218321`/`cc9c541f2`, KLD identical to two copies)
 vs two copies 22.2 and one-copy CPU 10.63; the per-token raw->tile conversion is the cost. A raw-row HVX
 matvec (Fable design `DESIGN-RAW-MATVEC-FABLE.md`, expected 19-23 tok/s) is in progress (`93ade4886`,
-checkpoint, not yet verified).
+checkpoint, not yet verified). Heat on the same weights (S23, `onecopy-hmx-numerics/REPORT.md` "Decode heat per
+token on one copy", n = 2 per arm): one-copy DSP decode ~45 % cooler per token (skin) than one-copy CPU decode at
+equal speed (12.2 tok/s); two copies coolest per token (0.28 skin C·s/tok at 21.5 tok/s).
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated, wired, landed — disabled by default

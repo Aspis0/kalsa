@@ -760,6 +760,8 @@ only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold un
 2026-09-30 (S23): NPU decode on the shared copy now works - raw Q4_0 DSP matvec 0.13 -> **11.82** tok/s
 (`c5a218321`, audit fixes `cc9c541f2`), KLD identical to two copies, vs two copies **22.2** and one-copy
 CPU **10.63**; the per-token raw->tile conversion is the remaining cost, a raw-row matvec is in progress.
+Heat per decoded token on the same weights (n = 2 per arm, rising baselines): DSP skin **0.49** vs CPU **0.88**
+C·s/token at ~12.2 tok/s; two copies **0.28** at 21.5 tok/s.
 Tied embedding shared with the CPU copy (`048603398`): peak RSS **-204 MiB** (no mmap) / **-225 MiB**
 (mmap), CPU decode unchanged.
 
