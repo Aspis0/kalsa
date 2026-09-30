@@ -461,3 +461,35 @@ none RSS 2,122 -> 1,692 MB, mmap 3,257 -> 3,042 MB; tg16 67.34 -> 66.66 (none). 
 e71421fd9 build, `-c 512 --chunks 20` on a 229 KB repo-docs text, default repack, `-lm none`:
 mean **0.000042**, max 0.000789, same top token **99.63 %**. Candidate for the shipped chain
 (cherry-pick onto the engine main line) after an S23 decode check of the plain-Q6_K lm_head.
+
+## NPU decode on one copy (S23, 2026-09-30, coordinator, engine e71421fd9)
+
+Build: `onecopy-guard` (llama-bench sha256 `117f33e8...`, v73 skel `3b0066ab...`), model
+`heat3way/ship.gguf` (LFM2 2.6B Q4_0), `-p 0 -n 128 -r 3 -t 5 -ngl 99 -dev HTP0 --load-mode none`,
+`GGML_HEXAGON_OPFUSION=0`. Phone unplugged, 67 -> 65 %, battery 30.9-34.2 C, Awake, traced 0.
+Logs: `/data/local/tmp/govhtp/onecopy-guard/npudec/`.
+
+| Arm | Env | tg128 tok/s |
+|---|---|---:|
+| two copies, MM_SELECT 3 | - | **22.58 +- 0.10** |
+| one copy, MM_SELECT 3 | RAW_HMX=1 HOSTBUF=1 | 10.90 +- 0.63 |
+| one copy, MM_SELECT 1 | RAW_HMX=1 HOSTBUF=1 MM_SELECT=1 | 13.54 +- 0.52 |
+| two copies, MM_SELECT 1 | MM_SELECT=1 | 9.69 +- 0.24 |
+| one copy, MM_SELECT 1, min batch 1 | + GGML_OP_OFFLOAD_MIN_BATCH=1 | **0.13** (tg2/tg4) |
+
+- The two one-copy arms at the default min batch (32) do NOT decode on the NPU:
+  `ggml_backend_hexagon_device_offload_op` (`ggml-hexagon.cpp:6980`) needs `op->ne[1] >=
+  opt_op_offload_min_batch`, so a decode matmul on a `-HOST` weight stays on the CPU (reading rpcmem).
+  10.90 / 13.54 are CPU numbers.
+- With min batch 1 the decode matmuls do reach the DSP (`hvx-flat`, profile `GGML_HEXAGON_PROFILE=1`
+  + `llama-bench -v`, tg2): MUL_MAT 411 ops = **21,826 ms of 21,858 ms** DSP time; every other op
+  together < 35 ms. Example: `blk.0.shortconv.in_proj` 2048x6144 q4_0, `hvx-flat`, **51,724 us**
+  (~135 MB/s of weights); `ffn_gate` 2048x10752 **90,397 us**.
+- Cause: the raw path DMAs 32 raw rows into VTCM, then converts them to flat tiles with
+  `q4_0_raw_rows_to_tiles` (`htp/q4_0-raw-tile.h:13-42`), a scalar byte-by-byte transpose
+  (`q[cp * 32 + row] = ...`), before `flat_vec_dot_q4_0_32x1`. The conversion, not the dot, is the time.
+- Flat itself is slower than the default path even with repacked weights (9.69 vs 22.58), so the
+  target is not "flat on raw" but a raw-reading matvec competitive with the default decode path.
+
+Next: an HVX raw-Q4_0 matvec (vectorised conversion or a kernel that reads raw 18-byte blocks
+directly), then this table again with min batch 1. Target: >= the two-copy 22.58 tok/s.
