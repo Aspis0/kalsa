@@ -227,6 +227,8 @@ describe("the door road fallback through RemoteEngine", () => {
 
     expect(probe.ok).toBe(false);
     expect(probe.error).toBe("remote_brain_network");
+    // The engine did dial the paired node before refusing — not a silent skip.
+    expect(openTunnelMockCalls()).toEqual([[NODE, "door"]]);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(FakeXhr.sent).toHaveLength(0);
     // The refusal is silent at engine level too — and not one HTTPS byte
@@ -264,6 +266,9 @@ describe("the door road fallback through RemoteEngine", () => {
 
     expect(errors).toEqual(["remote_brain_network"]);
     expect(done).toBe(false);
+    // Three dials on the paired node: the probe's props and models reads,
+    // then the turn's fresh connect that dies.
+    expect(openTunnelMockCalls()).toEqual([[NODE, "door"], [NODE, "door"], [NODE, "door"]]);
     // No HTTPS byte anywhere: not the probe, not the failed turn. The dial
     // outcomes ride the bridge's own road lines, none at engine level.
     expect(fetchSpy).not.toHaveBeenCalled();

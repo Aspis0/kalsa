@@ -174,11 +174,13 @@ describe("the iroh road through RemoteEngine", () => {
     // Not one byte took the HTTPS road.
     expect(fetchSpy).not.toHaveBeenCalled();
     // The connected dial's road line belongs to the native bridge (mocked
-    // out here): the engine itself logs none, and none may carry the node id.
+    // out here): the engine itself logs none, and nothing it logs may carry
+    // the full node id.
     const lines = log.mock.calls
       .filter((args) => args[0] === "KALSA_ROAD")
       .map((args) => args[1] as string);
     expect(lines).toEqual([]);
+    expect(lines.join("")).not.toContain(NODE);
     log.mockRestore();
   });
 });

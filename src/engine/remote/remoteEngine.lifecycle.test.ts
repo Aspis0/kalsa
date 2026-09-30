@@ -1223,11 +1223,16 @@ describe("RemoteEngine lifecycle", () => {
     };
     expect(streamOpenAiChat.mock.calls[0][2]).toBeUndefined();
     // The fallback itself is silent: the road line belongs to the native
-    // dial (irohBridge, mocked out here), and no engine line carries the node.
+    // dial (irohBridge, mocked out here), and nothing the engine logs may
+    // carry the full node id.
     const lines = log.mock.calls
       .filter((args) => args[0] === "KALSA_ROAD")
       .map((args) => JSON.parse(args[1] as string));
     expect(lines).toEqual([]);
+    const payloads = log.mock.calls
+      .filter((args) => args[0] === "KALSA_ROAD")
+      .map((args) => args[1] as string);
+    expect(payloads.join("")).not.toContain(node);
     log.mockRestore();
   });
 });
