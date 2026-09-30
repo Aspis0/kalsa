@@ -567,3 +567,32 @@ negative controls 2 and 4 EXIT=1.
 - tg128 one copy on DSP: 10.98 +- 0.45 tok/s (was 11.82). NOT a clean A/B: single arm, run right after two
   back-to-back perplexity passes with no cool-down. Possible real cost of the new last-row `valign`;
   re-measure ABBA before attributing.
+
+## Decode heat per token on one copy: DSP vs CPU (S23, 2026-09-30, cc9c541f2)
+
+Harness `raw/heat-2026-09-30/heat-onecopy.sh` (samples every ~2 s: battery temp, SKIN, thermal status), raw
+`samples.txt` + `summary.txt` in the same dir. `-p 0 -n 1024 -r 1 -t 5 -ngl 99 -dev HTP0 --load-mode none`,
+unplugged, 87 % start, order A-B-C-C-B-A with 180 s gaps (no cool-start gate, owner rule). Area = integral of
+(T - T at arm start) over [start, end + 120 s] / 1024 tokens, in C·s per token.
+
+| arm | tg1024 tok/s | battery start -> max C | battery C·s/tok | skin start -> max C | skin C·s/tok | max status |
+|---|---:|---|---:|---|---:|---:|
+| one copy, decode DSP A | 12.27 | 27.4 -> 32.0 | 0.590 | 28.6 -> 33.0 | 0.576 | 0 |
+| one copy, decode CPU A | 12.21 | 30.5 -> 36.4 | 0.681 | 30.7 -> 37.8 | 0.883 | 0 |
+| two copies, decode DSP A | 21.42 | 33.0 -> 35.4 | 0.226 | 33.0 -> 36.2 | 0.280 | 0 |
+| two copies, decode DSP B | 21.50 | 33.8 -> 36.1 | 0.182 | 33.1 -> 36.5 | 0.288 | 0 |
+| one copy, decode CPU B | 9.60 | 34.5 -> 38.9 | 0.558 | 33.4 -> 39.6 | 0.874 | 1 |
+| one copy, decode DSP B | 12.26 | 36.1 -> 38.4 | 0.242 | 34.9 -> 38.6 | 0.396 | 1 |
+
+Pair means (A,B): one-copy DSP battery 0.416 / skin 0.486; one-copy CPU battery 0.620 / skin 0.879; two-copy
+DSP battery 0.204 / skin 0.284 C·s per token.
+
+- On the SAME weights and at the same speed (12.2-12.3 tok/s in the A pair), DSP decode is cooler per token than
+  CPU decode: skin -45 %, battery -33 % (pair means). The CPU arm also throttled in its B run (9.60 tok/s) and
+  pushed status to 1; the DSP arm held 12.26.
+- Two copies (21.4-21.5 tok/s) is the coolest per token, mostly because each token takes ~half the time: the
+  faster raw-row matvec should move one copy toward it.
+- Caveats: n = 2 per arm; baselines climb through the session (27.4 -> 36.1 C at arm start); the first arm started
+  from the coldest phone, which inflates its rise (0.590 vs 0.242 for the same arm later). Direction is consistent
+  in both pairs for skin; treat magnitudes as rough. This addresses Fable's H4 (governor plan) only partly: n >= 5
+  ABBA is still owed.
