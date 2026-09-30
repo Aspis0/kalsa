@@ -1,6 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { strFromU8, unzipSync } from "fflate";
+import { TOOL_STOPPED } from "./types";
 import type { ChatMessage } from "./types";
 import type { WireMessage } from "./chat";
 
@@ -57,7 +58,8 @@ export function estTokens(text: string): number {
 
 export function messageTokens(message: ChatMessage): number {
   const toolTokens = (message.toolRuns ?? []).reduce(
-    (sum, run) => sum + estTokens(run.arguments) + estTokens(run.result),
+    (sum, run) =>
+      sum + estTokens(run.arguments) + estTokens(wireResult(run.result)),
     0,
   );
   return estTokens(message.content) + estTokens(message.reasoning ?? "") + toolTokens;
@@ -297,6 +299,12 @@ function docBlockFor(docs: Attachment[]): WireMessage {
  * and the shape it expects to see again. The transcript itself holds no `tool`
  * role: this is the only place the roles are invented.
  */
+/** What the wire carries for a stored run's result: the stopped code becomes
+    the English sentence the model reads, anything else goes as it is. */
+function wireResult(result: string): string {
+  return result === TOOL_STOPPED ? "Stopped before this finished." : result;
+}
+
 function wireFor(message: ChatMessage): WireMessage[] {
   // A refused run never happened as far as the server is concerned: it was
   // never sent back as a call, and an unnamed one would be a malformed request.
@@ -316,7 +324,9 @@ function wireFor(message: ChatMessage): WireMessage[] {
   };
   const answered: WireMessage[] = runs.map((run) => ({
     role: "tool",
-    content: run.result,
+    // The wire language is English whatever the interface speaks: the code
+    // is for storage and the screen, the model gets the sentence.
+    content: wireResult(run.result),
     tool_call_id: run.id,
   }));
   const said: WireMessage[] = message.content

@@ -24,6 +24,7 @@ import { TABLES, LANGUAGES } from "../chat/src/i18n";
 
 import { LANGUAGE_KEY } from "../chat/src/i18n/useLanguage";
 import { completionBody } from "../chat/src/lib/chat";
+import { buildPinnedContext } from "../chat/src/lib/attachments";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 
 // The English table read directly: the parity walker and the probe cards
@@ -1185,6 +1186,7 @@ export {
   MODEL_BYTES,
   advancedDto,
   brainWords,
+  buildPinnedContext,
   completionBody,
   loadSampling,
   samplingProblem,

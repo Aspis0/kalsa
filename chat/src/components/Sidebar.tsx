@@ -150,6 +150,7 @@ export function Sidebar({
                         className="sidebar-rename"
                         autoFocus
                         defaultValue={editing.draft}
+                        placeholder={table.shell.untitled}
                         aria-label={t.titleAria}
                         maxLength={80}
                         onChange={(event) =>

@@ -287,6 +287,17 @@ async function loadRenderer() {
     target: "node20",
     outfile,
     nodePaths: [join(process.cwd(), "chat/node_modules")],
+    // The pdf worker ships as a `?url` import the headless bundle has no
+    // use for; a virtual module answers the default import with a stub.
+    plugins: [
+      {
+        name: "stub-worker-url",
+        setup(build) {
+          build.onResolve({ filter: /\?url$/ }, (args) => ({ path: args.path, namespace: "worker-url" }));
+          build.onLoad({ filter: /.*/, namespace: "worker-url" }, () => ({ contents: "export default ''", loader: "js" }));
+        },
+      },
+    ],
     loader: { ".css": "empty" },
     logLevel: "silent",
   });
@@ -390,6 +401,38 @@ try {
   const overriddenBody = renderer.completionBody("m", [], { model: "wrong", messages: [], stream: false });
   if (overriddenBody.model !== "m" || overriddenBody.messages?.length !== 0 || overriddenBody.stream !== true) {
     problems.push("sampling completion body let sampling override its core fields");
+  }
+  // A stopped tool run stores a code; the request body must carry the
+  // sentence the model reads, and the accounting must weigh that sentence.
+  const stoppedWire = renderer.buildPinnedContext(
+    [
+      {
+        id: "a1", role: "assistant", content: "", createdAt: 0,
+        toolRuns: [{ id: "0-1", name: "web_search", arguments: "{}", result: "run-stopped", state: "failed" }],
+      },
+    ],
+    [],
+    null,
+  );
+  if (stoppedWire.status !== "ok") problems.push("stopped-run wire refused to build");
+  const stoppedAnswered = stoppedWire.wire.find((m) => m.role === "tool");
+  if (!stoppedAnswered || stoppedAnswered.content !== "Stopped before this finished.") {
+    problems.push(`a stopped run must send the sentence, not the code: ${JSON.stringify(stoppedAnswered?.content)}`);
+  }
+  const codeLeak = stoppedWire.wire.some((m) => JSON.stringify(m).includes("run-stopped"));
+  if (codeLeak) problems.push("the stopped-run code reached the request body");
+  const stoppedHistory = renderer.buildPinnedContext(
+    [
+      {
+        id: "a1", role: "assistant", content: "", createdAt: 0,
+        toolRuns: [{ id: "0-1", name: "web_search", arguments: "{}", result: "run-stopped", state: "failed" }],
+      },
+    ],
+    [],
+    10 ** 9,
+  );
+  if (stoppedHistory.status !== "ok" || stoppedHistory.historyTokens < 5) {
+    problems.push("the stopped-run accounting must count the sent sentence, not the code");
   }
   if (renderer.samplingProblem({ top_k: 7.5 }) === null) problems.push("fractional integer sampling value was accepted");
   if (renderer.samplingProblem({ top_p: 5 }) === null) problems.push("out-of-range sampling value was accepted");
