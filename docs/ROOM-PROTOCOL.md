@@ -289,9 +289,15 @@ data: {"text":"It is "}
   the first frame of every stream: `state` is `idle` / `queued` /
   `thinking` / `answering` / `waiting` / `done` / `refused` /
   `cancelled` / `stopped`, plus the same `running`/`queue`/
-  `you_pending` view as info, and `note` — one honest sentence on the
-  moves that owe one (a wait for a seat, a refusal, a stop), `null`
-  otherwise. Names only, ever.
+  `you_pending` view as info, `note_code` and its English fallback `note`
+  on the moves that owe one, and both `null` otherwise. Starting a call
+  immediately publishes `thinking`, not `queued`; `queued` means a call
+  is actually waiting. The state names emitted are `queued` when a call
+  joins a line, `thinking` when a turn starts, `waiting` while it waits
+  for a seat, `answering` when text begins, `done` on a complete answer,
+  `refused` when it cannot start or answer, `cancelled` on withdrawal,
+  and `stopped` when it ends early. `idle` is the opening snapshot when
+  nothing is active. Names only, ever.
 - `ai_delta` — `{"turn": <id>, "text": <chunk>}` while answering.
 - `ai_delta` — a chunk of the answer being streamed, during `answering`.
   One turn streams at a time; a client assembles chunks until `ai_message`
@@ -308,13 +314,28 @@ matching §5's rule — the call and the message that carried it are one
 transcript entry. At most one call per member may be pending; a second is
 refused in the POST response (`ai_call: "refused"` plus the code), never
 silently. One AI turn runs at a time and the turn order is visible to
-everyone, names only — the rules themselves, the rotation and its
-visibility, are HOUSEHOLD-RULES.md §5.2–5.4 and are not restated here.
+everyone, names only. THE ORDER IS ARRIVAL: calls are served first-come,
+first-served by the computer's own monotonic arrival stamp; whoever was
+served least recently breaks only an exact tie (HOUSEHOLD-RULES.md
+§5.2–5.4 carry the rules and their
+visibility).
 
-The guest takes its own seat at this computer's engine, beside the
+The guest takes its own engine seat at this computer, beside the
 household. When every seat is busy the call does not fail: it stays in the
 line with an `ai_status` `waiting` whose note says the computer is busy —
-the turn begins when a seat comes back.
+the turn begins when a seat comes back. On its turn the guest spends at
+most a stated share (60%) of its slot's context — the launch's
+`--ctx-size / --parallel`, tokens estimated at four bytes each when no
+tokenizer is available — and the
+`read` count on the answer says what that bought.
+
+The line itself is memory: a computer that restarts forgets every pending
+call, and nothing retroactive is announced on startup. What a phone
+should show is the truth of its own screen — the `@Kalsa` message it
+sent, delivered but unanswered — and, if it matters to the sender, a
+fresh call after the restart. The host stopping a turn that is not
+running changes nothing, publishes no event, and returns a refusal to the
+host.
 
 On its turn the guest receives the room transcript — ALL of it that fits
 its context budget; no member's join floor binds the AI, because the room
@@ -351,9 +372,41 @@ answer ever enters history.
 | unknown room route | — | `404 not_found`: the phone is talking to something this computer does not serve |
 | store failure | — | `500 internal`: show the sentence, nothing the phone can do |
 
-Error bodies (except the empty 401) are
-`{"error": {"code": "...", "message": "<one honest sentence>"}}` with the
-codes above; `name_taken` and `client_msg_id_reused` are 409, the rest 400.
+Every error carries a stable machine `code` and its English fallback in
+`message`; clients translate by code. The code table is:
+
+| Code | English fallback |
+|---|---|
+| `bad_request` | The room reads a JSON body of the shape its route defines. |
+| `too_large` | The message or name is too long. |
+| `client_msg_id_reused` | This message id was already used for different content. |
+| `name_taken` | That name is reserved or already in use. |
+| `no_call` | You have no question waiting. |
+| `epoch_changed` | The room's transcript restarted; drop what was cached and read it again. |
+| `no_room` | The room is not open on this computer. |
+| `read_only` | The room cannot save messages right now. |
+| `not_found` | The door does not serve that room route. |
+| `bad_cursor` | The room resumes from a numeric Last-Event-ID. |
+| `internal` | The room's store failed on disk. |
+
+Error bodies (except the empty 401) use
+`{"error": {"code": "...", "message": "<English fallback>"}}`;
+`name_taken`, `client_msg_id_reused` and `epoch_changed` are 409;
+`no_call`/`not_found` are 404, `too_large` is 413,
+`no_room`/`read_only` are 503, `internal` is 500, and the rest are 400.
+
+The `ai_status` note codes and English fallbacks are:
+
+| `note_code` | English fallback |
+|---|---|
+| `busy_waiting` | Kalsa is busy with another conversation. You keep your turn. |
+| `unavailable` | Kalsa can't answer in this room right now. |
+| `stopped` | Kalsa stopped before finishing. Ask again. |
+| `empty_answer` | Kalsa had no answer to that. |
+| `could_not_start` | Kalsa couldn't start. Try again. |
+| `engine_refused` | Kalsa couldn't answer that just now. |
+| `context_refused` | Kalsa couldn't fit that conversation. Try again. |
+| `patience_ended` | Kalsa took too long to finish. Ask again. |
 
 A damaged transcript is recovered, not fatal. The room reopens on the
 longest intact run of entries; everything the damage held is gone from

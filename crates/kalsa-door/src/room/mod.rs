@@ -14,7 +14,7 @@ mod stream;
 mod turn;
 
 use answers::{json_error, json_ok, json_ok_no_content, store_failed};
-use routes::{floor_of, history, info, post, set_name};
+use routes::{floor_of, history, info, post, set_name, PostContext};
 
 use std::net::TcpStream;
 use std::sync::Arc;
@@ -63,7 +63,6 @@ impl RoomDoor {
             seats: Arc::new(stream::Seats::default()),
         }
     }
-
 }
 
 /// One sentence per refusal, and no more: this is all a client sees. The
@@ -75,7 +74,7 @@ const BAD_QUERY: &str = "The room reads after, before and limit as plain numbers
 const NO_ID: &str = "A message needs a client_msg_id and a text.";
 const NO_NAME: &str = "A name needs a name field.";
 const BAD_LAST_EVENT_ID: &str = "The room resumes from a numeric Last-Event-ID.";
-const NO_CALL_TO_WITHDRAW: &str = "There is no call of yours waiting in this room.";
+const NO_CALL_TO_WITHDRAW: &str = "You have no question waiting.";
 
 pub(super) fn owns(target: &[u8]) -> bool {
     path_of(target).starts_with(b"/kalsa/room/")
@@ -98,13 +97,16 @@ pub(super) struct Request<'a> {
     pub(super) shared: &'a Arc<crate::proxy::Shared>,
 }
 
-pub(super) fn serve(
-    mut client: TcpStream,
-    request: Request<'_>,
-    deadline: Instant,
-) {
-    let Request { head, device, devices, room: room_door, shared } = request;
+pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Instant) {
+    let Request {
+        head,
+        device,
+        devices,
+        room: room_door,
+        shared,
+    } = request;
     let origin = head.origin.as_deref();
+    let arrival = Instant::now();
     let Some(door) = room_door else {
         let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
         let answer = json_error(503, origin, "no_room", NO_ROOM);
@@ -148,7 +150,18 @@ pub(super) fn serve(
             let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/messages", b"POST") => {
-            let answer = post(&mut client, door, shared, head, member, origin, deadline);
+            let answer = post(
+                &mut client,
+                door,
+                PostContext {
+                    shared,
+                    head,
+                    member,
+                    origin,
+                    deadline,
+                    arrival,
+                },
+            );
             let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/call", b"DELETE") => {
@@ -161,7 +174,11 @@ pub(super) fn serve(
                     let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
                 }
                 _ => {
-                    let _ = proxy::write_with_deadline(&mut client, &json_ok_no_content(origin), deadline);
+                    let _ = proxy::write_with_deadline(
+                        &mut client,
+                        &json_ok_no_content(origin),
+                        deadline,
+                    );
                 }
             }
         }
@@ -197,5 +214,3 @@ pub(super) fn serve(
         }
     }
 }
-
-

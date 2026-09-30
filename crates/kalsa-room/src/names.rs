@@ -152,16 +152,16 @@ fn mixes_scripts(name: &str) -> bool {
     latin && other
 }
 
-fn is_latin(c: char) -> bool {
+pub(crate) fn is_latin(c: char) -> bool {
     c.is_ascii_alphabetic()
         || matches!(c as u32, 0xC0..=0x24F if !matches!(c as u32, 0xD7 | 0xF7))
 }
 
-fn is_cyrillic(c: char) -> bool {
+pub(crate) fn is_cyrillic(c: char) -> bool {
     matches!(c as u32, 0x0400..=0x052F)
 }
 
-fn is_greek(c: char) -> bool {
+pub(crate) fn is_greek(c: char) -> bool {
     matches!(c as u32, 0x0370..=0x03FF | 0x1F00..=0x1FFF)
 }
 

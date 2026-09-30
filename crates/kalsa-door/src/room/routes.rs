@@ -9,12 +9,21 @@ use kalsa_room::MemberId;
 use serde_json::{json, Value};
 
 use super::answers::{entry_json, json_error, json_ok, name_of, read_body, store_failed};
-use super::{BAD_QUERY, MALFORMED, NO_ID, NO_NAME};
 use super::RoomDoor;
+use super::{BAD_QUERY, MALFORMED, NO_ID, NO_NAME};
 use crate::devices::Devices;
 use crate::request::UnsealedHead;
 use kalsa_room::Room;
 use std::sync::Arc;
+
+pub(super) struct PostContext<'a> {
+    pub(super) shared: &'a std::sync::Arc<crate::proxy::Shared>,
+    pub(super) head: &'a UnsealedHead,
+    pub(super) member: MemberId,
+    pub(super) origin: Option<&'a [u8]>,
+    pub(super) deadline: Instant,
+    pub(super) arrival: Instant,
+}
 
 /// The floor a reader's pages begin at: the host's whole transcript, a
 /// member's join point. `None` is a member the room cannot place — the
@@ -37,7 +46,10 @@ pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
         "host",
     )];
     for (id, label) in devices.entries() {
-        if id == door.host {
+        // The host's row is fixed and the guest's seat is not a member at
+        // all: the AI guest holds an engine seat, never a room membership,
+        // and enrolling it here would put a second "Kalsa" in the room.
+        if id == door.host || id.value() == crate::ROOM_DEVICE {
             continue;
         }
         // The row carries the ROOM's member id, minted at this device's
@@ -60,7 +72,7 @@ pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
         "epoch": door.room.epoch(),
         "you": you.wire(),
         "members": members,
-        "ai": ai_state(&door.room, devices, you, door.room.turn_state().state, None),
+        "ai": ai_state(&door.room, devices, you, door.room.turn_state().state, None, None),
     })
 }
 
@@ -76,6 +88,7 @@ pub(super) fn ai_state(
     devices: &Devices,
     you: MemberId,
     state: &'static str,
+    note_code: Option<&str>,
     note: Option<&str>,
 ) -> Value {
     let turns = room.turn_state();
@@ -92,6 +105,7 @@ pub(super) fn ai_state(
         "queue": queue,
         "who": null,
         "you_pending": turns.running == Some(you) || turns.pending.contains(&you),
+        "note_code": note_code,
         "note": note,
     })
 }
@@ -105,7 +119,13 @@ fn entry_member(room: Arc<Room>, member: MemberId, label: &str, kind: &str) -> V
 }
 
 /// One history page, in the shape the protocol answers.
-pub(super) fn history(door: &RoomDoor, devices: &Devices, member: MemberId, target: &[u8], origin: Option<&[u8]>) -> Vec<u8> {
+pub(super) fn history(
+    door: &RoomDoor,
+    devices: &Devices,
+    member: MemberId,
+    target: &[u8],
+    origin: Option<&[u8]>,
+) -> Vec<u8> {
     let query = target.splitn(2, |byte| *byte == b'?').nth(1).unwrap_or(&[]);
     let mut after: Option<u64> = None;
     let mut before: Option<u64> = None;
@@ -118,12 +138,15 @@ pub(super) fn history(door: &RoomDoor, devices: &Devices, member: MemberId, targ
             continue;
         };
         let (key, value) = (&pair[..eq], &pair[eq + 1..]);
-        let number = match std::str::from_utf8(value).ok().and_then(|value| value.parse().ok()) {
+        let number = match std::str::from_utf8(value)
+            .ok()
+            .and_then(|value| value.parse().ok())
+        {
             Some(number) => number,
             // A value that is not a plain number, on a key the page reads,
             // is refused; a key it does not read is ignored.
             None if matches!(key, b"after" | b"before" | b"limit") => {
-                return json_error(400, origin, "bad_request", BAD_QUERY)
+                return json_error(400, origin, "bad_request", BAD_QUERY);
             }
             None => continue,
         };
@@ -148,9 +171,7 @@ pub(super) fn history(door: &RoomDoor, devices: &Devices, member: MemberId, targ
         return json_error(500, origin, "internal", store_failed());
     };
     let page = match (after, before) {
-        (Some(_), Some(_)) => {
-            return json_error(400, origin, "bad_request", BAD_QUERY)
-        }
+        (Some(_), Some(_)) => return json_error(400, origin, "bad_request", BAD_QUERY),
         (Some(after), None) => door.room.page_after(floor, after, limit),
         (None, Some(before)) => door.room.page_before(floor, before, limit),
         (None, None) => door.room.newest_page(floor, limit),
@@ -179,12 +200,16 @@ pub(super) fn history(door: &RoomDoor, devices: &Devices, member: MemberId, targ
 pub(super) fn post(
     client: &mut TcpStream,
     door: &Arc<RoomDoor>,
-    shared: &std::sync::Arc<crate::proxy::Shared>,
-    head: &UnsealedHead,
-    member: MemberId,
-    origin: Option<&[u8]>,
-    deadline: Instant,
+    request: PostContext<'_>,
 ) -> Vec<u8> {
+    let PostContext {
+        shared,
+        head,
+        member,
+        origin,
+        deadline,
+        arrival,
+    } = request;
     let Some(body) = read_body(client, head.body_length, deadline) else {
         return json_error(413, origin, "too_large", "The message is too long.");
     };
@@ -197,7 +222,10 @@ pub(super) fn post(
     ) else {
         return json_error(400, origin, "bad_request", NO_ID);
     };
-    let call_ai = value.get("call_ai").and_then(Value::as_bool).unwrap_or(false);
+    let call_ai = value
+        .get("call_ai")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     match door.room.post(member, client_msg_id, text, call_ai) {
         Ok(entry) => {
             // A called message takes its place in the queue — the store
@@ -208,7 +236,7 @@ pub(super) fn post(
             let (ai_call, refusal) = if !called {
                 (json!(null), json!(null))
             } else {
-                match door.room.submit_call(member, client_msg_id) {
+                match door.room.submit_call_at(member, client_msg_id, arrival) {
                     Ok(kalsa_room::CallTaken::Queued) => (json!("queued"), json!(null)),
                     Ok(kalsa_room::CallTaken::Starts(turn)) => {
                         super::turn::spawn(door, shared, member, turn);

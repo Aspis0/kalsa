@@ -29,14 +29,21 @@ pub enum Event {
 /// to so a phone can assemble one turn and discard stale partials.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AiEvent {
-    /// The state the room moved to, and the one-line note some moves owe
-    /// the room — a refusal, a wait, a stop. `None` on the moves that
-    /// explain themselves.
+    /// The state the room moved to, and the note some moves owe the room:
+    /// a stable machine `note_code` the client translates by, with the
+    /// English sentence as the fallback — the app ships in several
+    /// languages, and the codes are the contract. Both `None` on the
+    /// moves that explain themselves. The sentence is owned because one
+    /// of them names a number only the failing call knows.
     Status {
         state: &'static str,
-        note: Option<&'static str>,
+        note_code: Option<&'static str>,
+        note: Option<String>,
     },
-    Delta { turn: u64, text: String },
+    Delta {
+        turn: u64,
+        text: String,
+    },
 }
 
 /// The unnumbered news: who appeared, who is called what now, who left.
@@ -45,11 +52,19 @@ pub enum AiEvent {
 pub enum MemberEvent {
     /// A device was allowed and appears in the room. The door publishes
     /// this when the pairing store records the owner's Allow.
-    Joined { member: MemberId, name: String },
-    Renamed { member: MemberId, name: String },
+    Joined {
+        member: MemberId,
+        name: String,
+    },
+    Renamed {
+        member: MemberId,
+        name: String,
+    },
     /// A device was forgotten; the member will not post again. Its past
     /// entries keep their author and the name it had.
-    Left { member: MemberId },
+    Left {
+        member: MemberId,
+    },
 }
 
 /// The store's internal log: the same events, holding each entry by

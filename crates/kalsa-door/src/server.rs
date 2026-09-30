@@ -64,6 +64,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         set: Arc::clone(&door.devices),
         room: door.room.clone(),
         port: door.upstream_port,
+        slot_context: door.slot_context,
     });
     let (sender, receiver) = mpsc::sync_channel(QUEUE);
     let receiver = Arc::new(Mutex::new(receiver));

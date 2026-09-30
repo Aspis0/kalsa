@@ -29,12 +29,27 @@ use crate::room::answers::name_of;
 use crate::room::RoomDoor;
 use crate::slots::LeaseError;
 
-/// How much room transcript one turn may carry to the model, in UTF-8
-/// bytes of formatted text — roughly eight thousand tokens, chosen to
-/// leave the answer room inside any context this app launches. The oldest
-/// messages are the ones that fall off, and the answer says how many it
-/// read.
-const TRANSCRIPT_BUDGET: usize = 32 * 1024;
+/// How much room transcript one turn may carry to the model, when the
+/// launch's per-slot context was not named to the door. The budget is
+/// derived from the slot when it is (see [`budget_of`]); this is the
+/// floor for doors built without one.
+const FALLBACK_BUDGET: usize = 32 * 1024;
+
+/// The share of the slot's context the transcript may spend; the rest is
+/// the answer's room and the framing.
+const BUDGET_SHARE: u64 = 60;
+
+/// The transcript budget in bytes, from the per-slot context the launch
+/// actually funded (`--ctx-size / --parallel`). Tokens are estimated at
+/// four bytes each — no tokenizer sits in this crate, and the estimate is
+/// stated as one: the budget errs small, and the truncation marker on the
+/// answer says how much of the room it was built on either way.
+fn budget_of(slot_context: Option<u64>) -> usize {
+    match slot_context {
+        Some(tokens) => ((tokens.saturating_mul(BUDGET_SHARE) / 100) as usize).saturating_mul(4),
+        None => FALLBACK_BUDGET,
+    }
+}
 
 /// How long a turn waits between looks for a free seat before it says so
 /// again.
@@ -46,7 +61,10 @@ const READ_SLICE: Duration = Duration::from_secs(1);
 
 /// How long the whole turn may run. An answer that outlives it is stopped
 /// honestly rather than left running behind a door nobody watches.
+#[cfg(not(test))]
 const TURN_PATIENCE: Duration = Duration::from_secs(600);
+#[cfg(test)]
+const TURN_PATIENCE: Duration = Duration::from_secs(3);
 
 /// Copy in the repo's own voice; the owner approves every line.
 const SYSTEM_PROMPT: &str = "You are Kalsa, a guest in this family's room on their own computer. \
@@ -54,11 +72,23 @@ You speak only when called. Answer briefly and plainly, in the language of the r
 and say so plainly when you are unsure.";
 
 /// The sentences a status can carry. One line each, no secrets, no paths.
-const NO_SEAT_NOTE: &str =
-    "The computer is busy with other conversations; the call keeps its place and waits.";
-const NO_ROOM_SEAT_NOTE: &str = "This computer's room has no seat at its own engine.";
-const ENGINE_GONE_NOTE: &str = "The model server stopped producing this answer.";
-const EMPTY_ANSWER_NOTE: &str = "The model had nothing to say to that.";
+const BUSY_WAITING: (&str, &str) = (
+    "busy_waiting",
+    "Kalsa is busy with another conversation. You keep your turn.",
+);
+const UNAVAILABLE: (&str, &str) = ("unavailable", "Kalsa can't answer in this room right now.");
+const STOPPED: (&str, &str) = ("stopped", "Kalsa stopped before finishing. Ask again.");
+const EMPTY_ANSWER: (&str, &str) = ("empty_answer", "Kalsa had no answer to that.");
+const COULD_NOT_START: (&str, &str) = ("could_not_start", "Kalsa couldn't start. Try again.");
+const ENGINE_REFUSED: (&str, &str) = ("engine_refused", "Kalsa couldn't answer that just now.");
+const CONTEXT_REFUSED: (&str, &str) = (
+    "context_refused",
+    "Kalsa couldn't fit that conversation. Try again.",
+);
+const PATIENCE_ENDED: (&str, &str) = (
+    "patience_ended",
+    "Kalsa took too long to finish. Ask again.",
+);
 
 /// The room's own seat at the engine: the fixed device id the door mints
 /// into its set when it is given a room. A seat of its own, because the
@@ -74,19 +104,24 @@ pub(super) fn spawn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, member: MemberId
         .name("kalsa-door-room-turn".into())
         .spawn(move || drive(&driving, &shared, member, turn));
     if spawned.is_err() {
-        publish(Arc::clone(&door.room), "refused", Some("The room's turn could not start on this computer."));
+        publish(Arc::clone(&door.room), "refused", Some(COULD_NOT_START));
         let _ = door.room.end_turn(member);
     }
 }
 
 fn drive(door: &Arc<RoomDoor>, shared: &Arc<Shared>, mut member: MemberId, mut turn: u64) {
     loop {
+        // Armed for the whole turn: a driver that unwinds mid-turn still
+        // ends it and hands whatever waits to a fresh driver, or the queue
+        // would hold a running turn forever and refuse every later call.
+        let guard = TurnGuard {
+            door: Arc::clone(door),
+            shared: Arc::clone(shared),
+            member,
+            armed: true,
+        };
         run_one_turn(door, shared, turn);
-        // The turn is over on every path above. `end_turn` records the
-        // serve and starts whatever waits — and running it here, after the
-        // turn body, is what keeps a cleared turn from wedging the queue
-        // if the body itself could not.
-        match door.room.end_turn(member) {
+        match guard.finish() {
             Some((next_member, next_turn)) => {
                 member = next_member;
                 turn = next_turn;
@@ -96,11 +131,42 @@ fn drive(door: &Arc<RoomDoor>, shared: &Arc<Shared>, mut member: MemberId, mut t
     }
 }
 
+/// Ends the member's turn — and starts whatever waits, on a fresh driver —
+/// on every way out of the turn, an unwind included.
+struct TurnGuard {
+    door: Arc<RoomDoor>,
+    shared: Arc<Shared>,
+    member: MemberId,
+    armed: bool,
+}
+
+impl TurnGuard {
+    fn finish(mut self) -> Option<(MemberId, u64)> {
+        self.armed = false;
+        self.door.room.end_turn(self.member)
+    }
+}
+
+impl Drop for TurnGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            if let Some((next_member, next_turn)) = self.door.room.end_turn(self.member) {
+                spawn(&self.door, &self.shared, next_member, next_turn);
+            }
+        }
+    }
+}
+
 fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
     publish(door.room.clone(), "thinking", None);
+    let deadline = Instant::now() + TURN_PATIENCE;
     let (messages, read) = transcript(door, shared);
     let lease = loop {
         if !door.room.turn_alive(turn) {
+            return;
+        }
+        if Instant::now() >= deadline {
+            publish(door.room.clone(), "stopped", Some(PATIENCE_ENDED));
             return;
         }
         match shared.set.lease(DeviceId::new(ROOM_DEVICE)) {
@@ -108,19 +174,23 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
             // No seat, no failure: the call keeps its place and says what
             // it is waiting for, which is a computer, not a model.
             Err(LeaseError::NoRoom) => {
-                publish(door.room.clone(), "waiting", Some(NO_SEAT_NOTE));
+                publish(door.room.clone(), "waiting", Some(BUSY_WAITING));
                 std::thread::sleep(SEAT_POLL);
             }
             // The room's seat is minted into the set with the room itself;
             // not held means the door was built without it.
             Err(LeaseError::NotHeld) => {
-                publish(door.room.clone(), "refused", Some(NO_ROOM_SEAT_NOTE));
+                publish(door.room.clone(), "refused", Some(UNAVAILABLE));
                 return;
             }
         }
     };
+    if Instant::now() >= deadline {
+        publish(door.room.clone(), "stopped", Some(PATIENCE_ENDED));
+        return;
+    }
     let Some(salt) = shared.set.cache_salt(DeviceId::new(ROOM_DEVICE)) else {
-        publish(door.room.clone(), "refused", Some(NO_ROOM_SEAT_NOTE));
+        publish(door.room.clone(), "refused", Some(UNAVAILABLE));
         return;
     };
     let body = json!({
@@ -130,11 +200,10 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
     });
     let body = serde_json::to_vec(&body).expect("the turn's request always serializes");
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, shared.port));
-    let deadline = Instant::now() + TURN_PATIENCE;
     let mut engine = match TcpStream::connect_timeout(&address, Duration::from_secs(5)) {
         Ok(engine) => engine,
         Err(_) => {
-            publish(door.room.clone(), "refused", Some(ENGINE_GONE_NOTE));
+            publish(door.room.clone(), "refused", Some(COULD_NOT_START));
             return;
         }
     };
@@ -153,43 +222,33 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
     head.extend_from_slice(b"\r\n");
     head.extend_from_slice(&body);
     if proxy::write_with_deadline(&mut engine, &head, deadline).is_err() {
-        publish(door.room.clone(), "refused", Some(ENGINE_GONE_NOTE));
+        publish(door.room.clone(), "refused", Some(COULD_NOT_START));
         return;
     }
-    // The lease is held across the request write only: the engine binds
-    // the slot at the head, and the answer streams back on the open
-    // socket while the seat is free for the next turn of anything.
-    drop(lease);
-
     let mut reader = BufReader::new(engine);
     let mut answer = String::new();
     let mut answered = false;
-    let mut saw_done = false;
     loop {
         if !door.room.turn_alive(turn) || Instant::now() >= deadline {
             // The engine socket closes with this scope; a half answer is
             // discarded, never stored — the room does not keep words the
-            // model was still choosing.
-            if answered && Instant::now() >= deadline {
-                publish(door.room.clone(), "stopped", Some(ENGINE_GONE_NOTE));
+            // model was still choosing. The patience running out is the
+            // machine stopping, said as that, answered or not.
+            if Instant::now() >= deadline {
+                publish(door.room.clone(), "stopped", Some(PATIENCE_ENDED));
             }
             return;
         }
         let mut line = String::new();
         let _ = reader.get_ref().set_read_timeout(Some(READ_SLICE));
         match reader.read_line(&mut line) {
-            // The socket ended. With the terminal event it is the answer's
-            // end; without it the stream is truncated — the desktop chat
-            // reports a stream that ends without [DONE] and never
-            // announces it complete, and neither does the room.
-            // The socket ended. With the terminal event it is the
-            // answer's end; without it the stream is truncated — the
-            // desktop chat reports a stream that ends without [DONE] and
-            // never announces it complete, and neither does the room.
-            Ok(0) if saw_done => break,
+            // The socket ended without the terminal event: the stream is
+            // truncated — the desktop chat reports a stream that ends
+            // without [DONE] and never announces it complete, and neither
+            // does the room.
             Ok(0) => {
                 let state = if answered { "stopped" } else { "refused" };
-                publish(door.room.clone(), state, Some(ENGINE_GONE_NOTE));
+                publish(door.room.clone(), state, Some(STOPPED));
                 return;
             }
             Ok(_) => {}
@@ -201,20 +260,31 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
             }
             Err(_) => {
                 let state = if answered { "stopped" } else { "refused" };
-                publish(door.room.clone(), state, Some(ENGINE_GONE_NOTE));
+                publish(door.room.clone(), state, Some(STOPPED));
                 return;
             }
         }
         let Some(payload) = line.strip_prefix("data: ") else {
+            // The status line: an engine that refuses the request is
+            // reported as its own refusal, never as a stream that died.
+            if line.starts_with("HTTP/1.") {
+                let code = line.split_whitespace().nth(1).unwrap_or("?");
+                if code != "200" {
+                    let note = if code == "400" || code == "413" {
+                        CONTEXT_REFUSED
+                    } else {
+                        ENGINE_REFUSED
+                    };
+                    publish(door.room.clone(), "refused", Some(note));
+                    return;
+                }
+            }
             continue;
         };
         let payload = payload.trim_end();
         if payload == "[DONE]" {
-            // The terminal event was seen; the end-of-socket that follows
-            // is the answer's own end, not a truncation.
-            saw_done = true;
-        }
-        if saw_done {
+            // The terminal event was seen: the answer's own end, and the
+            // socket's close after it changes nothing.
             break;
         }
         let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
@@ -246,11 +316,15 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
         return;
     }
     if answer.is_empty() {
-        publish(door.room.clone(), "refused", Some(EMPTY_ANSWER_NOTE));
+        publish(door.room.clone(), "refused", Some(EMPTY_ANSWER));
         return;
     }
     let _ = door.room.post_ai(&answer, read);
-    door.room.publish_ai(AiEvent::Status { state: "done", note: None });
+    door.room.publish_ai(AiEvent::Status {
+        state: "done",
+        note_code: None,
+        note: None,
+    });
 }
 
 /// The transcript one turn is built on, newest-first into the budget, then
@@ -260,12 +334,13 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
 fn transcript(door: &Arc<RoomDoor>, shared: &Arc<Shared>) -> (serde_json::Value, u32) {
     let entries = door.room.entries_for_ai();
     let devices = shared.set.current();
+    let budget = budget_of(shared.slot_context);
     let mut kept: Vec<&Entry> = Vec::new();
     let mut bytes = 0usize;
     for entry in entries.iter().rev() {
-        let name = name_of(&door.room, &devices, entry.member);
+        let name = frame_name(&door.room, &devices, entry.member);
         let cost = name.len() + entry.text.len() + 8;
-        if bytes + cost > TRANSCRIPT_BUDGET && !kept.is_empty() {
+        if bytes + cost > budget && !kept.is_empty() {
             break;
         }
         bytes += cost;
@@ -275,16 +350,35 @@ fn transcript(door: &Arc<RoomDoor>, shared: &Arc<Shared>) -> (serde_json::Value,
     let read = kept.len() as u32;
     let mut messages = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
     for entry in kept {
-        let name = name_of(&door.room, &devices, entry.member);
+        let name = frame_name(&door.room, &devices, entry.member);
         if entry.member == MemberId::Ai {
             messages.push(json!({"role": "assistant", "content": entry.text}));
         } else {
-            messages.push(json!({"role": "user", "content": format!("{name}: {}", entry.text)}));
+            messages.push(json!({"role": "user", "content": format!("[{name}] {}", entry.text)}));
         }
     }
     (json!(messages), read)
 }
 
-fn publish(room: Arc<kalsa_room::Room>, state: &'static str, note: Option<&'static str>) {
-    room.publish_ai(AiEvent::Status { state, note });
+/// The name as the model reads it: the brackets that frame a speaker are
+/// stripped from the name itself, so no name — a member's choice or an
+/// owner's label — can close its own bracket and forge another speaker.
+/// Refusing the characters in names would break labels the owner already
+/// gave; stripping makes every name safe without touching what anyone
+/// chose.
+fn frame_name(room: &kalsa_room::Room, devices: &crate::Devices, member: MemberId) -> String {
+    let name = name_of(room, devices, member);
+    name.replace(['[', ']'], "")
+}
+
+fn publish(
+    room: Arc<kalsa_room::Room>,
+    state: &'static str,
+    note: Option<(&'static str, &'static str)>,
+) {
+    room.publish_ai(AiEvent::Status {
+        state,
+        note_code: note.map(|(code, _)| code),
+        note: note.map(|(_, text)| text.to_string()),
+    });
 }

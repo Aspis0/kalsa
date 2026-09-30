@@ -68,7 +68,9 @@ pub(super) fn raw(
         .map(|header| format!("{header}\r\n"))
         .collect::<String>();
     let mut stream = TcpStream::connect(address).unwrap();
-    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
     write!(
         stream,
         "{method} {target} HTTP/1.1\r\nHost: localhost\r\n{auth}{extra}\
@@ -86,7 +88,14 @@ pub(super) fn get_with_header(
     target: &str,
     header: &str,
 ) -> Vec<u8> {
-    read_all(&mut raw(address, Some(authorization), "GET", target, "", &[header]))
+    read_all(&mut raw(
+        address,
+        Some(authorization),
+        "GET",
+        target,
+        "",
+        &[header],
+    ))
 }
 
 pub(super) fn post_with_header(
@@ -112,7 +121,11 @@ pub(super) fn read_all(stream: &mut TcpStream) -> Vec<u8> {
     response
 }
 
-pub(super) fn get(address: std::net::SocketAddr, authorization: Option<&str>, target: &str) -> Vec<u8> {
+pub(super) fn get(
+    address: std::net::SocketAddr,
+    authorization: Option<&str>,
+    target: &str,
+) -> Vec<u8> {
     read_all(&mut raw(address, authorization, "GET", target, "", &[]))
 }
 
@@ -146,7 +159,9 @@ pub(super) fn stream_get(
         .map(|seen| format!("Last-Event-ID: {seen}\r\n"))
         .unwrap_or_default();
     let mut stream = TcpStream::connect(address).unwrap();
-    stream.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
     write!(
         stream,
         "GET {target} HTTP/1.1\r\nHost: localhost\r\nAuthorization: {authorization}\r\n\
@@ -154,6 +169,43 @@ pub(super) fn stream_get(
     )
     .unwrap();
     stream
+}
+
+/// An SSE reader over one stream that keeps everything it has ever read,
+/// so a frame that coalesced into an earlier read is still found: the
+/// search covers the whole history, never just the last packet's bounds.
+pub(super) struct Feed<'a> {
+    stream: &'a mut TcpStream,
+    seen: Vec<u8>,
+}
+
+impl<'a> Feed<'a> {
+    pub(super) fn new(stream: &'a mut TcpStream) -> Self {
+        Self {
+            stream,
+            seen: Vec::new(),
+        }
+    }
+
+    /// Reads until `needle` appears anywhere in the history, then hands
+    /// the whole history back — the assertions search it, not a boundary.
+    pub(super) fn until(&mut self, needle: &[u8], patience: Duration) -> String {
+        let deadline = Instant::now() + patience;
+        while Instant::now() < deadline
+            && !self
+                .seen
+                .windows(needle.len().max(1))
+                .any(|window| window == needle)
+        {
+            let mut chunk = [0u8; 1024];
+            match self.stream.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(read) => self.seen.extend_from_slice(&chunk[..read]),
+                Err(_) => {}
+            }
+        }
+        String::from_utf8_lossy(&self.seen).to_string()
+    }
 }
 
 /// An SSE reader that waits for its needle and hands back everything it

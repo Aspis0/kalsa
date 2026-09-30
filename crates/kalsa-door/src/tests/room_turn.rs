@@ -3,7 +3,6 @@
 //! and failures — all against the fake engine, whose wire shape is the
 //! real one.
 
-use std::io::Read;
 use std::net::Shutdown;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +11,7 @@ use kalsa_room::Room;
 
 use super::room_engine::{Engine, Reply};
 use super::room_support::scratch;
-use super::room_support::{body_json, devices_labeled, get, post, put, stream_get, text_of, Reader};
+use super::room_support::{body_json, get, post, put, stream_get, text_of, Reader};
 use super::*;
 
 const HOST: u32 = 0;
@@ -21,7 +20,7 @@ const PHONE_TWO: u32 = 2;
 
 /// A room door seated at a fake engine, with the guest's own seat in the
 /// set — exactly what the app builds.
-fn room_at(engine: Vec<Reply>) -> (crate::RunningDoor, Arc<Room>, Engine, [String; 3]) {
+pub(super) fn room_at(engine: Vec<Reply>) -> (crate::RunningDoor, Arc<Room>, Engine, [String; 3]) {
     let fake = Engine::start(engine);
     let host = credential();
     let one = credential();
@@ -29,7 +28,7 @@ fn room_at(engine: Vec<Reply>) -> (crate::RunningDoor, Arc<Room>, Engine, [Strin
     let devices = super::room_support::seated_labeled(&[
         (HOST, "This computer", &host),
         (PHONE_ONE, "Paired phone", &one),
-        (PHONE_TWO, "Paired phone 2", &two),
+        (PHONE_TWO, "Guest] : [phone", &two),
     ]);
     let room = Arc::new(Room::open(&scratch("room-turn")).unwrap());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -47,8 +46,40 @@ fn room_at(engine: Vec<Reply>) -> (crate::RunningDoor, Arc<Room>, Engine, [Strin
     (door, room, fake, [host, one, two])
 }
 
+/// [`room_at`] with the per-slot context named, the way the app names it
+/// from the launch record — the room's budget follows the slot.
+fn room_slotted_at(
+    engine: Vec<Reply>,
+    per_slot_tokens: u64,
+) -> (crate::RunningDoor, Arc<Room>, Engine, [String; 3]) {
+    let fake = Engine::start(engine);
+    let host = credential();
+    let one = credential();
+    let two = credential();
+    let devices = super::room_support::seated_labeled(&[
+        (HOST, "This computer", &host),
+        (PHONE_ONE, "Paired phone", &one),
+        (PHONE_TWO, "Paired phone 2", &two),
+    ]);
+    let room = Arc::new(Room::open(&scratch("room-turn-slot")).unwrap());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        fake.port,
+        devices,
+        4,
+        EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .with_slot_context(per_slot_tokens)
+    .start()
+    .unwrap();
+    (door, room, fake, [host, one, two])
+}
+
 /// Waits until the room's history holds an AI entry, and returns it.
-fn await_answer(room: &Room) -> kalsa_room::Entry {
+pub(super) fn await_answer(room: &Room) -> kalsa_room::Entry {
     let deadline = std::time::Instant::now() + Duration::from_secs(6);
     while std::time::Instant::now() < deadline {
         let page = room.newest_page(1, 10).unwrap();
@@ -64,7 +95,7 @@ fn await_answer(room: &Room) -> kalsa_room::Entry {
 
 /// Reads the stream until the needle, tolerating the write side being
 /// still open.
-fn heard(stream: &mut std::net::TcpStream, needle: &[u8]) -> String {
+pub(super) fn heard(stream: &mut std::net::TcpStream, needle: &[u8]) -> String {
     Reader::until(stream, needle, Duration::from_secs(6))
 }
 
@@ -89,19 +120,31 @@ fn a_call_is_served_deltas_assemble_into_the_answer_that_lands() {
     // One read to the done frame: the deltas, the landed message, and the
     // end all arrive on this stream in order.
     let whole = heard(&mut follower, b"\"state\":\"done\"");
-    assert!(whole.contains("event: ai_delta"), "the answer streamed: {whole}");
+    assert!(
+        whole.contains("event: ai_delta"),
+        "the answer streamed: {whole}"
+    );
     for piece in ["It is ", "17:00."] {
         assert!(
             whole.contains(&format!("\"text\":\"{piece}\"")),
             "the piece {piece:?} streamed: {whole}"
         );
     }
-    assert!(whole.contains("\"turn\":1"), "the deltas carry their turn id");
-    assert!(whole.contains("event: ai_message"), "the finished message is numbered: {whole}");
+    assert!(
+        whole.contains("\"turn\":1"),
+        "the deltas carry their turn id"
+    );
+    assert!(
+        whole.contains("event: ai_message"),
+        "the finished message is numbered: {whole}"
+    );
 
     let landed = await_answer(&room);
     assert_eq!(landed.text, "It is 17:00.");
-    assert!(landed.read >= 1, "the answer says how much of the room it read");
+    assert!(
+        landed.read >= 1,
+        "the answer says how much of the room it read"
+    );
     let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();
 }
@@ -143,7 +186,10 @@ fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
     ));
     assert_eq!(refused["ai_call"], "refused");
     assert_eq!(refused["refusal"], "already_pending");
-    assert!(room.newest_page(1, 10).unwrap().messages.len() >= 3, "the messages landed");
+    assert!(
+        room.newest_page(1, 10).unwrap().messages.len() >= 3,
+        "the messages landed"
+    );
 
     let first_answer = await_answer(&room);
     assert_eq!(first_answer.text, "one");
@@ -156,7 +202,10 @@ fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
     let deadline = std::time::Instant::now() + Duration::from_secs(6);
     while std::time::Instant::now() < deadline {
         let page = room.newest_page(1, 10).unwrap().messages;
-        if page.iter().any(|entry| entry.member == kalsa_room::MemberId::Ai && entry.text == "two") {
+        if page
+            .iter()
+            .any(|entry| entry.member == kalsa_room::MemberId::Ai && entry.text == "two")
+        {
             break;
         }
         std::thread::sleep(Duration::from_millis(50));
@@ -169,7 +218,11 @@ fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
         .filter(|entry| entry.member == kalsa_room::MemberId::Ai)
         .map(|entry| entry.text.clone())
         .collect();
-    assert_eq!(answers, vec!["one", "two"], "the turns ran one at a time, in order");
+    assert_eq!(
+        answers,
+        vec!["one", "two"],
+        "the turns ran one at a time, in order"
+    );
     door.shutdown();
 }
 
@@ -177,7 +230,8 @@ fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
 fn a_member_cancels_their_own_call_and_the_queue_moves_on() {
     // The engine hangs on the first answer, so the turn is streamable and
     // cancellable; the second call must then be servable.
-    let (door, room, fake, [host, one, two]) = room_at(vec![Reply::Hang, Reply::Sse(vec!["after".to_string()])]);
+    let (door, room, fake, [host, one, two]) =
+        room_at(vec![Reply::Hang, Reply::Sse(vec!["after".to_string()])]);
     let first = format!("Bearer {one}");
     let second = format!("Bearer {two}");
     post(
@@ -218,7 +272,10 @@ fn a_member_cancels_their_own_call_and_the_queue_moves_on() {
         &[],
     );
     let text = text_of(&super::room_support::read_all(&mut { cancelled }));
-    assert!(text.starts_with("HTTP/1.1 204"), "the owner's cancel took: {text}");
+    assert!(
+        text.starts_with("HTTP/1.1 204"),
+        "the owner's cancel took: {text}"
+    );
     // The driver notices within a read slice and serves the waiting call.
     let deadline = std::time::Instant::now() + Duration::from_secs(8);
     while std::time::Instant::now() < deadline {
@@ -240,7 +297,11 @@ fn a_member_cancels_their_own_call_and_the_queue_moves_on() {
         .filter(|entry| entry.member == kalsa_room::MemberId::Ai)
         .map(|entry| entry.text.as_str())
         .collect();
-    assert_eq!(answers, vec!["after"], "the cancelled turn left no answer; the next ran");
+    assert_eq!(
+        answers,
+        vec!["after"],
+        "the cancelled turn left no answer; the next ran"
+    );
     let _ = fake;
     door.shutdown();
 }
@@ -268,17 +329,22 @@ fn the_owners_stop_ends_the_turn_and_no_half_answer_is_kept() {
         .filter(|entry| entry.member == kalsa_room::MemberId::Ai)
         .map(|entry| entry.text.as_str())
         .collect();
-    assert!(answers.is_empty(), "a stopped turn stores nothing half: {answers:?}");
+    assert!(
+        answers.is_empty(),
+        "a stopped turn stores nothing half: {answers:?}"
+    );
     // The room still takes the next call after a stop.
     door.shutdown();
 }
 
 #[test]
 fn the_prompt_carries_the_budget_and_the_oldest_falls_off() {
-    // Fill the room past the driver's transcript budget with distinct
-    // first words, so the request the engine sees proves the tail was
-    // kept and the head was not.
-    let (door, room, fake, [_, one, _]) = room_at(vec![Reply::Sse(vec!["ok".to_string()])]);
+    // A small slot — 256 tokens funds 60% of 256 * 4 bytes ≈ 614 bytes of
+    // transcript — and the room is filled past that with distinct first
+    // words, so the request the engine sees proves the budget followed
+    // the slot and the head fell off.
+    let (door, room, fake, [_, one, _]) =
+        room_slotted_at(vec![Reply::Sse(vec!["ok".to_string()])], 256);
     let bearer = format!("Bearer {one}");
     put(
         door.address(),
@@ -291,7 +357,10 @@ fn the_prompt_carries_the_budget_and_the_oldest_falls_off() {
             door.address(),
             Some(&bearer),
             "/kalsa/room/messages",
-            &format!(r#"{{"client_msg_id":"m{n}","text":"filler-{n:04} {}"}}"#, "word ".repeat(200)),
+            &format!(
+                r#"{{"client_msg_id":"m{n}","text":"filler-{n:04} {}"}}"#,
+                "word ".repeat(200)
+            ),
         );
     }
     post(
@@ -301,7 +370,11 @@ fn the_prompt_carries_the_budget_and_the_oldest_falls_off() {
         r#"{"client_msg_id":"ask","text":"@Kalsa the newest question"}"#,
     );
     let landed = await_answer(&room);
-    assert!(landed.read < 221, "the budget dropped the oldest: read {}", landed.read);
+    assert!(
+        landed.read < 40,
+        "the slot's budget dropped the oldest: read {}",
+        landed.read
+    );
     let body = fake.seen()[0].body.clone();
     assert!(
         body.contains("the newest question"),
@@ -311,8 +384,14 @@ fn the_prompt_carries_the_budget_and_the_oldest_falls_off() {
         !body.contains("filler-0000"),
         "the oldest message fell off the budget"
     );
-    assert!(body.contains("You are Kalsa"), "the system prompt rides first");
-    assert!(body.contains("Marco:"), "the transcript is formatted with display names");
+    assert!(
+        body.contains("You are Kalsa"),
+        "the system prompt rides first"
+    );
+    assert!(
+        body.contains("[Marco]"),
+        "the transcript is formatted with display names in brackets"
+    );
     door.shutdown();
 }
 
@@ -368,7 +447,8 @@ fn a_busy_computer_keeps_the_call_waiting_for_a_seat() {
     );
     let waiting = heard(&mut follower, b"waiting");
     assert!(
-        waiting.contains("busy with other conversations"),
+        waiting.contains("\"note_code\":\"busy_waiting\"")
+            && waiting.contains("Kalsa is busy with another conversation. You keep your turn."),
         "the call said it is waiting for the computer, not failing: {waiting}"
     );
     // Still waiting several polls later: no failure, no answer, the call
@@ -406,7 +486,8 @@ fn an_engine_failure_mid_answer_is_honest_and_stores_nothing() {
     );
     let stopped = heard(&mut follower, b"stopped");
     assert!(
-        stopped.contains("The model server stopped producing this answer."),
+        stopped.contains("\"note_code\":\"stopped\"")
+            && stopped.contains("Kalsa stopped before finishing. Ask again."),
         "the room said what happened: {stopped}"
     );
     let page = room.newest_page(1, 10).unwrap();
@@ -436,13 +517,18 @@ fn an_engine_that_never_answers_refuses_the_turn_honestly() {
         std::thread::sleep(Duration::from_millis(50));
     }
     assert!(
-        room.newest_page(1, 10).unwrap().messages
+        room.newest_page(1, 10)
+            .unwrap()
+            .messages
             .iter()
             .all(|entry| entry.member != kalsa_room::MemberId::Ai),
         "a refused turn leaves no answer"
     );
     let info = body_json(&get(door.address(), Some(&bearer), "/kalsa/room/info"));
-    assert_eq!(info["ai"]["state"], "idle", "the room told the truth and moved on");
+    assert_eq!(
+        info["ai"]["state"], "idle",
+        "the room told the truth and moved on"
+    );
     door.shutdown();
 }
 
@@ -494,17 +580,12 @@ fn a_real_engine_answers_a_called_room() {
     ]);
     let room = Arc::new(Room::open(&scratch("room-real")).unwrap());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let door = crate::Door::new_with_engine(
-        listener,
-        port,
-        devices,
-        2,
-        EnginePrivateHeaders::Consumed,
-    )
-    .unwrap()
-    .with_room(Arc::clone(&room), DeviceId::new(HOST))
-    .start()
-    .unwrap();
+    let door =
+        crate::Door::new_with_engine(listener, port, devices, 2, EnginePrivateHeaders::Consumed)
+            .unwrap()
+            .with_room(Arc::clone(&room), DeviceId::new(HOST))
+            .start()
+            .unwrap();
     let bearer = format!("Bearer {one}");
     post(
         door.address(),

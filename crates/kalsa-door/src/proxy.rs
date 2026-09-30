@@ -90,6 +90,10 @@ pub(super) struct Shared {
     /// The engine's loopback port, for the room's turns — everything else
     /// reaches the engine through a client's own request.
     pub(super) port: u16,
+    /// The per-slot context the launch funded (`--ctx-size /
+    /// --parallel`), for the room's transcript budget. `None` when the
+    /// door was built without one; the turn then keeps the fallback.
+    pub(super) slot_context: Option<u64>,
 }
 
 pub(super) fn handle(

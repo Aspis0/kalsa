@@ -16,3 +16,4 @@ getrandom = "0.3"
 # (temp beside the target, restricted, flushed, renamed) rather than growing
 # a second one whose permissions could drift apart from the credential's.
 kalsa-pairing = { path = "../kalsa-pairing" }
+unicode-properties = { version = "0.1.4", features = ["general-category"] }

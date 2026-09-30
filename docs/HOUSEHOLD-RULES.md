@@ -104,6 +104,13 @@ questions it raises have answers that are not reversible later.
 
 ### 5.1 Who is a message for — the people, or the AI?
 
+The call token is `@Kalsa`, matched without regard to ASCII case. Before
+`@`, skip combining marks back to their base; a Latin, Greek or Cyrillic
+letter or any digit blocks the call, while Han, kana, hangul and CJK
+punctuation do not. After `Kalsa`, a Latin, Greek or Cyrillic letter, any
+digit, `_` or a combining mark blocks the call; Han, kana and hangul do
+not.
+
 *Revised the same day, by the owner, and the revision is right.*
 
 The first version of this rule said the AI must not listen to the room at all, for two reasons:
@@ -160,8 +167,9 @@ one is decided by measurement. This one is not.
 
 ### 5.3 The order: rotation between people, not a queue of messages
 
-First-in-first-out by message hands the machine to whoever has the fastest thumb. Three
-messages from one person and the others wait three turns.
+Each person may have one prompt waiting, so repeated messages cannot fill the line. Among
+different people, calls are served first-in-first-out by the computer's monotonic arrival
+stamp; the least recently served person breaks only an exact tie.
 
 So the queue is per *person*, and **each person may have at most one prompt pending in a
 room.** The queue can therefore never be deeper than the number of people present, which also

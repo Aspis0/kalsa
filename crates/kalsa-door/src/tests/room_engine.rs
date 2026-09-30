@@ -18,6 +18,7 @@ pub(super) enum Reply {
     SseBroken(String),
     /// An HTTP refusal, no body worth reading.
     Refuse,
+    RefuseStatus(u16),
     /// Accept and say nothing at all: the caller hangs.
     Hang,
 }
@@ -102,17 +103,25 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
     seen.lock().unwrap().push(request);
     match reply {
         Reply::SseBroken(piece) => {
-            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
             if stream.write_all(head.as_bytes()).is_err() {
                 return;
             }
             let escaped = piece.replace('"', "\\\"");
-            let frame = format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n");
+            let frame =
+                format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n");
             let _ = stream.write_all(frame.as_bytes());
             let _ = stream.shutdown(std::net::Shutdown::Both);
         }
         Reply::Refuse => {
             let _ = stream.write_all(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        }
+        Reply::RefuseStatus(status) => {
+            let response = format!(
+                "HTTP/1.1 {status} Refused\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            );
+            let _ = stream.write_all(response.as_bytes());
         }
         // Hold the connection open, saying nothing: the caller hangs. The
         // thread sleeps rather than returning, because returning closes
@@ -121,13 +130,19 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
             thread::sleep(Duration::from_secs(120));
         }
         Reply::Sse(pieces) => {
-            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
             if stream.write_all(head.as_bytes()).is_err() {
                 return;
             }
             for piece in pieces {
-                let escaped = piece.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
-                let frame = format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n");
+                let escaped = piece
+                    .replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .replace('\n', "\\n");
+                let frame = format!(
+                    "data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n"
+                );
                 if stream.write_all(frame.as_bytes()).is_err() {
                     return;
                 }

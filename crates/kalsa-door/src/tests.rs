@@ -28,6 +28,7 @@ mod room_engine;
 mod room_routes;
 mod room_support;
 mod room_turn;
+mod room_turn_wire;
 mod slot_routes;
 mod slots;
 mod support;
@@ -532,6 +533,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
                 set: devices,
                 room: None,
                 port: 1,
+                slot_context: None,
             }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,
@@ -808,6 +810,7 @@ fn a_connection_past_its_lifetime_is_cut() {
                 set: devices,
                 room: None,
                 port: 1,
+                slot_context: None,
             }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,

@@ -49,10 +49,8 @@ pub fn forget_now(brain: &crate::Brain, device: u32) -> Result<(), String> {
 /// told it stopped; whatever waits keeps its place. R4's room view calls
 /// this; nothing in this step does, on order.
 #[allow(dead_code)]
-pub fn stop_turn(brain: &crate::Brain) {
-    if let Some(room) = brain.room.get() {
-        room.host_stop_turn();
-    }
+pub fn stop_turn(brain: &crate::Brain) -> bool {
+    brain.room.get().is_some_and(|room| room.host_stop_turn())
 }
 
 /// Brings the room's roster to the pairing store's new state: a device
@@ -156,15 +154,39 @@ mod tests {
     }
 
     #[test]
+    fn the_ai_engine_seat_never_joins_or_leaves_the_roster() {
+        let dir = scratch("guest-seat");
+        let room = Room::open(&dir).unwrap();
+        let host = DeviceId::new(0);
+        let phone = DeviceId::new(1);
+        let guest = kalsa_door::guest_entry(&"a".repeat(64)).unwrap();
+        let with_guest = Devices::new(vec![
+            DeviceEntry::new(host, "This computer", "0".repeat(64)).unwrap(),
+            DeviceEntry::new(phone, "Paired phone", "1".repeat(64)).unwrap(),
+            guest,
+        ])
+        .unwrap();
+        let without_guest = devices_of(2);
+        let cursor = room.next_cursor();
+
+        reconcile(&room, host, &with_guest, &without_guest);
+        reconcile(&room, host, &without_guest, &with_guest);
+
+        assert!(room.member_of(kalsa_door::ROOM_DEVICE).is_none());
+        assert_eq!(
+            room.next_cursor(),
+            cursor,
+            "the guest emits no join or leave"
+        );
+    }
+
+    #[test]
     fn the_host_posts_and_names_itself_through_the_iron_paths() {
         let dir = scratch("host-api");
         let room = Room::open(&dir).unwrap();
         let posted = host_post(&room, "host-1", "from this computer").unwrap();
         assert_eq!(posted.member, kalsa_room::MemberId::Host);
-        assert_eq!(
-            set_host_display_name(&room, "Studio").unwrap(),
-            "Studio"
-        );
+        assert_eq!(set_host_display_name(&room, "Studio").unwrap(), "Studio");
         assert!(set_host_display_name(&room, "Kalsa").is_err());
     }
 }

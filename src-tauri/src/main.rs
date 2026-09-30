@@ -670,6 +670,14 @@ impl Brain {
                     (Some(room), Some(host)) => door.with_room(Arc::clone(room), host),
                     _ => door,
                 };
+                let door = match self.launch.lock().ok().and_then(|launch| {
+                    launch
+                        .as_ref()
+                        .map(|info| info.args.context_tokens / u64::from(info.args.parallel.max(1)))
+                }) {
+                    Some(per_slot) => door.with_slot_context(per_slot),
+                    None => door,
+                };
                 let door = match tier {
                     Ok(tier) => match door
                         .with_slot_dir(tier.slot_dir)

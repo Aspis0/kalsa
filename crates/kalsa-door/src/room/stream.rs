@@ -97,8 +97,11 @@ pub(super) fn serve(
     head: &crate::request::UnsealedHead,
     deadline: Instant,
 ) {
-    let (last_event_id, client_epoch, origin) =
-        (head.last_event_id.as_deref(), head.room_epoch.as_deref(), head.origin.as_deref());
+    let (last_event_id, client_epoch, origin) = (
+        head.last_event_id.as_deref(),
+        head.room_epoch.as_deref(),
+        head.origin.as_deref(),
+    );
     // The epoch of the cached seqs was checked ahead of the routes; the
     // stream itself only names the epoch it speaks. A non-numeric
     // Last-Event-ID names nothing and is answered, not streamed.
@@ -151,8 +154,9 @@ pub(super) fn serve(
     let seats = Arc::clone(&ctx.seats);
     let device = ctx.device;
     let seat = seats.take(device);
-    let spawned = std::thread::Builder::new().name("kalsa-door-room-stream".into()).spawn(
-        move || {
+    let spawned = std::thread::Builder::new()
+        .name("kalsa-door-room-stream".into())
+        .spawn(move || {
             // The guard, not a call at the end: a stream that unwinds
             // still hands its seat back, or the cap would count the dead.
             let _seat_held = SeatGuard {
@@ -170,8 +174,7 @@ pub(super) fn serve(
                 seat,
                 you: member,
             });
-        },
-    );
+        });
     if spawned.is_err() {
         // No thread, no stream: the socket closes and the phone's next
         // attempt starts a fresh one. The entry it leaves behind is not
@@ -250,7 +253,7 @@ fn follow(follower: Follower) {
         let devices = ctx.set.current();
         frame_of(
             b"ai_status",
-            &super::routes::ai_state(&room, &devices, you, room.turn_state().state, None),
+            &super::routes::ai_state(&room, &devices, you, room.turn_state().state, None, None),
         )
     };
     if proxy::write_with_deadline(&mut client, &snapshot, deadline).is_err() {
@@ -315,12 +318,20 @@ fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8
             let mut frame = format!("id: {}\nevent: ", entry.seq).into_bytes();
             frame.extend_from_slice(event_name.as_bytes());
             frame.extend_from_slice(b"\ndata: ");
-            frame.extend_from_slice(&serde_json::to_vec(&entry_json(room, devices, entry)).expect("an entry always serializes"));
+            frame.extend_from_slice(
+                &serde_json::to_vec(&entry_json(room, devices, entry))
+                    .expect("an entry always serializes"),
+            );
             frame.extend_from_slice(b"\n\n");
             frame
         }
-        Event::Ai(AiEvent::Status { state, note }) => {
-            let value = super::routes::ai_state(room, devices, you, state, note.as_deref());
+        Event::Ai(AiEvent::Status {
+            state,
+            note_code,
+            note,
+        }) => {
+            let value =
+                super::routes::ai_state(room, devices, you, state, *note_code, note.as_deref());
             frame_of(b"ai_status", &value)
         }
         Event::Ai(AiEvent::Delta { turn, text }) => frame_of(

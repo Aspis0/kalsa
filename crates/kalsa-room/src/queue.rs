@@ -1,15 +1,16 @@
 //! The room's call queue: who has called the AI, whose turn is running,
-//! and who is next — HOUSEHOLD-RULES §5.2–5.3 as state.
+//! and who is next — HOUSEHOLD-RULES §5.2–5.3 as state, with the owner's
+//! decision on order: ARRIVAL ORDER WINS. Calls are served first-come,
+//! first-served by the door's own monotonic arrival stamp; "When two arrive in
+//! the same instant, the tie-break is whoever was served least recently.
+//! Not the device id — that is a permanent rank… Not the phone's clock
+//! either: household phones disagree by seconds and the value arrives
+//! from the client. The stamp is the door's own monotonic clock, taken on
+//! arrival." Recency never reorders calls with different stamps — it only
+//! breaks an exact tie.
 //!
 //! Exactly one turn runs at a time, always. Each member may hold at most
-//! one pending call; a second is refused, not silently accepted. When a
-//! turn ends the next caller is whoever was SERVED LEAST RECENTLY — "When
-//! two arrive in the same instant, the tie-break is whoever was served
-//! least recently. Not the device id — that is a permanent rank… Not the
-//! phone's clock either: household phones disagree by seconds and the
-//! value arrives from the client. The stamp is the door's own monotonic
-//! clock, taken on arrival." Arrival order is this process's own
-//! sequence, which is that clock's count.
+//! one pending call; a second is refused, not silently accepted.
 //!
 //! The queue is memory and nothing else: it does not survive a restart,
 //! and a restart therefore clears every pending call with nothing owed —
@@ -17,6 +18,7 @@
 
 use crate::events::AiEvent;
 use crate::{MemberId, Room};
+use std::time::Instant;
 
 /// Why a call was not taken.
 #[derive(Debug, PartialEq, Eq)]
@@ -60,7 +62,7 @@ pub(crate) struct Queue {
     /// The running turn: who called, its id, and how far it has come.
     running: Option<Running>,
     /// Calls waiting, in arrival order.
-    pending: Vec<(MemberId, String)>,
+    pending: Vec<(Instant, MemberId, String)>,
     /// Who has been served, oldest first — the least recently served is
     /// the front. Never-served members are the least recent of all.
     served: Vec<MemberId>,
@@ -98,18 +100,26 @@ impl Queue {
     }
 
     fn holds_call_of(&self, member: MemberId) -> bool {
-        self.pending.iter().any(|(who, _)| *who == member)
-            || self.running.as_ref().is_some_and(|turn| turn.member == member)
+        self.pending.iter().any(|(_, who, _)| *who == member)
+            || self
+                .running
+                .as_ref()
+                .is_some_and(|turn| turn.member == member)
     }
 
     /// Takes a call. A retry of the same `client_msg_id` — held or being
     /// served — is idempotent: the call is already the room's, and saying
     /// so again is the answer, not a refusal.
-    pub(crate) fn submit(&mut self, member: MemberId, client_msg_id: &str) -> Result<CallTaken, CallRefused> {
+    fn submit_at(
+        &mut self,
+        member: MemberId,
+        client_msg_id: &str,
+        arrival: Instant,
+    ) -> Result<CallTaken, CallRefused> {
         let held = self
             .pending
             .iter()
-            .any(|(who, id)| *who == member && id == client_msg_id)
+            .any(|(_, who, id)| *who == member && id == client_msg_id)
             || self
                 .running
                 .as_ref()
@@ -121,7 +131,8 @@ impl Queue {
             return Err(CallRefused::AlreadyPending);
         }
         if self.running.is_some() || !self.pending.is_empty() {
-            self.pending.push((member, client_msg_id.to_string()));
+            self.pending
+                .push((arrival, member, client_msg_id.to_string()));
             return Ok(CallTaken::Queued);
         }
         let turn = self.next_turn;
@@ -157,11 +168,7 @@ impl Queue {
         self.pick_next()
     }
 
-    /// The least recently served of those waiting; never-served counts as
-    /// the least recent of all. Arrival order breaks what serving history
-    /// cannot. The rank is recency, ascending: never-served ranks 0, and a
-    /// member served ranks one past their position in the serve order —
-    /// which is newest-last, so the front of `served` is the staled serve.
+    /// Arrival stamp wins; recency only breaks an exact tie.
     fn pick_next(&mut self) -> Option<(MemberId, u64)> {
         if self.pending.is_empty() {
             return None;
@@ -170,17 +177,17 @@ impl Queue {
             .pending
             .iter()
             .enumerate()
-            .min_by_key(|(arrival, (who, _))| {
+            .min_by_key(|(_, (arrival, who, _))| {
                 let recency = self
                     .served
                     .iter()
                     .position(|served| *served == *who)
                     .map_or(0, |position| position + 1);
-                (recency, *arrival)
+                (*arrival, recency)
             })
-            .map(|(arrival, _)| arrival)
+            .map(|(index, _)| index)
             .expect("the queue is not empty");
-        let (member, origin) = self.pending.remove(pick);
+        let (_, member, origin) = self.pending.remove(pick);
         let turn = self.next_turn;
         self.next_turn += 1;
         self.running = Some(Running {
@@ -198,7 +205,7 @@ impl Queue {
     /// withdrawn running turn is cleared without picking a successor — the
     /// driver's `end_turn` does that when it notices.
     pub(crate) fn withdraw(&mut self, member: MemberId) -> Withdrawn {
-        if let Some(index) = self.pending.iter().position(|(who, _)| *who == member) {
+        if let Some(index) = self.pending.iter().position(|(_, who, _)| *who == member) {
             self.pending.remove(index);
             return Withdrawn::Pending;
         }
@@ -240,7 +247,9 @@ impl Queue {
     /// Whether the named turn is still the one running — the driver's
     /// liveness check between engine reads.
     pub(crate) fn turn_alive(&self, turn: u64) -> bool {
-        self.running.as_ref().is_some_and(|running| running.turn == turn)
+        self.running
+            .as_ref()
+            .is_some_and(|running| running.turn == turn)
     }
 
     pub(crate) fn state(&self) -> TurnState {
@@ -251,12 +260,12 @@ impl Queue {
                     Phase::Answering => "answering",
                 },
                 running: Some(running.member),
-                pending: self.pending.iter().map(|(who, _)| *who).collect(),
+                pending: self.pending.iter().map(|(_, who, _)| *who).collect(),
             },
             None if !self.pending.is_empty() => TurnState {
                 state: "queued",
                 running: None,
-                pending: self.pending.iter().map(|(who, _)| *who).collect(),
+                pending: self.pending.iter().map(|(_, who, _)| *who).collect(),
             },
             None => TurnState {
                 state: "idle",
@@ -270,13 +279,38 @@ impl Queue {
 impl Room {
     /// Takes a call for the AI guest and publishes the status the change
     /// owes everyone. The caller keeps the message it rode on either way.
-    pub fn submit_call(&self, member: MemberId, client_msg_id: &str) -> Result<CallTaken, CallRefused> {
-        let taken = {
+    pub fn submit_call(
+        &self,
+        member: MemberId,
+        client_msg_id: &str,
+    ) -> Result<CallTaken, CallRefused> {
+        self.submit_call_at(member, client_msg_id, Instant::now())
+    }
+
+    /// Takes a call using the door's monotonic stamp from when its request
+    /// reached the room route, before the body is read or the message saved.
+    pub fn submit_call_at(
+        &self,
+        member: MemberId,
+        client_msg_id: &str,
+        arrival: Instant,
+    ) -> Result<CallTaken, CallRefused> {
+        let (taken, waiting) = {
             let mut state = self.lock_state();
-            state.queue.submit(member, client_msg_id)
+            let taken = state.queue.submit_at(member, client_msg_id, arrival);
+            let waiting = taken == Ok(CallTaken::Queued)
+                && state.queue.pending.iter().any(|(_, who, _)| *who == member);
+            (taken, waiting)
         };
-        if taken.is_ok() {
-            self.publish_ai(AiEvent::Status { state: "queued", note: None });
+        // The word matches what just became true: a queued call queued; a
+        // turn that starts at once is announced by its driver, whose
+        // thinking frame is the running state.
+        if waiting {
+            self.publish_ai(AiEvent::Status {
+                state: "queued",
+                note_code: None,
+                note: None,
+            });
         }
         taken
     }
@@ -288,9 +322,6 @@ impl Room {
             let mut state = self.lock_state();
             state.queue.end_turn(member)
         };
-        if next.is_some() {
-            self.publish_ai(AiEvent::Status { state: "queued", note: None });
-        }
         next
     }
 
@@ -302,28 +333,52 @@ impl Room {
             state.queue.withdraw(member)
         };
         if withdrawn != Withdrawn::Nothing {
-            self.publish_ai(AiEvent::Status { state: "cancelled", note: None });
+            self.publish_ai(AiEvent::Status {
+                state: "cancelled",
+                note_code: None,
+                note: None,
+            });
         }
         withdrawn
     }
 
     /// The owner's stop of the running turn. The driver that was serving
-    /// it notices, and starts whatever waits.
-    pub fn host_stop_turn(&self) {
-        {
+    /// it notices, and starts whatever waits. `false` — nothing was
+    /// running — changes nothing and publishes nothing: there was no
+    /// state to tell the room about.
+    pub fn host_stop_turn(&self) -> bool {
+        let stopped = {
             let mut state = self.lock_state();
-            state.queue.host_stop();
+            state.queue.host_stop().is_some()
+        };
+        if stopped {
+            self.publish_ai(AiEvent::Status {
+                state: "stopped",
+                note_code: None,
+                note: None,
+            });
         }
-        self.publish_ai(AiEvent::Status { state: "stopped", note: None });
+        stopped
     }
 
     /// The driver's marks and checks.
     pub fn mark_turn(&self, turn: u64, answering: bool) {
         {
             let mut state = self.lock_state();
-            state.queue.mark(turn, if answering { Phase::Answering } else { Phase::Thinking });
+            state.queue.mark(
+                turn,
+                if answering {
+                    Phase::Answering
+                } else {
+                    Phase::Thinking
+                },
+            );
         }
-        self.publish_ai(AiEvent::Status { state: if answering { "answering" } else { "thinking" }, note: None });
+        self.publish_ai(AiEvent::Status {
+            state: if answering { "answering" } else { "thinking" },
+            note_code: None,
+            note: None,
+        });
     }
 
     pub fn turn_alive(&self, turn: u64) -> bool {
@@ -333,5 +388,37 @@ impl Room {
     /// The turn queue as ids, for the door to frame with names.
     pub fn turn_state(&self) -> TurnState {
         self.lock_state().queue.state()
+    }
+}
+
+#[cfg(test)]
+mod order_tests {
+    use super::{CallTaken, Queue};
+    use crate::MemberId;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn recency_breaks_only_calls_with_the_same_arrival_stamp() {
+        let a = MemberId::Member(1);
+        let b = MemberId::Member(2);
+        let c = MemberId::Member(3);
+        let start = Instant::now();
+        let mut queue = Queue::new();
+
+        assert_eq!(queue.submit_at(a, "a1", start), Ok(CallTaken::Starts(1)));
+        assert_eq!(queue.end_turn(a), None);
+        assert_eq!(
+            queue.submit_at(b, "b1", start + Duration::from_secs(1)),
+            Ok(CallTaken::Starts(2))
+        );
+        assert_eq!(queue.end_turn(b), None);
+        assert_eq!(
+            queue.submit_at(c, "c1", start + Duration::from_secs(2)),
+            Ok(CallTaken::Starts(3))
+        );
+        let tie = start + Duration::from_secs(3);
+        assert_eq!(queue.submit_at(a, "a2", tie), Ok(CallTaken::Queued));
+        assert_eq!(queue.submit_at(b, "b2", tie), Ok(CallTaken::Queued));
+        assert_eq!(queue.end_turn(c), Some((a, 4)));
     }
 }

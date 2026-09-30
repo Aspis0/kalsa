@@ -8,7 +8,10 @@ use std::time::Duration;
 
 use kalsa_room::Room;
 
-use super::room_support::{body_json, devices_labeled, get, get_with_header, put, post, post_with_header, raw, read_all, scratch, stream_get, text_of, Reader};
+use super::room_support::{
+    body_json, devices_labeled, get, get_with_header, post, post_with_header, put, raw, read_all,
+    scratch, stream_get, text_of, Feed, Reader,
+};
 use super::*;
 
 const HOST: u32 = 0;
@@ -52,8 +55,31 @@ fn the_room_routes_answer_only_a_real_credential() {
     );
     let wrong = get(door.address(), Some("Bearer deadbeef"), "/kalsa/room/info");
     assert!(wrong.starts_with(b"HTTP/1.1 401"));
-    let good = get(door.address(), Some(&format!("Bearer {token}")), "/kalsa/room/info");
+    let good = get(
+        door.address(),
+        Some(&format!("Bearer {token}")),
+        "/kalsa/room/info",
+    );
     assert!(good.starts_with(b"HTTP/1.1 200"), "{}", text_of(&good));
+    door.shutdown();
+}
+
+#[test]
+fn withdrawing_without_a_call_has_a_stable_code_and_fallback() {
+    let (door, _room, [_, token, _]) = room_of();
+    let mut response = raw(
+        door.address(),
+        Some(&format!("Bearer {token}")),
+        "DELETE",
+        "/kalsa/room/call",
+        "",
+        &[],
+    );
+    let answer = read_all(&mut response);
+    let error = body_json(&answer);
+    assert!(answer.starts_with(b"HTTP/1.1 404"));
+    assert_eq!(error["error"]["code"], "no_call");
+    assert_eq!(error["error"]["message"], "You have no question waiting.");
     door.shutdown();
 }
 
@@ -104,7 +130,10 @@ fn info_lists_the_host_its_phones_and_the_assistant() {
         .collect();
     let phone_two = room.member_of(PHONE_TWO).unwrap().wire() as u64;
     let phone_one = room.member_of(PHONE_ONE).unwrap().wire() as u64;
-    assert_ne!(phone_one, phone_two, "the fixture must tell the namespaces apart");
+    assert_ne!(
+        phone_one, phone_two,
+        "the fixture must tell the namespaces apart"
+    );
     // Rows follow the pairing set's order (host, phones, AI); the ids in
     // them are the room's — phone one enrolled second, so it is member 2.
     assert_eq!(
@@ -204,15 +233,15 @@ fn history_pages_every_cursor_and_refuses_a_bad_limit() {
     assert_eq!(seqs("?after=1"), vec![2, 3]);
     assert_eq!(seqs("?before=2&limit=1"), vec![1]);
     assert_eq!(seqs("?before=0"), Vec::<u64>::new());
-    let both = get(
-        base,
-        Some(&bearer),
-        "/kalsa/room/history?after=1&before=3",
-    );
+    let both = get(base, Some(&bearer), "/kalsa/room/history?after=1&before=3");
     assert!(both.starts_with(b"HTTP/1.1 400"), "both cursors is refused");
     for bad in ["?limit=0", "?limit=201", "?limit=many"] {
         let refused = get(base, Some(&bearer), &format!("/kalsa/room/history{bad}"));
-        assert!(refused.starts_with(b"HTTP/1.1 400"), "{bad}: {}", text_of(&refused));
+        assert!(
+            refused.starts_with(b"HTTP/1.1 400"),
+            "{bad}: {}",
+            text_of(&refused)
+        );
     }
     door.shutdown();
 }
@@ -244,13 +273,12 @@ fn an_oversized_message_is_refused_before_its_bytes_are_read() {
     let (door, _room, [_, token, _]) = room_of();
     let bearer = format!("Bearer {token}");
     let long = format!(r#"{{"client_msg_id":"big","text":"{}"}}"#, "x".repeat(9000));
-    let refused = post(
-        door.address(),
-        Some(&bearer),
-        "/kalsa/room/messages",
-        &long,
+    let refused = post(door.address(), Some(&bearer), "/kalsa/room/messages", &long);
+    assert!(
+        refused.starts_with(b"HTTP/1.1 413"),
+        "{}",
+        text_of(&refused)
     );
-    assert!(refused.starts_with(b"HTTP/1.1 413"), "{}", text_of(&refused));
     let error = body_json(&refused);
     assert_eq!(error["error"]["code"], "too_large");
     door.shutdown();
@@ -269,7 +297,10 @@ fn a_forgotten_device_is_cut_from_the_stream_and_answered_401() {
     // The head is the proof the door served the request — and enrolled
     // the device into the room on the way in.
     let opened = Reader::until(&mut follower, b"text/event-stream", Duration::from_secs(5));
-    assert!(opened.contains("200"), "the follower's stream opened: {opened}");
+    assert!(
+        opened.contains("200"),
+        "the follower's stream opened: {opened}"
+    );
     let member = room.member_of(PHONE_TWO).unwrap();
     room.forget_device(PHONE_TWO).unwrap();
     let reduced = devices_labeled(&[
@@ -324,12 +355,7 @@ fn a_reconnect_replays_from_its_last_seq_and_a_cursor_above_the_newest_is_refuse
             &format!(r#"{{"client_msg_id":"m{n}","text":"text {n}"}}"#),
         );
     }
-    let mut replay = stream_get(
-        door.address(),
-        &bearer,
-        "/kalsa/room/events",
-        Some("1"),
-    );
+    let mut replay = stream_get(door.address(), &bearer, "/kalsa/room/events", Some("1"));
     let replayed = Reader::until(&mut replay, b"id: 2", Duration::from_secs(5));
     assert!(
         replayed.contains("id: 2") && replayed.contains("text 2"),
@@ -337,12 +363,7 @@ fn a_reconnect_replays_from_its_last_seq_and_a_cursor_above_the_newest_is_refuse
     );
     let _ = replay.shutdown(Shutdown::Both);
 
-    let mut refused = stream_get(
-        door.address(),
-        &bearer,
-        "/kalsa/room/events",
-        Some("99"),
-    );
+    let mut refused = stream_get(door.address(), &bearer, "/kalsa/room/events", Some("99"));
     let answer = Reader::until(&mut refused, b"}", Duration::from_secs(5));
     assert!(
         answer.starts_with("HTTP/1.1 400") && answer.contains("bad_cursor"),
@@ -381,15 +402,17 @@ fn a_live_follower_sees_a_rename_and_the_assistant_needs_no_call() {
         r#"{"client_msg_id":"call","text":"hey @Kalsa what time is it?","call_ai":false}"#,
     ));
     assert_eq!(posted["ai_call"], "queued");
-    let called = Reader::until(&mut follower, b"id:", Duration::from_secs(5));
+    let mut feed = Feed::new(&mut follower);
+    let history = feed.until(b"\"refused\"", Duration::from_secs(5));
     assert!(
-        called.contains("\"call_ai\":true") && called.contains("event: message"),
-        "the entry reached the follower numbered: {called}"
+        history.contains("\"call_ai\":true") && history.contains("event: message"),
+        "the entry reached the follower numbered: {history}"
     );
-    let refused = Reader::until(&mut follower, b"ai_status", Duration::from_secs(5));
     assert!(
-        refused.contains("\"refused\"") && refused.contains("no seat at its own engine"),
-        "a door without the guest's seat refuses the turn honestly: {refused}"
+        history.contains("\"refused\"")
+            && history.contains("\"note_code\":\"unavailable\"")
+            && history.contains("Kalsa can't answer in this room right now."),
+        "a door without the guest's seat refuses the turn honestly: {history}"
     );
     let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();
@@ -427,7 +450,11 @@ fn info_names_the_caller_the_room_and_the_epoch() {
         room.member_of(PHONE_ONE).unwrap().wire(),
         "the caller learns its own member id"
     );
-    assert_eq!(answer["room_id"], room.room_id(), "the id a phone keys its store by");
+    assert_eq!(
+        answer["room_id"],
+        room.room_id(),
+        "the id a phone keys its store by"
+    );
     assert_eq!(answer["epoch"], room.epoch());
     door.shutdown();
 }
@@ -467,7 +494,10 @@ fn a_member_sees_history_only_from_when_they_joined() {
         .map(|entry| entry["seq"].as_u64().unwrap())
         .collect();
     assert_eq!(seqs, vec![4], "nothing from before the join");
-    assert_eq!(page["has_older"], false, "no older page exists for this reader");
+    assert_eq!(
+        page["has_older"], false,
+        "no older page exists for this reader"
+    );
 
     // The first phone sees everything, as the host does.
     let whole = body_json(&get(
@@ -478,12 +508,7 @@ fn a_member_sees_history_only_from_when_they_joined() {
     assert_eq!(whole["messages"].as_array().unwrap().len(), 4);
 
     // Replay below the join point starts at the join point.
-    let mut replay = stream_get(
-        door.address(),
-        &second,
-        "/kalsa/room/events",
-        Some("0"),
-    );
+    let mut replay = stream_get(door.address(), &second, "/kalsa/room/events", Some("0"));
     let replayed = Reader::until(&mut replay, b"id: 4", Duration::from_secs(5));
     assert!(
         replayed.contains("id: 4") && !replayed.contains("id: 1\n"),
@@ -552,9 +577,11 @@ fn a_cached_epoch_from_before_a_recovery_is_refused() {
         "a cached epoch is one explicit refusal: {answer}"
     );
     // The guard sits ahead of every route, history and posts included.
-    let stale_history = get_with_header(door.address(), &bearer, "/kalsa/room/history", &stale_epoch);
+    let stale_history =
+        get_with_header(door.address(), &bearer, "/kalsa/room/history", &stale_epoch);
     assert!(
-        stale_history.starts_with(b"HTTP/1.1 409") && text_of(&stale_history).contains("epoch_changed"),
+        stale_history.starts_with(b"HTTP/1.1 409")
+            && text_of(&stale_history).contains("epoch_changed"),
         "history refuses a stale epoch"
     );
     let stale_post = post_with_header(
@@ -597,7 +624,9 @@ fn the_cap_is_per_device_and_other_devices_keep_their_seats() {
     let a = format!("Bearer {one}");
     // Device A at the cap, device B with one stream of its own.
     let mut a_first = stream_get(door.address(), &a, "/kalsa/room/events", None);
-    assert!(Reader::until(&mut a_first, b"text/event-stream", Duration::from_secs(5)).contains("200"));
+    assert!(
+        Reader::until(&mut a_first, b"text/event-stream", Duration::from_secs(5)).contains("200")
+    );
     let mut a_second = stream_get(door.address(), &a, "/kalsa/room/events", None);
     let _ = Reader::until(&mut a_second, b"text/event-stream", Duration::from_secs(5));
     let b_bearer = format!("Bearer {two}");
@@ -610,10 +639,14 @@ fn the_cap_is_per_device_and_other_devices_keep_their_seats() {
     // A's third closes A's OLDEST; B's stream is untouched and keeps
     // receiving — which is the proof it was not B's seat the cap took.
     let mut a_third = stream_get(door.address(), &a, "/kalsa/room/events", None);
-    assert!(Reader::until(&mut a_third, b"text/event-stream", Duration::from_secs(5)).contains("200"));
+    assert!(
+        Reader::until(&mut a_third, b"text/event-stream", Duration::from_secs(5)).contains("200")
+    );
     let mut closed = false;
     let deadline = std::time::Instant::now() + Duration::from_secs(6);
-    a_first.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    a_first
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
     while std::time::Instant::now() < deadline {
         let mut chunk = [0u8; 256];
         match a_first.read(&mut chunk) {
@@ -662,7 +695,9 @@ fn a_third_stream_of_one_device_closes_the_oldest_and_keeps_the_newest() {
 
     let mut closed = false;
     let deadline = std::time::Instant::now() + Duration::from_secs(6);
-    first.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    first
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
     while std::time::Instant::now() < deadline {
         let mut chunk = [0u8; 256];
         match first.read(&mut chunk) {
@@ -718,5 +753,68 @@ fn a_member_the_room_cannot_place_is_refused_not_shown_everything() {
     );
     let stream = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
     drop(stream);
+    door.shutdown();
+}
+
+#[test]
+fn the_guest_seat_is_never_a_room_member() {
+    let host = credential();
+    let one = credential();
+    let devices = super::room_support::seated_labeled(&[
+        (HOST, "This computer", &host),
+        (PHONE_ONE, "Paired phone", &one),
+    ]);
+    let room = Arc::new(Room::open(&scratch("room-guest-seat")).unwrap());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let door =
+        crate::Door::new_with_engine(listener, 1, devices, 2, EnginePrivateHeaders::Consumed)
+            .unwrap()
+            .with_room(Arc::clone(&room), DeviceId::new(HOST))
+            .start()
+            .unwrap();
+    let answer = body_json(&get(
+        door.address(),
+        Some(&format!("Bearer {one}")),
+        "/kalsa/room/info",
+    ));
+    let rows: Vec<(u64, &str, &str)> = answer["members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|member| {
+            (
+                member["member_id"].as_u64().unwrap(),
+                member["name"].as_str().unwrap(),
+                member["kind"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert!(
+        room.member_of(crate::ROOM_DEVICE).is_none(),
+        "the guest's seat is not enrolled in the room"
+    );
+    assert_eq!(
+        rows,
+        vec![
+            (u32::MAX as u64, "This computer", "host"),
+            (
+                room.member_of(PHONE_ONE).unwrap().wire() as u64,
+                "Paired phone",
+                "phone"
+            ),
+            (u32::MAX as u64 - 1, "Kalsa", "ai"),
+        ],
+        "the guest's engine seat does not become a second Kalsa member"
+    );
+    assert_eq!(
+        answer["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|member| member["name"] == "Kalsa")
+            .count(),
+        1,
+        "exactly one Kalsa, and it is the ai row"
+    );
     door.shutdown();
 }

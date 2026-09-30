@@ -257,6 +257,9 @@ pub struct Door {
     /// never derives it from the set, the count, or anything else.
     capacity: u32,
     head_patience: Duration,
+    /// The per-slot context the launch funded, named by the app from the
+    /// launch record the way it names the disk tier's halves.
+    slot_context: Option<u64>,
     /// The disk tier's two halves, both the app's to supply and both absent
     /// until it does: the model identity a saved chat's name carries and the
     /// directory the engine writes into. A door without them serves every
@@ -410,6 +413,7 @@ impl Door {
             idle_save: None,
             response_observer: None,
             room: None,
+            slot_context: None,
         })
     }
 
@@ -467,6 +471,16 @@ impl Door {
     /// and a guest does not borrow it.
     pub fn with_room(mut self, room: Arc<kalsa_room::Room>, host: DeviceId) -> Self {
         self.room = Some(Arc::new(room::RoomDoor::new(room, host)));
+        self
+    }
+
+    /// The per-slot context the engine was launched with, in tokens
+    /// (`--ctx-size / --parallel`), so the room's turns spend at most a
+    /// stated share of the slot their seat holds. A door without one
+    /// serves turns at the fallback budget — the honest smaller number,
+    /// never a guess at a slot nobody named.
+    pub fn with_slot_context(mut self, per_slot_tokens: u64) -> Self {
+        self.slot_context = Some(per_slot_tokens);
         self
     }
 

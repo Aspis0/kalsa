@@ -54,7 +54,11 @@ pub(super) fn name_of(room: &Room, devices: &Devices, member: MemberId) -> Strin
 
 /// The client's body, bounded, drained whole when it is too big: an unread
 /// body resets the socket on close and erases the answer.
-pub(super) fn read_body(client: &mut TcpStream, length: usize, deadline: Instant) -> Option<Vec<u8>> {
+pub(super) fn read_body(
+    client: &mut TcpStream,
+    length: usize,
+    deadline: Instant,
+) -> Option<Vec<u8>> {
     if length > MAX_BODY {
         let _ = proxy::discard_request_body(client, length, deadline);
         return None;
