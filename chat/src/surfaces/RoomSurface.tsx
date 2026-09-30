@@ -97,7 +97,7 @@ export function RoomSurface() {
               className="brain-bar-input room-name-input"
               value={nameDraft}
               autoFocus
-              aria-label="Your name in this room"
+              aria-label="Your name"
               placeholder={hostName || undefined}
               onChange={(event) => setNameDraft(event.target.value)}
               onBlur={() => void saveName()}
@@ -162,8 +162,8 @@ export function RoomSurface() {
           type="text"
           className="brain-bar-input"
           value={draft}
-          placeholder="Write to the room…"
-          aria-label="Write to the room"
+          placeholder="Write, or type @Kalsa…"
+          aria-label="Message"
           onChange={(event) => setDraft(event.target.value)}
         />
         <button
