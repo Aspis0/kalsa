@@ -7,6 +7,11 @@ export type Role = "user" | "assistant";
  * built (see `attachments.ts`), and the reload validator never has to know a
  * third role exists.
  */
+/** The result a stored run holds when its stream died before it answered:
+    a code the thread renders through the table, never a sentence in one
+    language persisted as data. */
+export const TOOL_STOPPED = "run-stopped";
+
 export interface ToolRun {
   /** The call's id on the wire, so a running entry becomes the answered one. */
   id: string;

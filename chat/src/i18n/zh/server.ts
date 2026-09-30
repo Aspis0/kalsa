@@ -19,7 +19,7 @@ export const SERVER = {
     "filesFromScan": (files: number) => `${files} 个文件，来自对保存目录的一次扫描`,
     "twoDevices": "两台设备解码",
     "eachX": (rate: string) => `各 ${rate}x`,
-    "perSlot": (a: string, b: string) => `每槽 ${a}x / ${b}x`,
+    "perSlot": (a: string, b: string) => `${a}x / ${b}x 每台设备`,
     "together": (per: string, aggregate: string) => `${per}，合计 ${aggregate}x`,
     "concurrencyDetail": (tag: string, platform: string) => `相对单台设备的解码速率，而非耗时 —— 测自 ${tag}，${platform}`,
   };

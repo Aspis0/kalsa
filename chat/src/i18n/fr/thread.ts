@@ -18,7 +18,7 @@ export const THREAD = {
     "errorTitle": "Le serveur a répondu par une erreur.",
     "errorBody": (status: number | undefined) => `Il a répondu ${status ?? "par une erreur"}. Attends un moment et réessaie.`,
     "called": (url: string) => `Appelé : ${url}`,
-    "tryAgain": "Réessayer",
+    "tryAgain": "Réessaie",
     "waitingFirstWord": "En attente du premier mot",
     "stoppedEarly": "Interrompue avant la fin — voici ce qui était arrivé.",
     "noAnswer": "Le modèle a réfléchi mais n'a pas donné de réponse.",

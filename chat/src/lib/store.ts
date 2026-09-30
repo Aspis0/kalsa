@@ -1,3 +1,4 @@
+import { TOOL_STOPPED } from "./types";
 import type { ChatMessage, Conversation, ConversationMeta, ToolRun } from "./types";
 import type { Attachment, AttachmentKind } from "./attachments";
 
@@ -159,8 +160,10 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       id: r.id,
       name: r.name,
       arguments: r.arguments,
-      result:
-        r.state === "running" && r.result === "" ? "Stopped before this finished." : r.result,
+      // A run still marked running is one the app died beside; its answer
+      // never came, so the result says that as a code the UI words itself.
+      // A record that already holds a sentence keeps it as it is.
+      result: r.state === "running" && r.result === "" ? TOOL_STOPPED : r.result,
       state: r.state === "running" ? "failed" : r.state,
     });
   }
@@ -369,7 +372,9 @@ export function createStore(): ConversationStore {
         const messages = c.messages.map(cleanMessage).filter((m): m is ChatMessage => m !== null);
         const meta = metaFor({
           id: c.id,
-          title: typeof c.title === "string" && c.title ? c.title : "Untitled conversation",
+          // No placeholder is persisted: an empty title renders the
+          // shell's own word for it, in whatever language is chosen.
+          title: typeof c.title === "string" ? c.title : "",
           createdAt: typeof c.createdAt === "number" ? c.createdAt : 0,
           updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
           messages,

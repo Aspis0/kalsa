@@ -719,7 +719,7 @@ export function App() {
     const userId = uid();
     const updated: Conversation = {
       ...conv,
-      title: conv.messages.length === 0 ? titleFor(text) : conv.title,
+      title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
       updatedAt: Date.now(),
       messages: [
         ...conv.messages,
@@ -949,7 +949,8 @@ export function App() {
   }
 
   const empty = !active || active.messages.length === 0;
-  const title = surface === "chat" ? (active ? active.title : t.crescentChat) : surfaceLabel(surface, chrome);
+  const title =
+    surface === "chat" ? (active ? active.title || t.untitled : t.crescentChat) : surfaceLabel(surface, chrome);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 

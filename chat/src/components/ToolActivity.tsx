@@ -3,6 +3,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
+import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
 
 /**
@@ -55,7 +56,9 @@ function ToolRow({ run }: { run: ToolRun }) {
             {t.askedForLabel} {url ? <Openable url={url}>{hostOf(url)}</Openable> : asked}
           </p>
         ) : null}
-        {failed ? <p className="tool-failure">{run.result}</p> : null}
+        {failed ? (
+          <p className="tool-failure">{run.result === TOOL_STOPPED ? t.stopped : run.result}</p>
+        ) : null}
         {!failed && sources.length > 0 ? (
           <ul className="tool-sources">
             {sources.map((source) => (

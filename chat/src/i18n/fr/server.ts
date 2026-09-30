@@ -19,7 +19,7 @@ export const SERVER = {
     "filesFromScan": (files: number) => `${files} fichiers, d'un scan du répertoire d'enregistrement`,
     "twoDevices": "Deux appareils en décodage",
     "eachX": (rate: string) => `${rate}x chacun`,
-    "perSlot": (a: string, b: string) => `${a}x / ${b}x par slot`,
+    "perSlot": (a: string, b: string) => `${a}x / ${b}x par conversation`,
     "together": (per: string, aggregate: string) => `${per}, ${aggregate}x ensemble`,
     "concurrencyDetail": (tag: string, platform: string) => `Vitesse de décodage face à un seul appareil, pas temps écoulé — mesurée sur ${tag}, ${platform}`,
   };

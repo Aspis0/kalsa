@@ -34,6 +34,6 @@ export const ROOM: RoomTable = {
     "name_reserved": "Kalsa est le nom de l'assistant. Choisis-en un autre.",
     "name_framing": "Les noms ne peuvent pas contenir [ ni ].",
     "name_mixed_scripts": "Utilise les lettres d'un seul alphabet dans ton nom.",
-    "name_too_long": "Ce nom est trop long. Essaie plus court."
+    "name_too_long": "Ce nom est trop long. Essaie-en un plus court."
   },
 };

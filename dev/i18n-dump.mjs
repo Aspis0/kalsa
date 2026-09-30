@@ -20,8 +20,10 @@ const mod = await import(`${pathToFileURL(out).href}?c=${Date.now()}`);
 
 
 /** Example values for the function keys, keyed by the flattened path so
-    two areas may share a leaf name without sharing an example: a name like
-    Marco, a small count, one plain sentence for the rest. */
+    two areas may share a leaf name without sharing an example. Every number
+    goes through `num`, which formats it in the language being rendered, so
+    a card never shows another language's separators; a clause or join that
+    is itself a table's output is composed from that table. */
 const EXAMPLES = {
   "room.answering": (fn) => fn("Marco"),
   "room.queueNext": (fn) => fn("Marco"),
@@ -31,13 +33,12 @@ const EXAMPLES = {
   "room.listJoin": (fn) => fn(["Luca", "Sofia"]),
   "thread.errorBody": (fn) => `${fn(500)} / ${fn(undefined)}`,
   "thread.called": (fn) => fn("http://localhost:8080"),
-  "thread.thoughtFor": (fn) => fn("3.4"),
+  "thread.thoughtFor": (fn, _area, num) => fn(num(3.4, 1)),
   "tools.running": (fn) => fn("web_search"),
   "tools.read": (fn) => fn("example.com"),
   "tools.searchedFor": (fn) => fn("cena"),
   "tools.didNotRun": (fn) => fn("web_search"),
   "tools.ran": (fn) => fn("web_search"),
-  "tools.searchedForLabel": null,
   "tools.gateWhy": (fn) => fn("Two documents are attached"),
   "tools.documentsAttached": (fn) => fn(2),
   "tools.moreWaiting": (fn) => fn(2),
@@ -47,54 +48,54 @@ const EXAMPLES = {
   "advanced.whatItDoes": (fn) => fn("Context size"),
   "advanced.explanationAria": (fn) => fn("Context size"),
   "sidebar.noMatch": (fn) => fn("cena"),
-  "sidebar.capped": (fn) => fn(150, 240),
+  "sidebar.capped": (fn, _area, num) => fn(num(150), num(240)),
   "files.pages": (fn) => fn(12),
-  "files.tokens": (fn) => fn("1,200"),
-  "files.filesTerm": (fn) => fn("≈1,200"),
-  "files.conversationTerm": (fn) => fn("≈2,400"),
-  "files.reservedTerm": (fn) => fn("≈512"),
-  "files.leftTerm": (fn) => fn("≈3,000"),
-  "files.overTerm": (fn) => fn("≈300"),
-  "files.ofTotal": (fn) => fn("≈8,192"),
+  "files.tokens": (fn, _area, num) => fn(num(1200)),
+  "files.filesTerm": (fn, _area, num) => fn(`≈${num(1200)}`),
+  "files.conversationTerm": (fn, _area, num) => fn(`≈${num(2400)}`),
+  "files.reservedTerm": (fn, _area, num) => fn(`≈${num(512)}`),
+  "files.leftTerm": (fn, _area, num) => fn(`≈${num(3000)}`),
+  "files.overTerm": (fn, _area, num) => fn(`≈${num(300)}`),
+  "files.ofTotal": (fn, _area, num) => fn(`≈${num(8192)}`),
   "files.unsupportedKind": (fn) => fn("photo.png"),
   "files.unsupportedLegacy": (fn) => fn("letter.doc", "Word", "docx"),
-  "files.tooBig": (fn) => fn("book.pdf", "64"),
+  "files.tooBig": (fn, _area, num) => fn("book.pdf", num(64)),
   "files.unreadable": (fn) => fn("book.pdf"),
   "files.noText": (fn) => fn("scan.pdf"),
   "files.notFromComputer": (fn) => fn("book.pdf"),
-  "setup.downloadSize": (fn) => fn("4.7 GB"),
-  "setup.downloadQ": (fn) => fn("4.7 GB"),
+  "setup.downloadSize": (fn, _area, num) => fn(`${num(4.7, 1)} GB`),
+  "setup.downloadQ": (fn, _area, num) => fn(`${num(4.7, 1)} GB`),
   "setup.needsFiles": (fn) => fn("gemma"),
   "setup.needsFile": (fn) => fn("gemma"),
-  "setup.ofTotal": (fn) => fn("1.2", "4.7", "GB"),
-  "setup.receivedSoFar": (fn) => fn("1.2 GB"),
-  "setup.pickingUp": (fn) => fn("1.2 of 4.7 GB"),
+  "setup.ofTotal": (fn, _area, num) => fn(num(1.2, 1), num(4.7, 1), "GB"),
+  "setup.receivedSoFar": (fn, _area, num) => fn(`${num(1.2, 1)} GB`),
+  "setup.pickingUp": (fn, areaTable, num) => fn(areaTable.ofTotal(num(1.2, 1), num(4.7, 1), "GB")),
   "machine.running": (fn) => fn("gemma"),
-  "machine.memorySentence": (fn) => fn("16 GiB", "9 GiB", "the graphics chip"),
-  "machine.bandwidthMeasured": (fn) => fn("100 GB/s"),
-  "machine.bandwidthFloor": (fn) => fn("100 GB/s"),
-  "machine.bandwidthChip": (fn) => fn("100 GB/s"),
-  "machine.speedRange": (fn) => fn("12.0", "24.0"),
-  "machine.speedAtLeast": (fn) => fn("12.0"),
-  "machine.speedMeasured": (fn) => fn("12.0"),
+  "machine.memorySentence": (fn, _area, num) => fn(`${num(16)} GiB`, `${num(9)} GiB`, "the graphics chip"),
+  "machine.bandwidthMeasured": (fn, _area, num) => fn(`${num(100)} GB/s`),
+  "machine.bandwidthFloor": (fn, _area, num) => fn(`${num(100)} GB/s`),
+  "machine.bandwidthChip": (fn, _area, num) => fn(`${num(100)} GB/s`),
+  "machine.speedRange": (fn, _area, num) => fn(num(12, 1), num(24, 1)),
+  "machine.speedAtLeast": (fn, _area, num) => fn(num(12, 1)),
+  "machine.speedMeasured": (fn, _area, num) => fn(num(12, 1)),
   "machine.detailMeasured": (fn) => fn("this computer"),
-  "machine.onDisk": (fn) => fn("q4_0", "4.7 GiB"),
-  "machine.upToContext": (fn) => fn("8,192"),
-  "machine.confirmSwitch": (fn) => fn("gemma", "4.7 GiB"),
+  "machine.onDisk": (fn, _area, num) => fn("q4_0", `${num(4.7, 1)} GiB`),
+  "machine.upToContext": (fn, _area, num) => fn(num(8192)),
+  "machine.confirmSwitch": (fn, _area, num) => fn("gemma", `${num(4.7, 1)} GiB`),
   "machine.startAgainOn": (fn) => fn("gemma"),
-  "machine.speedsHeld": (fn) => fn("65,536"),
+  "machine.speedsHeld": (fn, _area, num) => fn(num(65536)),
   "server.residentsOfCapacity": (fn) => fn(1, 4),
   "server.filesUnreadable": (fn) => fn(12, 1),
   "server.filesFromScan": (fn) => fn(12),
-  "server.eachX": (fn) => fn("0.73"),
-  "server.perSlot": (fn) => fn("0.73", "0.73"),
-  "server.together": (fn) => fn("0.73x each", "1.47"),
+  "server.eachX": (fn, _area, num) => fn(num(0.73, 2)),
+  "server.perSlot": (fn, _area, num) => fn(num(0.73, 2), num(0.73, 2)),
+  "server.together": (fn, areaTable, num) => fn(areaTable.eachX(num(0.73, 2)), num(1.47, 2)),
   "server.concurrencyDetail": (fn) => fn("kalsa-server-v1.1.1", "macos-arm64/metal"),
-  "server.tokensPerSecond": (fn) => fn("12.0"),
-  "devices.waitingNamed": (fn) => fn("Pixel 9", "; the phone still needs its connection"),
-  "devices.waitingCount": (fn) => fn(2, ", and one phone awaits its connection"),
-  "devices.mixedOne": (fn) => fn(3, ", and one phone awaits its connection"),
-  "devices.mixedMany": (fn) => fn(3, 2, ", and one phone awaits its connection"),
+  "server.tokensPerSecond": (fn, _area, num) => fn(num(12, 1)),
+  "devices.waitingNamed": (fn, areaTable) => fn("Pixel 9", areaTable.owedPending),
+  "devices.waitingCount": (fn, areaTable) => fn(2, areaTable.undeliveredClause),
+  "devices.mixedOne": (fn, areaTable) => fn(3, areaTable.undeliveredClause),
+  "devices.mixedMany": (fn, areaTable) => fn(3, 2, areaTable.undeliveredClause),
   "devices.savedPending": (fn) => fn("Pixel 9"),
   "devices.worksWith": (fn) => fn("Pixel 9"),
   "devices.worksWithCount": (fn) => fn(2),
@@ -106,12 +107,12 @@ const EXAMPLES = {
   "devices.deskMoved": (fn) => fn(8444),
   "invite.expires": (fn) => fn("17:30"),
   "invite.tomorrowAt": (fn) => fn("17:30"),
-  "invite.copiedUntil": (fn) => fn("tomorrow at 17:30"),
+  "invite.copiedUntil": (fn, areaTable) => fn(areaTable.tomorrowAt("17:30")),
   "shell.backTo": (fn) => fn("Home"),
   "shell.dontFit": (fn) => fn("a.pdf, b.pdf"),
   "shell.doesntFit": (fn) => fn("a.pdf"),
-  "shell.refusalBody": (fn) => fn("1,200", "2,400", "512", "4,112", "8,192"),
-  "shell.oversizeDetail": (fn) => fn("1,200", "2,400", "512", "4,112", "8,192"),
+  "shell.refusalBody": (fn, _area, num) => fn(num(1200), num(2400), num(512), num(4112), num(8192)),
+  "shell.oversizeDetail": (fn, _area, num) => fn(num(1200), num(2400), num(512), num(4112), num(8192)),
   "shell.readingOne": (fn) => fn("book.pdf"),
   "shell.readingMany": (fn) => fn(3),
   "shell.attachedOne": (fn) => fn("book.pdf"),
@@ -120,16 +121,18 @@ const EXAMPLES = {
 
 /** One rendered value per function key: the path's own example when one is
     named, and one plain word for the rest — a card needs a value, never a
-    computation. */
-const RENDER_CASES = (path, areaTable) => {
+    computation. `num` formats figures in the language being rendered. */
+const RENDER_CASES = (path, areaTable, num) => {
   const example = EXAMPLES[path];
-  if (example) return (fn) => example(fn, areaTable);
+  if (example) return (fn) => example(fn, areaTable, num);
   return (fn) => fn("…");
 };
 
-function collect(table) {
+function collect(table, lang) {
   const rows = [];
   const seen = new Set();
+  const num = (value, digits = 0) =>
+    new Intl.NumberFormat(lang, digits ? { minimumFractionDigits: digits, maximumFractionDigits: digits } : undefined).format(value);
   const walk = (node, area, areaTable) => {
     for (const [key, value] of Object.entries(node)) {
       const path = area ? `${area}.${key}` : key;
@@ -140,7 +143,7 @@ function collect(table) {
       if (typeof value === "function") {
         // A function key renders with its own area's table — queueThen
         // borrows its area's listJoin to build {rest}.
-        rows.push([path, RENDER_CASES(path, areaTable)((...args) => value(...args))]);
+        rows.push([path, RENDER_CASES(path, areaTable, num)((...args) => value(...args))]);
       } else if (typeof value === "string") {
         rows.push([path, value]);
       } else if (value !== null && typeof value === "object") {
@@ -152,7 +155,7 @@ function collect(table) {
   return rows;
 }
 
-const english = collect(mod.TABLES.en);
+const english = collect(mod.TABLES.en, "en");
 const others = {};
-for (const lang of ["it", "es", "fr", "zh"]) others[lang] = collect(mod.TABLES[lang]);
+for (const lang of ["it", "es", "fr", "zh"]) others[lang] = collect(mod.TABLES[lang], lang);
 console.log(JSON.stringify({ english, others }));

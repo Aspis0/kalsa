@@ -169,7 +169,7 @@ export function Sidebar({
                         type="button"
                         className="sidebar-open-conv"
                         aria-current={isActive ? "true" : undefined}
-                        title={conv.preview || conv.title}
+                        title={conv.preview || conv.title || table.shell.untitled}
                         onClick={() => onSelect(conv.id)}
                       >
                         <span className="sidebar-row-top">
@@ -178,7 +178,7 @@ export function Sidebar({
                               <span aria-hidden="true" />
                             </span>
                           ) : null}
-                          <span className="sidebar-title">{conv.title}</span>
+                          <span className="sidebar-title">{conv.title || table.shell.untitled}</span>
                         </span>
                         {conv.preview ? (
                           <span className="sidebar-preview">{conv.preview}</span>
