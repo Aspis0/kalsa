@@ -68,6 +68,9 @@ def main() -> int:
         edge = len(data) // a.segments
         segs = [data[i * edge:(i + 1) * edge] for i in range(a.segments - 1)]
         segs.append(data[(a.segments - 1) * edge:])   # last one absorbs the remainder
+        # a raw byte slice can cut a UTF-8 sequence in half; drop the broken
+        # edge bytes (<=3 per boundary) and count only what is evaluated
+        segs = [s.decode("utf-8", errors="ignore").encode("utf-8") for s in segs]
 
         seg_bpbs, tot_bytes, tot_wsum = [], 0, 0.0
         for i, seg in enumerate(segs):

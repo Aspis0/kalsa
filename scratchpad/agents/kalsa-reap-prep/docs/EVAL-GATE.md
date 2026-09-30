@@ -10,6 +10,14 @@ Q4_K_M.
 
 ## Baseline anchors already in the lab (not re-derived)
 
+> **Known confound (probe 2026-09-30)**: public-domain classics are memorized
+> by large models in pretraining — the unpruned Qwen3.6 scored en 0.024 bpb
+> on Pride and Prejudice (recall, not modelling). Gate bpb numbers on this
+> corpus inflate exactly the artifacts with more capacity; the generative
+> holdouts (GSM8K/tools) don't share it. A future gate session should prefer
+> recent/licence-clean text it can argue is out-of-training, or treat bpb as
+> a tie-breaker with the confound recorded.
+
 | fact | value | source |
 |---|---|---|
 | ship artifact | `LFM2.5-2.6B-QAD-Q4_0.gguf`, 1,593,894,944 B, sha256 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03` | `~/kalsa-models/mac/`, matches `docs/ALIVE.md` "Ship model" line |

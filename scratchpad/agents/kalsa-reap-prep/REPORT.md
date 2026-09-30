@@ -1,10 +1,96 @@
-# REPORT — kalsa-reap-prep (2026-09-29, audit-fix commit)
+# REPORT — kalsa-reap-prep (2026-09-30 probe appended; 2026-09-29 audit base)
 
-Preparation only. No pod created, nothing spent, no phones, no push. Mac
-verification only, metadata + the LFM2.5-2.6B Q4_0 ship file we already have.
-This report covers the ten hostile-audit items against commit 5f8d5f10;
-the original prep facts (fork recon, attr verification, paper reading) are
-in the section at the end and unchanged.
+Preparation + the $0 Mac probe. No pod created, nothing spent, no phones, no
+push. This report covers (1) the $0 probe run after the review fixes, and
+(2) the ten hostile-audit items against commit 5f8d5f10.
+
+## $0 probe, 2026-09-30 (owner decision: PC + 16 GB; LFM stays on 8 GB)
+
+Fixes landed in `4d202f91` (Part A); probe harness fixes are in the Part B
+commit below. All five models ran on ONE build (kalsallama main `e8065c7cf`,
+Metal, `build-metal/`), same session, paired items/segments, greedy,
+thinking-off everywhere. Generation went through `llama-server /completion`
+(clean JSON — the CLI echoes the `-f` prompt even with `--no-display-prompt`,
+verified); bpb = per-segment llama-perplexity (8 segments × 600 KB/language)
+over `eval/text-holdout/` (PG books, non-Wikipedia, containment-checked);
+CIs = paired percentile bootstrap (10k, seed 42). Mac = M1 Max (10-core,
+64 GB), `llama-bench -p 512 -n 128`. **All numbers below are Mac numbers.**
+
+| model | en | it | es | fr | zh (bpb) | GSM8K-200 | tools-100 | pp512 t/s | tg128 t/s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LFM2.5-2.6B QAD-Q4_0 (ship) | 1.1935 | 1.9030 | 1.7070 | 1.5792 | 2.3484 | 54.5 % | 77 % | 1228 | 127.2 |
+| LFM2.5-2.6B Q4_K_M | 1.1771 | 1.9458 | 1.7306 | 1.5824 | 2.3948 | 44.5 % | 78 % | 1072 | 102.0 |
+| Qwen3.5-4B Q4_K_M (dense control) | 0.7082 | 1.1123 | 1.0227 | 0.9163 | 1.2691 | 85.5 % | 81 % | 635 | 55.3 |
+| REAP20 `0xSero/Qwen3.6-28B` Q4_K_M (MIT) | 0.5703 | 1.1625 | 0.8405 | 0.8615 | 1.4128 | 86.5 % | 82 % | 695 | 57.8 |
+| Qwen3.6-35B-A3B unpruned Q4_K_M | 0.0240 | 0.9267 | 0.6970 | 0.8018 | 0.5215 | 86.0 % | 82 % | 694 | 50.0 |
+
+CIs (diff vs ship LFM, 95 % paired bootstrap):
+
+- **REAP20**: bpb it −0.740 [−0.781, −0.701] · en −0.623 [−0.660, −0.585] ·
+  es −0.867 [−0.893, −0.843] · fr −0.718 [−0.747, −0.684] ·
+  zh −0.936 [−0.983, −0.893]; gsm8k +32.0 [+24.5, +40.0];
+  **tools +5.0 [−1.0, +11.0]**; speed 57.8/127.2 = **0.45× LFM**.
+- **Unpruned Qwen3.6**: bpb −0.78 … −1.83 (all CIs < 0; but see the
+  memorization confound — en 0.024 and zh 0.52 are recall, not language
+  modelling); gsm8k +31.5 [+23.5, +39.5]; tools +5.0 [+0.0, +11.0];
+  speed 0.39× LFM.
+- **Qwen3.5-4B (dense control)**: bpb −0.49 … −1.08 (all CIs < 0);
+  gsm8k +31.0 [+23.0, +39.0]; tools +4.0 [−1.0, +10.0]; speed 0.43× LFM.
+- lfm-q4km cross-check: ≈ lfm-qad (±0.05 bpb; gsm8k −10 points is within one
+  CI width) — quant class does not change the story.
+
+**Verdict line.** REAP20 — and unpruned Qwen3.6 — clearly beat LFM2.5-2.6B
+on language quality (every language's bpb CI excludes 0) and on GSM8K
+(+32, CI well above 0), but NOT on tool calls (+5, CI crosses 0) and NOT on
+speed (0.45× / 0.39× LFM on the same Mac build — below the gate's 0.5× floor,
+exactly as the review predicted from active params being ratio-invariant).
+**A 50 % prune is NOT worth $15 on this evidence**: the prune cannot change
+speed (active compute is ratio-invariant), cannot make the 16 GB phone budget
+(50 % Q4_0 = 10.4 GB > 9 GB), and its likely quality is *below* the free
+published REAP20 (deeper prune = more loss, REAP paper §5). The quality jump
+the probe was looking for is already available for $0 — either REAP20 itself
+(16 GB: PC-only resident) or, more interestingly, the dense Qwen3.5-4B
+control: REAP20-level GSM8K/tools, all five languages far above LFM, 2.5 GB
+resident in every class including 8 GB phones, Apache-2.0 — at the same
+~0.43× Mac speed. The MoE route fails the speed floor at any ratio; the
+product decision this forces is (a) accept <0.5× speed for the quality jump
+on PC/16 GB, or (b) pursue the dense 4B for the resident classes — both are
+owner calls, and the gate's own verdict rule says no-ship as written.
+
+**Confound to carry into any ship decision**: the bpb corpus is public-domain
+classics (Pride and Prejudice, Don Quijote, 紅樓夢…), which every large model
+has memorized in pretraining — the unpruned model's en 0.024 / zh 0.52 bpb
+are recall, not modelling, and REAP20's bpb advantage is partly capacity for
+memorization. The GSM8K/tools holdouts don't share that confound but have
+their own (public benchmarks may be in pretraining). The 0.5× speed floor
+and the tools margin, both failures, are unaffected by this.
+
+Probe artifacts: `~/kalsa-models/probe/` (models + `results/<tag>/` with
+bpb.json, gsm8k.json, tools.json, bench.txt, logs; outside git). Probe
+runner: `~/kalsa-models/probe/run_probe.sh`.
+
+Harness fixes found by the probe (Part B commit):
+- this fork's `llama-cli` echoes the `-f` prompt in conversation mode even
+  with `--no-display-prompt` (verified with a ZEBRATEST marker prompt) — the
+  first probe run scored LFM 3/200 on GSM8K because LFM QAD emits
+  `[Start thinking] … [End thinking]` and the echoed trailing `<think>` made
+  every reply look like budget-exhausted reasoning; probe now runs
+  `llama-server /completion` (clean JSON, one load per model) and
+  `run_gen_eval.py` strips both reasoning dialects (`run_gen_eval.py`,
+  `strip_reasoning`); a 12-item smoke restored a sane 7/12 for LFM;
+- byte-sliced bpb segments could cut a UTF-8 sequence (EXIT=1 on the first
+  run) — segments are now re-encoded with `errors="ignore"`
+  (`run_bpb_eval.py`);
+- the shared `/tmp` prompt file is pid-tagged so two runners cannot
+  interleave prompts (`run_gen_eval.py`).
+
+Not verified in the probe: degeneration smoke (8-prompt, gate condition 6 —
+not part of the task's metric list), phone-class speeds (no phone touched —
+Mac numbers only, labeled Mac), and whether LFM QAD's GSM8K label-noise item
+000 (arithmetic answer 2180, stored gold 2280) skews single-item reads
+(fixed 200-item set, unchanged by choice).
+
+## Audit items 1–10 (2026-09-29, against 5f8d5f10)
 
 ## Audit item 1 — real spend stop (billing, not stage-skipping)
 
