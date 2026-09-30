@@ -90,11 +90,11 @@ export interface StreamOptions {
 /** The tool round's own words, threaded from the caller's language table. */
 export interface ToolPhrases {
   noRoundLeft: string;
-  turnEnded: (reason: string) => string;
+  turnEnded: string;
   nameNeverArrived: string;
   stopped: string;
   argumentsTooLong: string;
-  argumentsNotValid: (name: string) => string;
+  argumentsNotValid: string;
 }
 
 /** What a tool answered, and whether that answer is a result or a refusal. */

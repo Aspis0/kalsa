@@ -1,8 +1,8 @@
 // Tradotto dal copy inglese approvato.
 
 export const CRASH = {
-    "title": "Qualcosa non ha funzionato.",
-    "body": "La vista della conversazione non si è potuta disegnare — di solito significa che i dati salvati sono danneggiati. Le tue impostazioni sono intatte.",
+    "title": "Kalsa non ha potuto mostrare questa conversazione.",
+    "body": "Ricarica l'app. Se non si apre ancora, cancella le conversazioni salvate. Le tue impostazioni restano al sicuro.",
     "reload": "Ricarica l'app",
-    "erase": "Cancella i dati locali e ricomincia",
+    "erase": "Cancella le conversazioni salvate e ricomincia",
   };

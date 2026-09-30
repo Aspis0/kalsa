@@ -9,8 +9,8 @@ export const CHROME = {
     "chatMenu": "聊天菜单",
     // The settings surfaces' names, keyed as the shell looks them up.
     pages: {
-      "models": "模型",
-      "server": "服务器",
+      "models": "AI",
+      "server": "电源",
       "devices": "设备",
       "advanced": "高级",
       "settings": "设置",

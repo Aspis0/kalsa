@@ -479,7 +479,9 @@ try {
   const normalText = results.filter((r) => !expertCards.includes(r)).flatMap((r) => r.lines).join("\n");
   const allText = results.flatMap((r) => r.lines).join("\n");
 
-  const normalBanned = ["port", "url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret", "token"];
+  // "token" left this list with the owner's speed decision (the figure
+  // rides beside the words), and "port" with her moved-setup sentence.
+  const normalBanned = ["url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"];
   for (const word of normalBanned) {
     const hit = normalText.match(new RegExp(`\\b${word}\\w*`, "i"));
     if (hit) problems.push(`jargon: "${hit[0]}"`);
@@ -496,14 +498,14 @@ try {
   // to report yet — and the check that cannot run at all, where offering
   // "Try again" would be a button with nothing behind it.
   const CHECKING = "Checking for your phone…";
-  const COULD_NOT_CHECK = "This page could not check whether a phone is connected.";
+  const COULD_NOT_CHECK = "Kalsa couldn't check your phones.";
 
   const NOTHING = [
     "nothing for you to do here",
     "Open the app on this computer",
     "To pair your phone with this computer",
-    "A phone is connecting right now",
-    "This computer now works with",
+    "A phone is connecting.",
+    "Kalsa now works with",
     "will appear here in a moment",
     CHECKING,
     COULD_NOT_CHECK,
@@ -512,12 +514,11 @@ try {
     "can take a minute",
     "You never have to pick one",
     "You never have to pick anything",
-    "The Server page says why",
+    "The Power page says why",
     "It is starting now",
     // The first page, ready: no action offered HERE — the composer beside
-    // it is where the message goes (an EmptyState arm, added with the
-    // remote-server removal).
-    "Write your first message below to begin.",
+    // it is where the message goes.
+    "Write your first message below to talk with Kalsa.",
   ];
   for (const { heading, sentence, button, working, walk, qr } of results) {
     // The matcher's probe renders lists, not actions: a card that exists
@@ -532,7 +533,8 @@ try {
     }
     const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
     const pressable = button && !button.disabled && button.text.trim() !== "";
-    const progressButton = button && button.disabled && (button.text === "Measuring…" || button.text === "Starting" || button.text === "Stopping");
+    const progressButton =
+      button && button.disabled && (button.text === "Kalsa is starting…" || button.text === "Kalsa is turning off…");
     if (!pressable && !progressButton && !endsInNothing && !working && !walk && !qr) {
       problems.push(`dead end: ${heading}`);
     }
@@ -548,7 +550,7 @@ try {
       problems.push(`a download must make the once-only promise in an approved phrasing: ${heading}`);
     }
     const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB) · (\d+)%$/);
-    const noTotal = /^(Picking up where it stopped — )?(Receiving — the size was not announced\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
+    const noTotal = /^(Picking up where it stopped — )?(Downloading\. The total size isn't known yet\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
     if (full) {
       if (Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100) !== Number(full[4])) {
         problems.push(`the percentage must be the bytes' percentage: ${heading}`);
@@ -570,9 +572,9 @@ try {
   // and holds no stderr pipe to. The released case must also give way to a
   // phone that is working right now: a served connection is the opposite of
   // idle, so that is the fresher fact.
-  const ASLEEP_VERDICT = "On, asleep";
+  const ASLEEP_VERDICT = "Resting";
   const ASLEEP_SENTENCE =
-    "The model is not in memory right now. Your next message brings it back, which takes a few seconds.";
+    "Kalsa is resting to free up memory. Your next message wakes her up in a few seconds.";
   const asleepCard = results.find((r) => r.heading === "Status — running, asleep");
   const busyAsleepCard = results.find((r) => r.heading === "Status — running, asleep while a phone works");
   if (!asleepCard || !busyAsleepCard) {
@@ -603,7 +605,7 @@ try {
     if (card.all.includes("asleep")) {
       problems.push(`an unknown model residency must not be spoken as a fact: ${note}`);
     }
-    if (!card.all.includes("This computer is ready for you.")) {
+    if (!card.all.includes("Kalsa is ready.")) {
       problems.push(`an unknown model residency must keep the running words: ${note}`);
     }
   }
@@ -624,13 +626,13 @@ try {
     if (STOPPING_CARD.all.includes("Starting")) {
       problems.push("a drain was told as a start");
     }
-    if (!STOPPING_CARD.button || STOPPING_CARD.button.text !== "Stopping" || !STOPPING_CARD.button.disabled) {
-      problems.push("a drain must offer a disabled Stopping button");
+    if (!STOPPING_CARD.button || STOPPING_CARD.button.text !== "Kalsa is turning off…" || !STOPPING_CARD.button.disabled) {
+      problems.push("a drain must offer a disabled turning-off button");
     }
   }
   for (const drainingBusy of [false, true]) {
     const drainingWords = renderer.brainWords({ kind: "stopping" }, null, drainingBusy);
-    if (drainingWords.headline !== "Stopping" || drainingWords.button !== "Stopping" || drainingWords.enabled) {
+    if (drainingWords.headline !== "Kalsa is turning off…" || drainingWords.button !== "Kalsa is turning off…" || drainingWords.enabled) {
       problems.push(
         `brainWords(kind "stopping", busy ${drainingBusy}) answered ${JSON.stringify(drainingWords)} — the true state must win over the heuristic`,
       );
@@ -650,7 +652,7 @@ try {
     if (/could not (tell|check)/.test(MODEL_DRAIN_CARD.sentence)) {
       problems.push("the Models page claimed not to know while the state said stopping");
     }
-    if (!MODEL_DRAIN_CARD.sentence.includes("putting the model away")) {
+    if (!MODEL_DRAIN_CARD.sentence.includes("turning off")) {
       problems.push("the Models page must say the model is being put away during a drain");
     }
     if (MODEL_DRAIN_CARD.all.includes("could not")) {
@@ -765,16 +767,16 @@ try {
     if (fresh !== null && !FRESH_PHRASINGS.includes(fresh)) problems.push(`a fresh-square note must be an approved phrasing: ${heading}`);
     if (sentence.includes("now works with") && !buttons.includes(REPAIR_PRIMARY)) problems.push(`a paired phone must offer a deliberate way to pair another: ${heading}`);
     if (sentence.includes("saved the connection") && !buttons.includes(REPAIR_PRIMARY)) problems.push(`a pending delivery must still offer another pairing: ${heading}`);
-    if (heading.includes("saved here; the phone still needs the response") && !sentence.includes("a phone is still waiting to receive its connection")) {
+    if (heading.includes("saved here; the phone still needs the response") && !sentence.includes("the phone hasn't received it yet")) {
       problems.push(`a pending delivery must say that a phone is still owed its response: ${heading}`);
     }
     // The host row is one of the stored devices now, and it is not a phone:
     // the house sentence counts phones, so the check must count them too.
     const phoneNames = deviceNames.filter((name) => name !== "This computer");
-    if (phoneNames.length >= 2 && !sentence.includes("paired phones")) {
+    if (phoneNames.length >= 2 && !/works with|of your|phones are waiting/.test(sentence)) {
       problems.push(`a several-phone house must be described as a house, not by one of its phones: ${heading}`);
     }
-    if (sentence.includes("A phone is connecting right now") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
+    if (sentence.includes("A phone is connecting.") && !buttons.includes(CANCEL_PRIMARY)) problems.push(`a claimed square must offer cancellation: ${heading}`);
     // "No answer yet" is not "the check failed": the first read can take
     // seconds, so while it has not settled the page says it is checking and
     // offers nothing to retry, and a read that rejects AFTER an answer leaves
@@ -882,7 +884,7 @@ try {
       if (deviceNames.filter((name) => name === "Paired phone 4").length !== 1) {
         problems.push(`the seat is drawn exactly once: ${heading}`);
       }
-      if (!all.includes("Paired phone 4 is pairing again.")) {
+      if (!all.includes("Paired phone 4 is reconnecting.")) {
         problems.push(`the seat's row says the request: ${heading}`);
       }
       if (!forgetIds.includes(6) || forgetIds.includes(4)) {
@@ -973,7 +975,7 @@ try {
       if (connectedDetails.length > 0) {
         problems.push(`a replacement is not an Allow's outcome, and no beat lands: ${heading}`);
       }
-      if (!deviceDetails.includes("Paired phone 4 is pairing again.")) {
+      if (!deviceDetails.includes("Paired phone 4 is reconnecting.")) {
         problems.push(`the seat says the new ask: ${heading}`);
       }
       if (disabledButtons.includes("Allow") || disabledButtons.includes("Refuse")) {
@@ -984,7 +986,7 @@ try {
       if (disabledButtons.includes("Allow") || disabledButtons.includes("Refuse")) {
         problems.push(`a decision the store did not take leaves the buttons free: ${heading}`);
       }
-      if (!deviceDetails.includes("Paired phone 4 is pairing again.")) {
+      if (!deviceDetails.includes("Paired phone 4 is reconnecting.")) {
         problems.push(`the request stands until the store takes it: ${heading}`);
       }
       if (connectedDetails.length > 0) {
@@ -1011,7 +1013,7 @@ try {
       if (deviceNames.includes("Paired phone 5")) {
         problems.push(`a pairing-again request gets no row of its own: ${heading}`);
       }
-      if (!all.includes("Paired phone 4 is pairing again.")) {
+      if (!all.includes("Paired phone 4 is reconnecting.")) {
         problems.push(`the seat's row says the request in the owner's own words: ${heading}`);
       }
       if (forgetIds.includes(4)) {
@@ -1080,7 +1082,7 @@ try {
       if (connectingDots !== 0) {
         problems.push(`under reduced motion the claiming sentence stands alone: ${heading}`);
       }
-      if (!sentence.includes("A phone is connecting right now.")) {
+      if (!sentence.includes("A phone is connecting.")) {
         problems.push(`the sentence itself stays: ${heading}`);
       }
     }
@@ -1100,7 +1102,7 @@ try {
       problems.push(`only a row the door names may carry the live dot: ${heading}`);
     }
     if (heading.includes("an invitation is taking longer than usual")) {
-      if (!all.includes("This is taking longer than usual. If the invitation appears below, copy its link from there.")) {
+      if (!all.includes("Making the invite is taking a while. When it appears below, copy the link.")) {
         problems.push(`a slow create says so: ${heading}`);
       }
       if (all.includes("This invitation could not be made")) {
@@ -1138,7 +1140,7 @@ try {
     if (heading.includes("the connection could not be saved")) {
       // True for both roads: a square can be drawn again, an invitation can
       // be sent again — neither promises the last attempt comes back.
-      if (!all.includes("This computer could not save the new phone. Start the pairing again, or send a new invite.")) {
+      if (!all.includes("Connect it again, or send a new invite.")) {
         problems.push(`the save failure is worded for both roads: ${heading}`);
       }
       if (all.includes("Trying again usually works")) {
@@ -1146,7 +1148,7 @@ try {
       }
     }
     if (heading.includes("earlier invitations could not be read")) {
-      if (!all.includes("Earlier invitations could not be read, so they were cancelled for safety.")) {
+      if (!all.includes("Older invites were cancelled to keep them safe. Send a new one if you need it.")) {
         problems.push(`a discarded file is said once, plainly: ${heading}`);
       }
     }
@@ -1190,14 +1192,14 @@ try {
       // A seat that is pairing again carries Allow/Deny for the request
       // instead of Forget: one phone, one row, and no Forget while the
       // request stands.
-      const pairingAgain = deviceDetails.filter((detail) => detail.endsWith("is pairing again.")).length;
+      const pairingAgain = deviceDetails.filter((detail) => detail.endsWith("is reconnecting.")).length;
       const approvedPhones = phones - waitingRows - pairingAgain;
       if (forgets !== approvedPhones) {
         problems.push(`every Forget must belong to an approved phone and none to This computer: ${heading} (${forgets} Forget for ${approvedPhones} approved phones)`);
       }
     }
     if (phones > 0) {
-      const expected = waitingRows === phones ? "Waiting for your OK" : "Paired";
+      const expected = waitingRows === phones ? "Waiting for your OK" : "Connected";
       if (headline !== expected) {
         problems.push(`a house with ${waitingRows} of ${phones} phones waiting must be headlined "${expected}", not "${headline}": ${heading}`);
       }
@@ -1205,13 +1207,14 @@ try {
     // The sentence's counts must be the card's own rows: the page holds the
     // devices it just drew, so a number that disagrees with them is a lie
     // whichever direction it misses.
-    const pairedCount = sentence.match(/(\d+) paired phones/);
+    const pairedCount = sentence.match(/works with (\d+) phones/);
     if (pairedCount && Number(pairedCount[1]) !== phones) {
       problems.push(`the sentence counts ${pairedCount[1]} paired phones but the card draws ${phones}: ${heading}`);
     }
-    const waitingCount = sentence.match(/(\d+) (?:is|are) waiting/);
-    if (waitingCount && Number(waitingCount[1]) !== waitingRows) {
-      problems.push(`the sentence counts ${waitingCount[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
+    const waitingMatch =
+      sentence.match(/(\d+) of your \d+ phones are waiting/) ?? sentence.match(/^(\d+) phones are waiting/);
+    if (waitingMatch && Number(waitingMatch[1]) !== waitingRows) {
+      problems.push(`the sentence counts ${waitingMatch[1]} waiting but the card draws ${waitingRows} waiting rows: ${heading}`);
     }
 
     // The first page's arms: the sentence and the button must be the words
@@ -1390,14 +1393,14 @@ try {
       }
     }
     const FIRST_PAGE = {
-      off: ["This computer is not running anything right now.", "Go to Server"],
-      service: ["This computer's chat connection is not working right now.", "Go to Devices"],
-      starting: ["Getting ready. On an older computer this can take a minute.", "Go to Server"],
-      key: ["This computer has not made its own connection key yet.", "Devices"],
+      off: ["Kalsa is off.", "Turn Kalsa on"],
+      service: ["Kalsa can't be reached from this page right now. Open Devices to fix it.", "Go to Devices"],
+      starting: ["Getting ready. On an older computer this can take a minute.", "Turn Kalsa on"],
+      key: ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
       "key-read": ["This computer could not read its own connection key.", "Devices"],
-      "key-junk": ["This computer has not made its own connection key yet.", "Devices"],
+      "key-junk": ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
       advanced: ["This computer has no model name yet.", "Add the model name"],
-      ready: ["Write your first message below to begin.", null],
+      ready: ["Write your first message below to talk with Kalsa.", null],
     };
     const armName = Object.keys(FIRST_PAGE).find((arm) =>
       heading.startsWith(`firstpage/${arm} `),
@@ -1411,7 +1414,7 @@ try {
         problems.push(`firstpage/${armName}: the arm must say "${wanted}": ${heading}`);
       }
       if (button === null) {
-        const offered = ["Go to Server", "Open settings", "Devices", "Add the model name"].filter((b) => buttons.includes(b));
+        const offered = ["Turn Kalsa on", "Open settings", "Devices", "Add the model name"].filter((b) => buttons.includes(b));
         if (offered.length > 0) {
           problems.push(`firstpage/${armName}: the ready page offers nothing to fix: ${JSON.stringify(offered)}`);
         }
@@ -1451,10 +1454,10 @@ try {
     // where the note is: an idle, claiming or failed card whose desk fell
     // back draws no note at all, and must not be asked for a sentence the
     // page never renders.
-    const movedExpected = noteExpected && deskPort !== null && !deskPreferred;
-    const movedLine = all.match(/on (\d+) this time — point the desk command at this number/);
-    if (movedExpected && Number(movedLine?.[1]) !== deskPort) {
-      problems.push(`a desk on a fallback number must say it is on the card's own desk number ${deskPort}: ${heading}`);
+    const movedExpected = heading.startsWith("Pairing") && noteExpected && deskPort !== null && !deskPreferred;
+    const movedLine = all.includes("Phone setup moved to a new port. Start the pairing again.");
+    if (movedExpected && !movedLine) {
+      problems.push(`a desk on a fallback number must say the setup moved and the pairing restarts: ${heading}`);
     }
     if (!movedExpected && movedLine) {
       problems.push(`a desk on its preferred number must not claim a move: ${heading}`);
@@ -1507,7 +1510,7 @@ try {
   }
 
   const failureText = await renderer.renderStartFailureProbe({ state: { kind: "stopped" }, startFailure: "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option." });
-  if (!failureText.includes("Did not start")) {
+  if (!failureText.includes("Kalsa couldn't start.")) {
     problems.push("a held start failure must not be titled as if something had been running");
   }
   if (!failureText.includes("The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.")) {

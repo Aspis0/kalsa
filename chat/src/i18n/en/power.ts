@@ -1,24 +1,24 @@
-// The on/off state as words, shared by the home page and the Server page:
+// The on/off state as words, shared by the home page and the Power page:
 // one decision, so the two pages can never disagree about the same machine.
 
 export const POWER = {
   notKnown: "Not known",
-  couldNotTell: "This page could not tell whether the assistant is running. Trying again usually works.",
+  couldNotTell: "Kalsa's state couldn't be read. Try again.",
   tryAgain: "Try again",
-  stopping: "Stopping",
+  stopping: "Kalsa is turning off…",
   puttingAway: "Putting the assistant away.",
-  starting: "Starting",
+  starting: "Kalsa is starting…",
   gettingReady: "Getting ready. On an older computer this can take a minute.",
-  didNotStart: "Did not start",
+  didNotStart: "Kalsa couldn't start. Try again.",
   off: "Off",
-  notRunningAnything: "This computer is not running anything right now.",
+  notRunningAnything: "Kalsa is off.",
   turnOn: "Turn on",
-  onAsleep: "On, asleep",
+  onAsleep: "Resting",
   on: "On",
-  readyForYou: "This computer is ready for you.",
-  asleepSentence: "The model is not in memory right now. Your next message brings it back, which takes a few seconds.",
+  readyForYou: "Kalsa is ready.",
+  asleepSentence: "Kalsa is resting to free up memory. Your next message wakes her up in a few seconds.",
   phoneInUse: "Your phone is using this computer right now.",
   turnOff: "Turn off",
   stopped: "Stopped",
-  stopFailure: "The assistant did not turn off. Closing this window will stop it.",
+  stopFailure: "Kalsa didn't turn off. Close this window to stop her.",
 };

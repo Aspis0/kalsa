@@ -107,7 +107,7 @@ function freeId(taken: Set<string>, wanted: string): string {
     language; the English defaults keep every caller without a table working. */
 export interface ArgumentPhrases {
   tooLong: string;
-  notValid: (name: string) => string;
+  notValid: () => string;
 }
 
 /**
@@ -116,7 +116,7 @@ export interface ArgumentPhrases {
  * model reads as the result, so the turn goes on.
  */
 export function readArguments(
-  name: string,
+  _name: string,
   argumentsText: string,
   cut = false,
   phrases?: ArgumentPhrases,
@@ -125,8 +125,8 @@ export function readArguments(
   problem: string | null;
 } {
   const say: ArgumentPhrases = phrases ?? {
-    tooLong: "The arguments for this call were longer than this app accepts, so nothing was run. Try again with a shorter query or address.",
-    notValid: (tool) => `The arguments for “${tool}” were not valid JSON, so nothing was run. Try the call again with proper JSON.`,
+    tooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
+    notValid: () => "Kalsa couldn't finish checking. Ask again.",
   };
   if (cut) return { args: {}, problem: say.tooLong };
   const raw = argumentsText.trim();
@@ -135,10 +135,10 @@ export function readArguments(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { args: {}, problem: say.notValid(name) };
+    return { args: {}, problem: say.notValid() };
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { args: {}, problem: say.notValid(name) };
+    return { args: {}, problem: say.notValid() };
   }
   return { args: parsed as Record<string, unknown>, problem: null };
 }

@@ -1,8 +1,8 @@
 // Traduit du copy anglais approuvé.
 
 export const CRASH = {
-    "title": "Quelque chose s'est mal passé.",
-    "body": "La vue de la conversation n'a pas pu être dessinée — cela signifie en général que les données enregistrées sont abîmées. Tes réglages sont intacts.",
+    "title": "Kalsa n'a pas pu afficher cette conversation.",
+    "body": "Recharge l'app. Si elle ne s'ouvre toujours pas, efface les discussions enregistrées. Tes réglages restent en sécurité.",
     "reload": "Recharger l'app",
-    "erase": "Effacer les données locales et repartir de zéro",
+    "erase": "Effacer les discussions enregistrées et repartir de zéro",
   };

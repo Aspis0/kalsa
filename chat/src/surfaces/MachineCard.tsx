@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { English } from "../i18n/en/all";
+import { speedLine } from "../lib/speed";
 import { useLanguage } from "../i18n/useLanguage";
 import "./surfaces.css";
 import "./BrainSurface.css";
@@ -67,7 +68,6 @@ export type Capability =
       refusal: string | null; // set when there is no pick; already a sentence
     };
 
-type Machine = Extract<Capability, { kind: "measured" }>["machine"];
 type Speed = ModelOption["speed"];
 
 // One byte formatter for the page. The divisor is binary and so is the LABEL:
@@ -85,38 +85,25 @@ export function bytesText(bytes: number, tag = "en"): string {
   return `${Number.isInteger(value) ? new Intl.NumberFormat(tag).format(value) : shown} GiB`;
 }
 
-// A memory RATE is decimal, because every figure it will ever be compared
-// against is: Apple says 400 GB/s, the fit says 197 GB/s, the probe reports
-// GB/s. Dividing those bytes by 1024^3 and writing "GB/s" printed 183.5 for
-// a 197 GB/s machine — a number that appears nowhere else, and the shot
-// fixture had been bent to 183.5 to match it.
-function rateText(bytesPerSecond: number, tag: string): string {
-  const value = bytesPerSecond / 1e9;
-  const shown = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
-  return `${Number.isInteger(value) ? new Intl.NumberFormat(tag).format(value) : shown} GB/s`;
-}
-
-// One speed formatter, following the Server page's convention. A measured
-// rate keeps its figure here and names its machine in the detail line: it is
-// a fact about one computer, never a property of the model.
+// The speed as words a reader can hold: an estimate says it is one, a
+// measurement says where it was taken, and the figure rides beside the words.
 function speedText(t: English["machine"], speed: Speed, tag: string): string {
-  const oneDecimal = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const one = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   switch (speed.shape) {
     case "range":
-      return t.speedRange(oneDecimal.format(speed.low), oneDecimal.format(speed.high));
+      return t.speedRange(one.format(speed.low), one.format(speed.high));
     case "at_least":
-      return t.speedAtLeast(oneDecimal.format(speed.value));
+      return t.speedAbout(one.format(speed.value));
     case "measured":
-      return t.speedMeasured(oneDecimal.format(speed.value));
+      return speedLine(t, tag, speed.value);
   }
 }
 
 function speedDetail(t: English["machine"], speed: Speed): string {
   switch (speed.shape) {
     case "range":
-      return t.detailRange;
     case "at_least":
-      return t.detailAtLeast;
+      return t.detailRange;
     // "last": a measured figure is a reading from one moment on one
     // machine — an engine or driver change since can have moved it.
     case "measured":
@@ -124,50 +111,14 @@ function speedDetail(t: English["machine"], speed: Speed): string {
   }
 }
 
-// "This computer" in one breath, with the numbers inside it. Two facts are
-// load-bearing and survive any shortening: a rate taken on a slower path than
-// the model will use is a floor and is said as one ("at least"), never as a
-// figure the machine may not reach; and a graphics card whose memory could not
-// be read is not counted in the budget, which changes what the number means.
-function machineSentence(t: English["machine"], machine: Machine, tag: string): string {
-  const parts = [
-    t.memorySentence(bytesText(machine.ram_bytes, tag), bytesText(machine.budget_bytes, tag), machine.runs_on),
-  ];
-  if (!machine.gpu_accounted_for) {
-    parts.push(t.gpuUnreadable);
-  }
-  const rate = rateText(machine.bandwidth_bytes_per_second, tag);
-  parts.push(
-    {
-      measured: t.bandwidthMeasured(rate),
-      floor: t.bandwidthFloor(rate),
-      chip: t.bandwidthChip(rate),
-    }[machine.bandwidth_basis],
-  );
-  return parts.join(" ");
-}
-
-// What the model's detail line says. The context appears only when the
-// machine funds one: `funded_context` answers None for a row that fits with
-// nothing left over, and "null tokens of context" is not a fact to print.
-// `speed` is the figure the head already chose — the tune's own number
-// where one exists, the prediction otherwise.
+// The detail line under a choice's name: what it costs on this computer and
+// where the speed comes from.
 function modelDetail(t: English["machine"], model: ModelOption, speed: Speed, tag: string): string {
-  // "up to": the figure is the largest context the memory funds, and the
-  // speed beside it is priced at the chooser's window — the 65,536 tokens
-  // the rule judged the row in — not at that context. Saying it flat would
-  // put two numbers on one line that cannot both hold at once.
-  const context =
-    typeof model.context_tokens === "number"
-      ? ` · ${t.upToContext(new Intl.NumberFormat(tag).format(model.context_tokens))}`
-      : "";
-  return `${t.onDisk(model.quant, bytesText(model.download_bytes, tag))}${context} · ${speedDetail(t, speed)}`;
+  return `${t.onDisk(bytesText(model.download_bytes, tag))} · ${speedDetail(t, speed)}`;
 }
 
-// The machine card: the numbers the chooser used, and the model it chose. It is
-// the reason the Models page may say a model is picked automatically — the value
-// chosen is on the home page, in the open, before anyone thinks of overriding
-// it. Rendering only: the read belongs to the caller.
+// The choice card: the options the chooser found for this computer. Rendering
+// only: the read belongs to the caller.
 // One option, on three tight lines: what it is and how fast, what it costs on
 // disk and where the speed comes from, and why you would take this one. Three
 // lines because the page also has to hold the writing bar above the fold.
@@ -247,22 +198,20 @@ export function MachineCard({
   busy?: boolean;
   onChoose?: (token: string) => void;
 }) {
-  const { table, tag } = useLanguage();
+  const { table } = useLanguage();
   const t = table.machine;
   if (capability.kind !== "measured") {
     return <p className="surface-quiet">{t.notMeasured}</p>;
   }
 
-  const { machine, model, quicker, refusal } = capability;
+  const { model, quicker, refusal } = capability;
   // The second option only exists beside a first one; `quicker` is null on
   // every path that has no pick, so this is belt and braces around a shape
   // the backend already guarantees.
   const second = model ? quicker : null;
 
   return (
-    <section className="machine-card" aria-label={t.cardAria}>
-      <p className="surface-eyebrow">{t.thisComputer}</p>
-      <p className="surface-sentence">{machineSentence(t, machine, tag)}</p>
+    <section className="machine-card" aria-label={t.whatItWouldRun}>
 
       <p className="surface-eyebrow">
         {second ? t.whatItWouldRunPick : t.whatItWouldRun}
@@ -280,7 +229,7 @@ export function MachineCard({
                 length they were priced at and fall from there. On the card it
                 was dev material in the middle of a choice. */}
             <p className="machine-working-body">
-              {t.speedsHeld(new Intl.NumberFormat(tag).format(model.speed_context_tokens))}
+              {t.speedsHeld}
             </p>
           </details>
         </>

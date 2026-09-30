@@ -16,8 +16,7 @@ export type SetupArm =
     the UI already shows, so one fact has one sentence wherever the owner
     meets it:
     - no answer yet, stopped, failed or stopping → the Server page's
-      stopped sentence ("This computer is not running anything right now.")
-      and its "Go to Server";
+      stopped sentence ("Kalsa is off.") and its "Turn Kalsa on";
     - starting → the Server page's starting sentence: getting ready is not
       off. THIS is the transient arm: the poll's first `brain_state` answer
       lands within its second (the null arm below is shorter still); every

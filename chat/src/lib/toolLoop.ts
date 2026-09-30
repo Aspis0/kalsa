@@ -31,12 +31,12 @@ const MAX_TOOL_ROUNDS = 4;
  */
 /** The phrases every caller without a table hears. */
 const ENGLISH_PHRASES: ToolPhrases = {
-  noRoundLeft: "There was no round left to run this, so the answer had to be in words.",
-  turnEnded: (reason) => `The server sent a tool call but ended the turn as “${reason}”, so nothing was run.`,
-  nameNeverArrived: "The stream ended before this call's name arrived, so nothing was run.",
-  stopped: "Stopped before this finished.",
-  argumentsTooLong: "The arguments for this call were longer than this app accepts, so nothing was run. Try again with a shorter query or address.",
-  argumentsNotValid: (name) => `The arguments for “${name}” were not valid JSON, so nothing was run. Try the call again with proper JSON.`,
+  noRoundLeft: "Kalsa couldn't finish checking. Ask again.",
+  turnEnded: "Kalsa couldn't finish checking. Ask again.",
+  nameNeverArrived: "Kalsa couldn't finish checking. Ask again.",
+  stopped: "You stopped this before Kalsa finished.",
+  argumentsTooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
+  argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
 };
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
@@ -93,7 +93,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         calls,
         forTools(answered.finishReason)
           ? say.noRoundLeft
-          : say.turnEnded(answered.finishReason ?? ""),
+          : say.turnEnded,
       );
       if (askForWords) {
         forceWords = true;
@@ -116,7 +116,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     for (const call of runnable) {
       const { args, problem } = readArguments(call.name, call.arguments, call.cut, {
         tooLong: say.argumentsTooLong,
-        notValid: say.argumentsNotValid,
+        notValid: () => say.argumentsNotValid,
       });
       const started: ToolRun = {
         id: call.id,

@@ -1,24 +1,22 @@
 import { brainWords, useBrain } from "./useBrain";
-import { concurrencyRow, tierRows } from "../lib/tierPanel";
+import { speedLine } from "../lib/speed";
 import { SetupProgress } from "./SetupProgress";
 import { useLanguage } from "../i18n/useLanguage";
+import type { English } from "../i18n/en/all";
 import "./surfaces.css";
 
-function rateText(t: { notMeasuredYet: string; tokensPerSecond: (rate: string) => string }, tag: string, rate: number | undefined): string {
+function rateText(t: { notMeasuredYet: string }, machine: English["machine"], tag: string, rate: number | undefined): string {
   return typeof rate === "number" && Number.isFinite(rate) && rate > 0
-    ? t.tokensPerSecond(new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(rate))
+    ? speedLine(machine, tag, rate)
     : t.notMeasuredYet;
 }
 
-// The Server surface: one glance tells the owner whether the local server is on
-// and what it is doing, and the cards below show only facts with a named
-// source — the server's own rates, the disk tier's numbers as the door read
-// them (`tierRows`: residents over the door's capacity, the directory scan),
-// and the two-device concurrency figure, which carries the release artifact
-// it was measured on (`concurrencyRow`: a rate, never a wall time). While
-// the first walk runs, its progress (the `brain_progress`
-// events) replaces the body. The state's facts and words come from the shared
-// hook; this page adds only what is its own: the stop failure and the metrics.
+// The Power surface: one glance tells the owner whether Kalsa is on and what
+// she is doing, and the cards below show only facts with a named source —
+// her own measured speed and the phones connected now. While the first walk
+// runs, its progress (the `brain_progress` events) replaces the body. The
+// state's facts and words come from the shared hook; this page adds only
+// what is its own: the stop failure and the metrics.
 // A first run's Turn on refuses with words that point at the home page's
 // Start button — this page has no card of its own.
 export function ServerSurface() {
@@ -34,14 +32,6 @@ export function ServerSurface() {
     (device) => device.kind !== "host",
   ).length;
   const words = brainWords(state, heldFailure, busy, power);
-  // What the metrics grid may state: the tier's own rows, plus the
-  // concurrency row — which exists only while its constant names a
-  // `matched` release, so the number never travels without its artifact
-  // (PLAN-DISK-TIER §9). Both live inside the `running` branch below: no
-  // running server, no grid.
-  const panelRows = tierRows(metrics.tier, t, tag);
-  const concurrency = concurrencyRow(t);
-  if (concurrency) panelRows.push(concurrency);
 
   return (
     <div className="surface-page">
@@ -57,7 +47,7 @@ export function ServerSurface() {
               <div className="surface-metrics">
                 <div className="surface-metric">
                   <span className="surface-metric-label">{t.decode}</span>
-                  <strong className="surface-metric-value">{rateText(t, tag, metrics.decode_tokens_per_second)}</strong>
+                  <strong className="surface-metric-value">{rateText(t, table.machine, tag, metrics.decode_tokens_per_second)}</strong>
                   <span className="surface-metric-detail">{t.measuredByServer}</span>
                 </div>
                 <div className="surface-metric">
@@ -71,13 +61,6 @@ export function ServerSurface() {
                     at all) and the concurrency row, absent whenever the
                     measurement's status is not `matched` — the debt this row
                     owed is paid, and its gate is the provenance. */}
-                {panelRows.map((row) => (
-                  <div className="surface-metric" key={row.label}>
-                    <span className="surface-metric-label">{row.label}</span>
-                    <strong className="surface-metric-value">{row.value}</strong>
-                    <span className="surface-metric-detail">{row.detail}</span>
-                  </div>
-                ))}
               </div>
               {metrics.throttled === true ? (
                 <p className="surface-note">{t.throttled}</p>

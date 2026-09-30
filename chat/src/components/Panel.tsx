@@ -22,7 +22,6 @@ interface PanelProps {
 function metaLine(t: English["files"], a: Attachment): string {
   const parts: string[] = [a.kind];
   if (a.pages !== undefined) parts.push(a.pages === 1 ? t.onePage : t.pages(a.pages));
-  parts.push(t.tokens(String(a.tokens)));
   return parts.join(" · ");
 }
 

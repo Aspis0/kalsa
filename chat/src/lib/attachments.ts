@@ -30,21 +30,17 @@ export const CONTEXT_RESERVE_TOKENS = 512;
 
 export type AttachmentFailure = "unsupported" | "too-big" | "unreadable" | "empty";
 
-/** The sentence's own parts, so the catch site can say it in the owner's
- *      language: the file's name and, where the refusal names them, the app,
- *      the modern extension and the whole megabytes. */
+/** The one part a refusal sentence still names: the app an old format
+ *  names. The file's own name no longer appears in the words. */
 export interface AttachmentRefusal {
-  name: string;
   app?: string;
-  modern?: string;
-  mb?: number;
 }
 
 export class AttachmentError extends Error {
   failure: AttachmentFailure;
   refusal: AttachmentRefusal;
 
-  constructor(failure: AttachmentFailure, message: string, refusal: AttachmentRefusal) {
+  constructor(failure: AttachmentFailure, message: string, refusal: AttachmentRefusal = {}) {
     super(message);
     this.name = "AttachmentError";
     this.failure = failure;
@@ -212,20 +208,18 @@ export async function extractAttachment(file: File): Promise<Attachment> {
       throw new AttachmentError(
         "unsupported",
         `“${file.name}” is in ${legacy.app}’s older format (before 2007). Saving it as .${legacy.modern} and attaching that copy works.`,
-        { name: file.name, app: legacy.app, modern: legacy.modern },
+        { app: legacy.app },
       );
     }
     throw new AttachmentError(
       "unsupported",
       `“${file.name}” is not a readable kind. Text, markdown, CSV, PDF, Word and PowerPoint files work.`,
-      { name: file.name },
     );
   }
   if (file.size > MAX_FILE_BYTES) {
     throw new AttachmentError(
       "too-big",
       `“${file.name}” is too large to read in the browser (${Math.round(file.size / 1048576)} MB).`,
-      { name: file.name, mb: Math.round(file.size / 1048576) },
     );
   }
   let text: string;
@@ -257,7 +251,6 @@ export async function extractAttachment(file: File): Promise<Attachment> {
     throw new AttachmentError(
       "unreadable",
       `“${file.name}” could not be read. The file may be damaged or protected.`,
-      { name: file.name },
     );
   }
   text = cleanText(text);
@@ -265,7 +258,6 @@ export async function extractAttachment(file: File): Promise<Attachment> {
     throw new AttachmentError(
       "unreadable",
       `“${file.name}” holds no readable text (a scan without a text layer reads as blank).`,
-      { name: file.name },
     );
   }
   return {

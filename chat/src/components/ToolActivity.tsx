@@ -1,4 +1,3 @@
-import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
@@ -7,8 +6,7 @@ import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
 
 /**
- * What the assistant did before it answered: one quiet, collapsed line per
- * call. The page never loads anything from the network for this — no favicon,
+ * What Kalsa did before she answered: one quiet, collapsed line per check. The page never loads anything from the network for this — no favicon,
  * no preview image — because that would be a request out of the webview, which
  * is exactly what the content security policy forbids and this design avoids.
  */
@@ -36,6 +34,26 @@ function ToolRow({ run }: { run: ToolRun }) {
   const url = publicHttpUrl(asked);
   const sources = run.name === "web_fetch" ? (url ? [url] : []) : linksIn(run.result);
   const failed = run.state === "failed" || run.state === "refused";
+  // The one line the row says: the two plain web outcomes, the failure
+  // sentences, and nothing for a finished check that needs no words — an
+  // internal name is never shown.
+  const summary =
+    run.state === "running"
+      ? t.checking
+      : failed
+        ? run.name === "web_fetch"
+          ? t.pageNotOpened
+          : run.name === "web_search"
+            ? t.searchDidNotRun
+            : t.couldNotFinish
+        : run.name === "web_fetch"
+          ? t.read(url ? hostOf(url) : t.aPage)
+          : run.name === "web_search"
+            ? query
+              ? t.searchedFor(query)
+              : t.searchedWeb
+            : null;
+  if (summary === null) return null;
 
   return (
     <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>
@@ -43,10 +61,10 @@ function ToolRow({ run }: { run: ToolRun }) {
         {run.state === "running" ? (
           <span className="tool-working">
             <span />
-            {running(t, run.name)}
+            {t.checking}
           </span>
         ) : (
-          <span>{summaryOf(t, run.name, failed, query, url ?? asked)}</span>
+          <span>{summary}</span>
         )}
       </summary>
       <div className="tool-detail">
@@ -71,26 +89,6 @@ function ToolRow({ run }: { run: ToolRun }) {
       </div>
     </details>
   );
-}
-
-function running(t: English["tools"], name: string): string {
-  if (name === "web_fetch") return t.openingPage;
-  if (name === "web_search") return t.searchingWeb;
-  if (!name) return t.unnamedRunning;
-  return t.running(name);
-}
-
-function summaryOf(t: English["tools"], name: string, failed: boolean, query: string, url: string): string {
-  if (!name) return failed ? t.unnamedFailed : t.ranUnnamed;
-  if (name === "web_fetch") {
-    return failed ? t.pageNotOpened : t.read(url ? hostOf(url) : t.aPage);
-  }
-
-  if (name === "web_search") {
-    if (failed) return t.searchDidNotRun;
-    return query ? t.searchedFor(query) : t.searchedWeb;
-  }
-  return failed ? t.didNotRun(name) : t.ran(name);
 }
 
 function hostOf(url: string): string {

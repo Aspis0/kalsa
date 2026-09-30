@@ -14,7 +14,7 @@ import { loadSampling, samplingWire } from "./lib/sampling";
 import { loadThinking, saveThinking, thinkingSupport } from "./lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta, LiveSettings, ToolRun } from "./lib/types";
 import type { Attachment } from "./lib/attachments";
-import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
+import { AttachmentError, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import { filesRead } from "./lib/files";
 import type { SurfaceKey } from "./app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "./app/handoff";
@@ -80,16 +80,13 @@ function surfaceLabel(surface: SurfaceKey, table: Table): string {
 }
 
 export function App() {
-  const { table, tag } = useLanguage();
+  const { table } = useLanguage();
   // The stable callbacks below read the table through this ref, so a
   // language chosen mid-session reaches the next turn's words.
   const words = useRef(table);
   words.current = table;
   const chrome = table.chrome;
   const t = table.shell;
-  // One formatter for every figure the shell says, so the separators agree
-  // with the words around them.
-  const num = (value: number): string => new Intl.NumberFormat(tag).format(value);
   // The brain is the home: the app opens on it, and the chat is reached by
   // writing in its bar — never by selecting a tab (THE-BRAIN-IS-THE-HOME.md).
   const [surface, setSurface] = useState<SurfaceKey>("brain");
@@ -406,7 +403,7 @@ export function App() {
           have: trial.have,
         });
         setAttachStatus(null);
-        setLiveMessage(t.attachmentRefused);
+        setLiveMessage(t.tooMuchAtOnce);
         return;
       }
       for (const attachment of extracted) store.putAttachment(target, attachment);
@@ -416,7 +413,7 @@ export function App() {
         extracted.length === 1 ? t.attachedOne(extracted[0].name) : t.attachedMany(extracted.length),
       );
     } catch (error) {
-      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotRead);
+      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotOpen);
       setLiveMessage(t.attachmentFailed);
     }
   }
@@ -432,23 +429,23 @@ export function App() {
       await attachFiles([new File([bytes], name)]);
     } catch (error) {
       setAttachStatus(
-        error instanceof AttachmentError ? refusalSentence(error) : table.files.notFromComputer(name),
+        error instanceof AttachmentError ? refusalSentence(error) : table.files.couldNotOpen,
       );
     }
   }
 
-  // The extractor reports a code and its parts; the sentence is the table's.
+  // The extractor reports a code; the sentence is the table's.
   function refusalSentence(error: AttachmentError): string {
-    const r = error.refusal;
+    const files = table.files;
     switch (error.failure) {
       case "unsupported":
-        return r.app && r.modern ? table.files.unsupportedLegacy(r.name, r.app, r.modern) : table.files.unsupportedKind(r.name);
+        return error.refusal.app ? files.unsupportedLegacy(error.refusal.app) : files.unsupportedKind;
       case "too-big":
-        return table.files.tooBig(r.name, num(r.mb ?? 0));
+        return files.tooBig;
       case "unreadable":
-        return table.files.unreadable(r.name);
+        return files.unreadable;
       case "empty":
-        return table.files.noText(r.name);
+        return files.noText;
     }
   }
 
@@ -507,19 +504,9 @@ export function App() {
         // placeholder so the error has a place to live, and say the numbers.
         setFailedById((prev) => ({
           ...prev,
-          [assistantId]: {
-            messageId: assistantId,
-            kind: "oversize",
-            detail: shell.oversizeDetail(
-              num(ctx.docTokens),
-              num(ctx.historyTokens),
-              num(CONTEXT_RESERVE_TOKENS),
-              num(ctx.need),
-              num(ctx.have),
-            ),
-          },
+          [assistantId]: { messageId: assistantId, kind: "oversize" },
         }));
-        setLiveMessage(shell.noLongerFits);
+        setLiveMessage(shell.tooMuchAtOnce);
         return;
       }
       const history = ctx.wire;
@@ -634,14 +621,7 @@ export function App() {
               confirm: (check) => askOwner(check, runSignal),
             }),
           onToolRun: ingestToolRun,
-          toolPhrases: {
-            noRoundLeft: words.current.tools.noRoundLeft,
-            turnEnded: words.current.tools.turnEnded,
-            nameNeverArrived: words.current.tools.nameNeverArrived,
-            stopped: words.current.tools.stopped,
-            argumentsTooLong: words.current.tools.argumentsTooLong,
-            argumentsNotValid: words.current.tools.argumentsNotValid,
-          },
+          toolPhrases: words.current.tools,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
               thoughtStartedAt = performance.now();
@@ -653,7 +633,7 @@ export function App() {
             if (firstToken) {
               firstToken = false;
               answerStartedAt = performance.now();
-              setLiveMessage(shell.responding);
+              setLiveMessage(shell.waitingFirstWord);
             }
             ingest("content", token);
           },
@@ -674,17 +654,10 @@ export function App() {
         } else {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
-          const state: FailedState = {
-            messageId: assistantId,
-            kind,
-            ...(error instanceof ChatRequestError && error.status !== undefined
-              ? { status: error.status }
-              : {}),
-            ...(error instanceof ChatRequestError && error.url ? { url: error.url } : {}),
-          };
+          const state: FailedState = { messageId: assistantId, kind };
           persistLive();
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
-          setLiveMessage(kind === "truncated" ? shell.stoppedHalfway : shell.responseFailed);
+          setLiveMessage(shell.stoppedBeforeFinishing);
         }
       } finally {
         dropLive();
@@ -1172,14 +1145,12 @@ export function App() {
                 {refusal ? (
                   <div className="refusal-banner" role="alert">
                     <span>
-                      <strong>{refusal.names.includes(",") ? t.dontFit(refusal.names) : t.doesntFit(refusal.names)}</strong>
-                      {t.refusalBody(
-                        num(refusal.docTokens),
-                        num(refusal.historyTokens),
-                        num(CONTEXT_RESERVE_TOKENS),
-                        num(refusal.need),
-                        num(refusal.have),
-                      )}
+                      <strong>
+                        {refusal.names.includes(",")
+                          ? t.tooMuchPlural(refusal.names)
+                          : t.tooMuchSingular(refusal.names)}
+                      </strong>
+                      {` ${t.refusalBody}`}
                     </span>
                     <button type="button" onClick={() => setRefusal(null)}>
                       {t.dismiss}

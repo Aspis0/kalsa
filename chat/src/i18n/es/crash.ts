@@ -1,8 +1,8 @@
 // Traducido del copy inglés aprobado.
 
 export const CRASH = {
-    "title": "Algo salió mal.",
-    "body": "La vista de la conversación no se pudo dibujar — normalmente significa que los datos guardados están dañados. Tus ajustes quedan intactos.",
+    "title": "Kalsa no pudo mostrar esta conversación.",
+    "body": "Recarga la app. Si sigue sin abrirse, borra las conversaciones guardadas. Tus ajustes quedan a salvo.",
     "reload": "Recargar la app",
-    "erase": "Borrar los datos locales y empezar de cero",
+    "erase": "Borrar las conversaciones guardadas y empezar de cero",
   };

@@ -7,8 +7,8 @@ export const INVITE = {
     "cancelInvite": "Annulla l'invito",
     "expires": (time: string) => `Scade ${time}`,
     "tomorrowAt": (time: string) => `domani alle ${time}`,
-    "slowCreate": "Ci sta mettendo più del solito. Se l'invito compare qui sotto, copiane il link da lì.",
-    "discarded": "Gli inviti precedenti non si sono potuti leggere, quindi per sicurezza sono stati annullati.",
+    "slowCreate": "La creazione dell'invito sta prendendo tempo. Quando compare qui sotto, copia il link.",
+    "discarded": "Gli inviti più vecchi sono stati annullati per sicurezza. Inviane uno nuovo se ti serve.",
     "copiedUntil": (time: string) => `Link copiato. Funziona una volta sola, fino a ${time}. Mandalo solo alla persona che vuoi aggiungere.`,
     "copiedOneDay": "Link copiato. Funziona una volta sola, per un giorno. Mandalo solo alla persona che vuoi aggiungere.",
   };

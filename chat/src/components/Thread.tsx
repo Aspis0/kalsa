@@ -12,9 +12,6 @@ import "./Thread.css";
 export interface FailedState {
   messageId: string;
   kind: ChatErrorKind;
-  status?: number;
-  url?: string;
-  detail?: string;
 }
 
 interface ThreadProps {
@@ -25,24 +22,21 @@ interface ThreadProps {
   onRetry: (messageId: string) => void;
 }
 
-function errorCopy(t: English["thread"], kind: ChatErrorKind, status?: number): { title: string; body: string } {
+function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
-      return status === 403
-        ? { title: t.refusedTitle, body: t.refusedBody }
-        : { title: t.unacceptedTitle, body: t.unacceptedBody };
-    case "network":
-      return { title: t.unreachableTitle, body: t.unreachableBody };
     case "bad-response":
-      return { title: t.notAStreamTitle, body: t.notAStreamBody };
+      return { title: t.couldntAnswerTitle, body: t.couldntAnswerBody };
+    case "network":
+      return { title: t.notRunningTitle, body: t.notRunningBody };
     case "truncated":
       return { title: t.stoppedHalfwayTitle, body: t.stoppedHalfwayBody };
     case "timeout":
-      return { title: t.tooSlowTitle, body: t.tooSlowBody };
+      return { title: t.stoppedTitle, body: t.stoppedBody };
     case "oversize":
-      return { title: t.exceedsTitle, body: t.exceedsBody };
+      return { title: t.tooMuchTitle, body: t.tooMuchBody };
     default:
-      return { title: t.errorTitle, body: t.errorBody(status) };
+      return { title: t.tryAgainTitle, body: t.tryAgainBody };
   }
 }
 
@@ -124,10 +118,8 @@ function AssistantRow({
         ) : null}
         {failedHere ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(t, failed.kind, failed.status).title}</p>
-            <p className="error-body">{errorCopy(t, failed.kind, failed.status).body}</p>
-            {failed.url ? <p className="error-url">{t.called(failed.url)}</p> : null}
-            {failed.detail ? <p className="error-detail">{failed.detail}</p> : null}
+            <p className="error-title">{errorCopy(t, failed.kind).title}</p>
+            <p className="error-body">{errorCopy(t, failed.kind).body}</p>
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 {t.tryAgain}

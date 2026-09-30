@@ -2,8 +2,8 @@
 // ways out.
 
 export const CRASH = {
-  title: "Something went wrong.",
-  body: "The conversation view could not be drawn — usually this means the saved data is damaged. Your settings are untouched.",
+  title: "Kalsa couldn't show this conversation.",
+  body: "Reload the app. If it still doesn't open, erase saved conversations. Your settings stay safe.",
   reload: "Reload the app",
-  erase: "Erase local data and start fresh",
+  erase: "Erase saved conversations and start fresh",
 };

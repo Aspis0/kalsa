@@ -159,7 +159,7 @@ function tailscaleNote(
   // rule exists, so the sentence only states where the desk is and what
   // the desk command must say.
   const moved =
-    isPort(deskPort) && !deskOnPreferred ? t.deskMoved(deskPort) : "";
+    isPort(deskPort) && !deskOnPreferred ? t.deskMoved : "";
   // Each road is named only when its command is: a sentence about a road
   // with no command would be a promise the note does not keep.
   const where =
