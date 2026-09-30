@@ -24,6 +24,8 @@ mod metrics;
 mod options;
 mod pairing;
 mod room;
+mod room_commands;
+mod room_events;
 mod placement;
 mod road;
 mod startup;
@@ -1904,11 +1906,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_allow_device,
             brain_pairing_forget,
             brain_host_credential,
-            room::brain_room,
-            room::brain_room_history,
-            room::brain_room_post,
-            room::brain_room_set_name,
-            room::brain_room_stop,
+            room_commands::brain_room,
+            room_commands::brain_room_history,
+            room_commands::brain_room_post,
+            room_commands::brain_room_set_name,
+            room_commands::brain_room_stop,
             invites::brain_invite_create,
             invites::brain_invite_list,
             invites::brain_invite_link,
@@ -2025,7 +2027,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // A second set can only mean the hook ran twice; the
                     // room is opened once and the first one is the room.
                     let _ = app.state::<Brain>().room.set(Arc::new(opened));
-                    room::spawn_event_pump(app.handle().clone(), &app.state::<Brain>());
+                    room_events::spawn_event_pump(app.handle().clone(), &app.state::<Brain>());
                 }
                 Err(error) => {
                     eprintln!("kalsa-brain: the room could not be opened: {error}");
@@ -2091,7 +2093,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 desk.listener.shutdown();
             }
             if let Some(brain) = app.try_state::<Brain>() {
-                room::stop_event_pump(&brain);
+                room_events::stop_event_pump(&brain);
                 brain.stop_door();
                 brain.supervisor.shutdown();
             }

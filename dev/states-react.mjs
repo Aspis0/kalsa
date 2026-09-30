@@ -18,7 +18,7 @@ import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
-import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/useRoomFeed";
+import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/roomFeed";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";

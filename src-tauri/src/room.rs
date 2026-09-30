@@ -1,12 +1,13 @@
 //! The room on this computer, from the app's side: the host's own ways in
-//! — plain functions the Tauri commands of the room's desktop view will
-//! call — and the reconcile that keeps the room's roster in step with the
-//! pairing store, because a device the owner forgets must leave the room
-//! the same moment it leaves the door.
+//! — the functions the room commands call — the name resolution both the
+//! commands and the event feed share, and the reconcile that keeps the
+//! room's roster in step with the pairing store, because a device the
+//! owner forgets must leave the room the same moment it leaves the door.
 
 use crate::DeviceKind;
 use kalsa_door::{DeviceId, Devices};
-use kalsa_room::{Entry, MemberEvent, Room};
+use kalsa_room::{Entry, MemberEvent, MemberId, Room};
+use std::collections::HashMap;
 
 /// The host posts to their own room. The `client_msg_id` is the caller's to
 /// mint and keep stable across retries, exactly as a phone's is.
@@ -84,12 +85,97 @@ pub fn reconcile(room: &Room, host: DeviceId, old: &Devices, new: &Devices) {
     }
 }
 
+/// The pairing store's device labels, for the display names the room
+/// itself does not hold, plus the host's own label read from the Host
+/// record — the fallback for the host's name must be THIS computer's, not
+/// whichever phone a hash map happens to hand back first. Read per
+/// command: the store is the labels' home and the page refreshes anyway.
+pub(crate) struct Labels {
+    pub(crate) by_device: HashMap<u32, String>,
+    pub(crate) host: String,
+}
+
+pub(crate) fn device_labels(desk: &crate::Desk) -> Labels {
+    let stored = kalsa_pairing::store::load_devices(&desk.pairing_file).unwrap_or_default();
+    let host = stored
+        .iter()
+        .find(|device| device.kind == DeviceKind::Host)
+        .map(|device| device.label.clone())
+        .unwrap_or_else(|| "This computer".to_string());
+    Labels {
+        by_device: stored
+            .into_iter()
+            .map(|device| (device.id, device.label))
+            .collect(),
+        host,
+    }
+}
+
+pub(crate) fn display_name(room: &Room, labels: &Labels, member: kalsa_room::MemberId) -> String {
+    match member {
+        kalsa_room::MemberId::Ai => "Kalsa".to_string(),
+        kalsa_room::MemberId::Host => {
+            room.name_of(member).unwrap_or_else(|| labels.host.clone())
+        }
+        kalsa_room::MemberId::Member(_) => room.name_of(member).unwrap_or_else(|| {
+            room.device_of(member)
+                .and_then(|device| labels.by_device.get(&device).cloned())
+                .unwrap_or_else(|| "Former member".to_string())
+        }),
+    }
+}
+
+/// Why the host's call was not taken, as the protocol's pair.
+pub(crate) struct CallOutcome {
+    pub(crate) ai_call: Option<&'static str>,
+    pub(crate) refusal: Option<&'static str>,
+}
+
+/// Takes the host's call and drives it on the running door. A drive that
+/// fails releases the turn it took — `end_turn` hands the queue's next
+/// call back, and that one is tried too — so a door that cannot drive
+/// never leaves a phantom turn every member waits behind. The message the
+/// call rode on stays in the transcript either way.
+pub(crate) fn take_host_call(
+    room: &Room,
+    client_msg_id: &str,
+    mut drive: impl FnMut(MemberId, u64) -> bool,
+) -> CallOutcome {
+    match room.submit_call(kalsa_room::MemberId::Host, client_msg_id) {
+        Err(_) => CallOutcome {
+            ai_call: Some("refused"),
+            refusal: Some("already_pending"),
+        },
+        Ok(kalsa_room::CallTaken::Queued) => CallOutcome {
+            ai_call: Some("queued"),
+            refusal: None,
+        },
+        Ok(kalsa_room::CallTaken::Starts(turn)) => {
+            let mut current = Some((kalsa_room::MemberId::Host, turn));
+            while let Some((member, this_turn)) = current {
+                if drive(member, this_turn) {
+                    return CallOutcome {
+                        ai_call: Some("queued"),
+                        refusal: None,
+                    };
+                }
+                current = room.end_turn(member);
+            }
+            CallOutcome {
+                ai_call: Some("refused"),
+                refusal: Some("could_not_start"),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
 
     use kalsa_door::{DeviceEntry, Devices};
+    use kalsa_room::{CallRefused, CallTaken};
 
     fn scratch(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -116,6 +202,23 @@ mod tests {
             })
             .collect();
         Devices::new(entries).unwrap()
+    }
+
+    fn open(name: &str) -> (std::path::PathBuf, Room) {
+        let dir = scratch(name);
+        let room = Room::open(&dir).unwrap();
+        (dir, room)
+    }
+
+    fn phone(room: &Room, device: u32) -> kalsa_room::MemberId {
+        room.enroll(device).expect("the device enrolls")
+    }
+
+    fn member_number(member: kalsa_room::MemberId) -> u32 {
+        match member {
+            kalsa_room::MemberId::Member(number) => number,
+            other => other.wire(),
+        }
     }
 
     #[test]
@@ -158,29 +261,16 @@ mod tests {
 
     #[test]
     fn the_ai_engine_seat_never_joins_or_leaves_the_roster() {
-        let dir = scratch("guest-seat");
+        let dir = scratch("ai-seat");
         let room = Room::open(&dir).unwrap();
-        let host = DeviceId::new(0);
-        let phone = DeviceId::new(1);
-        let guest = kalsa_door::guest_entry(&"a".repeat(64)).unwrap();
-        let with_guest = Devices::new(vec![
-            DeviceEntry::new(host, "This computer", "0".repeat(64)).unwrap(),
-            DeviceEntry::new(phone, "Paired phone", "1".repeat(64)).unwrap(),
-            guest,
-        ])
-        .unwrap();
-        let without_guest = devices_of(2);
-        let cursor = room.next_cursor();
-
-        reconcile(&room, host, &with_guest, &without_guest);
-        reconcile(&room, host, &without_guest, &with_guest);
-
-        assert!(room.member_of(kalsa_door::ROOM_DEVICE).is_none());
+        let before = room.entries_for_ai().len();
+        reconcile(&room, DeviceId::new(0), &devices_of(1), &devices_of(3));
         assert_eq!(
-            room.next_cursor(),
-            cursor,
-            "the guest emits no join or leave"
+            room.member_of(kalsa_door::ROOM_DEVICE),
+            None,
+            "the guest's engine seat is not a roster member"
         );
+        assert_eq!(room.entries_for_ai().len(), before);
     }
 
     #[test]
@@ -192,458 +282,60 @@ mod tests {
         assert_eq!(set_host_display_name(&room, "Studio").unwrap(), "Studio");
         assert!(set_host_display_name(&room, "Kalsa").is_err());
     }
-}
 
-// --- The desktop room view's commands ---
-
-use tauri::{Emitter, Manager};
-
-
-use serde::Serialize;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-
-/// One row of the room's member list, as the host's view reads it. Names
-/// are resolved here, once, from the room and the pairing labels; a
-/// former member keeps the name it had.
-#[derive(Serialize)]
-pub struct RoomMemberDto {
-    pub member_id: u32,
-    pub name: String,
-    pub kind: &'static str,
-    pub former: bool,
-}
-
-/// The AI guest's visible state, names only.
-#[derive(Serialize)]
-pub struct RoomAiDto {
-    pub state: &'static str,
-    pub running: Option<String>,
-    pub queue: Vec<String>,
-    pub you_pending: bool,
-}
-
-#[derive(Serialize)]
-pub struct RoomInfoDto {
-    /// The transcript's epoch (ROOM-PROTOCOL.md §7): the page keeps it and
-    /// replaces — never merges — what it holds when it moves.
-    pub epoch: String,
-    /// The room could not be opened on this computer. The page shows its
-    /// one quiet sentence and nothing else; there is nothing to fix here.
-    pub open: bool,
-    pub room_name: String,
-    pub you: u32,
-    pub members: Vec<RoomMemberDto>,
-    pub ai: RoomAiDto,
-}
-
-/// One transcript entry, with its author's display name and the former
-/// mark the protocol promises.
-#[derive(Serialize)]
-pub struct RoomEntryDto {
-    pub seq: u64,
-    pub member_id: u32,
-    pub name: String,
-    pub former: bool,
-    pub text: String,
-    pub time: u64,
-    pub call_ai: bool,
-    /// The AI's own answer carries how many of the room's messages it
-    /// read; `None` on everyone else's.
-    pub read: Option<u32>,
-}
-
-/// The pairing store's device labels, for the display names the room
-/// itself does not hold, plus the host's own label read from the Host
-/// record — the fallback for the host's name must be THIS computer's, not
-/// whichever phone a hash map happens to hand back first. Read per
-/// command: the store is the labels' home and the page refreshes anyway.
-struct Labels {
-    by_device: HashMap<u32, String>,
-    host: String,
-}
-
-fn device_labels(desk: &crate::Desk) -> Labels {
-    let stored = kalsa_pairing::store::load_devices(&desk.pairing_file).unwrap_or_default();
-    let host = stored
-        .iter()
-        .find(|device| device.kind == DeviceKind::Host)
-        .map(|device| device.label.clone())
-        .unwrap_or_else(|| "This computer".to_string());
-    Labels {
-        by_device: stored
-            .into_iter()
-            .map(|device| (device.id, device.label))
-            .collect(),
-        host,
-    }
-}
-
-/// The display name and the former mark for one member — the host, a
-/// phone, or the AI. A former member without a stored name is shown as
-/// the doc's fallback: the label went with the device.
-fn display_name(room: &Room, labels: &Labels, member: kalsa_room::MemberId) -> String {
-    match member {
-        kalsa_room::MemberId::Ai => "Kalsa".to_string(),
-        kalsa_room::MemberId::Host => {
-            room.name_of(member).unwrap_or_else(|| labels.host.clone())
-        }
-        kalsa_room::MemberId::Member(_) => room.name_of(member).unwrap_or_else(|| {
-            room.device_of(member)
-                .and_then(|device| labels.by_device.get(&device).cloned())
-                .unwrap_or_else(|| "Former member".to_string())
-        }),
-    }
-}
-
-fn member_dto(room: &Room, labels: &Labels, member: kalsa_room::MemberId, kind: &'static str) -> RoomMemberDto {
-    RoomMemberDto {
-        member_id: member.wire(),
-        name: display_name(room, labels, member),
-        kind,
-        former: room.is_former(member),
-    }
-}
-
-fn entry_dto(room: &Room, labels: &Labels, entry: &Entry) -> RoomEntryDto {
-    RoomEntryDto {
-        seq: entry.seq,
-        member_id: entry.member.wire(),
-        name: display_name(room, labels, entry.member),
-        former: room.is_former(entry.member),
-        text: entry.text.clone(),
-        time: entry.time,
-        call_ai: entry.call_ai,
-        read: (entry.member == kalsa_room::MemberId::Ai).then_some(entry.read),
-    }
-}
-
-/// The room's own state as the host's view opens: the member list, whose
-/// turn it is, and who waits. The host sees everything — no join floor.
-#[tauri::command]
-pub fn brain_room(desk: tauri::State<'_, crate::Desk>, brain: tauri::State<'_, crate::Brain>) -> Result<RoomInfoDto, String> {
-    let Some(room) = brain.room.get() else {
-        return Ok(RoomInfoDto {
-            epoch: String::new(),
-            open: false,
-            room_name: String::new(),
-            you: kalsa_room::MemberId::Host.wire(),
-            members: Vec::new(),
-            ai: RoomAiDto { state: "idle", running: None, queue: Vec::new(), you_pending: false },
+    #[test]
+    fn a_failed_drive_releases_the_whole_line() {
+        let (_dir, room) = open("take_call_release");
+        let host = kalsa_room::MemberId::Host;
+        let a = phone(&room, 1);
+        // The drive fails, and while it was being tried a new call queued
+        // behind the turn it could not start — exactly what a slow phone
+        // looks like to the queue.
+        let refused = take_host_call(&room, "h1", |_, _| {
+            let _ = room.submit_call(a, "a1");
+            false
         });
-    };
-    let labels = device_labels(&desk);
-    let stored = kalsa_pairing::store::load_devices(&desk.pairing_file).unwrap_or_default();
-    let mut members = vec![member_dto(room, &labels, kalsa_room::MemberId::Host, "host")];
-    for device in &stored {
-        // The host's own record is the first row; the guest's seat is the
-        // AI's, and never a member.
-        if device.kind == DeviceKind::Host || device.id == kalsa_door::ROOM_DEVICE {
-            continue;
-        }
-        if let Ok(member) = room.enroll(device.id) {
-            members.push(member_dto(room, &labels, member, "phone"));
-        }
+        assert_eq!(refused.refusal, Some("could_not_start"));
+        // The release frees the host's turn AND the queued call: nothing
+        // left running, nothing waiting, both free to call again fresh.
+        let state = room.turn_state();
+        assert!(
+            state.running.is_none() && state.pending.is_empty(),
+            "the phantom turn and the queued call were released"
+        );
+        assert!(matches!(
+            room.submit_call(a, "a1-fresh"),
+            Ok(CallTaken::Starts(_))
+        ));
+        assert_eq!(
+            room.submit_call(host, "h1-fresh"),
+            Ok(CallTaken::Queued),
+            "the host joins behind it instead of being refused as pending"
+        );
     }
-    members.push(member_dto(room, &labels, kalsa_room::MemberId::Ai, "ai"));
-    let turns = room.turn_state();
-    Ok(RoomInfoDto {
-        epoch: room.epoch(),
-        open: true,
-        room_name: stored
-            .iter()
-            .find(|device| device.kind == DeviceKind::Host)
-            .map(|device| device.label.clone())
-            .unwrap_or_default(),
-        you: kalsa_room::MemberId::Host.wire(),
-        members,
-        ai: RoomAiDto {
-            state: turns.state,
-            running: turns.running.map(|member| display_name(room, &labels, member)),
-            queue: turns
-                .pending
-                .iter()
-                .map(|member| display_name(room, &labels, *member))
-                .collect(),
-            you_pending: turns.running == Some(kalsa_room::MemberId::Host)
-                || turns.pending.contains(&kalsa_room::MemberId::Host),
-        },
-    })
-}
 
-/// A page of the room's transcript for the host, who sees all of it.
-#[tauri::command]
-pub fn brain_room_history(
-    desk: tauri::State<'_, crate::Desk>,
-    brain: tauri::State<'_, crate::Brain>,
-    after: Option<u64>,
-    before: Option<u64>,
-    limit: Option<usize>,
-) -> Result<Vec<RoomEntryDto>, RoomCommandError> {
-    let Some(room) = brain.room.get() else {
-        return Ok(Vec::new());
-    };
-    let labels = device_labels(&desk);
-    let limit = limit.unwrap_or(100).clamp(1, 200);
-    let page = match (after, before) {
-        (Some(after), _) => room.page_after(1, after, limit),
-        (None, Some(before)) => room.page_before(1, before, limit),
-        (None, None) => room.newest_page(1, limit),
-    }
-    .map_err(|_| RoomCommandError { code: "bad_request" })?;
-    Ok(page
-        .messages
-        .iter()
-        .map(|entry| entry_dto(room, &labels, entry))
-        .collect())
-}
-
-/// The host's own message into the room, with the call flag the button
-/// carries — the store itself adds a call for "@Kalsa" in the text.
-/// Why a call was not taken, as a stable code: the page translates the
-/// ones a user can act on and stays silent on the rest.
-struct CallOutcome {
-    ai_call: Option<&'static str>,
-    refusal: Option<&'static str>,
-}
-
-#[derive(Serialize)]
-pub struct RoomPostDto {
-    #[serde(flatten)]
-    pub entry: RoomEntryDto,
-    pub ai_call: Option<&'static str>,
-    pub refusal: Option<&'static str>,
-}
-
-#[tauri::command]
-pub fn brain_room_post(
-    brain: tauri::State<'_, crate::Brain>,
-    desk: tauri::State<'_, crate::Desk>,
-    client_msg_id: String,
-    text: String,
-    call_ai: bool,
-) -> Result<RoomPostDto, RoomCommandError> {
-    let Some(room) = brain.room.get() else {
-        return Err(RoomCommandError::internal());
-    };
-    let entry = host_post(room, &client_msg_id, &text, call_ai).map_err(command_error)?;
-    let labels = device_labels(&desk);
-    let dto = entry_dto(room, &labels, &entry);
-    let outcome = if !entry.call_ai {
-        CallOutcome { ai_call: None, refusal: None }
-    } else {
-        // The message landed; the call is taken only if a running door can
-        // drive it — a queue nobody serves would hold the host's call
-        // until restart, which is a lie the page cannot see past.
-        let door = brain
-            .door
-            .lock()
-            .ok()
-            .and_then(|guard| guard.as_ref().map(|active| Arc::clone(&active.door)));
-        match door {
-            Some(door) => match room.submit_call(kalsa_room::MemberId::Host, &client_msg_id) {
-                Ok(kalsa_room::CallTaken::Starts(turn)) => {
-                    if door.drive_room_turn(kalsa_room::MemberId::Host, turn) {
-                        CallOutcome { ai_call: Some("queued"), refusal: None }
-                    } else {
-                        CallOutcome { ai_call: Some("refused"), refusal: Some("could_not_start") }
-                    }
-                }
-                Ok(kalsa_room::CallTaken::Queued) => {
-                    CallOutcome { ai_call: Some("queued"), refusal: None }
-                }
-                Err(_) => CallOutcome { ai_call: Some("refused"), refusal: Some("already_pending") },
-            },
-            None => CallOutcome { ai_call: Some("refused"), refusal: Some("could_not_start") },
-        }
-    };
-    Ok(RoomPostDto { entry: dto, ai_call: outcome.ai_call, refusal: outcome.refusal })
-}
-
-/// The host's own display name in this room.
-#[tauri::command]
-pub fn brain_room_set_name(
-    brain: tauri::State<'_, crate::Brain>,
-    name: String,
-) -> Result<String, RoomCommandError> {
-    let Some(room) = brain.room.get() else {
-        return Err(RoomCommandError::internal());
-    };
-    set_host_display_name(room, &name).map_err(name_command_error)
-}
-
-/// The host stops the running answer. `false` when nothing is running:
-/// the page shows Stop only while an answer streams, so a click that
-/// raced the end simply does nothing.
-#[tauri::command]
-pub fn brain_room_stop(brain: tauri::State<'_, crate::Brain>) -> Result<bool, String> {
-    Ok(stop_turn(brain.inner()))
-}
-
-/// Why a command did not do what it was asked: a stable code the page
-/// translates (or stays silent on), never the store's own words. The
-/// doc's error table is the code list.
-#[derive(Serialize)]
-pub struct RoomCommandError {
-    pub code: &'static str,
-}
-
-impl RoomCommandError {
-    fn internal() -> Self {
-        Self { code: "internal" }
-    }
-}
-
-
-fn command_error(error: kalsa_room::PostError) -> RoomCommandError {
-    match error {
-        kalsa_room::PostError::TextTooLong => RoomCommandError { code: "too_large" },
-        kalsa_room::PostError::ClientIdReused => RoomCommandError { code: "client_msg_id_reused" },
-        kalsa_room::PostError::ReadOnly => RoomCommandError { code: "read_only" },
-        kalsa_room::PostError::EmptyText
-        | kalsa_room::PostError::BadClientMsgId
-        | kalsa_room::PostError::NotAMember => {
-            RoomCommandError { code: "bad_request" }
-        }
-        kalsa_room::PostError::Io(_) => RoomCommandError::internal(),
-    }
-}
-
-fn name_command_error(error: kalsa_room::NameError) -> RoomCommandError {
-    match error {
-        kalsa_room::NameError::TooLong => RoomCommandError { code: "too_large" },
-        kalsa_room::NameError::Reserved | kalsa_room::NameError::Taken => {
-            RoomCommandError { code: "name_taken" }
-        }
-        kalsa_room::NameError::Framing => RoomCommandError { code: "name_framing" },
-        kalsa_room::NameError::Empty
-        | kalsa_room::NameError::Invisible
-        | kalsa_room::NameError::MixedScripts
-        | kalsa_room::NameError::NotAMember => RoomCommandError { code: "bad_request" },
-        kalsa_room::NameError::Io(_) => RoomCommandError::internal(),
-    }
-}
-
-/// The room's live news, fed to the webview as Tauri events: one follower
-/// thread reads the room's own event log and re-emits each event as
-/// `room-event`. Started once beside the room, ended by the flag the
-/// app's exit path sets.
-pub fn spawn_event_pump(app: tauri::AppHandle, brain: &crate::Brain) {
-    let Some(room) = brain.room.get() else {
-        return;
-    };
-    // The flag is created under the lock and the second caller walks away
-    // with nothing: a pump that nobody holds the stop flag for would run
-    // past the app's exit, and two pumps would double every event.
-    let stop = {
-        let mut guard = brain
-            .room_events
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if guard.as_ref().is_some() {
-            return;
-        }
-        let stop = Arc::new(AtomicBool::new(false));
-        *guard = Some(Arc::clone(&stop));
-        stop
-    };
-    let room = Arc::clone(room);
-    let reader = std::thread::Builder::new()
-        .name("kalsa-room-events".into())
-        .spawn(move || {
-            let mut cursor = room.next_cursor();
-            loop {
-                if stop.load(Ordering::SeqCst) {
-                    return;
-                }
-                let mut out = Vec::new();
-                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-                if room.read_since(&mut cursor, deadline, &mut out) == kalsa_room::Take::BadCursor {
-                    cursor = room.next_cursor();
-                    continue;
-                }
-                for event in out {
-                    if let Ok(payload) = event_payload(&room, &app, event) {
-                        let _ = app.emit("room-event", payload);
-                    }
-                }
-            }
+    #[test]
+    fn a_working_drive_leaves_the_line_alone() {
+        let (_dir, room) = open("take_call_driven");
+        let host = kalsa_room::MemberId::Host;
+        let a = phone(&room, 1);
+        let outcome = take_host_call(&room, "h1", |member, turn| {
+            // A real drive does not release: the turn stays running, and a
+            // call that arrives while it runs queues behind it.
+            assert_eq!(member, host);
+            assert_eq!(turn, 1);
+            assert!(room.turn_alive(turn));
+            assert_eq!(room.submit_call(a, "a1"), Ok(CallTaken::Queued));
+            true
         });
-    if reader.is_err() {
-        eprintln!("kalsa-brain: the room's event feed could not start");
+        assert_eq!(outcome.ai_call, Some("queued"));
+        assert!(room.turn_alive(1), "the driven turn is still running");
+        // The call the drive closure queued is still waiting; a DIFFERENT
+        // one from the same member is refused as pending.
+        assert_eq!(
+            room.submit_call(a, "a2"),
+            Err(CallRefused::AlreadyPending),
+            "the running turn is not a phantom to be queued past"
+        );
     }
-}
-
-/// Stops the event pump — the app's exit path calls this, so the follower
-/// thread never outlives the window it feeds.
-pub fn stop_event_pump(brain: &crate::Brain) {
-    if let Some(stop) = brain
-        .room_events
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .as_ref()
-    {
-        stop.store(true, Ordering::SeqCst);
-    }
-}
-
-/// One live event as the webview reads it: `kind` says which, and every
-/// member reference carries its resolved display name at send time.
-fn event_payload(
-    room: &Room,
-    app: &tauri::AppHandle,
-    event: kalsa_room::Event,
-) -> Result<serde_json::Value, String> {
-    let empty = Labels {
-        by_device: HashMap::new(),
-        host: "This computer".to_string(),
-    };
-    let labels = app
-        .try_state::<crate::Desk>()
-        .map(|desk| device_labels(&desk))
-        .unwrap_or(empty);
-    Ok(match event {
-        kalsa_room::Event::Message(entry) => {
-            let dto = entry_dto(room, &labels, &entry);
-            serde_json::json!({
-                "kind": if entry.member == kalsa_room::MemberId::Ai { "ai_message" } else { "message" },
-                "epoch": room.epoch(),
-                "seq": dto.seq,
-                "member_id": dto.member_id,
-                "name": dto.name,
-                "former": dto.former,
-                "text": dto.text,
-                "time": dto.time,
-                "call_ai": dto.call_ai,
-                "read": dto.read,
-            })
-        }
-        kalsa_room::Event::Member(event) => match event {
-            kalsa_room::MemberEvent::Joined { member, name } => serde_json::json!({
-                "kind": "member", "action": "joined", "member_id": member.wire(), "name": name,
-            }),
-            kalsa_room::MemberEvent::Renamed { member, name } => serde_json::json!({
-                "kind": "member", "action": "renamed", "member_id": member.wire(), "name": name,
-            }),
-            kalsa_room::MemberEvent::Left { member } => serde_json::json!({
-                "kind": "member", "action": "left", "member_id": member.wire(),
-                "name": display_name(room, &labels, member),
-            }),
-        },
-        kalsa_room::Event::Ai(kalsa_room::AiEvent::Status { state, note_code, note }) => {
-            let turns = room.turn_state();
-            serde_json::json!({
-                "kind": "ai_status", "state": state,
-                "note_code": note_code, "note": note,
-                "running": turns.running.map(|member| display_name(room, &labels, member)),
-                "queue": turns.pending.iter().map(|member| display_name(room, &labels, *member)).collect::<Vec<_>>(),
-                "you_pending": turns.running == Some(kalsa_room::MemberId::Host)
-                    || turns.pending.contains(&kalsa_room::MemberId::Host),
-            })
-        }
-        kalsa_room::Event::Ai(kalsa_room::AiEvent::Delta { turn, text }) => {
-            serde_json::json!({ "kind": "ai_delta", "turn": turn, "text": text })
-        }
-    })
 }

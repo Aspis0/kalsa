@@ -3510,7 +3510,7 @@ fn a_waiting_record_with_no_allowed_seat_names_none() {
 #[test]
 fn the_room_commands_are_reachable_and_registered() {
     let main_rs = include_str!("main.rs");
-    let room_rs = include_str!("room.rs");
+    let room_rs = include_str!("room_commands.rs");
     let commands = [
         "brain_room",
         "brain_room_history",
@@ -3524,7 +3524,7 @@ fn the_room_commands_are_reachable_and_registered() {
             "{command} must carry the command attribute"
         );
         assert!(
-            main_rs.contains(&format!("room::{command}")),
+            main_rs.contains(&format!("room_commands::{command}")),
             "{command} must be listed in the handler table"
         );
     }
