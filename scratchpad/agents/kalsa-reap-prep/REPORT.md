@@ -12,7 +12,7 @@ Metal, `build-metal/`), same session, paired items/segments, greedy,
 thinking-off everywhere. Generation went through `llama-server /completion`
 (clean JSON — the CLI echoes the `-f` prompt even with `--no-display-prompt`,
 verified); bpb = per-segment llama-perplexity (8 segments × 600 KB/language)
-over `eval/text-holdout/` (PG books, non-Wikipedia, containment-checked);
+over `corpus/text-holdout/` (PG books, non-Wikipedia, containment-checked);
 CIs = paired percentile bootstrap (10k, seed 42). Mac = M1 Max (10-core,
 64 GB), `llama-bench -p 512 -n 128`. **All numbers below are Mac numbers.**
 

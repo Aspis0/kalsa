@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the gate's held-out text corpus: eval/text-holdout/<lang>.txt.
+"""Build the gate's held-out text corpus: corpus/text-holdout/<lang>.txt.
 
 Per language (en, it, es, fr, zh) two Project Gutenberg books, public-domain
 works (PG's Terms of Use apply to the site; boilerplate header/footer are
@@ -8,7 +8,7 @@ slice of the gate rests on one encyclopedia article (the old multi5 IT slice
 was literally the article on coffee). Books are hardcoded below and verified
 live; the builder fails rather than shipping a short or wrong-language file.
 
-Usage: build_text_holdout.py [out_dir=eval/text-holdout]
+Usage: build_text_holdout.py [out_dir=corpus/text-holdout]
 """
 
 import hashlib
@@ -76,8 +76,10 @@ def sanity(lang: str, text: str) -> None:
 
 
 def main() -> int:
-    out_dir = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
-                           else pathlib.Path(__file__).parent / "text-holdout")
+    # corpus/ (lab root) is tracked; scratchpad .txt is gitignored, so the
+    # corpus cannot live next to this script
+    default_out = pathlib.Path(__file__).resolve().parents[4] / "corpus/text-holdout"
+    out_dir = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else default_out)
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = {"licence": "public-domain works; Project Gutenberg eBook "
                            "boilerplate stripped; gate corpus, hold-out",

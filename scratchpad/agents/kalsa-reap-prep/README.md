@@ -80,7 +80,8 @@ headroom**. No pruned dirs, no BF16 GGUFs, no quants on the pod anymore.
   `<think>` block) + non-thinking (175), 120 multi-turn (glaive dialogues
   with ≥ 2 user turns), Aya sampled seed-shuffled, `translated_dolly` rows
   tagged **cc-by-sa-3.0** (SOURCES.md).
-- Gate corpus `eval/text-holdout/`: ≥ 500 KB/language × 5 (public-domain PG
+- Gate corpus `corpus/text-holdout/` (tracked; scratchpad .txt is
+  gitignored): ≥ 500 KB/language × 5 (public-domain PG
   books, non-Wikipedia, header/footer stripped, MANIFEST with sha256).
   Containment-checked against the calibration (`eval/check_holdout_disjoint.py`;
   Jaccard replaced — it was structurally ~0).

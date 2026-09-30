@@ -31,7 +31,7 @@ exist so a suspicious Kalsa number can be cross-read immediately.
 
 | metric | instrument | notes |
 |---|---|---|
-| bpb × 5 languages | `eval/run_bpb_eval.py` over `eval/text-holdout/` | ≥ 500 KB/language non-Wikipedia held-out text (public-domain PG books, `MANIFEST.json` has licences+hashes); leading 600 KB per language, 8 segments; per-language **bootstrap CI** on the Kalsa−LFM diff |
+| bpb × 5 languages | `eval/run_bpb_eval.py` over `corpus/text-holdout/` | ≥ 500 KB/language non-Wikipedia held-out text (public-domain PG books, `MANIFEST.json` has licences+hashes); leading 600 KB per language, 8 segments; per-language **bootstrap CI** on the Kalsa−LFM diff |
 | GSM8K pass@1 | `eval/run_gen_eval.py --dataset gsm8k` (200 items, greedy, seed-42 slice) | strict last-number match on think-stripped output; **paired bootstrap CI** |
 | Tool calls pass@1 | `eval/run_gen_eval.py --dataset tools` (100 items) | holdout built from hermes' **glaive-function-calling-5k.json — a different generator from the calibration's func-calling files** (review T7); scoring is dialect-fair (see below); **paired bootstrap CI** |
 | decode tok/s | `llama-bench` tg128, labeled by device (Mac probe / S23 gate) | Mac numbers are Mac numbers, never presented as phone ones |
@@ -42,7 +42,7 @@ exist so a suspicious Kalsa number can be cross-read immediately.
 - **Tool scoring is format-fair.** LFM2.5 renders `<|tool_call_start|>[name(args)]<|tool_call_end|>` (read from its GGUF `tokenizer.chat_template`, see `eval/show_chat_template.py`); Qwen renders `<tool_call>{json}</tool_call>`. `eval/toolcalls.py` parses both into (name, args) and the scorer applies the same name+superset-args rule. A model no longer loses for speaking the other dialect.
 - **`--no-display-prompt` on every generation** — the echoed prompt contains digits (GSM8K), so a scorer on plain stdout could pass without any generation.
 - **Thinking is handled identically for both models: off.** LFM2.5's template has no thinking switch, so enabling it for Qwen would compare different settings; the gate measures the one-pass assistant. Any `<think>` block is stripped before matching, and an unclosed `<think>` (budget exhausted mid-reasoning) counts as a miss.
-- **bpb corpus**: `eval/text-holdout/` replaces multi5 as the gate corpus (multi5 stays for F0 continuity). Containment-checked against the calibration set (`eval/check_holdout_disjoint.py`, 80-char windows at every alignment, fail at row containment > 0.5) — Jaccard was structurally ~0 and proved nothing.
+- **bpb corpus**: `corpus/text-holdout/` replaces multi5 as the gate corpus (multi5 stays for F0 continuity). Containment-checked against the calibration set (`eval/check_holdout_disjoint.py`, 80-char windows at every alignment, fail at row containment > 0.5) — Jaccard was structurally ~0 and proved nothing.
 - **CIs on every gate metric**: `eval/bootstrap_ci.py`, paired percentile bootstrap (10k resamples, seed 42), diff CI per language / per holdout.
 - **Arms**: ratio 50 % only (owner decision 2026-09-30); quants Q4_0 + Q4_K_M only; Q8_0 dropped.
 
