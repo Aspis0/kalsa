@@ -42,6 +42,16 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # Hexagon SDK pins. Must match llama.rn's scripts/bootstrap.sh at the
+    # commit package.json pins, and the binding's android/build.gradle
+    # default probe path (~/.hexagon-sdk/6.4.0.2 with
+    # tools/HEXAGON_Tools/19.0.04). The npm package omits scripts/, so the
+    # binding cannot download the SDK itself here — scripts/prepare-hexagon-host.sh
+    # does, with these same versions. Bumping the binding pin means re-checking
+    # these two values.
+    env:
+      HEXAGON_SDK_VERSION: "6.4.0.2"
+      HEXAGON_TOOLS_VERSION: "19.0.04"
     steps:
       - uses: actions/checkout@v4
 
@@ -159,6 +169,35 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
           df -h /
+
+      # The Hexagon (NPU) host backend is compiled into the arm64
+      # hexagon-opencl variant only when the SDK exists at configure time
+      # (llama.rn android/build.gradle probes HEXAGON_SDK_ROOT /
+      # HEXAGON_TOOLS_ROOT, falling back to ~/.hexagon-sdk/6.4.0.2) AND the
+      # QAIC-generated host artifacts sit in the installed package's
+      # vendor/llama.cpp/ggml/src/ggml-hexagon/htp/v73/ (a hard CMake
+      # FATAL_ERROR otherwise — or, without the SDK at all, a silent
+      # CPU-only build under the hexagon name). scripts/prepare-hexagon-host.sh
+      # provides both, via the binding's own public SDK release.
+      #
+      # Every step here is gated to arm64 on purpose: an x86_64 build
+      # compiles the same hexagon-named variant for x86_64, where linking
+      # the SDK's android_aarch64 libcdsprpc.so cannot work. Not exporting
+      # the roots keeps x86_64 CPU-only, exactly as before.
+      - name: Cache the Hexagon SDK
+        if: contains(inputs.abi, 'arm64-v8a')
+        uses: actions/cache@v4
+        with:
+          path: ~/.hexagon-sdk
+          key: hexagon-sdk-${{ env.HEXAGON_SDK_VERSION }}
+      - name: Prepare the Hexagon SDK and QAIC host artifacts
+        if: contains(inputs.abi, 'arm64-v8a')
+        run: bash scripts/prepare-hexagon-host.sh
+      - name: Export the Hexagon SDK paths for Gradle
+        if: contains(inputs.abi, 'arm64-v8a')
+        run: |
+          echo "HEXAGON_SDK_ROOT=$HOME/.hexagon-sdk/$HEXAGON_SDK_VERSION" >> "$GITHUB_ENV"
+          echo "HEXAGON_TOOLS_ROOT=$HOME/.hexagon-sdk/$HEXAGON_SDK_VERSION/tools/HEXAGON_Tools/$HEXAGON_TOOLS_VERSION" >> "$GITHUB_ENV"
 
       # The iroh tunnel: build the Rust .so on the runner into the module's
       # jniLibs so Gradle packages it with the app. The NDK version is the one
@@ -346,6 +385,15 @@ jobs:
       # assert-native-patch.sh exits 1 on a missing marker — fail the job, not warn.
       - name: Assert the native patch is in the binary
         run: bash scripts/assert-native-patch.sh
+
+      # A variant NAMED hexagon ships even when the Hexagon host backend was
+      # never compiled in (the CMake gate degrades with a warning and the
+      # DSP skels are packaged as assets either way). This is the gate that
+      # fails the job when that happens again. arm64 only: the x86_64 path
+      # legitimately has no hexagon host code (see the SDK prep steps above).
+      - name: Assert the Hexagon host backend is in the APK
+        if: contains(inputs.abi, 'arm64-v8a')
+        run: bash scripts/assert-hexagon-backend.sh
 
       - name: Report APK size and ABIs
         run: |
