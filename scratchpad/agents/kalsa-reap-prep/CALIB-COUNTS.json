@@ -42,8 +42,8 @@
     "en/code": 120
   },
   "skips": {
-    "short": 576,
-    "dupe": 16
+    "short": 607,
+    "dupe": 19
   },
   "seed": 42,
   "unfilled": {}

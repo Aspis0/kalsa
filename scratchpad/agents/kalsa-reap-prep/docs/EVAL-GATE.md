@@ -21,30 +21,47 @@ anchors exist so a suspicious Kalsa number can be cross-read immediately.
 
 | metric | LFM2.5-2.6B QAD-Q4_0 (ship baseline) | Qwen3.6-35B-A3B unpruned (ceiling) | Kalsa-REAP50 | Kalsa-REAP65 | Kalsa-REAP75 |
 |---|---|---|---|---|---|
-| EN bpb, `corpus/multi5/en.txt` | measure | ceiling | measure | measure | measure |
-| IT bpb, `corpus/multi5/it.txt` | measure | ceiling | measure | measure | measure |
+| EN bpb, `corpus/multi5/en.txt` | **1.0526 measured** | ceiling | measure | measure | measure |
+| IT bpb, `corpus/multi5/it.txt` | **1.4063 measured** | ceiling | measure | measure | measure |
+| ES/FR/ZH bpb, multi5 | **1.1311 / 1.2723 / 1.6003 measured** | ceiling | measure | measure | measure |
 | reasoning: GSM8K-200 pass@1, greedy | measure | measure | measure | measure | measure |
 | tool calls: 100 hermes-format prompts, exact JSON-arg match | measure | measure | measure | measure | measure |
 | decode tok/s, S23 (+ G99 second opinion) | measure | n/a (does not fit any class) | measure (streamed) | measure | measure |
 | peak RSS / resident budget | measure | n/a | per PARAM-BUDGET table | per table | per table |
 | degeneration (8-prompt smoke) | 0 | 0 | 0 | 0 | 0 |
 
+Measured baselines above were produced on 2026-09-29 on the Mac (M-series,
+`kalsallama` main `e8065c7cf` build, `eval/run_bpb_eval.py`, EXIT=0):
+`en 1.0526 · it 1.4063 · es 1.1311 · fr 1.2723 · zh 1.6003` bpb.
+
+- **Quant (audit fix: matched quant class)**: the headline comparison is
+  **Kalsa Q4_0 vs LFM2.5 QAD-Q4_0** — same quant class on both sides. Kalsa
+  **Q4_K_M** is produced and reported separately, never mixed into the
+  headline. All pod quants are imatrix-calibrated on the Kalsa calibration
+  text (`pod/40_convert.sh`), so no requant-from-Q8_0 happens later.
+
 - **Quant**: primary Q4_K_M (16 GB phone/PC resident arms), plus Q4_0 for the
   8 GB streaming arms; both quants for the winning ratio. Imatrix-calibrated
   on the Kalsa calibration mix (same mix for both quants, mirroring the
   paper's equal-footing rule).
-- **bpb harness**: the F0 pipeline (`scripts/run_reap_f0_pc.py`, bmoe-cli)
-  over the frozen multi5 slices — the same slices used for F0, whose numbers
-  (EN 12.89, IT 115.27 for REAP20-Q2_K with coding-only calibration) show
-  what a mismatched calibration does to IT; our gate exists to prove the
-  opposite.
+- **bpb harness**: `eval/run_bpb_eval.py` (this lab dir) with our llama.cpp
+  build — all five multi5 languages, per-token PPL from `llama-perplexity`
+  converted to bits/byte with the model's own tokenizer. Ran on the Mac
+  against the ship baseline (table above). The F0 slices (`en_slice`,
+  `it_slice`) whose numbers (EN 12.89, IT 115.27 for REAP20-Q2_K with
+  coding-only calibration) showed what mismatched calibration does to IT
+  remain available for continuity checks.
 - **Reasoning/template**: `enable_thinking` off for Qwen-family columns;
-  GSM8K-200 is a fixed 200-item slice (seed 42) of the test split, strict
-  match on the `####` answer, served through llama-server.
-- **Tool calls**: 100 prompts built from hermes-format schemas that are NOT
-  in the calibration rows (holdout by id), EN 40 + IT 20 + ES/FR/ZH 40 to
-  test cross-lingual transfer of the tool path; exact-match on called
-  function + JSON args.
+  GSM8K-200 is a fixed 200-item slice (seed 42, pinned revision) of the test
+  split, strict match on the `####` answer, served greedy
+  (`eval/run_gen_eval.py --dataset gsm8k`).
+- **Tool calls**: 100 hermes-format prompts (`eval/tools-100.jsonl`, pinned
+  revision, content-hash-disjoint from the calibration rows), exact match on
+  called function + JSON args (`eval/run_gen_eval.py --dataset tools`).
+  **EN-only** (audit fix, honest scope): no permissively licensed
+  multilingual tool-call source exists ungated; the earlier EN40/IT20/ES-FR-
+  ZH40 plan is withdrawn. Multilingual tool behaviour is still indirectly
+  covered by the five-language bpb rows.
 - **Unpruned ceiling on phones**: not runnable at any ratio/quant in the fit
   table; measured on the 16 GB PC class only, and marked n/a elsewhere.
 
@@ -53,11 +70,13 @@ anchors exist so a suspicious Kalsa number can be cross-read immediately.
 Kalsa (one chosen artifact: ratio + quant) must satisfy **all** of the
 following against LFM2.5-2.6B QAD-Q4_0 measured in the same session:
 
-1. **IT bpb** ≤ LFM_IT − 0.30 (absolute bits-per-byte on the frozen slice).
-2. **EN bpb** ≤ LFM_EN − 0.20.
+1. **IT bpb** ≤ 1.1063 (= measured LFM 1.4063 − 0.30).
+2. **EN bpb** ≤ 0.8526 (= measured LFM 1.0526 − 0.20).
 3. **Reasoning**: GSM8K-200 pass@1 ≥ LFM + 15 points.
-4. **Tool calls**: exact-match ≥ LFM + 15 points (and ≥ LFM in EVERY
-   language slice — no language may regress).
+4. **Tool calls**: exact-match ≥ LFM + 15 points. **No language left
+   behind**: ES/FR/ZH bpb must each be ≤ the measured LFM value (1.1311 /
+   1.2723 / 1.6003) — the tool holdout is EN-only, so the language promise
+   rides on the bpb rows.
 5. **Degeneration**: 0 of 8 smoke prompts degenerate (hard fail otherwise,
    regardless of other numbers — the paper's §5.4 smoke caveats are why this
    is a gate and not a score).

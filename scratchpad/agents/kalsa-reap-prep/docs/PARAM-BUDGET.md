@@ -52,6 +52,27 @@ our 50% Q4_0 10.43 GB ≈ the moep paper's measured "pruned 50%, Q4 (11.4 GB)"
 36.83 GB ≈ the paper's "38 GB Q8 reference". The table reproduces three
 independent published measurements within ~1–3%.
 
+## Vision weights in the pruned HF dirs (audit item 10)
+
+moep surgery copies `model.visual.*` verbatim into every pruned HF dir
+(446,571,248 params = **0.89 GB BF16 each**; only `mtp.*` is dropped), so the
+on-pod HF dir sizes are the text sizes above **+0.89 GB each**:
+
+| prune | text params | + vision | pruned HF dir (BF16) |
+|---:|---:|---:|---:|
+| 25% | 26,602,304,128 | +446,571,248 | 54.10 GB |
+| 50% | 18,543,997,568 | +446,571,248 | 37.98 GB |
+| 65% | 13,759,378,048 | +446,571,248 | 28.41 GB |
+| 75% | 10,485,691,008 | +446,571,248 | 21.86 GB |
+
+The GGUFs stay **text-only**: `convert_hf_to_gguf.py` writes an mmproj only
+with `--mmproj` (`convert_hf_to_gguf.py:117-118` — "Export multimodal
+projector (mmproj) for vision models"), which `pod/40_convert.sh` never
+passes, so vision weights never enter any GGUF and the GGUF size table above
+is unchanged. One mmproj can later be converted from the BASE checkpoint if
+vision is ever wanted (moep's own export docstring notes the tower is copied
+verbatim, so a base-derived mmproj matches every pruned variant).
+
 ## Device fit (resident, no expert streaming)
 
 Assumptions (owner-provided): usable model RAM ≈ 4.5 GB on an 8 GB phone,

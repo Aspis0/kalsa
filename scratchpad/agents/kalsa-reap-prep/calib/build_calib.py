@@ -47,6 +47,15 @@ AYA_LANG = {
     "CohereForAI/aya_collection": {"it": "ita", "es": "spa", "fr": "fra",
                                    "en": "eng", "zh": "zho"},
 }
+# every download passes one of these (audit item: revisions pinned, not just
+# recorded); shas read from the HF API on 2026-09-29
+REVISIONS = {
+    "CohereForAI/aya_dataset": "f9ea04583f02a8f86404ff6c58bf75fe637df8a2",
+    "CohereForAI/aya_collection": "09069079fad96ad9c7f8781be8c1d70471dfa768",
+    "openai/gsm8k": "740312add88f781978c0658806c59bc2815b9866",
+    "google-research-datasets/mbpp": "4bb6404fdc6cacfda99d4ac4205087b89d32030c",
+    "NousResearch/hermes-function-calling-v1": "dae3e1d28cfbcf4b915c04ea1e072030529b4bda",
+}
 SEED = 42
 WINDOW = 80
 
@@ -76,8 +85,6 @@ class Builder:
         self.seen_hashes: set[str] = set()
         self.banned = load_multi5_windows()
         self.rng = random.Random(SEED)
-        self.api = HfApi()
-        self._rev_cache: dict = {}
 
     def add(self, lang, category, source, license_name, revision, messages):
         if len(messages) < 2 or not all(isinstance(m.get("content"), str) for m in messages):
@@ -111,11 +118,6 @@ class Builder:
     def need(self, lang, category):
         return QUOTA.get((lang, category), 0) - self.counts.get(f"{lang}/{category}", 0)
 
-    def revision(self, repo):
-        if repo not in self._rev_cache:
-            self._rev_cache[repo] = self.api.dataset_info(repo).sha
-        return self._rev_cache[repo]
-
 
 _TREE_CACHE: dict = {}
 
@@ -136,11 +138,11 @@ def take_aya_rows(b: Builder, lang_key, category, cfg_prefix, repo):
     want = AYA_LANG[repo][lang_key]
     if want is None:
         return  # e.g. aya_dataset has no Chinese
-    rev = b.revision(repo)
+    rev = REVISIONS[repo]
     for pf in parquet_files(repo, cfg_prefix):
         if b.need(lang_key, category) <= 0:
             return
-        local = hf_hub_download(repo, pf, repo_type="dataset")
+        local = hf_hub_download(repo, pf, repo_type="dataset", revision=rev)
         table = pq.read_table(local, columns=["inputs", "targets", "language"],
                               filters=[("language", "==", want)])
         for row in table.to_pylist():
@@ -152,26 +154,31 @@ def take_aya_rows(b: Builder, lang_key, category, cfg_prefix, repo):
 
 
 def take_gsm8k_en(b: Builder):
-    rev = b.revision("openai/gsm8k")
-    ds = load_dataset("openai/gsm8k", "main", split="train", streaming=True)
+    repo = "openai/gsm8k"
+    rev = REVISIONS[repo]
+    ds = load_dataset(repo, "main", split="train", streaming=True, revision=rev)
     for r in ds:
         if b.need("en", "reasoning") <= 0:
             return
         msgs = [{"role": "user", "content": r["question"]},
                 {"role": "assistant", "content": r["answer"].split("####")[-1].strip()}]
-        b.add("en", "reasoning", "openai/gsm8k main", "mit", rev, msgs)
+        b.add("en", "reasoning", f"{repo} main", "mit", rev, msgs)
 
 
-def take_magicoder_en(b: Builder):
-    rev = b.revision("ise-uiuc/Magicoder-Evol-Instruct-110K")
-    ds = load_dataset("ise-uiuc/Magicoder-Evol-Instruct-110K", split="train",
-                      streaming=True)
-    for r in ds:
-        if b.need("en", "code") <= 0:
-            return
-        msgs = [{"role": "user", "content": r["instruction"]},
-                {"role": "assistant", "content": r["response"]}]
-        b.add("en", "code", "ise-uiuc/Magicoder-Evol-Instruct-110K", "apache-2.0", rev, msgs)
+def take_mbpp_en(b: Builder):
+    """Code source: MBPP — CC-BY-4.0, human-written Google research data
+    (replaces Magicoder, whose rows are GPT-3.5 output; see SOURCES.md).
+    sanitized first, then full to top up; content-hash dedupe handles overlap."""
+    repo = "google-research-datasets/mbpp"
+    rev = REVISIONS[repo]
+    for cfg in ("sanitized", "full"):
+        ds = load_dataset(repo, cfg, split="train", streaming=True, revision=rev)
+        for r in ds:
+            if b.need("en", "code") <= 0:
+                return
+            msgs = [{"role": "user", "content": r.get("prompt") or r["text"]},
+                    {"role": "assistant", "content": r["code"]}]
+            b.add("en", "code", f"{repo} {cfg}", "cc-by-4.0", rev, msgs)
 
 
 _HERMES_ROLE = {"system": "system", "human": "user", "user": "user",
@@ -180,12 +187,12 @@ _HERMES_ROLE = {"system": "system", "human": "user", "user": "user",
 
 
 def take_hermes_en(b: Builder):
-    rev = b.revision("NousResearch/hermes-function-calling-v1")
+    repo = "NousResearch/hermes-function-calling-v1"
+    rev = REVISIONS[repo]
     for fname in ("func-calling.json", "func-calling-singleturn.json"):
         if b.need("en", "toolcall") <= 0:
             return
-        path = hf_hub_download("NousResearch/hermes-function-calling-v1", fname,
-                               repo_type="dataset")
+        path = hf_hub_download(repo, fname, repo_type="dataset", revision=rev)
         for r in json.load(open(path)):
             if b.need("en", "toolcall") <= 0:
                 return
@@ -209,7 +216,7 @@ def main() -> int:
         take_aya_rows(b, lang, "chat", "translated_dolly", "CohereForAI/aya_collection")
     take_hermes_en(b)
     take_gsm8k_en(b)
-    take_magicoder_en(b)
+    take_mbpp_en(b)
 
     b.rng.shuffle(b.rows)
     out_jsonl = OUT_DIR / "kalsa-reap-calib.jsonl"
