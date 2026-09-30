@@ -49,10 +49,12 @@ The old 12-GGUF / 156 GB upload job is gone (review T5d/T8): no Q8_0, no
 3. **`pod/terminate_pod.sh`** (best-effort extra): REST
    `DELETE https://rest.runpod.io/v1/pods/{podId}` with
    `Authorization: Bearer` (docs.runpod.io/api-reference/pods/DELETE/pods/podId;
-   responses 204/400/401; the page says nothing about key scoping, so whether
-   the pod-scoped `RUNPOD_API_KEY` may terminate is UNVERIFIED — the control
-   REST is v1-only, `api.runpod.ai/v2` is the serverless runtime API, which
-   is what the old script got wrong). Fallback: `runpodctl pod delete`.
+   responses 204/400/401; verified 2026-09-30 that the pod-scoped key gets
+   **403** there — a pod cannot delete itself, so the shelved REAP job's
+   in-pod delete was never going to fire; the control REST is v1-only,
+   `api.runpod.ai/v2` is the serverless runtime API, which is what the old
+   script got wrong). The WORKING in-pod action is STOP — see the GPU
+   probe section, prerequisite 4.
    **No terminate before results are verified off the pod**: on any failure
    path `run_all.sh` re-runs `40_upload.sh --mini` up to 3× and terminates
    only if the remote-tree check passes; if the upload will not land, the pod
@@ -168,17 +170,22 @@ remains a later device session.
 Prerequisites (once, owner/coordinator):
 1. Create PRIVATE dataset repo (owner's org; the job never creates repos):
    `hf repo create Kalsa-ai/kalsa-gate-probe-results --repo-type dataset --private`
+   (2026-09-30: creation with our token was rejected by the org — 403,
+   owner deciding; the repo id stays pinned in `podprobe/env.sh` meanwhile,
+   override with `HF_RESULTS_REPO` if it lands elsewhere)
 2. One-time ship-baseline upload (it exists only on the Mac):
    `hf upload Kalsa-ai/kalsa-gate-probe-results ~/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf ship/LFM2.5-2.6B-QAD-Q4_0.gguf --repo-type dataset`
 3. If arm 6 (k2) is wanted: `git -C ~/Projects/kalsallama-spike-k2 push origin spike/topk-k2-renorm`
    (not pushed by the prep session; the job falls back to fork main and
    skips arm 6 if the branch is absent).
-4. The in-pod hard stop deletes the pod through the Runpod REST API with
-   the pod's injected RUNPOD_API_KEY. **Its permission to delete its own
-   pod is UNVERIFIED — test once with a 1-minute CPU pod before relying on
-   it** (create tiny CPU pod, run the same DELETE with its injected key,
-   confirm it disappears). Until that test passes, assume the only real
-   stops are your console and the per-arm uploads.
+4. Self-stop **VERIFIED 2026-09-30 on a 1-minute CPU pod**: the
+   pod-scoped key CAN stop its own pod (REST `POST …/pods/{id}/stop`, or
+   the GraphQL `podStop` mutation — keep both, REST first; the coordinator
+   could not tell which of the two acted) but CANNOT delete it
+   (`DELETE …/pods/{id}` → 403). The job stops itself at the hard-stop
+   deadline, after the final upload, and on the no-salvage failure path;
+   **a stopped pod still bills its VOLUME until you delete it** — delete
+   the pod in the console when you collect the results.
 
 Pod creation is done by the COORDINATOR through the Runpod MCP with these
 parameters (runpodctl create flags verified absent for terminate-after, so
@@ -211,12 +218,13 @@ ssh root@POD_IP 'mkdir -p /root/.secrets && chmod 700 /root/.secrets'
 scp HF_TOKEN_FILE root@POD_IP:/root/.secrets/hf_token
 ssh root@POD_IP 'chmod 600 /root/.secrets/hf_token && bash /workspace/kalsa-reap-prep/podprobe/run_probe.sh'
 ```
-The job arms its own hard stop FIRST (sleep PROBE_HARD_STOP_H, then DELETE
-of its own pod via the injected key — permission UNVERIFIED, see
-prerequisite 4), then: pinned downloads, RAZOR `--no-mtp` conversion,
+The job arms its own hard STOP first (sleep PROBE_HARD_STOP_H, then stop
+of its own pod via the injected key — REST then GraphQL podStop, verified
+per prerequisite 4), then: pinned downloads, RAZOR `--no-mtp` conversion,
 value-ordered arms with per-arm timeout, per-arm upload to the PRIVATE
-dataset repo (privacy-gated, token via env/file only, tree-verified), and a
-final terminate attempt on success.
+dataset repo (privacy-gated, token via env/file only, tree-verified), and
+a self-stop at the end (success or no-salvage failure) so an idle pod
+never keeps billing the GPU. Volume billing ends only when you delete it.
 
 ## What could not be verified on the Mac
 
@@ -228,9 +236,8 @@ final terminate attempt on success.
 - runpodctl flag spellings: runpodctl is not installed on this Mac; the
   create command follows the installed Runpod skills, and live
   `runpodctl pod create --help` is authoritative.
-- Whether the pod-scoped `RUNPOD_API_KEY` is allowed to terminate its own
-  pod (Runpod's DELETE doc does not say; the `--terminate-after` creation
-  guard makes the answer non-load-bearing).
+- RESOLVED 2026-09-30 (coordinator, two CPU pods): self-STOP works
+  (REST/GraphQL), self-DELETE is 403 — see prerequisite 4.
 - `moep profile`/`score` on CUDA and the surgery/convert path at scale —
   first smoke targets on the pod/Mac when the probe says GO.
 - Exact GGUF bytes for our own pruned artifact (estimates anchored to three

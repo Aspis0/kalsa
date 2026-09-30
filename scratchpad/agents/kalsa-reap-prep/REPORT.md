@@ -5,6 +5,24 @@ push. This report covers (F3) the Fable-3 §9 fixes with Mac proof, (0) the
 Fable-2 fixes + GPU-probe prep, (1) the $0 probe run, and (2) the ten
 hostile-audit items against commit 5f8d5f10.
 
+## Coordinator self-stop test (2026-09-30, after 74ac9daa)
+
+Two 1-minute CPU pods (cpu3c, curlimages/curl): the pod-scoped key CANNOT
+delete its own pod (`DELETE …/pods/{id}` → **403** — the previous
+in-pod-terminate design was dead on arrival) but CAN stop it: REST
+`POST …/pods/{id}/stop` or GraphQL `podStop` at api.runpod.io/graphql took
+the test pod to EXITED at 41 s uptime (which of the two acted could not be
+read — both kept, REST first). `podprobe/run_probe.sh` now STOPS itself in
+three places — the hard-stop backstop (`self_stop_after`, still armed
+first), after the final upload, and on the no-salvage failure path
+(`finish`) — killing its own backstop timer on the way out; key reaches
+curl via a 600 header file, logs carry HTTP codes only. README: "self-stop
+VERIFIED 2026-09-30 on a CPU pod (stop works, delete is 403); a stopped
+pod still bills its volume until the coordinator deletes it". The
+GraphQL `-d` body's quoting was validated to parse as JSON with plain
+quotes in the query. HF_RESULTS_REPO stays `Kalsa-ai/…` (org rejected
+creation with our token, owner deciding; `HF_RESULTS_REPO` overrides).
+
 ## Fable-3 §9 fixes + Mac end-to-end proof (2026-09-30, commits below)
 
 The five fatal defects and the eight §9 items:

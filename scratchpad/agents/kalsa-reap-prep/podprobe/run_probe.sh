@@ -2,29 +2,54 @@
 # run_probe.sh — one-shot GPU probe orchestrator. Responsibility: the in-pod
 # hard stop, arm order, per-arm timeout, per-arm upload, teardown.
 #
-# MONEY GUARD, started before anything else: a background sleep deletes THIS
-# pod via the Runpod REST API with the pod's injected key after
-# $PROBE_HARD_STOP_H hours. Whether a pod-scoped RUNPOD_API_KEY may delete
-# its own pod is UNVERIFIED (README: test once with a 1-minute CPU pod);
-# if it cannot, the ONLY things that stop billing are the coordinator's
-# console and the per-arm upload below limiting the loss window.
+# MONEY GUARD, started before anything else: a background sleep STOPS this
+# pod after $PROBE_HARD_STOP_H hours. Coordinator-verified 2026-09-30 on a
+# 1-minute CPU pod: the pod-scoped key CAN stop its own pod (REST stop, or
+# the GraphQL podStop mutation), but CANNOT delete it (DELETE -> 403). A
+# stopped pod still bills its volume until the coordinator deletes it.
 set -uo pipefail
 # shellcheck source=env.sh
 . "$(dirname "$0")/env.sh"
 
 token_cat() { cat "$SECRETS/hf_token" 2>/dev/null; }
 
+# Stop THIS pod: REST first, GraphQL podStop as fallback (the coordinator
+# could not tell which of the two acted on the test pod — keep both). Logs
+# HTTP codes only; the key goes to curl via a 600 header file, never argv.
+self_stop() {
+  [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ] || return 0
+  local hdr code
+  hdr=$(mktemp) || return 1
+  chmod 600 "$hdr" || { rm -f "$hdr"; return 1; }
+  printf 'Authorization: Bearer %s\n' "$RUNPOD_API_KEY" > "$hdr" \
+    || { rm -f "$hdr"; return 1; }
+  code=$(curl -s -o /tmp/self-stop.json -w '%{http_code}' --max-time 30 \
+    -X POST "https://rest.runpod.io/v1/pods/${RUNPOD_POD_ID}/stop" \
+    -H @"$hdr" || echo 000)
+  echo "self-stop: REST stop -> HTTP $code"
+  case "$code" in 200|204) rm -f "$hdr"; return 0 ;; esac
+  code=$(curl -s -o /tmp/self-stop-gql.json -w '%{http_code}' --max-time 30 \
+    -X POST "https://api.runpod.io/graphql" -H @"$hdr" \
+    -d '{"query":"mutation{podStop(input:{podId:\"'"${RUNPOD_POD_ID}"'\"}){id}}"}' \
+    || echo 000)
+  rm -f "$hdr"
+  echo "self-stop: GraphQL podStop -> HTTP $code"
+  case "$code" in 200) return 0 ;; esac
+  return 1
+}
+
+self_stop_after() { # <hours> — the hard-stop backstop
+  sleep "${1}h"
+  self_stop >> /tmp/hard-stop.log 2>&1
+  echo "hard-stop: pod stop attempted after ${1}h" >> /tmp/hard-stop.log
+}
+
+HARD_STOP_PID=""
 if [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ]; then
-  # key passed via the ENVIRONMENT of the child, never argv, never printed
-  RUNPOD_API_KEY="$RUNPOD_API_KEY" RUNPOD_POD_ID="$RUNPOD_POD_ID" \
-  PROBE_HARD_STOP_H="$PROBE_HARD_STOP_H" nohup sh -c '
-    sleep "${PROBE_HARD_STOP_H}h"
-    code=$(curl -s -o /tmp/hard-stop.json -w "%{http_code}" --max-time 30 \
-      -X DELETE "https://rest.runpod.io/v1/pods/$RUNPOD_POD_ID" \
-      -H "Authorization: Bearer $RUNPOD_API_KEY")
-    echo "hard-stop: DELETE -> HTTP $code" >> /tmp/hard-stop.log
-  ' >/dev/null 2>&1 &
-  echo "run_probe: in-pod hard stop armed at +${PROBE_HARD_STOP_H}h (delete permission UNVERIFIED)"
+  self_stop_after "$PROBE_HARD_STOP_H" >/dev/null 2>&1 &
+  HARD_STOP_PID=$!
+  disown "$HARD_STOP_PID" 2>/dev/null || true
+  echo "run_probe: in-pod hard STOP armed at +${PROBE_HARD_STOP_H}h (verified on a CPU pod; volume bills until the coordinator deletes)"
 elif [ -z "${RUNPOD_POD_ID:-}" ]; then
   echo "run_probe: not on a Runpod pod — no hard stop armed (local run)"
 fi
@@ -59,9 +84,20 @@ run_arm() {
   fi
 }
 
-bash "$(dirname "$0")/00_env.sh" || { echo "run_probe: 00_env failed — aborting" >&2; exit 1; }
-HF_TOKEN="$(token_cat)" bash "$(dirname "$0")/10_fetch.sh" || { echo "run_probe: 10_fetch failed — aborting" >&2; exit 1; }
-bash "$(dirname "$0")/20_convert.sh" || { echo "run_probe: 20_convert failed — aborting" >&2; exit 1; }
+finish() { # stop the pod on EVERY exit from here on: an idle RUNNING pod
+           # bills its GPU; the stopped pod bills only its volume until the
+           # coordinator deletes it
+  [ -n "$HARD_STOP_PID" ] && kill "$HARD_STOP_PID" 2>/dev/null
+  if self_stop; then
+    echo "run_probe: pod STOPPED — coordinator: delete it to end volume billing."
+  else
+    echo "run_probe: self-stop FAILED — pod may still be RUNNING; stop/delete it by hand." >&2
+  fi
+}
+
+bash "$(dirname "$0")/00_env.sh" || { echo "run_probe: 00_env failed — aborting" >&2; finish; exit 1; }
+HF_TOKEN="$(token_cat)" bash "$(dirname "$0")/10_fetch.sh" || { echo "run_probe: 10_fetch failed — aborting" >&2; finish; exit 1; }
+bash "$(dirname "$0")/20_convert.sh" || { echo "run_probe: 20_convert failed — aborting" >&2; finish; exit 1; }
 
 K4=(--override-kv qwen35moe.expert_used_count=int:4)
 K4_K2=(--override-kv qwen35moe.expert_used_count=int:4
@@ -94,10 +130,10 @@ fi
 HF_TOKEN="$(token_cat)" bash "$(dirname "$0")/40_upload.sh" >>"$RUNS/upload.log" 2>&1
 rc=$?
 if [ "$rc" = "0" ]; then
-  echo "run_probe: results verified on $HF_RESULTS_REPO — terminating."
-  bash "$CELL/pod/terminate_pod.sh" || true
-  exit 0
+  echo "run_probe: results verified on $HF_RESULTS_REPO."
+else
+  echo "run_probe: final upload FAILED rc=$rc — partial arms are already on HF if" >&2
+  echo "run_probe: their per-arm upload succeeded." >&2
 fi
-echo "run_probe: final upload FAILED rc=$rc — partial arms are already on HF if" >&2
-echo "run_probe: their per-arm upload succeeded; the hard stop still bounds billing." >&2
+finish
 exit "$rc"
