@@ -1,6 +1,14 @@
 import React from "react";
 
-jest.mock("react", () => ({ ...jest.requireActual("react"), useEffect: () => undefined }));
+// HostOverlays is invoked as a plain function here, outside any renderer:
+// the hooks it runs are stubbed to dispatcher-free equivalents, and the
+// invite-link state it holds is not what these routing tests pin.
+jest.mock("react", () => ({
+  ...jest.requireActual("react"),
+  useEffect: () => undefined,
+  useState: <T,>(initial: T): [T, (next: T) => void] => [initial, () => undefined],
+  useRef: <T,>(initial: T): { current: T } => ({ current: initial }),
+}));
 jest.mock("../i18n", () => ({ useLocale: () => ({ t: (key: string) => key }) }));
 jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ fontScaleId: "m" }) }));
 jest.mock("../screens/SettingsScreen", () => ({ SettingsScreen: "SettingsScreen" }));
@@ -20,6 +28,15 @@ jest.mock("../engine/ModelRegistry", () => ({
 }));
 jest.mock("../engine/ModelDownloader", () => ({ isModelBundleDownloaded: jest.fn() }));
 jest.mock("./modelBar", () => ({ modelErrorHint: () => null }));
+// HostOverlays subscribes to invite links at module scope, and the real
+// react-native ships Flow this node environment cannot parse — mock the
+// one API it imports.
+jest.mock("react-native", () => ({
+  Linking: {
+    addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+    getInitialURL: jest.fn(async () => null),
+  },
+}));
 
 import { HostOverlays } from "./HostOverlays";
 import type { HostOverlay } from "./hostOverlay";
