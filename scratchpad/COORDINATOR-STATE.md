@@ -42,6 +42,21 @@ starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=F
   name_framing "Names can't use [ or ]."; name_mixed_scripts "Use letters from one alphabet in your
   name."; name_too_long "That name is too long. Try a shorter one."
 
+## 2026-09-30 17:48 UTC - Runpod gate probe LIVE (delete the pod when done)
+
+- Pod `r6ula5tyxyj64q` (kalsa-gate-probe): L40 48 GB community, $0.69/h, 40 GB disk + 200 GB volume at /workspace,
+  image runpod/pytorch:1.4.0-cu1281-torch271-ubuntu2204 (cu1290 in the README needs host CUDA 12.9; L40 hosts have 12.8),
+  SSH `ssh -i ~/.ssh/id_ed25519 -p 52205 root@206.41.93.58`. Launched 17:48 UTC, log /workspace/probe.log.
+- Self-stop armed at +13 h (REST stop then GraphQL podStop; DELETE is 403 for the pod key, verified on 2 CPU pods).
+  A stopped pod still bills its volume: the coordinator must DELETE it after collecting results. Owner cap $10.
+- Launch deviations from the README (fold into podprobe later): venv made with /usr/bin/python3.12 (the image's torch;
+  /usr/bin/python3 has none); fork kalsallama is private, so a local shallow clone of spike/topk-k2-renorm a2f252fbd
+  was rsynced to /workspace/kalsallama; RUNPOD_POD_ID/RUNPOD_API_KEY are not in SSH sessions, exported from
+  /proc/1/environ at launch; token newline stripped.
+- Results: private HF dataset Kalsa-ai/kalsa-gate-probe-results (ship GGUF at ship/, sha256 a247afd6 verified).
+  The probe token (scoped to that repo only) is in the Mac Keychain `kalsa-hf-probe`/`Kalsa-ai`; the owner pasted it in
+  chat, so ROTATE it after the probe.
+
 ## Queue for 2026-09-30 (GitHub Actions quota resets; S23 must be charged, then unplugged)
 
 1. **v1.1.3 engine release:** merge `ci/kalsa-server-vcredist` (`43a317fde`) into fork `main`
