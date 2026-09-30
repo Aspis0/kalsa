@@ -1,4 +1,6 @@
 import { SAMPLING_KNOBS } from "./knobs/sampling";
+import { knobWords, type KnobWords } from "./knobs/words";
+import type { SamplingKnob } from "./knobs/types";
 
 const SAMPLING_KEY = "crescent-chat.sampling.v1";
 
@@ -66,19 +68,41 @@ function displayNumber(value: number): string {
   return String(value);
 }
 
-export function samplingProblem(sampling: Sampling): string | null {
+/** The first value that would not be accepted, as an index into the knob
+    table's own sentences — the panel says it in the owner's language. */
+export function samplingFault(sampling: Sampling): { knob: SamplingKnob; kind: "finite" | "whole" | "between"; value: string; low?: string; high?: string } | null {
   for (const knob of SAMPLING_KNOBS) {
     const value = sampling[knob.wire];
     if (value === null || value === undefined) continue;
     if (typeof value !== "number" || !Number.isFinite(value)) {
-      return `${knob.label} must be a finite number; got ${String(value)}.`;
+      return { knob, kind: "finite", value: String(value) };
     }
     if (knob.kind === "integer" && !Number.isInteger(value)) {
-      return `${knob.label} must be a whole number; got ${displayNumber(value)}.`;
+      return { knob, kind: "whole", value: displayNumber(value) };
     }
     if (value < knob.min || value > knob.max) {
-      return `${knob.label} must be between ${displayNumber(knob.min)} and ${displayNumber(knob.max)}; got ${displayNumber(value)}.`;
+      return { knob, kind: "between", value: displayNumber(value), low: displayNumber(knob.min), high: displayNumber(knob.max) };
     }
   }
   return null;
+}
+
+/** The fault as a sentence. English, for callers without the words table. */
+export function samplingProblem(sampling: Sampling): string | null {
+  const fault = samplingFault(sampling);
+  if (!fault) return null;
+  const label = fault.knob.label;
+  if (fault.kind === "finite") return `${label} must be a finite number; got ${fault.value}.`;
+  if (fault.kind === "whole") return `${label} must be a whole number; got ${fault.value}.`;
+  return `${label} must be between ${fault.low} and ${fault.high}; got ${fault.value}.`;
+}
+
+/** The fault in the owner's language. */
+export function samplingProblemWords(words: KnobWords, sampling: Sampling): string | null {
+  const fault = samplingFault(sampling);
+  if (!fault) return null;
+  const label = knobWords(words, fault.knob.wire, "label", fault.knob.label);
+  if (fault.kind === "finite") return words.mustBeFinite(label, fault.value);
+  if (fault.kind === "whole") return words.mustBeWhole(label, fault.value);
+  return words.mustBeBetween(label, fault.low ?? "", fault.high ?? "", fault.value);
 }

@@ -25,7 +25,15 @@ function inside(root: HTMLElement, target: EventTarget | null): boolean {
   return false;
 }
 
-export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
+export function KnobInfo({ knob, label, whatItIs, whatItsFor, usualValues }: {
+  knob: KnobCopy;
+  /** The knob's words in the chosen language, already looked up by the
+      caller; the wire copy is the English fallback. */
+  label: string;
+  whatItIs: string;
+  whatItsFor: string;
+  usualValues: string | null;
+}): JSX.Element {
   const { table } = useLanguage();
   const t = table.advanced;
   const local = useState<string | null>(null);
@@ -88,7 +96,7 @@ export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
         type="button"
         className="knob-info-trigger"
         ref={triggerRef}
-        aria-label={t.whatItDoes(knob.label)}
+        aria-label={t.whatItDoes(label)}
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={toggle}
@@ -100,15 +108,15 @@ export function KnobInfo({ knob }: { knob: KnobCopy }): JSX.Element {
           className="knob-info-popover"
           id={panelId}
           role="region"
-          aria-label={t.explanationAria(knob.label)}
+          aria-label={t.explanationAria(label)}
           style={{ left: popoverPosition.left, top: popoverPosition.top }}
         >
           <span className="knob-info-heading">{t.whatItIs}</span>
-          <span>{knob.whatItIs}</span>
+          <span>{whatItIs}</span>
           <span className="knob-info-heading">{t.whatItsFor}</span>
-          <span>{knob.whatItsFor}</span>
+          <span>{whatItsFor}</span>
           <span className="knob-info-heading">{t.usualValues}</span>
-          <span>{knob.usualValues ?? t.noUsualValue}</span>
+          <span>{usualValues ?? t.noUsualValue}</span>
         </span>
       ) : null}
     </span>

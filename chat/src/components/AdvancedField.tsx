@@ -10,12 +10,12 @@ export interface AdvancedFieldProps {
   check?: boolean;
 }
 
-export function AdvancedField({ id, knob, help, children, check = false }: AdvancedFieldProps): JSX.Element {
+export function AdvancedField({ id, knob, said, help, children, check = false }: AdvancedFieldProps & { said: { label: string; whatItIs: string; whatItsFor: string; usualValues: string | null } }): JSX.Element {
   return (
     <div className={`advanced-field${check ? " advanced-field-check" : ""}`}>
       <div className="advanced-field-heading">
-        <label className="advanced-field-label" htmlFor={id}>{knob.label}</label>
-        <KnobInfo knob={knob} />
+        <label className="advanced-field-label" htmlFor={id}>{said.label}</label>
+        <KnobInfo knob={knob} label={said.label} whatItIs={said.whatItIs} whatItsFor={said.whatItsFor} usualValues={said.usualValues} />
       </div>
       {children}
       <p className="advanced-help">{help}</p>

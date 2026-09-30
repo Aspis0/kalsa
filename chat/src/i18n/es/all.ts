@@ -17,6 +17,10 @@ import { POWER } from "./power";
 import { DEVICES } from "./devices";
 import { INVITE } from "./invite";
 import { SHELL } from "./shell";
+import { KNOBS } from "./knobs";
+import { SAMPLING } from "./sampling";
+import { BROWSER } from "./browser";
+import { MARKDOWN } from "./markdown";
 import type { English } from "../en/all";
 
 export const SPANISH: English = {
@@ -39,4 +43,8 @@ export const SPANISH: English = {
   devices: DEVICES,
   invite: INVITE,
   shell: SHELL,
+  knobs: KNOBS,
+  sampling: SAMPLING,
+  browser: BROWSER,
+  markdown: MARKDOWN,
 };

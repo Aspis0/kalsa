@@ -1,5 +1,7 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { copyText } from "../lib/clipboard";
+import { useLanguage } from "../i18n/useLanguage";
+import type { English } from "../i18n/en/all";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
 import ReactMarkdown from "react-markdown";
@@ -10,13 +12,13 @@ function languageOf(className?: string): string {
   return match ? match[1] : "";
 }
 
-function hostOf(src?: string): string {
-  if (!src) return "unknown address";
-  if (/^data:/i.test(src)) return "embedded data";
+function hostOf(words: English["markdown"], src?: string): string {
+  if (!src) return words.unknownAddress;
+  if (/^data:/i.test(src)) return words.embeddedData;
   try {
-    return new URL(src).host || "unknown address";
+    return new URL(src).host || words.unknownAddress;
   } catch {
-    return "invalid address";
+    return words.invalidAddress;
   }
 }
 
@@ -24,13 +26,17 @@ function hostOf(src?: string): string {
 // smuggling the conversation out. The address stays openable by hand — through
 // the command, which checks it again in Rust.
 function BlockedImage({ alt, src }: { alt?: string; src?: string }) {
+  const { table } = useLanguage();
+  const t = table.markdown;
   const href = publicHttpUrl(src);
   return (
     <span className="blocked-image">
-      Image blocked{alt ? `: ${alt}` : ""} ({hostOf(src)}). Images from the network are
-      never loaded.{href ? (
+      {t.imageBlocked}
+      {alt ? t.withAlt(alt) : ""}
+      {t.from(hostOf(t, src))}
+      {href ? (
         <>
-          {" "}<Openable url={href}>Open address</Openable>
+          {" "}<Openable url={href}>{t.openAddress}</Openable>
         </>
       ) : null}
     </span>
@@ -38,6 +44,8 @@ function BlockedImage({ alt, src }: { alt?: string; src?: string }) {
 }
 
 function CodeBlock({ language, code }: { language: string; code: string }) {
+  const { table } = useLanguage();
+  const t = table.markdown;
   const [copied, setCopied] = useState(false);
   const [failedCopy, setFailedCopy] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -63,9 +71,9 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   return (
     <div className="codeblock">
       <div className="codeblock-head">
-        <span className="codeblock-lang">{language || "code"}</span>
+        <span className="codeblock-lang">{language || t.code}</span>
         <button type="button" className="codeblock-copy" onClick={() => void copy()}>
-          {copied ? "Copied" : failedCopy ? "Copy failed" : "Copy"}
+          {copied ? t.copied : failedCopy ? t.copyFailed : t.copy}
         </button>
       </div>
       <pre className="codeblock-pre" tabIndex={0}>

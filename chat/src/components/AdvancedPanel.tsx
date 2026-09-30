@@ -4,7 +4,9 @@ import { LAUNCH_KNOBS } from "../lib/knobs/launch";
 import type { LaunchKnob } from "../lib/knobs/types";
 import { bytesText } from "../surfaces/MachineCard";
 import { loadSettings, saveSettings } from "../lib/settings";
+import { launchWords } from "../lib/knobs/words";
 import { useLanguage } from "../i18n/useLanguage";
+import type { English } from "../i18n/en/all";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
 import "./AdvancedPanel.css";
@@ -80,38 +82,39 @@ const ROAD_KNOB = launchKnob("internet_road");
     value: the range used to be typed into this file a second time as the
     input's min/max, and a duration is something an owner recognizes rather
     than arithmetic to do. */
-const IDLE_CHOICES: readonly { seconds: number; label: string }[] = [
-  { seconds: 60, label: "1 minute" },
-  { seconds: 300, label: "5 minutes" },
-  { seconds: 3600, label: "1 hour" },
-];
+const IDLE_CHOICES: readonly number[] = [60, 300, 3600];
 
 /** The three choices, plus the value already on file when it is none of them:
     an owner who typed 10 minutes in an earlier build still sees what the
     server is really using, and saving without touching it keeps their value
     rather than silently rounding it to a preset. */
-function idleChoices(current: string): readonly { seconds: number; label: string }[] {
+/** The idle clock's legible choices, plus the value already on file when it
+    is none of them — an owner's earlier choice is kept, never rounded to a
+    preset. The words are the table's; the numbers are the range Rust
+    enforces and the app's own default. */
+function idleChoices(current: string, t: English["advanced"]): readonly { seconds: number; label: string }[] {
   const seconds = Number(current);
-  if (current === "" || IDLE_CHOICES.some((choice) => choice.seconds === seconds)) return IDLE_CHOICES;
+  const named = IDLE_CHOICES.map((value) => ({
+    seconds: value,
+    label: value === 60 ? t.idleOneMinute : t.idleMinutes(String(value / 60)),
+  }));
+  if (current === "" || IDLE_CHOICES.includes(seconds)) return named;
   const minutes = seconds / 60;
   const label = Number.isInteger(minutes)
     ? minutes === 1
-      ? "1 minute"
-      : `${minutes} minutes`
-    : `${seconds} seconds`;
-  return [...IDLE_CHOICES, { seconds, label }].sort((a, b) => a.seconds - b.seconds);
+      ? t.idleOneMinute
+      : t.idleMinutes(String(minutes))
+    : t.idleSeconds(String(seconds));
+  return [...named, { seconds, label }].sort((a, b) => a.seconds - b.seconds);
 }
 
+/** A typed value as a number, or null for the empty box. A box holding
+    something that is not a number throws the code the save words itself. */
 function numberOrNull(value: string): number | null {
   if (value === "") return null;
   const number = Number(value);
-  if (!Number.isFinite(number)) throw new Error("Enter a number.");
+  if (!Number.isFinite(number)) throw new Error("not-a-number");
   return number;
-}
-function automaticNumber(value: number | null | undefined, label: string): string {
-  return typeof value === "number" && Number.isFinite(value)
-    ? `Automatic is ${value}.`
-    : `The app will read the machine before choosing a ${label}.`;
 }
 /** A number that came off the wire and is usable as one, or null. */
 function finite(value: number | null | undefined): number | null {
@@ -164,36 +167,32 @@ function tokensText(tokens: number): string {
 }
 /** How "Automatic" is written where a figure is expected: the launcher's own
     pick when it is known, the bare word otherwise. */
-function automaticLabel(dto: AdvancedDto | null, cache: CacheChoice): string {
+function automaticLabel(t: English["advanced"], dto: AdvancedDto | null, cache: CacheChoice): string {
   const automatic = contextAutomatic(dto, cache);
-  return automatic === null ? "automatic" : `Automatic — ${tokensText(automatic)}`;
+  return automatic === null ? t.automaticBare : t.automaticWith(tokensText(automatic));
 }
 /** The one-click context sizes. 64k is the launcher's own chat default
     (`DEFAULT_CONTEXT_TOKENS` in kalsa-launch); 32k and 128k are the step
     either side of it. Only the sizes this machine funds are offered, so a
     button can never set a value the guards would refuse. */
 const CONTEXT_PRESETS: readonly number[] = [32 * 1024, 64 * 1024, 128 * 1024];
-function contextHelp(dto: AdvancedDto | null, cache: CacheChoice, typed: string): string {
+function contextHelp(t: English["advanced"], tag: string, dto: AdvancedDto | null, cache: CacheChoice, typed: string): string {
   const tokens = shownContext(dto, cache, typed);
   const cost = contextCost(dto, cache, typed);
   const costSentence =
-    cost !== null && tokens !== null
-      ? ` The KV cache for ${tokensText(tokens)} tokens uses ${bytesText(cost)}.`
-      : "";
+    cost !== null && tokens !== null ? t.contextCost(tokensText(tokens), bytesText(cost)) : "";
   const maximum = contextMaximum(dto, cache);
   const automatic = contextAutomatic(dto, cache);
   if (maximum === null) {
-    return `The app reads the machine before choosing a context. The bigger f16 cache roughly halves it.${costSentence}`;
+    return t.contextNoMaximum + costSentence;
   }
   if (automatic === null) {
-    return `Up to ${tokensText(maximum)} on this computer. A smaller value uses less memory.${costSentence}`;
+    return t.contextNoAutomatic(tokensText(maximum)) + costSentence;
   }
-  return `Automatic is ${tokensText(automatic)} (${automatic} tokens). Up to ${tokensText(maximum)} on this computer.${costSentence}`;
+  return t.contextFull(tokensText(automatic), new Intl.NumberFormat(tag).format(automatic), tokensText(maximum)) + costSentence;
 }
-function cacheHelp(dto: AdvancedDto | null): string {
-  return dto?.kv_cache_automatic
-    ? `Automatic is ${dto.kv_cache_automatic}.`
-    : "The app will read the machine before choosing a cache type.";
+function cacheHelp(t: English["advanced"], dto: AdvancedDto | null): string {
+  return dto?.kv_cache_automatic ? t.cacheAutomatic(dto.kv_cache_automatic) : t.cacheReadLater;
 }
 interface AdvancedPanelProps {
   save: AdvancedSave;
@@ -205,8 +204,12 @@ interface AdvancedPanelProps {
 }
 
 export function AdvancedPanel({ save, model: modelProp, onModelChange }: AdvancedPanelProps) {
-  const { table } = useLanguage();
-  const advanced = table.advanced;
+  const { table, tag } = useLanguage();
+  const t = table.advanced;
+  const knobs = table.knobs;
+  const said = (knob: LaunchKnob) => launchWords(knobs, knob);
+  // Figures follow the language, the "k" abbreviation follows them.
+  const num = (value: number | string): string => new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(Number(value));
   // The name arrives as the stored value and is written on blur — the same
   // commit a knob's typed value makes. The one writer of the record is that
   // blur; onModelChange only carries the name to the app's memory.
@@ -295,9 +298,9 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
       setDto(saved);
       dirty.current = false;
       syncInputs(saved);
-      setFeedback("Saved for the next start.");
+      setFeedback(t.saveOk);
     } catch (error) {
-      setFeedback(String(error));
+      setFeedback(error instanceof Error && error.message === "not-a-number" ? t.enterNumber : String(error));
     }
     setSaving(false);
   }
@@ -308,7 +311,7 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
   function commitName(): void {
     const name = model.trim();
     if (!name) {
-      setModelError(advanced.modelNameError);
+      setModelError(t.modelNameError);
       return;
     }
     if (saveSettings({ ...loadSettings(), model: name })) onModelChange?.(name);
@@ -322,15 +325,12 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
 
   return (
     <div className="advanced-panel">
-      <p className="advanced-eyebrow">ADVANCED</p>
-      <p className="advanced-title">Server settings</p>
-      {/* The fields are this page's content. They used to sit behind "Show
-          settings", which made a third nesting: a settings page, a panel called
-          Server settings, and a button to reveal them. */}
+      <p className="advanced-eyebrow">{t.eyebrow}</p>
+      <p className="advanced-title">{t.title}</p>
       <KnobInfoScope>
         <div className="advanced-body">
           <label className="settings-field">
-            <span>{advanced.modelName}</span>
+            <span>{t.modelName}</span>
             <input
               type="text"
               value={model}
@@ -340,11 +340,9 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
               }}
               onBlur={commitName}
               onKeyDown={(event) => {
-                // Enter commits what was typed — the keyboard should not
-                // need a detour out of the field to be heard.
                 if (event.key === "Enter") commitName();
               }}
-              placeholder={advanced.modelNamePlaceholder}
+              placeholder={t.modelNamePlaceholder}
               autoComplete="off"
               spellCheck={false}
             />
@@ -355,16 +353,12 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
             ) : null}
           </label>
           <p className="advanced-note">
-            {dto
-              ? dto.running
-                ? "The current server stays as it is. Changes apply next time you turn on."
-                : "Changes apply next time you turn on."
-              : "These settings are available inside the Kalsa app."}
+            {dto ? (dto.running ? t.noteRunning : t.noteStopped) : t.noteNoApp}
           </p>
-          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} help={contextHelp(dto, cache, context)}>
-            <div className="advanced-presets" role="group" aria-label="Context size">
+          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} said={said(CONTEXT_KNOB)} help={contextHelp(t, tag, dto, cache, context)}>
+            <div className="advanced-presets" role="group" aria-label={t.presetsAria}>
               <button type="button" className={context === "" ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext("")}>
-                {automatic === null ? "Automatic" : `Automatic — ${tokensText(automatic)}`}
+                {automatic === null ? t.automatic : t.automaticWith(tokensText(automatic))}
               </button>
               {contextPresets.map((preset) => (
                 <button key={preset} type="button" className={context !== "" && Number(context) === preset ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext(String(preset))}>
@@ -373,31 +367,31 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
               ))}
               {maximum !== null ? (
                 <button type="button" className={context !== "" && Number(context) === maximum ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext(String(maximum))}>
-                  Maximum — {tokensText(maximum)}
+                  {t.maximumWith(tokensText(maximum))}
                 </button>
               ) : null}
             </div>
-            <input id="advanced-context" type="number" min={512} max={maximum ?? undefined} step={512} placeholder={automatic === null ? "Automatic" : `Automatic — ${tokensText(automatic)}`} value={context} {...trackText(setContext)} />
+            <input id="advanced-context" type="number" min={512} max={maximum ?? undefined} step={512} placeholder={automatic === null ? t.automatic : t.automaticWith(tokensText(automatic))} value={context} {...trackText(setContext)} />
           </AdvancedField>
-          <AdvancedField id="advanced-batch" knob={BATCH_KNOB} help={automaticNumber(dto?.batch_automatic, "batch size")}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder="Automatic" value={batch} {...trackText(setBatch)} /></AdvancedField>
-          <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} help={automaticNumber(dto?.ubatch_automatic, "micro-batch size")}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder="Automatic" value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
-          <AdvancedField id="advanced-cache" knob={CACHE_KNOB} help={cacheHelp(dto)}>
+          <AdvancedField id="advanced-batch" knob={BATCH_KNOB} said={said(BATCH_KNOB)} help={dto?.batch_automatic != null ? t.automaticNumber(num(dto.batch_automatic)) : t.automaticReadLater(t.batchSizeName)}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder={t.automatic} value={batch} {...trackText(setBatch)} /></AdvancedField>
+          <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} said={said(UBATCH_KNOB)} help={dto?.ubatch_automatic != null ? t.automaticNumber(num(dto.ubatch_automatic)) : t.automaticReadLater(t.ubatchSizeName)}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder={t.automatic} value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
+          <AdvancedField id="advanced-cache" knob={CACHE_KNOB} said={said(CACHE_KNOB)} help={cacheHelp(t, dto)}>
             <select id="advanced-cache" value={cache} {...trackSelect((value) => setCache(value as CacheChoice))}>
-              <option value="">Automatic</option>
-              <option value="q8_0">q8_0 — less memory</option>
-              <option value="f16">f16 — more cache precision</option>
+              <option value="">{t.automatic}</option>
+              <option value="q8_0">{t.cacheLessMemory}</option>
+              <option value="f16">{t.cacheMorePrecision}</option>
             </select>
           </AdvancedField>
-          <AdvancedField id="advanced-idle" knob={IDLE_KNOB} help="The model is released from memory after this much sitting idle, so an ordinary pause does not reload it. The running server keeps the time it started with, so this takes effect the next time you turn on.">
+          <AdvancedField id="advanced-idle" knob={IDLE_KNOB} said={said(IDLE_KNOB)} help={t.idleHelp}>
             <select id="advanced-idle" value={idle} {...trackSelect(setIdle)}>
-              {idleChoices(idle).map((choice) => (
+              {idleChoices(idle, t).map((choice) => (
                 <option key={choice.seconds} value={String(choice.seconds)}>
                   {choice.label}
                 </option>
               ))}
             </select>
           </AdvancedField>
-          <AdvancedField id="advanced-road" knob={ROAD_KNOB} check help={dto?.iroh_sentence ?? "The internet road is waiting for the server to run."}>
+          <AdvancedField id="advanced-road" knob={ROAD_KNOB} said={said(ROAD_KNOB)} check help={dto?.iroh_sentence ?? t.roadWaiting}>
             <input
               id="advanced-road"
               type="checkbox"
@@ -415,46 +409,48 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
             />
           </AdvancedField>
           {dto?.internet_road ? (
-            // The road touches the home network, so macOS asks for the
-            // local-network permission when it opens — this is that switch.
-            <p className="advanced-note">
-              Kalsa will ask to find devices on your local network, so your phone can reach this computer at home.
-            </p>
+            <p className="advanced-note">{t.roadPermissionNote}</p>
           ) : null}
           <p className="advanced-values">
             {dto
-              ? `${dto.running ? "In force" : "Next start"}: context ${dto.context_tokens ?? automaticLabel(dto, cache)}; batch ${dto.batch_size}; micro-batch ${dto.ubatch_size}; KV ${dto.kv_cache_type}; flash attention ${dto.flash_attention}; GPU layers ${dto.gpu_layers ?? "automatic"}; threads ${dto.threads ?? "automatic"}; idle unload ${dto.idle_unload_seconds} seconds.${dto.tune ? ` tune: ${dto.tune}.` : ""}`
-              : "The values in force will appear here when the app is open."}
+              ? t.valuesInForce({
+                  lead: dto.running ? t.inForce : t.nextStart,
+                  context: dto.context_tokens != null ? num(dto.context_tokens) : automaticLabel(t, dto, cache),
+                  batch: num(dto.batch_size),
+                  ubatch: num(dto.ubatch_size),
+                  kv: dto.kv_cache_type,
+                  flash: dto.flash_attention,
+                  gpu: dto.gpu_layers ?? t.automaticWord,
+                  threads: dto.threads != null ? num(dto.threads) : t.automaticWord,
+                  idle: `${num(dto.idle_unload_seconds)} ${t.secondsWord}`,
+                  tune: dto.tune ? ` ${t.tuneWord}: ${dto.tune}.` : "",
+                })
+              : t.valuesWaiting}
           </p>
           <p className="advanced-help">
             {dto && (dto.door_port || dto.desk_port)
               ? [
-                  `Local door: ${dto.door_port ?? "not up yet"}.`,
-                  `Run for Tailscale: ${[
+                  t.doorLocal(dto.door_port != null ? num(dto.door_port) : t.doorNotUp),
+                  t.runForTailscale([
                     dto.door_port ? `tailscale serve --bg ${dto.door_port}` : null,
                     dto.desk_port ? `tailscale serve --bg --https=8443 ${dto.desk_port}` : null,
                   ]
                     .filter((command) => command !== null)
-                    .join(" · ")}.`,
+                    .join(" · ")),
                   dto.door_port && dto.desk_port
-                    ? "The phone chats at this computer's tailnet name and pairs at that name with :8443."
+                    ? t.chatsAndPairs
                     : dto.door_port
-                      ? "The phone chats at this computer's tailnet name."
-                      : "The phone pairs at this computer's tailnet name with :8443.",
-                  // True for a first-time owner too: the panel cannot know
-                  // whether a serve rule exists, only where the desk is and
-                  // what the desk command must say.
-                  dto.desk_port && dto.desk_port_preferred === false
-                    ? `The pairing desk is on ${dto.desk_port} this time — point the desk command at this number.`
-                    : null,
+                      ? t.chatsAt
+                      : t.pairsAt,
+                  dto.desk_port && dto.desk_port_preferred === false ? t.deskMoved(dto.desk_port) : null,
                 ]
                   .filter((part) => part !== null)
                   .join(" ")
-              : "The local door is waiting for the server to run."}
+              : t.doorWaiting}
           </p>
           {dto ? (
             <button type="button" className="btn-primary" disabled={saving} onClick={() => void saveEdits()}>
-              Save settings
+              {t.saveButton}
             </button>
           ) : null}
           {feedback ? <p className="advanced-feedback">{feedback}</p> : null}

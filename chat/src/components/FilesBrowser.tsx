@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLanguage } from "../i18n/useLanguage";
 import { available, listen } from "../lib/tauri";
 import { filesList, filesRoots, filesSearch } from "../lib/files";
 import type { DiskEntry, SearchEvent, SearchHit } from "../lib/files";
@@ -38,6 +39,8 @@ function sizeOf(bytes: number): string {
  * nothing, the same rule every surface follows.
  */
 export function FilesBrowser({ onAttach }: FilesBrowserProps) {
+  const { table } = useLanguage();
+  const t = table.browser;
   const [starters, setStarters] = useState<{ label: string; path: string }[]>([]);
   const [folders, setFolders] = useState<Record<string, Folder>>({});
   const [truncated, setTruncated] = useState<Record<string, boolean>>({});
@@ -102,7 +105,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
     void filesRoots()
       .then((found) => {
         setStarters([
-          ...(found.home ? [{ label: "Home", path: found.home }] : []),
+          ...(found.home ? [{ label: t.home, path: found.home }] : []),
           ...found.roots.map((path) => ({ label: path, path })),
         ]);
         setScope(found.home ?? found.roots[0] ?? null);
@@ -207,7 +210,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
                 <span className="files-name">{entry.name}</span>
               </button>
               <button type="button" className="files-here" onClick={() => searchIn(entry.path)}>
-                Search here
+                {t.searchHere}
               </button>
             </>
           ) : (
@@ -222,7 +225,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
                   className="files-attach"
                   onClick={() => onAttach(entry.path, entry.name)}
                 >
-                  Attach
+                  {t.attach}
                 </button>
               ) : null}
             </>
@@ -231,15 +234,15 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
         {open ? (
           <ul className="files-children">{(state as DiskEntry[]).map((child) => rowOf(child, depth + 1, below))}</ul>
         ) : null}
-        {state === "loading" ? <p className="files-note">Reading the folder…</p> : null}
+        {state === "loading" ? <p className="files-note">{t.readingFolder}</p> : null}
         {state && typeof state === "object" && !Array.isArray(state) ? (
           <p className="files-note">{state.error}</p>
         ) : null}
         {open && truncated[entry.path] ? (
-          <p className="files-note">First 500 of this folder shown, alphabetically.</p>
+          <p className="files-note">{t.truncated}</p>
         ) : null}
         {open && folderSkipped[entry.path] > 0 ? (
-          <p className="files-note">{folderSkipped[entry.path]} entries here could not be read.</p>
+          <p className="files-note">{t.skippedEntries(folderSkipped[entry.path])}</p>
         ) : null}
       </li>
     );
@@ -247,9 +250,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
 
   if (!disk) {
     return (
-      <p className="files-empty">
-        This tab browses this computer’s disk, which only the desktop app can do.
-      </p>
+      <p className="files-empty">{t.notDesktop}</p>
     );
   }
 
@@ -267,22 +268,22 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name or path"
-          aria-label="Search by name or path"
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchPlaceholder}
         />
         <button type="submit" className="files-go">
-          Search
+          {t.searchButton}
         </button>
       </form>
       <p className="files-scope-line">
-        {scope ? `Searching in ${scope}${searching ? " — looking…" : ""}` : "No folder to search in yet."}
+        {scope ? `${t.searchingIn(scope)}${searching ? t.looking : ""}` : t.noScope}
         {searchError ? ` ${searchError}` : ""}
       </p>
       {notes ? (
         <p className="files-notes">
-          {notes.viaIndex ? "Answered by this Mac’s fast index — files the index skips (dotfiles, some folders) are missing from these results. " : ""}
-          {notes.skipped > 0 ? `Skipped ${notes.skipped} entries the system would not show. ` : ""}
-          {notes.limited ? "First 500 shown — narrower words reach the rest." : ""}
+          {notes.viaIndex ? t.viaIndex : ""}
+          {notes.skipped > 0 ? t.skippedSome(notes.skipped) : ""}
+          {notes.limited ? t.limited : ""}
         </p>
       ) : null}
 
@@ -293,14 +294,14 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
               <span className="files-name" title={hit.path}>
                 {hit.name}
               </span>
-              <span className="files-size">{hit.is_dir ? "folder" : hit.kind}</span>
+              <span className="files-size">{hit.is_dir ? t.folder : hit.kind}</span>
               {hit.kind !== "other" ? (
                 <button
                   type="button"
                   className="files-attach"
                   onClick={() => onAttach(hit.path, hit.name)}
                 >
-                  Attach
+                  {t.attach}
                 </button>
               ) : null}
             </li>
@@ -309,7 +310,7 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
       ) : null}
 
       {starters.length === 0 ? (
-        <p className="files-note">Reading this computer’s folders…</p>
+        <p className="files-note">{t.readingFolders}</p>
       ) : (
         <ul className="files-tree">
           {starters.map((starter) => rowOf({ ...stubEntry(starter.path), name: starter.label }, 0, new Set()))}

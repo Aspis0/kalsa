@@ -17,6 +17,10 @@ import { POWER } from "./power";
 import { DEVICES } from "./devices";
 import { INVITE } from "./invite";
 import { SHELL } from "./shell";
+import { KNOBS } from "./knobs";
+import { SAMPLING } from "./sampling";
+import { BROWSER } from "./browser";
+import { MARKDOWN } from "./markdown";
 
 export interface English {
   chrome: typeof CHROME;
@@ -38,6 +42,10 @@ export interface English {
   devices: typeof DEVICES;
   invite: typeof INVITE;
   shell: typeof SHELL;
+  knobs: typeof KNOBS;
+  sampling: typeof SAMPLING;
+  browser: typeof BROWSER;
+  markdown: typeof MARKDOWN;
 }
 
 export const ENGLISH: English = {
@@ -60,4 +68,8 @@ export const ENGLISH: English = {
   devices: DEVICES,
   invite: INVITE,
   shell: SHELL,
+  knobs: KNOBS,
+  sampling: SAMPLING,
+  browser: BROWSER,
+  markdown: MARKDOWN,
 };
