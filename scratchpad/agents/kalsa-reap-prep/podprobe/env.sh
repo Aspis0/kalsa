@@ -4,12 +4,12 @@
 # env.sh — pinned constants for the one-shot GPU gate probe. Sourced by every
 # podprobe stage. Responsibility: the pins and paths, nothing else.
 # Owner cap: $10. L40 48GB community assumed at $0.69/h (README has the
-# create command; adjust PROBE_RATE_USD_H if the GPU differs).
+# creation parameters; adjust PROBE_RATE_USD_H if the GPU differs).
 
 # --- engine: fork main + the k2 spike patch (k2 is OFF unless the
 # expert_used_k2 override is passed, so one build serves every arm).
 # Requires the coordinator to have pushed spike/topk-k2-renorm first; if not
-# pushed, set LLAMA_SHA to main below and the k2 arm skips itself.
+# pushed, 00_env falls back to fork main and the k2 arm skips itself.
 LLAMA_REPO="https://github.com/Aspis0/kalsallama.git"
 LLAMA_SHA="a2f252fbdd6fe52e75e818b041d8174fccbe3a52"   # spike/topk-k2-renorm
 LLAMA_SHA_FALLBACK="e8065c7cfd0daed1b64a94353ff8d2e0edfbc4da"  # fork main
@@ -46,14 +46,18 @@ CORPUS="$CELL/corpus/postcutoff"
 MODELS="$ROOT/models"
 RUNS="$ROOT/runs"
 RESULTS="$ROOT/results"
-PY="$ROOT/.venv-probe/bin/python"
+PY="${POD_PY:-$ROOT/.venv-probe/bin/python}"   # override to reuse a venv
 LLAMA="$ROOT/kalsallama"
-LLAMA_BIN="$LLAMA/build/bin"
+LLAMA_BIN="${LLAMA_BIN:-$LLAMA/build/bin}"   # override for a prebuilt tree
 PORT=8765
-HF_RESULTS_REPO="${HF_RESULTS_REPO:-Aspis0/kalsa-gate-probe-results}"
+# the owner's org; created PRIVATE by the coordinator, never by this job
+HF_RESULTS_REPO="${HF_RESULTS_REPO:-Kalsa-ai/kalsa-gate-probe-results}"
 SECRETS="${POD_SECRETS_DIR:-/root/.secrets}"
 PROBE_RATE_USD_H="${PROBE_RATE_USD_H:-0.69}"
-PROBE_BUDGET_H="${PROBE_BUDGET_H:-12.5}"   # < terminate-after; the guard skips
-                                            # arms that cannot fit, in order
+PROBE_BUDGET_H="${PROBE_BUDGET_H:-12.0}"  # guard: skip arms that cannot fit
+PROBE_HARD_STOP_H="${PROBE_HARD_STOP_H:-13}"  # in-pod self-destruct delay;
+                                              # README states its delete
+                                              # permission is UNVERIFIED
+PROBE_ARM_TIMEOUT_H="${PROBE_ARM_TIMEOUT_H:-2.5}"  # per-arm kill switch
 START_EPOCH="$(date +%s)"
 elapsed_h() { awk -v s="$START_EPOCH" -v n="$(date +%s)" 'BEGIN {print (n-s)/3600}'; }

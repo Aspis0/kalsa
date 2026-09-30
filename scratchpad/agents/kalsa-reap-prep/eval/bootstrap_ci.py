@@ -3,8 +3,8 @@
 
 Input: two per-item JSON files as written by run_gen_eval.py (items with
 {id, pass}) or per-segment bpb JSONs as written by run_bpb_eval.py (a dict
-lang -> {"docs": [bpb...]}). The two inputs must be the SAME items/
-documents in the SAME order (the gate is paired by construction: fixed
+lang -> {"chunks": [bpb...]}). The two inputs must be the SAME items/
+chunks in the SAME order (the gate is paired by construction: fixed
 holdouts, same build, same session).
 
 Output: per metric, the two values, the diff (a - b), and the 95% percentile
@@ -57,10 +57,10 @@ def main() -> int:
         da, db = json.load(open(a.a)), json.load(open(a.b))
         langs = a.langs.split(",") if a.langs else sorted(da)
         for lang in langs:
-            ma, mb = da[lang]["docs"], db[lang]["docs"]
+            ma, mb = da[lang]["chunks"], db[lang]["chunks"]
             va, vb, d, lo, hi = paired_ci(ma, mb, a.resamples, rng)
             print(f"bpb {lang}: A {va:.4f}  B {vb:.4f}  diff {d:+.4f} "
-                  f"[95% CI {lo:+.4f}, {hi:+.4f}]  (n={len(ma)} docs)")
+                  f"[95% CI {lo:+.4f}, {hi:+.4f}]  (n={len(ma)} chunks)")
     else:
         da, db = json.load(open(a.a)), json.load(open(a.b))
         ia = {i["id"]: i["pass"] for i in da["items"]}

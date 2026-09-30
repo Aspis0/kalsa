@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 00_env.sh — pinned toolchain for the GPU probe. Responsibility: one venv +
-# one fork clone at the spike sha + one CUDA llama.cpp build.
+# one fork clone at the spike sha + one CUDA llama.cpp build. Needs NO HF
+# token.
 set -euo pipefail
 # shellcheck source=env.sh
 . "$(dirname "$0")/env.sh"
@@ -9,11 +10,15 @@ OK="$RUNS/00_env.ok"
 if [ -f "$OK" ]; then echo "00_env: already OK"; exit 0; fi
 mkdir -p "$RUNS" "$MODELS" "$RESULTS"
 
+# --system-site-packages: the image's torch (matching its CUDA) is visible to
+# the venv; transformers only pulls torch via extras, so an isolated venv
+# would fail the CUDA assert below (Fable-3 §1.2). The hub pin satisfies
+# transformers 5.16.0's `huggingface-hub>=1.5,<2.0` requirement.
 if [ ! -x "$PY" ]; then
-  python3 -m venv "$ROOT/.venv-probe"
+  python3 -m venv --system-site-packages "$ROOT/.venv-probe"
 fi
 "$ROOT/.venv-probe/bin/pip" install --quiet --disable-pip-version-check \
-  "transformers==5.16.0" "huggingface_hub[cli]==0.34.4" "sentencepiece"
+  "transformers==5.16.0" "huggingface_hub[cli]>=1.5,<2.0" "sentencepiece"
 "$PY" -c "import torch; assert torch.cuda.is_available()" \
   || { echo "00: no CUDA visible — wrong image?" >&2; exit 1; }
 
@@ -26,10 +31,11 @@ git -C "$LLAMA" fetch --quiet origin || true
 if ! git -C "$LLAMA" cat-file -e "$LLAMA_SHA^{commit}" 2>/dev/null \
    && ! git -C "$LLAMA" fetch --quiet origin spike/topk-k2-renorm 2>/dev/null; then
   echo "00: spike sha unavailable — building fork main (k2 arm will skip)" >&2
-  export LLAMA_SHA="$LLAMA_SHA_FALLBACK"
+  git -C "$LLAMA" checkout --quiet --force "$LLAMA_SHA_FALLBACK"
   echo "$LLAMA_SHA_FALLBACK" > "$RUNS/using-main"
+else
+  git -C "$LLAMA" checkout --quiet --force "$LLAMA_SHA"
 fi
-git -C "$LLAMA" checkout --quiet --force "$LLAMA_SHA"
 
 if [ ! -x "$LLAMA_BIN/llama-server" ] || [ ! -x "$LLAMA_BIN/llama-perplexity" ]; then
   apt-get update -qq && apt-get install -y -qq build-essential cmake ninja-build libcurl4-openssl-dev >/dev/null

@@ -1,9 +1,96 @@
 # REPORT — kalsa-reap-prep (2026-09-30 probe appended; 2026-09-29 audit base)
 
 Preparation + the $0 Mac probe. No pod created, nothing spent, no phones, no
-push. This report covers (0) the Fable-2 fixes + GPU-probe prep, (1) the $0
-probe run after the review fixes, and (2) the ten hostile-audit items
-against commit 5f8d5f10.
+push. This report covers (F3) the Fable-3 §9 fixes with Mac proof, (0) the
+Fable-2 fixes + GPU-probe prep, (1) the $0 probe run, and (2) the ten
+hostile-audit items against commit 5f8d5f10.
+
+## Fable-3 §9 fixes + Mac end-to-end proof (2026-09-30, commits below)
+
+The five fatal defects and the eight §9 items:
+
+1. `podprobe/00_env.sh:17-23` — venv is `--system-site-packages` (the
+   image's torch is visible; transformers only pulls torch via extras) and
+   the hub pin is `huggingface_hub[cli]>=1.5,<2.0`, which satisfies
+   transformers 5.16.0's `huggingface-hub<2.0,>=1.5.0` (the old
+   `==0.34.4` pin was unsatisfiable — PyPI re-read).
+2. `eval/run_gen_eval.py:186` — the `score_tools(raw, item, args_match)`
+   arity bug is gone; tools now score from STRUCTURED `message.tool_calls`
+   first (`:118-130` calls_from), content parsing as fallback.
+3. `eval/run_bpb_eval.py` — per-language concatenation, ONE
+   llama-perplexity run per language at `-c 1024` (the fork refuses
+   < 2·n_ctx tokens, perplexity.cpp:480, which killed every per-doc run),
+   per-CHUNK `[n]ppl` values as the bootstrap units; pre-run token-count
+   guard names the cause.
+4. README — creation is now a PARAMETER LIST for the coordinator's Runpod
+   MCP (GPU `NVIDIA L40`, image `runpod/pytorch:1.4.0-cu1290-torch271-ubuntu2204`
+   — tag verified on Docker Hub 2026-09-30; the old `2.7.1-cuda12.8.0-…`
+   tag does not exist — container disk 40 GB, volume 200 GB, SSH yes, no
+   ports, no env). The phantom `--terminate-after`/`--container-disk`
+   runpodctl flags are gone (runpodctl create.go registers none of them).
+   The in-pod hard stop is armed FIRST in `run_probe.sh:20-33`: a
+   background sleep DELETEs its own pod through
+   `https://rest.runpod.io/v1/pods/$RUNPOD_POD_ID` with the injected key
+   passed via child ENVIRONMENT (never argv, never printed). README states
+   plainly: **the pod-scoped key's permission to delete its own pod is
+   UNVERIFIED until a 1-minute CPU-pod test**; until then the only real
+   stops are the console and the per-arm uploads.
+5. `run_probe.sh` — per-arm `timeout -k` (`PROBE_ARM_TIMEOUT_H`), upload
+   after EVERY arm (a late hard stop can only lose the arm in flight),
+   resume marker = `bench.txt` (withheld unless gsm8k+tools+bpb all
+   EXIT=0, `30_gate.sh:82-90`), order lfm → razor19-k8 → **qwen35-4b
+   (control promoted)** → razor19-k4 → qwen36-k4 → k2 → extras.
+6. `30_gate.sh:66-77` — second bench per arm: `-ngl 0` all-vCPU threads,
+   labelled the PC proxy (community vCPU counts vary); GPU bench kept for
+   arm ranking on the pod. Portable NPROC fallback (macOS has no nproc).
+7. `run_gen_eval.py:131-140` + `:48-58` — tools requests carry the
+   structured `tools` field (extracted from the holdout's system message,
+   `:143-156`; 100/100 items verified to carry a parseable OpenAI-shape
+   array), so the server renders each model's NATIVE tool format and
+   returns `message.tool_calls`; the old Hermes-dialect-in-prompt
+   asymmetry is gone.
+8. `run_gen_eval.py:196-205` — per-arm truncation report: every item
+   stores `finish_reason`, the summary and JSON carry
+   `truncated` (items that hit the 4096 cap).
+
+Also: the invented LFM `[Start thinking]/[End thinking]` dialect is
+DELETED — the ship GGUF's template ends `<|im_start|>assistant\n<think>`
+(verified again from the tokenizer file), so only `<think>…</think>` is
+stripped and an unclosed `<think>` is a miss; results repo renamed to
+**`Kalsa-ai/kalsa-gate-probe-results`** (env.sh/README; never created by
+us); `bootstrap_ci.py` follows the `chunks` key; the corpus docs now carry
+Fable-3's contamination caveat (page creation ≠ content novelty — mostly
+translations; cross-lingual recall bias, symmetric across arms).
+
+### Mac proof (quiet window cancelled by the owner; Metal build e8065c7cf)
+
+`30_gate.sh` executed end to end through the pod layout (symlinked
+`/tmp/kalsa-probe-mac` root, `POD_ROOT`/`POD_PY`/`LLAMA_BIN` overrides)
+against the ship LFM GGUF with `PROBE_GEN_LIMIT=2`, `PROBE_BPB_LANGS=en`:
+
+- `caffeinate -i env POD_ROOT=… bash 30_gate.sh lfm-mac-proof …` →
+  **PROOF_EXIT=0** (log `/tmp/mac-proof.log`): gsm8k EXIT=0 · tools
+  EXIT=0 · bpb EXIT=0 · bench wrote bench.txt (the marker) ·
+  `30: [lfm-mac-proof] done 13:05:12`.
+- `gsm8k.json` first item: `{"id": "gsm8k-200-000", "pass": 0,
+  "finish_reason": "stop", "raw": "…Kim raises $320 more than
+  Alexandra…"}` — 1/2 pass (item 000 is the known GSM8K label-noise item),
+  `truncated: 0/2`, thinking ON, raw stored, answer-side content only.
+- `tools.json`: **2/2 pass with `finish_reason: "tool_calls"`** — the
+  structured tools path works end to end (schemas in the request, calls
+  parsed from the response).
+- `bpb.json` (en): `overall_bpb 1.10009` over `63` chunks, 55 docs,
+  291,968 bytes — the concatenated `-c 1024` pipeline works; the LFM en
+  number on the new corpus is 1.10 (vs 1.19 on Gutenberg — different
+  corpus, not comparable by design).
+- `notes.txt`: `DOUBLE_BOS_WARN count=0` — grep ran against the real
+  post-request server.log (4 prompt entries), not a pre-request empty log.
+- Known Mac gap, fixed during the run: the CPU-bench line called `nproc`
+  (Linux); macOS printed `nproc: command not found` and that one bench
+  line fell through `|| true`. Fixed with the portable fallback
+  (`30_gate.sh:69`); the pod is Linux and unaffected either way.
+
+
 
 ## Fable-2 fixes + GPU probe prep (2026-09-30 afternoon; light work only until 14:00)
 

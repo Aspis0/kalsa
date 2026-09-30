@@ -83,8 +83,11 @@ headroom**. No pruned dirs, no BF16 GGUFs, no quants on the pod anymore.
 - Gate corpus `corpus/postcutoff/` (tracked; built by
   `eval/build_postcutoff_corpus.py` — Fable-2 replaced the memorised-Gutenberg
   corpus): one file per document, 50+ documents per language, every document
-  a Wikipedia article CREATED after 2026-07-01 (recentchanges rctype=new —
-  post-cutoff by construction), CC-BY-SA-4.0 with per-document
+  a Wikipedia article CREATED after 2026-07-01 (recentchanges rctype=new).
+  CAVEAT (Fable-3): page creation is not content novelty — many pages are
+  translations of long-existing articles, so this measures cross-lingual
+  recall with a cutoff asymmetry favouring Qwen; symmetric across arms but
+  not a clean instrument. CC-BY-SA-4.0 with per-document
   title/pageid/revid attribution in `MANIFEST.json`. bpb is evaluated
   per-document and the bootstrap units are documents.
 - Scoring: `eval/run_gen_eval.py` — dialect-fair tool matching
@@ -96,7 +99,7 @@ headroom**. No pruned dirs, no BF16 GGUFs, no quants on the pod anymore.
   BOS; the raw-prompt path doubled BOS — Fable-2), raw model output stored
   per item, per-item JSON.
 - CIs: `eval/bootstrap_ci.py`, paired percentile bootstrap on every metric
-  (per-document for bpb, per-item for gsm8k/tools).
+  (per-chunk for bpb, per-item for gsm8k/tools).
 - Thresholds and the verdict rule: `docs/EVAL-GATE.md`.
 
 ## One-shot GPU gate probe (owner cap $10) — podprobe/
@@ -127,52 +130,72 @@ probe builds THAT branch for everything, so the extra arm is just
 
 ### Arms, runtime and cost estimates (L40, $0.69/h, thinking-ON 4096)
 
+Order = decision value (Fable-3 §1): the baseline, then the free-prune
+verdict (RAZOR k=8) WITH its control (dense 4B) before the k=4 arms, then
+the owner's 8 GB-class extras. The guard skips any arm whose estimate no
+longer fits `PROBE_BUDGET_H`; each arm also has its own
+`PROBE_ARM_TIMEOUT_H` kill switch; results upload after EVERY arm, so a
+late failure or the hard stop can only lose the arm in flight.
+
 | # | arm | gate | est. hours | est. cost |
 |---|---|---|---:|---:|
-| 0 | setup: build + fetch (~70 GB) + convert RAZOR-19B + 2 quants | — | 1.3 | $0.90 |
-| 1 | LFM2.5-2.6B ship QAD-Q4_0 (baseline) | full | 0.8 | $0.55 |
-| 2 | RAZOR-19B k=8 Q4_K_M | full | 2.1 | $1.45 |
-| 3 | RAZOR-19B k=4 Q4_K_M | full | 2.0 | $1.40 |
-| 4 | Qwen3.6-35B-A3B unpruned k=4 Q4_K_M | full | 2.2 | $1.50 |
-| 5 | Qwen3.5-2B Q4_K_M (8 GB-class candidate) | full | 0.7 | $0.50 |
-| 6 | Qwen3.5-2B Q4_0 | full | 0.7 | $0.50 |
-| 7 | Qwen3.5-4B Q4_K_M (dense control) | full | 1.0 | $0.70 |
-| 8 | RAZOR-19B k=8 Q4_0 | full | 1.4 | $0.95 |
-| 9 | RAZOR-19B k=4 + k2=16 renorm (spike build) | full | 2.0 | $1.40 |
-| — | **core total (0–8)** | | **12.2** | **$8.40** |
-| opt | RAZOR-28B k=8 Q4_K_M (25 %; no 16 GB fit) | full | 3.0 | $2.05 |
+| 0 | setup: venv + CUDA build + fetch (~66 GB) + convert RAZOR-19B + 2 quants | — | 1.3–2.0 | $0.90–1.40 |
+| 1 | LFM2.5-2.6B ship QAD-Q4_0 (baseline) | full | 0.5–1.0 | $0.35–0.70 |
+| 2 | RAZOR-19B k=8 Q4_K_M — the free 50 % prune verdict | full | 2.0–3.5 | $1.40–2.40 |
+| 3 | Qwen3.5-4B Q4_K_M (the control the bar is written against) | full | 0.5–1.0 | $0.35–0.70 |
+| 4 | RAZOR-19B k=4 Q4_K_M (cost of the only speed lever) | full | 2.0–3.5 | $1.40–2.40 |
+| 5 | Qwen3.6-35B-A3B unpruned k=4 (separates "pruning hurt" from "k=4 hurt") | full | 2.0–3.5 | $1.40–2.40 |
+| 6 | RAZOR-19B k=4 + k2=16 renorm (spike build; the product config if any) | full | 2.0–3.5 | $1.40–2.40 |
+| 7 | Qwen3.5-2B Q4_K_M (8 GB-class candidate) | full | 0.4–0.7 | $0.30–0.50 |
+| 8 | Qwen3.5-2B Q4_0 | full | 0.4–0.7 | $0.30–0.50 |
+| 9 | RAZOR-19B k=8 Q4_0 (phone-quant cost) | full | 1.5–2.5 | $1.05–1.75 |
+| — | **core total (0–9)** | | **13.5–21.9** | **$9.4–15.0** |
 
-Core sits under the $10 cap with ~$1.6 headroom; the budget guard
-(`PROBE_BUDGET_H=12.5`, arm order = value: baseline → decision arms →
-extras) SKIPS any arm whose estimate no longer fits, so a slow pod degrades
-gracefully instead of dying mid-arm. bpb dominates arm time because each
-document is a separate `llama-perplexity` load (the fork's server exposes
-logprobs for generated tokens only — teacher-forced NLL needs the CLI).
+Fable-3's realistic range exceeds the $10 cap at the long end; that is the
+guard's job — arms 1–6 (the actual decision set, ≈ $6.3–11.4) run first,
+extras run only while budget remains, and the hard stop (13 h ≈ $9.0) closes
+the pod regardless. bpb is now ONE llama-perplexity run per language
+(concatenated documents, `-c 1024` chunks as CI units), not 275 separate
+loads. Each arm reports, next to pass rates: the thinking-truncation rate
+(how many items hit the 4096 cap), a double-BOS warning count (checked
+after the requests), and TWO benches — GPU (`-ngl 99`, ranks arms on this
+pod) and CPU (`-ngl 0 -t $(nproc)`, the PC proxy; community vCPU counts
+vary, so it is a proxy, not a device number). Speed on a real 16 GB phone
+remains a later device session.
 
 ### Coordinator launch sequence (I do not run these)
 
 Prerequisites (once, owner/coordinator):
-1. `hf repo create Aspis0/kalsa-gate-probe-results --repo-type dataset --private`
+1. Create PRIVATE dataset repo (owner's org; the job never creates repos):
+   `hf repo create Kalsa-ai/kalsa-gate-probe-results --repo-type dataset --private`
 2. One-time ship-baseline upload (it exists only on the Mac):
-   `hf upload Aspis0/kalsa-gate-probe-results ~/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf ship/LFM2.5-2.6B-QAD-Q4_0.gguf --repo-type dataset`
-3. If arm 9 (k2) is wanted: `git -C ~/Projects/kalsallama-spike-k2 push origin spike/topk-k2-renorm`
-   (not pushed by the prep session — pushes are the coordinator's call; the
-   job falls back to fork main and skips arm 9 if the branch is absent).
+   `hf upload Kalsa-ai/kalsa-gate-probe-results ~/kalsa-models/mac/LFM2.5-2.6B-QAD-Q4_0.gguf ship/LFM2.5-2.6B-QAD-Q4_0.gguf --repo-type dataset`
+3. If arm 6 (k2) is wanted: `git -C ~/Projects/kalsallama-spike-k2 push origin spike/topk-k2-renorm`
+   (not pushed by the prep session; the job falls back to fork main and
+   skips arm 6 if the branch is absent).
+4. The in-pod hard stop deletes the pod through the Runpod REST API with
+   the pod's injected RUNPOD_API_KEY. **Its permission to delete its own
+   pod is UNVERIFIED — test once with a 1-minute CPU pod before relying on
+   it** (create tiny CPU pod, run the same DELETE with its injected key,
+   confirm it disappears). Until that test passes, assume the only real
+   stops are your console and the per-arm uploads.
 
-Create + launch (live `runpodctl pod create --help` is authoritative for
-exact flag spellings — runpodctl is not installed on the prep Mac):
+Pod creation is done by the COORDINATOR through the Runpod MCP with these
+parameters (runpodctl create flags verified absent for terminate-after, so
+the MCP is the path; adjust names to the MCP tool's fields):
+
+- GPU type: `NVIDIA L40` (48 GB; community cloud acceptable). RTX PRO 5000
+  48 GB also fits every arm at ~$0.82/h — then set `PROBE_BUDGET_H=10.5`,
+  `PROBE_HARD_STOP_H=11.5`.
+- Image: `runpod/pytorch:1.4.0-cu1290-torch271-ubuntu2204` — tag verified
+  on Docker Hub 2026-09-30 (torch 2.7.1, CUDA 12.9; the previous
+  `2.7.1-cuda12.8.0-…` tag does not exist).
+- Container disk: 40 GB · Volume: 200 GB mounted at `/workspace`.
+- Ports: none needed · SSH: yes (bundle upload + launch).
+- Env: nothing (the HF token goes to `/root/.secrets/hf_token` by scp, not
+  into the pod env).
+
 ```bash
-runpodctl pod create \
-  --name kalsa-gate-probe \
-  --image runpod/pytorch:2.7.1-cuda12.8.0-cudnn9-devel-ubuntu22.04 \
-  --gpu-id "NVIDIA L40" \
-  --container-disk 40 --volume 200 \
-  --ssh \
-  --terminate-after "$(date -u -v+14H +%Y-%m-%dT%H:%M:%SZ)"
-# 14h x $0.69 = $9.66 hard stop (owner cap $10); the guard stops work at 12.5h.
-# RTX PRO 5000 48GB (~$0.82/h) also fits every arm: use --terminate-after +13H
-# and PROBE_RATE_USD_H irrelevant (guard is hours-based; cost math in README).
-
 # bundle: gate code + corpus + tokenizers + terminate script (~65 MB),
 # arranged exactly as podprobe/env.sh expects ($CELL = /workspace/kalsa-reap-prep)
 CELL=~/Projects/kalsa-moe-experiments/scratchpad/agents/kalsa-reap-prep
@@ -188,11 +211,12 @@ ssh root@POD_IP 'mkdir -p /root/.secrets && chmod 700 /root/.secrets'
 scp HF_TOKEN_FILE root@POD_IP:/root/.secrets/hf_token
 ssh root@POD_IP 'chmod 600 /root/.secrets/hf_token && bash /workspace/kalsa-reap-prep/podprobe/run_probe.sh'
 ```
-The job downloads at pinned revisions, converts RAZOR (`--no-mtp`), runs the
-arms in value order, uploads raw outputs + JSON + logs to the PRIVATE
-dataset repo (privacy-gated, token via env/file only, upload verified),
-then terminates. On upload failure it stays alive for manual salvage (the
-`--terminate-after` stop still applies).
+The job arms its own hard stop FIRST (sleep PROBE_HARD_STOP_H, then DELETE
+of its own pod via the injected key — permission UNVERIFIED, see
+prerequisite 4), then: pinned downloads, RAZOR `--no-mtp` conversion,
+value-ordered arms with per-arm timeout, per-arm upload to the PRIVATE
+dataset repo (privacy-gated, token via env/file only, tree-verified), and a
+final terminate attempt on success.
 
 ## What could not be verified on the Mac
 

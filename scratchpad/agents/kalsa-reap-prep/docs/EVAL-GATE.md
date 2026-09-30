@@ -32,7 +32,7 @@ exist so a suspicious Kalsa number can be cross-read immediately.
 
 | metric | instrument | notes |
 |---|---|---|
-| bpb × 5 languages | `eval/run_bpb_eval.py` over `corpus/postcutoff/` | ≥ 50 documents/language, every document a Wikipedia article CREATED after 2026-07-01 (post-cutoff by construction; per-doc title/pageid/revid in `MANIFEST.json`, CC-BY-SA-4.0); per-document bpb, **bootstrap CI over documents** on the Kalsa−LFM diff |
+| bpb × 5 languages | `eval/run_bpb_eval.py` over `corpus/postcutoff/` | ≥ 50 documents/language, every document a Wikipedia article CREATED after 2026-07-01 (per-doc title/pageid/revid in `MANIFEST.json`, CC-BY-SA-4.0). KNOWN BIAS (Fable-3 §3): creation ≠ novelty — many pages translate long-existing articles, so the corpus leans on cross-lingual recall with a cutoff asymmetry favouring Qwen; symmetric across arms, not a clean instrument. Per language the docs are concatenated into ONE llama-perplexity run (`-c 1024`); the per-CHUNK ppl values are the **bootstrap CI units** on the diff |
 | GSM8K pass@1 | `eval/run_gen_eval.py --dataset gsm8k` (200 items, greedy, seed-42 slice) | strict last-number match on think-stripped output; **paired bootstrap CI** |
 | Tool calls pass@1 | `eval/run_gen_eval.py --dataset tools` (100 items) | holdout built from hermes' **glaive-function-calling-5k.json — a different generator from the calibration's func-calling files** (review T7); scoring is dialect-fair (see below); **paired bootstrap CI** |
 | decode tok/s | `llama-bench` tg128, labeled by device (Mac probe / S23 gate) | Mac numbers are Mac numbers, never presented as phone ones |
