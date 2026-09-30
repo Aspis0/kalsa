@@ -37,6 +37,13 @@ Only editing the sha in `package.json` and the lockfile does, and
 
 ### `kalsallama` — the engine
 
+**Remote branches (2026-09-30 prune, owner rule): exactly three** - `main`, `feat/governor-platform-status`
+(the engine line the app ships) and the one active spike (`spike/onecopy-hmx-raw`). The other 34 branches are
+tags `archive/<name>` at their tips; the 7,311 tags that also exist in `ggml-org/llama.cpp` were deleted from our
+remote (the build number comes from `git rev-list --count`, not tags). Never `git push --tags` from a checkout that
+fetched `upstream`. When a spike ends: tag `archive/<name>`, then delete the branch. Pre-prune backup:
+`~/kalsa-backups/kalsallama-all-refs-2026-09-30.bundle`. The local-checkout description below is older.
+
 Five local branches. `main` is `2361be359`, the same as `origin/main`; HEAD is `b11010-merge` at
 `8537d097c`, the shipped pin, 210 commits ahead of `origin/main`. It has a live `upstream` remote
 on `ggml-org/llama.cpp`, and that is the
