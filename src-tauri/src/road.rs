@@ -54,10 +54,7 @@ pub(crate) fn sentence_with_code(state: &RoadState) -> RoadSentence {
             "Internet connection is waiting for the server to run.",
         ),
         RoadState::Opening => ("road.opening", "Internet connection is opening."),
-        RoadState::Open { node_id } => (
-            "road.open",
-            "Internet connection is on.",
-        ),
+        RoadState::Open { .. } => ("road.open", "Internet connection is on."),
         RoadState::Unavailable => (
             "road.unavailable",
             "Internet connection could not open on this computer.",

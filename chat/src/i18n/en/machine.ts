@@ -36,4 +36,7 @@ export const MACHINE = {
   useThisModel: "Use this one",
   showWorking: "Show the working",
   speedsHeld: "These speeds are for a short conversation. Long ones are slower.",
+  "reasonPicked": "Kalsa picked this because it runs well on this computer.",
+  "reasonChosen": "You picked this AI.",
+  "noSuitableChoice": "Kalsa doesn't have an AI that runs well on this computer yet. Check for an app update.",
 };

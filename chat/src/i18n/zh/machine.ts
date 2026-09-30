@@ -34,4 +34,7 @@ export const MACHINE = {
     "useThisModel": "用这个",
     "showWorking": "显示计算过程",
     "speedsHeld": "这些速度对应较短的对话。较长的对话会更慢。",
+    "reasonPicked": "Kalsa 选了它，因为它在这台电脑上运行良好。",
+    "reasonChosen": "是你选的。",
+    "noSuitableChoice": "Kalsa 还没有在这台电脑上运行良好的 AI。请检查应用更新。",
   };

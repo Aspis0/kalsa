@@ -36,6 +36,9 @@ export interface ModelOption {
   // it: a measurement of this computer beats an arithmetic about it.
   measured: number | null;
   reason: string; // one or two sentences, already written for a human
+  /** The reason's stable code, beside the English; the screen renders the
+      code in the owner's language and falls back to `reason`. */
+  reason_code?: string;
   details: string; // the full working, technical
 }
 
@@ -66,6 +69,8 @@ export type Capability =
       // honest answer, not two that feel the same.
       quicker: ModelOption | null;
       refusal: string | null; // set when there is no pick; already a sentence
+      /** The refusal's stable code, beside the English. */
+      refusal_code?: string;
     };
 
 type Speed = ModelOption["speed"];
@@ -117,6 +122,16 @@ function modelDetail(t: English["machine"], model: ModelOption, speed: Speed, ta
   return `${t.onDisk(bytesText(model.download_bytes, tag))} · ${speedDetail(t, speed)}`;
 }
 
+/** A choice's reason: the approved sentence when the code is one of ours,
+    the catalog's own English otherwise. */
+function reasonLine(t: English["machine"], model: ModelOption): string {
+  const byCode: Record<string, string> = {
+    "model.reason.pick": t.reasonPicked,
+    "model.reason.chosen": t.reasonChosen,
+  };
+  return (model.reason_code && byCode[model.reason_code]) || model.reason;
+}
+
 // The choice card: the options the chooser found for this computer. Rendering
 // only: the read belongs to the caller.
 // One option, on three tight lines: what it is and how fast, what it costs on
@@ -151,7 +166,7 @@ function Option({
         {isRunning ? <span className="machine-option-running">{t.runningNow}</span> : null}
       </p>
       <p className="machine-option-detail">{modelDetail(t, model, speed, tag)}</p>
-      <p className="machine-option-reason">{model.reason}</p>
+      <p className="machine-option-reason">{reasonLine(t, model)}</p>
       {isRunning ? null : model.id === null || onChoose === undefined ? null : confirming ? (
         <div className="machine-option-choose">
           <p>{t.confirmSwitch(model.name, bytesText(model.download_bytes, tag))}</p>
@@ -234,7 +249,12 @@ export function MachineCard({
           </details>
         </>
       ) : (
-        <p className="surface-sentence">{refusal}</p>
+        <p className="surface-sentence">
+          {capability.refusal_code === "catalog.nothing_fits" ||
+          capability.refusal_code === "catalog.nothing_fast_enough"
+            ? t.noSuitableChoice
+            : refusal}
+        </p>
       )}
     </section>
   );

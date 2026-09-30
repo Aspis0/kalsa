@@ -34,4 +34,7 @@ export const MACHINE = {
     "useThisModel": "Prendre celui-ci",
     "showWorking": "Montrer le raisonnement",
     "speedsHeld": "Ces vitesses valent pour une conversation courte. Les longues sont plus lentes.",
+    "reasonPicked": "Kalsa l'a choisi parce qu'il tourne bien sur cet ordinateur.",
+    "reasonChosen": "C'est toi qui l'as choisi.",
+    "noSuitableChoice": "Kalsa n'a pas encore d'IA qui tourne bien sur cet ordinateur. Cherche une mise à jour de l'app.",
   };

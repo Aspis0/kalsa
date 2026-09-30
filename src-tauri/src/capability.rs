@@ -31,6 +31,49 @@ use kalsa_probe::{Backend, Measurement};
 pub(crate) const PHONE_FREE_REASON: &str = "This is the model that suits this computer best. \
 Pair your phone and the app can tell you whether it beats what the phone runs.";
 
+/// The reasons as the wire carries them: a stable code the page renders in
+/// the owner's language beside the English sentence a phone client shows.
+/// The approved sentences drop the pair-a-phone invitation — a reason must
+/// not ask for unrelated setup to be understood.
+#[derive(Clone, Debug, serde::Serialize)]
+pub(crate) struct ReasonMessage {
+    pub code: String,
+    pub text: String,
+}
+
+/// The catalog refusal's stable code, by the enum the catalog itself
+/// carries — never derived from the sentence.
+fn catalog_refusal_code(reason: &kalsa_catalog::RefusalReason) -> String {
+    match reason {
+        kalsa_catalog::RefusalReason::PhoneUnknown => "catalog.phone_unknown".into(),
+        kalsa_catalog::RefusalReason::MachineNotMeasured => "catalog.machine_not_measured".into(),
+        kalsa_catalog::RefusalReason::NothingFits => "catalog.nothing_fits".into(),
+        kalsa_catalog::RefusalReason::NothingBetter => "catalog.nothing_better".into(),
+        kalsa_catalog::RefusalReason::NothingFastEnough => "catalog.nothing_fast_enough".into(),
+    }
+}
+
+pub(crate) fn reason_message(reason: &str) -> ReasonMessage {
+    let (code, text) = if reason == PHONE_FREE_REASON {
+        ("model.reason.pick", "Kalsa picked this because it runs well on this computer.")
+    } else if reason == CHOSEN_REASON {
+        ("model.reason.chosen", "You picked this AI.")
+    } else if reason.starts_with(QUICKER_REASON) || reason.starts_with(QUICKER_SMALLER_REASON) {
+        ("model.reason.quicker", reason)
+    } else if reason.starts_with(PROCESSOR_FALLBACK_SENTENCE_PREFIX) {
+        ("model.reason.sized_for_memory", reason)
+    } else {
+        // A catalog sentence nobody classified travels as itself under a
+        // code the page does not translate.
+        ("model.reason.catalog", reason)
+    };
+    ReasonMessage { code: code.into(), text: text.into() }
+}
+
+/// What a composed reason starts with when the processor fallback spoke.
+pub(crate) const PROCESSOR_FALLBACK_SENTENCE_PREFIX: &str =
+    "No model fits this computer's graphics card's memory alone";
+
 /// The sentence for a model the owner picked themselves. It says who decided,
 /// because the whole difference between this row and an automatic one is that
 /// somebody asked for it.
@@ -82,6 +125,9 @@ pub(crate) enum CapabilityDto {
         /// Why there is no pick, in the refusal's own words. Exactly one of
         /// `model` and `refusal` is Some.
         refusal: Option<String>,
+        /// The refusal's stable code, beside the English.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        refusal_code: Option<String>,
     },
 }
 
@@ -140,6 +186,9 @@ pub(crate) struct ModelChoiceDto {
     measured: Option<f64>,
     /// `Selection::plain_reason` — already written for a human, pass it through.
     reason: String,
+    /// The stable code for that reason, beside the English.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason_code: Option<String>,
     /// `Selection::details` — the full working, for whoever asks.
     details: String,
 }
@@ -214,7 +263,7 @@ pub(crate) fn dto(
     // The pick, its prediction, and the refusal — exactly one of the first and
     // the last. The prediction travels because the second option is defined
     // against the row actually on the page, which two different roads reach.
-    let (model, decode, refusal) = match choose(&input) {
+    let (model, decode, refusal, refusal_code) = match choose(&input) {
         Decision::Pick(selection) => {
             let row = chosen_row(&selection);
             (
@@ -228,10 +277,12 @@ pub(crate) fn dto(
                     speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                     speed: speed(&selection.decode),
                     measured: row.and_then(|row| measured_speed(root, row)),
-                    reason: selection.plain_reason,
+                    reason: selection.plain_reason.clone(),
+                    reason_code: Some(reason_message(&selection.plain_reason).code),
                     details: selection.details,
                 }),
                 Some(selection.decode),
+                None,
                 None,
             )
         }
@@ -259,6 +310,7 @@ pub(crate) fn dto(
                             speed: speed(&row.decode),
                             measured: measured_speed(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
+                            reason_code: Some(reason_message(PHONE_FREE_REASON).code),
                             // The working quotes the same figure as the line
                             // above it — this row's own band at the chooser's
                             // window — so one model cannot carry two speeds
@@ -267,15 +319,26 @@ pub(crate) fn dto(
                         }),
                         Some(row.decode),
                         None,
+                        None,
                     )
                 }
                 // The phone-free question refused for its own reason — the
                 // machine unmeasured, nothing fitting, everything too slow —
                 // and those are the words that answer, not the pair-first
                 // sentence that no longer gates anything.
-                Err(fallback) => (None, None, Some(fallback.explanation)),
+                Err(fallback) => (
+                    None,
+                    None,
+                    Some(fallback.explanation),
+                    Some(catalog_refusal_code(&fallback.reason)),
+                ),
             },
-            _ => (None, None, Some(refusal.explanation)),
+            _ => (
+                None,
+                None,
+                Some(refusal.explanation),
+                Some(catalog_refusal_code(&refusal.reason)),
+            ),
         },
     };
     // Against the row on the page, not against the biggest that fits: with a
@@ -306,6 +369,7 @@ pub(crate) fn dto(
                 speed: speed(&row.decode),
                 measured,
                 reason: reason.to_string(),
+                reason_code: Some(reason_message(reason).code),
                 details: alternative_details(&row, &row.decode),
             }
         });
@@ -315,6 +379,7 @@ pub(crate) fn dto(
         model,
         quicker,
         refusal,
+        refusal_code,
     }
 }
 
@@ -485,6 +550,7 @@ mod tests {
                 // shows it.
                 measured: Some(18.4),
                 reason: "It runs a clearly bigger model than your phone does.".to_string(),
+                reason_code: Some("model.reason.catalog".into()),
                 details: "the full working".to_string(),
             }),
             // The second option is part of the contract, so the sample shows
@@ -503,9 +569,11 @@ mod tests {
                 },
                 measured: None,
                 reason: QUICKER_REASON.to_string(),
+                reason_code: Some(reason_message(QUICKER_REASON).code),
                 details: "the full working".to_string(),
             }),
             refusal: None,
+            refusal_code: None,
         };
         let json = serde_json::to_value(&dto).expect("serialise");
         println!("{}", serde_json::to_string_pretty(&dto).expect("serialise"));
@@ -528,6 +596,8 @@ mod tests {
         assert_eq!(json["quicker"]["name"], "Google Gemma 4 E4B");
         assert_eq!(json["quicker"]["speed"]["shape"], "measured");
         assert_eq!(json["refusal"], serde_json::Value::Null);
+        // refusal_code is skipped while there is no refusal.
+        assert!(json.get("refusal_code").is_none());
         let mut top_keys: Vec<_> = json.as_object().unwrap().keys().collect();
         top_keys.sort();
         assert_eq!(top_keys, ["chosen", "kind", "machine", "model", "quicker", "refusal"]);
@@ -555,16 +625,18 @@ mod tests {
             [
                 "context_tokens",
                 "details",
+                "download_bytes",
                 "id",
                 "measured",
                 "name",
                 "quant",
                 "reason",
+                "reason_code",
                 "speed",
-                "speed_context_tokens",
-                "weights_bytes"
+                "speed_context_tokens"
             ]
         );
+        assert_eq!(json["model"]["reason_code"], "model.reason.catalog");
         // Both options are the same shape, so one key set governs both.
         let mut quicker_keys: Vec<_> = json["quicker"].as_object().unwrap().keys().collect();
         quicker_keys.sort();
@@ -697,7 +769,7 @@ mod tests {
                         let row = row.entry();
                         row.display_name == option.name
                             && row.quant == option.quant
-                            && row.weights_bytes == option.download_bytes
+                            && Some(crate::startup::model_token(row)) == option.id
                     })
                     .expect("both options are on the menu")
                     .source()
