@@ -662,6 +662,11 @@ CPU; the A+B means (-45 % / -33 %) mix unequal speeds (CPU-B 9.60 tok/s). The ar
 120 s idle tail (54-77 % of the skin area), so it is not active-decode-only heat; baselines rose through the
 session. Two copies lowest per token (0.28 skin C·s/tok at 21.5 tok/s). Hostile review of these results:
 `onecopy-hmx-numerics/REPORT.md` "Hostile review 2026-09-30".
+Raw-row `ceb89bedc` audit (2026-09-30 evening, `AUDIT-ceb89bedc.md`): safe for PROBE=1|2|4 and HOSTBUF_UNCACHED;
+RAW_LOCAL is a no-op, the probe value is not logged and the flat VTCM fallback keeps `pipeline`. Decision: fix these
+gates first (coder on `spike/onecopy-hmx-raw`, then one audit by another model), push the new DSP .so with the host
+lib, then ONE S23 ABBA session gated on the `hvx-rawrow` path tag. Lead hypothesis: raw DMA row stride 18*n_k not
+128-B aligned on the ffn matvecs (38.6 of 54.7 ms/token).
 S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30 s (median 30.14 s, 47 changes) -> per-turn separation NOT possible from adb. In-app test uses the EXISTING bench trace: AsyncStorage `kalsa.bench.energy_trace`=on (debuggable APK, run-as), native 1 Hz HandlerThread sampler (`native/GovernorBatteryModule.kt`), one CSV per turn at `files/energy/<ms>-t<turn>.csv`; the question is how often `current` changes there.
 
 ### NPU prefill: validated in the CLI, wired in code — NOT in any app APK yet
@@ -927,6 +932,10 @@ Phases (each gated):
    engine `spike/topk-k2-renorm` `a2f252fbd`), Qwen3.5-2B; results to the private HF dataset
    `Kalsa-ai/kalsa-gate-probe-results`. Speed on 16 GB is NOT measured by this probe. Status and launch lessons:
    `scratchpad/COORDINATOR-STATE.md` (2026-09-30 blocks).
+   **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier
+   "$1.5" was an estimate). L40 out of stock -> pod `nytgw2hjgsfz6e` A40 48 GB SECURE CA-MTL-1 at $0.49/h, 200 GB
+   volume; hard stop 18.5 h, arm budget guard 17.5 h (max ~$9.6 total). Stages run one by one first; the full chain
+   only after the LFM arm has written results. Rotate the HF probe token afterwards.
    **Owner constraint:** the Kalsa MoE must run on phones AND PCs with 8 GB and 16 GB of RAM. The pruning
    ratio is chosen against that: resident on 16 GB where it fits, and on 8 GB either a deep prune or our
    expert streaming (`--moe-stream`: Qwen3.6 KEXP already decodes on the 8 GB S23 at 5.70 tok/s).

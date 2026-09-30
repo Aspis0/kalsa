@@ -734,6 +734,8 @@ results do not transfer to the S23 (`scratchpad/agents/qdc-8elite-onecopy-cost/R
 **Kalsa MoE for PC + 16 GB (2026-09-30):** after the $0 Mac probe the REAP pod was dropped; a one-shot quality gate
 probe runs on Runpod (cap $10: LFM, RAZOR-19B, Qwen3.5-4B, Qwen3.6 top-k 4 and k2=16, Qwen3.5-2B), results in the
 private HF dataset `Kalsa-ai/kalsa-gate-probe-results`; PLAN.md "Owner decision 2026-09-29" has the arms.
+Retry 2026-09-30 evening with every arm (owner): A40 pod at $0.49/h, stages one by one, chain only after the LFM
+arm's results land; spend capped at ~$9.6 of the $10.
 
 **Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
 `32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
@@ -776,6 +778,10 @@ speed unmeasured. Same aggregate KLD as two copies to printed precision (not log
 than two copies' 0.005313). Target 19-23 not met; the sim says compute is on par with tiled, so the remaining gap is
 likely the host-buffer memory path (hypothesis). Audit fixes `ceb89bedc` (sim-verified, not yet audited or pushed)
 add env probes to split memory vs compute in one S23 session.
+Hostile audit of `ceb89bedc` (2026-09-30, `onecopy-hmx-numerics/AUDIT-ceb89bedc.md`): default path safe, but
+the probes can silently measure the wrong thing (RAW_LOCAL a no-op under HOSTBUF, probe value never logged, a VTCM
+fallback to flat keeps the probe). Those gates are fixed before the S23 session. The auditor's lead hypothesis is
+the raw DMA row stride `18*n_k`, not 128-byte aligned on the ffn matvecs; the probe arm `=2` decides.
 Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
 12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
 (CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
