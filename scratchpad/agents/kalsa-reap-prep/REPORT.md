@@ -1,8 +1,100 @@
 # REPORT — kalsa-reap-prep (2026-09-30 probe appended; 2026-09-29 audit base)
 
 Preparation + the $0 Mac probe. No pod created, nothing spent, no phones, no
-push. This report covers (1) the $0 probe run after the review fixes, and
-(2) the ten hostile-audit items against commit 5f8d5f10.
+push. This report covers (0) the Fable-2 fixes + GPU-probe prep, (1) the $0
+probe run after the review fixes, and (2) the ten hostile-audit items
+against commit 5f8d5f10.
+
+## Fable-2 fixes + GPU probe prep (2026-09-30 afternoon; light work only until 14:00)
+
+Gate (review §"Top actions" 1, owner addenda):
+- `eval/run_gen_eval.py` rewritten around `/v1/chat/completions` — the
+  SERVER now applies the model's own template and tokenizes once (single
+  BOS; the raw-prompt path doubled it, llama-vocab.cpp:602 warns
+  "final prompt starts with 2 BOS tokens"); **thinking ON for every model**
+  (`chat_template_kwargs.enable_thinking=true`, supported in the fork at
+  tools/server/server-common.cpp:1330; LFM's template opens `<think>`
+  unconditionally so the flag is a no-op there); `--max-tokens` default
+  **4096** (at 1024, 3/4 regenerated LFM GSM8K items died mid-reasoning);
+  **raw output stored per item** in the results JSON; the CLI path stays
+  for local single-artifact checks.
+- `eval/toolcalls.py`: `canonical()` + `args_match()` — tools compared on
+  order-insensitive canonicalised JSON with type-lenient scalars, replacing
+  `str(args)`; 8 new test cases in `eval/test_toolcalls.py` (EXIT=0).
+- `eval/run_bpb_eval.py`: per-document evaluation (`<lang>/<doc>.txt`),
+  byte-weighted per-language overall, per-doc JSON for bootstrap over
+  documents; `eval/bootstrap_ci.py` follows the `docs` key.
+- Corpus REPLACED (Fable-2: one memorised classic per language is not a
+  language-modelling instrument): `eval/build_postcutoff_corpus.py` collects
+  Wikipedia articles CREATED after 2026-07-01 (recentchanges `rctype=new`,
+  wikitext-size floor 4000 B, prose floor 2500 chars, ≤ 12 KB), one file per
+  document, ≥ 50 docs/language, CC-BY-SA-4.0 with per-document
+  title/pageid/revid attribution in `MANIFEST.json`. Post-cutoff by
+  construction: the page did not exist before July 2026. Gutenberg corpus
+  (`corpus/text-holdout/`, `eval/build_text_holdout.py`) removed. Two
+  Wikimedia traps found while building: full (non-intro) extracts return
+  empty for all but ONE page of a batch (19/20 empty, measured), and burst
+  fetching 429s hard — the builder fetches one page per request, 3 s apart,
+  escalating Retry-After backoff.
+- `eval/check_holdout_disjoint.py`: accepts the per-document layout.
+
+Bug fixes (review "Pod still cannot complete" + addenda):
+- `pod/10_fetch_model.sh`: `next(list)` → `sorted(...)[0]` (stage died).
+- `pod/05_fetch_calib.sh` + `calib/stage_calib.sh`: row count carried in
+  staging.json (`n_rows`) and asserted against it — the old hard 1280 assert
+  failed on every post-Part-A rebuild (set is 10,620).
+- `pod/40_upload.sh`: explicit path-in-repo (`upload-staging`) — a bare
+  directory upload lands files at the repo ROOT while verification reads
+  them under `upload-staging/`, so the upload never verified.
+- `pod/run_all.sh`: `timeout` WITHOUT `--foreground` (default mode signals
+  the stage's whole process group; `--foreground` left GPU children
+  running); setsid re-exec so watchdog's group kill can take the job tree;
+  failure path terminates when there is NOTHING to salvage (a stage-20
+  failure with no stats kept the pod billing for an empty volume).
+- `mac/30_convert.sh`: `${q,,}` (bash-4) → precomputed lowercase array —
+  macOS ships bash 3.2.
+- `calib/sources.py`: `(tuple).__hash__()` seed (salted per process) →
+  sha256-derived integer; the Aya sampling is now reproducible.
+
+GPU probe prep (podprobe/, owner cap $10, no pod created):
+- k2=16 renormalisation (arXiv:2609.04575 — activate top-k1, normalise by
+  top-k2 mass): **branch `spike/topk-k2-renorm` @ `a2f252fbd`** in a fresh
+  worktree of kalsallama (main e8065c7cf + 33 lines: llama-arch.{h,cpp},
+  llama-hparams.h, llama-model.cpp, llama-graph.cpp — the `norm_w` divisor
+  becomes the top-k2 probability mass when
+  `--override-kv <arch>.expert_used_k2=int:<k2>` is set; off by default).
+  NOT compiled (Mac freeze until 14:00) — the pod probe is its first build.
+- `podprobe/` one-shot job: env.sh (pins), 00_env (CUDA build from the
+  spike sha, falls back to main + skips the k2 arm if the branch was not
+  pushed), 10_fetch (pinned revisions incl. the ship LFM from the private
+  dataset repo, sha256-verified), 20_convert (RAZOR --no-mtp → Q4_K_M +
+  Q4_0, load-verified, no imatrix — same plain quant for every arm so
+  quantisation cannot masquerade as a model difference), 30_gate (per-arm
+  server launch with the arm's --override-kv flags, full gate + double-BOS
+  grep on the server log), 40_upload (private-dataset privacy gate,
+  path-in-repo, remote-tree verify), run_probe.sh (value-ordered arms with
+  a remaining-budget guard, upload verified, then terminate).
+- RAZOR evidence pinned next to the checkpoint in the README: arXiv:2609.30465
+  ("RAZOR: Pruning Replaceable Experts in LLMs", training-free,
+  consensus-residual; tested on this exact base at 25 %/50 %; +2.12..+5.59
+  points over REAP on a nine-task reasoning average). RAZOR-19B = Apache-2.0
+  @ d897617a; the 25 % RAZOR-28B exists (298d343b) as an OPTIONAL arm,
+  off by default — ~28B → Q4_K_M ≈ 16 GB, fits NO 16 GB budget.
+- Arms (L40 $0.69/h estimates in the README table): setup 1.3 h/$0.90;
+  LFM baseline 0.8; RAZOR k8 Q4_K_M 2.1; RAZOR k4 2.0; unpruned k4 2.2;
+  Qwen3.5-2B Q4_K_M + Q4_0 (8 GB-class candidate, owner addendum) 0.7+0.7;
+  Qwen3.5-4B control 1.0; RAZOR k8 Q4_0 1.4; k2 arm 2.0; optional RAZOR-28B
+  3.0. Core total 12.2 h ≈ $8.40; guard at 12.5 h; hard stop
+  `--terminate-after` 14 h = $9.66.
+
+Verification this session: `bash -n` + `shellcheck -x` (pod/, mac/, calib/,
+podprobe/) EXIT=0; `python3 -m py_compile` (eval/, calib/) EXIT=0;
+`eval/test_toolcalls.py` EXIT=0 (9 parse + 8 match cases). NOT verified:
+the spike patch compiles (no builds before 14:00), the probe scripts against
+a live model (the pod run is their first execution), runpodctl flag
+spellings (runpodctl is not installed on this Mac — the README says live
+`pod create --help` is authoritative), GPU memory headroom for the unpruned
+22 GB arm at ctx 16384 on a 48 GB L40 (comfortable on paper).
 
 ## $0 probe, 2026-09-30 (owner decision: PC + 16 GB; LFM stays on 8 GB)
 
