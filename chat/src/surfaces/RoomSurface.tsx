@@ -9,7 +9,6 @@ import { available } from "../lib/tauri";
 import { RoomText } from "../lib/roomMention";
 import { roomNote } from "./roomNotes";
 import { useRoomFeed } from "./useRoomFeed";
-import { roomNameError } from "./roomNameError";
 import "./RoomSurface.css";
 
 /** The waiting line, in queue order: who is next, then the rest joined
@@ -67,7 +66,7 @@ export function RoomSurface() {
 
   const noteLine = roomNote(note?.code, note?.text);
   const refusalLine = roomNote(feed.refusal?.code, null);
-  const nameLine = roomNameError(feed.nameError?.code);
+  const nameLine = roomNote(feed.nameError?.code, null);
 
   return (
     <div className="surface-page room-page">
@@ -185,9 +184,8 @@ export function RoomSurface() {
           </svg>
         </button>
         {/* The button exists only when it can act: while the host's own
-            call is already pending it is held down, and a refusal that
-            still happens (an @Kalsa typed into the text) shows nothing —
-            no approved sentence exists for it. */}
+            call is already pending it is held down. An @Kalsa typed into
+            the text can still be refused, and the sentence says so. */}
         <button
           type="button"
           className="brain-bar-action brain-bar-chat"

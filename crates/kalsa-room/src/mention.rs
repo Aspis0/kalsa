@@ -20,8 +20,9 @@ pub fn calls_ai(text: &str) -> bool {
     calls_ai_at(text).is_some()
 }
 
-/// The same rule, answering with the byte index of the token it matched —
-/// the caller that highlights the call needs where, not whether.
+/// The same rule, answering with the index of the `@` among the text's
+/// characters (code points, not bytes) — the caller that highlights the
+/// call needs where, not whether.
 pub fn calls_ai_at(text: &str) -> Option<usize> {
     const WORD: [char; 5] = ['k', 'a', 'l', 's', 'a'];
     let chars: Vec<char> = text.chars().collect();

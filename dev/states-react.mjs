@@ -20,7 +20,6 @@ import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
 import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/roomFeed";
 import { roomNote } from "../chat/src/surfaces/roomNotes";
-import { roomNameError } from "../chat/src/surfaces/roomNameError";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -780,11 +779,11 @@ function componentFor(kind, data) {
         ["name_mixed_scripts", "Use letters from one alphabet in your name."],
         ["name_too_long", "That name is too long. Try a shorter one."],
       ];
-      const line = (pairs, render) =>
-        pairs.map(([code, wanted]) => `${render(code) === wanted ? "GOOD" : "WRONGLY"}: ${code}`).join("\n");
+      const line = (pairs) =>
+        pairs.map(([code, wanted]) => `${roomNote(code, null) === wanted ? "GOOD" : "WRONGLY"}: ${code}`).join("\n");
       return React.createElement("div", null,
         React.createElement("p", { className: "room-copy" },
-          line(REFUSALS, (code) => roomNote(code, null)) + "\n" + line(NAMES, roomNameError)));
+          line(REFUSALS) + "\n" + line(NAMES)));
     }
     if (data?.queueProbe) {
       return React.createElement("div", null,
