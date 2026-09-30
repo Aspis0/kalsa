@@ -30,6 +30,7 @@ self_stop() {
   case "$code" in 200|204) rm -f "$hdr"; return 0 ;; esac
   code=$(curl -s -o /tmp/self-stop-gql.json -w '%{http_code}' --max-time 30 \
     -X POST "https://api.runpod.io/graphql" -H @"$hdr" \
+    -H 'Content-Type: application/json' \
     -d '{"query":"mutation{podStop(input:{podId:\"'"${RUNPOD_POD_ID}"'\"}){id}}"}' \
     || echo 000)
   rm -f "$hdr"
