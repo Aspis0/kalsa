@@ -1,4 +1,28 @@
-# Coordinator state - 2026-09-29 (session 3f035b4e) - READ THIS BLOCK FIRST
+# Coordinator state - 2026-09-30 night (session 3f035b4e) - READ THIS BLOCK FIRST
+
+Owner 2026-09-30 night: NO pod (REAP) tonight or tomorrow; focus NPU + governor. GLM (zcode-acp)
+starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=Flash right after create.
+
+- **NPU decode on one copy (S23, 3a DONE):** two copies 22.58 tok/s; one copy default 10.90 and
+  MM_SELECT=1 13.54 are CPU numbers (offload_op needs ne[1] >= GGML_OP_OFFLOAD_MIN_BATCH=32,
+  `ggml-hexagon.cpp:6980`); with min batch 1 the matvec reaches the DSP at **0.13 tok/s** - the scalar
+  `q4_0_raw_rows_to_tiles` (`htp/q4_0-raw-tile.h:13-42`) is 99.9 % of DSP time. Two copies MM_SELECT=1
+  (flat) 9.69. Report: `agents/onecopy-hmx-numerics/REPORT.md` "NPU decode on one copy".
+  Fix in progress: Paseo Exceptional Coder (sonnet-5-5) `f05b444f-e627-41f1-81c0-08c4030078be` on engine
+  `spike/onecopy-hmx-raw` (checkout `~/Projects/kalsallama-onecopy-hmx`), builds only; the coordinator
+  runs the S23 (speed with min batch 1 + KLD vs two copies), then one hostile audit (different model).
+- **Tied embedding (3b DONE):** saves 204 MiB (none) / 225 MiB (mmap) peak RSS, decode unchanged.
+  Next: cherry-pick `1622f44bd` + `048603398` to the engine main line -> pin chain.
+- **mmap vs none (3c, CLI only):** mmap peak RSS ~1.3 GiB higher (file pages + CPU_REPACK copy). App
+  MLOCK path not measured.
+- **Builds:** there is NO NDK/Hexagon SDK on the Mac; every Android/Hexagon build runs in
+  `docker run ... --platform linux/amd64 -u 501:20 ghcr.io/snapdragon-toolchain/arm64-android:v0.7`
+  with the checkout at `/workspace` (build dirs' caches point at /workspace). Never re-run qaic.
+- **v1.1.3:** fork `main` fast-forwarded to `d389de2fb` (2026-09-30 02:0x UTC). Windows dry run
+  dispatched 02:25 UTC (run 36659779176) -> refused, quota still out. Check before re-dispatch: the
+  dispatch checks out `release_tag`; the tag `kalsa-server-v1.1.3` does not exist yet.
+- **Rooms R3 (AI guest)** SHIP by desk at local brain `0b287126` (not pushed; a 400/413 clause coming).
+  Phone R3 work queued after NPU/governor.
 
 ## Queue for 2026-09-30 (GitHub Actions quota resets; S23 must be charged, then unplugged)
 
