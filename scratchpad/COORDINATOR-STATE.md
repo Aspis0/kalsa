@@ -24,6 +24,12 @@ starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=F
   pushing a `kalsa-server-*` tag itself triggers a PUBLISHING run. So "dry run before tag" is not
   possible as written: the order is tag push (publishes both platforms) or a dispatch after the tag.
   Decide the order before re-running; do not push a throwaway kalsa-server-* tag (it would publish).
+  OWNER 2026-09-30: option (a). Tag `kalsa-server-v1.1.3` (annotated `c2b1acc14` -> `d389de2fb`) PUSHED
+  15:08 UTC; its run 36734441163 was REFUSED (quota) - nothing published. The app repo is PUBLIC (free
+  minutes, APK builds run) but the fork is PRIVATE (quota still out). When quota returns:
+  `gh workflow run kalsa-server.yml -R Aspis0/kalsallama --ref main -f release_tag=kalsa-server-v1.1.3`
+  (platforms default macos,windows, publish default true), then verify digests + HF mirror, report to
+  kalsa-brain.
 - **Rooms R3 (AI guest)** SHIP by desk at local brain `0b287126` (not pushed; a 400/413 clause coming).
   Phone R3 work queued after NPU/governor.
   Name refusals split (brain `4a183704`, §9, pushed after v1.1.3): `name_reserved` 409, `name_mixed_scripts`
