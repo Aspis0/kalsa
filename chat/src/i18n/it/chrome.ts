@@ -7,6 +7,14 @@ export const CHROME = {
     "settings": "Impostazioni",
     "settingsAria": "Impostazioni",
     "chatMenu": "Menu della chat",
+    // The settings surfaces' names, keyed as the shell looks them up.
+    pages: {
+      "models": "Modelli",
+      "server": "Server",
+      "devices": "Dispositivi",
+      "advanced": "Avanzate",
+      "settings": "Impostazioni",
+    } as Record<string, string>,
     "showConversations": "Mostra le conversazioni"
   };
 

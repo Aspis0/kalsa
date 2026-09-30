@@ -22,6 +22,7 @@ export const SETUP = {
     "notSetUp": "Le modèle n'a pas été installé.",
     "tryAgain": "Réessayer",
     "showDetails": "Montrer les détails",
+    "checkingModel": "Vérification du modèle déjà présent sur ton ordinateur…",
     "ofTotal": (done: string, total: string, unit: string) => `${done} sur ${total} ${unit}`,
     "sizeNotAnnounced": "Réception — la taille n'a pas été annoncée.",
     "receivedSoFar": (received: string) => `${received} reçus pour l'instant.`,

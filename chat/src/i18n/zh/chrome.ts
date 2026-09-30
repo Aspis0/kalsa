@@ -7,6 +7,14 @@ export const CHROME = {
     "settings": "设置",
     "settingsAria": "设置",
     "chatMenu": "聊天菜单",
+    // The settings surfaces' names, keyed as the shell looks them up.
+    pages: {
+      "models": "模型",
+      "server": "服务器",
+      "devices": "设备",
+      "advanced": "高级",
+      "settings": "设置",
+    } as Record<string, string>,
     "showConversations": "显示对话"
   };
 

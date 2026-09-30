@@ -118,7 +118,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
     if (state.kind === "stopped" && !firstRun(capability)) void act();
   }, [state, act, capability]);
 
-  const power = useLanguage().table.power;
+  const power = table.power;
   const words = brainWords(state, heldFailure, busy, power);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
@@ -138,7 +138,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
   if (capability.kind === "migrating") {
     return (
       <div className="surface-page brain-page brain-first-run">
-        <p className="surface-verdict">Checking the model already on your computer…</p>
+        <p className="surface-verdict">{table.setup.checkingModel}</p>
       </div>
     );
   }
@@ -204,7 +204,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
             as the app's. It used to be the quiet uppercase eyebrow used for
             section labels, which read as a footnote over four buttons. */}
         <div className="brain-machine">
-          <p className="brain-machine-label">This computer</p>
+          <p className="brain-machine-label">{bar.thisComputer}</p>
         </div>
         {SURFACES.filter((surface) => surface.group === "machine").map((surface) => (
           <button
@@ -213,7 +213,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
             className="brain-settings-item"
             onClick={() => onNavigate(surface.key)}
           >
-            {surface.label}
+            {table.chrome.pages[surface.key] ?? surface.key}
           </button>
         ))}
       </nav>

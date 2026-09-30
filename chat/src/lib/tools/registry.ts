@@ -64,16 +64,19 @@ export async function executeToolCall(
   args: unknown,
   signal: AbortSignal | undefined,
   gate: WebGate | null,
+  /** The sentence a stopped call answers with, in the owner's language;
+      absent is English. */
+  stoppedText = "Stopped before this finished.",
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
-  if (signal?.aborted) return stopped();
+  if (signal?.aborted) return stopped(stoppedText);
   const record = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
   try {
     if (name === "web_search") {
       const query = typeof record.query === "string" ? record.query.trim() : "";
       if (!query) return { text: "No search was made: the query was empty.", ok: false };
-      if (!(await admitted(gate, "web_search", query, signal))) return heldBack(query, signal);
+      if (!(await admitted(gate, "web_search", query, signal))) return heldBack(query, signal, stoppedText);
       return { text: await through("brain_web_search", { query }, signal), ok: true };
     }
     if (name === "web_fetch") {
@@ -81,7 +84,7 @@ export async function executeToolCall(
       if (!url) return { text: "No page was opened: the address was empty.", ok: false };
       // The address is checked whole: a URL carries a payload as well as any
       // query does (`...?q=<IBAN>` leaves exactly as much).
-      if (!(await admitted(gate, "web_fetch", url, signal))) return heldBack(url, signal);
+      if (!(await admitted(gate, "web_fetch", url, signal))) return heldBack(url, signal, stoppedText);
       return { text: await through("brain_web_fetch", { url }, signal), ok: true };
     }
     return { text: `There is no tool called “${name}”.`, ok: false };
@@ -123,16 +126,16 @@ async function admitted(
 
 /** The tool result a held call answers with, so the turn goes on and says
     what happened instead of throwing. */
-function heldBack(outgoing: string, signal?: AbortSignal): ToolOutcome {
-  if (signal?.aborted) return stopped();
+function heldBack(outgoing: string, signal: AbortSignal | undefined, stoppedText: string): ToolOutcome {
+  if (signal?.aborted) return stopped(stoppedText);
   return {
     text: `Not run: the owner did not allow this to leave the app. Nothing was sent — the text began “${outgoing.slice(0, 80)}”.`,
     ok: false,
   };
 }
 
-function stopped(): ToolOutcome {
-  return { text: "Stopped before this finished.", ok: false };
+function stopped(text: string): ToolOutcome {
+  return { text, ok: false };
 }
 
 /**

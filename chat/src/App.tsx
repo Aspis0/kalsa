@@ -17,7 +17,6 @@ import type { Attachment } from "./lib/attachments";
 import { AttachmentError, CONTEXT_RESERVE_TOKENS, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
 import { filesRead } from "./lib/files";
 import type { SurfaceKey } from "./app/surfaces";
-import { SURFACES } from "./app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "./app/handoff";
 import { CrescentNav } from "./components/CrescentNav";
 import type { CrescentEntry } from "./components/CrescentNav";
@@ -25,6 +24,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { RoomSurface } from "./surfaces/RoomSurface";
 import { useLanguage } from "./i18n/useLanguage";
+import type { Table } from "./i18n";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
@@ -70,14 +70,21 @@ interface GateAsk {
   settle: (allow: boolean) => void;
 }
 
-function surfaceLabel(surface: SurfaceKey, chrome: { home: string; room: string; chat: string }): string {
-  if (surface === "brain") return chrome.home;
-  if (surface === "room") return chrome.room;
-  return SURFACES.find((s) => s.key === surface)?.label ?? chrome.chat;
+function surfaceLabel(surface: SurfaceKey, table: Table): string {
+  if (surface === "brain") return table.chrome.home;
+  if (surface === "room") return table.chrome.room;
+  if (surface === "chat") return table.chrome.chat;
+  // The settings surfaces' names live with the chrome words, keyed as this
+  // lookup reads them.
+  return table.chrome.pages[surface] ?? table.chrome.chat;
 }
 
 export function App() {
   const { table, tag } = useLanguage();
+  // The stable callbacks below read the table through this ref, so a
+  // language chosen mid-session reaches the next turn's words.
+  const words = useRef(table);
+  words.current = table;
   const chrome = table.chrome;
   const t = table.shell;
   // One formatter for every figure the shell says, so the separators agree
@@ -484,6 +491,7 @@ export function App() {
 
   const runAssistant = useCallback(
     async (conversationId: string, assistantId: string, currentSettings: LiveSettings) => {
+      const shell = words.current.shell;
       const conv = store.get(conversationId);
       if (!conv) return;
       const turns = conv.messages
@@ -502,7 +510,7 @@ export function App() {
           [assistantId]: {
             messageId: assistantId,
             kind: "oversize",
-            detail: t.oversizeDetail(
+            detail: shell.oversizeDetail(
               num(ctx.docTokens),
               num(ctx.historyTokens),
               num(CONTEXT_RESERVE_TOKENS),
@@ -511,7 +519,7 @@ export function App() {
             ),
           },
         }));
-        setLiveMessage(t.noLongerFits);
+        setLiveMessage(shell.noLongerFits);
         return;
       }
       const history = ctx.wire;
@@ -524,7 +532,7 @@ export function App() {
         delete next[assistantId];
         return next;
       });
-      setLiveMessage(t.waitingFirstWord);
+      setLiveMessage(shell.waitingFirstWord);
       let firstToken = true;
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
@@ -627,17 +635,17 @@ export function App() {
             }),
           onToolRun: ingestToolRun,
           toolPhrases: {
-            noRoundLeft: table.tools.noRoundLeft,
-            turnEnded: table.tools.turnEnded,
-            nameNeverArrived: table.tools.nameNeverArrived,
-            stopped: table.tools.stopped,
-            argumentsTooLong: table.tools.argumentsTooLong,
-            argumentsNotValid: table.tools.argumentsNotValid,
+            noRoundLeft: words.current.tools.noRoundLeft,
+            turnEnded: words.current.tools.turnEnded,
+            nameNeverArrived: words.current.tools.nameNeverArrived,
+            stopped: words.current.tools.stopped,
+            argumentsTooLong: words.current.tools.argumentsTooLong,
+            argumentsNotValid: words.current.tools.argumentsNotValid,
           },
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
               thoughtStartedAt = performance.now();
-              setLiveMessage(t.thinking);
+              setLiveMessage(shell.thinking);
             }
             ingest("reasoning", text);
           },
@@ -645,7 +653,7 @@ export function App() {
             if (firstToken) {
               firstToken = false;
               answerStartedAt = performance.now();
-              setLiveMessage(t.responding);
+              setLiveMessage(shell.responding);
             }
             ingest("content", token);
           },
@@ -658,11 +666,11 @@ export function App() {
             ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
             : undefined;
         persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
-        setLiveMessage(!hasAnswer && hasThought ? t.thinkingComplete : t.responseComplete);
+        setLiveMessage(!hasAnswer && hasThought ? shell.thinkingComplete : shell.responseComplete);
       } catch (error) {
         if (error instanceof ChatRequestError && error.kind === "aborted") {
           persistLive({ stopped: true });
-          setLiveMessage(t.responseStopped);
+          setLiveMessage(shell.responseStopped);
         } else {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
@@ -676,7 +684,7 @@ export function App() {
           };
           persistLive();
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
-          setLiveMessage(kind === "truncated" ? t.stoppedHalfway : t.responseFailed);
+          setLiveMessage(kind === "truncated" ? shell.stoppedHalfway : shell.responseFailed);
         }
       } finally {
         dropLive();
@@ -950,7 +958,7 @@ export function App() {
 
   const empty = !active || active.messages.length === 0;
   const title =
-    surface === "chat" ? (active ? active.title || t.untitled : t.crescentChat) : surfaceLabel(surface, chrome);
+    surface === "chat" ? (active ? active.title || t.untitled : t.crescentChat) : surfaceLabel(surface, table);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 
@@ -1063,9 +1071,9 @@ export function App() {
               type="button"
               className="topbar-btn"
               onClick={goBack}
-              aria-label={t.backTo(surfaceLabel(backTarget, chrome))}
+              aria-label={t.backTo(surfaceLabel(backTarget, table))}
             >
-              {surfaceLabel(backTarget, chrome)}
+              {surfaceLabel(backTarget, table)}
             </button>
           ) : null}
           {surface === "chat" && active ? (

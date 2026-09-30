@@ -22,6 +22,7 @@ export const SETUP = {
     "notSetUp": "模型没有准备好。",
     "tryAgain": "再试一次",
     "showDetails": "显示详情",
+    "checkingModel": "正在检查你电脑上已有的模型…",
     "ofTotal": (done: string, total: string, unit: string) => `${done} / ${total} ${unit}`,
     "sizeNotAnnounced": "正在接收 —— 未告知大小。",
     "receivedSoFar": (received: string) => `目前已接收 ${received}。`,

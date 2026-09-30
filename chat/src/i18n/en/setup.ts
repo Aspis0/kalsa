@@ -23,6 +23,7 @@ export const SETUP = {
   notSetUp: "The model was not set up.",
   tryAgain: "Try again",
   showDetails: "Show details",
+  checkingModel: "Checking the model already on your computer…",
   // The byte lines under a downloading phase.
   ofTotal: (done: string, total: string, unit: string) => `${done} of ${total} ${unit}`,
   sizeNotAnnounced: "Receiving — the size was not announced.",
