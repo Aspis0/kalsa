@@ -19,8 +19,11 @@ starts on GLM-5.3 FULL even when create_agent asks Flash: `update_agent` model=F
   `docker run ... --platform linux/amd64 -u 501:20 ghcr.io/snapdragon-toolchain/arm64-android:v0.7`
   with the checkout at `/workspace` (build dirs' caches point at /workspace). Never re-run qaic.
 - **v1.1.3:** fork `main` fast-forwarded to `d389de2fb` (2026-09-30 02:0x UTC). Windows dry run
-  dispatched 02:25 UTC (run 36659779176) -> refused, quota still out. Check before re-dispatch: the
-  dispatch checks out `release_tag`; the tag `kalsa-server-v1.1.3` does not exist yet.
+  dispatched 02:25 UTC (run 36659779176) -> refused, quota still out. TRAP found: a dispatch always
+  checks out `refs/tags/<release_tag>` (workflow `target` step, `kalsa-server.yml` ~L266-297), and
+  pushing a `kalsa-server-*` tag itself triggers a PUBLISHING run. So "dry run before tag" is not
+  possible as written: the order is tag push (publishes both platforms) or a dispatch after the tag.
+  Decide the order before re-running; do not push a throwaway kalsa-server-* tag (it would publish).
 - **Rooms R3 (AI guest)** SHIP by desk at local brain `0b287126` (not pushed; a 400/413 clause coming).
   Phone R3 work queued after NPU/governor.
 
