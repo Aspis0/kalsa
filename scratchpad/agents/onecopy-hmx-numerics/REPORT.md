@@ -554,3 +554,16 @@ MUL_MAT on `-HOST` weights executed on the DSP; two copies: 0. Errors 0 in both.
 Next lever: stop converting per token. Options: a fused matvec that reads raw 18-byte blocks in
 registers (no tile store/reload), or a weight layout both the CPU repack kernels and the DSP read
 natively (the q4_0_4x8 shared-layout decision).
+
+### Audit fixes cc9c541f2 on the S23 (2026-09-30)
+
+Artifacts sha256: llama-bench `6630128e...`, llama-perplexity `0428662b...`, v73 skel `afc5832d...`;
+dir `/data/local/tmp/govhtp/onecopy-rawdec2/`. Sim (coder): gate EXIT=0 + `ALL LOADS IN PAYLOAD`;
+negative controls 2 and 4 EXIT=1.
+- Decode-path KLD (ub 1, 1,024 tokens), one copy: unchanged - mean KLD 0.005313, same top p 97.059 %,
+  168,448 raw MUL_MAT on the DSP, 0 errors.
+- `GGML_HEXAGON_NHVX=1` (the case that used to fail on the DSP): EXIT=0, 0 raw MUL_MAT on the DSP (falls
+  back to CPU), mean KLD 0.001269, same top p 97.843 %.
+- tg128 one copy on DSP: 10.98 +- 0.45 tok/s (was 11.82). NOT a clean A/B: single arm, run right after two
+  back-to-back perplexity passes with no cool-down. Possible real cost of the new last-row `valign`;
+  re-measure ABBA before attributing.
