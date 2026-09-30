@@ -10,6 +10,7 @@ import { available, invoke } from "../lib/tauri";
 import { lastKnown } from "../lib/slotGate";
 import { brainWords, STOP_FAILURE, useBrain } from "./useBrain";
 import "./surfaces.css";
+import { useLanguage } from "../i18n/useLanguage";
 import "./BrainSurface.css";
 
 // The opening's one automatic attempt to bring the brain up, as a fact of
@@ -44,6 +45,8 @@ function firstRun(capability: Capability | null): boolean {
 // waits behind a tab. The walk's failures are not retried by themselves —
 // they are spoken, and they wait for Try again.
 export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: BrainSurfaceProps) {
+  const { table } = useLanguage();
+  const bar = table.brainBar;
   const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const [text, setText] = useState("");
   // The chooser's answer, read on mount and whenever a turn-on lands — the
@@ -194,7 +197,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
           crescent in the chat — they mean something with the brain off, and a
           row called "Settings" holding an entry called "Settings" said
           neither. */}
-      <nav className="brain-settings" aria-label="This computer">
+      <nav className="brain-settings" aria-label={bar.thisComputer}>
         {/* The row says what it is, in its own voice: the chips under it are
             the machine's, and that is what makes the word in the header legible
             as the app's. It used to be the quiet uppercase eyebrow used for
@@ -220,14 +223,14 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
           className="brain-bar-input"
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Say something…"
-          aria-label="Write to the brain"
+          placeholder={bar.placeholder}
+          aria-label={bar.writeAria}
         />
         <button
           type="submit"
           className="brain-bar-action"
           disabled={text.trim().length === 0}
-          aria-label="Send"
+          aria-label={bar.send}
         >
           <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
             <path
@@ -241,10 +244,10 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
           </svg>
         </button>
         <button type="button" className="brain-bar-action brain-bar-chat" onClick={onOpenChat}>
-          Chat
+          {bar.chat}
         </button>
         <button type="button" className="brain-bar-action brain-bar-chat" onClick={onOpenRoom}>
-          Room
+          {bar.room}
         </button>
       </form>
     </div>

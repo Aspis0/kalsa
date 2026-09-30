@@ -19,7 +19,9 @@ import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
 import { emptyFeed, mergeHistory, reduceEvent } from "../chat/src/surfaces/roomFeed";
-import { roomNote } from "../chat/src/surfaces/roomNotes";
+import { english, LanguageProvider } from "../chat/src/i18n/useLanguage";
+import { TABLES, LANGUAGES } from "../chat/src/i18n";
+import { LANGUAGE_KEY } from "../chat/src/i18n/useLanguage";
 import { completionBody } from "../chat/src/lib/chat";
 import { loadSampling, samplingProblem, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
@@ -257,6 +259,16 @@ const scenarios = [
   // runs (thinking included).
   ["Room", "the feed reducer: merge, epoch, live", "room", { reducerProbe: true }],
   ["Room", "the queue line: one, two, three", "room", { queueProbe: true }],
+  ["Room", "in Italian: the waiting line", "room", { language: "it", room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4, name: "Luca", kind: "phone", former: false },
+  ], ai: { state: "queued", running: null, queue: ["Marco", "Luca"], you_pending: false } }, roomHistory: [] }],
+  ["Room", "in Chinese: Kalsa answering", "room", { language: "zh", room: { epoch: "e1", open: true, room_name: "工作室", you: 4294967295, members: [
+    { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+    { member_id: 3, name: "Marco", kind: "phone", former: false },
+    { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+  ], ai: { state: "answering", running: "Marco", queue: [], you_pending: false } }, roomHistory: [] }],
   ["Room", "the copy table: refusal and name sentences", "room", { copyProbe: true }],
   ["Room", "queue: three waiting, real line", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
     { member_id: 4294967295, name: "This computer", kind: "host", former: false },
@@ -779,8 +791,9 @@ function componentFor(kind, data) {
         ["name_mixed_scripts", "Use letters from one alphabet in your name."],
         ["name_too_long", "That name is too long. Try a shorter one."],
       ];
+      const notes = english().room.notes;
       const line = (pairs) =>
-        pairs.map(([code, wanted]) => `${roomNote(code, null) === wanted ? "GOOD" : "WRONGLY"}: ${code}`).join("\n");
+        pairs.map(([code, wanted]) => `${notes[code] === wanted ? "GOOD" : "WRONGLY"}: ${code}`).join("\n");
       return React.createElement("div", null,
         React.createElement("p", { className: "room-copy" },
           line(REFUSALS) + "\n" + line(NAMES)));
@@ -788,9 +801,9 @@ function componentFor(kind, data) {
     if (data?.queueProbe) {
       return React.createElement("div", null,
         React.createElement("p", { className: "room-queue-line" }, [
-          queueLine(["Marco"]),
-          queueLine(["Marco", "Luca"]),
-          queueLine(["Marco", "Luca", "Sofia"]),
+          queueLine(["Marco"], english().room),
+          queueLine(["Marco", "Luca"], english().room),
+          queueLine(["Marco", "Luca", "Sofia"], english().room),
         ].join("\n")));
     }
     if (data?.reducerProbe) {
@@ -847,10 +860,17 @@ async function renderScenario(descriptor) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   document.getElementById("cards").appendChild(panel);
   const root = createRoot(panel);
-  root.render(componentFor(kind, data));
+  root.render(React.createElement(LanguageProvider, null, componentFor(kind, data)));
   await settle();
   if (data.click) {
     // A button the owner presses: the panel's own answer follows in
@@ -931,6 +951,45 @@ async function renderScenario(descriptor) {
   return result;
 }
 
+/** Every key of every language against the English shape, walked
+    recursively: a missing key, an extra one, or an empty string. */
+export function checkKeyParity() {
+  const problems = [];
+  const walk = (path, englishValue, value, lang) => {
+    if (typeof englishValue === "function") {
+      if (typeof value !== "function") problems.push(`${lang}.${path}: not a function`);
+      return;
+    }
+    if (typeof englishValue === "string") {
+      if (typeof value !== "string") problems.push(`${lang}.${path}: not a string`);
+      else if (value === "") problems.push(`${lang}.${path}: empty string`);
+      return;
+    }
+    if (typeof englishValue === "object" && englishValue !== null) {
+      if (typeof value !== "object" || value === null) {
+        problems.push(`${lang}.${path}: not an object`);
+        return;
+      }
+      const keys = new Set([...Object.keys(englishValue), ...Object.keys(value)]);
+      for (const key of keys) {
+        if (!(key in value)) problems.push(`${lang}.${path}.${key}: missing`);
+        else if (!(key in englishValue)) problems.push(`${lang}.${path}.${key}: extra`);
+        else walk(`${path}.${key}`, englishValue[key], value[key], lang);
+      }
+    }
+  };
+  for (const lang of LANGUAGES) {
+    walk("", TABLES.en, TABLES[lang], lang);
+  }
+  return problems;
+}
+
+/** Renders the room's waiting line in a chosen language, for the smoke
+    bench's Italian and Chinese runs. */
+export function queueLineIn(lang) {
+  return queueLine(["Marco", "Luca", "Sofia"], TABLES[lang].room);
+}
+
 export async function renderStates() {
   const results = [];
   for (const scenario of scenarios) results.push(await renderScenario(scenario));
@@ -941,6 +1000,13 @@ export async function renderServerProbe(data, step = null) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
   root.render(React.createElement(ServerSurface));
@@ -959,6 +1025,13 @@ export async function renderAdvancedProbe(data) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
   root.render(React.createElement(AdvancedSurface));
@@ -978,6 +1051,13 @@ export async function renderAdvancedFieldProbe(data) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
   root.render(React.createElement(AdvancedSurface));
@@ -1002,6 +1082,13 @@ export async function renderAdvancedCacheProbe(data) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
   root.render(React.createElement(AdvancedSurface));
@@ -1025,6 +1112,13 @@ export async function renderStartFailureProbe(data) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
+  // A card that names a language seeds the override the provider reads —
+  // the real persistence path, not a test hook.
+  const lang = data?.language;
+  try {
+    if (lang) localStorage.setItem(LANGUAGE_KEY, lang);
+    else localStorage.removeItem(LANGUAGE_KEY);
+  } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
   root.render(React.createElement(ServerSurface));

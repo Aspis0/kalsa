@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
+import { useLanguage } from "../i18n/useLanguage";
 import "./Composer.css";
 
 interface ComposerProps {
@@ -35,6 +36,8 @@ export function Composer({
   thinking,
   onThinking,
 }: ComposerProps) {
+  const { table } = useLanguage();
+  const composer = table.composer;
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const text = draft;
@@ -77,8 +80,8 @@ export function Composer({
           value={text}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Write a message…"
-          aria-label="Message"
+          placeholder={composer.placeholder}
+          aria-label={composer.messageAria}
         />
         <input
           ref={fileRef}
@@ -98,7 +101,7 @@ export function Composer({
             type="button"
             className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
             aria-pressed={thinking}
-            aria-label={thinking ? "Turn thinking off" : "Turn thinking on"}
+            aria-label={thinking ? composer.thinkingOff : composer.thinkingOn}
             title={
               thinking
                 ? "Thinking: the model reasons before answering. Turn it off to be answered at once."
@@ -112,7 +115,7 @@ export function Composer({
         <button
           type="button"
           className="composer-action composer-attach"
-          aria-label="Attach a file"
+          aria-label={composer.attachAria}
           title="Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)"
           onClick={() => fileRef.current?.click()}
         >
@@ -128,7 +131,7 @@ export function Composer({
           </svg>
         </button>
         {streaming ? (
-          <button type="button" className="composer-action composer-stop" onClick={onStop} aria-label="Stop generating">
+          <button type="button" className="composer-action composer-stop" onClick={onStop} aria-label={composer.stopGenerating}>
             <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
               <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
             </svg>
@@ -139,7 +142,7 @@ export function Composer({
             className="composer-action composer-send"
             onClick={send}
             disabled={!canSend}
-            aria-label="Send message"
+            aria-label={composer.send}
           >
             <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
               <path

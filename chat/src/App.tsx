@@ -24,6 +24,7 @@ import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Composer } from "./components/Composer";
 import { RoomSurface } from "./surfaces/RoomSurface";
+import { useLanguage } from "./i18n/useLanguage";
 import { Thread } from "./components/Thread";
 import type { FailedState } from "./components/Thread";
 import { Sidebar } from "./components/Sidebar";
@@ -69,13 +70,15 @@ interface GateAsk {
   settle: (allow: boolean) => void;
 }
 
-function surfaceLabel(surface: SurfaceKey): string {
-  if (surface === "brain") return "Home";
-  if (surface === "room") return "Room";
-  return SURFACES.find((s) => s.key === surface)?.label ?? "Chat";
+function surfaceLabel(surface: SurfaceKey, chrome: { home: string; room: string; chat: string }): string {
+  if (surface === "brain") return chrome.home;
+  if (surface === "room") return chrome.room;
+  return SURFACES.find((s) => s.key === surface)?.label ?? chrome.chat;
 }
 
 export function App() {
+  const { table } = useLanguage();
+  const chrome = table.chrome;
   // The brain is the home: the app opens on it, and the chat is reached by
   // writing in its bar — never by selecting a tab (THE-BRAIN-IS-THE-HOME.md).
   const [surface, setSurface] = useState<SurfaceKey>("brain");
@@ -928,7 +931,7 @@ export function App() {
   }
 
   const empty = !active || active.messages.length === 0;
-  const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface);
+  const title = surface === "chat" ? (active ? active.title : "Crescent Chat") : surfaceLabel(surface, chrome);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 
@@ -941,11 +944,11 @@ export function App() {
   // the component drops the page you are on and anything that page already
   // offers — see the rule in `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
-    { key: "brain", label: "Home", onSelect: () => openSurface("brain") },
+    { key: "brain", label: chrome.home, onSelect: () => openSurface("brain") },
     // The room, between the chat and the settings: the host's view of the
     // house's shared conversation.
-    { key: "room", label: "Room", onSelect: () => openSurface("room") },
-    { key: "settings", label: "Settings", onSelect: () => openSurface("settings") },
+    { key: "room", label: chrome.room, onSelect: () => openSurface("room") },
+    { key: "settings", label: chrome.settings, onSelect: () => openSurface("settings") },
   ];
 
   return (
@@ -983,7 +986,7 @@ export function App() {
             className="topbar-btn topbar-drawer-toggle"
             onClick={() => setDrawerOpen((o) => !o)}
             aria-expanded={drawerOpen}
-            aria-label="Show conversations"
+            aria-label={chrome.showConversations}
           >
             Conversations
           </button>
@@ -1002,7 +1005,7 @@ export function App() {
               type="button"
               className="topbar-btn topbar-settings"
               onClick={() => openSurface("settings")}
-              aria-label="Settings"
+              aria-label={chrome.settingsAria}
             >
               <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
                 <path
@@ -1027,9 +1030,9 @@ export function App() {
               type="button"
               className="topbar-btn"
               onClick={goBack}
-              aria-label={`Back to ${surfaceLabel(backTarget)}`}
+              aria-label={`Back to ${surfaceLabel(backTarget, chrome)}`}
             >
-              {surfaceLabel(backTarget)}
+              {surfaceLabel(backTarget, chrome)}
             </button>
           ) : null}
           {surface === "chat" && active ? (

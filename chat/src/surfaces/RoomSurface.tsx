@@ -1,31 +1,34 @@
 // The host's room, on this computer: the page renders what the feed holds
 // (useRoomFeed) — the feed owns the news, the commands, and the rules for
-// what may be shown. Every user-visible sentence is the backend's code
-// (translated by roomNotes) or the approved copy in ROOM-PROTOCOL.md; a
-// state the user can neither understand nor fix is not shown at all.
+// what may be shown. Every user-visible sentence comes from the language
+// table (the backend's codes its keys); a state the user can neither
+// understand nor fix is not shown at all.
 
 import { useState } from "react";
 import { available } from "../lib/tauri";
 import { RoomText } from "../lib/roomMention";
-import { roomNote } from "./roomNotes";
 import { useRoomFeed } from "./useRoomFeed";
+import { useLanguage } from "../i18n/useLanguage";
 import "./RoomSurface.css";
 
 /** The waiting line, in queue order: who is next, then the rest joined
     the way English lists them. */
-export function queueLine(queue: string[]): string {
+/** The waiting line in the chosen language: whole messages, never joined
+    fragments — the list shape is each language's own. */
+export function queueLine(queue: string[], table: { queueNext: (a: string) => string; queueThen: (a: string, rest: string) => string; listJoin: (items: string[]) => string }): string {
   if (queue.length === 0) return "";
   const [next, ...rest] = queue;
-  if (rest.length === 0) return `Kalsa will answer ${next} next.`;
+  if (rest.length === 0) return table.queueNext(next);
   const last = rest[rest.length - 1];
   const earlier = rest.slice(0, -1);
-  const thenPart =
-    earlier.length > 0 ? `then ${earlier.join(", ")} and ${last}` : `then ${last}`;
-  return `Kalsa will answer ${next} next, ${thenPart}.`;
+  const restPart = earlier.length > 0 ? table.listJoin([...earlier, last]) : last;
+  return table.queueThen(next, restPart);
 }
 
 export function RoomSurface() {
   const feed = useRoomFeed();
+  const { table } = useLanguage();
+  const room = table.room;
   const { info, note, entries, live } = feed;
   const [draft, setDraft] = useState("");
 
@@ -59,14 +62,16 @@ export function RoomSurface() {
   if (!available() || (info !== null && !info.open)) {
     return (
       <div className="surface-page room-page">
-        <p className="surface-quiet">Turn on Kalsa to use the room.</p>
+        <p className="surface-quiet">{room.closedRoom}</p>
       </div>
     );
   }
 
-  const noteLine = roomNote(note?.code, note?.text);
-  const refusalLine = roomNote(feed.refusal?.code, null);
-  const nameLine = roomNote(feed.nameError?.code, null);
+  // The table's sentence for the code, the backend's own English only as
+  // the fallback of a code the table does not know.
+  const noteLine = room.notes[note?.code ?? ""] ?? note?.text ?? null;
+  const refusalLine = room.notes[feed.refusal?.code ?? ""] ?? null;
+  const nameLine = room.notes[feed.nameError?.code ?? ""] ?? null;
 
   return (
     <div className="surface-page room-page">
@@ -81,7 +86,7 @@ export function RoomSurface() {
               setNaming(true);
             }}
           >
-            You are {hostName}
+            {room.youAre(hostName)}
           </button>
         ) : null}
         {naming ? (
@@ -97,8 +102,8 @@ export function RoomSurface() {
               className="brain-bar-input room-name-input"
               value={nameDraft}
               autoFocus
-              aria-label="Your name"
-              placeholder={hostName || undefined}
+              aria-label={room.nameAria}
+              placeholder={hostName || room.namePlaceholder}
               onChange={(event) => setNameDraft(event.target.value)}
               onBlur={() => void saveName()}
             />
@@ -109,21 +114,21 @@ export function RoomSurface() {
 
       <div className="room-thread" aria-live="polite">
         {entries.length === 0 && live === null ? (
-          <p className="surface-quiet">No messages yet. Say something, or ask Kalsa.</p>
+          <p className="surface-quiet">{room.emptyRoom}</p>
         ) : null}
         {entries.map((entry) => (
           <p key={entry.seq} className="room-line">
             <span className="room-line-name">
               {entry.name}
-              {entry.former ? <span className="room-left"> · left</span> : null}
+              {entry.former ? <span className="room-left">{room.left}</span> : null}
               :{" "}
             </span>
             {entry.call_ai && entry.member_id !== info?.you ? (
-              <span className="room-asked">asked Kalsa · </span>
+              <span className="room-asked">{room.askedKalsa}</span>
             ) : null}
             <RoomText text={entry.text} />
             {entry.read !== null && entry.read !== undefined ? (
-              <span className="room-read"> · read the last {entry.read}</span>
+              <span className="room-read">{room.readLast(entry.read)}</span>
             ) : null}
           </p>
         ))}
@@ -137,15 +142,15 @@ export function RoomSurface() {
 
       <div className="room-turn" aria-live="polite">
         {turnRunning && ai?.running ? (
-          <p className="surface-quiet">Kalsa is answering {ai.running}.</p>
+          <p className="surface-quiet">{room.answering(ai.running)}</p>
         ) : null}
         {turnRunning ? (
           <button type="button" className="room-stop" onClick={() => void feed.stop()}>
-            Stop
+            {room.stop}
           </button>
         ) : null}
         {!turnRunning && ai && ai.queue.length > 0 ? (
-          <p className="surface-quiet">{queueLine(ai.queue)}</p>
+          <p className="surface-quiet">{queueLine(ai.queue, room)}</p>
         ) : null}
         {refusalLine ? <p className="surface-quiet">{refusalLine}</p> : null}
         {noteLine ? <p className="surface-quiet">{noteLine}</p> : null}
@@ -162,8 +167,8 @@ export function RoomSurface() {
           type="text"
           className="brain-bar-input"
           value={draft}
-          placeholder="Write, or type @Kalsa…"
-          aria-label="Message"
+          placeholder={room.writePlaceholder}
+          aria-label={room.writeAria}
           onChange={(event) => setDraft(event.target.value)}
         />
         <button
@@ -192,7 +197,7 @@ export function RoomSurface() {
           disabled={draft.trim().length === 0 || feed.sending || (ai?.you_pending ?? false)}
           onClick={() => void send(true)}
         >
-          Ask Kalsa
+          {room.askKalsa}
         </button>
       </form>
     </div>

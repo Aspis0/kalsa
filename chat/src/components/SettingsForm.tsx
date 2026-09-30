@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Theme } from "../lib/settings";
 import type { ChatSettings } from "../lib/types";
+import { LANGUAGE_OPTIONS } from "../i18n";
+import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
 
 interface SettingsFormProps {
@@ -25,11 +27,13 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
   const [model, setModel] = useState(initial.model);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { table, override, choose } = useLanguage();
+  const t = table.settings;
 
   function save(): void {
     setSaved(false);
     if (!model.trim()) {
-      setError("Enter the model name the server expects.");
+      setError(t.modelNameError);
       return;
     }
     setError(null);
@@ -45,7 +49,7 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
 
   return (
     <div className="settings-page">
-      <h2>Settings</h2>
+      <h2>{t.title}</h2>
       {/* Appearance first, and applied on the spot like the switch below: it
           is a preference of the app, not a field of the connection form, and it
           used to be a button in every header. */}
@@ -56,9 +60,26 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
             checked={theme === "dark"}
             onChange={(event) => onTheme(event.target.checked ? "dark" : "light")}
           />
-          <span>Dark theme</span>
+          <span>{t.darkTheme}</span>
         </label>
       </div>
+
+      {/* The language row: applied the moment it changes, like the theme —
+          it is a preference of the app, and waiting for Save would leave
+          the page half in one language and half in another. Each option is
+          shown in its own language so it survives not knowing the current
+          one. */}
+      <label className="settings-field">
+        <span>{t.language}</span>
+        <select value={override} onChange={(event) => choose(event.target.value as typeof override)}>
+          <option value="system">{t.languageSystem}</option>
+          {LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.ownName}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className="settings-toggle">
         <label>
@@ -67,28 +88,20 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
             checked={initial.webTools}
             onChange={(event) => onWebTools(event.target.checked)}
           />
-          <span>Let the assistant search the web</span>
+          <span>{t.webSearch}</span>
         </label>
-        <p className="settings-note">
-          When your question needs something current, the assistant can search the web and open a
-          page. That search — the words it chose, and the address it opens — leaves this computer
-          for a search service on the internet, and what comes back is kept in the conversation.
-          With this off, nothing is sent and the assistant answers from what it already knows. This
-          switch is applied as soon as you change it.
-        </p>
+        <p className="settings-note">{t.webSearchNote}</p>
       </div>
 
-      <p className="settings-lede">
-        Messages go to this computer's own server. Everything here stays on this computer.
-      </p>
+      <p className="settings-lede">{t.lede}</p>
 
       <label className="settings-field">
-        <span>Model name</span>
+        <span>{t.modelName}</span>
         <input
           type="text"
           value={model}
           onChange={(event) => setModel(event.target.value)}
-          placeholder="my-model"
+          placeholder={t.modelNamePlaceholder}
           autoComplete="off"
           spellCheck={false}
         />
@@ -99,11 +112,11 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
           {error}
         </p>
       ) : null}
-      {saved && !error ? <p className="settings-saved">Saved.</p> : null}
+      {saved && !error ? <p className="settings-saved">{t.saved}</p> : null}
 
       <div className="settings-actions">
         <button type="button" className="btn-primary" onClick={save}>
-          Save
+          {t.save}
         </button>
       </div>
     </div>

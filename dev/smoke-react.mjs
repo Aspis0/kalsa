@@ -261,6 +261,18 @@ function installDom() {
   const cards = document.createElement("main");
   cards.setAttribute("id", "cards");
   document.body.appendChild(cards);
+  // The language provider's real persistence path: a working store so the
+  // bench can seed an override the way the Settings row does.
+  const store = new Map();
+  window.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+  // Bare `localStorage` in the bundled app resolves through globalThis:
+  // point it at the shim, or node's own unavailable store swallows the
+  // language override.
+  globalThis.localStorage = window.localStorage;
   return cards;
 }
 
@@ -299,6 +311,22 @@ try {
   // The reduced-motion gate is a fact about the stylesheet, not the DOM:
   // the fake DOM cannot render it, so the bench reads the CSS itself.
   problems.push(...checkSurfacesCss());
+
+  // The key parity check: every language carries every English key, no
+  // empties, no extras.
+  for (const problem of renderer.checkKeyParity()) {
+    problems.push(`i18n parity: ${problem}`);
+  }
+  // The waiting line, whole-message per language: Italian and Chinese both
+  // prove a table actually drives rendering, not just type-checks.
+  const italian = renderer.queueLineIn("it");
+  if (italian !== "Kalsa risponderà prima a Marco, poi Luca e Sofia.") {
+    problems.push(`i18n it: the waiting line must be whole-message Italian: "${italian}"`);
+  }
+  const chinese = renderer.queueLineIn("zh");
+  if (chinese !== "Kalsa 将先回答Marco，然后Luca、Sofia。") {
+    problems.push(`i18n zh: the waiting line must be whole-message Chinese: "${chinese}"`);
+  }
   const EXPECTED_SAMPLING_WIRES = [
     "adaptive_decay",
     "adaptive_target",
@@ -369,10 +397,12 @@ try {
   if (Object.hasOwn(invalidWire, "top_k") || Object.hasOwn(invalidWire, "top_p")) {
     problems.push("invalid sampling value reached the request");
   }
+  // Delegates to the installDom store: the language provider reads the
+  // same storage the sampling round trip pollutes.
   const previousStorage = globalThis.localStorage;
   const storage = new Map();
   globalThis.localStorage = {
-    getItem: (key) => storage.get(key) ?? null,
+    getItem: (key) => storage.get(key) ?? previousStorage?.getItem?.(key) ?? null,
     setItem: (key, value) => storage.set(key, String(value)),
   };
   try {
@@ -1148,6 +1178,18 @@ try {
     // The room's cards: what the host's view must always say and never
     // say, read off the same rendered copy every other card is read with.
     if (heading.startsWith("Room — ")) {
+      // A language card asserts its own sentences below; the English ones
+      // do not apply to a page rendered in another language.
+      if (heading.startsWith("Room — in ")) {
+        const want = heading.includes("Chinese")
+          ? ["停止", "Kalsa 正在回答Marco。"]
+          : ["Kalsa risponderà prima a Marco, poi Luca.", "Chiedi a Kalsa"];
+        const missing = want.filter((wanted) => !all.includes(wanted));
+        if (missing.length > 0) {
+          problems.push(`Room — ${heading}: missing ${JSON.stringify(missing)}`);
+        }
+        continue;
+      }
       if (heading.includes("empty room")) {
         if (!all.includes("No messages yet. Say something, or ask Kalsa.")) {
           problems.push(`Room — empty room must say so: ${heading}`);
@@ -1226,6 +1268,22 @@ try {
       for (const [needle, wanted] of NAME_SENTENCES) {
         if (heading.includes(needle) && !all.includes(wanted)) {
           problems.push(`Room — ${needle} must say "${wanted}": ${heading}`);
+        }
+      }
+      if (heading.includes("in Italian")) {
+        if (!all.includes("Kalsa risponderà prima a Marco, poi Luca.")) {
+          problems.push(`Room — the Italian line must be whole-message: ${heading}`);
+        }
+        if (!all.includes("Stanza") && !all.includes("Studio")) {
+          problems.push(`Room — the Italian card renders: ${heading}`);
+        }
+      }
+      if (heading.includes("in Chinese")) {
+        if (!all.includes("Kalsa 正在回答Marco。")) {
+          problems.push(`Room — the Chinese answering line must be whole-message: ${heading}`);
+        }
+        if (!all.includes("工作室")) {
+          problems.push(`Room — the Chinese card renders the room name: ${heading}`);
         }
       }
       if (heading.includes("the copy table")) {

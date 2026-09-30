@@ -7,6 +7,7 @@ import {
   crescentEntriesFor,
   layoutCrescent,
 } from "../app/crescentLayout";
+import { useLanguage } from "../i18n/useLanguage";
 import "./CrescentNav.css";
 
 export interface CrescentEntry {
@@ -36,6 +37,8 @@ interface CrescentNavProps {
  * it, closes. The keyboard keeps a deliberate way in (Enter / ArrowDown).
  */
 export function CrescentNav({ entries, current, offered, open, onOpenChange }: CrescentNavProps) {
+  const { table } = useLanguage();
+  const navAria = table.chrome.chatMenu;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const shown = crescentEntriesFor(entries, current, offered);
   // Four entries, four slots, offset zero: canPrev/canNext are always false.
@@ -70,7 +73,7 @@ export function CrescentNav({ entries, current, offered, open, onOpenChange }: C
     <div
       className="crescent-shell"
       role="navigation"
-      aria-label="Chat menu"
+      aria-label={navAria}
       onPointerMove={handlePointerMove}
       onPointerLeave={open ? () => close() : undefined}
       onKeyDown={handleKeyDown}
