@@ -855,7 +855,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   names the executing device (HTP) - recon luna 9f6a9d13, then a fix in the binding follow-up round; (2) queue an
   S23 session with per-turn HTP execution proof (not the single pre-campaign probe), phone charged first.
   Telemetry fix, engine step: 4dc4592bf (local, deepseek) audited by space-bunny 7518a6c3 -> FIX FIRST (dev_output()
-  is the output layer, not the bulk; false offset comment; vacuous test); fix round deepseek a7f4c269.
+  is the output layer, not the bulk; false offset comment; vacuous test); fix round deepseek a7f4c269 -> 5b596ce43
+  (`layers_device` = majority device of the context's layers), re-audit 72616199 SHIP (crash-at-construction
+  REFUTED; accepted lows: tensor-parallel Meta device name, MTP layers vote on exact ties). Engine main PUSHED
+  5b596ce43 2026-10-01 (no ggml-hexagon change since 61c909481: skels unchanged). Binding step: deepseek 5800fde4.
   **Side finding (verified on disk 2026-10-01): in-app HTP prefill runs ATTENTION ON THE CPU.** The binding sets
   `prefill_params.no_kv_offload = true` on the lane-on prefill context (`cpp/rn-llama.cpp:132`) and the engine pins
   every node between the KV store and the attention output to CPU when `!offload_kqv` (`src/llama-graph.cpp:2746`).
