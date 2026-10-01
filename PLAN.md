@@ -1133,7 +1133,10 @@ Phases (each gated):
    Super-Expert rule; new stop rules S0 (harness sanity), S5 (BFCL v3 multi-turn loop rate), S6 (knowledge MC 5 langs);
    mass/MSAN keep-set arm; pruned MTP head export (keep MTP). Healing = conditional phase 2, cap $30 / stop $40.
    Public controls: crucible-labs REAP-48-v2, anik-jha coding-reap50 (cerebras has none for Qwen3.6). Realistic total
-   $65-90 - NEEDS OWNER BUDGET OK. Owner rejected the hot/cold resident+streamed alternative (months of research). Sizes (GGUF shapes): 128 = 18.6 B params,
+   $65-90 - NEEDS OWNER BUDGET OK. Owner rejected the hot/cold resident+streamed alternative (months of research).
+   **PARKED by the owner 2026-10-01: good plan, costs more than expected; resume after the alpha if users are
+   interested.** No Runpod spend. Resume checklist: `kalsa-moe-design-fable/PARKED.md`.
+   Sizes (GGUF shapes): 128 = 18.6 B params,
    ~11.3 GB Q4_K_M / ~8.0 GB IQ3_S; 160 = 22.6 B, ~13.7 / ~9.7 GB. Cost: Mac phase $0, ONE A100 pod
    ~10-14 h $15-25 (cap $40), optional healing <= $20. NEEDS OWNER BUDGET OK.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier

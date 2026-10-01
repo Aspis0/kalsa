@@ -770,7 +770,9 @@ Jaccard withdrawn, hash-step hygiene gap recorded; conclusion unchanged (128 tra
 Phase 0b evals (HumanEval+, FLORES chrF++/wrong-language, GSM8K-IT, gate fixes) committed by GLM b23995c6; audit running.
 Phase 0b audit (space-bunny f6956458): 4 blockers (fail-open stop rule, gameable HumanEval+, pod budgets, FLORES
 truncation); fix round GLM 6857fe92. Fable plan audit: approve REAP-128 with changes (chat-templated calibration, loop +
-knowledge stop rules, keep a pruned MTP head, conditional healing); realistic total $65-90, owner budget pending.
+knowledge stop rules, keep a pruned MTP head, conditional healing); realistic total $65-90.
+**Kalsa MoE prune PARKED by the owner 2026-10-01** until after the alpha (cost); resume from
+`scratchpad/agents/kalsa-moe-design-fable/PARKED.md`. The two running agents finish and commit; nothing else runs.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
