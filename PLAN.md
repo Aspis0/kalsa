@@ -1047,6 +1047,14 @@ Phases (each gated):
    eval callback read the strided `ffn_moe_topk` view contiguously and reset its index per ubatch. Re-run with a fixed
    reader dispatched to GLM 6ed37888; audit by space-bunny before any number is quoted. RAZOR's keep-set is published
    per layer (`kept_expert_indices.json`, pinned d897617a).
+   Run 2 (GLM 6ed37888, fixed reader): removed-mass share EN 45.9 / IT 51.4 / ES 56.3 / FR 66.9 / ZH 52.6 %. Hostile
+   audit (space-bunny da2eab36, AUDIT-rerun.md): instrument CORRECT, design too weak - one unrelated Wikipedia article
+   per language (FR window ends in a bibliography), IT p=0.43 and ZH p=0.12 vs a random-half null, RAZOR keeps 48.4%
+   of IT mass vs 50.0 +/- 1.7 random, balanced keep-set score in-sample (+9.5 pp). So: routing frequency does NOT
+   explain the IT loss on this evidence. Owner 2026-10-01: Kalsa languages are exactly IT/FR/ES/EN/ZH; a prune must
+   remove something else. Next (GLM 2fde2e65, `scratchpad/agents/moe-expert-usage-v3/`): parallel corpus (topic
+   controlled) for the 5 keep + DE/JA/KO/RU/AR sacrifice languages, plus code and math; held-out keep-set curve
+   128..224, random null, CIs. Usage is a proxy; the prune verdict stays bpb/evals after pruning.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier
    "$1.5" was an estimate). L40 out of stock -> pod `nytgw2hjgsfz6e` A40 48 GB SECURE CA-MTL-1 at $0.49/h, 200 GB
    volume; hard stop 18.5 h, arm budget guard 17.5 h (max ~$9.6 total). Stages run one by one first; the full chain

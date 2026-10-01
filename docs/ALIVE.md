@@ -764,7 +764,9 @@ arm's results land; spend capped at ~$9.6 of the $10.
 Result 2026-10-01 (9 arms, $6.82): the RAZOR-19 prune lost Italian (bpb 1.46, LFM-level) while unpruned Qwen3.6 is
 far better than LFM in every language (IT 0.58 vs 1.48); GSM8K is cap-confounded. Owner picks the next MoE lane.
 Cause of the RAZOR language loss: first router probe was INVALID (strided-view misread, uniform 32x counts); re-run
-with a fixed reader in progress (GLM 6ed37888), audit before quoting. PLAN.md gate-probe entry.
+with a fixed reader done; audit: instrument correct, design too weak (one article per language, IT not different
+from a random half). Proper study (parallel corpus, code, math, sacrifice languages, held-out) running. Kalsa
+languages: IT/FR/ES/EN/ZH (owner). PLAN.md gate-probe entry.
 `results/gate_probe_a40_2026-10-01/REPORT.md`.
 
 **Engine single line (2026-09-30 night, owner):** `main` of the fork is the only engine line for phone and desktop;
