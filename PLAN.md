@@ -569,6 +569,13 @@ tests with the ship GGUF, one audit by another model. Then binding vendor bump -
 desktop v1.1.4 when the fork's CI is back. The one-copy spike keeps its base until its ABBA is measured. Fork
 already pruned to 3 branches (REPOS.md); feat/* becomes an archive tag after step A lands. Making the fork public
 is PARKED (owner); the recon was stopped before any verdict.
+Landed 2026-10-01: engine main pushed to `61c909481` (single line + b11304 + test fixes + Hexagon runtime net);
+`feat/governor-platform-status` -> tag `archive/feat/governor-platform-status`; fork has 2 branches. Release tag
+`kalsa-server-v1.1.4` (a34fcc615 -> 61c909481) pushed 12:55 UTC, run 36865080892 (v1.1.3 never published, skipped).
+The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
+~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
+(repo setting, no tree change); only kalsa-server.yml and check-vendor.yml stay enabled. Desktop side: new
+kalsa-brain session `d4e57ba1` takes the v1.1.4 pins and its checklist after publish.
 Step A landed locally as `5de9fa2fc` (clean merge, zero conflicts; audit running). test-governor-v0-shared-cells was
 already red on old main: kalsa-brain decided 2026-09-30 (b) - KEEP `llama-memory-hybrid.cpp` shared_fence; the test
 expects MIRROR semantics for plain/iSWA KV (Gemma-4 12B + NextN, the only desktop MTP model) and REFUSAL for hybrid

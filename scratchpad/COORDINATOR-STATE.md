@@ -1,3 +1,29 @@
+# Coordinator state - 2026-10-01 midday (session 818369e6) - READ THIS BLOCK FIRST
+
+Running: release run 36865080892 (tag kalsa-server-v1.1.4 -> engine 61c909481); binding audit-round coder
+`6897be16` (GLM) on kalsa.rn feat/governor-platform-status. Pod: none (deleted). S23: idle, ~20 %, needs a charge.
+
+1. **Engine single line DONE:** fork main `61c909481` = phone line + desktop line + upstream TAG b11304 (81ff93ea1;
+   master's 4453b535f deliberately excluded - it reorders NextN rows the Gemma MTP reads) + truthful governor tests
+   + Hexagon runtime net (bounded waits, exact req/rsp shape, no aborts, decode -3). Audits: stepA/stepB/testfixes
+   r1-r2 and fix-engine r1-r3 in `agents/engine-single-line-upstream/` and `agents/inapp-htp-dspqueue-hang/`.
+   Fork: 2 branches (main, spike/onecopy-hmx-raw), 47 upstream workflows DISABLED (they ate the free minutes).
+2. **v1.1.4:** tag pushed 12:55 UTC. NEXT: when run 36865080892 completes, verify published digests + HF mirror,
+   send pins to kalsa-brain `d4e57ba1-f4e1-459b-85bc-f8e49aa042a4` (it updates assets.rs and runs its checklist).
+   edd8034a is the OLD brain session; 49e4aa01 is DEAD.
+3. **In-app NPU lane:** root cause CONFIRMED (APK skels from 2026-09-17 vs host's new batch protocol). Binding fix
+   `0d49c6a7..1a47c48f` got FIX FIRST (gate compared hand-edited strings; out-of-repo skel recipe; fallback blamed
+   HTP for any failure). Coder `6897be16` implements: engine sha embedded in each skel + binary-checking gate, one
+   committed recipe, fallback only on a real HTP failure. NEXT: verify -> audit (space-bunny) -> push binding ->
+   app pin + lockfile + provenance -> debuggable APK -> S23 (lane on loads, prefill on HTP vs OpenCL, lane off).
+4. **One-copy kernel:** spike `d2cc4a25b` pushed (VTCM relayout REFUTED in sim; paired scale multiply bit-identical;
+   -p 32 abort fix; probes 8/16/32). Gated S23 scripts `6b956412`. NEXT: S23 session when charged.
+5. **MoE gate probe DONE** ($6.82): `results/gate_probe_a40_2026-10-01/REPORT.md`. RAZOR-19 lost Italian; unpruned
+   Qwen3.6 beats LFM in every language; GSM8K cap-confounded; bpb of k4 arms not measured (script bug). OWNER to
+   decide the MoE lane (being discussed now). Owner must ROTATE the HF probe token.
+6. Traps learned today: zsh `read ... path ...` clobbers PATH; zsh `$VAR:r...` in a refspec eats `:r`; GLM (zcode)
+   5-hour quota runs out mid-task - check the worktree, then resume the same agent after the reset.
+
 # Coordinator state - 2026-09-30 evening handoff (session 3f035b4e) - READ THIS BLOCK FIRST
 
 Nothing is running: no pod, no delegate (all archived), S23 idle. Owner asked to stop here.

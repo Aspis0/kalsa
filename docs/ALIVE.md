@@ -751,6 +751,9 @@ far better than LFM in every language (IT 0.58 vs 1.48); GSM8K is cap-confounded
 **Engine single line (2026-09-30 night, owner):** `main` of the fork is the only engine line for phone and desktop;
 feat/governor-platform-status merges into it, then upstream b11304 (conflicts: take upstream, replay our commits).
 The fork was pruned to 3 branches + archive tags; going public is parked. PLAN.md "Engine: one line + upstream".
+Done 2026-10-01: engine main `61c909481` pushed (2 branches left), release tag kalsa-server-v1.1.4 pushed (v1.1.3
+skipped), and the 47 upstream workflows that burned the fork's free minutes are disabled (kalsa-server + check-vendor
+remain).
 
 **Governor plan (2026-09-30, owner: follow it):** `scratchpad/agents/governor-plan-fable/PLAN.md` (lab
 `32d65d53`), summarised in PLAN.md "Governor plan to follow". Today the governor sees battery temperature and
