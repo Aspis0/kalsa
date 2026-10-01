@@ -574,7 +574,8 @@ Landed 2026-10-01: engine main pushed to `61c909481` (single line + b11304 + tes
 `kalsa-server-v1.1.4` (a34fcc615 -> 61c909481) pushed 12:55 UTC, run 36865080892 (v1.1.3 never published, skipped).
 PUBLISHED 2026-10-01: run 36865080892 all jobs green; R2 dl.kalsa.io/kalsa-server/v1.1.4 (3 archives, HTTP 200) + HF
 Kalsa-ai/kalsa-server tag kalsa-server-v1.1.4; manifest commit 61c909481, digests match the HF LFS oids. Pins sent
-to kalsa-brain d4e57ba1.
+to kalsa-brain d4e57ba1. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
+manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
 (repo setting, no tree change); only kalsa-server.yml and check-vendor.yml stay enabled. Desktop side: new
