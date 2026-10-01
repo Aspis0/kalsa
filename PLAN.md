@@ -574,7 +574,11 @@ Landed 2026-10-01: engine main pushed to `61c909481` (single line + b11304 + tes
 `kalsa-server-v1.1.4` (a34fcc615 -> 61c909481) pushed 12:55 UTC, run 36865080892 (v1.1.3 never published, skipped).
 PUBLISHED 2026-10-01: run 36865080892 all jobs green; R2 dl.kalsa.io/kalsa-server/v1.1.4 (3 archives, HTTP 200) + HF
 Kalsa-ai/kalsa-server tag kalsa-server-v1.1.4; manifest commit 61c909481, digests match the HF LFS oids. Pins sent
-to kalsa-brain d4e57ba1. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
+to kalsa-brain d4e57ba1. **v1.1.4 BUG (kalsa-brain, confirmed 2026-10-01):** the macos-arm64 CPU path SIGILLs on M1
+(no i8mm) in ggml_gemm_q6_K_8x8_q8_K: libggml-cpu has 284 smmla/ummla (v1.1.2: 0); GGML_NATIVE=ON on the macos-26
+runner now probes i8mm OK and bakes it in. Fix v1.1.5 (GLM d669dc8d, branch fix/v1.1.5 local): mac NATIVE=OFF +
+BACKEND_DL + CPU_ALL_VARIANTS (apple_m1/m2_m3/m4), proven on the local M1 Max first; plus truncated slot file ->
+400 not abort, shared-view WARN once. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
 manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
@@ -812,6 +816,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   dead retry under set -e; mutable image tag; 63 MB LFS per CI run. Coordinator verdict: fix all of these
   (forgery out of scope; rc=-3 attribution limits and the env race documented, not fixed). Fix round GLM
   029d15d7. App side, at the pin step: the app's APK workflow must run the binding's skel gate too.
+  Round 3 `84dc71f3..6c9b16ed` (GLM 029d15d7: source fingerprint KALSA_HTP_SRC, ELF-symbol stamps, exact DSP
+  set, gated example APK, image by digest, mutex fallback state, LFS cache). Audit r3 (space-bunny e651f039,
+  `AUDIT-fix-binding-r3.md`) FIX FIRST; coordinator judged NOT blocking and PUSHED 6c9b16ed 2026-10-01: r2 items
+  closed; open, follow-up round: android/src/main/rnllama/CMakeLists.txt (the host backend's real build file) is
+  outside the fingerprint; governor_npu_device read unsynchronized (written at load only); v75<->v79 byte swap
+  passes; two false comments ("editing any text file cannot satisfy the gate"); struct.error traceback on a
+  truncated ELF; gate not wired into Gradle consumers (the app gets its own installed-package check). App pin +
+  installed-skel check: GLM 2374d4b8; then debuggable APK and the S23 governor run (NPU/GPU/CPU prefill, lane off).
 
 ### Pairing: iroh and invite links
 
