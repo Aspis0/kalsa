@@ -14,11 +14,12 @@
 use crate::assets::{Platform, ServerBackend};
 use kalsa_probe::Backend;
 
-/// The builds to try on this machine, in order. CPU is always last when it is
-/// present at all — and for a machine without a usable discrete GPU it is the
-/// whole list, which is a correct answer, not a consolation: an old iGPU
-/// reads the same system RAM at the same speed, so there is no decode win to
-/// chase.
+/// The builds to try on this machine, in order. CPU is always last when it
+/// is present at all — including on a machine with no discrete GPU, where
+/// the Vulkan build still comes first: the integrated GPU gets its try,
+/// measured against the CPU by the tune (the owner's rule: the first start
+/// tests everything and keeps what answers fastest), and a card that cannot
+/// initialise Vulkan fails the probe and leaves the CPU build standing.
 pub fn candidates_for(platform: Option<Platform>, detected: Backend) -> Vec<ServerBackend> {
     match platform {
         // One macOS archive carries Metal and CPU together; there is nothing
@@ -30,9 +31,12 @@ pub fn candidates_for(platform: Option<Platform>, detected: Backend) -> Vec<Serv
         // table's comment. Intel support is a deliberate future decision.
         Some(Platform::MacX64) => Vec::new(),
         Some(Platform::WindowsX64) => match detected {
-            // No discrete GPU: CPU, full stop. Vulkan would only find the
-            // same system RAM through a slower, heavier door.
-            Backend::Cpu => vec![ServerBackend::Cpu],
+            // No discrete GPU, and the integrated GPU gets its try:
+            // Vulkan first so the build is installed and probed, CPU as the
+            // floor when it refuses or the device list names no usable card.
+            // An iGPU decodes from the same system RAM, so the tune's reply
+            // times — not this table — decide which is faster.
+            Backend::Cpu => vec![ServerBackend::Vulkan, ServerBackend::Cpu],
             // NVIDIA or AMD, vendor unknown: Vulkan serves both and is
             // cheap to fetch; CPU is the floor when Vulkan refuses (the
             // device is below Vulkan 1.2 or lacks `storageBuffer16BitAccess`).
@@ -99,11 +103,14 @@ mod tests {
         }
     }
 
+    /// The integrated GPU's own try: Vulkan first so the walk installs and
+    /// probes it (and pins its one listed device or falls back), CPU as the
+    /// floor — never dropped, never first.
     #[test]
-    fn a_machine_without_a_discrete_gpu_gets_cpu_only() {
+    fn a_machine_without_a_discrete_gpu_offers_the_igpu_then_the_cpu() {
         assert_eq!(
             candidates_for(Some(Platform::WindowsX64), Backend::Cpu),
-            vec![ServerBackend::Cpu]
+            vec![ServerBackend::Vulkan, ServerBackend::Cpu]
         );
     }
 

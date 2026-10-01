@@ -700,9 +700,14 @@ fn budget_backend(winner: ServerBackend, detected: kalsa_probe::Backend) -> kals
     match winner {
         ServerBackend::Metal => kalsa_probe::Backend::Metal,
         ServerBackend::Cpu => kalsa_probe::Backend::Cpu,
-        // A GPU build decodes in the card's memory: the budget is the VRAM
-        // detection read, when it could read one honestly.
         ServerBackend::Vulkan => match detected {
+            // No card of its own: the integrated GPU decodes out of shared
+            // system RAM, so the budget stays the CPU path — the same
+            // arithmetic, and the same pick from the chooser, this machine
+            // had when only the CPU build was offered.
+            kalsa_probe::Backend::Cpu => kalsa_probe::Backend::Cpu,
+            // A GPU build decodes in the card's memory: the budget is the VRAM
+            // detection read, when it could read one honestly.
             kalsa_probe::Backend::DiscreteGpu { vram_bytes } => {
                 kalsa_probe::Backend::DiscreteGpu { vram_bytes }
             }
@@ -2232,6 +2237,15 @@ mod tests {
             budget_backend(ServerBackend::Vulkan, detected),
             detected,
             "a GPU build decodes in the card"
+        );
+        // The integrated GPU's case: the graphics build won on a machine
+        // with no card of its own — decode runs out of shared system RAM,
+        // so the budget is the CPU path and the chooser's pick is what this
+        // machine had when only the CPU build was offered.
+        assert_eq!(
+            budget_backend(ServerBackend::Vulkan, Backend::Cpu),
+            Backend::Cpu,
+            "an iGPU decodes from system RAM"
         );
         let row = rows()
             .find(|entry| entry.display_name == "Google Gemma 4 26B")
