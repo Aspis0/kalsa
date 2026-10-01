@@ -575,6 +575,13 @@ expects MIRROR semantics for plain/iSWA KV (Gemma-4 12B + NextN, the only deskto
 memory, chosen by the fixture's memory type. Lifting the hybrid fence is new behaviour, not for v1.1.4 (DSpark /
 hybrid drafting gets its own lab + review). Test fix after step B. Upstream target is the TAG b11304 = `81ff93ea1`,
 not master (master adds 4453b535f, which reorders the NextN rows our Gemma MTP reads).
+Test-fix audit 2026-10-01: the shared-cells "mirror" half on a gemma-3 iSWA fixture decodes garbage
+(aliased_tensors=0) - NOT a desktop bug: generic iSWA views get `share = nullptr` (cells only, own empty K/V);
+only `LLM_ARCH_GEMMA4_ASSISTANT` passes a `share` callback (llama-model.cpp ~2879). kalsa-brain proved the real
+pair aliases all 4 drafter layers (acceptance 0.568). The test now checks the real pair (env-gated) and calls the
+gemma-3 half what it is. FOLLOW-UP (not v1.1.4): refuse an iSWA view with mem_other but no `share` instead of
+decoding garbage silently - check Qwen MTP heads and DFlash first. test-governor-v0-devices was dead everywhere
+(gpu_fit Unknown -> CPU route -> 0 commits); it now forces the GPU route and FAILS if the route regresses.
 
 ### Governor plan to follow (owner, 2026-09-30)
 
