@@ -306,16 +306,119 @@ Previous report: Arc 12B MTP-off 7.03 → n=2 11.98 → n=3 14.0 → n=4 14.7 to
 - Quality is unchanged by device (the same GGUFs; scores in §3: Q4_K_M 95, QAT 97, E4B 90); the Arc only changes speed and RAM use.
 - **Chooser implication (INFERENCE):** the iGPU's prefill rate (73–84 tok/s for a 12B, 181 for E4B) must be a separate predicted number; an Arc row with TTFT@2k > ~5 s should not be offered as a room model whatever its decode speed. Treat the Arc as a ≤ 4B-class device or as a fallback.
 
-### 9.7 Exact re-run commands for the v1.1.4 asset (NOT RUN — only `--bin-dir` and `--tag-suffix` change)
+### 9.7 Exact re-run commands for the v1.1.4 asset (only `--bin-dir` / `--tag-suffix` change; for the v1.1.4 asset also `--exe-name kalsa-server.exe`; write the suffix as `--tag-suffix=-v114`, argparse rejects `--tag-suffix -v114`)
 `<BIN>` = directory containing the v1.1.4 Windows Vulkan `llama-server.exe` and its DLLs (the harness puts it first on `PATH` together with the Vulkan SDK `bin`). `<PY>` = `C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe`. Each row writes `<tag>-v114-bench.summary.json` (fields `bin_dir` and `server_version` record what ran) next to the `e8065c7cf` files; the e8065c7cf rows above are never overwritten.
 ```
 # 1) E4B Q4_K_M on the RTX (baseline row: r2-e4b-bench.summary.json)
-<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r2-e4b.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r2-e4b.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix=-v114
 # 2) Ling-3.0-tiny Q4_K_M, all 25 layers on the GPU, ctx 65536 (baseline: r3-ling-full-bench.summary.json)
-<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r3-ling-full.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r3-ling-full.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix=-v114
 # 3) best Arc row: 12B Q4_K_M on the Arc, MTP n=4 (baseline: ar-12b-n4-bench.summary.json) and MTP off (ar-12b-off-bench.summary.json)
-<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-n4.json  --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
-<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-off.json --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-n4.json  --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix=-v114
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-off.json --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix=-v114
 ```
-Detached (survives an SSH logout) — put the four lines into `C:\kalsa-bench\mtp\lab2\queue-v114.txt` in the form `<tag> bench <same flags> --bin-dir <BIN> --tag-suffix -v114` (e.g. `r2-e4b bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114`) and run `powershell -File C:\kalsa-bench\mtp\lab2\launch.ps1 -QueueFile C:\kalsa-bench\mtp\lab2\queue-v114.txt`; progress in `queue.log`. Compare with `python3 lab2/arcrow.py <tag>-v114` (fetches summary+telemetry from the PC). Optional sustained / T=1.0 rows: same line with `--mode sustain --minutes 10` or `--temp 1.0`.
+Detached (survives an SSH logout) — put the four lines into `C:\kalsa-bench\mtp\lab2\queue-v114.txt` in the form `<tag> bench <same flags> --bin-dir <BIN> --tag-suffix=-v114` (e.g. `r2-e4b bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix=-v114`) and run `powershell -File C:\kalsa-bench\mtp\lab2\launch.ps1 -QueueFile C:\kalsa-bench\mtp\lab2\queue-v114.txt`; progress in `queue.log`. Compare with `python3 lab2/arcrow.py <tag>-v114` (fetches summary+telemetry from the PC). Optional sustained / T=1.0 rows: same line with `--mode sustain --minutes 10` or `--temp 1.0`.
 Caveats for any re-run: another agent's builds, Paseo and Defender share the PC (`other_cores` in telemetry); prefer a moment when `cargo`/`rustc` are idle; the Arc rows are RAM-limited (free RAM fell to 0.1–1.2 GB in some runs).
+
+
+---
+
+## 10. Engine v1.1.4 (kalsa-server 0.5.0-dev, build 11585, commit 61c909481) vs e8065c7cf (2026-10-01)
+
+**Verdict in one line:** v1.1.4 is **not slower** on this PC; the −35% Ling reading was a cold-page-cache run under load, not the engine (§10.3). E4B gets **1.9× decode from the official MTP drafter** (§10.4). The tiled-MM prefill on the CPU build is **~1.3× faster** than with it off (§10.5).
+
+### 10.1 What ran, integrity
+- Downloaded to `C:\kalsa-bench\v114\` (nothing else touched): `kalsa-server-v1.1.4-bin-win-vulkan-x64.zip` 27,831,749 B sha256 `5fcea54b…df75e3` ✔ and `…-bin-win-cpu-x64.zip` 14,487,114 B sha256 `122c2ca1…ed4307e` ✔ (`results/v114-download-verify.txt`). Extracted `kalsa-server.exe` sha256: Vulkan `147fa7b8…792b26` ✔, CPU `a7ac3d1f…12ca26` ✔ (both match the values you gave, hashed on the PC *before* any run). VC++ DLLs ship beside the exe. `--version`: `0.5.0-dev (build 11585, commit 61c909481)`, MSVC 19.51; Vulkan build lists Vulkan0 = RTX 4050, Vulkan1 = Arc; the CPU zip ships per-CPU backend DLLs (alderlake, haswell, sandybridge, skylakex, …); which one loaded was **not** logged at default verbosity (`results/v114-version-devices-flags.txt`); the verbose v1.1.4 log's feature string shows AVX, AVX_VNNI, AVX2, FMA, BMI2.
+- E4B drafter `mtp-gemma-4-E4B-it-Q8_0.gguf`: 98,653,280 B, sha256 `f38ae629…8b665` ✔ (same file).
+- Harness changes (no engine change): `--bin-dir` / `--exe-name kalsa-server.exe` / `--tag-suffix=-v114` (**write the suffix with `=`**: argparse rejects `--tag-suffix -v114`; §9.7 above is corrected), page-cache prewarm of every GGUF before the server starts (field `prewarm_s`; added *after* the first v1.1.4 Ling run, see §10.3), quick decode probe, `--priority high` for CPU rows, `decode` / `prefill` modes, and telemetry for per-process faults. An earlier bug: my telemetry counted `kalsa-server.exe` as "other" CPU, so the `other_cores` field of the first v1.1.4 rows is inflated; real other load was Defender/Paseo/rustc at ~2–3 cores.
+
+### 10.2 Rows 1–3: v1.1.4 vs e8065c7cf (same configs, same cool-start discipline; summary file named per row)
+| Row | TTFT @2k | Prompt tok/s | Decode med/min | Accept | VRAM max (RTX) | RSS / free-RAM low | RTX thermal bits | Source |
+|---|---|---|---|---|---|---|---|---|
+| E4B RTX, e8065c7cf | **1.22 s** | 1903 | 46.6 / 42.9 | – | 3809 MiB | 3.2 GB / 12.0 GB | 0x0 | `r2-e4b-bench.summary.json` |
+| E4B RTX, v1.1.4 | **1.23 s** | 1857 | 45.7 / 44.4 | – | 3809 MiB | 3.2 GB / 7.0 GB | 0x0 | `r2-e4b-v114-bench.summary.json` |
+| Ling all-GPU 64k, e8065c7cf (original run) | **0.76 s** | 2932 | 99.1 / 86.3 | – | 4989 MiB | 4.7 GB / 11.7 GB | 0x0 | `r3-ling-full-bench.summary.json` |
+| Ling all-GPU 64k, v1.1.4 (first run, cold cache) | **0.78 s** | 2736 | 64.0 / 50.9 | – | 4982 MiB | 4.8 GB / 2.6 GB | 0x0 | `r3-ling-full-v114-bench.summary.json` |
+| 12B Arc MTP off, e8065c7cf | **28.51 s** | 74 | 6.0 / 5.9 | – | 5 MiB | 9.3 GB / 4.2 GB | 0x0 | `ar-12b-off-bench.summary.json` |
+| 12B Arc MTP off, v1.1.4 | **31.91 s** | 61 | 5.6 / 4.6 | – | 0 MiB | 9.4 GB / 1.0 GB | 0x20 THROTTLED | `ar-12b-off-v114-bench.summary.json` |
+| 12B Arc MTP n=4, e8065c7cf | **28.56 s** | 73 | 16.8 / 12.6 | 0.754 | 5 MiB | 10.4 GB / 4.2 GB | 0x0 | `ar-12b-n4-bench.summary.json` |
+| 12B Arc MTP n=4, v1.1.4 | **29.75 s** | 72 | 17.1 / 13.0 | 0.754 | 53 MiB | 10.4 GB / 3.0 GB | 0x20 THROTTLED | `ar-12b-n4-v114-bench.summary.json` |
+
+- **E4B on the RTX: no change** (decode 45.7 vs 46.6, prompt 1,857 vs 1,903, TTFT 1.23 vs 1.22 s, VRAM identical).
+- **Ling: see §10.3** — the single 63.99 reading does not reproduce.
+- **Arc 12B:** n=4 matches (17.1 vs 16.8 tok/s, TTFT 29.8 vs 28.6 s, acceptance 0.754 both); the MTP-off row was slower on prompt (61 vs 74 tok/s, TTFT 31.9 vs 28.5 s) in a run where another process held ~6 cores and the (idle) RTX showed a thermal bit (chassis hot): thermally suspect; the interleaved e8065c7cf/v1.1.4 repeat of these two Arc rows is in §10.7 (no build difference).
+
+### 10.3 Ling-3.0-tiny all-GPU 64k: is v1.1.4 a regression? **No (not confirmed; effect ≤ ~8%, inside run-to-run noise)**
+The first v1.1.4 run read 63.99 / 50.9 tok/s vs 99.13 / 86.3 on e8065c7cf. Re-checked with identical args, the same 62 °C GPU start before every run, page cache prewarmed, a decode-only quick probe right after cool-down, RTX flags/clocks per run:
+
+| Pair | build | decode med / min | quick probe (3 prompts) | prompt tok/s | TTFT | GPU start | clock med/min MHz | max °C | thermal | sys page-ins/s | summary file |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | old (e8065c7cf) | 103.3 / 82.3 | [113.13, 106.48, 93.37] | 2840 | 0.78 s | 62 °C / 0001 | 2625 / 2625 | 73 | 0x0 | 264 | `r3-ling-full-ab-e80-1-bench.summary.json` |
+| 1 | new (v1.1.4) | 69.1 / 60.2 | [85.35, 77.9, 78.45] | 2737 | 0.78 s | 62 °C / 0001 | 2625 / 2625 | 74 | 0x0 | 11897 | `r3-ling-full-ab-v114-1-bench.summary.json` |
+| 2 | old (e8065c7cf) | 88.7 / 78.7 | [75.96, 78.03, 81.52] | 2890 | 0.78 s | 62 °C / 0001 | 2490 / 2355 | 72 | 0x0 | 228 | `r3-ling-full-ab-e80-2-bench.summary.json` |
+| 2 | new (v1.1.4) | 101.3 / 81.3 | [94.33, 97.19, 83.11] | 2869 | 0.74 s | 62 °C / 0001 | 2340 / 2055 | 72 | 0x0 | 473 | `r3-ling-full-ab-v114-2-bench.summary.json` |
+| 3 | old (e8065c7cf) | 79.5 / 74.8 | [113.92, 106.37, 91.9] | 2820 | 0.82 s | 62 °C / 0001 | 2055 / 2055 | 71 | 0x0 | 890 | `r3-ling-full-ab-e80-3-bench.summary.json` |
+| 3 | new (v1.1.4) | 72.5 / 65.7 | [73.29, 76.54, 72.49] | 2749 | 0.77 s | 62 °C / 0001 | 2332 / 2055 | 74 | 0x0 | 13849 | `r3-ling-full-ab-v114-3-bench.summary.json` |
+| 4 (old second) | old (e8065c7cf) | 79.2 / 72.8 | [67.09, 77.95, 85.86] | 2840 | 0.79 s | 62 °C / 0001 | 2625 / 1905 | 74 | 0x0 | 9100 | `r3-ling-full-ab-e80-4-bench.summary.json` |
+| 4 (new first) | new (v1.1.4) | 81.6 / 75.5 | [80.8, 75.77, 77.36] | 2783 | 0.78 s | 62 °C / 0001 | 1500 / 375 | 72 | 0x0 | 54373 | `r3-ling-full-ab-v114-4-bench.summary.json` |
+| 5 (old second) | old (e8065c7cf) | 104.5 / 90.9 | [100.78, 89.03, 90.98] | 2907 | 0.78 s | 62 °C / 0001 | 2340 / 2055 | 72 | 0x0 | 22 | `r3-ling-full-ab-e80-5-bench.summary.json` |
+| 5 (new first) | new (v1.1.4) | 86.6 / 77.0 | [94.15, 83.65, 80.92] | 2837 | 0.74 s | 61 °C / 0001 | 2340 / 2055 | 72 | 0x0 | 15395 | `r3-ling-full-ab-v114-5-bench.summary.json` |
+
+- **Five interleaved pairs** (pairs 1–3 old→new, pairs 4–5 new→old to cancel order): decode medians old [103.28, 88.65, 79.45, 79.19, 104.49] → **median 88.65**, new [69.09, 101.26, 72.5, 81.63, 86.64] → **median 81.63**; ratio new/old **0.921**; min-of-mins 72.85 vs 60.25; paired ratios [0.67, 1.14, 0.91, 1.03, 0.83]; prompt ratio 0.98. Each build's own five runs span ~70–105 tok/s. **All ten runs thermally clean** (0x0 bits, GPU max 71–74 °C, clocks 2.05–2.6 GHz, same start temperature). `results/ling-v114-recheck.summary.json`.
+- **Decode-only runs** (10 prompts × 128 tokens, nothing else; interleaved old/new/no-fusion/no-descriptor-reuse ×2, `*-decode.summary.json`): old default **114.8 (min 100.9) / 109.2 (min 95.3)**; new default **112.0 (min 100.3) / 112.2 (min 99.2)** → identical. Toggles on v1.1.4, each twice: `GGML_VK_DISABLE_FUSION=1` → 97.7 (min 85.7) / 98.7 (min 85.4); `GGML_VK_DISABLE_DESCRIPTOR_REUSE=1` → 109.6 (min 105.1) / 103.0 (min 77.5). **Neither toggle changes the picture** (fusion off is *slower*, −12%; descriptor reuse off is −5%); there is no gap for them to close.
+- **Per-op GPU times** (`GGML_VK_PERF_LOGGER=1`, `…_FREQUENCY=32`, two runs per build, tables summed, `results/ling-perop-old-vs-new.txt`; logs `x-ling-perf-perf-{e80,v114}-{1,2}-decode.server.log`): GPU op time **per graph old 12.26 ms vs new 10.86 ms (new/old 0.89)**; identical call counts per graph for every op. Top ops (µs per graph, old → new): MUL_MAT_VEC 3953 → 3609 (0.91), MUL_MAT_ID_VEC 1652 → 1650 (1.00), DIV 782 → 503, MUL_MAT_ADD 614 → 613, GET_ROWS 613 → 516, GATED_DELTA_NET 598 → 447 (0.75), RMS_NORM_MUL 572 → 453, SCALE 563 → 401. **No op is slower on v1.1.4, and GATED_DELTA_NET (the Vulkan GDN tune) is not it: in the two individual runs it was 0.44× and 1.20×, i.e. ±40% between runs of the *same* binary.** So no evidence implicates the "Tune GDN kernel" (5c200e0c8), the q8_0-KV-view change (526247161) or 83dd71f86.
+- **Host-side time per token** (wall ms/token minus GPU op ms/graph, same logger runs, `results/ling-host-side.json`): old **2.29 ms** (wall 14.55, GPU 12.27), new **2.03 ms** (wall 12.89, GPU 10.86); ~15% of wall on both builds. (Includes the logger's own sync overhead; prompt/warm-up graphs make up <3% of the graphs.)
+- **Device confirmation.** Fresh verbose v1.1.4 run (`results/r3-ling-full-ab-v114-probe.server.log`): line 78 `using device Vulkan0 (NVIDIA GeForce RTX 4050 Laptop GPU) (0000:01:00.0) - 5152 MiB free`; line 1514 `load_tensors: offloaded 25/25 layers to GPU`; line 1516 `Vulkan0 model buffer size = 4464.69 MiB`; 25 layer assignments to Vulkan0, 0 to Vulkan1 or CPU. The 63.99 run itself (`r3-ling-full-v114-bench.summary.json`): argv `--device Vulkan0 --fit off -ngl 99`, `nvidia-smi` RTX memory 4,973 / 4,982 MiB. Both builds log identical placement (Vulkan0 4,464.69 MiB, KV 229.50 MiB, recurrent-state 19.27 MiB, compute 122.01 MiB, `graph nodes = 3126, splits = 2`, same fused-op lines, `flash_attn` on, q8_0 KV, `load_mode = mmap`); the only log differences are cosmetic (v1.1.4 prints the graph line as `graph: nodes = 3126, splits = 2, …`, adds debug lines, and reports `AVX_VNNI`/`BMI2` in the CPU feature string).
+- **Why the first run read 63.99:** it ran **cold** — the owner had just deleted other models and others' builds were evicting RAM: telemetry of that run shows page-ins of 45–66k/s, free RAM 2.7 GB, GPU utilisation 0–20% during the first seconds, and the quiet gate had waited 456 s for compiles; decode climbed 54 → 73 tok/s within the run (`r3-ling-full-v114-bench.telemetry.jsonl`, `…run.log`). Prewarm was added afterwards.
+- **A lead I cannot close:** across the ten pair runs decode correlates with *system-wide* page-ins (log10, Pearson r = −0.77) and four of the five v1.1.4 runs carried high page-ins (11.9k, 0.5k, 13.8k, 54k, 15.4k /s) against one of five for e8065c7cf (0.3k, 0.2k, 0.9k, 9.1k, 0.02k /s). The server's own page-fault rate (recorded for pairs 4–5) is equal (14.3–16.7k/s), so it is not the server's own paging; something else on the PC faults more while the new binary runs (Defender scanning the new DLL set is my first suspect, not tested). If the coordinator wants this closed: re-run the pairs with the v1.1.4 folder already scanned and a per-process IO counter.
+- **What was building** (asked): the quiet gate saw `rustc.exe` for the first 31 s before pair old-2 and `clippy-driver.exe` for 62 s before pair new-5; neither was present during the measured windows (those runs' telemetry shows only Paseo/svchost/Defender at ~2 cores). Command lines were not captured at the time; the only Rust workspaces with recent activity are other agents' `devboule*` projects on the Desktop. No build process is running now.
+- **Qwen3.6-35B-A3B old/new pair: skipped** — not on the Lenovo (only `ggml-vocab-qwen*.gguf` stubs under `C:\kalsa-bench`); nothing was downloaded.
+
+### 10.4 Gemma E4B + the official MTP drafter (v1.1.4, RTX) — **verdict: ~1.9× decode, prompt/TTFT unchanged, fits fully on the GPU at 64k**
+- **Proof it loads and the MTP head attaches** (`results/v-e4b-n3-v114-probe.server.log`, `-lv 5`): `common_speculative_init_result: loading draft model '…mtp-gemma-4-E4B-it-Q8_0.gguf'`; `gemma4-assistant.nextn_predict_layers u32 = 4`; `nextn.pre_projection.weight` / `nextn.post_projection.weight` tensors loaded; `spec common_specu: adding speculative implementation 'draft-mtp'`; `srv load_model: speculative decoding context initialized`; slot `"speculative":true`; `max possible draft: 14`. Placement: E4B `offloaded 43/43 layers to GPU` (`Vulkan0 model buffer 2883.51 MiB`, per-layer embeddings `CPU_Mapped 2208 MiB`), KV 544 + 21 MiB, drafter 5/5 layers on Vulkan0; **VRAM used 3,828 MiB with the drafter and 64k KV** (`v-e4b-n3-v114-probe.summary.json`; 3,974 MiB max in the benches) — it fits with ~1.2 GiB to spare.
+- Greedy, cooled, quiet-gated (summary files in the Source column):
+| Row | TTFT @2k | Prompt tok/s | Decode med/min | Accept | VRAM max (RTX) | RSS / free-RAM low | RTX thermal bits | Source |
+|---|---|---|---|---|---|---|---|---|
+| E4B RTX, no drafter (-ngl 99) | **1.17 s** | 1971 | 47.5 / 46.4 | – | 3809 MiB | 3.2 GB / 7.5 GB | 0x0 | `v-e4b-off-v114-bench.summary.json` |
+| E4B + MTP n=2 | **1.17 s** | 1856 | 89.7 / 79.7 | 0.793 | 3974 MiB | 3.5 GB / 10.6 GB | 0x0 | `v-e4b-n2-v114-bench.summary.json` |
+| E4B + MTP n=3 | **1.75 s** | 1544 | 77.1 / 60.4 | 0.744 | 3828 MiB | 3.4 GB / 10.7 GB | 0x0 | `v-e4b-n3-v114-bench.summary.json` |
+| E4B + MTP n=4 | **1.19 s** | 1916 | 84.6 / 66.8 | 0.669 | 3974 MiB | 3.5 GB / 6.0 GB | 0x0 | `v-e4b-n4-v114-bench.summary.json` |
+- Repeat in reverse order (n=4, 3, 2): **92.0 / 91.6 / 90.7 tok/s** (`v-e4b-n4/n3/n2-v114-b-bench.summary.json`) — so n=2/3/4 are the same within noise at greedy; the first-round dips for n=3 were interference.
+- **Temperature 1.0 (the app's sampling):** no drafter 47.7 → n=2 **87.5** (acceptance 0.736), n=3 **87.0** (0.656), n=4 **86.3** (0.592): gain **1.83×**, best at n=2 (also the best minimum, 76.8) (`v-e4b-{off,n2,n3,n4}-v114-t1-bench.summary.json`). Recommendation: draft n_max 2–3 for E4B; MTP on is a free ~1.8–1.9× on the RTX here.
+- **CPU-only E4B** (CPU build, 6 threads, ctx 16384, **high-priority** server, one prompt for the TTFT in `--lite` rows; earlier normal-priority rows were distorted by other processes): off **9.8 / 9.9 tok/s** (two runs) vs MTP n=3 **17.1 / 17.3** (two runs; acceptance 0.748) = **1.75×**; the CPU path's 2k-prompt prefill is 31–32 tok/s (**TTFT ≈ 65 s**), unchanged by the drafter. n=4 on the CPU was worse in its one run (12.4 tok/s, acceptance 0.664, noisy). Rows:
+| Row | TTFT @2k | Prompt tok/s | Decode med/min | Accept | VRAM max (RTX) | RSS / free-RAM low | RTX thermal bits | Source |
+|---|---|---|---|---|---|---|---|---|
+| CPU E4B off (first run, other load) | **73.53 s** | 18 | 4.9 / 1.0 | – | 49 MiB | 5.3 GB / 5.0 GB | 0x0 | `c-e4b-off-v114-bench.summary.json` |
+| CPU E4B n=2 (lite, 1 prompt) | **75.99 s** (n=1) | 29 (n=1) | 11.4 / 8.3 | 0.781 | 0 MiB | 5.5 GB / 5.5 GB | 0x0 | `c-e4b-n2-v114-bench.summary.json` |
+| CPU E4B n=3 (lite) | **69.86 s** (n=1) | 30 (n=1) | 16.4 / 13.7 | 0.748 | 0 MiB | 5.5 GB / 6.1 GB | 0x0 | `c-e4b-n3-v114-bench.summary.json` |
+| CPU E4B n=4 (lite) | **101.33 s** (n=1) | 18 (n=1) | 12.4 / 3.3 | 0.664 | 0 MiB | 5.5 GB / 4.0 GB | 0x0 | `c-e4b-n4-v114-bench.summary.json` |
+| CPU E4B off, high priority, run 1 (lite) | **66.10 s** (n=1) | 32 (n=1) | 9.8 / 9.7 | – | 0 MiB | 5.3 GB / 9.6 GB | 0x0 | `c-e4b-off-v114-hp-r1-bench.summary.json` |
+| CPU E4B n=3, high priority, run 1 (lite) | **65.70 s** (n=1) | 32 (n=1) | 17.1 / 14.1 | 0.748 | 0 MiB | 5.5 GB / 10.3 GB | 0x0 | `c-e4b-n3-v114-hp-r1-bench.summary.json` |
+| CPU E4B off, high priority, run 2 (lite) | **65.67 s** (n=1) | 31 (n=1) | 9.9 / 9.7 | – | 0 MiB | 5.3 GB / 10.0 GB | 0x0 | `c-e4b-off-v114-hp-r2-bench.summary.json` |
+| CPU E4B n=3, high priority, run 2 (lite) | **65.05 s** (n=1) | 32 (n=1) | 17.3 / 14.1 | 0.748 | 0 MiB | 5.5 GB / 9.9 GB | 0x0 | `c-e4b-n3-v114-hp-r2-bench.summary.json` |
+
+### 10.5 CPU tiled k-quant prefill (`GGML_CPU_TILED_MM`), CPU build, interleaved A/B
+Same prompt (~1,061 tokens, three distinct prompts per run), server at high priority, 6 threads, ctx 16384, each round = default run then `GGML_CPU_TILED_MM=0` run, no quiet-gate wait (interleaving instead). Prompt tok/s medians, ratio default / tiled-off (files `c-<model>-{def,t0}-v114-hp-r<N>-prefill.summary.json`; env recorded in each):
+- **E4B Q4_K_M** (4 rounds): 31.9 vs 21.3 (1.50), 28.9 vs 21.9 (1.32), 24.4 vs 23.5 (1.04), 24.3 vs 19.8 (1.23) → **median ratio 1.28** (range 1.04–1.50; interference visible in the noisier reps).
+- **12B Q4_K_M** (3 rounds; the originally cut round 2 was re-run as 2b): 9.2 vs 7.7 (1.19), 12.6 vs 9.8 (1.29), 12.6 vs 9.4 (1.33) → **median ratio 1.29**; the last two rounds have very tight reps (12.4–12.6 vs 9.4–9.8).
+- Reading: the default (tiled) path is **~1.3× faster** for Q4_K_M prefill on this CPU (Core Ultra 9 185H; AVX2 + AVX-VNNI per the build's feature string — the loaded CPU-backend DLL was not logged); absolute CPU prefill is still only 12–32 tok/s.
+
+### 10.6 Housekeeping (closed)
+- All planned v1.1.4 runs are finished; queue `queue21.txt` ended 17:07 and nothing of mine is running on the PC. The interleaved Arc repeat is in §10.7.
+- Everything cited is in `lab2/results/` (summaries, telemetry, run logs; server logs for the probes and the logger runs). Every GPU row above is thermally clean (0x0) except the noted Arc rows (idle-RTX chassis bit 0x20, both builds); the coordinator's thermal watcher log ends 03:59, so thermal verdicts rely on my own 5 s telemetry + start/end snapshots.
+- Nothing was deleted by me. The Lab GGUFs and builds under `C:\kalsa-bench` are no longer needed (list given in the reply).
+
+
+### 10.7 Arc 12B, interleaved e8065c7cf vs v1.1.4 (closes the open Arc rows of §10.2; cooled start ≤ 62 °C, prewarmed, old→new twice, `--device Vulkan1`, same args)
+| Row | build | TTFT @2k | Prompt tok/s | Decode med / min | Accept | RTX bit (idle RTX = chassis hot) | free-RAM low | Source |
+|---|---|---|---|---|---|---|---|---|
+| 12B Arc MTP off, pair 1 | e8065c7cf | **28.6 s** | 74 | 7.8 / 7.7 | – | 0x0 (start 60 °C, max 64) | 5.7 GB | `ar-12b-off-rc-e80-1-bench.summary.json` |
+| 12B Arc MTP off, pair 1 | v1.1.4 | **31.8 s** | 65 | 7.2 / 6.3 | – | 0x0 (start 60 °C, max 66) | 4.1 GB | `ar-12b-off-rc-v114-1-bench.summary.json` |
+| 12B Arc MTP off, pair 2 | e8065c7cf | **29.0 s** | 70 | 7.3 / 7.0 | – | 0x20 THROTTLED (start 61 °C, max 74) | 3.4 GB | `ar-12b-off-rc-e80-2-bench.summary.json` |
+| 12B Arc MTP off, pair 2 | v1.1.4 | **28.9 s** | 71 | 7.1 / 7.0 | – | 0x20 THROTTLED (start 62 °C, max 73) | 4.2 GB | `ar-12b-off-rc-v114-2-bench.summary.json` |
+| 12B Arc MTP n=4, pair 1 | e8065c7cf | **30.5 s** | 68 | 15.5 / 11.4 | 0.754 | 0x0 (start 61 °C, max 66) | 3.1 GB | `ar-12b-n4-rc-e80-1-bench.summary.json` |
+| 12B Arc MTP n=4, pair 1 | v1.1.4 | **28.5 s** | 74 | 14.8 / 11.2 | 0.754 | 0x20 THROTTLED (start 62 °C, max 70) | 3.7 GB | `ar-12b-n4-rc-v114-1-bench.summary.json` |
+| 12B Arc MTP n=4, pair 2 | e8065c7cf | **28.7 s** | 73 | 15.5 / 11.2 | 0.754 | 0x20 THROTTLED (start 61 °C, max 71) | 3.1 GB | `ar-12b-n4-rc-e80-2-bench.summary.json` |
+| 12B Arc MTP n=4, pair 2 | v1.1.4 | **30.0 s** | 69 | 15.9 / 11.6 | 0.754 | 0x20 THROTTLED (start 61 °C, max 72) | 1.6 GB | `ar-12b-n4-rc-v114-2-bench.summary.json` |
+
+**Verdict: v1.1.4 ≈ e8065c7cf on the Arc.** MTP off: decode 7.2 vs 7.5 tok/s (mean of 2, −4%); MTP n=4: 15.3 vs 15.5 (−1%, v1.1.4 won pair 2); prompt 65–74 tok/s and TTFT 28.5–31.8 s on both builds, acceptance 0.754 on every n=4 run. The earlier slow MTP-off v1.1.4 row (61 tok/s prompt, TTFT 31.9 s) was one draw of that same 65–74 / 28.5–31.8 spread. **Throttle flags:** the 0x20 bit is the *idle* RTX reporting a hot chassis (Arc/CPU load), set on 2 of 4 e8065c7cf runs and 3 of 4 v1.1.4 runs (max RTX 64–74 °C); no 0x08/0x40 anywhere; so these Arc rows are "thermally suspect" on both builds equally and carry no build difference. The 12B on the Arc remains unusable for a room (TTFT ≈ 29 s) on either engine.
