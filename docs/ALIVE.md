@@ -722,7 +722,10 @@ FAILED: with the lane on the governor's prefill context puts the V cache in an H
 SET_ROWS (`s23-npu-lane-c26ba8bc/REPORT.md`). Fixed in binding `17446ac4`/`c8471449` (prefill KV on host), app
 `aea90427` (pin + `npu_lane` in the plan log), APK run `36786856764`; the S23 re-check must also show whether HTP
 prefill with CPU attention still beats OpenCL. Lane stays default off. Re-check 2026-10-01: no abort, but the lane-on load hangs
-forever on the first HTP prefill (dspqueue response timeout loop, battery burn, no fallback); lane off passes. Design and steps:
+forever on the first HTP prefill (dspqueue response timeout loop, battery burn, no fallback); lane off passes. Cause
+confirmed by a skel swap on the S23: the APK ships DSP skels committed 2026-09-17 from a pre-protocol-change source,
+the host speaks upstream's new batch protocol. Fix: skels built from the same tree + a skew gate, a bounded wait with
+GPU fallback, and an HTP health check at lane init. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes

@@ -758,6 +758,17 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `remote_handle64_invoke failed 0x80000414, method 3` on the dspqueue handle. Lane off route gpu PASSES (prefill
   103 tok/s, 50.4 J/1k raw). Two defects: the DSP hang itself, and NO timeout/fallback in the lane (a user's phone
   would burn silently). Diagnosis + fix delegated.
+- **Root cause CONFIRMED on the S23 (2026-10-01, `inapp-htp-dspqueue-hang/DIAGNOSIS.md` + `DEVICE-skel-swap.md`):
+  host<->DSP-skel protocol skew.** The APK's DSP skels come from the binding's committed `bin/arm64-v8a/`
+  (android/build.gradle:19; committed 2026-09-17 from a pre-flip source, sha f81f95e9) while the host carries
+  upstream's batch-protocol change `eafe15a5e` (2026-09-11, in the pin). Same CLI host, only the skel swapped:
+  matched skel pp64 511 tok/s twice; APK skel -> `GGML_ASSERT(rsp.seq == batch_rsp_seq + 1)` abort (small batch) /
+  eternal 1 s dspqueue wait (the app's big prefill batch). `0x80000414 method 3` is benign (all arms). Unsigned-PD
+  hypothesis REFUTED. FIX PLAN (after engine main lands): (1) skels rebuilt from the SAME tree as the host on every
+  binding vendor bump, with a gate that fails when skel and host come from different engine commits; (2) engine:
+  bounded wait in `flush_pending` (today `continue`s on the 1 s timeout forever) -> error -> governor GPU fallback
+  via the existing KALSA_HTP_FALLBACK plumbing, no abort; (3) a real one-op HTP round-trip health check at lane
+  init. The app has never run HTP in-app until this fix.
 
 ### Pairing: iroh and invite links
 
