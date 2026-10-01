@@ -252,3 +252,70 @@ The script mis-scored nothing in Ling's favour that I could find on a hand read 
 - **Why it is fast (INFERENCE):** 1.3B active params ⇒ ~0.75 GB of weights read per token, ×~2 MoE traffic factor (the catalog's 2.06×) ≈ 1.5 GB/token over the RTX's ~190 GB/s ⇒ ~120 tok/s ceiling; measured 99–116, consistent.
 - **Caution (owner's earlier verdict):** LFM2.5-8B-A1B (a small MoE) was rejected on quality; Ling is a *different* model and scores far better on the bank, but the quiz shows the same family of weakness (factual slips, language polish). I would **not** pitch it as "the answer" — it is a strong, cheap *Faster* candidate for 6 GB-VRAM PCs that needs the owner's own Italian-chat judgement before anything ships.
 - **What the chooser would need for it:** (1) treat a MoE whose total bytes fit free VRAM as a plain full-GPU row — here 4.49 GiB + 0.23 + 0.13 ≤ 5.15 — and test all-layers explicitly instead of trusting `--fit`'s margin; (2) the hybrid-linear KV model (KDA/MLA) with ~3.6 KiB/token growth, not the Gemma sliding-window formula; (3) predicted decode from *active* bytes ×2 (works: ~120 predicted vs 99–116 measured); (4) engine version gate for `bailingmoe3` (present in `e8065c7cf`, unverified in the pinned v1.1.2); (5) sampling from the card (1.0 / 0.95 / 20, thinking default on) and a reasoning-loop guard (empty answers at 6,000 tokens).
+
+
+---
+
+## 9. Intel Arc iGPU — can it make Gemma 12B usable on the Lenovo? (2026-10-01, fork `e8065c7cf`)
+
+**Answer (MEASURED): no. TTFT is the problem, not decode.** On the ~2.07k-token prompt the 12B waits **26–34 s before the first word on the Arc, 16–23 s split across RTX+Arc** (room rule: ≤ ~4–5 s), in every configuration tried; MTP lifts decode to ~16–18 tok/s but does nothing for prompt processing (it makes it slightly worse). Even E4B on the Arc waits 10.3 s. Source for every number: the `*-summary.json` named in the table / text, copied to `~/lab/spec/lenovo-mtp/lab2/results/` (telemetry `*.telemetry.jsonl`, logs `*.run.log` / `*.server.log` beside them); PC originals under `C:\kalsa-bench\mtp\lab2\`.
+
+### 9.1 Method and device proof
+- Harness: mine (`lab2_bench.py`), protocol as §0: 10 fixed prompts × 128 tokens, seed 42, greedy; warm-up excluded; three unique ~2,069-token prompts for prompt tok/s (cache off) and for streamed TTFT; `--ctx-size 65536`, q8_0 KV, flash-attn, batch 2048 / ubatch 512, 6 threads, **`--device Vulkan1 --fit off -ngl 99`** (all layers forced onto the Arc; MTP drafter `--spec-draft-device Vulkan1`). Cool-start gate (RTX ≤ 62 °C as a chassis proxy) and quiet gate (≤ 10 min wait for compile processes) before each row; telemetry every 5 s. Config files: `lab2/cfg/ar-*.json`, `du-*.json` (argv is also printed in each `*.run.log`).
+- **Proof the Arc ran it** (`results/ar-12b-n3-probe.server.log`, run with `-lv 5`; `results/ar-12b-n3-probe.summary.json`): `load_tensors: offloaded 49/49 layers to GPU`, `Vulkan1 model buffer size = 7292.47 MiB`, KV buffers `Vulkan1 544 + 255 MiB`; **54 `assigned to device Vulkan1` lines, 0 for `Vulkan0`, no non-zero `Vulkan0` buffer**; RTX `nvidia-smi` memory used = **5 MiB** (`vram_used_mib` in that summary and `RTX vram max` in every Arc row's telemetry). The Windows per-process GPU counters in every `*.telemetry.jsonl` (`gpu_proc`) show the server on adapter LUID `0x00000000_0x00012645` at 94–99% median engine use and **7.5–9.0 GB of *shared* (= system) memory** for the 12B, 3.8 GB for E4B.
+- Version string for all rows: `0.4.1-dev (build 0, commit unknown)` (`server_version` field; the first row `ar-12b-off` predates that field, same binary dir `build-vulkan\bin`).
+
+### 9.2 Rows (all numbers read from the named summary / telemetry file)
+| Row | **TTFT @2k med/min** | Prompt tok/s | Decode med/min | Accept | RSS / free-RAM low | Page-ins/s med | Pkg W / iGPU W (med) | RTX thermal bits | Source (`C:\kalsa-bench\mtp\lab2\`) |
+|---|---|---|---|---|---|---|---|---|---|
+| 12B Q4_K_M, Arc, MTP off | **28.5 / 28.4 s** | 74 | 6.0 / 5.9 | – | 9.3 GB / 4.2 GB | 16 | 32 / 18 | 0x0 | `ar-12b-off-bench.summary.json` |
+| 12B Q4_K_M, Arc, MTP n=2 | **33.8 / 30.6 s** | 73 | 13.0 / 11.9 | 0.873 | 10.4 GB / 1.8 GB | 34 | 36 / 21 | 0x0 | `ar-12b-n2-bench.summary.json` |
+| 12B Q4_K_M, Arc, MTP n=3 | **29.7 / 28.6 s** | 73 | 16.3 / 13.7 | 0.797 | 10.4 GB / 3.7 GB | 146 | 39 / 23 | 0x0 | `ar-12b-n3-bench.summary.json` |
+| 12B Q4_K_M, Arc, MTP n=4 | **28.6 / 28.3 s** | 73 | 16.8 / 12.6 | 0.754 | 10.4 GB / 4.2 GB | 17 | 38 / 23 | 0x0 | `ar-12b-n4-bench.summary.json` |
+| 12B Q4_K_M, Arc, MTP n=4, T=1.0 | **33.8 / 31.7 s** | 65 | 15.2 / 12.0 | 0.709 | 10.4 GB / 1.0 GB | 2453 | 45 / 23 | 0x0 | `ar-12b-n4-t1-bench.summary.json` |
+| 12B QAT UD-Q4_K_XL, Arc, MTP off | **25.9 / 25.7 s** | 84 | 7.2 / 7.0 | – | 8.2 GB / 3.9 GB | 461 | 33 / 17 | 0x0 | `ar-qat-off-bench.summary.json` |
+| 12B QAT, Arc, own drafter n=3 | **28.1 / 27.8 s** | 73 | 14.9 / 11.5 | 0.802 | 9.2 GB / 0.1 GB | 8364 | 39 / 18 | 0x0 | `ar-qat-n3-bench.summary.json` |
+| 12B QAT, Arc, own drafter n=4 | **28.4 / 26.9 s** | 77 | 18.4 / 14.7 | 0.764 | 9.3 GB / 1.2 GB | 1042 | 44 / 21 | 0x0 | `ar-qat-n4-bench.summary.json` |
+| 12B Q4_K_M, RTX+Arc split 5/5, MTP off | **17.6 / 16.9 s** | 122 | 8.3 / 5.9 | – | 6.1 GB / 5.5 GB | 72 | 36 / 13 | 0x0 | `du-12b-ts55-off-bench.summary.json` |
+| 12B Q4_K_M, RTX+Arc split 5/5, MTP n=3 | **22.8 / 22.5 s** | 114 | 16.1 / 10.2 | 0.808 | 7.1 GB / 4.4 GB | 9745 | 38 / 13 | 0x20 (THROTTLED) | `du-12b-ts55-n3-bench.summary.json` |
+| 12B Q4_K_M, RTX+Arc split 6/4, MTP n=3 | **15.8 / 15.5 s** | 148 | 18.9 / 16.7 | 0.833 | 6.4 GB / 3.2 GB | 2062 | 32 / 13 | 0x0 | `du-12b-ts64-n3-bench.summary.json` |
+| E4B Q4_K_M, Arc | **10.3 / 10.2 s** | 181 | 13.0 / 12.2 | – | 6.2 GB / 4.2 GB | 3499 | 43 / 17 | 0x20 (THROTTLED) | `ar-e4b-bench.summary.json` |
+| *E4B Q4_K_M, RTX (reference)* | **1.2 / 1.2 s** | 1903 | 46.6 / 42.9 | – | 3.2 GB / 12.0 GB | 205 | nan / nan | 0x0 | `r2-e4b-bench.summary.json` |
+| *Ling-3.0-tiny Q4_K_M, all GPU 64k (reference)* | **0.8 / 0.7 s** | 2932 | 99.1 / 86.3 | – | 4.7 GB / 11.7 GB | 4 | nan / nan | 0x0 | `r3-ling-full-bench.summary.json` |
+
+Notes on the table: *Accept* = draft acceptance (summary field `acceptance`). *RSS* = server working set (median), *free-RAM low* = minimum `avail_mb` in telemetry; Arc rows use system RAM as video memory, so RSS + shared memory are the same pages. Power = RAPL `Energy Meter` counters in the telemetry (package; iGPU rail "PP1"); `nan` = telemetry of those older reference rows predates the power counters. **THROTTLED / thermal bit:** the 0x20 (SW thermal slowdown) bit is NVIDIA's on the *RTX*; for Arc-only rows the RTX is idle, so the bit there means "the chassis was hot" (E4B-on-Arc row: RTX idle at ≤ 71 °C, bit set → thermally suspect, I did not re-run). The split 5/5 n=3 row had the RTX working and the bit set → **THROTTLED, not a clean speed number** (the cooler 6/4 row and the 5/5 MTP-off row are clean). The coordinator's `thermal.log` ends at 2026-10-01 03:59, so these rows rely on my own 5 s telemetry plus start/end snapshots only.
+
+Extra rows / facts:
+- **12B QAT UD-Q4_K_XL + matching drafter on the Arc** (6.26 GiB, 25.9 s TTFT MTP-off, `ar-qat-off`; n=3 / n=4 above): the smaller file prefilled 14% faster (84 vs 74 tok/s) and reached **18.4 tok/s** at n=4 — the best Arc decode — but with free RAM down to 0.1–1.2 GB and heavy paging (8.4k page-ins/s median in `ar-qat-n3`; `other_cores` 6.0 there, i.e. other agents were busy), so those two rows are noisy.
+- **RTX+Arc split** (`--device Vulkan0,Vulkan1 --tensor-split …`, `results/du-12b-ts64-n3-probe.server.log`: `Vulkan0 model buffer 4044 MiB`, `Vulkan1 3248 MiB`, both KV pools split): loads cleanly at 5/5 and 6/4 and halves the Arc's share of prefill, but the ceiling is the RTX's 5,152 MiB: 6/4 already uses **5,129 MiB** (`du-12b-ts64-n3-bench.summary.json` telemetry `vram_used_mib` max), so a bigger RTX share would not fit. **Drafter on the RTX in a split run crashes at load** (exit code 3221226505 = `0xC0000409`, `results/du-12b-ts55-n3-drRTX-probe.run.log`) — the drafter stays on the Arc. Best split: **TTFT 15.8 s, decode 18.9 tok/s** — still 3–4× over the room limit.
+- **Temperature 1.0** (the app's sampling): best Arc row (12B n=4) becomes TTFT 33.8 s, decode 15.2 / 12.0, acceptance 0.709 (`ar-12b-n4-t1-bench.summary.json`) vs 28.6 s / 16.8 / 0.754 greedy.
+
+### 9.3 Sustained 10 minutes, best Arc row (12B Q4_K_M, MTP n=4; 2k-token prompt + ≤192 new tokens per request)
+Source: `results/ar-12b-n4-sustain.summary.json` / `.telemetry.jsonl`. Per-minute decode **9.8, 10.7, 10.5, 10.1, 8.4, 10.2, 10.4, 10.3, 10.7, 8.4 tok/s**; prompt **50–66 tok/s**; **12 requests in 10 minutes**; the **median wait before each answer's first token (prompt time) was 32.3 s, worst 41.2 s**. RAM: free RAM min **0.44 GB** (median 2.5 GB), page-ins median 3.8k/s, p90 93k/s, other-process CPU median 6 cores — i.e. it **pages under the PC's real load** (same conclusion as the earlier Arc sustained attempt, which was stopped for paging). No RTX thermal bit, CPU `Performance Limit Flags` always 0, `% Performance Limit` always 100.
+
+### 9.4 What I could and could not measure on the Arc
+- **Could:** engine utilization per adapter (GPU Engine counters), system memory used as VRAM (GPU Process Memory counters), **RAPL package / cores / iGPU-rail power** (package median 32–33 W MTP-off → 36–45 W with MTP; iGPU rail 17–23 W; DRAM rail reads 0, unsupported), CPU actual frequency (median 2.0–2.2 GHz), CPU performance-limit flags/percent (never limited), free RAM and page-ins, RTX temperature/throttle bits as a chassis proxy. (INFERENCE, package power only, not wall power: ≈ 5.3 J/token MTP-off vs ≈ 2.3 J/token MTP n=4 on the 12B.)
+- **Could not:** Arc temperature, Arc clock, CPU die temperature (ACPI thermal zones read 0 / −273 °C; no vendor sensor tool installed, none installed by me), wall power. The Arc does not appear in `nvidia-smi`.
+
+### 9.5 Previous (luna) Arc claim, re-verified
+Previous report: Arc 12B MTP-off 7.03 → n=2 11.98 → n=3 14.0 → n=4 14.7 tok/s, prompt 69 tok/s, TTFT ~29–30 s. Mine: **5.96 → 13.0 → 16.3 → 16.8**, prompt **73 tok/s**, TTFT **28.6–29.7 s** (`ar-12b-off/n2/n3/n4-bench.summary.json`). So the *shape holds* (≈2.8× from MTP, best at n=3–4), the off baseline is 15% lower, MTP rows 7–19% higher; the **prompt speed and the ~29 s TTFT are confirmed** — and they are what decides usability.
+
+### 9.6 Verdict against the room rule and the other candidates
+- **12B on the Arc: not usable** — TTFT 25.9–33.8 s (all `ar-12b-*`, `ar-qat-*` rows), ~64 tok/s prompt and a 32 s median first-token wait in the 10-minute run, 9 GB of the PC's RAM taken, paging. **12B split RTX+Arc: not usable** — TTFT 15.8–22.8 s, RTX VRAM at the limit.
+- **E4B on the Arc is a sensible *fallback* when the RTX is busy, not a room model:** 13.0 tok/s, TTFT 10.3 s, 3.8 GB shared memory (`ar-e4b-bench.summary.json`) — twice the room limit, vs E4B on the RTX 46.6 tok/s / 1.2 s (`r2-e4b-bench.summary.json`) and Ling all-GPU 99.1 tok/s / 0.76 s (`r3-ling-full-bench.summary.json`).
+- Quality is unchanged by device (the same GGUFs; scores in §3: Q4_K_M 95, QAT 97, E4B 90); the Arc only changes speed and RAM use.
+- **Chooser implication (INFERENCE):** the iGPU's prefill rate (73–84 tok/s for a 12B, 181 for E4B) must be a separate predicted number; an Arc row with TTFT@2k > ~5 s should not be offered as a room model whatever its decode speed. Treat the Arc as a ≤ 4B-class device or as a fallback.
+
+### 9.7 Exact re-run commands for the v1.1.4 asset (NOT RUN — only `--bin-dir` and `--tag-suffix` change)
+`<BIN>` = directory containing the v1.1.4 Windows Vulkan `llama-server.exe` and its DLLs (the harness puts it first on `PATH` together with the Vulkan SDK `bin`). `<PY>` = `C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe`. Each row writes `<tag>-v114-bench.summary.json` (fields `bin_dir` and `server_version` record what ran) next to the `e8065c7cf` files; the e8065c7cf rows above are never overwritten.
+```
+# 1) E4B Q4_K_M on the RTX (baseline row: r2-e4b-bench.summary.json)
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r2-e4b.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+# 2) Ling-3.0-tiny Q4_K_M, all 25 layers on the GPU, ctx 65536 (baseline: r3-ling-full-bench.summary.json)
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\r3-ling-full.json --mode bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+# 3) best Arc row: 12B Q4_K_M on the Arc, MTP n=4 (baseline: ar-12b-n4-bench.summary.json) and MTP off (ar-12b-off-bench.summary.json)
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-n4.json  --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+<PY> C:\kalsa-bench\mtp\lab2\lab2_bench.py --config C:\kalsa-bench\mtp\lab2\ar-12b-off.json --mode bench --cool-to 62 --quiet-wait 10 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114
+```
+Detached (survives an SSH logout) — put the four lines into `C:\kalsa-bench\mtp\lab2\queue-v114.txt` in the form `<tag> bench <same flags> --bin-dir <BIN> --tag-suffix -v114` (e.g. `r2-e4b bench --cool-to 62 --quiet-wait 10 --req-cool 78 --telemetry-interval 5 --bin-dir <BIN> --tag-suffix -v114`) and run `powershell -File C:\kalsa-bench\mtp\lab2\launch.ps1 -QueueFile C:\kalsa-bench\mtp\lab2\queue-v114.txt`; progress in `queue.log`. Compare with `python3 lab2/arcrow.py <tag>-v114` (fetches summary+telemetry from the PC). Optional sustained / T=1.0 rows: same line with `--mode sustain --minutes 10` or `--temp 1.0`.
+Caveats for any re-run: another agent's builds, Paseo and Defender share the PC (`other_cores` in telemetry); prefer a moment when `cargo`/`rustc` are idle; the Arc rows are RAM-limited (free RAM fell to 0.1–1.2 GB in some runs).
