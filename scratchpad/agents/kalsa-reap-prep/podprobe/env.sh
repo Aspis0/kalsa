@@ -59,14 +59,14 @@ PROBE_RATE_USD_H="${PROBE_RATE_USD_H:-1.98}"
 # --- budget knobs (derivation: PHASE0-EVALS.md "Probe budgets"). Sized for
 # the gate WITH the new evals: 964 generations/arm, math+humaneval at 8192,
 # server started with -np "$PROBE_SLOTS" slots and the runners matching
-# --concurrency. PROBE_ARM_TIMEOUT_H must exceed the worst per-arm estimate
-# (a 35B arm at the audit's conservative 15 tok/s single-stream x3 slots);
-# the incremental journals mean a timed-out arm keeps its finished evals.
+# --concurrency. ARM_TIMEOUT covers the mid planning case for a 35B arm
+# (~8.3 h); the audit's conservative 15 tok/s floor cannot be covered by any
+# kill switch — that case relies on the journals + a relaunch instead.
 PROBE_SLOTS="${PROBE_SLOTS:-4}"
 PROBE_BUDGET_H="${PROBE_BUDGET_H:-24.0}"  # guard: skip arms that cannot fit
 PROBE_HARD_STOP_H="${PROBE_HARD_STOP_H:-26}"  # in-pod self-destruct delay;
                                               # README states its delete
                                               # permission is UNVERIFIED
-PROBE_ARM_TIMEOUT_H="${PROBE_ARM_TIMEOUT_H:-8.0}"  # per-arm kill switch
+PROBE_ARM_TIMEOUT_H="${PROBE_ARM_TIMEOUT_H:-10.0}"  # per-arm kill switch
 START_EPOCH="$(date +%s)"
 elapsed_h() { awk -v s="$START_EPOCH" -v n="$(date +%s)" 'BEGIN {print (n-s)/3600}'; }
