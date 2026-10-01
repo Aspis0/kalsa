@@ -235,6 +235,31 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
     }
 }
 
+/// An AMD APU's graphics, which WMI names "Radeon" like a card: its memory is
+/// the system's, and AdapterRAM reports a carve-out, not a budget. Integrated
+/// is a trailing "Graphics" ("Radeon(TM) Graphics", "Radeon 780M Graphics",
+/// "Radeon Vega 8 Graphics", "Radeon(TM) RX Vega 11 Graphics" — the Ryzen
+/// 2400G) or a three-digit-M model ("Radeon 890M"). A discrete card names an
+/// RX, Pro or VII model and does not end in "Graphics" ("Radeon RX 6600M",
+/// "Radeon Pro W7800", "Radeon VII"); the four-digit M of an RX 6800M is not
+/// the three-digit M of an APU. `lowered` is already lowercase.
+#[cfg(any(target_os = "windows", test))]
+fn is_amd_integrated(lowered: &str) -> bool {
+    if !lowered.contains("radeon") {
+        return false;
+    }
+    let tokens: Vec<&str> = lowered.split_whitespace().collect();
+    if tokens.last() == Some(&"graphics") {
+        return true;
+    }
+    let card_model = tokens.iter().any(|t| matches!(*t, "rx" | "pro" | "vii"));
+    let apu_model = tokens.iter().any(|t| {
+        let digits = t.strip_suffix('m').unwrap_or("");
+        digits.len() == 3 && digits.bytes().all(|b| b.is_ascii_digit())
+    });
+    apu_model && !card_model
+}
+
 /// Reads the video controllers' text — wmic's, or the PowerShell fallback's
 /// with the same shape: the memory, when there is one, leading each row.
 ///
@@ -288,7 +313,8 @@ pub(crate) fn scan_video_controllers(
             || lowered.contains("radeon")
             || lowered.contains("rx ")
             || lowered.contains("arc "))
-            && !lowered.contains("intel");
+            && !lowered.contains("intel")
+            && !is_amd_integrated(&lowered);
         if looks_discrete {
             discrete = true;
             discrete_names.push(name.trim().to_string());
@@ -699,6 +725,50 @@ mod tests {
             Backend::DiscreteGpu { vram_bytes: None }
         );
         assert_eq!(backend_from_video_controllers("AdapterRAM  Name\n"), Backend::Cpu);
+    }
+
+    #[test]
+    fn an_amd_apus_graphics_are_integrated_and_a_radeon_card_is_not() {
+        for name in [
+            "AMD Radeon(TM) Graphics",
+            "AMD Radeon Graphics",
+            "AMD Radeon 780M Graphics",
+            "AMD Radeon 890M",
+            "AMD Radeon 610M",
+            "Radeon Vega 8 Graphics",
+            "AMD Radeon(TM) Vega 8 Graphics",
+            "AMD Radeon(TM) RX Vega 11 Graphics",
+            "AMD Radeon(TM) R7 Graphics",
+        ] {
+            // With the carve-out WMI reports, and without.
+            for row in [format!("536870912  {name}"), format!(" {name}")] {
+                assert_eq!(backend_from_video_controllers(&row), Backend::Cpu, "{row}");
+            }
+        }
+        for name in [
+            "AMD Radeon RX 6600",
+            "AMD Radeon RX 6800M",
+            "AMD Radeon RX 7600M XT",
+            "AMD Radeon RX Vega 56",
+            "AMD Radeon Pro W7800",
+            "AMD Radeon Pro WX 3200 Series",
+            "AMD Radeon VII",
+        ] {
+            assert_eq!(
+                backend_from_video_controllers(&format!(" {name}")),
+                Backend::DiscreteGpu { vram_bytes: None },
+                "{name}"
+            );
+        }
+        // An APU beside a real card: the card is the one budgeted.
+        assert_eq!(
+            backend_from_video_controllers(
+                "536870912  AMD Radeon(TM) Graphics\n3221225472  NVIDIA GeForce RTX 4060\n"
+            ),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(3221225472)
+            }
+        );
     }
 
     #[test]
