@@ -59,6 +59,13 @@ at v1.1.4, run live against the untouched rows. It must be red with the
 never green — and it must have fetched the manifest its own anchor
 declares, not this one.
 
+The mirror (`FORK_MIRROR`, Hugging Face at a pinned commit) is the second
+source for the same files. Each row's `mirror` must equal the home declared
+here, and the commit it names is asked, through Hugging Face's paths-info
+API, to serve each row's file at the row's size and sha256. Two mutations
+cover it: a stale commit, and a file name from an older release. Every
+child run asks Hugging Face live, so the mirror leg needs network too.
+
 Exit 0 when the rows match the declared release and every mutation is
 caught, 2 otherwise.
 
@@ -89,6 +96,19 @@ RELEASE_HOME = ("https://dl.kalsa.io/kalsa-server/"
 MANIFEST_URL = RELEASE_HOME + "/manifest.json"
 
 FIELDS = ("home", "file", "size_bytes", "sha256", "exe_sha256")
+
+# The second source, declared here and never read from the row: the
+# Hugging Face mirror pinned at a COMMIT (a tag there can move). The row's
+# archive is only a safe fallback if that commit serves each pinned file at
+# the pinned size and sha256 — the digest is what makes a second source safe.
+MIRROR_COMMIT = "f038a4f4f34bd1c5287271e4fa477932112c7a6b"
+MIRROR_HOME = ("https://huggingface.co/Kalsa-ai/kalsa-server/resolve/"
+               + MIRROR_COMMIT)
+MIRROR_API = ("https://huggingface.co/api/models/Kalsa-ai/kalsa-server/"
+              "paths-info/")
+# What a stale mirror pin looks like: v1.1.4's commit, which never held the
+# v1.1.5 files.
+V114_MIRROR_COMMIT = "7537e3cc311777491f74caa0b3af68b214de69b2"
 
 # The wrong values a stale pin would carry: v1.1.4's own numbers, read from
 # v1.1.4's published manifest — the realistic mistake, not a random digit.
@@ -140,6 +160,23 @@ MUTATIONS = {
         "macos-arm64 exe_sha256: row",
         "SEMI-SILENT — the download never looks at it; publish() refuses the "
         "build before installing it, marker.rs re-checks at every start"),
+    "mirror commit (stale pin: v1.1.4's commit)": (
+        [('const FORK_MIRROR: &str =\n'
+          '    "https://huggingface.co/Kalsa-ai/kalsa-server/resolve/'
+          f'{MIRROR_COMMIT}";',
+          'const FORK_MIRROR: &str =\n'
+          '    "https://huggingface.co/Kalsa-ai/kalsa-server/resolve/'
+          f'{V114_MIRROR_COMMIT}";')],
+        "is not served at mirror commit",
+        "SILENT until dl.kalsa.io is blocked — the mirror is only a fallback, "
+        "and its digest gate would refuse the 404 or the wrong bytes; the "
+        "user meets it on the one machine that needs it"),
+    "mirror: win-cpu-x64 file (an older release's name)": (
+        [('        file: "kalsa-server-v1.1.5-bin-win-cpu-x64.zip",',
+          f'        file: "{V114_WIN_CPU_FILE}",')],
+        "win-cpu-x64 mirror size:",
+        "SILENT until dl.kalsa.io is blocked — the mirror still serves that "
+        "older file, at its own size and digest, which the gate would refuse"),
     "cpu/vulkan sha256 swap": (
         [('        sha256: Some("5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b"),',
           '        sha256: Some("9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c"),'),
@@ -215,8 +252,12 @@ def read_fields(block, const):
         m = re.match(r'Some\("([^"]+)"\)', raw(field) or "")
         return m.group(1) if m else None
 
+    m = re.match(r'Some\((?:"([^"]+)"|(\w+))\)', raw("mirror") or "")
+    mirror = (m.group(1) or const.get(m.group(2))) if m else None
+
     return {
         "home": home,
+        "mirror": mirror,
         "file": quoted("file"),
         "size_bytes": some_int("size_bytes"),
         "sha256": some_str("sha256"),
@@ -228,7 +269,7 @@ def parse_rows(text):
     """The three Engine rows of ASSETS, keyed by the manifest's platform
     string. FORK_BASE is resolved only to learn what `home` SAYS — the
     anchor of the comparison is RELEASE."""
-    const = dict(re.findall(r'const (\w+): &str = "([^"]+)";', text))
+    const = dict(re.findall(r'const (\w+): &str =\s*"([^"]+)";', text))
     # Row literals are indented (`    Asset {` ... `    },`); the struct and
     # the impl are at column 0, so anchoring on the indent keeps them out.
     blocks = re.findall(r"(?m)^    Asset \{(.*?)^    \},$", text, re.S | re.M)
@@ -322,6 +363,57 @@ def compare(rows, man):
     return fail
 
 
+def mirror_paths_info(commit, files):
+    """What the mirror's COMMIT serves for these files: Hugging Face's own
+    record (size, and the LFS sha256), not the file's bytes."""
+    req = urllib.request.Request(
+        MIRROR_API + commit,
+        data=json.dumps({"paths": files}).encode(),
+        headers={"User-Agent": "kalsa-engine-pin-check/2.0",
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return {e["path"]: e for e in json.loads(r.read())}
+
+
+def check_mirror(rows):
+    """Each row's mirror URL against the declared MIRROR_HOME, then the
+    commit the ROW names (what the app will fetch) against Hugging Face: it
+    must serve the row's file at the row's size and sha256."""
+    fail = Fail()
+    commits = {}
+    for key in ROW_KEYS:
+        row = rows[key]
+        if row.get("mirror") != MIRROR_HOME:
+            fail.add(f"{key} mirror: row points at ANOTHER MIRROR: "
+                     f"{row.get('mirror')!r} != {MIRROR_HOME!r} declared by "
+                     "this control")
+        commit = (row.get("mirror") or "").rsplit("/", 1)[-1]
+        commits.setdefault(commit, []).append(key)
+    for commit, keys in commits.items():
+        files = [rows[key]["file"] for key in keys]
+        try:
+            served = mirror_paths_info(commit, files)
+        except Exception as e:
+            fail.add(f"mirror commit {commit!r} does not answer the "
+                     f"paths-info query: {e}")
+            continue
+        for key in keys:
+            row = rows[key]
+            entry = served.get(row["file"])
+            if entry is None:
+                fail.add(f"{key} mirror: {row['file']} is not served at "
+                         f"mirror commit {commit}")
+                continue
+            sha = (entry.get("lfs") or {}).get("oid")
+            if entry.get("size") != row.get("size_bytes"):
+                fail.add(f"{key} mirror size: row {row.get('size_bytes')!r} "
+                         f"!= mirror {entry.get('size')!r}")
+            if sha != row.get("sha256"):
+                fail.add(f"{key} mirror sha256: row {row.get('sha256')!r} "
+                         f"!= mirror {sha!r}")
+    return fail
+
+
 def live_check(assets_path, body, url, source):
     rows = parse_rows(Path(assets_path).read_text())
     man = parse_manifest(body, url)
@@ -329,6 +421,12 @@ def live_check(assets_path, body, url, source):
           f"from the row; manifest from {source})", file=sys.stderr)
     fail = check_manifest(man)
     fail += compare(rows, man)
+    mirror_fail = check_mirror(rows)
+    fail += mirror_fail
+    if not mirror_fail:
+        print(f"  [ok] the mirror commit {MIRROR_COMMIT} serves every "
+              "engine row's file at the pinned size and sha256",
+              file=sys.stderr)
     for key in ROW_KEYS:
         row = rows[key]
         mrow = man["artifacts"][key]

@@ -21,6 +21,12 @@
 /// headers, so it is the only one this app may mount.
 const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.5";
 
+/// The same release, byte-identical, on Hugging Face: the second source for a
+/// network that blocks the CDN. Pinned to a commit — a tag there can move —
+/// and the row's own size and sha256 hold it to the same promise.
+const FORK_MIRROR: &str =
+    "https://huggingface.co/Kalsa-ai/kalsa-server/resolve/f038a4f4f34bd1c5287271e4fa477932112c7a6b";
+
 /// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
 /// to a commit so the bytes cannot move under us.
 const PROBE_MODEL_HOME: &str =
@@ -128,6 +134,9 @@ pub(crate) struct Asset {
     /// live at the fork's own CDN home, the probe model shares neither, and
     /// `url` special-cases none of them.
     pub(crate) home: &'static str,
+    /// A second home serving the same file name and the same bytes, tried
+    /// when `home` fails. None for a row with a single source.
+    pub(crate) mirror: Option<&'static str>,
     /// The file name at its home; the URL is home plus this.
     pub(crate) file: &'static str,
     /// How the archive is packed. None only for the probe model, which is a
@@ -156,6 +165,11 @@ impl Asset {
         format!("{}/{}", self.home, self.file)
     }
 
+    /// The mirror's URL for the same file, when the row has one.
+    pub(crate) fn mirror_url(&self) -> Option<String> {
+        self.mirror.map(|mirror| format!("{mirror}/{}", self.file))
+    }
+
     /// A row without both promises is not downloadable, whatever its URL
     /// says: `store` refuses it before a single byte moves.
     pub(crate) fn verified(&self) -> bool {
@@ -181,6 +195,7 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
         home: FORK_BASE,
+        mirror: Some(FORK_MIRROR),
         file: "kalsa-server-v1.1.5-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
         // `exe_sha256` is the thin launcher `kalsa-server`, the binary the
@@ -205,6 +220,7 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Cpu),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
+        mirror: Some(FORK_MIRROR),
         file: "kalsa-server-v1.1.5-bin-win-cpu-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // The fork's Windows archives carry the per-variant `ggml-cpu-*`
@@ -220,6 +236,7 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Vulkan),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
+        mirror: Some(FORK_MIRROR),
         file: "kalsa-server-v1.1.5-bin-win-vulkan-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // Same layout as the CPU archive (`ggml-cpu-*`, no plain
@@ -239,6 +256,7 @@ const ASSETS: &[Asset] = &[
         backend: None,
         platform: None,
         home: PROBE_MODEL_HOME,
+        mirror: None,
         file: "stories260K.gguf",
         format: None,
         exe_sha256: None,

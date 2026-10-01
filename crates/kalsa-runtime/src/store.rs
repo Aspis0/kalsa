@@ -20,6 +20,7 @@ use kalsa_download::{default_roots, download, find_local, DownloadError, Progres
 use sha2::{Digest, Sha256};
 
 use crate::assets::{self, probe_model, ArchiveFormat, Asset, Platform, ServerBackend};
+use crate::mirror::download_with_mirror;
 use crate::{extract, marker};
 
 #[derive(Debug)]
@@ -362,16 +363,24 @@ fn ensure_archive(
         _ => return Err(StoreError::Unverified),
     };
     let path = archives_dir(root).join(asset.file);
-    acquire(&path, &asset.url(), size, sha, progress)
+    acquire(
+        &path,
+        &asset.url(),
+        asset.mirror_url().as_deref(),
+        size,
+        sha,
+        progress,
+    )
 }
 
 /// Brings `path` into existence with the promised bytes. A copy already
 /// there is accepted only after its bytes hash to the digest again — trust
 /// is re-earned from content, never remembered from a previous check —
-/// and otherwise it is downloaded.
+/// and otherwise it is downloaded, from `mirror` when `url` fails.
 fn acquire(
     path: &Path,
     url: &str,
+    mirror: Option<&str>,
     size: u64,
     sha: &str,
     progress: &mut dyn FnMut(Progress),
@@ -379,7 +388,7 @@ fn acquire(
     if file_digest_is(path, size, sha) {
         return Ok(path.to_path_buf());
     }
-    download(url, path, size, sha, progress).map_err(StoreError::Download)?;
+    download_with_mirror(url, mirror, path, size, sha, progress).map_err(StoreError::Download)?;
     Ok(path.to_path_buf())
 }
 
@@ -444,6 +453,7 @@ mod tests {
             backend: Some(ServerBackend::Cpu),
             platform: Some(Platform::WindowsX64),
             home: RELEASE_HOME_STAND_IN,
+            mirror: None,
             file: "fixture.zip",
             format: Some(assets::ArchiveFormat::Zip),
             size_bytes,
@@ -488,6 +498,7 @@ mod tests {
         let got = acquire(
             &path,
             "https://unused.invalid/fake.zip",
+            None,
             size,
             &sha,
             &mut |_| {},
@@ -499,7 +510,7 @@ mod tests {
         let mut tampered = bytes.to_vec();
         tampered[0] ^= 0xff;
         std::fs::write(&path, tampered).expect("tamper");
-        let err = acquire(&path, "###not a url", size, &sha, &mut |_| {})
+        let err = acquire(&path, "###not a url", None, size, &sha, &mut |_| {})
             .expect_err("same-length tampering is not the archive");
         assert!(matches!(err, StoreError::Download(_)), "{err}");
         let _ = std::fs::remove_dir_all(&root);
@@ -517,6 +528,7 @@ mod tests {
         let got = acquire(
             &path,
             "https://unused.invalid/fake.zip",
+            None,
             size,
             &sha,
             &mut |_| {},

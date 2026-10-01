@@ -36,6 +36,7 @@ mod disposable;
 mod extract;
 mod inlet;
 mod marker;
+mod mirror;
 mod probe;
 mod store;
 mod verdict;
