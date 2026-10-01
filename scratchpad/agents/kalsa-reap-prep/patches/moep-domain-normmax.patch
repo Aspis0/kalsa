@@ -1,0 +1,218 @@
+diff --git a/src/moep/cli.py b/src/moep/cli.py
+index 84e79c2..b904169 100644
+--- a/src/moep/cli.py
++++ b/src/moep/cli.py
+@@ -66,33 +66,58 @@ def cmd_calib(a):
+ def cmd_profile(a):
+     import torch
+ 
+-    from .data import read_jsonl
++    from .data import read_jsonl, tokenize_rows
+     from .manifest import Run
+-    from .profiler import pack_token_stream, profile, write_summary
++    from .profiler import merge_stats, pack_token_stream, profile, write_summary
+ 
++    if a.tag and a.domain:
++        raise SystemExit("profile: --tag and --domain are mutually exclusive")
++    if a.domain and len(a.domain) != len(a.calib):
++        raise SystemExit("profile: give one --domain per --calib, same order")
+     run, t0 = Run(a.run), time.time()
+     stage = f"profile_{a.tag}" if a.tag else "profile"
+-    if run.done(stage) and not a.force:
++    if not a.domain and run.done(stage) and not a.force:
+         print(f"{stage}: already done (use --force)")
+         return
+     ad = _adapter(a.model)
+-    model, tok = _load_model(a.model, max_gpu_gib=a.max_gpu_gib, offload_dir=a.offload_dir)
+-    rows = read_jsonl(a.calib)
+-    if a.max_samples:
+-        rows = rows[: a.max_samples]
+-    from .data import tokenize_rows
+-
+-    batches = pack_token_stream(tokenize_rows(tok, rows), a.seq_len, tok.eos_token_id)
+-    if a.max_seqs:
+-        batches = batches[: a.max_seqs]
+-    print(f"{stage}: {len(rows)} samples -> {batches.shape[0]} packed seqs of {a.seq_len}")
+-    stats, layer_ids = profile(model, ad, batches, a.batch_size)
+-    out = Path(a.run) / f"{stage}.stats.pt"
+-    summary = write_summary(out, stats, layer_ids,
+-                            {"model": a.model, "calib": a.calib, "seq_len": a.seq_len,
+-                             "n_samples": len(rows)})
+-    run.record(stage, vars(a) | {"func": None}, {"stats": out}, summary, t0)
+-    print(json.dumps(summary, indent=2))
++    model, tok = _load_model(a.model, device=a.device, max_gpu_gib=a.max_gpu_gib, offload_dir=a.offload_dir)
++    domains = a.domain or [""]
++    stats_paths: list[Path] = []
++    layer_ids: list[int] = []
++    n_rows_total = 0
++    for dom, calib in zip(domains, a.calib):
++        t_dom, stage_d = time.time(), (f"profile_{dom}" if dom else stage)
++        if run.done(stage_d) and not a.force:
++            print(f"{stage_d}: already done (use --force)")
++            stats_paths.append(Path(a.run) / f"{stage_d}.stats.pt")
++            continue
++        rows = read_jsonl(calib)
++        if a.max_samples:
++            rows = rows[: a.max_samples]
++        n_rows_total += len(rows)
++
++        batches = pack_token_stream(tokenize_rows(tok, rows), a.seq_len, tok.eos_token_id)
++        if a.max_seqs:
++            batches = batches[: a.max_seqs]
++        print(f"{stage_d}: {len(rows)} samples -> {batches.shape[0]} packed seqs of {a.seq_len}")
++        stats, layer_ids = profile(model, ad, batches, a.batch_size)
++        out = Path(a.run) / f"{stage_d}.stats.pt"
++        summary = write_summary(out, stats.tensors, stats.total_tokens, layer_ids,
++                                {"model": a.model, "calib": calib, "domain": dom or None,
++                                 "seq_len": a.seq_len, "n_samples": len(rows)})
++        run.record(stage_d, vars(a) | {"func": None, "domain": dom or None},
++                   {"stats": out}, summary, t_dom)
++        stats_paths.append(out)
++        print(json.dumps(summary, indent=2))
++    if len(stats_paths) > 1:
++        merged, total = merge_stats(stats_paths)
++        out = Path(a.run) / "profile.stats.pt"
++        summary = write_summary(out, merged, total, layer_ids,
++                                {"model": a.model, "calib": list(a.calib), "domains": a.domain,
++                                 "seq_len": a.seq_len, "n_samples": n_rows_total})
++        run.record(stage, vars(a) | {"func": None}, {"stats": out}, summary, t0)
++        print(f"profile: merged {len(stats_paths)} domain stats, {total} tokens -> {out}")
++        print(json.dumps(summary, indent=2))
+     del model
+     torch.cuda.empty_cache()
+ 
+@@ -241,10 +266,16 @@ def main():
+ 
+     p = sub.add_parser("profile")
+     p.add_argument("--run", required=True); p.add_argument("--model", required=True)
+-    p.add_argument("--calib", required=True); p.add_argument("--seq-len", type=int, default=4096)
++    p.add_argument("--calib", required=True, action="append")
++    p.add_argument("--domain", action="append", default=[],
++                   help="domain tag, one per --calib in the same order; one model load profiles "
++                        "each calib separately, writing profile_<domain>.stats.pt per domain plus "
++                        "a merged profile.stats.pt (sum of additive stats, max of norm_max)")
++    p.add_argument("--seq-len", type=int, default=4096)
+     p.add_argument("--batch-size", type=int, default=4); p.add_argument("--max-samples", type=int, default=0)
+     p.add_argument("--max-seqs", type=int, default=0); p.add_argument("--tag", default="")
+     p.add_argument("--force", action="store_true")
++    p.add_argument("--device", default="cuda:0", help="torch device for the model (cpu for synthetic smokes)")
+     p.add_argument("--max-gpu-gib", type=int, default=0,
+                    help="cap resident weights and disk-offload the rest (for models > memory budget)")
+     p.add_argument("--offload-dir", default="runs/offload")
+diff --git a/src/moep/loader.py b/src/moep/loader.py
+index 6f49906..6d994e7 100644
+--- a/src/moep/loader.py
++++ b/src/moep/loader.py
+@@ -49,6 +49,8 @@ def _shards(model_dir: Path) -> list[Path]:
+ 
+ 
+ def _drop_page_cache(path: Path):
++    if not hasattr(os, "posix_fadvise"):
++        return  # macOS has no fadvise; the cache drop is a Linux memory optimization
+     fd = os.open(path, os.O_RDONLY)
+     try:
+         os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+diff --git a/src/moep/profiler.py b/src/moep/profiler.py
+index fbf4cab..8943487 100644
+--- a/src/moep/profiler.py
++++ b/src/moep/profiler.py
+@@ -10,6 +10,7 @@ computes them. Accumulates per (layer, expert), in fp32 on-device:
+   norm_sum      sum over routed tokens of ||f_e(x)||_2  (unweighted expert output)
+   norm_sq_sum   sum of squared norms
+   reap_sum      sum of g * ||f_e(x)||_2  (REAP numerator)
++  norm_max      max over routed tokens of ||f_e(x)||_2  (Super-Expert guard)
+ 
+ The block sums weighted expert outputs in place, so unweighted per-expert norms are not
+ observable from module outputs; they are recomputed here from the module's own fused
+@@ -26,7 +27,10 @@ from pathlib import Path
+ import torch
+ 
+ 
+-STAT_KEYS = ("counts", "gate_sum", "prob_mass", "norm_sum", "norm_sq_sum", "reap_sum")
++STAT_KEYS = ("counts", "gate_sum", "prob_mass", "norm_sum", "norm_sq_sum", "reap_sum", "norm_max")
++
++# Accumulators that merge by element-wise max instead of summing (multi-domain).
++MAX_KEYS = ("norm_max",)
+ 
+ 
+ class ExpertStats:
+@@ -34,22 +38,30 @@ class ExpertStats:
+         self.tensors = {k: torch.zeros(num_layers, num_experts, dtype=torch.float32, device=device) for k in STAT_KEYS}
+         self.total_tokens = 0
+ 
+-    def to_cpu(self) -> dict:
+-        out = {k: v.cpu() for k, v in self.tensors.items()}
+-        out["total_tokens"] = torch.tensor(self.total_tokens)
+-        return out
+-
+-    def save(self, path: str | Path, meta: dict):
+-        path = Path(path)
+-        path.parent.mkdir(parents=True, exist_ok=True)
+-        torch.save({"stats": self.to_cpu(), "meta": meta}, path)
+-
+ 
+ def load_stats(path: str | Path) -> tuple[dict, dict]:
+     d = torch.load(path, map_location="cpu", weights_only=True)
+     return d["stats"], d["meta"]
+ 
+ 
++def merge_stats(paths: list[str | Path]) -> tuple[dict, int]:
++    """Merge per-domain stat files into one: additive accumulators sum, norm_max takes
++    the element-wise max (an expert maximal in any domain stays maximal in the union)."""
++    merged: dict = {}
++    total = 0
++    for p in paths:
++        d, _ = load_stats(p)
++        total += int(d.pop("total_tokens"))
++        for k, v in d.items():
++            if k not in merged:
++                merged[k] = v.clone()
++            elif k in MAX_KEYS:
++                merged[k] = torch.maximum(merged[k], v)
++            else:
++                merged[k] = merged[k] + v
++    return merged, total
++
++
+ def _make_hook(stats: ExpertStats, row: int, router_weight: torch.nn.Parameter | None,
+                count_tokens: bool, router_prob: str = "softmax"):
+     """router_weight None means the adapter accumulates prob_mass through its own router
+@@ -90,6 +102,7 @@ def _make_hook(stats: ExpertStats, row: int, router_weight: torch.nn.Parameter |
+             st["norm_sum"][row, e] += n.sum()
+             st["norm_sq_sum"][row, e] += (n * n).sum()
+             st["reap_sum"][row, e] += (w[pair_rows] * n).sum()
++            st["norm_max"][row, e] = torch.maximum(st["norm_max"][row, e], n.max())
+ 
+     return hook
+ 
+@@ -153,19 +166,24 @@ def profile(model, adapter, batches: torch.Tensor, batch_size: int, log_every: i
+     return stats, layer_ids
+ 
+ 
+-def write_summary(stats_path: Path, stats: ExpertStats, layer_ids: list[int], meta: dict):
+-    stats.save(stats_path, meta | {"layer_ids": layer_ids})
++def write_summary(stats_path: Path, tensors: dict, total_tokens: int, layer_ids: list[int], meta: dict):
++    out = {k: v.cpu() for k, v in tensors.items()}
++    out["total_tokens"] = torch.tensor(total_tokens)
++    path = Path(stats_path)
++    path.parent.mkdir(parents=True, exist_ok=True)
++    torch.save({"stats": out, "meta": meta | {"layer_ids": layer_ids}}, path)
+     # Which accumulators are fully finite. counts/gate_sum come from the forward args and
+     # are robust even under disk offload; the norm-recomputed stats (norm_sum/reap_sum) read
+     # expert weights and can be corrupted if offload de-materializes them mid-hook. Surfacing
+     # this prevents a silent bad selection: a criterion whose inputs are non-finite must not
+     # be used (score/select should fall back to a finite one, e.g. gate_mass = routing-mass).
+-    finite = {k: bool(torch.isfinite(v).all()) for k, v in stats.tensors.items()}
++    finite = {k: bool(torch.isfinite(v).all()) for k, v in tensors.items()}
+     summary = {
+-        "total_tokens": stats.total_tokens,
++        "total_tokens": total_tokens,
+         "layers": len(layer_ids),
+-        "experts": stats.tensors["counts"].shape[1],
+-        "min_layer_expert_coverage": float((stats.tensors["counts"] > 0).float().mean()),
++        "experts": tensors["counts"].shape[1],
++        "min_layer_expert_coverage": float((tensors["counts"] > 0).float().mean()),
++        "max_norm_max": float(tensors["norm_max"].max()),
+         "stats_finite": finite,
+         "usable_criteria": ["freq", "gate_mass"] + (["reap", "man", "msan"] if finite["reap_sum"] and finite["norm_sum"] else []),
+         **{k: v for k, v in meta.items() if isinstance(v, (str, int, float))},

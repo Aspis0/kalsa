@@ -1115,7 +1115,8 @@ Phases (each gated):
    equal GB; stop rules (IT bpb > 0.75, HE+ < base-15, wrong-language > 5 %). 128-average analysis (GLM 67143a4f,
    `moe-keepset-128/`, content-disjoint, proxy): uniform 128 lang 86.7 / CODE 69.1 / MATH 74.7; 160 lang 92.4 /
    80.4 / 84.8; code/math weight w=2 at 128 -> 84.3 / 76.3 / 79.0 (ZH -4.2), w=4 -> 80.0 / 81.5 / 82.4 (ZH -11);
-   per-layer allocation adds only 0.4-0.9 pp; 128 never dominates 160. Sizes (GGUF shapes): 128 = 18.6 B params,
+   per-layer allocation adds only 0.3-1.1 pp (mimo 65e08f45 audit: usable with caveats, numbers corrected in REPORT);
+   128 never dominates 160. Sizes (GGUF shapes): 128 = 18.6 B params,
    ~11.3 GB Q4_K_M / ~8.0 GB IQ3_S; 160 = 22.6 B, ~13.7 / ~9.7 GB. Cost: Mac phase $0, ONE A100 pod
    ~10-14 h $15-25 (cap $40), optional healing <= $20. NEEDS OWNER BUDGET OK.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier

@@ -160,3 +160,24 @@ Going 160 → 128 saves ~4.03 B params ≈ **2.4 GB at Q4_K_M** (1.9 at Q3_K_M, 
 4. An earlier quick look at the null reported sd 0.01 instead of 1.2 pp — a ×100 slip in the
    ad-hoc check, not in the data (the CSV was right); kept here because it prompted the
    tokens_test fix in (2).
+
+## Corrections after the hostile audit (mimo 65e08f45, AUDIT.md, 2026-10-01)
+
+Verdict: usable with caveats. The conclusions stand (per-layer allocation is worth about 1 pp at most; code/math
+weighting is a trade against the languages, not a free gain; 128 never dominates 160). Corrected numbers:
+
+- Allocation gain over uniform at 5,120 experts: **+0.26 to +1.08 pp** (not +0.4-0.9); sign-consistent in all
+  15 per-split gains.
+- Split standard deviations: **languages 0.11-1.27, CODE 0.23-1.59, MATH 0.17-1.19 pp** (not 0.7-1.2 / 0.7-1.4).
+  Random-half null: within +/-1.13 pp.
+- "Mean Jaccard 0.93 vs uniform" (line 87) is **unsourced**: no script computes it and the masks were not saved.
+  Withdrawn.
+- Wording overclaims withdrawn: "MATH cannot reach 160 at any weight" (only w <= 8 was tested and MATH still
+  gained +2.3 pp at the last doubling); "provably identical" means identical on these 5 splits; weighted-128 does
+  not "dominate" anything, it trades languages for code/math.
+- Waterline per-layer counts range 100-172 (w=1) and 100-180 (all weights). Q3_K_M saving vs 160 is ~2.0 GB.
+- Size: 18.555 B params confirmed from the GGUF header (2,448,355,968 + 3,145,728 x 5,120); ~11.3 GB at
+  4.85 bpw, ~11.9 GB at the probe-implied 5.11 bpw.
+- Hygiene: the recorded hash step failed (`raw/make_hashes.log:1`, REPORT.md did not exist yet) while
+  `run_commands.txt:7` logged EXIT=0 (a pipe masked it); the REPORT hash line and the home-path scrub were
+  unlogged commands. The auditor recomputed all 35 input hashes and all match the current tree.

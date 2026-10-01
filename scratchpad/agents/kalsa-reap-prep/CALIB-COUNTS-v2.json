@@ -1,0 +1,107 @@
+{
+  "seed": 20261001,
+  "target_tokens": 450000,
+  "domains": {
+    "it": {
+      "rows": 2351,
+      "tokens": 450046,
+      "reused_v1_rows": 2351,
+      "reused_v1_tokens": 450046,
+      "by_source_tokens": {
+        "CohereForAI/aya_collection": 404138,
+        "CohereForAI/aya_dataset": 45908
+      },
+      "skips": {
+        "ban:humaneval": 1,
+        "ban:humanevalplus": 1,
+        "ban:mbpp_test": 1
+      }
+    },
+    "fr": {
+      "rows": 2214,
+      "tokens": 450609,
+      "reused_v1_rows": 1942,
+      "reused_v1_tokens": 294844,
+      "by_source_tokens": {
+        "CohereForAI/aya_dataset": 194474,
+        "CohereForAI/aya_collection": 100370,
+        "HuggingFaceFW/fineweb-2": 155765
+      },
+      "skips": {
+        "dupe": 8
+      }
+    },
+    "es": {
+      "rows": 2276,
+      "tokens": 450405,
+      "reused_v1_rows": 1949,
+      "reused_v1_tokens": 253326,
+      "by_source_tokens": {
+        "CohereForAI/aya_dataset": 191690,
+        "CohereForAI/aya_collection": 61636,
+        "HuggingFaceFW/fineweb-2": 197079
+      },
+      "skips": {
+        "dupe": 1
+      }
+    },
+    "en": {
+      "rows": 951,
+      "tokens": 450238,
+      "reused_v1_rows": 418,
+      "reused_v1_tokens": 136452,
+      "by_source_tokens": {
+        "NousResearch/hermes-function-calling-v1": 98370,
+        "CohereForAI/aya_dataset": 38082,
+        "HuggingFaceFW/fineweb": 313786
+      },
+      "skips": {
+        "ban:humanevalplus": 2,
+        "ban:humaneval": 1
+      }
+    },
+    "zh": {
+      "rows": 1969,
+      "tokens": 450556,
+      "reused_v1_rows": 1950,
+      "reused_v1_tokens": 435367,
+      "by_source_tokens": {
+        "CohereForAI/aya_collection": 435367,
+        "HuggingFaceFW/fineweb-2": 15189
+      },
+      "skips": {}
+    },
+    "code": {
+      "rows": 585,
+      "tokens": 450134,
+      "reused_v1_rows": 301,
+      "reused_v1_tokens": 149112,
+      "by_source_tokens": {
+        "kalsallama-engine": 104859,
+        "kalsallama-python": 97818,
+        "cpython-stdlib": 98345,
+        "google-research-datasets/mbpp": 11797,
+        "NousResearch/hermes-function-calling-v1": 137315
+      },
+      "skips": {
+        "dupe": 5,
+        "ban:mbpp_test": 25,
+        "ban:humanevalplus": 1
+      }
+    },
+    "math": {
+      "rows": 2433,
+      "tokens": 450002,
+      "reused_v1_rows": 349,
+      "reused_v1_tokens": 67005,
+      "by_source_tokens": {
+        "openai/gsm8k": 450002
+      },
+      "skips": {
+        "ban:gsm8k_test": 5,
+        "dupe": 78
+      }
+    }
+  },
+  "total_tokens": 3151990
+}

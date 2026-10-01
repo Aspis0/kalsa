@@ -765,6 +765,9 @@ artifacts (PC ~10.7 GB, phone ~8.7 GB) vs 160@IQ3_S and unpruned IQ2 at equal GB
 Owner 2026-10-01: session split - coordinator 818369e6 does ONLY the MoE prune (phase 0 running: calibration v2
 GLM 35e363c7, evals GLM b23995c6); a new session takes governor/NPU/GPU/binding/app/S23/engine releases from
 `scratchpad/HANDOVER-GOVERNOR-2026-10-01.md`.
+MoE keep-set-128 analysis audited (mimo 65e08f45): usable with caveats; allocation gain 0.3-1.1 pp, one unsourced
+Jaccard withdrawn, hash-step hygiene gap recorded; conclusion unchanged (128 trades against 160, never dominates).
+Phase 0b evals (HumanEval+, FLORES chrF++/wrong-language, GSM8K-IT, gate fixes) committed by GLM b23995c6; audit running.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 

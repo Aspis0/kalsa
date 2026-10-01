@@ -95,7 +95,11 @@ def tensors(num_experts: int) -> dict:
         t[f"{p}.mlp.shared_expert.down_proj.weight"] = r(H, I)
         t[f"{p}.mlp.shared_expert_gate.weight"] = r(1, H)
     v = "model.visual"
-    t[f"{v}.patch_embed.proj.weight"] = r(VIS, 3 * 4 * 4, 4, 4)
+    # shapes mirror the real checkpoint (tensor-shapes.json) and transformers'
+    # Qwen3_5MoeVisionPatchMerger: norm over vision hidden, fc1 hidden->hidden
+    # (spatial_merge_size=1), fc2 vision hidden -> text hidden; conv kernel is
+    # [out, in_channels, temporal_patch, patch, patch]
+    t[f"{v}.patch_embed.proj.weight"] = r(VIS, 3, 1, 4, 4)
     t[f"{v}.patch_embed.proj.bias"] = r(VIS)
     t[f"{v}.pos_embed.weight"] = r(8, VIS)
     t[f"{v}.blocks.0.norm1.weight"] = r(VIS)
@@ -110,12 +114,12 @@ def tensors(num_experts: int) -> dict:
     t[f"{v}.blocks.0.mlp.linear_fc1.bias"] = r(VIS_I)
     t[f"{v}.blocks.0.mlp.linear_fc2.weight"] = r(VIS, VIS_I)
     t[f"{v}.blocks.0.mlp.linear_fc2.bias"] = r(VIS)
-    t[f"{v}.merger.linear_fc1.weight"] = r(H, 4 * VIS)
-    t[f"{v}.merger.linear_fc1.bias"] = r(H)
-    t[f"{v}.merger.linear_fc2.weight"] = r(H, H)
+    t[f"{v}.merger.norm.weight"] = r(VIS)
+    t[f"{v}.merger.norm.bias"] = r(VIS)
+    t[f"{v}.merger.linear_fc1.weight"] = r(VIS, VIS)
+    t[f"{v}.merger.linear_fc1.bias"] = r(VIS)
+    t[f"{v}.merger.linear_fc2.weight"] = r(H, VIS)
     t[f"{v}.merger.linear_fc2.bias"] = r(H)
-    t[f"{v}.merger.norm.weight"] = r(H)
-    t[f"{v}.merger.norm.bias"] = r(H)
     return t
 
 
