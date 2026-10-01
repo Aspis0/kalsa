@@ -243,6 +243,53 @@ fn sixteen_gigabytes_picks_a_downloadable_row_whose_plan_matches_its_row() {
 }
 
 #[test]
+fn a_row_whose_drafter_will_not_fit_is_picked_without_it() {
+    // The owner's memory rule, on the band of RAM it exists for: the
+    // budget at 8.7 GiB (5.70 GiB usable) holds the E4B's own footprint
+    // but not its 98_653_280-byte drafter beside it, so the row is still
+    // the pick — with no drafter in its footprint, its fetch plan or its
+    // offer — while one step up in RAM the same pick carries the drafter
+    // again. A phone that the 8B row outguns is paired, as the rule's
+    // product setting has it.
+    let machine = |ram_bytes: u64| ChoiceInput {
+        ram_bytes,
+        phone: Some(PhoneModel {
+            weights_bytes: 1_800_000_000,
+            parameters: Some(Parameters::dense(3_000_000_000)),
+            measured_tokens_per_second: Some(9.0),
+            battery_powered: Some(true),
+        }),
+        ..metal(9, 200.0e9)
+    };
+    let draftless = machine((8.7_f64 * GIB as f64) as u64);
+    match choose(&draftless) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
+            assert!(
+                selection.download.drafter.is_none(),
+                "no drafter in the fetch plan the budget could not hold"
+            );
+            assert_eq!(selection.footprint.drafter_bytes, 0);
+            assert!(selection.footprint.total_bytes() <= selection.budget.usable_bytes);
+        }
+        other => panic!("the row must still be offered without its drafter: {other:?}"),
+    }
+    match choose(&machine((8.8_f64 * GIB as f64) as u64)) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "google/gemma-4-E4B-it");
+            let drafter = selection
+                .download
+                .drafter
+                .as_ref()
+                .expect("with the room, the row's drafter rides");
+            assert_eq!(drafter.bytes, 98_653_280);
+            assert_eq!(selection.footprint.drafter_bytes, 98_653_280);
+        }
+        other => panic!("expected the same pick with its drafter: {other:?}"),
+    }
+}
+
+#[test]
 fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
     // Charging is a moment, not a property: the catalog asks only whether the
     // device runs on battery at all, so the relief offer cannot depend on

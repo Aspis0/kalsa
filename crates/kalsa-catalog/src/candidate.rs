@@ -8,7 +8,7 @@
 use kalsa_probe::{decode_band, decode_tokens_per_second, prefill_tokens_per_second};
 
 use crate::choice::{ChoiceInput, MINIMUM_TOKENS_PER_SECOND};
-use crate::footprint::{fits_footprint, footprint_bytes, Footprint, MemoryBudget};
+use crate::footprint::{fits_footprint, footprint_bytes, memory_budget, Footprint, MemoryBudget};
 use crate::manifest::{self, GgufSource, ModelEntry, UsableEntry};
 
 /// A predicted figure, with its shape carried in the type. The shape is
@@ -78,8 +78,9 @@ pub(crate) struct Candidate<'a> {
     /// that has one — that is what `UsableEntry` means — so a prediction
     /// can always become a download plan.
     pub(crate) source: &'a GgufSource,
-    /// The pinned drafter beside the weights, when the row ships with one:
-    /// charged to the footprint below, carried into the download plan.
+    /// The pinned drafter beside the weights, when the row ships with one
+    /// and this machine holds it beside them: charged to the footprint
+    /// below, carried into the download plan.
     pub(crate) drafter: Option<&'a GgufSource>,
     pub(crate) footprint: Footprint,
     /// Decode throughput as a range, never as a point.
@@ -117,19 +118,37 @@ pub fn decode_prediction(entry: UsableEntry<'_>, input: &ChoiceInput) -> Predict
 pub const MEASURED_BANDWIDTH_TOLERANCE: f64 = 0.25;
 
 /// The chooser's own footprint for this row — the same construction
-/// `choose` runs, drafter included; the window for callers outside.
+/// `choose` runs, its drafter charged when this machine holds it beside the
+/// row; the window for callers outside.
 pub fn candidate_footprint(entry: UsableEntry<'_>, input: &ChoiceInput) -> Footprint {
     candidate(entry, input).footprint
 }
 
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
     let source = entry.source();
-    let drafter = entry.drafter();
+    let mut drafter = entry.drafter();
     let entry = entry.entry();
     let mut footprint = footprint_bytes(entry, input.context_tokens);
     // Resident wherever the row runs, so the fit charges it; not in the
     // decode traffic — the anchors are no-spec target-only rates.
     footprint.drafter_bytes = drafter.map(|file| file.bytes).unwrap_or(0);
+    // The owner's memory rule: where the drafter is what pushes this row
+    // over the budget, the row is kept and the drafter dropped — no
+    // drafter in the footprint, the fetch plan or the launch — and the
+    // next start tries the row's own pin again.
+    if footprint.drafter_bytes > 0 {
+        let budget = memory_budget(input.backend, input.ram_bytes);
+        if !fits_footprint(entry, &footprint, &budget) {
+            footprint.drafter_bytes = 0;
+            if fits_footprint(entry, &footprint, &budget) {
+                drafter = None;
+            } else {
+                // Short of budget either way: the row is refused, and the
+                // refusal quotes the whole footprint it was refused on.
+                footprint.drafter_bytes = drafter.map_or(0, |file| file.bytes);
+            }
+        }
+    }
     // Speed uses the ACTIVE weights; the footprint uses the total. Getting
     // these two the wrong way round is the mistake the separate types prevent.
     let active_bytes = active_weight_bytes(entry);

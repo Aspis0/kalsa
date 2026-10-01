@@ -143,11 +143,13 @@ impl Default for ContextPrices {
 }
 
 /// The drafter this launch carries, when placement proved one: where it
-/// landed, and the pin it was proven against — the pin is what the tune's
-/// fingerprint and the record's key travel on.
+/// landed, the pin it was proven against — the pin is what the tune's
+/// fingerprint and the record's key travel on — and its size, which is
+/// what the window is funded around.
 pub(crate) struct DrafterLaunch {
     pub(crate) path: PathBuf,
     pub(crate) sha256: &'static str,
+    pub(crate) bytes: u64,
 }
 
 /// The exact launch data kept by the shell after the supervisor receives it.
@@ -294,6 +296,7 @@ pub(crate) fn run(
                 .map(|(path, file)| DrafterLaunch {
                     path,
                     sha256: file.sha256,
+                    bytes: file.bytes,
                 });
             let mut prepared = planned_config_with_overrides(
                 build,
@@ -884,6 +887,10 @@ fn planned_config_with_overrides(
         backend,
         model: row,
         budget,
+        // The window every arm below is sized for is the window the launch
+        // runs: with the proven drafter's bytes inside it, or without them
+        // when this start carries no drafter.
+        drafter_bytes: drafter.as_ref().map_or(0, |drafter| drafter.bytes),
         thread_ramp: &machine.measurement.ramp,
         physical_cores: kalsa_probe::physical_cores(),
         model_path: model.clone(),
@@ -1906,9 +1913,14 @@ mod tests {
             plan.sha256
         );
         // And the pick is honest about fitting the machine it was chosen
-        // for, priced at the same one-token context the chooser uses.
+        // for: the chooser's own footprint at its own pricing window, with
+        // the pick's drafter charged when this machine runs one beside it —
+        // the row's file alone would prove less than the launch reserves.
         let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
-        let footprint = kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS);
+        let footprint = kalsa_catalog::candidate_footprint(
+            entry_on_menu(row).expect("the pick is on the menu"),
+            &choice_input(ServerBackend::Cpu, &machine, None),
+        );
         assert!(
             footprint.total_bytes() <= budget.usable_bytes,
             "the pick fits the budget it was sized against"
@@ -2294,6 +2306,7 @@ mod tests {
             backend: ServerBackend::Metal,
             model: row,
             budget,
+            drafter_bytes: 0,
             thread_ramp: ramp,
             physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
@@ -2929,6 +2942,25 @@ mod tests {
     }
 
     #[test]
+    fn the_first_run_prices_a_drafter_row_as_weights_plus_drafter() {
+        // What Start's one download number is made of: the E4B row's own
+        // file plus the MTP drafter its row pins, and the bool the copy
+        // says "files" with — while a row that ships no drafter prices its
+        // file alone.
+        let e4b = rows()
+            .find(|entry| entry.repo == "google/gemma-4-E4B-it")
+            .expect("the row is in the catalog");
+        assert_eq!(
+            entry_download(e4b),
+            Some((4_977_171_584 + 98_653_280, true))
+        );
+        let lfm = rows()
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0")
+            .expect("the row is in the catalog");
+        assert_eq!(entry_download(lfm), Some((2_874_779_648, false)));
+    }
+
+    #[test]
     fn a_proven_drafter_rides_the_launch_args_and_nothing_else_changes() {
         // The wiring, not the renderer: a drafter proven on disk reaches the
         // launch args as the one draft fact, beside an otherwise unchanged
@@ -2962,6 +2994,7 @@ mod tests {
         let with = base(Some(crate::startup::DrafterLaunch {
             path: PathBuf::from("/models/mtp-chosen.gguf"),
             sha256: TEST_SHA256,
+            bytes: 98_653_280,
         }));
         assert_eq!(
             with.info.args.draft,

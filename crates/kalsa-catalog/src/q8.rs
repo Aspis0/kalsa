@@ -302,13 +302,18 @@ mod tests {
         // Every other row runs alone: no placeholder drafter in any
         // candidate, whatever the rule does to the Gemma rows beside them.
         let candidates = resolved(&mac(64, 400.0));
-        for other in candidates
+        let alone: Vec<&Candidate> = candidates
             .iter()
             .filter(|candidate| {
                 candidate.entry.repo != "google/gemma-4-12B-it"
                     && candidate.entry.repo != "google/gemma-4-E4B-it"
             })
-        {
+            .collect();
+        assert!(
+            !alone.is_empty(),
+            "rows that run alone are still the menu's majority"
+        );
+        for other in alone {
             assert!(other.drafter.is_none(), "{}", other.entry.repo);
         }
         // And the plan itself, end to end through the public walk: the

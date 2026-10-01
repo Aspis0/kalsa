@@ -15,9 +15,9 @@ use std::path::Path;
 use serde::Serialize;
 
 use kalsa_catalog::{
-    choose, largest_that_runs_well, memory_budget, quicker_alternative, rows,
-    runnable_row, usable, ChoiceInput, Decision, GIB, ModelEntry, PhoneModel, Prediction,
-    RefusalReason, RunnableRow, Selection, CHOOSER_CONTEXT_TOKENS,
+    choose, largest_that_runs_well, memory_budget, quicker_alternative, rows, runnable_row, usable,
+    ChoiceInput, Decision, DownloadPlan, MemoryBudget, ModelEntry, PhoneModel, Prediction,
+    RefusalReason, RunnableRow, Selection, CHOOSER_CONTEXT_TOKENS, GIB,
 };
 use kalsa_launch::{funded_context, DEFAULT_PARALLEL};
 use kalsa_probe::{Backend, Measurement};
@@ -231,6 +231,17 @@ pub(crate) fn chosen_stands(
     stored.is_some_and(|row| runnable_row(&input_for(measurement, ram_bytes, phone), row).is_some())
 }
 
+/// What a row's window is priced from: the budget minus the drafter the
+/// pick will run beside it — the same bytes `kalsa_launch::plan` charges
+/// into the launch, so the number this page shows and the number the server
+/// gets are one number. The plan's own drafter is the chooser's answer for
+/// this machine, already dropped where it would not fit beside the row.
+fn window_budget(budget: MemoryBudget, download: &DownloadPlan) -> u64 {
+    budget
+        .usable_bytes
+        .saturating_sub(download.drafter.as_ref().map_or(0, |file| file.bytes))
+}
+
 /// The answer, computed. The catalog's input is rebuilt here rather than
 /// borrowed from `startup::choice_input`, whose backend is the budget path of
 /// a build that has won — this preview has no winner, so it hands the catalog
@@ -272,8 +283,13 @@ pub(crate) fn dto(
                     name: selection.display_name.to_string(),
                     quant: selection.quant.to_string(),
                     download_bytes: selection.download.total_bytes(),
-                    context_tokens: row
-                        .and_then(|row| funded_context(row, budget.usable_bytes, DEFAULT_PARALLEL)),
+                    context_tokens: row.and_then(|row| {
+                        funded_context(
+                            row,
+                            window_budget(budget, &selection.download),
+                            DEFAULT_PARALLEL,
+                        )
+                    }),
                     speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                     speed: speed(&selection.decode),
                     measured: row.and_then(|row| measured_speed(root, row)),
@@ -303,7 +319,7 @@ pub(crate) fn dto(
                             download_bytes: row.download.total_bytes(),
                             context_tokens: funded_context(
                                 row.entry,
-                                budget.usable_bytes,
+                                window_budget(budget, &row.download),
                                 DEFAULT_PARALLEL,
                             ),
                             speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
@@ -364,7 +380,11 @@ pub(crate) fn dto(
                 name: row.entry.display_name.to_string(),
                 quant: row.entry.quant.to_string(),
                 download_bytes: row.download.total_bytes(),
-                context_tokens: funded_context(row.entry, budget.usable_bytes, DEFAULT_PARALLEL),
+                context_tokens: funded_context(
+                    row.entry,
+                    window_budget(budget, &row.download),
+                    DEFAULT_PARALLEL,
+                ),
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: speed(&row.decode),
                 measured,
@@ -707,10 +727,11 @@ mod tests {
 
         let digest = usable()
             .find(|row| {
+                // Name and quant are the pick's identity: `download_bytes`
+                // is the file plus the row's drafter, so bytes are not the
+                // way back to a row that ships one.
                 let row = row.entry();
-                row.display_name == before.name
-                    && row.quant == before.quant
-                    && row.weights_bytes == before.download_bytes
+                row.display_name == before.name && row.quant == before.quant
             })
             .expect("the pick is on the menu")
             .source()
@@ -744,6 +765,35 @@ mod tests {
             panic!("the second read answers the same shape");
         };
         assert_eq!(after.measured, Some(23.5), "the tune's number travelled");
+    }
+
+    #[test]
+    fn the_pick_context_is_priced_with_the_drafter_the_pick_will_run() {
+        // The door's context and the launcher's window come from one set of
+        // bytes: this tier's pick ships a drafter, so the preview is the
+        // row's own funded context minus the 98_653_280 bytes the plan
+        // charges, never the drafter-blind figure.
+        let root = records_root("drafter-context");
+        let first = dto(&pair_machine(), 9 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick), ..
+        } = first
+        else {
+            panic!("a measured machine answers Measured with a pick");
+        };
+        assert_eq!(
+            pick.name, "Google Gemma 4 E4B",
+            "the premise: this tier's pick ships a drafter"
+        );
+        let row = rows()
+            .find(|entry| entry.display_name == pick.name && entry.quant == pick.quant)
+            .expect("a catalog row");
+        let usable = memory_budget(Backend::Cpu, 9 * GIB).usable_bytes;
+        let blind = funded_context(row, usable, DEFAULT_PARALLEL).expect("a window");
+        let charged = funded_context(row, usable - 98_653_280, DEFAULT_PARALLEL)
+            .expect("a window with the drafter charged");
+        assert!(charged < blind, "{charged} must be under the blind {blind}");
+        assert_eq!(pick.context_tokens, Some(charged));
     }
 
     #[test]

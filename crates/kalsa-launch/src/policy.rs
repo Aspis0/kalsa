@@ -20,6 +20,12 @@ pub struct LaunchInput<'a> {
     pub backend: ServerBackend,
     pub model: &'a ModelEntry,
     pub budget: MemoryBudget,
+    /// The proven drafter's bytes, charged whenever a start will run one
+    /// beside the model — resident beside the weights, so the funded window,
+    /// the cache roof and the reported total all come from what is left
+    /// after it. Zero when no drafter runs; only the caller holds the file
+    /// that says which that is.
+    pub drafter_bytes: u64,
     /// (threads, bytes per second) pairs, as measured. The plateau of this
     /// ramp is the thread count, capped to `physical_cores` when the
     /// machine's physical count is known: hyperthreading's extra logical
@@ -88,6 +94,7 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
     let (funded, prompt_cache_roof) = context_and_prompt_cache_roof(
         input.model,
         input.budget.usable_bytes,
+        input.drafter_bytes,
         input.kv_cache,
         slots,
         u64::from(input.ubatch_size),
@@ -135,8 +142,9 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         parallel,
         slot_save_path: input.slot_save_path.clone(),
         sampling: input.model.sampling,
-        // The plan sizes the launch; the drafter rides it only when the
-        // caller has proven the file on disk, so it is the caller's to set.
+        // The window above is already sized around [`LaunchInput::drafter_bytes`];
+        // the drafter itself rides only a file the caller has proven on disk,
+        // so it is the caller's to set.
         draft: None,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
@@ -163,7 +171,8 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
             .weights_bytes
             .saturating_add(footprint.mmproj_bytes)
             .saturating_add(footprint.buffer_bytes)
-            .saturating_add(kv_bytes),
+            .saturating_add(kv_bytes)
+            .saturating_add(input.drafter_bytes),
         budget_bytes: input.budget.usable_bytes,
     };
     Some(LaunchPlan { args, memory })
@@ -241,6 +250,9 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
     let (funded, _roof) = context_and_prompt_cache_roof(
         model,
         usable_bytes,
+        // A preview prices the row's own file; the plan subtracts the
+        // drafter the start will actually run, at the call site that knows.
+        0,
         KvCache::Q8_0,
         slots,
         u64::from(crate::args::UBATCH),
@@ -267,8 +279,8 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
 /// [`prompt_cache_roof_bytes`]).
 ///
 /// The catalog's arithmetic is otherwise unchanged:
-/// `weights + mmproj + compute buffers + KV + roof + margin <= usable
-/// RAM`, solved for KV's term after the roof. Whole tokens: the floor is
+/// `weights + mmproj + compute buffers + drafter + KV + roof + margin <=
+/// usable RAM`, solved for KV's term after the roof. Whole tokens: the floor is
 /// the answer, never a rounding up that the budget did not pay for.
 ///
 /// On the assumed per-token figure the choice is conservative by direction:
@@ -293,6 +305,7 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
 fn context_and_prompt_cache_roof(
     model: &ModelEntry,
     usable_bytes: u64,
+    drafter_bytes: u64,
     kv_cache: KvCache,
     slots: u64,
     ubatch_size: u64,
@@ -308,7 +321,10 @@ fn context_and_prompt_cache_roof(
     let fixed = model
         .weights_bytes
         .saturating_add(model.mmproj_bytes.unwrap_or(0))
-        .saturating_add(COMPUTE_BUFFER_BYTES);
+        .saturating_add(COMPUTE_BUFFER_BYTES)
+        // The drafter is resident beside the weights, so the window is
+        // funded from what is left only after it.
+        .saturating_add(drafter_bytes);
     let leftover = usable_bytes.checked_sub(fixed)?;
     let prompt_cache_roof = prompt_cache_roof_bytes(leftover, kv_cache);
     let kv_budget = leftover.checked_sub(prompt_cache_roof)?;
@@ -647,6 +663,7 @@ mod tests {
             backend,
             model,
             budget,
+            drafter_bytes: 0,
             thread_ramp: ramp,
             physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
@@ -925,6 +942,28 @@ mod tests {
         assert!(line.contains("--flash-attn on"), "{line}");
         assert!(line.contains("--ubatch-size 512"), "{line}");
         assert!(line.contains("--batch-size 2048"), "{line}");
+    }
+
+    /// The owner's rule at the launcher's end: a start that runs the row's
+    /// drafter funds its window around the drafter's bytes too, so the same
+    /// machine promises fewer tokens beside one than without one.
+    #[test]
+    fn a_drafter_shrinks_the_window_the_same_machine_funds() {
+        let model = shipped_row("Google Gemma 4 E4B");
+        let budget = memory_budget(Backend::Metal, 9 * GIB);
+        let without = funded_maximum(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+            .expect("the row funds this machine without a drafter");
+        let with = funded_maximum(&LaunchInput {
+            drafter_bytes: 98_653_280,
+            ..input(ServerBackend::Metal, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the row funds this machine with one");
+        assert!(
+            with < without,
+            "the drafter's 98_653_280 bytes come out of the window: {with} vs {without}"
+        );
+        assert_eq!(without, 77_438, "the window without a drafter");
+        assert_eq!(with, 68_937, "the window with one");
     }
 
     #[test]

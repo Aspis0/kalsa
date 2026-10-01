@@ -286,15 +286,18 @@ fn every_row_passes_the_axes_and_the_floor() {
 }
 
 #[test]
-fn only_the_download_rows_know_where_their_weights_live() {
+fn only_the_download_rows_know_where_their_files_live() {
     // A repo name written from memory is how a download 404s a week later:
     // the research rows never asked the API, so they carry no address at
     // all — and no address is exactly what keeps them out of the chooser.
-    // A variant's file is an address too, and is held to the same list.
+    // A variant's file is an address too, and so is a drafter's; all are
+    // held to the same list.
     let pinned: Vec<&str> = DOWNLOADABLE
         .iter()
         .flat_map(|row| {
-            std::iter::once(row.source.repo).chain(row.q8.iter().map(|variant| variant.source.repo))
+            std::iter::once(row.source.repo)
+                .chain(row.q8.iter().map(|variant| variant.source.repo))
+                .chain(row.drafter.as_ref().map(|drafter| drafter.repo))
         })
         .collect();
     assert_eq!(
@@ -302,9 +305,11 @@ fn only_the_download_rows_know_where_their_weights_live() {
         [
             "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
             "unsloth/gemma-4-E4B-it-GGUF",
+            "ggml-org/gemma-4-E4B-it-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
+            "ggml-org/gemma-4-12B-it-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
             "LiquidAI/LFM2.5-2.6B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
@@ -318,8 +323,10 @@ fn every_source_is_pinned_and_consistent_with_its_row() {
     // be a sha256 — 64 lowercase hex characters — and the size must be the
     // file this row describes: a mismatch here is a copy-paste between
     // rows, which is exactly how an unverified download would sneak
-    // through. A variant file is held to every word of it too.
-    let check = |repo: &str, source: GgufSource, weights_bytes: u64| {
+    // through. A variant file is held to every word of it too, and so is
+    // a drafter's file — a drafter's size is its own weight, never the
+    // row's.
+    let check = |repo: &str, source: GgufSource, weights_bytes: Option<u64>| {
         let lowercase_hex = |s: &str| {
             s.chars()
                 .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
@@ -352,20 +359,30 @@ fn every_source_is_pinned_and_consistent_with_its_row() {
             source.file
         );
         assert!(!source.repo.is_empty(), "a source names its repo");
-        assert_eq!(
-            source.bytes, weights_bytes,
-            "{}: the pinned file's size must be the row's weight size",
-            repo
-        );
+        match weights_bytes {
+            Some(weights_bytes) => assert_eq!(
+                source.bytes, weights_bytes,
+                "{}: the pinned file's size must be the row's weight size",
+                repo
+            ),
+            None => assert!(
+                source.bytes > 0,
+                "{}: the pinned file weighs something",
+                repo
+            ),
+        }
     };
     for row in DOWNLOADABLE {
-        check(row.model.repo, row.source, row.model.weights_bytes);
+        check(row.model.repo, row.source, Some(row.model.weights_bytes));
         if let Some(variant) = row.q8 {
             check(
                 variant.model.repo,
                 variant.source,
-                variant.model.weights_bytes,
+                Some(variant.model.weights_bytes),
             );
+        }
+        if let Some(drafter) = row.drafter {
+            check(row.model.repo, drafter, None);
         }
     }
 }
@@ -562,8 +579,7 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
     // The pins of 2026-09-29 and 2026-10-01, verbatim, and their uniqueness:
     // Option on every other row, never a placeholder. The numbers were verified
     // against the Hugging Face API at the pinned commits (paths-info lfs
-    // size/oid, and the resolve URL's x-linked-size/x-linked-etag), and the
-    // drafter's local copy hashed to its digest.
+    // size/oid, and the resolve URL's x-linked-size/x-linked-etag).
     let drafters: Vec<(&str, &GgufSource)> = DOWNLOADABLE
         .iter()
         .filter_map(|row| {
@@ -573,8 +589,14 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
         })
         .collect();
     assert_eq!(drafters.len(), 2, "the two Gemma rows ship a drafter");
-    assert_eq!(drafters[0].0, "google/gemma-4-E4B-it");
-    let drafter = drafters[0].1;
+    let for_row = |repo: &str| {
+        drafters
+            .iter()
+            .find(|(owner, _)| *owner == repo)
+            .unwrap_or_else(|| panic!("{repo} ships a drafter"))
+            .1
+    };
+    let drafter = for_row("google/gemma-4-E4B-it");
     assert_eq!(drafter.repo, "ggml-org/gemma-4-E4B-it-GGUF");
     assert_eq!(drafter.commit, "b8093469224f83f5c38f691eb906c380e9e63114");
     assert_eq!(drafter.file, "mtp-gemma-4-E4B-it-Q8_0.gguf");
@@ -583,8 +605,7 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
         drafter.sha256,
         "f38ae62962657c7a6303c49bbb147e9ae23634e911cfa532fac0818c2e18b665"
     );
-    assert_eq!(drafters[1].0, "google/gemma-4-12B-it");
-    let drafter = drafters[1].1;
+    let drafter = for_row("google/gemma-4-12B-it");
     assert_eq!(drafter.repo, "ggml-org/gemma-4-12B-it-GGUF");
     assert_eq!(drafter.commit, "e3e681731089efaa3f0917336944ac64752db8ba");
     assert_eq!(drafter.file, "mtp-gemma-4-12B-it-Q8_0.gguf");
@@ -593,7 +614,12 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
         drafter.sha256,
         "16c90eb9f2b2891cc138f3d2b3bf11e23b2ced2aeab9a9d39d90fe446f2f0610"
     );
+}
 
+#[test]
+fn the_12b_row_carries_a_q8_file_and_no_other_row_does() {
+    // The variant pin of 2026-09-29, verbatim, and its uniqueness: one row
+    // in the menu has a second compression, never a placeholder.
     let variants: Vec<(&str, &Q8Variant)> = DOWNLOADABLE
         .iter()
         .filter_map(|row| row.q8.as_ref().map(|variant| (row.model.repo, variant)))

@@ -132,8 +132,10 @@ pub struct Footprint {
     pub buffer_bytes: u64,
     pub kv_bytes: u64,
     /// A second model resident beside the weights (a speculative decoder's
-    /// drafter): wherever the row runs, it runs too, so the fit check charges
-    /// it. Zero on every row that runs alone.
+    /// drafter): wherever the row runs, it runs too, so the fit charges it.
+    /// Zero on every row that runs alone, and on the machine with no room
+    /// for one beside the row — there the chooser drops the drafter, never
+    /// the row.
     pub drafter_bytes: u64,
 }
 
@@ -163,8 +165,9 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
         mmproj_bytes: entry.mmproj_bytes.unwrap_or(0),
         buffer_bytes: COMPUTE_BUFFER_BYTES,
         kv_bytes: per_token.saturating_mul(context_tokens),
-        // The row's own file only: a drafter rides on the row, not in it,
-        // and the caller that knows the row's drafter charges it.
+        // The row's own file only: a drafter rides beside the row, so the
+        // caller that knows one runs charges its bytes — the chooser to the
+        // fit, the launcher to the window it funds.
         drafter_bytes: 0,
     }
 }

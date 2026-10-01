@@ -646,12 +646,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 4_977_171_584,
             sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
         },
-        // The drafter (2026-10-01), pinned the way the 12B's is: the MTP
-        // head for this row, one file at ggml-org at the commit below. Its
-        // local copy (`~/lab/spec/dl/`) is 98_653_280 bytes and hashes to
-        // the sha256 below. Charged to the fit and the download total, not
-        // to the decode traffic — the row's rates are no-spec figures, and
-        // pricing the drafter's reads belongs with the launch that runs one.
+        // The row's MTP head: a second pinned file, fetched and verified
+        // beside the weights whenever a start runs this row with drafting.
         drafter: Some(GgufSource {
             repo: "ggml-org/gemma-4-E4B-it-GGUF",
             commit: "b8093469224f83f5c38f691eb906c380e9e63114",
@@ -756,15 +752,10 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // on in the alpha, and the assistant head is a pinned file like any
     // other — `gemma4-assistant`, 4 blocks
     // (docs/SPEC-GEMMA12B-MTP-M1MAX-2026-09-29.md Setup table, line 53).
-    // Repo commit `e3e681731089efaa3f0917336944ac64752db8ba` (the API's
-    // `sha` for main, read 2026-09-29): paths-info at that commit returned
-    // lfs.size 465_109_152 and lfs.oid the sha256 below, `curl -sIL` on the
-    // resolve URL returned the same pair as x-linked-size/x-linked-etag, and
-    // the local copy (`~/lab/spec/dl/`) hashes to it. The drafter's bytes
-    // are charged to the memory fit and to the download total — it is
-    // resident wherever the row runs — but not to the decode traffic: the
-    // row's rates are no-spec target-only figures, and pricing a drafter's
-    // reads belongs with the launch wiring that will actually run one.
+    // Its bytes are charged to the fit and the download total of any start
+    // that runs it, but not to the decode traffic: the row's rates are
+    // no-spec target-only figures, and pricing a drafter's reads belongs
+    // with the launch wiring that will actually run one.
     //
     // The Q8 file (2026-09-29, owner decision): on a machine whose bandwidth
     // is at least [`crate::q8::Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] AND where
