@@ -786,6 +786,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   simplify - the root cause is prevented at BUILD time in the binding (skels + host from one engine commit, CI
   gate); the engine keeps only the runtime net (bounded waits, exact req/rsp shape check, no aborts, error -> -3 ->
   GPU fallback). Health probe and global lock removed; the diff must shrink.
+  Engine net fix final = `9f3c2e069` + `61c909481` (audit r3 SHIP; teardown join stays untimed, documented),
+  engine main pushed to 61c909481 2026-10-01. Binding `0d49c6a7..1a47c48f` (vendor bump, rebuilt skels +
+  manifest, skew gate, runtime fallback): audit FIX FIRST (`AUDIT-fix-binding.md`): the gate compared two
+  hand-edited strings; the committed skels came from an out-of-repo script and binding CI rebuilds them with
+  SDK 6.4.0.2/image v0.3 after the gate; the fallback blamed HTP for any governor failure (e.g. OpenCL KV-commit
+  OOM); parallel_decoding "28/28" was 14 skips. COORDINATOR DESIGN: each skel embeds the vendored engine sha and
+  the gate checks the binary; one committed reproducible recipe; fallback only on a real HTP failure. Fix in
+  progress. NOT verified on the S23 yet (battery 20 %).
 
 ### Pairing: iroh and invite links
 
