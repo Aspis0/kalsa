@@ -29,14 +29,14 @@ Judged by what happens when a value is wrong in a way nobody watches:
 
   SILENT fields — `home` and `file`: the download verifies size/sha only. A
     wrong `home` resolves to a 404, or to a still-credible old path if the
-    shape ever changes; a wrong `file` looks the old name up inside the new
-    archive. The user meets both, after install.
+    shape ever changes; a wrong `file` changes the fetch path itself
+    (`Asset::url()` is home/file). The user meets both, after install.
   NOISY fields — `size_bytes` and `sha256`: store.rs verifies the bytes
     against both while acquiring (`ensure_archive` reads them off the row,
     `acquire` downloads under them, `file_digest_is` re-checks size then
     digest), so a check red only here echoes a scream.
-  SEMI-SILENT — `exe_sha256`: the download never looks at it; `marker.rs`
-    re-checks it at every engine start.
+  SEMI-SILENT — `exe_sha256`: the download never looks at it; `publish()`
+    refuses an unmatched exe before installing, `marker.rs` at every start.
 
 The normal invocation fetches the manifest live (the CDN 403s urllib's
 default User-Agent, so an explicit one is sent). The row MUTATIONS run on
@@ -121,7 +121,7 @@ MUTATIONS = {
           f'        file: "{V114_FILE}",')],
         "macos-arm64 file: row",
         "SILENT at runtime — the download verifies size/sha, not the name; "
-        "the old name gets looked for inside the new archive"),
+        "Asset::url() is home/file and ensure_archive fetches it: a wrong name requests the wrong URL"),
     "size_bytes": (
         [("        size_bytes: Some(12_650_481),",
           f"        size_bytes: {V114_SIZE},")],
@@ -138,8 +138,8 @@ MUTATIONS = {
         [('        exe_sha256: Some("8958c829b4e45893ac5d0d816858a410c4500e23335f890cab80fbf07fc97668"),',
           f'        exe_sha256: Some("{V114_EXE}"),')],
         "macos-arm64 exe_sha256: row",
-        "SEMI-SILENT — the download never looks at it; marker.rs shouts "
-        "only at engine start"),
+        "SEMI-SILENT — the download never looks at it; publish() refuses the "
+        "build before installing it, marker.rs re-checks at every start"),
     "cpu/vulkan sha256 swap": (
         [('        sha256: Some("5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b"),',
           '        sha256: Some("9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c"),'),
@@ -155,7 +155,7 @@ MUTATIONS = {
           f'        file: "{V114_WIN_CPU_FILE}",')],
         "win-cpu-x64 file: row",
         "SILENT at runtime — the download verifies size/sha, not the name; "
-        "the old name gets looked for inside the new archive"),
+        "Asset::url() is home/file and ensure_archive fetches it: a wrong name requests the wrong URL"),
     "win-cpu-x64 size_bytes": (
         [("        size_bytes: Some(14_489_079),",
           f"        size_bytes: {V114_WIN_CPU_SIZE},")],
@@ -166,8 +166,8 @@ MUTATIONS = {
         [('        exe_sha256: Some("6da613d9b45a151e3ce31053fb13795c1f3515ff059cc73cc148bf75ef9b88f7"),',
           f'        exe_sha256: Some("{V114_WIN_CPU_EXE}"),')],
         "win-cpu-x64 exe_sha256: row",
-        "SEMI-SILENT — the download never looks at it; marker.rs shouts "
-        "only at engine start"),
+        "SEMI-SILENT — the download never looks at it; publish() refuses the "
+        "build before installing it, marker.rs re-checks at every start"),
 }
 
 
