@@ -569,6 +569,12 @@ tests with the ship GGUF, one audit by another model. Then binding vendor bump -
 desktop v1.1.4 when the fork's CI is back. The one-copy spike keeps its base until its ABBA is measured. Fork
 already pruned to 3 branches (REPOS.md); feat/* becomes an archive tag after step A lands. Making the fork public
 is PARKED (owner); the recon was stopped before any verdict.
+Step A landed locally as `5de9fa2fc` (clean merge, zero conflicts; audit running). test-governor-v0-shared-cells was
+already red on old main: kalsa-brain decided 2026-09-30 (b) - KEEP `llama-memory-hybrid.cpp` shared_fence; the test
+expects MIRROR semantics for plain/iSWA KV (Gemma-4 12B + NextN, the only desktop MTP model) and REFUSAL for hybrid
+memory, chosen by the fixture's memory type. Lifting the hybrid fence is new behaviour, not for v1.1.4 (DSpark /
+hybrid drafting gets its own lab + review). Test fix after step B. Upstream target is the TAG b11304 = `81ff93ea1`,
+not master (master adds 4453b535f, which reorders the NextN rows our Gemma MTP reads).
 
 ### Governor plan to follow (owner, 2026-09-30)
 
