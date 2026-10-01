@@ -27,16 +27,18 @@ const NO_DEVICES: &str = "(none)";
 /// "no list", never a wait.
 const LIST_DEADLINE: Duration = Duration::from_secs(15);
 
-/// The list, once per session: the answer cannot change while the app runs,
-/// and a spawn that failed is not an answer, so it is not remembered (only
-/// [`kalsa_probe::once_present`]'s present answers are cached).
+/// The list, once per session: the answer cannot change while the app runs.
+/// Only a successful, non-empty list is remembered — a failed spawn, a
+/// nonzero exit and an empty list are not answers, so the next ask repeats
+/// (see [`kalsa_probe::once_present`]).
 static LISTED: OnceLock<Vec<(String, String)>> = OnceLock::new();
 
 /// The installed graphics build's device list, or `None` when the build
-/// could not be asked (no spawn, no exit within the deadline).
+/// could not be asked (no spawn, no exit within the deadline, a nonzero exit)
+/// or named no device.
 pub fn list_devices(exe: &Path) -> Option<Vec<(String, String)>> {
     kalsa_probe::once_present(&LISTED, || {
-        Some(parse_listed_devices(&ask_list_devices(exe)?))
+        Some(parse_listed_devices(&ask_list_devices(exe)?)).filter(|listed| !listed.is_empty())
     })
 }
 
@@ -54,9 +56,9 @@ fn ask_list_devices(exe: &Path) -> Option<String> {
     }
     let mut child = command.spawn().ok()?;
     let deadline = Instant::now() + LIST_DEADLINE;
-    loop {
+    let status = loop {
         match child.try_wait() {
-            Ok(Some(_)) => break,
+            Ok(Some(status)) => break status,
             Ok(None) if Instant::now() < deadline => std::thread::sleep(TICK),
             Ok(None) | Err(_) => {
                 let _ = child.kill();
@@ -64,6 +66,10 @@ fn ask_list_devices(exe: &Path) -> Option<String> {
                 return None;
             }
         }
+    };
+    // A crash prints whatever it printed before dying: not an answer.
+    if !status.success() {
+        return None;
     }
     let mut stdout = child.stdout.take()?;
     let mut text = String::new();
@@ -136,29 +142,27 @@ fn normalise(text: &str) -> String {
 
 /// The device this launch pins: the listed device whose description is the
 /// card detection named — exactly one such device, matched after
-/// [`normalise`] — or, with no name to match, the single listed device
-/// alone. Two devices and no unambiguous match answer `None`: starting on
-/// the wrong card, or split across both, is worse than CPU.
+/// [`normalise`] — or, when detection named no card at all (the iGPU's
+/// path), the single listed device alone. A name that matches nothing is
+/// never rescued by the list's only entry: a dedicated card asleep leaves
+/// just the iGPU visible, and the budget is the dedicated card's. Two
+/// devices and no unambiguous match answer `None`: starting on the wrong
+/// card, or split across both, is worse than CPU.
 fn choose_device(listed: Option<&[(String, String)]>, wanted: Option<&str>) -> Option<String> {
     let listed = listed?;
-    if let Some(wanted) = wanted {
-        let wanted = normalise(wanted);
-        let mut hits = listed
-            .iter()
-            .filter(|(_, description)| normalise(description) == wanted)
-            .map(|(name, _)| name.as_str());
-        if let Some(first) = hits.next() {
-            return if hits.next().is_none() {
-                Some(first.to_string())
-            } else {
-                None
-            };
-        }
-    }
-    match listed {
-        [(name, _)] => Some(name.clone()),
-        _ => None,
-    }
+    let Some(wanted) = wanted else {
+        return match listed {
+            [(name, _)] => Some(name.clone()),
+            _ => None,
+        };
+    };
+    let wanted = normalise(wanted);
+    let mut hits = listed
+        .iter()
+        .filter(|(_, description)| normalise(description) == wanted)
+        .map(|(name, _)| name.as_str());
+    let first = hits.next()?;
+    hits.next().is_none().then(|| first.to_string())
 }
 
 /// The build and device a start routes to once the graphics build answered
@@ -215,8 +219,9 @@ mod tests {
 
     #[test]
     fn the_named_discrete_card_is_pinned_even_when_it_is_not_first() {
-        // The Lenovo: detection named the RTX, Vulkan numbered the Arc
-        // first — the match is on the description, the pin on the name.
+        // The match is on the description, the pin on the name: the Lenovo
+        // numbers the RTX Vulkan0, and a machine that numbers the Arc first
+        // pins the RTX as Vulkan1.
         assert_eq!(
             route(Some(&lenovo()), Some(RTX)),
             (ServerBackend::Vulkan, Some("Vulkan0".to_string()))
@@ -253,15 +258,47 @@ mod tests {
             route(Some(&single), None),
             (ServerBackend::Vulkan, Some("Vulkan0".to_string()))
         );
-        // Even when a name WAS expected and this one card is the list's
-        // only answer.
+        // When a name WAS asked for and matches nothing, the one visible card
+        // is not it: the dedicated card is asleep and the budget is its.
         assert_eq!(
-            route(Some(&single), Some("Intel(R) Iris Plus G7")),
-            (ServerBackend::Vulkan, Some("Vulkan0".to_string()))
+            route(Some(&single), Some("NVIDIA GeForce RTX 4050 Laptop GPU")),
+            (ServerBackend::Cpu, None)
         );
         // Two cards and no name is as ambiguous as a name that matches
         // neither.
         assert_eq!(route(Some(&lenovo()), None), (ServerBackend::Cpu, None));
+    }
+
+    /// An executable that prints a listing and exits with `code`.
+    #[cfg(unix)]
+    fn fake_engine(name: &str, code: i32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-runtime-devices-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let exe = dir.join("engine.sh");
+        std::fs::write(
+            &exe,
+            format!(
+                "#!/bin/sh\necho 'Available devices:'\necho '  Vulkan0: GPU (1 MiB, 1 MiB free)'\nexit {code}\n"
+            ),
+        )
+        .expect("script");
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        exe
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn only_a_clean_exit_makes_the_listing_an_answer() {
+        let ok = ask_list_devices(&fake_engine("ok", 0)).expect("a clean exit answers");
+        assert_eq!(parse_listed_devices(&ok).len(), 1);
+        // The same text from a build that then crashed is not an answer, so
+        // it is never parsed, let alone remembered.
+        assert_eq!(ask_list_devices(&fake_engine("crash", 1)), None);
     }
 
     #[test]

@@ -16,6 +16,7 @@ use kalsa_probe::Backend;
 use kalsa_probe::{command_text, once_present};
 
 use crate::assets::{self, Asset, Platform, ServerBackend};
+use crate::candidates::candidates_for;
 
 const MAGIC: &str = "kalsa-runtime v1";
 const FILE_NAME: &str = "verdict.txt";
@@ -55,8 +56,22 @@ pub(crate) struct Verdict {
 /// the kind of change that flips a working backend into a refusing one.
 /// Elsewhere the driver ships with the OS, which the platform name already
 /// stands for.
+///
+/// The ordered candidate list is included too: a verdict answers "which of
+/// these builds won", so a release that offers another build (the integrated
+/// GPU's Vulkan try) must not be shadowed by an answer given before it. The
+/// list is a function of the platform and detection already in the key, so an
+/// unchanged machine on an unchanged release keeps one fingerprint.
 pub fn fingerprint(platform: Platform, backend: ServerBackend, detected: Backend) -> String {
-    fingerprint_of(&assets::assets_for(platform, backend), detected)
+    let candidates = candidates_for(Some(platform), detected)
+        .iter()
+        .map(ServerBackend::name)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{}|{candidates}",
+        fingerprint_of(&assets::assets_for(platform, backend), detected)
+    )
 }
 
 /// The fingerprint of these exact archives on this machine: every archive's
@@ -259,6 +274,21 @@ mod tests {
             fingerprint(Platform::WindowsX64, ServerBackend::Cpu, Backend::Cpu),
             "a different build is a different fingerprint"
         );
+    }
+
+    #[test]
+    fn the_candidate_list_is_part_of_the_fingerprint() {
+        let cpu = || fingerprint(Platform::WindowsX64, ServerBackend::Cpu, Backend::Cpu);
+        assert!(cpu().ends_with("|vulkan,cpu"), "{}", cpu());
+        // A CPU verdict saved before the iGPU's Vulkan try was on the list
+        // carried no list: it no longer describes what this release offers.
+        let before = fingerprint_of(
+            &assets::assets_for(Platform::WindowsX64, ServerBackend::Cpu),
+            Backend::Cpu,
+        );
+        assert_ne!(cpu(), before);
+        // And an unchanged machine asks the same question every start.
+        assert_eq!(cpu(), cpu());
     }
 
     #[test]

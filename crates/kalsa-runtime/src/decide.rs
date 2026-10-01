@@ -203,17 +203,14 @@ pub(crate) fn decide_in(
     // or one probe that ran, and it was not: the candidates' own words
     // stand.
     let mut all_wire = true;
-    for backend in candidates {
+    for (index, backend) in candidates.iter().copied().enumerate() {
         let exe = match store::ensure_backend(root, platform, backend, progress) {
             Ok(exe) => exe,
             Err(e) => {
-                // The candidate's own words travel either way. A full disk
-                // is the walk's verdict, not one attempt among the rest:
-                // under "no build works" the owner would be told to check
-                // a connection that was never the problem.
+                // The candidate's own words travel either way.
                 let words = e.to_string();
                 let wire = matches!(&e, StoreError::Download(d) if d.is_network());
-                if matches!(map_store_error(e), DecideError::StorageFull) {
+                if disk_ends_the_walk(e, index + 1 == candidates.len()) {
                     return Err(DecideError::StorageFull);
                 }
                 all_wire &= wire;
@@ -243,6 +240,15 @@ pub(crate) fn decide_in(
         }
     }
     Err(attempts_verdict(attempts, all_wire))
+}
+
+/// Whether this failed install is the walk's verdict. A full disk is, once no
+/// candidate is left: under "no build works" the owner would be told to check
+/// a connection that was never the problem. Before that it is one attempt
+/// among the rest — the larger Vulkan build that does not fit must not stop
+/// the smaller CPU build that does.
+fn disk_ends_the_walk(error: StoreError, last_candidate: bool) -> bool {
+    last_candidate && matches!(map_store_error(error), DecideError::StorageFull)
 }
 
 /// The loop's verdict when every candidate died: the wire's own verdict
@@ -426,6 +432,17 @@ mod tests {
             map_store_error(StoreError::Download(DownloadError::Network(reset))),
             DecideError::CannotAcquire(_)
         ));
+    }
+
+    #[test]
+    fn a_full_disk_ends_the_walk_only_at_the_last_candidate() {
+        let full = || std::io::Error::new(std::io::ErrorKind::StorageFull, "no space left");
+        // Vulkan does not fit, CPU is still to try: the walk goes on.
+        assert!(!disk_ends_the_walk(StoreError::Io(full()), false));
+        // Nothing is left to try: the disk is the verdict.
+        assert!(disk_ends_the_walk(StoreError::Io(full()), true));
+        // Any other failure never ends the walk by itself.
+        assert!(!disk_ends_the_walk(StoreError::ExeMismatch, true));
     }
 
     #[test]
