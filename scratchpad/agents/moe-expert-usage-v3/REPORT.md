@@ -184,3 +184,21 @@ strongest for code at 30.6%) and mildly disfavored DE/JA/KO/RU (52.5–55.0%); A
    against the 24-segment smoke data before the real data existed.
 6. An ubatch A/B (-ub 512) initially looked 2× slower; per-segment timestamps showed the
    slowdown was system noise, not the ubatch size. Stayed with run 2's `-ub 256`.
+
+## Corrections after the hostile audit (AUDIT.md, 2026-10-01)
+
+Verdict: usable with caveats; no number moves by more than 0.6 pp. Corrections:
+
+- **Held-out claim:** the calibration/test split was per group, and FLORES is parallel, so test segments had
+  content-identical siblings in other groups' calibration. A content-disjoint re-run gives the 128-expert balanced row
+  IT 89.3 / FR 89.1 / ES 89.8 / EN 86.4 / ZH 84.7 / CODE 69.6 / MATH 75.4 (published: 89.4 / 89.3 / 89.9 / 86.6 /
+  85.3 / 70.0 / 74.7); RAZOR and EN-only rows move by at most 0.4 pp. "All inference is held out" was false as written.
+- **"Never worse than RAZOR anywhere"** is false: split 4, CODE, balanced 68.4 < RAZOR 70.2 (1 of 140 cells).
+- **The bracketed intervals are not confidence intervals:** they average the bounds of five per-split bootstraps over
+  the same 40 segments (pseudo-replicates). Read them as spread indicators only.
+- **Trade-off not priced before:** putting CODE and MATH in the keep ranking costs the languages about 3.3 pp
+  (IT 92.5 -> 89.3) and buys CODE 26 -> 70.
+- **"Median 3.4 sacrifice-dominated experts per layer"** depends on the 80 % threshold (1.9 at 90 %, 1.0 at 95 %,
+  35 at 50 %). The qualitative claim stands: no sizeable sacrifice-only pool exists.
+- **Licences:** FLORES-200 is CC-BY-SA-4.0, GSM8K is MIT.
+- **Hygiene:** 107 hashed artifacts, not 116; a home path in raw/model_load.log was scrubbed.
