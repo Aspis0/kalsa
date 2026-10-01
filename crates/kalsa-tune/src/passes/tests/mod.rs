@@ -98,6 +98,7 @@ fn the_prefills_go_first_and_every_shape_is_swept_off_two_three_four() {
     assert_eq!(*decodes.borrow(), expected, "off, 2, 3, 4 on every shape");
     assert_eq!(tuned.trials.len(), 12, "twelve decode trials in one record");
     assert!(tuned.complete, "every shape ran its prefill");
+    assert!(!tuned.cut, "nothing was cut");
     assert!(tuned.winner.is_some(), "every reply scored");
     // Fifteen lifetimes were planned (three prefills, twelve sweeps), and
     // the last call equals what began.
@@ -108,17 +109,19 @@ fn the_prefills_go_first_and_every_shape_is_swept_off_two_three_four() {
 
 /// The bound: a shape whose history alone already costs more than the best
 /// complete reply cannot win, so its four lifetimes become one skip — not
-/// a hole, and the record is still whole.
+/// a hole, and the record is still whole. The plan lowers with the skipped
+/// lifetimes, so the panel's total is what will really run.
 #[test]
 fn the_bound_skips_a_hopeless_shapes_decode_and_the_record_stays_whole() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
     let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
     let tuned = tune(
         &shapes,
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |done, planned| seen.borrow_mut().push((done, planned)),
         |shape, _| {
             // The card's history is two seconds; the processors' are
             // hundreds — more than the card's whole reply below.
@@ -147,6 +150,16 @@ fn the_bound_skips_a_hopeless_shapes_decode_and_the_record_stays_whole() {
         tuned.complete,
         "a bounded shape ran its prefill: the record is not a partial picture"
     );
+    assert!(!tuned.cut, "a bound skip is not a budget cut");
+    // Seven lifetimes run (three prefills, the card's four), and the two
+    // skipped shapes take their four planned lifetimes off the total as
+    // each is bounded: 15, then 11, then 7.
+    let seen = seen.borrow();
+    assert!(
+        seen.contains(&(7, 11)) && seen.contains(&(7, 7)),
+        "the skipped lifetimes leave the plan: {seen:?}"
+    );
+    assert_eq!(seen.last(), Some(&(7, 7)), "the final total is what ran");
     assert_eq!(
         tuned.winner.map(|win| win.candidate),
         Some(gpu()),
@@ -242,12 +255,13 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
 fn a_refused_candidate_falls_to_the_best_processor() {
     let shapes = vec![on(gpu()), on(cpu(16))];
     let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
     let tuned = tune(
         &shapes,
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |done, planned| seen.borrow_mut().push((done, planned)),
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 Err(Refusal::NotReady)
@@ -284,6 +298,15 @@ fn a_refused_candidate_falls_to_the_best_processor() {
         tuned.complete,
         "a refused lifetime is an answer, not a hole"
     );
+    assert!(!tuned.cut, "a refusal is not a budget cut");
+    // The refused shape's four planned lifetimes leave the total as soon
+    // as its prefill answers: six lifetimes run (two prefills, one sweep).
+    let seen = seen.borrow();
+    assert!(
+        seen.contains(&(1, 6)),
+        "the refused shape's sweep leaves the plan: {seen:?}"
+    );
+    assert_eq!(seen.last(), Some(&(6, 6)));
     assert_eq!(tuned.winner.map(|win| win.candidate), Some(cpu(16)));
 }
 

@@ -18,14 +18,17 @@ use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Skip, Winner
 const DRAFT_SETTINGS: [Option<u32>; 4] = [None, Some(2), Some(3), Some(4)];
 
 /// What the two passes produced: the trials the record keeps, the winner
-/// the launch applies, and whether every shape's first lifetime ran. A
-/// shape that never began is a hole in the picture, and the caller
-/// withholds the record rather than pinning a partial one.
+/// the launch applies, whether every shape's first lifetime ran, and
+/// whether the budget stopped a decode sweep. A shape that never began is
+/// a hole in the picture, and the caller withholds the record rather than
+/// pinning a partial one; a sweep the budget cut is a marker for the next
+/// start, which gets the chance to finish it.
 #[derive(Debug, PartialEq)]
 pub struct Tuned {
     pub trials: Vec<(Candidate, Kept)>,
     pub winner: Option<Winner>,
     pub complete: bool,
+    pub cut: bool,
 }
 
 /// One shape's answer to one lifetime: the rates it measured, or the
@@ -50,10 +53,11 @@ where
     D: FnMut(&Candidate, &PathBuf) -> Samples,
 {
     let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[None] };
-    let planned = shapes.len() * (1 + settings.len());
+    let mut planned = shapes.len() * (1 + settings.len());
     let mut done = 0usize;
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     let mut complete = true;
+    let mut cut = false;
 
     // Pass one: every shape's prefill, in the order built — the likely
     // winner first, so its complete reply is the bound for everything
@@ -76,6 +80,12 @@ where
             Err(refusal) => refused[index] = Some(refusal),
         }
         done += 1;
+        if prompt[index].is_none() {
+            // A shape that cannot be scored has no sweep left to run: the
+            // plan lowers now, so the panel's total is what will happen.
+            planned -= settings.len();
+            progress(done, planned);
+        }
     }
 
     // Pass two: each shape's decode sweep, in the same order. A shape
@@ -107,12 +117,20 @@ where
                     skipped: Skip::Bounded,
                 },
             ));
+            // The bound skipped lifetimes that will never run: the plan
+            // lowers with them.
+            planned -= settings.len();
+            progress(done, planned);
             continue;
         }
         let before = trials.len();
         for setting in settings {
             if since_start() >= budget {
-                break; // the settings behind this one never ran: losers, not holes
+                // The settings behind this one never ran: losers, not
+                // holes — but the sweep is unfinished, and the caller must
+                // let the next start try again.
+                cut = true;
+                break;
             }
             progress(done, planned);
             let trial = Candidate {
@@ -173,6 +191,7 @@ where
         trials,
         winner: reply_winner(&scored),
         complete,
+        cut,
     }
 }
 

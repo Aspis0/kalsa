@@ -338,16 +338,79 @@ fn a_v1_record_reads_as_no_record() {
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 }
 
-/// The v3 records held a decode rate and nothing of the room: their
-/// winner was chosen without a prefill number, so every one of them must
-/// read as no record and re-tune once — the same rule as any other magic.
+/// The older magics whose records the current tune must not trust: v3
+/// held a decode rate and nothing of the room, and v4 priced a history
+/// shorter than the one it measured. Both re-tune once.
 #[test]
-fn a_v3_record_reads_as_no_record() {
-    let dir = Scratch::new("legacy-v3");
-    save(&dir, DIGEST, &sample()).expect("save");
-    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");
-    rewrite(&dir, text.replacen(MAGIC, "kalsa-tune v3", 1));
+fn an_older_format_reads_as_no_record() {
+    for magic in ["kalsa-tune v3", "kalsa-tune v4"] {
+        let dir = Scratch::new("legacy-format");
+        save(&dir, DIGEST, &sample()).expect("save");
+        let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");
+        rewrite(&dir, text.replacen(MAGIC, magic, 1));
+        assert_eq!(
+            load(&dir, DIGEST, &fp(DIGEST)),
+            None,
+            "{magic} must not load"
+        );
+    }
+}
+
+/// A tune the budget cut inside its sweep is written as a marker: the
+/// same record and one line, which the launch read refuses (the next
+/// start must finish the sweep) while `cut_before` and the display read
+/// still see it.
+#[test]
+fn a_cut_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
+    let dir = Scratch::new("cut-marker");
+    let record = sample();
+    save_marker(&dir, DIGEST, &record).expect("marker");
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        None,
+        "a marker is not this start's verdict"
+    );
+    assert!(
+        cut_before(&dir, DIGEST, &record.fingerprint),
+        "the next start can read the marker"
+    );
+    assert!(
+        load_by_model(&dir, DIGEST).is_some(),
+        "the display read still shows the numbers"
+    );
+    assert!(
+        !cut_before(&dir, DIGEST, &fp(OTHER_DIGEST)),
+        "another fingerprint's marker is not this launch's"
+    );
+
+    // The verdict of a later start replaces the marker and is reusable.
+    save(&dir, DIGEST, &record).expect("verdict");
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        Some(record.clone())
+    );
+    assert!(!cut_before(&dir, DIGEST, &record.fingerprint));
+}
+
+/// The marker's own line is closed and whole: a made-up reason, or a
+/// marker line cut before the end, reads as no marker at all.
+#[test]
+fn a_marker_that_is_not_whole_is_no_marker() {
+    let dir = Scratch::new("cut-marker-forged");
+    let text = sample_text(&dir).replace("fingerprint=", "cut=later\nfingerprint=");
+    rewrite(&dir, text);
+    assert!(!cut_before(&dir, DIGEST, &fp(DIGEST)));
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
+
+    let mut text = sample_text(&dir);
+    let cut = text.find("candidate.0").expect("the first trial");
+    text.insert_str(cut, "cut=sweep\n");
+    text.truncate(text.rfind("end\n").expect("the end marker"));
+    rewrite(&dir, text);
+    assert!(
+        !cut_before(&dir, DIGEST, &fp(DIGEST)),
+        "a torn marker is no marker"
+    );
 }
 
 /// A rate the format must not hold: zero, negative and non-finite are

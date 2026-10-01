@@ -51,8 +51,9 @@ const CHECK_ASK: Ask = Ask {
 
 /// The draft dimension's prompt: one Italian-and-English request for plain
 /// prose — chat-like text, mixed languages, nothing a model answers in code
-/// or lists — because speculation's gain depends on the text and the grid's
-/// short factual prompt sits at the optimistic end of what acceptance runs.
+/// or lists — because speculation's gain depends on the text, and the
+/// short factual prompt the per-start check uses sits at the optimistic
+/// end of what acceptance runs.
 pub const DRAFT_PROMPT: &str = "Per il nostro appartamento a Milano sto cercando di capire \
     come funziona il riscaldamento: l'impianto è vecchio e una stanza resta sempre fredda. \
     Could you explain in plain prose, senza elenchi e senza codice, what usually causes one \
@@ -214,9 +215,9 @@ pub(crate) fn request_ask(
 }
 
 /// The endpoint and the body one ask sends at one length: the raw road the
-/// grid has always used, or the chat road with the ask as one user message
-/// and the length as `max_tokens` — EOS ends the answer, `ignore_eos` is
-/// the grid's alone.
+/// check uses, or the chat road with the ask as one user message and the
+/// length as `max_tokens` — EOS ends the answer, `ignore_eos` is the raw
+/// road's alone.
 fn ask_body(ask: &Ask, n_predict: u64) -> (&'static str, String) {
     let mut body = serde_json::Map::new();
     if ask.chat {
@@ -251,7 +252,7 @@ fn ask_body(ask: &Ask, n_predict: u64) -> (&'static str, String) {
     (path, serde_json::Value::Object(body).to_string())
 }
 
-/// The grid's body at one length: the same prompt, the same flags, a
+/// The check's body at one length: the same prompt, the same flags, a
 /// different `n_predict` for the warm-up.
 fn completion_body(n_predict: u64) -> String {
     ask_body(&CHECK_ASK, n_predict).1

@@ -36,6 +36,11 @@ fn a_shape_cut_before_its_prefill_leaves_the_picture_incomplete() {
     );
     assert!(!tuned.complete, "the third shape never ran");
     assert!(
+        tuned.cut,
+        "the shapes that began had their sweeps cut too: {:?}",
+        tuned.trials
+    );
+    assert!(
         decodes.borrow().is_empty(),
         "the budget was spent before any sweep: {:?}",
         decodes.borrow()
@@ -66,11 +71,11 @@ fn a_shape_cut_before_its_prefill_leaves_the_picture_incomplete() {
     );
 }
 
-/// The budget cut between the passes: every shape ran its prefill, so the
-/// picture is whole and the record saves — with each cut shape's prefill
-/// number and no reply.
+/// The budget cut between the passes: every shape ran its prefill, so
+/// every shape has an entry — but the sweeps never began, and the cut is
+/// the fact the caller needs to let the next start try again.
 #[test]
-fn a_cut_between_the_passes_still_makes_a_whole_record() {
+fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
     let shapes = vec![on(gpu()), on(cpu(16))];
     let clock = RefCell::new(0u32);
     let decodes = RefCell::new(Vec::new());
@@ -95,6 +100,7 @@ fn a_cut_between_the_passes_still_makes_a_whole_record() {
         },
     );
     assert!(tuned.complete, "both shapes measured their history");
+    assert!(tuned.cut, "no sweep began, so the tune is cut");
     assert!(decodes.borrow().is_empty(), "no decoded ask fit the budget");
     assert_eq!(tuned.trials.len(), 2, "one entry per shape, none a hole");
     assert!(tuned.trials.iter().all(|(_, kept)| matches!(
@@ -131,6 +137,7 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
         |_, _| Ok(vec![50.0]),
     );
     assert!(tuned.complete);
+    assert!(tuned.cut, "3 and 4 never began, so the sweep is unfinished");
     assert_eq!(
         tuned.trials.len(),
         2,

@@ -13,26 +13,15 @@ use crate::refusal::Refusal;
 use crate::room;
 use crate::sample::{request_ask, serves_id, Ask};
 
-/// The whole tune's budget: the prefill and the decode passes share one
-/// clock, checked BEFORE each lifetime and never during one — a lifetime
-/// that has begun always runs to its end. Sized on the machine this design
-/// came from: the Lenovo is three shapes, one prefill lifetime each and
-/// four draft settings on each, so fifteen lifetimes; its slowest
-/// plausible one is a processor decode at 8 tok/s — a 12B load of about
-/// 30 s plus two 128-token asks of about 32 s — so fifteen of those are
-/// ~1000 s, and 1080 s holds the whole tune the owner asked for. A
-/// slower machine is cut, and its started lifetimes still stand: the
-/// budget's job is that few lifetimes begin, and the worst case is this
-/// bound plus one lifetime's own (READY_TIMEOUT, three requests at
-/// REQUEST_TIMEOUT, both identity checks, the stop grace).
+/// One clock over both passes, checked before each lifetime and never
+/// during one: 1080 s is fifteen lifetimes (three shapes, a prefill and
+/// four draft settings each) at the slowest plausible ~68 s apiece.
 const TOTAL_BUDGET: Duration = Duration::from_secs(1080);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
-/// slow disk is the worst case (the Lenovo's GPU candidate loaded at the
-/// app's 65536 context in 20 s), and past this the server is not coming
-/// up in time anyway. It also bounds the budget's overshoot: a lifetime
-/// is never killed mid-measurement, so this is what a started one can
-/// cost at most plus its requests.
+/// slow disk is the worst case, and it bounds the budget's overshoot — a
+/// started lifetime is never killed mid-measurement, so one that began at
+/// the bound can still cost this much plus its own requests.
 const READY_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// One request's bound: 60 s refuses anything slower than about 2 tok/s
@@ -60,10 +49,9 @@ const IDENTITY_TIMEOUT: Duration = Duration::from_secs(5);
 const WARMUP_REQUESTS: usize = 1;
 
 /// What the warm-up asks for: a handful of tokens to settle the connection
-/// and the cache. On a processor run a full-length warm-up costs as much
-/// as a measurement — the Surface's whole tune once took 144 s — and 8
-/// tokens warm it at a fraction of that. The discarded warm-up's rate is
-/// never parsed, so nothing compares it to the measured ones.
+/// and the cache; the history is the expensive part, and the discarded
+/// warm-up's rate is never parsed, so nothing compares it to the measured
+/// ones.
 const WARMUP_N_PREDICT: u64 = 8;
 const MEASURED_REQUESTS: usize = 2;
 

@@ -303,6 +303,14 @@ fn tune_launch_inner(
                 })
             });
             let winner = tuned.winner;
+            // A sweep the budget cut is not this start's verdict: the
+            // untried settings get their chance, so the file is written as
+            // a marker `load` refuses. A start whose predecessor was cut
+            // too saves what exists instead — the machine is slow, not the
+            // tune broken, and re-tuning forever would spend the budget
+            // every start.
+            let retry =
+                tuned.cut && !kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
@@ -311,11 +319,9 @@ fn tune_launch_inner(
             // Every shape must have RUN, and its exe must have resolved:
             // anything else is a partial picture, and saving it would lock
             // the next start out of the re-run that would complete it. A
-            // shape the bound skipped, or the budget cut after its prefill,
-            // did run — its own entry says so. A refusal is a shape that
-            // ran too — it was attempted and answered, `DidNotStart`
-            // included. This start's winner still launches — it just is not
-            // remembered.
+            // shape the bound skipped did run — its own entry says so. A
+            // refusal is a shape that ran too. This start's winner still
+            // launches — it just is not remembered.
             if !tuned.complete {
                 eprintln!(
                     "kalsa-brain: the tune's budget cut a shape before it ran; not saved — the next start tries again"
@@ -326,10 +332,24 @@ fn tune_launch_inner(
                     resolved.len(),
                     candidates.len()
                 );
-            } else if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
-                // Best effort: a record that cannot be written costs a
-                // re-tune next start, never this launch.
-                eprintln!("kalsa-brain: the tune record could not be written: {error}");
+            } else {
+                if retry {
+                    eprintln!(
+                        "kalsa-brain: the budget cut the tune's sweep; not kept as a verdict — the next start completes it"
+                    );
+                }
+                // The marker is the same record and one line, which `load`
+                // refuses and the next start reads.
+                let staged = if retry {
+                    kalsa_tune::record::save_marker(root, &model_digest, &record)
+                } else {
+                    kalsa_tune::record::save(root, &model_digest, &record)
+                };
+                if let Err(error) = staged {
+                    // Best effort: a record that cannot be written costs a
+                    // re-tune next start, never this launch.
+                    eprintln!("kalsa-brain: the tune record could not be written: {error}");
+                }
             }
             (record, winner)
         }

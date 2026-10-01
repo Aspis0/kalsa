@@ -169,6 +169,7 @@ fn tuned(
         trials,
         winner,
         complete: true,
+        cut: false,
     }
 }
 
@@ -781,7 +782,8 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     let mut prepared = prepared("/main-gpu");
     let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
-    // The shape a v3 build wrote: a winner carrying its decode rate only.
+    // The shape the previous format wrote: the same trial lines, one
+    // magic behind.
     let winner_candidate = kalsa_tune::Candidate {
         backend: ServerBackend::Vulkan,
         threads: Some(8),
@@ -805,7 +807,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     // The file as the pre-room build wrote it:
     let file = dir.join("tuning-deadbeef.txt");
     let text = std::fs::read_to_string(&file).expect("read");
-    std::fs::write(&file, text.replacen("kalsa-tune v4", "kalsa-tune v3", 1)).expect("rewrite");
+    std::fs::write(&file, text.replacen("kalsa-tune v5", "kalsa-tune v4", 1)).expect("rewrite");
 
     let measured = std::cell::Cell::new(0usize);
     let mut memo = Memo {
@@ -847,7 +849,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     );
     let text = std::fs::read_to_string(dir.join("tuning-deadbeef.txt")).expect("read the record");
     assert!(
-        text.starts_with("kalsa-tune v4\n"),
+        text.starts_with("kalsa-tune v5\n"),
         "the complete tune replaced it with a current record"
     );
     assert!(
@@ -1212,22 +1214,69 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A budget that cut a shape's decode after its prefill: the cut is a
-/// recorded skip with the shape's own prefill number, not a hole — the
-/// record is saved over what ran, and the next start reuses it without
-/// measuring anything.
+/// A sweep the budget cut is not this start's verdict: the file is
+/// written as a marker `load` refuses, so the next start gets the chance
+/// to finish the sweep — while this start's winner still launches. A
+/// start whose predecessor was cut too saves what exists: the machine is
+/// slow, not the tune broken, and re-tuning forever would spend the
+/// budget every start.
 #[test]
-fn a_budget_cut_draft_pass_still_saves_and_is_reused() {
+fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
     let dir = scratch("draft-cut");
     let machine = machine(Backend::DiscreteGpu {
         vram_bytes: Some(6_439_305_216),
     });
+    // The tune a cut sweep produces: the drafted card wins what ran, the
+    // processor's own sweep never began.
+    fn cut_tune(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        let gpu = resolved[0].0;
+        let processor = resolved
+            .iter()
+            .map(|(candidate, _)| *candidate)
+            .find(|candidate| matches!(candidate.offload, Offload::NoGpuBuild))
+            .expect("a processor shape follows");
+        let drafted = kalsa_tune::Candidate {
+            draft: Some(2),
+            ..gpu
+        };
+        let mut tuned = tuned(
+            vec![
+                replied(gpu, 60.0, 30.0),
+                // 37.8 s against 40.0: outside the band, so the drafted
+                // setting wins what the budget let run.
+                replied(drafted, 60.0, 45.0),
+                (
+                    processor,
+                    kalsa_tune::record::Kept::PromptOnly {
+                        prompt_rate: 150.0,
+                        skipped: kalsa_tune::Skip::Cut,
+                    },
+                ),
+            ],
+            Some(kalsa_tune::Winner {
+                candidate: drafted,
+                reply: reply(60.0, 45.0),
+            }),
+        );
+        tuned.cut = true;
+        tuned
+    }
     let mut prepared = with_drafter(prepared_with("/main-gpu", draft_args()));
+    let digest = prepared.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
     let mut memo = Memo {
         cores: CORES,
         processor: Some(Ok(PathBuf::from("/stub-cpu"))),
     };
     let mut progress = |_: Progress| {};
+
+    // The first cut: the winner launches, the file is only a marker.
     tune_launch(
         &mut prepared,
         &machine,
@@ -1235,40 +1284,27 @@ fn a_budget_cut_draft_pass_still_saves_and_is_reused() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
-            let gpu = resolved[0].0;
-            let processor = resolved
-                .iter()
-                .map(|(candidate, _)| *candidate)
-                .find(|candidate| matches!(candidate.offload, Offload::NoGpuBuild))
-                .expect("a processor shape follows");
-            let drafted = kalsa_tune::Candidate {
-                draft: Some(2),
-                ..gpu
-            };
-            tuned(
-                vec![
-                    replied(gpu, 60.0, 30.0),
-                    // 37.8 s against 40.0: outside the band, so the drafted
-                    // setting wins what the budget let run.
-                    replied(drafted, 60.0, 45.0),
-                    (
-                        processor,
-                        kalsa_tune::record::Kept::PromptOnly {
-                            prompt_rate: 150.0,
-                            skipped: kalsa_tune::Skip::Cut,
-                        },
-                    ),
-                ],
-                Some(kalsa_tune::Winner {
-                    candidate: drafted,
-                    reply: reply(60.0, 45.0),
-                }),
-            )
-        },
+        cut_tune,
     );
-    // Saved: the next start answers from the record, nothing measured.
+    assert!(
+        prepared
+            .server
+            .argv
+            .join(" ")
+            .contains("--spec-draft-n-max 2"),
+        "this start's winner launches: {:?}",
+        prepared.server.argv
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "a cut sweep must not be reused as a verdict"
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
+        "the marker says the next start must finish the sweep"
+    );
+
+    // The second cut: what exists is saved, and the winner launches again.
     let mut again = with_drafter(prepared_with("/main-gpu", draft_args()));
     tune_launch(
         &mut again,
@@ -1277,13 +1313,33 @@ fn a_budget_cut_draft_pass_still_saves_and_is_reused() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _| panic!("a kept record must not measure"),
+        cut_tune,
     );
     assert!(
         again.server.argv.join(" ").contains("--spec-draft-n-max 2"),
-        "the cut pass's own winner is the verdict: {:?}",
-        again.server.argv
+        "the second start's winner launches too"
     );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("a second cut saves what exists instead of re-tuning forever");
+    assert_eq!(
+        saved.winner.map(|win| win.candidate.draft),
+        Some(Some(2)),
+        "and the saved verdict is the cut tune's own winner"
+    );
+    assert!(!kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
+
+    // The third start: the record answers, nothing measured.
+    let mut third = with_drafter(prepared_with("/main-gpu", draft_args()));
+    tune_launch(
+        &mut third,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("a kept record must not measure"),
+    );
+    assert!(third.server.argv.join(" ").contains("--spec-draft-n-max 2"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

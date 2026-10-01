@@ -4,13 +4,12 @@ use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
 /// One launch the tune may measure: which build, how many threads, what
-/// offload, and — for the draft dimension, measured only on the launch the
-/// grid already chose — how many tokens a drafter may propose per step.
+/// offload, and — for the draft dimension, swept on every shape as off, 2,
+/// 3 and 4 — how many tokens a drafter may propose per step.
 /// `threads: None` means the engine's own default — no count was measured,
 /// and the tune does not invent one. `draft: None` is the target-only
-/// launch: every grid candidate carries it, so the grid's numbers are
-/// target-only decode and the draft pass reuses the winner's own trial as
-/// its "off".
+/// launch: the shapes `candidates()` builds all carry it, and the sweep's
+/// first setting measures the shape's own decode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Candidate {
     pub backend: ServerBackend,

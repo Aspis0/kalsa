@@ -15,7 +15,7 @@ use crate::candidates::Candidate;
 use crate::refusal::Refusal;
 use crate::score::{reply_seconds, Reply, Skip, Winner};
 
-const MAGIC: &str = "kalsa-tune v4";
+const MAGIC: &str = "kalsa-tune v5";
 
 /// One record per model, filed under the model digest the key names. The
 /// single `tuning.txt` this replaces could hold one tune, so a second
@@ -109,7 +109,9 @@ pub enum Kept {
 
 /// One tune's result, kept until the fingerprint moves: the winner with
 /// its reply, and every candidate's own numbers or cause — the app must
-/// show the wait it chose, so the trials travel with the choice.
+/// show the wait it chose, so the trials travel with the choice. A tune
+/// the budget cut inside its sweep is written as a marker file instead
+/// (see [`save_marker`]): the same lines plus one, and `load` refuses it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     /// The caller's opaque key (model digest, engine builds, context,
@@ -205,6 +207,18 @@ fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, reply: &Repl
 /// whole (or no record at all on the first save) — never a truncated file
 /// that could parse as a smaller truth.
 pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
+    save_with(dir, model_digest, record, false)
+}
+
+/// Saves the tune as a marker rather than a verdict: the same record and
+/// one `cut=sweep` line, which `load` refuses and [`cut_before`] reads. A
+/// tune the budget cut inside its sweep is written this way, so the next
+/// start finishes the sweep instead of reusing a partial one.
+pub fn save_marker(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
+    save_with(dir, model_digest, record, true)
+}
+
+fn save_with(dir: &Path, model_digest: &str, record: &Record, cut: bool) -> io::Result<()> {
     validate(record)?;
     let Some(target) = path(dir, model_digest) else {
         return Err(io::Error::new(
@@ -214,6 +228,9 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
     };
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
+    if cut {
+        text.push_str("cut=sweep\n");
+    }
     for (index, (candidate, kept)) in record.trials.iter().enumerate() {
         text.push_str(&format!(
             "candidate.{index}.backend={}\n",
@@ -346,8 +363,23 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
     let text = fs::read_to_string(path(dir, model_digest)?)
         .or_else(|_| fs::read_to_string(legacy_path(dir)))
         .ok()?;
-    let (saved, record) = parse(&text)?;
-    (saved == fingerprint).then_some(record)
+    let (saved, record, cut) = parse(&text)?;
+    (saved == fingerprint && !cut).then_some(record)
+}
+
+/// Whether the last start's tune for this fingerprint was cut inside its
+/// decode sweep: the one fact that lets THIS start save a cut result
+/// instead of withholding it a second time — a slow machine must not
+/// re-tune forever. A record for another fingerprint, a torn file, or
+/// none at all answers no.
+pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
+    let Some(file) = path(dir, model_digest) else {
+        return false;
+    };
+    fs::read_to_string(file)
+        .ok()
+        .and_then(|text| parse(&text))
+        .is_some_and(|(saved, _, cut)| cut && saved == fingerprint)
 }
 
 /// The record filed for one model, by name alone — the display read. The
@@ -360,25 +392,26 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
 /// model's rate is not this one's.
 pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
     if let Some(text) = fs::read_to_string(path(dir, model_digest)?).ok() {
-        return parse(&text).map(|(_, record)| record);
+        return parse(&text).map(|(_, record, _)| record);
     }
     let text = fs::read_to_string(legacy_path(dir)).ok()?;
-    let (saved, record) = parse(&text)?;
+    let (saved, record, _) = parse(&text)?;
     names_model(&saved, model_digest).then_some(record)
 }
 
-/// The file's whole meaning: the fingerprint it claims, and the record it
-/// holds. Shared by both loads, so neither can grow a reading the other
-/// lacks.
-fn parse(text: &str) -> Option<(String, Record)> {
+/// The file's whole meaning: the fingerprint it claims, the record it
+/// holds, and whether it is a cut marker rather than a verdict. Shared by
+/// every read, so none can grow a reading the others lack.
+fn parse(text: &str) -> Option<(String, Record, bool)> {
     let mut lines = text.lines();
     // The magic must be the WHOLE first line: a version we do not know —
-    // `kalsa-tune v3` with its decode-only winner, today — is not ours, and
+    // `kalsa-tune v4` with its shorter room ask, today — is not ours, and
     // the walk tunes again.
     if lines.next()? != MAGIC {
         return None;
     }
     let mut saved_fingerprint: Option<&str> = None;
+    let mut cut = false;
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     // The candidate being read: fields arrive in the order save writes
     // them (backend, threads?, offload, prompt-rate?, then exactly one of
@@ -520,6 +553,14 @@ fn parse(text: &str) -> Option<(String, Record)> {
             {
                 saved_fingerprint = Some(value);
             }
+            "cut"
+                if !cut && saved_fingerprint.is_some() && trials.is_empty() && winner.is_none() =>
+            {
+                if value != "sweep" {
+                    return None; // one closed name, like every other cause here
+                }
+                cut = true;
+            }
             "winner-backend" if winner.is_none() => {
                 winner = Some(WinnerLine {
                     backend: ServerBackend::from_name(value)?,
@@ -620,6 +661,7 @@ fn parse(text: &str) -> Option<(String, Record)> {
             winner,
             trials,
         },
+        cut,
     ))
 }
 
@@ -741,7 +783,7 @@ pub fn invalidate(dir: &Path, model_digest: &str) {
     let holds_this_model = fs::read_to_string(legacy_path(dir))
         .ok()
         .and_then(|text| parse(&text))
-        .is_some_and(|(saved, _)| names_model(&saved, model_digest));
+        .is_some_and(|(saved, _, _)| names_model(&saved, model_digest));
     if holds_this_model {
         let _ = fs::remove_file(legacy_path(dir));
     }
@@ -751,7 +793,7 @@ pub fn invalidate(dir: &Path, model_digest: &str) {
 /// key — the one record whose name cannot say whose it is. Installs from
 /// before the stored choice are recognised by it; nothing else needs it.
 pub fn legacy_model(dir: &Path) -> Option<String> {
-    let (saved, _) = parse(&fs::read_to_string(legacy_path(dir)).ok()?)?;
+    let (saved, _, _) = parse(&fs::read_to_string(legacy_path(dir)).ok()?)?;
     saved
         .split('|')
         .find_map(|field| field.strip_prefix("model="))
