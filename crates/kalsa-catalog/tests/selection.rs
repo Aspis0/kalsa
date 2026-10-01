@@ -9,7 +9,7 @@ use kalsa_catalog::{
     ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
     DOWNLOADABLE, GIB, CHOOSER_CONTEXT_TOKENS, LARGE_MOE_TOTAL_PARAMETERS,
     MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
-    QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
+    QUICK_SPEED_ADVANTAGE, ROOMY_RAM_BYTES, SAME_CLASS_BAND,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -1027,6 +1027,48 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
 }
 
 #[test]
+fn below_the_roomy_line_only_the_bar_can_offer_gemma_over_lfm() {
+    // Test 1's answer passes through both the bar and the roomy F16
+    // exception; this one lives below ROOMY_RAM_BYTES, where the exception
+    // cannot fire and the F16 file is not even on the menu, so the bar
+    // alone must answer. At 16 GiB / 400 GB/s the pick is the dense Gemma
+    // 12B and the bar is 1.5 x its floor; Gemma E4B (4.6 GiB) and the LFM
+    // Q8 file — the only LFM row this machine can be offered — both clear
+    // it, and the card goes to Gemma. (No LFM file outranks a Gemma here:
+    // below the roomy line the family tops out at Q8's 2.7 GiB.)
+    let machine = metal(16, 400.0e9);
+    assert!(
+        machine.ram_bytes < ROOMY_RAM_BYTES,
+        "the premise: below the roomy line the F16 exception cannot fire"
+    );
+    let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
+    assert_eq!(first.entry.repo, "google/gemma-4-12B-it");
+    let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
+    let gemma = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "google/gemma-4-E4B-it")
+        .expect("the Gemma row is on the menu");
+    let lfm = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "LiquidAI/LFM2.5-2.6B" && row.entry().quant == "Q8_0")
+        .expect("the LFM Q8 file is on the menu");
+    assert!(
+        decode_prediction(gemma, &machine).floor() >= wanted,
+        "the premise: the Gemma row clears the bar, {:?}",
+        decode_prediction(gemma, &machine).floor()
+    );
+    assert!(
+        decode_prediction(lfm, &machine).floor() >= wanted,
+        "the premise: the LFM Q8 file clears the bar, {:?}",
+        decode_prediction(lfm, &machine).floor()
+    );
+    let quick = quicker_alternative(&machine, &first.decode).expect("a second card");
+    assert_eq!(
+        quick.entry.repo,
+        "google/gemma-4-E4B-it",
+        "with no exception in reach, the bar still offers Gemma over LFM"
+    );
+}
+
+#[test]
 fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
     // The demotion targets LFM only: against any other family the rule is
     // still size. 64 GiB at 800 GB/s: the pick is the dense Qwen 3.8 and
@@ -1063,6 +1105,18 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
         qwen.entry().weights_bytes > gemma.entry().weights_bytes,
         "the premise: the Qwen is the bigger of the two"
     );
+    // Both LFM files clear it too — the comment's claim, asserted: the
+    // demotion is what keeps them off the card, not their missing the bar.
+    for quant in ["Q8_0", "F16"] {
+        let lfm = kalsa_catalog::usable()
+            .find(|row| row.entry().repo == "LiquidAI/LFM2.5-2.6B" && row.entry().quant == quant)
+            .expect("the LFM file is on the menu");
+        assert!(
+            decode_prediction(lfm, &machine).floor() >= wanted,
+            "the premise: the LFM {quant} file clears the bar, {:?}",
+            decode_prediction(lfm, &machine).floor()
+        );
+    }
     let quick = quicker_alternative(&machine, &first.decode).expect("a second card");
     assert_eq!(
         quick.entry.repo,

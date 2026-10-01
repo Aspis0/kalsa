@@ -685,17 +685,24 @@ pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
 
 /// The row this exception is about: LiquidAI's full-precision (F16) file of
 /// LFM2.5-2.6B. Named by repo and quant rather than by size so the rule
-/// cannot drift onto whichever row happens to be biggest.
+/// cannot drift onto whichever row happens to be biggest — exact repo, not
+/// the [`LFM_FAMILY`] prefix: one file of one model, not the family.
 pub fn full_precision_file(entry: &ModelEntry) -> bool {
     entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "F16"
 }
 
-/// A row of LiquidAI's LFM2.5-2.6B — every compression of it, keyed on
-/// the repo the way [`full_precision_file`] keys its row. On the second
-/// card LFM ranks last among the rows that clear the bar: the owner puts
-/// any other family ahead of it, so LFM wins only when nothing else does.
+/// Every LiquidAI row in the manifest hangs off this prefix — a future
+/// `LiquidAI/LFM2.5-8B-A1B` row must be demoted with the rest instead of
+/// escaping the rule by spelling its own repo.
+const LFM_FAMILY: &str = "LiquidAI/LFM";
+
+/// A row of LiquidAI's LFM family — keyed on the repo prefix, while
+/// [`full_precision_file`] stays exact (repo + quant) for its one file. On
+/// the second card LFM ranks last among the rows that clear the bar: the
+/// owner puts any other family ahead of it, so LFM wins only when nothing
+/// else does.
 fn lfm_row(entry: &ModelEntry) -> bool {
-    entry.repo == "LiquidAI/LFM2.5-2.6B"
+    entry.repo.starts_with(LFM_FAMILY)
 }
 
 /// The second option: the most model this machine runs at least
@@ -704,8 +711,9 @@ fn lfm_row(entry: &ModelEntry) -> bool {
 /// owner ranks every other family ahead of it, so LFM is the last resort
 /// rather than a size winner. `None` when nothing does — one honest option
 /// beats two that feel the same — except as the last word on a roomy
-/// machine: when the bar finds nothing, the full-precision LFM file takes
-/// the card if it is faster than the pick at all (see [`ROOMY_RAM_BYTES`]).
+/// machine: when the bar finds nothing, or finds only the family's own
+/// Q8 file, the full-precision LFM file takes the card if it is faster
+/// than the pick at all (see [`ROOMY_RAM_BYTES`]).
 ///
 /// It is held to the bar of the row it sits beside, which is
 /// [`justification`]: a phone-free first option is `leading_candidate`'s
