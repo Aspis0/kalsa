@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the engine pin honest: the pinned Engine row against the manifest
+"""Keep the engine pin honest: the pinned Engine rows against the manifest
 Kalsa actually publishes.
 
 THE ANCHOR IS DECLARED HERE, NEVER READ FROM THE THING BEING VERIFIED.
@@ -13,12 +13,14 @@ go red for the wrong reason with `home` never named. Same class as
 `chat/scripts/tier-panel.mjs`'s rule: "two sources that must agree cannot be
 one".
 
-What it checks — EVERY field of the macOS arm64/metal Engine row in
-`crates/kalsa-runtime/src/assets.rs`:
+What it checks — EVERY field of the three Engine rows in
+`crates/kalsa-runtime/src/assets.rs` (macos-arm64/metal, win-cpu-x64,
+win-vulkan-x64):
 
     home   against what RELEASE implies (NOT against FORK_BASE), plus the
            row-vs-manifest comparison that falls out of it
-    file, size_bytes, sha256, exe_sha256   against the manifest row
+    file, size_bytes, sha256, exe_sha256   against the manifest row for
+           that row's platform
     plus: manifest.tag == RELEASE (a manifest swapped under the control is
           caught), manifest.home == what RELEASE implies, size_bytes != 0,
           digests 64 lowercase hex.
@@ -29,23 +31,32 @@ Judged by what happens when a value is wrong in a way nobody watches:
     wrong `home` resolves to a 404, or to a still-credible old path if the
     shape ever changes; a wrong `file` looks the old name up inside the new
     archive. The user meets both, after install.
-  NOISY fields — `size_bytes` and `sha256`: `store.rs:269`/`:292` verify the
-    download against them, so a check red only here echoes a scream.
+  NOISY fields — `size_bytes` and `sha256`: store.rs verifies the bytes
+    against both while acquiring (`ensure_archive` reads them off the row,
+    `acquire` downloads under them, `file_digest_is` re-checks size then
+    digest), so a check red only here echoes a scream.
   SEMI-SILENT — `exe_sha256`: the download never looks at it; `marker.rs`
     re-checks it at every engine start.
 
 The normal invocation fetches the manifest live (the CDN 403s urllib's
-default User-Agent, so an explicit one is sent). The MUTATIONS are proved two
-ways, both with the anchor FIRM:
-  - row mutations: the real `assets.rs` copied to /tmp and patched there
-    (never the repo file), run against the manifest recorded once in memory;
-    each must be red with its OWN field named and with the DECLARED URL in
-    the header — proof it did not go and fetch the other release's manifest;
-  - anchor mutation: a copy of THIS file with RELEASE at v1.1.2, run live
-    against the untouched row: it must be red with `home` in the mismatch,
-    i.e. row and anchor telling different releases is never green.
+default User-Agent, so an explicit one is sent). The row MUTATIONS run on
+copies of the real `assets.rs` under /tmp (never the repo file), against
+the manifest recorded once in memory — a mutated copy cannot choose the
+release it is judged against. Each must be red with its OWN failure line
+printed: a green run prints an `[ok]` line per field, so the token a
+mutation must show is the mismatch text, which only a red run prints.
+Every mutation reproduces the mistake it guards against, with the real
+numbers of the release the pin just left (v1.1.2); the cpu/vulkan sha256
+swap exchanges two digests the release actually published, the mistake
+only a control that reads the Windows rows can see.
 
-Exit 0 when the row matches the declared release and every mutation is
+The anchor mutation is the other half: a copy of THIS file with RELEASE
+at v1.1.2, run live against the untouched rows. It must be red with the
+`home` mismatch printed — rows and anchor telling different releases is
+never green — and it must have fetched the manifest its own anchor
+declares, not this one.
+
+Exit 0 when the rows match the declared release and every mutation is
 caught, 2 otherwise.
 
 Commands:
@@ -82,43 +93,57 @@ V112_HOME = "https://dl.kalsa.io/kalsa-server/v1.1.2"
 V112_FILE = "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz"
 V112_SIZE = "Some(11_207_047)"
 V112_SHA = "691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"
-WRONG_EXE = "ab" * 32
+V112_EXE = "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
 
-# name -> (needle that must occur exactly once in assets.rs, replacement,
-#          output token that must appear in the red run, how loud the system
-#          already is about this field)
+# name -> ([(needle, replacement), ...] — every needle must occur exactly
+#          once in assets.rs and all are applied in ONE pass, so a swap
+#          cannot re-replace its own output —,
+#          output token that only the FAILURE line for that field prints
+#          (a green run prints an `[ok]` line per field, so the bare field
+#          name proves nothing),
+#          how loud the system already is about this field)
 MUTATIONS = {
     "home (FORK_BASE, as the reviewer mutated it)": (
-        'const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.4";',
-        f'const FORK_BASE: &str = "{V112_HOME}";',
-        "home:",
+        [('const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.4";',
+          f'const FORK_BASE: &str = "{V112_HOME}";')],
+        "home: row points at ANOTHER RELEASE",
         "SILENT at runtime — the download verifies size/sha, not the host; "
         "the Rust test only asserts home == FORK_BASE (a stale pair passes "
         "together); the user meets the wrong host after install"),
     "file": (
-        '        file: "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",',
-        f'        file: "{V112_FILE}",',
-        "file:",
+        [('        file: "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",',
+          f'        file: "{V112_FILE}",')],
+        "macos-arm64 file: row",
         "SILENT at runtime — the download verifies size/sha, not the name; "
         "the old name gets looked for inside the new archive"),
     "size_bytes": (
-        "        size_bytes: Some(11_890_855),",
-        f"        size_bytes: {V112_SIZE},",
-        "size_bytes:",
-        "NOISY — store.rs:269 verifies the download against it and would "
-        "already scream"),
+        [("        size_bytes: Some(11_890_855),",
+          f"        size_bytes: {V112_SIZE},")],
+        "macos-arm64 size_bytes: row",
+        "NOISY — store.rs's acquire verifies the download's size against it "
+        "and would already scream"),
     "sha256": (
-        '        sha256: Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),',
-        f'        sha256: Some("{V112_SHA}"),',
-        "sha256: row",
-        "NOISY — store.rs:292 verifies the download against it and would "
-        "already scream"),
+        [('        sha256: Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),',
+          f'        sha256: Some("{V112_SHA}"),')],
+        "macos-arm64 sha256: row",
+        "NOISY — store.rs's file_digest_is verifies the download against it "
+        "and would already scream"),
     "exe_sha256": (
-        '        exe_sha256: Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),',
-        f'        exe_sha256: Some("{WRONG_EXE}"),',
-        "exe_sha256:",
+        [('        exe_sha256: Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),',
+          f'        exe_sha256: Some("{V112_EXE}"),')],
+        "macos-arm64 exe_sha256: row",
         "SEMI-SILENT — the download never looks at it; marker.rs shouts "
         "only at engine start"),
+    "cpu/vulkan sha256 swap": (
+        [('        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),',
+          '        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),'),
+         ('        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),',
+          '        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),')],
+        "win-cpu-x64 sha256: row",
+        "NOISY on the machine it strands — the cpu download is verified "
+        "against the vulkan digest and refused — but invisible to any check "
+        "that reads only the macOS row: both digests are values this "
+        "release published"),
 }
 
 
@@ -128,25 +153,22 @@ class Fail(list):
 
 
 # --------------------------------------------------------------------------
-# the row, as the repo has it
+# the rows, as the repo has them
 # --------------------------------------------------------------------------
-def parse_row(text):
-    """The macOS arm64/metal Engine row of ASSETS. FORK_BASE is resolved only
-    to learn what `home` SAYS — the anchor of the comparison is RELEASE."""
-    const = dict(re.findall(r'const (\w+): &str = "([^"]+)";', text))
-    # Row literals are indented (`    Asset {` ... `    },`); the struct and
-    # the impl are at column 0, so anchoring on the indent keeps them out.
-    block = None
-    for candidate in re.findall(r"(?m)^    Asset \{(.*?)^    \},$",
-                                text, re.S | re.M):
-        if "platform: Some(Platform::MacArm64)" in candidate \
-                and "role: Role::Engine" in candidate:
-            block = candidate
-            break
-    if block is None:
-        raise SystemExit("no macOS arm64 Engine row found in assets.rs: the "
-                         "table moved and this check reads it wrongly")
+# Each Engine row of the table, keyed the way the manifest keys its
+# artifacts: (literals that identify the Asset block, manifest platform).
+ENGINE_ROWS = (
+    (("platform: Some(Platform::MacArm64)",
+      "backend: Some(ServerBackend::Metal)"), "macos-arm64"),
+    (("platform: Some(Platform::WindowsX64)",
+      "backend: Some(ServerBackend::Cpu)"), "win-cpu-x64"),
+    (("platform: Some(Platform::WindowsX64)",
+      "backend: Some(ServerBackend::Vulkan)"), "win-vulkan-x64"),
+)
+ROW_KEYS = tuple(key for _, key in ENGINE_ROWS)
 
+
+def read_fields(block, const):
     def raw(field):
         m = re.search(rf"(?<![\w]){field}:\s*([^\n]+)", block)
         return m.group(1).strip().rstrip(",") if m else None
@@ -178,6 +200,27 @@ def parse_row(text):
     }
 
 
+def parse_rows(text):
+    """The three Engine rows of ASSETS, keyed by the manifest's platform
+    string. FORK_BASE is resolved only to learn what `home` SAYS — the
+    anchor of the comparison is RELEASE."""
+    const = dict(re.findall(r'const (\w+): &str = "([^"]+)";', text))
+    # Row literals are indented (`    Asset {` ... `    },`); the struct and
+    # the impl are at column 0, so anchoring on the indent keeps them out.
+    blocks = re.findall(r"(?m)^    Asset \{(.*?)^    \},$", text, re.S | re.M)
+    rows = {}
+    for (platform_bits, backend_bits), key in ENGINE_ROWS:
+        matches = [b for b in blocks
+                   if "role: Role::Engine" in b
+                   and platform_bits in b and backend_bits in b]
+        if len(matches) != 1:
+            raise SystemExit(f"assets.rs: expected exactly one Engine row "
+                             f"for {key}, found {len(matches)}: the table "
+                             "moved and this check reads it wrongly")
+        rows[key] = read_fields(matches[0], const)
+    return rows
+
+
 # --------------------------------------------------------------------------
 # the manifest, fetched from the DECLARED url
 # --------------------------------------------------------------------------
@@ -199,12 +242,12 @@ def parse_manifest(body, url):
     rows = data.get("artifacts")
     if not isinstance(rows, list):
         raise SystemExit(f"manifest at {url} carries no artifacts[]")
-    for row in rows:
-        if isinstance(row, dict) and row.get("platform") == "macos-arm64" \
-                and row.get("backend") == "metal":
-            return {"tag": data.get("tag"), "home": row.get("home"),
-                    **{k: row.get(k) for k in FIELDS}}
-    raise SystemExit(f"manifest at {url} has no macos-arm64/metal row")
+    by_platform = {row.get("platform"): row for row in rows
+                   if isinstance(row, dict)}
+    missing = [key for key in ROW_KEYS if key not in by_platform]
+    if missing:
+        raise SystemExit(f"manifest at {url} has no row(s) for {missing}")
+    return {"tag": data.get("tag"), "artifacts": by_platform}
 
 
 def check_manifest(man):
@@ -216,54 +259,66 @@ def check_manifest(man):
                  f"{man.get('tag')!r}, this control declares RELEASE "
                  f"{RELEASE!r}: the manifest was swapped under the control, "
                  "or the control is stale")
-    if man.get("home") != RELEASE_HOME:
-        fail.add(f"manifest home: manifest says {man.get('home')!r}, RELEASE "
-                 f"{RELEASE} implies {RELEASE_HOME!r}")
+    for key in ROW_KEYS:
+        home = man["artifacts"][key].get("home")
+        if home != RELEASE_HOME:
+            fail.add(f"manifest home ({key}): manifest says {home!r}, "
+                     f"RELEASE {RELEASE} implies {RELEASE_HOME!r}")
     return fail
 
 
-def compare(row, man):
-    """Row against the declared release. `home` is checked FIRST and against
-    what RELEASE implies — never against FORK_BASE, which IS the row's own
-    value — and the message names the field and says it points elsewhere."""
+def compare(rows, man):
+    """Each Engine row against the declared release, named by its platform.
+    `home` is checked against what RELEASE implies — never against
+    FORK_BASE, which IS the row's own value — and the message names the row,
+    the field, and says it points elsewhere."""
     fail = Fail()
-    if row.get("home") != RELEASE_HOME:
-        fail.add(f"home: row points at ANOTHER RELEASE: "
-                 f"{row.get('home')!r} != {RELEASE_HOME!r} implied by "
-                 f"RELEASE {RELEASE} (and != the manifest's "
-                 f"{man.get('home')!r})")
-    for field in ("file", "size_bytes", "sha256", "exe_sha256"):
-        if row.get(field) != man.get(field):
-            fail.add(f"{field}: row {row.get(field)!r} != manifest "
-                     f"{man.get(field)!r}")
-    if not isinstance(row.get("size_bytes"), int) or row["size_bytes"] == 0:
-        fail.add(f"size_bytes must be a non-zero integer, got "
-                 f"{row.get('size_bytes')!r}")
-    for field in ("sha256", "exe_sha256"):
-        v = row.get(field)
-        if not (isinstance(v, str) and len(v) == 64
-                and all(c in "0123456789abcdef" for c in v)):
-            fail.add(f"{field}: row is not 64 lowercase hex characters: {v!r}")
+    for key in ROW_KEYS:
+        row = rows[key]
+        mrow = man["artifacts"][key]
+        if row.get("home") != RELEASE_HOME:
+            fail.add(f"{key} home: row points at ANOTHER RELEASE: "
+                     f"{row.get('home')!r} != {RELEASE_HOME!r} implied by "
+                     f"RELEASE {RELEASE} (and != the manifest's "
+                     f"{mrow.get('home')!r})")
+        for field in ("file", "size_bytes", "sha256", "exe_sha256"):
+            if row.get(field) != mrow.get(field):
+                fail.add(f"{key} {field}: row {row.get(field)!r} != manifest "
+                         f"{mrow.get(field)!r}")
+        if not isinstance(row.get("size_bytes"), int) \
+                or row.get("size_bytes") == 0:
+            fail.add(f"{key} size_bytes must be a non-zero integer, got "
+                     f"{row.get('size_bytes')!r}")
+        for field in ("sha256", "exe_sha256"):
+            v = row.get(field)
+            if not (isinstance(v, str) and len(v) == 64
+                    and all(c in "0123456789abcdef" for c in v)):
+                fail.add(f"{key} {field}: row is not 64 lowercase hex "
+                         f"characters: {v!r}")
     return fail
 
 
 def live_check(assets_path, body, url, source):
-    row = parse_row(Path(assets_path).read_text())
+    rows = parse_rows(Path(assets_path).read_text())
     man = parse_manifest(body, url)
-    print(f"live row vs {url}  (declared by RELEASE {RELEASE}, never read "
+    print(f"live rows vs {url}  (declared by RELEASE {RELEASE}, never read "
           f"from the row; manifest from {source})", file=sys.stderr)
     fail = check_manifest(man)
-    fail += compare(row, man)
-    for field in FIELDS:
-        want = RELEASE_HOME if field == "home" else man.get(field)
-        mark = "ok" if row.get(field) == want else "FAIL"
-        print(f"  [{mark}] {field}: {row.get(field)!r}", file=sys.stderr)
+    fail += compare(rows, man)
+    for key in ROW_KEYS:
+        row = rows[key]
+        mrow = man["artifacts"][key]
+        for field in FIELDS:
+            want = RELEASE_HOME if field == "home" else mrow.get(field)
+            mark = "ok" if row.get(field) == want else "FAIL"
+            print(f"  [{mark}] {key} {field}: {row.get(field)!r}",
+                  file=sys.stderr)
     for f in fail:
         print(f"  [FAIL] {f}", file=sys.stderr)
     if not fail:
-        print("  [ok] every field matches the declared release; size_bytes "
-              "!= 0; digests shaped like sha256; manifest tag == RELEASE",
-              file=sys.stderr)
+        print("  [ok] every field of all three engine rows matches the "
+              "declared release; size_bytes != 0; digests shaped like "
+              "sha256; manifest tag == RELEASE", file=sys.stderr)
     return fail
 
 
@@ -276,6 +331,15 @@ def run_self(argv):
     return p.returncode, (p.stdout + p.stderr)
 
 
+def apply_at_once(text, swaps):
+    """Every needle replaced in a single pass: chained str.replace calls
+    would re-replace their own output, and a swap (A for B while B for A)
+    would come back unchanged."""
+    mapping = dict(swaps)
+    pattern = "|".join(re.escape(needle) for needle, _ in swaps)
+    return re.sub(pattern, lambda m: mapping[m.group(0)], text)
+
+
 def run_mutations(assets_text, recorded_manifest_path):
     survived = Fail()
     tmp = Path(tempfile.mkdtemp(prefix="engine-pin-mutation-"))
@@ -284,41 +348,39 @@ def run_mutations(assets_text, recorded_manifest_path):
 
     # (a) row mutations: the REAL assets.rs, patched in /tmp, compared
     # against the manifest recorded once in memory.
-    for name, (needle, patch, token, loudness) in MUTATIONS.items():
-        hits = assets_text.count(needle)
-        if hits != 1:
-            print(f"  [FAIL] {name}: needle occurs {hits} times, expected 1 "
-                  "(the source moved; this mutation proves nothing)",
-                  file=sys.stderr)
-            survived.add(f"mutation {name}: the needle moved, unproven")
+    for name, (swaps, token, loudness) in MUTATIONS.items():
+        moved = [needle for needle, _ in swaps
+                 if assets_text.count(needle) != 1]
+        if moved:
+            print(f"  [FAIL] {name}: {len(moved)} needle(s) do not occur "
+                  "exactly once in assets.rs (the source moved; this "
+                  "mutation proves nothing)", file=sys.stderr)
+            survived.add(f"mutation {name}: a needle moved, unproven")
             continue
         copy = tmp / f"assets--mutated-{re.sub(r'[^a-z0-9]+', '-', name.lower())}.rs"
-        copy.write_text(assets_text.replace(needle, patch))
+        copy.write_text(apply_at_once(assets_text, swaps))
         code, out = run_self(["--assets", str(copy),
                               "--manifest-file", str(recorded_manifest_path),
                               "--skip-mutations"])
         red = code != 0
         named = token in out
-        declared = f"live row vs {MANIFEST_URL}" in out
-        wrong_host = f"{V112_HOME}/manifest.json" in out
-        ok = red and named and declared and not wrong_host
+        ok = red and named
         if not ok:
-            survived.add(f"row mutation {name} survived (exit {code}, field "
-                         f"named {named}, declared URL {declared})")
+            survived.add(f"row mutation {name} survived (exit {code}, "
+                         f"failure line named {named})")
         print(f"  [{'ok' if ok else 'FAIL'}] row mutation {name}: "
               f"{'CAUGHT' if ok else 'SURVIVED'} "
-              f"(exit {code}, field named: {named}, declared URL shown: "
-              f"{declared}, fetched the OTHER release's manifest: "
-              f"{wrong_host})", file=sys.stderr)
+              f"(exit {code}, failure line named: {named})", file=sys.stderr)
         print(f"         {loudness}", file=sys.stderr)
         if ok or red:
             for line in out.strip().splitlines():
                 print(f"         | {line}", file=sys.stderr)
 
     # (b) anchor mutation: THIS control with RELEASE at v1.1.2, run LIVE
-    # against the untouched row. Its manifest will be v1.1.2's and its tag
-    # will match its own RELEASE, so green here would mean row and anchor
-    # disagree and the control did not notice.
+    # against the untouched rows. Its manifest will be v1.1.2's and its tag
+    # will match its own RELEASE, so green here would mean rows and anchor
+    # disagree and the control did not notice. `named` must be the home
+    # FAILURE text: a red caused by a fetch error instead would not name it.
     control = tmp / "test-engine-pin--anchor-v1.1.2.py"
     own = SELF.read_text()
     needle = '\nRELEASE = "kalsa-server-v1.1.4"\n'
@@ -333,8 +395,8 @@ def run_mutations(assets_text, recorded_manifest_path):
                            capture_output=True, text=True)
         out = p.stdout + p.stderr
         red = p.returncode != 0
-        named = "home:" in out
-        its_own_manifest = f"live row vs {V112_HOME}/manifest.json" in out
+        named = "row points at ANOTHER RELEASE" in out
+        its_own_manifest = f"live rows vs {V112_HOME}/manifest.json" in out
         ok = red and named and its_own_manifest
         if not ok:
             survived.add("anchor mutation RELEASE -> kalsa-server-v1.1.2 "

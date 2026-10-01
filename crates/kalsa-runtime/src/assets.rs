@@ -67,13 +67,13 @@ impl Platform {
 /// artifact, and one machine may try several.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ServerBackend {
-    /// The macOS archive: Metal and CPU in one file (~11 MB compressed), so
-    /// on a Mac there is nothing to choose.
+    /// The macOS archive: Metal and CPU in one file, so on a Mac there is
+    /// nothing to choose.
     Metal,
-    /// The Windows CPU build (~14 MB): the only build that always works.
+    /// The Windows CPU build: the only build that always works.
     Cpu,
-    /// The Windows Vulkan build (~26 MB): the cheap way to reach any recent
-    /// NVIDIA or AMD GPU. Needs Vulkan 1.2 + `storageBuffer16BitAccess` —
+    /// The Windows Vulkan build: the cheap way to reach any recent NVIDIA
+    /// or AMD GPU. Needs Vulkan 1.2 + `storageBuffer16BitAccess` —
     /// llama.cpp refuses devices below that with "Unsupported device" at
     /// device init, which is why the probe, not detection, decides.
     Vulkan,
