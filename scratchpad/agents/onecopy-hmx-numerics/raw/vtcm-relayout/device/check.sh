@@ -17,6 +17,39 @@ kld() { name=$1; shift
   grep -c 'hvx-rawrow' $D/kld_$name.log | sed 's/^/hvx-rawrow-lines=/' >> $D/check.txt
   input keyevent 224; sleep 60; }
 rm -f $D/check.txt
+
+# 0. Hash gate: every number below depends on these files, and $R/input/ is a directory shared with
+#    other experiments, so the expected sha256 values live here rather than in the report's prose
+#    (audit 4.5). Refuse to run anything on a mismatch. The pair's fourth artifact
+#    (libggml-hexagon.a) is a host-side static lib, not on the device; its bytes are inside the two
+#    host binaries hashed below.
+sha_ok=1
+hash_gate() { # hash_gate EXPECTED PATH : records the result in $D/check.txt, sha_ok=0 on any mismatch
+  got=$(sha256sum "$2" 2>/dev/null | cut -d' ' -f1)
+  if [ "$got" = "$1" ]; then
+    echo "sha256 OK        $2" >> $D/check.txt
+  else
+    echo "sha256 MISMATCH  $2 expected=$1 got=${got:-missing}" >> $D/check.txt
+    sha_ok=0
+  fi
+}
+# new pair (tree of 7e4945582, REPORT-vtcm-relayout.md section 1)
+hash_gate ca9086268b1b53ecc49b65f6d23dc049485c4ff19e0512450fbc8d5dddd66f77 $D/bin/llama-bench
+hash_gate 43d8d829134dd042a5c21d7f84cf2a0e4970d8d2f76ed30ef4d5305d6f9241d1 $D/bin/llama-perplexity
+hash_gate 717d26227240adfd773438d65c79316f3ecc350e8b6f11eb9a435217def29a71 $D/dsp/libggml-htp-v73.so
+# the O arm's pair (df538c50c, s23-onecopy-abba-df538c50c/REPORT.md)
+hash_gate 5bcb3f7478318157c52b1893d68937ea35db8497c13e4a6e396eabba71f840d9 $OLD/bin/llama-bench
+hash_gate b357d834bdfcf164e2bf520c07038f24c415d49265a497d1ccedfc6d65aab245 $OLD/bin/llama-perplexity
+hash_gate 2808f70f0ad480efef4b24c1bd0c327843fe26e2ce0045e9bf36ebc4e96fe7dd $OLD/dsp/libggml-htp-v73.so
+# KLD inputs
+hash_gate a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03 $M
+hash_gate bca6ac9fd2d398f73bd21b7910e279d12f79c9744dfa49294cb810e781c06728 $R/input/kld_english_fixture.txt
+hash_gate 5aa28ec2057f857ff96f463b3562a8ce9eb8f3b2f3186cb6dd06f01f23bcca6f $R/input/cause-cpu-base.logits
+if [ "$sha_ok" -ne 1 ]; then
+  echo "HASH GATE FAILED - refusing to run any check" | tee -a $D/check.txt
+  exit 1
+fi
+
 kld one   $ONE
 kld two   $TWO
 kld one8  $ONE GGML_HEXAGON_RAWROW_PROBE=8
