@@ -80,7 +80,13 @@ export async function pushPrefillOverride(
   }
 }
 
-/** One per-chunk route fact as the spec defines it — the six fields only. */
+/**
+ * One per-chunk route fact: the spec's six fields plus the binding's
+ * `layers_device` — the ggml device holding most of the context's layers
+ * (e.g. "HTP0", "" when unknown). `actual` stays the ROUTE ("cpu"|"gpu"),
+ * so on a phone an NPU-lane load reports "gpu" while HTP0 runs; the device
+ * field is what disambiguates the two.
+ */
 export type RouteChunk = {
   index: number;
   requested: BenchRouteMode;
@@ -88,12 +94,13 @@ export type RouteChunk = {
   tokens: number;
   prefill_ms: number;
   forced: boolean;
+  layers_device: string;
 };
 
 const CHUNK_REQUESTED: ReadonlySet<string> = new Set(["cpu", "gpu", "auto"]);
 const CHUNK_ACTUAL: ReadonlySet<string> = new Set(["cpu", "gpu"]);
 
-/** Project a binding-emitted entry onto the six spec fields, or null if malformed. */
+/** Project a binding-emitted entry onto the seven chunk fields, or null if malformed. */
 function asRouteChunk(value: unknown): RouteChunk | null {
   if (typeof value !== "object" || value === null) return null;
   const chunk = value as Record<string, unknown>;
@@ -111,7 +118,10 @@ function asRouteChunk(value: unknown): RouteChunk | null {
     typeof chunk.prefill_ms !== "number" ||
     !Number.isFinite(chunk.prefill_ms) ||
     chunk.prefill_ms < 0 ||
-    typeof chunk.forced !== "boolean"
+    typeof chunk.forced !== "boolean" ||
+    // Like every per-chunk fact: absent (older binding) or non-string →
+    // the entry is malformed and drops. "" is a valid unknown.
+    typeof chunk.layers_device !== "string"
   ) {
     return null;
   }
@@ -122,6 +132,7 @@ function asRouteChunk(value: unknown): RouteChunk | null {
     tokens: chunk.tokens,
     prefill_ms: chunk.prefill_ms,
     forced: chunk.forced,
+    layers_device: chunk.layers_device,
   };
 }
 
@@ -136,8 +147,8 @@ function asRouteChunk(value: unknown): RouteChunk | null {
  * dropped entries, or a truncated chunk list — unseen chunks could hide
  * the mismatch) to compare: the app records the verdict, it never blocks
  * the turn (routing stays the engine's). `route_chunks` is projected onto
- * the six spec fields (extras dropped) with the malformed-entry count
- * alongside; `route_chunks_truncated` is read structurally (the binding
+ * the seven chunk fields — the spec's six plus `layers_device` (extras
+ * dropped) with the malformed-entry count alongside; `route_chunks_truncated` is read structurally (the binding
  * that emits it may not be pinned yet) and null when absent.
  */
 export function governorRouteLogFields(input: {

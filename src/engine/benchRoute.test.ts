@@ -134,6 +134,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       tokens: 128,
       prefill_ms: 41,
       forced: true,
+      layers_device: "HTP0",
     });
     const build = (outcome: "applied" | "failed", mode: "cpu" | "gpu" | "auto", chunks: unknown) =>
       governorRouteLogFields({
@@ -165,6 +166,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       tokens: 128,
       prefill_ms: 41,
       forced: true,
+      layers_device: "HTP0",
     };
     const malformed: unknown[] = [
       { ...base, index: Number.NaN },
@@ -192,6 +194,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       tokens: 128,
       prefill_ms: 41,
       forced: true,
+      layers_device: "HTP0",
     };
     const build = (truncated: unknown) =>
       governorRouteLogFields({
@@ -214,7 +217,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
     expect(build("yes").route_chunks_truncated).toBeNull();
   });
 
-  test("route_chunks is projected to the six spec fields; malformed entries drop and count", () => {
+  test("route_chunks is projected to the seven chunk fields; malformed entries drop and count", () => {
     const valid = {
       index: 0,
       requested: "cpu",
@@ -222,6 +225,7 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       tokens: 128,
       prefill_ms: 41,
       forced: true,
+      layers_device: "HTP0",
       junk: "not in the spec",
     };
     const badLiteral = {
@@ -238,9 +242,52 @@ describe("governorRouteLogFields — the KALSA_GOVERNOR route evidence", () => {
       completionResult: { route_chunks: [valid, badLiteral, "nope"] },
     });
     expect(result.route_chunks).toEqual([
-      { index: 0, requested: "cpu", actual: "cpu", tokens: 128, prefill_ms: 41, forced: true },
+      {
+        index: 0,
+        requested: "cpu",
+        actual: "cpu",
+        tokens: 128,
+        prefill_ms: 41,
+        forced: true,
+        layers_device: "HTP0",
+      },
     ]);
     expect(result.route_chunks_dropped).toBe(2);
+  });
+
+  test("layers_device is kept: present, empty, or absent on an older binding", () => {
+    const base = {
+      index: 2,
+      requested: "auto",
+      actual: "gpu",
+      tokens: 128,
+      prefill_ms: 41,
+      forced: false,
+    };
+    const build = (chunks: unknown[]) =>
+      governorRouteLogFields({
+        turnId: "11",
+        routePush: null,
+        completionResult: { route_chunks: chunks },
+      });
+    // The NPU-lane fact this field exists for: actual says "gpu" while the
+    // layers sat on HTP0.
+    const htp = build([{ ...base, layers_device: "HTP0" }]);
+    expect(htp.route_chunks).toEqual([{ ...base, layers_device: "HTP0" }]);
+    expect(htp.route_chunks_dropped).toBe(0);
+    // The binding's unknown serializes as the empty string — still valid.
+    const unknown = build([{ ...base, layers_device: "" }]);
+    expect(unknown.route_chunks).toEqual([{ ...base, layers_device: "" }]);
+    expect(unknown.route_chunks_dropped).toBe(0);
+    // A chunk from an older binding lacks the field: malformed, dropped and
+    // counted, like any other missing per-chunk fact.
+    const older = build([base]);
+    expect(older.route_chunks).toEqual([]);
+    expect(older.route_chunks_dropped).toBe(1);
+    // A non-string device is malformed too.
+    const nonString = build([{ ...base, layers_device: 7 }]);
+    expect(nonString.route_chunks).toEqual([]);
+    expect(nonString.route_chunks_dropped).toBe(1);
   });
 
   test("a missing or non-array route_chunks reads as absent (with no drop count)", () => {
