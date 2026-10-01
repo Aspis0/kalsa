@@ -132,3 +132,11 @@ reap-calib venv to match the pod pin — that was the only env change).
 `verify/make_synth_checkpoint.py` (fix), `pod/20_observe.sh`, this file.
 Large data stays in `~/kalsa-models/reap-calib-v2/` (12.1 MB, per-file hashes
 above); clone + smoke scratch lives in `/tmp` (ephemeral by design).
+
+PROVENANCE NOTE (2026-10-01): the twelve files above were staged with explicit
+paths, but the shared index was swept by the concurrently-running moe-keepset-128
+session, so the content landed inside its commit `c9311d89`
+("lab(moe): keep-set-128 analysis audited…") rather than under this work's own
+message. Content verified identical to this working tree; no history was
+rewritten (other sessions were committing live). This note + commit exists so
+the phase-0 items 1-2 work is findable by its own message.
