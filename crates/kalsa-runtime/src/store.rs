@@ -840,8 +840,8 @@ mod tests {
         assert_eq!(
             archives,
             [
-                "kalsa-server-v1.1.4-bin-win-cpu-x64.zip".to_string(),
-                "kalsa-server-v1.1.4-bin-win-vulkan-x64.zip".to_string(),
+                "kalsa-server-v1.1.5-bin-win-cpu-x64.zip".to_string(),
+                "kalsa-server-v1.1.5-bin-win-vulkan-x64.zip".to_string(),
                 "llama-b10950-bin-win-vulkan-x64.zip.part".to_string(),
             ],
             "upstream's archive is gone; both pins and the .part stay"
@@ -872,7 +872,7 @@ mod tests {
         let mac = scratch("sweep-mac");
         place_archive(
             &mac,
-            "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",
+            "kalsa-server-v1.1.5-bin-macos-arm64.tar.gz",
             b"the pinned mac bytes",
         );
         place_archive(
@@ -888,7 +888,7 @@ mod tests {
             .collect();
         assert_eq!(
             mac_archives,
-            ["kalsa-server-v1.1.4-bin-macos-arm64.tar.gz".to_string()],
+            ["kalsa-server-v1.1.5-bin-macos-arm64.tar.gz".to_string()],
             "the pinned tar.gz stays, upstream's tar.gz goes"
         );
         let _ = std::fs::remove_dir_all(&mac);

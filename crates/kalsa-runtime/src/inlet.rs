@@ -35,9 +35,9 @@ const fn engine_module_file(platform: Platform) -> &'static str {
 /// carries the lowercase literal and not the capitalised one.
 ///
 /// The source of that claim, as it stands in the release this app installs:
-/// in `kalsa-server-v1.1.4`, `tools/server/server-context.cpp:4537` is
+/// in `kalsa-server-v1.1.5`, `tools/server/server-context.cpp:4702` is
 /// `static const std::string key = "x-kalsa-slot";` and the comparison at
-/// `:4544` folds the incoming header name to lowercase byte by byte against
+/// `:4709` folds the incoming header name to lowercase byte by byte against
 /// that key. So the CASE is irrelevant to the ENGINE and decisive for THIS
 /// PROBE (which searches a literal in the binary): `INLET` is spelled the
 /// way the engine's own key is.

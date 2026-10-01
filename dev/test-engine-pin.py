@@ -47,14 +47,14 @@ printed: a green run prints an `[ok]` line per field, so the token a
 mutation must show is the mismatch text, which only a red run prints.
 Every mutation reproduces a real mistake with real published numbers,
 never random digits: the file, size_bytes, sha256 and exe_sha256
-mutations plant v1.1.2's own values (the release the pin just left),
-the home mutation points FORK_BASE at v1.1.2's home with the row
+mutations plant v1.1.4's own values (the release the pin just left),
+the home mutation points FORK_BASE at v1.1.4's home with the row
 otherwise untouched (a half-edited repin), and the cpu/vulkan swap
 exchanges two digests this release itself published — the mistake only
 a control that reads the Windows rows can see.
 
 The anchor mutation is the other half: a copy of THIS file with RELEASE
-at v1.1.2, run live against the untouched rows. It must be red with the
+at v1.1.4, run live against the untouched rows. It must be red with the
 `home` mismatch printed — rows and anchor telling different releases is
 never green — and it must have fetched the manifest its own anchor
 declares, not this one.
@@ -83,23 +83,23 @@ ASSETS_RS = REPO / "crates" / "kalsa-runtime" / "src" / "assets.rs"
 SELF = Path(__file__).resolve()
 
 # The anchor. Declared by this control, in this file, on purpose.
-RELEASE = "kalsa-server-v1.1.4"
+RELEASE = "kalsa-server-v1.1.5"
 RELEASE_HOME = ("https://dl.kalsa.io/kalsa-server/"
                 + RELEASE.removeprefix("kalsa-server-"))
 MANIFEST_URL = RELEASE_HOME + "/manifest.json"
 
 FIELDS = ("home", "file", "size_bytes", "sha256", "exe_sha256")
 
-# The wrong values a stale pin would carry: v1.1.2's own numbers, read from
-# v1.1.2's published manifest — the realistic mistake, not a random digit.
-V112_HOME = "https://dl.kalsa.io/kalsa-server/v1.1.2"
-V112_FILE = "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz"
-V112_SIZE = "Some(11_207_047)"
-V112_SHA = "691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"
-V112_EXE = "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
-V112_WIN_CPU_FILE = "kalsa-server-v1.1.2-bin-win-cpu-x64.zip"
-V112_WIN_CPU_SIZE = "Some(13_762_007)"
-V112_WIN_CPU_EXE = "a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9d673"
+# The wrong values a stale pin would carry: v1.1.4's own numbers, read from
+# v1.1.4's published manifest — the realistic mistake, not a random digit.
+V114_HOME = "https://dl.kalsa.io/kalsa-server/v1.1.4"
+V114_FILE = "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz"
+V114_SIZE = "Some(11_890_855)"
+V114_SHA = "08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"
+V114_EXE = "2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"
+V114_WIN_CPU_FILE = "kalsa-server-v1.1.4-bin-win-cpu-x64.zip"
+V114_WIN_CPU_SIZE = "Some(14_487_114)"
+V114_WIN_CPU_EXE = "a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26"
 
 # name -> ([(needle, replacement), ...] — every needle must occur exactly
 #          once in assets.rs and all are applied in ONE pass, so a swap
@@ -110,61 +110,61 @@ V112_WIN_CPU_EXE = "a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9
 #          how loud the system already is about this field)
 MUTATIONS = {
     "home (FORK_BASE, as the reviewer mutated it)": (
-        [('const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.4";',
-          f'const FORK_BASE: &str = "{V112_HOME}";')],
+        [('const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.5";',
+          f'const FORK_BASE: &str = "{V114_HOME}";')],
         "home: row points at ANOTHER RELEASE",
         "SILENT at runtime — the download verifies size/sha, not the host; "
         "the Rust test only asserts home == FORK_BASE (a stale pair passes "
         "together); the user meets the wrong host after install"),
     "file": (
-        [('        file: "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",',
-          f'        file: "{V112_FILE}",')],
+        [('        file: "kalsa-server-v1.1.5-bin-macos-arm64.tar.gz",',
+          f'        file: "{V114_FILE}",')],
         "macos-arm64 file: row",
         "SILENT at runtime — the download verifies size/sha, not the name; "
         "the old name gets looked for inside the new archive"),
     "size_bytes": (
-        [("        size_bytes: Some(11_890_855),",
-          f"        size_bytes: {V112_SIZE},")],
+        [("        size_bytes: Some(12_650_481),",
+          f"        size_bytes: {V114_SIZE},")],
         "macos-arm64 size_bytes: row",
         "NOISY — store.rs's acquire verifies the download's size against it "
         "and would already scream"),
     "sha256": (
-        [('        sha256: Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),',
-          f'        sha256: Some("{V112_SHA}"),')],
+        [('        sha256: Some("cd5af85a490c283e82e8e08cf4f96fdd435c41d15bdd0931c2d8b76127ba674e"),',
+          f'        sha256: Some("{V114_SHA}"),')],
         "macos-arm64 sha256: row",
         "NOISY — store.rs's file_digest_is verifies the download against it "
         "and would already scream"),
     "exe_sha256": (
-        [('        exe_sha256: Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),',
-          f'        exe_sha256: Some("{V112_EXE}"),')],
+        [('        exe_sha256: Some("8958c829b4e45893ac5d0d816858a410c4500e23335f890cab80fbf07fc97668"),',
+          f'        exe_sha256: Some("{V114_EXE}"),')],
         "macos-arm64 exe_sha256: row",
         "SEMI-SILENT — the download never looks at it; marker.rs shouts "
         "only at engine start"),
     "cpu/vulkan sha256 swap": (
-        [('        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),',
-          '        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),'),
-         ('        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),',
-          '        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),')],
+        [('        sha256: Some("5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b"),',
+          '        sha256: Some("9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c"),'),
+         ('        sha256: Some("9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c"),',
+          '        sha256: Some("5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b"),')],
         "win-cpu-x64 sha256: row",
         "NOISY on the machine it strands — the cpu download is verified "
         "against the vulkan digest and refused — but invisible to any check "
         "that reads only the macOS row: both digests are values this "
         "release published"),
     "win-cpu-x64 file": (
-        [('        file: "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",',
-          f'        file: "{V112_WIN_CPU_FILE}",')],
+        [('        file: "kalsa-server-v1.1.5-bin-win-cpu-x64.zip",',
+          f'        file: "{V114_WIN_CPU_FILE}",')],
         "win-cpu-x64 file: row",
         "SILENT at runtime — the download verifies size/sha, not the name; "
         "the old name gets looked for inside the new archive"),
     "win-cpu-x64 size_bytes": (
-        [("        size_bytes: Some(14_487_114),",
-          f"        size_bytes: {V112_WIN_CPU_SIZE},")],
+        [("        size_bytes: Some(14_489_079),",
+          f"        size_bytes: {V114_WIN_CPU_SIZE},")],
         "win-cpu-x64 size_bytes: row",
         "NOISY — store.rs's acquire verifies the download's size against it "
         "and would already scream"),
     "win-cpu-x64 exe_sha256": (
-        [('        exe_sha256: Some("a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26"),',
-          f'        exe_sha256: Some("{V112_WIN_CPU_EXE}"),')],
+        [('        exe_sha256: Some("6da613d9b45a151e3ce31053fb13795c1f3515ff059cc73cc148bf75ef9b88f7"),',
+          f'        exe_sha256: Some("{V114_WIN_CPU_EXE}"),')],
         "win-cpu-x64 exe_sha256: row",
         "SEMI-SILENT — the download never looks at it; marker.rs shouts "
         "only at engine start"),
@@ -416,34 +416,34 @@ def run_mutations(assets_text, recorded_manifest_path):
             for line in out.strip().splitlines():
                 print(f"         | {line}", file=sys.stderr)
 
-    # (b) anchor mutation: THIS control with RELEASE at v1.1.2, run LIVE
-    # against the untouched rows. Its manifest will be v1.1.2's and its tag
+    # (b) anchor mutation: THIS control with RELEASE at v1.1.4, run LIVE
+    # against the untouched rows. Its manifest will be v1.1.4's and its tag
     # will match its own RELEASE, so green here would mean rows and anchor
     # disagree and the control did not notice. `named` must be the home
     # FAILURE text: a red caused by a fetch error instead would not name it.
-    control = tmp / "test-engine-pin--anchor-v1.1.2.py"
+    control = tmp / "test-engine-pin--anchor-v1.1.4.py"
     own = SELF.read_text()
-    needle = '\nRELEASE = "kalsa-server-v1.1.4"\n'
+    needle = '\nRELEASE = "kalsa-server-v1.1.5"\n'
     if own.count(needle) != 1:
         print("  [FAIL] anchor mutation: RELEASE needle moved", file=sys.stderr)
         survived.add("anchor mutation: the RELEASE definition moved, unproven")
     else:
         control.write_text(own.replace(
-            needle, '\nRELEASE = "kalsa-server-v1.1.2"\n'))
+            needle, '\nRELEASE = "kalsa-server-v1.1.4"\n'))
         p = subprocess.run([sys.executable, str(control),
                             "--assets", str(ASSETS_RS), "--skip-mutations"],
                            capture_output=True, text=True)
         out = p.stdout + p.stderr
         red = p.returncode != 0
         named = "row points at ANOTHER RELEASE" in out
-        its_own_manifest = f"live rows vs {V112_HOME}/manifest.json" in out
+        its_own_manifest = f"live rows vs {V114_HOME}/manifest.json" in out
         ok = red and named and its_own_manifest
         if not ok:
-            survived.add("anchor mutation RELEASE -> kalsa-server-v1.1.2 "
+            survived.add("anchor mutation RELEASE -> kalsa-server-v1.1.4 "
                          f"survived (exit {p.returncode}, home named {named}, "
                          f"own manifest {its_own_manifest})")
         print(f"  [{'ok' if ok else 'FAIL'}] anchor mutation RELEASE -> "
-              f"kalsa-server-v1.1.2 with the row untouched: "
+              f"kalsa-server-v1.1.4 with the row untouched: "
               f"{'CAUGHT' if ok else 'SURVIVED'} (exit {p.returncode}, "
               f"home named: {named}, fetched its own declared manifest: "
               f"{its_own_manifest})", file=sys.stderr)

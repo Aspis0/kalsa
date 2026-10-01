@@ -19,7 +19,7 @@
 /// Where Kalsa's own fork of the engine is published: the app's CDN, not
 /// GitHub. The fork is the only engine that reads the door's private
 /// headers, so it is the only one this app may mount.
-const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.4";
+const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.5";
 
 /// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
 /// to a commit so the bytes cannot move under us.
@@ -181,16 +181,16 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",
+        file: "kalsa-server-v1.1.5-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
         // `exe_sha256` is the thin launcher `kalsa-server`, the binary the
         // archive's `libllama-server-impl.dylib` is loaded by: an integrity
         // check on the extracted launcher, re-measured at every start
         // (`marker.rs`), and never the version identity — the ARCHIVE
         // `sha256` is.
-        exe_sha256: Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),
-        size_bytes: Some(11_890_855),
-        sha256: Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),
+        exe_sha256: Some("8958c829b4e45893ac5d0d816858a410c4500e23335f890cab80fbf07fc97668"),
+        size_bytes: Some(12_650_481),
+        sha256: Some("cd5af85a490c283e82e8e08cf4f96fdd435c41d15bdd0931c2d8b76127ba674e"),
     },
     // No Intel macOS engine row, on purpose. `Platform::MacX64` stays so an
     // Intel Mac is identified honestly, but the fork publishes no x64
@@ -205,29 +205,29 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Cpu),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",
+        file: "kalsa-server-v1.1.5-bin-win-cpu-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // The fork's Windows archives carry the per-variant `ggml-cpu-*`
         // libraries and no plain `ggml-cpu.dll`; the VC++ runtime DLLs
         // (`msvcp140`, `vcomp140`, `vcruntime140*`) ship in the archive
         // beside the binaries.
-        exe_sha256: Some("a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26"),
-        size_bytes: Some(14_487_114),
-        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),
+        exe_sha256: Some("6da613d9b45a151e3ce31053fb13795c1f3515ff059cc73cc148bf75ef9b88f7"),
+        size_bytes: Some(14_489_079),
+        sha256: Some("5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b"),
     },
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Vulkan),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.4-bin-win-vulkan-x64.zip",
+        file: "kalsa-server-v1.1.5-bin-win-vulkan-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // Same layout as the CPU archive (`ggml-cpu-*`, no plain
         // `ggml-cpu.dll`) plus `ggml-vulkan.dll`; the VC++ runtime DLLs
         // ship in the archive, as in the CPU row.
-        exe_sha256: Some("147fa7b89005dca8ba950ef960fc0fafec519e7b7b31adfe767dba571a792b26"),
-        size_bytes: Some(27_831_749),
-        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),
+        exe_sha256: Some("56791d12533b2d6ea5f6b47a79bb185c65bbb5d5b38a6d90462d4a4e55f4f477"),
+        size_bytes: Some(27_833_666),
+        sha256: Some("9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c"),
     },
     // The probe's tiny model: stories260K from ggml-org/tiny-llamas, the
     // models llama.cpp's own CI leans on. Size and digest verified against
@@ -393,17 +393,17 @@ mod tests {
         let row = rows[0];
         assert_eq!(row.role, Role::Engine);
         assert_eq!(row.home, FORK_BASE);
-        assert_eq!(row.file, "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz");
+        assert_eq!(row.file, "kalsa-server-v1.1.5-bin-macos-arm64.tar.gz");
         assert_eq!(row.format, Some(ArchiveFormat::TarGz));
-        assert_eq!(row.size_bytes, Some(11_890_855));
+        assert_eq!(row.size_bytes, Some(12_650_481));
         assert_eq!(
             row.sha256,
-            Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),
+            Some("cd5af85a490c283e82e8e08cf4f96fdd435c41d15bdd0931c2d8b76127ba674e"),
             "the archive digest is the version identity"
         );
         assert_eq!(
             row.exe_sha256,
-            Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),
+            Some("8958c829b4e45893ac5d0d816858a410c4500e23335f890cab80fbf07fc97668"),
             "the launcher digest: an integrity check, not a version"
         );
         assert!(
@@ -421,17 +421,17 @@ mod tests {
         let expected = [
             (
                 ServerBackend::Cpu,
-                "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",
-                14_487_114u64,
-                "122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e",
-                "a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26",
+                "kalsa-server-v1.1.5-bin-win-cpu-x64.zip",
+                14_489_079u64,
+                "5ffd88863f97536806f51117691caf701c4d9d407e4ef9b74fbc7e79fadf3a1b",
+                "6da613d9b45a151e3ce31053fb13795c1f3515ff059cc73cc148bf75ef9b88f7",
             ),
             (
                 ServerBackend::Vulkan,
-                "kalsa-server-v1.1.4-bin-win-vulkan-x64.zip",
-                27_831_749,
-                "5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3",
-                "147fa7b89005dca8ba950ef960fc0fafec519e7b7b31adfe767dba571a792b26",
+                "kalsa-server-v1.1.5-bin-win-vulkan-x64.zip",
+                27_833_666,
+                "9eda1e79481281fce6d51e785b7012c0071ed9be245047de8ed0c81344f7498c",
+                "56791d12533b2d6ea5f6b47a79bb185c65bbb5d5b38a6d90462d4a4e55f4f477",
             ),
         ];
         for (backend, file, size, sha, exe_sha) in expected {
