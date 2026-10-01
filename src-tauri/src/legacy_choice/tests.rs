@@ -54,7 +54,9 @@ fn record_for(root: &Path) -> std::path::PathBuf {
                 offload: kalsa_launch::Offload::NoGpuBuild,
                 draft: None,
             },
-            kalsa_tune::record::Kept::Best(21.0),
+            kalsa_tune::record::Kept::Replied(
+                kalsa_tune::Reply::from_rates(1000.0, 21.0).expect("two measurements"),
+            ),
         )],
     };
     kalsa_tune::record::save(root, digest(), &record).expect("record");
@@ -72,7 +74,9 @@ fn other_record_for(root: &Path) -> std::path::PathBuf {
                 offload: kalsa_launch::Offload::NoGpuBuild,
                 draft: None,
             },
-            kalsa_tune::record::Kept::Best(19.0),
+            kalsa_tune::record::Kept::Replied(
+                kalsa_tune::Reply::from_rates(1000.0, 19.0).expect("two measurements"),
+            ),
         )],
     };
     kalsa_tune::record::save(root, digest2(), &record).expect("record");

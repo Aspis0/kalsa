@@ -3,10 +3,11 @@
 //!
 //! The tune is an optimisation allowed to fail: a refused or unmeasured
 //! candidate never wins, and no winner at all leaves the caller on the
-//! rule's own guess (`kalsa_launch::thread_count`, the VRAM margin). Three
-//! questions, three modules: which launches are worth trying
-//! (`candidates`), which trial won (`winner`), and what is kept for the
-//! next start (`record`).
+//! rule's own guess (`kalsa_launch::thread_count`, the VRAM margin). Four
+//! questions, four modules: which launches are worth trying
+//! (`candidates`), how the room is asked and scored (`room`, `score`),
+//! which trials the two passes measured (`passes`), and what is kept for
+//! the next start (`record`).
 
 pub mod record;
 pub use record::fingerprint;
@@ -19,8 +20,13 @@ mod measure;
 mod sample;
 
 mod candidates;
-mod winner;
+mod passes;
+mod refusal;
+mod room;
+mod score;
 
 pub use candidates::{candidates, needs_tuning, Candidate};
-pub use measure::{measure_candidates, measure_draft_candidates};
-pub use winner::{winner, Outcome, Refusal, Winner, TIE_BAND};
+pub use measure::measure_tune;
+pub use passes::Tuned;
+pub use refusal::Refusal;
+pub use score::{Reply, Skip, Winner};

@@ -189,8 +189,17 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         if let Some(record) = record {
             for (candidate, kept) in &record.trials {
                 let word = match kept {
-                    kalsa_tune::record::Kept::Best(rate) => format!("{rate:.1} tok/s"),
-                    kalsa_tune::record::Kept::Refused(refusal) => format!("refused ({refusal:?})"),
+                    kalsa_tune::record::Kept::Replied(reply) => format!(
+                        "reply ≈ {:.1} s (prompt {:.0} tok/s, decode {:.0} tok/s)",
+                        reply.seconds, reply.prompt_rate, reply.decode_rate
+                    ),
+                    kalsa_tune::record::Kept::PromptOnly {
+                        prompt_rate,
+                        skipped,
+                    } => format!("prefill {prompt_rate:.0} tok/s, decode skipped ({skipped:?})"),
+                    kalsa_tune::record::Kept::Refused { refusal, .. } => {
+                        format!("refused ({refusal:?})")
+                    }
                 };
                 eprintln!("tune: {} — {word}", tune_label(candidate));
             }

@@ -53,6 +53,16 @@ fn path_last(model_digest: &str) -> String {
         .into_owned()
 }
 
+/// The reply `sample()`'s winner holds, from the same two rates both
+/// sides compute, so the trial and the winner are the same reply.
+fn gpu_reply() -> Reply {
+    Reply::from_rates(1000.0, 49.0).expect("two measurements")
+}
+
+fn mac_reply() -> Reply {
+    Reply::from_rates(500.0, 21.0).expect("two measurements")
+}
+
 fn sample() -> Record {
     let cpu16 = Candidate {
         backend: ServerBackend::Cpu,
@@ -76,12 +86,18 @@ fn sample() -> Record {
         fingerprint: fp(DIGEST),
         winner: Some(Winner {
             candidate: gpu,
-            best: 49.0,
+            reply: gpu_reply(),
         }),
         trials: vec![
-            (gpu, Kept::Best(49.0)),
-            (cpu16, Kept::Refused(Refusal::DidNotStart)),
-            (mac, Kept::Best(21.0)),
+            (gpu, Kept::Replied(gpu_reply())),
+            (
+                cpu16,
+                Kept::Refused {
+                    refusal: Refusal::DidNotStart,
+                    prompt_rate: None,
+                },
+            ),
+            (mac, Kept::Replied(mac_reply())),
         ],
     }
 }
@@ -133,6 +149,32 @@ fn an_engine_fitted_winner_round_trips() {
     );
 }
 
+/// A drafted winner round-trips with every field its launch needs: the
+/// draft count, and the reply that chose it. The sample's own winner is
+/// target-only, so this is the one case that reads a `draft=` line back
+/// from both the trial and the winner block.
+#[test]
+fn a_drafted_winner_round_trips() {
+    let dir = Scratch::new("drafted-roundtrip");
+    let base = Candidate {
+        backend: ServerBackend::Vulkan,
+        threads: Some(16),
+        offload: Offload::EngineFitted,
+        draft: Some(3),
+    };
+    let reply = Reply::from_rates(60.0, 45.0).expect("two measurements");
+    let record = Record {
+        fingerprint: fp(DIGEST),
+        winner: Some(Winner {
+            candidate: base,
+            reply,
+        }),
+        trials: vec![(base, Kept::Replied(reply))],
+    };
+    save(&dir, DIGEST, &record).expect("save");
+    assert_eq!(load(&dir, DIGEST, &record.fingerprint), Some(record));
+}
+
 #[test]
 fn a_changed_machine_or_model_reads_as_no_record() {
     let dir = Scratch::new("fingerprint");
@@ -140,10 +182,80 @@ fn a_changed_machine_or_model_reads_as_no_record() {
     assert_eq!(load(&dir, DIGEST, &fp(OTHER_DIGEST)), None);
 }
 
+/// The two shapes a record keeps that never produced a reply: a shape the
+/// bound skipped, and a shape the budget cut. Both carry the prefill rate
+/// they did measure, and both must survive a restart.
+#[test]
+fn a_prompt_only_trial_round_trips() {
+    let dir = Scratch::new("prompt-only");
+    let record = Record {
+        fingerprint: fp(DIGEST),
+        winner: None,
+        trials: vec![
+            (
+                Candidate {
+                    backend: ServerBackend::Vulkan,
+                    threads: Some(16),
+                    offload: Offload::All,
+                    draft: None,
+                },
+                Kept::PromptOnly {
+                    prompt_rate: 73.0,
+                    skipped: Skip::Bounded,
+                },
+            ),
+            (
+                Candidate {
+                    backend: ServerBackend::Cpu,
+                    threads: Some(16),
+                    offload: Offload::NoGpuBuild,
+                    draft: None,
+                },
+                Kept::PromptOnly {
+                    prompt_rate: 150.0,
+                    skipped: Skip::Cut,
+                },
+            ),
+        ],
+    };
+    save(&dir, DIGEST, &record).expect("save");
+    assert_eq!(load(&dir, DIGEST, &record.fingerprint), Some(record));
+
+    // The skip's reason is a closed name too: a made-up one is not ours.
+    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");
+    rewrite(&dir, text.replace("skipped=bounded", "skipped=later"));
+    assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
+}
+
+/// A trial that refused after its shape's prefill keeps the prefill rate:
+/// the one number the shape did produce travels with the cause.
+#[test]
+fn a_refusal_keeps_the_prompt_rate_it_measured() {
+    let dir = Scratch::new("refused-prompt-rate");
+    let record = Record {
+        fingerprint: fp(DIGEST),
+        winner: None,
+        trials: vec![(
+            Candidate {
+                backend: ServerBackend::Vulkan,
+                threads: Some(16),
+                offload: Offload::All,
+                draft: Some(2),
+            },
+            Kept::Refused {
+                refusal: Refusal::PromptTooShort,
+                prompt_rate: Some(73.0),
+            },
+        )],
+    };
+    save(&dir, DIGEST, &record).expect("save");
+    assert_eq!(load(&dir, DIGEST, &record.fingerprint), Some(record));
+}
+
 #[test]
 fn a_corrupt_value_reads_as_no_record() {
     let dir = Scratch::new("corrupt");
-    let text = sample_text(&dir).replace("best=49", "best=banana");
+    let text = sample_text(&dir).replace("decode-rate=49", "decode-rate=banana");
     rewrite(&dir, text);
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 }
@@ -226,24 +338,49 @@ fn a_v1_record_reads_as_no_record() {
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 }
 
+/// The v3 records held a decode rate and nothing of the room: their
+/// winner was chosen without a prefill number, so every one of them must
+/// read as no record and re-tune once — the same rule as any other magic.
+#[test]
+fn a_v3_record_reads_as_no_record() {
+    let dir = Scratch::new("legacy-v3");
+    save(&dir, DIGEST, &sample()).expect("save");
+    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");
+    rewrite(&dir, text.replacen(MAGIC, "kalsa-tune v3", 1));
+    assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
+}
+
 /// A rate the format must not hold: zero, negative and non-finite are
 /// not measurements, however the file spells them.
 #[test]
-fn a_best_that_is_not_positive_reads_as_no_record() {
-    let dir = Scratch::new("bad-best");
+fn a_rate_that_is_not_positive_reads_as_no_record() {
+    let dir = Scratch::new("bad-rate");
     for bad in ["0", "-1.5", "NaN", "inf"] {
-        let text = sample_text(&dir).replace("best=49", &format!("best={bad}"));
+        let text = sample_text(&dir).replace("decode-rate=49", &format!("decode-rate={bad}"));
         rewrite(&dir, text);
         assert_eq!(
             load(&dir, DIGEST, &fp(DIGEST)),
             None,
-            "best={bad} must not load"
+            "decode-rate={bad} must not load"
         );
     }
 }
 
+/// The score is not a claim the file gets to make: a reply whose seconds
+/// do not follow from its own two rates is two truths in one line.
+#[test]
+fn a_reply_whose_seconds_are_not_its_rates_reads_as_no_record() {
+    let dir = Scratch::new("bad-seconds");
+    let held = format!("candidate.0.reply-seconds={}", gpu_reply().seconds);
+    rewrite(
+        &dir,
+        sample_text(&dir).replace(&held, "candidate.0.reply-seconds=1"),
+    );
+    assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
+}
+
 /// A winner that is not one of the loaded trials (or not the same
-/// number) is a file that lost its middle: no record.
+/// reply) is a file that lost its middle: no record.
 #[test]
 fn a_winner_that_is_not_among_the_trials_reads_as_no_record() {
     let dir = Scratch::new("stray-winner");
@@ -253,8 +390,20 @@ fn a_winner_that_is_not_among_the_trials_reads_as_no_record() {
     rewrite(&dir, base.replace("winner-threads=16", "winner-threads=99"));
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 
-    // The same trial, a different number.
-    rewrite(&dir, base.replace("winner-best=49", "winner-best=48"));
+    // The same shape, another reply: rates and seconds that agree with
+    // each other and with no trial's.
+    let held = format!(
+        "winner-prompt-rate={}\nwinner-decode-rate={}\nwinner-reply-seconds={}\n",
+        gpu_reply().prompt_rate,
+        gpu_reply().decode_rate,
+        gpu_reply().seconds
+    );
+    let other = Reply::from_rates(1000.0, 48.0).expect("two measurements");
+    let forged = format!(
+        "winner-prompt-rate={}\nwinner-decode-rate={}\nwinner-reply-seconds={}\n",
+        other.prompt_rate, other.decode_rate, other.seconds
+    );
+    rewrite(&dir, base.replace(&held, &forged));
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 
     // An offload no trial has.
@@ -357,12 +506,19 @@ fn an_unloadable_record_is_refused_before_anything_is_written() {
                 offload: Offload::NoGpuBuild,
                 draft: None,
             },
-            Kept::Best(9.0),
+            Kept::Replied(Reply::from_rates(1000.0, 9.0).expect("two measurements")),
         )],
         ..good.clone()
     };
-    let bad_best = Record {
-        trials: vec![(trials[0].0, Kept::Best(0.0))],
+    let bad_rate = Record {
+        trials: vec![(
+            trials[0].0,
+            Kept::Replied(Reply {
+                prompt_rate: 1000.0,
+                decode_rate: 0.0,
+                seconds: 2.0,
+            }),
+        )],
         ..good.clone()
     };
     let stray_winner = Record {
@@ -373,7 +529,7 @@ fn an_unloadable_record_is_refused_before_anything_is_written() {
                 offload: Offload::NoGpuBuild,
                 draft: None,
             },
-            best: 5.0,
+            reply: Reply::from_rates(1000.0, 5.0).expect("two measurements"),
         }),
         ..good.clone()
     };
@@ -383,7 +539,7 @@ fn an_unloadable_record_is_refused_before_anything_is_written() {
     for (name, record) in [
         ("save-no-trials", no_trials),
         ("save-zero-threads", zero_threads),
-        ("save-bad-best", bad_best),
+        ("save-bad-rate", bad_rate),
         ("save-stray-winner", stray_winner),
     ] {
         let dir = Scratch::new(name);
@@ -474,14 +630,24 @@ fn two_trials_of_one_launch_are_refused_by_save() {
 fn a_forged_duplicate_trial_reads_as_no_record() {
     let dir = Scratch::new("load-dup-trial");
     std::fs::create_dir_all(&*dir).expect("mkdir");
+    let first = gpu_reply();
+    let second = Reply::from_rates(1000.0, 48.0).expect("two measurements");
     let text = format!(
         "{MAGIC}\nfingerprint={}\n\
              candidate.0.backend=vulkan\ncandidate.0.threads=16\n\
-             candidate.0.offload=all\ncandidate.0.best=49.0\n\
+             candidate.0.offload=all\ncandidate.0.prompt-rate={}\n\
+             candidate.0.decode-rate={}\ncandidate.0.reply-seconds={}\n\
              candidate.1.backend=vulkan\ncandidate.1.threads=16\n\
-             candidate.1.offload=all\ncandidate.1.best=48.0\n\
+             candidate.1.offload=all\ncandidate.1.prompt-rate={}\n\
+             candidate.1.decode-rate={}\ncandidate.1.reply-seconds={}\n\
              end\n",
-        fp(DIGEST)
+        fp(DIGEST),
+        first.prompt_rate,
+        first.decode_rate,
+        first.seconds,
+        second.prompt_rate,
+        second.decode_rate,
+        second.seconds
     );
     rewrite(&dir, text);
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
@@ -503,7 +669,7 @@ fn two_models_keep_their_own_records() {
     };
     other.winner = Some(Winner {
         candidate: mac,
-        best: 21.0,
+        reply: mac_reply(),
     });
     save(&dir, DIGEST, &sample()).expect("the first model's save");
     save(&dir, OTHER_DIGEST, &other).expect("the second model's save");
@@ -511,8 +677,8 @@ fn two_models_keep_their_own_records() {
         load(&dir, DIGEST, &fp(DIGEST)).expect("the first model's record survived the second save");
     let second =
         load(&dir, OTHER_DIGEST, &fp(OTHER_DIGEST)).expect("and the second's survived the first");
-    assert_eq!(first.winner.expect("kept").best, 49.0);
-    assert_eq!(second.winner.expect("kept").best, 21.0);
+    assert_eq!(first.winner.expect("kept").reply, gpu_reply());
+    assert_eq!(second.winner.expect("kept").reply, mac_reply());
     assert_eq!(
         load_by_model(&dir, DIGEST)
             .expect("by name alone")

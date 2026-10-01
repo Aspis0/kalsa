@@ -12,9 +12,10 @@ use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
 use crate::candidates::Candidate;
-use crate::winner::{Outcome, Refusal, Winner};
+use crate::refusal::Refusal;
+use crate::score::{reply_seconds, Reply, Skip, Winner};
 
-const MAGIC: &str = "kalsa-tune v3";
+const MAGIC: &str = "kalsa-tune v4";
 
 /// One record per model, filed under the model digest the key names. The
 /// single `tuning.txt` this replaces could hold one tune, so a second
@@ -64,7 +65,7 @@ pub fn fingerprint(
     drafter: Option<&str>,
 ) -> String {
     format!(
-        "kalsa-tune fp v2|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
+        "kalsa-tune fp v3|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
          logical={logical_cores:?}|graphics={}|processor={}|draft={}",
         engine_builds.0,
         engine_builds.1,
@@ -72,41 +73,43 @@ pub fn fingerprint(
     )
 }
 /// The winner as the file holds it, field by field until every line has
-/// arrived: backend, offload, threads (optional), draft (optional), best.
-type WinnerLine = (
-    ServerBackend,
-    Option<Offload>,
-    Option<usize>,
-    Option<u32>,
-    Option<f64>,
-);
+/// arrived: backend, offload, threads (optional), draft (optional), and
+/// the three numbers of its reply.
+struct WinnerLine {
+    backend: ServerBackend,
+    offload: Option<Offload>,
+    threads: Option<usize>,
+    draft: Option<u32>,
+    prompt_rate: Option<f64>,
+    decode_rate: Option<f64>,
+    seconds: Option<f64>,
+}
 
-/// A candidate's kept result: its best rate, or its refusal. The record
-/// keeps the winning number, not every sample — the app shows the figure
-/// it chose, and that figure is the best one that ran.
+/// A candidate's kept result: the room's reply it measured, the prefill
+/// number it managed before a skip, or the closed cause that kept any
+/// number out.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Kept {
-    Best(f64),
-    Refused(Refusal),
+    /// The trial's three numbers: the shape's prefill, the trial's own
+    /// decode, and the wait they make.
+    Replied(Reply),
+    /// The shape's prefill was measured; no decoded ask ran on it — the
+    /// bound proved the prefill alone cannot win, or the budget ran out
+    /// first. The shape ran, so the record is whole; it has no reply, so
+    /// it cannot win.
+    PromptOnly { prompt_rate: f64, skipped: Skip },
+    /// No number, and the closed cause. The prompt rate rides along when
+    /// the shape's prefill had measured one, so a trial that failed after
+    /// prefill still says what the shape's history cost.
+    Refused {
+        refusal: Refusal,
+        prompt_rate: Option<f64>,
+    },
 }
 
-impl From<&Outcome> for Kept {
-    fn from(outcome: &Outcome) -> Self {
-        match outcome {
-            Outcome::Refused(refusal) => Self::Refused(*refusal),
-            Outcome::Measured(_) => match outcome.best() {
-                Some(rate) => Self::Best(rate),
-                // A measurement with no usable sample proved nothing —
-                // kept as the closed cause it functionally is.
-                None => Self::Refused(Refusal::NoUsableAnswer),
-            },
-        }
-    }
-}
-
-/// One tune's result, kept until the fingerprint moves: the winner with its
-/// number, and every candidate's number or refusal — the app must show the
-/// number it chose, so the trials travel with the choice.
+/// One tune's result, kept until the fingerprint moves: the winner with
+/// its reply, and every candidate's own numbers or cause — the app must
+/// show the wait it chose, so the trials travel with the choice.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     /// The caller's opaque key (model digest, engine builds, context,
@@ -149,25 +152,51 @@ fn validate(record: &Record) -> io::Result<()> {
         if candidate.threads == Some(0) {
             return reject("a thread count of zero is not a count anyone ran");
         }
-        if let Kept::Best(rate) = kept {
-            if !rate.is_finite() || *rate <= 0.0 {
-                return reject("a best must be a positive, finite rate");
+        match kept {
+            Kept::Replied(reply) if !reply_is_sound(reply) => {
+                return reject("a reply must be its own rates' positive, finite score");
             }
+            Kept::PromptOnly { prompt_rate, .. } if !rate_is_sound(*prompt_rate) => {
+                return reject("a prefill rate must be positive and finite");
+            }
+            Kept::Refused {
+                prompt_rate: Some(prompt_rate),
+                ..
+            } if !rate_is_sound(*prompt_rate) => {
+                return reject("a prefill rate must be positive and finite");
+            }
+            _ => {}
         }
     }
     if let Some(winner) = &record.winner {
-        if !trial_holds(&record.trials, &winner.candidate, winner.best) {
+        if !trial_holds(&record.trials, &winner.candidate, &winner.reply) {
             return reject("the winner must be one of the record's own trials");
         }
     }
     Ok(())
 }
 
-/// The winner is a trial of this record with the same number — the one
+/// The rates and the score they make: the only reply a record may hold.
+/// The score is recomputed, so a file whose seconds do not follow from its
+/// own rates is a file with two truths, and not ours.
+fn reply_is_sound(reply: &Reply) -> bool {
+    rate_is_sound(reply.prompt_rate)
+        && rate_is_sound(reply.decode_rate)
+        && rate_is_sound(reply.seconds)
+        && reply.seconds == reply_seconds(reply.prompt_rate, reply.decode_rate)
+}
+
+/// A rate a record may hold: a positive, finite number. Anything else is
+/// not a measurement, whatever the file claims.
+fn rate_is_sound(rate: f64) -> bool {
+    rate.is_finite() && rate > 0.0
+}
+
+/// The winner is a trial of this record with the same reply — the one
 /// rule, used by both sides, so `save` cannot write what `load` refuses.
-fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, best: f64) -> bool {
+fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, reply: &Reply) -> bool {
     trials.iter().any(|(trial, kept)| {
-        *trial == *candidate && matches!(kept, Kept::Best(rate) if *rate == best)
+        *trial == *candidate && matches!(kept, Kept::Replied(held) if held == reply)
     })
 }
 
@@ -201,11 +230,42 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
             text.push_str(&format!("candidate.{index}.draft={n_max}\n"));
         }
         match kept {
-            Kept::Best(rate) => text.push_str(&format!("candidate.{index}.best={rate}\n")),
-            Kept::Refused(refusal) => text.push_str(&format!(
-                "candidate.{index}.refused={}\n",
-                refusal_name(*refusal)
-            )),
+            Kept::Replied(reply) => {
+                text.push_str(&format!(
+                    "candidate.{index}.prompt-rate={}\n",
+                    reply.prompt_rate
+                ));
+                text.push_str(&format!(
+                    "candidate.{index}.decode-rate={}\n",
+                    reply.decode_rate
+                ));
+                text.push_str(&format!(
+                    "candidate.{index}.reply-seconds={}\n",
+                    reply.seconds
+                ));
+            }
+            Kept::PromptOnly {
+                prompt_rate,
+                skipped,
+            } => {
+                text.push_str(&format!("candidate.{index}.prompt-rate={prompt_rate}\n"));
+                text.push_str(&format!(
+                    "candidate.{index}.skipped={}\n",
+                    skip_name(*skipped)
+                ));
+            }
+            Kept::Refused {
+                refusal,
+                prompt_rate,
+            } => {
+                if let Some(prompt_rate) = prompt_rate {
+                    text.push_str(&format!("candidate.{index}.prompt-rate={prompt_rate}\n"));
+                }
+                text.push_str(&format!(
+                    "candidate.{index}.refused={}\n",
+                    refusal_name(*refusal)
+                ));
+            }
         }
     }
     if let Some(winner) = &record.winner {
@@ -223,7 +283,15 @@ pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
         if let Some(n_max) = winner.candidate.draft {
             text.push_str(&format!("winner-draft={n_max}\n"));
         }
-        text.push_str(&format!("winner-best={}\n", winner.best));
+        text.push_str(&format!(
+            "winner-prompt-rate={}\n",
+            winner.reply.prompt_rate
+        ));
+        text.push_str(&format!(
+            "winner-decode-rate={}\n",
+            winner.reply.decode_rate
+        ));
+        text.push_str(&format!("winner-reply-seconds={}\n", winner.reply.seconds));
     }
     // The end marker is the truncation guard: every cut this format can
     // suffer lands before it, and a record without it is a record we do
@@ -305,18 +373,17 @@ pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
 fn parse(text: &str) -> Option<(String, Record)> {
     let mut lines = text.lines();
     // The magic must be the WHOLE first line: a version we do not know —
-    // `kalsa-tune v1` with its fit-disabling graphics winner, today — is not
-    // ours, and the walk tunes again.
+    // `kalsa-tune v3` with its decode-only winner, today — is not ours, and
+    // the walk tunes again.
     if lines.next()? != MAGIC {
         return None;
     }
     let mut saved_fingerprint: Option<&str> = None;
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     // The candidate being read: fields arrive in the order save writes
-    // them (backend, threads?, offload, then exactly one of best/refused)
-    // and only for the next index in line.
-    let mut open: Option<(ServerBackend, Option<usize>, Option<Offload>, Option<u32>)> = None;
-    let mut kept: Option<Kept> = None;
+    // them (backend, threads?, offload, prompt-rate?, then exactly one of
+    // reply-seconds/skipped/refused) and only for the next index in line.
+    let mut open: Option<Open> = None;
     let mut winner: Option<WinnerLine> = None;
     let mut saw_end = false;
     for line in lines {
@@ -341,65 +408,110 @@ fn parse(text: &str) -> Option<(String, Record)> {
             }
             match field {
                 "backend" => {
-                    if open.is_some() || kept.is_some() {
+                    if open.is_some() {
                         return None;
                     }
-                    open = Some((ServerBackend::from_name(value)?, None, None, None));
+                    open = Some(Open {
+                        backend: ServerBackend::from_name(value)?,
+                        threads: None,
+                        offload: None,
+                        draft: None,
+                        prompt_rate: None,
+                        decode_rate: None,
+                    });
                 }
                 "threads" => {
                     let slot = open.as_mut()?;
-                    if slot.1.is_some() || slot.2.is_some() || slot.3.is_some() || kept.is_some() {
+                    if slot.threads.is_some()
+                        || slot.offload.is_some()
+                        || slot.draft.is_some()
+                        || slot.prompt_rate.is_some()
+                    {
                         return None;
                     }
-                    slot.1 = Some(parse_count(value)?);
+                    slot.threads = Some(parse_count(value)?);
                 }
                 "offload" => {
                     let slot = open.as_mut()?;
-                    if slot.2.is_some() || slot.3.is_some() || kept.is_some() {
+                    if slot.offload.is_some() || slot.draft.is_some() || slot.prompt_rate.is_some()
+                    {
                         return None;
                     }
-                    slot.2 = Some(offload_from_name(value)?);
+                    slot.offload = Some(offload_from_name(value)?);
                 }
                 "draft" => {
                     let slot = open.as_mut()?;
-                    if slot.3.is_some() || kept.is_some() {
+                    if slot.draft.is_some() || slot.prompt_rate.is_some() {
                         return None;
                     }
-                    slot.2?; // the offload line must have come first
-                    slot.3 = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
+                    slot.offload?; // the offload line must have come first
+                    slot.draft = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
                 }
-                "best" | "refused" => {
-                    if kept.is_some() {
+                "prompt-rate" => {
+                    let slot = open.as_mut()?;
+                    if slot.prompt_rate.is_some() {
                         return None;
                     }
+                    slot.offload?; // the offload line must have come first
+                    slot.prompt_rate = Some(parse_rate(value)?);
+                }
+                "decode-rate" => {
+                    let slot = open.as_mut()?;
+                    if slot.decode_rate.is_some() {
+                        return None;
+                    }
+                    slot.prompt_rate?; // a decode rate without its shape's prefill is not ours
+                    slot.decode_rate = Some(parse_rate(value)?);
+                }
+                "reply-seconds" => {
                     let slot = open.as_ref()?;
-                    slot.2?; // the offload line must have come first
-                    kept = Some(if field == "best" {
-                        Kept::Best(parse_rate(value)?)
-                    } else {
-                        Kept::Refused(refusal_from_name(value)?)
-                    });
+                    let reply = Reply {
+                        prompt_rate: slot.prompt_rate?,
+                        decode_rate: slot.decode_rate?,
+                        seconds: parse_rate(value)?,
+                    };
+                    if !reply_is_sound(&reply) {
+                        return None;
+                    }
+                    close(&mut open, &mut trials, Kept::Replied(reply))?;
+                }
+                "skipped" => {
+                    let slot = open.as_ref()?;
+                    if slot.decode_rate.is_some() {
+                        return None;
+                    }
+                    let prompt_rate = slot.prompt_rate?;
+                    let skipped = skip_from_name(value)?;
+                    close(
+                        &mut open,
+                        &mut trials,
+                        Kept::PromptOnly {
+                            prompt_rate,
+                            skipped,
+                        },
+                    )?;
+                }
+                "refused" => {
+                    if open.as_ref()?.decode_rate.is_some() {
+                        return None; // a decoded refusal is two answers at once
+                    }
+                    open.as_ref()?.offload?; // the offload line must have come first
+                    let prompt_rate = open.as_ref()?.prompt_rate;
+                    let refusal = refusal_from_name(value)?;
+                    close(
+                        &mut open,
+                        &mut trials,
+                        Kept::Refused {
+                            refusal,
+                            prompt_rate,
+                        },
+                    )?;
                 }
                 _ => return None,
             }
-            if kept.is_some() {
-                let (backend, threads, offload, draft) = open.take()?;
-                let candidate = Candidate {
-                    backend,
-                    threads,
-                    offload: offload?,
-                    draft,
-                };
-                if trials.iter().any(|(other, _)| *other == candidate) {
-                    // The builder de-duplicates: a file that does not is a
-                    // file from something else wearing our shape.
-                    return None;
-                }
-                trials.push((candidate, kept.take()?));
-            }
             continue;
         }
-        if open.is_some() || kept.is_some() {
+        if open.is_some() {
             return None; // a candidate must finish before any other key
         }
         match key {
@@ -409,27 +521,63 @@ fn parse(text: &str) -> Option<(String, Record)> {
                 saved_fingerprint = Some(value);
             }
             "winner-backend" if winner.is_none() => {
-                winner = Some((ServerBackend::from_name(value)?, None, None, None, None));
+                winner = Some(WinnerLine {
+                    backend: ServerBackend::from_name(value)?,
+                    offload: None,
+                    threads: None,
+                    draft: None,
+                    prompt_rate: None,
+                    decode_rate: None,
+                    seconds: None,
+                });
             }
-            "winner-offload" if winner.as_ref().is_some_and(|slot| slot.1.is_none()) => {
-                winner.as_mut()?.1 = Some(offload_from_name(value)?);
+            "winner-offload" if winner.as_ref().is_some_and(|slot| slot.offload.is_none()) => {
+                winner.as_mut()?.offload = Some(offload_from_name(value)?);
             }
             "winner-threads"
                 if winner.as_ref().is_some_and(|slot| {
-                    slot.1.is_some() && slot.2.is_none() && slot.3.is_none()
+                    slot.offload.is_some()
+                        && slot.threads.is_none()
+                        && slot.draft.is_none()
+                        && slot.prompt_rate.is_none()
                 }) =>
             {
-                winner.as_mut()?.2 = Some(parse_count(value)?);
+                winner.as_mut()?.threads = Some(parse_count(value)?);
             }
             "winner-draft"
                 if winner.as_ref().is_some_and(|slot| {
-                    slot.2.is_some() && slot.3.is_none() && slot.4.is_none()
+                    slot.offload.is_some()
+                        && slot.draft.is_none()
+                        && slot.prompt_rate.is_none()
+                        && slot.seconds.is_none()
                 }) =>
             {
-                winner.as_mut()?.3 = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
+                winner.as_mut()?.draft = Some(value.parse::<u32>().ok().filter(|n| *n > 0)?);
             }
-            "winner-best" if winner.as_ref().is_some_and(|slot| slot.4.is_none()) => {
-                winner.as_mut()?.4 = Some(parse_rate(value)?);
+            "winner-prompt-rate"
+                if winner.as_ref().is_some_and(|slot| {
+                    slot.prompt_rate.is_none()
+                        && slot.decode_rate.is_none()
+                        && slot.seconds.is_none()
+                }) =>
+            {
+                winner.as_mut()?.prompt_rate = Some(parse_rate(value)?);
+            }
+            "winner-decode-rate"
+                if winner.as_ref().is_some_and(|slot| {
+                    slot.prompt_rate.is_some()
+                        && slot.decode_rate.is_none()
+                        && slot.seconds.is_none()
+                }) =>
+            {
+                winner.as_mut()?.decode_rate = Some(parse_rate(value)?);
+            }
+            "winner-reply-seconds"
+                if winner
+                    .as_ref()
+                    .is_some_and(|slot| slot.decode_rate.is_some() && slot.seconds.is_none()) =>
+            {
+                winner.as_mut()?.seconds = Some(parse_rate(value)?);
             }
             _ => return None,
         }
@@ -441,21 +589,27 @@ fn parse(text: &str) -> Option<(String, Record)> {
     }
     let winner = match winner {
         None => None,
-        Some((backend, offload, threads, draft, best)) => {
-            let offload = offload?;
-            let best = best?;
-            let candidate = Candidate {
-                backend,
-                threads,
-                offload,
-                draft,
+        Some(line) => {
+            let reply = Reply {
+                prompt_rate: line.prompt_rate?,
+                decode_rate: line.decode_rate?,
+                seconds: line.seconds?,
             };
-            // A file whose winner cannot be found among its own candidates
-            // is a file that lost its middle.
-            if !trial_holds(&trials, &candidate, best) {
+            if !reply_is_sound(&reply) {
                 return None;
             }
-            Some(Winner { candidate, best })
+            let candidate = Candidate {
+                backend: line.backend,
+                threads: line.threads,
+                offload: line.offload?,
+                draft: line.draft,
+            };
+            // A file whose winner cannot be found among its own trials is
+            // a file that lost its middle.
+            if !trial_holds(&trials, &candidate, &reply) {
+                return None;
+            }
+            Some(Winner { candidate, reply })
         }
     };
     let fingerprint = saved_fingerprint?.to_string();
@@ -467,6 +621,36 @@ fn parse(text: &str) -> Option<(String, Record)> {
             trials,
         },
     ))
+}
+
+/// The candidate fields as they arrive, before the kept result closes the
+/// entry: the order save writes them is the order the parser accepts.
+struct Open {
+    backend: ServerBackend,
+    threads: Option<usize>,
+    offload: Option<Offload>,
+    draft: Option<u32>,
+    prompt_rate: Option<f64>,
+    decode_rate: Option<f64>,
+}
+
+/// Close the open entry as the kept result it just became, refusing a
+/// candidate the builder would never have written twice.
+fn close(open: &mut Option<Open>, trials: &mut Vec<(Candidate, Kept)>, kept: Kept) -> Option<()> {
+    let slot = open.take()?;
+    let candidate = Candidate {
+        backend: slot.backend,
+        threads: slot.threads,
+        offload: slot.offload?,
+        draft: slot.draft,
+    };
+    if trials.iter().any(|(other, _)| *other == candidate) {
+        // The builder de-duplicates: a file that does not is a file from
+        // something else wearing our shape.
+        return None;
+    }
+    trials.push((candidate, kept));
+    Some(())
 }
 
 /// A rate the record may hold: a positive, finite number. Anything else
@@ -502,6 +686,7 @@ fn refusal_name(refusal: Refusal) -> &'static str {
         Refusal::DidNotStart => "did-not-start",
         Refusal::NotReady => "not-ready",
         Refusal::NoUsableAnswer => "no-usable-answer",
+        Refusal::PromptTooShort => "prompt-too-short",
     }
 }
 
@@ -510,6 +695,23 @@ fn refusal_from_name(name: &str) -> Option<Refusal> {
         "did-not-start" => Some(Refusal::DidNotStart),
         "not-ready" => Some(Refusal::NotReady),
         "no-usable-answer" => Some(Refusal::NoUsableAnswer),
+        "prompt-too-short" => Some(Refusal::PromptTooShort),
+        _ => None,
+    }
+}
+
+/// The record's name for each skip: exhaustive, like the refusals.
+fn skip_name(skip: Skip) -> &'static str {
+    match skip {
+        Skip::Bounded => "bounded",
+        Skip::Cut => "cut",
+    }
+}
+
+fn skip_from_name(name: &str) -> Option<Skip> {
+    match name {
+        "bounded" => Some(Skip::Bounded),
+        "cut" => Some(Skip::Cut),
         _ => None,
     }
 }

@@ -396,7 +396,7 @@ fn measured_speed(root: &Path, entry: &ModelEntry) -> Option<f64> {
         })?
         .source();
     let record = kalsa_tune::record::load_by_model(root, source.sha256)?;
-    record.winner.map(|winner| winner.best)
+    record.winner.map(|winner| winner.reply.decode_rate)
 }
 
 /// Decode speed as the three shapes the UI can say. `Estimate` is a prefill
@@ -723,8 +723,16 @@ mod tests {
         };
         let record = kalsa_tune::record::Record {
             fingerprint: "the display read does not compare keys".to_string(),
-            winner: Some(kalsa_tune::Winner { candidate, best: 23.5 }),
-            trials: vec![(candidate, kalsa_tune::record::Kept::Best(23.5))],
+            winner: Some(kalsa_tune::Winner {
+                candidate,
+                reply: kalsa_tune::Reply::from_rates(1000.0, 23.5).expect("two measurements"),
+            }),
+            trials: vec![(
+                candidate,
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, 23.5).expect("two measurements"),
+                ),
+            )],
         };
         kalsa_tune::record::save(&root, digest, &record).expect("file the record");
 
@@ -785,8 +793,17 @@ mod tests {
             };
             let record = kalsa_tune::record::Record {
                 fingerprint: "the display read does not compare keys".to_string(),
-                winner: Some(kalsa_tune::Winner { candidate, best: rate }),
-                trials: vec![(candidate, kalsa_tune::record::Kept::Best(rate))],
+                winner: Some(kalsa_tune::Winner {
+                    candidate,
+                    reply: kalsa_tune::Reply::from_rates(1000.0, rate)
+                        .expect("two measurements"),
+                }),
+                trials: vec![(
+                    candidate,
+                    kalsa_tune::record::Kept::Replied(
+                        kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+                    ),
+                )],
             };
             kalsa_tune::record::save(&root, digest, &record).expect("file the record");
         }

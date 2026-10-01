@@ -24,19 +24,6 @@ use kalsa_supervisor::ServerConfig;
 use crate::failure::StartupFailure;
 use crate::startup::{LaunchInfo, Machine, PreparedStart, Progress};
 
-/// The final launch and every candidate's lifetime come out of this one
-/// function: the same plan argv, changed only in the binary, `--threads`/
-/// `--threads-batch`, `--n-gpu-layers`, the draft setting and the port.
-/// Nothing else in argv can differ, because nothing else is a parameter.
-/// One instrumented exception: the measurer appends its `--alias` nonce to
-/// every lifetime — a name the engine lists on `/v1/models` only, which
-/// never reaches load or decode and is not part of the launch the record
-/// remembers.
-///
-/// `draft_n_max` is the tune's one draft decision: `None` launches the
-/// target alone — every grid lifetime runs target-only, so the grid's
-/// numbers are decode without speculation — and `Some(n)` launches the
-/// plan's own drafter proposing `n` per step. A plan without a drafter
 /// The drafter a tuned launch carries: the plan's own file, at the n_max
 /// the tune chose — or none, when the tune chose target-only or the plan
 /// shipped no drafter at all.
@@ -50,6 +37,18 @@ fn chosen_drafter(rule_args: &ServerArgs, draft_n_max: Option<u32>) -> Option<ka
     }
 }
 
+/// The final launch and every candidate's lifetime come out of this one
+/// function: the same plan argv, changed only in the binary, `--threads`/
+/// `--threads-batch`, `--n-gpu-layers`, the draft setting and the port.
+/// Nothing else in argv can differ, because nothing else is a parameter.
+/// One instrumented exception: the measurer appends its `--alias` nonce to
+/// every lifetime — a name the engine lists on `/v1/models` only, which
+/// never reaches load or decode and is not part of the launch the record
+/// remembers.
+///
+/// `draft_n_max` is the trial's own draft decision: `None` launches the
+/// target alone — decode without speculation — and `Some(n)` launches the
+/// plan's own drafter proposing `n` per step; a plan without a drafter
 /// ignores the setting: there is nothing to carry.
 pub(crate) fn tuned_launch(
     args: &ServerArgs,
@@ -152,42 +151,18 @@ pub(crate) fn tune_fingerprint(
     ))
 }
 
-/// The production measurement: step 2's driver, run through the ONE launch
+/// The production measurement: the whole tune through the ONE launch
 /// builder — the exe travels with its candidate, so the pairing cannot be
-/// lost between here and the spawn.
+/// lost between here and the spawn. The decode ask is the row's own
+/// sampling on the draft prompt with a fixed seed: one short chat text for
+/// every shape and setting, so every decode rate is the same work made,
+/// and the prefill pass reads the room ask beside it.
 pub(crate) fn measure_with_rule(
     root: &Path,
     resolved: &[(kalsa_tune::Candidate, PathBuf)],
     rule: &ServerArgs,
     counts: &mut dyn FnMut(usize, usize),
-) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)> {
-    kalsa_tune::measure_candidates(
-        resolved,
-        root,
-        |candidate, exe, port| {
-            tuned_launch(
-                rule,
-                exe,
-                candidate.threads,
-                candidate.offload,
-                candidate.draft,
-                port,
-            )
-        },
-        counts,
-    )
-}
-
-/// The draft dimension's production measurement: the second ask, built
-/// from the row's own catalog sampling with a fixed seed — the same launch
-/// builder, so the pairing of candidate and argv cannot be lost between
-/// here and the spawn.
-pub(crate) fn measure_drafts_with_rule(
-    root: &Path,
-    resolved: &[(kalsa_tune::Candidate, PathBuf)],
-    rule: &ServerArgs,
-    counts: &mut dyn FnMut(usize, usize),
-) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)> {
+) -> kalsa_tune::Tuned {
     let ask = kalsa_tune::Ask {
         prompt: kalsa_tune::DRAFT_PROMPT,
         temperature: rule.sampling.temperature,
@@ -198,10 +173,11 @@ pub(crate) fn measure_drafts_with_rule(
         chat: true,
         min_generated: kalsa_tune::DRAFT_MIN_GENERATED,
     };
-    kalsa_tune::measure_draft_candidates(
+    kalsa_tune::measure_tune(
         resolved,
         root,
         &ask,
+        rule.draft.is_some(),
         |candidate, exe, port| {
             tuned_launch(
                 rule,
@@ -234,12 +210,7 @@ pub(crate) fn tune_launch(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
-    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
-    measure_draft: impl Fn(
-        &[(kalsa_tune::Candidate, PathBuf)],
-        &ServerArgs,
-        &mut dyn FnMut(usize, usize),
-    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
+    ) -> kalsa_tune::Tuned,
 ) {
     // The plan's own launch, kept before anything may rewrite it: the rule
     // to fall back to, and the config main.rs retries with when a tuned
@@ -248,16 +219,7 @@ pub(crate) fn tune_launch(
     let rule_info = prepared.info.args.clone();
     prepared.rule_launch = Some((rule.clone(), rule_info.clone()));
     let result = catch_unwind(AssertUnwindSafe(|| {
-        tune_launch_inner(
-            prepared,
-            machine,
-            root,
-            main,
-            memo,
-            progress,
-            measure,
-            measure_draft,
-        )
+        tune_launch_inner(prepared, machine, root, main, memo, progress, measure)
     }));
     if result.is_err() {
         // One line, no argv: a panic here is our bug, and the walk's plan
@@ -280,12 +242,7 @@ fn tune_launch_inner(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
         &mut dyn FnMut(usize, usize),
-    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
-    measure_draft: impl Fn(
-        &[(kalsa_tune::Candidate, PathBuf)],
-        &ServerArgs,
-        &mut dyn FnMut(usize, usize),
-    ) -> Vec<(kalsa_tune::Candidate, kalsa_tune::Outcome)>,
+    ) -> kalsa_tune::Tuned,
 ) {
     let rule_args = prepared.info.args.clone();
     let rule_exe = prepared.server.exe.clone();
@@ -339,115 +296,40 @@ fn tune_launch_inner(
                 prepared.info.tune = Some(Tune::Skipped);
                 return;
             }
-            let mut results = measure(&resolved, &rule_args, &mut |done, planned| {
+            let tuned = measure(&resolved, &rule_args, &mut |done, planned| {
                 progress(Progress::Tuning {
                     done,
                     total: planned,
                 })
             });
-            // The draft dimension, on the launch the grid chose and only on
-            // it: off re-measured here beside n_max 2, 3 and 4 — four
-            // lifetimes, all on one chat-like ask, so the settings compare
-            // like with like on text like the owner's. A draft lifetime
-            // that refuses simply loses; "off" wins on its own numbers.
-            let grid_winner = kalsa_tune::winner(&results);
-            let grid_ran = results.len();
-            let mut draft_results = Vec::new();
-            // An unresolved exe for the draft pass leaves the picture
-            // incomplete — unsaved, so the next start retries rather than
-            // pinning the drafter off a dimension it never measured.
-            let mut draft_exe_resolved = true;
-            if rule_args.draft.is_some() {
-                if let Some(win) = &grid_winner {
-                    let shape = win.candidate;
-                    match exe_for(
-                        &shape,
-                        (main.0, &main.1),
-                        &mut memo.processor,
-                        machine,
-                        progress,
-                    )
-                    .ok()
-                    {
-                        Some(exe) => {
-                            // Off first: the budget cuts the tail, and a cut
-                            // n_max is a setting that lost, not a hole in the
-                            // record. The pass is complete when off was
-                            // measured — even off cut reads as the dimension
-                            // answering "off", never an endless re-tune.
-                            let settings = [None, Some(2), Some(3), Some(4)];
-                            let draft_resolved: Vec<_> = settings
-                                .iter()
-                                .map(|&draft| {
-                                    (kalsa_tune::Candidate { draft, ..shape }, exe.clone())
-                                })
-                                .collect();
-                            let base = results.len();
-                            draft_results =
-                                measure_draft(&draft_resolved, &rule_args, &mut |done, planned| {
-                                    progress(Progress::Tuning {
-                                        done: base + done,
-                                        total: base + planned,
-                                    })
-                                });
-                            if draft_results
-                                .first()
-                                .is_some_and(|(trial, _)| trial.draft.is_none())
-                            {
-                                // The off trial IS the winning shape: the
-                                // grid's own trial of it (a different ask)
-                                // leaves the record, or the file would hold
-                                // one launch twice.
-                                results.retain(|(trial, _)| *trial != shape);
-                                results.extend(draft_results.iter().cloned());
-                            }
-                        }
-                        None => draft_exe_resolved = false,
-                    }
-                }
-            }
-            // The verdict: the draft dimension's own when its off was
-            // measured — its trials on one ask — and the grid's otherwise.
-            let winner = if draft_results
-                .first()
-                .is_some_and(|(trial, _)| trial.draft.is_none())
-            {
-                kalsa_tune::winner(&draft_results)
-            } else {
-                kalsa_tune::winner(&results)
-            };
+            let winner = tuned.winner;
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
-                trials: results
-                    .into_iter()
-                    .map(|(candidate, outcome)| (candidate, (&outcome).into()))
-                    .collect(),
+                trials: tuned.trials,
             };
-            // Every grid candidate must have RUN once, and the draft pass's
-            // exe must have resolved: anything else is a partial picture,
-            // and saving it would lock the next start out of the re-run that
-            // would complete it. The draft pass's own budget cuts are not
-            // holes — off measured, the cut n_maxes lost; even off cut reads
-            // as the dimension answering "off" — so a slow machine never
-            // re-tunes forever. This start's winner still launches — it just
-            // is not remembered.
-            // A refusal is a candidate that ran — it was attempted and
-            // answered, `DidNotStart` included; only a candidate whose
-            // lifetime never began (the budget cut round one, or an exe
-            // that could not be resolved) makes the picture incomplete.
-            if grid_ran == candidates.len() && draft_exe_resolved {
-                if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
-                    // Best effort: a record that cannot be written costs a
-                    // re-tune next start, never this launch.
-                    eprintln!("kalsa-brain: the tune record could not be written: {error}");
-                }
-            } else {
+            // Every shape must have RUN, and its exe must have resolved:
+            // anything else is a partial picture, and saving it would lock
+            // the next start out of the re-run that would complete it. A
+            // shape the bound skipped, or the budget cut after its prefill,
+            // did run — its own entry says so. A refusal is a shape that
+            // ran too — it was attempted and answered, `DidNotStart`
+            // included. This start's winner still launches — it just is not
+            // remembered.
+            if !tuned.complete {
+                eprintln!(
+                    "kalsa-brain: the tune's budget cut a shape before it ran; not saved — the next start tries again"
+                );
+            } else if resolved.len() != candidates.len() {
                 eprintln!(
                     "kalsa-brain: the tune ran {} of {} candidates; not saved — the next start tries again",
-                    grid_ran,
+                    resolved.len(),
                     candidates.len()
                 );
+            } else if let Err(error) = kalsa_tune::record::save(root, &model_digest, &record) {
+                // Best effort: a record that cannot be written costs a
+                // re-tune next start, never this launch.
+                eprintln!("kalsa-brain: the tune record could not be written: {error}");
             }
             (record, winner)
         }
@@ -556,8 +438,10 @@ pub(crate) fn tune_label(candidate: &kalsa_tune::Candidate) -> String {
 }
 
 /// The tune's line for the panel — the one place these words are written.
-/// The runner-up in parentheses only when it measured: a refusal beside the
-/// winner would be a second claim the owner did not ask for.
+/// The figure is the room's wait, with the two rates it was computed from
+/// beside it; the alternative in parentheses only when it measured, and in
+/// the same unit — every scored trial shares the room's history and the
+/// same short ask, so the replies compare directly.
 pub(crate) fn tune_line(tune: &Tune) -> String {
     match tune {
         Tune::Skipped => "skipped — nothing to compare".to_string(),
@@ -566,41 +450,28 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
             let Some(winner) = &record.winner else {
                 return "no winner, using the standard setting".to_string();
             };
+            let reply = winner.reply;
             let mut line = format!(
-                "{}, {:.1} tokens/s",
+                "{}, reply ≈ {:.1} s (prompt {} tok/s, decode {} tok/s)",
                 tune_label(&winner.candidate),
-                winner.best
+                reply.seconds,
+                thousands(reply.prompt_rate),
+                thousands(reply.decode_rate),
             );
-            // A record with a draft dimension holds two asks: the winner's
-            // own shape's trials on the second ask, the rest on the grid's.
-            // The runner-up must be the winner's ask, or its figure would
-            // out-rank the winner's inside the parentheses.
-            let shape = |candidate: &kalsa_tune::Candidate| {
-                (candidate.backend, candidate.threads, candidate.offload)
-            };
-            let same_ask = shape(&winner.candidate);
-            let drafted = record
-                .trials
-                .iter()
-                .filter(|(candidate, _)| shape(candidate) == same_ask)
-                .count()
-                > 1;
             let alternative = record
                 .trials
                 .iter()
-                .filter(|(candidate, _)| !drafted || shape(candidate) == same_ask)
                 .filter_map(|(candidate, kept)| match kept {
-                    kalsa_tune::record::Kept::Best(rate) if *candidate != winner.candidate => {
-                        Some((*candidate, *rate))
+                    kalsa_tune::record::Kept::Replied(reply) if *candidate != winner.candidate => {
+                        Some((*candidate, reply.seconds))
                     }
                     _ => None,
                 })
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            if let Some((candidate, rate)) = alternative {
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            if let Some((candidate, seconds)) = alternative {
                 line.push_str(&format!(
-                    " ({}: {:.1} tokens/s)",
-                    tune_label(&candidate),
-                    rate
+                    " ({}: reply ≈ {seconds:.1} s)",
+                    tune_label(&candidate)
                 ));
             }
             line
@@ -608,10 +479,24 @@ pub(crate) fn tune_line(tune: &Tune) -> String {
     }
 }
 
-/// The graphics winner's processor alternative: the best processor trial
-/// in the record, on its own exe, threads and offload, same port — the
-/// launch (and the args) the per-start check hands the slot to when the
-/// card answers slow.
+/// A rate in the owner's units: whole tokens a second, thousands
+/// separated, because the line is read at a glance.
+fn thousands(rate: f64) -> String {
+    let digits = format!("{rate:.0}");
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
+}
+
+/// The graphics winner's processor alternative: the shortest processor
+/// reply in the record, on its own exe, threads, offload and draft
+/// setting, same port — the launch (and the args) the per-start check
+/// hands the slot to when the card answers slow.
 fn processor_launch(
     record: &kalsa_tune::record::Record,
     rule_args: &ServerArgs,
@@ -625,14 +510,14 @@ fn processor_launch(
         .trials
         .iter()
         .filter_map(|(candidate, kept)| match kept {
-            kalsa_tune::record::Kept::Best(rate)
+            kalsa_tune::record::Kept::Replied(reply)
                 if matches!(candidate.offload, Offload::ForcedOff | Offload::NoGpuBuild) =>
             {
-                Some((*rate, *candidate))
+                Some((reply.seconds, *candidate))
             }
             _ => None,
         })
-        .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))?;
+        .min_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))?;
     let exe = exe_for(
         &candidate,
         (main.0, &main.1),
@@ -641,26 +526,24 @@ fn processor_launch(
         progress,
     )
     .ok()?;
-    let chosen_draft = record
-        .winner
-        .as_ref()
-        .map_or(None, |win| win.candidate.draft);
     let (exe, argv) = tuned_launch(
         rule_args,
         &exe,
         candidate.threads,
         candidate.offload,
-        chosen_draft,
+        candidate.draft,
         base.port,
     );
     // The config AND its args together: the panel's "In force" reads the
-    // args, and after a switch they must be the processor's.
+    // args, and after a switch they must be the processor's. The drafter
+    // is the one this trial measured with, never the graphics winner's
+    // setting: the record keeps each trial's own reply.
     let mut args = ServerArgs {
         threads: candidate.threads,
         offload: candidate.offload,
         ..rule_args.clone()
     };
-    args.draft = chosen_drafter(rule_args, chosen_draft);
+    args.draft = chosen_drafter(rule_args, candidate.draft);
     Some((
         ServerConfig {
             exe,

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
 
-use kalsa_tune::{measure_candidates, Candidate};
+use kalsa_tune::{measure_tune, Ask, Candidate};
 
 /// The scratch state root, removed on the way out even when the test
 /// panics: a leftover temp dir is not a failure anyone can see.
@@ -21,10 +21,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new() -> Self {
-        let dir = std::env::temp_dir().join(format!(
-            "kalsa-tune-real-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("kalsa-tune-real-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         Self(dir)
     }
@@ -52,9 +49,7 @@ fn the_metal_build_measures_full_and_forced_off() {
         std::env::var("KALSA_TUNE_REAL_SERVER"),
         std::env::var("KALSA_TUNE_REAL_MODEL"),
     ) else {
-        eprintln!(
-            "SKIPPED: set KALSA_TUNE_REAL_SERVER and KALSA_TUNE_REAL_MODEL to run this test"
-        );
+        eprintln!("SKIPPED: set KALSA_TUNE_REAL_SERVER and KALSA_TUNE_REAL_MODEL to run this test");
         return;
     };
     let candidates = [
@@ -95,31 +90,41 @@ fn the_metal_build_measures_full_and_forced_off() {
         }
         (exe.clone(), argv)
     };
-    let results = measure_candidates(&resolved, &root, build, &mut |_, _| {});
+    let ask = Ask {
+        prompt: kalsa_tune::DRAFT_PROMPT,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        seed: Some(kalsa_tune::DRAFT_SEED),
+        n_predict: kalsa_tune::DRAFT_N_PREDICT,
+        chat: true,
+        min_generated: kalsa_tune::DRAFT_MIN_GENERATED,
+    };
+    let tuned = measure_tune(&resolved, &root, &ask, false, build, &mut |_, _| {});
 
     let mut lines = Vec::new();
-    for (candidate, outcome) in &results {
+    let mut scored = 0usize;
+    for (candidate, kept) in &tuned.trials {
         let label = match candidate.offload {
             Offload::All => "full offload",
             Offload::ForcedOff => "forced off (--n-gpu-layers 0)",
             Offload::NoGpuBuild => "cpu build",
             Offload::EngineFitted => "engine-fitted",
         };
-        match outcome.best() {
-            Some(rate) => lines.push(format!("{label}: {rate} tok/s (of {outcome:?})")),
-            None => lines.push(format!("{label}: refused ({outcome:?})")),
+        match kept {
+            kalsa_tune::record::Kept::Replied(reply) => {
+                scored += 1;
+                lines.push(format!("{label}: {} (of {reply:?})", reply.seconds));
+            }
+            other => lines.push(format!("{label}: no reply ({other:?})")),
         }
     }
     for line in &lines {
         eprintln!("{line}");
     }
-    let bests = results
-        .iter()
-        .map(|(_, outcome)| {
-            outcome
-                .best()
-                .unwrap_or_else(|| panic!("this machine must measure both: {lines:?}"))
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(bests.len(), 2, "both lifetimes must have run: {lines:?}");
+    assert_eq!(
+        scored,
+        resolved.len(),
+        "both shapes must have measured a reply: {lines:?}"
+    );
 }

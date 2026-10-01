@@ -1669,7 +1669,7 @@ pub(crate) fn speed_check(
     ) {
         return CheckResult::Kept;
     }
-    let recorded = winner.best;
+    let recorded = winner.reply.decode_rate;
     let checked = match rate(SocketAddr::from(([127, 0, 0, 1], prepared.server.port))) {
         kalsa_tune::Answer::Rate(rate) => Some(rate),
         // Under ~1 tok/s: the check never came back.

@@ -333,9 +333,6 @@ pub(crate) fn run(
                 |resolved, rule, inner| {
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
-                |resolved, rule, inner| {
-                    crate::tune_step::measure_drafts_with_rule(root, resolved, rule, inner)
-                },
             );
             return Ok(prepared);
         }

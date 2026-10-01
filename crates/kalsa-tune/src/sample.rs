@@ -6,19 +6,15 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-/// Every measured sample decodes exactly this many tokens — `ignore_eos`
-/// holds the server to it — so rates from different builds are the same
-/// work made. The warm-up asks for far fewer (see `WARMUP_N_PREDICT`).
-pub(crate) const N_PREDICT: u64 = 64;
-
-/// One fixed prompt: the same work for every candidate, a plain factual
-/// paragraph no model is tempted to end early or refuse.
+/// One fixed prompt: the same work for every request of the check, a
+/// plain factual paragraph no model is tempted to end early or refuse.
 const PROMPT: &str = "Write a short paragraph about the history of the bicycle.";
 
 /// One request's whole ask, as a per-request body needs it: the text, the
-/// sampling, the seed, the length. Two asks exist — the grid's and the
-/// draft dimension's — and a rate only ever compares against rates of the
-/// SAME ask.
+/// sampling, the seed, the length. Two asks reach a server through this
+/// type — the per-start check's and the decode sweep's — and a rate only
+/// ever compares against rates of the SAME ask; the room's prefill has its
+/// own reader in `room`.
 pub struct Ask {
     pub prompt: &'static str,
     pub temperature: Option<f64>,
@@ -34,21 +30,23 @@ pub struct Ask {
     /// drafter accepts trivially.
     pub chat: bool,
     /// The fewest generated tokens a measured answer must hold to count:
-    /// the grid's `ignore_eos` guarantees its full order, an EOS-stopped
+    /// `ignore_eos` guarantees the raw road's full order, an EOS-stopped
     /// chat answer only promises this floor.
     pub min_generated: u64,
 }
 
-/// The grid's ask, unchanged: one short factual prompt, greedy, 64 tokens.
-pub(crate) const GRID_ASK: Ask = Ask {
+/// The per-start check's ask: one short factual prompt, greedy. The check
+/// overrides the length per request — its warm-up is discarded, its
+/// measured request is one number.
+const CHECK_ASK: Ask = Ask {
     prompt: PROMPT,
     temperature: Some(0.0),
     top_p: None,
     top_k: None,
     seed: None,
-    n_predict: N_PREDICT,
+    n_predict: CHECK_N_PREDICT,
     chat: false,
-    min_generated: N_PREDICT,
+    min_generated: CHECK_N_PREDICT,
 };
 
 /// The draft dimension's prompt: one Italian-and-English request for plain
@@ -65,7 +63,7 @@ pub const DRAFT_PROMPT: &str = "Per il nostro appartamento a Milano sto cercando
 pub const DRAFT_SEED: u32 = 42;
 
 /// The draft dimension's length: a chat-turn's worth of generated tokens,
-/// twice the grid's, so a per-step overhead has room to amortise.
+/// so a per-step overhead has room to amortise.
 pub const DRAFT_N_PREDICT: u64 = 128;
 
 /// The fewest generated tokens a draft answer must hold: an EOS-stopped
@@ -120,7 +118,7 @@ pub fn checked_rate(addr: SocketAddr, timeout: Duration) -> Answer {
 
 /// How a POST went wrong, kept apart because the check reads them apart:
 /// only a timeout means the card is slow.
-enum SendFailed {
+pub(crate) enum SendFailed {
     Timeout,
     Failed,
 }
@@ -142,7 +140,7 @@ fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, S
     post_to(addr, timeout, "/completion", &completion_body(n_predict))
 }
 
-fn post_to(
+pub(crate) fn post_to(
     addr: SocketAddr,
     timeout: Duration,
     path: &str,
@@ -256,7 +254,7 @@ fn ask_body(ask: &Ask, n_predict: u64) -> (&'static str, String) {
 /// The grid's body at one length: the same prompt, the same flags, a
 /// different `n_predict` for the warm-up.
 fn completion_body(n_predict: u64) -> String {
-    ask_body(&GRID_ASK, n_predict).1
+    ask_body(&CHECK_ASK, n_predict).1
 }
 
 /// True when the port lists OUR nonce among `/v1/models`'s entries — the
@@ -399,12 +397,10 @@ mod tests {
         assert!(!id_among("not json at all", nonce), "unparsable: no proof");
     }
 
-    /// The warm-up and the measured requests differ in exactly one field.
-    #[test]
-    /// The two roads: the grid's raw POST pins its order with `ignore_eos`;
-    /// the draft ask goes to the chat road as one user message, ends at EOS
-    /// (no `ignore_eos` anywhere), and carries the seed and the row's
-    /// sampling.
+    /// The two roads: the check's raw POST pins its order with
+    /// `ignore_eos`; the draft ask goes to the chat road as one user
+    /// message, ends at EOS (no `ignore_eos` anywhere), and carries the
+    /// seed and the row's sampling.
     #[test]
     fn the_draft_ask_takes_the_chat_road_and_stops_at_eos() {
         let draft = Ask {
@@ -430,9 +426,9 @@ mod tests {
         );
         assert!(body.contains("\"seed\":42"), "{body}");
         assert!(body.contains("\"temperature\":1.0"), "{body}");
-        let (grid_path, grid_body) = ask_body(&GRID_ASK, N_PREDICT);
-        assert_eq!(grid_path, "/completion");
-        assert!(grid_body.contains("\"ignore_eos\":true"), "{grid_body}");
+        let (check_path, check_body) = ask_body(&CHECK_ASK, CHECK_N_PREDICT);
+        assert_eq!(check_path, "/completion");
+        assert!(check_body.contains("\"ignore_eos\":true"), "{check_body}");
     }
 
     /// An EOS-stopped answer below the floor is not a sample; at or above it
@@ -461,18 +457,10 @@ mod tests {
         );
     }
 
-    fn the_warm_up_asks_for_fewer_tokens_than_the_measurement() {
-        let warm = completion_body(8);
-        assert!(warm.contains("\"n_predict\":8"), "{warm}");
-        let measured = completion_body(N_PREDICT);
-        assert!(measured.contains("\"n_predict\":64"), "{measured}");
-        assert!(warm.contains("\"ignore_eos\":true"), "{warm}");
-    }
-
     #[test]
     fn a_complete_answer_is_the_rate_it_reports() {
-        assert_eq!(rate_from(&body(64, 45.4), N_PREDICT), Some(45.4));
-        assert_eq!(rate_from(&body(128, 11.8), N_PREDICT), Some(11.8));
+        assert_eq!(rate_from(&body(64, 45.4), DRAFT_MIN_GENERATED), Some(45.4));
+        assert_eq!(rate_from(&body(128, 11.8), DRAFT_MIN_GENERATED), Some(11.8));
     }
 
     /// One token short of the order is not a sample: the run decoded
@@ -480,27 +468,27 @@ mod tests {
     /// the rate of that work.
     #[test]
     fn fewer_tokens_than_ordered_is_no_sample() {
-        assert_eq!(rate_from(&body(63, 99.9), N_PREDICT), None);
-        assert_eq!(rate_from(&body(0, 99.9), N_PREDICT), None);
+        assert_eq!(rate_from(&body(47, 99.9), DRAFT_MIN_GENERATED), None);
+        assert_eq!(rate_from(&body(0, 99.9), DRAFT_MIN_GENERATED), None);
     }
 
     /// A rate that cannot be a measurement is not one, however the JSON
     /// spells it.
     #[test]
     fn a_rate_that_is_not_a_measurement_is_no_sample() {
-        assert_eq!(rate_from(&body(64, 0.0), N_PREDICT), None);
-        assert_eq!(rate_from(&body(64, -1.0), N_PREDICT), None);
-        assert_eq!(rate_from(&body(64, f64::NAN), N_PREDICT), None);
+        assert_eq!(rate_from(&body(64, 0.0), DRAFT_MIN_GENERATED), None);
+        assert_eq!(rate_from(&body(64, -1.0), DRAFT_MIN_GENERATED), None);
+        assert_eq!(rate_from(&body(64, f64::NAN), DRAFT_MIN_GENERATED), None);
     }
 
     #[test]
     fn an_answer_without_timings_is_no_sample() {
-        assert_eq!(rate_from(r#"{"content":"hi"}"#, N_PREDICT), None);
+        assert_eq!(rate_from(r#"{"content":"hi"}"#, DRAFT_MIN_GENERATED), None);
         assert_eq!(
-            rate_from(r#"{"timings":{"predicted_n":64}}"#, N_PREDICT),
+            rate_from(r#"{"timings":{"predicted_n":64}}"#, DRAFT_MIN_GENERATED),
             None
         );
-        assert_eq!(rate_from("not json at all", N_PREDICT), None);
+        assert_eq!(rate_from("not json at all", DRAFT_MIN_GENERATED), None);
     }
 }
 

@@ -2741,10 +2741,15 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
         fingerprint: "fp".to_string(),
         winner: Some(kalsa_tune::Winner {
             candidate: graphics,
-            best: 47.2,
+            reply: kalsa_tune::Reply::from_rates(1000.0, 47.2).expect("two measurements"),
         }),
         trials: vec![
-            (graphics, kalsa_tune::record::Kept::Best(47.2)),
+            (
+                graphics,
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, 47.2).expect("two measurements"),
+                ),
+            ),
             (
                 kalsa_tune::Candidate {
                     backend: kalsa_runtime::ServerBackend::Cpu,
@@ -2752,7 +2757,9 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
                     offload: kalsa_launch::Offload::NoGpuBuild,
                 draft: None,
                 },
-                kalsa_tune::record::Kept::Best(10.2),
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, 10.2).expect("two measurements"),
+                ),
             ),
         ],
     };
