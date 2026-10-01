@@ -690,12 +690,22 @@ pub fn full_precision_file(entry: &ModelEntry) -> bool {
     entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "F16"
 }
 
+/// A row of LiquidAI's LFM2.5-2.6B — every compression of it, keyed on
+/// the repo the way [`full_precision_file`] keys its row. On the second
+/// card LFM ranks last among the rows that clear the bar: the owner puts
+/// any other family ahead of it, so LFM wins only when nothing else does.
+fn lfm_row(entry: &ModelEntry) -> bool {
+    entry.repo == "LiquidAI/LFM2.5-2.6B"
+}
+
 /// The second option: the most model this machine runs at least
 /// [`QUICK_SPEED_ADVANTAGE`] times faster than the one already being
-/// offered. `None` when nothing does — one honest option beats two that
-/// feel the same — except as the last word on a roomy machine: when the
-/// bar finds nothing, the full-precision LFM file takes the card if it is
-/// faster than the pick at all (see [`ROOMY_RAM_BYTES`]).
+/// offered, with LFM ranked last among the rows that clear the bar — the
+/// owner ranks every other family ahead of it, so LFM is the last resort
+/// rather than a size winner. `None` when nothing does — one honest option
+/// beats two that feel the same — except as the last word on a roomy
+/// machine: when the bar finds nothing, the full-precision LFM file takes
+/// the card if it is faster than the pick at all (see [`ROOMY_RAM_BYTES`]).
 ///
 /// It is held to the bar of the row it sits beside, which is
 /// [`justification`]: a phone-free first option is `leading_candidate`'s
@@ -753,9 +763,10 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         .iter()
         .filter(|candidate| candidate.decode.floor() >= wanted)
         .filter(|candidate| justified(candidate))
-        // The most model that still clears the bar, never merely the
-        // smallest: a toy is not an option.
-        .max_by_key(|candidate| candidate.entry.weights_bytes);
+        // Any family beats LFM among the rows that clear the bar, then the
+        // most model of them all — never merely the smallest: a toy is not
+        // an option.
+        .max_by_key(|candidate| (!lfm_row(candidate.entry), candidate.entry.weights_bytes));
     // The owner's exception, on a roomy machine and gated on being faster
     // than the pick: the full-precision file takes the card from its own
     // family's ordinary answer — the bar found the Q8 file, the F16 file
