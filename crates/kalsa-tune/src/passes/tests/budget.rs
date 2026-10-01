@@ -170,3 +170,64 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
         seen.borrow()
     );
 }
+
+/// A cut on the first shape's sweep ends the whole sweep: the shapes behind
+/// it — which the bound would have skipped — never begin, so the plan can
+/// never fall below what ran and no subtraction underflows.
+#[test]
+fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
+    let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
+    let clock = RefCell::new(0u32);
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        Duration::from_secs(60),
+        || {
+            let mut tick = clock.borrow_mut();
+            *tick += 1;
+            if *tick <= 3 {
+                Duration::ZERO
+            } else {
+                Duration::from_secs(60)
+            }
+        },
+        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        |shape, _| {
+            // Every shape's first lifetime runs (ticks 1..3), and the
+            // processors' prefill floors are far above the card's reply, so
+            // the bound would skip their sweeps if the cut had not ended
+            // the sweep first.
+            if shape.backend == ServerBackend::Vulkan {
+                first(1000.0, 100.0)
+            } else {
+                first(10.0, 100.0)
+            }
+        },
+        |_, _| Ok(vec![100.0]),
+    );
+    assert!(tuned.complete, "all three first lifetimes ran");
+    assert!(tuned.cut, "the sweep was cut on the first shape");
+    for (done, planned) in seen.borrow().iter() {
+        assert!(
+            planned >= done,
+            "the plan never falls below what ran: {seen:?}"
+        );
+    }
+    assert_eq!(
+        tuned.trials.len(),
+        3,
+        "three first-lifetime entries, no drafted ones: {:?}",
+        tuned.trials
+    );
+    assert!(tuned
+        .trials
+        .iter()
+        .all(|(candidate, kept)| candidate.draft.is_none() && matches!(kept, Kept::Replied(_))));
+    assert_eq!(
+        seen.borrow().last(),
+        Some(&(3, 3)),
+        "the plan is finished at the cut: {:?}",
+        seen.borrow()
+    );
+}

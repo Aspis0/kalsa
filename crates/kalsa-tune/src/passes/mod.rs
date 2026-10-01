@@ -13,9 +13,8 @@ use crate::refusal::Refusal;
 use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Winner};
 
 /// The drafted settings a shape is swept at when the plan ships a drafter;
-/// the shape's own off setting is not among them — it is measured in the
-/// shape's first lifetime, so every shape's numbers come from one server
-/// and the off number is the same work as these three.
+/// the off setting is not among them — it rides the shape's first lifetime
+/// on the drafter-less launch a start without speculation really is.
 const DRAFT_SETTINGS: [Option<u32>; 3] = [Some(2), Some(3), Some(4)];
 
 /// One shape's answer to one lifetime: the rates it measured, or the
@@ -125,7 +124,7 @@ where
         if prompt[index].is_none() {
             // A shape that cannot be scored has no sweep left to run: the
             // plan lowers now, so the panel's total is what will happen.
-            planned -= settings.len();
+            planned = lower(planned, settings.len(), done);
             progress(done, planned);
             trials.push((
                 *shape,
@@ -141,7 +140,7 @@ where
     // whose prefill alone already costs at least the best complete reply —
     // every shape's off reply is already in it — cannot beat it, so its
     // drafted lifetimes are skipped: not a hole, its own off entry stands.
-    for (index, (shape, exe)) in shapes.iter().enumerate() {
+    'sweep: for (index, (shape, exe)) in shapes.iter().enumerate() {
         if !ran[index] {
             break; // the budget cut pass one: the shapes behind it never ran
         }
@@ -151,20 +150,20 @@ where
         if best.is_some_and(|best| prefill_seconds(shape_prompt) >= best) {
             // The bound skipped lifetimes that will never run: the plan
             // lowers with them.
-            planned -= settings.len();
+            planned = lower(planned, settings.len(), done);
             progress(done, planned);
             continue;
         }
         for setting in settings {
             if since_start() >= budget {
-                // The settings behind this one never ran: losers, not
-                // holes — but the sweep is unfinished, and the caller must
-                // let the next start try again. Nothing behind the cut can
-                // begin either, so the plan is finished as of now.
+                // Nothing behind this check can begin: every later setting
+                // and every later shape would stop here. The sweep is
+                // unfinished — the caller must let the next start try
+                // again — and the plan is finished as of now.
                 cut = true;
                 planned = done;
                 progress(done, planned);
-                break;
+                break 'sweep;
             }
             progress(done, planned);
             let trial = Candidate {
@@ -215,6 +214,17 @@ where
         complete,
         cut,
     }
+}
+
+/// Lower the plan by the sweeps a shape will never run. The plan counted
+/// exactly one sweep per shape, so a subtraction past what is left is this
+/// side's bug: loud here, never a wrapped number on a panel.
+fn lower(planned: usize, settings: usize, done: usize) -> usize {
+    let lowered = planned
+        .checked_sub(settings)
+        .expect("the plan counted every shape's sweep");
+    debug_assert!(lowered >= done, "the plan cannot fall below what began");
+    lowered
 }
 
 #[cfg(test)]
