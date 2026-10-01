@@ -19,7 +19,7 @@
 /// Where Kalsa's own fork of the engine is published: the app's CDN, not
 /// GitHub. The fork is the only engine that reads the door's private
 /// headers, so it is the only one this app may mount.
-const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.2";
+const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.4";
 
 /// Where the probe model lives: ggml-org/tiny-llamas on HuggingFace, pinned
 /// to a commit so the bytes cannot move under us.
@@ -143,10 +143,10 @@ pub(crate) struct Asset {
     /// server (the probe model) keeps None, no further comment needed.
     ///
     /// On the fork's rows this is the thin launcher `kalsa-server`, NOT
-    /// the version identity: the macOS launcher's digest is the same
-    /// across the fork's releases (that row's comment), but the Windows
-    /// launchers differ per variant within v1.1.2 — the ARCHIVE `sha256`
-    /// is what tells versions apart.
+    /// the version identity: within a release the launchers differ per
+    /// variant, and across releases a variant's launcher digest can move
+    /// (the macOS one did, v1.1.2 to v1.1.4) — the ARCHIVE `sha256` is
+    /// what tells versions apart.
     pub(crate) exe_sha256: Option<&'static str>,
 }
 
@@ -181,16 +181,16 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Metal),
         platform: Some(Platform::MacArm64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz",
+        file: "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz",
         format: Some(ArchiveFormat::TarGz),
         // `exe_sha256` is the thin launcher `kalsa-server`, the binary the
-        // archive's `libllama-server-impl.dylib` is loaded by: the manifests
-        // of successive fork releases state this same digest, so it is an
-        // integrity check on the launcher and never the version identity —
-        // the ARCHIVE `sha256` is. `marker.rs` uses it the same way.
-        exe_sha256: Some("327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"),
-        size_bytes: Some(11_207_047),
-        sha256: Some("691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"),
+        // archive's `libllama-server-impl.dylib` is loaded by: an integrity
+        // check on the extracted launcher, re-measured at every start
+        // (`marker.rs`), and never the version identity — the ARCHIVE
+        // `sha256` is.
+        exe_sha256: Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),
+        size_bytes: Some(11_890_855),
+        sha256: Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),
     },
     // No Intel macOS engine row, on purpose. `Platform::MacX64` stays so an
     // Intel Mac is identified honestly, but the fork publishes no x64
@@ -205,28 +205,29 @@ const ASSETS: &[Asset] = &[
         backend: Some(ServerBackend::Cpu),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.2-bin-win-cpu-x64.zip",
+        file: "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // The fork's Windows archives carry the per-variant `ggml-cpu-*`
-        // libraries and no plain `ggml-cpu.dll`, and need the VC++
-        // redistributable, as upstream's did.
-        exe_sha256: Some("a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9d673"),
-        size_bytes: Some(13_762_007),
-        sha256: Some("60b6cb686c58a8006c8889264b83163a9023e041611631d201aaed43f5ff57cc"),
+        // libraries and no plain `ggml-cpu.dll`; the VC++ runtime DLLs
+        // (`msvcp140`, `vcomp140`, `vcruntime140*`) ship in the archive
+        // beside the binaries.
+        exe_sha256: Some("a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26"),
+        size_bytes: Some(14_487_114),
+        sha256: Some("122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e"),
     },
     Asset {
         role: Role::Engine,
         backend: Some(ServerBackend::Vulkan),
         platform: Some(Platform::WindowsX64),
         home: FORK_BASE,
-        file: "kalsa-server-v1.1.2-bin-win-vulkan-x64.zip",
+        file: "kalsa-server-v1.1.4-bin-win-vulkan-x64.zip",
         format: Some(ArchiveFormat::Zip),
         // Same layout as the CPU archive (`ggml-cpu-*`, no plain
-        // `ggml-cpu.dll`) plus `ggml-vulkan.dll`; needs the VC++
-        // redistributable, as upstream's did.
-        exe_sha256: Some("6e3c87144c9763f7d604483f63f9920b310121237a4c69e11ed6b16aac3b3e12"),
-        size_bytes: Some(26_491_005),
-        sha256: Some("24f0a98293e2ed6c5003f1b64837eadc12ff034f876706db3bfdbc8cb85c245e"),
+        // `ggml-cpu.dll`) plus `ggml-vulkan.dll`; the VC++ runtime DLLs
+        // ship in the archive, as in the CPU row.
+        exe_sha256: Some("147fa7b89005dca8ba950ef960fc0fafec519e7b7b31adfe767dba571a792b26"),
+        size_bytes: Some(27_831_749),
+        sha256: Some("5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3"),
     },
     // The probe's tiny model: stories260K from ggml-org/tiny-llamas, the
     // models llama.cpp's own CI leans on. Size and digest verified against
@@ -392,17 +393,17 @@ mod tests {
         let row = rows[0];
         assert_eq!(row.role, Role::Engine);
         assert_eq!(row.home, FORK_BASE);
-        assert_eq!(row.file, "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz");
+        assert_eq!(row.file, "kalsa-server-v1.1.4-bin-macos-arm64.tar.gz");
         assert_eq!(row.format, Some(ArchiveFormat::TarGz));
-        assert_eq!(row.size_bytes, Some(11_207_047));
+        assert_eq!(row.size_bytes, Some(11_890_855));
         assert_eq!(
             row.sha256,
-            Some("691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"),
+            Some("08bc196ac32ccad715f889c58f499ce2553340047375fb7fdddfe7e4b65aed60"),
             "the archive digest is the version identity"
         );
         assert_eq!(
             row.exe_sha256,
-            Some("327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"),
+            Some("2200e5e41341e4ffbee4e27ece5044a0816a868d4c29369772b257d8ddeae024"),
             "the launcher digest: an integrity check, not a version"
         );
         assert!(
@@ -420,17 +421,17 @@ mod tests {
         let expected = [
             (
                 ServerBackend::Cpu,
-                "kalsa-server-v1.1.2-bin-win-cpu-x64.zip",
-                13_762_007u64,
-                "60b6cb686c58a8006c8889264b83163a9023e041611631d201aaed43f5ff57cc",
-                "a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9d673",
+                "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",
+                14_487_114u64,
+                "122c2ca1aee968a71c419cff6068a2c7f80b1feba99f94461b6fd6291ed4307e",
+                "a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26",
             ),
             (
                 ServerBackend::Vulkan,
-                "kalsa-server-v1.1.2-bin-win-vulkan-x64.zip",
-                26_491_005,
-                "24f0a98293e2ed6c5003f1b64837eadc12ff034f876706db3bfdbc8cb85c245e",
-                "6e3c87144c9763f7d604483f63f9920b310121237a4c69e11ed6b16aac3b3e12",
+                "kalsa-server-v1.1.4-bin-win-vulkan-x64.zip",
+                27_831_749,
+                "5fcea54b2d30ae510b9f14c47986b779aa859efd60bcee3fb797974ca5df75e3",
+                "147fa7b89005dca8ba950ef960fc0fafec519e7b7b31adfe767dba571a792b26",
             ),
         ];
         for (backend, file, size, sha, exe_sha) in expected {

@@ -6,8 +6,7 @@
 //!
 //! It is a capability check, not a version check. The archive's sha256 in
 //! [`crate::assets`] is the version; a build can gain or lose the inlet
-//! without changing that story, and two releases ship the same launcher (see
-//! the comment at the fork's row). What matters to the door is only whether
+//! without changing that story. What matters to the door is only whether
 //! the module we would load carries the inlet.
 
 use crate::assets::Platform;
@@ -36,9 +35,9 @@ const fn engine_module_file(platform: Platform) -> &'static str {
 /// carries the lowercase literal and not the capitalised one.
 ///
 /// The source of that claim, as it stands in the release this app installs:
-/// in `kalsa-server-v1.1.2`, `tools/server/server-context.cpp:4556` is
+/// in `kalsa-server-v1.1.4`, `tools/server/server-context.cpp:4537` is
 /// `static const std::string key = "x-kalsa-slot";` and the comparison at
-/// `:4563` folds the incoming header name to lowercase byte by byte against
+/// `:4544` folds the incoming header name to lowercase byte by byte against
 /// that key. So the CASE is irrelevant to the ENGINE and decisive for THIS
 /// PROBE (which searches a literal in the binary): `INLET` is spelled the
 /// way the engine's own key is.
