@@ -25,13 +25,19 @@ from huggingface_hub import hf_hub_download
 REPO = "evalplus/humanevalplus"
 REVISION = "d32357cf319e50e9c8d8dab5ea876c72b0fd321b"
 FILE = "test.jsonl"
+# the pin the builder ENFORCES (audit M1: it used to compute-and-record, never
+# compare — a self-certifying provenance chain)
+SOURCE_SHA256 = "908377f1daf28dcb36846db73a5662b2e05a9907407c2696c89ad9d3b0b04492"
 
 
 def main() -> int:
     out_dir = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path(__file__).parent
     path_in = hf_hub_download(REPO, FILE, repo_type="dataset", revision=REVISION)
-    rows = [json.loads(l) for l in open(path_in, encoding="utf-8")]
     src_sha = hashlib.sha256(pathlib.Path(path_in).read_bytes()).hexdigest()
+    if src_sha != SOURCE_SHA256:
+        sys.exit(f"humaneval: downloaded {FILE} sha256 {src_sha} != pinned "
+                 f"{SOURCE_SHA256} — refusing to build the holdout")
+    rows = [json.loads(l) for l in open(path_in, encoding="utf-8")]
 
     out = out_dir / "humaneval-164.jsonl"
     with open(out, "w", encoding="utf-8") as f:

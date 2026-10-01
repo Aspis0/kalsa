@@ -42,6 +42,22 @@ test -x "$ROOT/.venv-probe/bin/hf" || { echo "00: venv has no hf CLI" >&2; exit 
 # of git; fetch_lid176.sh pins the sha256 and skips itself when present)
 bash "$EVAL/fetch_lid176.sh" "$HOME/kalsa-models"
 
+# HumanEval+ holdout (audit H3): the file is gitignored (11 MB), so the
+# rsync bundle can arrive without it. Verify the sha256 of the BUILT file
+# (the builder is byte-deterministic: fixed source pin + fixed row order);
+# rebuild from the pinned evalplus revision if absent or wrong — BEFORE any
+# GPU hour is spent, and fail the stage otherwise.
+HE_JSONL="$EVAL/humaneval-164.jsonl"
+HE_SHA256="945a42273172b60a627cb2958ca1cefddfd398f41dfc9535781beb665c29e10f"
+he_ok() { [ -f "$HE_JSONL" ] && [ "$(sha256sum "$HE_JSONL" | cut -d" " -f1)" = "$HE_SHA256" ]; }
+if ! he_ok; then
+  echo "00: humaneval-164.jsonl missing or sha256 mismatch — building from evalplus @ d32357cf"
+  "$PY" "$EVAL/build_humaneval_holdout.py" "$EVAL" \
+    || { echo "00: humaneval holdout build FAILED" >&2; exit 1; }
+  he_ok || { echo "00: humaneval-164.jsonl sha256 mismatch after build" >&2; exit 1; }
+fi
+echo "00: humaneval-164.jsonl sha256 OK"
+
 # the fork is private: the coordinator rsyncs a clone (owned by the Mac uid)
 git config --global --add safe.directory "$LLAMA"
 if [ ! -d "$LLAMA/.git" ]; then

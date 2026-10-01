@@ -14,6 +14,7 @@ it unchanged: exact match of the LAST number in the reply vs the number after
 Usage: build_gsm8kit_holdout.py [out_dir]
 """
 
+import hashlib
 import json
 import pathlib
 import random
@@ -24,17 +25,27 @@ from huggingface_hub import hf_hub_download
 REPO = "Eurolingua/gsm8kx"
 REVISION = "363d87617cd417b731dc860194a6935fd5ff49ae"
 FILE = "gsm8k_IT_test.jsonl"
+# sha256 of the file at the pinned revision (measured by the phase-0 audit,
+# 826,166 B) — enforced, not decorative (audit M1)
+SOURCE_SHA256 = "5c846d406f59675f209d6581770e203296954b3201cc95507413fd840ba5b17d"
 
 
 def main() -> int:
     out_dir = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path(__file__).parent
     path_in = hf_hub_download(REPO, FILE, repo_type="dataset", revision=REVISION)
+    src_sha = hashlib.sha256(pathlib.Path(path_in).read_bytes()).hexdigest()
+    if src_sha != SOURCE_SHA256:
+        sys.exit(f"gsm8kit: downloaded {FILE} sha256 {src_sha} != pinned "
+                 f"{SOURCE_SHA256} — refusing to build the holdout")
     rows = [json.loads(l) for l in open(path_in, encoding="utf-8")]
     usable = []
     for r in rows:
         tail = r["answer"].split("####")[-1].strip().replace(",", "")
-        if tail and float(tail) == float(tail):  # numeric final answer present
-            usable.append((r["question"], tail))
+        try:
+            if tail and float(tail) == float(tail):  # numeric final answer present
+                usable.append((r["question"], tail))
+        except ValueError:  # e.g. "#### none" — skip, not a crash
+            pass
     rng = random.Random(42)
     picked = rng.sample(usable, 100)
 

@@ -77,24 +77,39 @@ pass@1). Sources, licences and sha256 pins: `PHASE0-EVALS.md`.
 
 | metric | instrument | pairing units |
 |---|---|---|
-| HumanEval+ pass@1 (164 problems, greedy, thinking on) | `eval/run_humaneval.py` over `eval/humaneval-164.jsonl` (EvalPlus base+plus tests); one subprocess per problem, `python -I`, temp dir, sockets disabled, 60 s timeout — the harness process never runs model code | per-item 0/1, `bootstrap_ci.py` unchanged |
-| FLORES-200 devtest EN→{IT,FR,ES,ZH} (100 sentences, first slice) | `eval/run_flores.py`: chrF++ via sacrebleu + wrong-language rate via fastText lid.176 (`~/kalsa-models/lid.176.bin`); LID self-check on the gold refs (≥ 90 %) else the run fails | per-sentence chrF and per-item 0/1, both bpb-shaped — `bootstrap_ci.py --bpb` directly |
+| HumanEval+ pass@1 (164 problems, greedy, thinking on) | `eval/run_humaneval.py` over `eval/humaneval-164.jsonl` (EvalPlus base+plus tests); one subprocess per problem in EvalPlus order (model code first, tests — which define `check()` — after, sentinel required: a `sys.exit(0)` or a redefined `check` cannot pass); best-effort isolation (replaced env, `PATH=/nonexistent`, rlimits, process-group kill on timeout) that is NOT a containment boundary — known bypasses (`_socket`, absolute paths) are documented in the runner, which refuses to run on macOS without `--allow-host`; pod only | per-item 0/1, `bootstrap_ci.py` unchanged |
+| FLORES-200 devtest EN→{IT,FR,ES,ZH} (100 sentences, first slice) | `eval/run_flores.py` at `--max-tokens 4096`: chrF++ via sacrebleu + wrong-language rate via fastText lid.176 (`~/kalsa-models/lid.176.bin`) over NON-truncated items — a truncated item (length cut, unclosed `<think>`, answer stuck in `reasoning_content`) is a token-budget artifact, reported per pair and FAILING the run above 2 %, never counted wrong-language; LID self-check on the gold refs (≥ 90 %) else the run fails | per-sentence chrF and per-item 0/1, both bpb-shaped with a `metric` field — `bootstrap_ci.py --bpb` directly |
 | GSM8K-Italian pass@1 (100 items, seed 42) | `eval/gsm8kit-100.jsonl` (Eurolingua/gsm8kx test split, MIT) through `run_gen_eval.py --dataset gsm8kit` — same last-number scorer as GSM8K | per-item 0/1, unchanged |
 
 Generation-cap fix (A40 REPORT reading 3): math datasets run at
-**n_predict 8192** (30_gate.sh, `GSM8K_MAX_TOKENS`); tools stay at 4096. The
+**n_predict 8192** (30_gate.sh, `GSM8K_MAX_TOKENS`); tools stay at 4096;
+FLORES runs at 4096 so a thinking model can finish a one-sentence
+translation plus its `<think>` block (the first draft kept 1024, which
+counted truncations as wrong-language — audit B4). The
 A40 raw generations cannot be re-scored uncapped — truncated items stored (all
 but 2-4 per arm) no thinking text (`eval/rescore_gsm8k_raw.py` output in
 PHASE0-EVALS.md), so the probe's GSM8K numbers keep their finish-rate
-confound until regeneration.
+confound until regeneration. (Corrected per the audit: the cause was the
+harness not archiving the raw responses, not the server's reasoning
+handling; the runners now store `reasoning` per item, so future truncations
+stay re-scorable from disk.)
 
 bpb now receives the arm's `--override-kv` flags (`30_gate.sh` replay +
 `run_bpb_eval.py --override-kv`); the A40 probe's bpb rows for the k4 arms
 were measured at the model DEFAULT expert count — treat those cells as
-"default-k" numbers.
+"default-k" numbers. The replay carries only `--override-kv`: any other
+expert-count mechanism would silently measure bpb at defaults (audit M8,
+open).
 
 Stop rule (DESIGN §4 S1), fail-closed: `eval/check_stop_rule.py --arm <dir>
 --base <base dir>` prints each check with its numbers and exits 0 = GO /
 1 = STOP. Rules for the 128-expert arms: IT bpb > 0.75, or HumanEval+ <
-base − 15 pp, or wrong-language > 5 % in any pair. A missing JSON is a STOP.
+base − 15 pp, or wrong-language > 5 % in any pair. A missing dir, a missing
+or unparsable JSON, a missing key, or n = 0 is a STOP with the reason
+printed, and every rule is evaluated — an unreadable input can never yield
+GO. It is INVOKED by `podprobe/run_probe.sh` after the arm loop, for
+`razor19-k4-q4km` and `razor19-k4-k2` against `--base "$RESULTS/qwen36-k4"`
+(the exact unpruned k=4 control), writing `results/stop-rule.log` into the
+uploaded results; the verdict goes to the coordinator and does not change
+the probe's exit code.
 

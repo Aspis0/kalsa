@@ -19,20 +19,24 @@ Product-parity conditions (owner + Fable-2/3 reviews, 2026-09-30):
     system message), so the server renders EACH model's native tool format
     and returns structured message.tool_calls — scored first, with content
     parsing as fallback. No model is asked to imitate another's dialect.
-  n_predict >= 4096 (default here); raw output + finish_reason stored per
-    item in --out for auditing and the truncation report.
+  CLI default n_predict 4096 (short answers, tools parity); the GATE passes
+    --max-tokens 8192 for the math datasets — the A40 probe cut reasoning
+    models mid-think at 4096 (REPORT.md reading 3). Raw output +
+    finish_reason + reasoning stored per item in --out.
   tools match on canonicalised JSON (order-insensitive, type-lenient
     scalars): eval/toolcalls.py args_match — never str(args).
 
+Items append to <out>.journal as they complete; a rerun skips done ids, so
+a killed arm does not restart from zero (audit H4). --concurrency (server
+path only) should match the server's -np slot count.
+
 Usage: run_gen_eval.py --dataset gsm8k|gsm8kit|tools --holdout <jsonl> --out r.json
-                       (--server URL [--max-tokens 4096] |
+                       (--server URL [--max-tokens 8192] [--concurrency N] |
                         --llama <bin dir> --model <gguf> --tokenizer <dir>)
                        [--limit N]
 
 gsm8kit shares the gsm8k scorer (last-number exact match); the holdout is
-Italian (eval/gsm8kit-100.jsonl, Eurolingua/gsm8kx, MIT). The A40 probe cut
-reasoning models at 4096 tokens (REPORT.md reading 3), so the gate passes
---max-tokens 8192 for the math datasets.
+Italian (eval/gsm8kit-100.jsonl, Eurolingua/gsm8kx, MIT).
 """
 
 import argparse
@@ -42,33 +46,16 @@ import pathlib
 import re
 import subprocess
 import sys
-import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import journal as journal_mod
+import server
 from toolcalls import args_match, parse_tool_calls
 
 NUMBER_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 THINK_RE = re.compile(r"<think>.*?</think>", re.S)
 UNCLOSED_THINK_RE = re.compile(r"<think>(?!.*?</think>)", re.S)
 TOOLS_ARRAY_RE = re.compile(r"\[.*\]", re.S)
-
-
-def chat_completion(server: str, messages: list, max_tokens: int,
-                    tools: list | None = None, timeout: int = 1800) -> dict:
-    body = {"messages": messages, "temperature": 0.0,
-            "max_tokens": max_tokens, "stream": False,
-            # the product runs thinking on; LFM's template ignores the kwarg
-            "chat_template_kwargs": {"enable_thinking": True}}
-    if tools:
-        body["tools"] = tools
-    req = urllib.request.Request(
-        f"{server}/v1/chat/completions", data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        msg = json.load(r)["choices"][0]
-    out = msg.get("message", {})
-    return {"content": out.get("content", "") or "",
-            "tool_calls": out.get("tool_calls", []) or [],
-            "finish_reason": msg.get("finish_reason", "")}
 
 
 def generate(binary: str, model: str, prompt: str, n: int) -> dict:
@@ -87,8 +74,8 @@ def generate(binary: str, model: str, prompt: str, n: int) -> dict:
     for marker in ("[ Prompt:", "Prompt:", "llama_perf", "total time", "Exiting"):
         reply = reply.split(marker)[0]
     # a length-capped CLI run is undetectable; treat any unclosed <think> as such
-    return {"content": reply, "tool_calls": [],
-            "finish_reason": "length" if UNCLOSED_THINK_RE.search(reply) else "stop"}
+    return {"content": reply, "tool_calls": [], "finish_reason":
+            "length" if UNCLOSED_THINK_RE.search(reply) else "stop"}
 
 
 def strip_reasoning(reply: str) -> str:
@@ -155,45 +142,71 @@ def main() -> int:
     ap.add_argument("--tokenizer", help="tokenizer dir for the CLI path")
     ap.add_argument("--max-tokens", type=int, default=4096)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--concurrency", type=int, default=1,
+                    help="parallel requests (server path only) — the server's "
+                         "-np slot count")
     ap.add_argument("--out", required=True, help="per-item JSON incl. raw outputs")
     a = ap.parse_args()
     if not a.server and not (a.llama and a.model and a.tokenizer):
         ap.error("need --server, or --llama + --model + --tokenizer")
+    if not a.server:
+        a.concurrency = 1  # concurrent llama-cli processes on one GPU thrash
 
     def gen(messages: list, tools: list | None = None) -> dict:
         if a.server:
-            return chat_completion(a.server, messages, a.max_tokens, tools)
+            return server.chat(a.server, messages, a.max_tokens, tools=tools)
         from transformers import AutoTokenizer  # CLI path only; server needs no torch stack
         prompt = AutoTokenizer.from_pretrained(a.tokenizer).apply_chat_template(
             messages, add_generation_prompt=True, tokenize=False,
             enable_thinking=True)
         return generate(a.llama, a.model, prompt, a.max_tokens)
 
-    items = [json.loads(l) for l in open(a.holdout)]
-    if a.limit:
-        items = items[: a.limit]
-
-    results = []
-    for i, item in enumerate(items):
+    def work(item: dict) -> dict:
         if a.dataset in ("gsm8k", "gsm8kit"):
             r = gen([{"role": "user", "content": item["question"]}])
             hit = score_text(r["content"], item)
         else:
             r = gen(item["prompt_messages"], extract_tools(item))
             hit = score_tools(r["tool_calls"], r["content"], item)
-        results.append({"id": item["id"], "pass": int(hit),
-                        "finish_reason": r["finish_reason"], "raw": r["content"]})
-        print(f"[{i + 1}/{len(items)}] {item['id']} -> "
-              f"{'PASS' if hit else 'FAIL'} ({r['finish_reason']})", flush=True)
+        return {"id": item["id"], "pass": int(hit),
+                "finish_reason": r["finish_reason"], "raw": r["content"],
+                "reasoning": r.get("reasoning_content", "")}
 
-    ok = sum(r["pass"] for r in results)
-    truncated = sum(1 for r in results if r["finish_reason"] == "length")
+    items = [json.loads(l) for l in open(a.holdout)]
+    if a.limit:
+        items = items[: a.limit]
+    jrnl = journal_mod.Journal(pathlib.Path(a.out + ".journal"),
+                               [it["id"] for it in items])
+    pending = [it for it in items if it["id"] not in jrnl.done_ids]
+    done = len(items) - len(pending)
+
+    if a.concurrency <= 1:
+        for i, item in enumerate(pending):
+            rec = work(item)
+            jrnl.append(rec)
+            print(f"[{done + i + 1}/{len(items)}] {item['id']} -> "
+                  f"{'PASS' if rec['pass'] else 'FAIL'} ({rec['finish_reason']})",
+                  flush=True)
+    else:
+        with ThreadPoolExecutor(max_workers=a.concurrency) as ex:
+            futs = [ex.submit(work, it) for it in pending]
+            for i, fut in enumerate(as_completed(futs), start=done + 1):
+                rec = fut.result()
+                jrnl.append(rec)
+                print(f"[{i}/{len(items)}] {rec['id']} -> "
+                      f"{'PASS' if rec['pass'] else 'FAIL'} ({rec['finish_reason']})",
+                      flush=True)
+    jrnl.close()
+
+    records = jrnl.records()
+    ok = sum(r["pass"] for r in records)
+    truncated = sum(1 for r in records if r["finish_reason"] == "length")
     pathlib.Path(a.out).write_text(json.dumps({
         "dataset": a.dataset, "model": a.model or a.server,
-        "max_tokens": a.max_tokens, "n": len(results), "ok": ok,
-        "truncated": truncated, "items": results}, indent=1))
-    print(f"\n{a.dataset}: {ok}/{len(results)} = {ok / max(1, len(results)):.3f}"
-          f", hit the {a.max_tokens}-token cap on {truncated}/{len(results)}"
+        "max_tokens": a.max_tokens, "n": len(records), "ok": ok,
+        "truncated": truncated, "items": records}, indent=1))
+    print(f"\n{a.dataset}: {ok}/{len(records)} = {ok / max(1, len(records)):.3f}"
+          f", hit the {a.max_tokens}-token cap on {truncated}/{len(records)}"
           f" (raw outputs -> {a.out})")
     return 0
 

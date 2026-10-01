@@ -3,8 +3,10 @@
 # the stages that source this, not by this file itself
 # env.sh — pinned constants for the one-shot GPU gate probe. Sourced by every
 # podprobe stage. Responsibility: the pins and paths, nothing else.
-# Owner cap: $10. L40 48GB community assumed at $0.69/h (README has the
-# creation parameters; adjust PROBE_RATE_USD_H if the GPU differs).
+# The gate now books an A100 80 GB pod (README create command, ~$1.98/h);
+# adjust PROBE_RATE_USD_H if the GPU differs. The budget knobs below are
+# derived from the per-arm workload math in PHASE0-EVALS.md ("Probe budgets")
+# — re-derive them there whenever the gate stage list changes.
 
 # --- engine: fork main + the k2 spike patch (k2 is OFF unless the
 # expert_used_k2 override is passed, so one build serves every arm).
@@ -53,11 +55,18 @@ PORT=8765
 # the owner's org; created PRIVATE by the coordinator, never by this job
 HF_RESULTS_REPO="${HF_RESULTS_REPO:-Kalsa-ai/kalsa-gate-probe-results}"
 SECRETS="${POD_SECRETS_DIR:-/root/.secrets}"
-PROBE_RATE_USD_H="${PROBE_RATE_USD_H:-0.69}"
-PROBE_BUDGET_H="${PROBE_BUDGET_H:-12.0}"  # guard: skip arms that cannot fit
-PROBE_HARD_STOP_H="${PROBE_HARD_STOP_H:-13}"  # in-pod self-destruct delay;
+PROBE_RATE_USD_H="${PROBE_RATE_USD_H:-1.98}"
+# --- budget knobs (derivation: PHASE0-EVALS.md "Probe budgets"). Sized for
+# the gate WITH the new evals: 964 generations/arm, math+humaneval at 8192,
+# server started with -np "$PROBE_SLOTS" slots and the runners matching
+# --concurrency. PROBE_ARM_TIMEOUT_H must exceed the worst per-arm estimate
+# (a 35B arm at the audit's conservative 15 tok/s single-stream x3 slots);
+# the incremental journals mean a timed-out arm keeps its finished evals.
+PROBE_SLOTS="${PROBE_SLOTS:-4}"
+PROBE_BUDGET_H="${PROBE_BUDGET_H:-24.0}"  # guard: skip arms that cannot fit
+PROBE_HARD_STOP_H="${PROBE_HARD_STOP_H:-26}"  # in-pod self-destruct delay;
                                               # README states its delete
                                               # permission is UNVERIFIED
-PROBE_ARM_TIMEOUT_H="${PROBE_ARM_TIMEOUT_H:-2.5}"  # per-arm kill switch
+PROBE_ARM_TIMEOUT_H="${PROBE_ARM_TIMEOUT_H:-8.0}"  # per-arm kill switch
 START_EPOCH="$(date +%s)"
 elapsed_h() { awk -v s="$START_EPOCH" -v n="$(date +%s)" 'BEGIN {print (n-s)/3600}'; }

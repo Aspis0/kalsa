@@ -112,28 +112,48 @@ K4_K2=(--override-kv qwen35moe.expert_used_count=int:4
        --override-kv qwen35moe.expert_used_k2=int:16)
 
 # order = decision value (Fable-3 §1): baseline, the free-prune verdict and
-# its control FIRST, then k=4 arms, then the owner's extras
-run_arm lfm              0.8 "$MODELS/ship/LFM2.5-2.6B-QAD-Q4_0.gguf" "$LFM_TOK"
-run_arm razor19-k8-q4km  2.5 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK"
-run_arm qwen35-4b        1.0 "$MODELS/Qwen3.5-4B-Q4_K_M.gguf"        "$QWEN35_TOK"
-run_arm razor19-k4-q4km  2.5 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK" "${K4[@]}"
-run_arm qwen36-k4        2.5 "$MODELS/$QWEN36_GGUF_FILE"             "$QWEN36_TOK" "${K4[@]}"
+# its control FIRST, then k=4 arms, then the owner's extras.
+# est hours = the NEW gate workload (964 generations/arm, math+humaneval at
+# 8192, evals run 4 slots concurrently on the A100) — derivation and the
+# conservative/realistic band per arm-class: PHASE0-EVALS.md "Probe budgets".
+run_arm lfm              1.2 "$MODELS/ship/LFM2.5-2.6B-QAD-Q4_0.gguf" "$LFM_TOK"
+run_arm razor19-k8-q4km  3.0 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK"
+run_arm qwen35-4b        1.5 "$MODELS/Qwen3.5-4B-Q4_K_M.gguf"        "$QWEN35_TOK"
+run_arm razor19-k4-q4km  3.0 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK" "${K4[@]}"
+run_arm qwen36-k4        3.0 "$MODELS/$QWEN36_GGUF_FILE"             "$QWEN36_TOK" "${K4[@]}"
 
 # k2 renormalisation arm — needs the spike build (skips itself on main)
 if [ ! -f "$RUNS/using-main" ]; then
-  run_arm razor19-k4-k2  2.5 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK" "${K4_K2[@]}"
+  run_arm razor19-k4-k2  3.0 "$MODELS/kalsa-razor19-q4_k_m.gguf"     "$QWEN36_TOK" "${K4_K2[@]}"
 else
   echo "== [razor19-k4-k2] SKIPPED — engine is fork main (spike not pushed)"
 fi
 
-run_arm qwen35-2b-q4km   0.7 "$MODELS/Qwen3.5-2B-Q4_K_M.gguf"        "$QWEN35_TOK"
-run_arm qwen35-2b-q4_0   0.7 "$MODELS/Qwen3.5-2B-Q4_0.gguf"          "$QWEN35_TOK"
-run_arm razor19-k8-q4_0  1.5 "$MODELS/kalsa-razor19-q4_0.gguf"       "$QWEN36_TOK"
+run_arm qwen35-2b-q4km   0.6 "$MODELS/Qwen3.5-2B-Q4_K_M.gguf"        "$QWEN35_TOK"
+run_arm qwen35-2b-q4_0   0.6 "$MODELS/Qwen3.5-2B-Q4_0.gguf"          "$QWEN35_TOK"
+run_arm razor19-k8-q4_0  3.0 "$MODELS/kalsa-razor19-q4_0.gguf"       "$QWEN36_TOK"
 
 # optional 25% RAZOR (~28B; Q4_K_M ~16 GB — does not fit any 16 GB budget)
 if [ "$PROBE_WITH_RAZOR28" = "1" ]; then
-  run_arm razor28-k8-q4km 3.0 "$MODELS/kalsa-razor28-q4_k_m.gguf"    "$QWEN36_TOK"
+  run_arm razor28-k8-q4km 4.0 "$MODELS/kalsa-razor28-q4_k_m.gguf"    "$QWEN36_TOK"
 fi
+
+# S1 stop rule (audit H2: the tool existed but NOTHING ever called it).
+# Decision-relevant arms are the k=4 128-expert checkpoints; their exact
+# unpruned control is qwen36-k4, so the rule runs arm-vs-qwen36-k4 — never
+# arm-vs-arm (the previous round's only proof was that vacuous self-pair).
+# Runs when both arms' gate JSONs exist; the verdict goes into
+# results/stop-rule.log (uploaded below). A STOP is a coordinator verdict —
+# it does not change this script's exit code, which tracks the upload.
+: > "$RESULTS/stop-rule.log"
+for arm_tag in razor19-k4-q4km razor19-k4-k2; do
+  [ -d "$RESULTS/$arm_tag" ] || continue
+  echo "# $(date -u +%FT%TZ) $arm_tag vs qwen36-k4" >> "$RESULTS/stop-rule.log"
+  (cd "$EVAL" && "$PY" check_stop_rule.py --arm "$RESULTS/$arm_tag" \
+     --base "$RESULTS/qwen36-k4") >> "$RESULTS/stop-rule.log" 2>&1
+  rc_rule=$?
+  echo "== stop-rule [$arm_tag] vs qwen36-k4: EXIT=$rc_rule (0=GO, 1=STOP)"
+done
 
 HF_TOKEN="$(token_cat)" bash "$(dirname "$0")/40_upload.sh" >>"$RUNS/upload.log" 2>&1
 rc=$?

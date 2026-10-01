@@ -58,8 +58,12 @@ def main() -> int:
         langs = a.langs.split(",") if a.langs else sorted(da)
         for lang in langs:
             ma, mb = da[lang]["chunks"], db[lang]["chunks"]
+            # the chunk files record their metric (bpb / chrf_pp /
+            # wrong_language); a wrong-language rate printed as "bpb" was a
+            # label lie, not a maths error (audit M11)
+            label = da[lang].get("metric", "bpb")
             va, vb, d, lo, hi = paired_ci(ma, mb, a.resamples, rng)
-            print(f"bpb {lang}: A {va:.4f}  B {vb:.4f}  diff {d:+.4f} "
+            print(f"{label} {lang}: A {va:.4f}  B {vb:.4f}  diff {d:+.4f} "
                   f"[95% CI {lo:+.4f}, {hi:+.4f}]  (n={len(ma)} chunks)")
     else:
         da, db = json.load(open(a.a)), json.load(open(a.b))
