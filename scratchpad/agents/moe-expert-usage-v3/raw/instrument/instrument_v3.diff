@@ -1,0 +1,391 @@
+diff --git a/examples/eval-callback/eval-callback.cpp b/examples/eval-callback/eval-callback.cpp
+index 703ce130b..1607fd1bd 100644
+--- a/examples/eval-callback/eval-callback.cpp
++++ b/examples/eval-callback/eval-callback.cpp
+@@ -4,41 +4,235 @@
+ #include "log.h"
+ #include "llama.h"
+ 
++#include <algorithm>
+ #include <clocale>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include <map>
+ #include <string>
+ #include <vector>
+ 
+-static bool run(llama_context * ctx, const common_params & params) {
+-    const llama_model * model = llama_get_model(ctx);
+-    const llama_vocab * vocab = llama_model_get_vocab(model);
++// Records Qwen3.6 MoE routing: which experts each token's router picked (ffn_moe_topk)
++// and each pick's raw softmax probability (ffn_moe_weights), before the later top-k
++// renormalization. Both nodes appear once per decoder layer per microbatch:
++//   ffn_moe_topk-N     I32 [n_expert_used, n_tokens] - a strided VIEW of the full
++//                      argsort: element stride nb[0], row stride nb[1] spans all
++//                      n_expert entries, so only the first k elements of each row
++//                      belong to the top-k.
++//   ffn_moe_weights-N  F32 [1, n_expert_used, n_tokens] - rank r of token tok lives
++//                      at byte offset tok*nb[2] + r*nb[1].
++// Reads honor the strides. topk and weights of the same (layer, microbatch) are
++// paired through a per-layer pending buffer, so counts and mass cover every
++// microbatch instead of aliasing to the last one.
++//
++// v3 (moe-expert-usage study): ROUTER_TEXT_FILE holds many segments separated by
++// lines of the form "<<<SEG group=NAME id=N >>>". Each segment is tokenized and
++// evaluated as its own sequence: the KV cache is cleared between segments, so no
++// token ever attends across a segment boundary. For every segment the program
++// appends one block to two binary streams:
++//   ROUTER_COUNTS_BIN  uint32[N_LAYER][N_EXPERT]  selection counts
++//   ROUTER_MASS_BIN    float [N_LAYER][N_EXPERT]  selected raw softmax mass
++// and one row to ROUTER_SEG_CSV. Per segment, every layer must see the same
++// number of paired topk/weights calls and exactly the segment's token count;
++// violations abort with a nonzero exit. A dense per-group aggregate
++// (ROUTER_CSV) is written at the end.
+ 
+-    const bool add_bos = llama_vocab_get_add_bos(vocab);
++constexpr int N_LAYER  = 40;
++constexpr int N_EXPERT = 256;
+ 
+-    std::vector<llama_token> tokens = common_tokenize(ctx, params.prompt, add_bos, true);
++struct Segment {
++    std::string group;
++    std::string id;
++    std::string text;
++};
+ 
+-    if (tokens.empty()) {
+-        LOG_ERR("%s : there are not input tokens to process - (try to provide a prompt with '-p')\n", __func__);
+-        return false;
++static std::vector<Segment> parse_segments(const char * path) {
++    std::ifstream f(path);
++    if (!f) {
++        fprintf(stderr, "ROUTER_CALLBACK_ERROR cannot open segments file '%s'\n", path);
++        std::exit(2);
++    }
++    std::vector<Segment> out;
++    std::string line;
++    bool open = false;
++    while (std::getline(f, line)) {
++        if (line.rfind("<<<SEG ", 0) == 0) {
++            // header: <<<SEG group=NAME id=N >>>
++            Segment seg;
++            const size_t gpos = line.find("group=");
++            const size_t ipos = line.find(" id=");
++            if (gpos == std::string::npos || ipos == std::string::npos) {
++                fprintf(stderr, "ROUTER_CALLBACK_ERROR malformed segment header: %s\n", line.c_str());
++                std::exit(2);
++            }
++            seg.group = line.substr(gpos + 6, ipos - (gpos + 6));
++            const size_t end = line.find(' ', ipos + 1);
++            seg.id = line.substr(ipos + 4, end == std::string::npos ? std::string::npos : end - (ipos + 4));
++            out.push_back(std::move(seg));
++            open = true;
++        } else if (open) {
++            Segment & seg = out.back();
++            seg.text += line;
++            seg.text += '\n';
++        }
+     }
++    return out;
++}
++
++[[noreturn]] static void router_fail(const char * what, const char * name) {
++    fprintf(stderr, "ROUTER_CALLBACK_ERROR %s on tensor '%s'\n", what, name);
++    std::exit(1);
++}
+ 
+-    LOG_INF("number of input tokens = %zu\n", tokens.size());
+-    for (size_t i = 0; i < tokens.size(); ++i) {
+-        LOG_INF("  %d\n", tokens[i]);
++// "ffn_moe_topk-<il>": the digits must start right after the last '-', so that a
++// hypothetical non-numeric suffix ("...-mtp") is rejected instead of parsing as 0.
++static int parse_layer(const char * name) {
++    const char * dash = strrchr(name, '-');
++    if (dash == nullptr || dash[1] < '0' || dash[1] > '9') {
++        return -1;
+     }
++    const int layer = atoi(dash + 1);
++    return layer < N_LAYER ? layer : -1;
++}
++
++struct RouterStats {
++    int64_t expected_tokens = 0;
++    // per layer: top-k expert ids of the current microbatch, token-major;
++    // pending_tokens == 0 means no top-k is waiting for its weights
++    std::vector<int32_t> pending_topk[N_LAYER];
++    int64_t pending_tokens[N_LAYER] = {};
++    int topk_calls[N_LAYER]    = {};
++    int weights_calls[N_LAYER] = {};
++    int64_t tokens_seen[N_LAYER] = {};
++    uint64_t counts[N_LAYER][N_EXPERT] = {};
++    double mass[N_LAYER][N_EXPERT] = {};
++    double wsum_total[N_LAYER] = {};  // sum of per-token top-k weight sums
++    double wsum_min[N_LAYER]   = {};
++    double wsum_max[N_LAYER]   = {};
+ 
+-    common_batch batch = common_batch_get_one(ctx, tokens);
+-    if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, batch.get())) {
+-        LOG_ERR("%s : failed to eval\n", __func__);
+-        return false;
++    void reset() {
++        *this = RouterStats();
+     }
++};
++
++static bool router_cb(struct ggml_tensor * t, bool ask, void * user_data) {
++    const char * name = t->name;
++    const bool topk    = strncmp(name, "ffn_moe_topk-", 13) == 0;
++    const bool weights = strncmp(name, "ffn_moe_weights-", 16) == 0 && strchr(name, ' ') == nullptr;
++    if (ask) return topk || weights;
++    if (!topk && !weights) return true;
++
++    auto * stats = static_cast<RouterStats *>(user_data);
++    const int layer = parse_layer(name);
++    if (layer < 0) router_fail("unparseable layer index", name);
+ 
++    if (topk) {
++        if (t->type != GGML_TYPE_I32) router_fail("top-k is not I32", name);
++        if (t->nb[0] != sizeof(int32_t)) router_fail("top-k element stride is not 4", name);
++        if (stats->pending_tokens[layer] != 0) router_fail("new top-k while weights pending", name);
++        const int64_t k    = t->ne[0];
++        const int64_t ntok = t->ne[1];
++
++        std::vector<int32_t> & ids = stats->pending_topk[layer];
++        ids.assign((size_t)(ntok * k), 0);
++        std::vector<int32_t> row((size_t)k);
++        for (int64_t tok = 0; tok < ntok; ++tok) {
++            ggml_backend_tensor_get(t, row.data(), (size_t)(tok * t->nb[1]), (size_t)(k * sizeof(int32_t)));
++            for (int64_t r = 0; r < k; ++r) {
++                const int32_t expert = row[(size_t)r];
++                if (expert < 0 || expert >= N_EXPERT) router_fail("expert id out of range", name);
++                ids[(size_t)(tok * k + r)] = expert;
++                stats->counts[layer][expert]++;
++            }
++        }
++        stats->pending_tokens[layer] = ntok;
++        stats->topk_calls[layer]++;
++        stats->tokens_seen[layer] += ntok;
++    } else {
++        if (t->type != GGML_TYPE_F32) router_fail("weights are not F32", name);
++        if (t->nb[0] != sizeof(float)) router_fail("weights element stride is not 4", name);
++        if (stats->pending_tokens[layer] == 0) router_fail("weights without pending top-k", name);
++        if (t->ne[0] != 1) router_fail("unexpected weights shape", name);
++        const int64_t k    = t->ne[1];
++        const int64_t ntok = t->ne[2];
++        if (k != (int64_t)(stats->pending_topk[layer].size() / stats->pending_tokens[layer])) {
++            router_fail("weights k does not match pending top-k", name);
++        }
++        if (ntok != stats->pending_tokens[layer]) {
++            router_fail("weights token count does not match pending top-k", name);
++        }
++
++        const bool rank_contiguous = t->nb[1] == sizeof(float);
++        std::vector<float> row((size_t)k);
++        for (int64_t tok = 0; tok < ntok; ++tok) {
++            double wsum = 0.0;
++            for (int64_t r = 0; r < k; ++r) {
++                float w = 0.0f;
++                if (rank_contiguous) {
++                    if (r == 0) {
++                        ggml_backend_tensor_get(t, row.data(), (size_t)(tok * t->nb[2]), (size_t)(k * sizeof(float)));
++                    }
++                    w = row[(size_t)r];
++                } else {
++                    ggml_backend_tensor_get(t, &w, (size_t)(tok * t->nb[2] + r * t->nb[1]), sizeof(float));
++                }
++                const int32_t expert = stats->pending_topk[layer][(size_t)(tok * k + r)];
++                if (expert < 0 || expert >= N_EXPERT) router_fail("expert id out of range", name);
++                stats->mass[layer][expert] += w;
++                wsum += w;
++            }
++            if (wsum <= 0.0 || wsum > 1.0) router_fail("top-k weight sum outside (0, 1]", name);
++            if (tok == 0 || wsum < stats->wsum_min[layer]) stats->wsum_min[layer] = wsum;
++            if (tok == 0 || wsum > stats->wsum_max[layer]) stats->wsum_max[layer] = wsum;
++            stats->wsum_total[layer] += wsum;
++        }
++        stats->pending_tokens[layer] = 0;
++        stats->weights_calls[layer]++;
++    }
+     return true;
+ }
+ 
++// appends the segment's [N_LAYER][N_EXPERT] count and mass blocks to the binary
++// streams, returns the per-layer min/mean/max of the per-token top-k weight sums
++static void flush_segment(const RouterStats & stats, std::ostream & counts_bin, std::ostream & mass_bin) {
++    for (int layer = 0; layer < N_LAYER; ++layer) {
++        for (int expert = 0; expert < N_EXPERT; ++expert) {
++            uint32_t c = (uint32_t)stats.counts[layer][expert];
++            counts_bin.write((const char *)&c, sizeof(c));
++        }
++        for (int expert = 0; expert < N_EXPERT; ++expert) {
++            float m = (float)stats.mass[layer][expert];
++            mass_bin.write((const char *)&m, sizeof(m));
++        }
++    }
++}
++
+ int main(int argc, char ** argv) {
+     std::setlocale(LC_NUMERIC, "C");
+ 
+-    common_debug_cb_user_data cb_data;
++    const char * csv_path = getenv("ROUTER_CSV");
++    const char * counts_path = getenv("ROUTER_COUNTS_BIN");
++    const char * mass_path = getenv("ROUTER_MASS_BIN");
++    const char * segs_path = getenv("ROUTER_SEG_CSV");
++    const char * text_path = getenv("ROUTER_TEXT_FILE");
++    if (!csv_path || !counts_path || !mass_path || !segs_path || !text_path) {
++        fprintf(stderr, "ROUTER_CSV, ROUTER_COUNTS_BIN, ROUTER_MASS_BIN, ROUTER_SEG_CSV and ROUTER_TEXT_FILE are required\n");
++        return 2;
++    }
++    std::ofstream router_csv(csv_path);
++    router_csv << "group,layer,expert,selections,mass_sum\n";
++
++    std::vector<Segment> segments = parse_segments(text_path);
++    if (segments.empty()) {
++        fprintf(stderr, "ROUTER_CALLBACK_ERROR no segments in '%s'\n", text_path);
++        return 2;
++    }
++    fprintf(stderr, "ROUTER_SEGMENTS=%zu\n", segments.size());
++
++    RouterStats stats;
+ 
+     common_params params;
+ 
+@@ -53,8 +247,8 @@ int main(int argc, char ** argv) {
+ 
+     // pass the callback to the backend scheduler
+     // it will be executed for each node during the graph computation
+-    params.cb_eval = common_debug_cb_eval;
+-    params.cb_eval_user_data = &cb_data;
++    params.cb_eval = router_cb;
++    params.cb_eval_user_data = &stats;
+     params.warmup = false;
+ 
+     // init
+@@ -75,15 +269,116 @@ int main(int argc, char ** argv) {
+         LOG_INF("\n");
+     }
+ 
+-    bool OK = run(ctx, params);
+-    if (!OK) {
+-        return 1;
+-    }
++    const llama_vocab * vocab = llama_model_get_vocab(model);
++    const bool add_bos = llama_vocab_get_add_bos(vocab);
++    llama_memory_t mem = llama_get_memory(ctx);
++
++    std::ofstream counts_bin(counts_path, std::ios::binary);
++    std::ofstream mass_bin(mass_path, std::ios::binary);
++    std::ofstream segs_csv(segs_path);
++    segs_csv << "idx,group,seg_id,tokens,ubatches,wsum_min,wsum_mean,wsum_max\n";
++
++    // per-group aggregates for the dense summary CSV
++    std::map<std::string, RouterStats *> group_agg;
++    int64_t total_tokens = 0;
++    bool all_sane = true;
++
++    for (size_t si = 0; si < segments.size(); ++si) {
++        const Segment & seg = segments[si];
++        stats.reset();
++        stats.expected_tokens = -1;
++
++        std::vector<llama_token> tokens = common_tokenize(ctx, seg.text, add_bos, true);
++        stats.expected_tokens = (int64_t)tokens.size();
++        if (tokens.empty()) {
++            fprintf(stderr, "ROUTER_SEG_FAIL idx=%zu group=%s id=%s no tokens\n", si, seg.group.c_str(), seg.id.c_str());
++            return 1;
++        }
+ 
+-    LOG("\n");
+-    llama_perf_context_print(ctx);
++        LOG_INF("segment %zu group=%s id=%s number of input tokens = %zu\n",
++                si, seg.group.c_str(), seg.id.c_str(), tokens.size());
+ 
+-    llama_backend_free();
++        // each segment is its own sequence: no token attends across segments
++        llama_memory_clear(mem, true);
+ 
++        common_batch batch = common_batch_get_one(ctx, tokens);
++        if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, batch.get())) {
++            LOG_ERR("%s : failed to eval segment %zu\n", __func__, si);
++            return 1;
++        }
++
++        // every layer must have seen the same number of paired topk/weights calls
++        // and exactly the segment's tokens
++        int ubatches = stats.topk_calls[0];
++        bool sane = ubatches > 0;
++        for (int layer = 0; layer < N_LAYER && sane; ++layer) {
++            if (stats.pending_tokens[layer] != 0) {
++                fprintf(stderr, "ROUTER_SEG_FAIL idx=%zu layer=%d unconsumed top-k\n", si, layer);
++                sane = false;
++            } else if (stats.topk_calls[layer] != ubatches || stats.weights_calls[layer] != ubatches) {
++                fprintf(stderr, "ROUTER_SEG_FAIL idx=%zu layer=%d topk_calls=%d weights_calls=%d expected=%d\n",
++                        si, layer, stats.topk_calls[layer], stats.weights_calls[layer], ubatches);
++                sane = false;
++            } else if (stats.tokens_seen[layer] != stats.expected_tokens) {
++                fprintf(stderr, "ROUTER_SEG_FAIL idx=%zu layer=%d tokens_seen=%lld expected=%lld\n",
++                        si, layer, (long long)stats.tokens_seen[layer], (long long)stats.expected_tokens);
++                sane = false;
++            }
++        }
++        if (!sane) {
++            return 1;
++        }
++
++        flush_segment(stats, counts_bin, mass_bin);
++        counts_bin.flush();
++        mass_bin.flush();
++
++        double wmin = stats.wsum_min[0], wmax = stats.wsum_max[0], wtot = 0.0;
++        for (int layer = 0; layer < N_LAYER; ++layer) {
++            wmin = std::min(wmin, stats.wsum_min[layer]);
++            wmax = std::max(wmax, stats.wsum_max[layer]);
++            wtot += stats.wsum_total[layer];
++        }
++        segs_csv << si << ',' << seg.group << ',' << seg.id << ',' << stats.expected_tokens << ','
++                 << ubatches << ',' << wmin << ',' << wtot / ((double)N_LAYER * stats.expected_tokens) << ','
++                 << wmax << "\n";
++        segs_csv.flush();
++        total_tokens += stats.expected_tokens;
++        fprintf(stderr, "ROUTER_SEG idx=%zu group=%s id=%s tokens=%lld ubatches=%d wsum_min=%.6f wsum_mean=%.6f wsum_max=%.6f\n",
++                si, seg.group.c_str(), seg.id.c_str(), (long long)stats.expected_tokens, ubatches,
++                wmin, wtot / ((double)N_LAYER * stats.expected_tokens), wmax);
++
++        // fold into the per-group aggregate
++        auto it = group_agg.find(seg.group);
++        if (it == group_agg.end()) {
++            auto * agg = new RouterStats();
++            group_agg[seg.group] = agg;
++            it = group_agg.find(seg.group);
++        }
++        RouterStats & agg = *it->second;
++        for (int layer = 0; layer < N_LAYER; ++layer) {
++            for (int expert = 0; expert < N_EXPERT; ++expert) {
++                agg.counts[layer][expert] += stats.counts[layer][expert];
++                agg.mass[layer][expert]   += stats.mass[layer][expert];
++            }
++        }
++    }
++
++    for (const auto & [group, agg] : group_agg) {
++        (void)agg;
++        const RouterStats & a = *group_agg[group];
++        for (int layer = 0; layer < N_LAYER; ++layer) {
++            for (int expert = 0; expert < N_EXPERT; ++expert) {
++                router_csv << group << ',' << layer << ',' << expert << ','
++                           << a.counts[layer][expert] << ',' << a.mass[layer][expert] << "\n";
++            }
++        }
++    }
++    router_csv.flush();
++
++    fprintf(stderr, "ROUTER_RUN_OK segments=%zu total_tokens=%lld\n", segments.size(), (long long)total_tokens);
++    for (const auto & [group, agg] : group_agg) {
++        delete agg;
++    }
+     return 0;
+ }

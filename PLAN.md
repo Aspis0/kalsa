@@ -578,7 +578,13 @@ to kalsa-brain d4e57ba1. **v1.1.4 BUG (kalsa-brain, confirmed 2026-10-01):** the
 (no i8mm) in ggml_gemm_q6_K_8x8_q8_K: libggml-cpu has 284 smmla/ummla (v1.1.2: 0); GGML_NATIVE=ON on the macos-26
 runner now probes i8mm OK and bakes it in. Fix v1.1.5 (GLM d669dc8d, branch fix/v1.1.5 local): mac NATIVE=OFF +
 BACKEND_DL + CPU_ALL_VARIANTS (apple_m1/m2_m3/m4), proven on the local M1 Max first; plus truncated slot file ->
-400 not abort, shared-view WARN once. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
+400 not abort, shared-view WARN once. Owner 2026-10-01: batch EVERY desktop fix into v1.1.5 (one macOS CI run,
+10x minutes). Added: other-model slot file -> 400 (model identity), MTP drafter on another device than the aliased
+target KV -> clean refusal instead of abort (Lenovo multi-GPU), dead b11010-merge trigger removed. TAG HELD for the
+suspected Vulkan decode regression on Ling-3.0-tiny (MoE + KDA): 64 vs 99 tok/s on e8065c7cf, single pair, RTX
+throttling; Lenovo interleaved re-check queued by kalsa-brain; recon luna 6c1a252d
+(`scratchpad/agents/vulkan-moe-decode-regression/`). Also check Qwen3.6-35B-A3B on Vulkan. CPU tiled k-quant prefill
+helps on AVX2 (+15-25 %), keep. Per-request speculative.n_max stays deferred (owner). Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
 manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`

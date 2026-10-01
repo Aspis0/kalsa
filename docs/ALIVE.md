@@ -750,6 +750,9 @@ run NPU/GPU/CPU (owner 2026-10-01: S23 unplugged and ready).
 Round 3 pushed: binding `6c9b16ed` (source-fingerprint skel gate; audit r3 leftovers judged non-blocking, follow-up
 queued). App pin + installed-skel check in progress. kalsa-server v1.1.4 mac CPU path SIGILLs on M1 (i8mm baked in
 by the native build); v1.1.5 fix (CPU variants) in progress.
+v1.1.5 batches every desktop engine fix (owner); the tag waits for the Lenovo re-check of a suspected Vulkan MoE
+decode regression (Ling-3.0-tiny -35 %, unconfirmed). MoE expert-usage v3 done (audit running): a Kalsa-calibrated
+keep-set retains far more than RAZOR's; 160/256 is the candidate sweet spot (owner).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
 S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d` carrying layout
