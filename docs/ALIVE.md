@@ -755,6 +755,9 @@ decode regression (Ling-3.0-tiny -35 %, unconfirmed). MoE expert-usage v3 done (
 keep-set retains far more than RAZOR's; 160/256 is the candidate sweet spot (owner).
 Kalsa MoE design (Fable 5.1, PLAN.md gate-probe entry): REAP + 7-domain calibration at 128/layer, two quant
 artifacts (PC ~10.7 GB, phone ~8.7 GB) vs 160@IQ3_S and unpruned IQ2 at equal GB; one pod $15-25, owner budget pending.
+Owner 2026-10-01: session split - coordinator 818369e6 does ONLY the MoE prune (phase 0 running: calibration v2
+GLM 35e363c7, evals GLM b23995c6); a new session takes governor/NPU/GPU/binding/app/S23/engine releases from
+`scratchpad/HANDOVER-GOVERNOR-2026-10-01.md`.
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
 S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d` carrying layout
