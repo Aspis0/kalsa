@@ -280,17 +280,29 @@ async function readProcText(
 }
 
 /**
- * Read MemAvailable from /proc/meminfo (Android). Cached for process lifetime.
+ * Read MemAvailable from /proc/meminfo (Android), or on iOS the per-app jetsam
+ * headroom from the kalsa-lifecycle module (os_proc_available_memory — the
+ * closest iOS analog of MemAvailable; no /proc there). Cached for process
+ * lifetime.
  *
- * Never throws. Returns null when not Android, when the read fails, or when the
- * value cannot be parsed — caller must fall back to today's behaviour (no gate).
- * Dynamic require of expo-file-system so node harnesses stay import-clean.
+ * Never throws. Returns null when no platform read exists (other platforms,
+ * module not linked) or the value cannot be parsed — caller must fall back to
+ * today's behaviour (no gate). Dynamic require so node harnesses stay
+ * import-clean.
  */
 export async function getAvailableMemoryBytes(): Promise<number | null> {
   if (cachedAvailableBytes !== undefined) return cachedAvailableBytes;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
+    if (Platform.OS === "ios") {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getOsAvailableMemoryBytes } = require("../../modules/kalsa-lifecycle/src") as {
+        getOsAvailableMemoryBytes: () => Promise<number | null>;
+      };
+      cachedAvailableBytes = await getOsAvailableMemoryBytes();
+      return cachedAvailableBytes;
+    }
     if (Platform.OS !== "android") {
       cachedAvailableBytes = null;
       return null;

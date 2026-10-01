@@ -144,13 +144,15 @@ export function statusFromTempC(
 
 /**
  * State returned by `useThermalMonitor`. Carries the advisory status, the
- * current temperature (null when only a memory proxy is available), the read
- * source, and a `ThermalGovernorHint` ready for a future governor bridge.
+ * current temperature (null when only a memory proxy or a state-only platform
+ * read is available), the read source, and a `ThermalGovernorHint` ready for a
+ * future governor bridge.
  */
 export type ThermalMonitorState = {
   status: ThermalStatus;
   currentTempC: number | null;
-  source: "sysfs" | "memory_proxy" | "none";
+  /** "platform_thermal" = OS thermal state API (iOS ProcessInfo), no °C. */
+  source: "sysfs" | "memory_proxy" | "platform_thermal" | "none";
   sampledAt: number | null;
   hint: ThermalGovernorHint;
 };

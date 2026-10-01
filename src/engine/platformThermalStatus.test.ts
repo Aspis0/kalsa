@@ -7,6 +7,7 @@ jest.mock("expo-modules-core", () => ({
 import {
   getCurrentGovernorThermalStatus,
   getPlatformThermalHardGate,
+  iosThermalStateToAdvisoryStatus,
   isPlatformThermalApiAvailable,
   readToGovernorStatus,
   readToHardGate,
@@ -93,5 +94,26 @@ describe("readToGovernorStatus — the governor thermo feed", () => {
 
   it("reads absent through the live query when no native module is linked", async () => {
     await expect(getCurrentGovernorThermalStatus()).resolves.toBeNull();
+  });
+});
+
+describe("iosThermalStateToAdvisoryStatus", () => {
+  it("maps the four ProcessInfo states, symbolic and numeric", () => {
+    expect(iosThermalStateToAdvisoryStatus("nominal")).toBe("ok");
+    expect(iosThermalStateToAdvisoryStatus("fair")).toBe("warm");
+    expect(iosThermalStateToAdvisoryStatus("serious")).toBe("hot");
+    expect(iosThermalStateToAdvisoryStatus("critical")).toBe("critical");
+    expect(iosThermalStateToAdvisoryStatus(0)).toBe("ok");
+    expect(iosThermalStateToAdvisoryStatus(1)).toBe("warm");
+    expect(iosThermalStateToAdvisoryStatus(2)).toBe("hot");
+    expect(iosThermalStateToAdvisoryStatus(3)).toBe("critical");
+  });
+
+  it("is case-insensitive and unknown for anything else", () => {
+    expect(iosThermalStateToAdvisoryStatus("CRITICAL")).toBe("critical");
+    expect(iosThermalStateToAdvisoryStatus(" unknown ")).toBe("unknown");
+    expect(iosThermalStateToAdvisoryStatus(null)).toBe("unknown");
+    expect(iosThermalStateToAdvisoryStatus(undefined)).toBe("unknown");
+    expect(iosThermalStateToAdvisoryStatus(9)).toBe("unknown");
   });
 });

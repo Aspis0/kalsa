@@ -13,6 +13,8 @@ type NativeKalsaLifecycleModule = {
   ) => EventSubscription;
   startBackgroundTimer?: (delayMs: number) => number;
   cancelBackgroundTimer?: (id: number) => void;
+  /** Apple side: os_proc_available_memory() as bytes (jetsam headroom). */
+  availableMemoryBytes?: () => Promise<unknown>;
 };
 
 export type NativeTimerHandle = {
@@ -96,7 +98,9 @@ export function cancelNativeBackgroundTimer(handle: NativeTimerHandle): void {
   }
 }
 
-/** Subscribe to Android ComponentCallbacks2 trim-memory events. */
+/** Subscribe to Android ComponentCallbacks2 trim-memory events. On iOS the
+ *  same event arrives with level 15 on a UIKit memory warning (see the Swift
+ *  module header). */
 export function addTrimMemoryListener(
   listener: (level: number) => void,
 ): EventSubscription | null {
@@ -107,6 +111,25 @@ export function addTrimMemoryListener(
       const level = readNumber(event, "level");
       if (level !== null) listener(level);
     });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Apple side: os_proc_available_memory() — the per-app jetsam headroom in
+ * bytes, the closest iOS analog of Android's MemAvailable. Never throws;
+ * null when the Apple module is not linked or the read is malformed.
+ */
+export async function getOsAvailableMemoryBytes(): Promise<number | null> {
+  const module = getNativeModule();
+  if (!module?.availableMemoryBytes) return null;
+  try {
+    const value = await module.availableMemoryBytes();
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+      return null;
+    }
+    return value;
   } catch {
     return null;
   }

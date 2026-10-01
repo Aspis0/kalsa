@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "expo/AppEntry.js",
   "scripts": {
+    "postinstall": "node scripts/gen-metal-embed.js",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

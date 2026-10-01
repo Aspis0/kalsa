@@ -1,6 +1,9 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "apple"],
   "android": {
     "modules": ["expo.modules.kalsalifecycle.KalsaLifecycleModule"]
+  },
+  "apple": {
+    "modules": ["KalsaLifecycleModule"]
   }
 }

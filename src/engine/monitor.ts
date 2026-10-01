@@ -48,13 +48,21 @@ async function readProcText(
 }
 
 /**
- * Read MemAvailable from /proc/meminfo (Android) with NO process cache.
- * Never throws. Returns null off-Android / on read or parse failure.
+ * Read MemAvailable from /proc/meminfo (Android), or on iOS the per-app
+ * jetsam headroom (kalsa-lifecycle module), with NO process cache.
+ * Never throws. Returns null off-Android/iOS / on read failure.
  */
 export async function getAvailableMemoryBytesUncached(): Promise<number | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
+    if (Platform.OS === "ios") {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getOsAvailableMemoryBytes } = require("../../modules/kalsa-lifecycle/src") as {
+        getOsAvailableMemoryBytes: () => Promise<number | null>;
+      };
+      return await getOsAvailableMemoryBytes();
+    }
     if (Platform.OS !== "android") return null;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const FileSystem = require("expo-file-system/legacy") as {

@@ -126,6 +126,10 @@ results/ciswire-campaign/
 !modules/*/android/
 !modules/*/android/**
 
+# Same for Apple native sources (kalsa-lifecycle/ios, kalsa-thermal/ios)
+!modules/*/ios/
+!modules/*/ios/**
+
 # kalsa-moe-experiments is a SEPARATE repo (Aspis0/kalsa-moe-experiments), cloned at
 # ../kalsa-moe-experiments. Its PLAN.md and docs/ALIVE.md are the two living docs.
 # A copy of them grew here on 15/09 and diverged for two days; do not track it again.

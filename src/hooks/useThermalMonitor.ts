@@ -1,6 +1,7 @@
 /**
- * Advisory thermal monitor. Tries sysfs thermal_zone0; falls back to a
- * memory-pressure heuristic. Never unloads the model — UI banner only.
+ * Advisory thermal monitor. Android: sysfs thermal_zone0. iOS: the OS
+ * thermal-state API via the kalsa-thermal module (states, no °C). Falls back
+ * to a memory-pressure heuristic. Never unloads the model — UI banner only.
  * No run-as / sudo. Dynamic requires keep node harnesses import-clean.
  *
  * Advisory ONLY: never hard-blocks send / load / download. `thermal_zone0` is
@@ -10,6 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { iosThermalStateToAdvisoryStatus } from "../engine/platformThermalStatus";
+import { getCurrentPlatformThermalState } from "../../modules/kalsa-thermal/src";
 import {
   type ThermalGovernorHint,
   type ThermalStatus,
@@ -90,7 +93,7 @@ export function useThermalMonitor(opts?: {
     const commit = (next: {
       status: ThermalStatus;
       currentTempC: number | null;
-      source: "sysfs" | "memory_proxy" | "none";
+      source: "sysfs" | "memory_proxy" | "platform_thermal" | "none";
     }) => {
       prevStatusRef.current = next.status;
       prevSourceRef.current = next.source;
@@ -105,8 +108,10 @@ export function useThermalMonitor(opts?: {
     };
 
     const sample = async () => {
-      // iOS has no sysfs path; it would map ProcessInfo.thermalState → the
-      // same ThermalStatus enum. Wired here only when cheap (TODO).
+      // Android reads sysfs thermal_zone0; iOS reads the OS thermal-state API
+      // through the kalsa-thermal module (states, never a temperature). Both
+      // fall through to the memory-pressure proxy when their source is
+      // unavailable.
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { Platform } = require("react-native") as {
@@ -126,6 +131,21 @@ export function useThermalMonitor(opts?: {
               });
               if (!mountedRef.current) return;
               commit({ status, currentTempC: tempC, source: "sysfs" });
+              return;
+            }
+          }
+        }
+        if (Platform.OS === "ios") {
+          const read = await getCurrentPlatformThermalState();
+          if (read?.platform === "ios" && read.supported) {
+            const status = iosThermalStateToAdvisoryStatus(read.iosState);
+            if (status !== "unknown") {
+              if (!mountedRef.current) return;
+              commit({
+                status,
+                currentTempC: null,
+                source: "platform_thermal",
+              });
               return;
             }
           }

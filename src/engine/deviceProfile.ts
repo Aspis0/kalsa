@@ -22,6 +22,7 @@ import {
   getAvailableMemoryBytes,
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
+import { appleDeviceClassForModelId } from "./appleDeviceClass";
 import { shouldRecoverLost } from "./engineLiveness";
 import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
 import {
@@ -43,9 +44,11 @@ export type DeviceProfile = {
   modelId: string | null;
   /** expo-device totalMemory (bytes). */
   totalMemoryBytes: number | null;
-  /** Android /proc/meminfo MemAvailable (bytes); null off-Android / unreadable. */
+  /** MemAvailable (/proc, Android) or jetsam headroom (iOS), bytes; null
+   *  when the platform read is unavailable. */
   availableMemoryBytes: number | null;
-  /** Android SoC properties; null on API levels without the native probe. */
+  /** Android SoC properties; null on API levels without the native probe.
+   *  iOS/macOS: the Apple chip class from appleDeviceClass (e.g. "A17 Pro"). */
   socModel: string | null;
   socManufacturer: string | null;
   osName: string | null;
@@ -633,6 +636,10 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
   const osVersion = asNullableString(Device?.osVersion);
   // expo-device has no isTablet boolean — deviceType TABLET === 2.
   const isTablet = Device?.deviceType === 2;
+  // Apple chip class / nominal RAM from the model id (null off the mapped
+  // devices). totalMemory is real on iOS/macOS, so the map's RAM only backs
+  // that read up; the chip class is the only iOS SoC signal there is.
+  const appleClass = appleDeviceClassForModelId(modelId);
 
   const family = deviceFamilyForBrand(brand);
   const isMiuiFamily = family === "xiaomi";
@@ -662,10 +669,10 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     manufacturer,
     modelName,
     modelId,
-    totalMemoryBytes,
+    totalMemoryBytes: totalMemoryBytes ?? appleClass?.ramBytes ?? null,
     availableMemoryBytes,
-    socModel,
-    socManufacturer,
+    socModel: socModel ?? appleClass?.chipClass ?? null,
+    socManufacturer: socManufacturer ?? (appleClass ? "Apple" : null),
     osName,
     osVersion,
     cpuCoreCount,

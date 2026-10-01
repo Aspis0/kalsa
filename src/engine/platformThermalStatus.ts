@@ -17,6 +17,7 @@
  * missing method, malformed snapshot, or thrown call resolves to "not gated".
  */
 import { isAndroidThermalHardGated, isIosThermalHardGated } from "./thermalHardGate";
+import type { ThermalStatus } from "./thermalThresholds";
 import { withNativeCallTimeout } from "./nativeCallTimeout";
 import {
   addPlatformThermalListener as addNativePlatformThermalListener,
@@ -54,6 +55,33 @@ export function readToHardGate(read: ThermalPlatformRead): boolean {
       );
     default:
       return false;
+  }
+}
+
+/**
+ * Map an iOS ProcessInfo.thermalState reading to the advisory ThermalStatus
+ * bands (useThermalMonitor). iOS exposes states, never a temperature, so
+ * currentTempC stays null on this path. Severity order matches the platform:
+ * nominal < fair < serious < critical. Anything unrecognised → "unknown".
+ */
+export function iosThermalStateToAdvisoryStatus(
+  state: string | number | null | undefined,
+): ThermalStatus {
+  switch (typeof state === "string" ? state.trim().toLowerCase() : state) {
+    case "nominal":
+    case 0:
+      return "ok";
+    case "fair":
+    case 1:
+      return "warm";
+    case "serious":
+    case 2:
+      return "hot";
+    case "critical":
+    case 3:
+      return "critical";
+    default:
+      return "unknown";
   }
 }
 
