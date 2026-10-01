@@ -1125,7 +1125,15 @@ Phases (each gated):
    `moe-keepset-128/`, content-disjoint, proxy): uniform 128 lang 86.7 / CODE 69.1 / MATH 74.7; 160 lang 92.4 /
    80.4 / 84.8; code/math weight w=2 at 128 -> 84.3 / 76.3 / 79.0 (ZH -4.2), w=4 -> 80.0 / 81.5 / 82.4 (ZH -11);
    per-layer allocation adds only 0.3-1.1 pp (mimo 65e08f45 audit: usable with caveats, numbers corrected in REPORT);
-   128 never dominates 160. Sizes (GGUF shapes): 128 = 18.6 B params,
+   128 never dominates 160.
+   **Fable plan audit 2026-10-01** (`kalsa-moe-design-fable/AUDIT-PLAN-2026-10-01.md`, owner request after a r/LocalLLaMA
+   thread: REAPs dumber than same-GB quants, loop in agentic use): approve with changes. 128 stays primary (the 8.7 GB phone
+   arm forces it), 160@IQ3_S is the PC favourite; published 50 % prunes keep code and lose 10-22 pts of knowledge. Before
+   any pod: B1-B4 gate fixes re-audited; templated `chat` calibration domain (thinking + tools, 5 languages); written
+   Super-Expert rule; new stop rules S0 (harness sanity), S5 (BFCL v3 multi-turn loop rate), S6 (knowledge MC 5 langs);
+   mass/MSAN keep-set arm; pruned MTP head export (keep MTP). Healing = conditional phase 2, cap $30 / stop $40.
+   Public controls: crucible-labs REAP-48-v2, anik-jha coding-reap50 (cerebras has none for Qwen3.6). Realistic total
+   $65-90 - NEEDS OWNER BUDGET OK. Owner rejected the hot/cold resident+streamed alternative (months of research). Sizes (GGUF shapes): 128 = 18.6 B params,
    ~11.3 GB Q4_K_M / ~8.0 GB IQ3_S; 160 = 22.6 B, ~13.7 / ~9.7 GB. Cost: Mac phase $0, ONE A100 pod
    ~10-14 h $15-25 (cap $40), optional healing <= $20. NEEDS OWNER BUDGET OK.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier

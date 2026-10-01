@@ -768,6 +768,9 @@ GLM 35e363c7, evals GLM b23995c6); a new session takes governor/NPU/GPU/binding/
 MoE keep-set-128 analysis audited (mimo 65e08f45): usable with caveats; allocation gain 0.3-1.1 pp, one unsourced
 Jaccard withdrawn, hash-step hygiene gap recorded; conclusion unchanged (128 trades against 160, never dominates).
 Phase 0b evals (HumanEval+, FLORES chrF++/wrong-language, GSM8K-IT, gate fixes) committed by GLM b23995c6; audit running.
+Phase 0b audit (space-bunny f6956458): 4 blockers (fail-open stop rule, gameable HumanEval+, pod budgets, FLORES
+truncation); fix round GLM 6857fe92. Fable plan audit: approve REAP-128 with changes (chat-templated calibration, loop +
+knowledge stop rules, keep a pruned MTP head, conditional healing); realistic total $65-90, owner budget pending.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
