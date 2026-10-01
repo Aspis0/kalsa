@@ -1089,6 +1089,15 @@ Phases (each gated):
    remove something else. Next (GLM 2fde2e65, `scratchpad/agents/moe-expert-usage-v3/`): parallel corpus (topic
    controlled) for the 5 keep + DE/JA/KO/RU/AR sacrifice languages, plus code and math; held-out keep-set curve
    128..224, random null, CIs. Usage is a proxy; the prune verdict stays bpb/evals after pruning.
+   v3 RESULT (audited, usable with caveats, `moe-expert-usage-v3/`): balanced 128 keep-set retains ~89 % of the five
+   languages, CODE 70, MATH 75 (content-disjoint); RAZOR 49-58 % languages = a random half for IT/FR/ES; code experts
+   are a distinct pool. Owner 2026-10-01: targets are 16 GB phones (resident or expert streaming) and 16 GB PCs; wants
+   ~128/layer with code/math kept, aggressive quant OK. 128-average weighting + per-layer allocation analysis: GLM
+   67143a4f (`moe-keepset-128/`). Design by Fable 5.1 xhigh (owner request, `kalsa-moe-design-fable/DESIGN.md`, 16 arXiv
+   citations verified): REAP saliency (not routing mass) on a 7-domain calibration, 128 uniform, super-expert guard,
+   experts Q4_0 + trunk Q5/Q6 (~10.7 GB PC) and IQ3_S (~8.7 GB phone); rival 160@IQ3_S and unpruned UD-IQ2_XXS at
+   equal GB; stop rules (IT bpb > 0.75, HE+ < base-15, wrong-language > 5 %). Cost: Mac phase $0, ONE A100 pod
+   ~10-14 h $15-25 (cap $40), optional healing <= $20. NEEDS OWNER BUDGET OK.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier
    "$1.5" was an estimate). L40 out of stock -> pod `nytgw2hjgsfz6e` A40 48 GB SECURE CA-MTL-1 at $0.49/h, 200 GB
    volume; hard stop 18.5 h, arm budget guard 17.5 h (max ~$9.6 total). Stages run one by one first; the full chain

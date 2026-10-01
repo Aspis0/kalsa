@@ -753,6 +753,8 @@ by the native build); v1.1.5 fix (CPU variants) in progress.
 v1.1.5 batches every desktop engine fix (owner); the tag waits for the Lenovo re-check of a suspected Vulkan MoE
 decode regression (Ling-3.0-tiny -35 %, unconfirmed). MoE expert-usage v3 done (audit running): a Kalsa-calibrated
 keep-set retains far more than RAZOR's; 160/256 is the candidate sweet spot (owner).
+Kalsa MoE design (Fable 5.1, PLAN.md gate-probe entry): REAP + 7-domain calibration at 128/layer, two quant
+artifacts (PC ~10.7 GB, phone ~8.7 GB) vs 160@IQ3_S and unpruned IQ2 at equal GB; one pod $15-25, owner budget pending.
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
 S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d` carrying layout
