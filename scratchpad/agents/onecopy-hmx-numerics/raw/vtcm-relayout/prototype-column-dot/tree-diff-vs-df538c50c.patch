@@ -1,0 +1,270 @@
+diff --git a/ggml/src/ggml-hexagon/htp/matmul-ops.h b/ggml/src/ggml-hexagon/htp/matmul-ops.h
+index e58998b61..0c3b68ad8 100644
+--- a/ggml/src/ggml-hexagon/htp/matmul-ops.h
++++ b/ggml/src/ggml-hexagon/htp/matmul-ops.h
+@@ -19,11 +19,12 @@ extern "C" {
+ #define HTP_MM_HMX_TILE_N_ELMS 1024
+ #define HTP_MM_HMX_MIN_NROWS   4
+ 
+-// Raw-row matvec (q4_0-raw-mv-*.h): a window is 7 Q4_0 blocks, and the activations are arranged as 4
+-// vectors per window. A row needs a window and one block more (the last window of a group's last
+-// row is loaded ending at the payload's end, which must not reach before its start).
++// Raw-row matvec (q4_0-raw-mv-*.h): a window is 7 Q4_0 blocks, and the activations are arranged as 5
++// vectors per window (4 for the per-lane dot, the 5th is the per-block data of the column dot). A row
++// needs a window and one block more (the last window of a group's last row is loaded ending at the
++// payload's end, which must not reach before its start).
+ #define HTP_MM_RAW_MV_WINDOW_BLOCKS    7
+-#define HTP_MM_RAW_MV_ACT_WINDOW_BYTES 512
++#define HTP_MM_RAW_MV_ACT_WINDOW_BYTES 640
+ #define HTP_MM_RAW_MV_MIN_K            ((HTP_MM_RAW_MV_WINDOW_BLOCKS + 1) * 32)
+ 
+ static inline size_t htp_mm_raw_mv_act_bytes(uint32_t n_k) {
+diff --git a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-act.h b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-act.h
+index a631a7010..43561d421 100644
+--- a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-act.h
++++ b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-act.h
+@@ -3,11 +3,12 @@
+ // (q4_0-raw-mv-geometry.h) at the byte phase of a raw Q4_0 row, so that one vrmpy against the raw
+ // nibbles of a row's window needs no reshuffling of either side.
+ //
+-// Window w takes 4 vectors of RAW_MV_ACT_WINDOW_BYTES:
++// Window w takes 5 vectors of RAW_MV_ACT_WINDOW_BYTES:
+ //   xlo    byte 18j + 2 + i = x[32B + i]       elements 0..15 of block B = start + j
+ //   xhi    byte 18j + 2 + i = x[32B + 16 + i]  elements 16..31: the high nibble of quant byte i
+ //   corr   word lane l = -8 * (sum of the 4 xlo and xhi bytes of that lane): the (q - 8) offset
+ //   ascale halfword lane 2l = fp16 scale of the activation group of the block that owns lane l
++//   blocks struct raw_mv_blocks: the same offset and scale, once per block (the column dot's)
+ // every other byte is zero (the scale bytes of the raw row, the spare bytes, and all blocks of the
+ // last window that the window before it already counted), so those raw bytes multiply to nothing.
+ //
+@@ -18,7 +19,8 @@
+ #include "q4_0-raw-mv-geometry.h"
+ 
+ #define RAW_MV_ACT_WINDOW_BYTES HTP_MM_RAW_MV_ACT_WINDOW_BYTES
+-_Static_assert(RAW_MV_ACT_WINDOW_BYTES == 4 * VLEN, "a window's activations are 4 vectors");
++_Static_assert(RAW_MV_ACT_WINDOW_BYTES == 5 * VLEN, "a window's activations are 5 vectors");
++_Static_assert(sizeof(struct raw_mv_blocks) <= VLEN, "the per-block data is one vector");
+ 
+ // Block blk of a 128-float group: its 32 quants go to block j of the window, its lanes get the group's scale.
+ static inline void raw_mv_act_place_block(uint8_t * win, uint32_t j, uint32_t b, HVX_Vector vx_i8, uint16_t scale_bits) {
+@@ -33,6 +35,7 @@ static inline void raw_mv_act_place_block(uint8_t * win, uint32_t j, uint32_t b,
+             ascale[2 * l] = scale_bits;
+         }
+     }
++    ((struct raw_mv_blocks *) (win + 4 * VLEN))->ascale[j] = scale_bits * 0x10001u;
+ }
+ 
+ static inline void raw_mv_act_corr(uint8_t * win) {
+@@ -40,6 +43,16 @@ static inline void raw_mv_act_corr(uint8_t * win) {
+     const HVX_Vector sum = Q6_Vw_vadd_VwVw(Q6_Vw_vrmpy_VbVb(hvx_vmem(win), ones),
+                                             Q6_Vw_vrmpy_VbVb(hvx_vmem(win + VLEN), ones));
+     hvx_vmem(win + 2 * VLEN) = Q6_Vw_vsub_VwVw(Q6_V_vzero(), Q6_Vw_vasl_VwR(sum, 3));
++
++    // a block's offset is the sum of its lanes' (a lane belongs to one block)
++    const int32_t * lane = (const int32_t *) (win + 2 * VLEN);
++    struct raw_mv_blocks * blocks = (struct raw_mv_blocks *) (win + 4 * VLEN);
++    for (uint32_t j = 0; j < RAW_MV_WINDOW_BLOCKS; j++) {
++        blocks->corr[j] = 0;
++    }
++    for (uint32_t l = 0; l < RAW_MV_LANES; l++) {
++        blocks->corr[raw_mv_lane_block[l]] += lane[l];
++    }
+ }
+ 
+ // Windows [w_first, w_last) of one activation row (ne0 floats, ne0 % 32 == 0, ne0 >= HTP_MM_RAW_MV_MIN_K)
+@@ -60,6 +73,7 @@ static inline void q4_0_raw_act_windows(uint8_t * act, const float * src, float
+         hvx_vmem(win)            = Q6_V_vzero();
+         hvx_vmem(win + VLEN)     = Q6_V_vzero();
+         hvx_vmem(win + 3 * VLEN) = Q6_V_vzero();
++        hvx_vmem(win + 4 * VLEN) = Q6_V_vzero();
+     }
+ 
+     for (uint32_t g = b_lo / 4; g <= (b_hi - 1) / 4; g++) {
+diff --git a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-geometry.h b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-geometry.h
+index 263fae4b6..76696687a 100644
+--- a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-geometry.h
++++ b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-geometry.h
+@@ -34,6 +34,20 @@ static const uint8_t __attribute__((aligned(VLEN))) raw_mv_scale_fanout[VLEN] =
+     0x04, 0x04, 0x00, 0x00, 0x08, 0x08, 0x40, 0x40, 0x04, 0x04, 0x20, 0x20, 0x10, 0x10, 0x00, 0x00,
+ };
+ 
++// The column dot (q4_0-raw-cols-hvx.h) reads a window as 32 word columns (lane = row) and works per
++// block, so it needs, for block j, the first word column whose quant bytes the block owns and how many
++// follow (the lane_block table, as runs). Even blocks start with their scale in the low halfword of
++// their first column; an odd block's scale is the high halfword of the column before its first.
++static const uint8_t raw_mv_block_first[RAW_MV_WINDOW_BLOCKS] = { 0, 5, 9, 14, 18, 23, 27 };
++static const uint8_t raw_mv_block_cols[RAW_MV_WINDOW_BLOCKS]  = { 5, 4, 5, 4,  5,  4,  5 };
++
++// The 5th vector of an arranged window: per block, the correction -8 * sum(x) of its 32 activations and
++// its activation scale (fp16 in both halves, ready to splat).
++struct raw_mv_blocks {
++    int32_t  corr[RAW_MV_WINDOW_BLOCKS];
++    uint32_t ascale[RAW_MV_WINDOW_BLOCKS];
++};
++
+ static inline uint32_t raw_mv_n_windows(uint32_t n_k) {
+     return (n_k + RAW_MV_WINDOW_BLOCKS - 1) / RAW_MV_WINDOW_BLOCKS;
+ }
+@@ -44,4 +58,14 @@ static inline uint32_t raw_mv_window_start(uint32_t w, uint32_t n_k) {
+     return hex_smin(w * RAW_MV_WINDOW_BLOCKS, n_k - RAW_MV_WINDOW_BLOCKS);
+ }
+ 
++// The raw vector of a row's last window (it ends at the row's end). Every row but the group's last
++// reads 2 bytes into the next row; the last one loads 2 bytes early and shifts, so no load leaves
++// the payload.
++static inline __attribute__((always_inline))
++HVX_Vector raw_mv_load_last(const uint8_t * row_end, bool group_end) {
++    const size_t window_bytes = RAW_MV_WINDOW_BLOCKS * sizeof(block_q4_0);
++    return group_end ? Q6_V_valign_VVR(Q6_V_vzero(), hvx_vmemu(row_end - VLEN), VLEN - window_bytes)
++                     : hvx_vmemu(row_end - window_bytes);
++}
++
+ #endif // Q4_0_RAW_MV_GEOMETRY_H
+diff --git a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-hvx.h b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-hvx.h
+index 11de2bfe6..aa22c34cd 100644
+--- a/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-hvx.h
++++ b/ggml/src/ggml-hexagon/htp/q4_0-raw-mv-hvx.h
+@@ -43,16 +43,6 @@ HVX_Vector raw_mv_lane_terms(HVX_Vector raw, const struct raw_mv_window * win, H
+                                 Q6_Vsf_equals_Vqf32(Q6_V_lo_W(scales)));
+ }
+ 
+-// The raw vector of a row's last window (it ends at the row's end). Every row but the group's last
+-// reads 2 bytes into the next row; the last one loads 2 bytes early and shifts, so no load leaves
+-// the payload.
+-static inline __attribute__((always_inline))
+-HVX_Vector raw_mv_load_last(const uint8_t * row_end, bool group_end) {
+-    const size_t window_bytes = RAW_MV_WINDOW_BLOCKS * sizeof(block_q4_0);
+-    return group_end ? Q6_V_valign_VVR(Q6_V_vzero(), hvx_vmemu(row_end - VLEN), VLEN - window_bytes)
+-                     : hvx_vmemu(row_end - window_bytes);
+-}
+-
+ // 32 rows of raw Q4_0 (packed, n / 32 blocks apiece, n >= HTP_MM_RAW_MV_MIN_K) against the arranged
+ // activations: writes the first valid_rows dot products to s. Same signature as the tiled decode dot
+ // (sz is not used).
+diff --git a/ggml/src/ggml-hexagon/htp/q4_0-raw-window.h b/ggml/src/ggml-hexagon/htp/q4_0-raw-window.h
+index 10ab4c9da..b638f1c8d 100644
+--- a/ggml/src/ggml-hexagon/htp/q4_0-raw-window.h
++++ b/ggml/src/ggml-hexagon/htp/q4_0-raw-window.h
+@@ -13,24 +13,31 @@
+ #define RAW_READER_WINDOW_BLOCKS 7                      // 7 * 18 = 126 bytes of one 128-byte vector
+ #define RAW_READER_ROWS          HTP_MM_HMX_TILE_N_COLS // rows per tile group
+ #define RAW_READER_SHUFF_HALF    (-2)                   // vshuff control for a halfword granule
++#define RAW_READER_SHUFF_WORD    (-4)                   // ... and for a word granule
+ 
+ // v[n] in: row n's window. v[u] out: columns (2u, 2u+1) of all rows, lane = 32 * (x & 1) + n. The
+ // pair (i, i+b) differs in row-index bit b; each stage moves that bit into the lanes (as the
+ // halfword granule position) and the top lane bit out into the vector index. Five halfword vshuff
+-// stages transpose the matrix.
++// stages transpose the matrix. With a word granule (RAW_READER_SHUFF_WORD) the matrix is 32 x 32
++// words and v[u] is word column u, lane = n.
+ static inline __attribute__((always_inline))
+-void raw_reader_transpose(HVX_Vector v[RAW_READER_ROWS]) {
++void raw_reader_transpose_granule(HVX_Vector v[RAW_READER_ROWS], int granule) {
+     #pragma clang loop unroll(full)
+     for (int stage = 0; stage < 5; stage++) {
+         const int b = 16 >> stage;
+         #pragma clang loop unroll(full)
+         for (int i = 0; i < RAW_READER_ROWS; i++) {
+             if (i & b) { continue; }
+-            HVX_VectorPair p = Q6_W_vshuff_VVR(v[i + b], v[i], RAW_READER_SHUFF_HALF);
++            HVX_VectorPair p = Q6_W_vshuff_VVR(v[i + b], v[i], granule);
+             v[i]     = Q6_V_lo_W(p);
+             v[i + b] = Q6_V_hi_W(p);
+         }
+     }
+ }
+ 
++static inline __attribute__((always_inline))
++void raw_reader_transpose(HVX_Vector v[RAW_READER_ROWS]) {
++    raw_reader_transpose_granule(v, RAW_READER_SHUFF_HALF);
++}
++
+ #endif // Q4_0_RAW_WINDOW_H
+diff --git a/tests/hexagon-sim/raw-mv-bench.c b/tests/hexagon-sim/raw-mv-bench.c
+index 964acc509..8a64a7155 100644
+--- a/tests/hexagon-sim/raw-mv-bench.c
++++ b/tests/hexagon-sim/raw-mv-bench.c
+@@ -1,24 +1,26 @@
+ // Cycle bench for the raw-row Q4_0 matvec under hexagon-sim. One 32-row group of n_k blocks per
+ // pass, `reps` passes of ONE of
+ //   0  the tiled decode dot on tiles already in VTCM (the two-copy decode's per-group work)
+-//   1  the raw-row matvec (q4_0_raw_mv_32x1) on the raw rows
++//   1  the per-lane raw-row matvec (q4_0_raw_mv_32x1) on the raw rows
+ //   2  the HVX tile conversion followed by the tiled dot (the previous one-copy decode)
+ //   3  the raw matvec's once-per-token activation arrangement for the whole row (all windows)
++//   4  the column dot (q4_0_raw_cols_32x1) on the raw rows
+ // The simulator exposes no in-program cycle counter, so run-raw-mv-bench.sh runs each impl at reps
+ // 0, 1 and 5 and prices a pass from the differences of the run totals.
+ //
+ //   raw-mv-bench <impl> <n_k> <reps>
+ #include "raw-mv-fixture.h"
++#include "q4_0-raw-cols-hvx.h"
+ #include "q4_0-raw-tile-hvx.h"
+ 
+ int main(int argc, char ** argv) {
+     setbuf(stdout, NULL);
+     if (argc != 4) {
+-        printf("usage: raw-mv-bench <impl 0..3> <n_k> <reps>\n");
++        printf("usage: raw-mv-bench <impl 0..4> <n_k> <reps>\n");
+         return 2;
+     }
+     const int impl = atoi(argv[1]), n_k = atoi(argv[2]), reps = atoi(argv[3]);
+-    if (impl < 0 || impl > 3 || n_k < 8 || n_k > FIXTURE_MAX_BLOCKS || reps < 0) {
++    if (impl < 0 || impl > 4 || n_k < 8 || n_k > FIXTURE_MAX_BLOCKS || reps < 0) {
+         printf("bad arguments\n");
+         return 2;
+     }
+@@ -45,8 +47,10 @@ int main(int argc, char ** argv) {
+         } else if (impl == 2) {
+             q4_0_raw_rows_to_tiles_hvx(tiles, TILE_STRIDE, (const block_q4_0 *) raw, n_k, 32);
+             tiled_vec_dot_q4_0_32x1(k, out, tiles, y, 32, NULL);
+-        } else {
++        } else if (impl == 3) {
+             q4_0_raw_act_windows(act, x, tmp, k, 0, n_win);
++        } else {
++            q4_0_raw_cols_32x1(k, out, raw, act, 32, NULL);
+         }
+     }
+     uint32_t sum = 0;   // keep the work alive
+diff --git a/tests/hexagon-sim/run-raw-mv-bench.sh b/tests/hexagon-sim/run-raw-mv-bench.sh
+index 9cefd222b..1ca6b5f03 100755
+--- a/tests/hexagon-sim/run-raw-mv-bench.sh
++++ b/tests/hexagon-sim/run-raw-mv-bench.sh
+@@ -1,9 +1,12 @@
+ #!/usr/bin/env bash
+ # Cycle costs of the raw-row Q4_0 matvec under hexagon-sim, v73, per pass over one 32-row group:
+-# the tiled decode dot (hvx_mv_2d_repacked_q4_0's compute, the two-copy decode), the raw matvec
+-# (hvx_mv_2d_raw_q4_0 now), the HVX conversion + tiled dot (hvx_mv_2d_raw_q4_0 before), and the
+-# raw matvec's per-token activation arrangement. Compute only: DMA, VTCM contention and the
+-# activation quantizer of the tiled path are not in these figures. The simulator exposes no
++# the tiled decode dot (hvx_mv_2d_repacked_q4_0's compute, the two-copy decode), the per-lane raw
++# matvec (hvx_mv_2d_raw_q4_0 before the column dot), the HVX conversion + tiled dot (hvx_mv_2d_raw_q4_0
++# before that), the raw matvec's per-token activation arrangement, and the column dot (the raw
++# matvec now). Compute only: DMA, VTCM contention and the
++# activation quantizer of the tiled path are not in these figures. These cycles did NOT predict the
++# silicon gap of the per-lane dot (S23: ~1.5x the tiled dot's time on device, 0.83x here): a sanity
++# check on the instruction mix, not a speed claim. The simulator exposes no
+ # in-program cycle counter, so each program runs at reps 0, 1 and 5 and a pass is priced from the run
+ # totals (Pcycles): first = P1 - P0 (cold), steady = (P5 - P1) / 4 (data cached). n_k 14 keeps the
+ # working set in the L1 data cache (closest to VTCM); 64 is k 2048; 336 is k 10752. Per-tile figures
+@@ -17,7 +20,7 @@ source "$(dirname "$0")/sim-common.sh"
+ 
+ LOG=$(mktemp /tmp/raw-mv-bench-XXXXXX)
+ sim_container "raw-mv-bench.c" '
+-  for impl in 0 1 2 3; do
++  for impl in 0 1 2 3 4; do
+     for nk in 14 64 336; do
+       for reps in 0 1 5; do
+         $SIM ./raw-mv-bench -- $impl $nk $reps > run.out 2>&1
+@@ -38,9 +41,9 @@ for line in open(sys.argv[1]):
+     m = re.match(r"RUN impl (\d+) nk (\d+) reps (\d+) rc 0 BENCH .* \| .*Pcycles=(\d+)", line)
+     if m:
+         runs[(int(m[1]), int(m[2]), int(m[3]))] = int(m[4])
+-names = ["tiled decode dot", "raw-row matvec", "hvx conversion + tiled dot", "raw activation arrangement"]
++names = ["tiled decode dot", "per-lane raw matvec", "hvx conversion + tiled dot", "raw activation arrangement", "column dot"]
+ print(f"{'work':28s} {'n_k':>4s} {'first':>9s} {'steady':>9s} {'per row':>9s}   (Pcycles per tile / block; per row = steady pass / 32)")
+-for impl in range(4):
++for impl in range(5):
+     for nk in (14, 64, 336):
+         first  = (runs[(impl, nk, 1)] - runs[(impl, nk, 0)]) / nk
+         steady = (runs[(impl, nk, 5)] - runs[(impl, nk, 1)]) / (4 * nk)

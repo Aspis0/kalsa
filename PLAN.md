@@ -698,6 +698,12 @@ hvx-rawrow on every one-copy matvec, 0 flat fallback). The DMA hypothesis is REF
 ms/token) is the raw dot + its VTCM reads on 18-byte row strides; the simulator (raw ~= tiled compute) does not see
 it. KLD unchanged (0.004608 vs two copies 0.005313). NEXT: kernel fix - relayout raw rows in VTCM for the dot during
 the DMA (Exceptional Coder, spike branch). Side defect: `-p 32 -n 2` warmup ubatch -> `dsp-rsp INTERNAL-ERROR` abort.
+VTCM relayout REFUTED in the simulator (Exceptional Coder 2026-10-01, `REPORT-vtcm-relayout.md`): convert-to-tile +
+tiled dot 192, 32-row transpose + column dot 136.5 vs raw dot 69.9 Pcycles/tile. Instead on the spike (not pushed):
+`6a6ec8678` fixes the -p 32 abort (host sized raw HMX chunks for a single-buffer layout, DSP forces double buffer),
+`23178fb24` shares the scale multiply across two rows (bit-identical in sim; predicted ~17.9 tok/s only IF the
+multiplier bounds it), `7e4945582` adds probes 16/32 (integer stage / float tail) and 8 (pre-fusion dot). Audit
+running; S23 arms after the phone is charged.
 Gates fixed in `df538c50c` (pushed; audit `AUDIT-df538c50c.md`). Coordinator ruling on that audit: RAW_LOCAL is
 DROPPED from the session - the device and -HOST buffers are the same rpcmem system-heap allocation, so it cannot
 split the memory path (its comment at ggml-hexagon.cpp ~2270 is false; fix in the next commit on the branch). The
@@ -769,6 +775,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   bounded wait in `flush_pending` (today `continue`s on the 1 s timeout forever) -> error -> governor GPU fallback
   via the existing KALSA_HTP_FALLBACK plumbing, no abort; (3) a real one-op HTP round-trip health check at lane
   init. The app has never run HTP in-app until this fix.
+  Engine fix v1 `a493a436b`+`a48cc3e08` on main: S23 test 2026-10-01 (`DEVICE-fix-test.md`) - matched skel pp64
+  532/526 tok/s; stale skel fails BOUNDED (EXIT=1 in 3-4 s, `batch response sequence mismatch`, no SIGABRT, no
+  hang, also at -ub 512); health check PASS matched / FAIL stale after the 30 s deadline. Hostile audit FIX FIRST
+  (`AUDIT-fix-engine.md`): event_synchronize still unbounded, get_tensor_async/dspqueue_write/release aborts,
+  one 30 s knob for probe and batch, vacuous op-count check. Fix round 2 in progress (luna), then a short S23
+  re-test, then push + binding (skels from the same tree + skew gate).
 
 ### Pairing: iroh and invite links
 
