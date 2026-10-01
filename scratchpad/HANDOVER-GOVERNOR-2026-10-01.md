@@ -22,7 +22,13 @@ decision in PLAN.md + ALIVE.md; device runs S23 only, screen Awake, unplugged, t
 
 ## Open items for you
 
-1. **S23 governor run** (GLM 432b11bf, report `scratchpad/agents/s23-governor-npu-gpu-cpu/REPORT.md`): first
+1. **S23 governor run DONE** (GLM 432b11bf, 37 turns, battery floor 20 % reached, phone keys restored to
+   route=gpu / npu_lane=off). Verdict ALL FOUR ARMS PASS; medians prefill tok/s short/long: NPU 170.9/120.9,
+   GPU 115.0/101.2, CPU 21.7/20.9, AUTO 170.0/116.0 (NPU picked 12/13). Coordinator spot-check: 59 NPU turn
+   lines, `sched_reserve: HTP0 compute buffer 129 MiB`. NOT YET AUDITED - your first job: hostile audit by a
+   non-GLM model. Its own findings: with the lane on, the execution device is fixed at load, so a WARM "GPU"
+   label still runs HTP (label != device); in-app NPU is ~1.5x GPU, not the bench 4.7x (chunk/ubatch pattern);
+   harness fixes (`'` escaping in deep links, Samsung background-apps dialog). Earlier notes, first
    in-app HTP prefill under the governor - no hang/crash; AUTO picks NPU prefill + CPU decode; every arm hits
    thermal SEVERE after 1-5 turns on a warm phone (CPU worst). Open questions: why NPU ~ GPU total prefill
    (~10 s for ~1.7k tokens, per-chunk times differ, 128-token chunks grow 0.57 -> 1.1 s with context -

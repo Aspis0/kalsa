@@ -758,6 +758,8 @@ artifacts (PC ~10.7 GB, phone ~8.7 GB) vs 160@IQ3_S and unpruned IQ2 at equal GB
 Owner 2026-10-01: session split - coordinator 818369e6 does ONLY the MoE prune (phase 0 running: calibration v2
 GLM 35e363c7, evals GLM b23995c6); a new session takes governor/NPU/GPU/binding/app/S23/engine releases from
 `scratchpad/HANDOVER-GOVERNOR-2026-10-01.md`.
+S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
+picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
 S23 P5 at mean KLD **0.002750** (`hexagon-onecopy-rawq4`, run on engine `c939a135d` carrying layout

@@ -838,6 +838,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   passes; two false comments ("editing any text file cannot satisfy the gate"); struct.error traceback on a
   truncated ELF; gate not wired into Gradle consumers (the app gets its own installed-package check). App pin +
   installed-skel check: GLM 2374d4b8; then debuggable APK and the S23 governor run (NPU/GPU/CPU prefill, lane off).
+  App pinned + pushed `07476dae`, APK run 36900648095. **S23 governor run 2026-10-01 (GLM 432b11bf,
+  `s23-governor-npu-gpu-cpu/REPORT.md`, not yet audited): all four arms PASS, first in-app HTP prefill under the
+  governor, no hang/crash.** Prefill tok/s short/long: NPU 170.9/120.9, GPU 115.0/101.2, CPU 21.7/20.9; AUTO picks
+  NPU 12/13. Every arm reaches thermal SEVERE in 1-5 turns on a warm phone (CPU worst, 49 mAh/short turn vs 17).
+  Label != device with the lane on; in-app NPU only ~1.5x GPU (bench 4.7x) - next lever is the chunk/ubatch plan.
 
 ### Pairing: iroh and invite links
 
