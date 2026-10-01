@@ -5,6 +5,9 @@
 set -euo pipefail
 # shellcheck source=env.sh
 . "$(dirname "$0")/env.sh"
+# nvcc lives outside the non-login PATH on the runpod/pytorch images, and
+# this stage must also work standalone (run_probe.sh exports it too)
+export PATH="/usr/local/cuda/bin:$PATH"
 OK="$RUNS/00_env.ok"
 
 if [ -f "$OK" ]; then echo "00_env: already OK"; exit 0; fi

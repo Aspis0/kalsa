@@ -1,0 +1,1210 @@
+{
+ "dataset": "gsm8k",
+ "model": "http://127.0.0.1:8765",
+ "max_tokens": 4096,
+ "n": 200,
+ "ok": 90,
+ "truncated": 96,
+ "items": [
+  {
+   "id": "gsm8k-200-000",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-001",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-002",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-003",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-004",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-005",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-006",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-007",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-008",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the number of students enrolled this year, follow these steps:\n\n1.  **Calculate the increase in the number of students:**\n    Find 20% of the original 50 students.\n    $$50 \\times 0.20 = 10 \\text{ students}$$\n\n2.  **Add the increase to the original number:**\n    $$50 + 10 = 60 \\text{ students}$$\n\nThere are **60** students enrolled in the calligraphy class this year."
+  },
+  {
+   "id": "gsm8k-200-009",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-010",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total amount of water removed, we need to calculate the water removed during each period and add them together.\n\n**Step 1: Determine the rate of water removal for each setting.**\n*   **Low setting:** Given as **1 liter per day**.\n*   **Medium setting:** Removes twice as much as the low setting ($1 \\times 2$) = **2 liters per day**.\n*   **High setting:** Removes twice as much as the medium setting ($2 \\times 2$) = **4 liters per day**.\n\n**Step 2: Calculate the total water removed during each time period.**\n*   **Low period:** 3 days $\\times$ 1 liter/day = **3 liters**\n*   **Medium period:** 3 days $\\times$ 2 liters/day = **6 liters**\n*   **High period:** 5 days $\\times$ 4 liters/day = **20 liters**\n\n**Step 3: Calculate the total water removed.**\n$$3 \\text{ liters} + 6 \\text{ liters} + 20 \\text{ liters} = 29 \\text{ liters}$$\n\nThe total amount of water the dehumidifier removed is **29 liters**."
+  },
+  {
+   "id": "gsm8k-200-011",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the number of leftover burritos:\n\n1.  **Calculate the burritos eaten by the students:**\n    50 students $\\times$ 10 burritos each = 500 burritos\n\n2.  **Calculate the total burritos eaten:**\n    500 (students) + 20 (Mr. George) = 520 burritos\n\n3.  **Calculate the leftovers:**\n    600 (total ordered) - 520 (total eaten) = 80 burritos\n\nThere are **80** leftover burritos."
+  },
+  {
+   "id": "gsm8k-200-012",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to solve the problem:\n\n1.  **Calculate the time spent per session:**\n    *   **TV:** 2 hours\n    *   **Reading:** 1 hour (half of 2 hours)\n    *   **Total per session:** 2 + 1 = 3 hours\n\n2.  **Calculate the weekly total:**\n    *   He does this 3 times a week.\n    *   3 hours/session \u00d7 3 sessions = 9 hours per week\n\n3.  **Calculate the 4-week total:**\n    *   9 hours/week \u00d7 4 weeks = 36 hours\n\n**Answer:** Jim spends a total of **36 hours** on TV and reading in 4 weeks."
+  },
+  {
+   "id": "gsm8k-200-013",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Calculate the cost of the brooch:** \n    $500 (material) + $800 (labor) = $1,300\n2.  **Calculate the insurance cost:** \n    10% of $1,300 = $130\n3.  **Calculate the total amount paid:** \n    $1,300 (brooch) + $130 (insurance) = $1,430\n\nJanet paid a total of **$1,430**."
+  },
+  {
+   "id": "gsm8k-200-014",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-015",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Calculate Joey's final score:**\n    $214 \\text{ (initial)} + 26 \\text{ (scored)} = 240$ points.\n\n2.  **Calculate Marcy's final score:**\n    $225 \\text{ (initial)} + 10 \\text{ (scored)} = 235$ points.\n\n3.  **Calculate the difference:**\n    $240 - 235 = 5$ points.\n\nJoey is now winning by **5** points."
+  },
+  {
+   "id": "gsm8k-200-016",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-017",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-018",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Eve gave away **15** pomelos.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate how many pomelos are left:**\n    Eve has 1/4 of the original 20 pomelos remaining.\n    $$20 \\times \\frac{1}{4} = 5 \\text{ pomelos left}$$\n\n2.  **Calculate how many were given away:**\n    Subtract the remaining amount from the original total.\n    $$20 - 5 = 15$$\n\nEve gave away **15** pomelos."
+  },
+  {
+   "id": "gsm8k-200-019",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-020",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "May has 31 days. \n\nSince there are 3 fish and each needs $1 worth of food per day, the total daily cost is:\n3 fish \u00d7 $1 = $3 per day.\n\nOver the entire month of May, the total cost is:\n$3/day \u00d7 31 days = **$93**."
+  },
+  {
+   "id": "gsm8k-200-021",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how many steps Elliott took during his jog, we can break down his total goal and subtract the steps he has already accounted for.\n\n1.  **Total Goal:** 10,000 steps.\n2.  **School Walk:** He finished half of his goal at school.\n    *   10,000 / 2 = 5,000 steps.\n3.  **Walk with Friend:** 1,000 steps.\n4.  **Steps Remaining:** 2,000 steps.\n\nNow, we add up the steps that are *not* part of the jog (School + Friend + Remaining):\n5,000 + 1,000 + 2,000 = 8,000 steps.\n\nFinally, subtract that number from the total goal to find the steps taken during the jog:\n10,000 (Total) - 8,000 (Others) = **2,000 steps**.\n\nElliott took **2,000** steps during his jog."
+  },
+  {
+   "id": "gsm8k-200-022",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Calculate Rafaela's total tips:**\n    40 customers $\\times$ $20 per customer = $800\n\n2.  **Calculate Julieta's total tips:**\n    Julieta received 10% less than Rafaela.\n    10% of $800 = $80\n    $800 - $80 = $720\n    *(Alternatively, you can calculate this as 90% of $800, which is also $720.)*\n\n3.  **Calculate the combined total:**\n    $800 (Rafaela) + $720 (Julieta) = $1,520\n\nJulieta and Rafaela received a total of **$1,520** as tips."
+  },
+  {
+   "id": "gsm8k-200-023",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-024",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-025",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Calculate the loan amount:**\n    The loan is worth 40% of the house value ($250,000).\n    $250,000 \\times 0.40 = \\$100,000$\n\n2.  **Calculate the amount used to pay off debts:**\n    He uses 60% of the loan amount for his debts.\n    $\\$100,000 \\times 0.60 = \\$60,000$\n\n3.  **Calculate the leftover amount:**\n    Subtract the amount used for debts from the total loan amount.\n    $\\$100,000 - \\$60,000 = \\$40,000$\n\nHe had **$40,000** leftover."
+  },
+  {
+   "id": "gsm8k-200-026",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-027",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-028",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-029",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-030",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-031",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the total number of children:\n\n1.  **Find the number of boys:**\n    The problem states there are **30** boys.\n\n2.  **Find the number of girls:**\n    There are 3 times as many girls as boys.\n    $30 \\times 3 = 90$ girls.\n\n3.  **Find the number of nongendered children:**\n    There are 1/10 as many nongendered children as boys.\n    $30 \\div 10 = 3$ nongendered children.\n\n4.  **Calculate the total:**\n    Add the number of boys, girls, and nongendered children together.\n    $30 \\text{ (boys)} + 90 \\text{ (girls)} + 3 \\text{ (nongendered)} = 123$\n\nThe classroom has a total of **123** children."
+  },
+  {
+   "id": "gsm8k-200-032",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the perimeter of the room, we need to ensure all measurements are in the same unit (feet) and then apply the perimeter formula.\n\n**Step 1: Convert the length to feet.**\nThe length is given in yards, but the area is in square feet and the answer is needed in feet.\nThere are 3 feet in 1 yard.\n$$3 \\text{ yards} \\times 3 \\text{ feet/yard} = 9 \\text{ feet}$$\nSo, the length is 9 feet.\n\n**Step 2: Find the width of the room.**\nWe know the area of a rectangle is calculated as $\\text{Length} \\times \\text{Width}$.\n$$360 \\text{ sq ft} = 9 \\text{ ft} \\times \\text{Width}$$\n$$\\text{Width} = \\frac{360}{9}$$\n$$\\text{Width} = 40 \\text{ feet}$$\n\n**Step 3: Calculate the perimeter.**\nThe formula for the perimeter of a rectangle is $2 \\times (\\text{Length} + \\text{Width})$.\n$$\\text{Perimeter} = 2 \\times (9 \\text{ ft} + 40 \\text{ ft})$$\n$$\\text{Perimeter} = 2 \\times (49 \\text{ ft})$$\n$$\\text{Perimeter} = 98 \\text{ feet}$$\n\nThe perimeter of the room is **98 feet**."
+  },
+  {
+   "id": "gsm8k-200-033",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-034",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the answer:\n\n**1. Calculate the cost of each expense:**\n*   **Tickets:** The problem states the total for the tickets was **$20.25**.\n*   **Food:** They spent $4.50 less than the ticket cost.\n    $20.25 - $4.50 = **$15.75**\n*   **Rides:** They went on 2 rides at $33 each.\n    2 \u00d7 $33 = **$66.00**\n\n**2. Calculate the total cost:**\nAdd the cost of the tickets, food, and rides together.\n$20.25 + $15.75 + $66.00 = **$102.00**\n\n**3. Calculate the cost per person:**\nDivide the total cost by the number of friends (3).\n$102.00 \u00f7 3 = **$34.00**\n\nEach friend paid **$34.00**."
+  },
+  {
+   "id": "gsm8k-200-035",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-036",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-037",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Calculate the total number of votes:**\n    Since there are 100 voters, there are **100 votes** in total.\n\n2.  **Calculate Candidate A's votes:**\n    Candidate A got 20% of the votes.\n    $100 \\times 0.20 = 20$ votes.\n\n3.  **Calculate Candidate B's votes:**\n    Candidate B got 50% *more* votes than Candidate A.\n    First, find 50% of A's votes: $20 \\times 0.50 = 10$.\n    Add that to A's total: $20 + 10 = 30$ votes.\n    *(Alternatively, you can calculate this as 150% of A's votes: $20 \\times 1.5 = 30$ votes.)*\n\n4.  **Calculate Candidate C's votes:**\n    Candidate C received the rest of the votes.\n    Total votes - (A's votes + B's votes) = C's votes\n    $100 - (20 + 30) = 100 - 50 = 50$ votes.\n\n**Candidate C got 50 votes.**"
+  },
+  {
+   "id": "gsm8k-200-038",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-039",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There were **84** grapes at the beginning.\n\nHere is the step-by-step breakdown:\n\n1.  **Madeline's grapes:** She ate **6** grapes.\n2.  **Brother's grapes:** He used 5 times as many as Madeline.\n    $6 \\times 5 = 30$ grapes.\n3.  **Mother's grapes:** She used the remaining grapes to make 4 pies, with 12 grapes per pie.\n    $4 \\text{ pies} \\times 12 \\text{ grapes} = 48$ grapes.\n4.  **Total:** Add the amounts together to find the starting number.\n    $6 + 30 + 48 = 84$\n\n**Total: 84 grapes**"
+  },
+  {
+   "id": "gsm8k-200-040",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Determine the number of days in each half of April:**\n    April has 30 days. Therefore, the first half consists of 15 days, and the second half consists of the remaining 15 days.\n\n2.  **Set up the equation:**\n    Let $x$ be the amount Elvis saves per day during the first half.\n    According to the problem, he saves twice as much daily in the second half, so his daily savings for the second half will be $2x$.\n\n    The total savings for the month is the sum of the savings from the first half and the second half:\n    $$(\\text{Days in first half} \\times x) + (\\text{Days in second half} \\times 2x) = \\text{Total Target}$$\n    $$(15 \\times x) + (15 \\times 2x) = 1125$$\n\n3.  **Solve for $x$:**\n    $$15x + 30x = 1125$$\n    $$45x = 1125$$\n    $$x = \\frac{1125}{45}$$\n    $$x = 25$$\n\n    So, he saves $25 per day during the first half.\n\n4.  **Calculate the daily savings for the second half:**\n    Since he saves twice as much in the second half:\n    $$2 \\times 25 = 50$$\n\n**Answer:**\nHe has to save **$50** for each day in the second half of the month.\n\n*(Verification: 15 days \u00d7 $25 + 15 days \u00d7 $50 = $375 + $750 = $1,125)*"
+  },
+  {
+   "id": "gsm8k-200-041",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Define the variables:**\n    Let $x$ be the number of copies Harald sold.\n    Since Marilyn sold 10 times as many, she sold $10x$ copies.\n\n2.  **Set up the equation:**\n    The total number of copies sold is the sum of both sales, which equals 88,000.\n    $$x + 10x = 88,000$$\n\n3.  **Solve for $x$:**\n    $$11x = 88,000$$\n    $$x = \\frac{88,000}{11}$$\n    $$x = 8,000$$\n\n**Answer:**\nHarald sold **8,000** copies.\n\n*(Note: This means Marilyn sold 80,000 copies. $80,000 + 8,000 = 88,000$.)*"
+  },
+  {
+   "id": "gsm8k-200-042",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-043",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Jeff is **30 years old**.\n\nHere is the step-by-step breakdown:\n1. **Mike** is 24.\n2. **Martha** is 4 years younger than Mike, so she is 20 (24 - 4).\n3. **Jeff** is 10 years older than Martha, so he is 30 (20 + 10)."
+  },
+  {
+   "id": "gsm8k-200-044",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-045",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how many wheels will be left, we need to calculate the total number of wheels used for the cars and motorcycles and subtract that from the total number of wheels in the box.\n\n**1. Calculate the wheels needed for the cars:**\n$$57 \\text{ cars} \\times 4 \\text{ wheels/car} = 228 \\text{ wheels}$$\n\n**2. Calculate the wheels needed for the motorcycles:**\n$$73 \\text{ motorcycles} \\times 2 \\text{ wheels/motorcycle} = 146 \\text{ wheels}$$\n\n**3. Calculate the total number of wheels used:**\n$$228 + 146 = 374 \\text{ wheels}$$\n\n**4. Calculate the number of wheels left:**\n$$650 \\text{ (total wheels)} - 374 \\text{ (used wheels)} = 276 \\text{ wheels}$$\n\n**Answer:**\nThere will be **276** wheels left."
+  },
+  {
+   "id": "gsm8k-200-046",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the total number of fish caught:\n\n**1. Calculate what Anakin caught:**\n*   Starfish: 10\n*   Sea horses: 6\n*   Clownfish: 3\n*   **Anakin's Total:** 10 + 6 + 3 = **19**\n\n**2. Calculate what Locsin caught:**\n*   Starfish (5 fewer than Anakin): 10 - 5 = 5\n*   Sea horses (3 fewer than Anakin): 6 - 3 = 3\n*   Clownfish (2 more than Anakin): 3 + 2 = 5\n*   **Locsin's Total:** 5 + 3 + 5 = **13**\n\n**3. Calculate the grand total:**\n*   19 (Anakin) + 13 (Locsin) = **32**\n\nThey were able to catch a total of **32** fish."
+  },
+  {
+   "id": "gsm8k-200-047",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Find the number of boxes:**\n    Nik has 200 crayons and puts them into groups of 8.\n    $$200 \\text{ crayons} \\div 8 \\text{ crayons per box} = 25 \\text{ boxes}$$\n\n2.  **Calculate the weight of the crayons:**\n    There are 200 crayons in total, and each weighs 1 ounce.\n    $$200 \\text{ crayons} \\times 1 \\text{ ounce/crayon} = 200 \\text{ ounces}$$\n\n3.  **Calculate the weight of the boxes:**\n    There are 25 boxes, and each box weighs 8 ounces.\n    $$25 \\text{ boxes} \\times 8 \\text{ ounces/box} = 200 \\text{ ounces}$$\n\n4.  **Calculate the total weight in ounces:**\n    Add the weight of the crayons and the weight of the boxes together.\n    $$200 \\text{ ounces} + 200 \\text{ ounces} = 400 \\text{ ounces}$$\n\n5.  **Convert the total weight to pounds:**\n    There are 16 ounces in a pound.\n"
+  },
+  {
+   "id": "gsm8k-200-048",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-049",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the total age:\n\n1.  **Analyze the Brothers:**\n    *   We are told one brother is **12** years old.\n    *   We are told this age (12) is half the age of the older brother.\n    *   Therefore, the older brother is $12 \\times 2 = \\mathbf{24}$ **years old**.\n\n2.  **Analyze the Sisters:**\n    *   There are 3 sisters.\n    *   They are all the same age, which is **16** years old.\n    *   Total age for the sisters = $16 \\times 3 = \\mathbf{48}$ **years**.\n\n3.  **Calculate the Total:**\n    *   Younger Brother: 12\n    *   Older Brother: 24\n    *   Three Sisters: 48\n    *   **Total:** $12 + 24 + 48 = \\mathbf{84}$\n\nThe total age of all the siblings is **84**."
+  },
+  {
+   "id": "gsm8k-200-050",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1. **Calculate daily consumption for each breed:**\n   - German Shepherds: 3 dogs \u00d7 5 kg/day = 15 kg/day\n   - Bulldogs: 2 dogs \u00d7 3 kg/day = 6 kg/day\n\n2. **Calculate total daily consumption:**\n   - 15 kg + 6 kg = 21 kg/day\n\n3. **Calculate weekly consumption:**\n   - 21 kg/day \u00d7 7 days = 147 kg\n\nThey will need **147 kilograms** of dog food in a week."
+  },
+  {
+   "id": "gsm8k-200-051",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-052",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Find the cost per book:**\n    Since 100 books cost $500, we divide the price by the number of books.\n    $500 / 100 = **$5 per book**\n\n2.  **Find the total number of books Bob can buy:**\n    Divide the total budget by the cost per book.\n    $27,000 / $5 = **5,400 total books**\n\n3.  **Find the number of books per school:**\n    Divide the total number of books by the number of schools (assuming the budget is distributed equally).\n    5,400 books / 3 schools = **1,800 books per school**\n\n**Answer:** He can buy **1,800** books per school."
+  },
+  {
+   "id": "gsm8k-200-053",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the percentage of time spent editing:\n\n**1. Determine the time spent on each activity:**\n*   **Writing:** 4 hours\n*   **Recording:** Half of the writing time (4 hours / 2) = 2 hours\n*   **Editing:** 90 minutes. To keep the units consistent, convert this to hours: $90 \\div 60 = 1.5$ hours.\n\n**2. Calculate the total work time:**\n$$4 \\text{ hours} + 2 \\text{ hours} + 1.5 \\text{ hours} = 7.5 \\text{ hours}$$\n\n**3. Calculate the percentage of time spent editing:**\nTo find the percentage, divide the editing time by the total time and multiply by 100.\n\n$$ \\frac{1.5 \\text{ hours}}{7.5 \\text{ hours}} \\times 100 $$\n\n$$ 0.2 \\times 100 = 20\\% $$\n\nCarol spent **20%** of her total work time editing."
+  },
+  {
+   "id": "gsm8k-200-054",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Jordan plays for 2 hours each day. Over a 7-day week, that equals 14 hours of time (2 hours/day \u00d7 7 days). \n\nIf he spent that same amount of time working at $10 per hour, he would earn:\n14 hours \u00d7 $10/hour = **$140**"
+  },
+  {
+   "id": "gsm8k-200-055",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-056",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the answer:\n\n**1. Calculate how much Becky paid:**\n*   **Cost of apples:** 20 apples $\\times$ \\$0.45 = \\$9.00\n*   **Discount:** \\$1.00\n*   **Total:** \\$9.00 - \\$1.00 = **\\$8.00**\n\n**2. Calculate how much Kelly paid:**\n*   **Cost of apples:** 20 apples $\\times$ \\$0.50 = \\$10.00\n*   **Discount:** 10% of \\$10.00 = \\$1.00\n*   **Total:** \\$10.00 - \\$1.00 = **\\$9.00**\n\n**3. Calculate the difference:**\n*   \\$9.00 (Kelly) - \\$8.00 (Becky) = **\\$1.00**\n\nKelly paid **\\$1.00** more than Becky."
+  },
+  {
+   "id": "gsm8k-200-057",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the answer, we need to calculate the total cost for the boots on both platforms.\n\n**1. Calculate the total cost on Amazon:**\n*   Boots: $16\n*   Shipping: $4\n*   **Amazon Total:** $16 + $4 = **$20**\n\n**2. Calculate the total cost on eBay:**\n*   Boots: $13\n*   Shipping: The prompt states shipping is \"twice as much as it does on Amazon.\"\n    *   Amazon shipping is $4.\n    *   eBay shipping = $4 \u00d7 2 = $8\n*   **eBay Total:** $13 + $8 = **$21**\n\n**3. Calculate the difference:**\n*   $21 (eBay) - $20 (Amazon) = $1\n\nThe boots work out to be **$1** more expensive on eBay."
+  },
+  {
+   "id": "gsm8k-200-058",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the total value:\n\n1.  **Red Cars:** There are 5 red cars at $4 each.\n    $5 \\times \\$4 = \\$20$\n2.  **Action Figures:** There are 3 action figures at $5 each.\n    $3 \\times \\$5 = \\$15$\n3.  **Doll:** The doll costs as much as 3 action figures. Since one action figure is $5:\n    $3 \\times \\$5 = \\$15$\n\n**Total Value:**\n$\\$20 \\text{ (cars)} + \\$15 \\text{ (figures)} + \\$15 \\text{ (doll)} = \\mathbf{\\$50}$\n\nAll the toys are worth **$50**."
+  },
+  {
+   "id": "gsm8k-200-059",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total distance Michael rode, we can calculate the distance for each period separately and then add them together.\n\n**Period 1: The first four weeks**\n*   Rides per week: 5\n*   Distance per ride: 25 km\n*   Weekly distance: $5 \\times 25 = 125$ km\n*   Total for 4 weeks: $125 \\times 4 = 500$ km\n\n**Period 2: The next three weeks**\n*   Rides per week: 2\n*   Distance per ride: 60 km\n*   Weekly distance: $2 \\times 60 = 120$ km\n*   Total for 3 weeks: $120 \\times 3 = 360$ km\n\n**Total Distance**\n$$500 \\text{ km} + 360 \\text{ km} = 860 \\text{ km}$$\n\nMichael rode a total of **860 kilometers**."
+  },
+  {
+   "id": "gsm8k-200-060",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-061",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Randy has **23** cookies now.\n\nHere is the step-by-step breakdown:\n\n1.  **Start with the initial amounts:**\n    *   Oatmeal: 9\n    *   Chocolate Chip: 4\n    *   Sugar: 5\n    *   **Total:** 18\n\n2.  **Ate 3 cookies for an early day snack (one of each flavor):**\n    *   Oatmeal: 8\n    *   Chocolate Chip: 3\n    *   Sugar: 4\n    *   **Total:** 15\n\n3.  **Ate 2 oatmeal cookies for lunch:**\n    *   Oatmeal: 6\n    *   Chocolate Chip: 3\n    *   Sugar: 4\n    *   **Total:** 13\n\n4.  **Gave 2 sugar cookies to friends:**\n    *   Oatmeal: 6\n    *   Chocolate Chip: 3\n    *   Sugar: 2\n    *   **Total:** 11\n\n5.  **Baked 4 of each flavor for dinner:**\n    *   Oatmeal: 6 + 4 = 10\n    *   Chocolate Chip: 3 + 4 = 7\n    *   Sugar: 2 + 4 = 6\n    *   **Total:** 23\n\n**Final Count:** 10 + 7 + 6 = **23 cookies**."
+  },
+  {
+   "id": "gsm8k-200-062",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the weekly savings:\n\n1.  **Calculate the savings per tomato:**\n    $0.50 (old price) - $0.40 (new price) = **$0.10 savings per tomato**\n\n2.  **Calculate the daily savings:**\n    500 tomatoes x $0.10 savings = **$50.00 saved per day**\n\n3.  **Calculate the weekly savings:**\n    $50.00 per day x 7 days = **$350.00**\n\nThe vendor saves **$350** a week."
+  },
+  {
+   "id": "gsm8k-200-063",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the cost difference, we calculate the total cost for each offer:\n\n**Furniture United:**\n*   Advance payment: $1,350\n*   Installments: 6 $\\times$ $350 = $2,100\n*   **Total:** $1,350 + $2,100 = **$3,450**\n\n**Cozy Homes:**\n*   Advance payment: $1,100\n*   Installments: 9 $\\times$ $250 = $2,250\n*   **Total:** $1,100 + $2,250 = **$3,350**\n\n**Difference:**\n$3,450 - $3,350 = **$100**\n\nThe cost difference between the two offers is **$100**."
+  },
+  {
+   "id": "gsm8k-200-064",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the final price, you need to calculate the discount amount and subtract it from the original price.\n\n1.  **Calculate the discount amount:**\n    $140 \\times 0.05 = \\$7$\n2.  **Subtract the discount from the original price:**\n    $140 - \\$7 = \\$133$\n\nYou will pay **$133**."
+  },
+  {
+   "id": "gsm8k-200-065",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "I can't fulfill the request to roleplay a mental breakdown or depict destructive behavior, but I'd be happy to help you solve the math problem presented in your scenario. Here's the step-by-step calculation:\n\n**Students' Cars:**\n*   Total windows: 64 cars \u00d7 4 windows/car = 256 windows\n*   Windows smashed: 256 \u00d7 (1/4) = 64 windows\n\n**Teachers' Cars:**\n*   Total windows: 32 cars \u00d7 2 windows/car = 64 windows\n*   Windows smashed: 64 \u00d7 (3/4) = 48 windows\n\n**Total Windows Smashed:**\n*   64 + 48 = 112 windows\n\nSo, Hannah would smash a total of 112 windows. Let me know if you need help with anything else!"
+  },
+  {
+   "id": "gsm8k-200-066",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Count the letters in \"Indras\":** There are **6** letters.\n2.  **Find half of that number:** Half of 6 is **3** ($6 \\div 2 = 3$).\n3.  **Calculate the sister's name length:** The sister's name has 4 more letters than half of Indras' name.\n    $3 + 4 = \\mathbf{7}$ **letters**.\n4.  **Calculate the total:** The question asks for the number of letters in *both* names combined.\n    $6 \\text{ (Indras)} + 7 \\text{ (Sister)} = \\mathbf{13}$ **letters**.\n\n**Answer:** There are **13** letters in total (6 in Indras' name and 7 in her sister's name)."
+  },
+  {
+   "id": "gsm8k-200-067",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-068",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **First set:** 500 pieces.\n2.  **Second set:** 1,500 pieces (3 times 500).\n3.  **Third set:** 125 pieces (one-fourth of 500).\n\n**Total:** 500 + 1,500 + 125 = **2,125 blocks**.\n\nJohnny picks up a total of **2,125** blocks."
+  },
+  {
+   "id": "gsm8k-200-069",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Brendend started with **10** marbles.\n\n1.  **The Drop:** He dropped half of them.\n    *   $10 / 2 = 5$ marbles were dropped.\n    *   $5$ marbles remained safe.\n2.  **The Search:** He searched for the dropped marbles and found 3.\n    *   This means 2 of the dropped marbles were lost forever.\n    *   Current count: $5 \\text{ (safe)} + 3 \\text{ (found)} = 8$ items.\n3.  **The Inspection:** He inspected the items and found that one was actually a bead, not a marble.\n    *   He got rid of the bead.\n    *   $8 - 1 = 7$.\n\nBrendan ended up with **7** marbles."
+  },
+  {
+   "id": "gsm8k-200-070",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Determine days open per week:** Josh is closed on Sunday and Wednesday, meaning he is open for **5 days** a week.\n2.  **Calculate cars serviced per week:** 3 cars/day \u00d7 5 days = **15 cars** per week.\n3.  **Calculate earnings per week:** 15 cars \u00d7 $4/car = **$60** per week.\n4.  **Calculate total earnings for 2 weeks:** $60/week \u00d7 2 weeks = **$120**.\n\nJosh makes **$120** in 2 weeks."
+  },
+  {
+   "id": "gsm8k-200-071",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the breakdown of Peyton's schedule:\n\n*   **Monday:** 1 hour (Yoga class)\n*   **Tuesday:** 3 hours (3 times the length of Monday's 1-hour class)\n*   **Wednesday:** 0.5 hours (Half-hour event)\n*   **Thursday:** 1.5 hours (Half the length of Tuesday's 3-hour class)\n*   **Friday:** 2 hours (Errands)\n\n**Total calculation:**\n$1 + 3 + 0.5 + 1.5 + 2 = 8$\n\nAll of Peyton's after-work activities will take a total of **8 hours**."
+  },
+  {
+   "id": "gsm8k-200-072",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total cost, we first need to calculate the total surface area of the four walls and then determine how much paint is required.\n\n**1. Calculate the area of each wall:**\n*   **North Wall:** $10 \\text{ ft} \\times 8 \\text{ ft} = 80 \\text{ sq ft}$\n*   **South Wall:** $10 \\text{ ft} \\times 8 \\text{ ft} = 80 \\text{ sq ft}$\n*   **East Wall:** $5 \\text{ ft} \\times 8 \\text{ ft} = 40 \\text{ sq ft}$\n*   **West Wall:** $5 \\text{ ft} \\times 8 \\text{ ft} = 40 \\text{ sq ft}$\n\n**2. Calculate the total area:**\n$$80 + 80 + 40 + 40 = 240 \\text{ sq ft}$$\n\n**3. Calculate the gallons of paint needed:**\nSince one gallon covers 20 square feet:\n$$240 \\text{ sq ft} / 20 \\text{ sq ft per gallon} = 12 \\text{ gallons}$$\n\n**4. Calculate the total cost:**\n$$12 \\text{ gallons} \\times \\$12 \\text{ per gallon} = \\$144$$\n\nIt will cost **$144** to paint the room."
+  },
+  {
+   "id": "gsm8k-200-073",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-074",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-075",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-076",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-077",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-078",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-079",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-080",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Calculate the total hours per week:**\n    The class meets 4 times a week for 2 hours each time.\n    $4 \\text{ times} \\times 2 \\text{ hours} = 8 \\text{ hours per week}$\n\n2.  **Calculate the total class time:**\n    The class runs for 6 weeks.\n    $8 \\text{ hours/week} \\times 6 \\text{ weeks} = 48 \\text{ total hours}$\n\n3.  **Calculate the number of recipes:**\n    He learns one recipe for every 1.5 hours.\n    $48 \\text{ hours} \\div 1.5 \\text{ hours/recipe} = 32 \\text{ recipes}$\n\nJohn learns **32** recipes."
+  },
+  {
+   "id": "gsm8k-200-081",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": "Here is the step-by-step solution:\n\n**1. Find the capacity of Brittany's phone:**\nWe are given that Jamal's phone can hold 1,800 photographs. We are also told that Jamal's phone can hold 6 times as many photographs as Brittany's phone.\n$$1,800 \\div 6 = 300$$\nSo, Brittany's phone can hold **300** photographs.\n\n**2. Find the number of ducks:**\nThe problem states that the capacity of Brittany's phone (300) is 50 times the number of birds"
+  },
+  {
+   "id": "gsm8k-200-082",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Find the total number of cupcakes:**\n    Mary has 6 jars of sprinkles, and each jar can decorate 8 cupcakes.\n    $$6 \\text{ jars} \\times 8 \\text{ cupcakes/jar} = 48 \\text{ cupcakes}$$\n\n2.  **Find the number of pans needed:**\n    She needs to make 48 cupcakes in total, and each pan holds 12 cupcakes.\n    $$48 \\text{ cupcakes} \\div 12 \\text{ cupcakes/pan} = 4 \\text{ pans}$$\n\nMary should bake **4** pans worth of cupcakes."
+  },
+  {
+   "id": "gsm8k-200-083",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total number of miles biked, we need to calculate the distance for each person individually using the formula: **Distance = Speed \u00d7 Time**.\n\n**1. Calculate Alisa's distance:**\n*   Speed: 12 mph\n*   Time: 4.5 hours\n*   $12 \\times 4.5 = 54$ miles\n\n**2. Calculate Stanley's distance:**\n*   Speed: 10 mph\n*   Time: 2.5 hours\n*   $10 \\times 2.5 = 25$ miles\n\n**3. Calculate the total distance:**\n*   $54 \\text{ miles} + 25 \\text{ miles} = 79$ miles\n\n**Alisa and Stanley biked a total of 79 miles.**"
+  },
+  {
+   "id": "gsm8k-200-084",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-085",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Mark's initial weight was **100 pounds**.\n\nHere is the breakdown:\n1.  **Calculate total weight loss:** 10 pounds/month \u00d7 3 months = 30 pounds lost.\n2.  **Calculate initial weight:** Final weight (70 lbs) + Weight lost (30 lbs) = 100 lbs."
+  },
+  {
+   "id": "gsm8k-200-086",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Determine Brian's current number of video games:**\n    Brian started with 20 games and lost 5.\n    $20 - 5 = 15$ video games.\n\n2.  **Calculate Bobby's number of video games:**\n    The problem states Bobby has \"5 fewer than 3 times as many... as Brian does.\"\n    *   First, find 3 times Brian's amount: $15 \\times 3 = 45$.\n    *   Next, subtract 5: $45 - 5 = 40$.\n\nBobby has **40** video games."
+  },
+  {
+   "id": "gsm8k-200-087",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Prince Bruce has slain **30** dragons.\n\nHere is the step-by-step breakdown:\n\n1.  **Prince Thaddeus** slew **100** dragons.\n2.  **Prince Arthur** slew three-quarters as many as Thaddeus ($100 \\times 0.75$), which equals **75** dragons.\n3.  **Prince Walter** slew twice as many as Arthur ($75 \\times 2$), which equals **150** dragons.\n4.  **Prince Bruce** slew one-fifth as many as Walter ($150 \\div 5$), which equals **30** dragons."
+  },
+  {
+   "id": "gsm8k-200-088",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-089",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Find the mom's age:** Steve is 60, and his wife is 4 years older.\n    *   60 + 4 = 64 years old.\n2.  **Find the son's age:** The son is half as old as his mom.\n    *   64 / 2 = 32 years old.\n3.  **Find the son's wife's age:** She is 3 years younger than the son.\n    *   32 - 3 = 29 years old.\n\n**Steve's son's wife is 29 years old.**"
+  },
+  {
+   "id": "gsm8k-200-090",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-091",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n**1. Determine the price of each item:**\n*   We know a small stuffed animal costs **$4**.\n*   Since a large stuffed animal costs three times as much, the price is $4 \\times 3 =$ **$12**.\n\n**2. Set up the equation for the total sales:**\nLet $x$ be the number of large stuffed animals sold.\nSince she sold twice as many small stuffed animals as large ones, the number of small stuffed animals is $2x$.\n\n*   Revenue from large animals = $\\$12 \\times x$\n*   Revenue from small animals = $\\$4 \\times 2x = \\$8x$\n\n**3. Solve for $x$:**\nThe total earnings were $120.\n$$12x + 8x = 120$$\n$$20x = 120$$\n$$x = 6$$\n\nSo, she sold 6 large stuffed animals.\n\n**4. Calculate the number of small stuffed animals:**\nSince the number of small stuffed animals is $2x$:\n$$2 \\times 6 = 12$$\n\n**Answer:**\nTeresa sold **12** small stuffed animals."
+  },
+  {
+   "id": "gsm8k-200-092",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-093",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Mark paid a total of **$230**.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate the cost of the radiator:**\n    *   Original Price: $400\n    *   Discount: 80% off means he pays 20% of the original price ($400 \\times 0.20 = $80$).\n    *   *Radiator Cost: $80*\n\n2.  **Calculate the cost of the labor:**\n    *   Rate: $50 per hour\n    *   Time: 3 hours\n    *   Calculation: $50 \\times 3 = $150$\n    *   *Labor Cost: $150*\n\n3.  **Calculate the total:**\n    *   $80 (radiator) + $150 (labor) = **$230**"
+  },
+  {
+   "id": "gsm8k-200-094",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-095",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find out how much Susan earns:\n\n1.  **Calculate the total time duration:**\n    From 8 a.m. to 11 a.m. is a total of **3 hours**.\n\n2.  **Convert the time to minutes:**\n    3 hours $\\times$ 60 minutes = **180 minutes**.\n\n3.  **Subtract the pause time:**\n    She pauses for half an hour (30 minutes).\n    180 minutes - 30 minutes = **150 minutes** of actual work time.\n\n4.  **Calculate the number of 10-minute intervals:**\n    150 minutes $\\div$ 10 minutes = **15 intervals**.\n\n5.  **Calculate the total earnings:**\n    She earns $5 for every interval.\n    15 intervals $\\times$ $5 = **$75**.\n\nSusan earns **$75** for the online task."
+  },
+  {
+   "id": "gsm8k-200-096",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-097",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-098",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  Let **$N$** be the total number of jellyfish in the tank.\n2.  We are told that a fifth ($1/5$) of the jellyfish are large. So, the number of large jellyfish is $\\frac{N}{5}$.\n3.  We are told that a third ($1/3$) of the large jellyfish change color. So, the number of jellyfish that change color is $\\frac{1}{3} \\times \\frac{N}{5} = \\frac{N}{15}$.\n4.  The problem states that 6 jellyfish changed color. Therefore, we can set up the equation:\n    $$\\frac{N}{15} = 6$$\n5.  Solve for $N$:\n    $$N = 6 \\times 15$$\n    $$N = 90$$\n\nThere are **90** jellyfish in the tank."
+  },
+  {
+   "id": "gsm8k-200-099",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find out how many more vlogs Emma needs to make, follow these steps:\n\n1.  **Calculate the total number of vlogs she has already made:**\n    18 (Week 1) + 21 (Week 2) + 15 (Week 3) = **54 vlogs**\n\n2.  **Subtract the number of vlogs made from the total goal:**\n    72 (Total Goal) - 54 (Made) = **18 vlogs**\n\nEmma needs to make **18** more vlogs to complete her goal of 72 vlogs for the month."
+  },
+  {
+   "id": "gsm8k-200-100",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-101",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out for how much money Isaias bought the chickens he took to the market, we need to determine the total cost of those specific chickens.\n\nHere is the step-by-step calculation:\n\n1.  **Calculate the number of chickens taken to the market:**\n    Isaias has 300 chickens and plans to sell 3/5 of them.\n    $$300 \\times \\frac{3}{5} = 180 \\text{ chickens}$$\n\n2.  **Calculate the total selling price (revenue) of these chickens:**\n    He plans to sell these 180 chickens at $50 each.\n    $$180 \\text{ chickens} \\times \\$50/\\text{chicken} = \\$9,000$$\n\n3.  **Calculate the total cost of these chickens:**\n    We know that $\\text{Profit} = \\text{Selling Price} - \\text{Cost Price}$.\n    We are given that the profit is $2,000 and the total selling price is $9,000.\n    $$2,000 = 9,000 - \\text{Cost Price}$$\n    $$\\text{Cost Price} = 9,000 - 2,000$$\n    $$\\text{Cost Price} = 7,000$$\n\nIsaias bought the chickens he took to the market for **$7,000**."
+  },
+  {
+   "id": "gsm8k-200-102",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-103",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Paul needs to buy **15** more cupcakes.\n\nHere is the step-by-step breakdown:\n1.  **Calculate the total number of cupcakes Paul already has:**\n    8 (chocolate) + 40 (toffee) = 48 cupcakes.\n2.  **Subtract the amount he has from the total needed:**\n    63 (total needed) - 48 (already has) = 15."
+  },
+  {
+   "id": "gsm8k-200-104",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-105",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-106",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-107",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Bethany** runs **10** laps.\n2.  **Trey** runs 4 more laps than Bethany: 10 + 4 = **14** laps.\n3.  **Shaelyn** runs half as many laps as Trey: 14 / 2 = **7** laps.\n4.  **Quinn** runs 2 fewer laps than Shaelyn: 7 - 2 = **5** laps.\n\nTo find the difference between Bethany and Quinn:\n10 (Bethany) - 5 (Quinn) = 5\n\nBethany can run **5** more laps than Quinn."
+  },
+  {
+   "id": "gsm8k-200-108",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-109",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Find out how long James slept:**\n    James slept 2/3 of the time Harry did.\n    $$9 \\text{ hours} \\times \\frac{2}{3} = 6 \\text{ hours}$$\n    James slept for 6 hours.\n\n2.  **Calculate the difference:**\n    Subtract James' sleep time from Harry's sleep time.\n    $$9 \\text{ hours} - 6 \\text{ hours} = 3 \\text{ hours}$$\n\nHarry slept **3** more hours than James."
+  },
+  {
+   "id": "gsm8k-200-110",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": "To find the total amount they will pay, we calculate the cost for each person's rental and add them together.\n\n**1. Calculate the cost of Carlos's rental:**\n*   Rate: $30 per hour\n*   Duration: 3 hours\n*   Cost: $30 \\times 3 = \\$90$\n\n**2. Calculate the cost of Benji's rental:**\n*   Rate: $18 per hour\n*   Duration: 5 hours\n*   Cost: $18 \\times 5 = \\$90$"
+  },
+  {
+   "id": "gsm8k-200-111",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the current population of Chile:\n\n1.  **Find Cera's age six years ago:**\n    Cera is currently 46 years old.\n    $46 - 6 = 40$ years old.\n\n2.  **Find Noah's age six years ago:**\n    Six years ago, Noah was half as old as Cera.\n    $40 / 2 = 20$ years old.\n\n3.  **Find the population of Chile six years ago:**\n    The population was 3,000 times Noah's age at that time.\n    $3,000 \\times 20 = 60,000$.\n\n4.  **Find the current population of Chile:**\n    The population six years ago (60,000) was half of what it is now.\n    $60,000 \\times 2 = 120,000$.\n\nThe current population of Chile is **120,000**."
+  },
+  {
+   "id": "gsm8k-200-112",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-113",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Start:** Oscar has **24** lollipops.\n2.  **Eats 2:** $24 - 2 = 22$\n3.  **Passes 14 to friends:** $22 - 14 = 8$\n4.  **Buys twice as many as he gave:** He gave away 14, so he buys 28 ($14 \\times 2$).\n    $8 + 28 = 36$\n5.  **Eats 3 that night:** $36 - 3 = 33$\n6.  **Eats 2 in the morning:** $33 - 2 = 31$\n\nOscar has **31** lollipops."
+  },
+  {
+   "id": "gsm8k-200-114",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Find out how many pounds of meat are needed:**\n    Since Aiden gets 16 meatballs from one pound of meat, you divide the total number of meatballs he wants to make by the yield per pound.\n    $$80 \\text{ meatballs} \\div 16 \\text{ meatballs per pound} = 5 \\text{ pounds of ground beef}$$\n\n2.  **Calculate the amount of seasoning:**\n    He uses 2 tablespoons of seasoning for every pound of meat.\n    $$5 \\text{ pounds} \\times 2 \\text{ tablespoons per pound} = 10 \\text{ tablespoons}$$\n\nAiden will need **10 tablespoons** of his secret seasoning."
+  },
+  {
+   "id": "gsm8k-200-115",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-116",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-117",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-118",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Identify the relationship between the pieces:**\n    Let $x$ be the length of the shorter piece.\n    Since the longer piece is 4 times longer than the shorter piece, the longer piece is $4x$.\n\n2.  **Set up the equation:**\n    The sum of the two pieces must equal the total length of the board.\n    $$x + 4x = 40$$\n\n3.  **Solve for $x$:**\n    $$5x = 40$$\n    $$x = \\frac{40}{5}$$\n    $$x = 8$$\n\n    So, the shorter piece is 8 feet long.\n\n4.  **Calculate the longer piece:**\n    The longer piece is $4x$.\n    $$4 \\times 8 = 32$$\n\n**Answer:**\nThe longer piece is **32 feet** long."
+  },
+  {
+   "id": "gsm8k-200-119",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the actual number of people who attended the concert, we can use the information provided by Kelly.\n\n1.  **Understand the relationship:** Kelly states that Courtney overstated the number of people by 20%. This means that Courtney's reported number (48) is 120% of the actual number (100% + 20% = 120%, or 1.20 in decimal form).\n2.  **Set up the equation:** Let $x$ be the actual number of people.\n    $$x + 0.20x = 48$$\n    $$1.20x = 48$$\n3.  **Solve for $x$:**\n    $$x = \\frac{48}{1.20}$$\n    $$x = 40$$\n\n**Verification:**\nIf the actual number of people was 40, a 20% overstatement would be $40 \\times 0.20 = 8$. Adding that to the actual number gives $40 + 8 = 48$, which matches Courtney's report.\n\n**Answer:**\n**40** people really attended the concert."
+  },
+  {
+   "id": "gsm8k-200-120",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-121",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "The house cost **$90,000**.\n\nHere is the step-by-step breakdown:\n\n1.  **Identify the relationship:** The problem states the house costs three times as much as the lot.\n2.  **Set up the equation:** Let $x$ be the cost of the lot. Therefore, the cost of the house is $3x$.\n3.  **Combine the costs:** The total cost is the sum of the house and the lot:\n    $$x + 3x = 120,000$$\n4.  **Solve for $x$:**\n    $$4x = 120,000$$\n    $$x = 30,000$$\n    So, the lot cost $30,000.\n5.  **Calculate the cost of the house:** Since the house costs three times as much as the lot ($3x$):\n    $$3 \\times 30,000 = 90,000$$"
+  },
+  {
+   "id": "gsm8k-200-122",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find the total time for the walk, we need to calculate the time spent on the sidewalk and add it to the time already spent on the beach.\n\n**1. Analyze the Beach Leg:**\n*   **Distance:** 2 miles\n*   **Time:** 40 minutes\n*   **Speed:** We can calculate the speed on the beach using the formula $\\text{Speed} = \\frac{\\text{Distance}}{\\text{Time}}$.\n    $$ \\text{Speed}_{\\text{beach}} = \\frac{2 \\text{ miles}}{40 \\text{ minutes}} = 0.05 \\text{ miles per minute} $$\n\n**2. Analyze the Sidewalk Leg:**\n*   **Distance:** 1 mile\n*   **Speed:** The problem states she walks at \"twice the rate of speed\" on the sidewalk compared to the beach.\n    $$ \\text{Speed}_{\\text{sidewalk}} = 2 \\times \\text{Speed}_{\\text{beach}} $$\n    $$ \\text{Speed}_{\\text{sidewalk}} = 2 \\times 0.05 \\text{ miles per minute} = 0.1 \\text{ miles per minute} $$\n*   **Time:** Now we calculate the time it takes to walk 1 mile at this speed using the formula $\\text{Time} = \\frac{\\text{Distance}}{\\text{Speed}}$.\n    $$ \\text{Time}_{\\text{sidewalk}} = \\frac{1 \\text{ mile}}{0.1 \\text{ miles per minute}} = 10 \\text{ minutes} $$\n\n**3. Calculate Total Time:**\n*   Total Time = Time on Beach + Time on Sidewalk\n*   Total Time = 40 minutes + 10 minutes = 50 minutes\n\n**Answer:**\nIt takes Grandma **50 minutes** to complete the entire 3-mile walk."
+  },
+  {
+   "id": "gsm8k-200-123",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Calculate the total burning time:**\n    From 1:00 PM to 5:00 PM is **4 hours**.\n\n2.  **Calculate the total length melted:**\n    Since the candle melts at a rate of 2 centimeters per hour, you multiply the hours by the rate:\n    4 hours $\\times$ 2 cm/hour = **8 cm**\n\nThe candle will be **8 centimeters** shorter."
+  },
+  {
+   "id": "gsm8k-200-124",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find the answer, we need to calculate how many tomatoes Steve needs per week and match that to the weekly yield of the vines.\n\n1. **Calculate Steve's weekly consumption:**\n   He eats 6 tomatoes per day.\n   6 tomatoes/day \u00d7 7 days/week = **42 tomatoes per week**\n\n2. **Calculate the number of vines needed:**\n   Each vine produces 3 tomatoes per week.\n   42 tomatoes needed \u00f7 3 tomatoes per vine = **14 vines**\n\n*(Note: The detail about his girlfriend is extra information and doesn't change the amount he personally needs to grow for himself.)*\n\n**Answer:** He needs **14 vines** to produce enough tomatoes for his weekly consumption."
+  },
+  {
+   "id": "gsm8k-200-125",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the answer, we calculate the time it takes to ride each slide using the formula: $\\text{Time} = \\frac{\\text{Distance}}{\\text{Speed}}$.\n\n**1. Calculate the time for the biggest slide:**\n*   Distance: 300 feet\n*   Speed: 60 feet/minute\n*   Time = $300 / 60 = 5$ minutes\n\n**2. Calculate the time for the second biggest slide:**\n*   Distance: 240 feet\n*   Speed: 80 feet/minute\n*   Time = $240 / 80 = 3$ minutes\n\n**3. Calculate the difference:**\n*   $5 \\text{ minutes} - 3 \\text{ minutes} = 2 \\text{ minutes}$\n\nIt takes **2 minutes** longer to ride the biggest slide compared to the second biggest slide."
+  },
+  {
+   "id": "gsm8k-200-126",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the total amount:\n\n1.  **Calculate the value of one reservation:**\n    *   Meals: 2 meals x $5 = $10\n    *   Wine: $5\n    *   Total per reservation: $10 + $5 = $15\n\n2.  **Calculate the total per night:**\n    *   6 reservations x $15 = $90 per night\n\n3.  **Calculate the total per week:**\n    *   $90 per night x 2 days = $180\n\nThey make **$180** a week."
+  },
+  {
+   "id": "gsm8k-200-127",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find the total number of games Steve has after 3 years, we need to break down the sources of his games year by year.\n\n**Initial Purchase (Birthday):**\n*   Console: 1 (not a game, so we ignore it for the game count)\n*   Games: **5**\n\n**Year 1:**\n*   Monthly games: 1 game/month \u00d7 12 months = 12 games\n*   Christmas games: **5** games\n*   *Subtotal for Year 1:* 12 + 5 = 17 games\n\n**Year 2:**\n*   Monthly games: 2 games/month \u00d7 12 months = 24 games\n*   Christmas games: **5** games\n*   *Subtotal for Year 2:* 24 + 5 = 29 games\n\n**Year 3:**\n*   Monthly games: 4 games/month \u00d7 12 months = 48 games\n*   Christmas games: **5** games\n*   *Subtotal for Year 3:* 48 + 5 = 53 games\n\n**Total Calculation:**\nNow, we sum the initial games and the totals from each year:\n*   Initial: 5\n*   Year 1: 17\n*   Year 2: 29\n*   Year 3: 53\n\nTotal = 5 + 17 + 29 + 53\n\nLet's add them up:\n5 + 17 = 22\n22 + 29 = 51\n51 + 53 = 104\n\nSteve has **104** games after 3 years."
+  },
+  {
+   "id": "gsm8k-200-128",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Find the number of indoor plants:**\n    One-fourth of the 100 plants are indoor plants.\n    $$100 \\times \\frac{1}{4} = 25 \\text{ indoor plants}$$\n\n2.  **Find the number of remaining plants:**\n    Subtract the indoor plants from the total.\n    $$100 - 25 = 75 \\text{ remaining plants}$$\n\n3.  **Find the number of outdoor plants:**\n    Two-thirds of the *remaining* 75 plants are outdoor plants.\n    $$75 \\times \\frac{2}{3} = 50 \\text{ outdoor plants}$$\n\n4.  **Find the number of flowering plants:**\n    The flowering plants are the rest of the remaining plants (or simply subtract the outdoor plants from the remaining plants).\n    $$75 - 50 = 25 \\text{ flowering plants}$$\n\n5.  **Calculate the percentage:**\n    To find the percentage of flowering plants out of the total 100 plants:\n    $$\\frac{25}{100} \\times 100\\% = 25\\%$$\n\n**25%** of the plants are flowering plants."
+  },
+  {
+   "id": "gsm8k-200-129",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-130",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-131",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the total:\n\n1.  **Find the number of sheep in Charleston:**\n    We know Charleston has 4 times as many sheep as Seattle.\n    $20 \\text{ (Seattle)} \\times 4 = 80$ sheep.\n\n2.  **Find the number of sheep in Toulouse:**\n    We know Toulouse has twice as many sheep as Charleston.\n    $80 \\text{ (Charleston)} \\times 2 = 160$ sheep.\n\n3.  **Calculate the total:**\n    Add the number of sheep from all three cities together.\n    $20 \\text{ (Seattle)} + 80 \\text{ (Charleston)} + 160 \\text{ (Toulouse)} = 260$\n\n**Together, they have 260 sheep.**"
+  },
+  {
+   "id": "gsm8k-200-132",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "You paid **$35**.\n\nHere's the breakdown:\n* **Your share of the bill:** $50 \u00f7 2 = $25\n* **The tip:** 20% of the $50 bill = $10\n* **Total you pay:** $25 (your share) + $10 (the tip) = **$35**"
+  },
+  {
+   "id": "gsm8k-200-133",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Calculate the eggs found by the Smith twins:** \n    Since there are two twins and they *each* found 30 eggs, they found a total of 60 eggs ($30 \\times 2 = 60$).\n2.  **Calculate the remaining eggs:** \n    Subtract the twins' finds from the total number of eggs: $100 - 60 = 40$ eggs remaining.\n3.  **Calculate the eggs found by the friends:** \n    The riddle states that all the remaining eggs *except 10* were found by the friends. \n    $40 - 10 = 30$\n\nThe friends found **30** eggs."
+  },
+  {
+   "id": "gsm8k-200-134",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-135",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-136",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There are **15** flowers in total.\n\nHere is the breakdown:\n*   **Roses:** 4\n*   **Dahlias:** 11 (4 roses + 7)\n*   **Total:** 15 flowers"
+  },
+  {
+   "id": "gsm8k-200-137",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-138",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-139",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-140",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-141",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-142",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how old Caroline is, we need to work through the information given step-by-step.\n\n1. **Find Chris's age:**\n   We are told that Chris is 4 years old.\n\n2. **Find Ben's age:**\n   We are told that Ben is two times older than Chris.\n   Ben's age = 2 * Chris's age\n   Ben's age = 2 * 4 = 8 years old.\n\n3. **Find Caroline's age:**\n   We are told that Caroline is three times older than Ben.\n   Caroline's age = 3 * Ben's age\n   Caroline's age = 3 * 8 = 24 years old.\n\n**Answer:** Caroline is 24 years old."
+  },
+  {
+   "id": "gsm8k-200-143",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-144",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "It takes a total of **3 bolts**.\n\nHere is the breakdown:\n*   **Blue fiber:** 2 bolts\n*   **White fiber:** 1 bolt (half of the blue fiber)\n*   **Total:** 2 + 1 = **3 bolts**"
+  },
+  {
+   "id": "gsm8k-200-145",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-146",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-147",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how many hours Doctor Jones has left, we need to calculate the total time spent on his scheduled activities and subtract that from the total time he is at the clinic.\n\n**1. Calculate the time spent on appointments:**\n*   Doctor Jones has 10 appointments.\n*   Each appointment takes 30 minutes.\n*   Total time for appointments = $10 \\times 30 \\text{ minutes} = 300 \\text{ minutes}$.\n*   Convert to hours: $300 / 60 = 5 \\text{ hours}$.\n\n**2. Calculate the time spent on inpatient rounds:**\n*   There are 9 inpatients.\n*   Each round takes 20 minutes.\n*   Total time for inpatients = $9 \\times 20 \\text{ minutes} = 180 \\text{ minutes}$.\n*   Convert to hours: $180 / 60 = 3 \\text{ hours}$.\n\n**3. Calculate the total time used:**\n*   Total used time = Time for appointments + Time for inpatients\n*   Total used time = $5 \\text{ hours} + 3 \\text{ hours} = 8 \\text{ hours}$.\n\n**4. Calculate the time remaining:**\n*   Total time at clinic = 9 hours.\n*   Time remaining = Total time - Total used time\n*   Time remaining = $9 \\text{ hours} - 8 \\text{ hours} = 1 \\text{ hour}$.\n\nDoctor Jones will have **1 hour** left to update his records."
+  },
+  {
+   "id": "gsm8k-200-148",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total distance Dana travels, we must first determine her running and walking speeds based on the information provided.\n\n**1. Determine the Speeds**\n*   **Skipping Speed:** We are given that she can skip at **3 mph**.\n*   **Running Speed:** The problem states her skipping speed is half as fast as her running speed. Therefore, her running speed is twice her skipping speed.\n    *   $3 \\text{ mph} \\times 2 = \\mathbf{6 \\text{ mph}}$\n*   **Walking Speed:** The problem states she runs four times faster than she walks. Therefore, her walking speed is one-fourth of her running speed.\n    *   $6 \\text{ mph} / 4 = \\mathbf{1.5 \\text{ mph}}$\n\n**2. Determine the Time Spent on Each Activity**\nThe total time is 6 hours.\n*   **Running Time:** One-third of the time is spent running.\n    *   $6 \\text{ hours} \\times \\frac{1}{3} = \\mathbf{2 \\text{ hours}}$\n*   **Walking Time:** Two-thirds of the time is spent walking.\n    *   $6 \\text{ hours} \\times \\frac{2}{3} = \\mathbf{4 \\text{ hours}}$\n\n**3. Calculate the Distance**\nNow we calculate the distance covered during each activity using the formula: $\\text{Distance} = \\text{Speed} \\times \\text{Time}$.\n\n*   **Distance Running:**\n    *   $6 \\text{ mph} \\times 2 \\text{ hours} = 12 \\text{ miles}$\n*   **Distance Walking:**\n    *   $1.5 \\text{ mph} \\times 4 \\text{ hours} = 6 \\text{ miles}$\n\n**4. Total Distance**\nAdd the distances together to find the total miles traveled.\n*   $12 \\text{ miles} + 6 \\text{ miles} = 18 \\text{ miles}$\n\nDana can travel **18** miles."
+  },
+  {
+   "id": "gsm8k-200-149",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-150",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **Start:** The plate had **2** slices.\n2.  **Add slices:** Mara added 3 slices ($2 + 3$). The total is now **5** slices.\n3.  **Triple the amount:** She tripled the number of slices ($5 \\times 3$). The total is now **15** slices.\n4.  **Eat slices:** She ate 2 slices ($15 - 2$). The total is now **13** slices.\n5.  **Stolen slices:** Her friend stole 5 slices ($13 - 5$). The total is now **8** slices.\n\n**8** cake slices remained on the plate."
+  },
+  {
+   "id": "gsm8k-200-151",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find out how much James made:\n\n1. **Calculate the total selling price of the cars:**\n   10 cars \u00d7 $25,000 = $250,000\n\n2. **Calculate the cost to the company:**\n   The company paid 30% of the selling price to acquire them.\n   $250,000 \u00d7 0.30 = $75,000\n\n3. **Calculate the total profit (markup):**\n   Total Selling Price - Total Cost = Profit\n   $250,000 - $75,000 = $175,000\n\n4. **Calculate James's commission:**\n   He gets a 10% commission on the total profit.\n   $175,000 \u00d7 0.10 = $17,500\n\n**James made $17,500.**"
+  },
+  {
+   "id": "gsm8k-200-152",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1.  **Find the remaining amount needed:**\n    $12 (cost of car) - $4 (already saved) = **$8**\n\n2.  **Calculate the number of days:**\n    $8 (remaining amount) \u00f7 $2 (daily savings) = **4 days**\n\nIt will take him **4 days** to save the remaining money."
+  },
+  {
+   "id": "gsm8k-200-153",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n1.  **Calculate the vehicles from the first day:**\n    2 containers $\\times$ 5 vehicles = 10 vehicles.\n\n2.  **Determine how many vehicles were imported on the second day:**\n    30 total vehicles $-$ 10 vehicles (from day 1) = 20 vehicles.\n\n3.  **Calculate the number of containers on the second day:**\n    Since each container holds 5 vehicles, divide the remaining vehicles by 5.\n    20 vehicles $\\div$ 5 vehicles per container = 4 containers.\n\n**Answer:** 4 containers were imported on the second day."
+  },
+  {
+   "id": "gsm8k-200-154",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-155",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-156",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Adam had to contribute **$12** from his savings.\n\nHere is the step-by-step breakdown:\n\n1.  **Total Cost:** The trousers cost **$30**.\n2.  **Mother's Contribution:** She gave him **$6**.\n3.  **Father's Contribution:** He gave him twice as much as the mother ($6 x 2), which equals **$12**.\n4.  **Total Given by Parents:** $6 + $12 = **$18**.\n5.  **Savings Needed:** $30 (total cost) - $18 (given by parents) = **$12**."
+  },
+  {
+   "id": "gsm8k-200-157",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "There are **400** worker bees.\n\nHere is the step-by-step breakdown:\n\n1.  **Identify the relationships:**\n    *   Let $Q$ be the number of queens.\n    *   Since there are twice as many babies as queens, the number of babies is $2Q$.\n    *   Since there are twice as many worker bees as baby bees, the number of worker bees is $2 \\times (2Q) = 4Q$.\n\n2.  **Set up the equation:**\n    *   The total number of bees is 700.\n    *   $Queens + Babies + Workers = 700$\n    *   $Q + 2Q + 4Q = 700$\n\n3.  **Solve for Q (Queens):**\n    *   $7Q = 700$\n    *   $Q = 100$\n\n4.  **Calculate the number of worker bees:**\n    *   We determined earlier that the number of worker bees is $4Q$.\n    *   $4 \\times 100 = 400$\n\n**Verification:**\n*   **Queens:** 100\n*   **Babies:** 200 (Twice the number of queens)\n*   **Worker bees:** 400 (Twice the number of babies)\n*   **Total:** $100 + 200 + 400 = 700$"
+  },
+  {
+   "id": "gsm8k-200-158",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-159",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the current weight of the redwood:\n\n1.  **Calculate the original weight of the tree:**\n    The tree is 200 feet tall, and every 10-foot section weighs 400 pounds.\n    *   Number of 10-foot sections: $200 \\div 10 = 20$ sections\n    *   Original weight: $20 \\text{ sections} \\times 400 \\text{ lbs/section} = 8,000 \\text{ lbs}$\n\n2.  **Calculate the weight of the wood eaten by termites:**\n    The termites ate 30% of the wood.\n    *   Weight eaten: $8,000 \\text{ lbs} \\times 0.30 = 2,400 \\text{ lbs}$\n\n3.  **Calculate the remaining weight:**\n    Subtract the weight lost to the termites from the original weight.\n    *   $8,000 \\text{ lbs} - 2,400 \\text{ lbs} = 5,600 \\text{ lbs}$\n\nThe redwood tree currently weighs **5,600 pounds**."
+  },
+  {
+   "id": "gsm8k-200-160",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-161",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-162",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "He can make **90** small bags.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate the total weight:**\n    3 large bags $\\times$ 10 ounces each = 30 ounces.\n2.  **Calculate the total number of M&M pieces:**\n    30 ounces $\\times$ 30 pieces per ounce = 900 pieces.\n3.  **Calculate the number of small bags:**\n    900 pieces $\\div$ 10 pieces per bag = 90 bags."
+  },
+  {
+   "id": "gsm8k-200-163",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Let $x$ be the number of students in each of the two equal groups.\nLet $y$ be the number of students in the smallest group.\n\nFrom the problem, we know:\n1. The total number of students is 200.\n2. Two groups have $x$ students, and one group has $y$ students.\n3. The smallest group is 10 less than the other groups, so $y = x - 10$.\n\nWe can set up the equation for the total number of students:\n$$x + x + y = 200$$\n$$2x + y = 200$$\n\nSubstitute $y = x - 10$ into the equation:\n$$2x + (x - 10) = 200$$\n$$3x - 10 = 200$$\n$$3x = 210$$\n$$x = 70$$\n\nNow, find $y$ (the size of the smallest group):\n$$y = 70 - 10$$\n$$y = 60$$\n\n**Verification:**\n- Group 1: 70 students\n- Group 2: 70 students\n- Group 3: 60 students\n- Total: $70 + 70 + 60 = 200$ students.\n- The smallest group (60) is indeed 10 less than the other groups (70).\n\nThe smallest group has **60** students."
+  },
+  {
+   "id": "gsm8k-200-164",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-165",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Skyler has **20** white hats.\n\nHere is the step-by-step breakdown:\n\n1.  **Red Hats:** Half of the 100 hats are red.\n    *   $100 / 2 = 50$ red hats.\n2.  **Remaining Hats:** There are 50 hats left ($100 - 50$).\n3.  **Blue Hats:** 3/5 of the remaining 50 hats are blue.\n    *   $50 \\times \\frac{3}{5} = 30$ blue hats.\n4.  **White Hats:** The rest of the remaining hats are white.\n    *   $50 \\text{ (remaining)} - 30 \\text{ (blue)} = 20$ white hats."
+  },
+  {
+   "id": "gsm8k-200-166",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-167",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n1.  **Find the amount of gas in one container:**\n    Divide the total gallons by the number of containers.\n    15 gallons \u00f7 5 containers = **3 gallons per container**.\n\n2.  **Find the amount needed in gallons:**\n    Calculate 1/4 of a single container.\n    3 gallons \u00d7 (1/4) = **0.75 gallons**.\n\n3.  **Convert gallons to pints:**\n    There are 8 pints in 1 gallon.\n    0.75 gallons \u00d7 8 pints/gallon = **6 pints**.\n\nJosey needed **6 pints** of gasoline."
+  },
+  {
+   "id": "gsm8k-200-168",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown of the cost:\n\n1.  **Calculate the cost of the packages:**\n    *   First package: $400\n    *   Second package (twice the first): $800\n    *   Total original price: $400 + $800 = $1,200\n\n2.  **Apply the 20% discount:**\n    *   Discount amount: $1,200 \u00d7 0.20 = $240\n    *   Price after discount: $1,200 - $240 = $960\n    *(Alternatively: $1,200 \u00d7 0.80 = $960)*\n\n3.  **Add the finale firework:**\n    *   Discounted packages: $960\n    *   Finale firework: $150\n    *   **Total:** $960 + $150 = $1,110\n\nTim spent a total of **$1,110**."
+  },
+  {
+   "id": "gsm8k-200-169",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-170",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the breakdown of the cost for each person:\n\n*   **Leila:** 3 cucumbers x $2 = $6\n*   **Jack:** 5 tomatoes x $1 = $5\n*   **Chase:** 1 head of lettuce x $3 = $3\n\n**Total:** $6 + $5 + $3 = **$14**\n\nTogether, the three of them spent **$14**."
+  },
+  {
+   "id": "gsm8k-200-171",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-172",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-173",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-174",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n**1. Calculate the total cost of the supplies:**\n*   Ingredients: $12\n*   Presents: $43\n*   Decorations: $15\n*   Invitations: $4\n*   Goodie bags: $22\n\n$12 + $43 + $15 + $4 + $22 = **$96**\n\n**2. Divide by the number of people:**\nThe problem states the cost was split three ways (Isabelle and her two parents).\n\n$96 / 3 people = **$32**\n\nEach person paid **$32**."
+  },
+  {
+   "id": "gsm8k-200-175",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": "To find out how much Janet would save, we need to compare the cost of her individual bus trips to the"
+  },
+  {
+   "id": "gsm8k-200-176",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the total earnings:\n\n1.  **Calculate the weekly value of the aluminum cans:**\n    Grayson drinks 3 cans a week, and each is worth 2 cents.\n    $3 \\text{ cans} \\times 2 \\text{ cents} = 6 \\text{ cents}$\n\n2.  **Calculate the weekly value of the plastic bottles:**\n    Grayson drinks 5 bottles a week, and each is worth 3 cents.\n    $5 \\text{ bottles} \\times 3 \\text{ cents} = 15 \\text{ cents}$\n\n3.  **Calculate the total weekly earnings:**\n    $6 \\text{ cents} + 15 \\text{ cents} = 21 \\text{ cents per week}$\n\n4.  **Calculate the total earnings for a four-week month:**\n    $21 \\text{ cents/week} \\times 4 \\text{ weeks} = 84 \\text{ cents}$\n\nGrayson earns **84 cents** from recycling in a four-week month."
+  },
+  {
+   "id": "gsm8k-200-177",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the total expenditure:\n\n1.  **Find the expenditure for June:**\n    Since the expenditure was $60 less than May's $500:\n    $500 - $60 = $440\n\n2.  **Calculate the total for both months:**\n    Add May's expenditure and June's expenditure together:\n    $500 (May) + $440 (June) = $940\n\nHis total expenditure for those two months was **$940**."
+  },
+  {
+   "id": "gsm8k-200-178",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find the total price of the crate, we first need to determine the individual price of each type of fruit based on the information provided.\n\n**1. Determine the price per fruit:**\n*   **Apple:** The problem states one apple costs **$0.50**.\n*   **Banana:** Costs twice as much as an apple ($0.50 $\\times$ 2) = **$1.00**.\n*   **Orange:** Costs three times as much as a banana ($1.00 $\\times$ 3) = **$3.00**.\n\n**2. Calculate the cost for the quantity of each fruit in the crate:**\n*   **Bananas:** 5 bananas $\\times$ $1.00 = **$5.00**\n*   **Apples:** 12 apples $\\times$ $0.50 = **$6.00**\n*   **Oranges:** 7 oranges $\\times$ $3.00 = **$21.00**\n\n**3. Calculate the total price:**\n$5.00 (bananas) + $6.00 (apples) + $21.00 (oranges) = **$32.00**\n\nThe price for such a crate of fruit would be **$32.00**."
+  },
+  {
+   "id": "gsm8k-200-179",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation:\n\n1. **Find your remaining calorie allowance:**\n   2000 (target) - 1800 (eaten) = **200 calories left**\n\n2. **Find the total calories in the 300g bag:**\n   5 servings \u00d7 250 calories/serving = **1250 calories per bag**\n\n3. **Calculate how many grams equal 200 calories:**\n   You can eat a fraction of the bag equal to your remaining calories divided by the bag's total calories:\n   200 / 1250 = 0.16 (or 16% of the bag)\n   \n   Now, apply that fraction to the bag's weight:\n   0.16 \u00d7 300g = **48 grams**\n\nYou can eat **48 grams** of the chips."
+  },
+  {
+   "id": "gsm8k-200-180",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-181",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-182",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the answer:\n\n**Step 1: Calculate the total number of pencils at the start of the year.**\nThere are 30 students, and each started with 10 pencils.\n$$30 \\text{ students} \\times 10 \\text{ pencils/student} = 300 \\text{ pencils}$$\n\n**Step 2: Calculate the number of pencils remaining after two months.**\nThe problem states that 1/5 of the total pencils were used. This means 4/5 of the pencils remained.\n*   Pencils used: $$300 \\times \\frac{1}{5} = 60 \\text{ pencils}$$\n*   Pencils remaining: $$300 - 60 = 240 \\text{ pencils}$$\n\n**Step 3: Calculate the number of pencils left at the end of the year.**\nThe problem states that 1/3 of the *remaining* pencils were left at the end of the year.\n*   Pencils left: $$240 \\times \\frac{1}{3} = 80 \\text{ pencils}$$\n\n**Answer:**\nThere were **80** pencils left."
+  },
+  {
+   "id": "gsm8k-200-183",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-184",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-185",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-186",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1. **Find Anne's height:** Anne is twice the size of Albert. Since Albert is 36\" tall, Anne is 36\" x 2 = **72\"**.\n2. **Find Jackie's current height:** Jackie is 2\" shorter than Anne. So, 72\" - 2\" = **70\"** (her height after growing over the summer).\n3. **Find Jackie's height before summer:** Since she grew 3\" over the summer, subtract that amount from her current height. 70\" - 3\" = **67\"**.\n\nJackie was **67\"** tall before the summer."
+  },
+  {
+   "id": "gsm8k-200-187",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-188",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-189",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-190",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how far Sophia can drive on a single tank of gas, we first need to determine her car's fuel efficiency (miles per gallon).\n\n1.  **Calculate miles per gallon (MPG):**\n    Sophia drove 100 miles using 4 gallons of gas.\n    $$100 \\text{ miles} / 4 \\text{ gallons} = 25 \\text{ miles per gallon (mpg)}$$\n\n2.  **Calculate the range on a full tank:**\n    Her tank holds 12 gallons.\n    $$25 \\text{ mpg} \\times 12 \\text{ gallons} = 300 \\text{ miles}$$\n\nSophia can drive **300 miles** on a single tank of gas."
+  },
+  {
+   "id": "gsm8k-200-191",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find Skyler's investment:\n\n**1. Calculate Dylan's Investment**\nDylan invests 2/5 of the total $1200.\n$$1200 \\times \\frac{2}{5} = 480$$\nDylan's investment is **$480**.\n\n**2. Calculate the Remaining Amount**\nSubtract Dylan's investment from the total to find the remaining balance.\n$$1200 - 480 = 720$$\nThe remaining amount is **$720**.\n\n**3. Calculate Frances' Investment**\nFrances invests 2/3 of the *remaining* $720.\n$$720 \\times \\frac{2}{3} = 480$$\nFrances' investment is **$480**.\n\n**4. Calculate Skyler's Investment**\nSkyler accounts for the rest of the money. We subtract Frances' investment from the remaining balance calculated in step 2.\n$$720 - 480 = 240$$\n\n**Skyler's investment was $240.**"
+  },
+  {
+   "id": "gsm8k-200-192",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-193",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the answer:\n\n1.  **Calculate daily consumption per horse:** \n    5 pounds per meal \u00d7 2 meals per day = **10 pounds per horse per day**.\n2.  **Calculate total daily consumption for all horses:** \n    10 pounds \u00d7 4 horses = **40 pounds per day**.\n3.  **Calculate total consumption for five days:** \n    40 pounds per day \u00d7 5 days = **200 pounds total**.\n4.  **Calculate the number of bags needed:** \n    200 pounds \u00f7 50 pounds per bag = **4 bags**.\n\nUncle Ben needs **4 bags** of oats to feed his horses for five days."
+  },
+  {
+   "id": "gsm8k-200-194",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-195",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-196",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the cost per serving:\n\n1.  **Calculate the cost of the onions:**\n    *   The recipe calls for 2 pounds, but Antoine doubles that amount: $2 \\times 2 = 4$ pounds.\n    *   The price is $\\$2.00$ per pound.\n    *   Cost of onions: $4 \\text{ lbs} \\times \\$2.00/\\text{lb} = \\$8.00$.\n\n2.  **Calculate the cost of the beef stock:**\n    *   He needs 2 boxes.\n    *   The price is $\\$2.00$ per box.\n    *   Cost of stock: $2 \\text{ boxes} \\times \\$2.00/\\text{box} = \\$4.00$.\n\n3.  **Calculate the total cost:**\n    *   Total Cost = Cost of Onions + Cost of Stock\n    *   Total Cost = $\\$8.00 + \\$4.00 = \\$12.00$.\n\n4.  **Calculate the cost per serving:**\n    *   The soup serves 6 people.\n    *   Cost per serving = $\\$12.00 / 6 = \\$2.00$.\n\n5.  **Round to the nearest integer:**\n    *   The result is exactly 2.\n\n**2**"
+  },
+  {
+   "id": "gsm8k-200-197",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown:\n\n1.  **First Bag:** 300 M&Ms.\n2.  **Second Bag:** Has 12 more than the first (300 + 12) = 312 M&Ms.\n3.  **Third Bag:** Has half the number of the first (300 / 2) = 150 M&Ms.\n\n**Total:** 300 + 312 + 150 = **762 M&Ms**.\n\nMary got a total of **762** M&Ms."
+  },
+  {
+   "id": "gsm8k-200-198",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step solution:\n\n**1. Determine the initial amounts of money:**\n*   **Ronnie:** The problem states Ronnie was given **$5**.\n*   **Rissa:** Rissa was given three times as much as Ronnie.\n    $$5 \\times 3 = 15$$\n    So, Rissa started with **$15**.\n\n**2. Determine how much money Rissa gave away:**\n*   The problem states that after giving money away, Rissa is left with **4/5 of her money**.\n*   First, calculate 4/5 of Rissa's initial $15:\n    $$15 \\times \\frac{4}{5} = 12$$\n*   This means Rissa has **$12** left.\n*   To find out how much she gave away, subtract the remaining amount from her initial amount:\n    $$15 - 12 = 3$$\n    Rissa gave away **$3**.\n\n**3. Determine how much money is left for Ronnie:**\n*   The problem states that each of them gave an **equal amount** to their sister. Since Rissa gave $3, Ronnie also gave **$3**.\n*   Subtract the amount Ronnie gave from his initial amount:\n    $$5 - 3 = 2$$\n\n**Answer:**\nThere is **$2** left in Ronnie's money."
+  },
+  {
+   "id": "gsm8k-200-199",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  }
+ ]
+}

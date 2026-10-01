@@ -1,0 +1,1210 @@
+{
+ "dataset": "gsm8k",
+ "model": "http://127.0.0.1:8765",
+ "max_tokens": 4096,
+ "n": 200,
+ "ok": 29,
+ "truncated": 168,
+ "items": [
+  {
+   "id": "gsm8k-200-000",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-001",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-002",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-003",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-004",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-005",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-006",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-007",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-008",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the number of students enrolled this year, you need to calculate 20% of the original number and add it to the original amount.\n\n1.  **Calculate the increase:**\n    $50 \\text{ students} \\times 0.20 = 10 \\text{ students}$\n\n2.  **Add the increase to the original number:**\n    $50 + 10 = 60$\n\nThere are **60** students enrolled this year."
+  },
+  {
+   "id": "gsm8k-200-009",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the total number of crabs:\n\n1.  **Find the number of crabs Bo has:**\n    Bo has **40** crabs.\n\n2.  **Find the number of crabs Monic has:**\n    Monic has 4 fewer crabs than Bo.\n    $40 - 4 = \\mathbf{36}$ crabs.\n\n3.  **Find the number of crabs Rani has:**\n    Rani has 10 more crabs than Monic.\n    $36 + 10 = \\mathbf{46}$ crabs.\n\n4.  **Calculate the total number of crabs:**\n    $40 \\text{ (Bo)} + 36 \\text{ (Monic)} + 46 \\text{ (Rani)} = \\mathbf{122}$\n\nThe three of them have a total of **122** crabs."
+  },
+  {
+   "id": "gsm8k-200-010",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total amount of water removed, we need to calculate the water removed by each setting and then add them together.\n\n**1. Determine the water removal rate for each setting:**\n*   **Low setting:** 1 liter per day.\n*   **Medium setting:** Twice as much as the low setting ($1 \\times 2 = 2$) liters per day.\n*   **High setting:** Twice as much as the medium setting ($2 \\times 2 = 4$) liters per day.\n\n**2. Calculate the water removed for each phase of usage:**\n*   **Low setting (3 days):** $3 \\text{ days} \\times 1 \\text{ liter/day} = 3 \\text{ liters}$\n*   **Medium setting (3 days):** $3 \\text{ days} \\times 2 \\text{ liters/day} = 6 \\text{ liters}$\n*   **High setting (5 days):** $5 \\text{ days} \\times 4 \\text{ liters/day} = 20 \\text{ liters}$\n\n**3. Calculate the total:**\n$$3 \\text{ liters} + 6 \\text{ liters} + 20 \\text{ liters} = 29 \\text{ liters}$$\n\nThe total amount of water the dehumidifier removed is **29 liters**."
+  },
+  {
+   "id": "gsm8k-200-011",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-012",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-013",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-014",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-015",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-016",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-017",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-018",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-019",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-020",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-021",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-022",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-023",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-024",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-025",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-026",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-027",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-028",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-029",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-030",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-031",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total number of children, we need to calculate the number of boys, girls, and nongendered children separately, and then add them together.\n\n1.  **Boys:** The problem states there are **30** boys.\n2.  **Girls:** There are 3 times as many girls as there are boys.\n    $$30 \\times 3 = 90 \\text{ girls}$$\n3.  **Nongendered Children:** There is 1/10 as many nongendered children as there are boys.\n    $$30 \\div 10 = 3 \\text{ nongendered children}$$\n\nNow, add all three groups together to get the total:\n$$30 \\text{ (boys)} + 90 \\text{ (girls)} + 3 \\text{ (nongendered)} = 123$$\n\nThere are **123** total children in the classroom."
+  },
+  {
+   "id": "gsm8k-200-032",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the perimeter of the room, we need to determine the width of the room first. Here is the step-by-step solution:\n\n**1. Convert the length to feet**\nThe length is given in yards, but the area is in square feet. We must convert the length to feet to match the units.\n*   1 yard = 3 feet\n*   Length = $3 \\text{ yards} \\times 3 \\text{ feet/yard} = 9 \\text{ feet}$\n\n**2. Find the width**\nThe formula for the area of a rectangle is:\n$$ \\text{Area} = \\text{Length} \\times \\text{Width} $$\n\nWe know the area is 360 square feet and the length is 9 feet. We can solve for the width:\n$$ 360 = 9 \\times \\text{Width} $$\n$$ \\text{Width} = \\frac{360}{9} $$\n$$ \\text{Width} = 40 \\text{ feet} $$\n\n**3. Calculate the perimeter**\nThe formula for the perimeter of a rectangle is:\n$$ \\text{Perimeter} = 2 \\times (\\text{Length} + \\text{Width}) $$\n\nSubstitute the values we found:\n$$ \\text{Perimeter} = 2 \\times (9 \\text{ feet} + 40 \\text{ feet}) $$\n$$ \\text{Perimeter} = 2 \\times (49 \\text{ feet}) $$\n$$ \\text{Perimeter} = 98 \\text{ feet} $$\n\n**Answer:**\nThe perimeter of the room is **98 feet**."
+  },
+  {
+   "id": "gsm8k-200-033",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-034",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-035",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-036",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-037",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-038",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-039",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-040",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-041",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-042",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-043",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Jeff is **30** years old.\n\nHere is the step-by-step breakdown:\n\n1.  **Find Martha's age:** Since Mike is 24 and Martha is 4 years younger, Martha is $24 - 4 = 20$ years old.\n2.  **Find Jeff's age:** Since Jeff is 10 years older than Martha, Jeff is $20 + 10 = 30$ years old."
+  },
+  {
+   "id": "gsm8k-200-044",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-045",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-046",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-047",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-048",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-049",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-050",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total amount of dog food needed, we can break it down step-by-step:\n\n1.  **Calculate the daily food for the German Shepherds:**\n    3 German Shepherds $\\times$ 5 kg = **15 kg/day**\n\n2.  **Calculate the daily food for the Bulldogs:**\n    2 Bulldogs $\\times$ 3 kg = **6 kg/day**\n\n3.  **Calculate the total daily food:**\n    15 kg + 6 kg = **21 kg/day**\n\n4.  **Calculate the total food for a week (7 days):**\n    21 kg/day $\\times$ 7 days = **147 kg**\n\nThey will need **147 kilograms** of dog food in a week."
+  },
+  {
+   "id": "gsm8k-200-051",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-052",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Bob can buy **18 books** per school.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate the total number of books:**\n    $27,000 \\div \\$500 = 54$ books total.\n2.  **Divide by the number of schools:**\n    $54 \\text{ books} \\div 3 \\text{ schools} = 18$ books per school."
+  },
+  {
+   "id": "gsm8k-200-053",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-054",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-055",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-056",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-057",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-058",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-059",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-060",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the average number of Junebugs Rita removes per day, we need to calculate the total number of Junebugs removed over the five days and then divide that by the number of days.\n\n**Step 1: Calculate the number of Junebugs removed on each day.**\n\n*   **Monday:** 39\n*   **Tuesday:** Twice as many as Monday ($39 \\times 2 = 78$)\n*   **Wednesday:** Twice as many as Monday ($39 \\times 2 = 78$)\n*   **Thursday:** 48\n*   **Friday:** 57\n\n**Step 2: Calculate the total number of Junebugs removed.**\n\n$$39 + 78 + 78 + 48 + 57 = 300$$\n\n**Step 3: Calculate the average.**\n\nThere are 5 days in total.\n\n$$300 \\div 5 = 60$$\n\nRita removes an average of **60** Junebugs per day."
+  },
+  {
+   "id": "gsm8k-200-061",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-062",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-063",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-064",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-065",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-066",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-067",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-068",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-069",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-070",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-071",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-072",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-073",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-074",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-075",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-076",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-077",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-078",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-079",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-080",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-081",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-082",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Mary needs to bake **4** pans of cupcakes.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate the total number of cupcakes needed:**\n    Mary has 6 jars of sprinkles, and each jar decorates 8 cupcakes.\n    $$6 \\times 8 = 48 \\text{ cupcakes}$$\n\n2.  **Calculate the number of pans required:**\n    Each pan holds 12 cupcakes. To find out how many pans she needs, divide the total number of cupcakes by the capacity of one pan.\n    $$48 \\div 12 = 4 \\text{ pans}$$\n\nSo, Mary should bake **4** pans of cupcakes."
+  },
+  {
+   "id": "gsm8k-200-083",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total distance, we need to calculate the distance traveled by each person separately and then add them together.\n\n**1. Calculate Alisa's distance:**\n$$ \\text{Distance} = \\text{Speed} \\times \\text{Time} $$\n$$ 12 \\text{ mph} \\times 4.5 \\text{ hours} = 54 \\text{ miles} $$\n\n**2. Calculate Stanley's distance:**\n$$ 10 \\text{ mph} \\times 2.5 \\text{ hours} = 25 \\text{ miles} $$\n\n**3. Calculate the total distance:**\n$$ 54 \\text{ miles} + 25 \\text{ miles} = 79 \\text{ miles} $$\n\nAlisa and Stanley biked a total of **79 miles**."
+  },
+  {
+   "id": "gsm8k-200-084",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-085",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find Mark's initial weight, you need to add the weight he lost back to his final weight.\n\n1.  **Calculate the total weight lost:**\n    Mark lost 10 pounds per month for 3 months.\n    $$10 \\text{ pounds/month} \\times 3 \\text{ months} = 30 \\text{ pounds}$$\n\n2.  **Add the lost weight to the final weight:**\n    $$70 \\text{ pounds (final)} + 30 \\text{ pounds (lost)} = 100 \\text{ pounds}$$\n\nMark's initial weight was **100 pounds**."
+  },
+  {
+   "id": "gsm8k-200-086",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-087",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the number of dragons Prince Bruce slew:\n\n1.  **Prince Thaddeus:** Slew **100** dragons.\n2.  **Prince Arthur:** Slew three quarters as many dragons as Thaddeus.\n    *   Calculation: $100 \\times \\frac{3}{4} = 75$ dragons.\n3.  **Prince Walter:** Slew twice as many dragons as Arthur.\n    *   Calculation: $75 \\times 2 = 150$ dragons.\n4.  **Prince Bruce:** Slew one-fifth as many dragons as Walter.\n    *   Calculation: $150 \\times \\frac{1}{5} = 30$ dragons.\n\nPrince Bruce slew **30** dragons."
+  },
+  {
+   "id": "gsm8k-200-088",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-089",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-090",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-091",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-092",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-093",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Mark paid **$230** in total.\n\nHere is the breakdown of the costs:\n\n1.  **New Radiator:**\n    *   Original price: $400\n    *   Discount: 80% off means he pays 20% of the original price ($400 \\times 0.20 = $80).\n    *   **Cost: $80**\n\n2.  **Mechanic Installation:**\n    *   Rate: $50 per hour\n    *   Time: 3 hours\n    *   **Cost: $150** ($50 \\times 3 = $150)\n\n**Total:** $80 + $150 = **$230**"
+  },
+  {
+   "id": "gsm8k-200-094",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-095",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-096",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find the change Verna received:\n\n**1. Calculate the cost of the apples:**\n3 apples $\\times$ $1.50 = **$4.50**\n\n**2. Calculate the cost of the oranges:**\n5 oranges $\\times$ $0.80 = **$4.00**\n\n**3. Calculate the cost of the peaches:**\n6 peaches $\\times$ $0.75 = **$4.50**\n\n**4. Calculate the total cost:**\n$4.50 (apples) + $4.00 (oranges) + $4.50 (peaches) = **$13.00**\n\n**5. Calculate the change:**\n$20.00 (given) - $13.00 (total cost) = **$7.00**\n\nVerna received **$7.00** in change."
+  },
+  {
+   "id": "gsm8k-200-097",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-098",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-099",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-100",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-101",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-102",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-103",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-104",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There are **28** birds in the backyard.\n\nHere is the step-by-step breakdown:\n\n1.  **Calculate the birds scared away:** Jeremy threw a stone at 12 birds, scaring away 1/3 of that number.\n    $$12 \\times \\frac{1}{3} = 4 \\text{ birds}$$\n2.  **Calculate the remaining birds:** Subtract the scared birds from the original number.\n    $$12 - 4 = 8 \\text{ birds}$$\n3.  **Add the new birds:** Add the 20 birds that joined the group.\n    $$8 + 20 = 28 \\text{ birds}$$\n\nSo, there are now 28 birds in the backyard."
+  },
+  {
+   "id": "gsm8k-200-105",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-106",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To calculate the total population, multiply the number of countries by the number of cities per country, and then by the population per city:\n\n$$26 \\text{ countries} \\times 5 \\text{ cities/country} \\times 1,000 \\text{ people/city}$$\n\n$$130 \\times 1,000 = 130,000$$\n\nThere are **130,000** people in South America."
+  },
+  {
+   "id": "gsm8k-200-107",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-108",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-109",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "James slept 6 hours.\n\nHere is the breakdown:\n1.  **Calculate James's sleep time:** $9 \\text{ hours} \\times \\frac{2}{3} = 6 \\text{ hours}$.\n2.  **Calculate the difference:** $9 \\text{ hours} - 6 \\text{ hours} = 3 \\text{ hours}$.\n\nHarry slept **3 more hours** than James."
+  },
+  {
+   "id": "gsm8k-200-110",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-111",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-112",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-113",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-114",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-115",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There are **30** elves left.\n\nHere is the step-by-step breakdown:\n\n1.  **Start:** 60 elves.\n2.  **First Event:** A third of the elves quit.\n    *   $60 \\div 3 = 20$ elves quit.\n    *   Remaining elves: $60 - 20 = 40$.\n3.  **Second Event:** 10 of the remaining elves quit.\n    *   $40 - 10 = 30$.\n\n**30 elves are left.**"
+  },
+  {
+   "id": "gsm8k-200-116",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-117",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-118",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the length of the longer piece, we can set up a simple algebraic equation.\n\n1.  **Define the variables:**\n    *   Let $x$ be the length of the shorter piece.\n    *   Since the longer piece is 4 times longer than the shorter piece, its length is $4x$.\n\n2.  **Set up the equation:**\n    *   The total length of the board is 40 feet.\n    *   Therefore, the sum of the two pieces equals 40.\n    *   $x + 4x = 40$\n\n3.  **Solve for $x$:**\n    *   Combine the terms: $5x = 40$\n    *   Divide by 5: $x = 8$\n    *   So, the shorter piece is 8 feet long.\n\n4.  **Calculate the length of the longer piece:**\n    *   $4x = 4 \\times 8$\n    *   $4x = 32$\n\n**Answer:** The longer piece is **32 feet** long."
+  },
+  {
+   "id": "gsm8k-200-119",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-120",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-121",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-122",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-123",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how much shorter the candle will be, we need to calculate the total amount of time it burns and multiply that by the rate of melting.\n\n1.  **Calculate the time duration:**\n    From 1:00 PM to 5:00 PM is **4 hours**.\n\n2.  **Calculate the total melting:**\n    The candle melts 2 centimeters every hour.\n    $4 \\text{ hours} \\times 2 \\text{ centimeters/hour} = 8 \\text{ centimeters}$.\n\nThe candle will be **8 centimeters** shorter."
+  },
+  {
+   "id": "gsm8k-200-124",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-125",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-126",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-127",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-128",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-129",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-130",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-131",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-132",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-133",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-134",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-135",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-136",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There are **15** flowers in the vase in total.\n\nHere is the breakdown:\n*   **Roses:** 4\n*   **Dahlias:** 4 + 7 = 11\n*   **Total:** 4 + 11 = 15"
+  },
+  {
+   "id": "gsm8k-200-137",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-138",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-139",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "There are **30** eggs in both baskets put together.\n\nHere is the breakdown:\n*   **First basket:** 10 eggs\n*   **Second basket:** 20 eggs (twice as many as the first basket)\n*   **Total:** 10 + 20 = 30 eggs"
+  },
+  {
+   "id": "gsm8k-200-140",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-141",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-142",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-143",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-144",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find the total number of bolts:\n\n1.  **Blue fiber:** 2 bolts\n2.  **White fiber:** Half of the blue amount ($2 / 2 = 1$ bolt)\n3.  **Total:** $2 + 1 = 3$ bolts\n\nIt takes **3** bolts in total."
+  },
+  {
+   "id": "gsm8k-200-145",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-146",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-147",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-148",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-149",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-150",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-151",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-152",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "It will take **4 days** for him to save the remaining amount.\n\nHere is the breakdown:\n1.  **Calculate the remaining amount needed:** $12 (cost) - $4 (current savings) = $8 needed.\n2.  **Divide by the daily savings:** $8 / $2 per day = 4 days."
+  },
+  {
+   "id": "gsm8k-200-153",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-154",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-155",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-156",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-157",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-158",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-159",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-160",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Maddison has **270** marbles now.\n\nHere is the breakdown:\n1.  **Initial marbles:** $5 \\text{ boxes} \\times 50 \\text{ marbles/box} = 250 \\text{ marbles}$\n2.  **Add the new marbles:** $250 + 20 = 270 \\text{ marbles}$"
+  },
+  {
+   "id": "gsm8k-200-161",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-162",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-163",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-164",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-165",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-166",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-167",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-168",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-169",
+   "pass": 0,
+   "finish_reason": "stop",
+   "raw": "To find the total cost, we first need to determine the price per single item for both apples and oranges.\n\n**1. Find the price per apple:**\n*   4 apples cost $5.20.\n*   $5.20 \u00f7 4 = **$1.30 per apple**.\n\n**2. Find the price per orange:**\n*   3 oranges cost $3.30.\n*   $3.30 \u00f7 3 = **$1.10 per orange**.\n\n**3. Calculate the cost for 5 apples:**\n*   5 apples \u00d7 $1.30 = **$6.50**.\n\n**4. Calculate the cost for 5 oranges:**\n*   5 oranges \u00d7 $1.10 = **$5.50**.\n\n**5. Add the costs together:**\n*   $6.50 (apples) + $5.50 (oranges) = **$12.00**.\n\nClyde will pay **$12.00**."
+  },
+  {
+   "id": "gsm8k-200-170",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the breakdown of the cost for each person:\n\n*   **Leila:** 3 cucumbers \u00d7 $2 each = **$6**\n*   **Jack:** 5 tomatoes \u00d7 $1 each = **$5**\n*   **Chase:** 1 head of lettuce \u00d7 $3 each = **$3**\n\n**Total:** $6 + $5 + $3 = **$14**\n\nTogether, they spent **$14**."
+  },
+  {
+   "id": "gsm8k-200-171",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-172",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-173",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-174",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-175",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-176",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-177",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-178",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-179",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-180",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-181",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-182",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-183",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-184",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-185",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-186",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step breakdown to find the answer:\n\n1.  **Find Albert's height:**\n    Albert is given as **36 inches**.\n\n2.  **Find Anne's height:**\n    Anne is twice the size of Albert.\n    $36 \\text{ inches} \\times 2 = \\mathbf{72 \\text{ inches}}$.\n\n3.  **Find Jackie's height *now*:**\n    Jackie is 2 inches shorter than Anne.\n    $72 \\text{ inches} - 2 \\text{ inches} = \\mathbf{70 \\text{ inches}}$.\n\n4.  **Find Jackie's height *before* summer:**\n    Jackie grew 3 inches over the summer. To find her height before, subtract the growth from her current height.\n    $70 \\text{ inches} - 3 \\text{ inches} = \\mathbf{67 \\text{ inches}}$.\n\n**Jackie was 67 inches tall before summer.**"
+  },
+  {
+   "id": "gsm8k-200-187",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-188",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-189",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-190",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-191",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Here is the step-by-step calculation to find Skyler's investment:\n\n1.  **Calculate Dylan's Investment:**\n    Dylan invested 2/5 of the total amount ($1200).\n    $$1200 \\times \\frac{2}{5} = 480$$\n    Dylan's investment is **$480**.\n\n2.  **Calculate the Remaining Amount:**\n    Subtract Dylan's investment from the total to find out how much is left.\n    $$1200 - 480 = 720$$\n    The remaining amount is **$720**.\n\n3.  **Calculate Frances's Investment:**\n    Frances invested 2/3 of the remaining amount ($720).\n    $$720 \\times \\frac{2}{3} = 480$$\n    Frances's investment is **$480**.\n\n4.  **Calculate Skyler's Investment:**\n    Subtract Dylan's and Frances's investments from the total to find the rest.\n    $$1200 - 480 - 480 = 240$$\n    Skyler's investment is **$240**.\n\n**Answer:** Skyler's investment was **$240**."
+  },
+  {
+   "id": "gsm8k-200-192",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-193",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "To find out how many bags of oats Uncle Ben needs, we can break the problem down into steps:\n\n1.  **Calculate the oats consumed per day per horse:**\n    *   5 pounds per meal\n    *   2 meals per day\n    *   $5 \\text{ lbs} \\times 2 = 10 \\text{ lbs}$ per day per horse.\n\n2.  **Calculate the total oats consumed per day for all horses:**\n    *   4 horses $\\times$ 10 lbs per horse = **40 lbs** per day.\n\n3.  **Calculate the total oats needed for five days:**\n    *   40 lbs/day $\\times$ 5 days = **200 lbs** total.\n\n4.  **Calculate the number of bags needed:**\n    *   200 lbs total / 50 lbs per bag = **4 bags**.\n\n**Answer:** Uncle Ben needs **4** bags of oats."
+  },
+  {
+   "id": "gsm8k-200-194",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-195",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-196",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-197",
+   "pass": 1,
+   "finish_reason": "stop",
+   "raw": "Mary got a total of **762 M&Ms**.\n\nHere is the breakdown:\n\n1.  **First bag:** 300 M&Ms\n2.  **Second bag:** 300 + 12 = **312 M&Ms**\n3.  **Third bag:** 300 / 2 = **150 M&Ms**\n\n**Total:** 300 + 312 + 150 = **762**"
+  },
+  {
+   "id": "gsm8k-200-198",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "gsm8k-200-199",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  }
+ ]
+}

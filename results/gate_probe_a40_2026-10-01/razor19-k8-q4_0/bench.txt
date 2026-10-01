@@ -1,0 +1,16 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+| model                          |       size |     params | backend    | ngl |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --------------: | -------------------: |
+| qwen35moe 35B.A3B Q4_0         |   9.87 GiB |    18.54 B | CUDA       |  99 |           pp512 |     3666.63 ± 515.34 |
+| qwen35moe 35B.A3B Q4_0         |   9.87 GiB |    18.54 B | CUDA       |  99 |           tg128 |        151.98 ± 1.09 |
+
+build: a2f252f (1)
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+| model                          |       size |     params | backend    | ngl | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --------------: | -------------------: |
+| qwen35moe 35B.A3B Q4_0         |   9.87 GiB |    18.54 B | CUDA       |   0 |       7 |           pp512 |       487.46 ± 20.03 |
+| qwen35moe 35B.A3B Q4_0         |   9.87 GiB |    18.54 B | CUDA       |   0 |       7 |           tg128 |         15.70 ± 0.17 |
+
+build: a2f252f (1)

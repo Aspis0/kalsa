@@ -744,6 +744,9 @@ probe runs on Runpod (cap $10: LFM, RAZOR-19B, Qwen3.5-4B, Qwen3.6 top-k 4 and k
 private HF dataset `Kalsa-ai/kalsa-gate-probe-results`; PLAN.md "Owner decision 2026-09-29" has the arms.
 Retry 2026-09-30 evening with every arm (owner): A40 pod at $0.49/h, stages one by one, chain only after the LFM
 arm's results land; spend capped at ~$9.6 of the $10.
+Result 2026-10-01 (9 arms, $6.82): the RAZOR-19 prune lost Italian (bpb 1.46, LFM-level) while unpruned Qwen3.6 is
+far better than LFM in every language (IT 0.58 vs 1.48); GSM8K is cap-confounded. Owner picks the next MoE lane.
+`results/gate_probe_a40_2026-10-01/REPORT.md`.
 
 **Engine single line (2026-09-30 night, owner):** `main` of the fork is the only engine line for phone and desktop;
 feat/governor-platform-status merges into it, then upstream b11304 (conflicts: take upstream, replay our commits).

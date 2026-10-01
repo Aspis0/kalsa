@@ -1,0 +1,13 @@
+[transformers] Disabling PyTorch because PyTorch >= 2.5 is required but found 2.4.1+cu124
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+en: 55 docs, 291968 bytes, 64989 tokens
+== en: bpb 1.1014 (ppl 30.8712, 63 chunks) ==
+it: 55 docs, 338060 bytes, 89618 tokens
+== it: bpb 1.4759 (ppl 47.4246, 87 chunks) ==
+es: 55 docs, 325252 bytes, 79205 tokens
+== es: bpb 1.2729 (ppl 37.4562, 77 chunks) ==
+fr: 55 docs, 321423 bytes, 78663 tokens
+== fr: bpb 1.3313 (ppl 43.4109, 76 chunks) ==
+zh: 55 docs, 644544 bytes, 196818 tokens
+== zh: bpb 1.7181 (ppl 49.4036, 192 chunks) ==
+per-chunk -> /workspace/results/lfm/bpb.json

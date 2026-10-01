@@ -1,0 +1,610 @@
+{
+ "dataset": "tools",
+ "model": "http://127.0.0.1:8765",
+ "max_tokens": 4096,
+ "n": 100,
+ "ok": 79,
+ "truncated": 6,
+ "items": [
+  {
+   "id": "tools-100-000",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-001",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-002",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-003",
+   "pass": 1,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-004",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-005",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-006",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-007",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-008",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-009",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-010",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-011",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-012",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-013",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-014",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-015",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-016",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-017",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-018",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-019",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-020",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-021",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-022",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-023",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-024",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-025",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-026",
+   "pass": 1,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-027",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-028",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-029",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-030",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-031",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-032",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-033",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-034",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-035",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-036",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-037",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-038",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-039",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-040",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-041",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-042",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-043",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-044",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-045",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-046",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-047",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-048",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-049",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-050",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-051",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-052",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-053",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-054",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-055",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-056",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-057",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-058",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-059",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-060",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-061",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-062",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-063",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-064",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-065",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-066",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-067",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-068",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-069",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-070",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-071",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-072",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-073",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-074",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-075",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-076",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-077",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-078",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-079",
+   "pass": 0,
+   "finish_reason": "length",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-080",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-081",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-082",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-083",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-084",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-085",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-086",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-087",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-088",
+   "pass": 0,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-089",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-090",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-091",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-092",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-093",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-094",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-095",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-096",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-097",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-098",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  },
+  {
+   "id": "tools-100-099",
+   "pass": 1,
+   "finish_reason": "tool_calls",
+   "raw": ""
+  }
+ ]
+}

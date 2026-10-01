@@ -1012,6 +1012,13 @@ Phases (each gated):
    engine `spike/topk-k2-renorm` `a2f252fbd`), Qwen3.5-2B; results to the private HF dataset
    `Kalsa-ai/kalsa-gate-probe-results`. Speed on 16 GB is NOT measured by this probe. Status and launch lessons:
    `scratchpad/COORDINATOR-STATE.md` (2026-09-30 blocks).
+   **RESULT 2026-10-01 (all 9 arms, $6.82, pod deleted; `results/gate_probe_a40_2026-10-01/REPORT.md`):** RAZOR-19
+   lost Italian/Spanish/French (IT bpb 1.46 vs unpruned Qwen3.6 0.58, no better than LFM 1.48; EN 0.79 vs 0.59) - the
+   English-calibrated prune is OUT for Kalsa. Unpruned Qwen3.6 beats LFM on bpb in every language (IT 0.58 vs 1.48).
+   GSM8K is confounded by the 4096 cap (Qwen3.5-2B 161/200 cut) - re-score before reasoning claims. k4 costs RAZOR
+   26 GSM8K points; k2=16 renorm recovers most (0.71/0.45/0.635). Script bug: `30_gate.sh:59` does not pass the arm's
+   overrides to bpb, so the k4/k2 bpb rows are default-k. OWNER DECIDES the next lane: multilingual-calibrated prune
+   vs unpruned Qwen3.6 with expert streaming on 16 GB. Rotate the HF probe token.
    **2026-09-30 21:00 UTC retry (owner: all arms, no drop):** billed so far $0.57 (Runpod billing; the earlier
    "$1.5" was an estimate). L40 out of stock -> pod `nytgw2hjgsfz6e` A40 48 GB SECURE CA-MTL-1 at $0.49/h, 200 GB
    volume; hard stop 18.5 h, arm budget guard 17.5 h (max ~$9.6 total). Stages run one by one first; the full chain

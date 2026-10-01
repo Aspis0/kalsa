@@ -1,0 +1,13 @@
+[transformers] Disabling PyTorch because PyTorch >= 2.5 is required but found 2.4.1+cu124
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+en: 55 docs, 291968 bytes, 67193 tokens
+== en: bpb 0.7915 (ppl 10.8465, 65 chunks) ==
+it: 55 docs, 338060 bytes, 86569 tokens
+== it: bpb 1.4622 (ppl 52.3503, 84 chunks) ==
+es: 55 docs, 325252 bytes, 78495 tokens
+== es: bpb 1.1413 (ppl 26.5191, 76 chunks) ==
+fr: 55 docs, 321423 bytes, 80280 tokens
+== fr: bpb 1.2741 (ppl 34.3251, 78 chunks) ==
+zh: 55 docs, 644544 bytes, 166645 tokens
+== zh: bpb 1.1009 (ppl 19.1318, 162 chunks) ==
+per-chunk -> /workspace/results/razor19-k4-k2/bpb.json

@@ -63,9 +63,23 @@ rc_bpb=0
 echo "30: [$TAG] bpb EXIT=$rc_bpb"
 
 # two labelled benches: the GPU number ranks arms on THIS pod; the CPU
-# number (all-vCPU threads) is the PC-proxy Fable-2 asked for — community
-# vCPU counts vary, so it is a proxy, not a device number
+# number is the PC-proxy Fable-2 asked for — community vCPU counts vary, so
+# it is a proxy, not a device number
 NPROC="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 8)"
+# community pods oversell vCPUs: this A40 pod advertises 96 CPUs under a
+# 7.65-core cgroup quota, and -t 96 decode thrashes to ~0.25 tok/s (observed
+# 2026-09-30) — bench at the quota the container actually has, min 2
+if [ -r /sys/fs/cgroup/cpu.max ]; then
+  qmax=$(cut -d" " -f1 /sys/fs/cgroup/cpu.max); qper=$(cut -d" " -f2 /sys/fs/cgroup/cpu.max)
+  if [ "$qmax" != "max" ] && [ "$qmax" -gt 0 ] && [ $((qmax / qper)) -lt "$NPROC" ]; then
+    NPROC=$(( qmax / qper )); [ "$NPROC" -lt 2 ] && NPROC=2
+  fi
+elif [ -r /sys/fs/cgroup/cpu/cpu.cfs_quota_us ] && [ -r /sys/fs/cgroup/cpu/cpu.cfs_period_us ]; then
+  qmax=$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us); qper=$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)
+  if [ "$qmax" -gt 0 ] && [ $((qmax / qper)) -lt "$NPROC" ]; then
+    NPROC=$(( qmax / qper )); [ "$NPROC" -lt 2 ] && NPROC=2
+  fi
+fi
 "$LLAMA_BIN/llama-bench" -m "$GGUF" -ngl 99 -p 512 -n 128 -r 2 \
   > "$OUT/bench.txt" 2>&1 || true
 "$LLAMA_BIN/llama-bench" -m "$GGUF" -ngl 0 -t "$NPROC" -p 512 -n 128 -r 2 \

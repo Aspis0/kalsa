@@ -1,0 +1,16 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+| model                          |       size |     params | backend    | ngl |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | CUDA       |  99 |           pp512 |   10560.96 ± 2385.49 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | CUDA       |  99 |           tg128 |        263.33 ± 1.28 |
+
+build: a2f252f (1)
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+| model                          |       size |     params | backend    | ngl | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | CUDA       |   0 |       7 |           pp512 |     1754.96 ± 107.33 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | CUDA       |   0 |       7 |           tg128 |         24.65 ± 0.35 |
+
+build: a2f252f (1)
