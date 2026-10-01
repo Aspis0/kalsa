@@ -846,6 +846,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   governor, no hang/crash.** Prefill tok/s short/long: NPU 170.9/120.9, GPU 115.0/101.2, CPU 21.7/20.9; AUTO picks
   NPU 12/13. Every arm reaches thermal SEVERE in 1-5 turns on a warm phone (CPU worst, 49 mAh/short turn vs 17).
   Label != device with the lane on; in-app NPU only ~1.5x GPU (bench 4.7x) - next lever is the chunk/ubatch plan.
+  **AUDITED 2026-10-01 (space-bunny 2138bb9c, `AUDIT-r1.md`; coordinator re-checked on disk): ordering NPU > GPU >
+  CPU holds, the report does not.** gpu2-l3 reused a 1660-token prefix (`n_common=1660`) inside the GPU-long median;
+  35 rows not 37 (cpu1-l1 has no kalsa extract, LOWBAT); dropbox 8 vs 5 lines, not byte-identical; per-chunk
+  `"actual":"gpu"` 303x, never npu, on lane-on turns; end state had the launcher on top; `*-ui.xml` cited, absent.
+  Report correction: mimo b2962f18. **Owner 2026-10-01, both yes:** (1) fix the governor route telemetry so it
+  names the executing device (HTP) - recon luna 9f6a9d13, then a fix in the binding follow-up round; (2) queue an
+  S23 session with per-turn HTP execution proof (not the single pre-campaign probe), phone charged first.
 
 ### Pairing: iroh and invite links
 

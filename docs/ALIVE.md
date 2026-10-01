@@ -115,6 +115,13 @@ document that produced them is named instead.
   ref; what ran created `kalsa-opencl-cok-korder` as a new ref instead, and the phone ref was
   verified unmoved at `1577495b9` afterwards (`scratchpad/agents/cok-residual/REPORT.md` sec. 9,
   re-verified with `git ls-remote`).
+- On a lane-on load (`kalsa.bench.npu_lane=on`) the governor's per-chunk `"actual"` and the
+  per-turn `engine_prefill` label do NOT name the executing device: the S23 run of 2026-10-01
+  logged `"actual":"gpu"` 303 times and never `npu` while HTP0 was the only model device
+  (`scratchpad/agents/s23-governor-npu-gpu-cpu/AUDIT-r1.md`, re-checked on disk). Until the
+  telemetry fix lands (owner 2026-10-01), read the device from the load (`devices=`, HTP buffer
+  lines) and the speed, never from the label. That run's headline in-app ratio, NPU ~1.2-1.5x
+  GPU prefill, stands only as an ordering; its report is being corrected.
 
 ## Phone speed table (on-device only, every number with its source)
 
