@@ -388,3 +388,131 @@ this pin; grep over the repo and the vendored tree finds zero references.
 - The F8 gate has never fired on a real HTP failure; the attribution is
   proven by the pure-function host test and the engine source lines, not by
   an on-device failure.
+
+## 8. Audit r2 round (2026-10-01, third session)
+
+Eight commits on top of `fa8d83ef`, one per audit item, all on
+`feat/governor-platform-status` (verified before every commit; tree clean
+after each). No push, no tags, no new branches, no device. Engine fork
+untouched at `61c909481`; the kalsa app repo untouched (only its pre-existing
+untracked files).
+
+| item | commit | subject |
+|---|---|---|
+| F3 | `84dc71f3` | the gate requires the full supported DSP set, from one source of truth |
+| F7+F9 | `a5271ab8` | pin the toolchain image by digest; retry for real under errexit |
+| F1 | `0aa42941` | the skels carry a fingerprint of their sources; the gate recomputes it |
+| F2 | `3a93147f` | the gate reads the stamps from their ELF symbols, not raw bytes |
+| F4+F5 | `1084311f` | gate the example-app release build; state the workflow's real triggers |
+| F14 | `ababcfb3` | the npu fallback reason moves under a mutex; readers copy it |
+| F17 | `e0437af4` | the LFS model rides the cache, keyed by its pointer's oid |
+| F19 | `9c420b7d` | the recipe header states what actually binds the shipped bytes |
+| tidy | `6c9b16ed` | the gate hashes through the shared helper, no local copy |
+
+Final HEAD `6c9b16ed`; `git status --porcelain` clean.
+
+- **F1**: `HTP_SRC_PATHS` in the new `scripts/htp-skels-common.sh` lists (one
+  place) the vendored paths both sides compile from — the recipe's archive
+  list (ggml include + six root headers + `ggml-hexagon`, which also carries
+  the tracked QAIC stub the host compiles), matching
+  `android/src/main/rnllama/CMakeLists.txt`. `htp_src_fingerprint` = sha256
+  over `<path> <git tree/blob hash at HEAD>` lines. The recipe stamps
+  `KALSA_HTP_SRC=<fp>` (keeping `KALSA_HTP_ENGINE=<sha>`) into every skel and
+  writes `SRC_FINGERPRINT=` to the manifest; the gate recomputes from HEAD
+  (the committed tree — chosen, and stated in the script) and pairs it with a
+  `git status --porcelain` dirt check under the same paths, so uncommitted
+  edits fail too. All four skels rebuilt with the committed recipe
+  (REBUILD_EXIT=0, first-attempt clean per DSP, QAIC stub regenerated
+  byte-identical — zero vendor diff).
+- **F2**: `scripts/htp_elf_symbol.py` parses ELF32 LE headers + .symtab
+  (nm/objdump are not portable macOS↔runner) and resolves each stamp through
+  its symbol (`kalsa_htp_engine_stamp`, `kalsa_htp_src_stamp`); zero or
+  multiple definitions fail, and exactly one raw occurrence of each stamp
+  string is still required, so appending a duplicate fails too. The false
+  "only a rebuild can satisfy this leg" comment is replaced; one line states
+  that forging the symbol table (deliberate ELF surgery) is out of scope.
+- **F3**: the gate requires shipped == exactly `HTP_DSP_VERSIONS`
+  (v73 v75 v79 v81), the same one source of truth the recipe and the
+  container loop use; missing and extra skels fail.
+- **F4/F5**: `build-example-android.yml` runs the gate before
+  `assembleRelease` (the audit's ungated APK path); the ci.yml vendor-job
+  comment and the gate header now state the real triggers (pushes to
+  main/kalsa, PRs to main, dispatch; no commit hook).
+- **F7/F9**: `IMAGE` pinned to
+  `ghcr.io/snapdragon-toolchain/arm64-android@sha256:91714433626f0d94a926538a1e46ec43756c5b8e3262b91b95df1e812940aed1`
+  (the OCI index carrying linux/amd64 — `docker image inspect` RepoDigests of
+  the image the committed skels were built in; recorded in the manifest's
+  `TOOLCHAIN_IMAGE` too). The container script is `set -euo pipefail` with
+  every fallible step guarded (`... || rc=$?`), so the three build attempts
+  really run — the transient is named (the embed_kernel license-slot miss) —
+  and install failures now fold into `overall_rc` (they did not before).
+- **F14**: `governor_npu_fallback` (bare pointer, written by the decode
+  thread at `cpp/rn-llama.cpp`, read by the stats task in
+  `cpp/jsi/RNLlamaJSI.cpp`) is replaced by a mutex-guarded
+  `governor_npu_fallback_` string with `setGovernorNpuFallback` /
+  `governorNpuFallback()` copy accessors; the load path and both readers take
+  copies, first writer wins under the lock. The jest source-guard test pins
+  the new shape.
+- **F17**: the test job checks out without `lfs: true`; the model file rides
+  `actions/cache` keyed by `hashFiles` of the LFS pointer (its content
+  changes only with the oid), with `git lfs pull` only on a miss.
+- **F19**: the driver header no longer overclaims ("ONLY supported way" →
+  what actually binds the bytes, with the forgery caveat).
+
+### Mutation proofs (fresh local clone per mutation, real exit codes)
+
+| mutation | result |
+|---|---|
+| `htp-ops.h` `HTP_OP_FENCE = 1000,` (uncommitted) | EXIT=1, "uncommitted changes under the fingerprinted sources" |
+| same edit committed (clean tree) | EXIT=1, "manifest source fingerprint ef1816c != recomputed 9923a1d" |
+| old 935e5b50 v79 + appended current engine stamp + manifest digest updated | EXIT=1, "kalsa_htp_engine_stamp has 0 definitions" |
+| v81 removed (file + manifest line) | EXIT=1, "shipped skels [...] != the supported set [...]" |
+| unlisted `libggml-htp-v99.so` dropped in | EXIT=1, same supported-set failure |
+| old v73 bytes swapped in, manifest digest updated | EXIT=1, "carries 0 engine stamps" |
+| duplicate `KALSA_HTP_SRC` appended to a current skel, manifest digest updated | EXIT=1, "carries 2 source stamps (want exactly 1)" |
+| real tree, no mutation | EXIT=0, "ok (engine 61c9094, src ef1816c, 4 skels match the manifest, each names its engine and sources)" |
+
+### New skel sha256s (fingerprint-stamped rebuild)
+
+| file | sha256 | size |
+|---|---|---|
+| libggml-htp-v73.so | `ddfec439a4acb727c176b7c4a306abc7fb09fe6f50ef6637450268440f15fce6` | 919176 |
+| libggml-htp-v75.so | `d835a387d6770b3874f81bc9fb4cbea184c73e0405476f33264d66cedb83eba8` | 864968 |
+| libggml-htp-v79.so | `945aa012569208bb7c56a29631a61d728f93068483befc0dfacff7657cf23765` | 885544 |
+| libggml-htp-v81.so | `167afbd06a7e3f662c533a4ee1b663aa33cd249f73cff1b435b3f825373cf63c` | 918408 |
+
+### Test exit codes
+
+- `assert-htp-skels.sh`: macOS EXIT=0 (real tree); ubuntu:24.04 container
+  EXIT=0 twice (git + python3 apt-installed — the gate now needs bash, git,
+  python3, all preinstalled on GitHub runners and macOS; one earlier container
+  run died with an empty subprocess error under amd64 emulation and passed on
+  the immediate rerun and twice after); gate also green as the rebuild's
+  self-check.
+- `tests/build/governor_params_test`: EXIT=0, 12/12 (the fallback-predicate
+  host test; F14 changes compile via the same `build_and_test.sh` run,
+  HOST_BUILD_EXIT=0 — it compiles `rn-llama.cpp`).
+- `npm test`: EXIT=0, 18 suites / 72 tests (incl. the updated F14 guards).
+- `npm run lint`: EXIT=0 (the one pre-existing TTSScreen warning, untouched);
+  `npm run typecheck`: EXIT=0.
+
+### Known limits (audit r2 items left open, one line each)
+
+- F12: a returned -3 still does not identify WHICH backend failed, so a
+  non-HTP compute failure inside an NPU-routed prefill can kill the lane.
+- F13: only returned -3 failures are caught — another status, or a wedge
+  outside the response-poll loop, still escapes the fallback (up to the 30 s
+  timeout).
+- F15: `setenv`/`getenv` of `KALSA_HTP_FALLBACK` remain process-global and
+  unsynchronized against concurrent loads; a failed setenv is logged, not
+  repaired.
+
+### What only CI / device can prove
+
+- No GitHub Actions run was triggered (no push): the digest-pinned pull, the
+  LFS cache flow, and the new example-app gate step are verified locally and
+  by YAML parse, not on the runner.
+- `RNLlamaJSI.cpp` has no local compile arbiter (iOS/Android only); its
+  two-line F14 change is inspection- and guard-test-verified only.
+- The rebuilt skels on silicon: the S23 arms remain the acceptance run; this
+  session adds no device evidence.
