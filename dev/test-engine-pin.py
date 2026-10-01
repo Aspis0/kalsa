@@ -45,10 +45,13 @@ the manifest recorded once in memory — a mutated copy cannot choose the
 release it is judged against. Each must be red with its OWN failure line
 printed: a green run prints an `[ok]` line per field, so the token a
 mutation must show is the mismatch text, which only a red run prints.
-Every mutation reproduces the mistake it guards against, with the real
-numbers of the release the pin just left (v1.1.2); the cpu/vulkan sha256
-swap exchanges two digests the release actually published, the mistake
-only a control that reads the Windows rows can see.
+Every mutation reproduces a real mistake with real published numbers,
+never random digits: the file, size_bytes, sha256 and exe_sha256
+mutations plant v1.1.2's own values (the release the pin just left),
+the home mutation points FORK_BASE at v1.1.2's home with the row
+otherwise untouched (a half-edited repin), and the cpu/vulkan swap
+exchanges two digests this release itself published — the mistake only
+a control that reads the Windows rows can see.
 
 The anchor mutation is the other half: a copy of THIS file with RELEASE
 at v1.1.2, run live against the untouched rows. It must be red with the
@@ -94,6 +97,9 @@ V112_FILE = "kalsa-server-v1.1.2-bin-macos-arm64.tar.gz"
 V112_SIZE = "Some(11_207_047)"
 V112_SHA = "691943209c6461ade1faa5fd67fd6725c9e0007aa9792f0a7bd7d7c408cb6961"
 V112_EXE = "327fb363e5246284a74fe9ee7ed8ea70d121979d65a670caf1d0cdd838e96cde"
+V112_WIN_CPU_FILE = "kalsa-server-v1.1.2-bin-win-cpu-x64.zip"
+V112_WIN_CPU_SIZE = "Some(13_762_007)"
+V112_WIN_CPU_EXE = "a859190549212fae578e5c7298d0d9c9779c2f9f982a14291e9a5fd2a0e9d673"
 
 # name -> ([(needle, replacement), ...] — every needle must occur exactly
 #          once in assets.rs and all are applied in ONE pass, so a swap
@@ -144,6 +150,24 @@ MUTATIONS = {
         "against the vulkan digest and refused — but invisible to any check "
         "that reads only the macOS row: both digests are values this "
         "release published"),
+    "win-cpu-x64 file": (
+        [('        file: "kalsa-server-v1.1.4-bin-win-cpu-x64.zip",',
+          f'        file: "{V112_WIN_CPU_FILE}",')],
+        "win-cpu-x64 file: row",
+        "SILENT at runtime — the download verifies size/sha, not the name; "
+        "the old name gets looked for inside the new archive"),
+    "win-cpu-x64 size_bytes": (
+        [("        size_bytes: Some(14_487_114),",
+          f"        size_bytes: {V112_WIN_CPU_SIZE},")],
+        "win-cpu-x64 size_bytes: row",
+        "NOISY — store.rs's acquire verifies the download's size against it "
+        "and would already scream"),
+    "win-cpu-x64 exe_sha256": (
+        [('        exe_sha256: Some("a7ac3d1f81d44d927e5314b715580af6e9b40ca88a492cdca058a54af412ca26"),',
+          f'        exe_sha256: Some("{V112_WIN_CPU_EXE}"),')],
+        "win-cpu-x64 exe_sha256: row",
+        "SEMI-SILENT — the download never looks at it; marker.rs shouts "
+        "only at engine start"),
 }
 
 
@@ -334,10 +358,26 @@ def run_self(argv):
 def apply_at_once(text, swaps):
     """Every needle replaced in a single pass: chained str.replace calls
     would re-replace their own output, and a swap (A for B while B for A)
-    would come back unchanged."""
+    would come back unchanged. The single pass has its own trap — a needle
+    that is a prefix of another starves it in the leftmost-first
+    alternation — so every needle must be logged exactly once by the match
+    objects, or this refuses to hand back a copy that proves nothing."""
     mapping = dict(swaps)
     pattern = "|".join(re.escape(needle) for needle, _ in swaps)
-    return re.sub(pattern, lambda m: mapping[m.group(0)], text)
+    counts = {}
+
+    def sub(m):
+        counts[m.group(0)] = counts.get(m.group(0), 0) + 1
+        return mapping[m.group(0)]
+
+    out = re.sub(pattern, sub, text)
+    starved = [needle for needle, _ in swaps if counts.get(needle) != 1]
+    if starved:
+        raise SystemExit(f"apply_at_once: {len(starved)} needle(s) were not "
+                         "matched exactly once (one is likely a prefix of "
+                         "another and starved in the alternation): the "
+                         "mutation would prove nothing")
+    return out
 
 
 def run_mutations(assets_text, recorded_manifest_path):
