@@ -685,6 +685,12 @@ RAW_LOCAL is a no-op, the probe value is not logged and the flat VTCM fallback k
 gates first (coder on `spike/onecopy-hmx-raw`, then one audit by another model), push the new DSP .so with the host
 lib, then ONE S23 ABBA session gated on the `hvx-rawrow` path tag. Lead hypothesis: raw DMA row stride 18*n_k not
 128-B aligned on the ffn matvecs (38.6 of 54.7 ms/token).
+**S23 ABBA result (2026-10-01, `s23-onecopy-abba-df538c50c/REPORT.md`):** T two copies 22.10, B one-copy 15.58,
+P1 skip-dot 22.50, P2 no weight DMA 15.64, P4 no l2fetch 15.46, U uncached 15.57 tok/s (3 ABBA passes, gates OK,
+hvx-rawrow on every one-copy matvec, 0 flat fallback). The DMA hypothesis is REFUTED: the whole gap (~19.8 of 64.2
+ms/token) is the raw dot + its VTCM reads on 18-byte row strides; the simulator (raw ~= tiled compute) does not see
+it. KLD unchanged (0.004608 vs two copies 0.005313). NEXT: kernel fix - relayout raw rows in VTCM for the dot during
+the DMA (Exceptional Coder, spike branch). Side defect: `-p 32 -n 2` warmup ubatch -> `dsp-rsp INTERNAL-ERROR` abort.
 Gates fixed in `df538c50c` (pushed; audit `AUDIT-df538c50c.md`). Coordinator ruling on that audit: RAW_LOCAL is
 DROPPED from the session - the device and -HOST buffers are the same rpcmem system-heap allocation, so it cannot
 split the memory path (its comment at ggml-hexagon.cpp ~2270 is false; fix in the next commit on the branch). The
@@ -739,6 +745,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `36786856764`. OPEN, device must measure: with KV on host the engine keeps all attention (FA, q4_0 V, ubatch
   256) on the CPU: ~60 splits/ubatch; HTP prefill may lose to OpenCL. The lab spike that won ran FA off, f16 KV,
   ubatch 512. Also: the provenance script comment "integrity hash is NOT a witness" is false (npm pack reproduces it).
+- **S23 re-check of APK aea90427 (2026-10-01) FAILED differently:** no abort any more, but the lane-on load HANGS in
+  the first HTP prefill (1,660-token KV prefix): `dspqueue wait_signal_locked ... signal 2, Error 0xc` every ~1 s
+  forever (5,240 in 90 min, ~85 % CPU, ~13 %/h battery, no recovery), 2/2 cold launches; preceded by
+  `remote_handle64_invoke failed 0x80000414, method 3` on the dspqueue handle. Lane off route gpu PASSES (prefill
+  103 tok/s, 50.4 J/1k raw). Two defects: the DSP hang itself, and NO timeout/fallback in the lane (a user's phone
+  would burn silently). Diagnosis + fix delegated.
 
 ### Pairing: iroh and invite links
 

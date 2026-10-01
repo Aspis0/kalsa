@@ -721,7 +721,8 @@ backend (app CI has no Hexagon SDK: "building CPU-only"; the S23 lane degrades w
 FAILED: with the lane on the governor's prefill context puts the V cache in an HTP0 buffer and the load aborts on
 SET_ROWS (`s23-npu-lane-c26ba8bc/REPORT.md`). Fixed in binding `17446ac4`/`c8471449` (prefill KV on host), app
 `aea90427` (pin + `npu_lane` in the plan log), APK run `36786856764`; the S23 re-check must also show whether HTP
-prefill with CPU attention still beats OpenCL. Lane stays default off. Design and steps:
+prefill with CPU attention still beats OpenCL. Lane stays default off. Re-check 2026-10-01: no abort, but the lane-on load hangs
+forever on the first HTP prefill (dspqueue response timeout loop, battery burn, no fallback); lane off passes. Design and steps:
 `governor-npu-prefill/DESIGN.md` (`2ac99cd5`).
 
 **One-copy CPU + NPU: correct on S23, slow as built on 8 Elite.** The raw-Q4_0 layout fix passes
@@ -792,6 +793,8 @@ fallback to flat keeps the probe). Those gates are fixed before the S23 session.
 the raw DMA row stride `18*n_k`, not 128-byte aligned on the ffn matvecs; the probe arm `=2` decides.
 Gates fixed and pushed in `df538c50c`; its audit showed RAW_LOCAL cannot split the memory path (same rpcmem heap
 as the host buffer), so the S23 session runs PROBE=1/2/4 and HOSTBUF_UNCACHED only.
+S23 ABBA 2026-10-01: skip-dot reaches two-copy speed (22.50 vs 22.10) while no-weight-DMA does not move (15.64 vs
+15.58): the one-copy gap is the raw dot kernel, not memory. Next is a VTCM relayout for the dot.
 Heat per decoded token on the same weights (n = 2 per arm, descriptive): speed-matched A pair (12.27 vs
 12.21 tok/s) DSP skin **0.58** vs CPU **0.88** C·s/token (-35 %), battery -13 %; A+B means mix unequal speeds
 (CPU-B 9.60). The area includes load, warmup and a 120 s idle tail. Two copies **0.28** at 21.5 tok/s.
