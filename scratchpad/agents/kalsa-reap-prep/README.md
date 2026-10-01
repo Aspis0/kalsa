@@ -96,12 +96,22 @@ headroom**. No pruned dirs, no BF16 GGUFs, no quants on the pod anymore.
   (`eval/toolcalls.py`; LFM's `<|tool_call_start|>[name(args)]<|tool_call_end|>`
   read from its GGUF, Qwen's `<tool_call>{json}</tool_call>`; args compared
   on canonicalised, order-insensitive JSON), **thinking ON for every model
-  (product parity), n_predict 4096**, prompts sent through the server's
-  `/v1/chat/completions` so the SERVER owns template + tokenization (single
-  BOS; the raw-prompt path doubled BOS — Fable-2), raw model output stored
-  per item, per-item JSON.
+  (product parity), math datasets at n_predict 8192** (the A40 probe cut
+  reasoning models mid-think at 4096; tools stay at 4096), prompts sent
+  through the server's `/v1/chat/completions` so the SERVER owns template +
+  tokenization (single BOS; the raw-prompt path doubled BOS — Fable-2), raw
+  model output stored per item, per-item JSON.
+- Added 2026-10-01 (DESIGN §4 item 3, details in `PHASE0-EVALS.md`):
+  HumanEval+ (`eval/run_humaneval.py`, sandboxed subprocess execution, never
+  exec in the harness), FLORES-200 devtest EN→{IT,FR,ES,ZH} chrF++ +
+  wrong-language rate (`eval/run_flores.py`, fastText lid.176), GSM8K-Italian
+  100 items (`eval/gsm8kit-100.jsonl` via `--dataset gsm8kit`), the S1
+  stop-rule check (`eval/check_stop_rule.py`, GO/STOP fail-closed), and the
+  holdout builders (`eval/build_{humaneval,flores,gsm8kit}_holdout.py`,
+  `eval/fetch_lid176.sh`).
 - CIs: `eval/bootstrap_ci.py`, paired percentile bootstrap on every metric
-  (per-chunk for bpb, per-item for gsm8k/tools).
+  (per-chunk for bpb, per-item for gsm8k/tools; also the per-sentence chrF
+  and per-item wrong-language units — the FLORES JSONs are bpb-shaped).
 - Thresholds and the verdict rule: `docs/EVAL-GATE.md`.
 
 ## One-shot GPU gate probe (owner cap $10) — podprobe/

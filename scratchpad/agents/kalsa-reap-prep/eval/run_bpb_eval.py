@@ -20,6 +20,12 @@ the paired diff.
 Usage: run_bpb_eval.py --llama <build/bin> --model <gguf> --tokenizer <dir>
                        --corpus <corpus_dir> --out bpb.json
                        [--langs en,it,es,fr,zh] [--ctx 1024] [--ngl 99]
+                       [--override-kv KEY=VALUE]...
+
+--override-kv is passed through to llama-perplexity verbatim, so an arm's
+expert-count overrides apply to bpb too (30_gate.sh bug of 2026-09-30: bpb
+ran at the model's DEFAULT expert count while gsm8k/tools ran at the arm's —
+REPORT.md, gate_probe_a40_2026-10-01).
 """
 
 import argparse
@@ -37,10 +43,11 @@ CHUNK_PPL_RE = re.compile(r"\[(\d+)\]([0-9.]+)")
 
 
 def run_perplexity(binary: str, model: str, text_file: pathlib.Path,
-                   ctx: int, ngl: int) -> tuple[float, list[float]]:
+                   ctx: int, ngl: int, override_kv: list[str]) -> tuple[float, list[float]]:
     out = subprocess.run(
         [binary, "-m", model, "-f", str(text_file), "--no-warmup",
-         "-ngl", str(ngl), "-c", str(ctx), "-b", str(2 * ctx)],
+         "-ngl", str(ngl), "-c", str(ctx), "-b", str(2 * ctx)]
+        + [x for kv in override_kv for x in ("--override-kv", kv)],
         capture_output=True, text=True, timeout=7200)
     log = out.stdout + out.stderr
     if out.returncode != 0 or "you need at least" in log:
@@ -65,10 +72,15 @@ def main() -> int:
                     help="per-chunk context; the tool needs >= 2*ctx tokens "
                          "per run, so this is the whole-language window size")
     ap.add_argument("--ngl", type=int, default=99)
+    ap.add_argument("--override-kv", action="append", default=[],
+                    metavar="KEY=VALUE",
+                    help="passed to llama-perplexity verbatim (arm expert overrides)")
     a = ap.parse_args()
 
     tok = AutoTokenizer.from_pretrained(a.tokenizer)
     binary = str(pathlib.Path(a.llama) / "llama-perplexity")
+    if a.override_kv:
+        print("bpb model overrides (passed to llama-perplexity):", a.override_kv)
     corpus = pathlib.Path(a.corpus)
     tmp = pathlib.Path(f"/tmp/kalsa-bpb-{pathlib.Path(a.model).stem}")
     tmp.parent.mkdir(exist_ok=True)
@@ -87,7 +99,8 @@ def main() -> int:
         work = tmp.with_suffix(f".{lang}.txt")
         work.write_text(text, encoding="utf-8")
         print(f"{lang}: {len(docs)} docs, {n_bytes} bytes, {n_tok} tokens", flush=True)
-        ppl, chunk_ppls = run_perplexity(binary, a.model, work, a.ctx, a.ngl)
+        ppl, chunk_ppls = run_perplexity(binary, a.model, work, a.ctx, a.ngl,
+                                         a.override_kv)
         scale = n_tok / n_bytes
         chunk_bpbs = [round(math.log2(p) * scale, 5) for p in chunk_ppls]
         overall = math.log2(ppl) * scale

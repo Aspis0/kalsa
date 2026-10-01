@@ -68,3 +68,33 @@ from 0 is not a win.
 **Verdict rule**: if no artifact passes all seven, the default is `no-ship`
 and LFM2.5-2.6B stays the lineup — the gate exists precisely to prevent
 shipping a big model that does not clear the small one by a wide margin.
+
+## Phase-0 additions (2026-10-01, DESIGN §4 item 3)
+
+Three generative evals close the gap that mattered (§5.3: never gate on bpb
+alone — a random 50 % prune looked fine on perplexity and lost 58 points of
+pass@1). Sources, licences and sha256 pins: `PHASE0-EVALS.md`.
+
+| metric | instrument | pairing units |
+|---|---|---|
+| HumanEval+ pass@1 (164 problems, greedy, thinking on) | `eval/run_humaneval.py` over `eval/humaneval-164.jsonl` (EvalPlus base+plus tests); one subprocess per problem, `python -I`, temp dir, sockets disabled, 60 s timeout — the harness process never runs model code | per-item 0/1, `bootstrap_ci.py` unchanged |
+| FLORES-200 devtest EN→{IT,FR,ES,ZH} (100 sentences, first slice) | `eval/run_flores.py`: chrF++ via sacrebleu + wrong-language rate via fastText lid.176 (`~/kalsa-models/lid.176.bin`); LID self-check on the gold refs (≥ 90 %) else the run fails | per-sentence chrF and per-item 0/1, both bpb-shaped — `bootstrap_ci.py --bpb` directly |
+| GSM8K-Italian pass@1 (100 items, seed 42) | `eval/gsm8kit-100.jsonl` (Eurolingua/gsm8kx test split, MIT) through `run_gen_eval.py --dataset gsm8kit` — same last-number scorer as GSM8K | per-item 0/1, unchanged |
+
+Generation-cap fix (A40 REPORT reading 3): math datasets run at
+**n_predict 8192** (30_gate.sh, `GSM8K_MAX_TOKENS`); tools stay at 4096. The
+A40 raw generations cannot be re-scored uncapped — truncated items stored (all
+but 2-4 per arm) no thinking text (`eval/rescore_gsm8k_raw.py` output in
+PHASE0-EVALS.md), so the probe's GSM8K numbers keep their finish-rate
+confound until regeneration.
+
+bpb now receives the arm's `--override-kv` flags (`30_gate.sh` replay +
+`run_bpb_eval.py --override-kv`); the A40 probe's bpb rows for the k4 arms
+were measured at the model DEFAULT expert count — treat those cells as
+"default-k" numbers.
+
+Stop rule (DESIGN §4 S1), fail-closed: `eval/check_stop_rule.py --arm <dir>
+--base <base dir>` prints each check with its numbers and exits 0 = GO /
+1 = STOP. Rules for the 128-expert arms: IT bpb > 0.75, or HumanEval+ <
+base − 15 pp, or wrong-language > 5 % in any pair. A missing JSON is a STOP.
+

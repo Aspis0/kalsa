@@ -24,10 +24,15 @@ Product-parity conditions (owner + Fable-2/3 reviews, 2026-09-30):
   tools match on canonicalised JSON (order-insensitive, type-lenient
     scalars): eval/toolcalls.py args_match — never str(args).
 
-Usage: run_gen_eval.py --dataset gsm8k|tools --holdout <jsonl> --out r.json
+Usage: run_gen_eval.py --dataset gsm8k|gsm8kit|tools --holdout <jsonl> --out r.json
                        (--server URL [--max-tokens 4096] |
                         --llama <bin dir> --model <gguf> --tokenizer <dir>)
                        [--limit N]
+
+gsm8kit shares the gsm8k scorer (last-number exact match); the holdout is
+Italian (eval/gsm8kit-100.jsonl, Eurolingua/gsm8kx, MIT). The A40 probe cut
+reasoning models at 4096 tokens (REPORT.md reading 3), so the gate passes
+--max-tokens 8192 for the math datasets.
 """
 
 import argparse
@@ -40,7 +45,6 @@ import sys
 import urllib.request
 
 from toolcalls import args_match, parse_tool_calls
-from transformers import AutoTokenizer
 
 NUMBER_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 THINK_RE = re.compile(r"<think>.*?</think>", re.S)
@@ -74,7 +78,7 @@ def generate(binary: str, model: str, prompt: str, n: int) -> dict:
     tmp.write_text(prompt, encoding="utf-8")
     out = subprocess.run(
         [binary, "-m", model, "-f", str(tmp), "-n", str(n), "--temp", "0",
-         "--no-warmup", "-c", "8192", "--single-turn", "--simple-io",
+         "--no-warmup", "-c", str(n + 2048), "--single-turn", "--simple-io",
          "--no-display-prompt"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=3600)
     if out.returncode != 0:
@@ -143,7 +147,7 @@ def extract_tools(item: dict) -> list | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", choices=["gsm8k", "tools"], required=True)
+    ap.add_argument("--dataset", choices=["gsm8k", "gsm8kit", "tools"], required=True)
     ap.add_argument("--holdout", required=True)
     ap.add_argument("--server", help="llama-server base URL (probe path)")
     ap.add_argument("--llama", help="llama.cpp build/bin dir (CLI path)")
@@ -159,6 +163,7 @@ def main() -> int:
     def gen(messages: list, tools: list | None = None) -> dict:
         if a.server:
             return chat_completion(a.server, messages, a.max_tokens, tools)
+        from transformers import AutoTokenizer  # CLI path only; server needs no torch stack
         prompt = AutoTokenizer.from_pretrained(a.tokenizer).apply_chat_template(
             messages, add_generation_prompt=True, tokenize=False,
             enable_thinking=True)
@@ -170,7 +175,7 @@ def main() -> int:
 
     results = []
     for i, item in enumerate(items):
-        if a.dataset == "gsm8k":
+        if a.dataset in ("gsm8k", "gsm8kit"):
             r = gen([{"role": "user", "content": item["question"]}])
             hit = score_text(r["content"], item)
         else:

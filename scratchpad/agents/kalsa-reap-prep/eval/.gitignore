@@ -1,0 +1,4 @@
+# humaneval-164.jsonl is ~11 MB (EvalPlus plus-tests) — over the lab's
+# 5 MB git limit. Rebuild it: python3 build_humaneval_holdout.py
+humaneval-164.jsonl
+__pycache__/

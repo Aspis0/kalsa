@@ -21,8 +21,15 @@ if [ ! -x "$PY" ]; then
   # the image's torch lives in python3.12; the default python3 has none
   "${POD_PYBASE:-python3.12}" -m venv --system-site-packages "$ROOT/.venv-probe"
 fi
+# fasttext builds from source (no wheels): needs a C++ compiler before pip.
+# Runpod cuda images ship gcc, but the earlier probe apt-installed it only
+# for cmake — install it here so the pip line cannot fail on a bare image.
+# numpy<2: fasttext 0.9.3 predict() calls np.array(..., copy=False), removed
+# in numpy 2.0 (observed on the Mac, 2026-10-01).
+apt-get update -qq >/dev/null 2>&1 || true
+apt-get install -y -qq build-essential >/dev/null 2>&1 || true
 "$ROOT/.venv-probe/bin/pip" install --quiet --disable-pip-version-check \
-  "transformers==5.16.0" "sentencepiece"
+  "transformers==5.16.0" "sentencepiece" "sacrebleu" "fasttext" "numpy<2"
 # --ignore-installed: a system-site hub (e.g. the bundle fetch) satisfies pip
 # but leaves no venv/bin/hf, and the container disk is wiped on every restart
 "$ROOT/.venv-probe/bin/pip" install --quiet --disable-pip-version-check \
@@ -30,6 +37,10 @@ fi
 test -x "$ROOT/.venv-probe/bin/hf" || { echo "00: venv has no hf CLI" >&2; exit 1; }
 "$PY" -c "import torch; assert torch.cuda.is_available()" \
   || { echo "00: no CUDA visible — wrong image?" >&2; exit 1; }
+
+# language-ID model for the FLORES wrong-language metric (131 MB, kept out
+# of git; fetch_lid176.sh pins the sha256 and skips itself when present)
+bash "$EVAL/fetch_lid176.sh" "$HOME/kalsa-models"
 
 # the fork is private: the coordinator rsyncs a clone (owned by the Mac uid)
 git config --global --add safe.directory "$LLAMA"
