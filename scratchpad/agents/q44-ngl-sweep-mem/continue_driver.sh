@@ -12,6 +12,9 @@ PIN_IMPL=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807
 PIN_OCL=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
 PIN_MODEL=b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4
 
+# Upstream b11304 renamed llama-bench's -nr to --repack <0|1>; detect the spelling from the binary itself.
+if LD_LIBRARY_PATH="$BINDIR" "$BIN" --help 2>&1 | grep -q -e '--repack'; then NR_FLAG='--repack 0'; else NR_FLAG='-nr'; fi
+
 mkdir -p "$BASE/points"
 echo $$ > "$BASE/driver.pid"
 
@@ -230,7 +233,7 @@ run_point() {
     echo "BIN=$BIN" > "$pt/cmd.txt"
     echo "LD_LIBRARY_PATH=$BINDIR" >> "$pt/cmd.txt"
     echo "GGML_OPENCL_LOG_ALLOC=1" >> "$pt/cmd.txt"
-    echo "llama-bench -m $MODEL -ngl $ngl -nr -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl" >> "$pt/cmd.txt"
+    echo "llama-bench -m $MODEL -ngl $ngl $NR_FLAG -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl" >> "$pt/cmd.txt"
     echo "stub_sha=$PIN_STUB" >> "$pt/cmd.txt"
     echo "impl_sha=$PIN_IMPL" >> "$pt/cmd.txt"
     echo "ocl_sha=$PIN_OCL" >> "$pt/cmd.txt"
@@ -251,7 +254,7 @@ run_point() {
     unset GGML_OPENCL_CVT_VARIANT
 
     log "launch llama-bench ngl=$ngl"
-    ./llama-bench -m "$MODEL" -ngl "$ngl" -nr -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl > "$pt/stdout.jsonl" 2> "$pt/stderr.txt" &
+    ./llama-bench -m "$MODEL" -ngl "$ngl" $NR_FLAG -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl > "$pt/stdout.jsonl" 2> "$pt/stderr.txt" &
     BPID=$!
     echo "$BPID" > "$pt/bench.pid"
     log "bench pid=$BPID ngl=$ngl"
@@ -320,7 +323,7 @@ probe_N() {
     cd "$BINDIR" || exit 90
     export LD_LIBRARY_PATH="$BINDIR"
     export GGML_OPENCL_LOG_ALLOC=1
-    ./llama-bench -m "$MODEL" -ngl 1 -nr -fa off -t 4 -p 1 -n 0 -r 1 --no-warmup -v -o jsonl > "$pt/stdout.jsonl" 2> "$pt/stderr.txt"
+    ./llama-bench -m "$MODEL" -ngl 1 $NR_FLAG -fa off -t 4 -p 1 -n 0 -r 1 --no-warmup -v -o jsonl > "$pt/stdout.jsonl" 2> "$pt/stderr.txt"
     echo $? > "$pt/rc.txt"
     parse_N_from_err "$pt/stderr.txt"
 }
@@ -372,7 +375,7 @@ echo "bindir=$BINDIR" >> "$BASE/PINS.txt"
 echo "bin=$BIN" >> "$BASE/PINS.txt"
 echo "model=$MODEL" >> "$BASE/PINS.txt"
 echo "threads=4" >> "$BASE/PINS.txt"
-echo "flags=-nr -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl (ngl0 had no -v)" >> "$BASE/PINS.txt"
+echo "flags=$NR_FLAG -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl (ngl0 had no -v)" >> "$BASE/PINS.txt"
 echo "GGML_OPENCL_LOG_ALLOC=1" >> "$BASE/PINS.txt"
 ls -l "$MODEL" > "$BASE/model_ls.txt"
 stat -c %s "$MODEL" > "$BASE/model_bytes.txt" 2>/dev/null

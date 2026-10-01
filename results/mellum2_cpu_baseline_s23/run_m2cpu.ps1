@@ -173,6 +173,7 @@ if (Test-Path $outLocal) {
                 if ($j.n_gen -eq 16 -and $j.n_prompt -eq 0) {
                     $tg = [double]$j.avg_ts
                     if ($j.PSObject.Properties.Name -contains "no_repack") { $nr = $j.no_repack }
+                    elseif ($j.PSObject.Properties.Name -contains "repack") { $nr = -not [bool]$j.repack }
                     $ngl = $j.n_gpu_layers
                     $nth = $j.n_threads
                     $fa = $j.flash_attn
@@ -186,12 +187,12 @@ if ($nth -ne 4) { throw "n_threads=$nth != 4" }
 if ($fa -ne 0) { throw "flash_attn=$fa != 0" }
 if ($ngl -ne 0) { throw "n_gpu_layers=$ngl != 0" }
 $nrOk = ($nr -eq $true -or [string]$nr -eq "True" -or [string]$nr -eq "true" -or [string]$nr -eq "1")
-if (-not $nrOk) { throw "no_repack=$nr — -nr mandatory" }
+if (-not $nrOk) { throw "no_repack=$nr — -nr/--repack 0 mandatory" }
 
 $overCap = ($wall -ge $WallCapSec)
 $rec = [ordered]@{
     tag = $Tag
-    extra = "-ngl 0 -nr"
+    extra = "-ngl 0 -nr|--repack 0"
     n = 16
     rc = $rc
     tg = $tg

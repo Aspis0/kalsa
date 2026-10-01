@@ -31,6 +31,18 @@ def adb(args: list[str], timeout: float = 30.0) -> subprocess.CompletedProcess[s
     return result
 
 
+_NR_ARGV: list[str] | None = None
+
+
+def no_repack_argv() -> list[str]:
+    global _NR_ARGV
+    if _NR_ARGV is None:
+        # Upstream b11304 renamed -nr to --repack <0|1>; ask the on-device binary which it speaks.
+        out = adb(["shell", f"LD_LIBRARY_PATH=/data/local/tmp/llamabench {BIN} --help 2>&1 || true"])
+        _NR_ARGV = ["--repack", "0"] if "--repack" in out.stdout + out.stderr else ["-nr", "1"]
+    return _NR_ARGV
+
+
 def heartbeat(stop: threading.Event) -> None:
     while not stop.wait(25.0):
         try:
@@ -92,8 +104,7 @@ def main() -> int:
         "0",
         "-lm",
         "mmap",
-        "-nr",
-        "1",
+        *no_repack_argv(),
     ]
 
     with launcher_stdout.open("w", encoding="utf-8", newline="\n") as out, launcher_stderr.open("w", encoding="utf-8", newline="\n") as err:

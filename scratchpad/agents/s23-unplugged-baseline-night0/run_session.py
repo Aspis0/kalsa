@@ -106,12 +106,14 @@ def cmd_ops(op: str) -> str:
     return SETUP + f"exec taskset ff ./test-backend-ops -o {op}\n"
 
 
+# b11304 renamed llama-bench's -nr to --repack <0|1>; the emitted cell script picks the spelling from --help.
 def cmd_bench(model: str, ngl: int, p: int, n: int) -> str:
     return (
         SETUP
+        + "if ./llama-bench --help 2>&1 | grep -q -e '--repack'; then NR='--repack 0'; else NR='-nr'; fi\n"
         + "exec taskset ff ./llama-bench"
         + f" -m {model} -p {p} -n {n} -r 1 --no-warmup -t 8 -o jsonl"
-        + f" -ngl {ngl} -nr -fa off\n"
+        + f" -ngl {ngl} $NR -fa off\n"
     )
 
 

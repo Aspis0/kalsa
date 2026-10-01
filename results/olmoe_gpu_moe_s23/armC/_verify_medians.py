@@ -21,7 +21,7 @@ for r in rows:
     else:
         assert int(j["n_gpu_layers"])==0
         C.append(float(r["tg512"])); tC.append(float(r["temp_peak"]))
-    assert int(j["n_threads"])==4 and int(j["flash_attn"])==0 and j["no_repack"] is True
+    assert int(j["n_threads"])==4 and int(j["flash_attn"])==0 and (j["no_repack"] is True if "no_repack" in j else ("repack" in j and j["repack"] is False))
     assert j["n_gen"]==512 and j["n_prompt"]==0
     assert j["build_commit"].startswith("7686ca6fc")
 def med(x):

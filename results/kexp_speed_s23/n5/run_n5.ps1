@@ -179,6 +179,7 @@ function Parse-CellJsonl([string]$Path) {
     if (-not $row) { return $null }
     $nr = $null
     if ($row.PSObject.Properties.Name -contains "no_repack") { $nr = $row.no_repack }
+    elseif ($row.PSObject.Properties.Name -contains "repack") { $nr = -not [bool]$row.repack }
     return [pscustomobject]@{
         avg_ts = [double]$row.avg_ts
         no_repack = $nr
@@ -822,7 +823,7 @@ while ($true) {
                         if (-not (Test-JsonProp $parsed $need)) { Abort-N5 "jsonl missing $need on $tag" }
                     }
                     if (-not (Test-NoRepackTrue $parsed.no_repack)) {
-                        Abort-N5 "no_repack=$($parsed.no_repack) on $tag -- -nr mandatory on A/B/C"
+                        Abort-N5 "no_repack=$($parsed.no_repack) on $tag -- -nr/--repack 0 mandatory on A/B/C"
                     }
                     if ([int]$parsed.n_threads -ne 4) { Abort-N5 "n_threads=$($parsed.n_threads) != 4 on $tag" }
                     if ([int]$parsed.flash_attn -ne 0) { Abort-N5 "flash_attn=$($parsed.flash_attn) != 0 on $tag" }

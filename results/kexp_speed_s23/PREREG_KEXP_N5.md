@@ -12,6 +12,8 @@
 
 **Binary / flags (frozen, v1.2):** the deployed head-build set (engine `7686ca6fc`, device-verified same-day: MUL_MAT_ID 407/407, MUL_MAT 925/925, on-device sha chain in `results/q17_verify_s23/`): `libllama-bench-impl.so` `8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807` with **`-nr` (`--no-repack`) MANDATORY on all three ship arms** (the productized, device-smoked equivalent of the retired noextra hack; the `no_repack` field in every cell's jsonl is the per-cell evidence). `libggml-opencl.so` `f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d` (kalsakernel-v4 + #26476 + barrier-safe port + #17 host fixes; q2_K/q3_K MoE + q6_K dense). `llama-bench` stub `b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c` (unchanged from v1.1). Same `.so` on A, B, and C. `-fa off`. `GGML_OPENCL_LOG_ALLOC` unset — **evidenced**: archive `printenv` / adb `env | grep GGML_OPENCL` (or equivalent) under `results/kexp_speed_s23/probes/` at session start; empty/absent is the pass. USB unplugged; TLS serial. Stock extra_bufts (`bad17952…`) is **forbidden on A/B/C**. Optional arm D (after the bag) is the only permitted use of that binary.
 
+Engines at or after upstream b11304 (engine main e3c43a9db): `-nr` is spelled `--repack 0`; the jsonl field is `repack:false`.
+
 ### Changelog
 
 - **v1.2 (2026-08-22, pre-run, before any block):** binary re-pin, forced by

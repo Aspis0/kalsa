@@ -11,6 +11,8 @@ cd "$D" || exit 2
 export ADSP_LIBRARY_PATH=$D/dsp
 export GGML_HEXAGON_NDEV=1
 [ -n "$OC_LD" ] && export LD_LIBRARY_PATH=$OC_LD
+# Upstream b11304 renamed -nr to --repack <0|1>; the binary's help says which it speaks.
+if ./bin/llama-bench --help 2>&1 | grep -q -e '--repack'; then NR='--repack 0'; else NR='-nr'; fi
 
 mark() { echo "$* $(date +%s)" >> "$M"; }
 
@@ -146,7 +148,7 @@ decode() { # <round> <arm>
   tag="D$1-$2"
   case "$2" in
     d-cpu)    unit "$tag" 200 ./bin/llama-bench $BF -p 0 -n 256 -r 3 -dev none -ngl 0 ;;
-    d-cpu-nr) unit "$tag" 200 ./bin/llama-bench $BF -p 0 -n 256 -r 3 -dev none -ngl 0 -nr ;;
+    d-cpu-nr) unit "$tag" 200 ./bin/llama-bench $BF -p 0 -n 256 -r 3 -dev none -ngl 0 $NR ;;
     d-host)   [ -n "$HOSTB" ] && unit "$tag" 240 env $ENV_ONE ./bin/llama-bench $BF -p 0 -n 256 -r 3 -dev HTP0 -ngl 99 -nkvo 1 -ot "$OT_ALL" ;;
   esac
 }

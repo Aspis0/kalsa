@@ -39,6 +39,18 @@ def adb(args: list[str], timeout: float = 30.0) -> subprocess.CompletedProcess[s
     return result
 
 
+_NR_ARGV: list[str] | None = None
+
+
+def no_repack_argv() -> list[str]:
+    global _NR_ARGV
+    if _NR_ARGV is None:
+        # Upstream b11304 renamed -nr to --repack <0|1>; ask the on-device binary which it speaks.
+        out = adb(["shell", f"LD_LIBRARY_PATH={BENCH_LD_LIBRARY_PATH} {BENCH} --help 2>&1 || true"])
+        _NR_ARGV = ["--repack", "0"] if "--repack" in out.stdout + out.stderr else ["-nr"]
+    return _NR_ARGV
+
+
 def battery_values(text: str) -> dict[str, int | bool | None]:
     def integer(key: str) -> int | None:
         match = re.search(rf"^  {re.escape(key)}:\s*(-?\d+)", text, re.MULTILINE)
@@ -128,7 +140,7 @@ def run_one(n_prompt: int, rep: int, last_model_touch: float, idle_before_s: flo
     workload = [
         "/system/bin/env", f"LD_LIBRARY_PATH={BENCH_LD_LIBRARY_PATH}", BENCH,
         "-m", MODEL, "-p", str(n_prompt), "-n", "0", "-r", "1", "--no-warmup",
-        "-t", "8", "-o", "jsonl", "-ngl", "0", "-mmp", "1", "-nr",
+        "-t", "8", "-o", "jsonl", "-ngl", "0", "-mmp", "1", *no_repack_argv(),
     ]
     command = [
         sys.executable, str(LAUNCHER), "--serial", SERIAL, "--tag", tag,

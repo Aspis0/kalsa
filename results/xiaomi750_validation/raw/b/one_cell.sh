@@ -20,5 +20,7 @@ OUT="logs/${TAG}.out"
 ERR="logs/${TAG}.err"
 RC="logs/${TAG}.rc"
 rm -f "$RC"
-taskset ff ./llama-bench -m "$MODEL" -nr -fa off -t 4 -o jsonl -p 128 -n 128 -r 1 "$@" > "$OUT" 2> "$ERR"
+# Upstream b11304 renamed -nr to --repack <0|1>; the binary's help says which it speaks.
+if ./llama-bench --help 2>&1 | grep -q -e '--repack'; then NR_FLAG='--repack 0'; else NR_FLAG='-nr'; fi
+taskset ff ./llama-bench -m "$MODEL" $NR_FLAG -fa off -t 4 -o jsonl -p 128 -n 128 -r 1 "$@" > "$OUT" 2> "$ERR"
 echo $? > "$RC"

@@ -9,6 +9,8 @@ DEADLINE="$1"
 cd "$D" || exit 2
 export ADSP_LIBRARY_PATH=$D/dsp
 export GGML_HEXAGON_NDEV=1
+# Upstream b11304 renamed -nr to --repack <0|1>; the binary's help says which it speaks.
+if ./bin/llama-bench --help 2>&1 | grep -q -e '--repack'; then NR='--repack 0'; else NR='-nr'; fi
 
 mark() { echo "$* $(date +%s)" >> "$M"; }
 hal_dump() { dumpsys thermalservice 2>/dev/null; }
@@ -59,7 +61,7 @@ BF="-m $D/ship.gguf -lm none -fa 1 -t 6 -o jsonl -v"
 
 mark "H A1_start deadline=$DEADLINE"
 unit A1-d-cpu    60 ./bin/llama-bench $BF -p 0 -n 128 -r 2 -dev none -ngl 0
-unit A1-d-cpu-nr 60 ./bin/llama-bench $BF -p 0 -n 128 -r 2 -dev none -ngl 0 -nr
+unit A1-d-cpu-nr 60 ./bin/llama-bench $BF -p 0 -n 128 -r 2 -dev none -ngl 0 $NR
 unit A1-d-host   60 env $ONE ./bin/llama-bench $BF -p 0 -n 128 -r 2 -dev HTP0 -ngl 99 -nkvo 1 -ot '.*=HTP0-HOST'
 unit A1-b512     120 env $ONE ./bin/llama-bench $BF -p 512 -n 0 -r 3 -b 2048 -ub 1024 -dev HTP0 -ngl 99 -ot "$P5"
 unit A1-c2048    90 ./bin/llama-bench $BF -p 2048 -n 0 -r 2 -b 2048 -ub 1024 -dev none -ngl 0

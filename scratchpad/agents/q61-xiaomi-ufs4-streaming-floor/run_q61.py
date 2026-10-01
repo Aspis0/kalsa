@@ -61,6 +61,18 @@ def shell(command: str, timeout: float = 30.0, allow_nonzero: bool = False) -> s
     return adb(["shell", command], timeout=timeout, allow_nonzero=allow_nonzero)
 
 
+_NR_ARGV: list[str] | None = None
+
+
+def no_repack_argv() -> list[str]:
+    global _NR_ARGV
+    if _NR_ARGV is None:
+        # Upstream b11304 renamed -nr to --repack <0|1>; ask the on-device binary which it speaks.
+        out = shell(f"LD_LIBRARY_PATH={BENCH_LD} {BENCH} --help 2>&1 || true", allow_nonzero=True)
+        _NR_ARGV = ["--repack", "0"] if "--repack" in out.stdout + out.stderr else ["-nr"]
+    return _NR_ARGV
+
+
 def check_state() -> None:
     result = adb(["get-state"], timeout=15.0)
     if result.stdout.strip() != "device":
@@ -192,7 +204,7 @@ def run_one(n_prompt: int, rep: int, idle_before_s: float) -> tuple[dict[str, ob
     workload = [
         "/system/bin/env", f"LD_LIBRARY_PATH={BENCH_LD}", BENCH,
         "-m", MODEL, "-p", str(n_prompt), "-n", "0", "-r", "1", "--no-warmup",
-        "-t", "8", "-o", "jsonl", "--progress", "-ngl", "0", "-mmp", "1", "-nr",
+        "-t", "8", "-o", "jsonl", "--progress", "-ngl", "0", "-mmp", "1", *no_repack_argv(),
     ]
     command = [
         sys.executable, str(LAUNCHER), "--serial", SERIAL, "--tag", tag,
