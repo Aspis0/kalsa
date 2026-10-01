@@ -208,7 +208,7 @@ fn sixteen_gigabytes_picks_a_downloadable_row_whose_plan_matches_its_row() {
     // its own speed line — at this machine's 85 GB/s the 12B predicts 7.1
     // tok/s, under the small-dense 10, so the tier goes to the E4B — and
     // the pick carries the file, size and digest verified against the
-    // pinned commit.
+    // pinned commit — and, this row shipping one, the drafter beside it.
     match choose(&input(16, true)) {
         Decision::Pick(selection) => {
             assert_eq!(selection.repo, "google/gemma-4-E4B-it");
@@ -224,6 +224,19 @@ fn sixteen_gigabytes_picks_a_downloadable_row_whose_plan_matches_its_row() {
                 plan.sha256,
                 "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87"
             );
+            // The drafter rides this plan the way the 12B's rides its own:
+            // its own file and bytes in the fetch, its bytes in the fit.
+            let drafter = plan
+                .drafter
+                .as_ref()
+                .expect("the plan fetches the row's drafter");
+            assert!(
+                drafter.url.ends_with("/mtp-gemma-4-E4B-it-Q8_0.gguf"),
+                "{}",
+                drafter.url
+            );
+            assert_eq!(drafter.bytes, 98_653_280);
+            assert_eq!(selection.footprint.drafter_bytes, 98_653_280);
         }
         other => panic!("expected a pick, got {other:?}"),
     }

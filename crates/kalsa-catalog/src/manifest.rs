@@ -646,7 +646,19 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 4_977_171_584,
             sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
         },
-        drafter: None,
+        // The drafter (2026-10-01), pinned the way the 12B's is: the MTP
+        // head for this row, one file at ggml-org at the commit below. Its
+        // local copy (`~/lab/spec/dl/`) is 98_653_280 bytes and hashes to
+        // the sha256 below. Charged to the fit and the download total, not
+        // to the decode traffic — the row's rates are no-spec figures, and
+        // pricing the drafter's reads belongs with the launch that runs one.
+        drafter: Some(GgufSource {
+            repo: "ggml-org/gemma-4-E4B-it-GGUF",
+            commit: "b8093469224f83f5c38f691eb906c380e9e63114",
+            file: "mtp-gemma-4-E4B-it-Q8_0.gguf",
+            bytes: 98_653_280,
+            sha256: "f38ae62962657c7a6303c49bbb147e9ae23634e911cfa532fac0818c2e18b665",
+        }),
         q8: None,
     },
     // ── Alibaba Qwen 3.6, verified against Hugging Face on 2026-09-16 ───────

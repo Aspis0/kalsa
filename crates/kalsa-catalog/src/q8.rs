@@ -300,11 +300,14 @@ mod tests {
     #[test]
     fn a_row_without_a_drafter_carries_none_through_the_whole_plan() {
         // Every other row runs alone: no placeholder drafter in any
-        // candidate, whatever the rule does to the Gemma row beside them.
+        // candidate, whatever the rule does to the Gemma rows beside them.
         let candidates = resolved(&mac(64, 400.0));
         for other in candidates
             .iter()
-            .filter(|candidate| candidate.entry.repo != "google/gemma-4-12B-it")
+            .filter(|candidate| {
+                candidate.entry.repo != "google/gemma-4-12B-it"
+                    && candidate.entry.repo != "google/gemma-4-E4B-it"
+            })
         {
             assert!(other.drafter.is_none(), "{}", other.entry.repo);
         }

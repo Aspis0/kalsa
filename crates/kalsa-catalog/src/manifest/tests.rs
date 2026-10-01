@@ -548,6 +548,7 @@ fn every_usable_file_stem_is_distinct() {
             "gemma-4-26B_q4_0-it",
             "gemma-4-E4B-it-Q4_K_M",
             "mtp-gemma-4-12B-it-Q8_0",
+            "mtp-gemma-4-E4B-it-Q8_0",
         ],
         "every file the catalog can fetch, one stem each"
     );
@@ -557,9 +558,9 @@ fn every_usable_file_stem_is_distinct() {
 }
 
 #[test]
-fn the_gemma_row_carries_the_drafter_and_the_q8_file_and_no_other_row_does() {
-    // The two pins of 2026-09-29, verbatim, and their uniqueness: Option on
-    // every other row, never a placeholder. The numbers were verified
+fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
+    // The pins of 2026-09-29 and 2026-10-01, verbatim, and their uniqueness:
+    // Option on every other row, never a placeholder. The numbers were verified
     // against the Hugging Face API at the pinned commits (paths-info lfs
     // size/oid, and the resolve URL's x-linked-size/x-linked-etag), and the
     // drafter's local copy hashed to its digest.
@@ -571,9 +572,19 @@ fn the_gemma_row_carries_the_drafter_and_the_q8_file_and_no_other_row_does() {
                 .map(|drafter| (row.model.repo, drafter))
         })
         .collect();
-    assert_eq!(drafters.len(), 1, "one row ships a drafter");
-    assert_eq!(drafters[0].0, "google/gemma-4-12B-it");
+    assert_eq!(drafters.len(), 2, "the two Gemma rows ship a drafter");
+    assert_eq!(drafters[0].0, "google/gemma-4-E4B-it");
     let drafter = drafters[0].1;
+    assert_eq!(drafter.repo, "ggml-org/gemma-4-E4B-it-GGUF");
+    assert_eq!(drafter.commit, "b8093469224f83f5c38f691eb906c380e9e63114");
+    assert_eq!(drafter.file, "mtp-gemma-4-E4B-it-Q8_0.gguf");
+    assert_eq!(drafter.bytes, 98_653_280);
+    assert_eq!(
+        drafter.sha256,
+        "f38ae62962657c7a6303c49bbb147e9ae23634e911cfa532fac0818c2e18b665"
+    );
+    assert_eq!(drafters[1].0, "google/gemma-4-12B-it");
+    let drafter = drafters[1].1;
     assert_eq!(drafter.repo, "ggml-org/gemma-4-12B-it-GGUF");
     assert_eq!(drafter.commit, "e3e681731089efaa3f0917336944ac64752db8ba");
     assert_eq!(drafter.file, "mtp-gemma-4-12B-it-Q8_0.gguf");
