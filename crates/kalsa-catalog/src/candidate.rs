@@ -132,10 +132,8 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     // Resident wherever the row runs, so the fit charges it; not in the
     // decode traffic — the anchors are no-spec target-only rates.
     footprint.drafter_bytes = drafter.map(|file| file.bytes).unwrap_or(0);
-    // The owner's memory rule: where the drafter is what pushes this row
-    // over the budget, the row is kept and the drafter dropped — no
-    // drafter in the footprint, the fetch plan or the launch — and the
-    // next start tries the row's own pin again.
+    // The owner's rule: drop the drafter that pushes this row over the budget, keep the row.
+    // Fixed at the chooser's 65_536-token fit — a smaller window could hold it, a band no real RAM lands in (accepted).
     if footprint.drafter_bytes > 0 {
         let budget = memory_budget(input.backend, input.ram_bytes);
         if !fits_footprint(entry, &footprint, &budget) {

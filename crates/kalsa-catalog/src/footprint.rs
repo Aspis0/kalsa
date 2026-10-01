@@ -165,9 +165,9 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
         mmproj_bytes: entry.mmproj_bytes.unwrap_or(0),
         buffer_bytes: COMPUTE_BUFFER_BYTES,
         kv_bytes: per_token.saturating_mul(context_tokens),
-        // The row's own file only: a drafter rides beside the row, so the
-        // caller that knows one runs charges its bytes — the chooser to the
-        // fit, the launcher to the window it funds.
+        // The row's own file only: a drafter rides beside the row; the two
+        // callers that know one charge it — the chooser to the fit, the
+        // launcher to the window it funds.
         drafter_bytes: 0,
     }
 }

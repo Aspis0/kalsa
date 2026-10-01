@@ -231,11 +231,8 @@ pub(crate) fn chosen_stands(
     stored.is_some_and(|row| runnable_row(&input_for(measurement, ram_bytes, phone), row).is_some())
 }
 
-/// What a row's window is priced from: the budget minus the drafter the
-/// pick will run beside it — the same bytes `kalsa_launch::plan` charges
-/// into the launch, so the number this page shows and the number the server
-/// gets are one number. The plan's own drafter is the chooser's answer for
-/// this machine, already dropped where it would not fit beside the row.
+/// The budget a row's window is priced from: minus the drafter this row's
+/// plan carries — the bytes `kalsa_launch::plan` charges when it runs one.
 fn window_budget(budget: MemoryBudget, download: &DownloadPlan) -> u64 {
     budget
         .usable_bytes

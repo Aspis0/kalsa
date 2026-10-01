@@ -20,11 +20,8 @@ pub struct LaunchInput<'a> {
     pub backend: ServerBackend,
     pub model: &'a ModelEntry,
     pub budget: MemoryBudget,
-    /// The proven drafter's bytes, charged whenever a start will run one
-    /// beside the model — resident beside the weights, so the funded window,
-    /// the cache roof and the reported total all come from what is left
-    /// after it. Zero when no drafter runs; only the caller holds the file
-    /// that says which that is.
+    /// The proven drafter's bytes, resident beside the weights: the window,
+    /// the cache roof and the reported total are what is left after them.
     pub drafter_bytes: u64,
     /// (threads, bytes per second) pairs, as measured. The plateau of this
     /// ramp is the thread count, capped to `physical_cores` when the
@@ -250,8 +247,8 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
     let (funded, _roof) = context_and_prompt_cache_roof(
         model,
         usable_bytes,
-        // A preview prices the row's own file; the plan subtracts the
-        // drafter the start will actually run, at the call site that knows.
+        // Nothing charged here: the caller that knows a drafter's bytes has
+        // already taken them out of `usable_bytes`.
         0,
         KvCache::Q8_0,
         slots,

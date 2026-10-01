@@ -887,9 +887,6 @@ fn planned_config_with_overrides(
         backend,
         model: row,
         budget,
-        // The window every arm below is sized for is the window the launch
-        // runs: with the proven drafter's bytes inside it, or without them
-        // when this start carries no drafter.
         drafter_bytes: drafter.as_ref().map_or(0, |drafter| drafter.bytes),
         thread_ramp: &machine.measurement.ramp,
         physical_cores: kalsa_probe::physical_cores(),
@@ -2960,38 +2957,52 @@ mod tests {
         assert_eq!(entry_download(lfm), Some((2_874_779_648, false)));
     }
 
-    #[test]
-    fn a_proven_drafter_rides_the_launch_args_and_nothing_else_changes() {
-        // The wiring, not the renderer: a drafter proven on disk reaches the
-        // launch args as the one draft fact, beside an otherwise unchanged
-        // plan for the same row.
-        let machine = machine(Backend::Cpu);
+    /// The machine this window pair is planned on: 9.5 GB is where this row
+    /// still fits WITH its drafter and already buys its window token by
+    /// token, so the drafter's bytes are what moves both figures.
+    fn e4b_machine() -> Machine {
+        Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 9_500_000_000,
+        }
+    }
+
+    /// The E4B row planned on `e4b_machine`, with the proven drafter given
+    /// or withheld — the one builder both window tests read.
+    fn planned_e4b(drafter: Option<crate::startup::DrafterLaunch>) -> PreparedStart {
+        let machine = e4b_machine();
         let row = rows()
-            .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0")
-            .expect("a row that funds the fixture machine");
-        let base = |drafter: Option<crate::startup::DrafterLaunch>| {
-            planned_config_with_overrides(
-                ServerBackend::Cpu,
-                PathBuf::from("/server/llama-server"),
-                PathBuf::from("/models/chosen.gguf"),
-                drafter,
-                row,
-                TEST_REASON.to_string(),
-                TEST_SHA256,
-                &machine,
-                1,
-                PathBuf::from("/state/server.state"),
-                PathBuf::from("/slots"),
-                LaunchOverrides::default(),
-            )
-            .expect("the row funds the fixture machine")
-        };
-        let without = base(None);
+            .find(|entry| entry.repo == "google/gemma-4-E4B-it")
+            .expect("the row is in the catalog");
+        planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            drafter,
+            row,
+            TEST_REASON.to_string(),
+            TEST_SHA256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("the row funds the fixture machine")
+    }
+
+    #[test]
+    fn a_proven_drafter_rides_the_launch_args_and_plans_the_smaller_window() {
+        // The wiring, not the renderer: a drafter proven on disk reaches the
+        // launch args as the one draft fact — and its bytes are what the
+        // window and the chat roof were sized around, so the drafted plan
+        // funds fewer of both than the same row runs without one.
+        let without = planned_e4b(None);
         assert!(
             without.info.args.draft.is_none(),
             "no proven drafter, no draft flags"
         );
-        let with = base(Some(crate::startup::DrafterLaunch {
+        let with = planned_e4b(Some(crate::startup::DrafterLaunch {
             path: PathBuf::from("/models/mtp-chosen.gguf"),
             sha256: TEST_SHA256,
             bytes: 98_653_280,
@@ -3003,10 +3014,17 @@ mod tests {
                 n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
             })
         );
-        // Everything else is the same launch.
-        assert_eq!(
+        assert!(
+            with.info.args.context_tokens < without.info.args.context_tokens,
+            "the drafted window is the smaller one: {} vs {}",
             with.info.args.context_tokens,
             without.info.args.context_tokens
+        );
+        assert!(
+            with.info.args.cache_ram_mib < without.info.args.cache_ram_mib,
+            "and so is its chat roof: {} vs {} MiB",
+            with.info.args.cache_ram_mib,
+            without.info.args.cache_ram_mib
         );
         assert_eq!(with.server.argv.len(), without.server.argv.len() + 12);
     }

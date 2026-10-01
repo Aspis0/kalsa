@@ -5,11 +5,11 @@
 
 use kalsa_catalog::{
     capability_basis, choose, decode_prediction, dense_speed_floor, footprint_bytes,
-    largest_that_runs_well, quicker_alternative, usable_bytes, Backend, CapabilityBasis, RunnableRow,
-    ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction, RefusalReason,
-    DOWNLOADABLE, GIB, CHOOSER_CONTEXT_TOKENS, LARGE_MOE_TOTAL_PARAMETERS,
-    MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
-    QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
+    largest_that_runs_well, quicker_alternative, runnable_row, usable_bytes, Backend,
+    CapabilityBasis, ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction,
+    RefusalReason, RunnableRow, CHOOSER_CONTEXT_TOKENS, DOWNLOADABLE, GIB,
+    LARGE_MOE_TOTAL_PARAMETERS, MINIMUM_DENSE_TOKENS_PER_SECOND,
+    MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -286,6 +286,59 @@ fn a_row_whose_drafter_will_not_fit_is_picked_without_it() {
             assert_eq!(selection.footprint.drafter_bytes, 98_653_280);
         }
         other => panic!("expected the same pick with its drafter: {other:?}"),
+    }
+}
+
+#[test]
+fn the_12b_loses_its_drafter_on_its_band_and_keeps_it_next_door() {
+    // The owner's rule on the 12B row, both of its files. Served as Q8 at
+    // 400 GB/s beside the paired phone: below 17.69 GiB of RAM the row's own
+    // footprint fits and its 465_109_152-byte drafter does not — the pick
+    // keeps the row and drops the drafter — while one step up the drafter
+    // rides (the band's floor is 17.11 GiB, where the row alone starts to
+    // fit). The manual-choice route reads the same candidates and is held to
+    // the same rule, asked here on a machine served the row's own file.
+    let machine = |ram_gib: f64, bandwidth: f64| ChoiceInput {
+        ram_bytes: (ram_gib * GIB as f64) as u64,
+        phone: Some(phone(Some(true))),
+        ..metal(17, bandwidth)
+    };
+    for (ram_gib, drafter_fits) in [(17.4, false), (17.8, true)] {
+        let input = machine(ram_gib, 400.0e9);
+        match choose(&input) {
+            Decision::Pick(selection) => {
+                assert_eq!(selection.repo, "google/gemma-4-12B-it");
+                assert_eq!(selection.quant, "Q8_0", "400 GB/s serves the Q8 file");
+                assert_eq!(
+                    selection.download.drafter.is_some(),
+                    drafter_fits,
+                    "{ram_gib} GiB"
+                );
+                assert_eq!(
+                    selection.footprint.drafter_bytes,
+                    if drafter_fits { 465_109_152 } else { 0 }
+                );
+            }
+            other => panic!("the 12B is the pick at {ram_gib} GiB: {other:?}"),
+        }
+    }
+    let twelve_b = &DOWNLOADABLE
+        .iter()
+        .find(|row| row.model.repo == "google/gemma-4-12B-it")
+        .expect("the row is in the catalog")
+        .model;
+    for (ram_gib, drafter_fits) in [(11.4, false), (11.7, true)] {
+        let input = machine(ram_gib, 150.0e9);
+        let run = runnable_row(&input, twelve_b).expect("the stored choice runs here");
+        assert_eq!(
+            run.entry.quant, "Q4_K_M",
+            "150 GB/s serves the row's own file"
+        );
+        assert_eq!(
+            run.download.drafter.is_some(),
+            drafter_fits,
+            "{ram_gib} GiB"
+        );
     }
 }
 
