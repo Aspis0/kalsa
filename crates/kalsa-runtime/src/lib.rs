@@ -31,6 +31,7 @@ mod assets;
 mod candidates;
 mod child;
 mod decide;
+mod devices;
 mod disposable;
 mod extract;
 mod inlet;
@@ -49,6 +50,7 @@ pub fn runtime_root() -> std::path::PathBuf {
 pub use assets::{Platform, ServerBackend};
 pub use candidates::candidates_for;
 pub use decide::{decide, decide_cpu, DecideError, Decision};
+pub use devices::{list_devices, route};
 pub use disposable::{free_loopback_port, serve, Disposable, ServeError};
 pub use inlet::{engine_consumes_private_headers, ENGINE_MODULE_FILE};
 // Engine identity, one source: the verdict's own fingerprint format, for

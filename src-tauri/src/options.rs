@@ -614,6 +614,7 @@ mod tests {
             cache_ram_mib: 1024,
             threads: Some(8),
             offload: kalsa_launch::Offload::All,
+            device: None,
             idle_unload_seconds: 600,
             batch_size: 2048,
             ubatch_size: 1024,

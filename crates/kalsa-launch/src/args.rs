@@ -355,6 +355,13 @@ pub struct ServerArgs {
     /// disguised as our number.
     pub threads: Option<usize>,
     pub offload: Offload,
+    /// The one GPU this launch is pinned to, rendered as `--device` (and
+    /// `--device-draft` beside a drafter): the engine's own `--list-devices`
+    /// name for the card the walk matched detection's adapter to, decided
+    /// before the plan. None where there is no card to pick — Metal, the
+    /// CPU build, a list that could not say which card — and then no device
+    /// flag is rendered at all.
+    pub device: Option<String>,
     /// How long the server keeps an unused model resident.
     pub idle_unload_seconds: u32,
     /// The logical prompt batch. A decided value now, not a constant: the

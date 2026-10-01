@@ -46,6 +46,17 @@ impl ServerArgs {
             "--ctx-size".to_string(),
             self.context_tokens.to_string(),
         ]);
+        // One device, or none — and never for the CPU build: its parser
+        // throws `invalid device` for every name (the fork's
+        // `parse_device_list`, common/arg.cpp), and no graphics build ever
+        // reaches here with `device` None — the walk routed that case to
+        // the CPU build instead.
+        let device = match (&self.device, self.offload) {
+            (Some(name), offload) if offload != crate::args::Offload::NoGpuBuild => {
+                Some(name.as_str())
+            }
+            _ => None,
+        };
         match self.offload {
             crate::args::Offload::All => {
                 argv.extend(["--n-gpu-layers".to_string(), ALL_LAYERS.to_string()]);
@@ -65,6 +76,9 @@ impl ServerArgs {
             // No flag: the engine's default (auto) plus `fit` decides the
             // layers against free device memory — see the variant.
             crate::args::Offload::EngineFitted => {}
+        }
+        if let Some(name) = device {
+            argv.extend(["--device".to_string(), name.to_string()]);
         }
         // The cache the memory arithmetic counted: the owner's choice (q8_0
         // by default, one byte per element) under flash attention — a
@@ -97,6 +111,12 @@ impl ServerArgs {
                 "--spec-draft-type-v".to_string(),
                 self.kv_cache.flag().to_string(),
             ]);
+            // The drafter names the same card as the target (the engine's
+            // default already follows `--device`; on the command line so
+            // the pairing is a fact, not a default).
+            if let Some(name) = device {
+                argv.extend(["--device-draft".to_string(), name.to_string()]);
+            }
         }
         // The row's publisher sampling, as the server's default for THIS
         // model. Each value renders its own flag and only when the row
@@ -216,6 +236,7 @@ mod tests {
             cache_ram_mib: 4096,
             threads: Some(4),
             offload: crate::args::Offload::All,
+            device: None,
             idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
             batch_size: 2048,
             ubatch_size: 512,
@@ -325,6 +346,74 @@ mod tests {
         // And no drafter, no placement flag for one.
         let bare = some_args().argv();
         assert!(!bare.contains(&"--n-gpu-layers-draft".to_string()));
+    }
+
+    /// The one GPU, named — the pin a two-GPU machine needs so the engine
+    /// stops splitting layers across both cards — and with no drafter no
+    /// draft device beside it. EngineFitted (the tune's graphics shape)
+    /// carries the same pin.
+    #[test]
+    fn a_pinned_device_renders_device_and_only_device() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--device"), "Vulkan1", "{argv:?}");
+        assert!(
+            !argv.contains(&"--device-draft".to_string()),
+            "no drafter, no draft device: {argv:?}"
+        );
+        let mut fitted = args;
+        fitted.offload = crate::args::Offload::EngineFitted;
+        assert_eq!(rendered_value(&fitted.argv(), "--device"), "Vulkan1");
+    }
+
+    /// Both models name the same card: the drafter refused to start when it
+    /// landed on the other one, so the pairing is on the command line.
+    #[test]
+    fn a_drafter_rides_the_pinned_device_too() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        assert_eq!(rendered_value(&argv, "--device"), "Vulkan1", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--device-draft"), "Vulkan1", "{argv:?}");
+    }
+
+    /// No pin, no flags — with or without a drafter: Metal and every CPU
+    /// launch are byte-identical to a renderer that never knew this flag.
+    #[test]
+    fn without_a_device_no_device_flag_renders() {
+        let mut drafted = some_args();
+        drafted.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        for argv in [some_args().argv(), drafted.argv()] {
+            assert!(!argv.contains(&"--device".to_string()), "{argv:?}");
+            assert!(!argv.contains(&"--device-draft".to_string()), "{argv:?}");
+        }
+    }
+
+    /// The walk can land here — the CPU build chosen for the model while a
+    /// card was named for the graphics build — and the pin must die with
+    /// `NoGpuBuild`: that build's parser throws `invalid device` for every
+    /// name (the fork's `parse_device_list`), so rendering it would refuse
+    /// a start that today runs.
+    #[test]
+    fn the_cpu_build_renders_no_device_even_when_one_is_set() {
+        let mut args = some_args();
+        args.device = Some("Vulkan1".to_string());
+        args.offload = crate::args::Offload::NoGpuBuild;
+        args.draft = Some(crate::args::Draft {
+            model_path: PathBuf::from("/models/mtp.gguf"),
+            n_max: 3,
+        });
+        let argv = args.argv();
+        assert!(!argv.contains(&"--device".to_string()), "{argv:?}");
+        assert!(!argv.contains(&"--device-draft".to_string()), "{argv:?}");
     }
 
     /// EngineFitted renders NO `--n-gpu-layers`: the engine's default (auto)

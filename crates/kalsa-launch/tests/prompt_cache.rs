@@ -108,6 +108,7 @@ fn the_second_turn_is_measured_against_the_first() {
         cache_ram_mib,
         threads: Some(4),
         offload: Offload::All,
+        device: None,
         idle_unload_seconds: 300,
         batch_size: 2048,
         ubatch_size: 512,

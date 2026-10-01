@@ -238,7 +238,11 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// Reads the video controllers' text — wmic's, or the PowerShell fallback's
 /// with the same shape: the memory, when there is one, leading each row.
 ///
-/// The name decides whether it is discrete; the memory is reported only
+/// One scan feeds both answers detection gives from this text: whether a
+/// card is discrete and the size it budgets (wrapped below) and the name of
+/// the row that size came from — the adapter the device step matches the
+/// engine's own device list against. The name decides whether it is
+/// discrete; the memory is reported only
 /// when it is not a non-answer: zero, or sitting on the 32-bit saturation
 /// line (`WMI_SATURATION_BYTES`). In that case — and only in that case —
 /// `registry_size` is asked the controller's name and may answer with this
@@ -249,11 +253,13 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// testable on a machine with no such registry; the real answer is
 /// `vram_registry`'s walk, behind `cfg(windows)`.
 #[cfg(any(target_os = "windows", test))]
-pub fn backend_from_video_controllers_with(
+pub(crate) fn scan_video_controllers(
     text: &str,
     mut registry_size: impl FnMut(&str) -> Option<u64>,
-) -> Backend {
+) -> (bool, Option<u64>, Option<String>) {
     let mut best: Option<u64> = None;
+    let mut best_name: Option<String> = None;
+    let mut discrete_names: Vec<String> = Vec::new();
     let mut discrete = false;
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
         // The memory, when present, is the row's FIRST token — both
@@ -285,6 +291,7 @@ pub fn backend_from_video_controllers_with(
             && !lowered.contains("intel");
         if looks_discrete {
             discrete = true;
+            discrete_names.push(name.trim().to_string());
             // The size, by the owner's rule: a valid AdapterRAM — non-zero,
             // below the saturation line — stands on its own and the registry
             // is not consulted, because a stale same-name entry under a
@@ -310,15 +317,77 @@ pub fn backend_from_video_controllers_with(
                     .filter(|bytes| *bytes >= WMI_SATURATION_BYTES),
             };
             if let Some(bytes) = resolved {
-                best = Some(best.map_or(bytes, |current| current.max(bytes)));
+                if best.map_or(true, |current| bytes > current) {
+                    best = Some(bytes);
+                    best_name = Some(name.trim().to_string());
+                }
             }
         }
     }
+    // The row the budget came from: the biggest readable size wins (ties
+    // keep the first), and a lone discrete row is its own answer when no
+    // size resolved. Several rows and no size leave the text unable to say
+    // which card is meant — no name, never a guess.
+    let budget_name = best_name.or_else(|| match discrete_names.len() {
+        1 => discrete_names.into_iter().next(),
+        _ => None,
+    });
+    (discrete, best, budget_name)
+}
+
+/// What the scan says about this machine's memory path: the card's size when
+/// a row resolved one, `None` when the honest answer is unknown — and no
+/// card at all when no row is discrete.
+#[cfg(any(target_os = "windows", test))]
+pub fn backend_from_video_controllers_with(
+    text: &str,
+    registry_size: impl FnMut(&str) -> Option<u64>,
+) -> Backend {
+    let (discrete, vram_bytes, _) = scan_video_controllers(text, registry_size);
     if discrete {
-        Backend::DiscreteGpu { vram_bytes: best }
+        Backend::DiscreteGpu { vram_bytes }
     } else {
         Backend::Cpu
     }
+}
+
+/// The name of the discrete adapter the budget came from, from text a test
+/// supplied — the pure half of [`discrete_name`], registry injected.
+#[cfg(any(target_os = "windows", test))]
+pub fn discrete_name_from_video_controllers_with(
+    text: &str,
+    registry_size: impl FnMut(&str) -> Option<u64>,
+) -> Option<String> {
+    scan_video_controllers(text, registry_size).2
+}
+
+/// The WMI name of the discrete adapter the budget came from, asked of the
+/// same controller query once per session (a present answer only, like
+/// [`backend`]): the engine's `--list-devices` description is matched
+/// against it, and no name leaves the match to the single-device rule.
+#[cfg(target_os = "windows")]
+pub fn discrete_name() -> Option<String> {
+    static NAMED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    once_present(&NAMED, || {
+        let text = controllers_text(
+            || command_text("wmic", &WMIC_CONTROLLERS, ANSWER_DEADLINE),
+            || command_text("powershell", &POWERSHELL_CONTROLLERS, ANSWER_DEADLINE),
+        )?;
+        // Same lazy registry walk the budget took: which row resolved is
+        // the same question with the same answer.
+        let mut sizes: Option<Vec<(String, u64)>> = None;
+        discrete_name_from_video_controllers_with(&text, |name| {
+            let entries = sizes.get_or_insert_with(crate::vram_registry::registry_vram_sizes);
+            crate::vram_registry::size_for(entries, name)
+        })
+    })
+}
+
+/// Only Windows rows name a discrete adapter, and only Windows gets a
+/// graphics engine row this name could pick a device for.
+#[cfg(not(target_os = "windows"))]
+pub fn discrete_name() -> Option<String> {
+    None
 }
 
 /// The same parse with no registry in play: every test that pins the parse
@@ -648,6 +717,40 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn the_budget_row_names_the_discrete_adapter_for_the_device_step() {
+        // The Lenovo capture as PowerShell prints it: the Arc is Intel —
+        // never discrete — so the RTX row is both the budget and the name
+        // the engine's Vulkan description must match.
+        let lenovo = "2147479552  Intel(R) Arc(TM) Graphics\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        assert_eq!(
+            discrete_name_from_video_controllers_with(lenovo, |_| None).as_deref(),
+            Some("NVIDIA GeForce RTX 4050 Laptop GPU")
+        );
+        // A numberless row keeps whole its name, header or not.
+        assert_eq!(
+            discrete_name_from_video_controllers_with(" NVIDIA T400", |_| None).as_deref(),
+            Some("NVIDIA T400")
+        );
+        // No discrete row, no name — and several rows with no readable size
+        // cannot say which card the budget would have come from.
+        assert_eq!(
+            discrete_name_from_video_controllers_with(
+                "AdapterRAM  Name\n1073741824  Intel(R) UHD Graphics 630\n",
+                |_| None
+            ),
+            None
+        );
+        let twin = "4293918720  NVIDIA GeForce RTX 4090\n4293918720  NVIDIA GeForce RTX 3060\n";
+        assert_eq!(discrete_name_from_video_controllers_with(twin, |_| None), None);
+        // Two cards, one readable size each: the budget's own row wins.
+        let sized = "3221225472  NVIDIA GeForce GTX 1650\n4000000000  AMD Radeon RX 6600\n";
+        assert_eq!(
+            discrete_name_from_video_controllers_with(sized, |_| None).as_deref(),
+            Some("AMD Radeon RX 6600")
+        );
+    }
 
     #[test]
     fn this_machine_reports_what_it_really_has() {

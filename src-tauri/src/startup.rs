@@ -238,7 +238,7 @@ pub(crate) fn run(
     let chosen = overrides.model.as_deref();
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
-    let (backend, exe) = match server_override {
+    let (mut backend, mut exe) = match server_override {
         Some(exe) => (dev_backend(), exe),
         None => {
             progress(Progress::Deciding);
@@ -251,6 +251,35 @@ pub(crate) fn run(
             (decision.backend, decision.exe)
         }
     };
+    // One card, named by the engine itself: a graphics build on a machine
+    // with two Vulkan devices splits layers across both (slower than either
+    // alone) and can refuse to start when the MTP drafter lands on the
+    // other, so the start pins the card detection named — matched against
+    // the build's own `--list-devices` descriptions, with the single-listed-
+    // device rule when detection named nothing (the integrated GPU's case).
+    // No unambiguous card means no graphics build: the CPU build stands,
+    // because starting on the wrong card is worse than starting on none.
+    let mut device = None;
+    if backend == ServerBackend::Vulkan {
+        let listed = kalsa_runtime::list_devices(&exe);
+        let wanted = match machine.measurement.will_run_on {
+            kalsa_probe::Backend::DiscreteGpu { .. } => kalsa_probe::discrete_name(),
+            _ => None,
+        };
+        let (routed, chosen) = kalsa_runtime::route(listed.as_deref(), wanted.as_deref());
+        if routed != backend {
+            progress(Progress::Deciding);
+            let cpu = kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
+                progress(Progress::RuntimeBytes {
+                    done: p.bytes_done,
+                    total: p.bytes_total,
+                })
+            })?;
+            backend = cpu.backend;
+            exe = cpu.exe;
+        }
+        device = chosen;
+    }
     let model = match model_override {
         // Development: the developer pinned the file and owns its bytes, so
         // the choice is skipped entirely — an unpaired machine must still be
@@ -301,6 +330,7 @@ pub(crate) fn run(
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
+                device,
                 placed.weights,
                 drafter,
                 row,
@@ -806,6 +836,7 @@ fn planned_config(
     planned_config_with_overrides(
         backend,
         exe,
+        None,
         model,
         None,
         row,
@@ -864,6 +895,10 @@ fn funded_parallel(requested: u32, funds: impl Fn(u32) -> bool) -> u32 {
 fn planned_config_with_overrides(
     backend: ServerBackend,
     exe: PathBuf,
+    // The card the device step pinned this launch to (None everywhere no
+    // card was named): the plan carries it so every rebuild from these
+    // args — the tune's rule, its clones, the retry — keeps the pin.
+    device: Option<String>,
     model: PathBuf,
     drafter: Option<DrafterLaunch>,
     row: &ModelEntry,
@@ -972,6 +1007,7 @@ fn planned_config_with_overrides(
         model_path: drafter.path.clone(),
         n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
     });
+    plan.args.device = device;
     let args = plan.args;
     // What the panel shows beside the context control: the context the
     // launcher picks with no owner choice, and the launcher's own two KV
@@ -1069,6 +1105,7 @@ fn dev_config_with_overrides(
             / kalsa_catalog::footprint::MIB,
         threads,
         offload: offload_of_build(&dev_backend()),
+        device: None,
         idle_unload_seconds: kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS,
         batch_size: overrides.batch_size.unwrap_or(automatic.batch_size),
         ubatch_size: overrides.ubatch_size.unwrap_or(automatic.ubatch_size),
@@ -1371,6 +1408,7 @@ mod tests {
         let config = planned_config_with_overrides(
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             None,
             row,
@@ -1396,6 +1434,45 @@ mod tests {
             &config.info.model_sha256.as_deref().expect("carried")[..8],
             &file_digest[..8],
             "the weights were re-hashed instead of the row's pin"
+        );
+    }
+
+    /// The pin the device step chose reaches the launch itself: the plan
+    /// carries it into the args and argv it builds, so the server starts on
+    /// the one card — and every later rebuild of these args (the tune's
+    /// rule, its clones, the retry) inherits the same pin.
+    #[test]
+    fn the_pinned_device_reaches_the_final_launch() {
+        let machine = machine(Backend::DiscreteGpu {
+            vram_bytes: Some(8 << 30),
+        });
+        let (plan, row, reason) = choose_model(ServerBackend::Vulkan, &machine, None, None)
+            .expect("the automatic answer");
+        let config = planned_config_with_overrides(
+            ServerBackend::Vulkan,
+            PathBuf::from("/server/kalsa-server"),
+            Some("Vulkan0".to_string()),
+            PathBuf::from("/models/chosen.gguf"),
+            None,
+            row,
+            reason,
+            plan.sha256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("a card-sized row is fundable on this test machine");
+        assert_eq!(config.info.args.device.as_deref(), Some("Vulkan0"));
+        assert!(
+            config
+                .server
+                .argv
+                .windows(2)
+                .any(|pair| pair[0] == "--device" && pair[1] == "Vulkan0"),
+            "the launch must name the card: {:?}",
+            config.server.argv
         );
     }
 
@@ -2391,6 +2468,7 @@ mod tests {
             planned_config_with_overrides(
                 ServerBackend::Metal,
                 exe,
+                None,
                 PathBuf::from("/models/chosen.gguf"),
                 None,
                 row,
@@ -2455,6 +2533,7 @@ mod tests {
         let config = planned_config_with_overrides(
             ServerBackend::Cpu,
             fork.clone(),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             None,
             row,
@@ -2612,6 +2691,7 @@ mod tests {
         let err = planned_config_with_overrides(
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             None,
             row,
@@ -2652,6 +2732,7 @@ mod tests {
             planned_config_with_overrides(
                 ServerBackend::Metal,
                 PathBuf::from("/server/llama-server"),
+                None,
                 PathBuf::from("/models/chosen.gguf"),
                 None,
                 row,
@@ -2715,6 +2796,7 @@ mod tests {
         let err = planned_config_with_overrides(
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             None,
             row,
@@ -2744,6 +2826,7 @@ mod tests {
         let fits_q8 = planned_config_with_overrides(
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             None,
             row,
@@ -2977,6 +3060,7 @@ mod tests {
         planned_config_with_overrides(
             ServerBackend::Cpu,
             PathBuf::from("/server/llama-server"),
+            None,
             PathBuf::from("/models/chosen.gguf"),
             drafter,
             row,

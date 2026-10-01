@@ -50,6 +50,7 @@ fn rule_args() -> ServerArgs {
         cache_ram_mib: 4096,
         threads: Some(8),
         offload: Offload::All,
+        device: None,
         idle_unload_seconds: 600,
         batch_size: 2048,
         ubatch_size: 512,
@@ -207,6 +208,27 @@ fn tuned_launch_changes_only_what_it_owns() {
     assert!(has(&argv, "--batch-size", "2048"));
     assert!(has(&base_argv, "--batch-size", "2048"));
     assert!(has(&base_argv, "--threads", "8"), "the base is the rule");
+}
+
+/// The pin rides every shape: the device is not one of the things
+/// `tuned_launch` owns, so a graphics trial and the processor's both carry
+/// the rule's card name — and the renderer drops it only where the build
+/// cannot name devices (`NoGpuBuild`, the CPU build).
+#[test]
+fn every_shape_keeps_the_rules_pinned_device() {
+    let mut base = rule_args();
+    base.device = Some("Vulkan0".to_string());
+    for offload in [Offload::All, Offload::EngineFitted, Offload::ForcedOff, Offload::NoGpuBuild] {
+        let (_, argv) = tuned_launch(&base, Path::new("/e"), Some(4), offload, None, PORT);
+        let pinned = argv
+            .windows(2)
+            .any(|pair| pair[0] == "--device" && pair[1] == "Vulkan0");
+        assert_eq!(
+            pinned,
+            offload != Offload::NoGpuBuild,
+            "{offload:?}: {argv:?}"
+        );
+    }
 }
 
 /// The main candidate is the main build — no processor decision is asked.

@@ -132,6 +132,9 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         cache_ram_mib: prompt_cache_roof / MIB,
         threads,
         offload: offload(input),
+        // No engine has been asked yet here: the walk's device step fills
+        // this in where the card was named.
+        device: None,
         idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
         batch_size: input.batch_size,
         ubatch_size: input.ubatch_size,
