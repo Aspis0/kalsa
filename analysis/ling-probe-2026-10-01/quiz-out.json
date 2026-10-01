@@ -1,0 +1,132 @@
+[
+ {
+  "content": "",
+  "reasoning_chars": 8523,
+  "finish": "length",
+  "tok_s": 94.5,
+  "tokens": 4096,
+  "wall_s": 43.6,
+  "lang": "it",
+  "q": "Un treno parte da Milano alle 14:40 e arriva a Roma alle 17:55. Un secondo treno parte da Roma alle 15:10 e arriva a Milano alle 18:20. Le due città distano 570 km e i treni viaggiano a velocità costante. A che ora si incrociano? Mostra il ragionamento in breve."
+ },
+ {
+  "content": "",
+  "reasoning_chars": 14329,
+  "finish": "length",
+  "tok_s": 94.1,
+  "tokens": 4096,
+  "wall_s": 43.6,
+  "lang": "it",
+  "q": "Spiega la differenza tra 'gli ho detto' e 'le ho detto' e correggi questa frase: 'Se avrei saputo che venivi, ti avrei aspettato.'"
+ },
+ {
+  "content": "",
+  "reasoning_chars": 12633,
+  "finish": "length",
+  "tok_s": 94.6,
+  "tokens": 4096,
+  "wall_s": 43.4,
+  "lang": "it",
+  "q": "Riassumi in tre frasi il significato del canto V dell'Inferno di Dante, citando un verso esatto."
+ },
+ {
+  "content": "**Oggetto: Segnalazione infiltrazione d'acqua**\n\nGentili Residenti,\n\nmi permetto di segnalare una grave infiltrazione d'acqua che proviene dal piano di sopra. L'acqua entra dal tetto e sta danneggiando i pavimenti e i muri del piano inferiore.\n\nChiedo cortesemente di far intervenire immediatamente un tecnico per valutarne la causa e risolvere la situazione.\n\nRingrazio per la tempestività.\n\nCordiali saluti,\nUn residente",
+  "reasoning_chars": 1840,
+  "finish": "stop",
+  "tok_s": 98.1,
+  "tokens": 789,
+  "wall_s": 8.1,
+  "lang": "it",
+  "q": "Scrivi una mail formale (max 80 parole) al condominio per segnalare un'infiltrazione d'acqua dal piano di sopra."
+ },
+ {
+  "content": "La différence entre **« je mangerais »** et **« je mangerai »** réside dans le temps et l'intention de la phrase. Les deux sont des formes du verbe *manger*, mais elles ont des rôles très différents en français :\n\n**1. « Je mangerais » (Conditionnel présent)**\nC'est la forme du conditionnel présent du verbe *manger*. On l'utilise pour exprimer une **hypothèse**, un **doute**, une **possibilité** ou une **situation contrefactuelle**. C'est la traduction de *would* en anglais.\n*Exemple : \"Si j'avais du temps, je mangerais un gâteau.\"* (If I had time, I would eat a cake.) -> C'est une action possible ou conditionnelle.\n\n**2. « Je mangerai » (Futur simple)**\nC'est la forme du futur simple du verbe *manger*. On l'utilise pour exprimer une **action future certaine**, une **intention** ou un **plan** sans condition. C'est la traduction de *will* ou *going to*.\n*Exemple : \"Ce soir, je mangerai à la maison.\"* (I will eat at home tonight.) -> C'est une action qui va réellement se produire.\n\n---\n\n**Phrases correctes avec chacun :**\n\n*   **« Je mangerais » (Conditionnel) :**\n    *« Si tu étais malade, je mangerais un plat chaud pour me soigner. »*\n    *(Si tu étais malade, je mangerais un plat chaud pour me soigner. → Hypothèse/possible)*\n\n*   **« Je mangerai » (Futur simple) :**\n    *« Dans une heure, je mangerai le déjeuner avec mes collègues. »*\n    *(Dans une heure, je mangerai le déjeuner avec mes collègues. → Action future certaine)*",
+  "reasoning_chars": 3089,
+  "finish": "stop",
+  "tok_s": 98.0,
+  "tokens": 1372,
+  "wall_s": 14.1,
+  "lang": "fr",
+  "q": "Explique la différence entre « je mangerais » et « je mangerai », puis écris une phrase correcte avec chacun."
+ },
+ {
+  "content": "Vous avez 3 chemises, 4 pantalons et 2 paires de chaussures, soit un total de \\(3 \\times 4 \\times 2 = 24\\) combinaisons possibles sans restriction.\n\nLa contrainte est que vous refusez de porter la chemise rouge avec le pantalon vert. Cela signifie que la combinaison spécifique (chemise rouge + pantalon vert) est interdite, mais elle peut être portée avec n'importe quelle paire de chaussures. Comme il y a 2 paires de chaussures, cela représente \\(1 \\times 1 \\times 2 = 2\\) combinaisons à exclure.\n\nAinsi, le nombre de tenues différentes autorisées est :\n\\[\n24 - 2 = 22.\n\\]\n\nUne autrement méthode consiste à calculer :\n- **Cas 1 : chemise non rouge** (2 choix), pantalon (4 choix), chaussures (2 choix) : \\(2 \\times 4 \\times 2 = 16\\).\n- **Cas 2 : chemise rouge** (1 choix), pantalon non vert (3 choix), chaussures (2 choix) : \\(1 \\times 3 \\times 2 = 6\\).\n\nTotal : \\(16 + 6 = 22\\).\n\nLa réponse est donc **22** tenues différentes.",
+  "reasoning_chars": 2850,
+  "finish": "stop",
+  "tok_s": 97.9,
+  "tokens": 1218,
+  "wall_s": 12.6,
+  "lang": "fr",
+  "q": "Si j'ai 3 chemises, 4 pantalons et 2 paires de chaussures, mais que je refuse de porter la chemise rouge avec le pantalon vert, combien de tenues différentes puis-je composer ? Justifie."
+ },
+ {
+  "content": "En France, la différence principale réside dans la durée de validité du contrat : le CDD (contrat à durée déterminée) est conclu pour une période fixe définie à l'avance, tandis que le CDI (contrat à durée indéterminée) n'a pas de durée fixe et reste en vigueur tant que les parties le conservent. Le CDD peut être rompu à tout moment par l'employeur ou l'employé, moyennant un préavis, sans qu'il faille de causalité ; le CDI, en revanche, ne peut être rompu qu'en cas de faute de l'employeur ou de manquement à ses obligations. La rupture du CDD entraîne une rupture de contrat sans indemnité de licenciement, tandis que le CDI peut ouvrir droit à une indemnisation si le licenciement est considéré comme un droit de la part de l'employeur. Le CDD est principalement utilisé pour le recrutement temporaire ou les missions ponctuelles, alors que le CDI vise la stabilité et la continuité de l'emploi.",
+  "reasoning_chars": 7789,
+  "finish": "stop",
+  "tok_s": 96.5,
+  "tokens": 2405,
+  "wall_s": 25.0,
+  "lang": "fr",
+  "q": "Quelle est la différence juridique entre un CDD et un CDI en France ? Réponds en quatre phrases maximum."
+ },
+ {
+  "content": "成语“画蛇添足”字面意思是“画蛇时给蛇添上脚”，引申为做了多余的事，不但没有好处，反而弄巧成拙。\n\n造句：他本来已经完美地完成了报告，但还是非要加上一个无关紧要的装饰，这简直是画蛇添足。",
+  "reasoning_chars": 751,
+  "finish": "stop",
+  "tok_s": 98.9,
+  "tokens": 511,
+  "wall_s": 5.3,
+  "lang": "zh",
+  "q": "请用简体中文解释成语“画蛇添足”的意思，并造一个句子。"
+ },
+ {
+  "content": "设水池的总量为 1。\n\n1. **计算各管的工作效率（每小时注/放水的比例）：**\n   - 甲管单独注满需要 6 小时，所以甲管每小时注水：$1 \\div 6 = \\frac{1}{6}$\n   - 乙管单独注满需要 4 小时，所以乙管每小时注水：$1 \\div 4 = \\frac{1}{4}$\n   - 丙管单独放空需要 12 小时，所以丙管每小时放水：$1 \\div 12 = \\frac{1}{12}$（注意是放出的量，所以用负号）\n\n2. **计算三管同时打开时的净注水效率：**\n   $$ \\frac{1}{6} + \\frac{1}{4} - \\frac{1}{12} $$\n   \n   找到公分母 12，化为同分母分数：\n   $$ \\frac{2}{12} + \\frac{3}{12} - \\frac{1}{12} $$\n   $$ = \\frac{2 + 3 - 1}{12} = \\frac{4}{12} = \\frac{1}{3} $$\n\n3. **计算注满水池所需的时间：**\n   设注满水池需要 $x$ 小时，根据“工作量 = 效率 × 时间”可得：\n   $$ \\frac{1}{3} \\times x = 1 $$\n   $$ x = 3 $$\n\n**答：三管同时打开，需要 3 小时注满水池。**",
+  "reasoning_chars": 1225,
+  "finish": "stop",
+  "tok_s": 97.8,
+  "tokens": 1178,
+  "wall_s": 12.2,
+  "lang": "zh",
+  "q": "一个水池有两个进水管和一个出水管。甲管单独注满需要6小时，乙管单独注满需要4小时，丙管单独放空需要12小时。三管同时打开，几小时注满？请写出计算过程。"
+ },
+ {
+  "content": "儒家主张治国应以道德与礼仪为核心，要求君主以身作则以规范社会秩序。道家则主张治国应顺应自然，推行“无为而治”，减少人为干预让万物自化。两者虽在治理手段上截然对立——儒家追求人为的伦理秩序，道家追求自然的动态平衡——但最终目标皆在于实现天下的大治与和谐。",
+  "reasoning_chars": 2202,
+  "finish": "stop",
+  "tok_s": 97.1,
+  "tokens": 1291,
+  "wall_s": 13.4,
+  "lang": "zh",
+  "q": "用三句话比较儒家和道家对“治国”的看法。"
+ },
+ {
+  "content": "# Diferencia entre *ser* y *estar* con los adjetivos *aburrido* y *listo*\n\n## \"Ser\"\nSe usa para **características permanentes**, identidades y cualidades que una persona **es** de manera inmutable.\n\n### Ejemplo con *listo*:\n> **Soy listo** → *I am smart / clever.*\n> Esta es una cualidad permanente de la persona.\n\n---\n\n## \"Estar\"\nSe usa para **estados temporales, emociones y condiciones** que cambian con el tiempo.\n\n### Ejemplo con *aburrido*:\n> **Estoy aburrido** → *I am bored.*\n> Es un estado emocional temporal que puede cambiar.\n\n---\n\n## Resumen comparativo\n\n| | **Ser** | **Estar** |\n|---|---|---|\n| **\"Listo\"** → *Soy listo* | Cualidad permanente (eres inteligente) | Estado temporal (estás listo para ir) |\n| **\"Aburrido\"** → *Estoy aburrido* | (poco natural) | Estado emocional temporal (estás aburrido ahora) |\n\n**Clave para recordar:**\n- Si el adjetivo describe una **carácter o propiedad fija** → usas **ser**.\n- Si el adjetivo describe un **estado o condición temporal** → usas **estar**.\n\n> **Nota:** Con *aburrido*, decir *\"Soy aburrido\"* puede sonar poco natural, ya que el aburrimiento es temporal. Con *listo*, decir *\"Soy listo\"* es completamente natural, pues la inteligencia es una cualidad permanente de la persona.",
+  "reasoning_chars": 1951,
+  "finish": "stop",
+  "tok_s": 96.9,
+  "tokens": 979,
+  "wall_s": 10.2,
+  "lang": "es",
+  "q": "Explica la diferencia entre 'ser' y 'estar' con 'aburrido' y 'listo', con un ejemplo de cada uno."
+ },
+ {
+  "content": "**Paso 1: Gasto del 15%**\n\n- Cantidad inicial: 1200 €  \n- Cantidad gastada: \\( 1200 \\times 0{,}15 = 180 \\) €  \n- Cantidad restante: \\( 1200 - 180 = 1020 \\) €  \n\n**Paso 2: Inversión del tercio de lo que queda**\n\n- Cantidad a invertir: \\( \\frac{1020}{3} = 340 \\) €  \n- Cantidad que queda en efectivo: \\( 1020 - 340 = 680 \\) €  \n\n**Paso 3: Interés simple durante 18 meses**\n\n- Tasa anual: 4%  \n- Tiempo: 18 meses = 1,5 años  \n- Interés: \\( 340 \\times 0{,}04 \\times 1{,}5 = 340 \\times 0{,}06 = 20{,}4 \\) €  \n- Cantidad después de 18 meses: \\( 340 + 20{,}4 = 360{,}4 \\) €  \n\n**Paso 4: Total al final**\n\n- Total = Efectivo + Cantidad de la inversión interesada  \n- Total = \\( 680 + 360{,}4 = 1040{,}4 \\) €  \n\n**Respuesta final:**  \nAl final, tendrás **1040,4 €** en total.",
+  "reasoning_chars": 2160,
+  "finish": "stop",
+  "tok_s": 97.3,
+  "tokens": 1227,
+  "wall_s": 12.7,
+  "lang": "es",
+  "q": "Tengo 1.200 € ahorrados. Gasto el 15 %, luego invierto un tercio de lo que queda al 4 % anual de interés simple durante 18 meses. ¿Cuánto dinero tengo en total al final? Muestra los cálculos."
+ },
+ {
+  "content": "",
+  "reasoning_chars": 10140,
+  "finish": "length",
+  "tok_s": 94.6,
+  "tokens": 4096,
+  "wall_s": 43.4,
+  "lang": "es",
+  "q": "Escribe un poema de cuatro versos con rima consonante sobre el mar Mediterráneo."
+ }
+]

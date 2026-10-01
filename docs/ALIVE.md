@@ -157,6 +157,23 @@ Gaps: no NPU numbers for any model other than the ship model; no Jelly GPU (Mali
 measured, `archive-gpu-cells/REPORT.md:510-512`). The raw extraction (56 rows, with its errors) is
 not kept in the lab; this table is the curated result.
 
+## Ling-3.0-tiny: Chinese only (owner, 2026-10-01)
+
+**Owner decision: Ling-3.0-tiny is not offered for the European and American languages (EN, IT,
+ES, FR); it stays a candidate for Chinese only.** It is in no app catalog today.
+
+Measured on the M1 Max (official Q4_K_M, sha256 `246d67d4…`, fork Metal build 9f3c2e069, 94–99
+tok/s), 13 hard questions in IT/FR/ZH/ES (`analysis/ling-probe-2026-10-01/REPORT.md`):
+- Thinking on (the model's default): 4/13 answers empty, all 4096 tokens spent reasoning; 3 of
+  them Italian (`quiz-out.json`).
+- Thinking off: Italian confidently wrong (grammar of "gli/le", Dante Inferno V hallucinated,
+  train problem mis-set) (`nothink.txt`). Chinese 3/3 correct; arithmetic correct in every
+  language; French law and the Spanish poem wrong.
+- Lenovo (RTX 4050, all layers on the GPU at 64k): 99 tok/s, TTFT 0.76 s; owner Italian quiz 45/54
+  vs Gemma E4B 49 (kalsa-brain `docs/LAB-LENOVO-2026-10-01.md`).
+
+If it ever ships for Chinese: thinking capped or off, and an empty answer counts as a failure.
+
 ## Closed workstreams
 
 ### 2026-09-21 (21/09, night) — KV-cache workstream closed; vision pivots to LFM2.5-VL
