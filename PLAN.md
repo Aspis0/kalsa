@@ -592,7 +592,10 @@ SIGILL, v1.1.5 EXIT=0 98 tok/s; apple_m1 variant 0 smmla). Audit (space-bunny 6d
 FIX FIRST: B1 `strings | grep -Fqx` under pipefail fails 5/5 on a good archive (SIGPIPE 141) - would have killed the
 release run; tautological basename check; unknown KSID version ignored while the appendix hard-fails; two comments
 teach the wrong mechanism. Identity check limit: same-shape different weights restore silently. Fix round GLM
-4ad9679f. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
+4ad9679f; then 63a51b6d6 (failed seq restores leave the sequence empty; minimax-m3 test). **v1.1.5 PUBLISHED
+2026-10-01** on 63a51b6d6 (run 36923265662 green, R2 + HF tag; mac archive verified on the M1 Max: -ngl 0 exit 0,
+124 tok/s). 5 upstream workflows the first sweep missed (gh workflow list truncates) were disabled; one had fired
+on the tag and was cancelled. Manifest sent to kalsa-brain. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
 manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
