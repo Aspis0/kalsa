@@ -29,3 +29,10 @@
 - **needs real work:** restore framework slices or enable/verify iOS source mode; port iroh and share-in; add iOS CI.
 - **missing:** first build and simulator/iPhone runtime validation. Xcode is not installed on this Mac; CocoaPods 1.17.0.
 - **Shortest path:** restore framework slices or enable source mode in CocoaPods → implement Apple thermal module → on Xcode Mac run expo prebuild -p ios, pod install, simulator build/run → iPhone GGUF/Metal/memory/picker/download smoke → port optional pairing/share-in.
+
+## Correction (coordinator, 2026-10-01)
+
+REFUTED: "declared but absent Apple thermal module". `modules/kalsa-thermal/ios/KalsaThermalModule.swift` and
+`KalsaThermal.podspec` exist and are tracked in the app repo (ProcessInfo.thermalState, thermalStateDidChange event,
+observer removed on stop/destroy). It has never been compiled (no Xcode on the Mac yet). The recon missed the `ios/`
+folder; every other claim above should be read with that in mind.
