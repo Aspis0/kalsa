@@ -85,6 +85,15 @@ jobs:
       - name: Assert the installed engine is the pinned fork commit
         run: bash scripts/assert-engine-provenance.sh
 
+      # The npm tarball ships the four HTP DSP skels and their manifest, but
+      # not the binding's own gate (the fork's scripts/ needs .git). This
+      # checks the installed bytes: each skel hash against the manifest, and
+      # the manifest's ENGINE_COMMIT against native/kalsallama.pin — a skel
+      # from another engine commit hangs HTP prefill (the 2026-09 dspqueue
+      # hang), so this must fail before gradle packages it as an asset.
+      - name: Assert the installed HTP skels match the manifest and the engine pin
+        run: bash scripts/assert-htp-skels-installed.sh
+
       # The fork vendors whole directories into vendor/llama.cpp (its own
       # scripts/sync-vendor.sh), but a directory the vendor manifest never names
       # is still absent, so a file a source starts including can be simply

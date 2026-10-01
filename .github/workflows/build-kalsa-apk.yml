@@ -59,6 +59,12 @@ jobs:
       - name: Assert the installed engine is the pinned fork commit
         run: bash scripts/assert-engine-provenance.sh
 
+      # Same gate as apk.yml: the installed skels must hash to their
+      # HTP_SKELS manifest and the manifest's ENGINE_COMMIT must be the
+      # app's engine pin, before prebuild/gradle can package them.
+      - name: Assert the installed HTP skels match the manifest and the engine pin
+        run: bash scripts/assert-htp-skels-installed.sh
+
       - name: Prebuild Android native project
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
