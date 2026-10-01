@@ -102,10 +102,14 @@ dead. It is not — see its section above.)
 
 Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 
-Local clone: `~/Projects/llama.rn-kalsa`. Remote branches: `kalsa`, `kalsa-step1`, `main`,
-`vendor-migration`. `origin/kalsa` is `0f313bab`, the app's pin until 20/09; `origin/vendor-migration`
-is `0288dc27`, the pin since then, and it declares the engine at `4ccef2f85`; the local `kalsa` branch
-is a stale pointer at `485519fe`. The fork's `vendor/` holds
+Local clone: `~/Projects/llama.rn-kalsa` (its checked-out branch is stale; the live line is the
+worktree `~/Projects/llama.rn-kalsa-gov-platform`). **Pruned 2026-10-01 to two remote branches:**
+`feat/governor-platform-status` (the app's pin, `b1c7ffc5` = engine `5b596ce43`) and `main` (an old
+upstream sync, the GitHub default). Former branches are `archive/<name>` tags at their tips
+(`archive/kalsa` = `0f313bab`, the pin until 20/09; `archive/vendor-migration` = `0288dc27`;
+`archive/kalsa-step1`, `archive/kalsarn-governor-engine`, `archive/feat-governor-npu-prefill`); the
+163 tags that duplicate `mybigday/llama.rn` were deleted. Full pre-prune backup:
+`~/kalsa-backups/kalsa-rn-all-refs-2026-10-01.bundle` (verified). The fork's `vendor/` holds
 `kalsallama` at the pin plus the Kalsa patch set, so the binding and the engine stop being
 assembled from three sources at build time.
 
