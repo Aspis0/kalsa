@@ -2858,6 +2858,58 @@ fn a_check_timeout_reads_as_slow() {
     );
 }
 
+/// A graphics launch that does not come up — a driver that dies at model
+/// load — must not be the end of the start: the walk hands the slot, once,
+/// to the processor launch the tune prepared beside it, and the record says
+/// the processor's args are what ran. Both configs here point at an exe that
+/// does not exist, so each start fails at once; the recorded args tell which
+/// launch was the last one tried.
+#[test]
+fn a_graphics_start_that_does_not_come_up_falls_back_to_the_processor() {
+    let brain = Brain::new();
+    let stops_seen = brain.begin_walk(|| {}).expect("first walk");
+    let prepared = graphics_prepared("fallback", 8178, 8179);
+    let graphics_threads = prepared.info.args.threads;
+    let states = [
+        prepared.server.state_file.clone(),
+        prepared.processor.as_ref().expect("a processor").0.state_file.clone(),
+    ];
+    assert_ne!(graphics_threads, Some(16), "the processor's args must be told apart");
+
+    settle_walk(&brain, (Ok(prepared), None), None, stops_seen).expect("the walk settles");
+
+    let launch = brain.launch.lock().expect("lock");
+    let info = launch.as_ref().expect("the walk recorded a launch");
+    assert_eq!(
+        info.args.threads,
+        Some(16),
+        "the processor launch was the last one tried"
+    );
+    assert!(info.tune.is_none(), "the record describes what actually runs");
+    for state in states {
+        let _ = std::fs::remove_file(state);
+    }
+}
+
+/// With no processor launch prepared there is nothing to fall back to: the
+/// graphics launch stays the recorded one and the failure is the walk's.
+#[test]
+fn a_graphics_start_with_no_processor_beside_it_keeps_its_own_launch() {
+    let brain = Brain::new();
+    let stops_seen = brain.begin_walk(|| {}).expect("first walk");
+    let mut prepared = graphics_prepared("no-fallback", 8176, 8177);
+    let graphics_threads = prepared.info.args.threads;
+    prepared.processor = None;
+    let state = prepared.server.state_file.clone();
+
+    settle_walk(&brain, (Ok(prepared), None), None, stops_seen).expect("the walk settles");
+
+    let launch = brain.launch.lock().expect("lock");
+    let info = launch.as_ref().expect("the walk recorded a launch");
+    assert_eq!(info.args.threads, graphics_threads);
+    let _ = std::fs::remove_file(state);
+}
+
 /// A Turn off lands while the check is running: the restart it would make
 /// is never queued.
 #[test]

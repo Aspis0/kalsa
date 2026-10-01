@@ -1475,24 +1475,24 @@ fn settle_walk(
             let settled = (outcome == StartOutcome::Accepted)
                 .then(|| waiter.settle())
                 .flatten();
-            if let Some((retry, config, args)) =
+            let mut last = settled.clone();
+            if let Some(relaunch) =
                 attempt_retry(brain, stops_seen, settled.clone(), tuned_changed, rule)
             {
-                // Best effort: a delete that fails leaves the old record,
-                // which fails once more and takes the same retry.
-                if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
-                    kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root(), model_digest);
-                }
-                let retry_outcome = retry.outcome();
-                // The retry settles too before the guard lets go.
-                if retry_outcome == StartOutcome::Accepted {
-                    let _ = retry.settle();
-                }
-                outcome = retry_outcome;
-                // The record must describe what actually runs.
-                prepared.info.args = args;
-                prepared.info.tune = None;
-                prepared.server = config;
+                (outcome, last) = adopt_relaunch(&mut prepared, relaunch);
+            }
+            // A graphics launch that still did not come up — a driver that
+            // crashes or hangs at model load — hands the slot, once, to the
+            // processor launch the tune prepared beside it: a start the
+            // card cannot serve must not be a start that fails.
+            let processor = prepared.processor.clone();
+            let processor_differs = processor.as_ref().is_some_and(|(config, _)| {
+                config.argv != prepared.server.argv || config.exe != prepared.server.exe
+            });
+            if let Some(relaunch) =
+                attempt_retry(brain, stops_seen, last, processor_differs, processor)
+            {
+                outcome = adopt_relaunch(&mut prepared, relaunch).0;
             }
             // The per-start speed check, still inside the walk: while the
             // walk holds `turning_on` no NEW door raise happens — one
@@ -1601,9 +1601,11 @@ fn queue_start(
     Some(brain.supervisor.start(config))
 }
 
-/// The retry decision and its gate in one place: a retryable failure of the
-/// tuned launch queues the rule's config, unless a Turn off arrived while
-/// that failure was being decided.
+/// The relaunch decision and its gate in one place: a load failure of the
+/// launch that just ran queues the next config — the rule's after a tuned
+/// launch, the processor's after a graphics one — unless a Turn off arrived
+/// while that failure was being decided. `changed` says the next config is
+/// not the one that failed.
 fn attempt_retry(
     brain: &Brain,
     stops_seen: u64,
@@ -1617,6 +1619,28 @@ fn attempt_retry(
     let (config, args) = rule?;
     let waiter = queue_start(brain, stops_seen, config.clone(), || ())?;
     Some((waiter, config, args))
+}
+
+/// Waits out a relaunch and makes the record describe what now runs: the
+/// failed launch's tune record is dropped (best effort — a delete that fails
+/// leaves it, and the next start fails and relaunches the same way) and the
+/// args and config are the relaunch's. Returns the relaunch's own verdict and
+/// settle; the settle is awaited here so the walk's guard outlives it.
+fn adopt_relaunch(
+    prepared: &mut startup::PreparedStart,
+    (waiter, config, args): (StartWaiter, ServerConfig, kalsa_launch::ServerArgs),
+) -> (StartOutcome, Option<StartSettled>) {
+    if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
+        kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root(), model_digest);
+    }
+    let outcome = waiter.outcome();
+    let settled = (outcome == StartOutcome::Accepted)
+        .then(|| waiter.settle())
+        .flatten();
+    prepared.info.args = args;
+    prepared.info.tune = None;
+    prepared.server = config;
+    (outcome, settled)
 }
 
 /// Half the recorded best: below it this start is not the launch the record
