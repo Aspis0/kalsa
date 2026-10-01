@@ -226,3 +226,165 @@ Design (all in `cpp/rn-llama.cpp` unless noted):
 - Engine-side residuals F1/F2/F4-class notes (audit r3) live in the engine
   repo's scope; `61c909481` carries the F1/F3/F4/F7 fixes; F2 (unbounded
   teardown join) remains open upstream-side and is unchanged here.
+
+## 7. Audit round (2026-10-01, second session)
+
+Five commits on top of `1a47c48f`, one per audit item, all on
+`feat/governor-platform-status` (verified `git branch --show-current` before
+every commit; tree clean after each). No push, no tags, no new branches, no
+device. Engine repo untouched at `61c909481` (verified `git status` there).
+
+| item | commit | subject |
+|---|---|---|
+| F2 | `f83e6cef` | one reproducible in-repo skel recipe; CI never writes bin/ |
+| F8 | `86c38bd0` | kill the HTP lane only on an HTP prefill compute failure |
+| F9 | `7a2f8ea0` | surface htp-runtime-error on the log line the lab parses |
+| F19+F16+F5 | `935e5b50` | honest skips, zero-fuzz patches, sync fails on fuzz |
+| F1 | `fa8d83ef` | the skel binary names its engine; the gate reads it |
+
+Final HEAD `fa8d83efdc76ba4ad28194dbc1adad7c40957259`.
+
+### F2 — the recipe is in the repo now
+
+`scripts/build-htp-skels.sh` (host driver) + `scripts/htp-skels-container.sh`
+(container half) replace `build-hexagon-htp.sh` and `docker-build-wrapper.sh`
+(both deleted, with every caller): the driver exports the engine sha from
+`vendor/VERSIONS`, refuses uncommitted modifications of tracked vendor files,
+`git archive`s HEAD's ggml headers + `ggml/src/ggml-hexagon` into the
+container (never a bind-mounted checkout), the container half extracts at the
+fixed path `/tmp/kalsa-htp/src` (baked into FARF/`__FILE__` strings, so every
+rebuild carries the recipe's prefix), builds v73/v75/v79/v81 (Release, Ninja,
+`HEXAGON_HTP_DEBUG=OFF`, per-DSP build retry x3), refreshes the QAIC v73 host
+stub pair — now tracked; the writer's run and both rebuilds produce
+byte-identical stubs — and rewrites the manifest digests before running the
+gate as its self-check. CI: `bin/` cache and `rnllamaHtpArtifactsUpToDate`
+removed, gradle `prepareHTP` verifies instead of builds, and the gate now runs
+after the gradle build in `build-android-from-source` and before packaging in
+the release job, in addition to the vendor job. Rebuild log
+`/tmp/htp-rebuild-f2.log` REBUILD_EXIT=0 (all four DSPs first-attempt clean);
+`strings` in all four shows only the recipe's paths, zero `/tmp/htp-skels`.
+
+### F1 — the gate cannot be satisfied by editing text
+
+`scripts/htp-skels-container.sh` generates a stamp TU
+(`const char kalsa_htp_engine_stamp[] __attribute__((used)) =
+"KALSA_HTP_ENGINE=<40-sha>"`) from the driver-exported
+`KALSA_HTP_ENGINE_SHA` and appends it to the htp target **of the archive
+copy** — the engine tree (repo or vendored) is never edited, so no engine-side
+change was needed. `assert-htp-skels.sh` now fails unless every shipped skel
+(1) is a QDSP6 ELF of plausible size (magic + 32-bit LE + e_machine 164 +
+256 KB floor) and (2) carries exactly one `KALSA_HTP_ENGINE=` string equal to
+`LLAMA_CPP_COMMIT`. Mutation proofs:
+
+| mutation | result |
+|---|---|
+| pin `LLAMA_CPP_{REF,COMMIT}` -> fake sha AND manifest `ENGINE_COMMIT` edited to match, no rebuild | EXIT=1, all four "engine sha 61c9094 != vendored engine sha 0123456" (the audit's green run is now red) |
+| v79 replaced with placeholder bytes, manifest sha recomputed to match | EXIT=1, "is not a QDSP6 ELF of plausible size" |
+| restored | EXIT=0, "ok (engine 61c9094, 4 skels match the manifest, each names its engine)" |
+
+Bare `ubuntu:24.04` container over the real tree: EXIT=0 (the byte check uses
+`od`+`awk`+`grep -a`, no binutils; one portability fix was needed — `od`
+wraps at 16 bytes, so the awk index accumulates across lines, first caught by
+the gate failing on the freshly-built skels, then proven green).
+
+New skel sha256s (stamped build, all four first-attempt clean,
+`/tmp/htp-rebuild-f1.log` REBUILD_EXIT=1 then green after the gate fix —
+the skels themselves were good, the check was wrong):
+
+| file | sha256 | size |
+|---|---|---|
+| libggml-htp-v73.so | `9a3b17d7bb510c0e0f5819fea98b71b7e50070badf893e28ac1dd34889a3d015` | 919144 |
+| libggml-htp-v75.so | `21d5faa3ae77cacde5a13cbd66e2f6b9ae0554234e4f834f86602e60c43b03b3` | 864936 |
+| libggml-htp-v79.so | `225ce49a0b52a8256d7abdc96337cce44aa30afb4ab35a79275735d16c7a954b` | 885512 |
+| libggml-htp-v81.so | `10b7f9dffb021cc40360a5d8d1a8ffb5daaf1f382add912cf080522a85e47b80` | 914280 |
+
+### F8 — the fallback signal, with engine file:line
+
+`note_htp_runtime_fallback` fires only through the pure helper
+`htp_prefill_runtime_failure` (`cpp/rn-governor-params.cpp`), on all four of:
+
+1. `batch.n_tokens > 1` — the engine's own `is_prefill`
+   (`vendor/llama.cpp/src/llama-governor.cpp` `decode_impl`, "const bool
+   is_prefill = batch.n_tokens > 1"). HTP only ever runs prefill.
+2. `stats().prefill_engine == NPU` — stamped by the route latch for THIS
+   batch (`vendor/llama.cpp/src/llama-governor-runtime.cpp:109-110`:
+   `prefill_route_ = admission.engine == CPU ? ... ; stats_.prefill_engine =
+   admission.engine`), refreshed per decode (`refresh_policy_stats`,
+   `llama-governor-runtime.cpp:53-58`). A prefill the policy latched to CPU
+   (LOWBAT/heat) reports CPU and cannot misattribute.
+3. `rc == -3` — the engine's compute-failure map
+   (`vendor/llama.cpp/src/llama-context.cpp:1935`: `case GGML_STATUS_FAILED:
+   return -3;`). Alloc failure (-2) is memory pressure, not the DSP.
+4. reason prefix `"llama_decode failed with rc="` — set only where
+   `llama_decode(target, batch)` itself failed (`llama-governor.cpp`
+   decode_impl); the host-side handoff failures (`"KV commit failed: %.80s"`,
+   the OpenCL set_tensor OOM catch in `commit_side`,
+   `llama-governor.cpp:122-133`; `"route Reject during phase handoff"`,
+   `llama-governor.cpp:293-297`) never touch the DSP and keep the lane on.
+
+Smallest signal available after the engine's -3, all already published by the
+engine — no engine change. Known residual: with the governor policy disabled
+the stat keeps its CPU default and real HTP failures are NOT attributed (the
+lane stays on, the turn still fails loudly) — under-attribution only, and the
+kalsa app always enables the policy with the lane.
+
+### F9 — visible at failure time, comments tell the truth
+
+The `KALSA_GOVERNOR_FALLBACK` line (the one surface that fires in the failing
+branch — end-of-turn telemetry is skipped on the throwing turn, the retry's
+reload suppresses the plan line) now carries `npu_fallback:"htp-runtime-error"`
+(`cpp/rn-llama.cpp` decode wrapper). The env-mechanism comments are fixed in
+all three places: the recorder's paragraph, `rn-governor-params.h`'s constant
+doc, and `RNLlama.java` — which now states that the empty-clear at :185 is
+safe only because `loadNative` short-circuits on `libsLoaded`, and that a
+future re-extract path outside that guard would re-arm HTP into the recorded
+hang. Stated position: the app's CPU-only retry reload IS the behaviour we
+want — the recovery path must not re-enter a DSP that just failed its
+compute; the env is for the next governor load, not the retry.
+
+### F19 + F16 + F5
+
+`parallel_decoding_test`'s 14 `[SKIP] -> return true` blocks now hard-FAIL
+with a `git lfs pull` hint. CI materializes the model: the test job checks
+out with `lfs: true` (`ci.yml:54-56`) and `tests/.gitattributes` carries the
+LFS filter (audit F20 verified `git check-attr`), so a CI failure there is a
+real defect. Locally the suite now honestly reports 14 failed instead of
+28/28-with-14-hidden-skips. Three patches regenerated from pristine-at-pin vs
+vendored (fuzz 1/2/1 -> 0; update-patch.sh kept their preambles); all 20
+patches apply `--fuzz=0` clean (verified against a fresh archive export of
+`61c909481`); `sync-vendor.sh` applies with `--fuzz=0`, and `npm run
+sync:vendor` over the committed tree is a byte-exact no-op (SYNC_EXIT=0,
+empty `vendor/` diff). F5: the dead `-DGGML_HEXAGON_FP32_QUANTIZE_GROUP_SIZE=128`
+was DROPPED (with `f83e6cef`) — the option does not exist in the engine at
+this pin; grep over the repo and the vendored tree finds zero references.
+
+### Test exit codes (full runs)
+
+- `npm test` (jest): EXIT=0 — 18 suites / 72 tests (one new F9 pin).
+- `npm run lint`: EXIT=0 (one pre-existing TTSScreen warning, untouched).
+- `npm run typecheck`: EXIT=0.
+- `tests/build_and_test.sh`: EXIT=0 (all four targets build).
+- `tests/run_tests.sh`: EXIT=1 overall, as expected locally —
+  governor_params_test 12/12 (incl. the new attribution case),
+  chat_parse_utf8_test 18/18, parallel_decoding_test 14/14 FAIL **by design**
+  (the F19 hard-fail working: this machine has no git-lfs, the model is a
+  133-byte pointer), rnllama_tests 2/6 (pre-existing: same missing model).
+- `assert-htp-skels.sh`: macOS EXIT=0, ubuntu:24.04 EXIT=0;
+  `assert-kalsa-vendor.sh` / `assert-rnllama-sources.sh`: EXIT=0;
+  workflow YAML parses.
+- Lefthook pre-commit passed on every commit (one
+  `unicorn/better-regex` rejection fixed before F9 landed).
+
+### What only CI / device can prove
+
+- No GitHub Actions run was triggered (no push): the gate's new legs, the
+  `prepareHTP` verify-only task, and the release-job gate are verified
+  locally (macOS + ubuntu container), not on the runner.
+- `rnllama_tests` model cases and the parallel_decoding_test bodies need the
+  LFS object (CI) — locally they fail by design.
+- The stamped skels on silicon: the S23 M1/M1b/M2 arms remain the acceptance
+  run; this session adds no device evidence. The stamp string is verifiable
+  on-device via `strings libggml-htp-v73.so | grep KALSA_HTP_ENGINE`.
+- The F8 gate has never fired on a real HTP failure; the attribution is
+  proven by the pure-function host test and the engine source lines, not by
+  an on-device failure.

@@ -805,6 +805,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   OOM); parallel_decoding "28/28" was 14 skips. COORDINATOR DESIGN: each skel embeds the vendored engine sha and
   the gate checks the binary; one committed reproducible recipe; fallback only on a real HTP failure. Fix in
   progress. NOT verified on the S23 yet (battery 20 %).
+  Round 2 `f83e6cef..fa8d83ef` (GLM 6897be16: recipe, engine stamp, HTP-only fallback, npu_fallback on the log
+  line, honest test skips, fuzz-0 patches): audit r2 FIX FIRST (luna b05f5929, `AUDIT-fix-binding-r2.md`): the
+  stamp is the claimed pin, not a content fingerprint (an htp-ops.h edit under the same pin passed); raw-byte
+  stamp grep; partial skel set passes; build-example-android.yml skips the gate; fallback pointer data race;
+  dead retry under set -e; mutable image tag; 63 MB LFS per CI run. Coordinator verdict: fix all of these
+  (forgery out of scope; rc=-3 attribution limits and the env race documented, not fixed). Fix round GLM
+  029d15d7. App side, at the pin step: the app's APK workflow must run the binding's skel gate too.
 
 ### Pairing: iroh and invite links
 
