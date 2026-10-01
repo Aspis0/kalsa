@@ -850,7 +850,8 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   CPU holds, the report does not.** gpu2-l3 reused a 1660-token prefix (`n_common=1660`) inside the GPU-long median;
   35 rows not 37 (cpu1-l1 has no kalsa extract, LOWBAT); dropbox 8 vs 5 lines, not byte-identical; per-chunk
   `"actual":"gpu"` 303x, never npu, on lane-on turns; end state had the launcher on top; `*-ui.xml` cited, absent.
-  Report correction: mimo b2962f18. **Owner 2026-10-01, both yes:** (1) fix the governor route telemetry so it
+  Report corrected (mimo b2962f18, medians re-checked by the coordinator): GPU long 103.3 (n=3), NPU/GPU prefill
+  1.49x short / 1.17x long; AUTO picked NPU 9 of 10; per-turn HTP execution and crash sweep UNPROVEN. **Owner 2026-10-01, both yes:** (1) fix the governor route telemetry so it
   names the executing device (HTP) - recon luna 9f6a9d13, then a fix in the binding follow-up round; (2) queue an
   S23 session with per-turn HTP execution proof (not the single pre-campaign probe), phone charged first.
 
