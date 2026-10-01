@@ -584,7 +584,15 @@ target KV -> clean refusal instead of abort (Lenovo multi-GPU), dead b11010-merg
 suspected Vulkan decode regression on Ling-3.0-tiny (MoE + KDA): 64 vs 99 tok/s on e8065c7cf, single pair, RTX
 throttling; Lenovo interleaved re-check queued by kalsa-brain; recon luna 6c1a252d
 (`scratchpad/agents/vulkan-moe-decode-regression/`). Also check Qwen3.6-35B-A3B on Vulkan. CPU tiled k-quant prefill
-helps on AVX2 (+15-25 %), keep. Per-request speculative.n_max stays deferred (owner). Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
+helps on AVX2 (+15-25 %), keep. Per-request speculative.n_max stays deferred (owner). Ling re-check (5 interleaved
+pairs, cool gate): v1.1.4 median 81.6 vs 88.7 tok/s, inside a 69-104 same-build spread; Vulkan perf logger: GPU time
+per graph new/old 0.89, no op slower (GDN 0.75) -> NO revert; toggles + Qwen3.6 pair still running.
+fix/v1.1.5 (GLM d669dc8d, 6 commits f7cadf7de..e636ee126): M1 proven by me (same model, -ngl 0: v1.1.4 EXIT=132
+SIGILL, v1.1.5 EXIT=0 98 tok/s; apple_m1 variant 0 smmla). Audit (space-bunny 6d6c2fd2, `kalsa-server-v115/AUDIT.md`)
+FIX FIRST: B1 `strings | grep -Fqx` under pipefail fails 5/5 on a good archive (SIGPIPE 141) - would have killed the
+release run; tautological basename check; unknown KSID version ignored while the appendix hard-fails; two comments
+teach the wrong mechanism. Identity check limit: same-shape different weights restore silently. Fix round GLM
+4ad9679f. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
 manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
