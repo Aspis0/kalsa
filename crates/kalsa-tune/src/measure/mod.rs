@@ -8,14 +8,15 @@ use std::time::{Duration, Instant};
 use kalsa_runtime::{free_loopback_port, serve, ServeError};
 
 use crate::candidates::Candidate;
-use crate::passes::{self, Samples, Tuned};
+use crate::passes::{self, First, Samples, Tuned};
 use crate::refusal::Refusal;
 use crate::room;
-use crate::sample::{request_ask, serves_id, Ask};
+use crate::sample::{post_to, request_ask, serves_id, Ask};
 
 /// One clock over both passes, checked before each lifetime and never
-/// during one: 1080 s is fifteen lifetimes (three shapes, a prefill and
-/// four draft settings each) at the slowest plausible ~68 s apiece.
+/// during one: 1080 s is the widest tune — three shapes, each a
+/// prefill-and-off lifetime and three drafted settings — at the slowest
+/// plausible ~68 s apiece, twelve lifetimes ≈ 820 s.
 const TOTAL_BUDGET: Duration = Duration::from_secs(1080);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
@@ -55,11 +56,12 @@ const WARMUP_REQUESTS: usize = 1;
 const WARMUP_N_PREDICT: u64 = 8;
 const MEASURED_REQUESTS: usize = 2;
 
-/// The whole tune: every shape's prefill, then its decode sweep — off and
-/// every draft setting — over the caller's short chat ask, so all decode
-/// numbers are the same work made. `drafter` says whether the plan ships
-/// one at all; a shape whose build cannot host it is a refusal inside the
-/// sweep, never a failed launch.
+/// The whole tune: every shape's first lifetime — the room ask's prefill
+/// and the shape's own off-decode in one server — then its drafted sweep
+/// (2, 3, 4) over the caller's short chat ask, so every decode number is
+/// the same work made. `drafter` says whether the plan ships one at all;
+/// a shape whose build cannot host it is a refusal inside the sweep,
+/// never a failed launch.
 pub fn measure_tune(
     shapes: &[(Candidate, PathBuf)],
     state_root: &Path,
@@ -76,8 +78,8 @@ pub fn measure_tune(
         TOTAL_BUDGET,
         || started.elapsed(),
         progress,
-        |candidate, exe| room::prefill_lifetime(state_root, candidate, exe, build),
-        |candidate, exe| run_lifetime(state_root, candidate, exe, build, ask),
+        |candidate, exe| first_lifetime(state_root, candidate, exe, build, ask),
+        |candidate, exe| decode_lifetime(state_root, candidate, exe, build, ask),
     )
 }
 
@@ -85,13 +87,13 @@ pub fn measure_tune(
 /// wait until `/health` answers, the caller's own requests between the
 /// two identity checks — and the server is stopped and reaped when this
 /// returns, so the GPU is free before the next candidate spawns.
-pub(crate) fn lifetime(
+pub(crate) fn lifetime<A>(
     state_root: &Path,
     candidate: &Candidate,
     resolved_exe: &PathBuf,
     build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
-    requests: impl FnOnce(SocketAddr) -> Samples,
-) -> Samples {
+    requests: impl FnOnce(SocketAddr) -> Result<A, Refusal>,
+) -> Result<A, Refusal> {
     let port = free_loopback_port().map_err(|_| Refusal::DidNotStart)?;
     let (exe, argv) = build(candidate, resolved_exe, port);
     // One identity per lifetime, and it goes into the launch as the
@@ -129,21 +131,41 @@ pub(crate) fn lifetime(
     // measurement, and those facts are about whether it was ever ours.
     let child_is_alive = server.alive();
     let on_our_model = serves_id(server.address(), &nonce, IDENTITY_TIMEOUT);
-    match measured {
-        Ok(rates) => conclude(rates, child_is_alive, on_our_model),
-        Err(refusal) => {
-            if !child_is_alive || !on_our_model {
-                Err(Refusal::DidNotStart)
-            } else {
-                Err(refusal)
-            }
-        }
-    }
+    conclude(measured, child_is_alive, on_our_model)
 }
 
-/// The decode pass's lifetime: the ask's own requests, warm-up first and
-/// two measured — the samples the estimator takes the best of.
-fn run_lifetime(
+/// One shape's first lifetime: the room ask once — its own short warm-up
+/// first, so the history's first-token cost is the measurement and not
+/// the connection's — and then the shape's off-decode, the same warm-up
+/// and two measured requests every drafted setting gets. The room ask runs
+/// first and both asks carry `cache_prompt: false`, so neither
+/// measurement reads the other's cache.
+fn first_lifetime(
+    state_root: &Path,
+    candidate: &Candidate,
+    resolved_exe: &PathBuf,
+    build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
+    ask: &Ask,
+) -> Result<First, Refusal> {
+    lifetime(state_root, candidate, resolved_exe, build, |addr| {
+        let _ = post_to(addr, REQUEST_TIMEOUT, "/completion", &room::warmup_body());
+        let prompt_rate = match post_to(addr, REQUEST_TIMEOUT, "/completion", &room::ask_body()) {
+            Ok(answer) => room::prompt_rate(&answer)?,
+            // A timeout or an HTTP error is a lifetime with no usable
+            // answer, the same reading the decode pass gives one.
+            Err(_) => return Err(Refusal::NoUsableAnswer),
+        };
+        let rates = draft_requests(addr, ask);
+        Ok(First {
+            prompt_rate,
+            off: measured(rates),
+        })
+    })
+}
+
+/// The drafted sweep's lifetime: the same ask and the same request
+/// discipline as the first lifetime's off-decode, on one n_max.
+fn decode_lifetime(
     state_root: &Path,
     candidate: &Candidate,
     resolved_exe: &PathBuf,
@@ -151,22 +173,40 @@ fn run_lifetime(
     ask: &Ask,
 ) -> Samples {
     lifetime(state_root, candidate, resolved_exe, build, |addr| {
-        let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
-        for attempt in 0..(WARMUP_REQUESTS + MEASURED_REQUESTS) {
-            let n_predict = if attempt < WARMUP_REQUESTS {
-                WARMUP_N_PREDICT
-            } else {
-                ask.n_predict
-            };
-            let rate = request_ask(addr, REQUEST_TIMEOUT, ask, n_predict);
-            if attempt >= WARMUP_REQUESTS {
-                if let Some(rate) = rate {
-                    rates.push(rate);
-                }
+        measured(draft_requests(addr, ask))
+    })
+}
+
+/// The decode sequence one draft lifetime runs: a discarded warm-up at the
+/// ask's own prompt, then two measured requests. Shared by a shape's first
+/// lifetime and every drafted setting, so all decode numbers are the same
+/// work made.
+fn draft_requests(addr: SocketAddr, ask: &Ask) -> Vec<f64> {
+    let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
+    for attempt in 0..(WARMUP_REQUESTS + MEASURED_REQUESTS) {
+        let n_predict = if attempt < WARMUP_REQUESTS {
+            WARMUP_N_PREDICT
+        } else {
+            ask.n_predict
+        };
+        let rate = request_ask(addr, REQUEST_TIMEOUT, ask, n_predict);
+        if attempt >= WARMUP_REQUESTS {
+            if let Some(rate) = rate {
+                rates.push(rate);
             }
         }
+    }
+    rates
+}
+
+/// The samples of one decode sequence, or the closed cause when none
+/// finished: an empty row is not a measurement.
+fn measured(rates: Vec<f64>) -> Samples {
+    if rates.is_empty() {
+        Err(Refusal::NoUsableAnswer)
+    } else {
         Ok(rates)
-    })
+    }
 }
 
 /// A fresh identity for one lifetime: 128 random bits as the model id.
@@ -221,14 +261,15 @@ fn without_aliases(argv: Vec<String>) -> Vec<String> {
 /// before the spawn — the window opens before the engine binds — so a
 /// child that died, or a port that answers with somebody else's model,
 /// means the samples were not ours, however good they look.
-fn conclude(rates: Vec<f64>, child_is_alive: bool, on_our_model: bool) -> Samples {
+fn conclude<A>(
+    answer: Result<A, Refusal>,
+    child_is_alive: bool,
+    on_our_model: bool,
+) -> Result<A, Refusal> {
     if !child_is_alive || !on_our_model {
-        return Err(Refusal::DidNotStart);
-    }
-    if rates.is_empty() {
-        Err(Refusal::NoUsableAnswer)
+        Err(Refusal::DidNotStart)
     } else {
-        Ok(rates)
+        answer
     }
 }
 

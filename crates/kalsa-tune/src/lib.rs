@@ -29,4 +29,4 @@ pub use candidates::{candidates, needs_tuning, Candidate};
 pub use measure::measure_tune;
 pub use passes::Tuned;
 pub use refusal::Refusal;
-pub use score::{Reply, Skip, Winner};
+pub use score::{Reply, Winner};

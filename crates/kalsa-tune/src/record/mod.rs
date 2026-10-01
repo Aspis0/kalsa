@@ -13,9 +13,9 @@ use kalsa_runtime::ServerBackend;
 
 use crate::candidates::Candidate;
 use crate::refusal::Refusal;
-use crate::score::{reply_seconds, Reply, Skip, Winner};
+use crate::score::{reply_seconds, Reply, Winner};
 
-const MAGIC: &str = "kalsa-tune v5";
+const MAGIC: &str = "kalsa-tune v6";
 
 /// One record per model, filed under the model digest the key names. The
 /// single `tuning.txt` this replaces could hold one tune, so a second
@@ -85,22 +85,18 @@ struct WinnerLine {
     seconds: Option<f64>,
 }
 
-/// A candidate's kept result: the room's reply it measured, the prefill
-/// number it managed before a skip, or the closed cause that kept any
-/// number out.
+/// A candidate's kept result: the room's reply it measured, or the closed
+/// cause that kept any number out.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Kept {
     /// The trial's three numbers: the shape's prefill, the trial's own
-    /// decode, and the wait they make.
+    /// decode, and the wait they make. The shape's own off setting is one
+    /// of these, measured in the shape's first lifetime; the drafted
+    /// settings are the others, each on its own lifetime.
     Replied(Reply),
-    /// The shape's prefill was measured; no decoded ask ran on it — the
-    /// bound proved the prefill alone cannot win, or the budget ran out
-    /// first. The shape ran, so the record is whole; it has no reply, so
-    /// it cannot win.
-    PromptOnly { prompt_rate: f64, skipped: Skip },
     /// No number, and the closed cause. The prompt rate rides along when
-    /// the shape's prefill had measured one, so a trial that failed after
-    /// prefill still says what the shape's history cost.
+    /// the shape's first lifetime had measured one, so a trial that failed
+    /// after the room ask still says what the shape's history cost.
     Refused {
         refusal: Refusal,
         prompt_rate: Option<f64>,
@@ -157,9 +153,6 @@ fn validate(record: &Record) -> io::Result<()> {
         match kept {
             Kept::Replied(reply) if !reply_is_sound(reply) => {
                 return reject("a reply must be its own rates' positive, finite score");
-            }
-            Kept::PromptOnly { prompt_rate, .. } if !rate_is_sound(*prompt_rate) => {
-                return reject("a prefill rate must be positive and finite");
             }
             Kept::Refused {
                 prompt_rate: Some(prompt_rate),
@@ -259,16 +252,6 @@ fn save_with(dir: &Path, model_digest: &str, record: &Record, cut: bool) -> io::
                 text.push_str(&format!(
                     "candidate.{index}.reply-seconds={}\n",
                     reply.seconds
-                ));
-            }
-            Kept::PromptOnly {
-                prompt_rate,
-                skipped,
-            } => {
-                text.push_str(&format!("candidate.{index}.prompt-rate={prompt_rate}\n"));
-                text.push_str(&format!(
-                    "candidate.{index}.skipped={}\n",
-                    skip_name(*skipped)
                 ));
             }
             Kept::Refused {
@@ -405,8 +388,8 @@ pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
 fn parse(text: &str) -> Option<(String, Record, bool)> {
     let mut lines = text.lines();
     // The magic must be the WHOLE first line: a version we do not know —
-    // `kalsa-tune v4` with its shorter room ask, today — is not ours, and
-    // the walk tunes again.
+    // `kalsa-tune v5` with its separate off lifetime, today — is not ours,
+    // and the walk tunes again.
     if lines.next()? != MAGIC {
         return None;
     }
@@ -415,7 +398,7 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     // The candidate being read: fields arrive in the order save writes
     // them (backend, threads?, offload, prompt-rate?, then exactly one of
-    // reply-seconds/skipped/refused) and only for the next index in line.
+    // reply-seconds/refused) and only for the next index in line.
     let mut open: Option<Open> = None;
     let mut winner: Option<WinnerLine> = None;
     let mut saw_end = false;
@@ -507,22 +490,6 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
                         return None;
                     }
                     close(&mut open, &mut trials, Kept::Replied(reply))?;
-                }
-                "skipped" => {
-                    let slot = open.as_ref()?;
-                    if slot.decode_rate.is_some() {
-                        return None;
-                    }
-                    let prompt_rate = slot.prompt_rate?;
-                    let skipped = skip_from_name(value)?;
-                    close(
-                        &mut open,
-                        &mut trials,
-                        Kept::PromptOnly {
-                            prompt_rate,
-                            skipped,
-                        },
-                    )?;
                 }
                 "refused" => {
                     if open.as_ref()?.decode_rate.is_some() {
@@ -738,22 +705,6 @@ fn refusal_from_name(name: &str) -> Option<Refusal> {
         "not-ready" => Some(Refusal::NotReady),
         "no-usable-answer" => Some(Refusal::NoUsableAnswer),
         "prompt-too-short" => Some(Refusal::PromptTooShort),
-        _ => None,
-    }
-}
-
-/// The record's name for each skip: exhaustive, like the refusals.
-fn skip_name(skip: Skip) -> &'static str {
-    match skip {
-        Skip::Bounded => "bounded",
-        Skip::Cut => "cut",
-    }
-}
-
-fn skip_from_name(name: &str) -> Option<Skip> {
-    match name {
-        "bounded" => Some(Skip::Bounded),
-        "cut" => Some(Skip::Cut),
         _ => None,
     }
 }

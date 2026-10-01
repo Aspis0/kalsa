@@ -1,7 +1,8 @@
-//! The tune's two passes under one budget: every shape's prefill first, so
-//! a shape whose history alone already costs more than the best complete
-//! reply costs one lifetime instead of five; then the decode sweep, off
-//! first, on every shape the bound did not skip.
+//! The tune's two passes under one budget: every shape's first lifetime —
+//! the room ask and the shape's own off-decode in one server — then the
+//! drafted sweep, off the shape's own numbers, so a shape whose prefill
+//! alone already costs more than the best complete reply costs one
+//! lifetime instead of four.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -9,17 +10,29 @@ use std::time::Duration;
 use crate::candidates::Candidate;
 use crate::record::Kept;
 use crate::refusal::Refusal;
-use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Skip, Winner};
+use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Winner};
 
-/// The draft settings every shape is swept at when the plan ships a
-/// drafter; off is first, so a budget cut leaves every shape a complete
-/// target-only reply rather than a hole. No drafter, one setting: the
-/// shape alone.
-const DRAFT_SETTINGS: [Option<u32>; 4] = [None, Some(2), Some(3), Some(4)];
+/// The drafted settings a shape is swept at when the plan ships a drafter;
+/// the shape's own off setting is not among them — it is measured in the
+/// shape's first lifetime, so every shape's numbers come from one server
+/// and the off number is the same work as these three.
+const DRAFT_SETTINGS: [Option<u32>; 3] = [Some(2), Some(3), Some(4)];
+
+/// One shape's answer to one lifetime: the rates it measured, or the
+/// closed cause that kept them from arriving.
+pub(crate) type Samples = Result<Vec<f64>, Refusal>;
+
+/// What one shape's first lifetime measured: the room ask's prefill rate,
+/// and the shape's own off-decode — the same ask, warm-up and two measured
+/// requests every drafted setting gets.
+pub(crate) struct First {
+    pub prompt_rate: f64,
+    pub off: Samples,
+}
 
 /// What the two passes produced: the trials the record keeps, the winner
 /// the launch applies, whether every shape's first lifetime ran, and
-/// whether the budget stopped a decode sweep. A shape that never began is
+/// whether the budget stopped a drafted sweep. A shape that never began is
 /// a hole in the picture, and the caller withholds the record rather than
 /// pinning a partial one; a sweep the budget cut is a marker for the next
 /// start, which gets the chance to finish it.
@@ -31,40 +44,40 @@ pub struct Tuned {
     pub cut: bool,
 }
 
-/// One shape's answer to one lifetime: the rates it measured, or the
-/// closed cause that kept them from arriving.
-pub(crate) type Samples = Result<Vec<f64>, Refusal>;
-
 /// The two passes over the resolved shapes, under the caller's own clock
-/// and budget: each shape's prefill, then its decode sweep. A shape's
-/// answer arrives whole — a prefill that refuses costs no decode lifetime,
-/// a skip keeps the prefill number that justified it.
+/// and budget: each shape's first lifetime, then its drafted sweep. A
+/// shape's answer arrives whole — a first lifetime that refuses costs no
+/// drafted lifetime, and a refused off-decode still leaves the prefill
+/// number that the sweep and the bound run on.
 pub(crate) fn tune<P, D>(
     shapes: &[(Candidate, PathBuf)],
     drafter: bool,
     budget: Duration,
     since_start: impl Fn() -> Duration,
     progress: &mut dyn FnMut(usize, usize),
-    mut prefill: P,
+    mut first: P,
     mut decode: D,
 ) -> Tuned
 where
-    P: FnMut(&Candidate, &PathBuf) -> Samples,
+    P: FnMut(&Candidate, &PathBuf) -> Result<First, Refusal>,
     D: FnMut(&Candidate, &PathBuf) -> Samples,
 {
-    let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[None] };
+    let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[] };
     let mut planned = shapes.len() * (1 + settings.len());
     let mut done = 0usize;
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     let mut complete = true;
     let mut cut = false;
 
-    // Pass one: every shape's prefill, in the order built — the likely
-    // winner first, so its complete reply is the bound for everything
-    // after it.
+    // Pass one: every shape's first lifetime, in the order built — the
+    // likely winner first, so its complete off reply is the bound for
+    // everything after it. The off trial is kept here, not in the sweep:
+    // its reply is the shape's own number, and it can be the best before
+    // any drafted setting runs.
     let mut prompt: Vec<Option<f64>> = vec![None; shapes.len()];
     let mut refused: Vec<Option<Refusal>> = vec![None; shapes.len()];
     let mut ran: Vec<bool> = vec![false; shapes.len()];
+    let mut best: Option<f64> = None;
     for (index, (shape, exe)) in shapes.iter().enumerate() {
         if since_start() >= budget {
             complete = false; // never began: a shape-sized hole in the picture
@@ -72,11 +85,40 @@ where
         }
         progress(done, planned);
         ran[index] = true;
-        match prefill(shape, exe) {
-            Ok(rates) => match best_rate(&rates) {
-                Some(rate) => prompt[index] = Some(rate),
-                None => refused[index] = Some(Refusal::NoUsableAnswer),
-            },
+        match first(shape, exe) {
+            Ok(measured) => {
+                prompt[index] = Some(measured.prompt_rate);
+                let off = Candidate {
+                    draft: None,
+                    ..*shape
+                };
+                match measured.off {
+                    Ok(rates) => match best_rate(&rates)
+                        .and_then(|rate| Reply::from_rates(measured.prompt_rate, rate))
+                    {
+                        Some(reply) => {
+                            best = Some(
+                                best.map_or(reply.seconds, |current| current.min(reply.seconds)),
+                            );
+                            trials.push((off, Kept::Replied(reply)));
+                        }
+                        None => trials.push((
+                            off,
+                            Kept::Refused {
+                                refusal: Refusal::NoUsableAnswer,
+                                prompt_rate: Some(measured.prompt_rate),
+                            },
+                        )),
+                    },
+                    Err(refusal) => trials.push((
+                        off,
+                        Kept::Refused {
+                            refusal,
+                            prompt_rate: Some(measured.prompt_rate),
+                        },
+                    )),
+                }
+            }
             Err(refusal) => refused[index] = Some(refusal),
         }
         done += 1;
@@ -85,21 +127,6 @@ where
             // plan lowers now, so the panel's total is what will happen.
             planned -= settings.len();
             progress(done, planned);
-        }
-    }
-
-    // Pass two: each shape's decode sweep, in the same order. A shape
-    // whose prefill alone already costs at least the best complete reply
-    // cannot beat it, so its lifetimes become one skip — not a hole, and
-    // not an answer either.
-    let mut best: Option<f64> = None;
-    for (index, (shape, exe)) in shapes.iter().enumerate() {
-        if !ran[index] {
-            break; // the budget cut pass one: the shapes behind it never ran
-        }
-        let Some(shape_prompt) = prompt[index] else {
-            // The prefill refused: no reply can be scored, and the shape's
-            // own answer is that refusal.
             trials.push((
                 *shape,
                 Kept::Refused {
@@ -107,23 +134,27 @@ where
                     prompt_rate: None,
                 },
             ));
-            continue;
+        }
+    }
+
+    // Pass two: each shape's drafted sweep, in the same order. A shape
+    // whose prefill alone already costs at least the best complete reply —
+    // every shape's off reply is already in it — cannot beat it, so its
+    // drafted lifetimes are skipped: not a hole, its own off entry stands.
+    for (index, (shape, exe)) in shapes.iter().enumerate() {
+        if !ran[index] {
+            break; // the budget cut pass one: the shapes behind it never ran
+        }
+        let Some(shape_prompt) = prompt[index] else {
+            continue; // the first lifetime refused: its entry is that refusal
         };
         if best.is_some_and(|best| prefill_seconds(shape_prompt) >= best) {
-            trials.push((
-                *shape,
-                Kept::PromptOnly {
-                    prompt_rate: shape_prompt,
-                    skipped: Skip::Bounded,
-                },
-            ));
             // The bound skipped lifetimes that will never run: the plan
             // lowers with them.
             planned -= settings.len();
             progress(done, planned);
             continue;
         }
-        let before = trials.len();
         for setting in settings {
             if since_start() >= budget {
                 // The settings behind this one never ran: losers, not
@@ -166,18 +197,6 @@ where
                     },
                 )),
             }
-        }
-        if trials.len() == before {
-            // The budget ran out before this shape's first decoded ask:
-            // its prefill ran, so the record is still whole — the shape
-            // has a number, just no reply.
-            trials.push((
-                *shape,
-                Kept::PromptOnly {
-                    prompt_rate: shape_prompt,
-                    skipped: Skip::Cut,
-                },
-            ));
         }
     }
     // The plan may only shrink at the end, to what really began.

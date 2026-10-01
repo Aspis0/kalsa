@@ -193,10 +193,6 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
                         "reply ≈ {:.1} s (prompt {:.0} tok/s, decode {:.0} tok/s)",
                         reply.seconds, reply.prompt_rate, reply.decode_rate
                     ),
-                    kalsa_tune::record::Kept::PromptOnly {
-                        prompt_rate,
-                        skipped,
-                    } => format!("prefill {prompt_rate:.0} tok/s, decode skipped ({skipped:?})"),
                     kalsa_tune::record::Kept::Refused { refusal, .. } => {
                         format!("refused ({refusal:?})")
                     }

@@ -182,51 +182,6 @@ fn a_changed_machine_or_model_reads_as_no_record() {
     assert_eq!(load(&dir, DIGEST, &fp(OTHER_DIGEST)), None);
 }
 
-/// The two shapes a record keeps that never produced a reply: a shape the
-/// bound skipped, and a shape the budget cut. Both carry the prefill rate
-/// they did measure, and both must survive a restart.
-#[test]
-fn a_prompt_only_trial_round_trips() {
-    let dir = Scratch::new("prompt-only");
-    let record = Record {
-        fingerprint: fp(DIGEST),
-        winner: None,
-        trials: vec![
-            (
-                Candidate {
-                    backend: ServerBackend::Vulkan,
-                    threads: Some(16),
-                    offload: Offload::All,
-                    draft: None,
-                },
-                Kept::PromptOnly {
-                    prompt_rate: 73.0,
-                    skipped: Skip::Bounded,
-                },
-            ),
-            (
-                Candidate {
-                    backend: ServerBackend::Cpu,
-                    threads: Some(16),
-                    offload: Offload::NoGpuBuild,
-                    draft: None,
-                },
-                Kept::PromptOnly {
-                    prompt_rate: 150.0,
-                    skipped: Skip::Cut,
-                },
-            ),
-        ],
-    };
-    save(&dir, DIGEST, &record).expect("save");
-    assert_eq!(load(&dir, DIGEST, &record.fingerprint), Some(record));
-
-    // The skip's reason is a closed name too: a made-up one is not ours.
-    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");
-    rewrite(&dir, text.replace("skipped=bounded", "skipped=later"));
-    assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
-}
-
 /// A trial that refused after its shape's prefill keeps the prefill rate:
 /// the one number the shape did produce travels with the cause.
 #[test]
@@ -339,11 +294,12 @@ fn a_v1_record_reads_as_no_record() {
 }
 
 /// The older magics whose records the current tune must not trust: v3
-/// held a decode rate and nothing of the room, and v4 priced a history
-/// shorter than the one it measured. Both re-tune once.
+/// held a decode rate and nothing of the room, v4 priced a history shorter
+/// than the one it measured, and v5 measured the off setting on a lifetime
+/// of its own. All re-tune once.
 #[test]
 fn an_older_format_reads_as_no_record() {
-    for magic in ["kalsa-tune v3", "kalsa-tune v4"] {
+    for magic in ["kalsa-tune v3", "kalsa-tune v4", "kalsa-tune v5"] {
         let dir = Scratch::new("legacy-format");
         save(&dir, DIGEST, &sample()).expect("save");
         let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("read");

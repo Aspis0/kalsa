@@ -55,16 +55,6 @@ pub fn prefill_seconds(prompt_rate: f64) -> f64 {
     ROOM_PROMPT_TOKENS as f64 / prompt_rate
 }
 
-/// Why a shape has a prefill rate and no reply: the bound proved its
-/// prefill alone cannot beat a complete reply already measured
-/// (`Bounded`), or the budget ran out before its first decoded ask
-/// (`Cut`). A skip is not a failure, and it can never win.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Skip {
-    Bounded,
-    Cut,
-}
-
 /// The winner: which launch to keep, and the reply that won it — the app
 /// shows the wait it chose, so the numbers travel with the choice.
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -1,14 +1,9 @@
 //! The room's own ask: a history the size of a real conversation, built in
 //! code so every shape prefaces the same work — no file, no randomness.
 
-use std::path::{Path, PathBuf};
-
 use serde_json::Value;
 
-use crate::candidates::Candidate;
-use crate::measure::{lifetime, REQUEST_TIMEOUT};
 use crate::refusal::Refusal;
-use crate::sample::post_to;
 use crate::score::ROOM_PROMPT_TOKENS;
 
 /// The room prompt's length in characters: the turns below run about five
@@ -44,27 +39,6 @@ const ROOM_N_PREDICT: u64 = 8;
 /// The warm-up's ask: one token on a prompt of its own, so the room ask's
 /// first-token cost is the measurement and not the connection's.
 const WARMUP_PROMPT: &str = "Hello";
-
-/// One shape's prefill lifetime: a short discarded warm-up, then the room
-/// ask once. One request is enough for a rate that is a property of the
-/// shape — the same weights and the same build — and the warm-up is short
-/// because the history itself is the expensive part being measured.
-pub(crate) fn prefill_lifetime(
-    state_root: &Path,
-    candidate: &Candidate,
-    resolved_exe: &PathBuf,
-    build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
-) -> Result<Vec<f64>, Refusal> {
-    lifetime(state_root, candidate, resolved_exe, build, |addr| {
-        let _ = post_to(addr, REQUEST_TIMEOUT, "/completion", &warmup_body());
-        match post_to(addr, REQUEST_TIMEOUT, "/completion", &ask_body()) {
-            Ok(answer) => prompt_rate(&answer).map(|rate| vec![rate]),
-            // A timeout or an HTTP error is a lifetime with no usable
-            // answer, the same reading the decode pass gives one.
-            Err(_) => Err(Refusal::NoUsableAnswer),
-        }
-    })
-}
 
 /// The prefill rate one answer proves, or the closed cause that keeps it
 /// out of the tune: the server's own `prompt_n` must show it processed
@@ -104,12 +78,12 @@ fn prompt() -> String {
 
 /// The room ask at the one length the prefill pass uses: greedy, no
 /// cache, forced to decode rather than stop early.
-fn ask_body() -> String {
+pub(crate) fn ask_body() -> String {
     body(&prompt(), ROOM_N_PREDICT)
 }
 
 /// The warm-up's body, discarded: a prompt of its own, one token.
-fn warmup_body() -> String {
+pub(crate) fn warmup_body() -> String {
     body(WARMUP_PROMPT, 1)
 }
 

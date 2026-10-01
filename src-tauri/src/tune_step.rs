@@ -156,7 +156,8 @@ pub(crate) fn tune_fingerprint(
 /// lost between here and the spawn. The decode ask is the row's own
 /// sampling on the draft prompt with a fixed seed: one short chat text for
 /// every shape and setting, so every decode rate is the same work made,
-/// and the prefill pass reads the room ask beside it.
+/// and the room ask rides each shape's first lifetime beside its off
+/// setting.
 pub(crate) fn measure_with_rule(
     root: &Path,
     resolved: &[(kalsa_tune::Candidate, PathBuf)],

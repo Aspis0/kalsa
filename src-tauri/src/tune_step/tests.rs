@@ -807,7 +807,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     // The file as the pre-room build wrote it:
     let file = dir.join("tuning-deadbeef.txt");
     let text = std::fs::read_to_string(&file).expect("read");
-    std::fs::write(&file, text.replacen("kalsa-tune v5", "kalsa-tune v4", 1)).expect("rewrite");
+    std::fs::write(&file, text.replacen("kalsa-tune v6", "kalsa-tune v5", 1)).expect("rewrite");
 
     let measured = std::cell::Cell::new(0usize);
     let mut memo = Memo {
@@ -849,7 +849,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
     );
     let text = std::fs::read_to_string(dir.join("tuning-deadbeef.txt")).expect("read the record");
     assert!(
-        text.starts_with("kalsa-tune v5\n"),
+        text.starts_with("kalsa-tune v6\n"),
         "the complete tune replaced it with a current record"
     );
     assert!(
@@ -1227,7 +1227,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         vram_bytes: Some(6_439_305_216),
     });
     // The tune a cut sweep produces: the drafted card wins what ran, the
-    // processor's own sweep never began.
+    // processor's own drafted sweep never began (its first lifetime did).
     fn cut_tune(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
@@ -1250,13 +1250,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
                 // 37.8 s against 40.0: outside the band, so the drafted
                 // setting wins what the budget let run.
                 replied(drafted, 60.0, 45.0),
-                (
-                    processor,
-                    kalsa_tune::record::Kept::PromptOnly {
-                        prompt_rate: 150.0,
-                        skipped: kalsa_tune::Skip::Cut,
-                    },
-                ),
+                replied(processor, 150.0, 8.0),
             ],
             Some(kalsa_tune::Winner {
                 candidate: drafted,

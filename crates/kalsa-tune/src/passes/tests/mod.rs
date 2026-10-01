@@ -54,15 +54,24 @@ fn decode_rate(kept: &Kept) -> f64 {
     }
 }
 
-/// The Lenovo: three shapes, and the prefill pass covers all of them
-/// before any decode sweep begins — the likely winner first, so its
-/// complete reply is the bound for the shapes behind it. Every shape is
-/// swept off, 2, 3 and 4, because the owner's rule tries MTP on every
+/// A shape's first lifetime, as the seam would answer it: the room ask's
+/// prefill rate and the shape's own off-decode in one.
+fn first(prompt_rate: f64, off_decode: f64) -> Result<First, Refusal> {
+    Ok(First {
+        prompt_rate,
+        off: Ok(vec![off_decode]),
+    })
+}
+
+/// The Lenovo: three shapes, and every first lifetime covers all of them
+/// before any drafted sweep begins — the likely winner first, so its
+/// complete off reply is the bound for the shapes behind it. Each shape
+/// then runs 2, 3 and 4, because the owner's rule tries MTP on every
 /// backend shape.
 #[test]
-fn the_prefills_go_first_and_every_shape_is_swept_off_two_three_four() {
+fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
-    let prefills = RefCell::new(Vec::new());
+    let firsts = RefCell::new(Vec::new());
     let decodes = RefCell::new(Vec::new());
     let seen = RefCell::new(Vec::new());
     let tuned = tune(
@@ -72,8 +81,8 @@ fn the_prefills_go_first_and_every_shape_is_swept_off_two_three_four() {
         || Duration::ZERO,
         &mut |done, planned| seen.borrow_mut().push((done, planned)),
         |shape, _| {
-            prefills.borrow_mut().push(*shape);
-            Ok(vec![100.0])
+            firsts.borrow_mut().push(*shape);
+            first(100.0, 50.0)
         },
         |trial, _| {
             decodes
@@ -83,36 +92,84 @@ fn the_prefills_go_first_and_every_shape_is_swept_off_two_three_four() {
         },
     );
     assert_eq!(
-        *prefills.borrow(),
+        *firsts.borrow(),
         vec![gpu(), cpu(16), cpu(22)],
-        "every prefill first, in the order built"
+        "every shape's first lifetime, in the order built"
     );
     let expected = [gpu(), cpu(16), cpu(22)]
         .into_iter()
         .flat_map(|shape| {
-            [None, Some(2), Some(3), Some(4)]
+            [Some(2), Some(3), Some(4)]
                 .into_iter()
                 .map(move |draft| (shape.backend, shape.threads, draft))
         })
         .collect::<Vec<_>>();
-    assert_eq!(*decodes.borrow(), expected, "off, 2, 3, 4 on every shape");
-    assert_eq!(tuned.trials.len(), 12, "twelve decode trials in one record");
-    assert!(tuned.complete, "every shape ran its prefill");
+    assert_eq!(*decodes.borrow(), expected, "2, 3, 4 on every shape");
+    assert_eq!(
+        tuned.trials.len(),
+        12,
+        "three first lifetimes and nine drafted settings"
+    );
+    assert!(tuned.complete, "every shape ran its first lifetime");
     assert!(!tuned.cut, "nothing was cut");
     assert!(tuned.winner.is_some(), "every reply scored");
-    // Fifteen lifetimes were planned (three prefills, twelve sweeps), and
-    // the last call equals what began.
+    // Twelve lifetimes were planned, and the last call equals what began.
     let seen = seen.borrow();
-    assert_eq!(seen.first(), Some(&(0, 15)));
-    assert_eq!(seen.last(), Some(&(15, 15)));
+    assert_eq!(seen.first(), Some(&(0, 12)));
+    assert_eq!(seen.last(), Some(&(12, 12)));
+}
+
+/// The off number is the first lifetime's: no separate off lifetime is
+/// started, and the shape's off entry carries exactly the rate that
+/// lifetime measured — the drafted settings are the only decode lifetimes.
+#[test]
+fn the_off_number_comes_from_the_first_lifetime() {
+    let shapes = vec![on(gpu()), on(cpu(16))];
+    let firsts = RefCell::new(Vec::new());
+    let decodes = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |_, _| {},
+        |shape, _| {
+            firsts.borrow_mut().push(*shape);
+            first(60.0, 31.0)
+        },
+        |trial, _| {
+            decodes.borrow_mut().push(trial.draft);
+            Ok(vec![50.0])
+        },
+    );
+    assert_eq!(
+        *firsts.borrow(),
+        vec![gpu(), cpu(16)],
+        "one first lifetime per shape"
+    );
+    assert_eq!(
+        *decodes.borrow(),
+        vec![Some(2), Some(3), Some(4), Some(2), Some(3), Some(4)],
+        "the sweep is 2, 3, 4 only: off has no lifetime of its own"
+    );
+    let off = tuned
+        .trials
+        .iter()
+        .find(|(candidate, _)| *candidate == gpu())
+        .expect("the shape's off entry");
+    assert_eq!(
+        decode_rate(&off.1),
+        31.0,
+        "the off entry is the first lifetime's own number"
+    );
 }
 
 /// The bound: a shape whose history alone already costs more than the best
-/// complete reply cannot win, so its four lifetimes become one skip — not
-/// a hole, and the record is still whole. The plan lowers with the skipped
-/// lifetimes, so the panel's total is what will really run.
+/// complete reply cannot win, so its drafted lifetimes are skipped — its
+/// own off entry stands, and the record is whole. The plan lowers with the
+/// skipped lifetimes, so the panel's total is what will really run.
 #[test]
-fn the_bound_skips_a_hopeless_shapes_decode_and_the_record_stays_whole() {
+fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
     let decodes = RefCell::new(Vec::new());
     let seen = RefCell::new(Vec::new());
@@ -125,11 +182,11 @@ fn the_bound_skips_a_hopeless_shapes_decode_and_the_record_stays_whole() {
         |shape, _| {
             // The card's history is two seconds; the processors' are
             // hundreds — more than the card's whole reply below.
-            Ok(vec![if shape.backend == ServerBackend::Vulkan {
-                1000.0
+            if shape.backend == ServerBackend::Vulkan {
+                first(1000.0, 100.0)
             } else {
-                10.0
-            }])
+                first(10.0, 100.0)
+            }
         },
         |trial, _| {
             decodes.borrow_mut().push((trial.threads, trial.draft));
@@ -139,47 +196,48 @@ fn the_bound_skips_a_hopeless_shapes_decode_and_the_record_stays_whole() {
     assert_eq!(
         *decodes.borrow(),
         vec![
-            (Some(16), None),
             (Some(16), Some(2)),
             (Some(16), Some(3)),
             (Some(16), Some(4))
         ],
-        "only the shape that can still win was decoded"
+        "only the shape that can still win was drafted"
     );
     assert!(
         tuned.complete,
-        "a bounded shape ran its prefill: the record is not a partial picture"
+        "a bounded shape ran its first lifetime: the record is not a partial picture"
     );
     assert!(!tuned.cut, "a bound skip is not a budget cut");
-    // Seven lifetimes run (three prefills, the card's four), and the two
-    // skipped shapes take their four planned lifetimes off the total as
-    // each is bounded: 15, then 11, then 7.
+    // Six lifetimes run (three firsts, the card's three drafted), and the
+    // two skipped shapes take their three planned lifetimes off the total
+    // as each is bounded: 12, then 9, then 6.
     let seen = seen.borrow();
     assert!(
-        seen.contains(&(7, 11)) && seen.contains(&(7, 7)),
+        seen.contains(&(6, 9)) && seen.contains(&(6, 6)),
         "the skipped lifetimes leave the plan: {seen:?}"
     );
-    assert_eq!(seen.last(), Some(&(7, 7)), "the final total is what ran");
+    assert_eq!(seen.last(), Some(&(6, 6)), "the final total is what ran");
     assert_eq!(
         tuned.winner.map(|win| win.candidate),
         Some(gpu()),
-        "the only scored shape wins"
+        "the only shape with a reply beyond its off wins"
     );
     for shape in [cpu(16), cpu(22)] {
         assert!(
             tuned
                 .trials
                 .iter()
-                .any(|(candidate, kept)| *candidate == shape
-                    && matches!(
-                        kept,
-                        Kept::PromptOnly {
-                            skipped: Skip::Bounded,
-                            ..
-                        }
-                    )),
-            "the skip is recorded as bounded, not as a hole: {:?}",
+                .any(|(candidate, kept)| *candidate == shape && matches!(kept, Kept::Replied(_))),
+            "the bounded shape keeps its off number: {:?}",
             tuned.trials
+        );
+        assert!(
+            !tuned
+                .trials
+                .iter()
+                .any(|(candidate, _)| candidate.threads == shape.threads
+                    && candidate.backend == shape.backend
+                    && candidate.draft.is_some()),
+            "and no drafted lifetime was measured on it"
         );
     }
 }
@@ -197,15 +255,11 @@ fn the_lenovo_case_keeps_the_shorter_reply_not_the_faster_decode() {
         || Duration::ZERO,
         &mut |_, _| {},
         |shape, _| match (shape.backend, shape.threads) {
-            (ServerBackend::Vulkan, _) => Ok(vec![73.0]),
-            (_, Some(16)) => Ok(vec![180.0]),
-            _ => Ok(vec![120.0]),
+            (ServerBackend::Vulkan, _) => first(73.0, 16.8),
+            (_, Some(16)) => first(180.0, 8.0),
+            _ => first(120.0, 7.5),
         },
-        |trial, _| match (trial.backend, trial.threads) {
-            (ServerBackend::Vulkan, _) => Ok(vec![16.8]),
-            (_, Some(16)) => Ok(vec![8.0]),
-            _ => Ok(vec![7.5]),
-        },
+        |_, _| panic!("a plan without a drafter has no drafted sweep"),
     );
     let win = tuned.winner.expect("every shape measured");
     assert_eq!(win.candidate, cpu(16), "{win:?}");
@@ -228,11 +282,11 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
         || Duration::ZERO,
         &mut |_, _| {},
         |shape, _| {
-            Ok(vec![if shape.backend == ServerBackend::Vulkan {
-                60.0
+            if shape.backend == ServerBackend::Vulkan {
+                first(60.0, 30.0)
             } else {
-                150.0
-            }])
+                first(150.0, 8.0)
+            }
         },
         |trial, _| match (trial.backend, trial.draft) {
             (ServerBackend::Vulkan, _) => Ok(vec![30.0]),
@@ -249,8 +303,9 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
     );
 }
 
-/// A prefill that refuses is the shape's own answer: it costs no decode
-/// lifetime, it cannot win, and the best processor still takes the room.
+/// A first lifetime that refuses is the shape's own answer: it costs no
+/// drafted lifetime, it cannot win, and the best processor still takes the
+/// room. The plan lowers by the sweeps that will never run.
 #[test]
 fn a_refused_candidate_falls_to_the_best_processor() {
     let shapes = vec![on(gpu()), on(cpu(16))];
@@ -266,7 +321,7 @@ fn a_refused_candidate_falls_to_the_best_processor() {
             if shape.backend == ServerBackend::Vulkan {
                 Err(Refusal::NotReady)
             } else {
-                Ok(vec![150.0])
+                first(150.0, 8.0)
             }
         },
         |trial, _| {
@@ -291,49 +346,51 @@ fn a_refused_candidate_falls_to_the_best_processor() {
     );
     assert_eq!(
         decodes.borrow().iter().copied().collect::<Vec<_>>(),
-        vec![Some(16); 4],
-        "the refused shape bought no decode lifetimes"
+        vec![Some(16); 3],
+        "the refused shape bought no drafted lifetimes"
     );
     assert!(
         tuned.complete,
         "a refused lifetime is an answer, not a hole"
     );
     assert!(!tuned.cut, "a refusal is not a budget cut");
-    // The refused shape's four planned lifetimes leave the total as soon
-    // as its prefill answers: six lifetimes run (two prefills, one sweep).
+    // The refused shape's three planned drafted lifetimes leave the total
+    // as soon as its first lifetime answers: five lifetimes run (two
+    // firsts, one sweep).
     let seen = seen.borrow();
     assert!(
-        seen.contains(&(1, 6)),
+        seen.contains(&(1, 5)),
         "the refused shape's sweep leaves the plan: {seen:?}"
     );
-    assert_eq!(seen.last(), Some(&(6, 6)));
+    assert_eq!(seen.last(), Some(&(5, 5)));
     assert_eq!(tuned.winner.map(|win| win.candidate), Some(cpu(16)));
 }
 
-/// A launch with no drafter is one setting per shape: off, and nothing
-/// else. The shape's own numbers are the verdict.
+/// A launch with no drafter is complete after one lifetime per shape: the
+/// first lifetime already carries the shape's own off number, and there is
+/// no drafted setting left to run.
 #[test]
-fn a_launch_without_a_drafter_sweeps_only_off() {
+fn a_launch_without_a_drafter_is_complete_after_the_first_lifetime() {
     let shapes = vec![on(gpu()), on(cpu(16))];
-    let decodes = RefCell::new(Vec::new());
     let tuned = tune(
         &shapes,
         false,
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_, _| {},
-        |_, _| Ok(vec![100.0]),
-        |trial, _| {
-            decodes.borrow_mut().push(trial.draft);
-            Ok(vec![40.0])
-        },
+        |_, _| first(100.0, 40.0),
+        |_, _| panic!("no drafter, no drafted lifetime"),
     );
-    assert_eq!(*decodes.borrow(), vec![None, None], "one sweep each");
-    assert_eq!(tuned.trials.len(), 2);
+    assert_eq!(tuned.trials.len(), 2, "one entry per shape");
     assert!(tuned
         .trials
         .iter()
         .all(|(_, kept)| matches!(kept, Kept::Replied(_))));
+    assert_eq!(
+        tuned.winner.map(|win| win.candidate),
+        Some(gpu()),
+        "the first shape's reply wins the tie"
+    );
 }
 
 mod budget;

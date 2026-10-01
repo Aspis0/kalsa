@@ -8,9 +8,16 @@ use super::*;
 /// been somebody else's — however good they look.
 #[test]
 fn the_answers_of_a_dead_child_count_for_nothing() {
-    assert_eq!(conclude(vec![9.9], false, true), Err(Refusal::DidNotStart));
-    assert_eq!(conclude(vec![], true, true), Err(Refusal::NoUsableAnswer));
-    assert_eq!(conclude(vec![7.5], true, true), Ok(vec![7.5]));
+    assert_eq!(
+        conclude(Ok(vec![9.9]), false, true),
+        Err(Refusal::DidNotStart)
+    );
+    assert_eq!(
+        conclude(Err::<Vec<f64>, _>(Refusal::NoUsableAnswer), true, true),
+        Err(Refusal::NoUsableAnswer),
+        "a refusal the request earned stands when the child is ours"
+    );
+    assert_eq!(conclude(Ok(vec![7.5]), true, true), Ok(vec![7.5]));
 }
 
 /// The identity gate: samples taken while the port serves somebody
@@ -18,7 +25,7 @@ fn the_answers_of_a_dead_child_count_for_nothing() {
 #[test]
 fn answers_from_a_port_serving_another_model_count_for_nothing() {
     assert_eq!(
-        conclude(vec![99.9], true, false),
+        conclude(Ok(vec![99.9]), true, false),
         Err(Refusal::DidNotStart),
         "a fast answer from the wrong server is not our measurement"
     );
