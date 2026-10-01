@@ -12,7 +12,7 @@ use crate::sample::post_to;
 use crate::score::ROOM_PROMPT_TOKENS;
 
 /// The room prompt's length in characters: the turns below run about five
-/// characters to a token on the tokenizers the app ships, so this builds
+/// characters to a token on the tokenizers measured, so this builds
 /// roughly the history the score prices. What the sample is checked
 /// against is the server's own `prompt_n`, never this target.
 const ROOM_CHARS: usize = 10_000;

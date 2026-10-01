@@ -128,8 +128,11 @@ where
             if since_start() >= budget {
                 // The settings behind this one never ran: losers, not
                 // holes — but the sweep is unfinished, and the caller must
-                // let the next start try again.
+                // let the next start try again. Nothing behind the cut can
+                // begin either, so the plan is finished as of now.
                 cut = true;
+                planned = done;
+                progress(done, planned);
                 break;
             }
             progress(done, planned);
