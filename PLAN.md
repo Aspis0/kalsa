@@ -858,7 +858,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   is the output layer, not the bulk; false offset comment; vacuous test); fix round deepseek a7f4c269 -> 5b596ce43
   (`layers_device` = majority device of the context's layers), re-audit 72616199 SHIP (crash-at-construction
   REFUTED; accepted lows: tensor-parallel Meta device name, MTP layers vote on exact ties). Engine main PUSHED
-  5b596ce43 2026-10-01 (no ggml-hexagon change since 61c909481: skels unchanged). Binding step: deepseek 5800fde4.
+  5b596ce43 2026-10-01 (no ggml-hexagon change since 61c909481: skels unchanged). Binding PUSHED
+  feat/governor-platform-status `b1c7ffc5` (fa4d2dac vendor 5b596ce43, 458cae4c JSON `layers_device`, b1c7ffc5 four
+  skels rebuilt by the committed Docker recipe: only the 34-byte engine stamp differs); audit space-bunny 40458cb2
+  SHIP. App step (pin + benchRoute.ts keeps the field, which it silently dropped): mimo 146c75e2.
   **Side finding (verified on disk 2026-10-01): in-app HTP prefill runs ATTENTION ON THE CPU.** The binding sets
   `prefill_params.no_kv_offload = true` on the lane-on prefill context (`cpp/rn-llama.cpp:132`) and the engine pins
   every node between the KV store and the attention output to CPU when `!offload_kqv` (`src/llama-graph.cpp:2746`).
