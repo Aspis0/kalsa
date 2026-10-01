@@ -1,77 +1,104 @@
-# Engine fix — bounded Hexagon dspqueue errors
+# Hexagon dspqueue hang fix — hostile audit follow-up
 
-Date: 2026-10-01. Repository `Aspis0/kalsallama`, branch `main`.
+Date: 2026-10-01. Repository: Aspis0/kalsallama, branch main.
+No push and no device access. The existing untracked CMakeUserPresets.json was not staged or modified.
 
-## Commit
+## Commits
 
-- `a493a436b37ab8cc557922945b8960b2ec0a6280` — `kalsallama main e775fb2bf: bound Hexagon dspqueue failures`
-- `a48cc3e083ed5516649c038ff390ce4e2ae87308` — `kalsallama main a493a436b: validate dsp response buffer size`
-- Parent of the first commit: `e775fb2bf01404db2b61382df444cc33f9253a78`.
-- No push. No device access. The pre-existing untracked `CMakeUserPresets.json` was not staged.
+The audit fixes are on top of test commits already present at f4bdd0f29:
+
+- 7d953dab09f0e06a8e5d0fb3e360a70ab215f474 — kalsallama main f4bdd0f29: address Hexagon engine audit
+- b00d48a060d3ba46c9e52c167ccacf737bd15024 — kalsallama main 7d953dab0: declare Hexagon proc APIs
+- 3d159e864eac6691a4a64417edf73d2e71ce84e0 — kalsallama main b00d48a06: isolate Hexagon health probe
+- 2202631196ebb9fc99a92256c81f4aaaec663f87 — kalsallama main 3d159e864: serialize Hexagon probes
+- 643332f8fcdc2b344064c5fb4c991fe1d4705c90 — kalsallama main 220263119: fail errored sessions immediately
+
+Final HEAD: 643332f8fcdc2b344064c5fb4c991fe1d4705c90.
 
 ## Changes
 
-- `ggml/src/ggml-hexagon/ggml-hexagon.cpp:120,142-158,8386-8404`: default response deadline is 30,000 ms; `GGML_HEXAGON_RSP_TIMEOUT_MS` accepts only a positive decimal value in `uint32_t` range. Invalid values warn and retain the default. The chosen timeout is logged once when the registry is initialized.
-- `ggml/src/ggml-hexagon/ggml-hexagon.cpp:3561-3664`: `flush_pending` uses a monotonic deadline, records `HTP_STATUS_TIMEOUT`, emits one timeout line with the expected sequence and elapsed milliseconds, and stops waiting. Existing graph compute returns `GGML_STATUS_FAILED`; `flush_pending` and graph compute both reject further work after a session error. Response size, buffer count, sequence, response counts, shared-memory payload bounds, returned buffer size, and trace counts are validated before `op_queue->pop`, replacing the response sequence assert and response-shape aborts with a logged session error.
-- `ggml/src/ggml-hexagon/htp/htp-ops.h:14`: adds `HTP_STATUS_TIMEOUT`.
-- `ggml/src/ggml-hexagon/ggml-hexagon.cpp:6964-6981,7525-7555,8175-8176`: adds a one-op F32 `FILL` data-plane health check. It is exported as `ggml_backend_hexagon_device_healthcheck` through the existing `ggml_backend_reg_get_proc_address` path, taking a `ggml_backend_dev_t` and returning `bool`. This avoids adding a public header API. Binding call shape: `reg = ggml_backend_dev_backend_reg(dev)`, cast `ggml_backend_reg_get_proc_address(reg, "ggml_backend_hexagon_device_healthcheck")` to `bool (*)(ggml_backend_dev_t)`, then call it with `dev` before selecting HTP. `GGML_HEXAGON_HEALTHCHECK=1` also runs the same probe on backend initialization and logs `HTP data-plane healthcheck PASS` or `FAIL`, allowing CLI-side checks.
-- `ggml/src/ggml-hexagon/ggml-hexagon.cpp:7357-7389,6984-6991`: event synchronization drains pending responses through the bounded wait and returns on session failure; backend synchronize no longer aborts after graph failure.
+All code changes are in upstream-owned ggml/src/ggml-hexagon/ggml-hexagon.cpp. The host-only timeout status was removed from shared host/DSP htp-ops.h.
 
-## Build results
+- ggml-hexagon.cpp:125-128,8120,8496-8497,8550-8580: strict positive-decimal parsing, 30,000 ms default batch/fence deadline (GGML_HEXAGON_RSP_TIMEOUT_MS), independent 2,000 ms default probe deadline (GGML_HEXAGON_PROBE_TIMEOUT_MS); both are logged once at initialization.
+- ggml-hexagon.cpp:3578-3695: sticky session errors for expired batch waits, invalid response size/payload/shape, response sequence mismatch, and DSP queue read errors. The first session failure is logged once. Validation checks the DSP guarantee rsp.n_ops == req.n_ops along with buffer and tensor counts, removing the unrelated cache-capacity check. Timeout logs sequence and elapsed ms. Skew returns normal failure, without abort/assert.
+- ggml-hexagon.cpp:3716-3815,7012-7018,7076-7088,7579-7630: errored sessions reject future work immediately; queue writes and get-tensor callbacks report errors without aborting; graph compute and synchronize return/report failure.
+- ggml-hexagon.cpp:4371-4426: stop/queue-close errors during release are warnings and do not abort teardown.
+- ggml-hexagon.cpp:7462-7508: event fence waits share the batch deadline, set the sticky timeout error, and sleep between polls.
+- ggml-hexagon.cpp:7023-7048,7682-7715: a real one-op F32 fill and readback probe runs through a dedicated temporary dspqueue session. It uses an available virtual session on the same physical HTP, serializes with other queue users, fails if busy, and applies the short probe deadline. PASS logs at INFO; failures log at ERROR.
+- ggml-hexagon.cpp:78-79,7682-7715,8330-8339: exported typed entry points are declared before use and exposed through the existing registry proc-address mechanism. No public header API was added. A binding can get the registry with ggml_backend_dev_backend_reg(dev), resolve ggml_backend_hexagon_device_healthcheck using ggml_backend_reg_get_proc_address(reg, "ggml_backend_hexagon_device_healthcheck"), cast it to ggml_status (*)(ggml_backend_dev_t), then call it with dev before selecting HTP. Success is GGML_STATUS_SUCCESS only after a validated data-plane round-trip. ggml_backend_hexagon_device_status is also available for sticky session failure.
+- ggml-hexagon.cpp:7673-7676: GGML_HEXAGON_HEALTHCHECK=1 enables a CLI-side init probe with visible PASS/FAIL logging.
+- htp/htp-ops.h:8-13: the shared wire enum contains no host-only timeout value.
 
-- Host: `cmake --build build-metal -j8` — **EXIT=0**. `build-metal/CMakeCache.txt` has `GGML_HEXAGON:BOOL=OFF`, so this verifies the configured host build but does not compile the modified Hexagon translation unit.
-- Android verification now uses the step A layout: `git archive a48cc3e083ed5516649c038ff390ce4e2ae87308` was created on the host (EXIT=0; archive SHA-256 `cc5c7987fcf7ca1bd83fb0761e802e8c1c53a9a707deacb66b0d22b409ce6a53`) and streamed on stdin into one `docker run`; no checkout or `.git` bind mount was used. The container extracted it into `/tmp/build/src`, copied the tracked Snapdragon preset into the archive root, and mounted only `~/Projects/kalsallama-htpfix-android-artifacts/` for output. Docker run EXIT=0. The local untracked `CMakeUserPresets.json` was not staged or modified.
+## Build and artifacts
 
-  ```sh
-  cmake --preset arm64-android-snapdragon-release -B /tmp/build/src/build \
-    -DPREBUILT_LIB_DIR=android_aarch64 -DBUILD_SHARED_LIBS=OFF
-  cmake --preset arm64-android-snapdragon-release -B /tmp/build/src/build-hex \
-    -DPREBUILT_LIB_DIR=android_aarch64 -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON
-  ```
+- Host: cmake --build build-metal -j8 — EXIT=0. Hexagon is disabled in this host configuration; the Android build below compiled and linked the changed Hexagon source.
+- Source archive: git archive HEAD — EXIT=0, SHA-256 24d667f4bbdd304158d829d009394d1e1b5a1ae2a88330cc4ee5b5ecceeb4121.
+- Android was built from that archive extracted into a container-local directory in one docker run --rm --platform linux/amd64 -u 501:20 using ghcr.io/snapdragon-toolchain/arm64-android:v0.7. The checkout was not bind-mounted. Outputs/logs are in ~/Projects/kalsallama-htpfix-android-artifacts/643332f8f/. The local preset was read-only mounted into the container because it is untracked and omitted by git archive.
+- Static configure: cmake --preset arm64-android-snapdragon-release -B /tmp/work/src/build -DPREBUILT_LIB_DIR=android_aarch64 -DBUILD_SHARED_LIBS=OFF — EXIT=0.
+- Shared Hexagon configure: cmake --preset arm64-android-snapdragon-release -B /tmp/work/src/build-hex -DPREBUILT_LIB_DIR=android_aarch64 -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON — EXIT=0.
+- Static build command: cmake --build /tmp/work/src/build --target llama-cli llama-bench -j "$(nproc)"; retry attempt 1 EXIT=1 (transient generated kernel process failure), attempt 2 EXIT=0.
+- Dynamic Hexagon build command: cmake --build /tmp/work/src/build-hex --target ggml-hexagon htp-v73 -j "$(nproc)"; attempt 1 EXIT=0.
+- No compiler warnings came from changed files (ggml-hexagon.cpp, htp-ops.h). Logs contain existing warnings from generated Qualcomm headers/stubs and the OpenCL TODO pragma.
 
-  Both configure commands exited **0**. Inside the container, each unchanged CMake build command was retried up to eight times, with every attempt's exit logged. `cmake --build /tmp/build/src/build --target llama-cli llama-bench -j "$(nproc)"`: attempt 1 EXIT=1 when an OpenCL `embed_kernel.py` invocation stopped silently; attempt 2 EXIT=0. `cmake --build /tmp/build/src/build-hex --target ggml-hexagon htp-v73 -j "$(nproc)"`: attempt 1 EXIT=0. The successful static build produced both requested executables from the same config.
+Android artifact SHA-256:
 
-- The Android backend translation unit compiled and `libggml-hexagon.so` linked; CMake generated and built the v73 skel. No warnings came from changed files (`ggml-hexagon.cpp`, `htp-ops.h`). Other build warnings: GNU variadic-macro extensions from generated `htp_iface.h`/Qualcomm `HAP_farf.h`, const cast in generated `htp_iface_stub.c`, and the existing OpenCL TODO pragma.
-- Artifacts and configure/build attempt logs are in `~/Projects/kalsallama-htpfix-android-artifacts/`:
+| Artifact | SHA-256 |
+|---|---|
+| llama-cli | 99701637cee4c68a44facbdcf8f757fbe4cba570fcc6ae639b4a7709ffd52cc8 |
+| llama-bench | e30792afbe029805f8b17eea6dfd8b004ebbc73912b93847f09981a5cd86e551 |
+| libggml-hexagon.so | 31fd2c3d6b5e2607335c987328b31af5fa7f9c66dd378f51b95f6871f2aa6302 |
+| libggml-htp-v73.so | 941326584df527d478cced90092d373f7b0f58a67b7f9a80c9ff0a00ea4baab0 |
 
-  | Artifact | Build result | SHA-256 |
-  |---|---:|---|
-  | `llama-cli` | EXIT=0, static build attempt 2 | `520ebd7bdca58b47dee2798d46768f6095d70b44996487c5522358a28933e704` |
-  | `llama-bench` | EXIT=0, static build attempt 2 | `831901f07dd892dc7a85e82e714c36decb96e633edfdff2d2459232db5fc63ce` |
-  | `libggml-hexagon.so` | EXIT=0, dynamic build attempt 1 | `abafd69a4264172a5fe3fa7055bcf82df6f77f77b7d893a93190a9e14c86662d` |
-  | `libggml-htp-v73.so` | EXIT=0, dynamic build attempt 1 | `8bb02f50db0703cfc489f109fc34de1fd116cbadf94b4a59a1da133f6401d459` |
+## S23 test recipe for the coordinator — not run here
 
-## S23 test for the coordinator
+Use static llama-bench with -v; capture its complete stdout/stderr and complete unfiltered logcat for each run. Do not use grep as the capture source. The raw captures retain session INFO lines; inspect filters only after preserving the files.
 
-Not run here. The commands below use the S23 adb transport from the project instructions, the already-present model from the skel-swap report, the stale binding skel, and the matched skel from the archive-only Android build. The build includes both static CLI/bench executables and the dynamic backend/v73 skel; the health check is enabled at backend initialization for both runs.
+    S23=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+    ART=~/Projects/kalsallama-htpfix-android-artifacts/643332f8f
+    RAW=~/Projects/kalsa-moe-experiments/scratchpad/agents/inapp-htp-dspqueue-hang/raw/final-643332f8f
+    DEV=/data/local/tmp/htp-fix
+    STALE=~/Projects/llama.rn-kalsa-gov-platform/bin/arm64-v8a/libggml-htp-v73.so
+    mkdir -p "$RAW"
+    shasum -a 256 "$STALE"
+    adb -s "$S23" shell 'mkdir -p /data/local/tmp/htp-fix/bin /data/local/tmp/htp-fix/stale /data/local/tmp/htp-fix/matched /data/local/tmp/htp-fix/lib'
+    adb -s "$S23" push "$ART/llama-bench" "$DEV/bin/llama-bench"
+    adb -s "$S23" push "$ART/libggml-hexagon.so" "$DEV/lib/libggml-hexagon.so"
+    adb -s "$S23" push "$STALE" "$DEV/stale/libggml-htp-v73.so"
+    adb -s "$S23" push "$ART/libggml-htp-v73.so" "$DEV/matched/libggml-htp-v73.so"
 
-```sh
-S23=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
-adb -s "$S23" shell 'mkdir -p /data/local/tmp/htp-fix/bin /data/local/tmp/htp-fix/stale /data/local/tmp/htp-fix/matched'
-adb -s "$S23" push ~/Projects/kalsallama-htpfix-android-artifacts/llama-cli /data/local/tmp/htp-fix/bin/llama-cli
-adb -s "$S23" push ~/Projects/llama.rn-kalsa-gov-platform/bin/arm64-v8a/libggml-htp-v73.so /data/local/tmp/htp-fix/stale/libggml-htp-v73.so
-adb -s "$S23" push ~/Projects/kalsallama-htpfix-android-artifacts/libggml-htp-v73.so /data/local/tmp/htp-fix/matched/libggml-htp-v73.so
-```
+Stale skel run (shell timeout is a 40-second guard over the 30-second batch deadline):
 
-Stale skel: the health-check should report `FAIL`, and the process should exit non-zero before the 30-second batch deadline (the 60-second shell timeout is a guard). The captured output must contain a sequence mismatch, shape mismatch, or batch response timeout line.
+    adb -s "$S23" shell 'logcat -c'
+    set +e
+    adb -s "$S23" shell 'cd /data/local/tmp/htp-fix; start=$(date +%s); LD_LIBRARY_PATH=/data/local/tmp/htp-fix/lib:/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/htp-fix/stale GGML_HEXAGON_HEALTHCHECK=1 GGML_HEXAGON_PROBE_TIMEOUT_MS=2000 GGML_HEXAGON_RSP_TIMEOUT_MS=30000 timeout 40 ./bin/llama-bench -v -m /data/local/tmp/heat3way/ship.gguf -p 64 -n 0 -ub 64 -ngl 99 -dev HTP0 -r 1 > /data/local/tmp/htp-fix/stale.stdout-stderr.log 2>&1; rc=$?; elapsed=$(($(date +%s)-start)); echo "BENCH_EXIT=$rc ELAPSED_SECONDS=$elapsed"'
+    stale_adb_exit=$?
+    set -e
+    adb -s "$S23" pull "$DEV/stale.stdout-stderr.log" "$RAW/stale.stdout-stderr.log"
+    adb -s "$S23" logcat -d -v threadtime > "$RAW/stale.logcat.txt" 2>&1
+    echo "ADB_EXIT=$stale_adb_exit"
 
-```sh
-adb -s "$S23" shell 'cd /data/local/tmp/htp-fix; start=$(date +%s); LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/htp-fix/stale GGML_HEXAGON_HEALTHCHECK=1 GGML_HEXAGON_RSP_TIMEOUT_MS=30000 timeout 60 ./bin/llama-cli -m /data/local/tmp/heat3way/ship.gguf -ngl 99 -dev HTP0 -c 128 -b 64 -ub 64 -n 1 -p "The quick brown fox jumps over the lazy dog. Repeat this prompt to force a prefill batch through the HTP data path." > /tmp/htp-stale.log 2>&1; rc=$?; elapsed=$(( $(date +%s) - start )); echo EXIT=$rc ELAPSED=${elapsed}s; grep -E "HTP data-plane healthcheck|batch response (timeout|sequence mismatch|shape mismatch)" /tmp/htp-stale.log; test "$rc" -ne 0 && test "$rc" -ne 124 && test "$elapsed" -le 35 && grep -q "HTP data-plane healthcheck FAIL" /tmp/htp-stale.log && grep -Eq "batch response (timeout|sequence mismatch|shape mismatch)" /tmp/htp-stale.log'
-```
+Matched skel run:
 
-Matched skel CLI: health-check should report `PASS` and the CLI should complete normally. Its prompt-evaluation throughput is a quick check against the previous pp64 result (~511 tok/s). The exact pp64 benchmark row uses `llama-bench` from the same build:
+    adb -s "$S23" shell 'logcat -c'
+    set +e
+    adb -s "$S23" shell 'cd /data/local/tmp/htp-fix; start=$(date +%s); LD_LIBRARY_PATH=/data/local/tmp/htp-fix/lib:/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/htp-fix/matched GGML_HEXAGON_HEALTHCHECK=1 GGML_HEXAGON_PROBE_TIMEOUT_MS=2000 GGML_HEXAGON_RSP_TIMEOUT_MS=30000 timeout 90 ./bin/llama-bench -v -m /data/local/tmp/heat3way/ship.gguf -p 64 -n 0 -ub 64 -ngl 99 -dev HTP0 -r 1 > /data/local/tmp/htp-fix/matched.stdout-stderr.log 2>&1; rc=$?; elapsed=$(($(date +%s)-start)); echo "BENCH_EXIT=$rc ELAPSED_SECONDS=$elapsed"'
+    matched_adb_exit=$?
+    set -e
+    adb -s "$S23" pull "$DEV/matched.stdout-stderr.log" "$RAW/matched.stdout-stderr.log"
+    adb -s "$S23" logcat -d -v threadtime > "$RAW/matched.logcat.txt" 2>&1
+    echo "ADB_EXIT=$matched_adb_exit"
 
-```sh
-adb -s "$S23" shell 'cd /data/local/tmp/htp-fix; LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/htp-fix/matched GGML_HEXAGON_HEALTHCHECK=1 GGML_HEXAGON_RSP_TIMEOUT_MS=30000 timeout 60 ./bin/llama-cli -m /data/local/tmp/heat3way/ship.gguf -ngl 99 -dev HTP0 -c 128 -b 64 -ub 64 -n 1 -p "The quick brown fox jumps over the lazy dog. Repeat this prompt to force a prefill batch through the HTP data path." > /tmp/htp-matched.log 2>&1; rc=$?; echo EXIT=$rc; grep -E "HTP data-plane healthcheck|Prompt eval time" /tmp/htp-matched.log; test "$rc" -eq 0'
-```
+Inspect both full benchmark captures and logcat files. Required evidence:
 
-pp64 benchmark run:
-
-```sh
-adb -s "$S23" push ~/Projects/kalsallama-htpfix-android-artifacts/llama-bench /data/local/tmp/htp-fix/bin/llama-bench
-adb -s "$S23" shell 'cd /data/local/tmp/htp-fix; LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib ADSP_LIBRARY_PATH=/data/local/tmp/htp-fix/matched GGML_HEXAGON_HEALTHCHECK=1 GGML_HEXAGON_RSP_TIMEOUT_MS=30000 timeout 60 ./bin/llama-bench -m /data/local/tmp/heat3way/ship.gguf -p 64 -n 0 -ub 64 -ngl 99 -dev HTP0 -r 1 > /tmp/htp-matched-bench.log 2>&1; rc=$?; echo EXIT=$rc; grep -E "HTP data-plane healthcheck|pp64" /tmp/htp-matched-bench.log; test "$rc" -eq 0 && grep -q "HTP data-plane healthcheck PASS" /tmp/htp-matched-bench.log'
-```
+- Both: init line “ggml-hex: batch response timeout 30000 ms, probe timeout 2000 ms”.
+- Stale: healthcheck line “ggml-hex: HTP data-plane healthcheck FAIL”; BENCH_EXIT nonzero and not 124, within 35 seconds; plus one exact diagnostic form:
+  “ggml-hex: <session> batch response timeout : seq <n> elapsed <ms> ms”;
+  “ggml-hex: <session> batch response sequence mismatch : expected <n>, got <n>”; or
+  “ggml-hex: <session> batch response shape mismatch : expected ... got ...”.
+  The stale skel is ~/Projects/llama.rn-kalsa-gov-platform/bin/arm64-v8a/libggml-htp-v73.so, reported SHA prefix f81f95e9.
+- Matched: healthcheck line “ggml-hex: HTP data-plane healthcheck PASS”, BENCH_EXIT=0, and the pp64 row near the prior S23 baseline of about 511 tok/s. The performance number is historical, not re-measured here.
 
 ## Not verified
 
-- No S23 execution, stale-skel failure timing, health-check runtime result, or matched-skel performance measurement was verified.
+No phone was used. Stale-skel failure timing, both runtime health-check results, and matched-skel pp64 performance remain for the coordinator to verify.
+

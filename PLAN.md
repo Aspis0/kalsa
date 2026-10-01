@@ -781,6 +781,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   (`AUDIT-fix-engine.md`): event_synchronize still unbounded, get_tensor_async/dspqueue_write/release aborts,
   one 30 s knob for probe and batch, vacuous op-count check. Fix round 2 in progress (luna), then a short S23
   re-test, then push + binding (skels from the same tree + skew gate).
+  Round 2 (`7d953dab0..643332f8f`) closed the r1 items but its audit (`AUDIT-fix-engine-r2.md`) found a process-wide
+  mutex held across 30 s DSP waits and a heavy, ignored health-probe session. COORDINATOR DECISION 2026-10-01:
+  simplify - the root cause is prevented at BUILD time in the binding (skels + host from one engine commit, CI
+  gate); the engine keeps only the runtime net (bounded waits, exact req/rsp shape check, no aborts, error -> -3 ->
+  GPU fallback). Health probe and global lock removed; the diff must shrink.
 
 ### Pairing: iroh and invite links
 
