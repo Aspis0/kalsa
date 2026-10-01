@@ -19,7 +19,9 @@ after the alpha, when user interest justifies it. No Runpod spend until the owne
    truncation, H1-H4, M1-M12) landed as `cc739872` + `0b8fe79a` (GLM 6857fe92); coordinator re-ran
    `test_stop_rule.py` and `test_humaneval_runner.py` (EXIT=0 both; `test_flores_logic.py` needs the venv with
    fasttext). NOT yet re-audited: re-audit it with a non-GLM model first.
-2. Apply the calib-v2 audit findings; add the templated `chat` domain (thinking traces + tool dialogues, five
+2. Apply the calib-v2 audit findings (`../kalsa-reap-prep/AUDIT-PHASE0-CALIB.md`, luna be7f6d38: norm_max unused by
+   30_score.sh and an L2 norm instead of the paper's max-abs; the toolcall slice holds no real tool trajectories; stale
+   `.ok` markers can skip profiling; GSM8K-IT missing from the dedup bans; a mislabelled ISC dependency); add the templated `chat` domain (thinking traces + tool dialogues, five
    languages), reuse it for the imatrix.
 3. Add stop rules S0 (harness sanity), S5 (BFCL v3 multi-turn, 150 episodes, loop rate), S6 (knowledge MC in
    IT/FR/ES/EN/ZH) and define "beats" for S3.
