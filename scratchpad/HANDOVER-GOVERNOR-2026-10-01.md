@@ -37,7 +37,7 @@ decision in PLAN.md + ALIVE.md; device runs S23 only, screen Awake, unplugged, t
 2. **Binding follow-up round** (audit r3 leftovers, `inapp-htp-dspqueue-hang/AUDIT-fix-binding-r3.md`, judged
    non-blocking): android/src/main/rnllama/CMakeLists.txt outside the skel fingerprint; governor_npu_device read
    unsynchronized; v75<->v79 swap passes; two false comments; struct.error on a truncated ELF.
-3. **v1.1.5 release** (above). The engine worktree `~/Projects/kalsallama-v115` (local branch fix/v1.1.5, merged)
+3. **v1.1.5 PUBLISHED and verified 2026-10-01** (run 36923265662 green; R2 + HF tag; mac archive sha cd5af85a...674e, -ngl 0 on the M1 Max exit 0 at 124 tok/s vs v1.1.4 SIGILL; manifest sent to kalsa-brain, which repins and re-runs the Lenovo cross-device MTP repro). Remaining: The engine worktree `~/Projects/kalsallama-v115` (local branch fix/v1.1.5, merged)
    can be removed after the release is verified.
 4. **Engine fork Actions**: only kalsa-server + check-vendor active (5 more upstream workflows found and disabled
    2026-10-01 - enumerate with `gh api .../actions/workflows --paginate`, `gh workflow list` truncates).
