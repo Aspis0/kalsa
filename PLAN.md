@@ -861,7 +861,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   5b596ce43 2026-10-01 (no ggml-hexagon change since 61c909481: skels unchanged). Binding PUSHED
   feat/governor-platform-status `b1c7ffc5` (fa4d2dac vendor 5b596ce43, 458cae4c JSON `layers_device`, b1c7ffc5 four
   skels rebuilt by the committed Docker recipe: only the 34-byte engine stamp differs); audit space-bunny 40458cb2
-  SHIP. App step (pin + benchRoute.ts keeps the field, which it silently dropped): mimo 146c75e2.
+  SHIP. App PUSHED main `0125e403` (7bc8925b pin kalsa.rn b1c7ffc5 / engine 5b596ce43; 0125e403 benchRoute.ts keeps
+  `layers_device` into KALSA_GOVERNOR; GLM ce3efc5b after two opencode-go 500s). Audit luna c8c346a8 asked FIX FIRST
+  for dropping chunks from an older binding: coordinator overruled (provenance gate makes app+binding atomic; a
+  dropped chunk yields route_mismatch null = honest "unverified"). Debuggable APK run 36940827456.
+  **Next S23 session (queued, phone charged first):** per-turn HTP proof = every lane-on chunk `layers_device:"HTP0"`;
+  any harness that classifies backend from `actual` (e.g. qdc-heat-per-backend/parse.sh:285) must read
+  `layers_device` instead.
   **Side finding (verified on disk 2026-10-01): in-app HTP prefill runs ATTENTION ON THE CPU.** The binding sets
   `prefill_params.no_kv_offload = true` on the lane-on prefill context (`cpp/rn-llama.cpp:132`) and the engine pins
   every node between the KV store and the attention output to CPU when `!offload_kqv` (`src/llama-graph.cpp:2746`).
