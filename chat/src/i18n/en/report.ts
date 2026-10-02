@@ -14,6 +14,7 @@ export const REPORT = {
   sentWithId: (id: string) => `Sent. Your report number is ${id} — tell us this number.`,
   errRateLimited: "Wait a minute and try again.",
   errTryTomorrow: "We received too many reports today. Try again tomorrow.",
+  errUnreachable: "Your network (e.g. a company network) blocks the upload.",
   errSend: "Could not send. Check the internet connection and try again.",
   crashTitle: "Something went wrong",
   crashUncleanTitle: "Kalsa did not close normally last time",

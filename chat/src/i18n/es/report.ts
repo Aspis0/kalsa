@@ -12,6 +12,7 @@ export const REPORT = {
   sentWithId: (id: string) => `Enviado. Tu número de informe es ${id}: dinos este número.`,
   errRateLimited: "Espera un minuto e inténtalo de nuevo.",
   errTryTomorrow: "Hoy hemos recibido demasiados informes. Inténtalo de nuevo mañana.",
+  errUnreachable: "No se pudo enviar. Comprueba la conexión a internet e inténtalo de nuevo.",
   errSend: "No se pudo enviar. Comprueba la conexión a internet e inténtalo de nuevo.",
   crashTitle: "Algo ha ido mal",
   crashUncleanTitle: "Kalsa no se cerró correctamente la última vez",

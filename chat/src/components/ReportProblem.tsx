@@ -54,7 +54,9 @@ export function SendLogBlock({ words }: { words: English["report"] }) {
             ? words.errRateLimited
             : state.code === "try_tomorrow"
               ? words.errTryTomorrow
-              : words.errSend}
+              : state.code === "offline"
+                ? words.errUnreachable
+                : words.errSend}
         </p>
       ) : null}
     </div>

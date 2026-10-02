@@ -12,6 +12,7 @@ export const REPORT = {
   sentWithId: (id: string) => `已发送。你的报告编号是 ${id}——请告诉我们这个编号。`,
   errRateLimited: "请等一分钟再试。",
   errTryTomorrow: "我们今天收到的报告太多了。请明天再试。",
+  errUnreachable: "无法发送。请检查网络连接后重试。",
   errSend: "无法发送。请检查网络连接后重试。",
   crashTitle: "出问题了",
   crashUncleanTitle: "Kalsa 上次没有正常关闭",

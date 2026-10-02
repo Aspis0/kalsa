@@ -12,6 +12,7 @@ export const REPORT = {
   sentWithId: (id: string) => `Inviato. Il numero della tua segnalazione è ${id}: dicci questo numero.`,
   errRateLimited: "Aspetta un minuto e riprova.",
   errTryTomorrow: "Oggi abbiamo ricevuto troppe segnalazioni. Riprova domani.",
+  errUnreachable: "La tua rete (ad esempio quella aziendale) blocca l'invio.",
   errSend: "Impossibile inviare. Controlla la connessione e riprova.",
   crashTitle: "Qualcosa è andato storto",
   crashUncleanTitle: "Kalsa non si è chiusa normalmente l'ultima volta",
