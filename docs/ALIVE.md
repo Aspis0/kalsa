@@ -122,6 +122,12 @@ document that produced them is named instead.
   telemetry fix lands (owner 2026-10-01), read the device from the load (`devices=`, HTP buffer
   lines) and the speed, never from the label. That run's headline in-app ratio, NPU ~1.2-1.5x
   GPU prefill, stands only as an ordering; its report is being corrected.
+- In-app NPU prefill keeps the KV cache in host memory (`no_kv_offload`, because the shipped V cache is
+  q4_0 and HTP cannot write it), which runs attention on the CPU. Measured on QDC 8 Elite (v79) on
+  2026-10-01, the cost grows with context: with KV on host, a 128-token chunk takes 236 → 927 ms from
+  depth 512 to 3100; with KV on HTP it takes 101 → 122 ms (`scratchpad/agents/htp-kv-attention/`).
+  Any in-app NPU speed number is therefore context-dependent; quote it with its depth. Not yet
+  repeated on the S23 (v73).
 
 ## Phone speed table (on-device only, every number with its source)
 

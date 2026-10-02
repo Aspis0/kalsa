@@ -879,6 +879,15 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   writes only F32/F16/Q8_0, and a pre-allocated dst cannot be rerouted (`ggml-backend.cpp:941` abort). HTP has
   FLASH_ATTN_EXT for F16/Q8_0 KV, head dim 64 fits. Cheapest split: bare prefill on an HTP device at fixed n_past
   (0/512/1.7k/3.1k), `no_kv_offload` on vs off with the SAME q8_0 KV, `GGML_HEXAGON_PROFILE=1`, per-chunk commit time.
+  **MEASURED 2026-10-01 on QDC 8 Elite QRD8750 (v79, NOT the S23's v73), session 860914, Opus bd479ae6,
+  `htp-kv-attention/REPORT-qdc-8elite.md`; coordinator re-read bench.tsv + profile-summary.txt): host KV IS the
+  in-app NPU bottleneck - the FLOP estimate above was WRONG.** llama-bench pp128, LFM2.5-2.6B Q4_0 on HTP0, by
+  depth 512 / 1700 / 3100: A (KV q8_0 on host, `FLASH_ATTN` on CPU) 543 / 245 / 138 tok/s; B (same KV on HTP,
+  `FLASH_ATTN` on HTP0) 1263 / 1116 / 1053; C (app config, V q4_0, host) 504 / 208 / 116. Per-chunk growth per 1k
+  context: A 248 ms, B 7.7 ms, C 313 ms. Open before it is a product lever: (1) S23 v73 + Xiaomi v75 repeat (tonight,
+  owner gives both phones unplugged); (2) B correctness (no output/PPL comparison yet); (3) the app's q4_0 V cannot
+  live on HTP -> V q8_0 (RAM cost) or an HTP q4_0 SET_ROWS kernel; (4) prefill->decode KV commit from an HTP buffer
+  (decode is CPU). QDC: 8 Elite Gen 5 (SM8850) claimed 1000 free min 2026-10-01 (owner yes).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
