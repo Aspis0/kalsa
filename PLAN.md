@@ -966,7 +966,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   kept KV (nPast 1801); Qwen<->LFM x4 in one process, then the 3434-token needle prefilled on HTP0 in 2.68 s, ZAFFIRO-42,
   no thrash. Keys restored (route=gpu, npu_lane=off). NEW, open: a turn-2 `set_thermo_profile: invalid thermal profile;
   accelerator admission is closed` -> `KALSA_GOVERNOR_FALLBACK reason:"prefill admission aborted"` -> attempt 2
-  re-prefilled on CPU (25 s), losing the KV handoff (`raw/` 16:24:03). Why the profile was invalid is not yet known.
+  re-prefilled on CPU (25 s), losing the KV handoff (`raw/` 16:24:03). **Root cause (me, on the source; recon luna
+  303b99cd said UNKNOWN):** app a855ab6c (2026-09-21) moved the plugged-baseline latch to the engine and sends the
+  LIVE battery temp as `t_idle_c` every read, but engine `llama-governor-policy.cpp` (2026-09-03) still offsets plugged
+  thresholds from `profile_.t_idle_c` (live: WARM unreachable while charging) and marks the profile Invalid when the live
+  value drifts >1.5 C from its latch (phone was charging, battery warmed in turn 1). Latent until today because benches
+  never run plugged. Engine fix dispatched (deepseek 8edbb524, `kalsallama-wt-thermo`): thresholds + hot_plugged from
+  the latch, drift is a temperature not a fault.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
