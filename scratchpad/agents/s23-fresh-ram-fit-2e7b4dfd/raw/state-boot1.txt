@@ -1,0 +1,4 @@
+  mWakefulness=Awake
+  level: 100
+  temperature: 301
+Thermal Status: 0

@@ -1,0 +1,11 @@
+kalsa.bench.energy_trace|1
+kalsa.bench.kvtranscript|1
+kalsa.bench.nativelog|off
+kalsa.bench.npu_lane|off
+kalsa.bench.route|gpu
+-- devmodels row count:
+0
+-- model keys:
+kalsa.model.id|lfm2.5-2.6b
+kalsa.model.lastGoodId|lfm2.5-2.6b
+kalsa.models.orphanMigration.v1|{"version":1,"orphans":["lfm2.5-8b-a1b","lfm2.5-8b-a1b-kexp","qwen3.5-2b","dev-minicpm5-2b"],"sizeBytes":11323879424}

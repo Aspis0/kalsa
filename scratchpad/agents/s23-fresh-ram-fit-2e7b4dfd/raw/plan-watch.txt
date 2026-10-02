@@ -1,0 +1,33 @@
+=== watcher start 2026-10-02 15:21:39 EDT ===
+READ_EPOCH=1790971794 DELTA_FROM_LINE=0s
+PLAN:          1790971794.517 20881 20914 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":3572.2,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on","npu_fit":"Fit","available_src":"fresh"}
+MEMINFO: MemAvailable:    3648048 kB SwapTotal:       4194300 kB SwapFree:        2737120 kB 
+---
+READ_EPOCH=1790972499 DELTA_FROM_LINE=0s
+PLAN:          1790972499.201 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":4055.05,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on","npu_fit":"Fit","available_src":"fresh"}
+MEMINFO: MemAvailable:    4148716 kB SwapTotal:       4194300 kB SwapFree:        2205580 kB 
+---
+READ_EPOCH=1790972862 DELTA_FROM_LINE=0s
+PLAN:          1790972862.187 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","decode_repack":false,"required_mib_with_repack":7331.47,"required_mib_without_repack":4627.83,"available_mib":3760.85,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"on","npu_fit":"NoFit","available_src":"fresh"}
+MEMINFO: MemAvailable:    3833636 kB SwapTotal:       4194300 kB SwapFree:        2095256 kB 
+---
+READ_EPOCH=1790973068 DELTA_FROM_LINE=0s
+PLAN:          1790973068.283 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":3921.74,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on","npu_fit":"Fit","available_src":"fresh"}
+MEMINFO: MemAvailable:    4001680 kB SwapTotal:       4194300 kB SwapFree:        1915244 kB 
+---
+READ_EPOCH=1790973145 DELTA_FROM_LINE=-1s
+PLAN:          1790973146.039 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","decode_repack":false,"required_mib_with_repack":7331.47,"required_mib_without_repack":4627.83,"available_mib":4017.32,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"on","npu_fit":"NoFit","available_src":"fresh"}
+MEMINFO: MemAvailable:    4118080 kB SwapTotal:       4194300 kB SwapFree:        2091992 kB 
+---
+READ_EPOCH=1790973421 DELTA_FROM_LINE=0s
+PLAN:          1790973421.709 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","decode_repack":false,"required_mib_with_repack":7331.47,"required_mib_without_repack":4627.83,"available_mib":3801.7,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"on","npu_fit":"NoFit","available_src":"fresh"}
+MEMINFO: MemAvailable:    3871356 kB SwapTotal:       4194300 kB SwapFree:        2332196 kB 
+---
+READ_EPOCH=1790973497 DELTA_FROM_LINE=0s
+PLAN:          1790973497.921 24025 24056 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":3253.19,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on","npu_fit":"Fit","available_src":"fresh"}
+MEMINFO: MemAvailable:    3322360 kB SwapTotal:       4194300 kB SwapFree:        1237012 kB 
+---
+READ_EPOCH=1790973726 DELTA_FROM_LINE=0s
+PLAN:          1790973726.654 32253 32279 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4376.54,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"off","npu_fit":"Fit","available_src":"fresh"}
+MEMINFO: MemAvailable:    4476100 kB SwapTotal:       4194300 kB SwapFree:        2400068 kB 
+---

@@ -1,0 +1,15 @@
+[s[999C[999B[6n[u[H[J[?25l[H[J[s[999C[999B[6n[uTasks: 853 total,   1 running, 852 sleeping,   0 stopped,   0 zombie
+  Mem:  7243748K total,  6913008K used,   330740K free,     3048K buffers
+ Swap:  4194300K total,  2167408K used,  2026892K free,  1720328K cached
+800%cpu  21%user   4%nice  86%sys 679%idle   0%iow   7%irq   4%sirq   0%host
+[7m  PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS            [0m
+ 5220 shell        20   0 2.7G 4.3M 2.8M S 28.5   0.0  13:22.05 adbd --root_sec+
+  964 logd         30  10 2.4G 6.6M 3.6M S 14.2   0.0 116:00.88 logd
+20881 u0_a347      10 -10  16G 193M 110M S 10.7   2.7   0:37.67 com.kalsa.app
+ 1816 system       -3   0 3.1G  21M  14M S 10.7   0.2 141:33.09 surfaceflinger
+[1m23737 shell        20   0 2.1G 4.9M 3.6M R  7.1   0.0   0:00.04 top -n 1 -m 10[m
+22347 root         20   0    0    0    0 I  3.5   0.0   0:00.18 [kworker/0:0-ev+
+21431 root          0 -20    0    0    0 I  3.5   0.0   0:04.94 [kworker/u17:0-+
+18830 shell        20   0 2.1G 2.8M 2.7M S  3.5   0.0   0:11.65 logcat -v time
+18427 shell        20   0 2.0G 3.0M 2.8M S  3.5   0.0   0:11.98 logcat -v time
+17475 root          0 -20    0    0    0 I  3.5   0.0   0:34.56 [kworker/u17:3-+[?25h[0m[999H[K[?25h[?25h[0m[999H[K
