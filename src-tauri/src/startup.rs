@@ -262,11 +262,11 @@ pub(crate) fn run(
     let mut device = None;
     if backend == ServerBackend::Vulkan {
         let listed = kalsa_runtime::list_devices(&exe);
-        let wanted = match machine.measurement.will_run_on {
-            kalsa_probe::Backend::DiscreteGpu { .. } => kalsa_probe::discrete_name(),
-            _ => None,
-        };
-        let (routed, chosen) = kalsa_runtime::route(listed.as_deref(), wanted.as_deref());
+        let (routed, chosen) = device_route(
+            machine.measurement.will_run_on,
+            listed.as_deref(),
+            kalsa_probe::discrete_name,
+        );
         if routed != backend {
             progress(Progress::Deciding);
             let cpu = kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
@@ -516,6 +516,29 @@ fn automatic_choice(
 /// refused: the machine-only answer, chosen with no phone in the question.
 pub(crate) const FALLBACK_PICK_REASON: &str =
     "Kalsa picked this because it runs well on this computer.";
+
+/// Which build and device the graphics start routes to. A dedicated card is
+/// matched by the name detection gave it, and with no name there is nothing
+/// to match. The single-listed-device rule belongs to the one case detection
+/// positively knows is an integrated GPU (a Windows machine with no dedicated
+/// card, `Backend::Cpu`): when detection learned nothing (`Unknown`) a lone
+/// visible device may be an iGPU beside a sleeping dedicated card, and the
+/// start stays on the CPU build. `discrete_name` is asked only for a dedicated
+/// card.
+fn device_route(
+    will_run_on: kalsa_probe::Backend,
+    listed: Option<&[(String, String)]>,
+    discrete_name: impl FnOnce() -> Option<String>,
+) -> (ServerBackend, Option<String>) {
+    match will_run_on {
+        kalsa_probe::Backend::DiscreteGpu { .. } => match discrete_name() {
+            Some(name) => kalsa_runtime::route(listed, Some(&name)),
+            None => (ServerBackend::Cpu, None),
+        },
+        kalsa_probe::Backend::Cpu => kalsa_runtime::route(listed, None),
+        _ => (ServerBackend::Cpu, None),
+    }
+}
 
 /// Why the walk starts the processor build after the graphics build's
 /// catalog answer refused: the card's memory holds no row this app ships —
@@ -1284,6 +1307,31 @@ mod tests {
     use super::*;
     use kalsa_probe::{Backend, ExecutionPath, Reliability, Series};
     use std::io::Write;
+
+    /// The single-device rule is the integrated GPU's alone: a lone listed
+    /// device is pinned only when detection knows no dedicated card exists.
+    /// With detection blind (`Unknown`) or a dedicated card it cannot name,
+    /// that device may be the iGPU beside a sleeping dedicated one — CPU.
+    #[test]
+    fn only_a_known_integrated_gpu_gets_the_single_device_rule() {
+        let lone = vec![("Vulkan0".to_string(), "Intel(R) Iris(R) Plus Graphics".to_string())];
+        let pinned = (ServerBackend::Vulkan, Some("Vulkan0".to_string()));
+        let cpu = (ServerBackend::Cpu, None);
+        let none = || -> Option<String> { None };
+        assert_eq!(device_route(Backend::Cpu, Some(&lone), none), pinned);
+        assert_eq!(device_route(Backend::Unknown, Some(&lone), none), cpu);
+        assert_eq!(device_route(Backend::Metal, Some(&lone), none), cpu);
+        // A dedicated card is matched by its name, and without one there is
+        // nothing to match.
+        let dedicated = Backend::DiscreteGpu { vram_bytes: Some(6 << 30) };
+        let card = vec![("Vulkan0".to_string(), "NVIDIA GeForce RTX 4050 Laptop GPU".to_string())];
+        let named = || Some("NVIDIA GeForce RTX 4050 Laptop GPU".to_string());
+        assert_eq!(device_route(dedicated, Some(&card), named), pinned);
+        assert_eq!(device_route(dedicated, Some(&lone), named), cpu);
+        assert_eq!(device_route(dedicated, Some(&card), none), cpu);
+        // Nothing listed is nothing to pin, whatever detection says.
+        assert_eq!(device_route(Backend::Cpu, None, none), cpu);
+    }
 
     /// A measurement with the shape the catalog predicts from: `bandwidth`
     /// bytes per second on the CPU path, `backend` being what the machine
