@@ -36,6 +36,22 @@ describe("KALSA_GOVERNOR_PLAN (governorInputs.ts:228-243)", () => {
     });
   });
 
+  it("keeps npu_fit and available_src only as their literals", () => {
+    const line = (npuFit: string, src: string) =>
+      record(
+        "KALSA_GOVERNOR_PLAN",
+        JSON.stringify({ gpu_fit: "NoFit", npu_fit: npuFit, available_src: src }),
+      );
+    expect(line("NoFit", "fresh")).toEqual({
+      gpu_fit: "NoFit",
+      npu_fit: "NoFit",
+      available_src: "fresh",
+    });
+    expect(line("Fit at /Users/marco", "MemAvailable 123 kB")).toEqual({
+      gpu_fit: "NoFit",
+    });
+  });
+
   it("drops a npu_device that is not the resolver's literal", () => {
     const out = record(
       "KALSA_GOVERNOR_PLAN",

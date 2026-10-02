@@ -62,6 +62,8 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     npu_device: enumOrNull("HTP0"), // governorInputs.ts:338 — null with the lane off
     npu_fallback: enumOrNull(), // governorInputs.ts:339 — always null today
     npu_lane: enumOf("off", "on", "auto"), // BenchNpuLanePref, governorInputs.ts:18
+    npu_fit: enumOrNull("Fit", "NoFit"), // governorInputs.ts:264 — null when the lane was not priced
+    available_src: enumOrNull("fresh", "cached", "none"), // governorInputs.ts:265
   },
   // LlamaService.ts:2456; reason is governorBase.reason (governorInputs.ts:342,
   // `gpu-prefill-incorrect-<Generation>`, Generation at governorInputs.ts:66).
