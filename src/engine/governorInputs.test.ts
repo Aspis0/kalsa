@@ -28,9 +28,11 @@ import { NativeModules } from "react-native";
 import { getCurrentPlatformThermalState } from "../../modules/kalsa-thermal/src";
 import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
+import { modelAtKvProfile } from "./kvQuantCost";
 import {
   buildGovernorParams,
   htpArchFor,
+  npuLaneCacheTypes,
   readBenchGovernorForce,
   readBenchNpuLane,
   readGovernorThermo,
@@ -507,6 +509,92 @@ describe("governor inputs", () => {
     await expect(readBenchNpuLane()).resolves.toBe("auto");
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce("1");
     await expect(readBenchNpuLane()).resolves.toBeUndefined();
+  });
+
+  test("npuLaneCacheTypes upgrades HTP-unwritable types to q8_0 unless flash attention is off", () => {
+    // The catalog profile: V q4_0 is not HTP-writable, so the lane runs q8_0.
+    expect(npuLaneCacheTypes("q8_0", "q4_0")).toEqual({ k: "q8_0", v: "q8_0" });
+    // Already-writable types pass through on both sides.
+    expect(npuLaneCacheTypes("f16", "q8_0")).toEqual({ k: "f16", v: "q8_0" });
+    expect(npuLaneCacheTypes("f32", "f32")).toEqual({ k: "f32", v: "f32" });
+    // Flash attention explicitly off: the binding leaves the caller types.
+    expect(npuLaneCacheTypes("q8_0", "q4_0", true)).toEqual({ k: "q8_0", v: "q4_0" });
+  });
+
+  test("the lane fit prices LFM at the upgraded 8704 B/token, not the catalog 6656", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneKv = npuLaneCacheTypes("q8_0", "q4_0");
+    const laneModel = modelAtKvProfile(lfm, laneKv.k, laneKv.v);
+    expect(laneModel.kvBytesPerToken).toBe(8704);
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    const inputs = {
+      android: true,
+      hasMmproj: false,
+      lanePref: "auto" as const,
+      laneModel,
+    };
+    // Lane requirement with the upgraded KV: 3030.06 MiB repack-free + 219
+    // HTP prefill copy = 3249.06 MiB (catalog KV would need 3217.06). One MiB
+    // below the upgraded boundary the lane refuses where the caller-profile
+    // price would still have passed; one above it claims HTP0.
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, inputs),
+    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3250), false, undefined, inputs),
+    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+  });
+
+  test("flash attention off prices the lane at the caller profile again", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneKv = npuLaneCacheTypes("q8_0", "q4_0", true);
+    const laneModel = modelAtKvProfile(lfm, laneKv.k, laneKv.v);
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    // 3249 MiB refused the upgraded price above; with FA off the lane holds
+    // the caller's q8_0/q4_0 (3217.06 MiB requirement) and fits.
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
+        android: true,
+        hasMmproj: false,
+        lanePref: "auto" as const,
+        laneModel,
+      }),
+    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true });
+  });
+
+  test("the lane-priced KV never moves the GPU lane estimate", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneKv = npuLaneCacheTypes("q8_0", "q4_0");
+    const laneModel = modelAtKvProfile(lfm, laneKv.k, laneKv.v);
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    // The load's own estimate stays at the caller profile even with a
+    // lane-priced model in the inputs: the repack-free boundaries
+    // (2998.06 MiB) hold byte-identically.
+    const inputs = { android: true, hasMmproj: false, laneModel };
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2999), false, undefined, inputs).gpu_fit,
+    ).toBe("Fit");
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2997), false, undefined, inputs).gpu_fit,
+    ).toBe("NoFit");
   });
 
   test("keeps an unplugged poll without an idle reference valid", async () => {

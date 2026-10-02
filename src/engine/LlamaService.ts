@@ -60,6 +60,7 @@ import { getCachedDeviceProfile } from "./deviceProfile";
 import {
   buildGovernorPlanLog,
   buildGovernorParams,
+  npuLaneCacheTypes,
   readBenchGovernorForce,
   readBenchNpuLane,
   readGovernorThermo,
@@ -1761,12 +1762,15 @@ async function emitGovernorTelemetry(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "getGovernorStats",
     );
-    // The pinned binding (kalsa.rn 4e0837f8) adds these two plan fields to
-    // GovernorStats; the local intersection keeps tsc honest against an
-    // installed older binding.
+    // The pinned binding (kalsa.rn 3d8fc84a) adds these governor stats
+    // fields; the local intersection keeps tsc honest against an installed
+    // older binding.
     const npuStats = stats as typeof stats & {
       npu_device?: string | null;
       npu_fallback?: string | null;
+      cache_type_k?: string | null;
+      cache_type_v?: string | null;
+      prefill_kv?: string | null;
     };
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
@@ -1786,6 +1790,12 @@ async function emitGovernorTelemetry(
         // NPU lane outcome the loader resolved (null with the lane off).
         npu_device: npuStats.npu_device ?? null,
         npu_fallback: npuStats.npu_fallback ?? null,
+        // Effective KV types both governor contexts run with (the lane
+        // upgrades HTP-unwritable caller types to q8_0) and where the
+        // prefill KV buffers live.
+        cache_type_k: npuStats.cache_type_k ?? null,
+        cache_type_v: npuStats.cache_type_v ?? null,
+        prefill_kv: npuStats.prefill_kv ?? null,
         fallback_reason: activeGovernorFallbackReason,
         // A latched governor failure is sticky: every later turn dies on it.
         // Surface it here so it is visible in telemetry, not just in the
@@ -2342,6 +2352,17 @@ export function initEngine(
     const governorThermo = governorFeatureEnabled
       ? await readGovernorThermo()
       : null;
+    // The NPU lane's fit prices the KV the lane will really hold: with the
+    // lane on, the binding upgrades both caches to q8_0 (flash attention
+    // explicitly off leaves them), so the caller-profile price under-counts
+    // by the V upgrade — 6656 → 8704 B/token on LFM. Priced from the raw
+    // catalog number: pricedModel is already caller-priced and would
+    // compound the re-pricing.
+    const laneKv = npuLaneCacheTypes(
+      cacheTypeK,
+      cacheTypeV,
+      options.engineOverride?.flashAttn === "off",
+    );
     const governorBase =
       governorFeatureEnabled && pricedModel != null
         ? buildGovernorParams(pricedModel, deviceProfile, {
@@ -2360,6 +2381,7 @@ export function initEngine(
             // (… && !options.mmprojPath): vision never claims the lane.
             hasMmproj: Boolean(options.mmprojPath),
             lanePref: benchNpuLane,
+            laneModel: modelAtKvProfile(modelInfo, laneKv.k, laneKv.v),
           },
         )
         : null;

@@ -23,6 +23,23 @@ export type BenchNpuLanePref = "off" | "on" | "auto";
  *  8 GB device lands on decode_repack=false exactly like today. */
 export const NPU_PREFILL_EXTRA_MIB = 219;
 
+/** Effective KV ggml types of the governor's NPU lane. When the lane runs
+ *  (prefill on HTP0) the KV stays on the device, and the device cannot write
+ *  every cache type: anything but f32/f16/q8_0 is upgraded to q8_0 in BOTH
+ *  governor contexts (kalsa.rn 3d8fc84a). Flash attention explicitly off
+ *  disables the upgrade — the caller's types run unchanged. */
+export function npuLaneCacheTypes(
+  cacheTypeK: string,
+  cacheTypeV: string,
+  flashAttnOff?: boolean,
+): { k: string; v: string } {
+  const upgrade = (type: string) =>
+    flashAttnOff === true || type === "f32" || type === "f16" || type === "q8_0"
+      ? type
+      : "q8_0";
+  return { k: upgrade(cacheTypeK), v: upgrade(cacheTypeV) };
+}
+
 /** What the NPU lane needs to know beyond the pure governor inputs; read at
  *  the call site (Platform, the mmproj gate and the bench pref live there). */
 export type NpuLaneInputs = {
@@ -31,6 +48,13 @@ export type NpuLaneInputs = {
    *  where the flag is built: vision models never claim the lane. */
   hasMmproj: boolean;
   lanePref?: BenchNpuLanePref;
+  /** The model with its KV priced at npuLaneCacheTypes of the load's cache
+   *  types — the lane fit must price the KV the lane will really hold.
+   *  Composed from the catalog number at the call site: the model entry this
+   *  function otherwise sees is already priced at the caller profile, and
+   *  re-pricing that again would compound. Absent → the entry's own pricing
+   *  (byte-identical to the pre-lane estimates). */
+  laneModel?: GovernorModel;
 };
 
 type Generation = "V73" | "V75" | "V79" | "Unknown";
@@ -248,7 +272,15 @@ export function buildGovernorParams(
   const generation = generationFor(deviceProfile);
   const enabled = force || GPU_PREFILL_CORRECT[generation];
   const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
-  const npuLane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack, NPU_PREFILL_EXTRA_MIB);
+  // The lane fit prices laneModel (KV at the effective lane types); without
+  // it the entry's own caller-profile price stands, unchanged from before.
+  const npuLane = gpuFit(
+    npu?.laneModel ?? modelEntry,
+    deviceProfile,
+    memory,
+    benchNoRepack,
+    NPU_PREFILL_EXTRA_MIB,
+  );
   // NPU lane eligibility (owner rule 2026-09-28). Hard gates never bend:
   // Android only, vision excluded (the LlamaService governorLoad gate
   // `… && !options.mmprojPath`, restated here via hasMmproj), memory fit
