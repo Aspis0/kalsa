@@ -9,8 +9,8 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use crate::chunk::Dechunker;
-use crate::clocks::patience;
 use crate::proxy::{is_silence, Cancel};
+use crate::PATIENCE;
 
 pub(super) const MAX_HEAD: usize = 32 * 1024;
 
@@ -31,13 +31,14 @@ pub(super) struct Head {
 pub(super) fn read_upstream_head(
     stream: &mut TcpStream,
     deadline: Instant,
-    waiting: Option<(&Cancel, Duration)>,
+    waiting: Option<(&Cancel, Duration, Duration)>,
 ) -> std::io::Result<Head> {
+    let patience = waiting.map_or(PATIENCE, |(_, _, patience)| patience);
     let begun = Instant::now();
     // The timeout is set once for the whole head: the reads are one byte
     // each (the body must not be swallowed), and re-arming SO_RCVTIMEO per
     // byte only multiplies the odds of hitting the macOS quirk below.
-    arm_read_timeout(stream, deadline)?;
+    arm_read_timeout(stream, deadline, patience)?;
     let mut raw = Vec::with_capacity(1024);
     loop {
         if raw.len() == MAX_HEAD {
@@ -63,9 +64,9 @@ pub(super) fn read_upstream_head(
             Ok(_) => unreachable!("a one-byte read returned more than one byte"),
             Err(error)
                 if is_silence(&error)
-                    && waiting.is_some_and(|(cancel, idle)| !cancel.stopped() && begun.elapsed() < idle) =>
+                    && waiting.is_some_and(|(cancel, idle, _)| !cancel.stopped() && begun.elapsed() < idle) =>
             {
-                arm_read_timeout(stream, deadline)?;
+                arm_read_timeout(stream, deadline, patience)?;
             }
             Err(error) => return Err(error),
         }
@@ -76,11 +77,15 @@ pub(super) fn read_upstream_head(
 /// `SO_RCVTIMEO` with `EINVAL` on a perfectly healthy socket under load —
 /// a read straight after succeeds — so one refused arm is retried once
 /// before being believed.
-fn arm_read_timeout(stream: &mut TcpStream, deadline: Instant) -> std::io::Result<()> {
+fn arm_read_timeout(
+    stream: &mut TcpStream,
+    deadline: Instant,
+    patience: Duration,
+) -> std::io::Result<()> {
     let remaining = deadline
         .checked_duration_since(Instant::now())
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::TimedOut, "door deadline"))?;
-    let timeout = remaining.min(patience());
+    let timeout = remaining.min(patience);
     if stream.set_read_timeout(Some(timeout)).is_ok() {
         return Ok(());
     }
@@ -190,7 +195,7 @@ pub(super) fn read_body(
     deadline: Instant,
 ) -> std::io::Result<Vec<u8>> {
     if head.chunked {
-        arm_read_timeout(stream, deadline)?;
+        arm_read_timeout(stream, deadline, PATIENCE)?;
         let mut dechunker = Dechunker::new();
         let mut out = Vec::new();
         let mut buffer = [0u8; 16 * 1024];
@@ -225,7 +230,7 @@ pub(super) fn read_body(
             "the upstream body is too large to rewrite",
         ));
     }
-    arm_read_timeout(stream, deadline)?;
+    arm_read_timeout(stream, deadline, PATIENCE)?;
     let mut out = vec![0u8; length];
     stream.read_exact(&mut out)?;
     Ok(out)

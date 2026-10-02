@@ -1,20 +1,20 @@
 //! How long the door waits for the engine, and for a client waiting for a
-//! worker. One place for the numbers, each with its reason, and one test seam
-//! for all of them.
+//! worker. One place for the numbers, each with its reason.
 //!
 //! A chat completion on a slow computer is a prefill of minutes (read in
 //! batches, the engine reporting between them when asked) and then tokens at
 //! a few a second, so the door cannot tell "slow" from "gone" by a short
 //! timeout. It tells them apart by silence: an answer ends when the engine
-//! has said nothing at all for [`completion_idle`], or at [`completion_ceiling`]
+//! has said nothing at all for `completion_idle`, or at `completion_ceiling`
 //! whatever it is saying.
+//!
+//! The clocks belong to a door, not to the process: a test that shrinks them
+//! gives its own door a [`Clocks`] and no other door sees it.
 
-#[cfg(test)]
-use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 /// The longest a completion's answer may run, counted from the moment a worker
-/// takes the request up (queueing is bounded on its own, see [`queue_wait`]).
+/// takes the request up (queueing is bounded on its own, see `queue_wait`).
 /// Thirty minutes holds 5,000 tokens at the catalog's ~3 tok/s floor and still
 /// frees a worker and a seat from a generation that runs away. Every request
 /// that reaches the answer is already authenticated and leased; the ceiling
@@ -40,106 +40,50 @@ const QUEUE_WAIT: Duration = Duration::from_secs(20);
 /// and the engine's slot until the ceiling.
 const DETACHED_GRACE: Duration = Duration::from_secs(2 * 60);
 
-#[cfg(test)]
-static PATIENCE_MS: AtomicU64 = AtomicU64::new(0);
-#[cfg(test)]
-static IDLE_MS: AtomicU64 = AtomicU64::new(0);
-#[cfg(test)]
-static CEILING_MS: AtomicU64 = AtomicU64::new(0);
-#[cfg(test)]
-static QUEUE_WAIT_MS: AtomicU64 = AtomicU64::new(0);
-#[cfg(test)]
-static DETACHED_MS: AtomicU64 = AtomicU64::new(0);
+/// The limits one door applies. `Default` is the product's; a test builds its
+/// own door with shorter ones.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Clocks {
+    /// The wake-up interval of a read of the engine.
+    pub(crate) patience: Duration,
+    pub(crate) completion_ceiling: Duration,
+    pub(crate) completion_idle: Duration,
+    pub(crate) queue_wait: Duration,
+    pub(crate) detached_grace: Duration,
+}
 
-/// The wake-up interval of a read of the engine.
-pub(crate) fn patience() -> Duration {
-    #[cfg(test)]
-    if let Some(over) = overridden(&PATIENCE_MS) {
-        return over;
+impl Default for Clocks {
+    fn default() -> Self {
+        Self {
+            patience: crate::PATIENCE,
+            completion_ceiling: COMPLETION_CEILING,
+            completion_idle: COMPLETION_IDLE,
+            queue_wait: QUEUE_WAIT,
+            detached_grace: DETACHED_GRACE,
+        }
     }
-    crate::PATIENCE
-}
-
-pub(crate) fn completion_ceiling() -> Duration {
-    #[cfg(test)]
-    if let Some(over) = overridden(&CEILING_MS) {
-        return over;
-    }
-    COMPLETION_CEILING
-}
-
-pub(crate) fn completion_idle() -> Duration {
-    #[cfg(test)]
-    if let Some(over) = overridden(&IDLE_MS) {
-        return over;
-    }
-    COMPLETION_IDLE
-}
-
-pub(crate) fn queue_wait() -> Duration {
-    #[cfg(test)]
-    if let Some(over) = overridden(&QUEUE_WAIT_MS) {
-        return over;
-    }
-    QUEUE_WAIT
-}
-
-pub(crate) fn detached_grace() -> Duration {
-    #[cfg(test)]
-    if let Some(over) = overridden(&DETACHED_MS) {
-        return over;
-    }
-    DETACHED_GRACE
-}
-
-#[cfg(test)]
-fn overridden(cell: &AtomicU64) -> Option<Duration> {
-    let millis = cell.load(std::sync::atomic::Ordering::SeqCst);
-    (millis > 0).then(|| Duration::from_millis(millis))
-}
-
-#[cfg(test)]
-static SEAM: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-/// Holds the clock overrides for one test. They are process-wide, so the tests
-/// that set any take turns, and every override is cleared however the test
-/// ends.
-#[cfg(test)]
-pub(crate) struct Clocks(std::sync::MutexGuard<'static, ()>);
-
-#[cfg(test)]
-pub(crate) fn clocks() -> Clocks {
-    Clocks(SEAM.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 #[cfg(test)]
 impl Clocks {
-    fn set(self, cell: &AtomicU64, value: Duration) -> Self {
-        cell.store(value.as_millis() as u64, std::sync::atomic::Ordering::SeqCst);
+    pub(crate) fn patience(mut self, value: Duration) -> Self {
+        self.patience = value;
         self
     }
-    pub(crate) fn patience(self, value: Duration) -> Self {
-        self.set(&PATIENCE_MS, value)
+    pub(crate) fn idle(mut self, value: Duration) -> Self {
+        self.completion_idle = value;
+        self
     }
-    pub(crate) fn idle(self, value: Duration) -> Self {
-        self.set(&IDLE_MS, value)
+    pub(crate) fn ceiling(mut self, value: Duration) -> Self {
+        self.completion_ceiling = value;
+        self
     }
-    pub(crate) fn ceiling(self, value: Duration) -> Self {
-        self.set(&CEILING_MS, value)
+    pub(crate) fn queue_wait(mut self, value: Duration) -> Self {
+        self.queue_wait = value;
+        self
     }
-    pub(crate) fn queue_wait(self, value: Duration) -> Self {
-        self.set(&QUEUE_WAIT_MS, value)
-    }
-    pub(crate) fn detached(self, value: Duration) -> Self {
-        self.set(&DETACHED_MS, value)
-    }
-}
-
-#[cfg(test)]
-impl Drop for Clocks {
-    fn drop(&mut self) {
-        for cell in [&PATIENCE_MS, &IDLE_MS, &CEILING_MS, &QUEUE_WAIT_MS, &DETACHED_MS] {
-            cell.store(0, std::sync::atomic::Ordering::SeqCst);
-        }
+    pub(crate) fn detached(mut self, value: Duration) -> Self {
+        self.detached_grace = value;
+        self
     }
 }

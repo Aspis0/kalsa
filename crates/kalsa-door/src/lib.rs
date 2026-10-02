@@ -266,6 +266,9 @@ pub struct Door {
     /// The per-slot context the launch funded, named by the app from the
     /// launch record the way it names the disk tier's halves.
     slot_context: Option<u64>,
+    /// The limits on the engine's answers and on queueing; the product's
+    /// unless a test gives this door shorter ones.
+    clocks: clocks::Clocks,
     /// The disk tier's two halves, both the app's to supply and both absent
     /// until it does: the model identity a saved chat's name carries and the
     /// directory the engine writes into. A door without them serves every
@@ -425,6 +428,7 @@ impl Door {
             response_observer: None,
             room: None,
             slot_context: None,
+            clocks: clocks::Clocks::default(),
         })
     }
 
@@ -492,6 +496,14 @@ impl Door {
     /// never a guess at a slot nobody named.
     pub fn with_slot_context(mut self, per_slot_tokens: u64) -> Self {
         self.slot_context = Some(per_slot_tokens);
+        self
+    }
+
+    /// This door with shorter clocks, so a test of a limit costs a second, not
+    /// minutes. Only this door: the clocks are not shared with any other.
+    #[cfg(test)]
+    pub(crate) fn with_clocks(mut self, clocks: clocks::Clocks) -> Self {
+        self.clocks = clocks;
         self
     }
 

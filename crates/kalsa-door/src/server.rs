@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::clocks::queue_wait;
 use crate::queue::Queue;
 use crate::registry::Registry;
 use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
@@ -67,6 +66,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         room: door.room.clone(),
         port: door.upstream_port,
         slot_context: door.slot_context,
+        clocks: door.clocks,
     });
     let queue = Arc::new(Queue::new(QUEUE));
     let mut threads = Vec::with_capacity(WORKERS + 2);
@@ -106,6 +106,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         }
     }
 
+    let queue_wait = door.clocks.queue_wait;
     let reaper_stop = Arc::clone(&stop);
     let reaper_registry = Arc::clone(&registry);
     let result = thread::Builder::new()
@@ -127,7 +128,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let accept_connections = Arc::clone(&connections);
     let result = thread::Builder::new()
         .name("kalsa-door".into())
-        .spawn(move || accept_loop(listener, queue, accept_stop, accept_connections));
+        .spawn(move || accept_loop(listener, queue, queue_wait, accept_stop, accept_connections));
     match result {
         Ok(thread) => threads.push(thread),
         Err(error) => {
@@ -164,6 +165,7 @@ fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
 fn accept_loop(
     listener: std::net::TcpListener,
     queue: Arc<Queue<Work>>,
+    queue_wait: Duration,
     stop: Arc<AtomicBool>,
     connections: Arc<AtomicUsize>,
 ) {
@@ -171,7 +173,7 @@ fn accept_loop(
         // Answers can hold a worker for half an hour, so the line is swept on
         // every turn: whoever has waited too long is answered busy now, not
         // when a worker finally frees.
-        for mut work in queue.expired(queue_wait()) {
+        for mut work in queue.expired(queue_wait) {
             reject_busy(&mut work.stream);
         }
         match listener.accept() {
@@ -247,14 +249,40 @@ fn worker(
     }
 }
 
+/// How long the busy answer gets to be written, and how much of what the client
+/// already sent is read off before the close. The accept loop runs this, so
+/// both are small and hard: a client that keeps writing must not stall
+/// accepting.
+const BUSY_WRITE: Duration = Duration::from_millis(200);
+const BUSY_DRAIN_BYTES: usize = 64 * 1024;
+const BUSY_DRAIN_TIME: Duration = Duration::from_millis(50);
+
 fn reject_busy(stream: &mut TcpStream) {
-    let _ = stream.set_nonblocking(true);
+    // The answer first, whole: blocking, but only for a moment. (A socket
+    // accepted from the non-blocking listener may inherit that mode.)
+    let _ = stream.set_nonblocking(false);
+    let _ = stream.set_write_timeout(Some(BUSY_WRITE));
     let _ = std::io::Write::write_all(stream, BUSY_RESPONSE);
-    // A request already sitting unread would make the close a reset, and a
-    // reset erases the answer just written: take what has arrived first.
-    let mut unread = [0u8; 16 * 1024];
-    while matches!(std::io::Read::read(stream, &mut unread), Ok(read) if read > 0) {}
+    // Then take what the client has already sent: a request left unread
+    // makes the close a reset, and a reset erases the answer just written.
+    let _ = stream.set_nonblocking(true);
+    drain(stream);
     let _ = stream.shutdown(std::net::Shutdown::Write);
+}
+
+/// Reads off what has already arrived, giving up at the byte and time caps
+/// whatever the other end is still sending. Returns the bytes taken.
+fn drain(stream: &mut impl std::io::Read) -> usize {
+    let mut unread = [0u8; 16 * 1024];
+    let mut drained = 0usize;
+    let until = Instant::now() + BUSY_DRAIN_TIME;
+    while drained < BUSY_DRAIN_BYTES && Instant::now() < until {
+        match stream.read(&mut unread) {
+            Ok(read) if read > 0 => drained += read,
+            _ => break,
+        }
+    }
+    drained
 }
 
 fn join_all(threads: Vec<thread::JoinHandle<()>>) {
@@ -266,6 +294,8 @@ fn join_all(threads: Vec<thread::JoinHandle<()>>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
 
     #[test]
     fn dropping_a_lease_frees_its_slot() {
@@ -277,6 +307,90 @@ mod tests {
             connections.load(Ordering::SeqCst),
             0,
             "a dropped work item kept its accept slot"
+        );
+    }
+
+    /// A client that keeps writing must not hold the accept loop: the busy
+    /// answer is written whole, the drain gives up at its caps, and the call
+    /// returns.
+    #[test]
+    fn a_client_that_keeps_writing_cannot_stall_the_busy_answer() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut client = TcpStream::connect(address).unwrap();
+        // Armed before the other end closes: macOS refuses the option after.
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let (mut accepted, _) = listener.accept().unwrap();
+        let writer = {
+            let mut sender = client.try_clone().unwrap();
+            thread::spawn(move || {
+                let chunk = [b'x'; 16 * 1024];
+                // Writes for as long as the other end takes it.
+                while sender.write_all(&chunk).is_ok() {}
+            })
+        };
+        let begun = Instant::now();
+        let (done, finished) = std::sync::mpsc::channel();
+        let rejecting = thread::spawn(move || {
+            reject_busy(&mut accepted);
+            let _ = done.send(());
+        });
+        assert!(
+            finished.recv_timeout(Duration::from_secs(3)).is_ok(),
+            "reject_busy never returned: the drain has no cap"
+        );
+        let took = begun.elapsed();
+        rejecting.join().unwrap();
+        let mut answer = Vec::new();
+        let _ = client.read_to_end(&mut answer);
+        let _ = writer.join();
+        assert!(took < Duration::from_millis(500), "the accept loop was held for {took:?}");
+        assert!(
+            answer.starts_with(BUSY_RESPONSE),
+            "the busy answer arrived whole: {:?}",
+            String::from_utf8_lossy(&answer)
+        );
+    }
+
+    /// A reader that always has more, and one that trickles: the drain stops
+    /// at its byte cap and at its time cap, never when the sender does.
+    #[test]
+    fn the_drain_stops_at_its_byte_and_time_caps() {
+        struct Endless;
+        impl Read for Endless {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                Ok(buf.len())
+            }
+        }
+        struct Trickle;
+        impl Read for Trickle {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                thread::sleep(Duration::from_millis(5));
+                buf[0] = 0;
+                Ok(1)
+            }
+        }
+        let (done, finished) = std::sync::mpsc::channel();
+        let worker = thread::spawn(move || {
+            let begun = Instant::now();
+            let endless = drain(&mut Endless);
+            let trickled_from = Instant::now();
+            let trickled = drain(&mut Trickle);
+            let _ = done.send((endless, begun.elapsed(), trickled, trickled_from.elapsed()));
+        });
+        let (endless, _, trickled, trickle_time) = finished
+            .recv_timeout(Duration::from_secs(3))
+            .expect("the drain never returned: it has no cap");
+        worker.join().unwrap();
+        assert!(
+            (BUSY_DRAIN_BYTES..BUSY_DRAIN_BYTES + 16 * 1024).contains(&endless),
+            "an endless sender is cut at the byte cap: {endless}"
+        );
+        assert!(
+            trickle_time < Duration::from_millis(500) && trickled < BUSY_DRAIN_BYTES,
+            "a slow sender is cut at the time cap: {trickled} bytes in {trickle_time:?}"
         );
     }
 }

@@ -15,8 +15,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::jobs::{Appended, Failure, Job, Status, Take};
-use crate::clocks::detached_grace;
-use crate::proxy::{client_gone, is_silence, set_read_deadline, set_write_deadline, Cancel};
+use crate::clocks::Clocks;
+use crate::proxy::{client_gone, is_silence, set_read_deadline_within, set_write_deadline, Cancel};
 use crate::chunk::Dechunker;
 use crate::sse::{self, EventSplitter};
 
@@ -31,6 +31,7 @@ pub(super) fn produce_and_serve(
     chunked: bool,
     deadline: Instant,
     idle: Duration,
+    clocks: &Clocks,
     cancel: &Cancel,
     observer: Option<&Observed>,
 ) {
@@ -82,12 +83,12 @@ pub(super) fn produce_and_serve(
             let since = *detached_since.get_or_insert_with(Instant::now);
             if job.has_readers() {
                 detached_since = Some(Instant::now());
-            } else if since.elapsed() >= detached_grace() {
+            } else if since.elapsed() >= clocks.detached_grace {
                 job.close(Status::Failed(Failure::Abandoned));
                 break;
             }
         }
-        if set_read_deadline(&mut upstream, deadline).is_err() {
+        if set_read_deadline_within(&upstream, deadline, clocks.patience).is_err() {
             job.close(Status::Failed(Failure::Upstream));
             break;
         }
@@ -223,13 +224,28 @@ pub(super) fn serve_resume(
                     }
                 }
             }
-            Take::Drained | Take::Failed => return,
+            Take::Drained => return,
+            // The tail has been replayed; a resumed answer that failed ends
+            // with its reason, not with a close that reads as a dropped
+            // connection.
+            Take::Failed(failure) => {
+                write_bytes(client, &failure_event(failure), observer, deadline);
+                return;
+            }
             // A slice boundary, not the end: the real lifetime deadline is
             // what ends the follow.
             Take::Deadline if Instant::now() >= deadline => return,
             Take::Deadline => {}
         }
     }
+}
+
+/// The last event of an answer that stopped early: the failure's words in the
+/// error shape an OpenAI-style stream carries (`{"error": {"message": …}}`),
+/// unnumbered because it is not part of the answer's log.
+fn failure_event(failure: Failure) -> Vec<u8> {
+    let body = serde_json::json!({"error": {"message": failure.words()}});
+    format!("data: {body}\n\n").into_bytes()
 }
 
 /// Numbers and stores the freshly parsed events; keep-alives go straight to
@@ -279,7 +295,7 @@ fn follow_now(
             }
             // Caught up with a live answer: the caller reads upstream again.
             Take::Deadline => return true,
-            Take::Drained | Take::Failed => return true,
+            Take::Drained | Take::Failed(_) => return true,
         }
     }
 }

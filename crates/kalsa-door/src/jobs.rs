@@ -91,8 +91,8 @@ pub(super) enum Take {
     Events,
     /// Everything was delivered and the answer ended well.
     Drained,
-    /// The answer stopped before the end.
-    Failed,
+    /// The answer stopped before the end, and why.
+    Failed(Failure),
     /// The connection's lifetime ran out while following.
     Deadline,
 }
@@ -200,7 +200,7 @@ impl Job {
             }
             match log.status {
                 Status::Done => return Take::Drained,
-                Status::Failed(_) => return Take::Failed,
+                Status::Failed(failure) => return Take::Failed(failure),
                 Status::Running => {}
             }
             let Some(wait) = deadline.checked_duration_since(Instant::now()) else {
@@ -334,10 +334,10 @@ mod tests {
             job.take(&mut cursor, Instant::now(), &mut out),
             Take::Events
         ));
-        assert!(matches!(job.take(&mut cursor, Instant::now(), &mut out), Take::Failed));
+        assert!(matches!(job.take(&mut cursor, Instant::now(), &mut out), Take::Failed(_)));
         // A clean end arriving after a failure changes nothing.
         job.close(Status::Done);
-        assert!(matches!(job.take(&mut cursor, Instant::now(), &mut out), Take::Failed));
+        assert!(matches!(job.take(&mut cursor, Instant::now(), &mut out), Take::Failed(_)));
     }
 
     #[test]

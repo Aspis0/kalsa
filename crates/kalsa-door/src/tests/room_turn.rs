@@ -151,9 +151,15 @@ fn a_call_is_served_deltas_assemble_into_the_answer_that_lands() {
 
 #[test]
 fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
-    // The first answer is slow; while it runs, both phones call.
+    // The first answer is slow — a dozen pieces, the engine's fake pacing them
+    // 100 ms apart, the words only in the last — so it is still running when
+    // the third call arrives however loaded the machine is.
+    let slow_first: Vec<String> = std::iter::repeat(String::new())
+        .take(11)
+        .chain(std::iter::once("one".to_string()))
+        .collect();
     let (door, room, fake, [_, one, two]) = room_at(vec![
-        Reply::Sse(vec!["one".to_string()]),
+        Reply::Sse(slow_first),
         Reply::Sse(vec!["two".to_string()]),
     ]);
     let first = format!("Bearer {one}");
@@ -199,7 +205,7 @@ fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
         fake.seen()[0].body.contains("first"),
         "the engine saw the first turn first"
     );
-    let deadline = std::time::Instant::now() + Duration::from_secs(6);
+    let deadline = std::time::Instant::now() + Duration::from_secs(8);
     while std::time::Instant::now() < deadline {
         let page = room.newest_page(1, 10).unwrap().messages;
         if page

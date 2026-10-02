@@ -537,6 +537,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
                 room: None,
                 port: 1,
                 slot_context: None,
+                clocks: Default::default(),
             }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,
@@ -800,7 +801,7 @@ fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
         let devices = Arc::new(DeviceSet::new(door_devices(&[&"0".repeat(64)]), 1));
         let stop = Arc::new(stop);
         let accepted = Instant::now()
-            .checked_sub(crate::clocks::queue_wait() + Duration::from_secs(1))
+            .checked_sub(crate::clocks::Clocks::default().queue_wait + Duration::from_secs(1))
             .unwrap();
         proxy::handle(
             stream,
@@ -814,6 +815,7 @@ fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
                 room: None,
                 port: 1,
                 slot_context: None,
+                clocks: Default::default(),
             }),
             &crate::paging::Chats::new(1, None, None, None),
             &registry,
@@ -895,9 +897,17 @@ fn an_sse_response_reaches_the_client_before_the_upstream_finishes() {
 }
 
 fn write_chunk(stream: &mut TcpStream, body: &[u8]) {
-    write!(stream, "{:x}\r\n", body.len()).unwrap();
-    stream.write_all(body).unwrap();
-    stream.write_all(b"\r\n").unwrap();
+    try_write_chunk(stream, body).unwrap();
+}
+
+/// A chunk written as three writes; the error is the caller's to judge. An
+/// upstream whose answer is MEANT to outlive the door (a test that shuts the
+/// door down mid-answer) must not panic when the door closes between two of
+/// the three.
+fn try_write_chunk(stream: &mut TcpStream, body: &[u8]) -> std::io::Result<()> {
+    write!(stream, "{:x}\r\n", body.len())?;
+    stream.write_all(body)?;
+    stream.write_all(b"\r\n")
 }
 
 fn read_until(stream: &mut TcpStream, needle: &[u8], output: &mut Vec<u8>) -> std::io::Result<()> {
@@ -1273,7 +1283,7 @@ fn sse_upstream() -> (std::net::SocketAddr, Arc<AtomicBool>, thread::JoinHandle<
                         // Long enough that the door is shut down with the
                         // answer still running, in the revocation test.
                         thread::sleep(Duration::from_millis(200));
-                        write_chunk(&mut stream, b"data: two\n\ndata: [DONE]\n\n");
+                        let _ = try_write_chunk(&mut stream, b"data: two\n\ndata: [DONE]\n\n");
                         let _ = stream.write_all(b"0\r\n\r\n");
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => {

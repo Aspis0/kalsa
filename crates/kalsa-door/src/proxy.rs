@@ -16,7 +16,7 @@ use crate::response;
 use crate::slot_routes;
 use crate::stream;
 use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
-use crate::clocks::{completion_ceiling, completion_idle, patience, queue_wait};
+use crate::clocks::Clocks;
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -95,6 +95,8 @@ pub(super) struct Shared {
     /// --parallel`), for the room's transcript budget. `None` when the
     /// door was built without one; the turn then keeps the fallback.
     pub(super) slot_context: Option<u64>,
+    /// The door's limits on the engine's answers and on queueing.
+    pub(super) clocks: crate::clocks::Clocks,
 }
 
 pub(super) fn handle(
@@ -117,7 +119,7 @@ pub(super) fn handle(
     // wait has a bound of its own, enforced by the accept loop (`queue_wait`).
     let started = Instant::now();
     let deadline = started + CONNECTION_LIFETIME;
-    if started.saturating_duration_since(accepted) >= queue_wait() {
+    if started.saturating_duration_since(accepted) >= shared.clocks.queue_wait {
         let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
         return;
     }
@@ -349,8 +351,8 @@ pub(super) fn handle(
     }
     // The request is in; what follows is the engine's answer. A completion's
     // answer has its own, longer, lifetime (see `COMPLETION_LIFETIME`).
-    let (deadline, idle) = answer_window(started, completion);
-    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some((&cancel, idle))) {
+    let (deadline, idle) = answer_window(started, completion, &shared.clocks);
+    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some((&cancel, idle, shared.clocks.patience))) {
         Ok(head) => head,
         Err(_) => return,
     };
@@ -395,7 +397,7 @@ pub(super) fn handle(
             if let Some(observer) = observer {
                 observer(&relayed);
             }
-            let _ = relay_response(&mut upstream, &mut client, deadline, idle, &cancel, observer);
+            let _ = relay_response(&mut upstream, &mut client, deadline, idle, shared.clocks.patience, &cancel, observer);
             return;
         }
     }
@@ -420,6 +422,7 @@ pub(super) fn handle(
         upstream_head.chunked,
         deadline,
         idle,
+        &shared.clocks,
         &cancel,
         observer,
     );
@@ -569,6 +572,7 @@ fn relay_response(
     to: &mut TcpStream,
     deadline: Instant,
     idle: Duration,
+    patience: Duration,
     cancel: &Cancel,
     observer: Option<&Observed>,
 ) -> io::Result<()> {
@@ -578,7 +582,7 @@ fn relay_response(
         if cancel.stopped() {
             return Ok(());
         }
-        set_read_deadline(from, deadline)?;
+        set_read_deadline_within(from, deadline, patience)?;
         set_write_deadline(to, deadline)?;
         let read = match from.read(&mut buffer) {
             Ok(read) => read,
@@ -610,9 +614,13 @@ fn relay_response(
 /// and an idle bound of its own (see `clocks`); everything else the
 /// connection's lifetime, which its idle bound cannot undercut. Reached only
 /// by a request that is authenticated and holds its slot's lease.
-pub(super) fn answer_window(started: Instant, completion: bool) -> (Instant, Duration) {
+pub(super) fn answer_window(
+    started: Instant,
+    completion: bool,
+    clocks: &Clocks,
+) -> (Instant, Duration) {
     if completion {
-        (started + completion_ceiling(), completion_idle())
+        (started + clocks.completion_ceiling, clocks.completion_idle)
     } else {
         (started + CONNECTION_LIFETIME, CONNECTION_LIFETIME)
     }
@@ -659,9 +667,19 @@ pub(super) fn write_with_deadline(
 }
 
 pub(super) fn set_read_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
+    set_read_deadline_within(stream, deadline, PATIENCE)
+}
+
+/// [`set_read_deadline`] with the wake-up interval named: the engine-side
+/// reads use the door's own clocks.
+pub(super) fn set_read_deadline_within(
+    stream: &TcpStream,
+    deadline: Instant,
+    patience: Duration,
+) -> io::Result<()> {
     let timeout = remaining(deadline)
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "door deadline"))?;
-    stream.set_read_timeout(Some(timeout.min(patience())))
+    stream.set_read_timeout(Some(timeout.min(patience)))
 }
 
 pub(super) fn set_write_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {

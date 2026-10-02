@@ -231,6 +231,45 @@ pub(super) fn door(upstream_port: u16, tokens: &[&str]) -> (RunningDoor, SocketA
     (door, address)
 }
 
+/// Runs a test body on its own thread and, when it has not finished within
+/// `limit`, fails the test by name instead of hanging the suite. A panic in
+/// the body is the test's panic.
+pub(super) fn bounded(limit: Duration, body: impl FnOnce() + Send + 'static) {
+    let (done, finished) = mpsc::channel();
+    let runner = thread::spawn(move || {
+        body();
+        let _ = done.send(());
+    });
+    match finished.recv_timeout(limit) {
+        Ok(()) => runner.join().unwrap(),
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            if let Err(panic) = runner.join() {
+                std::panic::resume_unwind(panic);
+            }
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("the test did not finish within {limit:?}: something it waits for never happened")
+        }
+    }
+}
+
+/// [`door`] with this door's own clocks: shorter limits for a test of a limit,
+/// felt by this door alone.
+pub(super) fn door_with(
+    upstream_port: u16,
+    tokens: &[&str],
+    clocks: crate::clocks::Clocks,
+) -> (RunningDoor, SocketAddr) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let door = Door::new(listener, upstream_port, door_devices(tokens), 1)
+        .unwrap()
+        .with_clocks(clocks)
+        .start()
+        .unwrap();
+    (door, address)
+}
+
 /// Waits out the window in which a connection to the upstream could still
 /// arrive, so a zero is read after the door has had its chance to open one.
 pub(super) fn no_upstream_connection(upstream: &RecordingUpstream) {
