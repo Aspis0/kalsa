@@ -19,6 +19,31 @@ type NativeKalsaLifecycleModule = {
    * a 0 read; the iPad-on-Mac build is not covered and is unmeasured.
    */
   availableMemoryBytes?: () => Promise<unknown>;
+  lastExitInfo?: () => unknown;
+};
+
+/** The closed reason set the Android bridge reports; an unrecognized native
+ *  string arrives as `other`. */
+const EXIT_REASONS = [
+  "crash",
+  "crash_native",
+  "anr",
+  "low_memory",
+  "signaled",
+  "excessive_resource_usage",
+  "user_requested",
+  "user_stopped",
+  "exit_self",
+  "other",
+] as const;
+
+export type ExitReason = (typeof EXIT_REASONS)[number];
+
+/** One Android process-exit record, closed fields only. */
+export type ExitInfo = {
+  reason: ExitReason;
+  importance: number;
+  timestampMs: number;
 };
 
 export type NativeTimerHandle = {
@@ -150,4 +175,32 @@ function readNumber(value: unknown, key: string): number | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const candidate = (value as Record<string, unknown>)[key];
   return typeof candidate === "number" ? candidate : null;
+}
+
+/**
+ * The newest Android process-exit record for this app, or null when the
+ * native function is absent (only the Android module ships it; the Apple
+ * module does not) or the query fails.
+ * A record with missing or mistyped fields is rejected, never partly trusted.
+ */
+export function lastExitInfo(): ExitInfo | null {
+  const module = getNativeModule();
+  if (!module?.lastExitInfo) return null;
+  try {
+    const raw = module.lastExitInfo();
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const { reason, importance, timestampMs } = raw as Record<string, unknown>;
+    if (typeof importance !== "number" || typeof timestampMs !== "number") return null;
+    return {
+      reason: isExitReason(reason) ? reason : "other",
+      importance,
+      timestampMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isExitReason(value: unknown): value is ExitReason {
+  return typeof value === "string" && (EXIT_REASONS as readonly string[]).includes(value);
 }

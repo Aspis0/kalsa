@@ -21,6 +21,9 @@ const REPORT_KEYS = [
   "errTryTomorrow",
   "errSend",
   "errEmpty",
+  "crashUncleanTitle",
+  "crashUncleanBody",
+  "notNow",
 ] as const;
 
 describe("the report strings", () => {
@@ -45,6 +48,23 @@ describe("the report strings", () => {
     expect(translate("it", "report.sentWithId", { id: "ABCD2345" })).toBe(
       "Inviato. Il numero della tua segnalazione è ABCD2345: dicci questo numero.",
     );
+  });
+
+  it("serves the approved crash-prompt strings for both locales", () => {
+    expect(translate("en", "report.crashUncleanTitle")).toBe(
+      "Kalsa did not close normally last time",
+    );
+    expect(translate("it", "report.crashUncleanTitle")).toBe(
+      "Kalsa non si è chiusa normalmente l'ultima volta",
+    );
+    expect(translate("en", "report.crashUncleanBody")).toBe(
+      "If something went wrong, sending the log helps us fix it.",
+    );
+    expect(translate("it", "report.crashUncleanBody")).toBe(
+      "Se qualcosa è andato storto, inviare il log ci aiuta a correggerlo.",
+    );
+    expect(translate("en", "report.notNow")).toBe("Not now");
+    expect(translate("it", "report.notNow")).toBe("Non ora");
   });
 
   it("serves the plain report keys for both locales", () => {

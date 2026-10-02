@@ -1,6 +1,9 @@
 package expo.modules.kalsalifecycle
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.ComponentCallbacks2
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
@@ -30,6 +33,10 @@ class KalsaLifecycleModule : Module() {
 
     Function("cancelBackgroundTimer") { id: Int ->
       cancelTimer(id)
+    }
+
+    Function("lastExitInfo") {
+      lastExitInfo()
     }
 
     OnStartObserving {
@@ -77,6 +84,44 @@ class KalsaLifecycleModule : Module() {
       values
     }
     pending.forEach { mainHandler.removeCallbacks(it) }
+  }
+
+  /**
+   * The newest exit record this package has, as three closed fields: the
+   * mapped reason, the process importance when it died and the timestamp.
+   * Nothing else leaves the OS record — a crash message carrying user text
+   * can never reach JS.
+   */
+  private fun lastExitInfo(): Map<String, Any>? {
+    val context = appContext.reactContext?.applicationContext ?: return null
+    val activityManager =
+      context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return null
+    val records = try {
+      // 0 = every process of the package, 1 = only the newest record.
+      activityManager.getHistoricalProcessExitReasons(context.packageName, 0, 1)
+    } catch (_: Throwable) {
+      return null
+    }
+    val record = records.firstOrNull() ?: return null
+    return mapOf(
+      "reason" to exitReasonName(record.reason),
+      "importance" to record.importance,
+      "timestampMs" to record.timestamp,
+    )
+  }
+
+  /** The closed reason set JS knows; every other OS reason is `other`. */
+  private fun exitReasonName(reason: Int): String = when (reason) {
+    ApplicationExitInfo.REASON_CRASH -> "crash"
+    ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash_native"
+    ApplicationExitInfo.REASON_ANR -> "anr"
+    ApplicationExitInfo.REASON_LOW_MEMORY -> "low_memory"
+    ApplicationExitInfo.REASON_SIGNALED -> "signaled"
+    ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "excessive_resource_usage"
+    ApplicationExitInfo.REASON_USER_REQUESTED -> "user_requested"
+    ApplicationExitInfo.REASON_USER_STOPPED -> "user_stopped"
+    ApplicationExitInfo.REASON_EXIT_SELF -> "exit_self"
+    else -> "other"
   }
 
   private fun registerComponentCallbacks() {

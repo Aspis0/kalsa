@@ -31,6 +31,7 @@ import {
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { ShellPreview } from "./src/ui/shell/ShellPreview";
+import { UncleanExitPrompt } from "./src/components/UncleanExitPrompt";
 import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
@@ -172,6 +173,7 @@ function ThemedApp() {
     <>
       <StatusBar barStyle={palette.statusBar} backgroundColor={colors.shell} />
       <ModelCatalogBoot />
+      <UncleanExitPrompt />
     </>
   );
 }

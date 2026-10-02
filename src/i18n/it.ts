@@ -1450,5 +1450,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     errTryTomorrow: "Oggi abbiamo ricevuto troppe segnalazioni. Riprova domani.",
     errSend: "Impossibile inviare. Controlla la connessione e riprova.",
     errEmpty: "Non c'è ancora niente da inviare.",
+    crashUncleanTitle: "Kalsa non si è chiusa normalmente l'ultima volta",
+    crashUncleanBody: "Se qualcosa è andato storto, inviare il log ci aiuta a correggerlo.",
+    notNow: "Non ora",
   },
 };

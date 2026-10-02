@@ -1507,5 +1507,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     errTryTomorrow: "We received too many reports today. Try again tomorrow.",
     errSend: "Could not send. Check the internet connection and try again.",
     errEmpty: "There is nothing to send yet.",
+    crashUncleanTitle: "Kalsa did not close normally last time",
+    crashUncleanBody: "If something went wrong, sending the log helps us fix it.",
+    notNow: "Not now",
   },
 };
