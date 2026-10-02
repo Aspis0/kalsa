@@ -788,6 +788,10 @@ iOS first-build prep on local app branch `ios/first-build` `ffd5867c` (worktree 
 llama.rn source build with Metal via a Podfile plugin (embeds generated at pod install, Android CI untouched), iOS
 RAM/chip/thermal/jetsam-headroom paths, Swift modules fixed; two hostile audits; waits for Xcode. Next:
 `scratchpad/agents/ios-readiness/NEXT.md`.
+iOS 2026-10-02: first compile done - simulator and device (arm64) BUILD SUCCEEDED with Metal (34 embedded libraries),
+app branch `ios/first-build` `5d58e12a` (x86_64 simulator slice excluded). Two binding-side fixes needed and recorded for
+the binding owner in `ios-readiness/BINDING-PATCHES.md` (a FATTN_SMEM loop in kalsa.rn's vendor overlay - not in
+kalsallama; an arm-only file compiled for x86_64), audited (`AUDIT-first-compile.md`). Not yet launched.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
