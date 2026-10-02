@@ -990,6 +990,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   zh/scanned/large PDFs in <=2 s. Does NOT land. Also pre-existing: baseline silently drops kalsa-smoke-12p.pdf. Main
   still ships pdf.js 3.11 unmitigated (mitigation-only commits 3eafa2f8/33812d0b on expo57-bump never device-checked).
   Diagnosis parked by the owner's priority (iOS first, 2026-10-02).
+  **Owner 2026-10-02, iOS engine line:** llama.cpp (on Metal) stays the main iOS engine - same GGUF catalog, KV and
+  governor as Android/PC; Apple Foundation Models = candidate extra "no download" option on Apple Intelligence devices;
+  MLX only if our own measurement beats llama.cpp clearly. Measurement on the M1 Max delegated
+  (`ios-engine-choice/BRIEF.md`, GLM 9088c720); iOS parity/desktop-link gap list delegated (luna c77e4209).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
