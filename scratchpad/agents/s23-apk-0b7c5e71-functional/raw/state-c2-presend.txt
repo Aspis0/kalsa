@@ -1,0 +1,4 @@
+  mWakefulness=Awake
+    topResumedActivity=ActivityRecord{265185153 u0 com.kalsa.app/.MainActivity t158}
+  temperature: 289
+  temperature: 308

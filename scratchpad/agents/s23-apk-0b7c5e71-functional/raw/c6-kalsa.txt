@@ -1,0 +1,840 @@
+10-02 12:45:39.384  7385  7417 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+10-02 12:45:39.613  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+10-02 12:45:39.843  7385  7417 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4428.65,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"off"}
+10-02 12:45:39.843  7385  7417 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 12:45:39.941  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+10-02 12:45:40.004  7385  7417 I ReactNativeJS: KALSA_NATIVE info 
+10-02 12:45:40.006  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+10-02 12:45:40.006  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: Loading driver libcdsprpc.so
+10-02 12:45:40.010  7385  7417 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+10-02 12:45:40.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: batch response timeout 30000 ms
+10-02 12:45:40.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+10-02 12:45:40.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: Hexagon Arch version v73, DMA64 disabled
+10-02 12:45:40.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)
+10-02 12:45:40.011  7385  7417 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+10-02 12:45:40.054  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+10-02 12:45:40.055  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b76719920
+10-02 12:45:40.057  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+10-02 12:45:40.058  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+10-02 12:45:40.059  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml-hex: HTP0 op batching: n-bufs 16 n-tensors 8192 n-ops 1280 vmem 3102130176
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   0:                       general.architecture str              = lfm2
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   1:                               general.type str              = model
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 80
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   3:                      general.sampling.temp f32              = 0.200000
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   4:                         general.size_label str              = 2.7B
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   5:                           lfm2.block_count u32              = 30
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   6:                        lfm2.context_length u32              = 128000
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   7:                      lfm2.embedding_length u32              = 2048
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   8:                   lfm2.feed_forward_length u32              = 10752
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   9:                  lfm2.attention.head_count u32              = 32
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  10:               lfm2.attention.head_count_kv arr[i32,30]      = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, ...
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  11:                        lfm2.rope.freq_base f32              = 10000000.000000
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  12:      lfm2.attention.layer_norm_rms_epsilon f32              = 0.000010
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  13:                            lfm2.vocab_size u32              = 128000
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  14:                     lfm2.shortconv.l_cache u32              = 3
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  15:                       tokenizer.ggml.model str              = gpt2
+10-02 12:45:40.121  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  16:                         tokenizer.ggml.pre str              = lfm2
+10-02 12:45:40.139  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  17:                      tokenizer.ggml.tokens arr[str,128000]  = ["ĊĊĊĊĊĊĊĊĊĊ", "ĊĊĊĊĊ
+10-02 12:45:40.144  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  18:                  tokenizer.ggml.token_type arr[i32,128000]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  19:                      tokenizer.ggml.merges arr[str,293320]  = ["ĊĊĊĊĊĊĊĊĊ Ċ", "ĊĊĊĊĊ...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  20:                tokenizer.ggml.bos_token_id u32              = 124894
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  21:                tokenizer.ggml.eos_token_id u32              = 124900
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  22:            tokenizer.ggml.padding_token_id u32              = 124893
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  23:                    tokenizer.chat_template str              = {{- bos_token -}}\n{%- set preserve_th...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  24:               general.quantization_version u32              = 2
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  25:                          general.file_type u32              = 2
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  26:                               general.name str              = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  27:                           general.finetune str              = QAD
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  28:                           general.basename str              = LFM2.5-2.6B-QAD
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  29:                             general.author str              = Liquid AI
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  30:                       general.organization str              = Liquid AI
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  31:                        general.description str              = LFM2.5-2.6B Q4_0 Quantization-Aware D...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  32:                       general.quantized_by str              = Liquid AI
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  33:                            general.license str              = other
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  34:                       general.license.name str              = lfm1.0
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  35:                       general.license.link str              = LICENSE
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  36:                          general.languages arr[str,8]       = ["en", "ar", "zh", "fr", "de", "ja", ...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  37:                               general.tags arr[str,8]       = ["liquid", "lfm2.5", "edge", "text-ge...
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type  f32:   99 tensors
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q4_0:  166 tensors
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q6_K:    1 tensors
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file format = GGUF V3 (latest)
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file type   = Q4_0
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file size   = 1.48 GiB (4.70 BPW) 
+10-02 12:45:40.187  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+10-02 12:45:40.320  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: 0 unused tokens
+10-02 12:45:40.329  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: printing all EOG tokens:
+10-02 12:45:40.329  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124895 ('<|endoftext|>')
+10-02 12:45:40.329  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124900 ('<|im_end|>')
+10-02 12:45:40.329  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: special tokens cache size = 124
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: token to piece cache size = 0.7666 MB
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: arch                  = lfm2
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab_only            = 0
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: no_alloc              = 0
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_train           = 128000
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_inp            = 2048
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd                = 2048
+10-02 12:45:40.358  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_out            = 2048
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer               = 30
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer_all           = 30
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head                = 32
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head_kv             = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 0]
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_rot                 = 64
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_swa                 = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: is_swa_any            = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: non_causal_type       = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_k         = 64
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_v         = 64
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_gqa                 = [0, 0, 4, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0]
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_k_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_v_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_eps            = 0.0e+00
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_rms_eps        = 1.0e-05
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_clamp_kqv           = 0.0e+00
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_max_alibi_bias      = 0.0e+00
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_logit_scale         = 0.0e+00
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_scale          = 0.0e+00
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_value_scale    = 0.0000
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ff                  = 10752
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert              = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_used         = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_groups       = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_group_used          = 0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: causal attn           = 1
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: pooling type          = -1
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope type             = 2
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope scaling          = linear
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_base_train       = 10000000.0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_scale_train      = 1
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_orig_yarn       = 128000
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_yarn_log_mul     = 0.0000
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_finetuned        = unknown
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model type            = 2.6B
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model params          = 2.70 B
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: general.name          = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab type            = BPE
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_vocab               = 128000
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_merges              = 293320
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: BOS token             = 124894 '<|startoftext|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOS token             = 124900 '<|im_end|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOT token             = 124900 '<|im_end|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: PAD token             = 124893 '<|pad|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: LF token              = 207 'Ċ'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124895 '<|endoftext|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124900 '<|im_end|>'
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: max token length      = 386
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+10-02 12:45:40.361  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+10-02 12:45:40.464  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: kernel cache enabled at '/data/user/0/com.kalsa.app/cache/llama.cpp/cl-cache'
+10-02 12:45:40.649  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: loading OpenCL kernels
+10-02 12:45:40.650  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.651  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.652  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.653  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.653  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.654  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.655  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.655  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: program_cvt variant=bytewise
+10-02 12:45:40.660  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.661  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.662  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.662  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.663  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.664  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.665  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.665  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.666  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.667  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.667  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.668  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.669  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.671  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.671  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.672  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.673  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.674  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.675  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.676  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.677  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.678  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.679  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.681  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.684  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.685  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.686  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.687  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.689  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.690  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.691  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.692  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.693  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.694  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.697  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.698  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.699  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.699  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.700  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.701  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.702  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.703  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.704  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.705  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.706  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.706  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.707  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.708  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.708  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.709  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.710  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.711  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.712  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.713  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.716  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.717  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.719  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.719  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.720  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.721  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.721  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.722  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.723  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.724  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.725  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.725  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.726  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.727  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.728  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.729  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.729  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.732  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.732  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.735  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.735  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.737  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.738  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.739  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.740  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.741  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.742  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.744  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.745  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.746  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.746  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.748  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.758  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.759  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.760  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.761  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.762  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.763  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.764  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.765  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.765  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.766  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.767  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.768  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.769  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.770  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.771  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.771  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.772  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.773  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.774  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.775  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.776  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.777  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.778  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.778  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.779  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.780  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.781  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.781  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.782  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.783  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.783  7385  7417 I ReactNativeJS: KALSA_NATIVE warn ggml_opencl: q4_K small-batch accumulator: fp32 (KALSA_COK_ACC)
+10-02 12:45:40.784  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.785  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.786  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.787  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.789  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.790  7385  7417 I ReactNativeJS: KALSA_NATIVE warn ggml_opencl: q8_1 activation scale: fp32 (KALSA_Q8A_SCALE)
+10-02 12:45:40.790  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.792  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.793  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.794  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.795  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.796  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.796  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.797  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.798  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.799  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.800  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.801  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.802  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.803  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.803  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.804  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.805  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.806  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.807  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.809  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.810  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.810  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.811  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.812  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.813  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.814  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.815  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.815  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.816  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.817  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.818  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.819  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.820  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.820  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.821  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.823  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.824  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.824  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.825  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: dense q6_K prefill GEMM path: dp4a (KALSA_Q6K_DENSE)
+10-02 12:45:40.825  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.826  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.827  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.828  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:40.828  7385  7417 I ReactNativeJS: KALSA_NATIVE info 
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloading output layer to GPU
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloading 29 repeating layers to GPU
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 31/31 layers to GPU
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_Mapped model buffer size =   205.08 MiB
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_REPACK model buffer size =   205.08 MiB
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:       OpenCL model buffer size =  1307.20 MiB
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 12:45:41.412  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   0:                       general.architecture str              = lfm2
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   1:                               general.type str              = model
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 80
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   3:                      general.sampling.temp f32              = 0.200000
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   4:                         general.size_label str              = 2.7B
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   5:                           lfm2.block_count u32              = 30
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   6:                        lfm2.context_length u32              = 128000
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   7:                      lfm2.embedding_length u32              = 2048
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   8:                   lfm2.feed_forward_length u32              = 10752
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   9:                  lfm2.attention.head_count u32              = 32
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  10:               lfm2.attention.head_count_kv arr[i32,30]      = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, ...
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  11:                        lfm2.rope.freq_base f32              = 10000000.000000
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  12:      lfm2.attention.layer_norm_rms_epsilon f32              = 0.000010
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  13:                            lfm2.vocab_size u32              = 128000
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  14:                     lfm2.shortconv.l_cache u32              = 3
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  15:                       tokenizer.ggml.model str              = gpt2
+10-02 12:45:46.466  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  16:                         tokenizer.ggml.pre str              = lfm2
+10-02 12:45:46.479  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  17:                      tokenizer.ggml.tokens arr[str,128000]  = ["ĊĊĊĊĊĊĊĊĊĊ", "ĊĊĊĊĊ
+10-02 12:45:46.483  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  18:                  tokenizer.ggml.token_type arr[i32,128000]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  19:                      tokenizer.ggml.merges arr[str,293320]  = ["ĊĊĊĊĊĊĊĊĊ Ċ", "ĊĊĊĊĊ...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  20:                tokenizer.ggml.bos_token_id u32              = 124894
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  21:                tokenizer.ggml.eos_token_id u32              = 124900
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  22:            tokenizer.ggml.padding_token_id u32              = 124893
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  23:                    tokenizer.chat_template str              = {{- bos_token -}}\n{%- set preserve_th...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  24:               general.quantization_version u32              = 2
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  25:                          general.file_type u32              = 2
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  26:                               general.name str              = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  27:                           general.finetune str              = QAD
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  28:                           general.basename str              = LFM2.5-2.6B-QAD
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  29:                             general.author str              = Liquid AI
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  30:                       general.organization str              = Liquid AI
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  31:                        general.description str              = LFM2.5-2.6B Q4_0 Quantization-Aware D...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  32:                       general.quantized_by str              = Liquid AI
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  33:                            general.license str              = other
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  34:                       general.license.name str              = lfm1.0
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  35:                       general.license.link str              = LICENSE
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  36:                          general.languages arr[str,8]       = ["en", "ar", "zh", "fr", "de", "ja", ...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  37:                               general.tags arr[str,8]       = ["liquid", "lfm2.5", "edge", "text-ge...
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type  f32:   99 tensors
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q4_0:  166 tensors
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q6_K:    1 tensors
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file format = GGUF V3 (latest)
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file type   = Q4_0
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file size   = 1.48 GiB (4.70 BPW) 
+10-02 12:45:46.515  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+10-02 12:45:46.622  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: 0 unused tokens
+10-02 12:45:46.630  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: printing all EOG tokens:
+10-02 12:45:46.630  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124895 ('<|endoftext|>')
+10-02 12:45:46.630  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124900 ('<|im_end|>')
+10-02 12:45:46.630  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: special tokens cache size = 124
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: token to piece cache size = 0.7666 MB
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: arch                  = lfm2
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab_only            = 0
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: no_alloc              = 0
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_train           = 128000
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_inp            = 2048
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd                = 2048
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_out            = 2048
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer               = 30
+10-02 12:45:46.657  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer_all           = 30
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head                = 32
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head_kv             = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 0]
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_rot                 = 64
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_swa                 = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: is_swa_any            = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: non_causal_type       = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_k         = 64
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_v         = 64
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_gqa                 = [0, 0, 4, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0]
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_k_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_v_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_eps            = 0.0e+00
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_rms_eps        = 1.0e-05
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_clamp_kqv           = 0.0e+00
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_max_alibi_bias      = 0.0e+00
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_logit_scale         = 0.0e+00
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_scale          = 0.0e+00
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_value_scale    = 0.0000
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ff                  = 10752
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert              = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_used         = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_groups       = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_group_used          = 0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: causal attn           = 1
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: pooling type          = -1
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope type             = 2
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope scaling          = linear
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_base_train       = 10000000.0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_scale_train      = 1
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_orig_yarn       = 128000
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_yarn_log_mul     = 0.0000
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_finetuned        = unknown
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model type            = 2.6B
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model params          = 2.70 B
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: general.name          = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab type            = BPE
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_vocab               = 128000
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_merges              = 293320
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: BOS token             = 124894 '<|startoftext|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOS token             = 124900 '<|im_end|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOT token             = 124900 '<|im_end|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: PAD token             = 124893 '<|pad|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: LF token              = 207 'Ċ'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124895 '<|endoftext|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124900 '<|im_end|>'
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: max token length      = 386
+10-02 12:45:46.658  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloading 0 repeating layers to GPU
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 0/31 layers to GPU
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_Mapped model buffer size =  1512.20 MiB
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.730  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:45:46.731  7385  7417 I ReactNativeJS: KALSA_NATIVE info 
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_init_from_model: enabling flash_attn since it is required for quantized V cache
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max             = 1
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx                 = 8192
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq             = 8192
+10-02 12:45:46.733  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch               = 512
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch              = 256
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn           = 1
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn            = enabled
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified            = false
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base             = 10000000.0
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale            = 1
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq              = 0
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max         = 512
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max_per_seq = 1
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (8192) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL device: QUALCOMM Adreno(TM)
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: vector subgroup broadcast support: false
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: subgroup shuffle support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device FP16 support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: khr dot product support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: mem base addr align: 128
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: global mem size: 3536 MB
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: max mem alloc size: 884 MB
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image buffer size (pixels): 134217728
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image2d size: 16384 x 16384
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max workgroup size: 1024
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM coarse grain buffer support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain buffer support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain system support: false
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM atomics support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: cl_qcom_subgroup_shuffle support: true
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+10-02 12:45:46.734  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+10-02 12:45:46.748  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:     OpenCL KV buffer size =    52.01 MiB
+10-02 12:45:46.755  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =   52.00 MiB (  8192 cells,   8 layers,  1/1 seqs), K (q8_0):   34.00 MiB, V (q4_0):   18.00 MiB
+10-02 12:45:46.755  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+10-02 12:45:46.755  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+10-02 12:45:46.758  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:     OpenCL RS buffer size =     0.34 MiB
+10-02 12:45:46.758  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB, P (f32):    0.00 MiB
+10-02 12:45:46.758  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+10-02 12:45:46.759  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+10-02 12:45:46.760  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: compiling fa f32
+10-02 12:45:46.980  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+10-02 12:45:46.980  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+10-02 12:45:46.981  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC post enabled
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve:     OpenCL compute buffer size =    39.55 MiB
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph: nodes = 1110, splits = 3, input objects = 4, input tensors = 9
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 233.92 ms, sched copies = 1
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_init_from_model: enabling flash_attn since it is required for quantized V cache
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max             = 1
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx                 = 8192
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq             = 8192
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch               = 512
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch              = 256
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn           = 1
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn            = enabled
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified            = false
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base             = 10000000.0
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale            = 1
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq              = 0
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max         = 512
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max_per_seq = 1
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (8192) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL device: QUALCOMM Adreno(TM)
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: vector subgroup broadcast support: false
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: subgroup shuffle support: true
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device FP16 support: true
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: khr dot product support: true
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: mem base addr align: 128
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: global mem size: 3536 MB
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: max mem alloc size: 884 MB
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image buffer size (pixels): 134217728
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image2d size: 16384 x 16384
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max workgroup size: 1024
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM coarse grain buffer support: true
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain buffer support: true
+10-02 12:45:46.992  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain system support: false
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM atomics support: true
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: cl_qcom_subgroup_shuffle support: true
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+10-02 12:45:46.993  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =    52.00 MiB
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =   52.00 MiB (  8192 cells,   8 layers,  1/1 seqs), K (q8_0):   34.00 MiB, V (q4_0):   18.00 MiB
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB, P (f32):    0.00 MiB
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+10-02 12:45:47.007  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+10-02 12:45:47.008  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+10-02 12:45:47.008  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+10-02 12:45:47.009  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC post enabled
+10-02 12:45:47.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+10-02 12:45:47.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph: nodes = 1110, splits = 1, input objects = 4, input tensors = 9
+10-02 12:45:47.010  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 3.12 ms, sched copies = 1
+10-02 12:45:47.031  7385  7417 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+10-02 12:45:47.054  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 12:45:47.064  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 12:45:47.076  7385  7472 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1660 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007ad5e4a500
+10-02 12:45:47.084  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: lazy-compiling flash_attn prepass for DK=64 DV=64
+10-02 12:45:47.084  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: compiling fa prepass f16
+10-02 12:46:01.386  7385  7417 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":1660}
+10-02 12:46:01.386  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14294.03,"promptN":1660,"hash":"3677660334"}'
+10-02 12:46:01.394  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'
+10-02 12:46:53.508  7385  7417 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}
+10-02 12:47:02.058  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+10-02 12:47:34.699  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"already_warm","hash":"3677660334"}'
+10-02 12:47:34.706  7385  7417 I ReactNativeJS: KALSA_DIGEST {"durationMs":0,"corpusSize":0,"selectedCount":0,"ciswireFlags":1}
+10-02 12:47:34.709  7385  7417 I ReactNativeJS: KALSA_WINDOW {"turnId":"1","kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":0,"textEst":16,"measuredCharsPerToken":null,"windowTokens":16}
+10-02 12:47:34.711  7385  7417 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+10-02 12:47:34.734  7385  7471 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1682 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007ad5e4a500
+10-02 12:48:25.952  7385  7417 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":0,"tokensCached":2088,"tokensEvaluated":1682,"tokensPredicted":405,"draftTokens":0,"draftAccepted":0,"promptMs":14532.85,"predictedMs":36593.077,"predictedPerSecond":11.067667253016191,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":1682,"ciswireFlags":1}
+10-02 12:48:25.978  7385  7417 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["write_note"]}
+10-02 12:48:25.992  7385  7417 I ReactNativeJS: KALSA_NATIVE warn set_thermo_profile: invalid thermal profile; accelerator admission is closed
+10-02 12:48:25.992  7385  7417 I ReactNativeJS: KALSA_GOVERNOR_THERMO {"valid":false,"source":"battery"}
+10-02 12:48:26.016  7385  7468 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=2088 text_tokens=1772 n_common=1681 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007ad5e4a500
+10-02 12:48:26.016  7385  7468 W RNLlama : loadPrompt:556 KALSA_KVDIVERGE n_common=1681 shared_lo=1673 embd_hi=1693 text_hi=1693
+10-02 12:48:26.017  7385  7468 W RNLlama : loadPrompt:583 KALSA_KVDIVERGE ids shared=[647 4105 22 124900 207 124899 63514 207 ] embd=[124901 597 4695 355 13564 267 3547 1456 650 3451 34 496 ] text=[124905 67 22155 4704 1675 95116 7536 17366 284 863 5662 26301 ] shared_txt=[ parola.<|im_end|>
+10-02 12:48:26.017  7385  7468 W RNLlama : loadPrompt:652 KALSA_KVREUSE checkpoint n_past=1679 prompt=1772 n_common=1681
+10-02 12:48:26.018  7385  7417 I ReactNativeJS: KALSA_NATIVE error fail: prefill admission aborted
+10-02 12:48:26.018  7385  7468 E RNLlama : decode:840 KALSA_GOVERNOR_FALLBACK {stage:"decode", models_loaded:2, reason:"prefill admission aborted", npu_fallback:"", gpu_fit:2, profile_valid:0}
+10-02 12:48:26.022  7385  7417 I ReactNativeJS: KALSA_GOVERNOR_RUNTIME_FALLBACK {"reason":"prefill admission aborted","turnId":"1","attempt":2}
+10-02 12:48:26.426  7385  7417 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   0:                       general.architecture str              = lfm2
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   1:                               general.type str              = model
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 80
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   3:                      general.sampling.temp f32              = 0.200000
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   4:                         general.size_label str              = 2.7B
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   5:                           lfm2.block_count u32              = 30
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   6:                        lfm2.context_length u32              = 128000
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   7:                      lfm2.embedding_length u32              = 2048
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   8:                   lfm2.feed_forward_length u32              = 10752
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   9:                  lfm2.attention.head_count u32              = 32
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  10:               lfm2.attention.head_count_kv arr[i32,30]      = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, ...
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  11:                        lfm2.rope.freq_base f32              = 10000000.000000
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  12:      lfm2.attention.layer_norm_rms_epsilon f32              = 0.000010
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  13:                            lfm2.vocab_size u32              = 128000
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  14:                     lfm2.shortconv.l_cache u32              = 3
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  15:                       tokenizer.ggml.model str              = gpt2
+10-02 12:48:26.488  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  16:                         tokenizer.ggml.pre str              = lfm2
+10-02 12:48:26.504  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  17:                      tokenizer.ggml.tokens arr[str,128000]  = ["ĊĊĊĊĊĊĊĊĊĊ", "ĊĊĊĊĊ
+10-02 12:48:26.509  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  18:                  tokenizer.ggml.token_type arr[i32,128000]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  19:                      tokenizer.ggml.merges arr[str,293320]  = ["ĊĊĊĊĊĊĊĊĊ Ċ", "ĊĊĊĊĊ...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  20:                tokenizer.ggml.bos_token_id u32              = 124894
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  21:                tokenizer.ggml.eos_token_id u32              = 124900
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  22:            tokenizer.ggml.padding_token_id u32              = 124893
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  23:                    tokenizer.chat_template str              = {{- bos_token -}}\n{%- set preserve_th...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  24:               general.quantization_version u32              = 2
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  25:                          general.file_type u32              = 2
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  26:                               general.name str              = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  27:                           general.finetune str              = QAD
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  28:                           general.basename str              = LFM2.5-2.6B-QAD
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  29:                             general.author str              = Liquid AI
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  30:                       general.organization str              = Liquid AI
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  31:                        general.description str              = LFM2.5-2.6B Q4_0 Quantization-Aware D...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  32:                       general.quantized_by str              = Liquid AI
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  33:                            general.license str              = other
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  34:                       general.license.name str              = lfm1.0
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  35:                       general.license.link str              = LICENSE
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  36:                          general.languages arr[str,8]       = ["en", "ar", "zh", "fr", "de", "ja", ...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  37:                               general.tags arr[str,8]       = ["liquid", "lfm2.5", "edge", "text-ge...
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type  f32:   99 tensors
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q4_0:  166 tensors
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q6_K:    1 tensors
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file format = GGUF V3 (latest)
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file type   = Q4_0
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: file size   = 1.48 GiB (4.70 BPW) 
+10-02 12:48:26.547  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM)) (unknown id) - 2512 MiB free
+10-02 12:48:26.673  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: 0 unused tokens
+10-02 12:48:26.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: printing all EOG tokens:
+10-02 12:48:26.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124895 ('<|endoftext|>')
+10-02 12:48:26.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info load:   - 124900 ('<|im_end|>')
+10-02 12:48:26.683  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: special tokens cache size = 124
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info load: token to piece cache size = 0.7666 MB
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: arch                  = lfm2
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab_only            = 0
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: no_alloc              = 0
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_train           = 128000
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_inp            = 2048
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd                = 2048
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_out            = 2048
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer               = 30
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer_all           = 30
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head                = 32
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_head_kv             = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 0]
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_rot                 = 64
+10-02 12:48:26.714  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_swa                 = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: is_swa_any            = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: non_causal_type       = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_k         = 64
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_v         = 64
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_gqa                 = [0, 0, 4, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0]
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_k_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_v_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_eps            = 0.0e+00
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_rms_eps        = 1.0e-05
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_clamp_kqv           = 0.0e+00
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_max_alibi_bias      = 0.0e+00
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_logit_scale         = 0.0e+00
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_scale          = 0.0e+00
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_value_scale    = 0.0000
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ff                  = 10752
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert              = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_used         = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_groups       = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_group_used          = 0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: causal attn           = 1
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: pooling type          = -1
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope type             = 2
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope scaling          = linear
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_base_train       = 10000000.0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: freq_scale_train      = 1
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_orig_yarn       = 128000
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_yarn_log_mul     = 0.0000
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: rope_finetuned        = unknown
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model type            = 2.6B
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: model params          = 2.70 B
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: general.name          = LFM2.5-2.6B-QAD-Q4_0
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: vocab type            = BPE
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_vocab               = 128000
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: n_merges              = 293320
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: BOS token             = 124894 '<|startoftext|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOS token             = 124900 '<|im_end|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOT token             = 124900 '<|im_end|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: PAD token             = 124893 '<|pad|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: LF token              = 207 'Ċ'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124895 '<|endoftext|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124900 '<|im_end|>'
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info print_info: max token length      = 386
+10-02 12:48:26.715  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (load_mode = mmap+mlock)
+10-02 12:48:26.790  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloading 0 repeating layers to GPU
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 0/31 layers to GPU
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_Mapped model buffer size =  1503.20 MiB
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:48:26.791  7385  7417 I ReactNativeJS: KALSA_NATIVE info .
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_init_from_model: enabling flash_attn since it is required for quantized V cache
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max             = 1
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx                 = 8192
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq             = 8192
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch               = 512
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch              = 256
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn           = 1
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn            = enabled
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified            = false
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base             = 10000000.0
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale            = 1
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq              = 0
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max         = 512
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max_per_seq = 1
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (8192) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL device: QUALCOMM Adreno(TM)
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: vector subgroup broadcast support: false
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: subgroup shuffle support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device FP16 support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: khr dot product support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: mem base addr align: 128
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: global mem size: 3536 MB
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: max mem alloc size: 884 MB
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image buffer size (pixels): 134217728
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max image2d size: 16384 x 16384
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: device max workgroup size: 1024
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM coarse grain buffer support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain buffer support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM fine grain system support: false
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: SVM atomics support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: cl_qcom_subgroup_shuffle support: true
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+10-02 12:48:27.577  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =    52.00 MiB
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =   52.00 MiB (  8192 cells,   8 layers,  1/1 seqs), K (q8_0):   34.00 MiB, V (q4_0):   18.00 MiB
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB, P (f32):    0.00 MiB
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+10-02 12:48:27.589  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+10-02 12:48:27.590  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+10-02 12:48:27.591  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+10-02 12:48:27.591  7385  7417 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused DeepSeek V4 HC post enabled
+10-02 12:48:27.592  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+10-02 12:48:27.593  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph: nodes = 1110, splits = 1, input objects = 4, input tensors = 9
+10-02 12:48:27.593  7385  7417 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 3.52 ms, sched copies = 1
+10-02 12:48:27.686  7385  7417 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+10-02 12:48:27.696  7385  7417 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+10-02 12:48:27.696  7385  7417 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"prefix_miss","prewarm":null,"send":"3677660334"}'
+10-02 12:48:27.733  7385  7474 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1682 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007da71bd100
+10-02 12:49:08.633  7385  7417 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":2,"round":0,"tokensCached":1928,"tokensEvaluated":1682,"tokensPredicted":245,"draftTokens":0,"draftAccepted":0,"promptMs":25249.844,"predictedMs":15581.984999999999,"predictedPerSecond":15.723285576260022,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":1682,"ciswireFlags":1}
+10-02 12:49:08.646  7385  7417 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["write_note"]}
+10-02 12:49:08.673  7385  7469 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=1928 text_tokens=1774 n_common=1681 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007da71bd100
+10-02 12:49:08.673  7385  7469 W RNLlama : loadPrompt:556 KALSA_KVDIVERGE n_common=1681 shared_lo=1673 embd_hi=1693 text_hi=1693
+10-02 12:49:08.673  7385  7469 W RNLlama : loadPrompt:583 KALSA_KVDIVERGE ids shared=[647 4105 22 124900 207 124899 63514 207 ] embd=[124901 597 4695 355 13564 374 278 5205 302 5881 640 267 ] text=[124905 67 22155 4704 1675 95116 7536 17366 284 863 5662 26301 ] shared_txt=[ parola.<|im_end|>
+10-02 12:49:08.674  7385  7469 W RNLlama : loadPrompt:652 KALSA_KVREUSE checkpoint n_past=1679 prompt=1774 n_common=1681
+10-02 12:49:14.810  7385  7417 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":2,"round":1,"tokensCached":1838,"tokensEvaluated":1774,"tokensPredicted":63,"draftTokens":0,"draftAccepted":0,"promptMs":2076.57,"predictedMs":3992.2989999999995,"predictedPerSecond":15.78038117886461,"contextFull":false,"interrupted":false,"truncated":false,"tool":"write_note","prompt_n":95,"ciswireFlags":1}
+10-02 12:49:14.810  7385  7417 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":1,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+10-02 12:49:14.810  7385  7417 I ReactNativeJS: KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1,"ciswireFlags":1}
+10-02 12:49:14.826  7385  7417 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"CPU","engine_decode":"CPU","commit_bytes":0,"commit_ms":0,"prefill_ms":0,"prefill_chunks":"","prefill_ctx_ngl":0,"forced":false,"thermal_state":"Unknown","thermo_source":"battery","fit":"Fit","npu_device":null,"npu_fallback":null,"cache_type_k":null,"cache_type_v":null,"prefill_kv":null,"fallback_reason":"","failed":false,"failure_reason":"","attempt":2,"turnId":"1","route_requested":null,"route_mode":null,"route_push":"skipped","route_mismatch":null,"route_chunks":null,"route_chunks_dropped":null,"route_chunks_truncated":null,"platform_thermal_status":-1,"state_source":"battery"}
+10-02 12:49:14.830  7385  7417 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":2,"ok":false,"estimatedBytes":120816396,"usedTokens":1838,"reason":"kv_prefix_unavailable","stemHash":"2232470105"}
+10-02 12:49:14.836  7385  7417 I ReactNativeJS: KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":0,"factsStored":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":0,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":2,"ciswireFlags":1,"durationMs":0,"timeoutMs":20000,"stopReason":"skipped_no_snapshot"}

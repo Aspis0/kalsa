@@ -1,0 +1,14 @@
+  mWakefulness=Awake
+    topResumedActivity=ActivityRecord{62853084 u0 com.kalsa.app/.MainActivity t161}
+  level: 100
+  temperature: 361
+Thermal Status: 1
+0
+tombstone_05
+tombstone_05.pb
+tombstone_04
+Marco-Mini-Instruct-KEXP.gguf
+OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+_gguf_keep
+bmoe
+codex-govnofit-20260924T021311Z

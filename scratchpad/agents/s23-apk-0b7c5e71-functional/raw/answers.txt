@@ -1,0 +1,13 @@
+answer evidence (grep'd text= nodes from uiautomator dumps, per turn)
+c2 short turn:
+text="391"
+c3 long turn:
+text="ZAFFIRO-42"
+c4 follow-up:
+text="391"
+c5b mirror-on short turn:
+text="391"
+c6 lane-off turn:
+text="Canberra"
+model chip in lane-off UI:
+text="LFM2.5 2.6B"

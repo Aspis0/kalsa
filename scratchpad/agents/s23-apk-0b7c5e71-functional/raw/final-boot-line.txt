@@ -1,0 +1,1 @@
+KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4392.32,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"off"}

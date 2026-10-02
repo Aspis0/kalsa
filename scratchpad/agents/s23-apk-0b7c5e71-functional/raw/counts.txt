@@ -1,0 +1,13 @@
+== privacy / mirror counts ==
+awaiting trigger | whole-session stream (12:32->end, superset of any logcat -d): 0
+awaiting trigger | live adb logcat -d mid-session: 0
+awaiting trigger | live adb logcat -d at end: 0
+awaiting trigger | mirror-on process window (c5b): 0
+KALSA_NATIVE info | whole-session stream: 1285
+KALSA_NATIVE info | mirror-on process (boot+1 short turn, pid 5302): 498
+KALSA_NATIVE warn | mirror-on process: 4
+KALSA_NATIVE total | whole-session stream: 1316
+abort/fatal/SIGSEGV/SIGABRT lines | pid 30193 main sequence: 0
+KALSA_KV_TYPE_OVERRIDE | lane-off process (pid 7385): 0
+KALSA_KV_TYPE_OVERRIDE | final boot (restored keys): 0
+PID=5302

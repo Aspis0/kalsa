@@ -1,0 +1,6 @@
+turn  dur_s  turnId  prompt_n_total  n_common  fresh  result
+c2-short 19 1 1686 1660 26 391
+c3-long 16 2 3084 1814 1270 ZAFFIRO-42
+c4-followup 21 3 3215 3192 23 391
+c5b-short-mirror-on 21 1 - - - 391
+c6-au-lane-off 105 1(attempt2) - - - Canberra
