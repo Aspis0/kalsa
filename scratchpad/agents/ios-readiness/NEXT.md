@@ -24,3 +24,20 @@ Nothing compiled yet: Xcode is not installed (owner installs it). No Apple Devel
 ## Step 2 - models
 Apple Foundation Models (iOS 26+, iPhone 15 Pro+) vs Qwen / LFM via llama.cpp Metal, MLX as a comparator
 (`MODELS-RESEARCH.md`).
+
+## State 2026-10-02 night (coordinator)
+
+First run done (`FIRST-RUN.md`): app launches on the iOS 27 simulator and loads LFM2.5-2.6B (CPU: the simulator
+reports 0 MB Metal working set, so 0/31 layers offload). Generation not executed (no tap tooling; kalsa://share only
+prefills). Branch `ios/first-build` = `3b21e6c7`. Audit `AUDIT-first-run.md` (space-bunny):
+
+- **Owner/coordinator decision before merging to app main:** `1bc2eca0` bumps the Expo SDK 57 patch line (17 declared,
+  54 changed, 27 added packages). It is required for iOS 27 (`enableSceneSupport` needs expo >= 57.0.23), but it
+  changes Android: expo-modules-core 57.0.10+ turns a double-settled promise from a crash into a promise that never
+  settles (PR expo/expo#46770). Must pass the Android CI + one S23 smoke before main; belongs to the app-chain owner
+  (session 1d714246).
+- Fix on the branch: stale "0 crosses unchanged" contracts (`KalsaLifecycleModule.swift:9-12`, `monitor.ts:55-57`,
+  `kalsa-lifecycle/src/index.ts:15`); sync 5 declared ranges to the lockfile; the simulator fallback does not cover
+  the iPad-on-Mac build - measure `os_proc_available_memory` there first.
+- Expo iOS prebuilt xcframeworks are not pinned by the lockfile (EXPO_USE_PRECOMPILED_MODULES): add a skew check.
+- Generation: needs a tap (owner in Simulator.app) or UI automation (XCUITest / idb).
