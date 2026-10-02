@@ -29,6 +29,14 @@ pub(super) enum Reply {
     Stall,
     /// SSE comments at a steady pace without ever sending answer content.
     KeepAlive,
+    /// A prompt being read: `reports` prefill frames (`prompt_progress`, empty
+    /// delta) one `gap` apart, timed the way the engine times them, and then
+    /// the answer `then` — or silence for ever when there is none.
+    Prefill {
+        reports: usize,
+        gap: Duration,
+        then: Option<String>,
+    },
 }
 
 /// What the fake saw on one connection: the request head and body.
@@ -161,6 +169,38 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
             }
             let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"then nothing\"}}]}\n\n");
             thread::sleep(Duration::from_secs(120));
+        }
+        Reply::Prefill { reports, gap, then } => {
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            if stream.write_all(head.as_bytes()).is_err() {
+                return;
+            }
+            let total = (reports + 1) * 2048;
+            for report in 0..reports {
+                if report > 0 {
+                    thread::sleep(gap);
+                }
+                let frame = format!(
+                    "data: {{\"choices\":[{{\"index\":0,\"delta\":{{\"role\":\"assistant\",\"content\":null}}}}],\
+                     \"prompt_progress\":{{\"total\":{total},\"cache\":0,\"processed\":{},\"time_ms\":{}}}}}\n\n",
+                    report * 2048,
+                    gap.as_millis() as usize * report
+                );
+                if stream.write_all(frame.as_bytes()).is_err() {
+                    return;
+                }
+            }
+            match then {
+                Some(text) => {
+                    thread::sleep(gap);
+                    let frame = format!(
+                        "data: {{\"choices\":[{{\"delta\":{{\"content\":\"{text}\"}}}}]}}\n\n"
+                    );
+                    let _ = stream.write_all(frame.as_bytes());
+                    let _ = stream.write_all(b"data: [DONE]\n\n");
+                }
+                None => thread::sleep(Duration::from_secs(120)),
+            }
         }
         Reply::KeepAlive => {
             let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";

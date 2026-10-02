@@ -128,7 +128,7 @@ fn a_slow_answer_is_never_cut_only_a_silent_one_is() {
 fn a_stalled_stream_is_an_engine_problem_and_stores_nothing() {
     // One delta, then silence. The stall patience is tightened through the
     // seam so the test does not wait a minute.
-    super::room_turn::stall_for(Duration::from_millis(400));
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(400));
     let (door, room, _fake, [_, one, _]) = room_at(vec![Reply::Stall]);
     let bearer = format!("Bearer {one}");
     let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
@@ -153,14 +153,13 @@ fn a_stalled_stream_is_an_engine_problem_and_stores_nothing() {
             .all(|entry| entry.member != kalsa_room::MemberId::Ai),
         "nothing half-written is stored"
     );
-    super::room_turn::stall_reset();
     let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();
 }
 
 #[test]
 fn keep_alive_comments_do_not_extend_the_stall_patience() {
-    super::room_turn::stall_for(Duration::from_millis(400));
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(400));
     let (door, _room, _fake, [_, one, _]) = room_at(vec![Reply::KeepAlive]);
     let bearer = format!("Bearer {one}");
     let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
@@ -175,7 +174,69 @@ fn keep_alive_comments_do_not_extend_the_stall_patience() {
         result.contains("Kalsa ran into a problem on this computer"),
         "keep-alive comments do not count as answer content: {result}"
     );
-    super::room_turn::stall_reset();
+    let _ = follower.shutdown(Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
+fn a_slow_prefill_that_keeps_reporting_is_not_a_stall() {
+    // The prompt takes longer between reports (400 ms) than the stall
+    // patience (300 ms): only the reports, and the pace they show, keep the
+    // turn alive. The request must have asked for them.
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(300));
+    let (door, room, fake, [_, one, _]) = room_at(vec![Reply::Prefill {
+        reports: 4,
+        gap: Duration::from_millis(400),
+        then: Some("read it all".to_string()),
+    }]);
+    let bearer = format!("Bearer {one}");
+    post(
+        door.address(),
+        Some(&bearer),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"p1","text":"@Kalsa a very long history"}"#,
+    );
+    let landed = await_answer(&room);
+    assert_eq!(landed.text, "read it all", "the prefill was waited out, and no report became text");
+    assert_eq!(fake.seen().len(), 1, "no retry was needed");
+    assert!(
+        fake.seen()[0].body.contains("\"return_progress\":true"),
+        "the turn asked for the reports: {}",
+        fake.seen()[0].body
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_prefill_that_stops_reporting_is_still_a_stall() {
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(300));
+    let silent = || Reply::Prefill {
+        reports: 2,
+        gap: Duration::from_millis(400),
+        then: None,
+    };
+    let (door, room, _fake, [_, one, _]) = room_at(vec![silent(), silent()]);
+    let bearer = format!("Bearer {one}");
+    let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    post(
+        door.address(),
+        Some(&bearer),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"p2","text":"@Kalsa then silence"}"#,
+    );
+    let stalled = heard(&mut follower, b"engine_problem");
+    assert!(
+        stalled.contains("Kalsa ran into a problem on this computer"),
+        "reports that stop are an engine problem: {stalled}"
+    );
+    assert!(
+        room.newest_page(1, 10)
+            .unwrap()
+            .messages
+            .iter()
+            .all(|entry| entry.member != kalsa_room::MemberId::Ai),
+        "nothing is stored"
+    );
     let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();
 }

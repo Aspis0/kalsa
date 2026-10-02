@@ -95,8 +95,6 @@ pub(super) fn await_answer(room: &Room) -> kalsa_room::Entry {
 
 /// Reads the stream until the needle, tolerating the write side being
 /// still open.
-pub(super) use crate::room::turn::{stall_for, stall_reset};
-
 pub(super) fn heard(stream: &mut std::net::TcpStream, needle: &[u8]) -> String {
     Reader::until(stream, needle, Duration::from_secs(6))
 }

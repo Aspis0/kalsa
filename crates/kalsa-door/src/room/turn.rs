@@ -34,6 +34,7 @@ use serde_json::json;
 use crate::devices::DeviceId;
 use crate::proxy::{self, Shared};
 use crate::room::answers::name_of;
+use crate::room::prefill::Prefill;
 use crate::room::RoomDoor;
 use crate::slots::LeaseError;
 
@@ -59,9 +60,9 @@ const SEAT_POLL: Duration = Duration::from_secs(2);
 /// turn is still alive.
 const READ_SLICE: Duration = Duration::from_secs(1);
 
-/// How long the engine may go without answer content before the turn is a
-/// stall. Transport keep-alives do not count. Tests shrink it through
-/// [`stall_for`].
+/// How long the engine may go without a sign of work before the turn is a
+/// stall. Answer content and prefill reports are work (see `prefill`);
+/// transport keep-alives are not. Tests shrink it through [`stall_for`].
 const STALL_PATIENCE: Duration = Duration::from_secs(60);
 
 /// The stall seam: a process-wide override in milliseconds, because the
@@ -81,17 +82,29 @@ fn stall_patience() -> Duration {
     STALL_PATIENCE
 }
 
+/// Holds the stall override for one test. The override is process-wide, so
+/// the tests that set it take turns, and it is cleared however the test ends.
 #[cfg(test)]
-pub(crate) fn stall_for(duration: Duration) {
+pub(crate) struct StallGuard(std::sync::MutexGuard<'static, ()>);
+
+#[cfg(test)]
+static STALL_SEAM: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub(crate) fn stall_for(duration: Duration) -> StallGuard {
+    let turn = STALL_SEAM.lock().unwrap_or_else(|e| e.into_inner());
     STALL_OVERRIDE_MILLIS.store(
         duration.as_millis() as u64,
         std::sync::atomic::Ordering::SeqCst,
     );
+    StallGuard(turn)
 }
 
 #[cfg(test)]
-pub(crate) fn stall_reset() {
-    STALL_OVERRIDE_MILLIS.store(0, std::sync::atomic::Ordering::SeqCst);
+impl Drop for StallGuard {
+    fn drop(&mut self) {
+        STALL_OVERRIDE_MILLIS.store(0, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 /// Copy in the repo's own voice; the owner approves every line.
@@ -290,6 +303,9 @@ fn ask_the_engine(
         "model": "kalsa-room",
         "messages": messages,
         "stream": true,
+        // The prompt's prefill, reported as it goes: a long history on a slow
+        // computer is a stream that is working, not a silence.
+        "return_progress": true,
     });
     let body = serde_json::to_vec(&body).expect("the turn's request always serializes");
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, shared.port));
@@ -319,10 +335,13 @@ fn ask_the_engine(
     let mut reader = BufReader::new(engine);
     let mut answer = String::new();
     let mut answered = false;
-    // The stall clock follows answer content, not transport keep-alives.
-    // There is no clock on the whole answer — a long, live answer is never cut.
-    let mut last_content = Instant::now();
+    // The stall clock follows work — answer content, and prefill reports while
+    // the prompt is being read — not transport keep-alives. There is no clock
+    // on the whole answer: a long, live answer is never cut.
+    let mut last_work = Instant::now();
     let stall = stall_patience();
+    let mut allowed = stall;
+    let mut prefill = Prefill::new();
     loop {
         if !door.room.turn_alive(turn) {
             // The engine socket closes with this scope; a half answer is
@@ -343,14 +362,14 @@ fn ask_the_engine(
                 if error.kind() == std::io::ErrorKind::WouldBlock
                     || error.kind() == std::io::ErrorKind::TimedOut =>
             {
-                if last_content.elapsed() >= stall {
+                if last_work.elapsed() >= allowed {
                     return Exchange::Failed;
                 }
                 continue;
             }
             Err(_) => return Exchange::Failed,
         }
-        let mut carried_content = false;
+        let mut worked = false;
         if let Some(payload) = line.strip_prefix("data: ") {
             let payload = payload.trim_end();
             if payload == "[DONE]" {
@@ -359,6 +378,12 @@ fn ask_the_engine(
                 return Exchange::Answered(answer);
             }
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) {
+                // A prefill report is work: it restarts the clock with the
+                // gap the engine's own pace allows, and carries no words.
+                if let Some(progress) = value.get("prompt_progress").filter(|p| !p.is_null()) {
+                    worked = true;
+                    allowed = prefill.report(progress, stall);
+                }
                 // Content only: reasoning is the computer's own channel — the
                 // desktop chat shows it beside the answer, the room carries the
                 // answer alone, and no reasoning token is streamed or stored.
@@ -367,7 +392,8 @@ fn ask_the_engine(
                     .and_then(|content| content.as_str())
                     .filter(|text| !text.is_empty())
                 {
-                    carried_content = true;
+                    worked = true;
+                    allowed = stall;
                     if !answered {
                         answered = true;
                         door.room.mark_turn(turn, true);
@@ -393,9 +419,9 @@ fn ask_the_engine(
                 }
             }
         }
-        if carried_content {
-            last_content = Instant::now();
-        } else if last_content.elapsed() >= stall {
+        if worked {
+            last_work = Instant::now();
+        } else if last_work.elapsed() >= allowed {
             return Exchange::Failed;
         }
     }
