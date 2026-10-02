@@ -262,8 +262,8 @@ describe("the SendLogPanel", () => {
 
     mockLateUpdates.unmounted = true;
     release({ ok: false, reason: "failed" });
-    await Promise.resolve();
-    await Promise.resolve();
+    // A macrotask drains every queued microtask, the panel's handler included.
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(mockLateUpdates.count).toBe(0);
   });

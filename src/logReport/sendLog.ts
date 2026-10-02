@@ -105,7 +105,8 @@ export async function sendLog(): Promise<SendLogResult> {
       // produce one) leaves the status/JSON mapping in charge. This cannot
       // keep the body from a redirect target: RN's native layers follow
       // redirects before fetch resolves, and a 307/308 resends the POST body.
-      // It only stops a redirected request from being reported as sent.
+      // It only stops a redirect that RN reports in res.url from being shown
+      // as sent; an empty url or a chain that ends back here still passes.
       if (res.url && res.url !== REPORT_URL) return { ok: false, reason: "failed" };
       return await mapResponse(res);
     } finally {
