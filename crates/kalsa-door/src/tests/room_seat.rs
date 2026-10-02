@@ -170,10 +170,12 @@ fn a_turn_waiting_for_a_seat_ends_after_a_bound_and_says_so() {
 
 #[test]
 fn a_finished_turns_last_word_says_nobody_is_running() {
-    // The Room's "Kalsa is answering" reads the running name the status
-    // events carry; a turn that ends in silence would leave the last
-    // frame carrying the host as still running, the Stop button with it.
-    // The queue's own end-of-turn frame says idle and running nobody.
+    // The Room's "Kalsa is answering" line reads the running name every
+    // status event carries — derived from the queue's state at frame time,
+    // by the app's pump and the door's stream alike. So the proof that a
+    // finished turn clears the line is the room's own event log: the last
+    // word of a finished turn is the queue's idle frame, published by the
+    // end of the turn itself, and the queue then names nobody.
     let host_credential = credential();
     let (door, room, _fake, _) = house_at(
         vec![Reply::Sse(vec!["ciao".to_string()])],
@@ -181,44 +183,31 @@ fn a_finished_turns_last_word_says_nobody_is_running() {
         1,
         crate::clocks::Clocks::default(),
     );
-    let bearer = format!("Bearer {host_credential}");
-    let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
-    // The stream's cursor is taken at attach: wait for the opening frame
-    // before the call, so the turn's end frame is live news and not
-    // behind the cursor.
-    let mut feed = Feed::new(&mut follower);
-    let _ = feed.until(b"ai_status", Duration::from_secs(6));
+    // The cursor is taken before the call, so what reads back is exactly
+    // this turn's news, in order.
+    let mut cursor = room.next_cursor();
     host_calls(&door, &room, "host-1", "@Kalsa ciao");
-    let up_to_done = feed.until(b"\"state\":\"done\"", Duration::from_secs(6));
-    let done_at = up_to_done
-        .rfind("\"state\":\"done\"")
-        .expect("the turn reached its done frame");
-    // The stream opened before the call, so its snapshot is already an
-    // idle frame; the one this test waits for is the idle frame that
-    // lands AFTER the done one. The feed's history only grows, so the
-    // positions still line up. The patience is generous — a loaded
-    // machine can stall the driver between the done frame and the turn's
-    // end — because what this test guards is "announced at all", never
-    // "announced instantly".
-    let deadline = std::time::Instant::now() + Duration::from_secs(30);
-    let after_done = loop {
-        let whole = feed.until(b"\"state\":\"idle\"", Duration::from_secs(6));
-        let after = &whole[done_at..];
-        if after.contains("\"state\":\"idle\"") {
-            break after.to_string();
-        }
-        assert!(
-            std::time::Instant::now() < deadline,
-            "the turn's end was never announced: {whole}"
-        );
-    };
-    let block = after_done
-        .rsplit_once("event: ai_status")
-        .map(|(_, block)| block)
-        .expect("the end frame");
-    assert!(
-        block.contains("\"running\":null"),
-        "the last word names nobody as running: {block}"
+    let landed = super::room_turn::await_answer(&room);
+    assert_eq!(landed.text, "ciao");
+    let mut out = Vec::new();
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let take = room.read_since(&mut cursor, deadline, &mut out);
+    assert_eq!(take, kalsa_room::Take::Events);
+    let last_status = out.iter().rev().find_map(|event| match event {
+        kalsa_room::Event::Ai(status @ kalsa_room::AiEvent::Status { .. }) => Some(status.clone()),
+        _ => None,
+    });
+    match last_status {
+        Some(kalsa_room::AiEvent::Status { state, .. }) => assert_eq!(
+            state, "idle",
+            "the turn's last word is the queue's idle frame"
+        ),
+        other => panic!("the turn never said idle: {other:?}"),
+    }
+    assert_eq!(
+        room.turn_state().running,
+        None,
+        "nobody is running after the turn"
     );
     door.shutdown();
 }
