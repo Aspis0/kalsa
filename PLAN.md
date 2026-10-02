@@ -1032,6 +1032,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Follow-ups (thermal observer race, thermal call timeout, Mac* guard, dead RAM fallback, iPad-on-Mac memory) with
   Coder deepseek 8e331c83. Parity gaps (`PARITY-GAP.md`): iroh pairing (Android-only module), share-in extension,
   no battery current on iOS; TestFlight needs the $99 Apple Developer Program.
+  **iOS engine measured 2026-10-02 (`ios-engine-choice/REPORT.md`, GLM 9088c720, M1 Max):** llama.cpp at the pin vs
+  MLX 4-bit - LFM2.5-2.6B decode 128.6 vs 121.2 tok/s (llama.cpp +6%), Qwen3.5-2B 116.3 vs 146.2 (MLX +26%). Engine
+  line confirmed: llama.cpp. The app's 31 tok/s is the catalog KV q8_0 K / q4_0 V on Metal flash-attn (-71%);
+  coordinator cells: q8_0/q8_0 97.5, f16/f16 94.5 tok/s at 2k depth -> the MIXED K/V types are the cost. Fix candidate:
+  q8_0/q8_0 on Apple GPUs. AFM not measurable here: Apple Intelligence disabled on this Mac (owner can enable it).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
