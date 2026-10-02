@@ -905,6 +905,15 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   **S23 in-app per-turn HTP proof PASS** (`s23-layers-device-proof/REPORT.md`, GLM cd50da8b, APK run 36951238850 =
   app 101c2bdd): 46/46 lane-on chunks `layers_device:"HTP0"`, 21/21 lane-off GPU chunks `GPUOpenCL`; a lane-on
   route=gpu turn reports actual "gpu" but HTP0 at NPU speed (167 vs 102-112 tok/s). Label != device closed.
+  **KV-on-HTP options (recon luna bd59d110, 2026-10-02; RAM re-checked on ModelRegistry.ts:287-294):** LFM2.5-2.6B KV =
+  6,656 B/token (K q8_0 4,352 + V q4_0 2,304); V q8_0 adds 2,048 B/token per cache, and the governor keeps TWO caches:
+  **+32 MiB at n_ctx 8,192** (S23/default), +64 MiB at 16,384 (phones reporting >= 7.5 GB). (The coordinator's earlier
+  "+270 MB at 16k" was WRONG: it was the total of two q8 caches, not the delta.) Commit prefill->decode copies rows
+  byte-for-byte via tensor_get/set at phase handoffs; HTP buffers are host-addressable rpcmem; there is NO q4<->q8
+  conversion path (types must match). Ranked: (a) NPU lane uses V q8_0 in BOTH caches - binding + app only, no
+  kernel/skel change - RECOMMENDED; (b) q8 prefill / q4 decode with conversion at commit - engine change; (c) one shared
+  KV in rpcmem read by CPU decode - architecture change, CPU-on-rpcmem was -35 % for weights; (d) HTP q4_0 SET_ROWS +
+  FLASH_ATTN kernels - weeks. Owner 2026-10-02: plan OK; (a) waits for the V q8 vs q4 quality result (luna 356da047).
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
