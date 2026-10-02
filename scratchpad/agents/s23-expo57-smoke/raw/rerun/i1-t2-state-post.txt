@@ -1,0 +1,3 @@
+  level: 34
+  temperature: 345
+Thermal Status: 0

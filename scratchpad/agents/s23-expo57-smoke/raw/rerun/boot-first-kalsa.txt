@@ -1,0 +1,15 @@
+10-02 09:15:24.413 20096 20120 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+10-02 09:15:24.517 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+10-02 09:15:24.707 20096 20120 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3458.93,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on"}
+10-02 09:15:24.707 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 09:15:24.797 20096 20120 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+10-02 09:15:24.798 20096 20120 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+10-02 09:15:27.184 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:15:28.824 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:15:29.272 20096 20120 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+10-02 09:15:29.342 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 09:15:29.363 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 09:15:29.376 20096 20188 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1660 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b7834c400
+10-02 09:15:39.039 20096 20120 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":1660}
+10-02 09:15:39.039 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":9643.477,"promptN":1660,"hash":"3677660334"}'
+10-02 09:15:39.050 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'

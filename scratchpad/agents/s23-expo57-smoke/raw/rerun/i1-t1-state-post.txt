@@ -1,0 +1,3 @@
+  level: 32
+  temperature: 383
+Thermal Status: 1

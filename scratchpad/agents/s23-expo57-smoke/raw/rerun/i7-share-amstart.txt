@@ -1,0 +1,2 @@
+Starting: Intent { act=android.intent.action.SEND typ=text/plain pkg=com.kalsa.app (has extras) }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.

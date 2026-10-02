@@ -1,0 +1,3 @@
+  level: 39
+  temperature: 414
+Thermal Status: 3

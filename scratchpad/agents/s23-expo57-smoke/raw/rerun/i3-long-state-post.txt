@@ -1,0 +1,3 @@
+  level: 43
+  temperature: 378
+Thermal Status: 1

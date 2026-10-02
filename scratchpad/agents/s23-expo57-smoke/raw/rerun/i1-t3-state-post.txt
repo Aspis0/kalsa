@@ -1,0 +1,3 @@
+  level: 35
+  temperature: 402
+Thermal Status: 2

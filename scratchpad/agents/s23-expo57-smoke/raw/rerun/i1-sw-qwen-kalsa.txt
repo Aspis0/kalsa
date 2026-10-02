@@ -1,0 +1,66 @@
+10-02 09:15:24.413 20096 20120 I ReactNativeJS: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+10-02 09:15:24.517 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+10-02 09:15:24.707 20096 20120 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3458.93,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on"}
+10-02 09:15:24.707 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 09:15:24.797 20096 20120 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+10-02 09:15:24.798 20096 20120 I ReactNativeJS: KALSA_NATIVE warn ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+10-02 09:15:27.184 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:15:28.824 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:15:29.272 20096 20120 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+10-02 09:15:29.342 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 09:15:29.363 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 09:15:29.376 20096 20188 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1660 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b7834c400
+10-02 09:15:39.039 20096 20120 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":1660}
+10-02 09:15:39.039 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":9643.477,"promptN":1660,"hash":"3677660334"}'
+10-02 09:15:39.050 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'
+10-02 09:18:24.529 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}
+10-02 09:21:32.384 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+10-02 09:21:41.681 20096 20120 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3458.93,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on"}
+10-02 09:21:41.682 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 09:21:43.955 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:21:47.209 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:21:47.371 20096 20120 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+10-02 09:21:47.390 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 09:21:47.399 20096 20120 I ReactNativeJS: KALSA_DIGEST {"durationMs":0,"corpusSize":0,"selectedCount":0,"ciswireFlags":1}
+10-02 09:21:47.402 20096 20120 I ReactNativeJS: KALSA_WINDOW {"turnId":"1","kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":0,"textEst":104,"measuredCharsPerToken":null,"windowTokens":104}
+10-02 09:21:47.403 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 09:21:47.425 20096 20188 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1660 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b501b0800
+10-02 09:21:57.051 20096 20120 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":1660}
+10-02 09:21:57.051 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":9609.455,"promptN":1660,"hash":"3677660334"}'
+10-02 09:21:57.056 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'
+10-02 09:21:57.060 20096 20120 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+10-02 09:21:57.099 20096 20186 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=1660 text_tokens=1735 n_common=1660 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b501b0800
+10-02 09:23:10.774 20096 20120 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":0,"tokensCached":2546,"tokensEvaluated":1735,"tokensPredicted":810,"draftTokens":0,"draftAccepted":0,"promptMs":722.762,"predictedMs":72864.85999999999,"predictedPerSecond":11.116469584927495,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":75,"ciswireFlags":1}
+10-02 09:23:10.775 20096 20120 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+10-02 09:23:10.776 20096 20120 I ReactNativeJS: KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1,"ciswireFlags":1}
+10-02 09:23:10.778 20096 20120 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"NPU","engine_decode":"CPU","commit_bytes":11908608,"commit_ms":9.223,"prefill_ms":722.762,"prefill_chunks":"75","prefill_ctx_ngl":99,"forced":false,"thermal_state":"FAST","thermo_source":"battery","fit":"Fit","npu_device":"HTP0","npu_fallback":null,"fallback_reason":"","failed":false,"failure_reason":"","attempt":1,"turnId":"1","route_requested":"auto","route_mode":"auto","route_push":"applied","route_mismatch":null,"route_chunks":[{"index":0,"requested":"auto","actual":"gpu","tokens":75,"prefill_ms":722,"forced":false,"layers_device":"HTP0"}],"route_chunks_dropped":0,"route_chunks_truncated":false,"platform_thermal_status":0,"state_source":"battery"}
+10-02 09:23:10.810 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}
+10-02 09:23:10.810 20096 20120 I ReactNativeJS: KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":0,"factsStored":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":0,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":2,"ciswireFlags":1,"durationMs":0,"timeoutMs":20000,"stopReason":"skipped_no_snapshot"}
+10-02 09:23:39.304 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}
+10-02 09:23:39.715 20096 20120 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","decode_repack":false,"required_mib_with_repack":7048.47,"required_mib_without_repack":4344.83,"available_mib":3458.93,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"on"}
+10-02 09:23:39.715 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":1}
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_norm.weight (size = 10240 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.post_attention_norm.weight (size = 10240 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_q.weight (size = 11796480 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_k.weight (size = 1474560 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_v.weight (size = 2150400 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_output.weight (size = 5898240 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.ffn_gate.weight (size = 13271040 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.ffn_down.weight (size = 19353600 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.ffn_up.weight (size = 13271040 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.nextn.eh_proj.weight (size = 13926400 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.nextn.enorm.weight (size = 10240 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.nextn.hnorm.weight (size = 10240 bytes) -- ignoring
+10-02 09:23:40.228 20096 20120 I ReactNativeJS: KALSA_NATIVE warn model has unused tensor blk.32.nextn.shared_head_norm.weight (size = 10240 bytes) -- ignoring
+10-02 09:23:42.417 20096 20120 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 532455424-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 09:23:42.796 20096 20120 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+10-02 09:23:42.833 20096 20120 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":35,"ok":false,"tokensOnDisk":0,"reason":"no_file","stemHash":"861929392"}
+10-02 09:23:42.833 20096 20120 I ReactNativeJS: 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'
+10-02 09:23:44.454 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 09:23:44.501 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 09:23:44.580 20096 20186 W RNLlama : loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1692 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b74ff4e00
+10-02 09:25:40.278 20096 20120 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":1692}
+10-02 09:25:40.281 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":115640.352,"promptN":1692,"hash":"3677660334"}'
+10-02 09:25:40.572 20096 20120 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"snapshot_save","ok":true,"tokens":1692,"hash":"3677660334"}'

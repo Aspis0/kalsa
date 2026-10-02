@@ -1,0 +1,46 @@
+monitor start 10:08:31 pid=15542 tel0=1
+10:08:42 batt=42.3C plat=3 tel=1 thermal_lines=0
+10:08:52 batt=42.4C plat=3 tel=1 thermal_lines=0
+10:09:03 batt=42.5C plat=3 tel=1 thermal_lines=0
+10:09:13 batt=42.6C plat=3 tel=1 thermal_lines=0
+10:09:24 batt=42.6C plat=3 tel=2 thermal_lines=0
+TELEMETRY ARRIVED 10:09:24
+sent2 at 10:10:22
+10:10:33 batt=40.0C plat=3 tel=2 
+10:10:44 batt=40.1C plat=3 tel=2 
+10:10:54 batt=40.9C plat=3 tel=2 
+10:11:04 batt=41.6C plat=3 tel=2 
+10:11:15 batt=42.1C plat=3 tel=2 
+10:11:25 batt=42.7C plat=3 tel=2 
+10:11:36 batt=43.2C plat=3 tel=2 
+10:11:46 batt=43.4C plat=3 tel=2 
+10:11:57 batt=43.5C plat=3 tel=2 
+10:12:07 batt=43.6C plat=3 tel=2 
+10:12:18 batt=43.6C plat=3 tel=2 
+10:12:28 batt=43.6C plat=3 tel=2 
+10:12:39 batt=43.4C plat=3 tel=3 
+TELEMETRY2 ARRIVED 10:12:39
+sent3 at 10:13:50 batt0=40.6C
+10:14:01 batt=40.5C plat=3 tel=3 
+10:14:12 batt=40.9C plat=3 tel=3 
+10:14:22 batt=41.6C plat=3 tel=3 
+10:14:33 batt=42.2C plat=3 tel=3 
+10:14:43 batt=42.6C plat=3 tel=3 
+10:14:54 batt=43.0C plat=3 tel=3 
+10:15:05 batt=43.1C plat=3 tel=3 
+10:15:15 batt=43.1C plat=3 tel=3 
+10:15:26 batt=43.0C plat=3 tel=3 
+10:15:37 batt=42.9C plat=3 tel=3 
+10:15:47 batt=42.8C plat=3 tel=3 
+10:15:58 batt=42.7C plat=3 tel=3 
+10:16:08 batt=42.6C plat=3 tel=3 
+10:16:19 batt=42.5C plat=3 tel=3 
+10:16:30 batt=42.7C plat=3 tel=3 
+10:16:40 batt=43.0C plat=3 tel=3 
+10:16:51 batt=43.2C plat=3 tel=3 
+10:17:02 batt=43.4C plat=3 tel=3 
+10:17:12 batt=43.5C plat=3 tel=3 
+10:17:23 batt=43.6C plat=3 tel=3 
+10:17:33 batt=43.7C plat=3 tel=3 
+10:17:44 batt=43.7C plat=3 tel=4 
+TELEMETRY3 ARRIVED 10:17:44

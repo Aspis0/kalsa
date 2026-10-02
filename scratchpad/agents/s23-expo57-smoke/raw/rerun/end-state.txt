@@ -1,0 +1,19 @@
+=== end state Fri Oct  2 11:10:09 EDT 2026 ===
+  mWakefulness=Awake
+      showing=false
+  AC powered: true
+  level: 77
+  temperature: 320
+Thermal Status: 0
+0
+dka=0
+font_scale=1.0
+policy_control=immersive.full=com.kalsa.app
+Physical size: 1080x2340
+Physical density: 480
+    topResumedActivity=ActivityRecord{257216977 u0 com.kalsa.app/.MainActivity t157}
+null
+final battery/thermal:
+  level: 77
+  temperature: 320
+Thermal Status: 0
