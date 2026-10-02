@@ -1,0 +1,14 @@
+# excerpt of A-nkvo-profile.log (10643448 bytes, full log kept off-repo at ~/kalsa-qdc/htp-kv-xiaomi-v75-full/logs/A-nkvo-profile.log)
+# execute-op lines: 6346; profile-op lines: 6811
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007c1cbfc390
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x model.layers.{}.operator_norm-0 (reshaped) -> model.layers.{}.conv.in_proj-0|2048:6144 x 2048:128 -> 6144:128|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:24576|HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8095744|flags 0x0
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v |          nkvo | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 |             1 | HTP0         |   pp128 @ d1700 |        136.79 ± 0.00 |
+EXIT=0
+llama_kv_cache: layer   0: filtered
+node #  9 (       CPY): cache_r_l0 (view) (c (   0K) [  CPU         ] use=0,c=1:               node_7 (   0K) [  CPU         ]    cache_r_l0 (view) (   0K) [  CPU         ]
+node # 22 (       CPY): cache_r_l0 (view) (c (  16K) [  CPU         ] use=0,c=1:        CPU# (view)#0 (  23K) [ NULL         ]    cache_r_l0 (view) (  16K) [  CPU         ]
+node # 29 (       CPY): cache_r_l1 (view) (c (   0K) [  CPU         ] use=0,c=1:              node_27 (   0K) [  CPU         ]    cache_r_l1 (view) (   0K) [  CPU         ]
+node # 55 (       CPY): cache_r_l1 (view) (c (  16K) [  CPU         ] use=0,c=1:        CPU# (view)#0 (  23K) [ NULL         ]    cache_r_l1 (view) (  16K) [  CPU         ]

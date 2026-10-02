@@ -82,10 +82,12 @@ def sha_mismatch(out_text, expected):
 
 
 def free_space_error(df_text, min_free_gb=MIN_FREE_GB):
-    """Parse `df -k /data` before staging the 1.5 GB model."""
+    """Parse `df -k /data` before staging the 1.5 GB model. MIUI (Xiaomi 14)
+    lists the /data partition under its /data/user/0 bind mount — same block
+    device as /data/local/tmp — so that mount name is accepted too."""
     for line in df_text.splitlines():
         f = line.split()
-        if len(f) >= 4 and f[-1] == "/data":
+        if len(f) >= 4 and f[-1] in ("/data", "/data/user/0"):
             try:
                 free_gb = int(f[3]) * 1024 / 1e9
             except ValueError:

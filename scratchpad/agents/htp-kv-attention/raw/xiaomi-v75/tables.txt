@@ -1,0 +1,33 @@
+# clean timing (driver-gated, no logging), n = 3 reps/cell
+arm	depth	pp128 tok/s ± sd	ms/chunk ± sd
+A-nkvo	0	603.47 ± 164.73	212.1 ± 57.9
+A-nkvo	512	361.63 ± 13.34	354.0 ± 13.1
+A-nkvo	1700	178.70 ± 0.15	716.3 ± 0.6
+A-nkvo	3100	100.39 ± 0.13	1275.0 ± 1.7
+B-offload	0	776.85 ± 61.97	164.8 ± 13.1
+B-offload	512	754.07 ± 8.88	169.7 ± 2.0
+B-offload	1700	709.85 ± 2.13	180.3 ± 0.5
+B-offload	3100	659.35 ± 3.03	194.1 ± 0.9
+C-app-vq4	0	473.83 ± 19.97	270.1 ± 11.4
+C-app-vq4	512	345.34 ± 21.14	370.6 ± 22.7
+C-app-vq4	1700	167.32 ± 0.52	765.0 ± 2.4
+C-app-vq4	3100	103.11 ± 0.11	1241.4 ± 1.3
+
+# tok/s ratios
+depth	B/A	C/A	B/C
+0	1.29	0.79	1.64
+512	2.09	0.95	2.18
+1700	3.97	0.94	4.24
+3100	6.57	1.03	6.39
+
+# OLS slope of ms/chunk vs depth
+arm	ms per 1k context tokens	intercept ms
+A-nkvo	342.6	184.4
+B-offload	9.4	164.7
+C-app-vq4	319.4	237.6
+
+# per-arm device state over route-start → clean-end
+arm	wall_s	bat_pct	bat_temp_C	thermal	skin_C	cpu7_max_freq_kHz before -> after
+A-nkvo	53	71.0-72.0	30.9-32.2	0.0-0.0	32.103-36.817	2630400 -> 2169600
+B-offload	33	71.0-71.0	31.9-31.9	0.0-0.0	32.474-33.657	2169600 -> 2169600
+C-app-vq4	53	70.0-71.0	30.7-32.3	0.0-0.0	31.262-36.01	2630400 -> 1939200

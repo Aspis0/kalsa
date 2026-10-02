@@ -1,0 +1,77 @@
+2026-10-02T04:02:33.821494+00:00	SESSION_START target=phone-serial arch=v75 dry_run=False personal=True estimated_device_minutes=27 deadline_minutes=55
+2026-10-02T04:02:34.036684+00:00	DEVICE_IDENTITY rc=0 '23127PN0CG\nSM8650\n8'
+2026-10-02T04:02:34.117431+00:00	FREE_SPACE_OK
+2026-10-02T04:02:35.047030+00:00	MODEL_SHA a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+2026-10-02T04:02:35.973189+00:00	PUSH llama-bench -> bin/llama-bench rc=0
+2026-10-02T04:02:36.989221+00:00	PUSH llama-completion -> bin/llama-completion rc=0
+2026-10-02T04:02:37.085671+00:00	PUSH libggml-htp-v75.so -> lib/libggml-htp-v75.so rc=0
+2026-10-02T04:03:30.320651+00:00	PUSH LFM2.5-2.6B-QAD-Q4_0.gguf -> ship.gguf rc=0
+2026-10-02T04:03:32.124665+00:00	DEVICE_SHAS rc=0
+2026-10-02T04:03:32.125232+00:00	STAGE_SHAS_OK
+2026-10-02T04:03:32.125323+00:00	GATES A-nkvo-route: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:03:32.501538+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.103', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '72', 'battery_temp_c': '30.9'}
+2026-10-02T04:03:32.501843+00:00	CLI_START A-nkvo-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:03:43.006751+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.457', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '72', 'battery_temp_c': '30.9'}
+2026-10-02T04:03:43.343516+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.474', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '72', 'battery_temp_c': '30.9'}
+2026-10-02T04:03:43.354742+00:00	CLI_OK A-nkvo-route wall_s=11
+2026-10-02T04:03:43.355029+00:00	GATES A-nkvo-clean: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:03:43.718742+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.49', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '72', 'battery_temp_c': '30.9'}
+2026-10-02T04:03:43.719738+00:00	CLI_START A-nkvo-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:03:54.035817+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.94', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.1'}
+2026-10-02T04:04:04.366334+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.498', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.1'}
+2026-10-02T04:04:14.711100+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.998', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '32.2'}
+2026-10-02T04:04:25.133512+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.817', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '32.2'}
+2026-10-02T04:04:25.491312+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.817', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '32.2'}
+2026-10-02T04:04:25.491681+00:00	CLI_OK A-nkvo-clean wall_s=42
+2026-10-02T04:04:25.491969+00:00	COOLDOWN 120s between arms
+2026-10-02T04:06:25.500719+00:00	GATES B-offload-route: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:06:25.891012+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.501', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:25.891874+00:00	CLI_START B-offload-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:06:36.330739+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.474', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:36.651108+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.474', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:36.661928+00:00	CLI_OK B-offload-route wall_s=11
+2026-10-02T04:06:36.662260+00:00	GATES B-offload-clean: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:06:37.069350+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.479', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:37.069633+00:00	CLI_START B-offload-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:06:47.466477+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.756', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:57.913299+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.651', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:58.276963+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.657', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '31.9'}
+2026-10-02T04:06:58.277373+00:00	CLI_OK B-offload-clean wall_s=21
+2026-10-02T04:06:58.277923+00:00	COOLDOWN 120s between arms
+2026-10-02T04:08:58.288857+00:00	GATES C-app-vq4-route: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:08:58.652664+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.262', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '30.9'}
+2026-10-02T04:08:58.653099+00:00	CLI_START C-app-vq4-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q4_0 -nkvo 1
+2026-10-02T04:09:09.106789+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.29', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '30.7'}
+2026-10-02T04:09:09.399360+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.295', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '30.7'}
+2026-10-02T04:09:09.408129+00:00	CLI_OK C-app-vq4-route wall_s=11
+2026-10-02T04:09:09.408332+00:00	GATES C-app-vq4-clean: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:09:09.753213+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.295', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '71', 'battery_temp_c': '30.7'}
+2026-10-02T04:09:09.753853+00:00	CLI_START C-app-vq4-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q4_0 -nkvo 1
+2026-10-02T04:09:20.040495+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.636', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '30.7'}
+2026-10-02T04:09:30.341448+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.204', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.1'}
+2026-10-02T04:09:40.645955+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.772', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.1'}
+2026-10-02T04:09:50.992763+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.992', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '32.3'}
+2026-10-02T04:09:51.314639+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.01', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '32.3'}
+2026-10-02T04:09:51.315009+00:00	CLI_OK C-app-vq4-clean wall_s=42
+2026-10-02T04:09:51.315589+00:00	COOLDOWN 120s between arms
+2026-10-02T04:11:51.326574+00:00	GATES A-nkvo-profile: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:11:51.741506+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.047', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.9'}
+2026-10-02T04:11:51.741798+00:00	CLI_START A-nkvo-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:12:01.949867+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.25', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.9'}
+2026-10-02T04:12:12.387730+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.329', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.9'}
+2026-10-02T04:12:12.718297+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.346', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '31.9'}
+2026-10-02T04:12:12.773304+00:00	CLI_OK A-nkvo-profile wall_s=21
+2026-10-02T04:12:12.791655+00:00	PLACEMENT A-nkvo htp_ops=9 summary=A-nkvo-profile-placement.txt
+2026-10-02T04:12:12.791748+00:00	COOLDOWN 120s between arms
+2026-10-02T04:14:12.795918+00:00	GATES B-offload-profile: probe_ok; not_powered(AC/USB/Wireless); battery>=25%; battery_temp<44C; thermal_status<3; awake(mWakefulness); traced==0(SM-S911x only)
+2026-10-02T04:14:13.237712+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.653', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '70', 'battery_temp_c': '30.9'}
+2026-10-02T04:14:13.238050+00:00	CLI_START B-offload-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:14:23.634948+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.831', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '69', 'battery_temp_c': '30.7'}
+2026-10-02T04:14:23.960678+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '31.848', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': True, 'traced': '1', 'model': '23127PN0CG', 'soc': 'SM8650', 'battery_level': '69', 'battery_temp_c': '30.7'}
+2026-10-02T04:14:24.025270+00:00	CLI_OK B-offload-profile wall_s=11
+2026-10-02T04:14:24.042040+00:00	PLACEMENT B-offload htp_ops=13 summary=B-offload-profile-placement.txt
+2026-10-02T04:14:24.042243+00:00	TSV_WRITTEN raw/xiaomi-v75/bench.tsv rows=12
+2026-10-02T04:14:24.237199+00:00	PULL_LISTING rc=0
+2026-10-02T04:14:24.602233+00:00	CLEANUP rc=1 'ls: /data/local/tmp/htp-kv-attention: No such file or directory'
+2026-10-02T04:14:24.678210+00:00	PERSONAL_CLEANUP rc=0
+2026-10-02T04:14:24.678867+00:00	STAGE_END all error=None

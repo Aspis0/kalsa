@@ -1,0 +1,18 @@
+# excerpt of B-offload-profile.log (10964677 bytes, full log kept off-repo at ~/kalsa-qdc/htp-kv-xiaomi-v75-full/logs/B-offload-profile.log)
+# execute-op lines: 7388; profile-op lines: 7403
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb40000742748b690
+ggml-hex: HTP0 execute-op FLASH_ATTN_EXT| (reshaped) (view) (permuted) x cache_k_l2 (view) (permuted) x cache_v_l2 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_102|64:128:32:1 x 64:256:8:1 x 64:256:8:1 x 256:128 -> 64:32:128:1|f32 x q8_0 x q8_0 x f16 -> f32|4:8192:256:1048576! x 34:544:68:1114112! x 34:544:68:1114112! x 2:512 -> 4:256:8192:1048576|HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|hmx-pipe vtcm 699904|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x model.layers.{}.operator_norm-0 (reshaped) -> model.layers.{}.conv.in_proj-0|2048:6144 x 2048:128 -> 6144:128|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:24576|HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8095744|flags 0x0
+ggml-hex: HTP0 execute-op SET_ROWS| (reshaped) (view) x HTP0#attn_inp_k_idxs#0 x cache_k_l2 -> cache_k_l2 (view)|512:128 x 128:1 x 512:2048 -> 512:2048|f32 x i64 x q8_0 -> q8_0|4:2048 x 8:1024 x 34:544 -> 34:544|HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op CPY| (view) x cache_r_l0 (view) -> cache_r_l0 (view) (copy of  (view))|2:2048 x 4096:1 -> 4096:1|f32 x f32 -> f32|4:520! x 4:16384 -> 4:16384|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 profile-op FLASH_ATTN_EXT| (reshaped) (view) (permuted) x cache_k_l2 (view) (permuted) x cache_v_l2 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_102|64:128:32:1 x 64:256:8:1 x 64:256:8:1 x 256:128 -> 64:32:128:1|f32 x q8_0 x q8_0 x f16 -> f32|4:8192:256:1048576! x 34:544:68:1114112! x 34:544:68:1114112! x 2:512 -> 4:256:8192:1048576|hmx-pipe vtcm 699904|usec 971 cycles 1660605 start 584838904 mhz 1710.2
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 | HTP0         |   pp128 @ d1700 |        373.64 ± 0.00 |
+EXIT=0
+llama_kv_cache: layer   0: filtered
+node #  9 (       CPY): cache_r_l0 (view) (c (   0K) [ HTP0         ] use=0,c=1:               node_7 (   0K) [ HTP0         ]    cache_r_l0 (view) (   0K) [ HTP0         ]
+node # 22 (       CPY): cache_r_l0 (view) (c (  16K) [ HTP0         ] use=0,c=1:               (view) (  23K) [ HTP0         ]    cache_r_l0 (view) (  16K) [ HTP0         ]
+node # 29 (       CPY): cache_r_l1 (view) (c (   0K) [ HTP0         ] use=0,c=1:              node_27 (   0K) [ HTP0         ]    cache_r_l1 (view) (   0K) [ HTP0         ]
+node # 55 (       CPY): cache_r_l1 (view) (c (  16K) [ HTP0         ] use=0,c=1:               (view) (  23K) [ HTP0         ]    cache_r_l1 (view) (  16K) [ HTP0         ]

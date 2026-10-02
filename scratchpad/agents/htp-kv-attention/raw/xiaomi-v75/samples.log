@@ -1,0 +1,14 @@
+2026-10-02T04:02:57Z cpu7_max=2630400 cpu7_cur=672000   level: 72   temperature: 309  Thermal Status: 0
+2026-10-02T04:03:58Z cpu7_max=2169600 cpu7_cur=672000   level: 71   temperature: 311  Thermal Status: 0
+2026-10-02T04:04:58Z cpu7_max=2169600 cpu7_cur=672000   level: 71   temperature: 328  Thermal Status: 0
+2026-10-02T04:05:59Z cpu7_max=2169600 cpu7_cur=672000   level: 71   temperature: 319  Thermal Status: 0
+2026-10-02T04:06:59Z cpu7_max=2169600 cpu7_cur=672000   level: 71   temperature: 319  Thermal Status: 0
+2026-10-02T04:07:59Z cpu7_max=2630400 cpu7_cur=672000   level: 71   temperature: 319  Thermal Status: 0
+2026-10-02T04:09:00Z cpu7_max=2630400 cpu7_cur=2630400   level: 71   temperature: 309  Thermal Status: 0
+2026-10-02T04:10:00Z cpu7_max=1939200 cpu7_cur=672000   level: 70   temperature: 323  Thermal Status: 0
+2026-10-02T04:11:01Z cpu7_max=2169600 cpu7_cur=672000   level: 70   temperature: 319  Thermal Status: 0
+2026-10-02T04:12:01Z cpu7_max=2496000 cpu7_cur=2496000   level: 70   temperature: 319  Thermal Status: 0
+2026-10-02T04:13:01Z cpu7_max=2630400 cpu7_cur=672000   level: 70   temperature: 316  Thermal Status: 0
+2026-10-02T04:14:02Z cpu7_max=2630400 cpu7_cur=672000   level: 70   temperature: 309  Thermal Status: 0
+2026-10-02T04:15:02Z cpu7_max=2630400 cpu7_cur=672000   level: 69   temperature: 307  Thermal Status: 0
+2026-10-02T04:16:02Z cpu7_max=2630400 cpu7_cur=672000   level: 69   temperature: 307  Thermal Status: 0

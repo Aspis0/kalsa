@@ -1,0 +1,13 @@
+arm	depth	fa	nkvo	ctk	ctv	test	pp_tok_s	per_chunk_ms	src_log	device_model	soc	bat_pct	bat_temp_c	thermal_before	thermal_after
+A-nkvo	0	auto	1	q8_0	q8_0	pp128	603.47	212.1	A-nkvo-clean.log	23127PN0CG	SM8650	72	30.9	0	0
+A-nkvo	512	auto	1	q8_0	q8_0	pp128 @ d512	361.63	354.0	A-nkvo-clean.log	23127PN0CG	SM8650	72	30.9	0	0
+A-nkvo	1700	auto	1	q8_0	q8_0	pp128 @ d1700	178.70	716.3	A-nkvo-clean.log	23127PN0CG	SM8650	72	30.9	0	0
+A-nkvo	3100	auto	1	q8_0	q8_0	pp128 @ d3100	100.39	1275.0	A-nkvo-clean.log	23127PN0CG	SM8650	72	30.9	0	0
+B-offload	0	auto	0	q8_0	q8_0	pp128	776.85	164.8	B-offload-clean.log	23127PN0CG	SM8650	71	31.9	0	0
+B-offload	512	auto	0	q8_0	q8_0	pp128 @ d512	754.07	169.7	B-offload-clean.log	23127PN0CG	SM8650	71	31.9	0	0
+B-offload	1700	auto	0	q8_0	q8_0	pp128 @ d1700	709.85	180.3	B-offload-clean.log	23127PN0CG	SM8650	71	31.9	0	0
+B-offload	3100	auto	0	q8_0	q8_0	pp128 @ d3100	659.35	194.1	B-offload-clean.log	23127PN0CG	SM8650	71	31.9	0	0
+C-app-vq4	0	auto	1	q8_0	q4_0	pp128	473.83	270.1	C-app-vq4-clean.log	23127PN0CG	SM8650	71	30.7	0	0
+C-app-vq4	512	auto	1	q8_0	q4_0	pp128 @ d512	345.34	370.6	C-app-vq4-clean.log	23127PN0CG	SM8650	71	30.7	0	0
+C-app-vq4	1700	auto	1	q8_0	q4_0	pp128 @ d1700	167.32	765.0	C-app-vq4-clean.log	23127PN0CG	SM8650	71	30.7	0	0
+C-app-vq4	3100	auto	1	q8_0	q4_0	pp128 @ d3100	103.11	1241.4	C-app-vq4-clean.log	23127PN0CG	SM8650	71	30.7	0	0

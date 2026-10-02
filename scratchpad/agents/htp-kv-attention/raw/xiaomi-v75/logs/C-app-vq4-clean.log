@@ -1,0 +1,20 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Loading driver libcdsprpc.so
+DEPRECATED: GGML_HEXAGON_NDEV is deprecated. use GGML_HEXAGON_DEVICES instead
+ggml-hex: FASTRPC_GET_DOMAINS query failed (0x6c), using static CDSP domains
+ggml-hex: batch response timeout 30000 ms
+ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v |          nkvo | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |           pp128 |       473.83 ± 19.97 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |    pp128 @ d512 |       345.34 ± 21.14 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |   pp128 @ d1700 |        167.32 ± 0.52 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |   pp128 @ d3100 |        103.11 ± 0.11 |
+
+build: 5b596ce43 (11598)
+EXIT=0
