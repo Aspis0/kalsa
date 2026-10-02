@@ -798,6 +798,11 @@ generation not yet run. Needed an Expo SDK 57 patch-line bump that also changes 
 Owner 2026-10-02: "Aggiorna expo". Expo SDK 57 patch-line bump landed on app main `7ddf39ad` (base 101c2bdd; audited
 `ios-readiness/AUDIT-expo57-bump.md`: no blockers, Android double-settle change unreachable from Kalsa's modules).
 APK run 36979390863; S23 smoke handed to session 1d714246 with the audit checklist.
+Security 2026-10-02: the app ships pdf.js 3.11.174 (assets) on user PDFs - CVE-2024-4367 reachable. Mitigation on local
+branch expo57-bump `b5b59cca` + fix round `14349b63` (isEvalSupported:false, CSP meta with a runtime self-probe,
+navigation gate, no incognito); audited (`ios-readiness/AUDIT-pdfjs-cve.md`). NOT pushed: needs a device check first
+(PDF extraction still works, csp=true logged, A/B page timings vs 7ddf39ad - the PostScript interpreter is slower).
+Real fix = pdf.js >= 4.2.67 migration. CJK PDFs with non-embedded CMaps were already broken (no packaged cmaps).
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
