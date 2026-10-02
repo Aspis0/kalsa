@@ -381,7 +381,7 @@ fn a_lost_rotation_unadvertises_the_folder_and_goes_stderr_only() {
         }
         rotate_with(&mut state, |_| None)
     };
-    assert!(matches!(lost, Rotated), "the reopen failure is reported");
+    assert!(matches!(lost, Rotated::Lost), "the reopen failure is reported");
     assert_eq!(folder(), None, "the folder is withdrawn");
     assert!(
         !dir.join(LIVE_NAME).exists(),
