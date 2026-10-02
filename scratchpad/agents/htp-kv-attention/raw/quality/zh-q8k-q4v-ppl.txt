@@ -1,0 +1,14 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.869.382 I cmn          init: llama threadpool init, n_threads = 8
+0.00.896.857 I 
+0.00.896.900 I system_info: n_threads = 8 (n_threads_batch = 8) / 10 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | REPACK = 1 | 
+0.00.896.910 I perplexity: tokenizing the input ..
+0.01.006.426 I perplexity: tokenization took 109.509 ms
+0.01.006.459 I perplexity: calculating perplexity over 38 chunks, n_ctx=4096, batch_size=512, n_seq=1
+0.24.978.290 I perplexity: 23.97 seconds per pass - ETA 15.17 minutes
+[1]37.5468,[2]37.2430,[3]38.0244,[4]35.3273,[5]36.6759,[6]36.6939,[7]36.3930,[8]37.6863,[9]40.0490,[10]40.5761,[11]42.5460,[12]44.2167,[13]46.9108,[14]48.1407,[15]50.8871,[16]51.0440,[17]52.4212,[18]51.4802,[19]51.0780,[20]50.3082,[21]51.2562,[22]51.3176,[23]51.6521,[24]51.4738,[25]51.8821,[26]51.7221,[27]50.2722,[28]49.6974,[29]49.0780,[30]49.0926,[31]47.6813,[32]47.8637,[33]47.6291,[34]47.2961,[35]47.8312,[36]48.0769,[37]48.2395,[38]48.1155,
+16.33.432.326 I Final estimate: PPL = 48.1155 +/- 0.63872
+
+EXIT=0
