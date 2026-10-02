@@ -34,10 +34,13 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
     private var samplerHandler: Handler? = null
     private var samplerWriter: BufferedWriter? = null
     private var samplerRunning = false
-    // Latched plugged baseline in tenths of a degree C: set on the plug-in edge,
-    // held for the whole plugged session (a model reload does not recreate this
-    // module), cleared on unplug. The engine offsets every plugged threshold
-    // from this value, so it must not track the live battery temperature.
+    // Latched plugged baseline in tenths of a degree C: taken by the first read
+    // that sees the phone plugged (reads are on demand, so that can be after the
+    // actual plug-in), held while every read sees it plugged (a model reload
+    // does not recreate this module), cleared by any read that sees it
+    // unplugged. The engine offsets its plugged warm/cool lines from this value
+    // and refuses a profile whose value moves more than 1.5 C, so it must not
+    // track the live battery temperature.
     private var idleBaselineTenthsC: Int? = null
 
     override fun getName(): String = "GovernorBattery"

@@ -324,8 +324,8 @@ describe("governor inputs", () => {
       t_idle_valid: true,
       t_idle_tenths_c: 350,
     });
-    // The engine reads t_idle_c in whole degrees C and offsets every plugged
-    // threshold from it; a tenths value here would read 350 "degrees".
+    // The engine reads t_idle_c in degrees C and offsets its plugged warm/cool
+    // lines from it; a tenths value here would read 350 "degrees".
     await expect(readGovernorThermo()).resolves.toMatchObject({
       sensor_valid: true,
       plugged: true,

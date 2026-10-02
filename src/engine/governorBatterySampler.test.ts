@@ -238,10 +238,14 @@ describe("readThermo plugged idle latch", () => {
   const end = KOTLIN_SOURCE.indexOf("fun readSoc(");
   const readThermo = KOTLIN_SOURCE.slice(start, end);
 
-  it("latches the idle baseline on the plug-in edge and clears it on unplug", () => {
+  it("latches the idle baseline once per plugged session and clears it on unplug", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     expect(KOTLIN_SOURCE).toContain("private var idleBaselineTenthsC: Int? = null");
+    // Once: a later plugged read must not overwrite the latch with the live
+    // temperature (a855ab6c sent the live value and tripped the engine's
+    // 1.5 C drift refusal on a warming, charging phone).
+    expect(readThermo).toContain("if (idleBaselineTenthsC == null && sensorValid) {");
     expect(readThermo).toMatch(
       /if \(plugged\) \{[\s\S]*idleBaselineTenthsC = temperature[\s\S]*\} else \{[\s\S]*idleBaselineTenthsC = null/,
     );
