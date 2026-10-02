@@ -1,0 +1,13 @@
+arm	depth	fa	nkvo	ctk	ctv	test	pp_tok_s	per_chunk_ms	src_log	device_model	soc	bat_pct	bat_temp_c	thermal_before	thermal_after
+A-nkvo	0	auto	1	q8_0	q8_0	pp128	550.49	232.5	A-nkvo-clean.log	SM-S911U	SM8550	67	36.8	0	1
+A-nkvo	512	auto	1	q8_0	q8_0	pp128 @ d512	296.02	432.4	A-nkvo-clean.log	SM-S911U	SM8550	67	36.8	0	1
+A-nkvo	1700	auto	1	q8_0	q8_0	pp128 @ d1700	145.03	882.6	A-nkvo-clean.log	SM-S911U	SM8550	67	36.8	0	1
+A-nkvo	3100	auto	1	q8_0	q8_0	pp128 @ d3100	75.71	1690.7	A-nkvo-clean.log	SM-S911U	SM8550	67	36.8	0	1
+B-offload	0	auto	0	q8_0	q8_0	pp128	697.31	183.6	B-offload-clean.log	SM-S911U	SM8550	66	36.2	0	0
+B-offload	512	auto	0	q8_0	q8_0	pp128 @ d512	685.61	186.7	B-offload-clean.log	SM-S911U	SM8550	66	36.2	0	0
+B-offload	1700	auto	0	q8_0	q8_0	pp128 @ d1700	630.28	203.1	B-offload-clean.log	SM-S911U	SM8550	66	36.2	0	0
+B-offload	3100	auto	0	q8_0	q8_0	pp128 @ d3100	583.41	219.4	B-offload-clean.log	SM-S911U	SM8550	66	36.2	0	0
+C-app-vq4	0	auto	1	q8_0	q4_0	pp128	558.96	229.0	C-app-vq4-clean.log	SM-S911U	SM8550	66	35.3	0	1
+C-app-vq4	512	auto	1	q8_0	q4_0	pp128 @ d512	297.08	430.9	C-app-vq4-clean.log	SM-S911U	SM8550	66	35.3	0	1
+C-app-vq4	1700	auto	1	q8_0	q4_0	pp128 @ d1700	131.98	969.8	C-app-vq4-clean.log	SM-S911U	SM8550	66	35.3	0	1
+C-app-vq4	3100	auto	1	q8_0	q4_0	pp128 @ d3100	63.84	2005.0	C-app-vq4-clean.log	SM-S911U	SM8550	66	35.3	0	1
