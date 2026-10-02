@@ -5,6 +5,9 @@ compatibility_date = "2024-11-01"
 # workers.dev stays disabled and every other host/path stays unrouted.
 workers_dev = false
 
+# Trailing * is required for query strings: route matching sees the query
+# but patterns may not contain "?". The Worker's exact pathname check 404s
+# the extra paths this captures (/reports, /reporting, /report/…).
 routes = [ { pattern = "kalsa.io/report*", zone_name = "kalsa.io" } ]
 
 # The bucket is created once by the owner (README "One-time setup"); wrangler

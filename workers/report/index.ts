@@ -119,8 +119,9 @@ async function storeReport(
 }
 
 async function handle(request: Request, env: Env): Promise<Response> {
+  const received = new Date(); // arrival time, taken before the body is read
   const url = new URL(request.url);
-  if (url.hostname !== ZONE_HOST || url.pathname !== "/report") {
+  if (url.protocol !== "https:" || url.hostname !== ZONE_HOST || url.pathname !== "/report") {
     return error(404, "not_found", "Unknown path.");
   }
   if (request.method !== "POST") {
@@ -149,7 +150,6 @@ async function handle(request: Request, env: Env): Promise<Response> {
   }
   const body = await readBody(request);
   if (!body.ok) return body.response;
-  const received = new Date();
   const day = received.toISOString().slice(0, 10);
   const dayObjects = await env.REPORTS.list({ prefix: `${day}/`, limit: DAILY_CAP });
   if (dayObjects.objects.length >= DAILY_CAP) {

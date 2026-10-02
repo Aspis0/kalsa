@@ -8,10 +8,20 @@ enforced by the desktop app's log writer, not here.
 
 ## Routes (declared in `wrangler.toml`, zone `kalsa.io`)
 
-- `kalsa.io/report*` — `POST` only, exact path (same `*` shape as
-  kalsa-pair's route so query strings like `/report?x=1` still match at the
-  edge; the Worker's own check is `url.pathname === "/report"`, which is the
-  guard).
+- `kalsa.io/report*` — `POST` only, exact path.
+
+On the pattern itself:
+
+- The trailing `*` is what lets query strings through: route matching sees
+  the full URL including the query, patterns may not contain `?`
+  (`kalsa.io/report?*` is not a valid pattern), so a terminal wildcard is
+  the only documented way to match `/report?x=1`. The `*` also captures
+  `/reports`, `/reporting` and `/report/…` at the edge — accepted, because
+  the Worker's own check (`url.pathname === "/report"`) 404s all of them;
+  that check is the guard.
+- A pattern without a scheme matches `http://` as well as `https://`, and
+  the Worker never accepts plaintext: `http://kalsa.io/report` gets the
+  same `404` as an unknown path.
 
 `/report/…`, `/reports`, `/`, a foreign host, or any other path still
 reaching the Worker gets `404`
@@ -30,11 +40,13 @@ the bucket is read only by the owner in the Cloudflare dashboard.
    log files) → `413` before the body is read. Absent is fine — the cap is
    enforced while reading the stream regardless, so a missing or lying
    header cannot get more than 4 MiB stored → `413`.
-4. **Rate limit**: only after all validation passes does the request spend
-   the client's quota: 5 accepted `POST`s per client IP per 60 s via the
-   Workers Rate Limiting binding `REPORT_RATE_LIMITER` → `429`. The IP
-   (`CF-Connecting-IP`) is used only as the limiter key, so invalid requests
-   cannot poison it.
+4. **Rate limit**: 5 requests per client IP per 60 s via the Workers Rate
+   Limiting binding `REPORT_RATE_LIMITER` → `429`. The IP
+   (`CF-Connecting-IP`) is used only as the limiter key, and the checks
+   above run first, so rejected requests cannot poison it. The counter
+   charges every request that passes header validation — not only accepted
+   uploads: an empty body, an oversized stream, or a request turned away
+   by the daily cap still spends one of the five.
 5. **Body read**: empty body → `400`; the 4 MiB cap is enforced mid-read
    regardless of the header → `413`.
 6. **Daily cap**: before storing, `REPORTS.list({ prefix: "<YYYY-MM-DD>/",
@@ -43,11 +55,14 @@ the bucket is read only by the owner in the Cloudflare dashboard.
 
 ## Storage bound and cost
 
-- Daily cap: 300 reports × 4 MiB ≤ ~1.2 GiB written per day.
-- Lifecycle rule (owner runs once, see below) deletes objects after 30 days,
-  so the bucket holds at most ~30 days × 1.2 GB ≈ **36 GB** at worst.
+- Daily cap: 300 reports × 4 MiB ≈ **1.26 GB/day** at most. The cap is
+  soft: concurrent uploads checked before each `put` can push a day
+  slightly past 300 objects.
+- The lifecycle rule (owner runs once, see below) deletes objects after 30
+  days; deletion can lag up to ~24 h, so the bound is approximate:
+  ~30 days × 1.26 GB ≈ **38 GB** at worst.
 - R2 storage is $0.015/GB-month with the first 10 GB free → worst-case
-  monthly storage cost ≈ (36 − 10) GB × $0.015 ≈ **$0.39/month**
+  monthly storage cost ≈ (38 − 10) GB × $0.015 ≈ **$0.42/month**
   (typically far less: only what testers actually send).
 
 ## What is stored
@@ -61,7 +76,7 @@ One R2 object per accepted upload:
 - **Value**: the log bytes exactly as sent.
 - **`httpMetadata.contentType`**: `text/plain`.
 - **`customMetadata`**: `{ app = <X-Kalsa-App value>,
-  received = <ISO-8601 receipt time> }`.
+  received = <ISO-8601 arrival time, taken before the body is read> }`.
 - **Conditional write**: every `put` carries
   `onlyIf: { etagDoesNotMatch: "*" }`, so a key that already exists makes
   `put` return `null` and store nothing; the Worker then retries with a
