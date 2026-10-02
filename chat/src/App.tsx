@@ -42,6 +42,8 @@ import { EmptyState, setupArm } from "./components/EmptyState";
 import { executeToolCall, offeredTools } from "./lib/tools/registry";
 import type { GateCheck } from "./lib/tools/registry";
 import { WebGateDialog } from "./components/WebGateDialog";
+import { CrashDialog } from "./components/CrashDialog";
+import { useCrashAsk } from "./surfaces/useCrashAsk";
 import "./App.css";
 
 const store = createStore();
@@ -240,6 +242,10 @@ export function App() {
   // gated on that address, so "no door" must never be confused with "the
   // credential has not answered yet".
   const { state, credential, credentialMessage } = useBrain();
+  // The crash prompt: the previous session's unclean exit, and the engine
+  // dying under a running app — the card is rendered at the stage's level
+  // so it survives navigation like the web-call ask does.
+  const crashAsk = useCrashAsk(state?.kind ?? null);
   const setup = setupArm(
     state?.kind ?? null,
     credential,
@@ -1108,6 +1114,7 @@ export function App() {
         {gateShown ? (
           <WebGateDialog id={gateShown.id} check={gateShown.check} waiting={gateWaiting} onAnswer={answerGate} />
         ) : null}
+        {crashAsk.ask ? <CrashDialog onClose={crashAsk.dismiss} /> : null}
         <ErrorBoundary>
           {surface === "brain" ? (
             <BrainSurface

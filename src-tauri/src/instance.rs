@@ -365,10 +365,77 @@ impl Drop for Guard {
     }
 }
 
+/// The unclean-exit marker: a `running` file in the data directory,
+/// written once the instance lock is ours (a refused second launch never
+/// reaches it and never touches it), removed only on the clean exit path.
+/// Its presence at the next start is the one fact nobody surviving a
+/// crash can report any other way.
+pub(crate) mod session_marker {
+    use std::path::Path;
+
+    const NAME: &str = "running";
+
+    fn path(dir: &Path) -> std::path::PathBuf {
+        dir.join(NAME)
+    }
+
+    /// Begins a session: whether the PREVIOUS one exited cleanly (the
+    /// marker was still there), and the marker written again for this one.
+    /// The write is best effort — a data directory that cannot be written
+    /// is the instance lock's failure to report, not this one.
+    pub(crate) fn begin(dir: &Path) -> bool {
+        let unclean = path(dir).exists();
+        let _ = std::fs::write(path(dir), b"");
+        unclean
+    }
+
+    /// Ends a session cleanly: the marker goes, so the next start asks
+    /// nothing. Every other exit — a crash, a force-quit, the OS taking
+    /// the process — leaves it standing, which is the point.
+    pub(crate) fn end_cleanly(dir: &Path) {
+        let _ = std::fs::remove_file(path(dir));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    /// The marker's whole life, on a scratch directory: a first session
+    /// finds nothing, a clean exit leaves nothing behind, an unclean one
+    /// is detected by the next session — which then watches its own run.
+    #[test]
+    fn the_running_marker_detects_an_unclean_exit_and_nothing_else() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-session-marker-{}",
+            std::process::id() as u64 + std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos() as u64
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+
+        assert!(
+            !session_marker::begin(&dir),
+            "a first session has no previous one to doubt"
+        );
+        session_marker::end_cleanly(&dir);
+        assert!(
+            !session_marker::begin(&dir),
+            "a clean exit leaves no marker behind"
+        );
+        // The crash: no end_cleanly ran. The next session sees it.
+        assert!(
+            session_marker::begin(&dir),
+            "the unclean exit is detected by the next session"
+        );
+        assert!(dir.join("running").exists(), "the new session re-arms it");
+        session_marker::end_cleanly(&dir);
+        assert!(!dir.join("running").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// A fixed test port, beside the production one. The guard tests share
     /// it and must not race each other for it.

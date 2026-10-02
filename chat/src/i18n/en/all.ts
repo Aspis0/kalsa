@@ -10,6 +10,7 @@ import { SIDEBAR } from "./sidebar";
 import { FILES } from "./files";
 import { FIRST_PAGE } from "./firstPage";
 import { CRASH } from "./crash";
+import { REPORT } from "./report";
 import { SETUP } from "./setup";
 import { MACHINE } from "./machine";
 import { SERVER } from "./server";
@@ -36,6 +37,7 @@ export interface English {
   files: typeof FILES;
   firstPage: typeof FIRST_PAGE;
   crash: typeof CRASH;
+  report: typeof REPORT;
   setup: typeof SETUP;
   machine: typeof MACHINE;
   server: typeof SERVER;
@@ -69,6 +71,7 @@ export const ENGLISH: English = {
   files: FILES,
   firstPage: FIRST_PAGE,
   crash: CRASH,
+  report: REPORT,
   setup: SETUP,
   machine: MACHINE,
   server: SERVER,

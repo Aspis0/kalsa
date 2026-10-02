@@ -49,10 +49,6 @@ export const ADVANCED = {
   chatsAndPairs: "Il telefono chatta al nome tailnet di questo computer e si abbina a quel nome con :8443.",
   deskMoved: (port: number) => ` Il banco di abbinamento è sulla porta ${port} questa volta — punta il comando del banco su questo numero.`,
   doorWaiting: "La porta locale aspetta che il server sia acceso.",
-  openLogFolder: "Apri la cartella dei log",
-  openFailed: "Kalsa non riesce ad aprire la cartella dei log.",
-  logFolderHelp:
-    "Se qualcosa va storto, inviaci kalsa-brain.log e kalsa-brain.1.log da questa cartella.",
   saveButton: "Salva le impostazioni",
   saveOk: "Salvato per il prossimo avvio.",
   enterNumber: "Scrivi un numero.",

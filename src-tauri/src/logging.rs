@@ -39,7 +39,7 @@ const PANIC_CHAR_CAP: usize = 500;
 /// What a clipped line ends with, so a reader knows the line was cut.
 const TRUNCATED: &str = " …[truncated]";
 
-fn clip(text: &str, cap: usize) -> String {
+pub(crate) fn clip(text: &str, cap: usize) -> String {
     if text.chars().count() <= cap {
         return text.to_string();
     }

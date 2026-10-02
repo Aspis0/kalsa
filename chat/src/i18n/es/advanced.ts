@@ -51,10 +51,6 @@ export const ADVANCED = {
   chatsAndPairs: "El teléfono chatea en el nombre tailnet de este equipo y se empareja en ese nombre con :8443.",
   deskMoved: (port: number) => ` El puesto de emparejamiento está en el ${port} esta vez — apunta el comando del puesto a este número.`,
   doorWaiting: "La puerta local espera a que el servidor esté encendido.",
-  openLogFolder: "Abrir la carpeta de registros",
-  openFailed: "Kalsa no pudo abrir la carpeta de registros.",
-  logFolderHelp:
-    "Si algo va mal, envíanos kalsa-brain.log y kalsa-brain.1.log de esta carpeta.",
   saveButton: "Guardar los ajustes",
   saveOk: "Guardado para el próximo arranque.",
   enterNumber: "Escribe un número.",

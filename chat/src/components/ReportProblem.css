@@ -1,0 +1,65 @@
+/* The report section and the send block it shares with the crash prompt
+   and the webview error screen. The privacy sentence is the owner's one
+   big line: larger than body text and bold, wherever a Send button is. */
+
+.report-problem {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.report-eyebrow {
+  margin: 0 0 0.6rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.report-privacy {
+  margin: 0 0 0.5rem;
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.report-facts {
+  margin: 0.4rem 0 0.6rem;
+  color: var(--silence);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.report-sent {
+  margin: 0.3rem 0 0;
+  font-size: 0.92rem;
+  user-select: text;
+}
+
+.report-error {
+  margin: 0.3rem 0 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+/* The crash prompt: a card in the flow, like the web-call banner, so the
+   app behind it stays readable while the owner decides. */
+
+.crash-card {
+  margin: 0 auto 0.5rem;
+  width: 100%;
+  max-width: calc(var(--measure) + 4rem);
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+}
+
+.crash-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.crash-card .report-privacy {
+  font-size: 1.02rem;
+}

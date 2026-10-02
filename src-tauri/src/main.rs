@@ -28,6 +28,7 @@ mod room;
 mod room_commands;
 mod room_events;
 mod placement;
+mod report;
 mod road;
 mod startup;
 mod system;
@@ -120,6 +121,10 @@ struct Brain {
     /// bump+send, the walk side over claim+snapshot and check+send — so on
     /// the channel's FIFO no Turn off can land between a check and its send.
     gate: Mutex<()>,
+    /// Whether the PREVIOUS session exited uncleanly (its `running` marker
+    /// was still in the data directory at this session's start). Read once
+    /// by the crash prompt's command, which clears it in the same breath.
+    prev_crash: AtomicBool,
 }
 
 struct ActiveDoor {
@@ -324,6 +329,7 @@ impl Brain {
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
+            prev_crash: AtomicBool::new(false),
             room: OnceLock::new(),
             room_events: Mutex::new(None),
         }
@@ -2075,7 +2081,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             files::brain_files_list,
             files::brain_files_read,
             files::brain_files_search,
-            brain_open_log_folder
+            brain_open_log_folder,
+            brain_send_log,
+            brain_previous_session_crashed,
+            brain_log_webview_error
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);
@@ -2175,6 +2184,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // programming error, and it fails loudly.
             if !app.manage(lock) {
                 return Err(io::Error::other("the instance lock was already managed").into());
+            }
+            // Under the lock, and only here: the unclean-exit marker is
+            // this session's own, so a launch refused as a second one (it
+            // returned above, before the lock existed) never touches it.
+            // The answer it gives is for the crash prompt to read once the
+            // window is up; this is also the one place it is logged.
+            if instance::session_marker::begin(parent) {
+                log::warn!("the previous session did not exit cleanly");
+                app.state::<Brain>()
+                    .prev_crash
+                    .store(true, Ordering::SeqCst);
             }
             // Under the lock, off this thread: an install from before the
             // stored choice keeps its model, and the window opens meanwhile.
@@ -2293,9 +2313,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             // `Exit` is the loop's last event, so this reads once per run;
             // a `PreventExit`-ed `ExitRequested` is not an exit and stays
-            // unlogged.
+            // unlogged. The marker's removal is what makes THIS exit the
+            // clean one the next start will not ask about.
             if matches!(event, RunEvent::Exit) {
                 log::info!("app exit");
+                if let Ok(dir) = app.path().app_data_dir() {
+                    instance::session_marker::end_cleanly(&dir);
+                }
             }
         }
     });
@@ -2341,6 +2365,65 @@ fn brain_open_log_folder() -> Result<(), String> {
             });
         })
         .map_err(|_| "Kalsa couldn't open the log folder.".to_string())
+}
+
+/// The tester's press: the log files, joined and trimmed to the newest
+/// 4 MiB, POSTed to the one report endpoint. Never called by anything but
+/// a button. The answer is the report's id; the refusal is one of the
+/// four stable codes the page words (`rate_limited`, `try_tomorrow`,
+/// `offline`, `failed`) — never the network's own text.
+#[tauri::command]
+async fn brain_send_log() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let Some(dir) = logging::folder() else {
+            return Err("failed".to_string());
+        };
+        let body = report::read_body(dir);
+        if body.trim().is_empty() {
+            log::warn!("the report was asked for and the log folder holds nothing");
+            return Err("failed".to_string());
+        }
+        log::info!("sending the log report ({} bytes)", body.len());
+        let header = report::app_header(
+            env!("CARGO_PKG_VERSION"),
+            std::env::consts::OS,
+            std::env::consts::ARCH,
+        );
+        match report::send(&body, &header) {
+            Ok(id) => {
+                log::info!("report accepted: {id}");
+                Ok(id)
+            }
+            Err(failure) => {
+                log::warn!("report refused: {}", failure.code());
+                Err(failure.code().to_string())
+            }
+        }
+    })
+    .await
+    .map_err(|_| "failed".to_string())?
+}
+
+/// Whether the previous session exited uncleanly — its `running` marker
+/// was still there when this one started. Reading it clears it: the prompt
+/// is asked once per session, however many times the page mounts.
+#[tauri::command]
+fn brain_previous_session_crashed(brain: State<Brain>) -> bool {
+    brain
+        .prev_crash
+        .swap(false, Ordering::SeqCst)
+}
+
+/// The webview's own error, from the boundary that caught it: the error's
+/// name and message, clipped, into the log — never component props or
+/// state, which can hold a whole conversation.
+#[tauri::command]
+fn brain_log_webview_error(name: String, message: String) {
+    log::error!(
+        "webview error: {}: {}",
+        logging::clip(&name, 100),
+        logging::clip(&message, 300)
+    );
 }
 
 /// One card per row: the pick list is keyed by the model token — repo,

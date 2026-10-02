@@ -58,10 +58,6 @@ export const ADVANCED = {
   chatsAndPairs: "The phone chats at this computer's tailnet name and pairs at that name with :8443.",
   deskMoved: (port: number) => ` The pairing desk is on ${port} this time — point the desk command at this number.`,
   doorWaiting: "The local door is waiting for the server to run.",
-  openLogFolder: "Open the log folder",
-  openFailed: "Kalsa couldn't open the log folder.",
-  logFolderHelp:
-    "If something goes wrong, send us kalsa-brain.log and kalsa-brain.1.log from this folder.",
   saveButton: "Save settings",
   saveOk: "Saved for the next start.",
   enterNumber: "Enter a number.",
