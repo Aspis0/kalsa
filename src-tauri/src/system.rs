@@ -355,10 +355,11 @@ fn os_description_uncached() -> String {
         match (major, build) {
             (Some(major), Some(build)) => windows_version_line(
                 major,
+                reg_dword("CurrentMinorVersionNumber").unwrap_or(0),
                 build,
                 reg_sz("DisplayVersion").as_deref(),
                 reg_dword("UBR"),
-                reg_sz("InstallationType").is_some_and(|kind| kind.eq_ignore_ascii_case("server")),
+                reg_sz("InstallationType").as_deref(),
             ),
             _ => std::env::consts::OS.to_string(),
         }
@@ -372,25 +373,29 @@ fn os_description_uncached() -> String {
 /// The line a Windows version prints: `windows 11 25H2 (build 26200.4652)`.
 /// Build 22000 is where Windows 11 starts, and the major number never says
 /// so — it stays 10 — so a client's name follows the build; below 22000 the
-/// line keeps `major.0`, the minor having been 0 since Windows 8.1 with no
-/// value left to read. A Server SKU (`InstallationType` "Server") puts
-/// `server` in that place instead, with no consumer marketing version: the
-/// build is what a server carries. The marketing version and the revision
-/// print only when the machine reports them.
+/// line prints `major.minor` as CurrentMinorVersionNumber holds it — 0 on
+/// 10/11, 2 or 3 on 8/8.1, absent only on 7 where 0 stands in — so an 8.1
+/// box still prints 6.3. A Server SKU (`InstallationType` "Server" or
+/// "Server Core", in any case) puts `server` in that place instead, with no
+/// consumer marketing version: the build is what a server carries. The
+/// marketing version and the revision print only when the machine reports
+/// them.
 #[cfg(any(target_os = "windows", test))]
 fn windows_version_line(
     major: u32,
+    minor: u32,
     build: u32,
     display: Option<&str>,
     revision: Option<u32>,
-    server: bool,
+    installation: Option<&str>,
 ) -> String {
+    let server = is_server_sku(installation);
     let name = if server {
         "server".to_string()
     } else if build >= 22000 {
         "11".to_string()
     } else {
-        format!("{major}.0")
+        format!("{major}.{minor}")
     };
     let display = if server {
         String::new()
@@ -402,6 +407,14 @@ fn windows_version_line(
     };
     let revision = revision.map_or_else(String::new, |value| format!(".{value}"));
     format!("windows {name}{display} (build {build}{revision})")
+}
+
+/// The registry's `InstallationType` as the line cares about it: "Server"
+/// and "Server Core" are servers in whatever case they were written;
+/// "Client" and an absent value are the desktop line.
+#[cfg(any(target_os = "windows", test))]
+fn is_server_sku(installation: Option<&str>) -> bool {
+    installation.is_some_and(|kind| kind.to_ascii_lowercase().starts_with("server"))
 }
 
 /// The key every value read here lives under. `RegGetValueW` takes the
@@ -573,35 +586,49 @@ mod tests {
     #[test]
     fn a_windows_version_is_named_by_its_build() {
         assert_eq!(
-            windows_version_line(10, 26200, Some("25H2"), Some(4652), false),
+            windows_version_line(10, 0, 26200, Some("25H2"), Some(4652), None),
             "windows 11 25H2 (build 26200.4652)"
         );
         assert_eq!(
-            windows_version_line(10, 22000, None, None, false),
+            windows_version_line(10, 0, 22000, None, None, None),
             "windows 11 (build 22000)"
         );
         assert_eq!(
-            windows_version_line(10, 19045, Some("22H2"), Some(4046), false),
+            windows_version_line(10, 0, 19045, Some("22H2"), Some(4046), None),
             "windows 10.0 22H2 (build 19045.4046)"
         );
         // A blank marketing version leaves no doubled space in the line.
         assert_eq!(
-            windows_version_line(10, 26200, Some(" "), None, false),
+            windows_version_line(10, 0, 26200, Some(" "), None, None),
             "windows 11 (build 26200)"
+        );
+        // The minor is read, not assumed: an 8.1 machine prints 6.3.
+        assert_eq!(
+            windows_version_line(6, 3, 9600, None, None, Some("Client")),
+            "windows 6.3 (build 9600)"
         );
     }
 
-    /// A Server SKU names itself, not a consumer version: no 11, no 10,
-    /// no marketing version — the build is what a server carries.
+    /// The classifier comes off the registry's own strings: "Server" and
+    /// "Server Core", in any case, are servers — "Client" and an absent
+    /// value are the desktop line — and a server prints its build, never
+    /// a consumer version.
     #[test]
     fn a_server_sku_names_the_build_instead_of_a_consumer_version() {
+        for server in ["Server", "Server Core", "server core", "SERVER"] {
+            assert_eq!(
+                windows_version_line(10, 0, 26100, Some("24H2"), Some(2000), Some(server)),
+                "windows server (build 26100.2000)",
+                "{server}"
+            );
+        }
         assert_eq!(
-            windows_version_line(10, 26100, Some("24H2"), Some(2000), true),
-            "windows server (build 26100.2000)"
+            windows_version_line(10, 0, 26100, Some("24H2"), None, Some("Client")),
+            "windows 11 24H2 (build 26100)"
         );
         assert_eq!(
-            windows_version_line(10, 26100, None, None, true),
-            "windows server (build 26100)"
+            windows_version_line(10, 0, 26100, None, None, None),
+            "windows 11 (build 26100)"
         );
     }
 
