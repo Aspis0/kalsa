@@ -12,7 +12,6 @@ export const CHROME = {
       "models": "AI",
       "server": "电源",
       "devices": "设备",
-      "advanced": "高级",
       "settings": "设置",
     } as Record<string, string>,
     "showConversations": "显示对话"

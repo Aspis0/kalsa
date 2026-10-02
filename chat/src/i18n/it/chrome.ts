@@ -12,7 +12,6 @@ export const CHROME = {
       "models": "AI",
       "server": "Accensione",
       "devices": "Dispositivi",
-      "advanced": "Avanzate",
       "settings": "Impostazioni",
     } as Record<string, string>,
     "showConversations": "Mostra le conversazioni"

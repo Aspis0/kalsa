@@ -9,7 +9,7 @@ export type SetupArm =
   | "service"
   | "starting"
   | "key"
-  | "advanced"
+  | "models"
   | null;
 
 /** The machine's own state as the first page's arm. Every arm reuses words
@@ -72,9 +72,9 @@ export function setupArm(
       // The door's address is known and the read is still in flight:
       // getting ready — the transient arm.
       if (credential === "pending") return "starting";
-      // The model name is typed where the field lives now: the Advanced
-      // panel, beside the other development knobs.
-      return model.trim() ? null : "advanced";
+      // The model name is typed where the field lives now: the AI page's
+      // Advanced panel, beside the other development knobs.
+      return model.trim() ? null : "models";
     default:
       // No answer yet reads as off only for as long as the poll's first
       // answer takes — its own second — and off/stopped/failed/stopping
@@ -90,7 +90,7 @@ interface EmptyStateProps {
       else arrives as null, and the key arm then speaks the not-made-yet
       sentence instead. */
   credentialMessage: string | null;
-  onOpenAdvanced: () => void;
+  onOpenModels: () => void;
   onOpenServer: () => void;
   onOpenDevices: () => void;
 }
@@ -99,7 +99,7 @@ interface EmptyStateProps {
 export function EmptyState({
   setup,
   credentialMessage,
-  onOpenAdvanced,
+  onOpenModels,
   onOpenServer,
   onOpenDevices,
 }: EmptyStateProps) {
@@ -140,10 +140,10 @@ export function EmptyState({
             {table.firstPage.devices}
           </button>
         </>
-      ) : setup === "advanced" ? (
+      ) : setup === "models" ? (
         <>
           <p className="empty-copy">{table.advanced.noModelYet}</p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenAdvanced}>
+          <button type="button" className="btn-primary btn-large" onClick={onOpenModels}>
             {table.advanced.addModelName}
           </button>
         </>

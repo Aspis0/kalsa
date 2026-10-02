@@ -108,7 +108,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           <EmptyState
             setup={setup}
             credentialMessage={credentialMessage}
-            onOpenAdvanced={() => openSurface("advanced")}
+            onOpenModels={() => openSurface("models")}
             onOpenServer={() => openSurface("server")}
             onOpenDevices={() => openSurface("devices")}
           />

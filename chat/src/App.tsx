@@ -25,7 +25,6 @@ import { useBrain } from "./surfaces/useBrain";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
-import { AdvancedSurface } from "./surfaces/AdvancedSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
 import { CrashDialog } from "./components/CrashDialog";
 import { useCrashAsk } from "./surfaces/useCrashAsk";
@@ -345,15 +344,6 @@ export function App() {
             <ServerSurface />
           ) : surface === "devices" ? (
             <DevicesSurface onNavigate={openSurface} />
-          ) : surface === "advanced" ? (
-            <AdvancedSurface
-              model={settings.model}
-              onModelChange={(name) => {
-                // Memory only — the panel's blur already wrote the record,
-                // and a second writer here would race it with a staler base.
-                setSettings({ ...settings, model: name });
-              }}
-            />
           ) : null}
         </ErrorBoundary>
       </main>

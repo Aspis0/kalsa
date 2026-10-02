@@ -5,7 +5,6 @@ export type SurfaceKey =
   | "models"
   | "server"
   | "devices"
-  | "advanced"
   | "settings";
 
 export interface SurfaceDefinition {
@@ -33,6 +32,5 @@ export const SURFACES: SurfaceDefinition[] = [
   { key: "models", group: "machine" },
   { key: "server", group: "machine" },
   { key: "devices", group: "machine" },
-  { key: "advanced", group: "machine" },
   { key: "settings", group: "app" },
 ];

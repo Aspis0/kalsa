@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import type { SurfaceKey } from "../app/surfaces";
 import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
+import { SamplingPanel } from "../components/SamplingPanel";
+import { ReportProblem } from "../components/ReportProblem";
 import { available, invoke } from "../lib/tauri";
 import { lastKnown } from "../lib/slotGate";
 // ONE declaration of `brain_state`'s answer, shared with the poll every other
@@ -114,6 +116,8 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
         model={model}
         onModelChange={onModelChange}
       />
+      <SamplingPanel />
+      <ReportProblem />
     </div>
   );
 }

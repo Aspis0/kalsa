@@ -12,7 +12,6 @@ export const CHROME = {
     "models": "AI",
     "server": "Power",
     "devices": "Devices",
-    "advanced": "Advanced",
     "settings": "Settings",
   } as Record<string, string>,
   showConversations: "Show conversations",
