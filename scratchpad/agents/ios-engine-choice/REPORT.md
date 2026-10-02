@@ -215,3 +215,12 @@ Run by the coordinator after this report, with an Xcode index job possibly runni
 
 So the loss comes from the MIXED K/V types (q8_0 K with q4_0 V) on Metal, not from quantized KV as such: q8_0/q8_0
 decodes as fast as f16 at half the KV memory. iOS fix candidate: q8_0/q8_0 on Apple GPUs.
+
+Coordinator cells at the app's real context (`-d 15744`, `-r 2`, same flags, no other heavy job running):
+
+| KV K/V | tg128 @ d15744 |
+|---|---|
+| q8_0 / q8_0 | 94.92 +- 6.22 |
+| q8_0 / q4_0 | 12.55 +- 0.24 |
+
+All cells are on the M1 Max Mac (Metal), not on an iPhone: the iPhone gap is expected but unmeasured.
