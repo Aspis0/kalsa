@@ -900,6 +900,7 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   | S23 (v73) `REPORT-s23-v73.md` | 296 / 145 / 76 | 686 / 630 / 583 | 297 / 132 / 64 | 7.7x |
   | Xiaomi 14 (v75) `REPORT-xiaomi-v75.md` | 362 / 179 / 100 | 754 / 710 / 659 | 345 / 167 / 103 | 6.6x |
   | QDC 8 Elite (v79) `REPORT-qdc-8elite.md` | 543 / 245 / 138 | 1263 / 1116 / 1053 | 504 / 208 / 116 | 7.6x |
+  | QDC 8 Elite Gen 5 (SM8850) `REPORT-qdc-8elite-gen5.md`, session 860923 | 642 / 261 / 149 | 1476 / 1375 / 1309 | 625 / 247 / 132 | 8.8x |
   B ran clean on all three DSPs (no abort/hang); FLASH_ATTN on CPU in A, on HTP0 in B on all three.
   **S23 in-app per-turn HTP proof PASS** (`s23-layers-device-proof/REPORT.md`, GLM cd50da8b, APK run 36951238850 =
   app 101c2bdd): 46/46 lane-on chunks `layers_device:"HTP0"`, 21/21 lane-off GPU chunks `GPUOpenCL`; a lane-on
