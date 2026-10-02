@@ -28,7 +28,7 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
   const t = table.settings;
 
   function save(): void {
-    // The model name is typed on the Advanced page now; Save carries the
+    // The model name is typed on the AI page now; Save carries the
     // stored one unchanged, and the web-switch rides along as the value App
     // already holds — omitting it would store a record without it, and a
     // record without it reads back as `true`.

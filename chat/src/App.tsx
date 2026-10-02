@@ -16,7 +16,7 @@ import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { RoomSurface } from "./surfaces/RoomSurface";
 import { ChatSurface } from "./surfaces/ChatSurface";
-import { useChat, useSlot } from "./surfaces/useChat";
+import { useChat } from "./surfaces/useChat";
 import { useLanguage } from "./i18n/useLanguage";
 import type { Table } from "./i18n";
 import { SettingsForm } from "./components/SettingsForm";
@@ -61,7 +61,6 @@ export function App() {
   // and the slot banner the stage shows wherever its sentence arrived.
   const [liveMessage, setLiveMessage] = useState("");
   const [slotNotice, setSlotNotice] = useState<SlotNotice | null>(null);
-  const slot = useSlot();
   // The app's own settings — the surfaces that write them are rendered here,
   // and the chat reads them through the hook.
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
@@ -130,7 +129,7 @@ export function App() {
   // refused, which has no caller to return its answer to. Shown through the same
   // banner as the opens this shell asked for. An app-owned code speaks the
   // table; anything else is the door's own sentence, shown as it arrived.
-  const rawNotice: SlotNotice | null = slotNotice ?? slot.notice;
+  const rawNotice: SlotNotice | null = slotNotice ?? chat.slot.notice;
   const notice = rawNotice
     ? {
         failed: rawNotice.failed,

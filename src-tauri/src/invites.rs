@@ -36,9 +36,9 @@ use crate::{Brain, Desk};
 const INVITES_FILE: &str = "invites.json";
 
 /// What the page is told when there is no node id to put in a link. Both
-/// ways the road is not open — the switch in Advanced, or a road that could
-/// not open — land here, and the sentence claims neither: the page already
-/// shows the road's own words beside the switch.
+/// ways the road is not open — the switch on the AI page's advanced panel,
+/// or a road that could not open — land here, and the sentence claims
+/// neither: the page already shows the road's own words beside the switch.
 const NO_ROAD: &str = "An invitation is a link to this computer, and it can only lead over \
                        this computer's internet road, which is not open.";
 
@@ -219,12 +219,13 @@ impl CommandError {
 }
 
 /// The owner-approved sentence per refusal, and the code beside it. The
-/// no-road sentence points at the Advanced switch, which is the actual fix.
+/// no-road sentence points at the internet-road switch, which is the actual
+/// fix and lives on the AI page's advanced panel.
 fn message(error: InviteError) -> CommandError {
     match error {
         InviteError::NoNode => CommandError::new(
             "invite.no_road",
-            "Invites need the internet connection. Turn it on in Advanced.",
+            "Invites need the internet connection. Turn it on on the AI page.",
         ),
         InviteError::Full => CommandError::new(
             "invite.full",

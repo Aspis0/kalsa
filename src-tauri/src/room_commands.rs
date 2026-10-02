@@ -273,3 +273,48 @@ pub fn brain_room_set_name(
 pub fn brain_room_stop(brain: tauri::State<'_, crate::Brain>) -> Result<bool, RoomCommandError> {
     Ok(room::stop_turn(brain.inner()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-room-commands-{name}-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    /// The DTOs are the page's only view of the room: an UNNAMED host must
+    /// cross nameless ("" — the page localizes the default), and every other
+    /// member crosses with its name. The AI's name is the assistant's own.
+    #[test]
+    fn the_dtos_carry_the_unnamed_host_as_empty_for_the_page_to_localize() {
+        let dir = scratch("dto-wire-name");
+        let room = Room::open(&dir).unwrap();
+        let labels = Labels {
+            by_device: HashMap::new(),
+            host: "This computer".to_string(),
+        };
+
+        let host = member_dto(&room, &labels, MemberId::Host, "host");
+        assert_eq!(host.name, "", "the default name is the page's to localize");
+
+        let said = room
+            .post(MemberId::Host, "host-1", "ciao", false)
+            .expect("the host's message lands");
+        let said = entry_dto(&room, &labels, &said);
+        assert_eq!(said.name, "", "entries follow the same rule");
+
+        let ai = member_dto(&room, &labels, MemberId::Ai, "ai");
+        assert_eq!(ai.name, "Kalsa", "the assistant crosses by its name");
+    }
+}

@@ -16,7 +16,7 @@ export const RUST: {
     needs_check: () => "Kalsa doit examiner cet ordinateur avant de pouvoir démarrer. Réessaie.",
     choice_too_large: () => "Cette IA est trop grande pour cet ordinateur. Choisis-en une plus petite sur la page IA.",
     choice_unavailable: () => "Kalsa n'a pas pu démarrer avec cette IA. Choisis-en une autre sur la page IA.",
-    conversation_too_long: () => "Cette longueur de conversation est trop pour cette IA. Choisis-en une plus petite dans Avancé.",
+    conversation_too_long: () => "Cette longueur de conversation est trop pour cette IA. Choisis-en une plus petite dans la page IA.",
     check_failed: () => "Kalsa n'a pas pu examiner cet ordinateur. Attends un moment et réessaie.",
     could_not_start: () => "Kalsa n'a pas pu démarrer. Réessaie.",
     awaiting_choice: () => "Kalsa n'est pas encore prête. Va à Accueil et appuie sur Démarrer.",
@@ -40,7 +40,7 @@ export const RUST: {
     unexpected: () => "Kalsa n'a pas pu le faire. Réessaie.",
   },
   invite: {
-    "invite.no_road": () => "Les invitations ont besoin de la connexion internet. Allume-la dans Avancé.",
+    "invite.no_road": () => "Les invitations ont besoin de la connexion internet. Allume-la dans la page IA.",
     "invite.full": () => "Tu as déjà le maximum d'invitations à la fois. Annule-en une pour en faire une nouvelle.",
     "invite.could_not_make": () => "Kalsa n'a pas pu faire l'invitation. Réessaie.",
     "invite.could_not_save": () => "Kalsa n'a pas pu enregistrer l'invitation. Réessaie.",

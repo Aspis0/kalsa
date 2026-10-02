@@ -5,7 +5,7 @@ export const SIDEBAR = {
     "searchAria": "Chercher dans les conversations",
     "searchPlaceholder": "Chercher",
     "focusSearch": "Aller à la recherche",
-    "newChat": "+ Nouvelle discussion",
+    "newChat": "+ Nouvelle conversation",
     "titleAria": "Titre de la conversation",
     "rename": "Renommer",
     "sure": "Supprimer cette discussion ?",

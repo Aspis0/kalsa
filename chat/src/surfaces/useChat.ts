@@ -34,7 +34,7 @@ const gate = createSlotGate();
 
 /** The gate's snapshot, wherever a renderer needs it: the shell reads the
     slot's notice, the chat reads whose turn it is and whether sends freeze. */
-export function useSlot() {
+function useSlot() {
   return useSyncExternalStore(gate.subscribe, gate.getSnapshot);
 }
 
@@ -49,7 +49,7 @@ interface Refusal {
 /** What the chat needs from the room around it: the shell's navigation (a
     send lands the owner on the chat), the shell's status line, the shell's
     slot banner, and the settings the app's own surfaces write. */
-export interface ChatShell {
+interface ChatShell {
   openSurface: (next: SurfaceKey) => void;
   announce: (message: string) => void;
   setSlotNotice: (notice: SlotNotice | null) => void;
@@ -585,6 +585,11 @@ export function useChat(shell: ChatShell) {
   }
 
   return {
+    // The slot's snapshot, the ONE subscription: the shell reads the
+    // banner's notice from it, the page reads the send freeze.
+    slot,
+    pending: slot.pending,
+    creating: slot.creating,
     // The shell reads these without rendering the chat: the topbar's title,
     // the stream class, the stage-level web-call dialog, the files toggle.
     active,
@@ -611,7 +616,6 @@ export function useChat(shell: ChatShell) {
     activeId,
     streamingIds: Object.keys(streamingByConv),
     streaming,
-    empty: !active || active.messages.length === 0,
     effectiveFailed: effectiveFailed,
     tails,
     drawerOpen,
@@ -642,6 +646,14 @@ export function useChat(shell: ChatShell) {
     selectConversation,
     newConversation,
     removeConversation,
+    renameConversation: (id: string, title: string) => store.rename(id, title),
+    removeAttachment: (attachmentId: string) => {
+      if (activeId) store.removeAttachment(activeId, attachmentId);
+    },
+    reattachAttachment: (conversationId: string, attachmentId: string) => {
+      const found = store.getAttachments(conversationId).find((a) => a.id === attachmentId);
+      if (found) store.putAttachment(conversationId, { ...found, active: true });
+    },
     attachments,
     ctxInfo,
     convoTokens,

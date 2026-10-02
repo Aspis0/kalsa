@@ -16,7 +16,7 @@ export const RUST: {
     needs_check: () => "Kalsa necesita revisar este equipo antes de poder arrancar. Prueba de nuevo.",
     choice_too_large: () => "Esta IA es demasiado grande para este equipo. Elige una más pequeña en la página IA.",
     choice_unavailable: () => "Kalsa no pudo arrancar con esta IA. Elige otra en la página IA.",
-    conversation_too_long: () => "Esta longitud de conversación es demasiado para esta IA. Elige una más pequeña en Avanzado.",
+    conversation_too_long: () => "Esta longitud de conversación es demasiado para esta IA. Elige una más pequeña en la página IA.",
     check_failed: () => "Kalsa no pudo revisar este equipo. Espera un momento y prueba de nuevo.",
     could_not_start: () => "Kalsa no pudo arrancar. Prueba de nuevo.",
     awaiting_choice: () => "Kalsa aún no está lista. Ve a Inicio y pulsa Iniciar.",
@@ -40,7 +40,7 @@ export const RUST: {
     unexpected: () => "Kalsa no pudo hacerlo. Prueba de nuevo.",
   },
   invite: {
-    "invite.no_road": () => "Las invitaciones necesitan la conexión a internet. Actívala en Avanzado.",
+    "invite.no_road": () => "Las invitaciones necesitan la conexión a internet. Actívala en la página IA.",
     "invite.full": () => "Ya tienes el máximo de invitaciones a la vez. Cancela una para hacer una nueva.",
     "invite.could_not_make": () => "Kalsa no pudo hacer la invitación. Prueba de nuevo.",
     "invite.could_not_save": () => "Kalsa no pudo guardar la invitación. Prueba de nuevo.",

@@ -18,7 +18,7 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     choice_too_large: () => "This AI is too big for this computer. Pick a smaller one on the AI page.",
     choice_unavailable: () => "Kalsa couldn't start with this AI. Pick another one on the AI page.",
     conversation_too_long: () =>
-      "This conversation length is too long for this AI. Choose a smaller one in Advanced.",
+      "This conversation length is too long for this AI. Choose a smaller one on the AI page.",
     check_failed: () => "Kalsa couldn't check this computer. Wait a moment and try again.",
     could_not_start: () => "Kalsa couldn't start. Try again.",
     awaiting_choice: () => "Kalsa isn't set up yet. Go to Home and press Start.",
@@ -42,7 +42,7 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     unexpected: () => "Kalsa couldn't do that. Try again.",
   },
   invite: {
-    "invite.no_road": () => "Invites need the internet connection. Turn it on in Advanced.",
+    "invite.no_road": () => "Invites need the internet connection. Turn it on on the AI page.",
     "invite.full": () => "You already have the most invites at once. Cancel one to make a new one.",
     "invite.could_not_make": () => "Kalsa couldn't make the invite. Try again.",
     "invite.could_not_save": () => "Kalsa couldn't save the invitation. Try again.",

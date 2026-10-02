@@ -16,7 +16,7 @@ export const RUST: {
     needs_check: () => "Kalsa deve controllare questo computer prima di poter partire. Riprova.",
     choice_too_large: () => "Questa AI è troppo grande per questo computer. Scegline una più piccola nella pagina AI.",
     choice_unavailable: () => "Kalsa non è riuscita a partire con questa AI. Scegline un'altra nella pagina AI.",
-    conversation_too_long: () => "La conversazione è troppo lunga per questa AI. Scegli una lunghezza più breve nelle Avanzate.",
+    conversation_too_long: () => "La conversazione è troppo lunga per questa AI. Scegli una lunghezza più breve nella pagina AI.",
     check_failed: () => "Kalsa non è riuscita a controllare questo computer. Aspetta un momento e riprova.",
     could_not_start: () => "Kalsa non è riuscita a partire. Riprova.",
     awaiting_choice: () => "Kalsa non è ancora pronta. Vai alla Home e premi Avvia.",
@@ -40,7 +40,7 @@ export const RUST: {
     unexpected: () => "Kalsa non è riuscita a farlo. Riprova.",
   },
   invite: {
-    "invite.no_road": () => "Gli inviti hanno bisogno della connessione a internet. Accendila nelle Avanzate.",
+    "invite.no_road": () => "Gli inviti hanno bisogno della connessione a internet. Accendila nella pagina AI.",
     "invite.full": () => "Hai già il numero massimo di inviti in una volta. Annullane uno per farne uno nuovo.",
     "invite.could_not_make": () => "Kalsa non è riuscita a fare l'invito. Riprova.",
     "invite.could_not_save": () => "Kalsa non è riuscita a salvare l'invito. Riprova.",

@@ -9,9 +9,9 @@ export const COMPOSER = {
     "thinkingOn": "Activer la réflexion",
     "thinkingOff": "Désactiver la réflexion",
     "hintSend": "Entrée envoie · Maj+Entrée ajoute une ligne",
-    "hintOpening": "Ouverture de la discussion…",
+    "hintOpening": "Ouverture de la conversation…",
     "thinkingOnTitle": "Réflexion : le modèle raisonne avant de répondre. Désactive-la pour être répondu aussitôt.",
-    "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir avant.",
+    "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir d'abord.",
     "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)"
   };
 

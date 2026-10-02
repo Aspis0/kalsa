@@ -33,7 +33,7 @@ interface GateAsk {
 /** How the turn engine talks to the room around it: the conversation store
     its turns write through, the shell's status line, and the pinned-context
     sizes the send-time decision reads. */
-export interface TurnEngine {
+interface TurnEngine {
   store: ConversationStore;
   /** The shell's live status line (waiting, thinking, done, stopped). */
   announce: (message: string) => void;

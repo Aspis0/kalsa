@@ -1,5 +1,5 @@
 /* Shared vocabulary for the ported surfaces (Brain, Models, Server,
-   Devices, Advanced). Chat's own tokens and button classes only. */
+   Devices). Chat's own tokens and button classes only. */
 
 /* The page's motion tokens. The two tempos the page must TIME live in
    surfaces/motion.ts and arrive here as variables on the page root:
@@ -362,7 +362,7 @@
   }
 }
 
-/* The Advanced surface's log-folder row: the button above its one
+/* The advanced panel's log-folder row: the button above its one
    explanatory line. */
 .log-folder {
   margin-top: 1.5rem;

@@ -16,7 +16,7 @@ export const RUST: {
     needs_check: () => "Kalsa 需要先检查这台电脑才能启动。请再试。",
     choice_too_large: () => "这个 AI 对这台电脑来说太大。请在 AI 页面挑一个小一点的。",
     choice_unavailable: () => "Kalsa 无法用这个 AI 启动。请在 AI 页面另挑一个。",
-    conversation_too_long: () => "这条对话的长度对 这个 AI 来说太长。请在「高级」里选一个小一点的。",
+    conversation_too_long: () => "这条对话的长度对 这个 AI 来说太长。请在「AI」页面里选一个小一点的。",
     check_failed: () => "Kalsa 未能检查这台电脑。请稍等片刻再试。",
     could_not_start: () => "Kalsa 未能启动。请再试。",
     awaiting_choice: () => "Kalsa 还没有准备好。前往主页并按「启动」。",
@@ -40,7 +40,7 @@ export const RUST: {
     unexpected: () => "Kalsa 未能完成。请再试。",
   },
   invite: {
-    "invite.no_road": () => "邀请需要互联网连接。请在「高级」里打开。",
+    "invite.no_road": () => "邀请需要互联网连接。请在「AI」页面里打开。",
     "invite.full": () => "同时的邀请数已经到顶。请取消一个再发新的。",
     "invite.could_not_make": () => "Kalsa 未能生成邀请。请再试。",
     "invite.could_not_save": () => "Kalsa 未能保存邀请。请再试。",

@@ -13,8 +13,8 @@ type SendState =
   | { kind: "refused"; code: SendRefusal };
 
 /** The privacy sentence and the Send button, shared by the three places a
-    report can be asked for: the Advanced section, the crash prompt, and
-    the webview's own error screen. `big` sets the sentence in the large
+    report can be asked for: the AI page's advanced section, the crash
+    prompt, and the webview's own error screen. `big` sets the sentence in the large
     type the owner asked for on the report section; the dialog shows it
     the same way. */
 export function SendLogBlock({ words }: { words: English["report"] }) {
@@ -61,7 +61,7 @@ export function SendLogBlock({ words }: { words: English["report"] }) {
   );
 }
 
-/** The Advanced surface's report section: the big privacy sentence, the
+/** The advanced panel's report section: the big privacy sentence, the
     one line of what the log does hold, Send (primary) and Open the log
     folder (secondary). */
 export function ReportProblem() {

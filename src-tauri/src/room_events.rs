@@ -93,9 +93,19 @@ fn event_payload(
             by_device: std::collections::HashMap::new(),
             host: "This computer".to_string(),
         });
+    event_json(room, &labels, event)
+}
+
+/// The payload's bytes, from the room and the labels alone — no app state —
+/// so a test can pin exactly what crosses to the page.
+fn event_json(
+    room: &Room,
+    labels: &Labels,
+    event: kalsa_room::Event,
+) -> Result<serde_json::Value, String> {
     Ok(match event {
         kalsa_room::Event::Message(entry) => {
-            let name = wire_name(room, &labels, entry.member);
+            let name = wire_name(room, labels, entry.member);
             serde_json::json!({
                 "kind": if entry.member == kalsa_room::MemberId::Ai { "ai_message" } else { "message" },
                 "epoch": room.epoch(),
@@ -118,7 +128,7 @@ fn event_payload(
             }),
             MemberEvent::Left { member } => serde_json::json!({
                 "kind": "member", "action": "left", "member_id": member.wire(),
-                "name": wire_name(room, &labels, member),
+                "name": wire_name(room, labels, member),
             }),
         },
         kalsa_room::Event::Ai(kalsa_room::AiEvent::Status { state, note_code, note }) => {
@@ -126,8 +136,8 @@ fn event_payload(
             serde_json::json!({
                 "kind": "ai_status", "state": state,
                 "note_code": note_code, "note": note,
-                "running": turns.running.map(|member| wire_name(room, &labels, member)),
-                "queue": turns.pending.iter().map(|member| wire_name(room, &labels, *member)).collect::<Vec<_>>(),
+                "running": turns.running.map(|member| wire_name(room, labels, member)),
+                "queue": turns.pending.iter().map(|member| wire_name(room, labels, *member)).collect::<Vec<_>>(),
                 "you_pending": turns.running == Some(kalsa_room::MemberId::Host)
                     || turns.pending.contains(&kalsa_room::MemberId::Host),
             })
@@ -136,4 +146,47 @@ fn event_payload(
             serde_json::json!({ "kind": "ai_delta", "turn": turn, "text": text })
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-room-events-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A member's departure is announced with the SAME name rule the views
+    /// use: an unnamed host leaves nameless ("" — the page localizes), the
+    /// envelope for it built by the pure half of `event_payload`.
+    #[test]
+    fn a_left_event_carries_the_wire_name() {
+        let dir = scratch("left-wire-name");
+        let room = Room::open(&dir).unwrap();
+        let labels = Labels {
+            by_device: std::collections::HashMap::new(),
+            host: "This computer".to_string(),
+        };
+
+        let payload = event_json(
+            &room,
+            &labels,
+            kalsa_room::Event::Member(MemberEvent::Left {
+                member: kalsa_room::MemberId::Host,
+            }),
+        )
+        .unwrap();
+        assert_eq!(
+            payload["name"],
+            "",
+            "the departure names the host by the wire rule"
+        );
+        assert_eq!(payload["action"], "left");
+    }
 }

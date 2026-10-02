@@ -9,13 +9,11 @@ import { Panel } from "../components/Panel";
 import { Sidebar } from "../components/Sidebar";
 import { Thread } from "../components/Thread";
 import { useLanguage } from "../i18n/useLanguage";
-import { store, useSlot } from "./useChat";
 import type { Chat } from "./useChat";
 
 export function ChatSurface({ chat }: { chat: Chat }) {
   const { table } = useLanguage();
   const t = table.shell;
-  const slot = useSlot();
   const {
     active,
     activeId,
@@ -47,6 +45,10 @@ export function ChatSurface({ chat }: { chat: Chat }) {
     selectConversation,
     newConversation,
     removeConversation,
+    renameConversation,
+    removeAttachment,
+    pending,
+    creating,
     attachments,
     ctxInfo,
     convoTokens,
@@ -66,7 +68,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
         onCloseDrawer={() => setDrawerOpen(false)}
         onSelect={selectConversation}
         onNew={newConversation}
-        onRename={(id, newTitle) => store.rename(id, newTitle)}
+        onRename={renameConversation}
         onDelete={removeConversation}
       />
       <div
@@ -130,7 +132,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           thinking={thinkingSupported ? thinking : null}
           onThinking={saveThinking}
           streaming={streaming}
-          opening={slot.pending || slot.creating}
+          opening={pending || creating}
           draft={draft}
           onDraftChange={setDraft}
           onSend={send}
@@ -143,11 +145,11 @@ export function ChatSurface({ chat }: { chat: Chat }) {
         attachments={attachments}
         contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
         historyTokens={convoTokens}
-        onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
+        onRemove={removeAttachment}
         onReattach={(id) => {
           if (!activeId) return;
-          const found = store.getAttachments(activeId).find((a) => a.id === id);
-          if (found) store.putAttachment(activeId, { ...found, active: true });
+          const found = attachments.find((a) => a.id === id);
+          if (found) chat.reattachAttachment(activeId, id);
         }}
         onAttachFile={(path, name) => void attachFromDisk(path, name)}
         onClose={() => setPanelOpen(false)}
