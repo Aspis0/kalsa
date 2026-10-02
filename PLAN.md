@@ -925,6 +925,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   types (LFM lane 8,704 B/token; FA off prices f16 V), lane-off byte-identical (GLM, audit luna 3d6bfd75; bf16
   non-catalog input left as a known gap). Debuggable APK run 37011736047. NEXT on the S23 (charged, unplugged): in-app
   prefill short/long with prefill_kv "device", decode tok/s with V q8_0 vs the 101c2bdd baseline, answer correctness.
+  **FUNCTIONAL PASS on the S23 2026-10-02** (owner: "serve vedere se apk funziona", speed not needed now; phone on the
+  charger by owner OK). Debuggable APK run 37028997487 (app 0b7c5e71, binding 6b87db16), GLM 99af51c9, lab 3db078dc,
+  verified on disk: KALSA_KV_TYPE_OVERRIDE V q4_0 -> q8_0, no abort/tombstone; 4 lane-on turns with prefill_kv
+  "device", cache_type_k/v q8_0, 12/12 chunks HTP0; 391 / ZAFFIRO-42 needle in a 3,084-token prompt (16 s) /
+  follow-up n_common=3192 -> 391 (NPU-prefilled KV read by CPU decode); DEBUG "awaiting trigger" 0 with 1,285 INFO
+  lines; lane off -> Canberra, no override. Keys restored (route=gpu, npu_lane=off, devmodels absent, nativelog off,
+  energy_trace=1, kvtranscript=1). Speed vs the 101c2bdd baseline still unmeasured.
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
