@@ -224,8 +224,9 @@ export function buildGovernorPlanLog(
     /** The model priced at npuLaneCacheTypes — what the NPU lane fit compares. */
     laneModel?: GovernorModel;
     /** Which source supplied availableMemoryBytes: the post-release uncached
-     *  read ("fresh") or the app-start cache it fell back to ("cached"). */
-    availableSrc?: "fresh" | "cached";
+     *  read ("fresh"), the app-start cache it fell back to ("cached"), or
+     *  neither ("none": both were null). */
+    availableSrc?: "fresh" | "cached" | "none";
   },
 ) {
   // The binding fit check is requiredMiB + extraMiB <= availableMiB, so the

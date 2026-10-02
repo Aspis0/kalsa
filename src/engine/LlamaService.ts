@@ -2235,8 +2235,9 @@ export type EngineInitResult = {
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
  * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
  *
- * Context sizing / KV: resolve once at the call site (AppShell + contextProfile);
- * this function does not re-run RAM detection. Returns the effective n_ctx
+ * Context sizing / KV: resolve once at the call site (AppShell + contextProfile).
+ * A real load re-reads MemAvailable after the previous engine is released and
+ * clamps n_ctx / prices the governor lanes on it. Returns the effective n_ctx
  * actually used (may be lower than options.nCtx after memory clamp).
  */
 export function initEngine(
@@ -2469,10 +2470,14 @@ export function initEngine(
     // the cached app-start value; null there too → the fits see null exactly
     // as before (streaming off, lane NoFit, no n_ctx budget).
     const freshMemoryBytes = await getAvailableMemoryBytesUncached();
-    const availableSrc: "fresh" | "cached" =
-      freshMemoryBytes != null ? "fresh" : "cached";
     const fitMemoryBytes =
       freshMemoryBytes ?? deviceProfile.availableMemoryBytes;
+    const availableSrc: "fresh" | "cached" | "none" =
+      freshMemoryBytes != null
+        ? "fresh"
+        : fitMemoryBytes != null
+          ? "cached"
+          : "none";
     const {
       streamExperts,
       tuning,
