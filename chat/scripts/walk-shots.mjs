@@ -338,13 +338,24 @@ async function cut(page, theme) {
   // The second stop: this start WAS the retry, so its verdict was saved as
   // a record — the line says what was kept instead of promising a
   // measurement that will never come.
-  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false });
+  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false, kept_winner: true });
   await page.waitForTimeout(400);
   const kept = await read(page);
   check(
-    `${theme}: the second stop says what was kept`,
+    `${theme}: the second stop with a winner says what was kept`,
     kept.caption.includes("Kalsa kept the best settings it found") && kept.done === false,
     kept.caption,
+  );
+
+  // …and a stop whose verdict ended with no winner: the rule stands, so
+  // the line says what will be used rather than what was kept.
+  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false, kept_winner: false });
+  await page.waitForTimeout(400);
+  const standard = await read(page);
+  check(
+    `${theme}: the stop with no winner says what will be used`,
+    standard.caption.includes("Kalsa will use its standard settings") && standard.done === false,
+    standard.caption,
   );
 }
 

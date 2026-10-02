@@ -107,6 +107,11 @@ pub(crate) enum Progress {
         /// second cut, whose verdict saves as a normal record — nothing is
         /// owed, and the page says what was kept instead.
         retry_next: bool,
+        /// Whether the tune ended WITH a winner — the flag the stop's line
+        /// reads once `retry_next` is false: what was kept is only kept if
+        /// there was something to keep, or the page promises a "best" that
+        /// never existed and the rule stands instead.
+        kept_winner: bool,
     },
 }
 

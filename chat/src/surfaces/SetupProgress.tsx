@@ -4,6 +4,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { Sprout } from "../components/Sprout";
 import { useElapsed } from "./useElapsed";
 import { tuneAttempt, tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "./tuneProgress";
+import type { TuneWait } from "./tuneProgress";
 import type { TuneFace } from "./tuneProgress";
 
 // The first run, rendered: the walk's progress, live — a port of the former
@@ -139,6 +140,23 @@ function walkView(
     view: { head, progress: resumed ? t.pickingUp(text) : text, pct: shown.pct ?? 0 },
     kind,
   };
+}
+
+/** The wait's sentence in the page's language: one word per answer the
+    pure layer gives (the stop's three, the overrun, and the minutes). */
+function waitWord(wait: TuneWait, t: English["setup"]): string {
+  switch (wait.kind) {
+    case "cut":
+      return t.finishNextStart;
+    case "kept":
+      return t.keptBest;
+    case "standard":
+      return t.standardSettings;
+    case "almost":
+      return t.almostDone;
+    case "minutes":
+      return t.minutesLeft(wait.minutes);
+  }
 }
 
 /** The elapsed time in the page's own shape: minutes, then the seconds with
@@ -279,16 +297,7 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
     durations.reduce((sum, value) => sum + value, 0) +
     (face !== null && !face.closing ? elapsed : 0);
   const wait = face !== null ? tuneWait(face, share, whole, durations.length) : null;
-  const waitText =
-    wait === null
-      ? null
-      : wait.kind === "cut"
-        ? t.finishNextStart
-        : wait.kind === "kept"
-          ? t.keptBest
-          : wait.kind === "almost"
-            ? t.almostDone
-            : t.minutesLeft(wait.minutes);
+  const waitText = wait !== null ? waitWord(wait, t) : null;
   const attempt = face !== null ? tuneAttempt(face) : null;
   const attemptText = attempt !== null ? t.attempt(attempt.index, attempt.total) : null;
 

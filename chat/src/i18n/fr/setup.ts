@@ -32,5 +32,6 @@ export const SETUP = {
     "minutesLeft": (minutes: number) => `environ ${minutes} min restantes`,
     "finishNextStart": "Kalsa terminera les tests au prochain démarrage",
     "keptBest": "Kalsa a gardé les meilleurs réglages trouvés",
+    "standardSettings": "Kalsa utilisera ses réglages standards",
     "almostDone": "presque terminé",
   };

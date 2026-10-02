@@ -4026,7 +4026,7 @@ const tests = {
     check("walkProgress: another phase carries no fraction", tuneFace({ kind: "deciding" }) === null);
     check(
       "walkProgress: the tune opens on test 1 of 4",
-      JSON.stringify(at(0, 4, 1)) === '{"done":0,"total":4,"candidate":1,"closing":false,"cut":false,"retryNext":false}',
+      JSON.stringify(at(0, 4, 1)) === '{"done":0,"total":4,"candidate":1,"closing":false,"cut":false,"retryNext":false,"keptWinner":false}',
       JSON.stringify(at(0, 4, 1)),
     );
     check("walkProgress: two closed of four is half", tunePercent(closed(2, 4), 0) === 50, `${tunePercent(closed(2, 4), 0)}`);
@@ -4122,16 +4122,24 @@ const tests = {
     // Both stops: the first owes the next start its measurement (a marker
     // will be written); the second WAS that start — its verdict saved as a
     // record, so it says what was kept instead.
-    const secondStop = tuneFace({ kind: "tuning", done: 3, total: 12, candidate: 3, cut: true, retry_next: false });
+    const secondStop = tuneFace({ kind: "tuning", done: 3, total: 12, candidate: 3, cut: true, retry_next: false, kept_winner: true });
+    const standardStop = tuneFace({ kind: "tuning", done: 3, total: 12, candidate: 3, cut: true, retry_next: false, kept_winner: false });
     check(
       "walkProgress: the first stop promises the next start the rest",
       JSON.stringify(tuneWait(stopped, 0, 0, 0)) === '{"kind":"cut"}',
       JSON.stringify(tuneWait(stopped, 0, 0, 0)),
     );
     check(
-      "walkProgress: the second stop says what was kept",
+      "walkProgress: the second stop with a winner says what was kept",
       JSON.stringify(tuneWait(secondStop, 0, 0, 0)) === '{"kind":"kept"}',
       JSON.stringify(tuneWait(secondStop, 0, 0, 0)),
+    );
+    // …and without one there was nothing to keep: the rule stands, and the
+    // line says what WILL be used instead of a "best" that never existed.
+    check(
+      "walkProgress: the stop with no winner says what will be used",
+      JSON.stringify(tuneWait(standardStop, 0, 0, 0)) === '{"kind":"standard"}',
+      JSON.stringify(tuneWait(standardStop, 0, 0, 0)),
     );
 
     // The share: only a running candidate fills a slot, and only against a

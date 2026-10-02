@@ -321,15 +321,24 @@ fn tune_launch_inner(
             // read — nothing between here and the save writes the marker.
             let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
             let owed = marker.is_none();
+            // The last stop this measure reported — its final word is said
+            // AFTER the write below, when the disk has answered for it.
+            let mut stop: Option<kalsa_tune::Report> = None;
             let tuned = measure(&resolved, &rule_args, &mut |report| {
+                if report.cut {
+                    stop = Some(report);
+                }
                 progress(Progress::Tuning {
                     done: report.done,
                     total: report.total,
                     candidate: report.candidate,
                     cut: report.cut,
                     // A stop only owes the next start a measurement while no
-                    // marker has been spent on this fingerprint yet.
+                    // marker has been spent on this fingerprint yet — the
+                    // hopeful value; the stop's final word (below) replaces
+                    // it with what the write actually did.
                     retry_next: report.cut && owed,
+                    kept_winner: false,
                 })
             });
             let winner = tuned.winner;
@@ -395,6 +404,9 @@ fn tune_launch_inner(
                 }
                 None => (record, winner),
             };
+            // What the stop still owes, decided BEFORE the write: a marker
+            // path, no marker spent on this fingerprint yet.
+            let owed_still = unfinished.is_some() && marker.is_none();
             let staged = match (unfinished, marker.is_some()) {
                 (Some(cause), false) => {
                     log::info!(
@@ -406,6 +418,21 @@ fn tune_launch_inner(
                 }
                 _ => kalsa_tune::record::save(root, &model_digest, &record),
             };
+            // The stop's final word — only now, only if the disk answered:
+            // the marker exists (the next start finishes the measuring) or
+            // it does not (a failed write owes nothing, because there is
+            // nothing to finish with), and what the page may say was kept
+            // is the winner this verdict actually ended with.
+            if let Some(report) = stop {
+                progress(Progress::Tuning {
+                    done: report.done,
+                    total: report.total,
+                    candidate: report.candidate,
+                    cut: true,
+                    retry_next: owed_still && staged.is_ok(),
+                    kept_winner: winner.is_some(),
+                });
+            }
             if let Err(error) = staged {
                 // Best effort: a record that cannot be written costs a
                 // re-tune next start, never this launch.

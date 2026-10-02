@@ -428,6 +428,7 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
                 candidate: 3,
                 cut: false,
                 retry_next: false,
+                kept_winner: false,
             }
         )),
         "three lifetimes planned, three done, the last one closed"
@@ -1010,6 +1011,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
                 candidate: 1,
                 cut: false,
                 retry_next: false,
+                kept_winner: false,
             }
         )),
         "the processor candidates never ran"
@@ -1168,6 +1170,7 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
         candidate: 2,
         cut: false,
         retry_next: false,
+        kept_winner: false,
     })
     .expect("serialise");
     assert_eq!(json["kind"], "tuning");
@@ -1175,6 +1178,7 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
     assert_eq!(json["candidate"], 2, "the index the page names arrives whole");
     assert_eq!(json["cut"], false, "and the stop marker rides along");
     assert_eq!(json["retry_next"], false, "with whether it owes the next start");
+    assert_eq!(json["kept_winner"], false, "and with what, if anything, was kept");
     assert!(
         json.get("planned").is_none(),
         "the old name must not appear"
@@ -1322,7 +1326,14 @@ fn the_cut_report_reaches_the_walk_untouched() {
         .collect();
     assert_eq!(
         reports,
-        vec![(0, 3, 1, false), (1, 3, 1, false), (1, 3, 1, true), (1, 1, 1, false)],
+        vec![
+            (0, 3, 1, false),
+            (1, 3, 1, false),
+            (1, 3, 1, true),
+            (1, 1, 1, false),
+            // …and the stop's final word, emitted after the write.
+            (1, 3, 1, true),
+        ],
         "the stop arrives with its marker, the plan and the candidate: {reports:?}"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -1372,14 +1383,22 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         // written at all, and the marker the first stop owes IS a record.
         tuned(vec![replied(resolved[0].0, 60.0, 30.0)], None)
     }
-    let stops = |seen: &[Progress]| -> Vec<bool> {
+    // The stop's final word: the LAST cut report the walk saw — the one
+    // emitted after the write, carrying the flags the page's line reads
+    // (retry_next, kept_winner).
+    let stop_word = |seen: &[Progress]| -> Option<(bool, bool)> {
         seen
             .iter()
             .filter_map(|step| match step {
-                Progress::Tuning { cut: true, retry_next, .. } => Some(*retry_next),
+                Progress::Tuning {
+                    cut: true,
+                    retry_next,
+                    kept_winner,
+                    ..
+                } => Some((*retry_next, *kept_winner)),
                 _ => None,
             })
-            .collect()
+            .last()
     };
 
     let seen = std::cell::RefCell::new(Vec::new());
@@ -1395,9 +1414,9 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         cut_measure,
     );
     assert_eq!(
-        stops(&seen.borrow()),
-        vec![true],
-        "the first stop owes the next start its measurement"
+        stop_word(&seen.borrow()),
+        Some((true, false)),
+        "the first stop owes the next start its measurement, and kept no winner of its own"
     );
     assert!(
         kalsa_tune::record::cut_before(&dir, &model, &fingerprint),
@@ -1417,13 +1436,85 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         cut_measure,
     );
     assert_eq!(
-        stops(&seen.borrow()),
-        vec![false],
-        "the second stop owes nothing — its verdict is saved as a record"
+        stop_word(&seen.borrow()),
+        Some((false, true)),
+        "the second stop owes nothing, and its pooled retry kept a winner"
     );
     assert!(
         !kalsa_tune::record::cut_before(&dir, &model, &fingerprint),
         "and no marker is left behind to promise a third measurement"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The stop's promise is only as good as the write behind it: a verdict the
+/// record cannot carry — here no trials at all, which `save_marker` refuses
+/// — writes nothing, so nothing is owed to the next start, and with no
+/// winner there is nothing this run kept either. The walk sees both words:
+/// the hope during the measure, the disk's answer after the failed write.
+#[test]
+fn a_stop_whose_marker_cannot_be_written_promises_nothing_and_keeps_nothing() {
+    let dir = scratch("cut-unwritten");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared("/main-gpu");
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let model = prepared.info.model_sha256.as_deref().unwrap().to_string();
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+
+    fn unsaveable_measure(
+        _: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(kalsa_tune::Report),
+    ) -> kalsa_tune::Tuned {
+        counts(kalsa_tune::Report {
+            done: 1,
+            total: 3,
+            candidate: 1,
+            cut: true,
+        });
+        // A record without trials is refused by `validate`, so the marker
+        // write fails — this test's stand-in for any failed write.
+        tuned(vec![], None)
+    }
+
+    let seen = std::cell::RefCell::new(Vec::new());
+    let mut collect = |step: Progress| seen.borrow_mut().push(step);
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut collect,
+        unsaveable_measure,
+    );
+    let words: Vec<(bool, bool)> = seen
+        .borrow()
+        .iter()
+        .filter_map(|step| match step {
+            Progress::Tuning {
+                cut: true,
+                retry_next,
+                kept_winner,
+                ..
+            } => Some((*retry_next, *kept_winner)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        words,
+        vec![(true, false), (false, false)],
+        "the measure hopes, the disk answers: no marker written, no winner kept"
+    );
+    assert!(
+        !kalsa_tune::record::cut_before(&dir, &model, &fingerprint),
+        "and no marker was left behind to lie with"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

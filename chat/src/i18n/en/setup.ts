@@ -39,5 +39,7 @@ export const SETUP = {
   // The second stop: this start was the retry, its verdict is saved as a
   // record — nothing further will be measured.
   keptBest: "Kalsa kept the best settings it found",
+  // …and when there was nothing to keep: the rule stands.
+  standardSettings: "Kalsa will use its standard settings",
   almostDone: "almost done",
 };

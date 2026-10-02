@@ -15,6 +15,7 @@ export interface TuningStep {
   candidate?: number;
   cut?: boolean;
   retry_next?: boolean;
+  kept_winner?: boolean;
 }
 
 /** The tune as the bar reads it. `candidate` is 1-based; a report whose
@@ -30,6 +31,9 @@ export interface TuneFace {
   closing: boolean;
   cut: boolean;
   retryNext: boolean;
+  /** The verdict ended WITH a winner: only then may the stop's line say
+      something was kept — otherwise the rule stands and says so. */
+  keptWinner: boolean;
 }
 
 /** What the line under the bar says about the wait, once two candidates
@@ -37,6 +41,7 @@ export interface TuneFace {
 export type TuneWait =
   | { kind: "cut" }
   | { kind: "kept" }
+  | { kind: "standard" }
   | { kind: "minutes"; minutes: number }
   | { kind: "almost" };
 
@@ -69,6 +74,7 @@ export function tuneFace(step: TuningStep): TuneFace | null {
     closing: candidate <= done,
     cut: step.cut === true,
     retryNext: step.retry_next === true,
+    keptWinner: step.kept_winner === true,
   };
 }
 
@@ -106,8 +112,10 @@ export function tuneDone(face: TuneFace): boolean {
   return !face.cut && face.total > 0 && face.done >= face.total;
 }
 
-/** The wait under the bar. The stop's two answers come first — a cut that
-    still owes a next start, or one whose verdict was saved and kept — and
+/** The wait under the bar. The stop's three answers come first — a cut
+    that still owes a next start; one whose verdict was saved WITH a
+    winner, which is what may be called kept; and one with no winner at
+    all, where the rule stands — and
     then the estimate: `wholeSeconds` over the candidates measured so far
     (the running one's share counted in both) is the rate one candidate
     really costs on THIS tune, and it moves in small steps as each
@@ -122,7 +130,10 @@ export function tuneWait(
   wholeSeconds: number,
   finished: number,
 ): TuneWait | null {
-  if (face.cut) return face.retryNext ? { kind: "cut" } : { kind: "kept" };
+  if (face.cut) {
+    if (face.retryNext) return { kind: "cut" };
+    return face.keptWinner ? { kind: "kept" } : { kind: "standard" };
+  }
   if (finished < MINIMUM_SAMPLES || face.total <= 0 || face.done >= face.total) return null;
   const running = Math.min(Math.max(share, 0), 1);
   const rate = wholeSeconds / (finished + running);
