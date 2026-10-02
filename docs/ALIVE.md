@@ -803,6 +803,9 @@ branch expo57-bump `b5b59cca` + fix round `14349b63` (isEvalSupported:false, CSP
 navigation gate, no incognito); audited (`ios-readiness/AUDIT-pdfjs-cve.md`). NOT pushed: needs a device check first
 (PDF extraction still works, csp=true logged, A/B page timings vs 7ddf39ad - the PostScript interpreter is slower).
 Real fix = pdf.js >= 4.2.67 migration. CJK PDFs with non-embedded CMaps were already broken (no packaged cmaps).
+iOS/deps 2026-10-02 later: SDK 58 beta trial builds and loads on the simulator but is NO-GO for main (rc RN 0.88, new
+peer conflicts, fingerprint change; `ios-readiness/AUDIT-sdk58-trial.md`). pdf.js 5.7.284 upgrade committed locally
+`749f3591` (audit + S23 PDF check pending). iOS UIScene launch crash = old build before `enableSceneSupport` (on main).
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 

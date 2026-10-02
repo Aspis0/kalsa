@@ -935,6 +935,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
   `ios-readiness/BINDING-PATCHES.md` (FATTN_SMEM in the Metal overlay, arm/quants.c on x86_64, Podfile CXX20 flags,
   podspec ggml-cpu glob).
+  **iOS 2026-10-02 (session 818369e6):** (1) Expo SDK 58 beta trial (owner "direi sdk58") on local `ios/first-build`
+  `7c324067` over SDK 57 baseline `c67e2df1`: builds, launches, loads LFM2.5 on the iOS 27 simulator
+  (`ios-readiness/SDK58-TRIAL.md`). NO-GO for main until RN 0.88 stable; audit `AUDIT-sdk58-trial.md` (space-bunny)
+  adds blockers the report missed: 37 packages changed (17 documented), the lock carries 3 new peer conflicts
+  (`@expo/ws-tunnel` wants ws ^8, lock pins 7.5.13 - `npm ci` likely breaks), jest 30->29 reverts `69a7662b`, SDK 58
+  `@expo/fingerprint` "balanced" ignores node_modules edits, whisper.rn patch hides a runtime hazard. (2) pdf.js
+  3.11.174 -> 5.7.284 legacy on local `expo57-bump` `749f3591` (GLM 99cb9854): no eval/new Function left in the shipped
+  bundles (checked), CSP adds only 'wasm-unsafe-eval', SC cmaps + 14 standard fonts packed, +2.27 MB; audit running,
+  then S23 PDF check, then push. (3) The owner-relayed iOS launch crash (UIScene check, 00:58 sim build) predates the
+  `enableSceneSupport` fix already on main (app.config.js:153). Release run on Mac (Designed for iPad, Metal) delegated.
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

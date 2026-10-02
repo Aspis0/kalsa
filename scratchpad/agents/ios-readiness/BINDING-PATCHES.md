@@ -251,3 +251,43 @@ the installed pin in `~/Projects/kalsa-ios/node_modules/llama.rn`.
 
 (Order item 6 of the audit's recommended order — install on a device and run one
 model end to end — is app-side work, not a binding follow-up.)
+
+---
+
+## SDK 58 trial (2026-10-02, ios/first-build at 7c324067, expo 58.0.2 / react-native 0.88.0-rc.3)
+
+Scope: node_modules patches applied in `~/Projects/kalsa-ios` to keep the SDK 58 beta
+simulator build going. None are committed anywhere (node_modules is untracked); every
+`npm ci` reverts them.
+
+1. **Known patch re-applied (not a new SDK 58 breakage).** Patch 1 above
+   (`FATTN_SMEM(nsg)` → `fa_smem(nsg)`, ggml-metal-ops.cpp:3518) is still required at
+   pin 3d8fc84a; the compile fails without it exactly as on SDK 57. Re-applied by sed
+   after `npm ci` / the expo 58 install.
+2. **NEW — whisper.rn 0.7.2 does not compile under RN 0.88.** `node_modules/whisper.rn/ios/RNWhisper.mm:314-325`
+   declares `RCTCxxBridge *cxxBridge = (RCTCxxBridge *)bridge.batchedBridge` and reads
+   `cxxBridge.runtime`; RN 0.88-rc removed the `RCTCxxBridge` type from the headers
+   (bridgeless-only) → 5 compile errors ("unknown type name 'RCTCxxBridge'", "property
+   'runtime' not found"). RN 0.88's public `RCTBridge` header exposes no `runtime`/
+   `jsCallInvoker`/`batchedBridge` at all.
+   Node_modules patch applied (compile + launch + load verified): a file-local
+   `@protocol RNWhisperBridgeRuntimeAccess` (void* runtime; shared_ptr<CallInvoker>
+   jsCallInvoker) and a cast to `id<RNWhisperBridgeRuntimeAccess>` — mirroring the
+   pattern the kalsa.rn fork itself already uses in `RNLlama.mm:76`
+   (`@protocol RNLlamaBridgeRuntimeAccess`).
+3. **kalsa.rn 3d8fc84a under RN 0.88: no NEW compile breakage.** `RNLlama.mm` compiled
+   and its JSI install **worked at runtime** under the SDK 58 app (proof: Metro log
+   `KALSA_PREWARM {"op":"done","promptMs":14098.758,"promptN":1889}` + native
+   `load time = 1335.03 ms` in /tmp/kalsa-console58.log). The protocol-based dynamic
+   dispatch survives the bridgeless RCTBridge. Caveat carried from the audit: the
+   `while` loop overlay (item 1) remains unattributed in the fork's vendor tree.
+4. **Binding-owner follow-ups added by this trial:**
+   - whisper.rn is upstream npm (`mybigday/whisper_rn` 0.7.2), not the kalsa fork; if
+     RN 0.88 lands on main, either bump to a whisper.rn release with bridgeless runtime
+     access, or carry the protocol patch in a fork/patch-package. The runtime path it
+     takes after the patch is the same dynamic dispatch kalsa.rn uses; untested beyond
+     compile (no voice flow was run in the trial).
+   - kalsa.rn: consider replacing the `batchedBridge ?: bridge` dynamic dispatch with
+     the documented bridgeless runtime access before RN 0.88 stable; it currently
+     relies on `RCTBridge` still responding to `runtime`/`jsCallInvoker` selectors at
+     runtime, which is deprecation-shaped.
