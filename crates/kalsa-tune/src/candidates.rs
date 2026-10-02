@@ -34,7 +34,8 @@ pub(crate) fn offload_for(backend: ServerBackend) -> Offload {
 }
 
 /// The ordered, de-duplicated candidates: the graphics build first when one
-/// answered its probe, then the processor runs ascending by threads.
+/// answered its probe, the mixed shape beside it on an integrated GPU, then
+/// the processor runs ascending by threads.
 ///
 /// Counts come only from what was measured or known — the rule's count,
 /// the physical cores, the logical cores — each present value once.
@@ -45,6 +46,7 @@ pub fn candidates(
     rule_threads: Option<usize>,
     physical_cores: Option<usize>,
     logical_cores: Option<usize>,
+    integrated_gpu: bool,
 ) -> Vec<Candidate> {
     // A count of zero is a read that measured nothing — unknown, exactly
     // like `None`, everywhere below. The rule can hand one back: its
@@ -62,14 +64,31 @@ pub fn candidates(
     };
     let mut list = Vec::new();
     if let Some(backend) = graphics {
+        // The rule's count, or physical when the rule gave none: the same
+        // counts the rule itself would pick, never a new guess.
+        let threads = rule_threads.or(physical_cores);
         list.push(Candidate {
             backend,
-            // The rule's count, or physical when the rule gave none: the
-            // same counts the rule itself would pick, never a new guess.
-            threads: rule_threads.or(physical_cores),
+            threads,
             offload: offload_for(backend),
             draft: None,
         });
+        // The mixed shape of an integrated GPU: the same build and device
+        // with no layer offloaded, so the weights stay on the processor
+        // while the engine still sends big-batch prefill to the iGPU
+        // (measured on the Surface: prefill 41.8 tok/s against the
+        // processor's 22.7, decode 9.9 against the full offload's 5.3).
+        // Only where the graphics build is Vulkan on an iGPU: a dedicated
+        // card has its own memory to use, and on Metal `ForcedOff` is
+        // already the processor shape below.
+        if integrated_gpu && backend == ServerBackend::Vulkan {
+            list.push(Candidate {
+                backend,
+                threads,
+                offload: Offload::ForcedOff,
+                draft: None,
+            });
+        }
     }
     // The processor runs, measured rather than assumed (the owner's
     // ruling): on Metal it is the SAME build with the offload forced off —
@@ -138,7 +157,7 @@ mod tests {
     /// kept once.
     #[test]
     fn the_lenovo_runs_the_graphics_first_then_the_processor_ascending() {
-        let list = candidates(Some(ServerBackend::Vulkan), Some(16), Some(16), Some(22));
+        let list = candidates(Some(ServerBackend::Vulkan), Some(16), Some(16), Some(22), false);
         assert_eq!(list, vec![gpu(16), cpu(16), cpu(22)]);
         assert!(
             needs_tuning(&list),
@@ -150,7 +169,7 @@ mod tests {
     /// different one — each present value once, ascending.
     #[test]
     fn the_surface_counts_each_present_thread_count_once() {
-        let list = candidates(None, Some(4), Some(4), Some(8));
+        let list = candidates(None, Some(4), Some(4), Some(8), false);
         assert_eq!(list, vec![cpu(4), cpu(8)]);
         assert!(
             needs_tuning(&list),
@@ -164,7 +183,7 @@ mod tests {
     /// tune runs.
     #[test]
     fn metal_measures_engine_fitted_and_forced_off() {
-        let list = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10));
+        let list = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10), false);
         assert_eq!(
             list,
             vec![
@@ -191,13 +210,40 @@ mod tests {
         assert!(needs_tuning(&list), "three launches: measuring can decide");
     }
 
+    /// The Surface: Vulkan on an integrated GPU adds the mixed shape — the
+    /// same build and threads, offload forced off — right after the full
+    /// offload, before the processor runs.
+    #[test]
+    fn an_integrated_gpu_adds_the_mixed_shape_after_the_graphics_launch() {
+        let list = candidates(Some(ServerBackend::Vulkan), Some(4), Some(4), Some(8), true);
+        let mixed = Candidate {
+            backend: ServerBackend::Vulkan,
+            threads: Some(4),
+            offload: Offload::ForcedOff,
+            draft: None,
+        };
+        assert_eq!(list, vec![gpu(4), mixed, cpu(4), cpu(8)]);
+        // A dedicated card does not get it.
+        let dedicated = candidates(Some(ServerBackend::Vulkan), Some(4), Some(4), Some(8), false);
+        assert_eq!(dedicated, vec![gpu(4), cpu(4), cpu(8)]);
+    }
+
+    /// Metal's `ForcedOff` is already its processor shape on the one build:
+    /// the integrated flag cannot add a duplicate of it.
+    #[test]
+    fn metal_gains_no_mixed_shape() {
+        let plain = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10), false);
+        let flagged = candidates(Some(ServerBackend::Metal), Some(8), Some(10), Some(10), true);
+        assert_eq!(plain, flagged);
+    }
+
     /// A zero count is unknown everywhere — including the graphics
     /// candidate, whose count comes from the rule the same way: the rule
     /// caps rather than filters, so `Some(0)` can arrive and must not
     /// become `--threads 0`.
     #[test]
     fn a_zero_count_is_unknown_to_every_candidate() {
-        let zero_rule = candidates(Some(ServerBackend::Vulkan), Some(0), Some(16), Some(32));
+        let zero_rule = candidates(Some(ServerBackend::Vulkan), Some(0), Some(16), Some(32), false);
         assert_eq!(
             zero_rule[0].threads,
             Some(16),
@@ -210,7 +256,7 @@ mod tests {
             "no candidate may carry a count nobody measured: {zero_rule:?}"
         );
 
-        let all_zero = candidates(Some(ServerBackend::Vulkan), Some(0), Some(0), Some(0));
+        let all_zero = candidates(Some(ServerBackend::Vulkan), Some(0), Some(0), Some(0), false);
         assert_eq!(
             all_zero[0].threads, None,
             "zero and None are alike: unknown"

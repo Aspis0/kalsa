@@ -268,8 +268,19 @@ fn tune_launch_inner(
         }
         None => {
             // A fresh tune: the candidates the rule's own numbers describe.
-            let candidates =
-                kalsa_tune::candidates(Some(main.0), rule_args.threads, memo.cores.0, memo.cores.1);
+            // Vulkan with no dedicated card detected is the integrated GPU's
+            // path: it also measures the mixed shape.
+            let integrated = matches!(
+                machine.measurement.will_run_on,
+                kalsa_probe::Backend::Cpu
+            );
+            let candidates = kalsa_tune::candidates(
+                Some(main.0),
+                rule_args.threads,
+                memo.cores.0,
+                memo.cores.1,
+                integrated,
+            );
             if !kalsa_tune::needs_tuning(&candidates) {
                 prepared.info.tune = Some(Tune::Skipped);
                 return;
@@ -381,10 +392,12 @@ fn tune_launch_inner(
                 win.candidate.offload,
                 win.candidate.draft,
             );
-            if matches!(win.candidate.offload, Offload::All | Offload::EngineFitted) {
+            if runs_on_graphics_build(&win.candidate) {
                 // The processor alternative beside a graphics winner: what
                 // the per-start check hands the slot to when the card
-                // answers slow. A hit and a fresh tune both arrive here.
+                // answers slow, and what a start that cannot load on the
+                // card falls back to. A hit and a fresh tune both arrive
+                // here.
                 prepared.processor = processor_launch(
                     &record,
                     &rule_args,
@@ -443,12 +456,24 @@ fn apply(
     prepared.server.argv = argv;
 }
 
+/// Whether this launch runs on the graphics build — the card's own shapes
+/// and the mixed shape (Vulkan build, no layer offloaded) alike — so a
+/// processor build can stand in for it. On Metal `ForcedOff` is the
+/// processor itself, on the same build, and needs no stand-in.
+fn runs_on_graphics_build(candidate: &kalsa_tune::Candidate) -> bool {
+    matches!(candidate.offload, Offload::All | Offload::EngineFitted)
+        || candidate.backend == ServerBackend::Vulkan
+}
+
 /// One candidate in the owner's words: the offload decides the family,
 /// the threads the member. `candidates()` never builds an offloaded
 /// candidate without a count, so the bare fallback is only defensive.
 pub(crate) fn tune_label(candidate: &kalsa_tune::Candidate) -> String {
     let mut label = match (candidate.offload, candidate.threads) {
         (Offload::All | Offload::EngineFitted, _) => "graphics".to_string(),
+        (Offload::ForcedOff, Some(threads)) if candidate.backend == ServerBackend::Vulkan => {
+            format!("graphics + processor {threads} threads")
+        }
         (_, Some(threads)) => format!("processor {threads} threads"),
         (Offload::NoGpuBuild | Offload::ForcedOff, None) => "processor".to_string(),
     };
@@ -532,7 +557,8 @@ fn processor_launch(
         .iter()
         .filter_map(|(candidate, kept)| match kept {
             kalsa_tune::record::Kept::Replied(reply)
-                if matches!(candidate.offload, Offload::ForcedOff | Offload::NoGpuBuild) =>
+                if matches!(candidate.offload, Offload::ForcedOff | Offload::NoGpuBuild)
+                    && candidate.backend != ServerBackend::Vulkan =>
             {
                 Some((reply.seconds, *candidate))
             }

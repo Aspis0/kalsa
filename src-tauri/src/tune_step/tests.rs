@@ -1485,3 +1485,105 @@ fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
     assert_eq!(leg_args.draft.as_ref().map(|draft| draft.n_max), Some(3));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The Surface's shape: Vulkan on an integrated GPU measures the mixed
+/// shape (the graphics build, no layer offloaded) beside the full offload
+/// and the processor build. When the mixed shape wins, the launch is the
+/// graphics build with `--n-gpu-layers 0` — and the processor build is still
+/// prepared as the fallback, taken from the CPU shape's trial, never from
+/// the mixed shape's own (which is the same graphics build).
+#[test]
+fn an_integrated_gpu_measures_the_mixed_shape_and_keeps_a_processor_fallback() {
+    let dir = scratch("mixed-shape");
+    let machine = machine(Backend::Cpu);
+    let mut prepared = prepared_with("/main-gpu", rule_args());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            let by = |offload: Offload| {
+                resolved
+                    .iter()
+                    .map(|(candidate, _)| *candidate)
+                    .find(|candidate| candidate.offload == offload)
+                    .unwrap_or_else(|| panic!("no {offload:?} shape in {resolved:?}"))
+            };
+            let full = by(Offload::EngineFitted);
+            let mixed = by(Offload::ForcedOff);
+            let cpu = by(Offload::NoGpuBuild);
+            assert_eq!(mixed.backend, ServerBackend::Vulkan, "the same build");
+            assert_eq!(mixed.threads, full.threads);
+            tuned(
+                vec![
+                    replied(full, 64.4, 5.3),
+                    replied(mixed, 41.8, 9.9),
+                    replied(cpu, 22.7, 13.3),
+                ],
+                Some(kalsa_tune::Winner {
+                    candidate: mixed,
+                    reply: reply(41.8, 9.9),
+                }),
+            )
+        },
+    );
+    assert_eq!(prepared.server.exe, PathBuf::from("/main-gpu"));
+    assert!(
+        prepared.server.argv.join(" ").contains("--n-gpu-layers 0"),
+        "the winner is the mixed launch: {:?}",
+        prepared.server.argv
+    );
+    let (fallback, _) = prepared.processor.as_ref().expect("a processor fallback");
+    assert_eq!(fallback.exe, PathBuf::from("/stub-cpu"), "the CPU build");
+    assert!(
+        !fallback.argv.join(" ").contains("--n-gpu-layers"),
+        "and the CPU shape's own launch: {:?}",
+        fallback.argv
+    );
+    let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
+    assert!(line.starts_with("graphics + processor "), "{line}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A dedicated card has its own memory: no mixed shape is offered there.
+#[test]
+fn a_dedicated_gpu_is_not_offered_the_mixed_shape() {
+    let dir = scratch("no-mixed-shape");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared_with("/main-gpu", rule_args());
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            counts(resolved.len(), resolved.len());
+            assert!(
+                resolved
+                    .iter()
+                    .all(|(candidate, _)| candidate.offload != Offload::ForcedOff),
+                "{resolved:?}"
+            );
+            tuned(vec![], None)
+        },
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
