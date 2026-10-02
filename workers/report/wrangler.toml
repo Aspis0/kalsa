@@ -1,0 +1,30 @@
+name = "kalsa-report"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+# Routes on the kalsa.io zone are the only origin (like kalsa-pair):
+# workers.dev stays disabled and every other host/path stays unrouted.
+workers_dev = false
+
+routes = [ { pattern = "kalsa.io/report", zone_name = "kalsa.io" } ]
+
+# The bucket is created once by the owner (README "One-time setup"); wrangler
+# deploy binds it. The Worker never reads objects back out.
+[[r2_buckets]]
+binding = "REPORTS"
+bucket_name = "kalsa-reports"
+
+# Workers Rate Limiting binding, current documented syntax (top-level
+# [[ratelimits]], docs: "Rate Limiting API"). 5 accepted POSTs per client IP
+# per 60 s; period must be 10 or 60. namespace_id must be a positive integer
+# string not used by any other rate-limit binding in this account.
+[[ratelimits]]
+name = "REPORT_RATE_LIMITER"
+namespace_id = "1001"
+
+[ratelimits.simple]
+limit = 5
+period = 60
+
+# Private bucket, no request logging: nothing to observe, logs off.
+[observability]
+enabled = false
