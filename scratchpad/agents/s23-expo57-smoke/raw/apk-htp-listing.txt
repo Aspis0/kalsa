@@ -1,0 +1,4 @@
+   919176  01-01-1981 01:01   assets/ggml-hexagon/libggml-htp-v73.so
+   864968  01-01-1981 01:01   assets/ggml-hexagon/libggml-htp-v75.so
+   885544  01-01-1981 01:01   assets/ggml-hexagon/libggml-htp-v79.so
+   918408  01-01-1981 01:01   assets/ggml-hexagon/libggml-htp-v81.so

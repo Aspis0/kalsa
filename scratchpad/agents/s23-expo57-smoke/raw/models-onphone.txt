@@ -1,0 +1,8 @@
+2834975040 files/models/qwen3.5-4b/Qwen3.5-4B-Q4_K_M.gguf
+672423616 files/models/qwen3.5-4b/mmproj-F16.gguf
+5155564768 files/models/lfm2.5-8b-a1b/LFM2.5-8B-A1B-Q4_K_M.gguf
+3326160384 files/models/lfm2.5-8b-a1b-kexp/LFM2.5-8B-A1B-KEXP.gguf
+1593894944 files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf
+1280835840 files/models/qwen3.5-2b/Qwen3.5-2B-Q4_K_M.gguf
+1561318368 files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf
+64 files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf.sha256-ok
