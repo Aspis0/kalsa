@@ -293,3 +293,125 @@ promptMs 283 ms — on M1 Max, LFM2.5-2.6B QAD-Q4_0 fully on GPU, n_threads=4 th
 - `os_proc_available_memory` headroom on the Mac: the app never logs it; if it matters, it needs an
   app-side log line (memory telemetry disabled in this build) — or accept ggml's "53083 MiB free".
 - Whisper/embedding models on the Mac: untouched.
+
+---
+
+# Run 3 (main, no node_modules patches) — 2026-10-02, ~15:05–17:00 autonomous
+
+Scope: prove the binding fixes work **from the pin**. `origin/main` (`2e7b4dfd`) pins
+`kalsa.rn` **6b87db16**, which carries the two BINDING-PATCHES.md fixes as real commits
+(`fa_smem(nsg)` at ggml-metal-ops.cpp:3518; the positive `#if defined(__aarch64__) ||
+defined(__ARM_NEON)` guard in arch/arm/quants.c). Rebuild + run everything with a **pristine
+`node_modules`** — zero hand patches. Worktree `~/Projects/kalsa-ios`, branch `ios/first-build`;
+nothing pushed, lab not committed, no tracked file changed.
+
+## Verdict in one line
+
+**PASS** — branch rebased onto main (0 conflicts), all gates exit 0 with no patches, both builds
+succeed, and the freshly installed Release build **loads LFM2.5 with 31/31 layers on Metal**
+(`load_tensors: offloaded 31/31 layers to GPU`, Apple M1 Max, `recommendedMaxWorkingSetSize
+55662.79 MB`). The Mac **locked itself again mid-run** (~15:40); everything after that was done
+headlessly (AppleScript + `open --stderr`) without touching credentials.
+
+## Branch surgery
+
+- `git tag local/sdk58-trial 7c324067` (local tag only) preserves the SDK 58 trial.
+- Branch = 5 iOS commits rebased onto `origin/main` `2e7b4dfd`:
+  `a54ec315` (first-build readiness, was d3456a50), `f98c4304` (audit fix round, was
+  2858a048), `d8426d0b` (EXCLUDED_ARCHS, was a15f5c10), `db0fff3a` (simulator 0-fallback,
+  was 4590f50d), `7bceff40` (truthful memory-0 comments, was c67e2df1). Trial dropped.
+- **Conflicts: none** (the only overlap, `package.json`, auto-merged; main's pin bump +
+  iOS-prep line coexist).
+
+## Verification gates (all real exit codes, node 22)
+
+| step | exit | note |
+|---|---|---|
+| `npm ci` | **0** | /tmp/ios3-npmci.log; pristine — both former patch sites verified fixed natively in the pin |
+| `bash scripts/assert-engine-provenance.sh` | **0** | 1154 files match `Aspis0/kalsa.rn@6b87db167a8f`; engine `kalsallama@5b596ce432ee` == pin |
+| `npx tsc --noEmit` | **0** | /tmp/ios3-tsc.log |
+| targeted jest, 7 suites touched by the 5 commits | **0**, 63/63 | appleDeviceClass, deviceProfile, loadGate, memoryEstimate, monitor, platformThermalStatus, loadRetryFreshness (/tmp/ios3-jest.log) |
+| `npx expo prebuild --platform ios --clean` | **0** | /tmp/ios3-prebuild.log |
+| `pod install` (explicit) | **0** | Podfile: 1× LLAMA_RN_CXX20, 1× KALSA_EXCLUDED_ARCHS_X86_64, 1× post_install |
+| xcodebuild Debug, `generic/platform=iOS Simulator` | **0**, BUILD SUCCEEDED, 0 errors | /tmp/ios3-simdebug.log, fresh `/tmp/kalsa-ios3-dd-sim` |
+| xcodebuild Release, Mac destination | **0**, BUILD SUCCEEDED, 0 errors | /tmp/ios3-macrelease.log, fresh `/tmp/kalsa-ios3-dd-mac`, signed TeamIdentifier=MH9XLJ79Q9, `codesign --verify --deep --strict` EXIT=0 |
+
+Signing was CLI-only as before: `DEVELOPMENT_TEAM=MH9XLJ79Q9 CODE_SIGN_ENTITLEMENTS=/tmp/kalsa-mac-entitlements.plist`
+(empty dict) `-allowProvisioningUpdates`. Two build attempts failed with **exit 64** first — a
+destination-syntax trap worth recording: `variant:Designed for [iPad,iPhone]` (the `-showdestinations`
+print form) and `variant=Designed for [iPad,iPhone]` both die in xcodebuild's parser — **the comma
+inside the brackets breaks the key=value splitter** ("unreadable input 'iPhone]' at end of value").
+`-destination 'id=00006001-001828DC029A801E'` is the reliable form.
+
+## Launch — the lock screen returned, so: a headless playbook (the new result of this run)
+
+The session locked again ~15:40 (screenshots /tmp/kalsa3-shots/02-after-wake.png = "Touch ID or
+Enter Password"). No credentials touched. What worked headlessly, in order:
+
+1. **xctrace `--launch` is useless here**: it resolves the launch to the *installed* wrapper (ran
+   the old run-2 build), then hung past `--time-limit 90s` exactly like run 1. Killed.
+2. **LLDB can launch-stop but not run** an uninstalled iOS-on-Mac binary: `process launch -s`
+   survives (suspended at entry), a full `process launch` dies with SIGKILL "Code Signature
+   Invalid" (crash report KalsaAIChat-2026-10-02-154324.ips) — the AMFI exec gate again.
+3. **`open -b com.kalsa.app --stderr F --stdout F` WORKS — and captures native stderr** (the
+   ggml fprintf lines land in F). Runs fine on a locked session. *Caveat discovered the hard way:*
+   it launches the **installed** app, never an arbitrary bundle — an `lsregister -f` of a /tmp
+   build did not take over the `-b` lookup, and the first capture therefore caught the **old**
+   run-2 build (caught by md5 comparison of the wrapper binary + main.jsbundle; its 31/31 line is
+   NOT pin evidence).
+4. **The install itself still needs Xcode, but no human**: the workspace document from run 2 was
+   stuck ("Build operations are disabled: … has changed and is reloading" — read via
+   `properties of scheme action result`), and close/open AppleEvents time out (-1712) on the
+   locked screen. `killall -9 Xcode` + `open -a Xcode …xcworkspace` + AppleScript
+   `run workspace document 1` worked end to end: fresh **Release** build (scheme LaunchAction
+   edited to Release, team in pbxproj — both gitignored generated files, see Deltas), ~25 min
+   compile, install + launch under the debugger (16:13).
+5. Xcode **reinstalled the app to a NEW wrapper UUID**
+   `/private/var/folders/…/X/49B73DC1-D061-54D1-B5D6-3B482FF68A02/d/Wrapper/KalsaAIChat.app`
+   (old install 695EEEB5-… was half-deleted by my failed in-place `rm` — read-only FS — so the
+   reinstall was mandatory anyway). Identity verified: no `.debug.dylib` (Release), binary/main.jsbundle
+   md5 differ from both run-2's build and my CLI build (Xcode embeds its own paths), bundle
+   contains the pin's `BUILD_COMMIT '5b596ce'`.
+6. Stopped the debug session via AppleScript `stop workspace document 1`, then relaunch:
+   `open -b com.kalsa.app --stderr /tmp/kalsa3-final-stderr.log --stdout …` → **EXIT=0**, app up,
+   model auto-loaded from the same UUID container (`1F508ED9-…`, `CFFIXED_USER_HOME` confirmed via
+   `ps -E`; the byte-exact 1_593_894_944 B GGUF is still there).
+
+## The load lines (this run's evidence, /tmp/kalsa3-final-stderr.log:10-20,67,130-136)
+
+```
+ggml_metal_device_init: GPU name:   MTL0 (Apple M1 Max)
+ggml_metal_device_init: GPU family: MTLGPUFamilyApple7  (1007)
+ggml_metal_device_init: has unified memory    = true
+ggml_metal_device_init: recommendedMaxWorkingSetSize  = 55662.79 MB
+llama_prepare_model_devices: using device MTL0 (Apple M1 Max) (unknown id) - 53083 MiB free
+load_tensors: offloading output layer to GPU
+load_tensors: offloading 29 repeating layers to GPU
+load_tensors: offloaded 31/31 layers to GPU
+load_tensors:   CPU_Mapped model buffer size =   205.08 MiB
+load_tensors:  MTL0_Mapped model buffer size =  1512.20 MiB
+llama_context: n_ctx                 = 16384
+```
+
+**31/31 on Metal, from the pin, no node_modules patches.** That is the binding owner's fold-in
+confirmed end to end (compile + link + run + GPU offload).
+
+## Deltas left in the tree (all in gitignored, prebuild-regenerated `ios/`; branch clean at `7bceff40`)
+
+- `ios/.xcode.env.local` recreated (`NODE_BINARY=/opt/homebrew/opt/node@22/bin/node`) — prebuild
+  `--clean` had wiped run 2's copy.
+- Scheme LaunchAction `buildConfiguration` Debug → Release (for the Xcode GUI install run).
+- `project.pbxproj`: `DEVELOPMENT_TEAM = MH9XLJ79Q9` in both app-target configs (GUI signing;
+  the CLI build proved the team can stay on the command line).
+- `ios/KalsaAIChat/KalsaAIChat.entitlements` emptied to `<dict/>` (free-team GUI signing; backup
+  of the regenerated version at /tmp/kalsa3-entitlements-backup.plist).
+- Xcode left open on the workspace, no debug session; app instance stopped at end of run.
+
+## Open
+
+- Decode tok/s / cold-load time on the new build: not measured (no generation attempted this run;
+  the task's bar was the 31/31 load line).
+- `xcodebuild`'s destination parser can't take the `[iPad,iPhone]` variant string — use
+  `id=<mac-udid>`; worth remembering for campaign scripts.
+- Stale LaunchServices leftovers: the half-deleted old wrapper dir (system-managed) and my
+  `lsregister -f` of the /tmp bundle (harmless; the installed record won every lookup).
