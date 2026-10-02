@@ -24,6 +24,7 @@ import {
   getThreadCountSource,
 } from "./threadProfile";
 import { DEFAULT_N_CTX } from "./contextProfile";
+import { resolveKvCacheProfile, type KvCacheProfile } from "./kvCacheProfile";
 import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
 
 // ── Types (design §3–§6) ────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ export type TuningModelInfo = {
   sizeBytes: number;
   engineCtx: number;
   contextLength: number;
-  kvCache?: { k: string; v: string };
+  kvCache?: KvCacheProfile;
   /**
    * Measured/derived KV bytes per token. `null` means unknown, exactly like
    * absent: the budget prices an unknown cache at zero, never at a guess.
@@ -739,10 +740,10 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
     ubatchSource = "override:user";
   }
 
-  // kv quant: constant q8_0/q4_0 on cpu-only (and everywhere until measured otherwise).
-  // Catalog kvCache is authoritative when present; defaults match measured path.
-  const type_k = input.model.kvCache?.k ?? "q8_0";
-  const type_v = input.model.kvCache?.v ?? "q4_0";
+  // kv quant: the pair the load will really allocate (resolveKvCacheProfile —
+  // q8_0/q8_0 on iOS whatever the catalog carries), else the shipped pair. The
+  // caller prices kvBytesPerToken at the same pair, so budget and report agree.
+  const kv = resolveKvCacheProfile(input.model.kvCache, null);
   const kvSource = "measured:kv-defaults";
 
   const ctx = resolveContextBudget(
@@ -763,7 +764,7 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
     nThreadsPrefill: threads.n_threads_prefill,
     n_ubatch,
     ubatchSource,
-    kv: { type_k, type_v },
+    kv: { type_k: kv.k, type_v: kv.v },
     kvSource,
     context: { n_ctx: ctx.n_ctx, ctxSource: ctx.ctxSource },
     memory: ctx.memory,

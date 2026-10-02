@@ -278,6 +278,8 @@ describe("loadGateFitModel", () => {
   });
 
   test("prices KV at the chosen cache profile, not the catalog's", () => {
+    // Android pinned: this is the shipped resolution, and it stays the one.
+    mockPlatform.OS = "android";
     const shipped = loadGateFitModel({
       model: FIT_MODEL,
       profile: fitDevice(6000, 8_000_000_000),
@@ -289,6 +291,24 @@ describe("loadGateFitModel", () => {
     });
     expect(shipped.kvBytesPerToken).toBe(6656);
     expect(high.kvBytesPerToken).toBe(8704);
+  });
+
+  test("iOS prices the estimate at q8_0/q8_0: the catalog's q4_0 V is not reachable", () => {
+    // The catalog's 6656 B/token is derived at q8_0/q4_0; the iOS context
+    // allocates the 8704 B/token pair, so that is what the gate must charge —
+    // for the unset default and for an explicit Standard alike.
+    mockPlatform.OS = "ios";
+    const unset = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(6000, 8_000_000_000),
+    });
+    const standard = loadGateFitModel({
+      model: FIT_MODEL,
+      profile: fitDevice(6000, 8_000_000_000),
+      kvCache: { k: "q8_0", v: "q4_0" },
+    });
+    expect(unset.kvBytesPerToken).toBe(8704);
+    expect(standard.kvBytesPerToken).toBe(8704);
   });
 });
 

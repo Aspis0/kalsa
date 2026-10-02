@@ -15,7 +15,7 @@ const baseModel = {
   sizeBytes: 1,
   engineCtx: 2048,
   contextLength: 4096,
-  kvCache: { k: "q8_0", v: "q4_0" },
+  kvCache: { k: "q8_0", v: "q4_0" } as const,
 };
 
 describe("device tuning size-class policy", () => {

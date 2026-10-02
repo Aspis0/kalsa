@@ -138,9 +138,10 @@ export const it: typeof en = {
     optionDowngradesTo: "Carica invece a {tokens} token.",
     kvCache: "Precisione della cache KV",
     kvCacheHint:
-      "Con quanta precisione viene salvata la cache di attenzione. High tiene V a 8 bit invece di 4 e costa più memoria. Ha effetto al prossimo caricamento del modello.",
-    kvCacheStandard: "Standard (K 8 bit, V 4 bit)",
-    kvCacheHigh: "High (K 8 bit, V 8 bit)",
+      "Con quanta precisione viene salvata la cache di attenzione: l'etichetta di ogni profilo mostra i bit che carica. Ha effetto al prossimo caricamento del modello.",
+    kvCacheStandard: "Standard (K {k} bit, V {v} bit)",
+    kvCacheHigh: "High (K {k} bit, V {v} bit)",
+    kvCacheSameProfile: "Su questo dispositivo entrambi i profili caricano la stessa cache.",
     kvCacheHighCost: "{mib} MiB in più al contesto di {tokens} token che hai chiesto.",
     ciswire: "CisWire",
     ciswireHint:

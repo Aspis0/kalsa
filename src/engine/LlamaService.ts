@@ -112,6 +112,7 @@ import {
 import type { EngineOverrideFields } from "./engineParams";
 import { shouldStreamModel } from "./modelGateRAM";
 import { modelAtKvProfile } from "./kvQuantCost";
+import { resolveKvCacheProfile } from "./kvCacheProfile";
 import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
@@ -2268,9 +2269,11 @@ export function initEngine(
       typeof options.nCtx === "number" && Number.isFinite(options.nCtx)
         ? options.nCtx
         : DEFAULT_N_CTX;
-    // Catalog/profile values from caller; dense practice fallback if omitted.
-    const cacheTypeK = options.cacheTypeK ?? "q8_0";
-    const cacheTypeV = options.cacheTypeV ?? "q4_0";
+    // Caller-resolved values; a caller that omitted them gets the profile
+    // resolver's own default (q8_0/q8_0 on iOS, the shipped pair elsewhere).
+    const defaultKv = resolveKvCacheProfile(null, null);
+    const cacheTypeK = options.cacheTypeK ?? defaultKv.k;
+    const cacheTypeV = options.cacheTypeV ?? defaultKv.v;
     const speculativeOverrideKey = JSON.stringify(options.speculativeOverride ?? null);
     const engineOverrideKey = JSON.stringify(options.engineOverride ?? null);
 

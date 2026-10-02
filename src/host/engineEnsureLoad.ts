@@ -35,6 +35,7 @@ import {
   CO_RESIDENCY_MIN_MEMORY_BYTES,
 } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
+import { resolveKvCacheProfile } from "../engine/kvCacheProfile";
 import { guardedLoad } from "../engine/loadMarker";
 import {
   EMBEDDER_RELEASE_TIMEOUT_MS,
@@ -157,12 +158,13 @@ export async function performEngineLoad(
 
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
       // Resolve once here: catalog n_ctx (no silent downgrade) + optional
-      // high-RAM upgrade for hybrids + catalog-authoritative KV. initEngine
-      // does not re-resolve — nCtx and cache types are passed explicitly.
-      // Bench nctx still outranks the Settings choice.
+      // high-RAM upgrade for hybrids + the KV pair the engine will allocate
+      // (resolveKvCacheProfile: the stored choice, else q8_0/q8_0 on iOS, else
+      // the catalog's). initEngine does not re-resolve — nCtx and cache types
+      // are passed explicitly. Bench nctx still outranks the Settings choice.
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
-        kvCache: kvCache ?? model.kvCache,
+        kvCache: resolveKvCacheProfile(kvCache, model.kvCache),
         catalogCtx: model.engineCtx,
         explicitNCtx: benchNCtx ?? userNCtx ?? undefined,
       });

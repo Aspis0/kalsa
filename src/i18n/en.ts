@@ -139,9 +139,10 @@ export const en = {
     optionDowngradesTo: "Loads at {tokens} tokens instead.",
     kvCache: "KV cache precision",
     kvCacheHint:
-      "How precisely the attention cache is stored. High keeps V at 8 bits instead of 4 and costs more memory. Takes effect on the next model load.",
-    kvCacheStandard: "Standard (K 8-bit, V 4-bit)",
-    kvCacheHigh: "High (K 8-bit, V 8-bit)",
+      "How precisely the attention cache is stored — the label on each profile shows the bits it loads. Takes effect on the next model load.",
+    kvCacheStandard: "Standard (K {k}-bit, V {v}-bit)",
+    kvCacheHigh: "High (K {k}-bit, V {v}-bit)",
+    kvCacheSameProfile: "Both profiles load the same cache on this device.",
     kvCacheHighCost: "{mib} MiB more at the {tokens}-token context you asked for.",
     ciswire: "CisWire",
     ciswireHint:

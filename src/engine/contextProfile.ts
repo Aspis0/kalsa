@@ -5,6 +5,7 @@
 // (+ hybrid/recurrent state). The full n_ctx buffer is reserved at init.
 
 import { MODEL_REGISTRY, type KvCacheProfile, type ModelInfo } from "./ModelRegistry";
+import { resolveKvCacheProfile } from "./kvCacheProfile";
 
 export const DEFAULT_N_CTX = 8192;
 export const HIGH_RAM_N_CTX = 16384;
@@ -154,7 +155,9 @@ export function getDeviceTotalMemoryBytes(): number | null {
  * types from the model catalog. Catalog n_ctx is never silently downgraded
  * (the catalog remains authoritative for each listed model).
  * `kvCache` is authoritative when provided (standard
- * hybrids use k q8_0 / v q4_0). No blanket hybrid→q8 override.
+ * hybrids use k q8_0 / v q4_0) — except on iOS, where resolveKvCacheProfile
+ * answers q8_0/q8_0 (mixed K/V types leave Metal's fast path). No blanket
+ * hybrid→q8 override.
  */
 export function resolveContextProfile(input: {
   hybrid?: boolean;
@@ -200,9 +203,10 @@ export function resolveContextProfile(input: {
     }
   }
 
-  // Catalog wins; fallback only when caller omitted kvCache (dense practice).
-  const cacheTypeK = input.kvCache?.k ?? "q8_0";
-  const cacheTypeV = input.kvCache?.v ?? "q4_0";
+  // Catalog wins off iOS; fallback only when caller omitted kvCache (dense
+  // practice). Same call the load path makes, so a caller cannot hand the
+  // engine a pair the platform would not run.
+  const kv = resolveKvCacheProfile(input.kvCache, null);
 
-  return { nCtx, cacheTypeK, cacheTypeV };
+  return { nCtx, cacheTypeK: kv.k, cacheTypeV: kv.v };
 }

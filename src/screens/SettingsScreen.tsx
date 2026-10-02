@@ -60,6 +60,7 @@ import { resolveGateLoadPolicy } from "../engine/loadPolicy";
 import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
 import { resolveEngineTuningSync } from "../engine/deviceTuning";
 import { kvBytesPerTokenAtProfile, modelAtKvProfile } from "../engine/kvQuantCost";
+import { resolveKvCacheProfile } from "../engine/kvCacheProfile";
 import {
   contextSizeChoices,
   contextSizeOutcome,
@@ -199,6 +200,22 @@ const PROVIDER_LABEL_KEYS: Record<SearchProviderId, TranslationKey> = {
 
 function modelBundleSize(model: ModelInfo): number {
   return model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+}
+
+/**
+ * Bit width a KV quant names, for the cache rows' labels ("K 8-bit"). The two
+ * rows can only resolve to q8_0 or q4_0; anything else prints its own name —
+ * a wrong number in a settings label is worse than a raw name.
+ */
+function kvCacheBitLabel(quant: string): string {
+  switch (quant) {
+    case "q8_0":
+      return "8";
+    case "q4_0":
+      return "4";
+    default:
+      return quant;
+  }
 }
 
 type MemoryNotice = {
@@ -1116,12 +1133,10 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           const active = MODEL_REGISTRY.find((m) => m.id === model.currentModelId);
           if (active) {
             // Same KV pricing as the load path: the catalog number is derived at
-            // q8_0/q4_0, so a High choice must be re-priced before judging fit.
-            const priced = modelAtKvProfile(
-              active,
-              kvCacheChoice?.k ?? active.kvCache?.k ?? "q8_0",
-              kvCacheChoice?.v ?? active.kvCache?.v ?? "q4_0",
-            );
+            // q8_0/q4_0, so a High choice (or the iOS pair) must be re-priced
+            // before judging fit.
+            const kv = resolveKvCacheProfile(kvCacheChoice, active.kvCache);
+            const priced = modelAtKvProfile(active, kv.k, kv.v);
             const fit = evaluateModelFit(
               {
                 sizeBytes: active.sizeBytes,
@@ -1179,7 +1194,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     [model.currentModelId],
   );
   const kvCacheChoice = kvCacheChoiceById(kvCacheChoiceId);
-  /** Standard is the shipped default, so unset and Standard render the same. */
+  /** Standard is the default row, so unset and Standard resolve to one pair. */
   const effectiveKvCacheChoiceId: KvCacheChoiceId = kvCacheChoiceId ?? "standard";
 
   const catalogContextTokens = useMemo(
@@ -1227,11 +1242,12 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     if (!activeModelForMemory || !deviceProfile || requestedContextTokens == null) {
       return null;
     }
-    const kv = kvCacheChoice ?? activeModelForMemory.kvCache;
+    // The pair the engine will allocate, the platform rule included.
+    const kv = resolveKvCacheProfile(kvCacheChoice, activeModelForMemory.kvCache);
     const tuning = resolveEngineTuningSync({
       // KV priced at the chosen quant, exactly as LlamaService.initEngine prices
       // the tuning request — a q8_0 V cache is 31% larger than the catalog's.
-      model: modelAtKvProfile(activeModelForMemory, kv?.k ?? "q8_0", kv?.v ?? "q4_0"),
+      model: modelAtKvProfile(activeModelForMemory, kv.k, kv.v),
       profile: deviceProfile,
       request: {
         contextBudget: requestedContextTokens,
@@ -1291,12 +1307,8 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   // one. Only a size whose even-the-floor cannot load is unselectable.
   const contextSizeOptionRows = useMemo(() => {
     if (!activeModelForMemory) return [];
-    const kv = kvCacheChoice ?? activeModelForMemory.kvCache;
-    const priced = modelAtKvProfile(
-      activeModelForMemory,
-      kv?.k ?? "q8_0",
-      kv?.v ?? "q4_0",
-    );
+    const kv = resolveKvCacheProfile(kvCacheChoice, activeModelForMemory.kvCache);
+    const priced = modelAtKvProfile(activeModelForMemory, kv.k, kv.v);
     return contextSizeChoices(activeModelForMemory.contextLength).map((tokens) => {
       const fit = gateContextOptionFit({
         model: priced,
@@ -1325,16 +1337,19 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
       return [];
     }
     return KV_CACHE_CHOICES.map((choice) => {
+      // The pair this row loads, not the pair its id names: on iOS both rows
+      // resolve to q8_0/q8_0, and the row must price what actually loads.
+      const kv = resolveKvCacheProfile(choice, activeModelForMemory.kvCache);
       const fit = gateCacheOptionFit({
         model: activeModelForMemory,
-        choice: { k: choice.k, v: choice.v },
+        choice: kv,
         profile: deviceProfile,
         requestedContextTokens,
         availableMemoryBytes: deviceProfile.availableMemoryBytes,
         benchNoRepack,
         benchUseMmap,
       });
-      return { choice, ...fit, availability: optionAvailability(fit.status) };
+      return { choice, kv, ...fit, availability: optionAvailability(fit.status) };
     });
   }, [
     activeModelForMemory,
@@ -1344,14 +1359,31 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     benchUseMmap,
   ]);
 
-  /** KV bytes High costs over Standard at the context the user asked for. */
+  /**
+   * KV bytes High costs over Standard at the context the user asked for. Both
+   * sides are the pairs the rows resolve to, so on iOS — where both rows are
+   * q8_0/q8_0 — the difference is zero and the line is not printed.
+   */
   const kvCacheHighCostMiB = useMemo(() => {
     if (!activeModelForMemory || requestedContextTokens == null) return null;
+    const [standard, high] = KV_CACHE_CHOICES.map((choice) =>
+      resolveKvCacheProfile(choice, activeModelForMemory.kvCache),
+    );
     const base = activeModelForMemory.kvBytesPerToken;
-    const high = kvBytesPerTokenAtProfile(base, "q8_0", "q8_0");
-    if (typeof base !== "number" || high === null) return null;
-    return Math.round(((high - base) * requestedContextTokens) / (1024 * 1024));
+    const standardBytes = kvBytesPerTokenAtProfile(base, standard.k, standard.v);
+    const highBytes = kvBytesPerTokenAtProfile(base, high.k, high.v);
+    if (standardBytes === null || highBytes === null) return null;
+    return Math.round(((highBytes - standardBytes) * requestedContextTokens) / (1024 * 1024));
   }, [activeModelForMemory, requestedContextTokens]);
+
+  /** The rows load one pair on this platform (iOS): say so instead of two names. */
+  const kvCacheRowsCoincide =
+    kvCacheOptionRows.length > 1 &&
+    kvCacheOptionRows.every(
+      (row) =>
+        row.kv.k === kvCacheOptionRows[0].kv.k &&
+        row.kv.v === kvCacheOptionRows[0].kv.v,
+    );
 
   /** Compact device line: brand model · N GB RAM · M cores (null parts omitted). */
   const deviceLineLabel = useMemo(() => {
@@ -1431,6 +1463,8 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const modelChoices = MODEL_REGISTRY.map((entry) => {
     const active = entry.id === model.currentModelId;
     const profilePending = deviceProfile === null || freeDiskBytes === null;
+    // The pair this model would load at on this platform, iOS rule included.
+    const kv = resolveKvCacheProfile(kvCacheChoice, entry.kvCache);
     const gate: ModelGateVerdict | null = deviceProfile
       ? modelGateVerdict({
           totalMemoryBytes: deviceProfile.totalMemoryBytes,
@@ -1439,14 +1473,10 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
           ramTier: deviceProfile.ramTier,
           modelMinRamTier: entry.minRamTier,
           modelNonEvictableMiB: gateNonEvictableMiB({
-            model: modelAtKvProfile(
-              entry,
-              kvCacheChoice?.k ?? entry.kvCache?.k ?? "q8_0",
-              kvCacheChoice?.v ?? entry.kvCache?.v ?? "q4_0",
-            ),
+            model: modelAtKvProfile(entry, kv.k, kv.v),
             contextTokens: resolveContextProfile({
               hybrid: entry.hybrid,
-              kvCache: kvCacheChoice ?? entry.kvCache,
+              kvCache: kv,
               catalogCtx: entry.engineCtx,
               totalMemoryBytes: deviceProfile.totalMemoryBytes,
               explicitNCtx: active && contextResolution ? contextResolution.loaded : undefined,
@@ -1728,10 +1758,14 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
             {kvCacheOptionRows.map((row) => {
               const selected = effectiveKvCacheChoiceId === row.choice.id;
               const blocked = row.availability === "blocked";
-              const label =
+              const label = t(
                 row.choice.id === "standard"
-                  ? t("settings.kvCacheStandard")
-                  : t("settings.kvCacheHigh");
+                  ? "settings.kvCacheStandard"
+                  : "settings.kvCacheHigh",
+                // The bits this row loads, not the bits its id names: on iOS
+                // both rows load q8_0/q8_0 and the label says so.
+                { k: kvCacheBitLabel(row.kv.k), v: kvCacheBitLabel(row.kv.v) },
+              );
               return (
                 <Pressable
                   key={row.choice.id}
@@ -1776,7 +1810,9 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
                       </Text>
                     ) : null}
                   </View>
-                  {row.choice.id === "high" && kvCacheHighCostMiB != null ? (
+                  {row.choice.id === "high" &&
+                  kvCacheHighCostMiB != null &&
+                  kvCacheHighCostMiB > 0 ? (
                     <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
                       {t("settings.kvCacheHighCost", {
                         mib: kvCacheHighCostMiB,
@@ -1810,6 +1846,11 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
               );
             })}
           </View>
+          {kvCacheRowsCoincide ? (
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("settings.kvCacheSameProfile")}
+            </Text>
+          ) : null}
         </GlassPanel2>
 
         {/* ── Instant chat reopen (UFS KV pool) ────────────────────────── */}

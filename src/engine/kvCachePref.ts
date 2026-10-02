@@ -3,14 +3,17 @@
  *
  * Two rows, both of them pairs the engines already carry in their catalog
  * `kvCache` profiles: Standard is the shipped q8_0/q4_0, High is q8_0/q8_0.
- * Unset means the catalog profile wins, so an install that never opens this
- * setting loads the same tensors it loaded before the setting existed.
+ * Unset means the catalog profile wins, so off iOS an install that never opens
+ * this setting loads the same tensors it loaded before the setting existed.
+ * On iOS both rows and the unset case resolve to q8_0/q8_0
+ * (resolveKvCacheProfile): mixed K/V types leave Metal's fast path, so the
+ * shipped Standard pair is not one this platform runs at full speed.
  *
  * The choice reaches the engine through the existing cacheTypeK/cacheTypeV
- * path (resolveContextProfile → EngineInitOptions), and both values already sit
- * in LlamaService's skip-reload key and in the session meta's mismatch check —
- * a .kvs written with a q4_0 V cache is discarded, not loaded, when the current
- * cache is q8_0.
+ * path (resolveKvCacheProfile → resolveContextProfile → EngineInitOptions), and
+ * both values already sit in LlamaService's skip-reload key and in the session
+ * meta's mismatch check — a .kvs written with a q4_0 V cache is discarded, not
+ * loaded, when the current cache is q8_0.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,6 +29,8 @@ export type KvCacheChoice = {
   v: KvCacheProfile["v"];
 };
 
+/** The stored ids and the catalog pairs they name. iOS resolves both through
+ *  resolveKvCacheProfile, so both load q8_0/q8_0 there. */
 export const KV_CACHE_CHOICES: readonly KvCacheChoice[] = [
   { id: "standard", k: "q8_0", v: "q4_0" },
   { id: "high", k: "q8_0", v: "q8_0" },

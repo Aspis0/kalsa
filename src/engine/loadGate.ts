@@ -11,7 +11,7 @@ import { resolveContextProfile } from "./contextProfile";
 import { resolveGateContextTokens, type TuningDeviceProfile } from "./deviceTuning";
 import { shouldRecoverLost } from "./engineLiveness";
 import { modelAtKvProfile } from "./kvQuantCost";
-import type { KvCacheProfile } from "./kvCacheProfile";
+import { resolveKvCacheProfile, type KvCacheProfile } from "./kvCacheProfile";
 import type { LoadPolicy } from "./loadPolicy";
 
 /**
@@ -44,7 +44,7 @@ export function loadGateFitModel(input: {
   profile: TuningDeviceProfile;
   /** bench ?? user ?? catalog; absent → the catalog / high-RAM resolution. */
   requestedContextTokens?: number;
-  /** Chosen cache profile; absent → the catalog's own. */
+  /** Chosen cache profile; absent → the catalog's own, iOS resolved. */
   kvCache?: KvCacheProfile | null;
   benchNoRepack?: boolean;
   /** bench:engine useMmap; the other half of the same load mode. */
@@ -59,22 +59,21 @@ export function loadGateFitModel(input: {
   canStreamExperts?: boolean;
   streamingResident?: { bytes: number; measuredAtContextTokens: number };
 } {
-  const chosenKv = input.kvCache ?? input.model.kvCache;
+  // The pair the engine will allocate, platform rule included: on iOS that is
+  // q8_0/q8_0, whose V cache holds 31% more bytes per element than the
+  // catalog's q4_0 — the gate must charge the bytes init will really take.
+  const chosenKv = resolveKvCacheProfile(input.kvCache, input.model.kvCache);
   // resolveContextProfile decides the request exactly as init does: an explicit
   // value wins and skips the high-RAM upgrade; otherwise the catalog value plus
   // that upgrade for a high-RAM hybrid.
   const requestedContextTokens = resolveContextProfile({
     hybrid: input.model.hybrid,
-    kvCache: chosenKv ?? undefined,
+    kvCache: chosenKv,
     catalogCtx: input.model.engineCtx,
     explicitNCtx: input.requestedContextTokens,
     totalMemoryBytes: input.profile.totalMemoryBytes,
   }).nCtx;
-  const priced = modelAtKvProfile(
-    input.model,
-    chosenKv?.k ?? "q8_0",
-    chosenKv?.v ?? "q4_0",
-  );
+  const priced = modelAtKvProfile(input.model, chosenKv.k, chosenKv.v);
   return {
     id: input.model.id,
     sizeBytes: input.model.sizeBytes,
