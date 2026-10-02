@@ -96,7 +96,10 @@ import {
   type EngineLivenessVerdict,
   type EngineLostRecoveryState,
 } from "./engineLiveness";
-import { getProcessRssBytesUncached } from "./monitor";
+import {
+  getAvailableMemoryBytesUncached,
+  getProcessRssBytesUncached,
+} from "./monitor";
 import {
   nGpuLayersForBackend,
   resolveEngineTuning,
@@ -359,6 +362,12 @@ let activeNoExtraBufts: boolean | null = null;
 let activeUseMmap: boolean | null = null;
 /** Production expert-streaming decision; part of the skip-reload key. */
 let activeStreamExperts: boolean | null = null;
+// MemAvailable bytes the ACTIVE engine's fit decisions were derived from
+// (fresh-at-load, or the cached fallback when that read failed). The
+// skip-reload decision re-derives from this — never from a live read, which
+// would require disposing the engine first — so an identical re-init still
+// skips instead of reloading.
+let activeFitMemoryBytes: number | null = null;
 let activeGovernorKey: string | null = null;
 let activeGovernorFit: "Fit" | "NoFit" | "Unknown" | null = null;
 let activeGovernorAttempted = false;
@@ -2264,21 +2273,6 @@ export function initEngine(
     const speculativeOverrideKey = JSON.stringify(options.speculativeOverride ?? null);
     const engineOverrideKey = JSON.stringify(options.engineOverride ?? null);
 
-    // Device Tuning Layer (docs/DEVICE_TUNING_LAYER.md): measured-first knobs
-    // with provenance. Replaces ad-hoc n_threads / n_ubatch / n_gpu_layers.
-    // n_ctx: caller still owns resolveContextProfile (AppShell); we pass that
-    // value as contextBudget. Memory budget may only SHRINK when available RAM
-    // is known and non-evictable would OOM — never invents an upgrade (preserves
-    // high-RAM hybrid 16k path). cache_type_k/v stay catalog/caller-owned
-    // (the selected catalog profile must not be overwritten by the layer's
-    // q8/q4 default).
-    // Resolve BEFORE idempotence so effectiveNCtx is the single key for init,
-    // activeEngineCtx, KV-session meta, restore validation, and skip-reload.
-    // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
-    // preset (8) is reachable in production (not only in harness fixtures).
-    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
-    // repacking). Resolved here so the skip-reload key and the init params share
-    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     // Every estimate in this function prices KV at the profile the engine is
     // about to load, not at the catalog's. The catalog numbers (LFM 6656,
@@ -2293,16 +2287,10 @@ export function initEngine(
       ? await readBenchGovernorForce()
       : false;
     const benchNpuLane = governorFeatureEnabled ? await readBenchNpuLane() : undefined;
+    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
+    // repacking). Resolved here so the skip-reload key and the init params share
+    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const benchNoRepack = await getBenchNoRepack();
-    // Same predicate the RAM gate uses. Production writes params.moe_stream
-    // below, BEFORE applyEngineOverride, so a bench A/B still wins.
-    const streamExperts =
-      pricedModel != null &&
-      shouldStreamModel({
-        model: pricedModel,
-        contextTokens: engineCtx,
-        availableMemoryBytes: deviceProfile.availableMemoryBytes,
-      });
     // Per-model load policy (ModelRegistry.loadPolicy → loadPolicy.ts). The
     // resolver there states the one precedence (streaming forces both flags; the
     // bench levers decide the non-streamed load); this call resolves WITHOUT the
@@ -2318,25 +2306,182 @@ export function initEngine(
       benchNoRepack,
       benchUseMmap: options.engineOverride?.useMmap,
     });
-    const tuning = await resolveEngineTuning({
-      model: pricedModel ?? modelInfo,
-      profile: deviceProfile,
-      cpuCapacities: deviceProfile.cpuCapacities,
-      request: {
-        contextBudget: engineCtx,
-        // The resolved load mode, so the estimate prices exactly what init
-        // will allocate: repack off drops that term; mmap off moves the
-        // weights into the non-evictable bucket.
-        mmap: load.useMmap,
-        repack: !load.noExtraBufts,
-      },
-      platformHint: Platform.OS,
-    });
-    // Prefer caller engineCtx when budget did not shrink (identical path on
-    // measured devices / unknown MemAvailable). Use tuning only when the
-    // memory budget actually reduced n_ctx (safety clamp, floor 8192).
-    const effectiveNCtx =
-      tuning.context.n_ctx < engineCtx ? tuning.context.n_ctx : engineCtx;
+    // The NPU lane's fit prices the KV the context will really hold. The
+    // effective types come from the same applyEngineOverride path that builds
+    // params below (flash attention off forces V to f16 — engineParams.ts),
+    // then the binding upgrades what HTP0 cannot write to q8_0; the raw
+    // catalog types would under-price the V side. Priced from the raw
+    // catalog number: pricedModel is already caller-priced and would
+    // compound the re-pricing. Memory-independent (types only).
+    const effectiveKv = effectiveCacheTypes(
+      cacheTypeK,
+      cacheTypeV,
+      options.engineOverride,
+    );
+    const laneKv = npuLaneCacheTypes(
+      effectiveKv.k,
+      effectiveKv.v,
+      options.engineOverride?.flashAttn === "off",
+    );
+    const laneModel = modelAtKvProfile(modelInfo, laneKv.k, laneKv.v);
+    // Every memory-fit input — the streaming RAM gate, the tuning layer's
+    // n_ctx budget, the governor lane fits, the plan log — derives here from
+    // ONE available-bytes value so they cannot disagree. It runs twice: once
+    // for the keep/replace decision with the input the ACTIVE engine was
+    // loaded under (activeFitMemoryBytes), and once for the real load with a
+    // fresh uncached MemAvailable read taken AFTER disposeEngineLocked
+    // released the previous model. The app-start cache
+    // (deviceProfile.availableMemoryBytes) is only the fallback when that
+    // read fails — pricing a lane against it while an old model sits resident
+    // is the S23 thrash bug.
+    const deriveMemoryFit = async (availableMemoryBytes: number | null) => {
+      // Same predicate the RAM gate uses. Production writes params.moe_stream
+      // below, BEFORE applyEngineOverride, so a bench A/B still wins.
+      const streamExperts =
+        pricedModel != null &&
+        shouldStreamModel({
+          model: pricedModel,
+          contextTokens: engineCtx,
+          availableMemoryBytes,
+        });
+      // Device Tuning Layer (docs/DEVICE_TUNING_LAYER.md): measured-first
+      // knobs with provenance. Replaces ad-hoc n_threads / n_ubatch /
+      // n_gpu_layers. n_ctx: caller still owns resolveContextProfile
+      // (AppShell); we pass that value as contextBudget. Memory budget may
+      // only SHRINK when available RAM is known and non-evictable would
+      // OOM — never invents an upgrade (preserves high-RAM hybrid 16k path).
+      // cache_type_k/v stay catalog/caller-owned (the selected catalog
+      // profile must not be overwritten by the layer's q8/q4 default).
+      // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
+      // preset (8) is reachable in production (not only in harness fixtures).
+      const tuning = await resolveEngineTuning({
+        model: pricedModel ?? modelInfo,
+        profile: { ...deviceProfile, availableMemoryBytes },
+        cpuCapacities: deviceProfile.cpuCapacities,
+        request: {
+          contextBudget: engineCtx,
+          // The resolved load mode, so the estimate prices exactly what init
+          // will allocate: repack off drops that term; mmap off moves the
+          // weights into the non-evictable bucket.
+          mmap: load.useMmap,
+          repack: !load.noExtraBufts,
+        },
+        platformHint: Platform.OS,
+      });
+      // Prefer caller engineCtx when budget did not shrink (identical path on
+      // measured devices / unknown MemAvailable). Use tuning only when the
+      // memory budget actually reduced n_ctx (safety clamp, floor 8192).
+      const effectiveNCtx =
+        tuning.context.n_ctx < engineCtx ? tuning.context.n_ctx : engineCtx;
+      const governorThermo = governorFeatureEnabled
+        ? await readGovernorThermo()
+        : null;
+      const governorBase =
+        governorFeatureEnabled && pricedModel != null
+          ? buildGovernorParams(pricedModel, deviceProfile, {
+              availableMemoryBytes,
+              totalMemoryBytes: deviceProfile.totalMemoryBytes,
+              contextTokens: effectiveNCtx,
+              ubatch: tuning.n_ubatch,
+              mmap: load.useMmap,
+              offloadedBytes: modelInfo.sizeBytes,
+            },
+            benchGovernorForce,
+            benchNoRepack,
+            {
+              android: Platform.OS === "android",
+              // Same source of truth as the governorLoad gate below
+              // (… && !options.mmprojPath): vision never claims the lane.
+              hasMmproj: Boolean(options.mmprojPath),
+              lanePref: benchNpuLane,
+              // Re-priced only when the pref requests the lane; with it off
+              // buildGovernorParams prices the entry as if this were absent.
+              laneModel,
+            },
+          )
+          : null;
+      const governorLoad =
+        governorBase != null &&
+        governorBase.enabled &&
+        governorThermo != null &&
+        governorThermo.sensor_valid &&
+        governorBase.gpu_fit !== "NoFit" &&
+        !options.mmprojPath &&
+        !streamExperts
+          ? {
+              ...governorBase,
+              enabled: true as const,
+              thermo: nativeGovernorThermo(governorThermo),
+            }
+          : null;
+      const governorKey = governorLoad ? JSON.stringify(governorBase) : "off";
+      return {
+        streamExperts,
+        tuning,
+        effectiveNCtx,
+        governorThermo,
+        governorBase,
+        governorLoad,
+        governorKey,
+      };
+    };
+
+    // Keep/replace decision, BEFORE dispose: an idempotent re-init must leave
+    // the loaded engine untouched, so this derives from that engine's own
+    // load-time input — a fresh sample here is impossible without disposing
+    // first, and would turn every skip into a reload.
+    if (context !== null) {
+      const active = await deriveMemoryFit(
+        activeFitMemoryBytes ?? deviceProfile.availableMemoryBytes,
+      );
+      if (
+        activeModelId === modelId &&
+        activeMmprojPath === (options.mmprojPath ?? null) &&
+        activeEngineCtx === active.effectiveNCtx &&
+        activeCacheTypeK === cacheTypeK &&
+        activeCacheTypeV === cacheTypeV &&
+        activeSpeculativeOverrideKey === speculativeOverrideKey &&
+        activeEngineOverrideKey === engineOverrideKey &&
+        activeNoExtraBufts === load.noExtraBufts &&
+        activeUseMmap === load.useMmap &&
+        activeStreamExperts === active.streamExperts &&
+        activeGovernorKey === active.governorKey &&
+        // A runtime fallback's reload must never take this idempotent skip:
+        // what is loaded is the failed governor context it exists to replace.
+        !governorRuntimeOff
+      ) {
+        if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
+        loadOk = true;
+        return { effectiveNCtx: active.effectiveNCtx };
+      }
+    }
+    await disposeEngineLocked();
+    // Re-check after dispose: timeout / release() failure sets contextHung
+    // and returns. Calling initLlama on a hung or half-released native
+    // context is fail-open (second context + UAF). Fail closed.
+    if (contextHung) {
+      throw new Error(
+        "Engine context hung after dispose timeout with active native work; restart the app",
+      );
+    }
+    // The real load derives from live memory: sampled after the previous
+    // engine released, before anything new is allocated. Unreadable sample →
+    // the cached app-start value; null there too → the fits see null exactly
+    // as before (streaming off, lane NoFit, no n_ctx budget).
+    const freshMemoryBytes = await getAvailableMemoryBytesUncached();
+    const availableSrc: "fresh" | "cached" =
+      freshMemoryBytes != null ? "fresh" : "cached";
+    const fitMemoryBytes =
+      freshMemoryBytes ?? deviceProfile.availableMemoryBytes;
+    const {
+      streamExperts,
+      tuning,
+      effectiveNCtx,
+      governorThermo,
+      governorBase,
+      governorLoad,
+      governorKey,
+    } = await deriveMemoryFit(fitMemoryBytes);
     if (windowCeilingTokens(effectiveNCtx) <= 0) {
       // n_ctx <= WINDOW_RESERVE_TOKENS leaves no verbatim window and makes the
       // AppShell / tool-round ceiling guard inert (windowCeilingTokens → 0).
@@ -2350,94 +2495,13 @@ export function initEngine(
       }
     }
 
-    const governorThermo = governorFeatureEnabled
-      ? await readGovernorThermo()
-      : null;
-    // The NPU lane's fit prices the KV the context will really hold. The
-    // effective types come from the same applyEngineOverride path that builds
-    // params below (flash attention off forces V to f16 — engineParams.ts),
-    // then the binding upgrades what HTP0 cannot write to q8_0; the raw
-    // catalog types would under-price the V side. Priced from the raw
-    // catalog number: pricedModel is already caller-priced and would
-    // compound the re-pricing.
-    const effectiveKv = effectiveCacheTypes(
-      cacheTypeK,
-      cacheTypeV,
-      options.engineOverride,
-    );
-    const laneKv = npuLaneCacheTypes(
-      effectiveKv.k,
-      effectiveKv.v,
-      options.engineOverride?.flashAttn === "off",
-    );
-    const governorBase =
-      governorFeatureEnabled && pricedModel != null
-        ? buildGovernorParams(pricedModel, deviceProfile, {
-            availableMemoryBytes: deviceProfile.availableMemoryBytes,
-            totalMemoryBytes: deviceProfile.totalMemoryBytes,
-            contextTokens: effectiveNCtx,
-            ubatch: tuning.n_ubatch,
-            mmap: load.useMmap,
-            offloadedBytes: modelInfo.sizeBytes,
-          },
-          benchGovernorForce,
-          benchNoRepack,
-          {
-            android: Platform.OS === "android",
-            // Same source of truth as the governorLoad gate below
-            // (… && !options.mmprojPath): vision never claims the lane.
-            hasMmproj: Boolean(options.mmprojPath),
-            lanePref: benchNpuLane,
-            // Re-priced only when the pref requests the lane; with it off
-            // buildGovernorParams prices the entry as if this were absent.
-            laneModel: modelAtKvProfile(modelInfo, laneKv.k, laneKv.v),
-          },
-        )
-        : null;
-    const governorLoad =
-      governorBase != null &&
-      governorBase.enabled &&
-      governorThermo != null &&
-      governorThermo.sensor_valid &&
-      governorBase.gpu_fit !== "NoFit" &&
-      !options.mmprojPath &&
-      !streamExperts
-        ? {
-            ...governorBase,
-            enabled: true as const,
-            thermo: nativeGovernorThermo(governorThermo),
-          }
-        : null;
-    const governorKey = governorLoad ? JSON.stringify(governorBase) : "off";
-
-    if (
-      context &&
-      activeModelId === modelId &&
-      activeMmprojPath === (options.mmprojPath ?? null) &&
-      activeEngineCtx === effectiveNCtx &&
-      activeCacheTypeK === cacheTypeK &&
-      activeCacheTypeV === cacheTypeV &&
-      activeSpeculativeOverrideKey === speculativeOverrideKey &&
-      activeEngineOverrideKey === engineOverrideKey &&
-      activeNoExtraBufts === load.noExtraBufts &&
-      activeUseMmap === load.useMmap &&
-      activeStreamExperts === streamExperts &&
-      activeGovernorKey === governorKey &&
-      // A runtime fallback's reload must never take this idempotent skip:
-      // what is loaded is the failed governor context it exists to replace.
-      !governorRuntimeOff
-    ) {
-      if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
-      loadOk = true;
-      return { effectiveNCtx };
-    }
     if (governorBase != null && pricedModel != null && !governorRuntimeOff) {
       console.log(
         `KALSA_GOVERNOR_PLAN ${JSON.stringify(
           buildGovernorPlanLog(
             pricedModel,
             {
-              availableMemoryBytes: deviceProfile.availableMemoryBytes,
+              availableMemoryBytes: fitMemoryBytes,
               totalMemoryBytes: deviceProfile.totalMemoryBytes,
               contextTokens: effectiveNCtx,
               ubatch: tuning.n_ubatch,
@@ -2447,6 +2511,7 @@ export function initEngine(
             governorBase,
             benchNoRepack,
             benchNpuLane,
+            { laneModel, availableSrc },
           ),
         )}`,
       );
@@ -2458,15 +2523,6 @@ export function initEngine(
           reason: governorBase.reason,
           forced: governorBase.forced,
         })}`,
-      );
-    }
-    await disposeEngineLocked();
-    // Re-check after dispose: timeout / release() failure sets contextHung
-    // and returns. Calling initLlama on a hung or half-released native
-    // context is fail-open (second context + UAF). Fail closed.
-    if (contextHung) {
-      throw new Error(
-        "Engine context hung after dispose timeout with active native work; restart the app",
       );
     }
 
@@ -2746,6 +2802,9 @@ export function initEngine(
     activeMmprojPath = options.mmprojPath ?? null;
     // Single effective context size — must match initLlama n_ctx and session meta.
     activeEngineCtx = effectiveNCtx;
+    // The fit input this engine was loaded under; the skip-reload decision
+    // re-derives from it (see deriveMemoryFit above).
+    activeFitMemoryBytes = fitMemoryBytes;
     activeCacheTypeK = cacheTypeK;
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
@@ -2953,6 +3012,7 @@ async function disposeEngineLocked(opts?: {
     activeNoExtraBufts = null;
     activeUseMmap = null;
     activeStreamExperts = null;
+    activeFitMemoryBytes = null;
     activeGovernorKey = null;
     activeGovernorFit = null;
     activeGovernorAttempted = false;

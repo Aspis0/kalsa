@@ -216,20 +216,37 @@ export function buildGovernorPlanLog(
     decode_repack: boolean;
     npu_device?: string | null;
     npu_fallback?: string | null;
+    npu_fit?: "Fit" | "NoFit";
   },
   benchNoRepack: boolean | undefined,
   npuLanePref?: BenchNpuLanePref,
+  lane?: {
+    /** The model priced at npuLaneCacheTypes — what the NPU lane fit compares. */
+    laneModel?: GovernorModel;
+    /** Which source supplied availableMemoryBytes: the post-release uncached
+     *  read ("fresh") or the app-start cache it fell back to ("cached"). */
+    availableSrc?: "fresh" | "cached";
+  },
 ) {
-  const withRepack = lanePrice(model, memory, true);
-  const withoutRepack = lanePrice(model, memory, false);
+  // The binding fit check is requiredMiB + extraMiB <= availableMiB, so the
+  // printed required_mib must carry the same +219 MiB HTP prefill copy and
+  // the same lane-priced KV the decision used — otherwise a postmortem
+  // recomputing fit-vs-available from this line disagrees with the verdict
+  // by exactly the extra. With the lane off the binding check is the GPU
+  // lane's own (no extra, entry pricing).
+  const laneRequested = npuLanePref === "auto" || npuLanePref === "on";
+  const pricedModel = laneRequested ? (lane?.laneModel ?? model) : model;
+  const extraMiB = laneRequested ? NPU_PREFILL_EXTRA_MIB : 0;
+  const withRepack = lanePrice(pricedModel, memory, true);
+  const withoutRepack = lanePrice(pricedModel, memory, false);
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
   const roundMiB = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
   return {
     gpu_fit: governor.gpu_fit,
     decode_repack: governor.decode_repack,
-    required_mib_with_repack: roundMiB(withRepack?.requiredMiB ?? 0),
-    required_mib_without_repack: roundMiB(withoutRepack?.requiredMiB ?? 0),
+    required_mib_with_repack: roundMiB((withRepack?.requiredMiB ?? 0) + extraMiB),
+    required_mib_without_repack: roundMiB((withoutRepack?.requiredMiB ?? 0) + extraMiB),
     available_mib: roundMiB(availableMiB),
     bench_norepack_forced: benchNoRepack ?? null,
     // Intent, not outcome: the loader resolves the device after this line; a
@@ -240,6 +257,10 @@ export function buildGovernorPlanLog(
     // attributed to lane on vs off: absent/invalid reads resolve to off
     // (readBenchNpuLane → the gate's default), never to auto.
     npu_lane: npuLanePref ?? "off",
+    // The lane fit verdict these required_mib explain (the GPU lane's is
+    // gpu_fit above).
+    npu_fit: governor.npu_fit ?? null,
+    available_src: lane?.availableSrc ?? null,
   };
 }
 
