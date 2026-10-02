@@ -988,6 +988,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   whole plugged session (CPU); (iii) an unplugged read that is never pushed to the engine (reload race) then a replug
   > 1.5 C away -> engine drift Invalid until the next model load (self-heals on reload). Device check: debuggable APK
   run 37066820198 on 7ec12eb0, S23 PLUGGED, two turns + a model switch, expect no "invalid thermal profile".
+  **DEVICE-PROVEN 2026-10-02** (GLM 00f064f5, `scratchpad/agents/s23-plugged-latch-7ec12eb0/`, lab 78038d14; counts
+  re-run by me on raw/): plugged, battery 29.5 -> 37.0 C over 6 LFM turns + a Qwen load in one process; 0 "invalid
+  thermal profile", 0 "prefill admission aborted", 0 GOVERNOR_FALLBACK; LFM turns 1-6 prefilled on NPU HTP0 with the KV
+  held (the old build aborted turn 2 at +1.7 C). The Qwen load (new engine policy) at 37 C stayed valid = the latch
+  survives a reload. Not run: the LFM switch-back (the charger physically dropped at 19:00, owner to re-seat it). Note:
+  `KALSA_GOVERNOR_THERMO` only logs on an invalid profile, so "valid" is attested by the absence of failures + HTP0.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
