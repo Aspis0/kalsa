@@ -12,7 +12,9 @@ TS = re.compile(r"^([0-9.]+)\s*±\s*([0-9.]+)$")
 DEPTH = re.compile(r"@ d(\d+)$")
 
 TSV_HEADER = ["arm", "depth", "fa", "nkvo", "ctk", "ctv", "test",
-              "pp_tok_s", "per_chunk_ms", "src_log"]
+              "pp_tok_s", "per_chunk_ms", "src_log",
+              "device_model", "soc", "bat_pct", "bat_temp_c",
+              "thermal_before", "thermal_after"]
 
 
 def parse_markdown(text):
@@ -42,9 +44,16 @@ def depth_of(test):
     return int(m.group(1)) if m else 0
 
 
-def tsv_line(arm, parsed, fa, nkvo, ctk, ctv, src_log, chunk_tokens):
+def tsv_line(arm, parsed, fa, nkvo, ctk, ctv, src_log, chunk_tokens,
+             device=None):
+    """device: {model, soc, battery_level, battery_temp_c, thermal_before,
+    thermal_after} from the run's gate snapshots; missing fields become '-'."""
     ms = chunk_tokens / parsed["mean_ts"] * 1000.0
     fields = [arm.name, str(depth_of(parsed["test"])), fa, str(nkvo),
               ctk, ctv, parsed["test"], f"{parsed['mean_ts']:.2f}",
               f"{ms:.1f}", src_log]
+    dev = device or {}
+    fields += [str(dev.get(k) or "-") for k in
+               ("model", "soc", "battery_level", "battery_temp_c",
+                "thermal_before", "thermal_after")]
     return "\t".join(fields)

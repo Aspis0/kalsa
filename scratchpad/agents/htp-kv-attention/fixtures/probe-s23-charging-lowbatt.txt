@@ -1,0 +1,28 @@
+===BATTERY===
+Current Battery Service state:
+  AC powered: false
+  USB powered: true
+  Wireless powered: false
+  Max charging current: 1500
+  Charge counter: 2900000
+  status: 2
+  health: 2
+  present: true
+  level: 19
+  scale: 100
+  voltage: 3880
+  temperature: 301
+  technology: Li-ion
+===THERMAL===
+Thermal Service:
+  IsStatusOverride: false
+  Thermal Status: 0
+  Current temperatures from HAL:
+    Temperature{mValue=30.0, mType=4, mName=skin, mStatus=0}
+===POWER===
+mWakefulness=Awake
+===TRACED===
+0
+===IDENT===
+SM-S911U
+SM8550
