@@ -917,6 +917,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   **Quality DONE 2026-10-02 (`htp-kv-attention/QUALITY-v-q8-vs-q4.md`, CPU, ctx 4096, vs f16 KV; coordinator re-read the
   IT logs): V q8_0 is better in all five languages** - mean KLD IT 0.0091 -> 0.0025 (EN 0.0080 -> 0.0022, ZH 0.0088
   -> 0.0025), same-top 95.5 % -> 97.5 %, PPL lower everywhere. Option (a) STARTED: binding step first.
+  **Option (a) LANDED 2026-10-02 (not yet measured on a phone):** binding PUSHED `3d8fc84a` (b0035656: lane KV on
+  HTP, HTP-unwritable K/V -> q8_0 in both contexts, KALSA_KV_TYPE_OVERRIDE, stats cache_type_k/v + prefill_kv;
+  3d8fc84a: flash-attn explicitly off keeps host KV + caller types; GLM, audit luna 1d12cecb). App PUSHED main
+  `cbddc1f2` from the detached worktree ~/Projects/kalsa-wt-gov (shared ~/Projects/kalsa main holds kalsa-brain's 3
+  unpushed workers/report commits): b362ae10 pin 3d8fc84a, f25de109 + cbddc1f2 lane fit priced at the effective KV
+  types (LFM lane 8,704 B/token; FA off prices f16 V), lane-off byte-identical (GLM, audit luna 3d6bfd75; bf16
+  non-catalog input left as a known gap). Debuggable APK run 37011736047. NEXT on the S23 (charged, unplugged): in-app
+  prefill short/long with prefill_kv "device", decode tok/s with V q8_0 vs the 101c2bdd baseline, answer correctness.
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
