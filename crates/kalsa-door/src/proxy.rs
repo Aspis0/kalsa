@@ -15,7 +15,7 @@ use crate::request;
 use crate::response;
 use crate::slot_routes;
 use crate::stream;
-use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
+use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, COMPLETION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES, patience};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -342,7 +342,10 @@ pub(super) fn handle(
     if relay_exact(&mut client, &mut upstream, body_length, deadline, &cancel).is_err() {
         return;
     }
-    let upstream_head = match response::read_upstream_head(&mut upstream, deadline) {
+    // The request is in; what follows is the engine's answer. A completion's
+    // answer has its own, longer, lifetime (see `COMPLETION_LIFETIME`).
+    let deadline = answer_deadline(accepted, completion);
+    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some(&cancel)) {
         Ok(head) => head,
         Err(_) => return,
     };
@@ -569,7 +572,19 @@ fn relay_response(
         }
         set_read_deadline(from, deadline)?;
         set_write_deadline(to, deadline)?;
-        let read = from.read(&mut buffer)?;
+        let read = match from.read(&mut buffer) {
+            Ok(read) => read,
+            // The engine is silent — a long prefill, a slow token. That is not
+            // the end of the answer: look at who is still here and wait again,
+            // until the deadline (`set_read_deadline` above) says otherwise.
+            Err(error) if is_silence(&error) => {
+                if client_gone(to) {
+                    return Ok(());
+                }
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         if read == 0 {
             return Ok(());
         }
@@ -578,6 +593,44 @@ fn relay_response(
             observer(&buffer[..read]);
         }
     }
+}
+
+/// How long the engine's answer to this request may take, counted from
+/// accept: a completion's answer gets its own lifetime, everything else the
+/// connection's.
+pub(super) fn answer_deadline(accepted: Instant, completion: bool) -> Instant {
+    accepted
+        + if completion {
+            COMPLETION_LIFETIME
+        } else {
+            CONNECTION_LIFETIME
+        }
+}
+
+/// A read that ran out of time rather than failed: the other side is quiet,
+/// not gone.
+pub(super) fn is_silence(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+    )
+}
+
+/// Whether the client has hung up: its end reads as closed. A peek that would
+/// block is a client that is simply quiet. Asked only when the engine is
+/// silent, so a client that left during a long prefill frees the relay (and,
+/// by closing the engine's socket, the engine's slot) at the next wake-up.
+fn client_gone(client: &TcpStream) -> bool {
+    if client.set_nonblocking(true).is_err() {
+        return false;
+    }
+    let mut probe = [0u8; 1];
+    let gone = match client.peek(&mut probe) {
+        Ok(read) => read == 0,
+        Err(error) => error.kind() != io::ErrorKind::WouldBlock,
+    };
+    let _ = client.set_nonblocking(false);
+    gone
 }
 
 fn refuse(stream: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) -> io::Result<()> {
@@ -596,7 +649,7 @@ pub(super) fn write_with_deadline(
 pub(super) fn set_read_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {
     let timeout = remaining(deadline)
         .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "door deadline"))?;
-    stream.set_read_timeout(Some(timeout.min(PATIENCE)))
+    stream.set_read_timeout(Some(timeout.min(patience())))
 }
 
 pub(super) fn set_write_deadline(stream: &TcpStream, deadline: Instant) -> io::Result<()> {

@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::jobs::{Appended, Failure, Job, Status, Take};
-use crate::proxy::{set_write_deadline, Cancel};
+use crate::proxy::{is_silence, set_read_deadline, set_write_deadline, Cancel};
 use crate::chunk::Dechunker;
 use crate::sse::{self, EventSplitter};
 
@@ -74,8 +74,12 @@ pub(super) fn produce_and_serve(
         }
         let read = match upstream.read(&mut buffer) {
             Ok(read) => read,
-            // Upstream silence outlasts the door's patience: whatever the
-            // cause — a crash, a stop, a reload — the answer stopped.
+            // Quiet is not over: the engine is silent between prefill reports
+            // and between tokens on a slow computer. Wake up, look at the
+            // door again, and wait — until the deadline above says the answer
+            // has had its lifetime.
+            Err(error) if is_silence(&error) => continue,
+            // Anything else — a crash, a stop, a reload — the answer stopped.
             Err(_) => {
                 job.close(Status::Failed(Failure::Upstream));
                 break;
@@ -264,11 +268,4 @@ fn write_bytes(
         observer(bytes);
     }
     true
-}
-
-fn set_read_deadline(stream: &mut TcpStream, deadline: Instant) -> std::io::Result<()> {
-    let remaining = deadline
-        .checked_duration_since(Instant::now())
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::TimedOut, "door deadline"))?;
-    stream.set_read_timeout(Some(remaining.min(crate::PATIENCE)))
 }

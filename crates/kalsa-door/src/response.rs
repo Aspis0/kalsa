@@ -9,7 +9,8 @@ use std::net::TcpStream;
 use std::time::Instant;
 
 use crate::chunk::Dechunker;
-use crate::PATIENCE;
+use crate::patience;
+use crate::proxy::{is_silence, Cancel};
 
 pub(super) const MAX_HEAD: usize = 32 * 1024;
 
@@ -22,7 +23,16 @@ pub(super) struct Head {
     pub(super) chunked: bool,
 }
 
-pub(super) fn read_upstream_head(stream: &mut TcpStream, deadline: Instant) -> std::io::Result<Head> {
+/// `waiting` is the caller's cancel when the head of a model's answer is being
+/// read: the engine sends it once it starts on the request, which on a busy
+/// seat can be well past one patience, so a quiet read is waited through (the
+/// deadline and the cancel still end it). `None` keeps the single patience for
+/// the door's own short calls.
+pub(super) fn read_upstream_head(
+    stream: &mut TcpStream,
+    deadline: Instant,
+    waiting: Option<&Cancel>,
+) -> std::io::Result<Head> {
     // The timeout is set once for the whole head: the reads are one byte
     // each (the body must not be swallowed), and re-arming SO_RCVTIMEO per
     // byte only multiplies the odds of hitting the macOS quirk below.
@@ -50,6 +60,9 @@ pub(super) fn read_upstream_head(stream: &mut TcpStream, deadline: Instant) -> s
                 }
             }
             Ok(_) => unreachable!("a one-byte read returned more than one byte"),
+            Err(error) if is_silence(&error) && waiting.is_some_and(|cancel| !cancel.stopped()) => {
+                arm_read_timeout(stream, deadline)?;
+            }
             Err(error) => return Err(error),
         }
     }
@@ -63,7 +76,7 @@ fn arm_read_timeout(stream: &mut TcpStream, deadline: Instant) -> std::io::Resul
     let remaining = deadline
         .checked_duration_since(Instant::now())
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::TimedOut, "door deadline"))?;
-    let timeout = remaining.min(PATIENCE);
+    let timeout = remaining.min(patience());
     if stream.set_read_timeout(Some(timeout)).is_ok() {
         return Ok(());
     }

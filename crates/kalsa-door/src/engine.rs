@@ -79,7 +79,7 @@ impl Engine<'_> {
         proxy::set_write_deadline(&engine, self.deadline).map_err(|_| Call::Unreachable)?;
         engine.write_all(&head).map_err(|_| Call::Unreachable)?;
         let reply =
-            response::read_upstream_head(&mut engine, self.deadline).map_err(|_| Call::Unreachable)?;
+            response::read_upstream_head(&mut engine, self.deadline, None).map_err(|_| Call::Unreachable)?;
         let (status, length) = reply_head(&reply.raw).ok_or(Call::Unreachable)?;
         if !(200..300).contains(&status) {
             return Err(Call::Refused);
