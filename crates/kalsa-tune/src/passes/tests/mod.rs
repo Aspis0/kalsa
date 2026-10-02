@@ -242,11 +242,11 @@ fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() 
     }
 }
 
-/// The Lenovo's own numbers: the card decodes 16.8 tok/s but waits 29 s
-/// for a 2069-token history, where the processor decodes 8.0 and starts in
-/// 11 s. The tune keeps the shorter wait, not the faster decoder.
+/// The card decodes 10 tok/s but reads at 60, a 39.2 s mean wait; the
+/// processor decodes 8.0 and reads at 300, a 28.8 s one. The tune keeps the
+/// shorter wait, not the faster decoder.
 #[test]
-fn the_lenovo_case_keeps_the_shorter_reply_not_the_faster_decode() {
+fn the_card_that_decodes_faster_but_waits_longer_loses() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
     let tuned = tune(
         &shapes,
@@ -255,8 +255,8 @@ fn the_lenovo_case_keeps_the_shorter_reply_not_the_faster_decode() {
         || Duration::ZERO,
         &mut |_, _| {},
         |shape, _| match (shape.backend, shape.threads) {
-            (ServerBackend::Vulkan, _) => first(73.0, 16.8),
-            (_, Some(16)) => first(180.0, 8.0),
+            (ServerBackend::Vulkan, _) => first(60.0, 10.0),
+            (_, Some(16)) => first(300.0, 8.0),
             _ => first(120.0, 7.5),
         },
         |_, _| panic!("a plan without a drafter has no drafted sweep"),

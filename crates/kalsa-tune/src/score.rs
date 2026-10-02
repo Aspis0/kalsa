@@ -1,16 +1,21 @@
 //! Which trial wins: the room's wait, not a rate. A reply re-reads the
 //! history the room already holds and decodes the answer the owner waits
-//! for, so the two measured rates become one number in seconds.
+//! for, so the two measured rates become one number in seconds — the
+//! average of a typical turn and a long history.
 
 use kalsa_launch::Offload;
 
 use crate::candidates::Candidate;
 
-/// The room the owner feels: a history of about two thousand tokens
-/// already on screen, and a reply of about two hundred fresh ones. The
-/// prompt rate pays for the first, the decode rate for the second.
+/// The two replies the owner waits for, averaged: a typical turn (about
+/// three hundred tokens read, two hundred written) and a long history (about
+/// two thousand read, two hundred written). The prompt rate pays for what is
+/// read, the decode rate for what is written. The long history is also the
+/// size of the room ask that measures the prompt rate (see `room.rs`).
+const TURN_PROMPT_TOKENS: u64 = 300;
+const TURN_REPLY_TOKENS: u64 = 200;
 pub(crate) const ROOM_PROMPT_TOKENS: u64 = 2000;
-pub(crate) const ROOM_REPLY_TOKENS: u64 = 200;
+const ROOM_REPLY_TOKENS: u64 = 200;
 
 /// Trials within 5 % of the fastest reply are equal in use, so the
 /// lighter launch wins — the same band the rate ranking used, now on
@@ -44,15 +49,20 @@ impl Reply {
     }
 }
 
-/// The room's own score: prefill the history, then decode the reply.
+/// The room's own score: the mean wait of a typical turn and a long
+/// history, each a prefill of what is read and a decode of what is written.
 /// Lower is better.
 pub fn reply_seconds(prompt_rate: f64, decode_rate: f64) -> f64 {
-    prefill_seconds(prompt_rate) + ROOM_REPLY_TOKENS as f64 / decode_rate
+    let wait = |read: u64, written: u64| read as f64 / prompt_rate + written as f64 / decode_rate;
+    (wait(TURN_PROMPT_TOKENS, TURN_REPLY_TOKENS) + wait(ROOM_PROMPT_TOKENS, ROOM_REPLY_TOKENS))
+        / 2.0
 }
 
-/// The wait before the first token: the history is prefill work.
+/// The prefill share of the score, which no decode rate can take away: a
+/// reply is never shorter than this, so a shape whose prefill alone costs
+/// as much as the best complete reply cannot beat it.
 pub fn prefill_seconds(prompt_rate: f64) -> f64 {
-    ROOM_PROMPT_TOKENS as f64 / prompt_rate
+    (TURN_PROMPT_TOKENS + ROOM_PROMPT_TOKENS) as f64 / 2.0 / prompt_rate
 }
 
 /// The winner: which launch to keep, and the reply that won it — the app
@@ -153,29 +163,34 @@ mod tests {
         Reply::from_rates(prompt_rate, decode_rate).expect("two measurements")
     }
 
-    /// The score is the room's arithmetic and nothing else: two thousand
-    /// tokens of history at the prompt rate, two hundred of answer at the
+    /// The score is the room's arithmetic and nothing else: the mean of a
+    /// typical turn (300 read, 200 written) and a long history (2,000 read,
+    /// 200 written), the reads at the prompt rate and the writes at the
     /// decode rate.
     #[test]
-    fn a_reply_is_the_history_then_the_answer() {
+    fn a_reply_is_the_mean_of_a_turn_and_a_long_history() {
         let scored = reply(1000.0, 50.0);
-        assert_eq!(scored.seconds, 2.0 + 4.0);
+        let turn = 0.3 + 4.0;
+        let long = 2.0 + 4.0;
+        assert!((scored.seconds - (turn + long) / 2.0).abs() < 1e-12, "{scored:?}");
+        // The prefill share alone is the mean of the two reads.
+        assert!((prefill_seconds(1000.0) - 1.15).abs() < 1e-12);
         // A rate that is not a measurement makes no reply.
         assert_eq!(Reply::from_rates(0.0, 50.0), None);
         assert_eq!(Reply::from_rates(1000.0, f64::NAN), None);
         assert_eq!(Reply::from_rates(-1.0, 50.0), None);
     }
 
-    /// The Lenovo, measured 2026-10-01: the card decodes 16.8 tok/s but
-    /// needs 29 s on a 2069-token history, where the processor decodes 8.0
-    /// and starts in 13. At the processor's 150 tok/s the two replies are
-    /// 39.3 s and 38.3 s — inside the band, where the fuller offload keeps
-    /// the card (see the tie test below); at 180 tok/s the processor's wait
-    /// is 8 % shorter, and there the reply decides.
+    /// The reply, not the decode: a card that decodes 10 tok/s but reads
+    /// 60 tok/s waits 39.2 s on the mean of a turn and a long history,
+    /// where a processor that decodes slower (8 tok/s) and reads 300 waits
+    /// 28.8 s. Inside the band, though, the fuller offload keeps the card:
+    /// at a 360 tok/s read the processor's 28.2 s is only 2.4 % short of a
+    /// card (100 tok/s read, 11.5 decode) that waits 28.9 s.
     #[test]
-    fn the_lenovo_case_scores_the_reply_not_the_decode() {
-        let card = reply(73.0, 16.8);
-        let processor = reply(180.0, 8.0);
+    fn the_reply_not_the_decode_decides() {
+        let card = reply(60.0, 10.0);
+        let processor = reply(300.0, 8.0);
         assert!(
             processor.seconds < card.seconds,
             "the slower decoder waits less: {processor:?} against {card:?}"
@@ -188,16 +203,38 @@ mod tests {
             "and the winning trial is the slower decoder"
         );
 
-        // The near tie the same machine can measure instead: 38.3 s
-        // against 39.3 s is 2.5 %, so the band holds the card — the GPU
-        // does the work and leaves the processor free, and the second on
-        // a thirty-nine-second wait is not felt.
-        let near = [(gpu(), card), (cpu(16), reply(150.0, 8.0))];
+        let near = [(gpu(), reply(100.0, 11.5)), (cpu(16), reply(360.0, 8.0))];
+        assert!(near[1].1.seconds < near[0].1.seconds, "a real lead");
         assert_eq!(
             reply_winner(&near).map(|win| win.candidate),
             Some(gpu()),
             "inside the band the fuller offload wins"
         );
+    }
+
+    /// The Surface, measured 2026-10-01 on the 2,252-token room ask: the
+    /// card fully offloaded reads 64.4 and decodes 5.3, the processor (4
+    /// threads) reads 22.7 and decodes 13.3, and the mixed shape — weights
+    /// on the processor, the card taking the big-batch prefill — reads 41.8
+    /// and decodes 9.9. Neither pure shape is the best wait: 55.6 s and
+    /// 65.7 s against the mixed shape's 47.7 s.
+    #[test]
+    fn the_surfaces_mixed_shape_beats_both_pure_ones() {
+        let card = reply(64.4, 5.3);
+        let processor = reply(22.7, 13.3);
+        let mixed_candidate = Candidate {
+            backend: ServerBackend::Vulkan,
+            threads: Some(4),
+            offload: Offload::ForcedOff,
+            draft: None,
+        };
+        let trials = [
+            (gpu(), card),
+            (cpu(4), processor),
+            (mixed_candidate, reply(41.8, 9.9)),
+        ];
+        let win = reply_winner(&trials).expect("all three scored");
+        assert_eq!(win.candidate, mixed_candidate, "{trials:?}");
     }
 
     /// MTP on the shape that loses the decode race outright: the
@@ -211,24 +248,24 @@ mod tests {
             ..processor
         };
         let trials = [
-            // 33.3 s of history + 6.7 s of answer.
+            // 25.8 s on the mean of the two replies.
             (gpu(), reply(60.0, 30.0)),
-            // 13.3 s + 25.0 s.
+            // 32.7 s.
             (processor, reply(150.0, 8.0)),
-            // 13.3 s + 16.7 s: the draft trial wins, on a decode rate no
-            // shape would have chosen alone.
-            (drafted, reply(150.0, 12.0)),
+            // 22.0 s: the draft trial wins, on a decode rate no shape would
+            // have chosen alone.
+            (drafted, reply(150.0, 14.0)),
         ];
         let win = reply_winner(&trials).expect("three scored");
         assert_eq!(win.candidate, drafted);
-        assert_eq!(win.reply.decode_rate, 12.0);
+        assert_eq!(win.reply.decode_rate, 14.0);
         assert!(
             trials[0].1.decode_rate > win.reply.decode_rate,
             "the room can prefer the slower decoder"
         );
     }
 
-    /// Inside the band (4.0 s against 3.94 s) the lighter setting wins,
+    /// Inside the band (3.15 s against 3.09 s) the lighter setting wins,
     /// not the raw minimum — 22 logical threads ask for six more than the
     /// machine's sixteen physical cores.
     #[test]

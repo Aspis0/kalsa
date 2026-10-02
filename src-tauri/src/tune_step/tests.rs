@@ -517,8 +517,8 @@ fn the_tune_line_is_the_owners_copy() {
     };
     assert_eq!(
         tune_line(&Tune::Measured(record.clone())),
-        "graphics, reply ≈ 5.3 s (prompt 1,900 tok/s, decode 47 tok/s) \
-         (processor 16 threads: reply ≈ 18.9 s)"
+        "graphics, reply ≈ 4.9 s (prompt 1,900 tok/s, decode 47 tok/s) \
+         (processor 16 threads: reply ≈ 18.1 s)"
     );
     // EngineFitted is the graphics family in the owner's words too, and a
     // winner with no measured alternative stands alone on the line.
@@ -537,7 +537,7 @@ fn the_tune_line_is_the_owners_copy() {
             }),
             trials: vec![replied(fitted, 1900.0, 47.0)],
         })),
-        "graphics, reply ≈ 5.3 s (prompt 1,900 tok/s, decode 47 tok/s)"
+        "graphics, reply ≈ 4.9 s (prompt 1,900 tok/s, decode 47 tok/s)"
     );
 }
 
@@ -1020,7 +1020,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
     let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
     assert!(line.contains("drafter 3"), "{line}");
     assert!(
-        line.contains("reply ≈ 30.0 s"),
+        line.contains("reply ≈ 24.3 s"),
         "the number is the room's own: {line}"
     );
     let digest = prepared.info.model_sha256.as_deref().unwrap();
@@ -1206,7 +1206,7 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
                 vec![
                     replied(gpu, 60.0, 30.0),
                     // The drafted trial decodes faster (33.8 against 30)
-                    // and its reply is 39.25 s against 40.0 — inside 5 %.
+                    // and its reply is 25.1 s against 25.8 — inside 5 %.
                     replied(drafted, 60.0, 33.8),
                     replied(processor, 80.0, 8.0),
                 ],
@@ -1223,11 +1223,11 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
         "the drafted trial only tied: speculation is not kept: {argv}"
     );
     assert!(prepared.info.args.draft.is_none());
-    // The line carries the winning trial's own reply — 40.0 s at the
+    // The line carries the winning trial's own reply — 25.8 s at the
     // target-only 30 tok/s — not the drafted trial's faster decode.
     let line = tune_line(prepared.info.tune.as_ref().expect("the tune ran"));
     assert!(line.contains("graphics"), "{line}");
-    assert!(line.contains("reply ≈ 40.0 s"), "{line}");
+    assert!(line.contains("reply ≈ 25.8 s"), "{line}");
     assert!(line.contains("decode 30 tok/s"), "{line}");
     assert!(
         !line.contains("33.8"),
