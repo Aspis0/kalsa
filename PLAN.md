@@ -1080,6 +1080,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Accepted residual (owner may override): RN follows redirects natively, so a 307/308 FROM kalsa.io would resend the
   body before JS sees it - only our own Worker over HTTPS can emit one. Tests can never reach the network (fetch spy
   rejects by default). Next: step 3 (unclean-exit prompt).
+  **Step 3 of 3 PUSHED on app main `37624f8e` (2026-10-02) - phone log feature COMPLETE:** `kalsa-lifecycle`
+  `lastExitInfo()` (Android ApplicationExitInfo, newest record: closed reason literal + importance + timestamp only;
+  never description/trace/processName/pid, source-guarded) -> `uncleanExit.ts` asks once per record iff crash /
+  crash_native / anr, or low_memory / signaled / excessive_resource_usage with importance <= 200 (visible); a background
+  OS kill, force-stop, update, exit_self never ask (my call, owner may override); consumed timestamp in AsyncStorage
+  -> `UncleanExitPrompt` modal (title/body/privacy sentence, embeds SendLogPanel, Not now / back dismiss). iOS: no
+  ask. deepseek 9be4a55e -> audit luna 1abe89cb (privacy + app-initiated-exit false asks REFUTED; no self-kill
+  anywhere) -> my 48 dp Send button + rebase over the iOS kalsa-lifecycle change; full jest 314/3362. Accepted
+  residuals: pid=0 query would also see a secondary process (none declared today); one sync binder call at launch;
+  prompt not scroll-wrapped at huge font scales (unverified).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
