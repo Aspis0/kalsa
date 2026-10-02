@@ -56,6 +56,14 @@ fn legacy_path(dir: &Path) -> PathBuf {
 /// format: build digests | OS | detected backend | driver version), so a
 /// new engine build, a new driver or a different card moves the key even
 /// when the model and the context stand still.
+///
+/// The version inside the key counts the SCORING RULE, not the file
+/// grammar: the decode-first tie-break and the no-dominated-winners rule
+/// chose different winners over identical lines, so a record saved before
+/// them was chosen under a rule this build no longer applies — moving the
+/// key re-measures every machine exactly once. The grammar is unchanged,
+/// which is why MAGIC stays `kalsa-tune v6`: an old file must still PARSE
+/// and simply miss the new key — never read as foreign and lost blind.
 pub fn fingerprint(
     model_digest: &str,
     context_tokens: u64,
@@ -65,7 +73,7 @@ pub fn fingerprint(
     drafter: Option<&str>,
 ) -> String {
     format!(
-        "kalsa-tune fp v3|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
+        "kalsa-tune fp v4|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
          logical={logical_cores:?}|graphics={}|processor={}|draft={}",
         engine_builds.0,
         engine_builds.1,

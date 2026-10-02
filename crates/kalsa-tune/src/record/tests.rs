@@ -312,6 +312,34 @@ fn an_older_format_reads_as_no_record() {
     }
 }
 
+/// The key counts the SCORING RULE: a record keyed by the previous rule's
+/// version is not this build's verdict — the first start after a rule
+/// change measures once instead of trusting a winner the old rule chose —
+/// and it is not even a retry marker, just another question this file
+/// does not answer.
+#[test]
+fn a_record_keyed_by_an_older_scoring_rule_is_not_reused() {
+    let dir = Scratch::new("older-key");
+    let current = fingerprint(DIGEST, 8192, Some(8), Some(16), ("gfx", "cpu"), None);
+    assert!(
+        current.starts_with("kalsa-tune fp v4"),
+        "the key's version is the scoring rule's: {current}"
+    );
+    let stale = current.replacen("kalsa-tune fp v4", "kalsa-tune fp v3", 1);
+    let mut record = sample();
+    record.fingerprint = stale;
+    save(&dir, DIGEST, &record).expect("save");
+    assert_eq!(
+        load(&dir, DIGEST, &current),
+        None,
+        "a winner chosen under the old rule is not this rule's verdict"
+    );
+    assert!(
+        !cut_before(&dir, DIGEST, &current),
+        "not a marker either: the next start measures fresh"
+    );
+}
+
 /// An unfinished verdict is written as a marker: the same record and one
 /// `cut=<cause>` line, which the launch read refuses (the next start must
 /// measure again) while `cut_before` and the display read still see it,
