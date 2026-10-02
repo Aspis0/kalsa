@@ -1,20 +1,24 @@
 # Kalsa for alpha testers
 
-Kalsa runs a private AI on your own computer. Your chats stay on that computer. Your
-phone talks to this computer. This page gets you installed and through the first ten
-minutes. It is written for non-technical testers — you don't need to know how anything
-works.
+Kalsa runs a private AI on your own computer. Your messages are answered on this
+computer; when Kalsa searches the web, the words of that search leave it. Your phone
+talks to this computer. This page gets you installed and through the first start. It is
+written for non-technical testers — you don't need to know how anything works.
 
 ## 1. What you need
 
 - **A Mac with Apple Silicon** (M1 or newer). Intel Macs are not supported yet.
 - **Or a Windows PC, 64-bit.** Windows 11 is what we have tested. Windows on ARM comes later.
-- **16 GB of memory or more.** That is what we have tested (16 GB and 32 GB machines).
-- **About 25 GB of free disk space.** The biggest AI the app may offer weighs about 22 GB.
-  Smaller picks are 3–7 GB.
-- **An internet connection** for the first start: it downloads the AI and the program that
-  runs it (that part is only about 30 MB).
-- Your phone, with the Kalsa app on it, for section 5.
+- **Memory:** we have tested 16 GB and 32 GB. With 8 GB the app may still offer you a
+  small AI. If it says no AI can run on this computer, there is nothing to press — tell us.
+- **About 30 GB of free disk space, to be safe.** Depending on your computer, the first
+  download is about 3 GB up to about 22 GB.
+- **An internet connection** for the first start: Kalsa downloads a small program first,
+  then the AI. On some work or school networks the download is blocked — Kalsa says
+  "Kalsa couldn't download what she needs on this network. Try another network." Try
+  again at home.
+- **Your phone:** install the Kalsa phone app from the link we send you, and keep it
+  updated. <!-- PHONE-APP-LINK -->
 
 ## 2. Install on Mac
 
@@ -40,28 +44,42 @@ If the app opens from a disk image, drag it into **Applications** first.
 2. Windows may show **"Windows protected your PC"**. Click **More info**, then **Run anyway**.
 3. Start Kalsa from the Start menu.
 
-## 4. The first start (once, about 10 minutes)
+## 4. The first start (once)
 
-1. Open Kalsa and press **Start**.
-2. Kalsa checks your computer, then offers an AI. Take the suggestion — the app says it
-   "checks your computer and picks the AI that runs best on it". Press **Use this**.
-3. Confirm the download — the screen asks "Download …?" with your size in GB — by
-   pressing **Download**.
-4. The AI downloads (a few minutes), then Kalsa measures your computer:
-   "Finding what runs fastest on your computer…". This takes about 6–7 minutes.
-5. When it finishes, you can chat.
+1. Open Kalsa and press **Start**. Under the button, Kalsa says it checks your computer
+   and picks the AI that runs best on it.
+2. Kalsa checks your computer, then offers **two** choices. Each one shows its name, a
+   size, and either "Smarter answers." or "Faster answers.", with its own **Use this**
+   button. Pick one. If the AI is already on the computer, there is no download question.
+   **Cancel** takes you back a step.
+3. Kalsa downloads a small program first, then the AI (the screen asks "Download …?"
+   with the size in GB). It then measures your computer: "Finding what runs fastest on
+   your computer…" — about 6–7 minutes.
+4. When it finishes, you can chat.
 
-Keep the computer plugged in and awake, and leave the Kalsa window open until step 4
-finishes. This measuring only happens the first time; later starts are quick.
+Keep the computer plugged in and awake, and leave the Kalsa window open until step 3
+finishes. If something fails, the app shows **Try again** — press it. This measuring
+happens only once. Later, Kalsa starts by itself when you open it; that takes up to a
+minute or two.
+
+The first start takes about 10 minutes on a smaller computer. On a big Mac or PC with a
+large AI it can take 30 minutes or more — most of it is the download, so it depends on
+your internet speed.
 
 ## 5. Connecting your phone
 
-In Kalsa, open **Devices**. Point your phone's camera at the square, or press
-**Invite by link** and send the link to your phone. When your phone asks to connect,
-choose **Allow**.
+Kalsa must be on: if the page says this computer is not running, press **Turn Kalsa on**.
+On Kalsa's home page, under **This computer**, open **Devices**. Point your phone's
+camera at the square, or press **Invite by link** and send the link to your phone — it
+works once, for one day. The app warns: "Anyone who can see this square can connect a
+phone — show it only to yours."
 
-Your computer may ask whether Kalsa can find devices on your **local network**. Choose
-Allow — without it, your phone cannot reach this computer.
+The **Allow** button is on this computer, not on the phone. The Devices page shows
+"Waiting for your OK", then "A phone is connecting. Choose Allow or Refuse below." —
+press **Allow**.
+
+If Windows asks whether Kalsa may use the network, choose Allow. This may appear the
+first time.
 
 ## 6. When something goes wrong
 
@@ -75,10 +93,12 @@ Tell us what you were doing and when.
 ## 8. Uninstall
 
 **Mac:** Drag Kalsa from Applications to the Trash, then empty the Trash. To remove its
-data, in Finder press **⌘ ⇧ G**, paste `~/Library/Application Support/kalsa-brain`, and
-delete that folder (it holds the downloaded AI — it is the big one). Do the same with
-`~/Library/Application Support/ai.kalsa.brain`.
+data, in Finder press **⌘ ⇧ G**, paste each of these, and delete the folder:
+`~/Library/Application Support/kalsa-brain` (the downloaded AI — the big one),
+`~/Library/Application Support/ai.kalsa.brain`, and `~/Library/Logs/ai.kalsa.brain`.
 
-**Windows:** Open **Settings → Apps → Kalsa → Uninstall**. To remove its data, press
-**Windows + R**, paste `%LOCALAPPDATA%\kalsa-brain`, press Enter, and delete what is in
-there (the downloaded AI — the big one). Do the same with `%APPDATA%\ai.kalsa.brain`.
+**Windows:** Open **Settings → Apps → Installed apps → Kalsa → Uninstall**. To remove
+its data, press **Windows + R**, paste each of these, press Enter, and delete what is
+inside: `%LOCALAPPDATA%\kalsa-brain` (the downloaded AI — the big one),
+`%APPDATA%\ai.kalsa.brain`, and `%LOCALAPPDATA%\ai.kalsa.brain` (the web view's own
+data and the logs).
