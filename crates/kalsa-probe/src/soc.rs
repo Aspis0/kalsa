@@ -92,9 +92,12 @@ pub fn decode_bandwidth() -> Option<f64> {
     published_bandwidth(&brand_string()?).map(|published| published * DECODE_SHARE_OF_PUBLISHED)
 }
 
-/// The CPU's marketing name, as the kernel reports it. The record the app
-/// keeps of a measurement carries this as the chip's identity: it is the
-/// same string the decode estimate below is keyed on, and it is cheap.
+/// The CPU's marketing name — sysctl's on macOS, CPUID's brand-string
+/// leaves on x86 — and `None` where neither names it (aarch64): the
+/// record then carries no chip name, no `cpu:` line prints, and never a
+/// wrong name. The record the app keeps of a measurement carries this as
+/// the chip's identity: it is the same string the decode estimate below
+/// is keyed on, and it is cheap.
 #[cfg(target_os = "macos")]
 pub fn brand_string() -> Option<String> {
     let out = std::process::Command::new("/usr/sbin/sysctl")
@@ -106,7 +109,63 @@ pub fn brand_string() -> Option<String> {
     (!name.is_empty()).then_some(name)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(
+    not(target_os = "macos"),
+    any(target_arch = "x86", target_arch = "x86_64")
+))]
+pub fn brand_string() -> Option<String> {
+    brand_from_bytes(&cpuid_brand_bytes()?)
+}
+
+/// CPUID's three brand leaves (0x80000002..=0x80000004): four
+/// little-endian registers per leaf, 48 bytes in all, in string order.
+/// The first call asks for the highest extended leaf, so a CPU whose
+/// answer stops short of the third brand leaf has no brand here to ask.
+#[cfg(all(
+    not(target_os = "macos"),
+    any(target_arch = "x86", target_arch = "x86_64")
+))]
+fn cpuid_brand_bytes() -> Option<[u8; 48]> {
+    #[cfg(target_arch = "x86")]
+    use std::arch::x86::__cpuid;
+    #[cfg(target_arch = "x86_64")]
+    use std::arch::x86_64::__cpuid;
+
+    // The first call asks for the highest extended leaf: a max that stops
+    // short of 0x80000004 is a CPU with no brand leaves, and the three
+    // leaves below are then never asked for.
+    if __cpuid(0x8000_0000).eax < 0x8000_0004 {
+        return None;
+    }
+    let mut bytes = [0u8; 48];
+    for index in 0..3u32 {
+        let registers = __cpuid(0x8000_0002 + index);
+        let at = index as usize * 16;
+        bytes[at..at + 4].copy_from_slice(&registers.eax.to_le_bytes());
+        bytes[at + 4..at + 8].copy_from_slice(&registers.ebx.to_le_bytes());
+        bytes[at + 8..at + 12].copy_from_slice(&registers.ecx.to_le_bytes());
+        bytes[at + 12..at + 16].copy_from_slice(&registers.edx.to_le_bytes());
+    }
+    Some(bytes)
+}
+
+/// The 48 bytes as the name they spell: vendor ASCII, padded at both ends
+/// with spaces or NULs, whichever the vendor fills with — trimmed of
+/// exactly that, and all-padding is no name at all.
+#[cfg(any(
+    test,
+    all(
+        not(target_os = "macos"),
+        any(target_arch = "x86", target_arch = "x86_64")
+    )
+))]
+fn brand_from_bytes(bytes: &[u8; 48]) -> Option<String> {
+    let text: String = bytes.iter().map(|&byte| byte as char).collect();
+    let name = text.trim_matches(|c: char| c == '\0' || c.is_whitespace());
+    (!name.is_empty()).then(|| name.to_string())
+}
+
+#[cfg(not(any(target_os = "macos", target_arch = "x86", target_arch = "x86_64")))]
 pub fn brand_string() -> Option<String> {
     None
 }
@@ -140,6 +199,40 @@ mod tests {
         assert_eq!(published_bandwidth("Apple M9 Ultra"), None);
         assert_eq!(published_bandwidth("Intel(R) Core(TM) i9-9880H"), None);
         assert_eq!(published_bandwidth(""), None);
+    }
+
+    #[test]
+    fn brand_bytes_read_as_a_trimmed_name() {
+        // The two paddings vendors actually ship: spaces (Intel) and
+        // NULs (AMD), both inside the same 48 bytes.
+        let mut space_padded = [b' '; 48];
+        let intel = b"Intel(R) Core(TM) i7-1065G7";
+        space_padded[..intel.len()].copy_from_slice(intel);
+        assert_eq!(
+            brand_from_bytes(&space_padded),
+            Some("Intel(R) Core(TM) i7-1065G7".to_string())
+        );
+        let mut nul_padded = [0u8; 48];
+        let amd = b"AMD Ryzen 9 5900X 12-Core Processor";
+        nul_padded[..amd.len()].copy_from_slice(amd);
+        assert_eq!(
+            brand_from_bytes(&nul_padded),
+            Some("AMD Ryzen 9 5900X 12-Core Processor".to_string())
+        );
+        assert_eq!(brand_from_bytes(&[0u8; 48]), None);
+    }
+
+    /// The machine's own name, on the hosts that answer: sysctl's on an
+    /// Intel Mac, CPUID's brand leaves on x86 Windows and Linux.
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[test]
+    fn this_cpu_is_named_in_printable_ascii() {
+        let name = brand_string().expect("this platform names its CPU");
+        assert!(!name.is_empty(), "the brand string was empty");
+        assert!(
+            name.chars().all(|c| c.is_ascii_graphic() || c == ' '),
+            "not printable ASCII: {name:?}"
+        );
     }
 
     #[test]

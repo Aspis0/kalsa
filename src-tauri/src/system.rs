@@ -314,9 +314,9 @@ pub(crate) fn available_ram_bytes() -> Option<u64> {
 }
 
 /// The OS as the block names it: the product version and build a person
-/// means (`macOS 15.6 build 24G84`, `windows 10.0.26100`), falling back to
-/// the kernel's own version when the platform's product query will not
-/// answer. Never the host's name.
+/// means (`macOS 15.6 build 24G84`, `windows 11 25H2 (build 26200.4652)`),
+/// falling back to what the platform still knows when the product query
+/// will not answer. Never the host's name.
 pub(crate) fn os_description() -> String {
     // Asked once per process: the session header and this block print the
     // same line, and the platform query is a process spawn on macOS.
@@ -343,27 +343,129 @@ fn os_description_uncached() -> String {
     }
     #[cfg(target_os = "windows")]
     {
-        // SAFETY: `GetVersionExW` fills a plain struct of the size it is
-        // told.
-        unsafe {
-            let mut info: windows_sys::Win32::System::SystemInformation::OSVERSIONINFOW =
-                std::mem::zeroed();
-            info.dwOSVersionInfoSize =
-                std::mem::size_of::<windows_sys::Win32::System::SystemInformation::OSVERSIONINFOW>()
-                    as u32;
-            if windows_sys::Win32::System::SystemInformation::GetVersionExW(&mut info) != 0 {
-                return format!(
-                    "{} {}.{}.{}",
-                    std::env::consts::OS, info.dwMajorVersion, info.dwMinorVersion, info.dwBuildNumber
-                );
-            }
+        // GetVersionExW is lied to in an unmanifested process — 6.2.9200,
+        // Windows 8's number, whatever runs — so the version the machine
+        // runs comes from the registry's own CurrentVersion keys.
+        let major = reg_dword("CurrentMajorVersionNumber");
+        let build = reg_sz("CurrentBuildNumber").and_then(|text| text.trim().parse().ok());
+        match (major, build) {
+            (Some(major), Some(build)) => windows_version_line(
+                major,
+                reg_dword("CurrentMinorVersionNumber").unwrap_or(0),
+                build,
+                reg_sz("DisplayVersion").as_deref(),
+                reg_dword("UBR"),
+            ),
+            _ => std::env::consts::OS.to_string(),
         }
-        std::env::consts::OS.to_string()
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         crate::logging::os_version()
     }
+}
+
+/// The line a Windows version prints: `windows 11 25H2 (build 26200.4652)`.
+/// Build 22000 is where Windows 11 starts, and the major number never says
+/// so — it stays 10 — so the name follows the build. The marketing version
+/// and the revision print only when the machine reports them.
+#[cfg(any(target_os = "windows", test))]
+fn windows_version_line(
+    major: u32,
+    minor: u32,
+    build: u32,
+    display: Option<&str>,
+    revision: Option<u32>,
+) -> String {
+    let name = if build >= 22000 {
+        "11".to_string()
+    } else {
+        format!("{major}.{minor}")
+    };
+    let display = display
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map_or_else(String::new, |value| format!(" {value}"));
+    let revision = revision.map_or_else(String::new, |value| format!(".{value}"));
+    format!("windows {name}{display} (build {build}{revision})")
+}
+
+/// One REG_DWORD under HKLM's `Windows NT\CurrentVersion`, read through the
+/// handle's own key (a null subkey). `None` when the value is absent or is
+/// not a DWORD — a machine that cannot say gets no invented number.
+#[cfg(target_os = "windows")]
+fn reg_dword(value: &str) -> Option<u32> {
+    use windows_sys::Win32::System::Registry::{
+        RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD,
+    };
+    let name = wide(value);
+    let mut data: u32 = 0;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: `data` holds exactly the DWORD `size` declares, and `name` is
+    // the terminated buffer the API takes.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            std::ptr::null(),
+            name.as_ptr(),
+            RRF_RT_REG_DWORD,
+            std::ptr::null_mut(),
+            (&mut data as *mut u32).cast(),
+            &mut size,
+        )
+    };
+    (status == 0).then_some(data)
+}
+
+/// One REG_SZ under the same key. The count the API returns is in bytes and
+/// includes the terminator, so the string ends at the first NUL word.
+#[cfg(target_os = "windows")]
+fn reg_sz(value: &str) -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    let name = wide(value);
+    let mut size: u32 = 0;
+    // SAFETY: sizing call — no data buffer, only the count it writes.
+    let sized = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            std::ptr::null(),
+            name.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut size,
+        )
+    };
+    if sized != 0 || size < 2 {
+        return None;
+    }
+    let mut words = vec![0u16; (size as usize).div_ceil(2)];
+    // SAFETY: `words` holds at least the byte count the sizing call fixed.
+    let read = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            std::ptr::null(),
+            name.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            words.as_mut_ptr().cast(),
+            &mut size,
+        )
+    };
+    if read != 0 {
+        return None;
+    }
+    let end = words
+        .iter()
+        .position(|&word| word == 0)
+        .unwrap_or(words.len());
+    String::from_utf16(&words[..end]).ok()
+}
+
+/// What Win32 string arguments are: UTF-16, NUL-terminated.
+#[cfg(target_os = "windows")]
+fn wide(text: &str) -> Vec<u16> {
+    text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 /// Every adapter the platform's own inventory names, with the driver
@@ -439,6 +541,30 @@ pub(crate) fn adapters() -> Vec<Adapter> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Windows 11 keeps major at 10: the build is the only thing that says
+    /// 11, and the marketing version and revision ride when the machine
+    /// reports them.
+    #[test]
+    fn a_windows_version_is_named_by_its_build() {
+        assert_eq!(
+            windows_version_line(10, 0, 26200, Some("25H2"), Some(4652)),
+            "windows 11 25H2 (build 26200.4652)"
+        );
+        assert_eq!(
+            windows_version_line(10, 0, 22000, None, None),
+            "windows 11 (build 22000)"
+        );
+        assert_eq!(
+            windows_version_line(10, 0, 19045, Some("22H2"), Some(4046)),
+            "windows 10.0 22H2 (build 19045.4046)"
+        );
+        // A blank marketing version leaves no doubled space in the line.
+        assert_eq!(
+            windows_version_line(10, 0, 26200, Some(" "), None),
+            "windows 11 (build 26200)"
+        );
+    }
 
     fn machine() -> Machine {
         Machine {
