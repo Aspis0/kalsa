@@ -6,7 +6,7 @@ export const SETUP = {
     "checkingComputer": "Sta controllando il tuo computer…",
     "gettingReady": "Si sta preparando…",
     "downloading": "Scaricamento…",
-    "tuning": "Cerco cosa gira più veloce sul tuo computer…",
+    "tuning": "Kalsa sta cercando le impostazioni più veloci…",
     "suggests": "Kalsa controlla il tuo computer e sceglie l'AI che ci gira meglio.",
     "pickModel": "Scegli l'AI",
     "smarter": "Risposte più intelligenti.",
