@@ -28,6 +28,9 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg", "nsis"],
-    "icon": ["icons/icon.icns", "icons/icon.ico"]
+    "icon": ["icons/icon.icns", "icons/icon.ico"],
+    "macOS": {
+      "signingIdentity": "-"
+    }
   }
 }
