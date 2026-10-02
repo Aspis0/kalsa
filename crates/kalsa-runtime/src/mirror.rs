@@ -1,11 +1,7 @@
 //! One archive, two sources: the app's CDN first, then its mirror.
 //!
-//! The mirror is safe because it is not trusted. `download` renames a part
-//! onto its final name only when its size and sha256 match the row's promise,
-//! whoever served the bytes, so a second source can fail but cannot hand us a
-//! different archive. A `.part` the CDN left behind is resumed from the
-//! mirror under that same gate: a foreign prefix ends in a digest mismatch,
-//! which deletes the part, never in an accepted file.
+//! The mirror is safe because it is not trusted: `download` publishes a part only when its size and
+//! sha256 match the row. A CDN prefix the mirror resumes can end in a size or digest mismatch.
 
 use std::io;
 use std::path::Path;
@@ -22,9 +18,9 @@ const LOCK_RETRY_PAUSE: Duration = Duration::from_millis(50);
 /// Only a failure of the source itself falls through: the wire, an HTTP
 /// refusal, wrong bytes (`download` has already deleted that part). A local
 /// failure — the part file, the disk — would repeat on the mirror, so it is
-/// returned at once. When both sources fail the CDN's error is returned, so
-/// every caller keeps the words and the classification it had before the
-/// mirror existed.
+/// returned at once, the mirror's own included. When both sources fail the
+/// CDN's error is returned, so every caller keeps the words and the
+/// classification it had before the mirror existed.
 ///
 /// `progress` counts bytes of the file, not of attempts: it never exceeds the
 /// total, and it restarts from zero only when the part was thrown away.
@@ -43,7 +39,29 @@ pub(crate) fn download_with_mirror(
     let Some(mirror) = mirror else {
         return Err(first);
     };
-    download_retrying_lock(mirror, dest, size, sha, progress).map_err(|_| first)
+    match download_from_mirror(mirror, dest, size, sha, progress) {
+        Err(error) if is_local(&error) => Err(error),
+        Err(_) => Err(first),
+        done => done,
+    }
+}
+
+/// The mirror resumes whatever prefix the CDN left in the part, and a 206 is
+/// accepted on its start alone, so the joined file can fail the gate. `download`
+/// has then deleted the part: one more attempt starts from zero.
+fn download_from_mirror(
+    url: &str,
+    dest: &Path,
+    size: u64,
+    sha: &str,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<(), DownloadError> {
+    match download_retrying_lock(url, dest, size, sha, progress) {
+        Err(DownloadError::SizeMismatch { .. } | DownloadError::DigestMismatch { .. }) => {
+            download_retrying_lock(url, dest, size, sha, progress)
+        }
+        done => done,
+    }
 }
 
 /// `download`, retrying only a part file that is still locked. The first
@@ -123,13 +141,32 @@ mod tests {
             for mut stream in listener.incoming().flatten() {
                 counted.fetch_add(1, Ordering::SeqCst);
                 let mut head = [0u8; 4096];
-                let _ = stream.read(&mut head);
-                let _ = write!(
-                    stream,
-                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                    body.len()
-                );
-                let _ = stream.write_all(body);
+                let read = stream.read(&mut head).unwrap_or(0);
+                let request = String::from_utf8_lossy(&head[..read]);
+                // A resume is answered like a real CDN does: 206, from the
+                // offset asked for — whatever the bytes before it were.
+                let from = request
+                    .lines()
+                    .find_map(|line| line.strip_prefix("Range: bytes="))
+                    .and_then(|range| range.trim_end_matches('-').parse::<usize>().ok())
+                    .filter(|from| *from > 0 && *from < body.len() && status == "200 OK");
+                let _ = match from {
+                    Some(from) => write!(
+                        stream,
+                        "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+                         Content-Range: bytes {from}-{}/{}\r\nConnection: close\r\n\r\n",
+                        body.len() - from,
+                        body.len() - 1,
+                        body.len()
+                    )
+                    .and_then(|()| stream.write_all(&body[from..])),
+                    None => write!(
+                        stream,
+                        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    )
+                    .and_then(|()| stream.write_all(body)),
+                };
             }
         });
         Source { url, hits }
@@ -201,8 +238,8 @@ mod tests {
         );
         assert_eq!(
             mirror.hits.load(Ordering::SeqCst),
-            1,
-            "the mirror was tried"
+            2,
+            "the mirror was tried, and once more from scratch — no more"
         );
         assert!(!dest.exists());
         assert!(!dir.join("archive.zip.part").exists());
@@ -220,22 +257,74 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A destination that verified bytes cannot be published onto: a
+    /// directory with something in it. A download reaches the end of the wire
+    /// and then fails on the disk — local, AFTER the source was contacted.
+    fn unpublishable_dest(dir: &Path) -> PathBuf {
+        let dest = dir.join("archive.zip");
+        std::fs::create_dir(&dest).expect("dest dir");
+        std::fs::write(dest.join("occupant"), b"in the way").expect("occupant");
+        dest
+    }
+
     #[test]
-    fn a_local_failure_does_not_go_looking_for_another_source() {
-        let dir = scratch("local");
-        // A regular file where the destination's directory should be.
-        let blocker = dir.join("blocker");
-        std::fs::write(&blocker, b"in the way").expect("blocker");
+    fn a_local_failure_on_the_cdn_side_does_not_go_to_the_mirror() {
+        let dir = scratch("local-first");
+        let dest = dir.join("archive.zip");
+        // Another download holds the part file: the CDN's claim fails on the
+        // disk. It lets go shortly after, inside the mirror attempt's lock
+        // retries, so a walk that did fall through would succeed — and the
+        // mirror's hit counter would show it.
+        let held = std::fs::File::create(dir.join("archive.zip.part")).expect("part");
+        held.lock().expect("lock");
+        let release = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(120));
+            drop(held);
+        });
+        let primary = serve(GOOD);
         let mirror = serve(GOOD);
-        let err = run(
-            "http://unused.invalid/archive.zip",
-            &mirror.url,
-            &blocker.join("archive.zip"),
-            &mut |_| {},
-        )
-        .expect_err("the destination cannot exist");
-        assert!(matches!(err, DownloadError::Io(_)), "{err}");
+        let err = run(&primary.url, &mirror.url, &dest, &mut |_| {}).expect_err("part is held");
+        release.join().expect("release thread");
+        assert!(
+            matches!(&err, DownloadError::Io(e) if e.kind() == io::ErrorKind::WouldBlock),
+            "{err}"
+        );
         assert_eq!(mirror.hits.load(Ordering::SeqCst), 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_local_failure_on_the_mirror_is_reported_as_itself() {
+        let dir = scratch("local-mirror");
+        let dest = unpublishable_dest(&dir);
+        let primary = refuse();
+        let mirror = serve(GOOD);
+        let err = run(&primary.url, &mirror.url, &dest, &mut |_| {}).expect_err("cannot publish");
+        assert!(
+            matches!(err, DownloadError::Io(_)),
+            "the disk's error, not the CDN's 503: {err}"
+        );
+        assert_eq!(primary.hits.load(Ordering::SeqCst), 1);
+        assert_eq!(mirror.hits.load(Ordering::SeqCst), 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_cdn_prefix_that_spoils_the_resume_is_retried_from_zero() {
+        let dir = scratch("prefix");
+        let dest = dir.join("archive.zip");
+        // What a CDN that served other bytes left behind before it dropped.
+        std::fs::write(dir.join("archive.zip.part"), &BAD[..14]).expect("prefix");
+        let primary = refuse();
+        let mirror = serve(GOOD);
+        run(&primary.url, &mirror.url, &dest, &mut |_| {}).expect("the second try is whole");
+        assert_eq!(std::fs::read(&dest).expect("read"), GOOD);
+        assert_eq!(
+            mirror.hits.load(Ordering::SeqCst),
+            2,
+            "the resume that failed the gate, then the fresh one"
+        );
+        assert!(!dir.join("archive.zip.part").exists());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
