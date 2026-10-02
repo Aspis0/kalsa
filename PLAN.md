@@ -886,7 +886,8 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   gate: Gradle-passed CMake args (not fingerprinted - every Gradle edit would force a 20-min rebuild) and hand-rewritten
   e_flags (deliberate tampering, like stamp forgery); the gate is a review control against accidental skew. Skels
   rebuilt twice by the Docker recipe, code bytes unchanged (only the KALSA_HTP_SRC stamp). Binding PUSHED `7c12bdc6`.
-  Binding remote pruned to 2 branches + archive tags (REPOS.md). App pin bump to 7c12bdc6: GLM 72cef0cd.
+  Binding remote pruned to 2 branches + archive tags (REPOS.md). App PUSHED main `101c2bdd` (pin kalsa.rn 7c12bdc6,
+  engine 5b596ce43, provenance gate EXIT=0). Debuggable APK for the queued S23 session: run 36951238850.
 
 ### Pairing: iroh and invite links
 
