@@ -94,14 +94,18 @@ export async function sendLog(): Promise<SendLogResult> {
         },
         body,
         // No cookies: the report is anonymous. redirect:"error" asks fetch to
-        // fail on a 30x (a captive portal could re-POST the log elsewhere),
-        // but RN fetch may ignore it — hence the final-URL check below.
+        // fail on a 30x, but over HTTPS only kalsa.io itself can emit one and
+        // RN's native layers may follow it before fetch resolves, so this
+        // option is a request, not a guard.
         credentials: "omit",
         redirect: "error",
         signal: controller.signal,
       });
-      // The only final URL we accept is the one we sent to; an empty url
-      // (RN can produce one) keeps the status/JSON mapping in charge.
+      // Only the URL we sent to counts as a success; an empty url (RN can
+      // produce one) leaves the status/JSON mapping in charge. This cannot
+      // keep the body from a redirect target: RN's native layers follow
+      // redirects before fetch resolves, and a 307/308 resends the POST body.
+      // It only stops a redirected request from being reported as sent.
       if (res.url && res.url !== REPORT_URL) return { ok: false, reason: "failed" };
       return await mapResponse(res);
     } finally {

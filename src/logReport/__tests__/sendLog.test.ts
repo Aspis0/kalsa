@@ -1,6 +1,6 @@
 /**
- * Sender tests with a mocked network: the header grammar (pinned to the
- * shipped version), the local refusals (empty log, malformed header) that
+ * Sender tests with a mocked network: the header grammar (read from the
+ * shipped app.config.js), the local refusals (empty log, malformed header) that
  * must never reach fetch, the no-cookie and no-redirect guards, the Worker
  * status/JSON mapping, the timeout, and the exact body handed to fetch.
  */
@@ -26,6 +26,11 @@ jest.mock("expo-constants", () => ({
 
 import { sendLog } from "../sendLog";
 
+// The shipped version, read from the real config: app.config.js' factory also
+// hashes the installed engine tree, which is present in this repo.
+const shippedConfig = require("../../../app.config.js") as () => { version: string };
+const shippedVersion: string = shippedConfig().version;
+
 const collector = jest.requireMock("../collector") as {
   readLogReportText: jest.Mock;
 };
@@ -43,7 +48,13 @@ let fetchMock: jest.Mock;
 beforeEach(() => {
   mockVersion.value = "1.4.2";
   collector.readLogReportText.mockReturnValue("KALSA_APP event=started\n");
-  fetchMock = jest.spyOn(globalThis, "fetch").mockName("fetch") as unknown as jest.Mock;
+  // Rejects unless a test stubs a reply, so no test can reach kalsa.io.
+  fetchMock = jest
+    .spyOn(globalThis, "fetch")
+    .mockName("fetch")
+    .mockImplementation(async () => {
+      throw new Error("network disabled in tests");
+    }) as unknown as jest.Mock;
 });
 
 afterEach(() => {
@@ -88,15 +99,15 @@ describe("the X-Kalsa-App header", () => {
     );
   });
 
-  it("accepts the shipped app.config.js version 0.1.0 with no local refusal", async () => {
-    mockVersion.value = "0.1.0"; // the version that actually ships
+  it("accepts the shipped app.config.js version with no local refusal", async () => {
+    mockVersion.value = shippedVersion; // the version that actually ships
     mockFetchReply(jsonResponse(201, { id: "ABCD2345" }));
     const result = await sendLog();
 
     expect(result).toEqual({ ok: true, id: "ABCD2345" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect((sentInit().headers as Record<string, string>)["X-Kalsa-App"]).toBe(
-      "0.1.0/android/arm64",
+      `${shippedVersion}/android/arm64`,
     );
   });
 
@@ -125,10 +136,11 @@ describe("the request guards", () => {
   });
 
   it("treats a response that landed on another origin as failed, id or not", async () => {
-    // a captive portal followed the 30x and re-POSTed the log elsewhere
+    // A 30x followed by RN's native layers: the reply is a 201 with a valid
+    // id, but its final url is the redirect target, so it is not a success.
     mockFetchReply({
       status: 201,
-      url: "http://captive.portal/uploaded",
+      url: "https://reports.example/uploaded",
       json: async () => ({ id: "ABCD2345" }),
     });
     await expect(sendLog()).resolves.toEqual({ ok: false, reason: "failed" });
