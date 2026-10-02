@@ -29,12 +29,13 @@ describe("the retry re-runs the verdict against a fresh MemAvailable", () => {
     expect(LOAD).toContain("getAvailableMemoryBytesUncached()");
   });
 
-  test("a fresh 0 replaces the cached sample instead of being swallowed by it", () => {
+  test("a fresh 0 replaces the cached sample on iOS only, never off it", () => {
     // os_proc_available_memory returns 0 at/over the jetsam limit: keeping a
     // stale positive estimate there would price a load against headroom the
-    // process no longer has (ios/first-build audit, P1).
-    expect(HELPERS).toContain("availableMemoryBytes >= 0");
-    expect(HELPERS).not.toContain("&& availableMemoryBytes > 0");
+    // process no longer has (ios/first-build audit, P1). Off iOS a 0 keeps
+    // its origin/main "unknown" meaning — Android must not change.
+    expect(HELPERS).toContain("zeroAvailableMemoryIsReal()");
+    expect(HELPERS).not.toContain("availableMemoryBytes >= 0");
   });
 });
 

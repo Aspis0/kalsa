@@ -7,7 +7,12 @@ import {
 import { estimateMemory } from "./memoryEstimate";
 import { MODEL_REGISTRY, type ModelInfo } from "./ModelRegistry";
 import { resolveLoadPolicy } from "./loadPolicy";
-import { gateNonEvictableMiB } from "./modelGateRAM";
+import { gateNonEvictableMiB, gateOptionFit } from "./modelGateRAM";
+
+// The 0-available semantics are platform-scoped (zero is real on iOS only);
+// the pins below set this explicitly per case.
+const mockPlatform = { OS: "ios" };
+jest.mock("react-native", () => ({ Platform: mockPlatform }));
 
 /** Qwen-class 4B: ~3.5 GB bundle, KV-heavy at catalog ctx. */
 const BIG = {
@@ -55,12 +60,23 @@ describe("gateModelLoad", () => {
   test("0 available (iOS at/over the jetsam limit) refuses the load, not unknown", async () => {
     // os_proc_available_memory returns 0 when the app is at/over its limit:
     // the gate must read that as zero headroom (ios/first-build audit P1).
+    mockPlatform.OS = "ios";
     const input = baseInput(BIG);
     input.getAvailableBytes = jest.fn(async () => 0);
     const verdict = await gateModelLoad(input);
     expect(verdict.allow).toBe(false);
     expect(verdict.reasonKey).toBe("model.tooLarge");
     expect(verdict.refusedBy).toBe("fit");
+  });
+
+  test("0 available on Android stays the origin/main fail-open (unknown → allow)", async () => {
+    // Android /proc semantics are pinned: a (pathological) 0 kB MemAvailable
+    // keeps its "unknown" meaning there — only iOS jetsam 0 is a real zero.
+    mockPlatform.OS = "android";
+    const input = baseInput(BIG);
+    input.getAvailableBytes = jest.fn(async () => 0);
+    const verdict = await gateModelLoad(input);
+    expect(verdict.allow).toBe(true);
   });
 
   test("resident big + selected small → dispose first, then fit, then allow", async () => {
@@ -320,6 +336,26 @@ describe("loadGateFitModel — expert streaming", () => {
         availableMemoryBytes: 3_000 * MiB,
       }),
     ).toBe(1_000);
+  });
+});
+
+describe("gateOptionFit 0-available semantics are platform-scoped", () => {
+  const model = {
+    sizeBytes: 3_500_000_000,
+    engineCtx: 8192,
+    kvBytesPerToken: 262_144,
+    mmproj: undefined,
+  };
+  const input = { model, contextTokens: 8192, availableMemoryBytes: 0 };
+
+  test("iOS: 0 available prices does_not_fit (zero headroom)", () => {
+    mockPlatform.OS = "ios";
+    expect(gateOptionFit(input).status).toBe("does_not_fit");
+  });
+
+  test("Android: 0 available prices unknown, exactly as origin/main", () => {
+    mockPlatform.OS = "android";
+    expect(gateOptionFit(input).status).toBe("unknown");
   });
 });
 

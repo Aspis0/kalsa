@@ -187,13 +187,32 @@ export function estimateMemory(input: {
  *                 likely; also used when total resident exceeds available while
  *                 non-evictable still fits (weight pages thrash under pressure)
  * - fits:         non-evictable + headroom ≤ available and total ≤ available
- * - unknown:      availableMiB is null / non-finite / negative (caller keeps
- *                 today's UI)
+ * - unknown:      availableMiB is null / non-finite / negative, or 0 off iOS
+ *                 (caller keeps today's UI)
  *
- * A budget of 0 is a REAL reading, not unknown: Apple's os_proc_available_memory
- * returns 0 when the app is at/over its limit, so 0 must reach the verdicts
- * (any positive non-evictable → does_not_fit), never collapse into "unknown".
+ * A budget of 0 is a REAL reading on iOS only: Apple's os_proc_available_memory
+ * returns 0 when the app is at/over its limit, so there 0 must reach the
+ * verdicts (any positive non-evictable → does_not_fit). Android keeps its
+ * origin/main semantics — a 0 MemAvailable stays "unknown" — so gate behaviour
+ * on that platform is unchanged for every reading.
  */
+
+/**
+ * Whether an available-memory reading of exactly 0 is a real measurement
+ * rather than "unknown". iOS only: os_proc_available_memory returns 0 when
+ * the app is at/over its jetsam limit. Everywhere else 0 keeps the
+ * origin/main "unknown" meaning, so Android gate behaviour is unchanged for
+ * every input. Dynamic require like the readers in this file.
+ */
+export function zeroAvailableMemoryIsReal(): boolean {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } };
+    return Platform.OS === "ios";
+  } catch {
+    return false;
+  }
+}
 export function fitMemoryEstimate(
   estimate: MemoryEstimate,
   availableMiB: number | null | undefined,
@@ -201,7 +220,7 @@ export function fitMemoryEstimate(
   const avail =
     typeof availableMiB === "number" &&
     Number.isFinite(availableMiB) &&
-    availableMiB >= 0
+    (availableMiB > 0 || (availableMiB === 0 && zeroAvailableMemoryIsReal()))
       ? availableMiB
       : null;
 

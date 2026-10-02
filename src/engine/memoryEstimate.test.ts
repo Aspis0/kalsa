@@ -1,12 +1,13 @@
 /**
  * os_proc_available_memory semantics on the memoryEstimate paths (P1 of the
- * ios/first-build audit): 0 is a REAL reading (app at/over its limit → zero
- * headroom), null means the platform read does not exist — and the iOS read
- * must never be served from (or stored in) the process cache.
+ * ios/first-build audit): on iOS 0 is a REAL reading (app at/over its limit →
+ * zero headroom) and null means the platform read does not exist — and the
+ * iOS read must never be served from (or stored in) the process cache. On
+ * Android a 0 keeps its origin/main "unknown" meaning: the zero-is-real scope
+ * is the platform, never the estimator.
  */
-jest.mock("react-native", () => ({
-  Platform: { OS: "ios" },
-}));
+const mockPlatform = { OS: "ios" };
+jest.mock("react-native", () => ({ Platform: mockPlatform }));
 
 const mockAvailableMemoryBytes = jest.fn<Promise<number | null>, []>();
 jest.mock("../../modules/kalsa-lifecycle/src", () => ({
@@ -20,12 +21,16 @@ import {
   __resetAvailableMemoryCacheForTests,
 } from "./memoryEstimate";
 
-describe("fitMemoryEstimate", () => {
+describe("fitMemoryEstimate on iOS", () => {
   const estimate = estimateMemory({
     fileBytes: 1_000 * 1024 * 1024,
     contextTokens: 8192,
     kvBytesPerToken: 0,
     ubatch: 256,
+  });
+
+  beforeEach(() => {
+    mockPlatform.OS = "ios";
   });
 
   it("treats 0 MiB available as zero headroom, not unknown", () => {
@@ -47,8 +52,33 @@ describe("fitMemoryEstimate", () => {
   });
 });
 
+describe("fitMemoryEstimate on Android (origin/main 0-semantics pinned)", () => {
+  const estimate = estimateMemory({
+    fileBytes: 1_000 * 1024 * 1024,
+    contextTokens: 8192,
+    kvBytesPerToken: 0,
+    ubatch: 256,
+  });
+
+  beforeEach(() => {
+    mockPlatform.OS = "android";
+  });
+
+  it("treats a 0 budget as unknown, exactly as origin/main", () => {
+    const fit = fitMemoryEstimate(estimate, 0);
+    expect(fit.status).toBe("unknown");
+    expect(fit.availableMiB).toBeNull();
+  });
+
+  it("judges positive budgets identically to iOS", () => {
+    expect(fitMemoryEstimate(estimate, 100_000).status).toBe("fits");
+    expect(fitMemoryEstimate(estimate, 1_300).status).toBe("tight");
+  });
+});
+
 describe("getAvailableMemoryBytes on iOS", () => {
   beforeEach(() => {
+    mockPlatform.OS = "ios";
     __resetAvailableMemoryCacheForTests();
     mockAvailableMemoryBytes.mockReset();
   });

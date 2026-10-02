@@ -20,6 +20,7 @@ import {
   estimateMemory,
   fitMemoryEstimate,
   getAvailableMemoryBytes,
+  zeroAvailableMemoryIsReal,
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 import { appleDeviceClassForModelId } from "./appleDeviceClass";
@@ -182,14 +183,15 @@ export function modelGateVerdict(
     return verdict(false, "blocked_tier");
   }
 
-  // availableMemoryBytes === 0 is a real reading on iOS (os_proc_available_memory
-  // returns 0 when the app is at/over its limit), not an unknown: it must reach
-  // the comparison so any positive non-evictable charge blocks the load.
+  // availableMemoryBytes === 0 reaches the comparison on iOS only
+  // (os_proc_available_memory returns 0 when the app is at/over its limit);
+  // off iOS 0 keeps its origin/main "unknown" meaning and never gates here.
   if (
     checkVolatileMemory &&
     typeof availableMemoryBytes === "number" &&
     Number.isFinite(availableMemoryBytes) &&
-    availableMemoryBytes >= 0 &&
+    (availableMemoryBytes > 0 ||
+      (availableMemoryBytes === 0 && zeroAvailableMemoryIsReal())) &&
     typeof modelNonEvictableMiB === "number" &&
     Number.isFinite(modelNonEvictableMiB) &&
     modelNonEvictableMiB > 0
@@ -212,13 +214,14 @@ export function modelGateVerdict(
   }
 
   // Memory probes unknown → allowed but flagged (caller may still soft-warn).
-  // availableMemoryBytes 0 counts as KNOWN (iOS at/over its jetsam limit): the
-  // verdict above already refused when a positive charge cannot fit, so this
-  // must not reclassify the same zero into "unknown".
+  // availableMemoryBytes 0 counts as KNOWN on iOS (at/over its jetsam limit):
+  // the verdict above already refused when a positive charge cannot fit. Off
+  // iOS, 0 keeps its origin/main "unknown" meaning.
   const memoryKnown =
     (typeof availableMemoryBytes === "number" &&
       Number.isFinite(availableMemoryBytes) &&
-      availableMemoryBytes >= 0) ||
+      (availableMemoryBytes > 0 ||
+        (availableMemoryBytes === 0 && zeroAvailableMemoryIsReal()))) ||
     (typeof input.totalMemoryBytes === "number" &&
       Number.isFinite(input.totalMemoryBytes) &&
       input.totalMemoryBytes > 0);
@@ -379,12 +382,13 @@ export function evaluateModelFit(
     repack: options.repack !== false,
     mmap: options.mmap !== false,
   });
-  // 0 MiB available is a real iOS reading (at/over the limit) — it must reach
-  // fitMemoryEstimate as 0, not degrade into the "unknown" fail-open.
+  // 0 MiB available is a real iOS reading (at/over the limit) — there it must
+  // reach fitMemoryEstimate as 0, not degrade into the "unknown" fail-open.
+  // Off iOS, 0 stays "unknown" exactly as on origin/main.
   const availableMiB =
     typeof availableBytes === "number" &&
     Number.isFinite(availableBytes) &&
-    availableBytes >= 0
+    (availableBytes > 0 || (availableBytes === 0 && zeroAvailableMemoryIsReal()))
       ? availableBytes / (1024 * 1024)
       : null;
   const fit = fitMemoryEstimate(estimate, availableMiB);

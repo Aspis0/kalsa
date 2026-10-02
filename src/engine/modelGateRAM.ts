@@ -16,7 +16,7 @@
  * input), matching estimateModelNonEvictableMiB's contract.
  */
 
-import { estimateMemory, fitMemoryEstimate, type MemoryEstimate, type MemoryFitVerdict } from "./memoryEstimate";
+import { estimateMemory, fitMemoryEstimate, zeroAvailableMemoryIsReal, type MemoryEstimate, type MemoryFitVerdict } from "./memoryEstimate";
 import { shouldStreamExperts } from "./expertStreaming";
 import { resolveGateLoadPolicy } from "./loadPolicy";
 import { resolveGateContextTokens, type TuningDeviceProfile, type TuningModelInfo } from "./deviceTuning";
@@ -101,12 +101,14 @@ export function gateOptionFit(input: {
 }): { nonEvictableMiB: number | null; status: MemoryFitVerdict["status"] } {
   const estimate = estimateGateLoad(input);
   if (!estimate) return { nonEvictableMiB: null, status: "unknown" };
-  // 0 available is a real iOS reading (at/over the jetsam limit): the option
-  // must price as does_not_fit, not degrade into the "unknown" no-verdict.
+  // 0 available is a real iOS reading (at/over the jetsam limit): there the
+  // option must price as does_not_fit, not degrade into the "unknown"
+  // no-verdict. Off iOS, 0 stays "unknown" exactly as on origin/main.
   const availableMiB =
     typeof input.availableMemoryBytes === "number" &&
     Number.isFinite(input.availableMemoryBytes) &&
-    input.availableMemoryBytes >= 0
+    (input.availableMemoryBytes > 0 ||
+      (input.availableMemoryBytes === 0 && zeroAvailableMemoryIsReal()))
       ? input.availableMemoryBytes / (1024 * 1024)
       : null;
   return {

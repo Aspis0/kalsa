@@ -12,6 +12,7 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { zeroAvailableMemoryIsReal } from "../engine/memoryEstimate";
 import { loadGateFitModel } from "../engine/loadGate";
 import { gateNonEvictableMiB } from "../engine/modelGateRAM";
 import {
@@ -164,9 +165,14 @@ export async function profileWithFreshMemory(
 ): Promise<DeviceProfile> {
   try {
     const availableMemoryBytes = await getAvailableMemoryBytesUncached();
-    // 0 is a real reading on iOS (at/over the jetsam limit): it must REPLACE
-    // the cached sample, not be swallowed by a stale positive estimate.
-    if (typeof availableMemoryBytes === "number" && availableMemoryBytes >= 0) {
+    // A fresh 0 sample replaces the cached estimate on iOS only (at/over the
+    // jetsam limit, 0 is a real reading there); off iOS 0 keeps its
+    // origin/main "unknown" meaning and the cached sample stands.
+    if (
+      typeof availableMemoryBytes === "number" &&
+      (availableMemoryBytes > 0 ||
+        (availableMemoryBytes === 0 && zeroAvailableMemoryIsReal()))
+    ) {
       return { ...profile, availableMemoryBytes };
     }
   } catch {

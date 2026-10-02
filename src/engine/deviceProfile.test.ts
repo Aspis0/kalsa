@@ -3,11 +3,14 @@
  * the ios/first-build audit:
  * - when expo-device cannot read totalMemory, the Apple class supplies the
  *   reported bytes AND the RAM tier (they must never contradict each other);
- * - a 0 MemAvailable/jetsam reading is zero headroom, not unknown: the gate
- *   refuses, the fit evaluates, only a missing read stays unknown.
+ * - on iOS a 0 MemAvailable/jetsam reading is zero headroom, not unknown: the
+ *   gate refuses, the fit evaluates, only a missing read stays unknown;
+ * - on Android a 0 keeps its origin/main "unknown" meaning — the zero-is-real
+ *   scope is the platform, and the Apple fallback never fires there.
  */
+const mockPlatform = { OS: "ios" };
 jest.mock("react-native", () => ({
-  Platform: { OS: "ios" },
+  Platform: mockPlatform,
   NativeModules: {},
 }));
 
@@ -27,6 +30,23 @@ const mockAvailableMemoryBytes = jest.fn<Promise<number | null>, []>();
 jest.mock("../../modules/kalsa-lifecycle/src", () => ({
   getOsAvailableMemoryBytes: () => mockAvailableMemoryBytes(),
 }));
+
+const mockReadAsString = jest.fn<Promise<string>, [string]>();
+jest.mock("expo-file-system/legacy", () => ({
+  readAsStringAsync: (uri: string) => mockReadAsString(uri),
+}));
+
+beforeEach(() => {
+  mockPlatform.OS = "ios";
+  mockExpoDevice.brand = "Apple";
+  mockExpoDevice.manufacturer = "Apple Inc.";
+  mockExpoDevice.modelName = "iPhone";
+  mockExpoDevice.modelId = "iPhone18,1";
+  mockExpoDevice.totalMemory = null;
+  mockExpoDevice.osName = "iOS";
+  mockExpoDevice.osVersion = "26.0";
+  mockExpoDevice.deviceType = 1;
+});
 
 import {
   getCachedDeviceProfile,
@@ -78,7 +98,39 @@ describe("buildDeviceProfile Apple fallback (via the cached profile)", () => {
   });
 });
 
-describe("modelGateVerdict with a 0 available reading", () => {
+describe("buildDeviceProfile on Android makes no Apple fallback", () => {
+  beforeEach(() => {
+    mockPlatform.OS = "android";
+    __resetDeviceProfileCacheForTests();
+    mockAvailableMemoryBytes.mockReset();
+    mockExpoDevice.brand = "samsung";
+    mockExpoDevice.manufacturer = "samsung";
+    mockExpoDevice.modelName = "Galaxy S23";
+    // An Android-style id: even if a build ever reported one, the Apple map
+    // must not answer it (on real devices expo-device modelId is null here).
+    mockExpoDevice.modelId = "SM-S911B";
+    mockExpoDevice.totalMemory = null;
+    mockExpoDevice.osName = "Android";
+    mockExpoDevice.osVersion = "15";
+    mockExpoDevice.deviceType = 1;
+    mockReadAsString.mockRejectedValue(new Error("no /proc in harness"));
+  });
+
+  it("reports the Expo reads only — no chip class, no nominal RAM", async () => {
+    const profile = await getCachedDeviceProfile();
+    expect(profile.totalMemoryBytes).toBeNull();
+    expect(profile.ramTier).toBe("low");
+    expect(profile.socModel).toBeNull();
+    expect(profile.socManufacturer).toBeNull();
+  });
+
+  it("carries an unreadable MemAvailable as null, never a fabricated 0", async () => {
+    const profile = await getCachedDeviceProfile();
+    expect(profile.availableMemoryBytes).toBeNull();
+  });
+});
+
+describe("modelGateVerdict with a 0 available reading (iOS)", () => {
   const base = {
     totalMemoryBytes: TWELVE_GIB,
     availableMemoryBytes: 0,
@@ -117,7 +169,57 @@ describe("modelGateVerdict with a 0 available reading", () => {
   });
 });
 
-describe("fit paths with a 0 available reading", () => {
+describe("Android pins origin/main 0-semantics (zero is real on iOS only)", () => {
+  const base = {
+    totalMemoryBytes: null as number | null,
+    availableMemoryBytes: 0,
+    freeDiskBytes: 100_000_000_000,
+    ramTier: "high" as const,
+    modelSizeBytes: 1_000_000_000,
+  };
+  const model = {
+    sizeBytes: 1_000_000_000,
+    engineCtx: 8192,
+    kvBytesPerToken: null,
+    mmproj: null,
+  };
+
+  beforeEach(() => {
+    mockPlatform.OS = "android";
+  });
+
+  it("modelGateVerdict: a 0 available read gates nothing and stays unknown", () => {
+    const verdict = modelGateVerdict({ ...base, modelNonEvictableMiB: 500 });
+    expect(verdict.allowed).toBe(true);
+    expect(verdict.reason).toBe("unknown");
+  });
+
+  it("modelGateVerdict: known through totalMemory, exactly as origin/main", () => {
+    const verdict = modelGateVerdict({
+      ...base,
+      totalMemoryBytes: TWELVE_GIB,
+      modelNonEvictableMiB: 500,
+    });
+    expect(verdict.allowed).toBe(true);
+    expect(verdict.reason).toBe("ok");
+  });
+
+  it("evaluateModelFit / decidePreSendFit fail open at 0 available", () => {
+    expect(evaluateModelFit(model, 0).verdict).toBe("unknown");
+    expect(decidePreSendFit(model, 0)).toEqual({
+      allow: true,
+      bannerKey: "model.memoryUnknown",
+    });
+  });
+
+  it("positive budgets still gate exactly as origin/main", () => {
+    expect(evaluateModelFit(model, 100 * 1024 * 1024).verdict).toBe(
+      "does_not_fit",
+    );
+  });
+});
+
+describe("fit paths with a 0 available reading (iOS)", () => {
   const model = {
     sizeBytes: 1_000_000_000,
     engineCtx: 8192,
