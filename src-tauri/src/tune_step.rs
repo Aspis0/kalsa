@@ -332,7 +332,8 @@ fn tune_launch_inner(
             // anything else is a partial picture, and saving it would lock
             // the next start out of the re-run that would complete it. A
             // shape the bound skipped did run — its own entry says so. A
-            // refusal is a shape that ran too. This start's winner still
+            // refusal is a shape that ran too, but a tune where every shape
+            // refused has no winner to remember. This start's winner still
             // launches — it just is not remembered.
             if !tuned.complete {
                 eprintln!(
@@ -344,6 +345,11 @@ fn tune_launch_inner(
                     resolved.len(),
                     candidates.len()
                 );
+            } else if winner.is_none() {
+                // Nothing replied: a record of refusals would be reused as a
+                // verdict, and the rule launch it leaves has no processor
+                // fallback prepared. The next start measures again.
+                eprintln!("kalsa-brain: no shape replied; not saved — the next start tries again");
             } else {
                 if retry {
                     eprintln!(

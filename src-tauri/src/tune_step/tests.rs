@@ -353,11 +353,12 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A refused tune: the record is still written (all-refused means the
-/// machine is broken — re-spending the budget every start is worse), the
-/// rule stands untouched, and the counts reached the progress callback.
+/// A tune where every shape refused: nothing is saved — a reusable record
+/// of refusals would keep an iGPU start on its rule launch with no processor
+/// fallback, so the next start measures again — the rule stands untouched,
+/// and the counts reached the progress callback.
 #[test]
-fn a_refused_tune_is_saved_and_the_rule_stands() {
+fn a_refused_tune_is_not_saved_and_the_rule_stands() {
     let dir = scratch("refused");
     let machine = machine(Backend::DiscreteGpu {
         vram_bytes: Some(6_439_305_216),
@@ -410,13 +411,12 @@ fn a_refused_tune_is_saved_and_the_rule_stands() {
             .any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
         "three lifetimes planned, three done"
     );
-    let saved = kalsa_tune::record::load(
-        &dir,
-        prepared.info.model_sha256.as_deref().unwrap(),
-        &fingerprint,
-    )
-    .expect("the record was saved");
-    assert_eq!(saved.winner, None, "and it says there was no winner");
+    let model = prepared.info.model_sha256.as_deref().unwrap();
+    assert!(
+        kalsa_tune::record::load(&dir, model, &fingerprint).is_none()
+            && kalsa_tune::record::load_by_model(&dir, model).is_none(),
+        "no record of refusals is kept: the next start measures again"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -847,14 +847,21 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         |resolved, _, counts| {
             measured.set(measured.get() + 1);
             counts(resolved.len(), resolved.len());
-            // Complete: every candidate ran (each refused is an answer),
-            // so the result may be saved.
-            tuned(
-                resolved
+            // Complete: every candidate ran and the first replied, so the
+            // result may be saved.
+            let first = resolved[0].0;
+            let mut trials = vec![replied(first, 1000.0, 50.0)];
+            trials.extend(
+                resolved[1..]
                     .iter()
-                    .map(|(candidate, _)| refused(*candidate, kalsa_tune::Refusal::NotReady))
-                    .collect(),
-                None,
+                    .map(|(candidate, _)| refused(*candidate, kalsa_tune::Refusal::NotReady)),
+            );
+            tuned(
+                trials,
+                Some(kalsa_tune::Winner {
+                    candidate: first,
+                    reply: reply(1000.0, 50.0),
+                }),
             )
         },
     );
@@ -865,7 +872,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         "the refused record leads to a fresh measure"
     );
     assert!(
-        matches!(prepared.info.tune, Some(Tune::NoWinner(_))),
+        matches!(prepared.info.tune, Some(Tune::Measured(_))),
         "and the walk completes with a line, not a failure: {:?}",
         prepared.info.tune
     );
