@@ -949,6 +949,17 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   covers a native prefill that never progresses - the user waits forever. Evidence: `s23-expo57-smoke/raw/rerun/
   i3-long-kalsa.txt`, `i3-long-hang-window.txt`. Bench keys still armed on the S23 (npu_lane=on, route=auto,
   devmodels=1): restore with the debuggable APK of run 37011736047 after the option-(a) measurement.
+  **Root cause found + FIX PUSHED 2026-10-02** (recon luna b069f3e9 `npu-lane-hang-recon/RECON.md`, two of its claims
+  corrected by me on the source): every memory-fit input of `initEngine` (lane fit, n_ctx clamp, expert streaming)
+  read `getCachedDeviceProfile().availableMemoryBytes`, a PROCESS-LIFETIME cache -> after model switches the lane was
+  "Fit" against the app-start 3458.93 MiB with 123 MB really free. The prefill deadline WAS armed (luna said not);
+  it was ~10-12 min because the EMA's only sample was the starved 22 tok/s prewarm (5x rule). App main **2e7b4dfd**
+  (GLM 5b3fc658 + my 2e7b4dfd after audit luna 4938cdc8, no stale-fit / reload-every-turn / race found): keep/replace
+  skip decided on the active engine's own load-time value, then dispose, then a FRESH /proc/meminfo sample prices the
+  new load; plan log adds `npu_fit`, `available_src` (fresh|cached|none) and prints the lane's real compared
+  requirement (+219 MiB NPU extra). Open, owner's call: a stuck native call cannot be preempted (stopCompletion is
+  polled between iterations); the 5x deadline after a starved sample is long. Not yet device-proven: repro = Qwen<->LFM
+  switches with npu_lane=on, then a 3k prompt; expect NoFit/clamp instead of a thrash.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
