@@ -1037,6 +1037,8 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   line confirmed: llama.cpp. The app's 31 tok/s is the catalog KV q8_0 K / q4_0 V on Metal flash-attn (-71%);
   coordinator cells: q8_0/q8_0 97.5, f16/f16 94.5 tok/s at 2k depth -> the MIXED K/V types are the cost. Fix candidate:
   q8_0/q8_0 on Apple GPUs. AFM not measurable here: Apple Intelligence disabled on this Mac (owner can enable it).
+  **Owner rule 2026-10-02:** audits are triaged - fix P0/P1 and P2 that touch app/users/performance; the rest goes to
+  `scratchpad/BACKLOG-LOW-PRIORITY.md` and work moves on (no audit loops on rare cases).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

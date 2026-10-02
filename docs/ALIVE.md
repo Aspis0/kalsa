@@ -816,6 +816,7 @@ clearly faster. Mac measurement running.
 iOS landed on app main d6d0f425 (2026-10-02): builds from the pin with no hand patches, Android unchanged (audited).
 iOS engine 2026-10-02: llama.cpp ~= MLX on LFM2.5 (128 vs 121 tok/s); app's 31 tok/s = mixed q8_0/q4_0 KV on Metal
 (q8_0/q8_0 gives 97). Apple FM untested: Apple Intelligence off on the Mac.
+Owner rule 2026-10-02: fix P0/P1 (+P2 hitting users/perf), log the rest in scratchpad/BACKLOG-LOW-PRIORITY.md.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
