@@ -15,7 +15,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::jobs::{Appended, Failure, Job, Status, Take};
-use crate::proxy::{is_silence, set_read_deadline, set_write_deadline, Cancel};
+use crate::clocks::detached_grace;
+use crate::proxy::{client_gone, is_silence, set_read_deadline, set_write_deadline, Cancel};
 use crate::chunk::Dechunker;
 use crate::sse::{self, EventSplitter};
 
@@ -29,6 +30,7 @@ pub(super) fn produce_and_serve(
     mut client: TcpStream,
     chunked: bool,
     deadline: Instant,
+    idle: Duration,
     cancel: &Cancel,
     observer: Option<&Observed>,
 ) {
@@ -53,6 +55,12 @@ pub(super) fn produce_and_serve(
             observer(head);
         }
     }
+    // When the client was last known to be there, and the last byte the engine
+    // sent: the producer finishes an answer nobody is listening to so a phone
+    // can resume it, but not for ever (see `detached_grace`), and not past a
+    // long silence from the engine (`idle`).
+    let mut detached_since: Option<Instant> = None;
+    let mut last_byte = Instant::now();
     let mut dechunker = Dechunker::new();
     let mut splitter = EventSplitter::new();
     let mut cursor = 0usize;
@@ -68,6 +76,17 @@ pub(super) fn produce_and_serve(
             job.close(Status::Failed(Failure::Shutdown));
             break;
         }
+        if attached {
+            detached_since = None;
+        } else {
+            let since = *detached_since.get_or_insert_with(Instant::now);
+            if job.has_readers() {
+                detached_since = Some(Instant::now());
+            } else if since.elapsed() >= detached_grace() {
+                job.close(Status::Failed(Failure::Abandoned));
+                break;
+            }
+        }
         if set_read_deadline(&mut upstream, deadline).is_err() {
             job.close(Status::Failed(Failure::Upstream));
             break;
@@ -78,13 +97,25 @@ pub(super) fn produce_and_serve(
             // and between tokens on a slow computer. Wake up, look at the
             // door again, and wait — until the deadline above says the answer
             // has had its lifetime.
-            Err(error) if is_silence(&error) => continue,
+            Err(error) if is_silence(&error) => {
+                if last_byte.elapsed() >= idle {
+                    job.close(Status::Failed(Failure::Upstream));
+                    break;
+                }
+                // A client that left during a long prefill is noticed here,
+                // not only at the next write.
+                if attached && client_gone(&client) {
+                    attached = false;
+                }
+                continue;
+            }
             // Anything else — a crash, a stop, a reload — the answer stopped.
             Err(_) => {
                 job.close(Status::Failed(Failure::Upstream));
                 break;
             }
         };
+        last_byte = Instant::now();
         if read == 0 {
             // A chunked body must end with its terminal chunk; a
             // close-delimited body ends at the end of the wire.
@@ -164,6 +195,7 @@ pub(super) fn serve_resume(
 ) {
     // The revocation check and the head write are one step under the shared
     // gate; the observer runs after it is released.
+    let _reading = job.reading();
     let head = job.head();
     {
         let _gate = cancel.revocation_gate();

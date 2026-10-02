@@ -9,6 +9,7 @@
 
 use std::sync::Condvar;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -23,6 +24,8 @@ pub(super) enum Failure {
     Overflow,
     Upstream,
     Shutdown,
+    /// Nobody was reading and nobody came back in time.
+    Abandoned,
 }
 
 impl Failure {
@@ -31,6 +34,7 @@ impl Failure {
             Self::Overflow => "The answer outgrew the door before it finished.",
             Self::Upstream => "The model server stopped producing this answer.",
             Self::Shutdown => "The door was closed while this answer was being made.",
+            Self::Abandoned => "This answer was stopped because nobody was reading it.",
         }
     }
 }
@@ -61,6 +65,17 @@ pub(super) struct Job {
     head: Vec<u8>,
     log: Mutex<Log>,
     signal: Condvar,
+    /// Resuming connections following the answer right now.
+    readers: AtomicUsize,
+}
+
+/// One resuming connection, counted while it follows the answer.
+pub(super) struct Reading(Arc<Job>);
+
+impl Drop for Reading {
+    fn drop(&mut self) {
+        self.0.readers.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 pub(super) enum Appended {
@@ -104,7 +119,20 @@ impl Job {
                 finished_at: None,
             }),
             signal: Condvar::new(),
+            readers: AtomicUsize::new(0),
         }
+    }
+
+    /// Counts a resuming connection as a reader until the returned guard
+    /// drops, however the connection ends.
+    pub(super) fn reading(self: &Arc<Self>) -> Reading {
+        self.readers.fetch_add(1, Ordering::SeqCst);
+        Reading(Arc::clone(self))
+    }
+
+    /// Whether any resuming connection is following the answer.
+    pub(super) fn has_readers(&self) -> bool {
+        self.readers.load(Ordering::SeqCst) > 0
     }
 
     pub(super) fn token(&self) -> &Token {

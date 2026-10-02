@@ -9,14 +9,14 @@ use std::net::SocketAddr;
 
 use super::support::*;
 use super::*;
-use crate::patience_for;
+use crate::clocks::clocks;
 
 const QUIET: Duration = Duration::from_millis(900);
 const PATIENCE: Duration = Duration::from_millis(250);
 
 /// An upstream for one connection: the request is read (head and declared
 /// body), then `script` has the socket.
-fn scripted_upstream(
+pub(super) fn scripted_upstream(
     script: impl FnOnce(&mut TcpStream) + Send + 'static,
 ) -> (u16, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -37,7 +37,7 @@ fn scripted_upstream(
 
 /// A client that asks for a completion and does NOT half-close: the way a
 /// browser keeps its end open while it waits.
-fn ask(address: SocketAddr, token: &str) -> TcpStream {
+pub(super) fn ask(address: SocketAddr, token: &str) -> TcpStream {
     let mut client = TcpStream::connect(address).unwrap();
     client
         .set_read_timeout(Some(Duration::from_secs(10)))
@@ -55,18 +55,18 @@ fn ask(address: SocketAddr, token: &str) -> TcpStream {
     client
 }
 
-fn read_to_end(mut client: TcpStream) -> String {
+pub(super) fn read_to_end(mut client: TcpStream) -> String {
     let mut answer = Vec::new();
     let _ = client.read_to_end(&mut answer);
     String::from_utf8_lossy(&answer).to_string()
 }
 
-const SSE_HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
-const RAW_HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n";
+pub(super) const SSE_HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+pub(super) const RAW_HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n";
 
 #[test]
 fn an_event_stream_that_goes_quiet_for_longer_than_the_patience_arrives_whole() {
-    let _patience = patience_for(PATIENCE);
+    let _clocks = clocks().patience(PATIENCE);
     // The shape of the Surface's failure: a first prefill report, a silence
     // the length of one batch, then the rest of the answer.
     let (port, upstream) = scripted_upstream(|stream| {
@@ -91,7 +91,7 @@ fn an_event_stream_that_goes_quiet_for_longer_than_the_patience_arrives_whole() 
 
 #[test]
 fn a_relayed_answer_that_goes_quiet_for_longer_than_the_patience_arrives_whole() {
-    let _patience = patience_for(PATIENCE);
+    let _clocks = clocks().patience(PATIENCE);
     let (port, upstream) = scripted_upstream(|stream| {
         stream.write_all(RAW_HEAD).unwrap();
         stream.write_all(b"first half, ").unwrap();
@@ -108,7 +108,7 @@ fn a_relayed_answer_that_goes_quiet_for_longer_than_the_patience_arrives_whole()
 
 #[test]
 fn an_engine_that_is_slow_to_begin_answering_is_waited_for() {
-    let _patience = patience_for(PATIENCE);
+    let _clocks = clocks().patience(PATIENCE);
     let (port, upstream) = scripted_upstream(|stream| {
         thread::sleep(QUIET);
         stream.write_all(SSE_HEAD).unwrap();
@@ -126,7 +126,7 @@ fn an_engine_that_is_slow_to_begin_answering_is_waited_for() {
 
 #[test]
 fn a_client_that_leaves_while_the_engine_is_quiet_frees_the_relay_promptly() {
-    let _patience = patience_for(PATIENCE);
+    let _clocks = clocks().patience(PATIENCE);
     let (closed_tx, closed_rx) = mpsc::channel();
     let (port, upstream) = scripted_upstream(move |stream| {
         stream.write_all(RAW_HEAD).unwrap();
@@ -171,14 +171,19 @@ fn a_client_that_leaves_while_the_engine_is_quiet_frees_the_relay_promptly() {
 }
 
 #[test]
-fn a_completions_answer_has_its_own_longer_lifetime() {
-    let accepted = Instant::now();
-    let completion = proxy::answer_deadline(accepted, true) - accepted;
-    let other = proxy::answer_deadline(accepted, false) - accepted;
-    assert_eq!(other, CONNECTION_LIFETIME, "everything else keeps the connection's");
-    assert_eq!(completion, crate::COMPLETION_LIFETIME);
+fn a_completions_answer_has_a_long_ceiling_and_an_idle_bound_counted_from_pickup() {
+    let started = Instant::now();
+    let (completion, idle) = proxy::answer_window(started, true);
+    let (other, other_idle) = proxy::answer_window(started, false);
+    assert_eq!(other - started, CONNECTION_LIFETIME, "everything else keeps the connection's");
+    assert_eq!(other_idle, CONNECTION_LIFETIME);
+    assert_eq!(completion - started, crate::clocks::completion_ceiling());
     assert!(
-        completion >= Duration::from_secs(30 * 60) && completion > other,
-        "a long answer on a slow computer is not cut at {other:?}: {completion:?}"
+        completion - started >= Duration::from_secs(30 * 60),
+        "a long answer on a slow computer is not cut at {CONNECTION_LIFETIME:?}"
+    );
+    assert!(
+        idle >= Duration::from_secs(10 * 60) && idle < completion - started,
+        "the idle bound is long enough for two prefill batches and shorter than the ceiling: {idle:?}"
     );
 }

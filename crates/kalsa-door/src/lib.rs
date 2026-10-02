@@ -50,6 +50,7 @@
 //! returning phone is told the truth instead of being kept waiting.
 
 mod chunk;
+mod clocks;
 mod cors;
 mod devices;
 mod engine;
@@ -57,6 +58,7 @@ mod jobs;
 mod paging;
 mod payload;
 mod proxy;
+mod queue;
 mod request;
 mod response;
 mod registry;
@@ -96,57 +98,10 @@ const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 /// How long one read of the engine may block before the relay wakes up to
 /// look at the door and its client. A wake-up, not a verdict: the engine is
 /// legitimately silent between prefill reports and between tokens on a slow
-/// computer, and only the connection's deadline ends the wait.
+/// computer, and only the answer's own limits (see `clocks`) end the wait.
 const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
 pub(crate) const HEAD_PATIENCE: Duration = Duration::from_secs(15);
 const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
-/// The lifetime of a chat completion's ANSWER, counted from accept. The
-/// connection lifetime above is for requests that are asked and answered in
-/// seconds; a completion on a slow computer is a prefill of minutes and then
-/// tokens at a few a second (1,500 tokens at 5 a second is five minutes on
-/// its own), so cutting it at the connection's 300 s cut real answers
-/// mid-sentence. Thirty minutes holds a long answer on the slowest machine the
-/// catalog admits (~3 tok/s, 5,000 tokens) and still frees a worker and a seat
-/// from an engine that hung. Only an authenticated, leased completion gets it.
-pub(crate) const COMPLETION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(30 * 60);
-
-/// The wake-up interval of a relay, with a test seam: a process-wide override
-/// in milliseconds (zero means the constant), held by [`PatienceGuard`].
-pub(crate) fn patience() -> std::time::Duration {
-    #[cfg(test)]
-    {
-        let millis = PATIENCE_OVERRIDE_MILLIS.load(std::sync::atomic::Ordering::SeqCst);
-        if millis > 0 {
-            return std::time::Duration::from_millis(millis);
-        }
-    }
-    PATIENCE
-}
-
-#[cfg(test)]
-static PATIENCE_OVERRIDE_MILLIS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-#[cfg(test)]
-static PATIENCE_SEAM: Mutex<()> = Mutex::new(());
-
-/// Holds the patience override for one test; the tests that set it take
-/// turns, and it is cleared however the test ends.
-#[cfg(test)]
-pub(crate) struct PatienceGuard(std::sync::MutexGuard<'static, ()>);
-
-#[cfg(test)]
-pub(crate) fn patience_for(duration: std::time::Duration) -> PatienceGuard {
-    let turn = PATIENCE_SEAM.lock().unwrap_or_else(|e| e.into_inner());
-    PATIENCE_OVERRIDE_MILLIS.store(duration.as_millis() as u64, std::sync::atomic::Ordering::SeqCst);
-    PatienceGuard(turn)
-}
-
-#[cfg(test)]
-impl Drop for PatienceGuard {
-    fn drop(&mut self) {
-        PATIENCE_OVERRIDE_MILLIS.store(0, std::sync::atomic::Ordering::SeqCst);
-    }
-}
 const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
 /// How long a finished answer stays resumable after its last event. A phone
 /// may be away for minutes; it is not away forever.

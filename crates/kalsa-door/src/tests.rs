@@ -14,6 +14,7 @@ use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 mod cors;
 mod cors_answers;
 mod paging;
+mod answer_limits;
 mod patience;
 mod paging_cadence;
 mod paging_cadence_owed;
@@ -502,9 +503,10 @@ fn a_removed_device_is_cut_mid_answer_and_refused_after() {
 
 #[test]
 fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
-    // The accepted stamp here is long stale — the shape of a connection
-    // that waited in the queue. The head arrives complete, so the worker's
-    // own patience reads it and answers on its merits: the credential
+    // The accepted stamp here is stale beyond the head patience, yet inside
+    // the queue bound — the shape of a connection that waited its turn. The
+    // head arrives complete, so the worker's own patience reads it and
+    // answers on its merits: the credential
     // below is wrong, and the answer says exactly that, byte for byte.
     // (A connection whose head was never read at all is answered busy
     // instead — see the true-path test.)
@@ -521,7 +523,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
         let devices = Arc::new(DeviceSet::new(door_devices(&[&"0".repeat(64)]), 1));
         let stop = Arc::new(stop);
         let accepted = Instant::now()
-            .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(5))
+            .checked_sub(super::HEAD_PATIENCE + Duration::from_secs(1))
             .unwrap();
         proxy::handle(
             stream,
@@ -787,7 +789,7 @@ fn handled_requests_free_their_slot_so_the_door_stays_open() {
 }
 
 #[test]
-fn a_connection_past_its_lifetime_is_cut() {
+fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let registry = Registry::new();
@@ -798,7 +800,7 @@ fn a_connection_past_its_lifetime_is_cut() {
         let devices = Arc::new(DeviceSet::new(door_devices(&[&"0".repeat(64)]), 1));
         let stop = Arc::new(stop);
         let accepted = Instant::now()
-            .checked_sub(CONNECTION_LIFETIME + Duration::from_secs(1))
+            .checked_sub(crate::clocks::queue_wait() + Duration::from_secs(1))
             .unwrap();
         proxy::handle(
             stream,
@@ -825,9 +827,9 @@ fn a_connection_past_its_lifetime_is_cut() {
         .unwrap();
     let mut response = Vec::new();
     client.read_to_end(&mut response).unwrap();
-    assert!(
-        response.is_empty(),
-        "an expired connection gets no response"
+    assert_eq!(
+        response, super::BUSY_RESPONSE,
+        "a connection that waited too long for a worker is told so, not left silent"
     );
     server.join().unwrap();
 }

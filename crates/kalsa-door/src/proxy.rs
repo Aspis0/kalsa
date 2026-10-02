@@ -15,7 +15,8 @@ use crate::request;
 use crate::response;
 use crate::slot_routes;
 use crate::stream;
-use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, COMPLETION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES, patience};
+use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
+use crate::clocks::{completion_ceiling, completion_idle, patience, queue_wait};
 
 /// The observer type every serving path shares: it sees exactly the bytes
 /// the client receives, never a byte it does not.
@@ -110,12 +111,16 @@ pub(super) fn handle(
 ) {
     let devices: &DeviceSet = &shared.set;
     let stop: &AtomicBool = &shared.stop;
-    let deadline = accepted + CONNECTION_LIFETIME;
-    // The head patience is the worker's, not the queue's: it counts from
-    // when this worker begins reading, so a connection that waited in the
-    // queue is not punished for the wait. The session lifetime, though, is
-    // the connection's own, and keeps counting from accept.
+    // Everything below is counted from the moment this worker took the
+    // connection up, not from accept: a client that waited in the line for a
+    // worker is not punished for the wait with a budget already spent. The
+    // wait has a bound of its own, enforced by the accept loop (`queue_wait`).
     let started = Instant::now();
+    let deadline = started + CONNECTION_LIFETIME;
+    if started.saturating_duration_since(accepted) >= queue_wait() {
+        let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+        return;
+    }
     let mut head = {
         let head_deadline = deadline.min(started + head_patience);
         // A connection past its lifetime is dead on arrival: it is closed
@@ -344,8 +349,8 @@ pub(super) fn handle(
     }
     // The request is in; what follows is the engine's answer. A completion's
     // answer has its own, longer, lifetime (see `COMPLETION_LIFETIME`).
-    let deadline = answer_deadline(accepted, completion);
-    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some(&cancel)) {
+    let (deadline, idle) = answer_window(started, completion);
+    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some((&cancel, idle))) {
         Ok(head) => head,
         Err(_) => return,
     };
@@ -390,7 +395,7 @@ pub(super) fn handle(
             if let Some(observer) = observer {
                 observer(&relayed);
             }
-            let _ = relay_response(&mut upstream, &mut client, deadline, &cancel, observer);
+            let _ = relay_response(&mut upstream, &mut client, deadline, idle, &cancel, observer);
             return;
         }
     }
@@ -414,6 +419,7 @@ pub(super) fn handle(
         client,
         upstream_head.chunked,
         deadline,
+        idle,
         &cancel,
         observer,
     );
@@ -562,10 +568,12 @@ fn relay_response(
     from: &mut TcpStream,
     to: &mut TcpStream,
     deadline: Instant,
+    idle: Duration,
     cancel: &Cancel,
     observer: Option<&Observed>,
 ) -> io::Result<()> {
     let mut buffer = [0u8; 16 * 1024];
+    let mut last_byte = Instant::now();
     loop {
         if cancel.stopped() {
             return Ok(());
@@ -578,7 +586,7 @@ fn relay_response(
             // the end of the answer: look at who is still here and wait again,
             // until the deadline (`set_read_deadline` above) says otherwise.
             Err(error) if is_silence(&error) => {
-                if client_gone(to) {
+                if last_byte.elapsed() >= idle || client_gone(to) {
                     return Ok(());
                 }
                 continue;
@@ -588,6 +596,7 @@ fn relay_response(
         if read == 0 {
             return Ok(());
         }
+        last_byte = Instant::now();
         to.write_all(&buffer[..read])?;
         if let Some(observer) = observer {
             observer(&buffer[..read]);
@@ -595,16 +604,18 @@ fn relay_response(
     }
 }
 
-/// How long the engine's answer to this request may take, counted from
-/// accept: a completion's answer gets its own lifetime, everything else the
-/// connection's.
-pub(super) fn answer_deadline(accepted: Instant, completion: bool) -> Instant {
-    accepted
-        + if completion {
-            COMPLETION_LIFETIME
-        } else {
-            CONNECTION_LIFETIME
-        }
+/// The limits on the engine's answer to this request, counted from when the
+/// worker took it up: the moment it must be over by, and how long the engine
+/// may go without a single byte. A completion's answer gets the long ceiling
+/// and an idle bound of its own (see `clocks`); everything else the
+/// connection's lifetime, which its idle bound cannot undercut. Reached only
+/// by a request that is authenticated and holds its slot's lease.
+pub(super) fn answer_window(started: Instant, completion: bool) -> (Instant, Duration) {
+    if completion {
+        (started + completion_ceiling(), completion_idle())
+    } else {
+        (started + CONNECTION_LIFETIME, CONNECTION_LIFETIME)
+    }
 }
 
 /// A read that ran out of time rather than failed: the other side is quiet,
@@ -620,7 +631,7 @@ pub(super) fn is_silence(error: &io::Error) -> bool {
 /// block is a client that is simply quiet. Asked only when the engine is
 /// silent, so a client that left during a long prefill frees the relay (and,
 /// by closing the engine's socket, the engine's slot) at the next wake-up.
-fn client_gone(client: &TcpStream) -> bool {
+pub(super) fn client_gone(client: &TcpStream) -> bool {
     if client.set_nonblocking(true).is_err() {
         return false;
     }
@@ -629,8 +640,9 @@ fn client_gone(client: &TcpStream) -> bool {
         Ok(read) => read == 0,
         Err(error) => error.kind() != io::ErrorKind::WouldBlock,
     };
-    let _ = client.set_nonblocking(false);
-    gone
+    // A socket that cannot be put back to blocking would make the relay's next
+    // write fail or spin: a client in that state is as good as gone.
+    gone || client.set_nonblocking(false).is_err()
 }
 
 fn refuse(stream: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) -> io::Result<()> {

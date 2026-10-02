@@ -1,10 +1,12 @@
 use std::io;
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::clocks::queue_wait;
+use crate::queue::Queue;
 use crate::registry::Registry;
 use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
 
@@ -66,13 +68,12 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         port: door.upstream_port,
         slot_context: door.slot_context,
     });
-    let (sender, receiver) = mpsc::sync_channel(QUEUE);
-    let receiver = Arc::new(Mutex::new(receiver));
+    let queue = Arc::new(Queue::new(QUEUE));
     let mut threads = Vec::with_capacity(WORKERS + 2);
 
     for index in 0..WORKERS {
         let worker_active = Arc::clone(&active);
-        let worker_receiver = Arc::clone(&receiver);
+        let worker_queue = Arc::clone(&queue);
         let worker_registry = Arc::clone(&registry);
         let worker_chats = Arc::clone(&chats);
         let worker_shared = Arc::clone(&shared);
@@ -85,7 +86,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
             .spawn(move || {
                 worker(
                     worker_active,
-                    worker_receiver,
+                    worker_queue,
                     worker_registry,
                     worker_chats,
                     worker_shared,
@@ -99,7 +100,6 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
             Ok(thread) => threads.push(thread),
             Err(error) => {
                 stop.store(true, Ordering::SeqCst);
-                drop(sender);
                 join_all(threads);
                 return Err(DoorError::Thread(error));
             }
@@ -127,7 +127,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let accept_connections = Arc::clone(&connections);
     let result = thread::Builder::new()
         .name("kalsa-door".into())
-        .spawn(move || accept_loop(listener, sender, accept_stop, accept_connections));
+        .spawn(move || accept_loop(listener, queue, accept_stop, accept_connections));
     match result {
         Ok(thread) => threads.push(thread),
         Err(error) => {
@@ -163,11 +163,17 @@ fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
 
 fn accept_loop(
     listener: std::net::TcpListener,
-    sender: mpsc::SyncSender<Work>,
+    queue: Arc<Queue<Work>>,
     stop: Arc<AtomicBool>,
     connections: Arc<AtomicUsize>,
 ) {
     while !stop.load(Ordering::SeqCst) {
+        // Answers can hold a worker for half an hour, so the line is swept on
+        // every turn: whoever has waited too long is answered busy now, not
+        // when a worker finally frees.
+        for mut work in queue.expired(queue_wait()) {
+            reject_busy(&mut work.stream);
+        }
         match listener.accept() {
             Ok((mut stream, _)) => {
                 if connections.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
@@ -186,17 +192,9 @@ fn accept_loop(
                     accepted: Instant::now(),
                     _slot: lease,
                 };
-                match sender.try_send(work) {
-                    Ok(()) => {}
-                    Err(mpsc::TrySendError::Full(mut work)) => {
-                        reject_busy(&mut work.stream);
-                        // work drops here: the lease hands the slot back
-                    }
-                    Err(mpsc::TrySendError::Disconnected(mut work)) => {
-                        reject_busy(&mut work.stream);
-                        eprintln!("kalsa door worker pool stopped");
-                        stop.store(true, Ordering::SeqCst);
-                    }
+                if let Err(mut work) = queue.push(work) {
+                    reject_busy(&mut work.stream);
+                    // work drops here: the lease hands the slot back
                 }
             }
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -213,7 +211,7 @@ fn accept_loop(
 
 fn worker(
     active: Arc<ActiveDevices>,
-    receiver: Arc<Mutex<mpsc::Receiver<Work>>>,
+    queue: Arc<Queue<Work>>,
     registry: Arc<Registry>,
     chats: Arc<crate::paging::Chats>,
     shared: Arc<crate::proxy::Shared>,
@@ -223,12 +221,8 @@ fn worker(
     observer: Option<crate::ResponseObserverFactory>,
 ) {
     loop {
-        let result = receiver
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .recv_timeout(POLL_INTERVAL);
-        match result {
-            Ok(work) => {
+        match queue.pop(POLL_INTERVAL) {
+            Some(work) => {
                 if !shared.stop.load(Ordering::SeqCst) {
                     let response_observer = observer.as_ref().map(|factory| factory());
                     proxy::handle(
@@ -247,9 +241,8 @@ fn worker(
                 // The work — and with it its slot — drops here, on every
                 // path an unwind included. No manual fetch_sub to forget.
             }
-            Err(mpsc::RecvTimeoutError::Timeout) if shared.stop.load(Ordering::SeqCst) => return,
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+            None if shared.stop.load(Ordering::SeqCst) => return,
+            None => {}
         }
     }
 }
@@ -257,6 +250,11 @@ fn worker(
 fn reject_busy(stream: &mut TcpStream) {
     let _ = stream.set_nonblocking(true);
     let _ = std::io::Write::write_all(stream, BUSY_RESPONSE);
+    // A request already sitting unread would make the close a reset, and a
+    // reset erases the answer just written: take what has arrived first.
+    let mut unread = [0u8; 16 * 1024];
+    while matches!(std::io::Read::read(stream, &mut unread), Ok(read) if read > 0) {}
+    let _ = stream.shutdown(std::net::Shutdown::Write);
 }
 
 fn join_all(threads: Vec<thread::JoinHandle<()>>) {

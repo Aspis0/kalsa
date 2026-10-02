@@ -6,10 +6,10 @@
 
 use std::io::Read;
 use std::net::TcpStream;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::chunk::Dechunker;
-use crate::patience;
+use crate::clocks::patience;
 use crate::proxy::{is_silence, Cancel};
 
 pub(super) const MAX_HEAD: usize = 32 * 1024;
@@ -23,16 +23,17 @@ pub(super) struct Head {
     pub(super) chunked: bool,
 }
 
-/// `waiting` is the caller's cancel when the head of a model's answer is being
-/// read: the engine sends it once it starts on the request, which on a busy
-/// seat can be well past one patience, so a quiet read is waited through (the
-/// deadline and the cancel still end it). `None` keeps the single patience for
-/// the door's own short calls.
+/// `waiting` is the caller's cancel and idle bound when the head of a model's
+/// answer is being read: the engine sends it once it starts on the request,
+/// which on a busy seat can be well past one patience, so a quiet read is
+/// waited through (the deadline, the cancel and the idle bound still end it).
+/// `None` keeps the single patience for the door's own short calls.
 pub(super) fn read_upstream_head(
     stream: &mut TcpStream,
     deadline: Instant,
-    waiting: Option<&Cancel>,
+    waiting: Option<(&Cancel, Duration)>,
 ) -> std::io::Result<Head> {
+    let begun = Instant::now();
     // The timeout is set once for the whole head: the reads are one byte
     // each (the body must not be swallowed), and re-arming SO_RCVTIMEO per
     // byte only multiplies the odds of hitting the macOS quirk below.
@@ -60,7 +61,10 @@ pub(super) fn read_upstream_head(
                 }
             }
             Ok(_) => unreachable!("a one-byte read returned more than one byte"),
-            Err(error) if is_silence(&error) && waiting.is_some_and(|cancel| !cancel.stopped()) => {
+            Err(error)
+                if is_silence(&error)
+                    && waiting.is_some_and(|(cancel, idle)| !cancel.stopped() && begun.elapsed() < idle) =>
+            {
                 arm_read_timeout(stream, deadline)?;
             }
             Err(error) => return Err(error),
