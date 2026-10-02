@@ -111,6 +111,7 @@ import {
 import { getBenchNCtx, getBenchNoRepack, getEngineOverride, getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2 } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
+import { SendLogPanel } from "../components/SendLogPanel";
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { PairingScreen } from "./PairingScreen";
 import type { PairingSquare } from "../pairing/pairingTransport";
@@ -2917,6 +2918,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
               {t("settings.reportProblemBody")}
             </Text>
           </Pressable>
+          <SendLogPanel />
         </GlassPanel2>
 
         {/* ── Help (before About) ──────────────────────────────────────── */}

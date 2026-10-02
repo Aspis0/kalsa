@@ -57,6 +57,7 @@ jest.mock("../ui/shell/AttachSheet", () => ({ AttachSheet: "AttachSheet" }));
 jest.mock("../components/OrphanModelMigrationBanner", () => ({
   OrphanModelMigrationBanner: "OrphanModelMigrationBanner",
 }));
+jest.mock("../components/SendLogPanel", () => ({ SendLogPanel: "SendLogPanel" }));
 jest.mock("../../assets/icon.png", () => "brand-mark");
 jest.mock("expo-constants", () => ({ expoConfig: undefined }));
 jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => undefined) }));

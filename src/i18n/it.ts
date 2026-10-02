@@ -1437,8 +1437,20 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     },
     /** ShellPreview only: the notice under the strip, never shown in the app.
      *  One line at 349 dp: "Fisso 325 in 621 dp" is 19 characters. */
+    /** ShellPreview only: the notice under the strip, never shown in the app.
+     *  One line at 349 dp: "Fisso 325 in 621 dp" is 19 characters. */
     preview: {
       sizeNotLive: "Fisso {pinned} in {live} dp",
     },
+  },
+  report: {
+    privacy: "Il log non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o chiavi.",
+    send: "Invia il log",
+    sending: "Invio…",
+    sentWithId: "Inviato. Il numero della tua segnalazione è {id}: dicci questo numero.",
+    errRateLimited: "Aspetta un minuto e riprova.",
+    errTryTomorrow: "Oggi abbiamo ricevuto troppe segnalazioni. Riprova domani.",
+    errSend: "Impossibile inviare. Controlla la connessione e riprova.",
+    errEmpty: "Non c'è ancora niente da inviare.",
   },
 };
