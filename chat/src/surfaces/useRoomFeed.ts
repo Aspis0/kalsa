@@ -45,10 +45,10 @@ export function useRoomFeed() {
   const load = useCallback(async () => {
     if (!available()) return;
     try {
-      const [nextInfo, history] = await Promise.all([
-        invoke<RoomInfo>("brain_room"),
-        invoke<RoomEntry[]>("brain_room_history", { limit: 200 }),
-      ]);
+      const nextInfo = await invoke<RoomInfo>("brain_room");
+      // The type rides on the binding, not a generic argument: an array
+      // generic here would hide the call from the command contract's scan.
+      const history: RoomEntry[] = await invoke("brain_room_history", { limit: 200 });
       setInfo(nextInfo);
       setFeed((current) => mergeHistory(current, nextInfo.epoch, history));
     } catch {
