@@ -935,6 +935,19 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
   `ios-readiness/BINDING-PATCHES.md` (FATTN_SMEM in the Metal overlay, arm/quants.c on x86_64, Podfile CXX20 flags,
   podspec ggml-cpu glob).
+  **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
+  for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
+  id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
+  the report id shown after sending, the bold sentence "The log never contains your messages, Kalsa's answers, your
+  files, or any code or key." in 5 languages. Privacy rules 1-6 from the desktop review rounds apply (no debug/slot
+  knobs, drop parse-error/diff lines, 300-char clip, crash location only, JS errors name + first frame, URLs without
+  query/fragment, no device labels/serials/IPs/home path, newest 4 MiB cut on a line). Governor session owns the phone
+  side. Found before starting: (1) the phone has NO log file - only logcat and the 50-line in-memory native tail -
+  so a collector (allow-listed ring buffer of our own lines) comes first; (2) BLOCKER: kalsa.rn
+  `cpp/jsi/RNLlamaJSI.cpp:271-277` still forwards llama.cpp DEBUG to JS as "info", and the native tail keeps every
+  level, so with tools on the `llama-grammar` "awaiting trigger ... (`%s`)" lines carry every sampled piece of the
+  answer (memory native-log-mirror-puts-model-text-in-logcat). Fix in the binding (drop below INFO before JS) in the
+  next binding round, before any phone upload exists.
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
