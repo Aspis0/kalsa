@@ -22,9 +22,7 @@ Cases:
       DIFFERENT commit -> refused with BOTH commits in the reason;
       either side missing -> refused (unknown is not agreement); prefix
       either way against a FULL 40-hex -> ok.
-  (2b) H1 THE RULE (commits_agree), the TEN vectors shared VERBATIM
-      with chat/scripts/tier-panel.mjs (S3: they WERE 8 vs 6 while the
-      code claimed "the same list" - now identical, same order): the
+  (2b) H1 THE RULE (commits_agree), the TEN vectors: the
       deadbee9/deadbee counterexample; the equal 9-hex pair; 9 vs
       full-40 both directions; full-40 vs an 8-hex (the floor bites
       even against 40); 8 vs 9; two differing 9-hex; an uppercase pair;
@@ -74,10 +72,8 @@ VERSION_OK = ("version: 0.4.1-dev (build 11195, commit a7d2cec79)\n"
               "built with AppleClang 21.0.0.21000101 for Darwin arm64")
 PROPS_OK = {"build_info": "b11195-a7d2cec79"}
 
-# K2: the extraction vectors, shared VERBATIM with
-# chat/scripts/tier-panel.mjs (identical three, same order) and read by
-# dev/test-engine-identity.py to pin mc.engine_identity's delegation - ONE
-# Python list, one JS list.
+# K2: the extraction vectors, read by dev/test-engine-identity.py to pin
+# mc.engine_identity's delegation - ONE list.
 EXTRACT_VECTORS = [
     (f"version build commit {'a' * 41}", None),
     (f"notcommit {'a' * 40}", None),

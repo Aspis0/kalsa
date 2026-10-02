@@ -75,9 +75,8 @@ def version_build_commit(version_text):
     trailing `(?![0-9a-z])` rejects the 41-hex run the old
     unbounded-tail regex truncated to a clean 40. The extracted token is
     then judged by commits_agree's own rules. The ONE Python definition:
-    mc.engine_identity and prefill's commit_of delegate here;
-    tier-panel.mjs carries the identical regex, pinned by the shared
-    extraction vectors in both test files."""
+    mc.engine_identity and prefill's commit_of delegate here; the
+    extraction vectors in test-running-engine.py pin it."""
     m = re.search(r"(?<![0-9a-z])commit ([0-9a-f]{7,40})(?![0-9a-z])",
                   version_text or "")
     return m.group(1) if m else None
@@ -85,8 +84,7 @@ def version_build_commit(version_text):
 
 def commits_agree(left, right):
     """The ONE commit-agreement rule (H1) - applied by this responder
-    check, by mc.engine_identity, and (same vectors, same order) by
-    chat/scripts/tier-panel.mjs:
+    check and by mc.engine_identity:
 
     - each side must be at least 9 LOWERCASE hex characters: what
       --version and /props print on this engine, and the length below
@@ -96,7 +94,7 @@ def commits_agree(left, right):
       manifest's), in either direction. THIS clause is the one the
       shared vectors pin hardest (S1: 12-vs-9 and 9-vs-12, both >=9,
       one longer, neither 40 - deleting either `len(...) == 40` guard
-      or the JS twin's must turn a vector red).
+      must turn a vector red).
 
     The old rule - prefix of >=7 either way - accepted
     `deadbee9` vs `deadbee` (Reviewer A's counterexample); this closes

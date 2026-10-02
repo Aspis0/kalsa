@@ -131,7 +131,7 @@ WORDS = ("harbor lantern gravel willow copper thistle marble quarry beacon "
 # 2 and 3 take the next two.
 PROMPT_SEEDS = (11, 22, 33, 44)
 # Arm B's key in `arms` and in every attempt: the committed artifact's own
-# spelling at N=2 - tier-panel and the reviewers read that path.
+# spelling at N=2 - the reviewers read that path.
 ARM_KEYS = {2: "B_two_slots", 4: "B_four_slots"}
 # The door's per-device cache-salt label, verbatim from its source
 # (crates/kalsa-door/src/devices.rs CACHE_SALT_LABEL): sha256(label ||
@@ -525,7 +525,7 @@ def engine_identity(bin_path, version_text, block):
     `ok` is True only when the manifest matched AND the version commit
     agrees with the manifest's commit under eh.commits_agree (H1: >=9
     lowercase hex each, two shorts EQUAL, prefix only against a full
-    40-hex - the SAME rule the responder check and tier-panel use) AND
+    40-hex - the SAME rule the responder check uses) AND
     the module file is there; False when the manifest matched and any of
     those fails; None when the status is not `matched` (nothing to veto).
     """

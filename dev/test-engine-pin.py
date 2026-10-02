@@ -9,9 +9,8 @@ what it implies, and the fetched manifest's own `tag` must equal it. Deriving
 any of those from `FORK_BASE` — the constant under test — was the defect this
 revision fixes: with the anchor taken from the value, a `FORK_BASE` pointing
 at v1.1.0 made the control move ITS OWN URL to v1.1.0, agree with itself, and
-go red for the wrong reason with `home` never named. Same class as
-`chat/scripts/tier-panel.mjs`'s rule: "two sources that must agree cannot be
-one".
+go red for the wrong reason with `home` never named. The rule: two sources
+that must agree cannot be one.
 
 What it checks — EVERY field of the three Engine rows in
 `crates/kalsa-runtime/src/assets.rs` (macos-arm64/metal, win-cpu-x64,
