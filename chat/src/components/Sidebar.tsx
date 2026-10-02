@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConversationMeta } from "../lib/types";
 import { useLanguage } from "../i18n/useLanguage";
+import { searchShortcutLabel } from "../lib/shortcut";
 import "./Sidebar.css";
 
 interface SidebarProps {
@@ -121,7 +122,7 @@ export function Sidebar({
             placeholder={t.searchPlaceholder}
             autoComplete="off"
           />
-          <kbd title={t.focusSearch}>⌘K</kbd>
+          <kbd title={t.focusSearch}>{searchShortcutLabel(navigator.platform)}</kbd>
         </div>
 
         <button type="button" className="sidebar-new" onClick={onNew}>

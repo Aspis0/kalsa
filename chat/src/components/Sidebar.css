@@ -22,7 +22,7 @@
 .sidebar-search input {
   width: 100%;
   height: 34px;
-  padding: 0 3rem 0 0.75rem;
+  padding: 0 3.8rem 0 0.75rem;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--border-strong);
