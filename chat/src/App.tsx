@@ -992,15 +992,16 @@ export function App() {
         }
       }}
     >
-      {/* The crescent lives in the chat alone, overlaid at the shell's
-          level: an open menu dims the page beneath it, so it must not sit
-          inside what gets dimmed. It is a way between pages: the chat's own
-          drawer already offers a new conversation and the history, so neither
-          is repeated here. */}
-      {surface === "chat" ? (
+      {/* The crescent lives in the chat and the room, overlaid at the
+          shell's level: an open menu dims the page beneath it, so it must
+          not sit inside what gets dimmed. It is a way between pages: the
+          entries drop the page you are on (the component's own rule), and
+          the chat's drawer already offers a new conversation and the
+          history, so neither is repeated here. */}
+      {surface === "chat" || surface === "room" ? (
         <CrescentNav
           entries={chatEntries}
-          current="chat"
+          current={surface}
           open={navOpen}
           onOpenChange={setNavOpen}
         />
@@ -1025,9 +1026,9 @@ export function App() {
               bar on the home is the machine's (what runs on it, who can reach
               it, how it is launched); this is the door to the app's. One door
               per surface, by the same rule the crescent follows: not on
-              Settings itself, where it would do nothing, and not on the chat,
-              whose own menu already carries it. */}
-          {surface !== "settings" && surface !== "chat" ? (
+              Settings itself, where it would do nothing, and not on the chat
+              or the room, whose own menu already carries it. */}
+          {surface !== "settings" && surface !== "chat" && surface !== "room" ? (
             <button
               type="button"
               className="topbar-btn topbar-settings"

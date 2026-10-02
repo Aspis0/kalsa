@@ -7,10 +7,8 @@ export interface RoomTable {
   listJoin: (items: string[]) => string;
   closedRoom: string;
   emptyRoom: string;
-  answering: (name: string) => string;
   queueNext: (name: string) => string;
   queueThen: (name: string, rest: string) => string;
-  stop: string;
   askKalsa: string;
   writePlaceholder: string;
   writeAria: string;
@@ -33,10 +31,8 @@ export const ROOM: RoomTable = {
   },
   closedRoom: "Turn on Kalsa to use the room.",
   emptyRoom: "No messages yet. Say something, or ask Kalsa.",
-  answering: (name) => `Kalsa is answering ${name}.`,
   queueNext: (name) => `Kalsa will answer ${name} next.`,
   queueThen: (name, rest) => `Kalsa will answer ${name} next, then ${rest}.`,
-  stop: "Stop",
   askKalsa: "Ask Kalsa",
   writePlaceholder: "Write, or type @Kalsa…",
   writeAria: "Message",

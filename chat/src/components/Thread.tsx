@@ -40,7 +40,9 @@ function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; 
   }
 }
 
-function Thinking() {
+/** The waiting face the chat shows while the answer has not begun: three
+    quiet dots. The Room's live row wears the same. */
+export function Thinking() {
   return (
     <span className="thinking" aria-hidden="true">
       <span />
@@ -50,7 +52,8 @@ function Thinking() {
   );
 }
 
-function stamp(when: number, tag: string): string {
+/** The moment a message was said, in the reader's own language. */
+export function stamp(when: number, tag: string): string {
   try {
     return new Intl.DateTimeFormat(tag).format(when);
   } catch {

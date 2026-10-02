@@ -3780,6 +3780,100 @@ const tests = {
     check("gate abortpromote: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
     await browser.close();
   },
+  // The Room, end to end in the browser: the host posts through the composer
+  // and the message lands in the thread. The dev server runs StrictMode,
+  // whose double-invoked state updater is exactly what a reducer that
+  // mutates shared state punishes — a post that lands here lands in the
+  // packaged app, and a feed fold that lies about purity goes red here.
+  async room() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.addInitScript(() => {
+      const info = {
+        epoch: "verify-room",
+        open: true,
+        room_name: "Studio",
+        you: 4294967295,
+        members: [
+          { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+          { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+        ],
+        ai: { state: "idle", running: null, queue: [], you_pending: false },
+      };
+      let seq = 0;
+      const entry = (member_id, name, text) => ({
+        seq: ++seq,
+        member_id,
+        name,
+        former: false,
+        text,
+        time: Math.floor(Date.now() / 1000),
+        call_ai: false,
+        read: null,
+      });
+      const history = [entry(4294967294, "Kalsa", "The room is open.")];
+      window.__TAURI__ = {
+        core: {
+          invoke: async (command, args) => {
+            if (command === "brain_state")
+              return { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" };
+            if (command === "brain_capability")
+              return {
+                kind: "measured",
+                chosen: true,
+                machine: {
+                  ram_bytes: 17 * 1024 ** 3,
+                  budget_bytes: 12.75 * 1024 ** 3,
+                  gpu_accounted_for: true,
+                  runs_on: "the graphics chip",
+                  bandwidth_bytes_per_second: 110e9,
+                  bandwidth_basis: "chip",
+                },
+                model: {
+                  id: "0f3e5d7c9b1a2468",
+                  name: "Liquid LFM 2.5",
+                  quant: "Q8_0",
+                  weights_bytes: 2874779648,
+                  context_tokens: 65536,
+                  speed_context_tokens: 8192,
+                  speed: { shape: "range", low: 12, high: 21 },
+                  measured: null,
+                },
+                quicker: null,
+                refusal: null,
+              };
+            if (command === "brain_previous_session_crashed") return false;
+            if (command === "brain_room") return info;
+            if (command === "brain_room_history") return history;
+            if (command === "brain_room_post") {
+              const landed = entry(info.you, "This computer", args.text);
+              history.push(landed);
+              return { ...landed, ai_call: null, refusal: null };
+            }
+            return null;
+          },
+        },
+        event: { listen: () => Promise.resolve(() => {}) },
+      };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    // The brain bar's second wide button is the Room's.
+    await page.locator(".brain-bar-chat").last().click();
+    await page.waitForTimeout(500);
+    await page.locator(".composer-input").fill("A message from the desk");
+    await page.locator(".composer-send").click();
+    await page.waitForTimeout(400);
+    const seen = await page.evaluate(() => document.body.innerText);
+    check("room: the page is the room", seen.includes("Studio"), seen.slice(0, 120));
+    check(
+      "room: the posted message lands",
+      seen.includes("A message from the desk"),
+      seen.slice(0, 240),
+    );
+    await browser.close();
+  },
+
 };
 
 /**
@@ -3843,7 +3937,7 @@ async function gateAsk(page, label) {
   }
 }
 
-// The two servers this suite cannot run without. A missing one does not fail
+  // The two servers this suite cannot run without. A missing one does not fail
 // fast on its own: it surfaces as twenty selector timeouts that look exactly
 // like harness rot — b0ae9e6 records the same trap in shots.mjs — so say it
 // once, plainly, before any test burns its thirty seconds. The probe itself

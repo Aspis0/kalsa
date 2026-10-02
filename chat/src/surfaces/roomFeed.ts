@@ -120,8 +120,13 @@ export function reduceEvent(state: RoomFeed, event: RoomEvent): RoomFeed {
       };
     }
     if (state.seen.has(event.seq)) return state;
-    const next = { ...state, entries: [...state.entries, event] };
-    next.seen.add(event.seq);
+    // The seen set is cloned, never mutated: this fold runs under StrictMode's
+    // double invocation, and a set shared with the previous state would mark
+    // the seq present for the second run, which then keeps the old state and
+    // the message never lands.
+    const seen = new Set(state.seen);
+    seen.add(event.seq);
+    const next = { ...state, entries: [...state.entries, event], seen };
     const cleared = event.kind === "ai_message" ? { ...next, live: null } : next;
     return trim(cleared);
   }

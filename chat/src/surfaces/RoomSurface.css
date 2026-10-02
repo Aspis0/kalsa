@@ -1,5 +1,7 @@
-/* The host's room, beside the chat's own pieces: the same tokens, a thread
-   of plain lines, and one bar. */
+/* The host's room, on the chat's own pieces: the thread's bubbles and the
+   composer come from Thread.css and Composer.css; this file holds only what
+   a room has and a chat has not — the people, the authors' names, the
+   marks, and the quiet lines under the thread. */
 
 .room-page {
   display: flex;
@@ -13,7 +15,53 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.6rem;
+  flex-wrap: wrap;
   flex: 0 0 auto;
+  padding-bottom: 0.4rem;
+}
+
+.room-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  min-width: 0;
+}
+
+.room-person {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.room-author {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.15rem;
+}
+
+.room-author-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.room-left {
+  color: var(--silence);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.room-asked {
+  color: var(--silence);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.room-read {
+  margin-left: 0.4rem;
+  color: var(--silence);
+  font-size: 0.8rem;
 }
 
 .room-name-chip {
@@ -40,80 +88,26 @@
   max-width: 14rem;
 }
 
-.room-thread {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 0.4rem 0.2rem;
-}
-
-.room-line {
-  margin: 0 0 0.55rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.room-line-name {
-  font-weight: 600;
-}
-
-.room-left {
-  color: var(--silence);
-  font-weight: 400;
-  font-style: italic;
-}
-
-.room-asked {
-  color: var(--silence);
-  font-size: 0.8rem;
-  font-style: italic;
-}
-
-.room-read {
-  color: var(--silence);
-  font-size: 0.8rem;
-}
-
-.room-mention {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  border-radius: 3px;
-  padding: 0 0.15rem;
-}
-
-.room-live {
-  opacity: 0.85;
-}
-
 .room-turn {
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
   gap: 0.8rem;
   min-height: 1.4rem;
+  padding: 0 1rem;
 }
 
 .room-turn .surface-quiet {
   margin: 0;
 }
 
-.room-stop {
-  border: 1px solid currentColor;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 0.8rem;
-  border-radius: 6px;
-  padding: 0.15rem 0.7rem;
-  cursor: pointer;
+.room-send-error {
+  margin: 0.2rem 1rem 0;
 }
 
-.room-bar {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 0.4rem;
-  padding-top: 0.5rem;
-}
-
-.room-bar .brain-bar-input {
-  flex: 1;
+/* The calling token, highlighted where the matcher found it (RoomText). */
+.room-mention {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 3px;
+  padding: 0 0.15rem;
 }

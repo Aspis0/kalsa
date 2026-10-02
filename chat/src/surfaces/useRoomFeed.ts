@@ -16,8 +16,6 @@ import {
   type RoomInfo,
 } from "./roomFeed";
 
-export type { RoomEntry, RoomInfo } from "./roomFeed";
-
 interface RoomPostAnswer extends RoomEntry {
   ai_call: string | null;
   refusal: string | null;

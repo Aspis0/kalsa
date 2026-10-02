@@ -91,6 +91,23 @@
   border-color: var(--border-strong);
 }
 
+/* The Room's second send: words, not an icon, and quieter than the
+   primary send beside it. */
+.composer-ask {
+  width: auto;
+  padding: 0 0.8rem;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+}
+
+.composer-ask:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--surface-muted);
+  border-color: var(--border-strong);
+}
+
 .composer-hint {
   margin: 0.35rem 0 0;
   color: var(--silence);
