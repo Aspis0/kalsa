@@ -34,8 +34,14 @@ import { ShellPreview } from "./src/ui/shell/ShellPreview";
 import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
-import { configureModelRegistry } from "./src/engine/ModelRegistry";
+import { MODEL_REGISTRY, configureModelRegistry } from "./src/engine/ModelRegistry";
 import { LocaleProvider, useLocale } from "./src/i18n";
+import { installLogReportCollector } from "./src/logReport/collector";
+import { setLogModelIds } from "./src/logReport/schema";
+
+// Earliest point of the bundle: the collector observes console calls and the
+// global JS error handler from before any other side effect runs.
+installLogReportCollector();
 
 // Emitted in every build, deliberately. This is the provenance of the JS
 // bundle, and a release APK is exactly where nothing else can tell you which
@@ -174,8 +180,14 @@ function ModelCatalogBoot() {
   useEffect(() => {
     let mounted = true;
     void getDevModelsEnabled()
-      .then((enabled) => configureModelRegistry(enabled))
-      .catch(() => configureModelRegistry(false))
+      .then((enabled) => {
+        configureModelRegistry(enabled);
+        setLogModelIds(MODEL_REGISTRY.map((model) => model.id));
+      })
+      .catch(() => {
+        configureModelRegistry(false);
+        setLogModelIds(MODEL_REGISTRY.map((model) => model.id));
+      })
       .finally(() => {
         if (mounted) setReady(true);
       });
