@@ -1,8 +1,8 @@
 use super::*;
 
-/// A record like the facade hands over, aimed at this logger.
-fn logged(logger: &Logger, message: &str) {
-    logger.write(Level::Info, "test", message);
+/// A record like the facade hands over, aimed at this sink.
+fn logged(sink: &Sink, message: &str) {
+    sink.write(Level::Info, "test", message);
 }
 
 fn scratch(name: &str) -> PathBuf {
@@ -39,9 +39,9 @@ fn line_number(line: &str) -> u32 {
 #[test]
 fn a_write_past_the_cap_leaves_exactly_two_files_with_the_newest_lines_live() {
     let dir = scratch("rotation");
-    let logger = Logger::open(&dir, 400);
+    let sink = Sink::open(&dir, 400);
     for line in 0..40 {
-        logged(&logger, &format!("line {line:03} of the rotation test"));
+        logged(&sink, &format!("line {line:03} of the rotation test"));
     }
     let rotated = std::fs::read_to_string(dir.join(ROTATED_NAME)).unwrap_or_default();
     let live = live_lines(&dir);
@@ -60,8 +60,6 @@ fn a_write_past_the_cap_leaves_exactly_two_files_with_the_newest_lines_live() {
     );
     assert!(names.contains(&LIVE_NAME.to_string()));
     assert!(names.contains(&ROTATED_NAME.to_string()));
-    // Every live line is newer than every rotated one, and the last
-    // written line is live.
     assert!(!live.is_empty(), "the live file is the one still written");
     assert!(!rotated.is_empty(), "the rotated file holds the older lines");
     let oldest_live = live.iter().map(|line| line_number(line)).min().unwrap();
@@ -81,11 +79,10 @@ fn a_write_past_the_cap_leaves_exactly_two_files_with_the_newest_lines_live() {
 #[test]
 fn a_message_carrying_the_home_path_is_written_with_a_tilde() {
     let dir = scratch("redaction");
-    let mut logger = Logger::open(&dir, CAP_BYTES);
-    logger.redactions =
-        Redactions::new(Some("/Users/someone".to_string()), None, false);
+    let mut sink = Sink::open(&dir, CAP_BYTES);
+    sink.redactions = Redactions::new(Some("/Users/someone".to_string()), None, false);
     logged(
-        &logger,
+        &sink,
         "files list failed: /Users/someone/Library/nope/here.txt (os error 2)",
     );
     let line = &live_lines(&dir)[0];
@@ -97,10 +94,7 @@ fn a_message_carrying_the_home_path_is_written_with_a_tilde() {
 #[test]
 fn a_home_that_is_a_prefix_of_another_name_is_not_overmatched() {
     let redactions = Redactions::new(Some("/Users/marco".to_string()), None, false);
-    let redacted = redact(
-        "both /Users/marco and /Users/marco2 appear",
-        &redactions,
-    );
+    let redacted = redact("both /Users/marco and /Users/marco2 appear", &redactions);
     assert_eq!(redacted, "both ~ and /Users/marco2 appear");
 }
 
@@ -122,9 +116,6 @@ fn windows_home_paths_redact_in_every_spelling() {
         "open \"C:\\\\Users\\\\Marco G\\\\models\\\\weights.gguf\" failed",
     ] {
         let redacted = redact(line, &redactions);
-        // The spelling of the separators that FOLLOW the home path is the
-        // text's own (doubled stays doubled); what must never survive is
-        // the path itself.
         assert!(
             redacted.contains("~") && (redacted.contains("\\models") || redacted.contains("/models")),
             "{line} -> {redacted}"
@@ -178,9 +169,9 @@ fn the_per_user_temp_tree_becomes_tmp() {
 #[test]
 fn a_line_past_eight_kib_is_cut_with_the_marker() {
     let dir = scratch("clip");
-    let logger = Logger::open(&dir, CAP_BYTES);
+    let sink = Sink::open(&dir, CAP_BYTES);
     let huge = "x".repeat(LINE_CHAR_CAP + 5000);
-    logged(&logger, &huge);
+    logged(&sink, &huge);
     let line = &live_lines(&dir)[0];
     assert!(line.ends_with(TRUNCATED), "{line:.80}");
     assert!(
@@ -190,64 +181,116 @@ fn a_line_past_eight_kib_is_cut_with_the_marker() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
-/// A panic payload is clipped to [`PANIC_CHAR_CAP`] characters before it
-/// reaches the log, redacted like any other line.
+/// The panic line is the location, and only the location: a payload is
+/// whatever some code failed with — a request body, a file's contents —
+/// and the hook must not read it at all. A guard in the shape of the door
+/// cache-salt test: it reads this file's own source and fails if the hook
+/// ever grows a payload read.
 #[test]
-fn a_panic_message_is_clipped_to_its_own_cap() {
-    assert_eq!(clip("short", PANIC_CHAR_CAP), "short");
-    let long = "p".repeat(PANIC_CHAR_CAP + 900);
-    let clipped = clip(&long, PANIC_CHAR_CAP);
-    assert_eq!(
-        clipped.chars().count(),
-        PANIC_CHAR_CAP + TRUNCATED.chars().count()
+fn the_panic_line_is_the_location_alone() {
+    let source = include_str!("../logging.rs");
+    let hook = source
+        .split("pub fn install_panic_hook")
+        .nth(1)
+        .expect("the hook exists");
+    let body = hook.split('}').next().unwrap_or(hook);
+    assert!(
+        !body.contains("payload"),
+        "the panic hook reads the payload — the location is all the log gets"
     );
-    assert!(clipped.ends_with(TRUNCATED));
 }
 
-/// The folder is advertised only when a folder was named AND its live file
-/// opened: a stderr-only run has nothing for the button to open.
+/// The webview's error line carries the error's name and the first stack
+/// frame, clipped — never the message, which can quote a conversation.
 #[test]
-fn a_folder_is_advertised_only_when_its_file_opened() {
-    let dir = PathBuf::from("/definitely/not/real");
-    assert!(advertise(Some(&dir), true));
-    assert!(!advertise(Some(&dir), false), "an unopened file is no folder to open");
-    assert!(!advertise(None, true), "no folder named, nothing to advertise");
-    assert!(!advertise(None, false));
+fn the_webview_error_line_names_the_error_and_its_frame_and_nothing_else() {
+    let line = webview_line("TypeError", "at Thread (Thread.tsx:412:19)");
+    assert_eq!(line, "webview error: TypeError at Thread (Thread.tsx:412:19)");
+    let long = webview_line(&"n".repeat(400), &"f".repeat(400));
+    assert!(long.contains(TRUNCATED), "{long:.60}");
 }
 
-/// A folder whose rotated file cannot be replaced keeps writing to the live
-/// file instead of going silent: the cap is a preference, the log is the
-/// point. A read-only folder makes remove and rename both fail while the
-/// already-open live file still writes. Unix only: the read-only bit is
-/// what POSIX makes of a directory, and the Windows equivalent (ACLs) is
-/// not something a test may set up here.
+/// The sink starts stderr-only — the launch has not yet won the instance
+/// lock — and takes the file over only on attach: two processes on one log
+/// is what the whole dance exists to prevent, and the file's first lines
+/// of the session are the header.
+#[test]
+fn a_stderr_only_sink_takes_the_file_when_attached_after_the_lock() {
+    let dir = scratch("attach");
+    let sink = Sink::stderr_only();
+    logged(&sink, "before the lock, stderr only");
+    assert!(!dir.join(LIVE_NAME).exists(), "no file before the lock is won");
+    assert!(sink.attach(&dir, "0.0.1-test"), "the attach opens the file");
+    logged(&sink, "after the lock, the file");
+    let lines = live_lines(&dir);
+    let joined = lines.join("\n");
+    assert!(
+        joined.contains(SESSION_LINE) && joined.contains("kalsa-brain 0.0.1-test"),
+        "the file's first lines of the session are the header: {joined}"
+    );
+    assert!(
+        joined.contains("after the lock, the file"),
+        "later lines land in the file: {joined}"
+    );
+    assert!(
+        !joined.contains("before the lock"),
+        "the stderr-only line never reaches the file"
+    );
+    // A second attach is a no-op, not a second header.
+    assert!(sink.attach(&dir, "0.0.1-test"));
+    let again = live_lines(&dir);
+    assert_eq!(
+        again.iter().filter(|l| l.contains(SESSION_LINE)).count(),
+        1,
+        "{again:?}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// An attach that cannot open the file stays stderr-only, quietly: the
+/// folder refusing the log costs the file, never the app.
+#[test]
+fn an_attach_that_cannot_open_stays_stderr_only() {
+    let parent = scratch("attach-failed");
+    std::fs::create_dir_all(&parent).unwrap();
+    std::fs::write(parent.join("blocked"), b"not a folder").unwrap();
+    let sink = Sink::stderr_only();
+    assert!(
+        !sink.attach(&parent.join("blocked").join("logs"), "0.0.1-test"),
+        "the refused attach answers false"
+    );
+    assert!(
+        sink.state.lock().unwrap().file.is_none(),
+        "the sink stays stderr-only"
+    );
+    logged(&sink, "still stderr");
+    std::fs::remove_dir_all(&parent).ok();
+}
+
+/// A folder whose rotated file cannot be replaced resets the live file
+/// instead of growing forever: the cap is the point, and the newest lines
+/// — the ones a report needs — are what survive. A read-only folder makes
+/// remove and rename both fail while the held handle still truncates.
 #[cfg(unix)]
 #[test]
-fn a_rotation_that_cannot_happen_keeps_writing_the_live_file() {
+fn a_rotation_that_cannot_happen_resets_the_live_file() {
     let dir = scratch("locked-rotation");
-    let logger = Logger::open(&dir, 300);
+    let sink = Sink::open(&dir, 300);
     for line in 0..10 {
-        logged(&logger, &format!("line {line:03} of the locked rotation test"));
+        logged(&sink, &format!("line {line:03} of the locked rotation test"));
     }
     // The rotated file exists; lock the folder so it can never be replaced.
     std::fs::write(dir.join(ROTATED_NAME), b"an untouchable rotated file").unwrap();
+    use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(&dir).unwrap().permissions();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        perms.set_mode(0o555);
-    }
+    perms.set_mode(0o555);
     std::fs::set_permissions(&dir, perms).unwrap();
-    for line in 10..25 {
-        logged(&logger, &format!("line {line:03} of the locked rotation test"));
+    for line in 10..40 {
+        logged(&sink, &format!("line {line:03} of the locked rotation test"));
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut open = std::fs::metadata(&dir).unwrap().permissions();
-        open.set_mode(0o755);
-        std::fs::set_permissions(&dir, open).unwrap();
-    }
+    let mut open = std::fs::metadata(&dir).unwrap().permissions();
+    open.set_mode(0o755);
+    std::fs::set_permissions(&dir, open).unwrap();
     let live = live_lines(&dir);
     let written = live
         .iter()
@@ -256,12 +299,17 @@ fn a_rotation_that_cannot_happen_keeps_writing_the_live_file() {
         .max();
     assert_eq!(
         written,
-        Some(24),
-        "the live file kept receiving lines after the failed rotation"
+        Some(39),
+        "the newest line survives every failed rotation: {live:?}"
     );
     assert!(
-        live.iter().any(|line| line.contains("rotation failed")),
-        "the failure is said inside the log: {live:?}"
+        live.iter().any(|line| line.contains("rotation failed; the live file was reset")),
+        "the reset is said inside the log: {live:?}"
+    );
+    let size = std::fs::metadata(dir.join(LIVE_NAME)).unwrap().len();
+    assert!(
+        size < 600,
+        "the live file stays bounded by the cap plus a line or two, not the whole history: {size}"
     );
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -274,11 +322,10 @@ fn an_unwritable_log_folder_never_panics_and_keeps_stderr() {
     std::fs::create_dir_all(&parent).unwrap();
     std::fs::write(parent.join("blocked"), b"not a folder").unwrap();
     let dir = parent.join("blocked").join("logs");
-    let logger = Logger::open(&dir, CAP_BYTES);
-    assert!(logger.state.lock().unwrap().file.is_none());
-    logged(&logger, "this must not panic");
-    // A later message after a failed rotation attempt is the same story.
-    logged(&logger, "nor this");
+    let sink = Sink::open(&dir, CAP_BYTES);
+    assert!(sink.state.lock().unwrap().file.is_none());
+    logged(&sink, "this must not panic");
+    logged(&sink, "nor this");
     std::fs::remove_dir_all(&parent).ok();
 }
 
@@ -308,13 +355,13 @@ fn the_timestamp_is_rfc3339_utc_whole_seconds() {
 #[test]
 fn writes_from_many_threads_all_reach_the_file() {
     let dir = scratch("threads");
-    let logger = std::sync::Arc::new(Logger::open(&dir, CAP_BYTES));
+    let sink = std::sync::Arc::new(Sink::open(&dir, CAP_BYTES));
     let handles: Vec<_> = (0..4)
         .map(|thread| {
-            let logger = std::sync::Arc::clone(&logger);
+            let sink = std::sync::Arc::clone(&sink);
             std::thread::spawn(move || {
                 for line in 0..25 {
-                    logger.write(Level::Info, "test", &format!("t{thread} line {line:03}"));
+                    sink.write(Level::Info, "test", &format!("t{thread} line {line:03}"));
                 }
             })
         })

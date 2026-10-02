@@ -913,12 +913,18 @@ const STDERR_CLIP: usize = 300;
 /// - `unsupported Responses tool type` — `server-chat.cpp:277`, a field
 ///   value out of the request;
 /// - `downloading image from`, `loading image from local file` —
-///   `server-common.cpp:1094,1115`, a URL or path out of the request.
+///   `server-common.cpp:1094,1115`, a URL or path out of the request;
+/// - `old: ...` / `new: ...` — the prompt-cache debug dump
+///   (`server-context.cpp:3712-3747`), which prints PROMPT TEXT as
+///   `old: ...`/`new: ...` lines when `LLAMA_SERVER_SLOTS_DEBUG` is set —
+///   the spawn strips that variable, and this is the second wall;
+/// - `api_keys:` — `server-http.cpp:229-234`, the key's last characters,
+///   printed when verbosity was raised (also stripped at the spawn).
 ///
 /// Everything else the fork prints at this verbosity is argv, model paths
 /// or counters — checked across `server.cpp`, `server-chat.cpp`,
 /// `server-common.cpp` and `server-context.cpp`.
-const REQUEST_LINE_MARKS: [&str; 8] = [
+const REQUEST_LINE_MARKS: [&str; 11] = [
     "got exception",
     "got another exception",
     "last read",
@@ -927,6 +933,9 @@ const REQUEST_LINE_MARKS: [&str; 8] = [
     "unsupported Responses tool type",
     "downloading image from",
     "loading image from local file",
+    "old: ...",
+    "new: ...",
+    "api_keys:",
 ];
 
 /// The withheld lines' replacement, named once so the log reads the same
@@ -1139,6 +1148,62 @@ mod tests {
             joined.contains("all slots are idle") && joined.contains("metal dispatch"),
             "the ordinary lines survive: {joined}"
         );
+    }
+
+    /// The two walls the prompt-text leak has: the environment the child
+    /// inherits names no `LLAMA_*` knob, and the stderr family those knobs
+    /// print is filtered besides.
+    #[test]
+    fn the_prompt_debug_and_key_lines_never_reach_the_log() {
+        let tail = vec![
+            "slot 0 processing prompt, old: ... marco's question so far | and more".to_string(),
+            "slot 0 processing prompt, new: ... marco's question edited | and more".to_string(),
+            "api_keys: ****7f2a".to_string(),
+        ];
+        let kept = sanitized_tail(&tail);
+        assert!(
+            kept.iter().all(|line| line == WITHHELD),
+            "every one of them is withheld: {kept:?}"
+        );
+    }
+
+    /// The engine child's environment carries no `LLAMA_*` variable,
+    /// whatever the launching shell exported: the fork's debug and
+    /// verbosity knobs live there, and they are the ones that print prompt
+    /// text and key fragments. `GGML_*` are performance knobs and stay.
+    #[test]
+    fn the_spawned_child_inherits_no_llama_environment() {
+        let env = vec![
+            ("LLAMA_SERVER_SLOTS_DEBUG".to_string(), "1".to_string()),
+            ("llama_arg_log_verbosity".to_string(), "10".to_string()),
+            ("GGML_CUDA_ENABLE_UNIFIED_MEMORY".to_string(), "1".to_string()),
+            ("PATH".to_string(), "/usr/bin".to_string()),
+        ];
+        let mut cmd = std::process::Command::new("llama-server");
+        cmd.envs(env.clone());
+        child::strip_llama_env(&mut cmd, env.into_iter());
+        let seen: Vec<_> = cmd
+            .get_envs()
+            .map(|(name, value)| (name.to_string_lossy().into_owned(), value))
+            .collect();
+        for (name, value) in &seen {
+            let removed = value.is_none();
+            let llama = name.to_ascii_uppercase().starts_with("LLAMA_");
+            assert!(
+                !(llama && !removed),
+                "{name} would still reach the child"
+            );
+        }
+        // Both spellings are removed; the performance knob and the PATH
+        // are explicitly set and untouched.
+        assert!(seen.iter().any(|(name, value)| name == "LLAMA_SERVER_SLOTS_DEBUG" && value.is_none()));
+        assert!(
+            seen.iter()
+                .any(|(name, value)| name == "llama_arg_log_verbosity" && value.is_none()),
+            "case-insensitive: a lowercase export is stripped too"
+        );
+        assert!(seen.iter().any(|(name, value)| name == "GGML_CUDA_ENABLE_UNIFIED_MEMORY" && value.is_some()));
+        assert!(seen.iter().any(|(name, value)| name == "PATH" && value.is_some()));
     }
 
     #[test]

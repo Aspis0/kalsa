@@ -7,14 +7,16 @@
 //! on for every download, with a 30-second budget and nothing else: no
 //! retries, no queue — a press that fails is a sentence on the screen.
 
-use std::path::Path;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// The one endpoint a report ever goes to.
 pub(crate) const ENDPOINT: &str = "https://kalsa.io/report";
-/// The body's ceiling: the newest this many bytes, cut at a line boundary.
+/// The body's ceiling: the newest this many bytes of EACH file, and the
+/// joined body at most this many too.
 pub(crate) const MAX_BYTES: usize = 4 * 1024 * 1024;
-/// The single request's whole budget.
+/// The single request's whole budget, connect included.
 const SEND_TIMEOUT: Duration = Duration::from_secs(30);
 /// The one line between the rotated file and the live one.
 const SEPARATOR: &str = "──────── earlier log ────────";
@@ -43,20 +45,20 @@ impl SendFailure {
     }
 }
 
-/// The report body: the rotated file (the older one) first, then the live
-/// file, one separator line between them; the newest [`MAX_BYTES`] when
-/// the two together are longer, cut at a line boundary so the body still
-/// reads as lines. An empty half contributes nothing — no separator for a
-/// missing file.
-pub(crate) fn report_text(rotated: Option<&str>, live: Option<&str>) -> String {
-    let halves: Vec<&str> = [rotated.unwrap_or(""), live.unwrap_or("")]
-        .into_iter()
+/// The report body's pure core: the halves oldest-first behind one
+/// separator line — an empty half contributes nothing — kept to the newest
+/// [`MAX_BYTES`] when the whole is longer, cut at a line boundary so the
+/// body still reads as lines.
+pub(crate) fn join_and_trim(halves: Vec<String>) -> String {
+    let present: Vec<&str> = halves
+        .iter()
+        .map(|half| half.as_str())
         .filter(|half| !half.trim().is_empty())
         .collect();
-    let joined = match halves.len() {
+    let joined = match present.len() {
         0 => return String::new(),
-        1 => halves[0].to_string(),
-        _ => format!("{}\n{SEPARATOR}\n{}", halves[0], halves[1]),
+        1 => present[0].to_string(),
+        _ => format!("{}\n{SEPARATOR}\n{}", present[0], present[1]),
     };
     trim_to_newest(joined)
 }
@@ -104,13 +106,87 @@ pub(crate) fn header_is_well_formed(value: &str) -> bool {
 }
 
 /// Reads the two log files as they sit in the log folder — the rotated one
-/// if it is there, then the live one — and builds the body. A folder with
-/// nothing in it answers empty, and the command refuses that before any
-/// network is touched.
+/// if it is there, then the live one — and builds the body: the newest
+/// [`MAX_BYTES`] of EACH file (read from the end, so a file grown past the
+/// cap contributes its tail), joined oldest-first behind one separator.
+/// The read holds the logger's write lock, so the snapshot is between two
+/// lines rather than mid-write. A file that is there but cannot be read is
+/// REPORTED as one note line in the body, never silently dropped; a folder
+/// with nothing in it answers empty, and the command refuses that before
+/// any network is touched.
 pub(crate) fn read_body(log_dir: &Path) -> String {
-    let rotated = std::fs::read_to_string(log_dir.join("kalsa-brain.1.log")).ok();
-    let live = std::fs::read_to_string(log_dir.join("kalsa-brain.log")).ok();
-    report_text(rotated.as_deref(), live.as_deref())
+    crate::logging::with_log_held(|| {
+        let halves = [
+            read_half(&log_dir.join("kalsa-brain.1.log"), "the earlier log file"),
+            read_half(&log_dir.join("kalsa-brain.log"), "the live log file"),
+        ];
+        let mut parts: Vec<String> = Vec::new();
+        let mut notes: Vec<String> = Vec::new();
+        for half in halves {
+            match half {
+                Some(Half {
+                    text: Some(text), ..
+                }) if !text.trim().is_empty() => parts.push(text),
+                Some(Half {
+                    unreadable_note: Some(note),
+                    ..
+                }) => notes.push(note),
+                _ => {}
+            }
+        }
+        let mut body = join_and_trim(parts);
+        for note in notes {
+            body.push_str(&note);
+            body.push('\n');
+        }
+        body
+    })
+}
+
+/// One half of the body: the file's last [`MAX_BYTES`] bytes as text,
+/// starting at a line boundary. `None` is a file that is not there (an
+/// ordinary absence); [`Half::unreadable_note`] says so in the body's own
+/// words when the file IS there and cannot be read.
+fn read_half(path: &PathBuf, name: &str) -> Option<Half> {
+    if !path.exists() {
+        return None;
+    }
+    let opened = std::fs::File::open(path).and_then(|mut file| {
+        let len = file.metadata()?.len();
+        if len > MAX_BYTES as u64 {
+            file.seek(SeekFrom::End(-(MAX_BYTES as i64)))?;
+        }
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    });
+    match opened {
+        Ok(bytes) => {
+            let mut text = String::from_utf8_lossy(&bytes).into_owned();
+            // The seek can land mid-line or mid-character: the first
+            // partial line is not a line, and it goes.
+            if bytes.len() == MAX_BYTES {
+                text = text
+                    .split_once('\n')
+                    .map(|(_, rest)| rest.to_string())
+                    .unwrap_or_default();
+            }
+            Some(Half {
+                text: Some(text),
+                unreadable_note: None,
+            })
+        }
+        Err(_) => Some(Half {
+            text: None,
+            unreadable_note: Some(format!("[{name} was there but could not be read]")),
+        }),
+    }
+}
+
+/// What one file contributed.
+struct Half {
+    text: Option<String>,
+    unreadable_note: Option<String>,
 }
 
 /// What the server answered, as the page can word it: 201 with an id is
@@ -144,7 +220,9 @@ pub(crate) fn map_response(status: u16, body: &str) -> Result<String, SendFailur
 /// The one send. `ureq` sets `Content-Length` for a string body itself;
 /// the two headers that are ours are the content type and the app stamp —
 /// and the stamp is checked before the network is touched, so a version
-/// string that broke the server's shape fails here and not as a 400. A
+/// string that broke the server's shape fails here and not as a 400. The
+/// agent takes HTTPS only and follows no redirect: the report goes to the
+/// one endpoint or nowhere, and a 3xx is a failure the mapping words. A
 /// network-level failure (DNS, connect, silence) is `offline`; the
 /// server's own answers go through [`map_response`].
 pub(crate) fn send(body: &str, header: &str) -> Result<String, SendFailure> {
@@ -152,6 +230,9 @@ pub(crate) fn send(body: &str, header: &str) -> Result<String, SendFailure> {
         return Err(SendFailure::Failed);
     }
     let agent = ureq::AgentBuilder::new()
+        .https_only(true)
+        .redirects(0)
+        .timeout_connect(SEND_TIMEOUT)
         .timeout(SEND_TIMEOUT)
         .build();
     let request = agent
@@ -173,10 +254,10 @@ mod tests {
 
     #[test]
     fn the_body_is_the_rotated_file_then_the_live_one_behind_one_line() {
-        let body = report_text(
-            Some("older line\nolder line 2\n"),
-            Some("newer line\n"),
-        );
+        let body = join_and_trim(vec![
+            "older line\nolder line 2\n".to_string(),
+            "newer line\n".to_string(),
+        ]);
         // Each file ends in its own newline; the separator is one line of
         // its own between them.
         assert_eq!(
@@ -185,10 +266,10 @@ mod tests {
         );
         // A missing half contributes nothing, not an empty half with a
         // separator.
-        assert_eq!(report_text(None, Some("newer line\n")), "newer line\n");
-        assert_eq!(report_text(Some("older\n"), None), "older\n");
-        assert_eq!(report_text(None, None), "");
-        assert_eq!(report_text(Some("  \n"), Some("")), "");
+        assert_eq!(join_and_trim(vec!["newer line\n".to_string()]), "newer line\n");
+        assert_eq!(join_and_trim(vec!["older\n".to_string()]), "older\n");
+        assert_eq!(join_and_trim(Vec::new()), "");
+        assert_eq!(join_and_trim(vec!["  \n".to_string(), String::new()]), "");
     }
 
     #[test]
@@ -200,7 +281,7 @@ mod tests {
             huge.push_str(&format!("{number:08}\n"));
             number += 1;
         }
-        let kept = report_text(Some(&huge), None);
+        let kept = join_and_trim(vec![huge.clone()]);
         assert!(
             kept.len() <= MAX_BYTES,
             "the body is at most the cap: {}",
@@ -216,7 +297,7 @@ mod tests {
         let first: u64 = kept.lines().next().unwrap().parse().unwrap();
         assert!(first > 0, "the oldest lines are dropped, not kept");
         // A body already inside the cap is passed through untouched.
-        assert_eq!(report_text(Some("small\n"), None), "small\n");
+        assert_eq!(join_and_trim(vec!["small\n".to_string()]), "small\n");
     }
 
     #[test]
@@ -277,5 +358,87 @@ mod tests {
         );
         assert_eq!(map_response(201, "{}"), Err(SendFailure::Failed));
         assert_eq!(map_response(200, r#"{"id":"nope"}"#), Err(SendFailure::Failed));
+        // No redirects are followed: a 3xx reaches the mapping as a failure.
+        assert_eq!(map_response(302, "found"), Err(SendFailure::Failed));
+    }
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-report-{name}-{}",
+            std::process::id() as u64 + std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos() as u64
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        dir
+    }
+
+    /// The body as the folder answers it: the rotated file first, then the
+    /// live one, one separator between; an absent file contributes nothing.
+    #[test]
+    fn the_body_reads_the_folder_oldest_first_behind_one_separator() {
+        let dir = scratch("read");
+        std::fs::write(dir.join("kalsa-brain.1.log"), "older\n").unwrap();
+        std::fs::write(dir.join("kalsa-brain.log"), "newer\n").unwrap();
+        // Each file ends in its own newline; the separator is one line of
+        // its own between them.
+        assert_eq!(
+            read_body(&dir),
+            "older\n\n──────── earlier log ────────\nnewer\n"
+        );
+        std::fs::remove_file(dir.join("kalsa-brain.1.log")).unwrap();
+        assert_eq!(read_body(&dir), "newer\n");
+        let empty = scratch("read-empty");
+        assert_eq!(read_body(&empty), "");
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&empty);
+    }
+
+    /// A file past the cap contributes its LAST [`MAX_BYTES`], cut at a
+    /// line boundary — per file, so each half is bounded on its own.
+    #[test]
+    fn each_file_contributes_its_own_last_four_mib_at_a_line_boundary() {
+        let dir = scratch("tail");
+        let line = "0123456789abcdef\n";
+        std::fs::write(
+            dir.join("kalsa-brain.1.log"),
+            line.repeat(MAX_BYTES / line.len() + 10),
+        )
+        .unwrap();
+        std::fs::write(dir.join("kalsa-brain.log"), "the newest line\n").unwrap();
+        let body = read_body(&dir);
+        assert!(body.ends_with("the newest line\n"), "{body:.80}");
+        assert!(body.contains(SEPARATOR));
+        let first_line = body.split('\n').next().unwrap_or_default();
+        assert_eq!(
+            first_line, "0123456789abcdef",
+            "the cut lands at a line boundary, so the first line is a whole one"
+        );
+        let older = body.split(SEPARATOR).next().unwrap();
+        assert!(
+            older.len() <= MAX_BYTES,
+            "each half is bounded on its own: {}",
+            older.len()
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A file that is there and cannot be read is REPORTED in the body —
+    /// the tester must know a half is missing, and so must we.
+    #[test]
+    fn an_unreadable_half_is_said_in_the_body_not_dropped() {
+        let dir = scratch("unreadable");
+        // A directory where the file should be: present, unopenable.
+        std::fs::create_dir_all(dir.join("kalsa-brain.1.log")).unwrap();
+        std::fs::write(dir.join("kalsa-brain.log"), "readable\n").unwrap();
+        let body = read_body(&dir);
+        assert!(
+            body.contains("[the earlier log file was there but could not be read]"),
+            "{body}"
+        );
+        assert!(body.contains("readable"), "{body}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

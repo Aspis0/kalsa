@@ -245,7 +245,7 @@ export function App() {
   // The crash prompt: the previous session's unclean exit, and the engine
   // dying under a running app — the card is rendered at the stage's level
   // so it survives navigation like the web-call ask does.
-  const crashAsk = useCrashAsk(state?.kind ?? null);
+  const crashAsk = useCrashAsk(state?.kind ?? null, state?.reason_code ?? null);
   const setup = setupArm(
     state?.kind ?? null,
     credential,
@@ -1114,7 +1114,7 @@ export function App() {
         {gateShown ? (
           <WebGateDialog id={gateShown.id} check={gateShown.check} waiting={gateWaiting} onAnswer={answerGate} />
         ) : null}
-        {crashAsk.ask ? <CrashDialog onClose={crashAsk.dismiss} /> : null}
+        {crashAsk.ask ? <CrashDialog ask={crashAsk.ask} onClose={crashAsk.dismiss} /> : null}
         <ErrorBoundary>
           {surface === "brain" ? (
             <BrainSurface

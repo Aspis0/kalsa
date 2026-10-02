@@ -60,6 +60,8 @@
   font-size: 1rem;
 }
 
-.crash-card .report-privacy {
-  font-size: 1.02rem;
+.crash-body {
+  margin: 0 0 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
 }

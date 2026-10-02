@@ -257,9 +257,13 @@ fn drafter_of<'a>(
 
 /// The file name a pinned address must end with — a plain name: no path
 /// separator and no `..`, so a plan's address cannot write outside the
-/// models directory. Anything else is refused rather than guessed at.
+/// models directory. A `?query` or `#fragment` is the address's, not the
+/// file's, so it is cut before the name is taken — a signed URL would
+/// otherwise put its token into a file name. Anything else that is not a
+/// plain name is refused rather than guessed at.
 fn plan_file_name(url: &str) -> Result<&str, StartupFailure> {
-    match url.rsplit('/').next() {
+    let path = url.split(['?', '#']).next().unwrap_or(url);
+    match path.rsplit('/').next() {
         Some(name) if !name.is_empty() && !name.contains(['/', '\\']) && name != ".." => Ok(name),
         _ => Err(StartupFailure::WeightsUnverified),
     }

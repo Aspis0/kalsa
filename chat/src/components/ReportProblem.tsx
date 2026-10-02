@@ -17,21 +17,20 @@ type SendState =
     the webview's own error screen. `big` sets the sentence in the large
     type the owner asked for on the report section; the dialog shows it
     the same way. */
-export function SendLogBlock({ words, onDone }: { words: English["report"]; onDone?: () => void }) {
+export function SendLogBlock({ words }: { words: English["report"] }) {
   const [state, setState] = useState<SendState>({ kind: "idle" });
   const send = useCallback(async () => {
     setState({ kind: "sending" });
     try {
       const id = await sendLog();
       setState({ kind: "sent", id });
-      onDone?.();
     } catch (error) {
       const code = String(error).replace(/^"|"$/g, "");
       const refusal: SendRefusal =
         code === "rate_limited" || code === "try_tomorrow" || code === "offline" ? code : "failed";
       setState({ kind: "refused", code: refusal });
     }
-  }, [onDone]);
+  }, []);
   return (
     <div className="report-send">
       <p className="report-privacy">{words.privacy}</p>
@@ -39,7 +38,7 @@ export function SendLogBlock({ words, onDone }: { words: English["report"]; onDo
         <button
           type="button"
           className="btn-primary"
-          disabled={state.kind === "sending"}
+          disabled={state.kind === "sending" || state.kind === "sent"}
           onClick={() => void send()}
         >
           {state.kind === "sending" ? words.sending : words.send}

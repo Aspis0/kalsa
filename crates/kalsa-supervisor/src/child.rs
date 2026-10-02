@@ -27,6 +27,24 @@ use std::time::{Duration, Instant};
 /// report pastes the whole tail into the log, and llama-server's startup
 /// scan alone runs longer than a dozen lines.
 const OUTPUT_TAIL: usize = 40;
+
+/// Takes every `LLAMA_*` variable out of the engine child's environment.
+/// The fork reads its debug and verbosity knobs from these —
+/// `LLAMA_SERVER_SLOTS_DEBUG` makes it print PROMPT TEXT at warning level
+/// (`server-context.cpp:3712-3747`), `LLAMA_ARG_LOG_VERBOSITY` plus
+/// `LLAMA_API_KEY` print key fragments (`server-http.cpp:229-234`) — and
+/// the log's promise is that none of that can reach it, whatever a shell
+/// happened to export. `GGML_*` stay: they are performance knobs, not
+/// logging ones. Case-insensitive, because env names are, on Windows.
+/// Public: the runtime's disposable probe children spawn through the same
+/// rule.
+pub fn strip_llama_env(cmd: &mut Command, env: impl Iterator<Item = (String, String)>) {
+    for (name, _) in env {
+        if name.to_ascii_uppercase().starts_with("LLAMA_") {
+            cmd.env_remove(&name);
+        }
+    }
+}
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
 
@@ -129,6 +147,7 @@ impl ChildHandle {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
+        strip_llama_env(&mut cmd, std::env::vars());
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
                 cmd.current_dir(dir);

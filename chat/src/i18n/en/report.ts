@@ -4,8 +4,9 @@
 
 export const REPORT = {
   title: "Report a problem",
-  privacy: "The log never contains your chats, your files or any pairing code.",
-  facts: "It holds what Kalsa did and what this computer has: versions, graphics card, memory, errors.",
+  privacy: "The log never contains your messages, Kalsa's answers, your files, or any code or key.",
+  facts:
+    "It holds what Kalsa did and what this computer has: versions, processor, graphics card, memory, errors.",
   send: "Send the log",
   open: "Open the log folder",
   openFailed: "Kalsa couldn't open the log folder.",
@@ -15,5 +16,7 @@ export const REPORT = {
   errTryTomorrow: "We received too many reports today. Try again tomorrow.",
   errSend: "Could not send. Check the internet connection and try again.",
   crashTitle: "Something went wrong",
+  crashUncleanTitle: "Kalsa did not close normally last time",
+  crashUncleanBody: "If something went wrong, sending the log helps us fix it.",
   notNow: "Not now",
 };

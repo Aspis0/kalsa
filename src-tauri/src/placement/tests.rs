@@ -196,5 +196,23 @@ fn a_plan_address_that_is_not_a_plain_name_is_refused() {
     assert!(plan_file_name("https://host/dir/..").is_err());
 }
 
+/// A `?query` or `#fragment` belongs to the address, not the file: a
+/// signed URL would otherwise write its token into the file's name.
+#[test]
+fn a_query_or_fragment_never_reaches_the_file_name() {
+    assert_eq!(
+        plan_file_name("https://host/dir/weights.gguf?token=not-a-name-part").ok(),
+        Some("weights.gguf")
+    );
+    assert_eq!(
+        plan_file_name("https://host/dir/weights.gguf#sha").ok(),
+        Some("weights.gguf")
+    );
+    assert!(
+        plan_file_name("https://host/dir/?token=only").is_err(),
+        "a name that was nothing but a query is still no name"
+    );
+}
+
 mod drafter;
 mod reuse;

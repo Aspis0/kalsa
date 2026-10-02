@@ -37,9 +37,12 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
     console.error("Crescent Chat crashed:", error);
     if (available() && error instanceof Error) {
       // Fire and forget: the boundary must not crash on its own reporting.
+      // The line the log gets is the error's name and the first stack
+      // frame — file and component names. The MESSAGE is never sent: it
+      // can quote a whole conversation.
       invoke("brain_log_webview_error", {
         name: error.name,
-        message: error.message,
+        frame: firstFrame(error.stack),
       }).catch(() => {});
     }
   }
@@ -76,6 +79,12 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
       </div>
     );
   }
+}
+
+/** The first `at ...` line of a stack: a file/component name with a
+    line number, or nothing when the browser gave no stack. */
+function firstFrame(stack?: string): string {
+  return stack?.split("\n").find((line) => line.trim().startsWith("at ")) ?? "";
 }
 
 /** The class is the catcher; this wrapper only hands it the chosen words. */

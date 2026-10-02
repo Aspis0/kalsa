@@ -58,25 +58,32 @@ fn gib(bytes: u64) -> String {
     format!("{:.1} GiB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
 }
 
-/// One value with the host's own name taken out of it, whatever case it
-/// arrived in: a machine's name is an identifier, and the block's rule is
-/// that no identifier of the household reaches the log. Compared by
-/// character (ASCII case folded), because a byte offset into the original
-/// would not survive a case mapping that changes length.
+/// One value with the host's own name taken out of it: a machine's name is
+/// an identifier, and the block's rule is that no identifier of the
+/// household reaches the log. The name matches only as a WHOLE word —
+/// bounded by non-alphanumerics or the ends — and CASE-SENSITIVELY, so a
+/// host like "max" can never eat a chip's "M1 Max" (a different case is a
+/// different word, and the machine's own name is the one its owner typed).
+/// Compared by character, because a byte offset into the original would
+/// not survive a case mapping that changes length.
 fn without_host(value: &str, host: &str) -> String {
     let host: Vec<char> = host.chars().collect();
     if host.len() < 3 {
         return value.to_string();
     }
     let value: Vec<char> = value.chars().collect();
+    let boundary = |c: char| !c.is_alphanumeric();
     let mut out = String::with_capacity(value.len());
     let mut at = 0;
     while at < value.len() {
-        let matches = (0..host.len()).all(|offset| {
-            value
-                .get(at + offset)
-                .is_some_and(|c| c.eq_ignore_ascii_case(&host[offset]))
-        });
+        let before_ok = at == 0 || boundary(value[at - 1]);
+        let matches = before_ok
+            && (0..host.len()).all(|offset| {
+                value.get(at + offset) == Some(&host[offset])
+            })
+            && value
+                .get(at + host.len())
+                .is_none_or(|next| boundary(*next));
         if matches {
             out.push_str("<host>");
             at += host.len();
@@ -86,6 +93,20 @@ fn without_host(value: &str, host: &str) -> String {
         }
     }
     out
+}
+
+/// One gathered string as the block will print it: the printable ASCII a
+/// log line can carry, at most `max` characters, and through the same
+/// user-name and host-name redaction every other line already gets. The
+/// Windows inventory can hand back vendor strings with control characters
+/// and local spelling; the log takes none of that.
+fn clean_gathered(text: &str, max: usize, host: &str) -> String {
+    let ascii: String = text
+        .chars()
+        .filter(|c| c.is_ascii_graphic() || c.is_ascii_whitespace())
+        .collect();
+    let clipped: String = ascii.chars().take(max).collect();
+    crate::logging::redact_str(&without_host(&clipped, host))
 }
 
 /// The machine's half as log lines. Every value goes through
@@ -132,16 +153,15 @@ pub(crate) fn machine_lines(machine: &Machine, host: &str) -> Vec<String> {
         } else {
             "integrated"
         };
-        lines.push(without_host(
-            &format!(
-                "adapter: {} ({kind}, driver {}, {})",
-                adapter.name,
-                adapter.driver.as_deref().unwrap_or("unknown"),
-                adapter
-                    .vram_bytes
-                    .map_or_else(|| "VRAM not reported".to_string(), gib),
-            ),
-            host,
+        // Adapter strings are vendor output, redacted like any other line:
+        // printable ASCII, 80 characters, no user name, no host name.
+        lines.push(format!(
+            "adapter: {} ({kind}, driver {}, {})",
+            clean_gathered(&adapter.name, 80, host),
+            clean_gathered(adapter.driver.as_deref().unwrap_or("unknown"), 80, host),
+            adapter
+                .vram_bytes
+                .map_or_else(|| "VRAM not reported".to_string(), gib),
         ));
     }
     lines
@@ -293,6 +313,13 @@ pub(crate) fn available_ram_bytes() -> Option<u64> {
 /// the kernel's own version when the platform's product query will not
 /// answer. Never the host's name.
 pub(crate) fn os_description() -> String {
+    // Asked once per process: the session header and this block print the
+    // same line, and the platform query is a process spawn on macOS.
+    static OS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    OS.get_or_init(os_description_uncached).clone()
+}
+
+fn os_description_uncached() -> String {
     #[cfg(target_os = "macos")]
     {
         const ASK: [&str; 1] = ["-productVersion"];
@@ -446,7 +473,7 @@ mod tests {
         // A fixture that smuggles the machine's name into two values: the
         // strip must take it out of both, in any case.
         let mut m = machine();
-        m.cpu = Some("Apple M1 Max on MARCO-STUDIO".to_string());
+        m.cpu = Some("Apple M1 Max on marco-studio".to_string());
         m.adapters = vec![Adapter {
             name: "Intel(R) UHD Graphics (marco-studio iGPU)".to_string(),
             driver: None,
@@ -484,5 +511,51 @@ mod tests {
         assert!(joined.contains("device pin: Vulkan0"), "{joined}");
         assert!(joined.contains("context 65536 tokens"), "{joined}");
         assert!(joined.contains("drafter on"), "{joined}");
+    }
+
+    /// The host strip matches whole words only: a three-letter host must
+    /// not eat a chip's "M1 Max", and a short host below the three-letter
+    /// floor strips nothing at all.
+    #[test]
+    fn a_short_host_name_never_eats_a_chip_s_own_words() {
+        let m = machine();
+        let joined = machine_lines(&m, "max").join("\n");
+        assert!(
+            joined.contains("Apple M1 Max"),
+            "the whole-word rule keeps the chip's name: {joined}"
+        );
+        let lowered = joined.to_lowercase();
+        assert!(
+            !lowered.contains("m1 <host>"),
+            "no host substitution inside a word: {joined}"
+        );
+        // A one-letter host is below the floor entirely.
+        let joined = machine_lines(&m, "m").join("\n");
+        assert!(joined.contains("Apple M1 Max"), "{joined}");
+    }
+
+    /// Adapter strings are vendor output: the block prints printable ASCII
+    /// only, at most 80 characters, redacted like any other line.
+    #[test]
+    fn adapter_strings_arrive_printable_short_and_redacted() {
+        let mut m = machine();
+        m.adapters = vec![Adapter {
+            name: format!("WéirdVendor\u{0007} {} GPU", "X".repeat(200)),
+            driver: Some("31.0.101.\u{212B}".to_string()),
+            vram_bytes: None,
+        }];
+        let lines = machine_lines(&m, "fixture-host");
+        let adapter = lines
+            .iter()
+            .find(|l| l.starts_with("adapter:"))
+            .expect("the adapter line exists");
+        assert!(
+            adapter.chars().all(|c| c.is_ascii_graphic() || c == ' '),
+            "no control characters, no non-ASCII: {adapter}"
+        );
+        assert!(
+            adapter.chars().count() < 160,
+            "the name and driver are clipped to 80 each: {adapter}"
+        );
     }
 }

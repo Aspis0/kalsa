@@ -33,9 +33,6 @@ const SESSION_LINE: &str = "──────── session ──────�
 /// No single line may be longer than this, whatever was logged: a runaway
 /// message must not eat the 2 MiB cap on its own.
 const LINE_CHAR_CAP: usize = 8 * 1024;
-/// A panic message's own cap, tight because a payload can be a whole error
-/// dump with the request text inside it.
-const PANIC_CHAR_CAP: usize = 500;
 /// What a clipped line ends with, so a reader knows the line was cut.
 const TRUNCATED: &str = " …[truncated]";
 
@@ -53,10 +50,18 @@ pub(crate) fn clip(text: &str, cap: usize) -> String {
 /// after a failed install.
 static FOLDER: OnceLock<PathBuf> = OnceLock::new();
 
-/// The sink behind the `log` facade. The file sits inside the mutex with a
-/// running byte count, so rotation is decided and performed under the same
-/// lock that appends — two threads can never interleave a rotation.
+/// The sink behind the `log` facade: the file (with its rotation state)
+/// behind one mutex, shared with the attach path so the process can start
+/// stderr-only — before the instance lock says this process owns the log —
+/// and take the file over only once the lock is won. Two apps on one log
+/// file would interleave their lines; the lock decides which one may have
+/// a file at all.
 pub struct Logger {
+    sink: std::sync::Arc<Sink>,
+}
+
+/// The state one process's log owns.
+pub struct Sink {
     state: Mutex<State>,
     /// What every message is redacted against, built once at open.
     redactions: Redactions,
@@ -64,42 +69,42 @@ pub struct Logger {
 
 struct State {
     /// The open live file and its size so far. `None` is the stderr-only
-    /// fallback: the folder could not be created, or the file could not be
-    /// opened, or a rotation lost the file — the run goes on regardless.
+    /// fallback: no folder named yet, the folder could not be created, the
+    /// file could not be opened, or a rotation lost the file — the run
+    /// goes on regardless.
     file: Option<(File, u64)>,
     dir: PathBuf,
     cap: u64,
-    /// Whether the one "rotation failed" warning has been said. A folder
-    /// that cannot rotate will fail on every line past the cap; the first
-    /// failure is the news, the rest are the same.
-    rotation_warned: bool,
 }
 
-impl Logger {
-    /// Opens the live file in `dir`, creating the folder if needed. A failure
-    /// at either step is the fallback, not an error: the logger still works,
-    /// to stderr only.
+/// The installed sink, once [`install`] has run: the logger holds one Arc
+/// into it, and [`attach_file`] reaches it to take the file over after the
+/// instance lock is won.
+static SINK: OnceLock<std::sync::Arc<Sink>> = OnceLock::new();
+
+impl Sink {
+    /// The sink with the live file open in `dir`, creating the folder if
+    /// needed. A failure at either step is the fallback, not an error: the
+    /// logger still works, to stderr only.
     fn open(dir: &Path, cap: u64) -> Self {
         Self {
             state: Mutex::new(State {
                 file: open_live(dir),
                 dir: dir.to_path_buf(),
                 cap,
-                rotation_warned: false,
             }),
             redactions: Redactions::build(),
         }
     }
 
-    /// The sink with no file at all: the platform named no log folder, so
-    /// everything goes to stderr, redacted like any other line.
+    /// The sink with no file at all: everything goes to stderr, redacted
+    /// like any other line.
     fn stderr_only() -> Self {
         Self {
             state: Mutex::new(State {
                 file: None,
                 dir: PathBuf::new(),
                 cap: CAP_BYTES,
-                rotation_warned: false,
             }),
             redactions: Redactions::build(),
         }
@@ -120,15 +125,13 @@ impl Logger {
                 .file
                 .as_ref()
                 .is_some_and(|(_, len)| len + line.len() as u64 > state.cap);
-            if over_cap && !rotate(&mut state) && !state.rotation_warned {
-                // Say it once, through the ordinary path: the line below is
-                // what a tester pastes, and "why is the file 3 MiB" deserves
-                // its answer inside the file.
-                state.rotation_warned = true;
+            if over_cap && !rotate(&mut state) {
+                // Said on every reset, because the next reset truncates this
+                // one away — and the newest chunk is what a report reads.
                 append(
                     &mut state,
                     &clip_line(&format!(
-                        "{} WARN  logging: rotation failed; the live file keeps growing",
+                        "{} WARN  logging: rotation failed; the live file was reset",
                         rfc3339_now()
                     )),
                 );
@@ -144,7 +147,8 @@ impl Logger {
     }
 
     /// The session header: one separating line, then the facts a report
-    /// starts with — app version, OS with its version, architecture.
+    /// starts with — app version, OS with its version (the product version
+    /// a person means, the same line the session facts print), arch.
     fn session_header(&self, version: &str) {
         self.write(Level::Info, "session", SESSION_LINE);
         self.write(
@@ -152,10 +156,34 @@ impl Logger {
             "session",
             &format!(
                 "kalsa-brain {version} · {} · {}",
-                os_version(),
+                crate::system::os_description(),
                 std::env::consts::ARCH
             ),
         );
+    }
+
+    /// Takes the file over, from a sink that started stderr-only: called
+    /// once, after the instance lock says this process owns the log. On
+    /// success the session header is written into the file (it is the
+    /// file's first lines of this session) and the folder is advertised.
+    /// On failure the sink stays stderr-only, nothing is advertised, and
+    /// the answer is `false` — the app is never stopped by its log.
+    fn attach(&self, dir: &Path, version: &str) -> bool {
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        if state.file.is_some() {
+            return true;
+        }
+        state.dir = dir.to_path_buf();
+        state.cap = CAP_BYTES;
+        state.file = open_live(dir);
+        let opened = state.file.is_some();
+        drop(state);
+        if opened {
+            self.session_header(version);
+        }
+        opened
     }
 }
 
@@ -166,73 +194,110 @@ impl Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            self.write(record.level(), record.target(), &record.args().to_string());
+            self.sink
+                .write(record.level(), record.target(), &record.args().to_string());
         }
     }
 
     fn flush(&self) {}
 }
 
-/// Whether the folder may be advertised to the owner as the place the log
-/// lives: a folder was named AND the live file in it actually opened. A
-/// stderr-only run has no folder to open in Finder or Explorer, and the
-/// button must say so rather than open nothing.
-fn advertise(dir: Option<&PathBuf>, opened: bool) -> bool {
-    dir.is_some() && opened
-}
-
-/// Installs the global logger and writes the session header. `None` for the
-/// folder is the platform refusing to name a log directory, and an unopened
-/// file is the folder refusing the log: either way the logger comes up
-/// stderr-only and no folder is advertised. The one place
-/// `set_boxed_logger` is called; a second call (none exists) would be the
-/// error, so its `Err` is dropped, not unwrapped.
+/// Installs the global logger. `Some(dir)` opens the live file at once and
+/// writes the session header; `None` — the launch has not yet won the
+/// instance lock, or the platform named no log directory — installs the
+/// sink stderr-only with no header, and [`attach_file`] takes the file over
+/// once the lock is won. The one place `set_boxed_logger` is called; a
+/// second call (none exists) would be the error, so its `Err` is dropped,
+/// not unwrapped.
 pub fn install(dir: Option<PathBuf>, version: &str) {
-    let logger = match dir.as_ref() {
-        Some(dir) => Logger::open(dir, CAP_BYTES),
-        None => Logger::stderr_only(),
-    };
-    logger.session_header(version);
-    let opened = logger
+    let sink = std::sync::Arc::new(match dir.as_ref() {
+        Some(dir) => Sink::open(dir, CAP_BYTES),
+        None => Sink::stderr_only(),
+    });
+    if dir.is_some() {
+        sink.session_header(version);
+    }
+    let opened = sink
         .state
         .lock()
         .map(|state| state.file.is_some())
         .unwrap_or(false);
-    let _ = log::set_boxed_logger(Box::new(logger));
+    let _ = log::set_boxed_logger(Box::new(Logger {
+        sink: std::sync::Arc::clone(&sink),
+    }));
     log::set_max_level(LevelFilter::Info);
-    if advertise(dir.as_ref(), opened) {
-        let _ = FOLDER.set(dir.expect("advertise answered for a named folder"));
+    let _ = SINK.set(sink);
+    if opened {
+        if let Some(dir) = dir {
+            let _ = FOLDER.set(dir);
+        }
+    }
+}
+
+/// Takes the installed sink's file over, after the instance lock is won:
+/// the session header is written into the file and the folder becomes the
+/// one the open-folder button and the report read. A refused second launch
+/// never calls this — its lines stay on stderr, and the winner's file is
+/// never interleaved with another process's.
+pub fn attach_file(dir: PathBuf, version: &str) {
+    let attached = SINK
+        .get()
+        .is_some_and(|sink| sink.attach(&dir, version));
+    if attached {
+        let _ = FOLDER.set(dir);
+    }
+}
+
+/// Runs `f` with the installed sink's write lock held, so a reader — the
+/// report building its body — sees the file between two lines rather than
+/// mid-write. With no sink installed it just runs.
+pub(crate) fn with_log_held<R>(f: impl FnOnce() -> R) -> R {
+    match SINK.get() {
+        Some(sink) => match sink.state.lock() {
+            Ok(_held) => f(),
+            Err(_) => f(),
+        },
+        None => f(),
     }
 }
 
 /// The log folder, for the command that opens it. `None` when install never
-/// ran or was given nothing.
+/// ran, was given nothing, or never opened a file.
 pub fn folder() -> Option<&'static Path> {
     FOLDER.get().map(|dir| dir.as_path())
 }
 
-/// Panics reach the log before the platform's own hook: message and location
-/// on one line, then the default hook does whatever it would have done. A
-/// panic message can carry a path or a whole error dump (`unwrap` on a file
-/// operation, a payload with request text in it), so the line goes through
-/// the same redaction as every other and the message is clipped to
-/// [`PANIC_CHAR_CAP`] characters.
+/// One string redacted against the same redactions every log line uses —
+/// for values gathered outside a log macro (the session facts' adapter
+/// strings), so they meet the same rules the sink enforces.
+pub(crate) fn redact_str(text: &str) -> String {
+    static REDACTIONS: OnceLock<Redactions> = OnceLock::new();
+    redact(
+        text,
+        REDACTIONS.get_or_init(Redactions::build),
+    )
+}
+
+/// The webview's error line: the error's own name and the first stack
+/// frame's file:line — component and file names, never the message, which
+/// can quote a whole conversation. The frame arrives as the webview read
+/// it (`at Thread (Thread.tsx:412:19)`), so it is glued, not wrapped.
+pub(crate) fn webview_line(name: &str, frame: &str) -> String {
+    format!("webview error: {} {}", clip(name, 100), clip(frame, 200))
+}
+
+/// Panics reach the log before the platform's own hook: the LOCATION, and
+/// nothing else. A panic payload is whatever some code failed with — a
+/// request body, a file's contents — and the log's promise is that none of
+/// it reaches the file, so the payload is not read at all.
 pub fn install_panic_hook() {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let message = info
-            .payload()
-            .downcast_ref::<&str>()
-            .map(|s| (*s).to_string())
-            .or_else(|| info.payload().downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "unknown panic payload".to_string());
         let location = info
             .location()
-            .map(|at| format!("{}:{}", at.file(), at.line()))
+            .map(|at| format!("{}:{}:{}", at.file(), at.line(), at.column()))
             .unwrap_or_else(|| "unknown location".to_string());
-        // The mirror of a panic must not be able to panic either: the line
-        // reaches stderr through the same never-panicking write as any other.
-        log::error!("panic at {location}: {}", clip(&message, PANIC_CHAR_CAP));
+        log::error!("panic at {location}");
         default(info);
     }));
 }
@@ -267,21 +332,28 @@ fn append(state: &mut State, line: &str) {
 
 /// The live file becomes the rotated one (replacing whatever rotated file
 /// was there) and a fresh live file takes its place. The caller holds the
-/// state lock. A failure at any step reopens the LIVE file for append and
-/// answers `false`: a folder whose rotated file is locked or read-only
-/// keeps its log — past the cap, but written — rather than going silent.
+/// state lock. A rotation that cannot happen — the rotated file locked or
+/// read-only, the folder refusing the rename — RESETS the live file
+/// (`set_len(0)` on the handle still held) rather than letting it grow
+/// past the cap forever: the bound is the point, and the newest lines are
+/// the ones a report needs. The reset is said once inside the log.
 fn rotate(state: &mut State) -> bool {
-    state.file = None;
+    let Some((file, _)) = state.file.take() else {
+        return false;
+    };
     let live = state.dir.join(LIVE_NAME);
     let rotated = state.dir.join(ROTATED_NAME);
     let room = std::fs::remove_file(&rotated).is_ok() || !rotated.exists();
-    let renamed = room && std::fs::rename(&live, &rotated).is_ok();
-    if !renamed {
+    if room && std::fs::rename(&live, &rotated).is_ok() {
         state.file = open_live(&state.dir);
-        return false;
+        return true;
     }
-    state.file = open_live(&state.dir);
-    true
+    // The rename failed, so the file still sits at the live path under the
+    // handle we hold: truncate it in place and keep writing.
+    if file.set_len(0).is_ok() {
+        state.file = Some((file, 0));
+    }
+    false
 }
 
 /// What every message is redacted against, read from the environment once
@@ -305,7 +377,10 @@ pub(crate) struct Redactions {
 impl Redactions {
     pub(crate) fn build() -> Self {
         Self {
-            home: env_path("HOME").or_else(|| env_path("USERPROFILE")),
+            // Windows spells the home directory `USERPROFILE` and some
+            // environments set `HOME` beside it with the other separator's
+            // spelling — the platform's own variable wins.
+            home: env_path("USERPROFILE").or_else(|| env_path("HOME")),
             user: env_name("USERNAME").or_else(|| env_name("USER")),
             insensitive: cfg!(windows),
         }

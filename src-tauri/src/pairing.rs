@@ -428,17 +428,6 @@ impl Desk {
         })
     }
 
-    /// The label the store holds for one device — the owner's own name for
-    /// it, and the only identifier a log line carries. `None` when the store
-    /// cannot be read or does not hold the id; the caller says the id then.
-    pub(crate) fn device_label(file: &Path, id: u32) -> Option<String> {
-        kalsa_pairing::store::load_devices(file)
-            .ok()?
-            .into_iter()
-            .find(|device| device.id == id)
-            .map(|device| device.label)
-    }
-
     /// The owner removes ONE device from the house. The others keep their
     /// credentials and their ids; a PAIRED desk recomputes itself from the
     /// store afterwards — `new`'s rule — so the phone it names and the
@@ -785,6 +774,14 @@ impl Desk {
     }
 }
 
+/// The log line for one pairing gesture about one device: the id number
+/// and nothing of the device itself — the label is the owner's own words
+/// for their own phone, and the log's promise is content-free. A builder,
+/// so the shape is one thing a test can pin.
+pub(crate) fn device_line(action: &str, id: u32) -> String {
+    format!("pairing: device {action} (id {id})")
+}
+
 /// The desk as the page reads it. `claiming` is a live ceremony a phone has
 /// already claimed: the square is gone from the screen because it is spent.
 fn dto(state: &State, devices: Vec<PairedDeviceDto>, delivery_pending: bool) -> PairingDto {
@@ -929,6 +926,16 @@ mod tests {
         let (code, nonce, reachable) = secrets(&payload);
         assert!(desk.claim(&code, now));
         PhoneDeclaration::sign(&code, &nonce, &reachable, None, phone).expect("declaration")
+    }
+
+    /// The pairing log line is the id number and nothing of the device:
+    /// the label is the owner's own words for their own phone, and the
+    /// line is built from the id alone — there is no store read to leak
+    /// one through.
+    #[test]
+    fn the_pairing_log_line_carries_the_id_and_nothing_of_the_device() {
+        assert_eq!(device_line("forgotten", 7), "pairing: device forgotten (id 7)");
+        assert_eq!(device_line("allowed", 2), "pairing: device allowed (id 2)");
     }
 
     /// A phone walks the whole ceremony: it scans, claims, proves, and only

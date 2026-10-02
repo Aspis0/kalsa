@@ -2,8 +2,9 @@
 
 export const REPORT = {
   title: "Signaler un problème",
-  privacy: "Le journal ne contient jamais vos conversations, vos fichiers ni aucun code d'appairage.",
-  facts: "Il contient ce que Kalsa a fait et ce que cet ordinateur a : versions, carte graphique, mémoire, erreurs.",
+  privacy: "Le journal ne contient jamais vos messages, les réponses de Kalsa, vos fichiers, ni aucun code ou clé.",
+  facts:
+    "Il contient ce que Kalsa a fait et ce que cet ordinateur a : versions, processeur, carte graphique, mémoire, erreurs.",
   send: "Envoyer le journal",
   open: "Ouvrir le dossier des journaux",
   openFailed: "Kalsa n'a pas pu ouvrir le dossier des journaux.",
@@ -13,5 +14,7 @@ export const REPORT = {
   errTryTomorrow: "Nous avons reçu trop de rapports aujourd'hui. Réessayez demain.",
   errSend: "Impossible d'envoyer. Vérifiez la connexion internet et réessayez.",
   crashTitle: "Un problème est survenu",
+  crashUncleanTitle: "Kalsa ne s'est pas fermée normalement la dernière fois",
+  crashUncleanBody: "Si quelque chose s'est mal passé, envoyer le journal nous aide à le corriger.",
   notNow: "Pas maintenant",
 };

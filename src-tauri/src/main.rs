@@ -1935,17 +1935,13 @@ fn brain_pairing_forget_device(
             "This computer's own connection cannot be forgotten.",
         ));
     }
-    // The label is read BEFORE the forget: afterwards the store no longer
-    // holds the device. A store that cannot be read logs the id — not a
-    // secret — and goes on.
-    let label = pairing::Desk::device_label(desk.desk.file(), id);
     desk.desk.forget_device(id).map_err(|_| {
         CommandError::new(
             "pairing.save_failed",
             "Kalsa couldn't save this change. Try again.",
         )
     })?;
-    log::info!("pairing: device forgotten: {}", label.unwrap_or_else(|| format!("id {id}")));
+    log::info!("{}", pairing::device_line("forgotten", id));
     // The room follows at once, not at the next poll: the member's posts
     // stop the moment the owner's finger leaves the button.
     room::forget_now(&brain, id)?;
@@ -1964,13 +1960,7 @@ fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), CommandE
             "Kalsa couldn't save this change. Try again.",
         )
     })?;
-    // The label, never a credential or a code: the label is what the owner
-    // knows the device by.
-    log::info!(
-        "pairing: device allowed: {}",
-        pairing::Desk::device_label(desk.desk.file(), id)
-            .unwrap_or_else(|| format!("id {id}"))
-    );
+    log::info!("{}", pairing::device_line("allowed", id));
     Ok(())
 }
 
@@ -2090,16 +2080,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let guard = std::sync::Arc::clone(&guard);
             move |app| {
             // The log is the first thing that works, so everything after it
-            // is on the record: the folder is the platform's own place for
-            // this app's logs, and a folder that cannot be resolved or
-            // opened leaves the app on stderr only — never a launch
-            // refused for it.
-            logging::install(
-                app.path().app_log_dir().ok(),
-                env!("CARGO_PKG_VERSION"),
-            );
+            // is on the record — on STDERR, until the instance lock below
+            // says this process owns the log: two apps writing one file
+            // would interleave their lines, so the file sink is attached
+            // only by the launch that won the lock, and a refused second
+            // launch keeps its few lines (the refusal itself) on stderr.
+            logging::install(None, env!("CARGO_PKG_VERSION"));
             logging::install_panic_hook();
-            log::info!("app start");
             // The desk needs this machine's data directory, and the square
             // needs the listener's port: both are only knowable once the app
             // has a handle, so this is where the pairing side is born.
@@ -2111,6 +2098,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .parent()
                 .expect("a path built by join always has a parent");
             std::fs::create_dir_all(parent)?;
+            // The authority, before anything below can read or write the
+            // store: one exclusive lock on this account's own data
+            // directory, held for the app's whole life. A refusal is the
+            // ordinary second launch, not a setup error — tauri runs this
+            // hook on the event loop's Ready and panics on its Err — so
+            // the refusal is handled here: say why, close the windows
+            // tauri has already built by the time this hook runs, and let
+            // the empty window list end the app by the ordinary exit path.
+            let lock = match instance::acquire_dir_lock(parent) {
+                Ok(lock) => lock,
+                Err(instance::LockFailure::AlreadyRunning) => {
+                    log::info!("a second launch was refused — the running window comes forward");
+                    for window in app.webview_windows().values() {
+                        let _ = window.close();
+                    }
+                    return Ok(());
+                }
+                // The machine failing under the app: the lock failure
+                // carries the directory and the cause, and that text is
+                // what the owner is told.
+                Err(failure) => return Err(Box::new(failure)),
+            };
+            // A duplicate manage returns false and drops the value — the
+            // lock would be released under a running app. That is a
+            // programming error, and it fails loudly.
+            if !app.manage(lock) {
+                return Err(io::Error::other("the instance lock was already managed").into());
+            }
+            // The lock is won: this process owns the log. The file sink
+            // attaches now — the session header is written into the file as
+            // its first lines of this session — and only now may anything
+            // be said on the record.
+            logging::attach_file(
+                app.path().app_log_dir().unwrap_or_else(|_| parent.to_path_buf()),
+                env!("CARGO_PKG_VERSION"),
+            );
+            log::info!("app start");
+            // Under the lock, and only here: the unclean-exit marker is
+            // this session's own, so a launch refused as a second one (it
+            // returned above, before the lock existed) never touches it.
+            // The answer it gives is for the crash prompt to read once the
+            // window is up; this is also the one place it is logged.
+            if instance::session_marker::begin(parent) {
+                log::warn!("the previous session did not exit cleanly");
+                app.state::<Brain>()
+                    .prev_crash
+                    .store(true, Ordering::SeqCst);
+            }
             // A machine that has not changed does not measure again: seed
             // the kept measurement from the record, before any turn-on can
             // run. A record this machine no longer matches is ignored
@@ -2157,45 +2192,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 &system::host_name(),
             );
-            // The authority, before anything below can read or write the
-            // store: one exclusive lock on this account's own data
-            // directory, held for the app's whole life. A refusal is the
-            // ordinary second launch, not a setup error — tauri runs this
-            // hook on the event loop's Ready and panics on its Err — so
-            // the refusal is handled here: say why, close the windows
-            // tauri has already built by the time this hook runs, and let
-            // the empty window list end the app by the ordinary exit path.
-            let lock = match instance::acquire_dir_lock(parent) {
-                Ok(lock) => lock,
-                Err(instance::LockFailure::AlreadyRunning) => {
-                    log::info!("a second launch was refused — the running window comes forward");
-                    for window in app.webview_windows().values() {
-                        let _ = window.close();
-                    }
-                    return Ok(());
-                }
-                // The machine failing under the app: the lock failure
-                // carries the directory and the cause, and that text is
-                // what the owner is told.
-                Err(failure) => return Err(Box::new(failure)),
-            };
-            // A duplicate manage returns false and drops the value — the
-            // lock would be released under a running app. That is a
-            // programming error, and it fails loudly.
-            if !app.manage(lock) {
-                return Err(io::Error::other("the instance lock was already managed").into());
-            }
-            // Under the lock, and only here: the unclean-exit marker is
-            // this session's own, so a launch refused as a second one (it
-            // returned above, before the lock existed) never touches it.
-            // The answer it gives is for the crash prompt to read once the
-            // window is up; this is also the one place it is logged.
-            if instance::session_marker::begin(parent) {
-                log::warn!("the previous session did not exit cleanly");
-                app.state::<Brain>()
-                    .prev_crash
-                    .store(true, Ordering::SeqCst);
-            }
             // Under the lock, off this thread: an install from before the
             // stored choice keeps its model, and the window opens meanwhile.
             if let Ok(state) = state_file(app.handle()) {
@@ -2415,15 +2411,12 @@ fn brain_previous_session_crashed(brain: State<Brain>) -> bool {
 }
 
 /// The webview's own error, from the boundary that caught it: the error's
-/// name and message, clipped, into the log — never component props or
-/// state, which can hold a whole conversation.
+/// name and the first stack frame's file:line — component and file names.
+/// Never the message, and never component props or state: both can quote a
+/// whole conversation.
 #[tauri::command]
-fn brain_log_webview_error(name: String, message: String) {
-    log::error!(
-        "webview error: {}: {}",
-        logging::clip(&name, 100),
-        logging::clip(&message, 300)
-    );
+fn brain_log_webview_error(name: String, frame: String) {
+    log::error!("{}", logging::webview_line(&name, &frame));
 }
 
 /// One card per row: the pick list is keyed by the model token — repo,
