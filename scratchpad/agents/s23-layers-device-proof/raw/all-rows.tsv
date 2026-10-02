@@ -1,0 +1,9 @@
+label	prompt	thermal_state	plat_thermal	bat_lvl	chunks	actual_counts	layers_counts	prefill_tok_s	prompt_n	n_common	decode_tok_s	npu_device	dur_s
+proof-forcegpu-s1	short	WARM	1	70	6	gpux6	HTP0x6	167.5	1735	0	9.810340718351414	HTP0	see-log
+proof-gpu-s1	short	FAST	1	72	6	gpux6	GPUOpenCLx6	112.2	1735	0	10.694506535663804	null	see-log
+proof-gpu-s2	short	COOLMODE	2	71	15	gpux15	GPUOpenCLx15	101.9	1735	0	9.700655674779101	null	see-log
+proof-npu-l1	long	WARM	1	76	11	gpux11	HTP0x11	120.8	3145	0	8.912116673068539	HTP0	see-log
+proof-npu-l2	long	COOLMODE	2	75	11	gpux11	HTP0x11	119.6	3145	0	8.370695001068327	HTP0	see-log
+proof-npu-s1	short	FAST	0	80	6	gpux6	HTP0x6	178.2	1735	0	11.329503888625982	HTP0	see-log
+proof-npu-s2	short	FAST	0	79	6	gpux6	HTP0x6	177.5	1735	0	11.073518243788309	HTP0	see-log
+proof-npu-s3	short	FAST	0	77	6	gpux6	HTP0x6	173.9	1735	0	10.161668658490582	HTP0	see-log
