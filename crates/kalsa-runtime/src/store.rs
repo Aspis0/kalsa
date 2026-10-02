@@ -123,8 +123,36 @@ pub(crate) fn ensure_backend(
     backend: ServerBackend,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StoreError> {
+    ensure_backend_with(
+        root,
+        platform,
+        backend,
+        assets::assets_for(platform, backend),
+        progress,
+        &|exe| {
+            // Only a fresh install pays the antivirus's first scan; Windows is where
+            // that scan is slow enough to matter.
+            if cfg!(windows) {
+                warm::warm(exe);
+            }
+        },
+    )
+}
+
+/// [`ensure_backend`] with both seams a caller may stand in for: the rows
+/// to install from, and the step that runs a freshly published build (the
+/// real one warms it, above). The step runs after a fresh publish and
+/// never on the marker's fast path — a build already proven is not warm's
+/// to pay for.
+fn ensure_backend_with(
+    root: &Path,
+    platform: Platform,
+    backend: ServerBackend,
+    assets: Vec<&'static assets::Asset>,
+    progress: &mut dyn FnMut(Progress),
+    fresh_publish: &dyn Fn(&Path),
+) -> Result<PathBuf, StoreError> {
     let dir = builds_dir(root, backend);
-    let assets = assets::assets_for(platform, backend);
     if assets.iter().any(|asset| !asset.verified()) {
         return Err(StoreError::Unverified);
     }
@@ -159,11 +187,7 @@ pub(crate) fn ensure_backend(
         extract_into(&staging, &archives).map_err(StoreError::Io)?;
     }
     let exe = publish(&staging, &dir, &runtime, table_exe)?;
-    // Only a fresh install pays the antivirus's first scan; Windows is where
-    // that scan is slow enough to matter.
-    if cfg!(windows) {
-        warm::warm(&exe);
-    }
+    fresh_publish(&exe);
     sweep_unpinned(root, platform);
     Ok(exe)
 }
@@ -592,6 +616,62 @@ mod tests {
         assert!(
             !staging.exists(),
             "staging is gone once the build is complete"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The warm step as the seam sees it: a freshly published build goes
+    /// through it exactly once, with the published exe, and a build whose
+    /// marker already answers never reaches it. The real step is
+    /// cfg!(windows); the sequence it stands in for — fresh publish, then
+    /// warm; marker hit, no warm — is platform-free, and this test fails
+    /// if `ensure_backend` stops running it after a publish.
+    #[test]
+    fn a_fresh_publish_runs_the_warm_step_and_a_valid_build_does_not() {
+        let root = scratch("warm-seam");
+        let bytes = make_fake_zip(b"a stand-in binary");
+        let sha: &'static str = Box::leak(digest_of(&bytes).into_boxed_str());
+        let exe_sha: &'static str = Box::leak(digest_of(b"a stand-in binary").into_boxed_str());
+        let row: &'static Asset = Box::leak(Box::new(Asset {
+            role: assets::Role::Engine,
+            backend: Some(ServerBackend::Cpu),
+            platform: Some(Platform::WindowsX64),
+            home: RELEASE_HOME_STAND_IN,
+            file: "fixture-engine.zip",
+            format: Some(assets::ArchiveFormat::Zip),
+            size_bytes: Some(bytes.len() as u64),
+            sha256: Some(sha),
+            exe_sha256: Some(exe_sha),
+            mirror: None,
+        }));
+        place_archive(&root, row.file, &bytes);
+        let warmed = std::rc::Rc::new(std::cell::RefCell::new(Vec::<PathBuf>::new()));
+        let recorder = {
+            let warmed = std::rc::Rc::clone(&warmed);
+            move |exe: &Path| warmed.borrow_mut().push(exe.to_path_buf())
+        };
+        let install = |progress: &mut dyn FnMut(Progress)| {
+            ensure_backend_with(
+                &root,
+                Platform::WindowsX64,
+                ServerBackend::Cpu,
+                vec![row],
+                progress,
+                &recorder,
+            )
+        };
+        let exe = install(&mut |_| {}).expect("the fixture installs");
+        assert_eq!(
+            *warmed.borrow(),
+            vec![exe.clone()],
+            "the fresh publish is warmed once, with the published exe"
+        );
+        let again = install(&mut |_| {}).expect("already installed");
+        assert_eq!(again, exe, "the marker answers with the same build");
+        assert_eq!(
+            warmed.borrow().len(),
+            1,
+            "a build already on disk is not warmed again"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
