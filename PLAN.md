@@ -980,6 +980,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   engine unchanged; the engine's JS-free validity rule stays the sole decider. Dispatched deepseek de771c3d in
   `kalsa-wt-gov`. Follow-up for the next engine release: `llama-ext.h` comment (e3088932c) "t_idle_c ... forwarded raw
   by the client" becomes false - doc-only fix. Engine commit 5d8368a2d stays unpushed and is dropped.
+  **PUSHED app main `7ec12eb0`** (deepseek f8f0c504 + my 7ec12eb0 after audit space-bunny fc66dc8e; full jest
+  306/3278). Audit findings I judged as pre-existing DESIGN, not regressions (same as e5788cfe), open for the owner:
+  (i) the latch is the first PLUGGED READ, not the plug-in edge (reads are on demand), so a phone that plugs in hot
+  latches hot -> plugged warm/cool lines at min(latch+3/+4.5, 42) leave only the 44 C kill line + 43 C app pause as
+  brakes, and a latch >= 37.5 C (hot_plugged) closes GPU_COOLMODE; (ii) a latch >= 41 C = profile Invalid for the
+  whole plugged session (CPU); (iii) an unplugged read that is never pushed to the engine (reload race) then a replug
+  > 1.5 C away -> engine drift Invalid until the next model load (self-heals on reload). Device check: debuggable APK
+  run 37066820198 on 7ec12eb0, S23 PLUGGED, two turns + a model switch, expect no "invalid thermal profile".
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
