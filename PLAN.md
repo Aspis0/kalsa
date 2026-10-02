@@ -872,6 +872,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `prefill_params.no_kv_offload = true` on the lane-on prefill context (`cpp/rn-llama.cpp:132`) and the engine pins
   every node between the KV store and the attention output to CPU when `!offload_kqv` (`src/llama-graph.cpp:2746`).
   Prime suspect for 128-token chunks slowing 0.57 -> 1.1 s with context and for in-app NPU only ~1.2-1.5x GPU.
+  **Research 2026-10-01 (luna cdfd1ae5, key lines re-read by the coordinator): suspect WEAKENED, not refuted.** LFM2.5
+  2.6B has only 8 full-attention layers of 30; the CPU-pinned attention core is ~2.7 % / 4.8 % of a 128-token chunk's
+  FLOPs at 1.7k / 3.1k context - by FLOPs it covers only part of the +0.41 ms per context token growth (the rest:
+  per-chunk host KV commit? unmeasured). Why KV is on the host: the app ships a **q4_0 V cache**, HTP SET_ROWS
+  writes only F32/F16/Q8_0, and a pre-allocated dst cannot be rerouted (`ggml-backend.cpp:941` abort). HTP has
+  FLASH_ATTN_EXT for F16/Q8_0 KV, head dim 64 fits. Cheapest split: bare prefill on an HTP device at fixed n_past
+  (0/512/1.7k/3.1k), `no_kv_offload` on vs off with the SAME q8_0 KV, `GGML_HEXAGON_PROFILE=1`, per-chunk commit time.
 
 ### Pairing: iroh and invite links
 
