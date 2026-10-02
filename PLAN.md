@@ -972,7 +972,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   thresholds from `profile_.t_idle_c` (live: WARM unreachable while charging) and marks the profile Invalid when the live
   value drifts >1.5 C from its latch (phone was charging, battery warmed in turn 1). Latent until today because benches
   never run plugged. Engine fix dispatched (deepseek 8edbb524, `kalsallama-wt-thermo`): thresholds + hot_plugged from
-  the latch, drift is a temperature not a fault.
+  the latch, drift is a temperature not a fault. **ABANDONED after audit space-bunny 67cac407** (verdicts judged by
+  me): the engine policy lives one per model load, so an engine latch re-latches HIGHER on every reload (a phone >= 39 C
+  at a reload gets no WARM band below 42); live t_idle still trips the `idle+1<42` gate at 41 C = sticky abort 2 C
+  below the 43 C pause; an invalid unplug read does not clear it. **Chosen fix: restore the app-side plug-edge latch**
+  of e5788cfe in `GovernorBatteryModule.kt` (process lifetime -> survives reloads, cleared on any plugged=false read),
+  engine unchanged; the engine's JS-free validity rule stays the sole decider. Dispatched deepseek de771c3d in
+  `kalsa-wt-gov`. Follow-up for the next engine release: `llama-ext.h` comment (e3088932c) "t_idle_c ... forwarded raw
+  by the client" becomes false - doc-only fix. Engine commit 5d8368a2d stays unpushed and is dropped.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
