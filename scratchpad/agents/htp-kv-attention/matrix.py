@@ -40,7 +40,7 @@ ARMS = [
 # One llama-bench call per arm sweeps every depth in DEPTHS.
 BASE_FLAGS = ["-ngl", "99", "-dev", "HTP0", "-p", str(CHUNK_TOKENS), "-n", "0",
               "-b", "128", "-ub", "128", "-t", THREADS, "-fa", FLASH_ATTN,
-              "--no-warmup", "-o", "md"]
+              "--no-warmup", "-o", "md", "-v"]
 
 
 def bench_cmd(arm, depths=DEPTHS, reps=REPS):

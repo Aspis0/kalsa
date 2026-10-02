@@ -109,7 +109,8 @@ def run_cli(adb, args, log, tag, cmd, env, out_dir, deadline):
         log(f"SAFETY_STOP {tag}:pre:{why}")
         return False, None
     log_path = out_dir / "logs" / f"{tag}.log"
-    remote = (f"cd '{matrix.DEVICE_DIR}' && {env} {shlex.join(cmd)}; "
+    # env is an `export ...` statement, so it must end before the command.
+    remote = (f"cd '{matrix.DEVICE_DIR}' && {env}; {shlex.join(cmd)}; "
               "rc=$?; echo EXIT=$rc; exit $rc")
     log(f"CLI_START {tag} cmd={shlex.join(cmd)}")
     t0 = time.monotonic()

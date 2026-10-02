@@ -1,0 +1,15 @@
+arm	depth	fa	nkvo	ctk	ctv	test	pp_tok_s	per_chunk_ms	src_log
+A-nkvo	0	auto	1	q8_0	q8_0	pp128	1104.78	115.9	A-nkvo.log
+A-nkvo	512	auto	1	q8_0	q8_0	pp128 @ d512	542.62	235.9	A-nkvo.log
+A-nkvo	1700	auto	1	q8_0	q8_0	pp128 @ d1700	244.50	523.5	A-nkvo.log
+A-nkvo	3100	auto	1	q8_0	q8_0	pp128 @ d3100	138.07	927.1	A-nkvo.log
+B-offload	0	auto	0	q8_0	q8_0	pp128	1249.08	102.5	B-offload.log
+B-offload	512	auto	0	q8_0	q8_0	pp128 @ d512	1262.56	101.4	B-offload.log
+B-offload	1700	auto	0	q8_0	q8_0	pp128 @ d1700	1115.92	114.7	B-offload.log
+B-offload	3100	auto	0	q8_0	q8_0	pp128 @ d3100	1052.59	121.6	B-offload.log
+C-app-vq4	0	auto	1	q8_0	q4_0	pp128	1116.55	114.6	C-app-vq4.log
+C-app-vq4	512	auto	1	q8_0	q4_0	pp128 @ d512	504.21	253.9	C-app-vq4.log
+C-app-vq4	1700	auto	1	q8_0	q4_0	pp128 @ d1700	208.32	614.4	C-app-vq4.log
+C-app-vq4	3100	auto	1	q8_0	q4_0	pp128 @ d3100	116.30	1100.6	C-app-vq4.log
+A-nkvo	1700	auto	1	q8_0	q8_0	pp128 @ d1700	223.76	572.0	A-nkvo-profile.log
+B-offload	1700	auto	0	q8_0	q8_0	pp128 @ d1700	896.39	142.8	B-offload-profile.log
