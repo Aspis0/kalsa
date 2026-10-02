@@ -8,10 +8,10 @@
 //! Vulkan's own names and order are what `--device` accepts.
 
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::sync::Mutex;
+use std::time::{Duration, Instant, SystemTime};
 
 use crate::assets::ServerBackend;
 use crate::child::TICK;
@@ -27,11 +27,22 @@ const NO_DEVICES: &str = "(none)";
 /// "no list", never a wait.
 const LIST_DEADLINE: Duration = Duration::from_secs(15);
 
-/// The list, once per session: the answer cannot change while the app runs.
-/// Only a successful, non-empty list is remembered — a failed spawn, a
-/// nonzero exit and an empty list are not answers, so the next ask repeats
-/// (see [`kalsa_probe::once_present`]).
-static LISTED: OnceLock<Vec<(String, String)>> = OnceLock::new();
+/// What the list is cached under: the exe's path plus its size and mtime —
+/// one stat, cheap enough for every ask — so a replaced engine (new bytes
+/// under the same name) is listed again within the session.
+type ListKey = (PathBuf, u64, Option<SystemTime>);
+
+fn list_key(exe: &Path) -> Option<ListKey> {
+    let meta = std::fs::metadata(exe).ok()?;
+    Some((exe.to_path_buf(), meta.len(), meta.modified().ok()))
+}
+
+/// The list, cached per session under the exe's identity: the same build
+/// keeps its answer, a replaced engine — its path, size or mtime moved —
+/// is asked again. Only a successful, non-empty list is remembered: a
+/// failed spawn, a nonzero exit and an empty list are not answers, so the
+/// next ask repeats.
+static LISTED: Mutex<Option<(ListKey, Vec<(String, String)>)>> = Mutex::new(None);
 
 /// The installed graphics build's device list, or `None` when the build
 /// could not be asked (no spawn, no exit within the deadline, a nonzero exit)
@@ -42,16 +53,28 @@ pub fn list_devices(exe: &Path) -> Option<Vec<(String, String)>> {
 
 /// [`list_devices`] against a cache of the caller's own. An empty list is no
 /// answer: it is not remembered, and the caller routes on `None` exactly as
-/// it would on the empty list.
+/// it would on the empty list. The cache answers only for the very bytes
+/// that were asked about — a different exe, or the same path with new bytes
+/// on disk, is asked again rather than served the old card's devices.
 fn listed_once(
-    cache: &OnceLock<Vec<(String, String)>>,
+    cache: &Mutex<Option<(ListKey, Vec<(String, String)>)>>,
     exe: &Path,
     deadline: Duration,
 ) -> Option<Vec<(String, String)>> {
-    kalsa_probe::once_present(cache, || {
-        Some(parse_listed_devices(&ask_list_devices(exe, deadline)?))
-            .filter(|listed| !listed.is_empty())
-    })
+    let key = list_key(exe);
+    if let Ok(slot) = cache.lock() {
+        if let (Some(key), Some((cached, listed))) = (key.as_ref(), slot.as_ref()) {
+            if cached == key {
+                return Some(listed.clone());
+            }
+        }
+    }
+    let fresh = Some(parse_listed_devices(&ask_list_devices(exe, deadline)?))
+        .filter(|listed| !listed.is_empty())?;
+    if let (Some(key), Ok(mut slot)) = (key, cache.lock()) {
+        *slot = Some((key, fresh.clone()));
+    }
+    Some(fresh)
 }
 
 /// `--list-devices` run the way the probe runs the engine: in the exe's own
@@ -342,23 +365,59 @@ mod tests {
 
     /// Only a successful, non-empty list is remembered: an empty listing
     /// and a crash leave the cache open for the next ask, a real list fills
-    /// it.
+    /// it — and it is remembered for those bytes only: the same exe is
+    /// served without being asked again, a different exe is asked anew.
     #[cfg(unix)]
     #[test]
     fn only_a_non_empty_clean_listing_is_cached() {
-        let cache = OnceLock::new();
+        use std::os::unix::fs::PermissionsExt;
+        let cache = Mutex::new(None);
         let empty = fake_engine_printing("empty", "  (none)", 0);
         assert_eq!(listed_once(&cache, &empty, LIST_DEADLINE), None);
-        assert!(cache.get().is_none(), "an empty list is not an answer");
+        assert!(
+            cache.lock().unwrap().is_none(),
+            "an empty list is not an answer"
+        );
         let crash = fake_engine("cache-crash", 1);
         assert_eq!(listed_once(&cache, &crash, LIST_DEADLINE), None);
-        assert!(cache.get().is_none(), "a crash is not an answer");
+        assert!(cache.lock().unwrap().is_none(), "a crash is not an answer");
         let good = fake_engine("cache-good", 0);
         let listed = listed_once(&cache, &good, LIST_DEADLINE).expect("a real list");
         assert_eq!(listed, vec![("Vulkan0".to_string(), "GPU".to_string())]);
-        assert_eq!(cache.get(), Some(&listed));
-        // And once filled, the build is not asked again.
-        assert_eq!(listed_once(&cache, &empty, LIST_DEADLINE), Some(listed));
+        assert!(cache.lock().unwrap().is_some(), "a real list fills the cache");
+        // The same bytes again come from the cache: with the script made
+        // unrunnable, an answer proves nothing was spawned.
+        std::fs::set_permissions(&good, std::fs::Permissions::from_mode(0o000))
+            .expect("chmod");
+        assert_eq!(listed_once(&cache, &good, LIST_DEADLINE), Some(listed));
+        std::fs::set_permissions(&good, std::fs::Permissions::from_mode(0o755))
+            .expect("chmod");
+        // A different build is a different key: the empty script is asked
+        // again and says nothing — never served the good one's list.
+        assert_eq!(listed_once(&cache, &empty, LIST_DEADLINE), None);
+    }
+
+    /// The cache is keyed by the exe's identity: the same path with new
+    /// bytes on disk is a new engine and is listed again.
+    #[cfg(unix)]
+    #[test]
+    fn a_replaced_engine_is_listed_again() {
+        use std::os::unix::fs::PermissionsExt;
+        let cache = Mutex::new(None);
+        let exe = fake_engine_printing("rekey", "  Vulkan0: GPU (1 MiB, 1 MiB free)", 0);
+        let first = listed_once(&cache, &exe, LIST_DEADLINE).expect("the first list");
+        assert_eq!(first, vec![("Vulkan0".to_string(), "GPU".to_string())]);
+        // New bytes under the same name: size and mtime move, the key
+        // misses, and the engine is asked what it lists now.
+        std::fs::write(
+            &exe,
+            "#!/bin/sh\necho 'Available devices:'\necho '  Vulkan1: Other GPU (2 MiB, 2 MiB free)'\nexit 0\n",
+        )
+        .expect("replace");
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let second = listed_once(&cache, &exe, LIST_DEADLINE)
+            .expect("the replaced build is asked again");
+        assert_eq!(second, vec![("Vulkan1".to_string(), "Other GPU".to_string())]);
     }
 
     #[cfg(unix)]
