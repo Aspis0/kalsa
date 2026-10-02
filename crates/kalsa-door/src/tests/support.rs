@@ -234,6 +234,13 @@ pub(super) fn door(upstream_port: u16, tokens: &[&str]) -> (RunningDoor, SocketA
 /// Runs a test body on its own thread and, when it has not finished within
 /// `limit`, fails the test by name instead of hanging the suite. A panic in
 /// the body is the test's panic.
+///
+/// On a timeout the body's thread is NOT joined — it is the thing that is
+/// stuck — so the door, sockets and threads it holds stay alive until the
+/// process ends. That is acceptable: the test has already failed, each door
+/// has its own clocks and its own ephemeral ports, so the leftover touches no
+/// other test, and it costs file descriptors and threads for the rest of one
+/// failing run.
 pub(super) fn bounded(limit: Duration, body: impl FnOnce() + Send + 'static) {
     let (done, finished) = mpsc::channel();
     let runner = thread::spawn(move || {

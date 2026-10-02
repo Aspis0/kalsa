@@ -240,11 +240,12 @@ pub(super) fn serve_resume(
     }
 }
 
-/// The last event of an answer that stopped early: the failure's words in the
-/// error shape an OpenAI-style stream carries (`{"error": {"message": …}}`),
-/// unnumbered because it is not part of the answer's log.
+/// The last event of an answer that stopped early: the failure in the error
+/// shape the room's routes use and an OpenAI-style stream carries —
+/// `{"error": {"code": "...", "message": "<English fallback>"}}` — unnumbered
+/// because it is not part of the answer's log.
 fn failure_event(failure: Failure) -> Vec<u8> {
-    let body = serde_json::json!({"error": {"message": failure.words()}});
+    let body = serde_json::json!({"error": {"code": failure.code(), "message": failure.words()}});
     format!("data: {body}\n\n").into_bytes()
 }
 

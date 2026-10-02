@@ -265,8 +265,11 @@ fn reject_busy(stream: &mut TcpStream) {
     let _ = std::io::Write::write_all(stream, BUSY_RESPONSE);
     // Then take what the client has already sent: a request left unread
     // makes the close a reset, and a reset erases the answer just written.
-    let _ = stream.set_nonblocking(true);
-    drain(stream);
+    // A read that cannot be made non-blocking could wait for ever on a client
+    // that has stopped sending: then there is nothing to drain, only a close.
+    if stream.set_nonblocking(true).is_ok() {
+        drain(stream);
+    }
     let _ = stream.shutdown(std::net::Shutdown::Write);
 }
 

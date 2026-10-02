@@ -257,9 +257,18 @@ fn a_resumed_answer_that_was_abandoned_gets_its_tail_and_then_the_reason() {
             "the part of the answer the phone missed is replayed: {rest}"
         );
         let last = rest.trim_end().lines().last().unwrap_or_default();
-        assert!(
-            last.starts_with("data: {\"error\":") && last.contains("stopped because nobody was reading it"),
+        let event: serde_json::Value =
+            serde_json::from_str(last.strip_prefix("data: ").unwrap_or(last))
+                .unwrap_or_else(|error| panic!("the last event is not json ({error}): {rest}"));
+        assert_eq!(
+            event["error"]["code"], "abandoned",
             "and then it is told why it ends, not left with a silent close: {rest}"
+        );
+        assert!(
+            event["error"]["message"]
+                .as_str()
+                .is_some_and(|words| words.contains("stopped because nobody was reading it")),
+            "with the English fallback beside the code: {rest}"
         );
         assert!(!rest.contains("[DONE]"), "{rest}");
         upstream.join().unwrap();

@@ -37,6 +37,19 @@ impl Failure {
             Self::Abandoned => "This answer was stopped because nobody was reading it.",
         }
     }
+
+    /// The stable name of this failure for a client to branch on, in the
+    /// error shape the room's routes use (`{"error": {"code", "message"}}`):
+    /// the words above are the English fallback and may be reworded, the code
+    /// may not.
+    pub(super) fn code(self) -> &'static str {
+        match self {
+            Self::Overflow => "answer_too_large",
+            Self::Upstream => "upstream_stopped",
+            Self::Shutdown => "door_closed",
+            Self::Abandoned => "abandoned",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -273,6 +286,20 @@ impl Job {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_failure_has_its_own_stable_code() {
+        let all = [Failure::Overflow, Failure::Upstream, Failure::Shutdown, Failure::Abandoned];
+        let codes: std::collections::HashSet<&str> = all.iter().map(|f| f.code()).collect();
+        assert_eq!(codes.len(), all.len(), "two failures share a code");
+        for failure in all {
+            let code = failure.code();
+            assert!(
+                !code.is_empty() && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'),
+                "a code is snake_case: {code}"
+            );
+        }
+    }
     use std::time::Duration;
 
     fn owner() -> DeviceId {
