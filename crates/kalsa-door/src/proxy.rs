@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::audit;
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
@@ -148,6 +149,10 @@ pub(super) fn handle(
     let devices: &DeviceSet = &shared.set;
     let stop: &AtomicBool = &shared.stop;
     let chats: &paging::Chats = &shared.chats;
+    // The request's own line, written when this guard drops however the
+    // request leaves. Installed before the head is read, so a request
+    // answered before its first byte is on the record too.
+    let _audit = audit::begin();
     // Everything below is counted from the moment this worker took the
     // connection up, not from accept: a client that waited in the line for a
     // worker is not punished for the wait with a budget already spent. The
@@ -155,7 +160,8 @@ pub(super) fn handle(
     let started = Instant::now();
     let deadline = started + CONNECTION_LIFETIME;
     if started.saturating_duration_since(accepted) >= shared.clocks.queue_wait {
-        let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+        audit::reason("door.busy");
+        let _ = answer_to(&mut client, BUSY_RESPONSE, deadline);
         return;
     }
     let mut head = {
@@ -163,7 +169,8 @@ pub(super) fn handle(
         // A connection past its lifetime is dead on arrival: it is closed
         // rather than read, whatever the head patience would say.
         if Instant::now() >= head_deadline {
-            let _ = write_with_deadline(&mut client, BUSY_RESPONSE, head_deadline);
+            audit::reason("door.busy");
+            let _ = answer_to(&mut client, BUSY_RESPONSE, head_deadline);
             return;
         }
         match request::read_head(&mut client, head_deadline) {
@@ -174,15 +181,18 @@ pub(super) fn handle(
                 // that is pressure, and the answer is the busy one. A head
                 // that was read and found wanting is the unauthorized one.
                 if Instant::now() >= head_deadline {
-                    let _ = write_with_deadline(&mut client, BUSY_RESPONSE, deadline);
+                    audit::reason("door.busy");
+                    let _ = answer_to(&mut client, BUSY_RESPONSE, deadline);
                 } else {
                     // No head was parsed, so there is no origin to name.
+                    audit::reason("door.bad_head");
                     let _ = refuse(&mut client, None, deadline);
                 }
                 return;
             }
         }
     };
+    audit::head(&head.method, &head.target);
     // A CORS preflight is answered here, before the credential scan: the
     // browser sends it WITHOUT the credential it is asking permission to
     // send, so authenticating it would answer `401` and the real request
@@ -194,7 +204,7 @@ pub(super) fn handle(
         // The 204 must be readable: an unread body resets the socket on
         // close and erases it, the same trap the refusal path exists for.
         let _ = discard_request_body(&mut client, head.body_length, deadline);
-        let _ = write_with_deadline(&mut client, &cors::preflight(head.origin.as_deref()), deadline);
+        let _ = answer_to(&mut client, &cors::preflight(head.origin.as_deref()), deadline);
         return;
     }
     // Authentication reads the CURRENT set, as a short-lived Arc: the lock
@@ -208,10 +218,12 @@ pub(super) fn handle(
             // socket on close and erase it. The body is bounded and the read is
             // deadline-bound; the request still goes nowhere.
             let _ = discard_request_body(&mut client, head.body_length, deadline);
+            audit::reason("door.unauthorized");
             let _ = refuse(&mut client, head.origin.as_deref(), deadline);
             return;
         }
     };
+    audit::device(device);
     // The engine's own slot routes are addressed by URL and never consult the
     // slot header, so a paired device that reaches them reads or changes a
     // slot the door did not give it — `GET /slots` reports every slot's
@@ -222,7 +234,8 @@ pub(super) fn handle(
     if slot_routes::is_slot_route(&head.target) {
         let _ = discard_request_body(&mut client, head.body_length, deadline);
         let answer = slot_routes::refusal_response(head.origin.as_deref());
-        let _ = write_with_deadline(&mut client, &answer, deadline);
+        audit::reason("door.slot_route");
+        let _ = answer_to(&mut client, &answer, deadline);
         return;
     }
     // The device's engine slot, under a lease that lasts the whole request.
@@ -232,6 +245,7 @@ pub(super) fn handle(
     // refused with the no-slot 503. The engine does not refuse for us (it
     // wraps `id_slot % slots.size()`), so the door is the only thing
     // standing between a device and somebody else's slot.
+    //
     // The disk tier's routes are the one exception to the 503: a chat's
     // activate is a switch, not pressure, and the seat's holder — the
     // room's turn answering on the one slot a small CPU funds — ends. The
@@ -242,20 +256,23 @@ pub(super) fn handle(
         Ok(lease) => lease,
         Err(LeaseError::NotHeld) => {
             let _ = discard_request_body(&mut client, head.body_length, deadline);
+            audit::reason("door.revoked");
             let _ = refuse(&mut client, head.origin.as_deref(), deadline);
             return;
         }
         Err(LeaseError::NoRoom) => {
             if !paging::owns(&head.target) {
                 let _ = discard_request_body(&mut client, head.body_length, deadline);
-                let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
+                audit::reason("door.no_slot");
+                let _ = answer_to(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
                 return;
             }
             match wait_for_seat(devices, stop, device, deadline) {
                 Ok(lease) => lease,
                 Err(()) => {
                     let _ = discard_request_body(&mut client, head.body_length, deadline);
-                    let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
+                    audit::reason("door.no_slot");
+                    let _ = answer_to(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
                     return;
                 }
             }
@@ -270,11 +287,23 @@ pub(super) fn handle(
     // request with the same refusal `activate` gives: nothing has been sent
     // to the engine on this path, so the slot still holds what the map says.
     if let Some(evicted) = lease.evicted() {
-        if let Err(error) = chats.handover(devices, lease.slot(), evicted, upstream_port) {
-            let _ = discard_request_body(&mut client, head.body_length, deadline);
-            let answer = error.answer(head.origin.as_deref());
-            let _ = write_with_deadline(&mut client, &answer, deadline);
-            return;
+        match chats.handover(devices, lease.slot(), evicted, upstream_port) {
+            Ok(saved) => log::info!(
+                "{}",
+                audit::line::handover_line(lease.slot(), evicted, device, saved, None)
+            ),
+            Err(error) => {
+                let code = error.code();
+                log::warn!(
+                    "{}",
+                    audit::line::handover_line(lease.slot(), evicted, device, false, Some(code))
+                );
+                let _ = discard_request_body(&mut client, head.body_length, deadline);
+                let answer = error.answer(head.origin.as_deref());
+                audit::reason(code);
+                let _ = answer_to(&mut client, &answer, deadline);
+                return;
+            }
         }
     }
     // Presence for the running door: this device, exactly while the door is
@@ -308,11 +337,17 @@ pub(super) fn handle(
             },
             deadline,
         );
+        // The room's answers carry their own codes inside the body; one
+        // stable word is what a request line can say about a refusal here.
+        if audit::answered_refusal() {
+            audit::reason("door.room_refused");
+        }
         return;
     }
     if paging::owns(&head.target) {
         let Some(salt) = devices.cache_salt(device) else {
             let _ = discard_request_body(&mut client, head.body_length, deadline);
+            audit::reason("door.revoked");
             let _ = refuse(&mut client, head.origin.as_deref(), deadline);
             return;
         };
@@ -325,7 +360,7 @@ pub(super) fn handle(
             upstream_port,
             deadline,
         );
-        let _ = write_with_deadline(&mut client, &answer, deadline);
+        let _ = answer_to(&mut client, &answer, deadline);
         return;
     }
     if let Some(last_event_id) = head.last_event_id.as_deref() {
@@ -355,6 +390,7 @@ pub(super) fn handle(
     // hand that slot to anybody else.
     let Some(salt) = devices.cache_salt(device) else {
         let _ = discard_request_body(&mut client, head.body_length, deadline);
+        audit::reason("door.revoked");
         let _ = refuse(&mut client, head.origin.as_deref(), deadline);
         return;
     };
@@ -380,7 +416,8 @@ pub(super) fn handle(
         Ok(stream) => stream,
         Err(_) => {
             let answer = upstream_failure_response(origin.as_deref());
-            let _ = write_with_deadline(&mut client, &answer, deadline);
+            audit::reason("door.upstream_unreachable");
+            let _ = answer_to(&mut client, &answer, deadline);
             return;
         }
     };
@@ -392,6 +429,7 @@ pub(super) fn handle(
         if !lease.holds() {
             drop(gate);
             let _ = discard_request_body(&mut client, body_length, deadline);
+            audit::reason("door.revoked");
             let _ = refuse(&mut client, origin.as_deref(), deadline);
             return;
         }
@@ -443,9 +481,12 @@ pub(super) fn handle(
                         bytes.extend(body);
                         bytes
                     }
-                    Err(()) => upstream_failure_response(origin.as_deref()),
+                    Err(()) => {
+                        audit::reason("door.props_failed");
+                        upstream_failure_response(origin.as_deref())
+                    }
                 };
-                if write_with_deadline(&mut client, &answer, deadline).is_err() {
+                if answer_to(&mut client, &answer, deadline).is_err() {
                     return;
                 }
                 drop(gate);
@@ -457,7 +498,7 @@ pub(super) fn handle(
             // The upstream's own bytes, plus the vary a browser needs and
             // the upstream does not send; nothing else is added to them.
             let relayed = response::with_origin_vary(&upstream_head.raw);
-            if write_with_deadline(&mut client, &relayed, deadline).is_err() {
+            if answer_to(&mut client, &relayed, deadline).is_err() {
                 return;
             }
             drop(gate);
@@ -473,12 +514,14 @@ pub(super) fn handle(
         Err(StartRefused::Entropy) => {
             log::warn!("the door could not mint a job id");
             let answer = busy_response(origin.as_deref());
-            let _ = write_with_deadline(&mut client, &answer, deadline);
+            audit::reason("door.entropy");
+            let _ = answer_to(&mut client, &answer, deadline);
             return;
         }
         Err(StartRefused::Busy) => {
             let answer = busy_response(origin.as_deref());
-            let _ = write_with_deadline(&mut client, &answer, deadline);
+            audit::reason("door.busy");
+            let _ = answer_to(&mut client, &answer, deadline);
             return;
         }
     };
@@ -543,6 +586,7 @@ fn resume(
         },
         None => "The door cannot resume an answer from that id.",
     };
+    audit::reason("door.resume_gone");
     let gone = gone_response(words, origin);
     // One step with the check: a revoked device does not learn whether the
     // answer it names still exists.
@@ -550,7 +594,7 @@ fn resume(
     if cancel.stopped() {
         return;
     }
-    let _ = write_with_deadline(client, &gone, deadline);
+    let _ = answer_to(client, &gone, deadline);
     drop(gate);
 }
 
@@ -669,6 +713,7 @@ fn relay_response(
         }
         last_byte = Instant::now();
         to.write_all(&buffer[..read])?;
+        audit::note_answer(&buffer[..read]);
         if let Some(observer) = observer {
             observer(&buffer[..read]);
         }
@@ -721,7 +766,16 @@ pub(super) fn client_gone(client: &TcpStream) -> bool {
 }
 
 fn refuse(stream: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) -> io::Result<()> {
-    write_with_deadline(stream, &unauthorized_response(origin), deadline)
+    answer_to(stream, &unauthorized_response(origin), deadline)
+}
+
+/// One answer to the client, and the door's own count of it: the bytes and
+/// the status line feed the request's line in [`crate::audit`]. Upstream
+/// writes go through [`write_with_deadline`] directly — they are requests,
+/// not answers, and counting them would double the line's bytes.
+pub(super) fn answer_to(stream: &mut TcpStream, bytes: &[u8], deadline: Instant) -> io::Result<()> {
+    audit::note_answer(bytes);
+    write_with_deadline(stream, bytes, deadline)
 }
 
 pub(super) fn write_with_deadline(

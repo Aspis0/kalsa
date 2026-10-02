@@ -9,14 +9,13 @@
 //! end, so a returned phone gets one continuous answer.
 
 use std::io::Read;
-use std::io::Write;
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::jobs::{Appended, Failure, Job, Status, Take};
 use crate::clocks::Clocks;
-use crate::proxy::{client_gone, is_silence, set_read_deadline_within, set_write_deadline, Cancel};
+use crate::proxy::{client_gone, is_silence, set_read_deadline_within, Cancel};
 use crate::chunk::Dechunker;
 use crate::sse::{self, EventSplitter};
 
@@ -46,8 +45,7 @@ pub(super) fn produce_and_serve(
             job.close(Status::Failed(Failure::Shutdown));
             return;
         }
-        let written = set_write_deadline(&mut client, deadline).is_ok()
-            && client.write_all(head).is_ok();
+        let written = crate::proxy::answer_to(&mut client, head, deadline).is_ok();
         drop(gate);
         written
     };
@@ -203,7 +201,7 @@ pub(super) fn serve_resume(
         if cancel.stopped() {
             return;
         }
-        if set_write_deadline(client, deadline).is_err() || client.write_all(head).is_err() {
+        if crate::proxy::answer_to(client, head, deadline).is_err() {
             return;
         }
     }
@@ -307,10 +305,7 @@ fn write_bytes(
     observer: Option<&Observed>,
     deadline: Instant,
 ) -> bool {
-    if set_write_deadline(client, deadline).is_err() {
-        return false;
-    }
-    if client.write_all(bytes).is_err() {
+    if crate::proxy::answer_to(client, bytes, deadline).is_err() {
         return false;
     }
     if let Some(observer) = observer {

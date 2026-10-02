@@ -26,11 +26,21 @@ impl Chats {
     /// the no-op does not fire, the next `activate` restores from disk, and no
     /// save writes a state out of a slot whose content is no longer known.
     pub(crate) fn invalidate_residency(&self) {
+        let mut relaxed = 0;
         for slot in &self.slots {
             let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             if matches!(&state.resident, Residency::Resident(..)) {
                 state.resident = Residency::Unknown;
+                relaxed += 1;
             }
+        }
+        // The door's own view of the engine releasing its model: the number
+        // is what the next `activate` can no longer skip, and a report reads
+        // a wake as the restore that follows this line. Only a relaxation
+        // says anything — the tick asks every second while the model sleeps,
+        // and `0 slot(s)` every second is noise, not a record.
+        if relaxed > 0 {
+            log::info!("{}", crate::audit::line::residency_line(relaxed));
         }
     }
 

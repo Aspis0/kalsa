@@ -420,6 +420,9 @@ fn work(
     // The last start's config, kept after `owned` goes: §18's second stop
     // probes the address it remembers when nothing is owned anymore.
     let mut last: Option<ServerConfig> = None;
+    // Starts this process has asked for, as the number the log names them by:
+    // a report then sees a restart as a second start, not as a gap.
+    let mut starts: u64 = 0;
     loop {
         match inbox.recv_timeout(TICK) {
             Ok(Command::Start(config, outcome, settled)) => {
@@ -430,6 +433,7 @@ fn work(
                     continue; // already on: the switch is not a restart button
                 }
                 last = Some(config.as_ref().clone());
+                starts += 1;
                 // The verdict comes before the work: a caller that records
                 // the launch on acceptance must not wait out a handshake
                 // whose answer decides whether the record exists at all.
@@ -443,7 +447,7 @@ fn work(
                 // before the handshake, because the handshake's success is what
                 // reports the new server as running.
                 residency.forget();
-                match start_blocking(&config, Arc::clone(&releases), residency.clone()) {
+                match start_blocking(&config, Arc::clone(&releases), residency.clone(), starts) {
                     Ok(Started::Adopted { pid }) => {
                         set(
                             &state,
@@ -453,7 +457,7 @@ fn work(
                             },
                         );
                         log::info!(
-                            "engine adopted: {} (pid {})",
+                            "engine adopted #{starts}: {} (pid {})",
                             engine_name(&config.exe),
                             pid.map(|pid| pid.to_string())
                                 .unwrap_or_else(|| "unknown".to_string())
@@ -519,6 +523,7 @@ fn work(
                         Some(child) => {
                             if let Ok(Some(status)) = child.try_wait() {
                                 let reason = exit_reason(child, status);
+                                log::warn!("engine exit code: {}", exit_code(status));
                                 log::warn!("engine exited: {reason:?}");
                                 log_stderr_tail(child);
                                 owned = None;
@@ -787,6 +792,7 @@ fn start_blocking(
     config: &ServerConfig,
     releases: Arc<AtomicU64>,
     residency: Residency,
+    start: u64,
 ) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
@@ -835,7 +841,7 @@ fn start_blocking(
     // paths only: the argv's renderer cannot emit a verbose flag, so no
     // prompt text can ever ride the engine's stderr tail.
     log::info!(
-        "engine start: {} argv {}",
+        "engine start #{start}: {} argv {}",
         engine_name(&config.exe),
         argv_line(&config.argv)
     );
@@ -850,6 +856,7 @@ fn start_blocking(
     loop {
         if let Ok(Some(status)) = child.try_wait() {
             let reason = exit_reason(&child, status);
+            log::warn!("engine exit code: {}", exit_code(status));
             log::warn!("engine exited before it was ready: {reason:?}");
             log_stderr_tail(&child);
             return Err(reason);
@@ -1102,6 +1109,18 @@ fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure
     }
 }
 
+/// The exit as one number for the log. The reason above prefers the engine's
+/// own last line, which is the more useful sentence — and which is exactly
+/// why the code gets a line of its own: a report must be able to tell a clean
+/// exit from an access violation, and the tail cannot say that. A status with
+/// no code is a killed process on a platform with signals.
+fn exit_code(status: std::process::ExitStatus) -> String {
+    match status.code() {
+        Some(code) => code.to_string(),
+        None => format!("none ({status})"),
+    }
+}
+
 /// The one write to the state. What may land while a drain stands lives in
 /// `drain`: a state reading `Stopping` takes only its own end.
 fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
@@ -1148,6 +1167,18 @@ mod tests {
             joined.contains("all slots are idle") && joined.contains("metal dispatch"),
             "the ordinary lines survive: {joined}"
         );
+    }
+
+    /// The exit's own number, on the line of its own the log writes: the
+    /// reason beside it prefers the engine's last stderr line, so without
+    /// this a report cannot tell a clean exit from a crash.
+    #[test]
+    fn an_exit_code_is_the_number_the_log_names() {
+        #[cfg(unix)]
+        let status = std::os::unix::process::ExitStatusExt::from_raw(3 << 8);
+        #[cfg(windows)]
+        let status = std::os::windows::process::ExitStatusExt::from_raw(3);
+        assert_eq!(exit_code(status), "3");
     }
 
     /// The two walls the prompt-text leak has: the environment the child
@@ -1320,7 +1351,7 @@ mod tests {
             "--port".into(),
             "8290".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1340,7 +1371,7 @@ mod tests {
             "--port".into(),
             "9999".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1354,7 +1385,7 @@ mod tests {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
         let config = config(8292);
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1406,7 +1437,7 @@ mod tests {
         crate::hold_state_lock(&lock).expect("hold the lock as an earlier run would");
 
         let residency = Residency::new();
-        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone());
+        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1);
         let announced = residency.asleep();
 
         // Teardown before the assertions, so a failing one cannot leave the

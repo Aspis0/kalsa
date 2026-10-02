@@ -111,7 +111,7 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
     let Some(door) = room_door else {
         let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
         let answer = json_error(503, origin, "no_room", NO_ROOM);
-        let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+        let _ = proxy::answer_to(&mut client, &answer, deadline);
         return;
     };
     // The epoch guard, once, ahead of every route AND of the enrollment:
@@ -129,26 +129,26 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
                 "epoch_changed",
                 "The room's transcript restarted; drop what was cached and read it again.",
             );
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
             return;
         }
     }
     let Ok(member) = door.room.enroll(device.value()) else {
         let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
         let answer = json_error(500, origin, "internal", store_failed());
-        let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+        let _ = proxy::answer_to(&mut client, &answer, deadline);
         return;
     };
     match (path_of(&head.target), &head.method[..]) {
         (b"/kalsa/room/info", b"GET") => {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
             let answer = info(door, devices, member);
-            let _ = proxy::write_with_deadline(&mut client, &json_ok(origin, &answer), deadline);
+            let _ = proxy::answer_to(&mut client, &json_ok(origin, &answer), deadline);
         }
         (b"/kalsa/room/history", b"GET") => {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
             let answer = history(door, devices, member, &head.target, origin);
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/messages", b"POST") => {
             let answer = post(
@@ -163,7 +163,7 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
                     arrival,
                 },
             );
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/call", b"DELETE") => {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
@@ -172,10 +172,10 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
             match door.room.withdraw_call(member) {
                 kalsa_room::Withdrawn::Nothing => {
                     let answer = json_error(404, origin, "no_call", NO_CALL_TO_WITHDRAW);
-                    let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+                    let _ = proxy::answer_to(&mut client, &answer, deadline);
                 }
                 _ => {
-                    let _ = proxy::write_with_deadline(
+                    let _ = proxy::answer_to(
                         &mut client,
                         &json_ok_no_content(origin),
                         deadline,
@@ -185,15 +185,19 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
         }
         (b"/kalsa/room/name", b"PUT") => {
             let answer = set_name(&mut client, door, head, member, origin, deadline);
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/events", b"GET") => {
             // The stream owns the socket from here: it lives on its own
             // thread, because a follower never ends and must not spend a
-            // worker the completions need.
+            // worker the completions need. The request line says so: the
+            // head is written on that thread, so the status this worker
+            // knows is the one it is handing over.
             if proxy::discard_request_body(&mut client, head.body_length, deadline).is_err() {
                 return;
             }
+            crate::audit::status(200);
+            crate::audit::streamed();
             stream::serve(
                 client,
                 &door.room,
@@ -211,7 +215,7 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
         _ => {
             let _ = proxy::discard_request_body(&mut client, head.body_length, deadline);
             let answer = json_error(404, origin, "not_found", UNKNOWN_ROUTE);
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
         }
     }
 }

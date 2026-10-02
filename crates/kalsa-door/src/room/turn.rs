@@ -252,13 +252,29 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                     // to the engine, so the slot still holds what the tier
                     // says it holds.
                     if let Some(evicted) = lease.evicted() {
-                        if shared
+                        let to = DeviceId::new(ROOM_DEVICE);
+                        match shared
                             .chats
                             .handover(&shared.set, lease.slot(), evicted, shared.port)
-                            .is_err()
                         {
-                            publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
-                            return "handover_failed";
+                            Ok(saved) => log::info!(
+                                "{}",
+                                crate::audit::line::handover_line(lease.slot(), evicted, to, saved, None)
+                            ),
+                            Err(error) => {
+                                log::warn!(
+                                    "{}",
+                                    crate::audit::line::handover_line(
+                                        lease.slot(),
+                                        evicted,
+                                        to,
+                                        false,
+                                        Some(error.code())
+                                    )
+                                );
+                                publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
+                                return "handover_failed";
+                            }
                         }
                     }
                     break lease;

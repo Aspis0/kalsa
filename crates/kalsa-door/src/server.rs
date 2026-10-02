@@ -260,6 +260,7 @@ fn reject_busy(stream: &mut TcpStream) {
     // accepted from the non-blocking listener may inherit that mode.)
     let _ = stream.set_nonblocking(false);
     let _ = stream.set_write_timeout(Some(BUSY_WRITE));
+    log::warn!("{}", crate::audit::line::refusal_line(503, "door.listener_busy"));
     let _ = std::io::Write::write_all(stream, BUSY_RESPONSE);
     // Then take what the client has already sent: a request left unread
     // makes the close a reset, and a reset erases the answer just written.

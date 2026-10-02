@@ -49,6 +49,7 @@
 //! job fails with one honest sentence, kept for the retention window so a
 //! returning phone is told the truth instead of being kept waiting.
 
+mod audit;
 mod chunk;
 mod clocks;
 mod cors;

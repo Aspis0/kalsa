@@ -219,6 +219,12 @@ impl DeviceSet {
                 };
                 slots.free.remove(&slot);
                 slots.assigned.insert(device, slot);
+                // A seat handed out without taking it from anyone. An eviction
+                // is the caller's handover line, which knows whether the
+                // evicted chat reached the disk.
+                if evicted.is_none() {
+                    log::info!("{}", crate::audit::line::assigned_line(slot, device));
+                }
                 slot
             }
         };

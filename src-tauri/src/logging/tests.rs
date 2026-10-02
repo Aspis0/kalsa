@@ -517,7 +517,7 @@ fn an_engine_start_line_keeps_escape_shaped_separators_from_argv_to_the_file() {
     let engine_line = loop {
         if let Some(line) = live_lines(&dir)
             .into_iter()
-            .find(|line| line.contains("engine start:") && line.contains(r"\new\tmp\b"))
+            .find(|line| line.contains("engine start #1:") && line.contains(r"\new\tmp\b"))
         {
             break line;
         }

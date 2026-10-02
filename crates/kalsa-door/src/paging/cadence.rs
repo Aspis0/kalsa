@@ -190,6 +190,7 @@ pub(super) fn save_idle(
         // exclusively and renamed over that name only once the write finished
         // — never a partial state.
         let outcome = save(
+            "idle",
             dir,
             &file_name(model, device, &chat),
             &engine,

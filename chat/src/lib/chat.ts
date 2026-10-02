@@ -1,5 +1,6 @@
 import { SAMPLING_KNOBS } from "./knobs/sampling";
 import { parseContextSize } from "./contextSize";
+import { logUiEvent } from "./uiLog";
 import type { Sampling } from "./sampling";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
@@ -267,11 +268,15 @@ async function slotRoute(
     // app-owned, so the shell says it in the owner's language. The plain
     // text road is a legacy door or a proxy — shown as it arrived.
     if (response.status === 501) {
+      logUiEvent(`chat.${route}.no_tier`);
       return { kind: "no-tier", message: body || DOOR_SILENT };
     }
     try {
       const parsed = JSON.parse(body) as { code?: unknown };
       if (parsed && typeof parsed.code === "string") {
+        // The door's own code, carried through — never its sentence, which
+        // is shown on screen but never handed to the log.
+        logUiEvent(`chat.${route}.${doorCode(parsed.code)}`);
         return {
           kind: "refused",
           message: typeof (parsed as { text?: unknown }).text === "string"
@@ -283,14 +288,25 @@ async function slotRoute(
     } catch {
       // Not JSON: the legacy plain-text road below.
     }
-    return body
-      ? { kind: "refused", message: body }
-      : { kind: "refused", message: DOOR_SILENT, silent: true };
+    if (!body) {
+      logUiEvent(`chat.${route}.silent`);
+      return { kind: "refused", message: DOOR_SILENT, silent: true };
+    }
+    logUiEvent(`chat.${route}.refused`);
+    return { kind: "refused", message: body };
   } catch {
     // The door never answered. The chat's own requests say the server is
     // unreachable; this one says what that leaves behind for the slot.
+    logUiEvent(`chat.${route}.unreachable`);
     return { kind: "refused", message: DOOR_SILENT, silent: true };
   }
+}
+
+/** A door code as one log token: the door's own dotted code is kept whole
+    when it has the shape the log writes, and a body that is not a code gets
+    the local word instead — a prose body never becomes a log line. */
+function doorCode(code: string): string {
+  return /^[a-z0-9_.]{1,64}$/.test(code) ? code : "refused";
 }
 
 /** Opens a chat on the disk tier: the door saves what is in this device's slot

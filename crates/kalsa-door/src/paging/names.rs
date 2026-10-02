@@ -55,6 +55,13 @@ pub(super) fn valid_id(id: &str) -> bool {
 /// written under an older model belongs to its device like any other and
 /// dies with it.
 pub(super) fn owner(file: &str) -> Option<DeviceId> {
+    named(file).map(|(device, _)| device)
+}
+
+/// The device and the chat id a file name names. The id is the conversation's
+/// own and is never written anywhere: its only reader is [`crate::audit`],
+/// which writes four bytes of its SHA-256 instead.
+pub(super) fn named(file: &str) -> Option<(DeviceId, &str)> {
     let base = file.strip_suffix(STAGING).unwrap_or(file);
     let base = base.strip_suffix(SUFFIX)?;
     let rest = base.strip_prefix('d')?;
@@ -71,7 +78,7 @@ pub(super) fn owner(file: &str) -> Option<DeviceId> {
         return None;
     }
     let chat = rest.strip_prefix("-c")?;
-    valid_id(chat).then_some(DeviceId::new(id))
+    valid_id(chat).then_some((DeviceId::new(id), chat))
 }
 
 #[cfg(test)]

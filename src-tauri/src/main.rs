@@ -36,6 +36,7 @@ mod tailnet;
 mod tune_step;
 mod ticker;
 mod transport;
+mod ui_event;
 mod web;
 
 use std::io;
@@ -70,6 +71,11 @@ const SLOTS_DIR: &str = "slots";
 /// The one window, declared with this label in tauri.conf.json. Lookups
 /// go through this constant, so the two can never drift apart silently.
 const MAIN_WINDOW_LABEL: &str = "main";
+
+/// Page loads this process has seen: each page load's `Started` event
+/// increments it, so the first is the app's own start and every later one a
+/// reload of a window that never closed.
+static PAGE_LOADS: AtomicU64 = AtomicU64::new(0);
 
 struct Brain {
     supervisor: Supervisor,
@@ -2036,6 +2042,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // hook.
     let guard = std::sync::Arc::new(instance::claim());
     let app = tauri::Builder::default()
+        // The webview's own lifecycle on the log: the first page load of this
+        // process is the app start, every later one a reload — which is what
+        // "the app stopped and started again" looks like from the outside
+        // when the window never closed. The renderer's crash itself has no
+        // hook on Windows (tauri's process-terminate hook is macOS/iOS only);
+        // a reload landing after the first load is the reachable fingerprint.
+        .on_page_load(|webview, payload| {
+            // The start is what counts a load; the finished event names the
+            // same one, so a single load is `started #1` then `finished #1`,
+            // and a reload is `started #2`.
+            let load = match payload.event() {
+                tauri::webview::PageLoadEvent::Started => {
+                    PAGE_LOADS.fetch_add(1, Ordering::SeqCst) + 1
+                }
+                tauri::webview::PageLoadEvent::Finished => PAGE_LOADS.load(Ordering::SeqCst),
+            };
+            let event = match payload.event() {
+                tauri::webview::PageLoadEvent::Started => "started",
+                tauri::webview::PageLoadEvent::Finished => "finished",
+            };
+            log::info!(
+                "{}",
+                ui_event::page_line(load, event, webview.label(), payload.url().as_str())
+            );
+        })
         .manage(Brain::new())
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
@@ -2074,7 +2105,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_open_log_folder,
             brain_send_log,
             brain_previous_session_crashed,
-            brain_log_webview_error
+            brain_log_webview_error,
+            ui_event::brain_log_event
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);

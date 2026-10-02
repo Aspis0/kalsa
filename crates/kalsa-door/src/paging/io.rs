@@ -6,7 +6,9 @@
 
 use std::fs;
 use std::path::Path;
+use std::time::Instant;
 
+use super::names;
 use super::{answer_json, Residency, Slot};
 use crate::engine::{Call, Engine};
 
@@ -31,7 +33,7 @@ impl ChatError {
     /// saved-chat failure reads the same to the person waiting — the chat
     /// did not open, try again — and the distinctions live in the codes for
     /// the log.
-    fn code(&self) -> &'static str {
+    pub(crate) fn code(&self) -> &'static str {
         match self {
             Self::Unreachable => "door.engine_unreachable",
             Self::Save => "door.save_refused",
@@ -117,6 +119,28 @@ pub(super) enum Saved {
 /// An empty slot writes an empty state, and renaming that over a real file is
 /// how a sleeping engine destroys a chat it still has on disk.
 pub(super) fn save(
+    why: &str,
+    dir: &Path,
+    real: &str,
+    engine: &Engine<'_>,
+    still_resident: &dyn Fn() -> bool,
+) -> Result<Saved, ChatError> {
+    let started = Instant::now();
+    let result = save_now(dir, real, engine, still_resident);
+    let bytes = fs::metadata(dir.join(real)).ok().map(|meta| meta.len());
+    let outcome = match &result {
+        Ok(Saved::InPlace) => "ok".to_string(),
+        Ok(Saved::Nothing) => "nothing".to_string(),
+        Ok(Saved::Superseded) => "superseded".to_string(),
+        Err(error) => format!("code {}", error.code()),
+    };
+    log_chat(why, engine.slot, real, &outcome, started, bytes);
+    result
+}
+
+/// The save itself. The wrapper above is the log's: every path out of here
+/// still says what it left behind, the failed ones included.
+fn save_now(
     dir: &Path,
     real: &str,
     engine: &Engine<'_>,
@@ -184,7 +208,24 @@ pub(super) fn save(
 /// ever needed, is the engine's to make. Neither branch lets the door write
 /// over a file with state it cannot name, which is what makes the unknown
 /// safer than guessing between empty and the old record.
-pub(super) fn restore(state: &mut Slot, engine: &Engine<'_>, name: &str) -> Result<(), ChatError> {
+pub(super) fn restore(
+    dir: &Path,
+    state: &mut Slot,
+    engine: &Engine<'_>,
+    name: &str,
+) -> Result<(), ChatError> {
+    let started = Instant::now();
+    let bytes = fs::metadata(dir.join(name)).ok().map(|meta| meta.len());
+    let result = restore_now(state, engine, name);
+    let outcome = match &result {
+        Ok(()) => "ok".to_string(),
+        Err(error) => format!("code {}", error.code()),
+    };
+    log_chat("restore", engine.slot, name, &outcome, started, bytes);
+    result
+}
+
+fn restore_now(state: &mut Slot, engine: &Engine<'_>, name: &str) -> Result<(), ChatError> {
     match engine.call("restore", Some(name), None) {
         Ok(_) => Ok(()),
         Err(Call::Unreachable) => {
@@ -208,4 +249,35 @@ pub(super) fn erase_slot(engine: &Engine<'_>) -> Result<(), ChatError> {
             Call::Unreachable => ChatError::Unreachable,
             Call::Refused => ChatError::SlotRefused,
         })
+}
+
+/// One disk-tier action's line, from the file name the tier built: the device
+/// and the chat are read back out ([`names::named`]), and the id reaches the
+/// log only as [`crate::audit::line::id_hash`]. A name this parser does not know — a door
+/// built against something else — is still logged, with the device unknown,
+/// so the outcome is never the thing that goes missing.
+fn log_chat(
+    action: &str,
+    slot: u32,
+    file: &str,
+    outcome: &str,
+    started: Instant,
+    bytes: Option<u64>,
+) {
+    let (device, chat) = match names::named(file) {
+        Some((device, chat)) => (Some(device), chat),
+        None => (None, "?"),
+    };
+    log::info!(
+        "{}",
+        crate::audit::line::chat_line(
+            action,
+            slot,
+            device,
+            chat,
+            outcome,
+            started.elapsed().as_millis() as u64,
+            bytes,
+        )
+    );
 }

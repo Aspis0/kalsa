@@ -47,6 +47,7 @@ use self::io::{erase_slot, restore, save, STAGING};
 // every path that ends in one.
 pub(crate) use self::io::ChatError;
 use self::names::{file_name, valid_id};
+use crate::audit;
 use crate::cors;
 use crate::devices::DeviceId;
 use crate::engine::Engine;
@@ -173,22 +174,32 @@ impl Chats {
             Some(route) if head.method == b"POST" => route,
             _ => {
                 let _ = proxy::discard_request_body(client, head.body_length, deadline);
+                audit::reason("door.unknown_route");
                 return answer(404, origin, UNKNOWN);
             }
         };
         let Ok(body) = read_payload(client, head.body_length, deadline) else {
+            audit::reason("door.malformed");
             return answer(400, origin, MALFORMED);
         };
         let Some(id) = payload::id(&body) else {
+            audit::reason("door.malformed");
             return answer(400, origin, MALFORMED);
         };
         if !valid_id(&id) {
+            audit::reason("door.bad_id");
             return answer(400, origin, BAD_ID);
         }
         let (model, dir) = match (self.model.as_deref(), self.dir.as_deref()) {
             (Some(model), Some(dir)) => (model, dir),
-            (None, _) => return answer(501, origin, NO_MODEL),
-            (Some(_), None) => return answer(501, origin, NO_DIR),
+            (None, _) => {
+                audit::reason("door.no_model");
+                return answer(501, origin, NO_MODEL);
+            }
+            (Some(_), None) => {
+                audit::reason("door.no_dir");
+                return answer(501, origin, NO_DIR);
+            }
         };
         let engine = Engine {
             port: upstream_port,
@@ -196,13 +207,47 @@ impl Chats {
             salt: &salt,
             deadline,
         };
+        // The action's own line: which chat (by hash), what happened, how long
+        // it took and how big its file is. Read before the action for erase
+        // (the file is what is being removed) and after it for activate (the
+        // file is what was just restored); one of the two is always there.
+        let file = file_name(model, device, &id);
+        let before = fs::metadata(dir.join(&file)).ok().map(|meta| meta.len());
+        let action = match &route {
+            Route::Activate => "activate",
+            Route::Erase => "erase",
+        };
+        let started = Instant::now();
         let result = match route {
             Route::Activate => self.activate(model, dir, device, &engine, &id),
             Route::Erase => self.erase(model, dir, device, &engine, &id),
         };
+        let size = fs::metadata(dir.join(&file))
+            .ok()
+            .map(|meta| meta.len())
+            .or(before);
+        let outcome = match &result {
+            Ok(()) => "ok".to_string(),
+            Err(error) => format!("code {}", error.code()),
+        };
+        log::info!(
+            "{}",
+            audit::line::chat_line(
+                action,
+                slot,
+                Some(device),
+                &id,
+                &outcome,
+                started.elapsed().as_millis() as u64,
+                size,
+            )
+        );
         match result {
             Ok(()) => no_content(origin),
-            Err(error) => error.answer(origin),
+            Err(error) => {
+                audit::reason(error.code());
+                error.answer(origin)
+            }
         }
     }
 
@@ -250,7 +295,7 @@ impl Chats {
             // A save the engine refused leaves the slot as it was, so the
             // switch is refused with it: restoring over that slot would lose
             // the only copy of the chat that is open.
-            save(dir, &file_name(model, device, previous), engine, &|| true)?;
+            save("activate", dir, &file_name(model, device, previous), engine, &|| true)?;
         }
         if !dir.join(&target).exists() {
             // The one branch that is not a restore; the doc above says why it
@@ -261,7 +306,7 @@ impl Chats {
             state.dirty_at = None;
             return Ok(());
         }
-        if let Err(error) = restore(&mut state, engine, &target) {
+        if let Err(error) = restore(dir, &mut state, engine, &target) {
             // An unanswered restore is not repaired: the engine may never have
             // run it, so nothing is known to be missing, and the chat that was
             // open is already saved and renamed on disk by the save above. The
@@ -289,7 +334,7 @@ impl Chats {
                 state.dirty_at = None;
                 return Ok(());
             };
-            if let Err(repair) = restore(&mut state, engine, &file_name(model, device, previous)) {
+            if let Err(repair) = restore(dir, &mut state, engine, &file_name(model, device, previous)) {
                 return Err(repair);
             }
             state.resident = Residency::Resident(device, previous.to_string());
@@ -380,28 +425,28 @@ impl Chats {
         slot: u32,
         evicted: DeviceId,
         upstream_port: u16,
-    ) -> Result<(), ChatError> {
+    ) -> Result<bool, ChatError> {
         let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
-            return Ok(());
+            return Ok(false);
         };
         let mut state = self.lock(slot)?;
         let chat = match &state.resident {
             Residency::Resident(owner, chat) if *owner == evicted => chat.clone(),
-            _ => return Ok(()),
+            _ => return Ok(false),
         };
         // A clean slot's file already holds its state — there is nothing to
         // write, and a tick that wrote the slot just before this lease
         // landed would otherwise be repeated here: the same file, twice.
         if state.dirty_at.is_none() {
             state.resident = Residency::Unknown;
-            return Ok(());
+            return Ok(false);
         }
         let Some(salt) = devices.cache_salt(evicted) else {
             // The evicted device left the set: the record dies here the way
             // `activate` drops it, and there is nobody left to save for.
             state.resident = Residency::Empty;
             state.dirty_at = None;
-            return Ok(());
+            return Ok(false);
         };
         let engine = Engine {
             port: upstream_port,
@@ -411,10 +456,10 @@ impl Chats {
         };
         // The lock is held across the engine call, so the commit check is
         // vacuously true — the residency cannot move under it.
-        save(dir, &file_name(model, evicted, &chat), &engine, &|| true)?;
+        save("handover", dir, &file_name(model, evicted, &chat), &engine, &|| true)?;
         state.resident = Residency::Unknown;
         state.dirty_at = None;
-        Ok(())
+        Ok(true)
     }
 
     /// Writes out every slot that changed and has been quiet long enough, and

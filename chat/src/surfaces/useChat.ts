@@ -22,6 +22,7 @@ import type { SurfaceKey } from "../app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
+import { logUiEvent } from "../lib/uiLog";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
 import { useServerFacts } from "./useServerFacts";
 import { setupArm } from "../components/EmptyState";
@@ -56,10 +57,33 @@ interface ChatShell {
   settings: ChatSettings;
 }
 
+/** The stable code behind a slot notice. The gate's own words name their own
+    case; a notice that arrived with the door's sentence logs the UI fact alone,
+    because `slotRoute` already logged the door's own code for that refusal. */
+function slotCode(notice: SlotNotice): string {
+  switch (notice.own) {
+    case "hold-waiting":
+      return "chat.slot_hold_waiting";
+    case "hold-expired":
+      return "chat.slot_hold_expired";
+    case "door-silent":
+      return "chat.slot_door_silent";
+    default:
+      return notice.failed ? "chat.slot_refused" : "chat.slot_no_tier";
+  }
+}
+
 export function useChat(shell: ChatShell) {
   const { openSurface, announce, setSlotNotice, settings } = shell;
   const { table, tag } = useLanguage();
   const t = table.shell;
+
+  /** The slot sentence on screen, and its code on the log: the person reads the
+      door's words (or the gate's), the report reads which failure it was. */
+  function noteSlot(notice: SlotNotice | null): void {
+    if (notice) logUiEvent(slotCode(notice));
+    setSlotNotice(notice);
+  }
   const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
   const [storageFull, setStorageFull] = useState(false);
   // What the door answered about a slot, when the answer is not a plain
@@ -95,15 +119,19 @@ export function useChat(shell: ChatShell) {
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
 
-  useEffect(
-    () =>
-      store.subscribe(() => {
-        setConversations(store.list());
-        // A code, not a sentence — the words are the table's below.
-        setStorageFull(store.getWriteError() === "storage-full");
-      }),
-    [],
-  );
+  useEffect(() => {
+    // Whether the last write failure was already reported: the subscription
+    // fires on every write, the line is once per failure episode.
+    let storageFullSeen = false;
+    return store.subscribe(() => {
+      setConversations(store.list());
+      // A code, not a sentence — the words are the table's below.
+      const full = store.getWriteError() === "storage-full";
+      if (full && !storageFullSeen) logUiEvent("chat.storage_full");
+      storageFullSeen = full;
+      setStorageFull(full);
+    });
+  }, []);
 
   // The brain's own server fills the blanks, so the chat never calls itself
   // unconfigured while the machine is serving; with the machine off the
@@ -291,7 +319,7 @@ export function useChat(shell: ChatShell) {
         store.remove(fresh.id);
         return;
       }
-      setSlotNotice(result.notice);
+      noteSlot(result.notice);
       convId = fresh.id;
     }
     const target = convId;
@@ -313,6 +341,7 @@ export function useChat(shell: ChatShell) {
           have: trial.have,
         });
         setAttachStatus(null);
+        logUiEvent("chat.attach_refused");
         announce(t.tooMuchAtOnce);
         return;
       }
@@ -324,6 +353,7 @@ export function useChat(shell: ChatShell) {
       );
     } catch (error) {
       setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
+      logUiEvent("chat.attach_failed");
       announce(t.attachmentFailed);
     }
   }
@@ -341,6 +371,7 @@ export function useChat(shell: ChatShell) {
       setAttachStatus(
         error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
       );
+      logUiEvent("chat.attach_failed");
     }
   }
 
@@ -428,7 +459,7 @@ export function useChat(shell: ChatShell) {
       const result = await gate.create(id);
       // A creation already in flight: this Enter is ignored, not a second chat.
       if (result === null) return;
-      setSlotNotice(result.notice);
+      noteSlot(result.notice);
       // The task can land after the person chose another chat, and a chat that
       // is no longer current must not be sent into.
       if (!result.opened || !gate.isCurrent(result.opened)) return;
@@ -465,7 +496,7 @@ export function useChat(shell: ChatShell) {
         if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
         // Committed before the measurement below: the slot sentence sits above
         // the bar the flight aims at.
-        flushSync(() => setSlotNotice(result.notice));
+        flushSync(() => noteSlot(result.notice));
         flyBarInto(text, result.opened, calm);
       })();
       return;
@@ -536,7 +567,7 @@ export function useChat(shell: ChatShell) {
     // so there is nothing of this chat left to remove.
     if (!door) return;
     void eraseChat(door.endpoint, door.token, id).then((answer) => {
-      if (answer.kind === "refused") setSlotNotice({ failed: true, message: answer.message });
+      if (answer.kind === "refused") noteSlot({ failed: true, message: answer.message });
     });
   }
 
@@ -577,7 +608,7 @@ export function useChat(shell: ChatShell) {
       // anyway would be showing a chat the slot does not hold while the next
       // switch saves that slot under this chat's name.
       const result = await gate.open(id);
-      setSlotNotice(result.notice);
+      noteSlot(result.notice);
       if (!result.opened || !gate.isCurrent(result.opened)) return;
       openSurface("chat");
       setDrawerOpen(false);

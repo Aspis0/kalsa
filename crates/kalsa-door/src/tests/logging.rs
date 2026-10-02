@@ -1,0 +1,261 @@
+//! The door's own lines, driven through a real door and read back from a
+//! logger of the test's own: what a request line says, and what no line ever
+//! says — a query string, a chat id, a message body.
+//!
+//! The canary is one string placed in every position a client's words could
+//! reach a line — a query, a body, an id — and then searched for in every
+//! line the door wrote. It is not a secret; it is only unique in this run.
+//! So is every id and route below: the binary's tests run in parallel and
+//! share one capture, so each assertion finds its own line by a marker no
+//! other test writes, never by line order.
+
+use std::sync::{Mutex, Once, OnceLock};
+use std::time::{Duration, Instant};
+
+use super::paging_support::{activate, door_of, file_name, status_of, temp_dir, Engine, Reply, HASH};
+use super::support::{door, exchanged, RecordingUpstream};
+use super::*;
+use crate::audit::line::id_hash;
+
+/// A string no other test writes, and one every forbidden field carries.
+const CANARY: &str = "LOG-LEAK-CANARY-a91f";
+/// A route no other test calls, so its request line is unmistakably this
+/// test's — with the canary only where the log must lose it.
+const SHAPE_ROUTE: &str = "/v1/logline-shape-probe";
+/// A chat id of the shape the app mints, unique to this module (lowercase:
+/// a real id's alphabet). `id_hash` is what the log may write.
+const CHAT: &str = "0f1e2d3c-5a6b-4c7d-8e9f-0011logleakcanary";
+
+/// Every line the door wrote in this run.
+fn lines() -> &'static Mutex<Vec<String>> {
+    static LINES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+    LINES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+struct Capture;
+
+/// One static, not a boxed logger: the facade's `alloc` feature is off in
+/// this crate, and a capture that needs no heap is all a test wants anyway.
+static CAPTURE: Capture = Capture;
+
+impl log::Log for Capture {
+    fn enabled(&self, _: &log::Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &log::Record) {
+        if let Ok(mut lines) = lines().lock() {
+            lines.push(record.args().to_string());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+/// Installs the capture once for the test binary. The whole binary's lines go
+/// through it; every assertion below is by a marker only its own test writes.
+fn capture() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let _ = log::set_logger(&CAPTURE);
+        log::set_max_level(log::LevelFilter::Info);
+    });
+}
+
+/// Waits for a line containing `marker`, then answers every line written so
+/// far. A marker that never arrives costs the wait and returns anyway, so the
+/// assertion that reports it is the test's own.
+fn wait_for(marker: &str) -> Vec<String> {
+    let until = Instant::now() + Duration::from_secs(2);
+    loop {
+        let found = lines()
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.contains(marker));
+        if found || Instant::now() >= until {
+            // The request line is written when the guard drops, a moment
+            // after the chat line that names the marker: let both land
+            // before the snapshot the assertions read.
+            thread::sleep(Duration::from_millis(50));
+            return lines().lock().unwrap().clone();
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
+    capture();
+    let upstream = RecordingUpstream::start();
+    let token = credential();
+    let (door, address) = door(upstream.port, &[&token]);
+    let body = format!("{{\"messages\":[{{\"role\":\"user\",\"content\":\"{CANARY}\"}}]}}");
+    let request = format!(
+        "POST {SHAPE_ROUTE}?api_key={CANARY}&q={CANARY} HTTP/1.1\r\n\
+         Host: localhost\r\nAuthorization: Bearer {token}\r\n\
+         Content-Type: application/json\r\nContent-Length: {}\r\n\
+         Connection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let response = exchanged(address, &request);
+    assert_eq!(
+        status_of(&response),
+        200,
+        "{}",
+        String::from_utf8_lossy(&response)
+    );
+
+    let marker = format!("door request: POST {SHAPE_ROUTE} device 0 status 200");
+    let lines = wait_for(&marker);
+    let line = lines
+        .iter()
+        .find(|line| line.contains(&marker))
+        .expect("the door wrote no request line for the probe route");
+    assert!(line.contains("ms ") && line.ends_with('b'), "{line}");
+    assert!(
+        !lines.iter().any(|line| line.contains(CANARY)),
+        "a client's words reached the log: {lines:?}"
+    );
+    // The query is gone, and the route it hung from is still named.
+    assert!(!line.contains("api_key"), "{line}");
+    assert!(line.contains(SHAPE_ROUTE), "{line}");
+    door.shutdown();
+}
+
+#[test]
+fn a_chat_line_names_the_hash_and_never_the_chat_id() {
+    capture();
+    let slot_dir = temp_dir("log-chat");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    std::fs::write(slot_dir.join(file_name(CHAT)), b"state").unwrap();
+
+    assert_eq!(status_of(&activate(address, Some(&token), CHAT)), 204);
+    let marker = format!("chat activate: slot 0 device 0 chat {} ", id_hash(CHAT));
+    let lines = wait_for(&marker);
+    let line = lines
+        .iter()
+        .find(|line| line.contains(&marker))
+        .expect("the door wrote no activate line for this chat");
+    assert!(line.contains("ok") && line.contains("ms ") && line.ends_with('b'), "{line}");
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("chat restore:") && line.contains(&id_hash(CHAT))),
+        "the restore inside the switch is not on the record: {lines:?}"
+    );
+    assert!(
+        !lines.iter().any(|line| line.contains(CHAT)),
+        "the chat id reached the log: {lines:?}"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_refused_chat_line_carries_the_code_and_never_a_sentence() {
+    capture();
+    let slot_dir = temp_dir("log-refusal");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second) = ("l0g-a1111", "l0g-b2222");
+    std::fs::write(slot_dir.join(file_name(first)), b"state").unwrap();
+    std::fs::write(slot_dir.join(file_name(second)), b"state").unwrap();
+    assert_eq!(status_of(&activate(address, Some(&token), second)), 204);
+
+    // The save of what is open succeeds, the restore of the chat asked for is
+    // refused, and the repair puts the open chat back: the refusal the owner
+    // reads as "could not open this conversation".
+    engine.reply([Reply::Answered(1), Reply::Refused, Reply::Answered(1)]);
+    let response = activate(address, Some(&token), first);
+    assert_eq!(status_of(&response), 502);
+
+    let marker = format!(
+        "chat activate: slot 0 device 0 chat {} code door.restore_failed",
+        id_hash(first)
+    );
+    let lines = wait_for(&marker);
+    assert!(
+        lines.iter().any(|line| line.contains(&marker)),
+        "the chat line carries no code: {lines:?}"
+    );
+    assert!(
+        lines.iter().any(|line| {
+            line.contains("chat restore:")
+                && line.contains(&id_hash(first))
+                && line.contains("code door.slot_empty")
+        }),
+        "the refused restore is not on the record: {lines:?}"
+    );
+    // The request line of this switch, by the code only it can carry.
+    assert!(
+        lines.iter().any(|line| {
+            line.contains("door request: POST /kalsa/chat/activate device 0 status 502 reason door.restore_failed")
+        }),
+        "the request line carries no reason code: {lines:?}"
+    );
+    assert!(
+        !lines
+            .iter()
+            .any(|line| line.contains(CHAT) || line.contains(first) || line.contains(second)),
+        "a chat id reached the log: {lines:?}"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_handover_says_which_devices_and_whether_it_was_saved() {
+    capture();
+    let upstream = RecordingUpstream::start();
+    let (first, second) = (credential(), credential());
+    // One seat, two devices: the second takes the first's.
+    let (door, address) = door(upstream.port, &[&first, &second]);
+
+    assert_eq!(
+        status_of(&activate(address, Some(&first), "l0g-c3333")),
+        501,
+        "the tier is not wired here, so the route answers no_model"
+    );
+    assert_eq!(status_of(&activate(address, Some(&second), "l0g-d4444")), 501);
+
+    let lines = wait_for("slot 0 handover: device 0 -> device 1");
+    assert!(
+        lines.iter().any(|line| line.contains("slot 0 assigned: device 0")),
+        "the first seat is not on the record: {lines:?}"
+    );
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("slot 0 handover: device 0 -> device 1 saved no")),
+        "the handover line is missing or lies about the save: {lines:?}"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_release_relaxes_the_map_and_says_how_many_slots() {
+    capture();
+    let slot_dir = temp_dir("log-release");
+    let engine = Engine::start(&slot_dir);
+    let tokens: Vec<String> = (0..4).map(|_| credential()).collect();
+    let borrowed: Vec<&str> = tokens.iter().map(String::as_str).collect();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &borrowed);
+    // Four devices, four seats, four residents: the count on the line is this
+    // test's own, not any other test's one.
+    for (index, token) in borrowed.iter().enumerate() {
+        let chat = format!("l0g-e{index}0000");
+        assert_eq!(status_of(&activate(address, Some(token), &chat)), 204);
+    }
+
+    door.invalidate_residency();
+    let lines = wait_for("engine residency invalidated: 4 slot(s) -> unknown");
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("engine residency invalidated: 4 slot(s) -> unknown")),
+        "the release is not on the record: {lines:?}"
+    );
+    door.shutdown();
+}

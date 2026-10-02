@@ -118,7 +118,7 @@ pub(super) fn serve(
         None => {
             log::error!("a member with no join point opened a stream");
             let answer = json_error(500, origin, "internal", "The room's store failed on disk.");
-            let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
             return;
         }
     };
@@ -137,14 +137,14 @@ pub(super) fn serve(
                     Some(cursor) => cursor,
                     None => {
                         let answer = json_error(400, origin, "bad_cursor", BAD_LAST_EVENT_ID);
-                        let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+                        let _ = proxy::answer_to(&mut client, &answer, deadline);
                         return;
                     }
                 }
             }
             None => {
                 let answer = json_error(400, origin, "bad_request", BAD_LAST_EVENT_ID);
-                let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
+                let _ = proxy::answer_to(&mut client, &answer, deadline);
                 return;
             }
         },
@@ -243,7 +243,7 @@ fn follow(follower: Follower) {
     if cut(&ctx) {
         return;
     }
-    if proxy::write_with_deadline(&mut client, &head, deadline).is_err() {
+    if proxy::answer_to(&mut client, &head, deadline).is_err() {
         return;
     }
     // One state snapshot before anything else — the same object `info`
@@ -256,7 +256,7 @@ fn follow(follower: Follower) {
             &super::routes::ai_state(&room, &devices, you, room.turn_state().state, None, None),
         )
     };
-    if proxy::write_with_deadline(&mut client, &snapshot, deadline).is_err() {
+    if proxy::answer_to(&mut client, &snapshot, deadline).is_err() {
         return;
     }
     let mut out = Vec::new();
@@ -271,7 +271,7 @@ fn follow(follower: Follower) {
             Take::Events => {
                 for event in &out {
                     let frame = frame(&room, &devices, you, event);
-                    if proxy::write_with_deadline(&mut client, &frame, deadline).is_err() {
+                    if proxy::answer_to(&mut client, &frame, deadline).is_err() {
                         return;
                     }
                 }
@@ -279,7 +279,7 @@ fn follow(follower: Follower) {
             }
             Take::TimedOut => {
                 if last_write.elapsed() >= PING
-                    && proxy::write_with_deadline(&mut client, b": ping\n\n", deadline).is_err()
+                    && proxy::answer_to(&mut client, b": ping\n\n", deadline).is_err()
                 {
                     return;
                 }

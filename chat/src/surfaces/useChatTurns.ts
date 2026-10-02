@@ -19,6 +19,7 @@ import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
 import type { FailedState } from "../components/Thread";
 import { useLanguage } from "../i18n/useLanguage";
+import { logUiEvent } from "../lib/uiLog";
 
 /** One held web call and the one function that ends its wait. The id is the
     ask's identity on screen: an answer carries it back, and settles only the
@@ -153,6 +154,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           ...prev,
           [assistantId]: { messageId: assistantId, kind: "oversize" },
         }));
+        logUiEvent("chat.turn_oversize");
         announce(shell.tooMuchAtOnce);
         return;
       }
@@ -304,6 +306,9 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           const state: FailedState = { messageId: assistantId, kind };
           persistLive();
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
+          // The kind is the code's tail; the hyphen in `bad-response` is not
+          // a character the log writes, so it leaves as an underscore.
+          logUiEvent(`chat.turn_${kind.replace(/-/g, "_")}`);
           announce(shell.stoppedBeforeFinishing);
         }
       } finally {
