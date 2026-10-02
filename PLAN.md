@@ -904,6 +904,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   **S23 in-app per-turn HTP proof PASS** (`s23-layers-device-proof/REPORT.md`, GLM cd50da8b, APK run 36951238850 =
   app 101c2bdd): 46/46 lane-on chunks `layers_device:"HTP0"`, 21/21 lane-off GPU chunks `GPUOpenCL`; a lane-on
   route=gpu turn reports actual "gpu" but HTP0 at NPU speed (167 vs 102-112 tok/s). Label != device closed.
+  Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
+  app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
+  expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
+  `ios-readiness/BINDING-PATCHES.md` (FATTN_SMEM in the Metal overlay, arm/quants.c on x86_64, Podfile CXX20 flags,
+  podspec ggml-cpu glob).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
