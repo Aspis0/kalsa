@@ -27,8 +27,12 @@ use crate::{command_text, once_present};
 /// AdapterRAM itself
 /// still stands — it is the fallback the parser has always used, not the
 /// liar the cap makes it.
-#[cfg(any(target_os = "windows", test))]
 const WMI_SATURATION_BYTES: u64 = 0xFFF00000;
+
+/// A trailing token is a row's memory only at a megabyte or more: model
+/// numbers ("RX 6600", "UHD Graphics 630") are small and stay part of the
+/// name; real `AdapterRAM` never is.
+const TRAILING_MEMORY_FLOOR: u64 = 1024 * 1024;
 
 pub fn backend() -> Backend {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -246,7 +250,6 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// "Radeon RX Vega 64", "Radeon Pro W7800", "Radeon VII"); the four-digit M
 /// of an RX 6800M is not the three-digit M of an APU. `lowered` is already
 /// lowercase.
-#[cfg(any(target_os = "windows", test))]
 fn is_amd_integrated(lowered: &str) -> bool {
     if !lowered.contains("radeon") {
         return false;
@@ -270,14 +273,17 @@ fn is_amd_integrated(lowered: &str) -> bool {
     apu_model && !card_model
 }
 
-/// Reads the video controllers' text — wmic's, or the PowerShell fallback's
-/// with the same shape: the memory, when there is one, leading each row.
+/// Reads the video controllers' text — wmic's or the PowerShell fallback's:
+/// each row carries its memory at one end, and which end is read from the
+/// text itself ([`row_leads_with_memory`]), never assumed.
 ///
 /// One scan feeds both answers detection gives from this text: whether a
 /// card is discrete and the size it budgets (wrapped below) and the name of
 /// the row that size came from — the adapter the device step matches the
-/// engine's own device list against. The name decides whether it is
-/// discrete; the memory is reported only
+/// engine's own device list against. Only rows that classify discrete are
+/// ever candidates for that name, and it is the row the budget took its
+/// size from, so the two answers cannot name different cards. The memory is
+/// reported only
 /// when it is not a non-answer: zero, or sitting on the 32-bit saturation
 /// line (`WMI_SATURATION_BYTES`). In that case — and only in that case —
 /// `registry_size` is asked the controller's name and may answer with this
@@ -287,29 +293,26 @@ fn is_amd_integrated(lowered: &str) -> bool {
 /// supply the size). Injected rather than called, so the whole decision is
 /// testable on a machine with no such registry; the real answer is
 /// `vram_registry`'s walk, behind `cfg(windows)`.
-#[cfg(any(target_os = "windows", test))]
 pub(crate) fn scan_video_controllers(
     text: &str,
     mut registry_size: impl FnMut(&str) -> Option<u64>,
 ) -> (bool, Option<u64>, Option<String>) {
+    let memory_leads = row_leads_with_memory(text);
     let mut best: Option<u64> = None;
     let mut best_name: Option<String> = None;
     let mut discrete_names: Vec<String> = Vec::new();
+    let mut big_unknown: Vec<String> = Vec::new();
     let mut discrete = false;
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-        // The memory, when present, is the row's FIRST token — both
-        // producers shape it that way — and it is consumed only when it
-        // parses as a size: a numberless row keeps its whole name ("NVIDIA
-        // T400" stays discrete), and a number further into a name ("RX
-        // 6600") is never a size.
-        let mut tokens = line.split_whitespace().peekable();
-        let mut memory: Option<u64> = None;
-        if let Some(bytes) = tokens.peek().and_then(|token| token.parse::<u64>().ok()) {
-            memory = Some(bytes);
-            tokens.next();
-        }
+        // The memory sits at the producer's own end of the row and is
+        // consumed only when it parses as a size: a numberless row keeps
+        // its whole name ("NVIDIA T400" stays discrete), and a number
+        // inside a name ("RX 6600") is never a size — the trailing side
+        // also demands TRAILING_MEMORY_FLOOR, model numbers being small.
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        let (memory, name_tokens) = split_row_memory(&tokens, memory_leads);
         let mut name = String::new();
-        for token in tokens {
+        for token in name_tokens {
             name.push_str(token);
             name.push(' ');
         }
@@ -357,18 +360,70 @@ pub(crate) fn scan_video_controllers(
                     best = Some(bytes);
                     best_name = Some(name.trim().to_string());
                 }
+            } else if memory.is_some_and(|bytes| bytes >= WMI_SATURATION_BYTES) {
+                // Big, unknown: the field spoke ("at least this much") and
+                // the registry did not — the row keeps its claim on the
+                // name instead of losing it to an unread size.
+                big_unknown.push(name.trim().to_string());
             }
         }
     }
-    // The row the budget came from: the biggest readable size wins (ties
-    // keep the first), and a lone discrete row is its own answer when no
-    // size resolved. Several rows and no size leave the text unable to say
-    // which card is meant — no name, never a guess.
+    // The name from discrete rows only, and the same row the budget took
+    // its size from: the biggest resolved size wins (ties keep the first);
+    // with no resolved size the lone discrete row is its own answer, and
+    // among several the one that said "big, unknown" — a saturated field is
+    // a statement, a zero or an absent one is not. Several of those leave
+    // the text unable to say which card is meant — no name, never a guess.
     let budget_name = best_name.or_else(|| match discrete_names.len() {
         1 => discrete_names.into_iter().next(),
+        _ if big_unknown.len() == 1 => big_unknown.into_iter().next(),
         _ => None,
     });
     (discrete, best, budget_name)
+}
+
+/// Which end of a row carries the memory. The PowerShell fallback leads with
+/// it and prints no header; wmic prints its fields in the order the query
+/// asked — `get name,AdapterRAM` comes back NAME FIRST — and its header
+/// ("Name AdapterRAM" / "AdapterRAM Name") declares the order for its rows.
+/// Headerless text settles on a leading number, which is PowerShell's shape;
+/// no wmic capture exists in the repo to trust (docs/WHAT-IS-MISSING.md §22),
+/// so the text itself decides, never this file.
+fn row_leads_with_memory(text: &str) -> bool {
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let lowered = line.to_ascii_lowercase();
+        if lowered.contains("name") && lowered.contains("adapterram") {
+            return !lowered.starts_with("name"); // the header declares it
+        }
+        if line
+            .split_whitespace()
+            .next()
+            .is_some_and(|token| token.parse::<u64>().is_ok())
+        {
+            return true; // a number leads: PowerShell's row
+        }
+    }
+    false // no header and no leading number anywhere: wmic's rows without it
+}
+
+/// One row split into its memory — at the end the producer puts it, if it
+/// put one there — and the name's tokens. The trailing side demands
+/// [`TRAILING_MEMORY_FLOOR`]: a name-first row with a blank AdapterRAM
+/// leaves its name alone, and names end in small numbers.
+fn split_row_memory<'a>(tokens: &'a [&'a str], memory_leads: bool) -> (Option<u64>, &'a [&'a str]) {
+    if memory_leads {
+        return match tokens.first().and_then(|token| token.parse::<u64>().ok()) {
+            Some(bytes) => (Some(bytes), &tokens[1..]),
+            None => (None, tokens),
+        };
+    }
+    match tokens.split_last() {
+        Some((last, name)) if !name.is_empty() => match last.parse::<u64>() {
+            Ok(bytes) if bytes >= TRAILING_MEMORY_FLOOR => (Some(bytes), name),
+            _ => (None, tokens),
+        },
+        _ => (None, tokens),
+    }
 }
 
 /// What the scan says about this machine's memory path: the card's size when
@@ -387,9 +442,10 @@ pub fn backend_from_video_controllers_with(
     }
 }
 
-/// The name of the discrete adapter the budget came from, from text a test
-/// supplied — the pure half of [`discrete_name`], registry injected.
-#[cfg(any(target_os = "windows", test))]
+/// The name of the discrete adapter the budget came from, from supplied
+/// text — the pure half of [`discrete_name`], registry injected. Public on
+/// every platform so the device step's tests can run the whole chain (WMI
+/// text → name → `--device`) wherever they run.
 pub fn discrete_name_from_video_controllers_with(
     text: &str,
     registry_size: impl FnMut(&str) -> Option<u64>,
@@ -835,6 +891,91 @@ mod tests {
             discrete_name_from_video_controllers_with(sized, |_| None).as_deref(),
             Some("AMD Radeon RX 6600")
         );
+    }
+
+    /// The producer's field order, read from its own text: PowerShell
+    /// leads with the memory and prints no header; wmic's header declares
+    /// the order its rows follow (`get name,AdapterRAM` comes back name
+    /// first), and a headerless row settles for itself.
+    #[test]
+    fn the_rows_field_order_comes_from_the_text_not_an_assumption() {
+        assert!(row_leads_with_memory("2147479552  Intel(R) Arc(TM) Graphics\n"));
+        assert!(row_leads_with_memory("AdapterRAM  Name\r\n3221225472  NVIDIA GeForce GTX 1650\r\n"));
+        // A PowerShell answer whose first controller reports no AdapterRAM:
+        // the later leading number still settles the order.
+        assert!(row_leads_with_memory(
+            "  Intel(R) UHD Graphics 770\n3221225472  NVIDIA GeForce RTX 4060\n"
+        ));
+        assert!(!row_leads_with_memory(""));
+        assert!(!row_leads_with_memory(
+            "Name  AdapterRAM\r\nNVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\n"
+        ));
+        assert!(!row_leads_with_memory(
+            "NVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\n"
+        ));
+    }
+
+    /// wmic's name-first rows, the owner's machine: the trailing number is
+    /// the memory, so the name stays whole — the registry matches
+    /// `DriverDesc` exactly, where a name with the AdapterRAM glued on
+    /// would size the card wrong and hand the matcher a name the engine's
+    /// `--list-devices` can never print.
+    #[test]
+    fn wmic_name_first_rows_keep_the_name_whole_and_the_size_registry_readable() {
+        let text = "Name  AdapterRAM\r\nIntel(R) Arc(TM) Graphics  2147479552\r\nNVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\n";
+        let registry = |name: &str| {
+            (name == "NVIDIA GeForce RTX 4050 Laptop GPU").then_some(6_439_305_216u64)
+        };
+        assert_eq!(
+            backend_from_video_controllers_with(text, registry),
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216)
+            },
+            "the clean name reaches the registry, so the budget is the card's real size"
+        );
+        assert_eq!(
+            discrete_name_from_video_controllers_with(text, registry).as_deref(),
+            Some("NVIDIA GeForce RTX 4050 Laptop GPU")
+        );
+        // Rows the other way round, and the registry denied: the saturated
+        // dGPU is the only discrete row and its name survives the unread
+        // size.
+        let reversed = "Name  AdapterRAM\r\nNVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\nIntel(R) Arc(TM) Graphics  2147479552\r\n";
+        assert_eq!(
+            discrete_name_from_video_controllers_with(reversed, |_| None).as_deref(),
+            Some("NVIDIA GeForce RTX 4050 Laptop GPU")
+        );
+    }
+
+    /// A saturated dGPU beside a readable APU: the name is the dGPU's. The
+    /// APU's row never enters the contest (the classifier says integrated,
+    /// with its AdapterRAM readable or not), and a saturated card keeps its
+    /// claim on the name instead of losing it to an unread size — in both
+    /// row orders, with the registry answering or denied.
+    #[test]
+    fn a_saturated_dgpu_keeps_its_name_against_a_readable_apu() {
+        let apu_first = "2147479552  AMD Radeon 780M\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        let dgpu_first = "4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n2147479552  AMD Radeon 780M\n";
+        let registry = |name: &str| {
+            (name == "NVIDIA GeForce RTX 4050 Laptop GPU").then_some(6_439_305_216u64)
+        };
+        for text in [apu_first, dgpu_first] {
+            assert_eq!(
+                discrete_name_from_video_controllers_with(text, |_| None).as_deref(),
+                Some("NVIDIA GeForce RTX 4050 Laptop GPU"),
+                "registry denied: {text:?}"
+            );
+            assert_eq!(
+                discrete_name_from_video_controllers_with(text, registry).as_deref(),
+                Some("NVIDIA GeForce RTX 4050 Laptop GPU"),
+                "registry answering: {text:?}"
+            );
+            assert_eq!(
+                backend_from_video_controllers_with(text, |_| None),
+                Backend::DiscreteGpu { vram_bytes: None },
+                "the APU is not a card and the saturated dGPU has no size to give: {text:?}"
+            );
+        }
     }
 
     #[test]

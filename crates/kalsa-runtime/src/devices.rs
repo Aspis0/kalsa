@@ -248,6 +248,37 @@ mod tests {
         );
     }
 
+    /// The owner's machine, end to end: the two WMI rows in both row
+    /// orders and in both producers' field orders (PowerShell leads with
+    /// the memory, wmic's header says name first), through the scan, the
+    /// matcher and the engine's own listing → the RTX, Vulkan0 — never the
+    /// Arc. The name can only come from a discrete row (the Arc's says
+    /// "intel"), and it is the row the VRAM budget took its size from.
+    #[test]
+    fn the_lenovo_wmi_rows_pin_the_rtx_whatever_the_order() {
+        let listed = parse_listed_devices(
+            "Available devices:\r\n  Vulkan0: NVIDIA GeForce RTX 4050 Laptop GPU (5920 MiB, 5152 MiB free)\r\n  Vulkan1: Intel(R) Arc(TM) Graphics (18452 MiB, 17684 MiB free)\r\n",
+        );
+        let registry = |name: &str| {
+            (name == "NVIDIA GeForce RTX 4050 Laptop GPU").then_some(6_439_305_216u64)
+        };
+        let rtx_first =
+            "4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n2147479552  Intel(R) Arc(TM) Graphics\n";
+        let arc_first =
+            "2147479552  Intel(R) Arc(TM) Graphics\n4293918720  NVIDIA GeForce RTX 4050 Laptop GPU\n";
+        let wmic_arc_first = "Name  AdapterRAM\r\nIntel(R) Arc(TM) Graphics  2147479552\r\nNVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\n";
+        let wmic_rtx_first = "Name  AdapterRAM\r\nNVIDIA GeForce RTX 4050 Laptop GPU  4293918720\r\nIntel(R) Arc(TM) Graphics  2147479552\r\n";
+        for text in [rtx_first, arc_first, wmic_arc_first, wmic_rtx_first] {
+            let name = kalsa_probe::discrete_name_from_video_controllers_with(text, registry)
+                .expect("the RTX row names its card");
+            assert_eq!(
+                route(Some(&listed), Some(&name)),
+                (ServerBackend::Vulkan, Some("Vulkan0".to_string())),
+                "{text:?}"
+            );
+        }
+    }
+
     #[test]
     fn a_name_that_matches_no_listed_device_routes_to_the_cpu_build() {
         // Two cards, and the one detection named is not among them: no way
