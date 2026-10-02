@@ -187,10 +187,11 @@ fn a_stolen_seat_never_writes_the_room_into_the_hosts_chat_file() {
 
 #[test]
 fn the_host_comes_back_to_its_own_chat_warm_after_the_room() {
-    // chat → room → chat: the host's state reaches its file at the
-    // handover and comes back through a restore — the same warm recall a
-    // switch between two chats buys — instead of the early return a stale
-    // map would give (no engine call at all) or a rebuild from nothing.
+    // chat → room → chat, with the chat DIRTY when the room takes the seat:
+    // the host's state reaches its file at the handover and comes back
+    // through a restore — the same warm recall a switch between two chats
+    // buys — instead of the early return a stale map would give (no engine
+    // call at all) or a rebuild from nothing.
     let dir = tier::temp_dir("room-handover-warm");
     let (door, room, engine, host) = house(&dir);
     let salt_of_host = tier::salt_of(&host);
@@ -202,33 +203,167 @@ fn the_host_comes_back_to_its_own_chat_warm_after_the_room() {
         204
     );
     tier::wait_for(&engine, 1);
+    // The dirty half of the crossing: a completion the file does not hold.
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
 
     host_calls(&door, &room, "host-1", "@Kalsa ciao");
     turn_quiet(&room);
-    tier::wait_for(&engine, 4);
+    tier::wait_for(&engine, 5);
 
     assert_eq!(
         tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)),
         204
     );
-    tier::wait_for(&engine, 5);
+    tier::wait_for(&engine, 6);
     let sent = engine.sent();
-    // The warm road, in order: the first restore, the handover's save of
-    // the host's chat under the host's salt, the room's two dials under the
-    // guest's, and the restore that brings the host's chat back.
+    // The warm road, in order: the first restore, the host's completion,
+    // the handover's save of the host's chat under the host's salt, the
+    // room's two dials under the guest's, and the restore that brings the
+    // host's chat back.
     let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
     assert_eq!(
         actions,
-        vec!["restore", "save", "", "", "restore"],
+        vec!["restore", "", "save", "", "", "restore"],
         "the crossing, in order: {sent:?}"
     );
-    assert_eq!(sent[1].salt, salt_of_host);
-    assert_eq!(sent[2].salt, salt_of_guest);
-    assert_eq!(sent[4].filename, tier::file_name(CHAT));
+    assert_eq!(sent[2].salt, salt_of_host);
+    assert_eq!(sent[3].salt, salt_of_guest);
+    assert_eq!(sent[5].filename, tier::file_name(CHAT));
     assert_eq!(
         door.residents(),
         1,
         "the host's chat is resident again, by its own activate"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_clean_seat_is_handed_over_without_a_save() {
+    // The lease can land inside the save window: a tick that just wrote the
+    // slot, or a chat whose state is exactly its file, hands over clean —
+    // and a clean slot's file already holds its state, so the handover
+    // writes nothing. One file, written once, by whoever wrote it first.
+    let dir = tier::temp_dir("room-handover-clean");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:an-older-state").unwrap();
+    assert_eq!(
+        tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)),
+        204
+    );
+    tier::wait_for(&engine, 1);
+    assert_eq!(door.residents(), 1);
+
+    // The tick runs first, past a quiet the clean slot never needed: it
+    // writes nothing either.
+    assert_eq!(door.save_idle(tier::quiet_since(Instant::now())), 0);
+
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    turn_quiet(&room);
+    // No save at all: the restore and the room's two dials.
+    tier::wait_for(&engine, 3);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(
+        actions,
+        vec!["restore", "", ""],
+        "a clean handover saves nothing: {sent:?}"
+    );
+    assert_eq!(
+        door.residents(),
+        0,
+        "the seat stops being named, saved or not"
+    );
+
+    // The host's file is exactly what it was: not the tick's write, not the
+    // handover's, not the room's — and the host's activate restores it.
+    assert_eq!(
+        std::fs::read_to_string(dir.join(tier::file_name(CHAT))).unwrap(),
+        "state:9:an-older-state",
+        "nobody rewrote a file that was already current"
+    );
+    assert_eq!(
+        tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)),
+        204
+    );
+    tier::wait_for(&engine, 4);
+    assert_eq!(engine.sent()[3].action, "restore");
+    door.shutdown();
+}
+
+#[test]
+fn a_room_turn_on_a_free_seat_names_no_resident_and_writes_no_file() {
+    // The room's turn never leaves a Resident behind it: on a seat it took
+    // from nobody, nothing is named, nothing is saved, and no file appears —
+    // the room has no chat to save and its words belong in no file.
+    let dir = tier::temp_dir("room-handover-free");
+    let (door, room, engine, _host) = house(&dir);
+    assert_eq!(door.residents(), 0, "a seat nobody used names nobody");
+
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    turn_quiet(&room);
+    tier::wait_for(&engine, 2);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(actions, vec!["", ""], "the room asked, and asked again: {sent:?}");
+    assert_eq!(door.residents(), 0, "the room's turn left no Resident");
+    let files: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+    assert!(files.is_empty(), "the room wrote no file: {files:?}");
+    door.shutdown();
+}
+
+#[test]
+fn a_chat_taking_the_room_s_seat_saves_nothing_for_the_room() {
+    // The crossing back: the host's chat request evicts the room's seat.
+    // The room has no chat for the map to name, so the handover saves
+    // nothing — no file is created for the room, and the one save in the
+    // whole sequence is the host's own from the first crossing.
+    let dir = tier::temp_dir("room-handover-back");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:an-older-state").unwrap();
+    assert_eq!(
+        tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)),
+        204
+    );
+    tier::wait_for(&engine, 1);
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
+
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    turn_quiet(&room);
+    tier::wait_for(&engine, 5);
+
+    // The host's next completion takes the seat back from the room.
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 6);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(
+        actions,
+        vec!["restore", "", "save", "", "", ""],
+        "the crossing back saves nothing: {sent:?}"
+    );
+    assert_eq!(
+        door.residents(),
+        0,
+        "a completion names no chat — the door cannot know which one it is"
+    );
+    let files: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| {
+            entry
+                .expect("the directory lists")
+                .file_name()
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect();
+    assert_eq!(
+        files,
+        vec![tier::file_name(CHAT)],
+        "no file for the room, and only the host's own: {files:?}"
     );
     door.shutdown();
 }

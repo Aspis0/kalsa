@@ -239,6 +239,7 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
   await page.addInitScript(
     ({ search, fetchResult, hang }) => {
       window.__TOOL_CALLS__ = [];
+      window.__POSTS__ = [];
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -319,6 +320,7 @@ async function stubFileDoor(page, { roots = null, listings = {}, read = [], sear
         new Uint8Array(buffer).set(bytes);
         return buffer;
       };
+      window.__POSTS__ = [];
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -3813,6 +3815,7 @@ const tests = {
         read: null,
       });
       const history = [entry(4294967294, "Kalsa", "The room is open.")];
+      window.__POSTS__ = [];
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -3847,6 +3850,10 @@ const tests = {
             if (command === "brain_room") return info;
             if (command === "brain_room_history") return history;
             if (command === "brain_room_post") {
+              // Slow enough that a double submit lands inside the round
+              // trip, which is the window the guard exists for.
+              await new Promise((resolve) => setTimeout(resolve, 250));
+              window.__POSTS__.push(args?.text ?? "");
               if (window.__REFUSE_POST__) {
                 throw { code: "read_only" };
               }
@@ -3868,6 +3875,22 @@ const tests = {
     await page.locator(".composer-input").fill("A message from the desk");
     await page.locator(".composer-send").click();
     await page.waitForTimeout(400);
+    // A double submit during the round trip is one post: the composer's
+    // in-flight guard holds the second key and the ask's click, and one
+    // flag covers both sends. The keys go through the textarea (Enter is
+    // the un-guarded-looking path) and the ask is clicked on the DOM, so
+    // no actionability wait can mask the race.
+    await page.locator(".composer-input").fill("Only once");
+    await page.locator(".composer-input").press("Enter");
+    await page.locator(".composer-input").press("Enter");
+    await page.evaluate(() => document.querySelector(".composer-ask")?.click());
+    await page.waitForTimeout(700);
+    const posts = await page.evaluate(() => window.__POSTS__);
+    check(
+      "room: a double submit posts once",
+      posts.filter((text) => text === "Only once").length === 1,
+      JSON.stringify(posts),
+    );
     const seen = await page.evaluate(() => document.body.innerText);
     check("room: the page is the room", seen.includes("Studio"), seen.slice(0, 120));
     check(

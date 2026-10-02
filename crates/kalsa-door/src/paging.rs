@@ -354,6 +354,14 @@ impl Chats {
     /// with the eviction — an earlier handover, an `activate`, a revoke — or
     /// a door built without the tier, where no chat is named and no file is
     /// written by anyone.
+    ///
+    /// The lock is held across the engine call on purpose, and this is
+    /// `activate`'s own discipline rather than `cadence`'s: the mutating
+    /// paths of this tier keep the slot's lock, while `cadence` releases it
+    /// because its caller IS the tick a hold would stall. What the hold
+    /// costs is what a switch already costs — a tick waiting out one save —
+    /// and the seat's lease means no request, turn end or switch of THIS
+    /// slot can be waiting behind it.
     pub(crate) fn handover(
         &self,
         devices: &DeviceSet,
@@ -369,6 +377,13 @@ impl Chats {
             Residency::Resident(owner, chat) if *owner == evicted => chat.clone(),
             _ => return Ok(()),
         };
+        // A clean slot's file already holds its state — there is nothing to
+        // write, and a tick that wrote the slot just before this lease
+        // landed would otherwise be repeated here: the same file, twice.
+        if state.dirty_at.is_none() {
+            state.resident = Residency::Unknown;
+            return Ok(());
+        }
         let Some(salt) = devices.cache_salt(evicted) else {
             // The evicted device left the set: the record dies here the way
             // `activate` drops it, and there is nobody left to save for.

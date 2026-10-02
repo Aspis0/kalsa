@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Composer.css";
@@ -50,9 +50,15 @@ export function Composer({
   const composer = table.composer;
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // A send is in flight — the words are with the room and the answer has
+  // not come back. The ref is the guard (immediate, immune to batching);
+  // the state is only the button's face. One flag covers both sends, so a
+  // Send and an Ask-Kalsa cannot race each other into two posts either.
+  const sendingNow = useRef(false);
+  const [held, setHeld] = useState(false);
   const text = draft;
   const ready = text.trim().length > 0 && !opening;
-  const canSend = ready && !streaming;
+  const canSend = ready && !streaming && !held;
 
   // Grow with the text up to MAX_HEIGHT, then scroll. Height only ever
   // derives from scrollHeight so the box never jumps while typing.
@@ -64,18 +70,31 @@ export function Composer({
     area.style.overflowY = area.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
   }, [text]);
 
-  async function send(): Promise<void> {
+  // The one body both sends share: nothing leaves twice while a send is
+  // still out — a second Enter or a second click during the round trip is
+  // one post, not two.
+  async function deliver(give: (value: string) => boolean | Promise<boolean>): Promise<void> {
     const value = text.trim();
-    if (!value || streaming || opening) return;
-    // The draft waits for the answer: a send that was refused keeps the
-    // words where they were typed.
-    if (await onSend(value)) onDraftChange("");
+    if (!value || streaming || opening || sendingNow.current) return;
+    sendingNow.current = true;
+    setHeld(true);
+    try {
+      // The draft waits for the answer: a send that was refused keeps the
+      // words where they were typed.
+      if (await give(value)) onDraftChange("");
+    } finally {
+      sendingNow.current = false;
+      setHeld(false);
+    }
+  }
+
+  async function send(): Promise<void> {
+    await deliver(onSend);
   }
 
   async function askKalsa(): Promise<void> {
-    const value = text.trim();
-    if (!value || streaming || opening || !ask || ask.disabled) return;
-    if (await ask.onAsk(value)) onDraftChange("");
+    if (!ask || ask.disabled) return;
+    await deliver(ask.onAsk);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
@@ -157,7 +176,7 @@ export function Composer({
           <button
             type="button"
             className="composer-action composer-ask"
-            disabled={!ready || ask.disabled}
+            disabled={!ready || ask.disabled || held}
             onClick={askKalsa}
           >
             {ask.label}
