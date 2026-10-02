@@ -972,7 +972,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   next binding round, before any phone upload exists. Binding 2ff449b7 (DEBUG/NONE dropped before JS) + 4f884d74 (iOS
   fixes of BINDING-PATCHES.md items 1-4 at their patch sources), GLM; hostile audit space-bunny 80f568a2 -> fix round
   (stderr gets the same level filter, thread_local CONT lineage, symmetric x86 guard, true comments, plugin strips the
-  old OTHER_CPLUSPLUSFLAGS line). **Collector design constraint from that audit:** level filtering is NOT enough -
+  old OTHER_CPLUSPLUSFLAGS line; GLM 05853fd7) -> re-audit space-bunny 17adfb70: no correctness bug; test guard
+  strengthened (gate before the stderr write). **Binding PUSHED `6b87db16`, app main PUSHED `0b7c5e71`** (pin; npm ci +
+  provenance + tsc EXIT=0; debuggable APK run 37028997487 = first Android compile of it). Known residuals, deferred:
+  toggleNativeLog(false) restores `llama_log_callback_default` (unfiltered stderr; the app toggles ON at init, and
+  stderr->logcat on app processes is unproven); RN 0.88 batchedBridge -> bridgeless runtime access (needs an iOS
+  build). **Collector design constraint from that audit:** level filtering is NOT enough -
   engine ERROR/WARN lines still carry user text and reach JS: `common/sampling.cpp:304` LOG_ERR prints the whole
   generation prompt when the grammar sampler fails to init, `common/chat.cpp:1513` LOG_WRN prints unparsed model
   output on every tool-call parse failure, `common/chat.cpp:317` tool names. So native lines enter the uploaded log
