@@ -3,7 +3,7 @@ import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { Sprout } from "../components/Sprout";
 import { useElapsed } from "./useElapsed";
-import { tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "./tuneProgress";
+import { tuneAttempt, tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "./tuneProgress";
 import type { TuneFace } from "./tuneProgress";
 
 // The first run, rendered: the walk's progress, live — a port of the former
@@ -154,7 +154,13 @@ function clock(seconds: number): string {
     time. */
 interface Walk {
   step: ProgressStep;
+  table: English["setup"];
+  tag: string;
   key: string;
+  /** The phase before this step, kept from when the step arrived: a
+      language change re-renders the same step and must not lose the
+      resumed line by reading the phase as its own predecessor. */
+  before: string | null;
   kind: string;
   view: WalkView;
   candidate: number;
@@ -173,7 +179,10 @@ function begin(step: ProgressStep, face: TuneFace | null, seconds: number, t: En
   const { view, kind } = walkView(step, null, t, tag);
   return {
     step,
+    table: t,
+    tag,
     key: clockKey(step, face),
+    before: null,
     kind,
     view,
     candidate: face !== null ? face.candidate : 0,
@@ -184,13 +193,19 @@ function begin(step: ProgressStep, face: TuneFace | null, seconds: number, t: En
 }
 
 function advance(previous: Walk, step: ProgressStep, face: TuneFace | null, seconds: number, t: English["setup"], tag: string): Walk {
-  const { view, kind } = walkView(step, previous.kind, t, tag);
+  // The pace moves only when a STEP moves: a language change re-derives
+  // the same step's words (t and tag are inputs to the view too) and must
+  // not count the same candidate twice.
+  const stepChanged = previous.step !== step;
+  const before = stepChanged ? previous.kind : previous.before;
+  const { view, kind } = walkView(step, before, t, tag);
   const key = clockKey(step, face);
   const changed = key !== previous.key;
   const durations = [...previous.durations];
   let candidate = previous.candidate;
   let timed = previous.timed;
-  if (face !== null) {
+  let frozen = previous.frozen;
+  if (stepChanged && face !== null) {
     if (changed) {
       // A candidate began under this clock — or the view joined one that
       // was already running, which arrives as a close and never counts:
@@ -203,18 +218,26 @@ function advance(previous: Walk, step: ProgressStep, face: TuneFace | null, seco
       durations.push(seconds);
       timed = false;
     }
+    if (face.cut && frozen === null) {
+      // A cut stops the line's clock where it stood — and the clock that
+      // stops is THIS phase's: a stop that arrives on a fresh key (no
+      // candidate ran) starts at zero instead of freezing the previous
+      // phase's seconds into a tune that never used them.
+      frozen = changed ? 0 : seconds;
+    }
   }
   return {
     step,
+    table: t,
+    tag,
     key,
+    before,
     kind,
     view,
     candidate,
     timed,
     durations,
-    // A cut stops the line's clock where it stood: the tune is not
-    // running anymore, so its time must not keep growing.
-    frozen: previous.frozen ?? (face !== null && face.cut ? seconds : null),
+    frozen,
   };
 }
 
@@ -234,7 +257,7 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
 
   const [walk, setWalk] = useState<Walk>(() => begin(step, face, 0, t, tag));
   let current = walk;
-  if (current.step !== step) {
+  if (current.step !== step || current.table !== t || current.tag !== tag) {
     // React's render-time adjustment: the derived state is recomputed from
     // the previous step before this render commits, and thrown away with
     // the render if it never does — a ref written here would keep the half
@@ -249,15 +272,25 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   const share = face !== null ? tuneShare(face, elapsed, average) : 0;
   const pct = face !== null ? (face.total > 0 ? tunePercent(face, share) : null) : current.view.pct;
   const done = face !== null && tuneDone(face);
-  const wait = face !== null ? tuneWait(face, share, average) : null;
+  // The whole tune's clock: everything measured under it, plus the running
+  // candidate's own seconds — at a close those seconds are already inside
+  // the sum, so nothing counts twice.
+  const whole =
+    durations.reduce((sum, value) => sum + value, 0) +
+    (face !== null && !face.closing ? elapsed : 0);
+  const wait = face !== null ? tuneWait(face, share, whole, durations.length) : null;
   const waitText =
     wait === null
       ? null
       : wait.kind === "cut"
         ? t.finishNextStart
-        : wait.kind === "almost"
-          ? t.almostDone
-          : t.minutesLeft(wait.minutes);
+        : wait.kind === "kept"
+          ? t.keptBest
+          : wait.kind === "almost"
+            ? t.almostDone
+            : t.minutesLeft(wait.minutes);
+  const attempt = face !== null ? tuneAttempt(face) : null;
+  const attemptText = attempt !== null ? t.attempt(attempt.index, attempt.total) : null;
 
   // The line under the bar: the tune names its test, that test's time and —
   // once one candidate finished — what is left of the wait (or the stop's
@@ -267,7 +300,7 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   // speaks when the candidate or the wait changes, not on every tick.
   const segments: Array<{ text: string; hidden: boolean }> = [];
   if (face !== null) {
-    if (face.total > 0) segments.push({ text: t.attempt(face.candidate, face.total), hidden: false });
+    if (attemptText !== null) segments.push({ text: attemptText, hidden: false });
     segments.push({ text: clock(elapsed), hidden: true });
     if (waitText !== null) segments.push({ text: waitText, hidden: false });
   } else if (current.view.progress !== null) {
@@ -275,7 +308,14 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   } else {
     segments.push({ text: clock(elapsed), hidden: true });
   }
-  const valueText = segments.map((segment) => segment.text).join(" · ");
+  // The bar's aria-valuetext is the STABLE words only: a value that changed
+  // every second would be a value assistive tech re-reads every second.
+  // A phase whose only words are the ticking clock has no value to name.
+  const valueText =
+    segments
+      .filter((segment) => !segment.hidden)
+      .map((segment) => segment.text)
+      .join(" · ") || null;
 
   return (
     <div className="surface-walk">

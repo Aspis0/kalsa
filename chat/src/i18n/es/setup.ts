@@ -31,5 +31,6 @@ export const SETUP = {
     "attempt": (index: number, total: number) => `Prueba ${index} de ${total}`,
     "minutesLeft": (minutes: number) => `quedan unos ${minutes} min`,
     "finishNextStart": "Kalsa terminará las pruebas en el próximo inicio",
+    "keptBest": "Kalsa ha conservado los mejores ajustes que encontró",
     "almostDone": "casi listo",
   };

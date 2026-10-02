@@ -170,10 +170,11 @@ async function walk(page, theme) {
     JSON.stringify(checking.aria),
   );
   check(
-    `${theme}: the line is polite, its clock unspoken, its words the bar's value`,
+    `${theme}: the line is polite and its ticking clock is spoken nowhere`,
     checking.aria.live === "polite" &&
       checking.aria.clockHidden &&
-      checking.aria.valuetext === checking.caption,
+      checking.aria.valuetext === null &&
+      checking.caption !== "",
     JSON.stringify(checking.aria),
   );
   const stripesA = checking.stripes;
@@ -235,8 +236,11 @@ async function walk(page, theme) {
     `${before} → ${inside.percent}`,
   );
   check(
-    `${theme}: the determinate bar names its value in the line's words`,
-    mid.aria.now !== null && mid.aria.valuetext === mid.caption,
+    `${theme}: the bar's value is the line's words, clock excluded`,
+    mid.aria.now !== null &&
+      mid.aria.valuetext !== null &&
+      !/\d+:\d\d/.test(mid.aria.valuetext) &&
+      mid.aria.valuetext.includes("Test 3 of 4"),
     JSON.stringify(mid.aria),
   );
   check(`${theme}: the plant is still alive while it waits`, inside.running.includes("sprout-sway"), inside.running.join(","));
@@ -302,7 +306,7 @@ async function cut(page, theme) {
   const suffix = theme === "dark" ? "-dark" : "";
   // The reduced pass left the page quiet; this is the ordinary walk again.
   await page.emulateMedia({ reducedMotion: null });
-  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true });
+  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: true });
   await page.waitForTimeout(1400); // the plant settles at its real height
   const stopped = await read(page);
   check(`${theme}: the bar holds at the height the tune reached`, stopped.percent === 50, `${stopped.percent}`);
@@ -317,8 +321,12 @@ async function cut(page, theme) {
     stopped.caption,
   );
   check(
-    `${theme}: the stop names its value and keeps its live line`,
-    stopped.aria.live === "polite" && stopped.aria.valuetext === stopped.caption && stopped.aria.now === "50",
+    `${theme}: the stop names its value without the ticking clock`,
+    stopped.aria.live === "polite" &&
+      stopped.aria.now === "50" &&
+      stopped.aria.valuetext !== null &&
+      !/\d+:\d\d/.test(stopped.aria.valuetext) &&
+      stopped.aria.valuetext.includes("Kalsa will finish testing next time it starts"),
     JSON.stringify(stopped.aria),
   );
   const frozen = stopped.caption;
@@ -326,6 +334,18 @@ async function cut(page, theme) {
   const still = await read(page);
   check(`${theme}: the cut stops the clock`, still.caption === frozen, `${frozen} → ${still.caption}`);
   await shot(page, `shots/95-walk-tune-cut${suffix}.png`);
+
+  // The second stop: this start WAS the retry, so its verdict was saved as
+  // a record — the line says what was kept instead of promising a
+  // measurement that will never come.
+  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false });
+  await page.waitForTimeout(400);
+  const kept = await read(page);
+  check(
+    `${theme}: the second stop says what was kept`,
+    kept.caption.includes("Kalsa kept the best settings it found") && kept.done === false,
+    kept.caption,
+  );
 }
 
 async function main() {

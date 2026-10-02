@@ -312,12 +312,24 @@ fn tune_launch_inner(
                 return;
             }
             log::info!("tune start: {} candidates", resolved.len());
+            // Whether this start IS the retry the last one was owed — read
+            // before anything measures, because the reports below must say
+            // it while they happen: a marker on disk means this run's
+            // verdict (if unfinished again) saves as a NORMAL record, so
+            // nothing is owed to the next start and the page must not
+            // promise it a measurement this run will not leave it. Pure
+            // read — nothing between here and the save writes the marker.
+            let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
+            let owed = marker.is_none();
             let tuned = measure(&resolved, &rule_args, &mut |report| {
                 progress(Progress::Tuning {
                     done: report.done,
                     total: report.total,
                     candidate: report.candidate,
                     cut: report.cut,
+                    // A stop only owes the next start a measurement while no
+                    // marker has been spent on this fingerprint yet.
+                    retry_next: report.cut && owed,
                 })
             });
             let winner = tuned.winner;
@@ -373,7 +385,7 @@ fn tune_launch_inner(
             // `reply_winner` choose over the union — the better reply wins
             // whichever attempt measured it, one entry per candidate, the
             // retry's fresher number when both measured the same launch.
-            let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
+            // (`marker` was read before the measure — see above.)
             let (record, winner) = match marker.as_ref() {
                 Some(prior) => {
                     let pooled = kalsa_tune::record::pool_retry(prior, record);

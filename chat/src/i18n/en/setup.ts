@@ -36,5 +36,8 @@ export const SETUP = {
   minutesLeft: (minutes: number) => `about ${minutes} min left`,
   // A stop, not a finish: the budget ran out with the plan unfinished.
   finishNextStart: "Kalsa will finish testing next time it starts",
+  // The second stop: this start was the retry, its verdict is saved as a
+  // record — nothing further will be measured.
+  keptBest: "Kalsa kept the best settings it found",
   almostDone: "almost done",
 };

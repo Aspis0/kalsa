@@ -31,5 +31,6 @@ export const SETUP = {
     "attempt": (index: number, total: number) => `测试 ${index}/${total}`,
     "minutesLeft": (minutes: number) => `约剩 ${minutes} 分钟`,
     "finishNextStart": "Kalsa 下次启动时会完成测试",
+    "keptBest": "Kalsa 保留了找到的最佳设置",
     "almostDone": "快完成了",
   };

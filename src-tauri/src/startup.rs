@@ -102,6 +102,11 @@ pub(crate) enum Progress {
         /// total` never means finished here — the page keeps its bar at the
         /// height reached and says the rest runs next start.
         cut: bool,
+        /// True only on a stop that still OWES that next start: a marker
+        /// will be written, so a later start measures the rest. False on a
+        /// second cut, whose verdict saves as a normal record — nothing is
+        /// owed, and the page says what was kept instead.
+        retry_next: bool,
     },
 }
 
