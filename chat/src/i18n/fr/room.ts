@@ -21,7 +21,7 @@ export const ROOM: RoomTable = {
   askedKalsa: "a demandé à Kalsa ·",
   readLast: (count: number) =>
     count === 1 ? " · a lu le dernier message" : ` · a lu les ${count} derniers messages`,
-  sendFailed: "Le message n'est pas arrivé au salon. Réessaie.",
+  noteFallback: "Quelque chose n'a pas marché. Réessaie.",
   notes: {
     "busy_waiting": "Kalsa est occupée avec une autre conversation. Tu gardes ton tour.",
     "unavailable": "Kalsa ne peut pas répondre dans ce salon pour le moment.",

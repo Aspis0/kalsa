@@ -18,9 +18,9 @@ export interface RoomTable {
   left: string;
   askedKalsa: string;
   readLast: (count: number) => string;
-  /** The app's own sentence for a send the room refused with a code the
-      notes table does not know. */
-  sendFailed: string;
+  /** The app's own sentence for any code the notes table does not know —
+      one policy for notes, refusals, name errors and failed sends. */
+  noteFallback: string;
   notes: Record<string, string>;
 }
 
@@ -42,7 +42,7 @@ export const ROOM: RoomTable = {
   left: " · left",
   askedKalsa: "asked Kalsa ·",
   readLast: (count) => ` · read the last ${count}`,
-  sendFailed: "The message did not reach the room. Try again.",
+  noteFallback: "Something did not work. Try again.",
   notes: {
     busy_waiting: "Kalsa is busy with another conversation. You keep your turn.",
     unavailable: "Kalsa can't answer in this room right now.",

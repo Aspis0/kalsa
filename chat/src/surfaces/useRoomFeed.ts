@@ -45,12 +45,15 @@ export function useRoomFeed() {
   const load = useCallback(async () => {
     if (!available()) return;
     try {
-      const nextInfo = await invoke<RoomInfo>("brain_room");
-      // The type rides on the binding, not a generic argument: an array
-      // generic here would hide the call from the command contract's scan.
-      const history: RoomEntry[] = await invoke("brain_room_history", { limit: 200 });
+      const [nextInfo, history] = await Promise.all([
+        invoke<RoomInfo>("brain_room"),
+        invoke<RoomEntry[]>("brain_room_history", { limit: 200 }),
+      ]);
       setInfo(nextInfo);
       setFeed((current) => mergeHistory(current, nextInfo.epoch, history));
+      // A page that re-read the room starts clean: the sentence a refused
+      // send left has had its reader's attention.
+      setSendError(null);
     } catch {
       const closed = await invoke<RoomInfo>("brain_room").catch(() => null);
       if (closed) setInfo(closed);
@@ -165,6 +168,9 @@ export function useRoomFeed() {
 
   const stop = useCallback(async () => {
     await invoke("brain_room_stop").catch(() => {});
+    // The owner acted: whatever a refused send said is no longer the thing
+    // to read.
+    setSendError(null);
   }, []);
 
   const saveName = useCallback(async (name: string): Promise<void> => {

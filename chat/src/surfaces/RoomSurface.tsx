@@ -69,12 +69,13 @@ export function RoomSurface() {
 
   // Both sends ride the one composer: the store adds the call itself when
   // the words name @Kalsa, and the quiet button names it outright. A bare
-  // "@" names nobody — nothing to post, nobody to ask.
-  function post(text: string, withCall: boolean): boolean {
+  // "@" names nobody — nothing to post, nobody to ask. The answer is the
+  // feed's own, so a send the room refused leaves the words in the composer
+  // for exactly as long as it leaves them nowhere else.
+  async function post(text: string, withCall: boolean): Promise<boolean> {
     const body = text.trim();
     if (!body || body === "@") return false;
-    void feed.send(body, withCall);
-    return true;
+    return feed.send(body, withCall);
   }
 
   async function saveName(): Promise<void> {
@@ -92,16 +93,16 @@ export function RoomSurface() {
     );
   }
 
-  // The table's sentence for the code, the backend's own English only as
-  // the fallback of a code the table does not know.
-  const noteLine = room.notes[note?.code ?? ""] ?? note?.text ?? null;
-  const refusalLine = room.notes[feed.refusal?.code ?? ""] ?? null;
-  const nameLine = room.notes[feed.nameError?.code ?? ""] ?? null;
-  // A send that the room refused is said, never swallowed; the sentence
-  // follows the code, and one the table does not know gets the app's own.
-  const sendErrorLine = feed.sendError
-    ? (room.notes[feed.sendError.code] ?? room.sendFailed)
-    : null;
+  // One policy for every code the backend sends — note, refusal, name
+  // error, failed send: the table's sentence when the language knows the
+  // code, and the app's own fallback when it does not. Never the backend's
+  // English, which no other language's reader was promised.
+  const line = (code: string | null | undefined): string | null =>
+    code ? (room.notes[code] ?? room.noteFallback) : null;
+  const noteLine = line(note?.code);
+  const refusalLine = line(feed.refusal?.code);
+  const nameLine = line(feed.nameError?.code);
+  const sendErrorLine = line(feed.sendError?.code);
   // One color per member, stable order, Kalsa in green.
   const colors = assignNameColors(info?.members ?? []);
 
@@ -171,7 +172,7 @@ export function RoomSurface() {
                 key={entry.seq}
                 entry={entry}
                 info={info ?? null}
-                color={colors.get(entry.member_id) ?? KALSA_NAME_COLOR}
+                color={colors.get(entry.member_id)}
                 asked={room.askedKalsa}
                 left={room.left}
                 readLast={room.readLast}
@@ -259,7 +260,9 @@ function RoomRow({
 }: {
   entry: RoomEntry;
   info: RoomInfo | null;
-  color: string;
+  /** The author's palette color, absent for a member no longer in the
+      room: they hold no slot, and their name wears the page's own ink. */
+  color: string | undefined;
   asked: string;
   left: string;
   readLast: (count: number) => string;

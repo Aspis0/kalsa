@@ -42,10 +42,13 @@ const MAIN = `${REPO_DIR}/src-tauri/src/main.rs`;
 // a quoted name matches only in full — the character that would continue a
 // longer name is itself in the class, and a prefix cannot stop early.
 const NAME = "brain_[a-z0-9_]+";
-// invoke may carry a type argument before its parenthesis; `through` is the
-// forwarding wrapper named in the header.
+// invoke may carry a type argument before its parenthesis, array types
+// included (invoke<RoomEntry[]>(…)); `through` is the forwarding wrapper
+// named in the header. The type argument admits anything but parentheses,
+// which cannot appear in a type the app writes and would otherwise span
+// past the call.
 const COMMAND_CALL = new RegExp(
-  "\\b(?:invoke|through)\\s*(?:<[^[()\\]]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
+  "\\b(?:invoke|through)\\s*(?:<[^()]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
   "g",
 );
 const EVENT_CALL = new RegExp(

@@ -13,7 +13,9 @@ interface ComposerProps {
   // unmounts the composer, and a draft must survive the round trip.
   draft: string;
   onDraftChange: (text: string) => void;
-  onSend: (text: string) => boolean;
+  /** Whether the words were taken. Resolved before the draft is cleared, so
+      a send that comes back false keeps the words where they were typed. */
+  onSend: (text: string) => boolean | Promise<boolean>;
   onStop: () => void;
   // Absent where attachments have no route: the button and its hidden
   // input are not rendered at all (the Room carries words only).
@@ -27,7 +29,7 @@ interface ComposerProps {
       chat leaves it out. `disabled` is the caller's own rule (a call of
       yours already pending); the words are the same draft, cleared when
       the send takes them. */
-  ask?: { label: string; disabled: boolean; onAsk: (text: string) => boolean };
+  ask?: { label: string; disabled: boolean; onAsk: (text: string) => boolean | Promise<boolean> };
 }
 
 const MAX_HEIGHT = 200;
@@ -62,16 +64,18 @@ export function Composer({
     area.style.overflowY = area.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
   }, [text]);
 
-  function send(): void {
+  async function send(): Promise<void> {
     const value = text.trim();
     if (!value || streaming || opening) return;
-    if (onSend(value)) onDraftChange("");
+    // The draft waits for the answer: a send that was refused keeps the
+    // words where they were typed.
+    if (await onSend(value)) onDraftChange("");
   }
 
-  function askKalsa(): void {
+  async function askKalsa(): Promise<void> {
     const value = text.trim();
     if (!value || streaming || opening || !ask || ask.disabled) return;
-    if (ask.onAsk(value)) onDraftChange("");
+    if (await ask.onAsk(value)) onDraftChange("");
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {

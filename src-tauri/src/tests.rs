@@ -570,10 +570,14 @@ impl TestUpstream {
     }
 
     /// Answers with the same head but a body that arrives in six
-    /// 8-byte steps, 150 ms apart: long enough that a test can change
-    /// the device set and ask the next request while an answer is
-    /// genuinely in flight — the no-slot 503 answers a seat that is
-    /// leased, not one that was merely used first.
+    /// 8-byte steps, 150 ms apart: 900 ms of streaming in all. The set
+    /// swap and the newcomer's request both have to land inside that
+    /// window for the refusal to be about a LEASED seat — at the 40 ms
+    /// this helper used to pace, the whole answer fit in 240 ms and the
+    /// first request's lease could be gone before the second one asked,
+    /// which made the test pass for the wrong reason (the seat was idle
+    /// again, not held). The budget: two door round-trips plus a file
+    /// write, comfortably inside 900 ms however loaded the machine.
     fn slow_start() -> (Self, u16) {
         Self::serve(|mut stream| {
             let _ = std::io::Write::write_all(
@@ -933,13 +937,17 @@ fn body_of(response: &[u8]) -> String {
 }
 
 #[test]
-fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device() {
+fn a_set_change_keeps_the_door_and_a_leased_seat_refuses_the_next_request() {
     // The swap must not kill the door: an answer IN FLIGHT across the
     // device-set change runs to its last byte, and the kept device still
     // works afterwards. The app mounts no engine that reads the door's
-    // private headers yet, so the door is built for one device: the newly
-    // paired device is refused with the door's no-slot 503 rather than
-    // auto-scheduled into the first device's slot.
+    // private headers yet, so the door is built for one device: a request
+    // that arrives while the one seat is LEASED by the in-flight answer is
+    // refused with the door's no-slot 503 rather than auto-scheduled into
+    // the first device's slot. Seats follow demand once the lease ends, so
+    // the refusal is about pressure, not planning — the newcomer is served
+    // as soon as the seat is idle again (kalsa-door's slot tests pin
+    // that half).
     let (_dir, file) = scratch_pairing("set-swap");
     let (upstream, port) = TestUpstream::slow_start();
     let brain = Brain::new();

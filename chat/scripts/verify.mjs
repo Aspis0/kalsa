@@ -5,6 +5,7 @@
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
 import { crescentEntriesFor } from "../src/app/crescentLayout.ts";
+import { assignNameColors, KALSA_NAME_COLOR } from "../src/lib/roomColors.ts";
 import {
   ARRIVING_ATTRIBUTE as arrivingAttribute,
   HANDOFF_ATTRIBUTE as handoffAttribute,
@@ -3846,6 +3847,9 @@ const tests = {
             if (command === "brain_room") return info;
             if (command === "brain_room_history") return history;
             if (command === "brain_room_post") {
+              if (window.__REFUSE_POST__) {
+                throw { code: "read_only" };
+              }
               const landed = entry(info.you, "This computer", args.text);
               history.push(landed);
               return { ...landed, ai_call: null, refusal: null };
@@ -3871,7 +3875,57 @@ const tests = {
       seen.includes("A message from the desk"),
       seen.slice(0, 240),
     );
+    // A send the room refuses keeps the words in the composer — nothing
+    // was stored, nothing pretends — and says so on the page.
+    await page.evaluate(() => {
+      window.__REFUSE_POST__ = true;
+    });
+    await page.locator(".composer-input").fill("The words that must stay");
+    await page.locator(".composer-send").click();
+    await page.waitForTimeout(400);
+    const kept = await page.locator(".composer-input").inputValue();
+    check("room: a refused send keeps the draft", kept === "The words that must stay", kept);
+    const refused = await page.evaluate(() => document.body.innerText);
+    check(
+      "room: a refused send is said",
+      refused.includes("The room can't take messages right now"),
+      refused.slice(0, 400),
+    );
     await browser.close();
+  },
+
+  // The room's name colors, as a pure function of the member list: the
+  // host's color is its alone, the household cycles through the rest, a
+  // former member holds nothing, and Kalsa keeps the green.
+  async roomColors() {
+    const member = (member_id, kind, former = false) => ({ member_id, name: `m${member_id}`, kind, former });
+    const host = member(4294967295, "host");
+    const people = [1, 2, 3, 4].map((id) => member(id, "phone"));
+    const sixth = member(5, "phone");
+    const former = member(9, "phone", true);
+    const kalsa = member(4294967294, "ai");
+    const colors = assignNameColors([kalsa, ...people, former, host, sixth]);
+    check("roomColors: Kalsa keeps the green", colors.get(kalsa.member_id) === KALSA_NAME_COLOR);
+    check(
+      "roomColors: the host's color is its alone",
+      colors.get(host.member_id) === "var(--room-name-1)" &&
+        [...people, sixth, former].every((m) => colors.get(m.member_id) !== "var(--room-name-1)"),
+      JSON.stringify(Object.fromEntries(colors)),
+    );
+    const cycle = [...people, sixth].map((m) => colors.get(m.member_id));
+    check(
+      "roomColors: everyone else cycles the remaining four",
+      JSON.stringify(cycle) ===
+        JSON.stringify([
+          "var(--room-name-2)",
+          "var(--room-name-3)",
+          "var(--room-name-4)",
+          "var(--room-name-5)",
+          "var(--room-name-2)",
+        ]),
+      JSON.stringify(cycle),
+    );
+    check("roomColors: a former member holds no slot", colors.get(former.member_id) === undefined);
   },
 
 };
