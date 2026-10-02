@@ -930,6 +930,18 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
   npu_lane=on, route=auto, devmodels=1 (found: route=gpu, npu_lane=off, energy_trace=1, kvtranscript=1, nativelog=off)
   - restore them. Rerun item 4 WITHOUT cutting the network.
+  **Expo-57 smoke RERUN DONE 2026-10-02** (GLM 3e241b0c, lab 36ca1f58, verified on disk; verdict sent to 818369e6):
+  install/keys, load-unload x3, camera/picker+DKA, share-in PASS; thermal pause not triggered (no forcing); download
+  FAIL-blocked (missing-model "Scarica" row is a non-interactive View); PDF/docx FAIL (page-render timeout then silent
+  no-ops, pre-pdf.js-5.7 build). **Governor item from it (mine):** with the armed bench key npu_lane=on, after Qwen<->LFM
+  switches, the S23 was memory-starved (123 MB free, 2.1 GB swap, `failed to mlock 223281152-byte buffer: Out of
+  memory` x2; GOVERNOR_PLAN said Fit, 2998 MiB required vs 3458.93 available). The 1660-token prewarm took 75 s, then a
+  3145-token `loadPrompt` never returned (>9 min, ~128 % CPU, 0 % iowait = zram thrash plausible, ZERO HTP dispatch,
+  no watchdog fired, spinner forever). After a clean relaunch the same prompt PASSED on HTP0 x11 chunks. Two open
+  questions: (1) does the lane's fit undercount (two contexts + HTP rpcmem + KV are not in the 2998)? (2) no watchdog
+  covers a native prefill that never progresses - the user waits forever. Evidence: `s23-expo57-smoke/raw/rerun/
+  i3-long-kalsa.txt`, `i3-long-hang-window.txt`. Bench keys still armed on the S23 (npu_lane=on, route=auto,
+  devmodels=1): restore with the debuggable APK of run 37011736047 after the option-(a) measurement.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
