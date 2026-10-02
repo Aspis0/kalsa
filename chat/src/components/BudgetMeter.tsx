@@ -4,6 +4,8 @@ import { useLanguage } from "../i18n/useLanguage";
 
 interface BudgetMeterProps {
   contextTokens: number | null;
+  /** How many files are attached: the unknown-size warning is about them. */
+  fileCount: number;
   docTokens: number;
   historyTokens: number;
 }
@@ -14,15 +16,15 @@ interface BudgetMeterProps {
  * bar at a made-up scale. Static widths, no animation: it re-renders, never
  * moves by itself.
  */
-export function BudgetMeter({ contextTokens, docTokens, historyTokens }: BudgetMeterProps) {
+export function BudgetMeter({ contextTokens, fileCount, docTokens, historyTokens }: BudgetMeterProps) {
   const { table } = useLanguage();
   const t = table.files;
   const reserve = CONTEXT_RESERVE_TOKENS;
-  const view = fitView(contextTokens, docTokens, historyTokens, reserve);
+  const view = fitView(contextTokens, fileCount, docTokens, historyTokens, reserve);
   if (view === "hidden") return null;
-  if (view === "unknown" || contextTokens === null) {
-    return <p className="budget-unknown">{t.budgetUnknown}</p>;
-  }
+  // `contextTokens === null` is exactly the two views above, and the check is
+  // what lets the code below use the number.
+  if (contextTokens === null) return <p className="budget-unknown">{t.budgetUnknown}</p>;
   if (view === "over") return <p className="budget-over">{t.budgetOver}</p>;
   const pct = (n: number): string => `${Math.min(100, Math.max(0, (n / contextTokens) * 100)).toFixed(1)}%`;
   return (

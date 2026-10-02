@@ -87,6 +87,7 @@ export function Panel({
           <>
             <BudgetMeter
               contextTokens={contextTokens}
+              fileCount={active.length}
               docTokens={fileTokens}
               historyTokens={historyTokens}
             />

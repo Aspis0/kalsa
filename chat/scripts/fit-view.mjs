@@ -29,12 +29,15 @@ function equal(label, actual, expected) {
   console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok ? "" : `\n     got ${actual}, want ${expected}`}`);
 }
 const RESERVE = 512;
-equal("no files and an unknown size: nothing is shown", fitView(null, 0, 300, RESERVE), "hidden");
-equal("files and an unknown size: the warning", fitView(null, 1200, 300, RESERVE), "unknown");
-equal("no files but too much history: still too much", fitView(4096, 0, 4000, RESERVE), "over");
-equal("files that do not fit: too much", fitView(4096, 3800, 300, RESERVE), "over");
-equal("files that fit: the bar", fitView(8192, 1200, 300, RESERVE), "bar");
-equal("no files, a known size: the bar", fitView(8192, 0, 300, RESERVE), "bar");
+// fitView(contextTokens, fileCount, docTokens, historyTokens, reserve)
+equal("no files and an unknown size: nothing is shown", fitView(null, 0, 0, 300, RESERVE), "hidden");
+equal("no files, an unknown size and a huge history: still nothing", fitView(null, 0, 0, 10_000_000, RESERVE), "hidden");
+equal("a file and an unknown size: the warning", fitView(null, 1, 1200, 300, RESERVE), "unknown");
+equal("a file that weighs nothing still gets the warning", fitView(null, 1, 0, 300, RESERVE), "unknown");
+equal("no files but too much history: still too much", fitView(4096, 0, 0, 4000, RESERVE), "over");
+equal("files that do not fit: too much", fitView(4096, 2, 3800, 300, RESERVE), "over");
+equal("files that fit: the bar", fitView(8192, 1, 1200, 300, RESERVE), "bar");
+equal("no files, a known size: the bar", fitView(8192, 0, 0, 300, RESERVE), "bar");
 
 await rm(dir, { recursive: true, force: true });
 process.exit(fail === 0 ? 0 : 1);
