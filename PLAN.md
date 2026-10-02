@@ -888,6 +888,17 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   owner gives both phones unplugged); (2) B correctness (no output/PPL comparison yet); (3) the app's q4_0 V cannot
   live on HTP -> V q8_0 (RAM cost) or an HTP q4_0 SET_ROWS kernel; (4) prefill->decode KV commit from an HTP buffer
   (decode is CPU). QDC: 8 Elite Gen 5 (SM8850) claimed 1000 free min 2026-10-01 (owner yes).
+  **Night 2026-10-01/02, REPEATED on the owner's phones, unplugged (coordinator re-read each bench.tsv):**
+  pp128 tok/s at depth 512 / 1700 / 3100 - A host KV, B KV on HTP, C app config (V q4_0, host):
+  | device (DSP) | A | B | C | B/A @3100 |
+  |---|---|---|---|---|
+  | S23 (v73) `REPORT-s23-v73.md` | 296 / 145 / 76 | 686 / 630 / 583 | 297 / 132 / 64 | 7.7x |
+  | Xiaomi 14 (v75) `REPORT-xiaomi-v75.md` | 362 / 179 / 100 | 754 / 710 / 659 | 345 / 167 / 103 | 6.6x |
+  | QDC 8 Elite (v79) `REPORT-qdc-8elite.md` | 543 / 245 / 138 | 1263 / 1116 / 1053 | 504 / 208 / 116 | 7.6x |
+  B ran clean on all three DSPs (no abort/hang); FLASH_ATTN on CPU in A, on HTP0 in B on all three.
+  **S23 in-app per-turn HTP proof PASS** (`s23-layers-device-proof/REPORT.md`, GLM cd50da8b, APK run 36951238850 =
+  app 101c2bdd): 46/46 lane-on chunks `layers_device:"HTP0"`, 21/21 lane-off GPU chunks `GPUOpenCL`; a lane-on
+  route=gpu turn reports actual "gpu" but HTP0 at NPU speed (167 vs 102-112 tok/s). Label != device closed.
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
