@@ -314,6 +314,88 @@ fn a_rotation_that_cannot_happen_resets_the_live_file() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// A signed URL inside any logged string keeps its scheme, host and path,
+/// and loses its query and fragment: ureq's transport errors carry the
+/// failed URL (`error.rs` Display), the downloader follows redirects, and
+/// a Hugging Face `/resolve/` redirect answers with a signed CDN URL whose
+/// query is a credential.
+#[test]
+fn a_signed_url_loses_its_query_and_fragment_but_not_its_address() {
+    let redactions = Redactions::new(None, None, false);
+    let message = "download failed: weights.gguf: https://huggingface.co/Kalsa-ai/kalsa-server/resolve/f038a4f4/file.gz?X-Amz-Signature=deadbeef1234&X-Amz-Date=20261002T0000Z (status 403)";
+    let redacted = redact(message, &redactions);
+    assert!(
+        redacted.contains("https://huggingface.co/Kalsa-ai/kalsa-server/resolve/f038a4f4/file.gz?…"),
+        "{redacted}"
+    );
+    assert!(!redacted.contains("X-Amz-Signature"), "{redacted}");
+    assert!(!redacted.contains("deadbeef"), "{redacted}");
+    // A fragment goes the same way, and a plain URL is untouched.
+    let with_fragment = redact("see https://example.invalid/a/b#c-token-here end", &redactions);
+    assert!(with_fragment.contains("https://example.invalid/a/b?…"), "{with_fragment}");
+    let plain = redact("at https://example.invalid/plain/path next", &redactions);
+    assert!(plain.contains("https://example.invalid/plain/path"), "{plain}");
+    assert!(!plain.contains("?…"), "{plain}");
+}
+
+/// A panic while the sink's mutex is held (the report builder holds it over
+/// its reads) must not wait for it: the line goes to stderr that once, and
+/// the file is not corrupted by a write from under a held lock. Once the
+/// lock is free the panic line reaches the file like any other.
+#[test]
+fn a_panic_line_never_waits_on_the_sink_s_own_mutex() {
+    let dir = scratch("panic-held");
+    let sink = Sink::open(&dir, CAP_BYTES);
+    let held = sink.state.lock().expect("the lock is taken");
+    sink.panic_line("src/x.rs:7:2");
+    assert!(
+        !dir.join(LIVE_NAME).exists() || live_lines(&dir).iter().all(|l| !l.contains("panic at")),
+        "no panic line reaches the file while the lock is held"
+    );
+    drop(held);
+    sink.panic_line("src/x.rs:7:2");
+    assert!(
+        live_lines(&dir).iter().any(|l| l.contains("panic at src/x.rs:7:2")),
+        "once free, the line is filed: {:?}",
+        live_lines(&dir)
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A rename that succeeds and a fresh open that fails leaves NO file: the
+/// folder is un-advertised (nothing may point at a file nothing writes)
+/// and the sink goes stderr-only — never silently.
+#[test]
+fn a_lost_rotation_unadvertises_the_folder_and_goes_stderr_only() {
+    let dir = scratch("lost-rotation");
+    let sink = Sink::open(&dir, 300);
+    logged(&sink, "a line to grow on");
+    advertise_dir(dir.clone());
+    assert_eq!(folder(), Some(dir.clone()), "the folder starts advertised");
+    let lost = {
+        let mut state = sink.state.lock().unwrap();
+        // Grow past the cap so a rotation is due, then fail the reopen on
+        // an otherwise healthy folder.
+        if let Some((_, len)) = state.file.as_mut() {
+            *len = u64::MAX / 2;
+        }
+        rotate_with(&mut state, |_| None)
+    };
+    assert!(matches!(lost, Rotated), "the reopen failure is reported");
+    assert_eq!(folder(), None, "the folder is withdrawn");
+    assert!(
+        !dir.join(LIVE_NAME).exists(),
+        "the live file was renamed away and not reopened"
+    );
+    assert!(dir.join(ROTATED_NAME).exists(), "the rotated half survives");
+    assert!(
+        sink.state.lock().unwrap().file.is_none(),
+        "the sink is stderr-only from here"
+    );
+    unadvertise();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn an_unwritable_log_folder_never_panics_and_keeps_stderr() {
     // A file where the folder should be: create_dir_all must fail, and

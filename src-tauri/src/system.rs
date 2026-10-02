@@ -61,11 +61,14 @@ fn gib(bytes: u64) -> String {
 /// One value with the host's own name taken out of it: a machine's name is
 /// an identifier, and the block's rule is that no identifier of the
 /// household reaches the log. The name matches only as a WHOLE word —
-/// bounded by non-alphanumerics or the ends — and CASE-SENSITIVELY, so a
-/// host like "max" can never eat a chip's "M1 Max" (a different case is a
-/// different word, and the machine's own name is the one its owner typed).
-/// Compared by character, because a byte offset into the original would
-/// not survive a case mapping that changes length.
+/// bounded by non-alphanumerics or the ends — and case-insensitively: a
+/// machine may be named in any case its owner's platform fancied, and a
+/// stripped word costs a line of colour commentary while a leaked hostname
+/// costs the household's identifier. (A host that happens to equal a CPU
+/// word, "max" say, loses that word from the block — the privacy is worth
+/// more than the adjective.) Compared by character, because a byte offset
+/// into the original would not survive a case mapping that changes
+/// length.
 fn without_host(value: &str, host: &str) -> String {
     let host: Vec<char> = host.chars().collect();
     if host.len() < 3 {
@@ -79,7 +82,9 @@ fn without_host(value: &str, host: &str) -> String {
         let before_ok = at == 0 || boundary(value[at - 1]);
         let matches = before_ok
             && (0..host.len()).all(|offset| {
-                value.get(at + offset) == Some(&host[offset])
+                value
+                    .get(at + offset)
+                    .is_some_and(|c| c.eq_ignore_ascii_case(&host[offset]))
             })
             && value
                 .get(at + host.len())
@@ -513,25 +518,42 @@ mod tests {
         assert!(joined.contains("drafter on"), "{joined}");
     }
 
-    /// The host strip matches whole words only: a three-letter host must
-    /// not eat a chip's "M1 Max", and a short host below the three-letter
-    /// floor strips nothing at all.
+    /// The host strip matches WHOLE words, case-insensitively, from three
+    /// characters up: a host spelled "MAX" is removed where it stands as a
+    /// word ("Desk MAX adapter"), a longer host is removed in any case, a
+    /// PARTIAL word is never touched ("marco" leaves "marco2" alone), and
+    /// a two-letter host strips nothing at all.
     #[test]
-    fn a_short_host_name_never_eats_a_chip_s_own_words() {
+    fn the_host_strip_is_whole_word_any_case_and_needs_three_characters() {
+        let redactions_host = "MAX";
+        assert_eq!(
+            without_host("Desk MAX adapter", redactions_host),
+            "Desk <host> adapter"
+        );
+        assert_eq!(
+            without_host("the MARCO-STUDIO machine", "marco-studio"),
+            "the <host> machine",
+            "case-insensitive, hyphenated"
+        );
+        assert_eq!(
+            without_host("running on marco2 today", "marco"),
+            "running on marco2 today",
+            "a partial word is not the host"
+        );
+        assert_eq!(
+            without_host("an climax adapter", "max"),
+            "an climax adapter",
+            "a partial word before the match is not the host either"
+        );
+        assert_eq!(
+            without_host("Apple M1 Max", "m"),
+            "Apple M1 Max",
+            "below three characters, nothing is the host"
+        );
+        // And the machine's own block keeps its fixture host stripped.
         let m = machine();
-        let joined = machine_lines(&m, "max").join("\n");
-        assert!(
-            joined.contains("Apple M1 Max"),
-            "the whole-word rule keeps the chip's name: {joined}"
-        );
-        let lowered = joined.to_lowercase();
-        assert!(
-            !lowered.contains("m1 <host>"),
-            "no host substitution inside a word: {joined}"
-        );
-        // A one-letter host is below the floor entirely.
-        let joined = machine_lines(&m, "m").join("\n");
-        assert!(joined.contains("Apple M1 Max"), "{joined}");
+        let joined = machine_lines(&m, "fixture-host").join("\n");
+        assert!(!joined.contains("fixture-host"), "{joined}");
     }
 
     /// Adapter strings are vendor output: the block prints printable ASCII

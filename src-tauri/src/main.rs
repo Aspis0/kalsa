@@ -2330,8 +2330,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[tauri::command]
 fn brain_open_log_folder() -> Result<(), String> {
     let folder = logging::folder()
-        .ok_or_else(|| "The log folder is not available on this computer.".to_string())?
-        .to_path_buf();
+        .ok_or_else(|| "The log folder is not available on this computer.".to_string())?;
     #[cfg(target_os = "macos")]
     let opener = "open";
     #[cfg(target_os = "windows")]
@@ -2374,7 +2373,7 @@ async fn brain_send_log() -> Result<String, String> {
         let Some(dir) = logging::folder() else {
             return Err("failed".to_string());
         };
-        let body = report::read_body(dir);
+        let body = report::read_body(&dir);
         if body.trim().is_empty() {
             log::warn!("the report was asked for and the log folder holds nothing");
             return Err("failed".to_string());

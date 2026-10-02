@@ -13,7 +13,11 @@ export function CrashDialog({ ask, onClose }: { ask: CrashAsk; onClose: () => vo
   const { table } = useLanguage();
   const words = table.report;
   return (
-    <div className="crash-card" role="alertdialog" aria-label={words.crashTitle}>
+    <div
+      className="crash-card"
+      role="alertdialog"
+      aria-label={ask === "unclean" ? words.crashUncleanTitle : words.crashTitle}
+    >
       <h2>{ask === "unclean" ? words.crashUncleanTitle : words.crashTitle}</h2>
       {ask === "unclean" ? <p className="crash-body">{words.crashUncleanBody}</p> : null}
       <SendLogBlock words={words} />

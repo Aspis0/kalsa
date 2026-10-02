@@ -45,10 +45,11 @@ pub(crate) fn clip(text: &str, cap: usize) -> String {
     cut
 }
 
-/// The folder the log lives in, once [`install`] has run. The command that
-/// opens the folder for the owner reads this; `None` before install and
-/// after a failed install.
-static FOLDER: OnceLock<PathBuf> = OnceLock::new();
+/// The folder the log lives in, once a file in it actually opened — the
+/// command that opens the folder and the report both read it. A clearable
+/// slot, not a one-shot: a file lost after a rotation un-advertises it
+/// ([`lost_the_file`]), so nothing points at a file nothing writes.
+static FOLDER: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// The sink behind the `log` facade: the file (with its rotation state)
 /// behind one mutex, shared with the attach path so the process can start
@@ -125,9 +126,11 @@ impl Sink {
                 .file
                 .as_ref()
                 .is_some_and(|(_, len)| len + line.len() as u64 > state.cap);
-            if over_cap && !rotate(&mut state) {
+            if over_cap && matches!(rotate_with(&mut state, open_live), Rotated::Reset) {
                 // Said on every reset, because the next reset truncates this
                 // one away — and the newest chunk is what a report reads.
+                // A Lost rotation says its own line on stderr — there is no
+                // file left to carry one.
                 append(
                     &mut state,
                     &clip_line(&format!(
@@ -160,6 +163,24 @@ impl Sink {
                 std::env::consts::ARCH
             ),
         );
+    }
+
+    /// The panic line: the location, through `try_lock`. A panic that
+    /// fires while the sink's mutex is held — the report builder holds it
+    /// over its file reads — must not wait for it: stderr carries the line
+    /// that once, and `Ok(())` is returned either way, because a panic hook
+    /// that can fail is a hook nobody calls twice.
+    fn panic_line(&self, location: &str) {
+        let line = clip_line(&format!(
+            "{} ERROR  logging: panic at {location}",
+            rfc3339_now()
+        ));
+        if let Ok(mut state) = self.state.try_lock() {
+            append(&mut state, &line);
+        }
+        let _ = std::io::stderr()
+            .lock()
+            .write_all(format!("{line}\n").as_bytes());
     }
 
     /// Takes the file over, from a sink that started stderr-only: called
@@ -229,8 +250,22 @@ pub fn install(dir: Option<PathBuf>, version: &str) {
     let _ = SINK.set(sink);
     if opened {
         if let Some(dir) = dir {
-            let _ = FOLDER.set(dir);
+            advertise_dir(dir);
         }
+    }
+}
+
+/// Advertises the folder everything log-shaped points at.
+fn advertise_dir(dir: PathBuf) {
+    if let Ok(mut slot) = FOLDER.lock() {
+        *slot = Some(dir);
+    }
+}
+
+/// Withdraws the advertisement: no live file, no folder to open or send.
+fn unadvertise() {
+    if let Ok(mut slot) = FOLDER.lock() {
+        *slot = None;
     }
 }
 
@@ -244,7 +279,7 @@ pub fn attach_file(dir: PathBuf, version: &str) {
         .get()
         .is_some_and(|sink| sink.attach(&dir, version));
     if attached {
-        let _ = FOLDER.set(dir);
+        advertise_dir(dir);
     }
 }
 
@@ -261,10 +296,10 @@ pub(crate) fn with_log_held<R>(f: impl FnOnce() -> R) -> R {
     }
 }
 
-/// The log folder, for the command that opens it. `None` when install never
-/// ran, was given nothing, or never opened a file.
-pub fn folder() -> Option<&'static Path> {
-    FOLDER.get().map(|dir| dir.as_path())
+/// The log folder, for the command that opens it and the report that reads
+/// it. `None` when no file was ever opened — or when the file was lost.
+pub fn folder() -> Option<PathBuf> {
+    FOLDER.lock().ok().and_then(|slot| slot.clone())
 }
 
 /// One string redacted against the same redactions every log line uses —
@@ -289,7 +324,11 @@ pub(crate) fn webview_line(name: &str, frame: &str) -> String {
 /// Panics reach the log before the platform's own hook: the LOCATION, and
 /// nothing else. A panic payload is whatever some code failed with — a
 /// request body, a file's contents — and the log's promise is that none of
-/// it reaches the file, so the payload is not read at all.
+/// it reaches the file, so the payload is not read at all. And the line is
+/// written with `try_lock`: a panic that fires while the sink's mutex is
+/// held (the report builder holds it over its file reads) must not
+/// deadlock the hook waiting for the same mutex — a held lock means
+/// stderr, this once, and stderr never lost anyone a panic line.
 pub fn install_panic_hook() {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -297,7 +336,17 @@ pub fn install_panic_hook() {
             .location()
             .map(|at| format!("{}:{}:{}", at.file(), at.line(), at.column()))
             .unwrap_or_else(|| "unknown location".to_string());
-        log::error!("panic at {location}");
+        if let Some(sink) = SINK.get() {
+            sink.panic_line(&location);
+        } else {
+            let _ = std::io::stderr().lock().write_all(
+                format!(
+                    "{} ERROR  logging: panic at {location}\n",
+                    rfc3339_now()
+                )
+                .as_bytes(),
+            );
+        }
         default(info);
     }));
 }
@@ -330,30 +379,66 @@ fn append(state: &mut State, line: &str) {
     }
 }
 
+/// How one rotation attempt ended.
+enum Rotated {
+    /// Renamed, and a fresh live file is open.
+    Yes,
+    /// The rename could not happen, so the live file was reset in place.
+    Reset,
+    /// The rename happened and the fresh open failed: there is NO file, the
+    /// folder is un-advertised, and stderr carries the one line that says
+    /// so — the file that would have carried it is the thing that was
+    /// lost.
+    Lost,
+}
+
 /// The live file becomes the rotated one (replacing whatever rotated file
 /// was there) and a fresh live file takes its place. The caller holds the
 /// state lock. A rotation that cannot happen — the rotated file locked or
 /// read-only, the folder refusing the rename — RESETS the live file
 /// (`set_len(0)` on the handle still held) rather than letting it grow
 /// past the cap forever: the bound is the point, and the newest lines are
-/// the ones a report needs. The reset is said once inside the log.
-fn rotate(state: &mut State) -> bool {
+/// the ones a report needs. The reset is said once inside the log. A
+/// rename that succeeds and an open that fails is the one ending nothing
+/// survives silently: [`Rotated::Lost`]. `reopen` is the fresh-open step,
+/// injected so a test can fail it on an otherwise healthy folder.
+fn rotate_with(state: &mut State, reopen: impl FnOnce(&Path) -> Option<(File, u64)>) -> Rotated {
     let Some((file, _)) = state.file.take() else {
-        return false;
+        return Rotated::Reset;
     };
     let live = state.dir.join(LIVE_NAME);
     let rotated = state.dir.join(ROTATED_NAME);
     let room = std::fs::remove_file(&rotated).is_ok() || !rotated.exists();
     if room && std::fs::rename(&live, &rotated).is_ok() {
-        state.file = open_live(&state.dir);
-        return true;
+        state.file = reopen(&state.dir);
+        return match state.file {
+            Some(_) => Rotated::Yes,
+            None => {
+                lost_the_file();
+                Rotated::Lost
+            }
+        };
     }
     // The rename failed, so the file still sits at the live path under the
     // handle we hold: truncate it in place and keep writing.
     if file.set_len(0).is_ok() {
         state.file = Some((file, 0));
     }
-    false
+    Rotated::Reset
+}
+
+/// What a lost file costs: the folder is un-advertised (the button and the
+/// report must not point at a file nothing writes), and one line says so
+/// on stderr — the file that would have carried it is the thing lost.
+fn lost_the_file() {
+    unadvertise();
+    let _ = std::io::stderr().lock().write_all(
+        format!(
+            "{} WARN  logging: the log file was lost after a rotation; stderr only from here\n",
+            rfc3339_now()
+        )
+        .as_bytes(),
+    );
 }
 
 /// What every message is redacted against, read from the environment once
@@ -438,7 +523,14 @@ fn match_path_at(text: &[char], at: usize, pattern: &[char], insensitive: bool) 
         }
         t += 1;
         p += 1;
-        if is_sep(pc) && text.get(t).is_some_and(|next| is_sep(*next)) {
+        // A separator in the pattern may absorb a DOUBLED one in the text
+        // (the `{:?}` form of a Windows path) — but never when the pattern
+        // itself continues with another separator, or "https://" would
+        // spend its second slash on the first and die on 'e'.
+        if is_sep(pc)
+            && text.get(t).is_some_and(|next| is_sep(*next))
+            && !pattern.get(p).is_some_and(|next| is_sep(*next))
+        {
             t += 1;
         }
     }
@@ -457,9 +549,65 @@ fn extends_name(c: char) -> bool {
 /// a path component of its own.
 fn redact(message: &str, r: &Redactions) -> String {
     let chars: Vec<char> = message.chars().collect();
+    // The URL pass first: a signed query can carry the very path and name
+    // the later passes would redact, and a shorter URL is easier for them
+    // to reason over besides.
+    let chars = redact_urls(&chars);
     let chars = redact_tmp(&chars);
     let chars = redact_path(&chars, r);
     redact_component(&chars, r).into_iter().collect()
+}
+
+/// Characters that end a URL printed inside free text: whitespace, or a
+/// bracketing punctuation a sentence might wrap it in. Everything between
+/// the scheme and the first `?`/`#` is the URL's own address and stays;
+/// the query and fragment go, because a downloader's redirect answers with
+/// signed URLs whose query is a credential (`?X-Amz-Signature=…` from a
+/// Hugging Face `/resolve/` redirect, printed verbatim inside a transport
+/// error's Display).
+fn redact_urls(text: &[char]) -> Vec<char> {
+    const MARK: &str = "?…";
+    let http: Vec<char> = "http://".chars().collect();
+    let https: Vec<char> = "https://".chars().collect();
+    let ends_url = |c: char| c.is_whitespace() || matches!(c, ')' | ']' | '}' | '>' | '"' | '\'');
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let scheme = [&https, &http]
+            .iter()
+            .find_map(|prefix| match_path_at(text, at, prefix, true));
+        match scheme {
+            Some(end_of_scheme) => {
+                // The address runs to the first ?/# (kept up to, not
+                // including); the query and fragment run to the URL's end.
+                let url_end = text[end_of_scheme..]
+                    .iter()
+                    .position(|c| ends_url(*c))
+                    .map(|stop| end_of_scheme + stop)
+                    .unwrap_or(text.len());
+                let cut = text[end_of_scheme..url_end]
+                    .iter()
+                    .position(|c| *c == '?' || *c == '#')
+                    .map(|stop| end_of_scheme + stop);
+                match cut {
+                    Some(cut) => {
+                        out.extend(text[at..cut].iter().copied());
+                        out.extend(MARK.chars());
+                        at = url_end;
+                    }
+                    None => {
+                        out.extend(text[at..url_end].iter().copied());
+                        at = url_end;
+                    }
+                }
+            }
+            None => {
+                out.push(text[at]);
+                at += 1;
+            }
+        }
+    }
+    out
 }
 
 /// `/var/folders/ab/…` and `/private/var/folders/ab/…` become `<tmp>/ab/…`'s

@@ -45,22 +45,19 @@ impl SendFailure {
     }
 }
 
-/// The report body's pure core: the halves oldest-first behind one
-/// separator line — an empty half contributes nothing — kept to the newest
-/// [`MAX_BYTES`] when the whole is longer, cut at a line boundary so the
-/// body still reads as lines.
-pub(crate) fn join_and_trim(halves: Vec<String>) -> String {
+/// The halves oldest-first behind one separator line — an empty half
+/// contributes nothing.
+pub(crate) fn join_halves(halves: Vec<String>) -> String {
     let present: Vec<&str> = halves
         .iter()
         .map(|half| half.as_str())
         .filter(|half| !half.trim().is_empty())
         .collect();
-    let joined = match present.len() {
-        0 => return String::new(),
+    match present.len() {
+        0 => String::new(),
         1 => present[0].to_string(),
         _ => format!("{}\n{SEPARATOR}\n{}", present[0], present[1]),
-    };
-    trim_to_newest(joined)
+    }
 }
 
 /// The newest [`MAX_BYTES`] of a body, cut at a line boundary. A body with
@@ -134,12 +131,12 @@ pub(crate) fn read_body(log_dir: &Path) -> String {
                 _ => {}
             }
         }
-        let mut body = join_and_trim(parts);
+        let mut body = join_halves(parts);
         for note in notes {
             body.push_str(&note);
             body.push('\n');
         }
-        body
+        trim_to_newest(body)
     })
 }
 
@@ -254,7 +251,7 @@ mod tests {
 
     #[test]
     fn the_body_is_the_rotated_file_then_the_live_one_behind_one_line() {
-        let body = join_and_trim(vec![
+        let body = join_halves(vec![
             "older line\nolder line 2\n".to_string(),
             "newer line\n".to_string(),
         ]);
@@ -266,10 +263,10 @@ mod tests {
         );
         // A missing half contributes nothing, not an empty half with a
         // separator.
-        assert_eq!(join_and_trim(vec!["newer line\n".to_string()]), "newer line\n");
-        assert_eq!(join_and_trim(vec!["older\n".to_string()]), "older\n");
-        assert_eq!(join_and_trim(Vec::new()), "");
-        assert_eq!(join_and_trim(vec!["  \n".to_string(), String::new()]), "");
+        assert_eq!(join_halves(vec!["newer line\n".to_string()]), "newer line\n");
+        assert_eq!(join_halves(vec!["older\n".to_string()]), "older\n");
+        assert_eq!(join_halves(Vec::new()), "");
+        assert_eq!(join_halves(vec!["  \n".to_string(), String::new()]), "");
     }
 
     #[test]
@@ -281,7 +278,7 @@ mod tests {
             huge.push_str(&format!("{number:08}\n"));
             number += 1;
         }
-        let kept = join_and_trim(vec![huge.clone()]);
+        let kept = trim_to_newest(huge.clone());
         assert!(
             kept.len() <= MAX_BYTES,
             "the body is at most the cap: {}",
@@ -297,7 +294,7 @@ mod tests {
         let first: u64 = kept.lines().next().unwrap().parse().unwrap();
         assert!(first > 0, "the oldest lines are dropped, not kept");
         // A body already inside the cap is passed through untouched.
-        assert_eq!(join_and_trim(vec!["small\n".to_string()]), "small\n");
+        assert_eq!(trim_to_newest("small\n".to_string()), "small\n");
     }
 
     #[test]
@@ -421,6 +418,35 @@ mod tests {
             older.len() <= MAX_BYTES,
             "each half is bounded on its own: {}",
             older.len()
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The unreadable-file note rides INSIDE the cap: a body at the
+    /// ceiling plus its notes would otherwise be over the ceiling, and the
+    /// note is the newest line there is.
+    #[test]
+    fn the_unreadable_note_rides_inside_the_four_mib_cap() {
+        // A live file past the cap beside an unreadable rotated half: the
+        // body the command would send must respect the cap WITH the note
+        // inside it, and the note — the newest line — must survive.
+        let dir = scratch("note-cap");
+        let line = "0123456789abcdef\n";
+        std::fs::write(
+            dir.join("kalsa-brain.log"),
+            line.repeat(MAX_BYTES / line.len() + 10),
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.join("kalsa-brain.1.log")).unwrap();
+        let body = read_body(&dir);
+        assert!(
+            body.len() <= MAX_BYTES,
+            "the cap covers the notes too: {}",
+            body.len()
+        );
+        assert!(
+            body.ends_with("[the earlier log file was there but could not be read]\n"),
+            "the note survives as the newest line"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
