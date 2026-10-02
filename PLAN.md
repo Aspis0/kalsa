@@ -960,6 +960,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   requirement (+219 MiB NPU extra). Open, owner's call: a stuck native call cannot be preempted (stopCompletion is
   polled between iterations); the 5x deadline after a starved sample is long. Not yet device-proven: repro = Qwen<->LFM
   switches with npu_lane=on, then a 3k prompt; expect NoFit/clamp instead of a thrash.
+  **DEVICE-PROVEN 2026-10-02** (GLM a1b86702, debuggable APK run 37052344359, report
+  `scratchpad/agents/s23-fresh-ram-fit-2e7b4dfd/`, lab e1757127; verified by me on raw/plan-watch.txt): 8/8 loads
+  `available_src:"fresh"`, 0 cached, available_mib within ~10-21 MiB of MemAvailable read 0-1 s later; same-model turn
+  kept KV (nPast 1801); Qwen<->LFM x4 in one process, then the 3434-token needle prefilled on HTP0 in 2.68 s, ZAFFIRO-42,
+  no thrash. Keys restored (route=gpu, npu_lane=off). NEW, open: a turn-2 `set_thermo_profile: invalid thermal profile;
+  accelerator admission is closed` -> `KALSA_GOVERNOR_FALLBACK reason:"prefill admission aborted"` -> attempt 2
+  re-prefilled on CPU (25 s), losing the KV handoff (`raw/` 16:24:03). Why the profile was invalid is not yet known.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
