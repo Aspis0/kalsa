@@ -648,10 +648,15 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
   const osVersion = asNullableString(Device?.osVersion);
   // expo-device has no isTablet boolean — deviceType TABLET === 2.
   const isTablet = Device?.deviceType === 2;
-  // Apple chip class / nominal RAM from the model id (null off the mapped
-  // devices). totalMemory is real on iOS/macOS, so the map's RAM only backs
-  // that read up; the chip class is the only iOS SoC signal there is.
-  const appleClass = appleDeviceClassForModelId(modelId);
+  // Apple chip class from the model id, iOS-gated: an Android id must never
+  // reach the map's Mac* prefix rule. The map's nominal RAM is not consulted —
+  // expo-device's iOS totalMemory (ProcessInfo.physicalMemory) is positive by
+  // construction, so no null read exists for it to back up. react-native stays
+  // a dynamic require (file header).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Platform } = require("react-native") as { Platform: { OS: string } };
+  const appleClass =
+    Platform.OS === "ios" ? appleDeviceClassForModelId(modelId) : null;
 
   const family = deviceFamilyForBrand(brand);
   const isMiuiFamily = family === "xiaomi";
@@ -676,18 +681,12 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
   ]);
   const { socModel, socManufacturer } = await readSocProperties();
 
-  // ONE reported RAM value for both the profile field and the tier: when the
-  // Expo read is null and the Apple fallback supplies the bytes, the tier must
-  // classify the value the profile actually reports, or the same device is
-  // described as 12 GiB and gated as "low".
-  const reportedTotalMemoryBytes = totalMemoryBytes ?? appleClass?.ramBytes ?? null;
-
   return {
     brand,
     manufacturer,
     modelName,
     modelId,
-    totalMemoryBytes: reportedTotalMemoryBytes,
+    totalMemoryBytes,
     availableMemoryBytes,
     socModel: socModel ?? appleClass?.chipClass ?? null,
     socManufacturer: socManufacturer ?? (appleClass ? "Apple" : null),
@@ -695,7 +694,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     osVersion,
     cpuCoreCount,
     cpuCapacities,
-    ramTier: getRamTier(reportedTotalMemoryBytes),
+    ramTier: getRamTier(totalMemoryBytes),
     family,
     isMiuiFamily,
     isFoldableCandidate,

@@ -5,11 +5,11 @@
  * "Mac…" identifier is Apple Silicon by construction — Intel Macs cannot run
  * iOS apps).
  *
- * Data-only: no imports, no I/O. RAM figures are a FALLBACK only — Apple does
- * not publish iPhone RAM, and expo-device totalMemory reports the real
- * physical bytes on iOS/macOS, so the map is consulted when that read is
- * unavailable. Conservative where hardware varies by storage tier (the iPad
- * Pros' 16 GiB variants are recorded as 8 GiB).
+ * Data-only: no imports, no I/O. ramBytes is reference data: expo-device
+ * totalMemory reports the real physical bytes on iOS/macOS, so no caller
+ * consults the column (deviceProfile uses chipClass only). Conservative where
+ * hardware varies by storage tier (the iPad Pros' 16 GiB variants are
+ * recorded as 8 GiB).
  *
  * Sources (checked 2026-10-01):
  * - Model identifiers: https://gist.github.com/adamawolf/3048717 (Apple
@@ -36,7 +36,7 @@ const TWELVE_GIB = 12_884_901_888;
 export type AppleDeviceClass = {
   /** Marketing chip class, e.g. "A17 Pro", "M2". Generations share a class. */
   chipClass: string;
-  /** Nominal RAM bytes (conservative for storage-tier variants). */
+  /** Nominal RAM bytes (reference data; see header). */
   ramBytes: number;
 };
 
@@ -83,7 +83,8 @@ const EXACT_MODEL_IDS: Record<string, AppleDeviceClass> = {
 /**
  * Resolve an expo-device modelId (e.g. "iPhone16,1", "Mac15,6") to its device
  * class, or null when the identifier is unknown / not Apple Intelligence
- * class.
+ * class. The Mac* rule encodes iOS-build semantics; callers must gate on
+ * Platform.OS === "ios" (deviceProfile does).
  */
 export function appleDeviceClassForModelId(
   modelId: string | null | undefined,

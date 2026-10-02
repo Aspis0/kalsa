@@ -8,15 +8,14 @@
 // Single capability, mirroring the Android bridge where semantically equal:
 //   - availableMemoryBytes(): os_proc_available_memory(), the per-app jetsam
 //     headroom — the closest iOS analog of Android's MemAvailable read.
-//     Contract per build target: on device, 0 is a real reading (the app is
-//     at/over its limit), crosses to JS unchanged, and JS treats it as zero
-//     headroom, not unknown. On the simulator
-//     (#if targetEnvironment(simulator) below), a 0 crosses as nil instead —
-//     the simulator runs no per-app jetsam budget, so a 0 there carries no
-//     information — and JS reads it as null = unknown. The iPad-on-Mac
-//     (Designed for iPad) build is NOT covered by that branch
-//     (TARGET_OS_SIMULATOR == 0): its 0s still cross unchanged, and what
-//     os_proc_available_memory returns there is unmeasured.
+//     Contract per build target: on iPhone/iPad hardware, 0 is a real reading
+//     (the app is at/over its limit), crosses to JS unchanged, and JS treats
+//     it as zero headroom, not unknown. Where there is no iOS per-app limit
+//     for the value to be relative to — the simulator, and a Mac host running
+//     the iPad build (ProcessInfo.isiOSAppOnMac) — a 0 crosses as nil instead
+//     and JS reads it as null = unknown; Apple marks os_proc_available_memory
+//     unavailable on macOS
+//     (https://developer.apple.com/documentation/os/os_proc_available_memory).
 
 import ExpoModulesCore
 import os
@@ -29,14 +28,16 @@ public class KalsaLifecycleModule: Module {
       // iOS 13+; this pod's 16.4 deployment floor covers it. The symbol is
       // unavailable on macOS/Catalyst, which this iOS-only pod does not target.
       let bytes = Int64(os_proc_available_memory())
-      // Simulator-only fallback: the simulator does not run the per-app jetsam
-      // budget, and os_proc_available_memory reads 0 there regardless of the
-      // host's real headroom — which fail-closed every model load
-      // (blocked_ram, "Not running here" pill). 0 stays a REAL reading on
-      // hardware; targetEnvironment(simulator) compiles this branch out of
-      // device builds. nil crosses to JS as null = "no platform read".
+      // 0 stays a REAL reading on iPhone/iPad hardware. The simulator reads 0
+      // regardless of the host's headroom, and a Mac host has no iOS per-app
+      // limit for the value to be relative to (Apple marks the function
+      // unavailable on macOS): there a 0 must cross as nil = "no platform
+      // read", not as zero headroom that fail-closed every model load
+      // (blocked_ram, "Not running here" pill).
       #if targetEnvironment(simulator)
       if bytes == 0 { return nil }
+      #else
+      if bytes == 0 && ProcessInfo.processInfo.isiOSAppOnMac { return nil }
       #endif
       return bytes
     }

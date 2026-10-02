@@ -1,12 +1,13 @@
 /**
- * The iOS device-profile fallback and the zero-headroom gate semantics from
+ * The iOS device-profile Apple class and the zero-headroom gate semantics from
  * the ios/first-build audit:
- * - when expo-device cannot read totalMemory, the Apple class supplies the
- *   reported bytes AND the RAM tier (they must never contradict each other);
+ * - the Apple map supplies the chip class only; the reported bytes and the RAM
+ *   tier both come from the Expo totalMemory read;
  * - on iOS a 0 MemAvailable/jetsam reading is zero headroom, not unknown: the
  *   gate refuses, the fit evaluates, only a missing read stays unknown;
  * - on Android a 0 keeps its origin/main "unknown" meaning — the zero-is-real
- *   scope is the platform, and the Apple fallback never fires there.
+ *   scope is the platform, and the Apple map is iOS-gated, not a modelId
+ *   accident.
  */
 const mockPlatform = { OS: "ios" };
 jest.mock("react-native", () => ({
@@ -58,30 +59,29 @@ import {
 
 const TWELVE_GIB = 12_884_901_888;
 
-describe("buildDeviceProfile Apple fallback (via the cached profile)", () => {
+describe("buildDeviceProfile Apple class (via the cached profile)", () => {
   beforeEach(() => {
     __resetDeviceProfileCacheForTests();
     mockAvailableMemoryBytes.mockReset();
     mockAvailableMemoryBytes.mockResolvedValue(0);
     mockExpoDevice.modelId = "iPhone18,1";
-    mockExpoDevice.totalMemory = null;
+    mockExpoDevice.totalMemory = TWELVE_GIB;
   });
 
-  it("feeds the tier from the SAME fallback bytes the profile reports", async () => {
+  it("takes the chip class from the model id and the tier from the Expo read", async () => {
     const profile = await getCachedDeviceProfile();
     expect(profile.totalMemoryBytes).toBe(TWELVE_GIB);
-    // The old bug: profile reported the fallback bytes but the tier classified
-    // the null Expo read — the same 12-GiB device gated as "low".
     expect(profile.ramTier).toBe("high");
     expect(profile.socModel).toBe("A19 Pro");
     expect(profile.socManufacturer).toBe("Apple");
   });
 
-  it("keeps the Expo totalMemory read authoritative over the map", async () => {
+  it("classifies a lower Expo totalMemory read as the low tier, chip class unchanged", async () => {
     mockExpoDevice.totalMemory = 4_000_000_000;
     const profile = await getCachedDeviceProfile();
     expect(profile.totalMemoryBytes).toBe(4_000_000_000);
     expect(profile.ramTier).toBe("low");
+    expect(profile.socModel).toBe("A19 Pro");
   });
 
   it("carries a 0 jetsam reading into the profile as 0", async () => {
@@ -89,16 +89,17 @@ describe("buildDeviceProfile Apple fallback (via the cached profile)", () => {
     expect(profile.availableMemoryBytes).toBe(0);
   });
 
-  it("falls back to unknown-tier generics off the mapped devices", async () => {
+  it("gives no chip class off the mapped identifiers", async () => {
     mockExpoDevice.modelId = "iPhone19,9";
     const profile = await getCachedDeviceProfile();
-    expect(profile.totalMemoryBytes).toBeNull();
-    expect(profile.ramTier).toBe("low");
+    expect(profile.totalMemoryBytes).toBe(TWELVE_GIB);
+    expect(profile.ramTier).toBe("high");
     expect(profile.socModel).toBeNull();
+    expect(profile.socManufacturer).toBeNull();
   });
 });
 
-describe("buildDeviceProfile on Android makes no Apple fallback", () => {
+describe("buildDeviceProfile on Android makes no Apple class", () => {
   beforeEach(() => {
     mockPlatform.OS = "android";
     __resetDeviceProfileCacheForTests();
@@ -122,6 +123,25 @@ describe("buildDeviceProfile on Android makes no Apple fallback", () => {
     expect(profile.ramTier).toBe("low");
     expect(profile.socModel).toBeNull();
     expect(profile.socManufacturer).toBeNull();
+  });
+
+  it("refuses every Apple model id — the guard is the platform, not the id", async () => {
+    // expo-device reports no modelId on Android, but the guard must not rely
+    // on that: these are the ids the Apple map would otherwise answer.
+    for (const modelId of [
+      "SM-S911B",
+      "Mac15,6",
+      "MacBookPro18,3",
+      "iPhone18,1",
+      "iPad16,6",
+    ]) {
+      __resetDeviceProfileCacheForTests();
+      mockExpoDevice.modelId = modelId;
+      const profile = await getCachedDeviceProfile();
+      expect(profile.socModel).toBeNull();
+      expect(profile.socManufacturer).toBeNull();
+      expect(profile.totalMemoryBytes).toBeNull();
+    }
   });
 
   it("carries an unreadable MemAvailable as null, never a fabricated 0", async () => {

@@ -15,6 +15,11 @@ public class KalsaThermalModule: Module {
   // NSObject, so @objc members and #selector(self...) observers cannot compile
   // on it — use the block-based NotificationCenter API and keep the returned
   // token for removal on stop/destroy.
+  //
+  // OnStart/OnStopObserving run on Expo's background AsyncFunctionQueue, while
+  // OnDestroy runs from ModuleHolder.deinit on whichever thread releases the
+  // last reference; the lock makes the check-and-set on the token race-free.
+  private let observerLock = NSLock()
   private var observerToken: NSObjectProtocol?
 
   public func definition() -> ModuleDefinition {
@@ -42,6 +47,8 @@ public class KalsaThermalModule: Module {
   }
 
   private func startObservingThermalState() {
+    observerLock.lock()
+    defer { observerLock.unlock() }
     guard observerToken == nil else { return }
     // .main: thermalStateDidChangeNotification posts on the main thread, and
     // sendEvent must not race the JS event emitter off it.
@@ -56,6 +63,8 @@ public class KalsaThermalModule: Module {
   }
 
   private func stopObservingThermalState() {
+    observerLock.lock()
+    defer { observerLock.unlock() }
     guard let token = observerToken else { return }
     observerToken = nil
     NotificationCenter.default.removeObserver(token)

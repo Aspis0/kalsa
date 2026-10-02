@@ -15,8 +15,9 @@ type NativeKalsaLifecycleModule = {
   cancelBackgroundTimer?: (id: number) => void;
   /**
    * Apple side: os_proc_available_memory() as bytes (jetsam headroom). On
-   * device a 0 crosses unchanged; the simulator build substitutes null for
-   * a 0 read; the iPad-on-Mac build is not covered and is unmeasured.
+   * iPhone/iPad hardware a 0 crosses unchanged; the simulator and the
+   * Mac-hosted ("Designed for iPad") build substitute null for a 0 read,
+   * where no iOS per-app limit exists.
    */
   availableMemoryBytes?: () => Promise<unknown>;
   lastExitInfo?: () => unknown;
@@ -148,14 +149,14 @@ export function addTrimMemoryListener(
 
 /**
  * Apple side: os_proc_available_memory() — the per-app jetsam headroom in
- * bytes, the closest iOS analog of Android's MemAvailable. On device, 0 is a
- * REAL reading (Apple: the app is at/over its memory limit) and reaches
- * callers as 0, never as null. On the simulator the native side returns nil
- * for a 0 read, so callers see null = unknown there; the iPad-on-Mac build is
- * not covered by that substitution and is unmeasured. Otherwise null means
- * the module is not linked or the read is malformed. Never throws. Never
- * cached — Apple documents the value as a fast-changing snapshot and says
- * not to cache it.
+ * bytes, the closest iOS analog of Android's MemAvailable. On iPhone/iPad
+ * hardware, 0 is a REAL reading (Apple: the app is at/over its memory limit)
+ * and reaches callers as 0, never as null. On the simulator and in a
+ * Mac-hosted ("Designed for iPad") process, where no iOS per-app limit
+ * exists, the native side returns nil for a 0 read, so callers see
+ * null = unknown there. Otherwise null means the module is not linked or the
+ * read is malformed. Never throws. Never cached — Apple documents the value
+ * as a fast-changing snapshot and says not to cache it.
  */
 export async function getOsAvailableMemoryBytes(): Promise<number | null> {
   const module = getNativeModule();

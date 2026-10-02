@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { withNativeCallTimeout } from "../engine/nativeCallTimeout";
 import { iosThermalStateToAdvisoryStatus } from "../engine/platformThermalStatus";
 import { getCurrentPlatformThermalState } from "../../modules/kalsa-thermal/src";
 import {
@@ -23,6 +24,10 @@ import {
 } from "../engine/thermalThresholds";
 
 const DEFAULT_INTERVAL_MS = 30_000;
+
+// Same 1 s bound the governor feed puts on this native call: a read that never
+// settles must not leave samples pending while the interval starts more.
+const PLATFORM_THERMAL_READ_TIMEOUT_MS = 1_000;
 
 /** Millidegree strings from thermal_zoneN/temp (millidegrees) to Celsius. */
 function parseThermalZoneTemp(text: string): number | null {
@@ -136,7 +141,11 @@ export function useThermalMonitor(opts?: {
           }
         }
         if (Platform.OS === "ios") {
-          const read = await getCurrentPlatformThermalState();
+          const read = await withNativeCallTimeout(
+            getCurrentPlatformThermalState(),
+            PLATFORM_THERMAL_READ_TIMEOUT_MS,
+            "platform thermal read",
+          );
           if (read?.platform === "ios" && read.supported) {
             const status = iosThermalStateToAdvisoryStatus(read.iosState);
             if (status !== "unknown") {
