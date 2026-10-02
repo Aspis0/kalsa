@@ -7,9 +7,16 @@
 //
 // Single capability, mirroring the Android bridge where semantically equal:
 //   - availableMemoryBytes(): os_proc_available_memory(), the per-app jetsam
-//     headroom — the closest iOS analog of Android's MemAvailable read. 0 is
-//     a real reading (the app is at/over its limit) and crosses to JS
-//     unchanged; JS treats it as zero headroom, not unknown.
+//     headroom — the closest iOS analog of Android's MemAvailable read.
+//     Contract per build target: on device, 0 is a real reading (the app is
+//     at/over its limit), crosses to JS unchanged, and JS treats it as zero
+//     headroom, not unknown. On the simulator
+//     (#if targetEnvironment(simulator) below), a 0 crosses as nil instead —
+//     the simulator runs no per-app jetsam budget, so a 0 there carries no
+//     information — and JS reads it as null = unknown. The iPad-on-Mac
+//     (Designed for iPad) build is NOT covered by that branch
+//     (TARGET_OS_SIMULATOR == 0): its 0s still cross unchanged, and what
+//     os_proc_available_memory returns there is unmeasured.
 
 import ExpoModulesCore
 import os

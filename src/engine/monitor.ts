@@ -53,8 +53,11 @@ async function readProcText(
  * Read MemAvailable from /proc/meminfo (Android), or on iOS the per-app
  * jetsam headroom (kalsa-lifecycle module), with NO process cache.
  * Never throws. Returns null off-Android/iOS / on read failure.
- * 0 is a real reading on iOS (os_proc_available_memory returns 0 when the app
- * is at/over its limit) — callers must treat it as zero headroom, not unknown.
+ * On device iOS, 0 is a real reading (os_proc_available_memory returns 0 when
+ * the app is at/over its limit) — callers must treat it as zero headroom, not
+ * unknown. On the simulator the native module substitutes null for a 0 read,
+ * so 0 arrives as null = unknown there. The iPad-on-Mac build is not covered
+ * by that substitution and is unmeasured.
  */
 export async function getAvailableMemoryBytesUncached(): Promise<number | null> {
   try {
