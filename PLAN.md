@@ -1039,6 +1039,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   q8_0/q8_0 on Apple GPUs. AFM not measurable here: Apple Intelligence disabled on this Mac (owner can enable it).
   **Owner rule 2026-10-02:** audits are triaged - fix P0/P1 and P2 that touch app/users/performance; the rest goes to
   `scratchpad/BACKLOG-LOW-PRIORITY.md` and work moves on (no audit loops on rare cases).
+  **Owner rule 2026-10-02 (2):** ONE max-recall cross-file review per piece of work (parallel angles), not sequential
+  rounds; then triage as above.
+  **iOS KV default LANDED on app main `ee8b5f25`** (2026-10-02): iOS resolves any KV choice to q8_0/q8_0 (Metal decode
+  ~3x at 2k, ~7.5x at 16k on the M1 Max; iPhone unmeasured); Android unchanged incl. Settings copy. Verified before
+  push: npm ci, provenance, tsc, jest engine/host/hooks/screens/modules 192 suites/1846 tests, all 0. Android mixed-KV
+  cost on the S23 CPU queued by 1d714246 (needs the phone unplugged).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
