@@ -1,4 +1,5 @@
 import { CONTEXT_RESERVE_TOKENS } from "../lib/attachments";
+import { fitView } from "../lib/fit";
 import { useLanguage } from "../i18n/useLanguage";
 
 interface BudgetMeterProps {
@@ -16,14 +17,13 @@ interface BudgetMeterProps {
 export function BudgetMeter({ contextTokens, docTokens, historyTokens }: BudgetMeterProps) {
   const { table } = useLanguage();
   const t = table.files;
-  if (contextTokens === null) {
+  const reserve = CONTEXT_RESERVE_TOKENS;
+  const view = fitView(contextTokens, docTokens, historyTokens, reserve);
+  if (view === "hidden") return null;
+  if (view === "unknown" || contextTokens === null) {
     return <p className="budget-unknown">{t.budgetUnknown}</p>;
   }
-  const reserve = CONTEXT_RESERVE_TOKENS;
-  const left = contextTokens - docTokens - historyTokens - reserve;
-  if (left < 0) {
-    return <p className="budget-over">{t.budgetOver}</p>;
-  }
+  if (view === "over") return <p className="budget-over">{t.budgetOver}</p>;
   const pct = (n: number): string => `${Math.min(100, Math.max(0, (n / contextTokens) * 100)).toFixed(1)}%`;
   return (
     <div className="budget">
