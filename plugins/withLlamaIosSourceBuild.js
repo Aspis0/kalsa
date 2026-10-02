@@ -24,6 +24,12 @@
  * on an iOS dev machine the installed tree differs from the pristine fork by
  * exactly the generated embeds, so the gate reports DIVERGENT there.
  *
+ * A second injection goes inside the existing post_install hook: it drops the
+ * x86_64 simulator slice (EXCLUDED_ARCHS) for every pod target and for the app
+ * target, because the from-source build compiles arch-specific engine sources
+ * into that slice where they cannot link. The WHY lives in the injected
+ * comment, next to the code it explains.
+ *
  * Android's half of "always build from source" lives in withLlamaFromSource.
  */
 const { withPodfile } = require("expo/config-plugins");
@@ -53,13 +59,49 @@ const INJECTION = [
   "end",
 ].join("\n");
 
+const ARCH_MARKER = "# KALSA_EXCLUDED_ARCHS_X86_64";
+// CocoaPods rejects a second `post_install` hook, so the arch exclusion has to
+// go inside the one the template already defines.
+const POST_INSTALL_ANCHOR = "  post_install do |installer|\n";
+const ARCH_INJECTION = [
+  `    ${ARCH_MARKER}`,
+  "    # WHY: building from source runs the podspec's ggml-cpu/**/*.{h,c,cpp}",
+  "    # glob for every slice, so arch/arm/quants.c is also compiled into the",
+  "    # x86_64 simulator slice, where its non-NEON fallbacks leave dangling",
+  "    # `_generic` references at link. Every supported dev Mac is Apple Silicon,",
+  "    # which runs the arm64 simulator natively, so that slice is dead weight",
+  "    # (~half the pod build). SDK-scoped: device builds keep x86_64.",
+  "    excluded_archs_key = 'EXCLUDED_ARCHS[sdk=iphonesimulator*]'",
+  "    app_targets = installer.aggregate_targets.flat_map do |aggregate_target|",
+  "      aggregate_target.user_project ? aggregate_target.user_project.targets : []",
+  "    end",
+  "    (installer.pods_project.targets + app_targets).each do |target|",
+  "      target.build_configurations.each do |build_config|",
+  "        build_settings = build_config.build_settings",
+  "        build_settings[excluded_archs_key] = Array(build_settings[excluded_archs_key]) | ['x86_64']",
+  "      end",
+  "    end",
+].join("\n");
+
 const withLlamaIosSourceBuild = (config) =>
   withPodfile(config, (cfg) => {
-    if (cfg.modResults.contents.includes(MARKER)) {
-      return cfg;
+    let { contents } = cfg.modResults;
+    if (!contents.includes(MARKER)) {
+      // Top of the Podfile: before `target` and any pod resolution.
+      contents = `${INJECTION}\n\n${contents}`;
     }
-    // Top of the Podfile: before `target` and any pod resolution.
-    cfg.modResults.contents = `${INJECTION}\n\n${cfg.modResults.contents}`;
+    if (!contents.includes(ARCH_MARKER)) {
+      const anchor = contents.indexOf(POST_INSTALL_ANCHOR);
+      if (anchor === -1) {
+        throw new Error(
+          "withLlamaIosSourceBuild: no `post_install do |installer|` hook in the " +
+            "Podfile; cannot inject the x86_64 simulator exclusion"
+        );
+      }
+      const insertAt = anchor + POST_INSTALL_ANCHOR.length;
+      contents = `${contents.slice(0, insertAt)}${ARCH_INJECTION}\n${contents.slice(insertAt)}`;
+    }
+    cfg.modResults.contents = contents;
     return cfg;
   });
 
