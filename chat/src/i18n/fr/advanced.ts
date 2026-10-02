@@ -51,6 +51,10 @@ export const ADVANCED = {
   chatsAndPairs: "Le téléphone discute au nom tailnet de cet ordinateur et s'apparie à ce nom avec :8443.",
   deskMoved: (port: number) => ` Le bureau d'appariement est sur ${port} cette fois — vise ce numéro dans la commande du bureau.`,
   doorWaiting: "La porte locale attend que le serveur soit allumé.",
+  openLogFolder: "Ouvrir le dossier des journaux",
+  openFailed: "Kalsa n'a pas pu ouvrir le dossier des journaux.",
+  logFolderHelp:
+    "Si quelque chose se passe mal, envoyez-nous kalsa-brain.log et kalsa-brain.1.log de ce dossier.",
   saveButton: "Enregistrer les réglages",
   saveOk: "Enregistré pour le prochain démarrage.",
   enterNumber: "Écris un nombre.",

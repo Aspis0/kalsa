@@ -30,6 +30,24 @@ const CAP_BYTES: u64 = 2 * 1024 * 1024;
 /// The line between sessions, so a report reads one session at a glance.
 const SESSION_LINE: &str = "──────── session ────────";
 
+/// No single line may be longer than this, whatever was logged: a runaway
+/// message must not eat the 2 MiB cap on its own.
+const LINE_CHAR_CAP: usize = 8 * 1024;
+/// A panic message's own cap, tight because a payload can be a whole error
+/// dump with the request text inside it.
+const PANIC_CHAR_CAP: usize = 500;
+/// What a clipped line ends with, so a reader knows the line was cut.
+const TRUNCATED: &str = " …[truncated]";
+
+fn clip(text: &str, cap: usize) -> String {
+    if text.chars().count() <= cap {
+        return text.to_string();
+    }
+    let mut cut: String = text.chars().take(cap).collect();
+    cut.push_str(TRUNCATED);
+    cut
+}
+
 /// The folder the log lives in, once [`install`] has run. The command that
 /// opens the folder for the owner reads this; `None` before install and
 /// after a failed install.
@@ -40,10 +58,8 @@ static FOLDER: OnceLock<PathBuf> = OnceLock::new();
 /// lock that appends — two threads can never interleave a rotation.
 pub struct Logger {
     state: Mutex<State>,
-    /// The home directory's path as a string, matched as a prefix of every
-    /// message. `None` when it cannot be read: then nothing is redacted and
-    /// a logged path keeps the user's name — the honest degradation.
-    home: Option<String>,
+    /// What every message is redacted against, built once at open.
+    redactions: Redactions,
 }
 
 struct State {
@@ -53,6 +69,10 @@ struct State {
     file: Option<(File, u64)>,
     dir: PathBuf,
     cap: u64,
+    /// Whether the one "rotation failed" warning has been said. A folder
+    /// that cannot rotate will fail on every line past the cap; the first
+    /// failure is the news, the rest are the same.
+    rotation_warned: bool,
 }
 
 impl Logger {
@@ -65,8 +85,9 @@ impl Logger {
                 file: open_live(dir),
                 dir: dir.to_path_buf(),
                 cap,
+                rotation_warned: false,
             }),
-            home: home_dir(),
+            redactions: Redactions::build(),
         }
     }
 
@@ -78,40 +99,48 @@ impl Logger {
                 file: None,
                 dir: PathBuf::new(),
                 cap: CAP_BYTES,
+                rotation_warned: false,
             }),
-            home: home_dir(),
+            redactions: Redactions::build(),
         }
     }
 
     /// One message, through redaction, to the file (with rotation) and to
     /// stderr. Tests call this directly; the [`Log`] impl forwards here.
     fn write(&self, level: Level, target: &str, message: &str) {
-        let line = format!(
-            "{} {:<5} {}: {}\n",
+        let line = clip_line(&format!(
+            "{} {:<5} {}: {}",
             rfc3339_now(),
             level,
             target,
-            redact(message, self.home.as_deref())
-        );
+            redact(message, &self.redactions)
+        ));
         if let Ok(mut state) = self.state.lock() {
-            if state.file.is_some() && state.file.as_ref().is_some_and(|(_, len)| {
-                len + line.len() as u64 > state.cap
-            }) {
-                rotate(&mut state);
+            let over_cap = state
+                .file
+                .as_ref()
+                .is_some_and(|(_, len)| len + line.len() as u64 > state.cap);
+            if over_cap && !rotate(&mut state) && !state.rotation_warned {
+                // Say it once, through the ordinary path: the line below is
+                // what a tester pastes, and "why is the file 3 MiB" deserves
+                // its answer inside the file.
+                state.rotation_warned = true;
+                append(
+                    &mut state,
+                    &clip_line(&format!(
+                        "{} WARN  logging: rotation failed; the live file keeps growing",
+                        rfc3339_now()
+                    )),
+                );
             }
-            if let Some((file, len)) = state.file.as_mut() {
-                if file.write_all(line.as_bytes()).is_ok() {
-                    *len += line.len() as u64;
-                } else {
-                    // The folder vanished mid-run (a cleanup tool, a network
-                    // home): stderr keeps the rest of the session.
-                    state.file = None;
-                }
-            }
+            append(&mut state, &line);
         }
-        // A poisoned lock, a closed file, a failed write: none of it may eat
-        // the line or the thread. stderr is the mirror and the last resort.
-        eprint!("{line}");
+        // The mirror, last and unpanicking: `eprint!` panics on a closed or
+        // broken stderr, and a logger must never be what takes a process
+        // down.
+        let _ = std::io::stderr()
+            .lock()
+            .write_all(format!("{line}\n").as_bytes());
     }
 
     /// The session header: one separating line, then the facts a report
@@ -144,21 +173,35 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
+/// Whether the folder may be advertised to the owner as the place the log
+/// lives: a folder was named AND the live file in it actually opened. A
+/// stderr-only run has no folder to open in Finder or Explorer, and the
+/// button must say so rather than open nothing.
+fn advertise(dir: Option<&PathBuf>, opened: bool) -> bool {
+    dir.is_some() && opened
+}
+
 /// Installs the global logger and writes the session header. `None` for the
-/// folder is the platform refusing to name a log directory: the logger comes
-/// up stderr-only and no folder is advertised. The one place
+/// folder is the platform refusing to name a log directory, and an unopened
+/// file is the folder refusing the log: either way the logger comes up
+/// stderr-only and no folder is advertised. The one place
 /// `set_boxed_logger` is called; a second call (none exists) would be the
 /// error, so its `Err` is dropped, not unwrapped.
 pub fn install(dir: Option<PathBuf>, version: &str) {
-    let logger = match dir {
-        Some(ref dir) => Logger::open(dir, CAP_BYTES),
+    let logger = match dir.as_ref() {
+        Some(dir) => Logger::open(dir, CAP_BYTES),
         None => Logger::stderr_only(),
     };
     logger.session_header(version);
+    let opened = logger
+        .state
+        .lock()
+        .map(|state| state.file.is_some())
+        .unwrap_or(false);
     let _ = log::set_boxed_logger(Box::new(logger));
     log::set_max_level(LevelFilter::Info);
-    if let Some(dir) = dir {
-        let _ = FOLDER.set(dir);
+    if advertise(dir.as_ref(), opened) {
+        let _ = FOLDER.set(dir.expect("advertise answered for a named folder"));
     }
 }
 
@@ -170,8 +213,10 @@ pub fn folder() -> Option<&'static Path> {
 
 /// Panics reach the log before the platform's own hook: message and location
 /// on one line, then the default hook does whatever it would have done. A
-/// panic message can carry a path (`unwrap` on a file operation), so the
-/// line goes through the same redaction as every other.
+/// panic message can carry a path or a whole error dump (`unwrap` on a file
+/// operation, a payload with request text in it), so the line goes through
+/// the same redaction as every other and the message is clipped to
+/// [`PANIC_CHAR_CAP`] characters.
 pub fn install_panic_hook() {
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -185,7 +230,9 @@ pub fn install_panic_hook() {
             .location()
             .map(|at| format!("{}:{}", at.file(), at.line()))
             .unwrap_or_else(|| "unknown location".to_string());
-        log::error!("panic at {location}: {message}");
+        // The mirror of a panic must not be able to panic either: the line
+        // reaches stderr through the same never-panicking write as any other.
+        log::error!("panic at {location}: {}", clip(&message, PANIC_CHAR_CAP));
         default(info);
     }));
 }
@@ -204,64 +251,259 @@ fn open_live(dir: &Path) -> Option<(File, u64)> {
     Some((file, len))
 }
 
+/// One line into the live file, if there is one. A failed write ends the
+/// file for the run (the folder vanished mid-run, a cleanup tool, a network
+/// home) — stderr keeps the rest of the session. The caller holds the lock.
+fn append(state: &mut State, line: &str) {
+    if let Some((file, len)) = state.file.as_mut() {
+        let bytes = format!("{line}\n");
+        if file.write_all(bytes.as_bytes()).is_ok() {
+            *len += bytes.len() as u64;
+        } else {
+            state.file = None;
+        }
+    }
+}
+
 /// The live file becomes the rotated one (replacing whatever rotated file
 /// was there) and a fresh live file takes its place. The caller holds the
-/// state lock. A failure here leaves `file` None — stderr only — never a
-/// panic and never a lost line before this one.
-fn rotate(state: &mut State) {
+/// state lock. A failure at any step reopens the LIVE file for append and
+/// answers `false`: a folder whose rotated file is locked or read-only
+/// keeps its log — past the cap, but written — rather than going silent.
+fn rotate(state: &mut State) -> bool {
     state.file = None;
     let live = state.dir.join(LIVE_NAME);
     let rotated = state.dir.join(ROTATED_NAME);
-    let _ = std::fs::remove_file(&rotated);
-    if std::fs::rename(&live, &rotated).is_err() {
-        return;
+    let room = std::fs::remove_file(&rotated).is_ok() || !rotated.exists();
+    let renamed = room && std::fs::rename(&live, &rotated).is_ok();
+    if !renamed {
+        state.file = open_live(&state.dir);
+        return false;
     }
     state.file = open_live(&state.dir);
+    true
 }
 
-/// The one redaction: the home directory's path becomes `~` where it stands
-/// for itself — as the whole path, or the prefix a separator continues. A
-/// neighbouring name that merely starts with the same text (`/Users/marco2`,
-/// `/Users/marco-v2`) keeps its name: those characters extend the name, a
-/// separator, whitespace or punctuation do not.
-fn redact(message: &str, home: Option<&str>) -> String {
-    let Some(home) = home.filter(|home| !home.is_empty()) else {
-        return message.to_string();
-    };
-    let mut out = String::with_capacity(message.len());
-    let mut rest = message;
-    while let Some(at) = rest.find(home) {
-        let after = at + home.len();
-        let extends_name = rest[after..]
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_alphanumeric() || matches!(c, '_' | '-' | '.'));
-        if extends_name {
-            out.push_str(&rest[..after]);
-        } else {
-            out.push_str(&rest[..at]);
-            out.push('~');
+/// What every message is redacted against, read from the environment once
+/// at open: the home directory as a whole path, the account name as a path
+/// component, and the platform's temp-folder tree. Windows paths are
+/// case-insensitive with two spellings for every separator, and `{:?}` on a
+/// path doubles the backslashes — the matcher below takes all of that, on
+/// every platform, so a Windows log line is covered by the same code a test
+/// on this Mac exercises.
+pub(crate) struct Redactions {
+    home: Option<String>,
+    /// The account name (`USERNAME` on Windows, `USER` elsewhere), when it
+    /// is at least three characters: a two-letter name between separators
+    /// would eat ordinary words.
+    user: Option<String>,
+    /// Windows matches paths without regard to case; everywhere else the
+    /// exact spelling is the rule.
+    insensitive: bool,
+}
+
+impl Redactions {
+    pub(crate) fn build() -> Self {
+        Self {
+            home: env_path("HOME").or_else(|| env_path("USERPROFILE")),
+            user: env_name("USERNAME").or_else(|| env_name("USER")),
+            insensitive: cfg!(windows),
         }
-        rest = &rest[after..];
     }
-    out.push_str(rest);
+
+    /// A build with the given strings, for tests and for fixtures.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn new(home: Option<String>, user: Option<String>, insensitive: bool) -> Self {
+        Self {
+            home,
+            user,
+            insensitive,
+        }
+    }
+}
+
+fn env_path(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|value| !value.is_empty())
+}
+
+/// The account name, only when long enough to be a name and not a word.
+fn env_name(key: &str) -> Option<String> {
+    let value = env_path(key)?;
+    (value.chars().count() >= 3).then_some(value)
+}
+
+fn is_sep(c: char) -> bool {
+    c == '/' || c == '\\'
+}
+
+/// One character of a path pattern against one of the text: separators are
+/// interchangeable (both platforms write both), and case is ignored where
+/// the platform ignores it.
+fn char_matches(pat: char, got: char, insensitive: bool) -> bool {
+    if is_sep(pat) && is_sep(got) {
+        return true;
+    }
+    if insensitive {
+        pat.eq_ignore_ascii_case(&got)
+    } else {
+        pat == got
+    }
+}
+
+/// Whether `pattern` matches `text` starting at `at`, in characters: a
+/// separator in the pattern may absorb a doubled separator in the text —
+/// the form `{:?}` gives a Windows path. Returns the end offset, or `None`.
+fn match_path_at(text: &[char], at: usize, pattern: &[char], insensitive: bool) -> Option<usize> {
+    let mut p = 0;
+    let mut t = at;
+    while p < pattern.len() {
+        let (pc, tc) = (*pattern.get(p)?, *text.get(t)?);
+        if !char_matches(pc, tc, insensitive) {
+            return None;
+        }
+        t += 1;
+        p += 1;
+        if is_sep(pc) && text.get(t).is_some_and(|next| is_sep(*next)) {
+            t += 1;
+        }
+    }
+    Some(t)
+}
+
+/// Characters that would extend the path's last name when they follow a
+/// match: `marco2` is another name, `marco/` is the same path deeper.
+fn extends_name(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '_' | '-' | '.')
+}
+
+/// The one redaction, in three passes over the message: the temp-folder
+/// tree first (it contains the user's name in its own structure), then the
+/// home directory as a whole path, then the account name where it stands as
+/// a path component of its own.
+fn redact(message: &str, r: &Redactions) -> String {
+    let chars: Vec<char> = message.chars().collect();
+    let chars = redact_tmp(&chars);
+    let chars = redact_path(&chars, r);
+    redact_component(&chars, r).into_iter().collect()
+}
+
+/// `/var/folders/ab/…` and `/private/var/folders/ab/…` become `<tmp>/ab/…`'s
+/// replacement: the whole `<a>/<b>` pair under the prefix is the machine's
+/// per-user temp tree, and what follows it is the app's own subfolders.
+fn redact_tmp(text: &[char]) -> Vec<char> {
+    let private: Vec<char> = "/private/var/folders/".chars().collect();
+    let plain: Vec<char> = "/var/folders/".chars().collect();
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let matched = [private.as_slice(), plain.as_slice()]
+            .iter()
+            .find_map(|prefix| match_path_at(text, at, prefix, false));
+        match matched {
+            Some(end) => {
+                out.extend("<tmp>/".chars());
+                // The two per-user components under the prefix go with it;
+                // each is name characters followed by a separator.
+                let mut cursor = end;
+                for _ in 0..2 {
+                    let name_len = text[cursor..]
+                        .iter()
+                        .take_while(|c| !is_sep(**c))
+                        .count();
+                    let sep = text.get(cursor + name_len).is_some_and(|c| is_sep(*c));
+                    if name_len == 0 || !sep {
+                        break;
+                    }
+                    cursor += name_len + 1;
+                }
+                at = cursor;
+            }
+            None => {
+                out.push(text[at]);
+                at += 1;
+            }
+        }
+    }
     out
 }
 
-/// The user's home directory, by the environment variable each platform
-/// documents for it. No crate: one `var` read, once, at install.
-fn home_dir() -> Option<String> {
-    #[cfg(target_os = "windows")]
-    let key = "USERPROFILE";
-    #[cfg(not(target_os = "windows"))]
-    let key = "HOME";
-    std::env::var(key).ok().filter(|home| !home.is_empty())
+/// The home directory path, in any of its spellings, becomes `~`. The
+/// trailing boundary is the name rule: a match followed by a name-extending
+/// character is a different path and keeps the user's name (rare, and
+/// honest) rather than mangling both.
+fn redact_path(text: &[char], r: &Redactions) -> Vec<char> {
+    let Some(home) = r.home.as_deref() else {
+        return text.to_vec();
+    };
+    let pattern: Vec<char> = home.chars().collect();
+    if pattern.is_empty() {
+        return text.to_vec();
+    }
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let matched = match_path_at(text, at, &pattern, r.insensitive).filter(|end| text.get(*end).is_none_or(|next| !extends_name(*next)));
+        match matched {
+            Some(end) => {
+                out.push('~');
+                at = end;
+            }
+            None => {
+                out.push(text[at]);
+                at += 1;
+            }
+        }
+    }
+    out
+}
+
+/// The account name where it stands as a path component — between
+/// separators (or at the ends of the text) — becomes `<user>`. Matched
+/// case-insensitively on every platform: an account name in a log line is
+/// the same name whether the writer cased it or not. In prose, between
+/// spaces or punctuation, a word equal to the name is left alone: the rule
+/// is the path shape, not the word.
+fn redact_component(text: &[char], r: &Redactions) -> Vec<char> {
+    let Some(user) = r.user.as_deref() else {
+        return text.to_vec();
+    };
+    let pattern: Vec<char> = user.chars().collect();
+    if pattern.len() < 3 {
+        return text.to_vec();
+    }
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let bounded_before = at == 0 || is_sep(text[at - 1]);
+        let matched = bounded_before
+            .then(|| match_path_at(text, at, &pattern, true))
+            .flatten()
+            .filter(|end| text.get(*end).is_none_or(|next| is_sep(*next)));
+        match matched {
+            Some(end) => {
+                out.extend("<user>".chars());
+                at = end;
+            }
+            None => {
+                out.push(text[at]);
+                at += 1;
+            }
+        }
+    }
+    out
+}
+
+/// One line as it will be written: never longer than [`LINE_CHAR_CAP`]
+/// characters, cut on a character boundary with the marker behind it.
+fn clip_line(line: &str) -> String {
+    clip(line, LINE_CHAR_CAP)
 }
 
 /// "macos 25.6.0" / "windows 10.0.19045": the OS name this binary was built
 /// for, plus the version the machine reports. A version that cannot be read
-/// is an unnamed operand, not a failure.
-fn os_version() -> String {
+/// is an unnamed operand, not a failure. The session facts (`system`) build
+/// their own richer line and fall back to this one.
+pub(crate) fn os_version() -> String {
     #[cfg(target_os = "windows")]
     {
         use std::mem::zeroed;

@@ -278,6 +278,9 @@ pub(crate) fn run(
     // No unambiguous card means no graphics build: the CPU build stands,
     // because starting on the wrong card is worse than starting on none.
     let mut device = None;
+    // The engine's own `--list-devices` answer, kept for the session facts
+    // (the engine block logs what the app asked and what it pinned).
+    let mut listed_devices: Vec<(String, String)> = Vec::new();
     if backend == ServerBackend::Vulkan {
         let listed = kalsa_runtime::list_devices(&exe);
         let (routed, chosen) = device_route(
@@ -285,6 +288,7 @@ pub(crate) fn run(
             listed.as_deref(),
             kalsa_probe::discrete_name,
         );
+        listed_devices = listed.unwrap_or_default();
         if routed != backend {
             progress(Progress::Deciding);
             let cpu = kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
@@ -385,6 +389,22 @@ pub(crate) fn run(
                 |resolved, rule, inner| {
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
+            );
+            // The session's engine facts, once, as the walk settled them.
+            // The tune's winner is logged by the tune itself and is not
+            // repeated here.
+            crate::system::log_engine(
+                &crate::system::Engine {
+                    release: kalsa_runtime::RELEASE,
+                    build: backend.name(),
+                    listed_devices,
+                    device: prepared.info.args.device.clone(),
+                    model: prepared.info.display_name.clone(),
+                    row: Some(model_token(row)),
+                    context_tokens: prepared.info.args.context_tokens,
+                    drafter: prepared.info.args.draft.is_some(),
+                },
+                &crate::system::host_name(),
             );
             return Ok(prepared);
         }

@@ -33,7 +33,7 @@ mod vram_registry;
 pub use bandwidth::{measure_at_threads, thread_ramp, SAMPLE_TARGET};
 pub use compute::measure_compute;
 pub use cores::physical_cores;
-pub use detect::{backend, discrete_name, discrete_name_from_video_controllers_with};
+pub use detect::{adapter_is_discrete, backend, discrete_name, discrete_name_from_video_controllers_with};
 pub use confidence::{Reliability, SPREAD_LIMIT};
 pub use path::{Backend, ExecutionPath};
 pub use plateau::{plateau, still_rising, PLATEAU_TOLERANCE};

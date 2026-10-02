@@ -51,6 +51,10 @@ export const ADVANCED = {
   chatsAndPairs: "手机在这台电脑的 tailnet 名称处聊天，并在该名称加 :8443 处配对。",
   deskMoved: (port: number) => ` 这次配对台在 ${port} 上 —— 请把配对命令指向这个数字。`,
   doorWaiting: "本地门在等服务器启动。",
+  openLogFolder: "打开日志文件夹",
+  openFailed: "Kalsa 无法打开日志文件夹。",
+  logFolderHelp:
+    "如果出现问题，请把这个文件夹里的 kalsa-brain.log 和 kalsa-brain.1.log 发给我们。",
   saveButton: "保存设置",
   saveOk: "已保存，下次启动时生效。",
   enterNumber: "请输入数字。",

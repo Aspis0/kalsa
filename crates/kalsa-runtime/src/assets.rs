@@ -21,6 +21,10 @@
 /// headers, so it is the only one this app may mount.
 const FORK_BASE: &str = "https://dl.kalsa.io/kalsa-server/v1.1.5";
 
+/// The release every archive in the table belongs to, for the log's session
+/// facts: which pinned engine this build of the app ships.
+pub const RELEASE: &str = "v1.1.5";
+
 /// The same release, byte-identical, on Hugging Face: the second source for a
 /// network that blocks the CDN. Pinned to a commit — a tag there can move —
 /// and the row's own size and sha256 hold it to the same promise.
@@ -311,6 +315,18 @@ pub(crate) fn pinned_backends(platform: Platform) -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The release the session facts report is the release every archive in
+    /// the table is published under: the constant and the CDN base are two
+    /// spellings of one fact, and a bump that moves only one of them is a
+    /// bug this test exists to catch.
+    #[test]
+    fn the_release_constant_names_the_published_tree() {
+        assert!(
+            FORK_BASE.ends_with(&format!("/kalsa-server/{RELEASE}")),
+            "the CDN base {FORK_BASE} does not serve {RELEASE}"
+        );
+    }
 
     #[test]
     fn the_table_matches_the_published_release_shape() {

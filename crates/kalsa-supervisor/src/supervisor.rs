@@ -829,13 +829,15 @@ fn start_blocking(
         detail: format!("could not start the server: {e}"),
     })?;
     // The engine start, as the launch describes it: the binary's own name
-    // (it carries the pinned build) and the flags and paths it was handed.
-    // Flags and paths only — the argv's renderer cannot emit a verbose
-    // flag, so no prompt text can ever ride the engine's stderr tail.
+    // (it carries the pinned build) and the flags and paths it was handed,
+    // rendered by [`argv_line`] — never Debug, whose doubled backslashes a
+    // Windows path would smuggle past the log sink's redaction. Flags and
+    // paths only: the argv's renderer cannot emit a verbose flag, so no
+    // prompt text can ever ride the engine's stderr tail.
     log::info!(
-        "engine start: {} argv {:?}",
+        "engine start: {} argv {}",
         engine_name(&config.exe),
-        config.argv
+        argv_line(&config.argv)
     );
     let began = Instant::now();
     instance
@@ -877,12 +879,94 @@ fn engine_name(exe: &Path) -> String {
         .unwrap_or_else(|| exe.to_string_lossy().into_owned())
 }
 
+/// The argv as one readable line: args joined by spaces, an argument that
+/// itself contains a space wrapped in quotes. Deliberately NOT `{:?}` over
+/// the vector — Debug doubles every backslash, and a Windows path in Debug
+/// form (`C:\\Users\\name\\…`) is invisible to the log sink's redaction.
+fn argv_line(argv: &[String]) -> String {
+    argv.iter()
+        .map(|arg| {
+            if arg.contains(' ') {
+                format!("\"{arg}\"")
+            } else {
+                arg.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// How much of one stderr line reaches the log: enough to carry an error
+/// and its context, short enough that a line carrying something it should
+/// not cannot carry much of it.
+const STDERR_CLIP: usize = 300;
+
+/// Substrings that mark an engine stderr line as carrying REQUEST bytes.
+/// Each was read out of the fork's own sources (`tools/server` in
+/// kalsallama) — at default verbosity these are the lines that print what
+/// somebody sent:
+///
+/// - `got exception` / `got another exception` — `server.cpp:79,81`, the
+///   whole request body (`res->data`) and the exception text;
+/// - `last read`, `parse_error`, `json.exception` — nlohmann's parse
+///   errors quote the input around the failure, whatever printed them;
+/// - `unsupported Responses tool type` — `server-chat.cpp:277`, a field
+///   value out of the request;
+/// - `downloading image from`, `loading image from local file` —
+///   `server-common.cpp:1094,1115`, a URL or path out of the request.
+///
+/// Everything else the fork prints at this verbosity is argv, model paths
+/// or counters — checked across `server.cpp`, `server-chat.cpp`,
+/// `server-common.cpp` and `server-context.cpp`.
+const REQUEST_LINE_MARKS: [&str; 8] = [
+    "got exception",
+    "got another exception",
+    "last read",
+    "parse_error",
+    "json.exception",
+    "unsupported Responses tool type",
+    "downloading image from",
+    "loading image from local file",
+];
+
+/// The withheld lines' replacement, named once so the log reads the same
+/// wherever the filter bites.
+const WITHHELD: &str = "<a request error line was withheld>";
+
+fn carries_request_text(line: &str) -> bool {
+    REQUEST_LINE_MARKS.iter().any(|mark| line.contains(mark))
+}
+
+/// The engine's own last words, made safe for the log: a line that carries
+/// request bytes becomes the one withheld sentence, every other line is
+/// clipped to [`STDERR_CLIP`] characters. One withheld line is logged for
+/// however many were dropped — the count is the shape of one bad request,
+/// not information the log needs.
+fn sanitized_tail(lines: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut withheld = false;
+    for line in lines {
+        if carries_request_text(line) {
+            withheld = true;
+            continue;
+        }
+        let clipped: String = line.chars().take(STDERR_CLIP).collect();
+        out.push(clipped);
+    }
+    if withheld {
+        out.push(WITHHELD.to_string());
+    }
+    out
+}
+
 /// The engine's own last words on the record, after an exit or a failed
-/// start: the in-memory stderr tail, one log line per stderr line. Safe to
-/// log because the argv renderer cannot emit a verbose flag — llama-server
-/// at default verbosity prints no prompt text.
+/// start: the in-memory stderr tail through [`sanitized_tail`], one log
+/// line per stderr line. The argv renderer cannot emit a verbose flag
+/// (`kalsa-launch/src/argv.rs` pins it), so at default verbosity the only
+/// request text llama-server can print is the exception family the filter
+/// takes out.
 fn log_stderr_tail(child: &ChildHandle) {
-    for line in child.output_tail() {
+    for line in sanitized_tail(&child.output_tail()) {
         log::warn!("engine stderr: {line}");
     }
 }
@@ -997,10 +1081,12 @@ fn preflight_port(config: &ServerConfig) -> Result<(), Failure> {
 
 /// What the supervisor knows when the server stopped by itself: its last
 /// stderr line, or its exit status when it said nothing. The detail is for
-/// logs; the caller owns the words.
+/// logs; the caller owns the words. A last line that carries request bytes
+/// is not repeated here either — the detail travels into the log through
+/// the failure itself, so it goes through the same rule.
 fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure {
     Failure::ServerExited {
-        detail: match child.output_tail().last() {
+        detail: match sanitized_tail(&child.output_tail()).last() {
             Some(line) => line.clone(),
             None => format!("exit status {status}"),
         },
@@ -1018,6 +1104,73 @@ mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
+    /// The exception family the fork's server prints with request bytes in
+    /// it, beside an ordinary line and the load banner — the tail as a dead
+    /// engine would leave it.
+    fn dead_engine_tail() -> Vec<String> {
+        vec![
+            "load: metal dispatch queue created".to_string(),
+            "got exception: {\"messages\":[{\"role\":\"user\",\"content\":\"marco's question\"}]}".to_string(),
+            "[json.exception.parse_error.101] parse error at line 1, column 9: syntax error - last read: 'marco's que'".to_string(),
+            "unsupported Responses tool type 'interpretive dance' skipped".to_string(),
+            "downloading image from 'https://example.invalid/marco-house.jpg'".to_string(),
+            "srv  update_slots: all slots are idle".to_string(),
+        ]
+    }
+
+    #[test]
+    fn the_engine_stderr_tail_never_carries_request_bytes() {
+        let kept = sanitized_tail(&dead_engine_tail());
+        let joined = kept.join("\n");
+        for mark in REQUEST_LINE_MARKS {
+            assert!(!joined.contains(mark), "a request line survived: {mark}");
+        }
+        assert!(
+            !joined.contains("marco"),
+            "request bytes survived the filter: {joined}"
+        );
+        assert_eq!(
+            kept.iter().filter(|line| line.as_str() == WITHHELD).count(),
+            1,
+            "one withheld line, not one per dropped line"
+        );
+        assert!(
+            joined.contains("all slots are idle") && joined.contains("metal dispatch"),
+            "the ordinary lines survive: {joined}"
+        );
+    }
+
+    #[test]
+    fn a_long_engine_stderr_line_is_clipped_to_three_hundred_characters() {
+        let long = format!("E backend scan: {}", "x".repeat(STDERR_CLIP + 200));
+        let kept = sanitized_tail(&[long]);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].chars().count(), STDERR_CLIP);
+    }
+
+    /// The argv line is written into a log whose redaction matches real
+    /// separators: Debug's doubled backslashes would hide a Windows path
+    /// from it, so the renderer must keep single separators and quote only
+    /// the argument that needs it.
+    #[test]
+    fn the_argv_line_keeps_single_separators_and_quotes_spaced_arguments() {
+        let argv = vec![
+            "--model".to_string(),
+            "C:\\Users\\marco\\models\\weights gguf.gguf".to_string(),
+            "--threads".to_string(),
+            "4".to_string(),
+        ];
+        let line = argv_line(&argv);
+        assert!(
+            line.contains("C:\\Users\\marco\\models\\weights gguf.gguf")
+                || line.contains("\"C:\\Users\\marco\\models\\weights gguf.gguf\""),
+            "{line}"
+        );
+        assert!(line.contains("\""), "the spaced argument is quoted: {line}");
+        assert!(!line.contains("\\\\"), "no doubled separators: {line}");
+        assert!(line.ends_with("--threads 4"), "{line}");
+    }
 
     fn config(port: u16) -> ServerConfig {
         ServerConfig {

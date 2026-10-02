@@ -30,6 +30,7 @@ mod room_events;
 mod placement;
 mod road;
 mod startup;
+mod system;
 mod tailnet;
 mod tune_step;
 mod ticker;
@@ -2117,6 +2118,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     chip: kalsa_probe::brand_string(),
                 },
             );
+            // The session's machine facts, once: what a report is read
+            // against. The measurement's bandwidth is included when a kept
+            // record already holds one — a first-ever run has none yet, and
+            // the block says so by omission.
+            let measured = app
+                .state::<Brain>()
+                .measurement
+                .lock()
+                .ok()
+                .and_then(|kept| kept.clone());
+            system::log_machine(
+                &system::Machine {
+                    os: system::os_description(),
+                    arch: std::env::consts::ARCH,
+                    cpu: kalsa_probe::brand_string(),
+                    physical_cores: kalsa_probe::physical_cores(),
+                    logical_cores: std::thread::available_parallelism().ok().map(|n| n.get()),
+                    ram_total_bytes: startup::ram_bytes(),
+                    ram_available_bytes: system::available_ram_bytes(),
+                    bandwidth_bytes_per_second: measured
+                        .as_ref()
+                        .map(|m| m.ceiling_bytes_per_second),
+                    adapters: system::adapters(),
+                    runs_on: measured
+                        .as_ref()
+                        .map(|m| format!("{:?}", m.will_run_on))
+                        .unwrap_or_else(|| "not measured yet".to_string()),
+                },
+                &system::host_name(),
+            );
             // The authority, before anything below can read or write the
             // store: one exclusive lock on this account's own data
             // directory, held for the app's whole life. A refusal is the
@@ -2274,7 +2305,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Opens the log folder in the platform's own file manager, so a tester can
 /// find `kalsa-brain.log` and send it by hand. No shell: the folder is one
 /// argument, and the child is reaped on a thread of its own exactly as the
-/// browser opener does.
+/// browser opener does — and its exit status is said, because an opener that
+/// refuses is the one way this button fails silently otherwise.
 #[tauri::command]
 fn brain_open_log_folder() -> Result<(), String> {
     let folder = logging::folder()
@@ -2294,7 +2326,18 @@ fn brain_open_log_folder() -> Result<(), String> {
         .spawn()
         .map(|mut child| {
             std::thread::spawn(move || {
-                let _ = child.wait();
+                match child.wait() {
+                    Ok(status) if !status.success() => {
+                        log::warn!(
+                            "the log-folder opener ({opener}) exited {status}; the folder was {}",
+                            folder.display()
+                        );
+                    }
+                    Err(error) => {
+                        log::warn!("the log-folder opener could not be waited on: {error}");
+                    }
+                    _ => {}
+                }
             });
         })
         .map_err(|_| "Kalsa couldn't open the log folder.".to_string())

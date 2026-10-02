@@ -273,6 +273,21 @@ fn is_amd_integrated(lowered: &str) -> bool {
     apu_model && !card_model
 }
 
+/// Whether an adapter's already-lowercased name classifies as a discrete
+/// GPU — the one row-level rule the budget scan is built on. Public so the
+/// app's session facts can label a whole adapter list with the same rule
+/// that decided the machine's backend.
+pub fn adapter_is_discrete(lowered: &str) -> bool {
+    (lowered.contains("nvidia")
+        || lowered.contains("geforce")
+        || lowered.contains("quadro")
+        || lowered.contains("radeon")
+        || lowered.contains("rx ")
+        || lowered.contains("arc "))
+        && !lowered.contains("intel")
+        && !is_amd_integrated(lowered)
+}
+
 /// Reads the video controllers' text — wmic's or the PowerShell fallback's:
 /// each row carries its memory at one end, and which end is read from the
 /// text itself ([`row_leads_with_memory`]), never assumed.
@@ -320,14 +335,7 @@ pub(crate) fn scan_video_controllers(
         if lowered.contains("name") && lowered.contains("adapterram") {
             continue; // the header row
         }
-        let looks_discrete = (lowered.contains("nvidia")
-            || lowered.contains("geforce")
-            || lowered.contains("quadro")
-            || lowered.contains("radeon")
-            || lowered.contains("rx ")
-            || lowered.contains("arc "))
-            && !lowered.contains("intel")
-            && !is_amd_integrated(&lowered);
+        let looks_discrete = adapter_is_discrete(&lowered);
         if looks_discrete {
             discrete = true;
             discrete_names.push(name.trim().to_string());
