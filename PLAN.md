@@ -879,6 +879,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   writes only F32/F16/Q8_0, and a pre-allocated dst cannot be rerouted (`ggml-backend.cpp:941` abort). HTP has
   FLASH_ATTN_EXT for F16/Q8_0 KV, head dim 64 fits. Cheapest split: bare prefill on an HTP device at fixed n_past
   (0/512/1.7k/3.1k), `no_kv_offload` on vs off with the SAME q8_0 KV, `GGML_HEXAGON_PROFILE=1`, per-chunk commit time.
+  **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
+  definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
+  skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
+  ELF; QAIC dir from the version list; false comments fixed. Coordinator judged OUT of scope and documented in the
+  gate: Gradle-passed CMake args (not fingerprinted - every Gradle edit would force a 20-min rebuild) and hand-rewritten
+  e_flags (deliberate tampering, like stamp forgery); the gate is a review control against accidental skew. Skels
+  rebuilt twice by the Docker recipe, code bytes unchanged (only the KALSA_HTP_SRC stamp). Binding PUSHED `7c12bdc6`.
+  Binding remote pruned to 2 branches + archive tags (REPOS.md). App pin bump to 7c12bdc6: GLM 72cef0cd.
 
 ### Pairing: iroh and invite links
 
