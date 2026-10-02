@@ -985,6 +985,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   55,662.79 MB, load 314.72 ms warm. LFM2.5-2.6B generation: decode 31.22 tok/s (214 tok), prefill 17 tok only (not a
   prefill number). OPEN: 31 tok/s looks low for an M1 Max (memory bandwidth suggests far more) - check app settings
   (16k ctx, FA, threads) vs llama-bench before quoting it; os_proc_available_memory never logged (telemetry off).
+  **pdf.js 5.7 S23 check FAILED 2026-10-02 (`pdfjs57-s23-check/REPORT.md`, GLM 112f925f):** on c39f105e every PDF
+  import stalls silently - WebView destroyed ~0.3 s after `csp=true`, watchdog never fires; baseline 0b7c5e71 attaches
+  zh/scanned/large PDFs in <=2 s. Does NOT land. Also pre-existing: baseline silently drops kalsa-smoke-12p.pdf. Main
+  still ships pdf.js 3.11 unmitigated (mitigation-only commits 3eafa2f8/33812d0b on expo57-bump never device-checked).
+  Diagnosis parked by the owner's priority (iOS first, 2026-10-02).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
