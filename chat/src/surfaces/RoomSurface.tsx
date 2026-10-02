@@ -9,6 +9,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { UIEvent } from "react";
 import { available } from "../lib/tauri";
 import { RoomText } from "../lib/roomMention";
+import { assignNameColors, KALSA_NAME_COLOR } from "../lib/roomColors";
 import { Composer } from "../components/Composer";
 import { Markdown } from "../components/Markdown";
 import { stamp, Thinking } from "../components/Thread";
@@ -101,6 +102,8 @@ export function RoomSurface() {
   const sendErrorLine = feed.sendError
     ? (room.notes[feed.sendError.code] ?? room.sendFailed)
     : null;
+  // One color per member, stable order, Kalsa in green.
+  const colors = assignNameColors(info?.members ?? []);
 
   return (
     <div className="surface-page room-page">
@@ -109,7 +112,9 @@ export function RoomSurface() {
         <div className="room-people">
           {(info?.members ?? []).map((member) => (
             <span className="room-person" key={member.member_id}>
-              <span className="room-person-name">{member.name}</span>
+              <span className="room-person-name" style={{ color: colors.get(member.member_id) }}>
+                {member.name}
+              </span>
               {member.former ? <span className="room-left">{room.left}</span> : null}
             </span>
           ))}
@@ -162,12 +167,23 @@ export function RoomSurface() {
               <p className="surface-quiet">{room.emptyRoom}</p>
             ) : null}
             {entries.map((entry) => (
-              <RoomRow key={entry.seq} entry={entry} info={info ?? null} asked={room.askedKalsa} left={room.left} readLast={room.readLast} when={stamp(entry.time * 1000, tag)} />
+              <RoomRow
+                key={entry.seq}
+                entry={entry}
+                info={info ?? null}
+                color={colors.get(entry.member_id) ?? KALSA_NAME_COLOR}
+                asked={room.askedKalsa}
+                left={room.left}
+                readLast={room.readLast}
+                when={stamp(entry.time * 1000, tag)}
+              />
             ))}
             {live !== null || turnRunning ? (
               <div className="row row-assistant">
                 <div className="room-author">
-                  <span className="room-author-name">Kalsa</span>
+                  <span className="room-author-name" style={{ color: KALSA_NAME_COLOR }}>
+                    Kalsa
+                  </span>
                 </div>
                 <div className="assistant-body">
                   {live !== null && live.text !== "" ? (
@@ -231,10 +247,11 @@ export function RoomSurface() {
 /** One message of the room, in the thread's shapes: this computer's own
     words in the user's bubble, everyone else's in an authored block —
     Kalsa's typeset like the chat's answers, the room's people with their
-    calls and reads marked. */
+    calls and reads marked. The author's name wears the member's color. */
 function RoomRow({
   entry,
   info,
+  color,
   asked,
   left,
   readLast,
@@ -242,6 +259,7 @@ function RoomRow({
 }: {
   entry: RoomEntry;
   info: RoomInfo | null;
+  color: string;
   asked: string;
   left: string;
   readLast: (count: number) => string;
@@ -262,7 +280,9 @@ function RoomRow({
   return (
     <div className="row row-assistant" title={when}>
       <div className="room-author">
-        <span className="room-author-name">{entry.name}</span>
+        <span className="room-author-name" style={{ color }}>
+          {entry.name}
+        </span>
         {entry.former ? <span className="room-left">{left}</span> : null}
       </div>
       <div className="assistant-body">

@@ -45,6 +45,19 @@
   font-size: 0.85rem;
 }
 
+/* The member's mark: a small dot of the name's own color, in the thread
+   and in the header's list — currentColor, so the color is set once. */
+.room-author-name::before,
+.room-person-name::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 0.35rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 .room-left {
   color: var(--silence);
   font-weight: 400;

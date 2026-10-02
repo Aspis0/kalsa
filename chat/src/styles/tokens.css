@@ -22,6 +22,18 @@
   --ink-rgb: 23, 32, 28;
   --surface-muted-rgb: 232, 234, 231;
 
+  /* The room's name colors, one slot per household member in a stable
+     order (see lib/roomColors.ts), plus Kalsa's own green. Each slot is
+     one hue in two lightness tunings — this block is the light tuning —
+     and every value clears WCAG AA against --page, which is what the
+     names sit on; scripts/name-contrast.mjs computes it. */
+  --room-name-kalsa: #1f5f4e;
+  --room-name-1: #316cb5;
+  --room-name-2: #7b5aae;
+  --room-name-3: #b04d59;
+  --room-name-4: #926100;
+  --room-name-5: #0074a5;
+
   --font-ui: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
   --font-display: Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -48,4 +60,13 @@
   --danger: #d89c92;
   --ink-rgb: 233, 240, 234;
   --surface-muted-rgb: 35, 44, 38;
+
+  /* The same hues as the light block, lightness tuned for the dark page;
+     the contrast holds here too (scripts/name-contrast.mjs). */
+  --room-name-kalsa: #75b3a0;
+  --room-name-1: #5485c4;
+  --room-name-2: #9076be;
+  --room-name-3: #c26c74;
+  --room-name-4: #a97e2c;
+  --room-name-5: #268fb8;
 }
