@@ -1,77 +1,39 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
-import { createStore, titleFor, uid } from "./lib/store";
-import { appendTail } from "./lib/tail";
+// The shell: which surface is on screen, the ways between them, the topbar,
+// and the pieces that outlive any one surface — the slot banner, the web-call
+// ask, the crash prompt, the screen-reader status line. The surfaces render
+// themselves from their own files; the chat's state lives in the `useChat`
+// hook (surfaces/useChat.ts), called HERE so it survives the chat page's
+// unmounts.
+
+import { useEffect, useState } from "react";
 import { loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
-import { ChatRequestError, activateChat, eraseChat, fetchContextSize, serverBase } from "./lib/chat";
-import { ensureContextSize, hasContextSize } from "./lib/contextSize";
-import { createSlotGate } from "./lib/slotGate";
-import type { ActiveChat, DoorAccess, SlotNotice } from "./lib/slotGate";
-import { streamChatCompletion } from "./lib/toolLoop";
-import type { ChatErrorKind } from "./lib/chat";
-import { loadSampling, samplingWire } from "./lib/sampling";
-import { loadThinking, saveThinking, thinkingSupport } from "./lib/thinking";
-import type { ChatSettings, Conversation, ConversationMeta, LiveSettings, ToolRun } from "./lib/types";
-import type { Attachment } from "./lib/attachments";
-import { AttachmentError, buildPinnedContext, extractAttachment, historyTokens } from "./lib/attachments";
-import { filesRead } from "./lib/files";
+import type { ChatSettings } from "./lib/types";
+import type { SlotNotice } from "./lib/slotGate";
 import type { SurfaceKey } from "./app/surfaces";
-import { arrivingIn, handoff, leavingGhost } from "./app/handoff";
 import { CrescentNav } from "./components/CrescentNav";
 import type { CrescentEntry } from "./components/CrescentNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Composer } from "./components/Composer";
 import { RoomSurface } from "./surfaces/RoomSurface";
+import { ChatSurface } from "./surfaces/ChatSurface";
+import { useChat, useSlot } from "./surfaces/useChat";
 import { useLanguage } from "./i18n/useLanguage";
-import { rustSentence } from "./lib/rustText";
 import type { Table } from "./i18n";
-import { Thread } from "./components/Thread";
-import type { FailedState } from "./components/Thread";
-import { Sidebar } from "./components/Sidebar";
-import { Panel } from "./components/Panel";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
-import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./surfaces/useBrain";
-import { useServerFacts } from "./surfaces/useServerFacts";
+import { useBrain } from "./surfaces/useBrain";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { AdvancedSurface } from "./surfaces/AdvancedSurface";
-import { EmptyState, setupArm } from "./components/EmptyState";
-import { executeToolCall, offeredTools } from "./lib/tools/registry";
-import type { GateCheck } from "./lib/tools/registry";
 import { WebGateDialog } from "./components/WebGateDialog";
 import { CrashDialog } from "./components/CrashDialog";
 import { useCrashAsk } from "./surfaces/useCrashAsk";
 import "./App.css";
 
-const store = createStore();
-// One gate for the window, beside the one store: it holds which chat is active,
-// so it must outlive every render. A `useMemo` would let React discard it.
-const gate = createSlotGate();
-
 // How far the settings path may grow before the oldest step falls off. The
 // surfaces' own hops are shallow; the bound is for the general case.
 const PATH_LIMIT = 8;
-
-interface Refusal {
-  names: string;
-  docTokens: number;
-  historyTokens: number;
-  need: number;
-  have: number;
-}
-
-/** One held web call and the one function that ends its wait. The id is the
-    ask's identity on screen: an answer carries it back, and settles only the
-    ask it names — never whatever happens to be at the queue's head when the
-    click lands. */
-interface GateAsk {
-  id: string;
-  check: GateCheck;
-  settle: (allow: boolean) => void;
-}
 
 function surfaceLabel(surface: SurfaceKey, table: Table): string {
   if (surface === "brain") return table.chrome.home;
@@ -83,11 +45,7 @@ function surfaceLabel(surface: SurfaceKey, table: Table): string {
 }
 
 export function App() {
-  const { table, tag } = useLanguage();
-  // The stable callbacks below read the table through this ref, so a
-  // language chosen mid-session reaches the next turn's words.
-  const words = useRef(table);
-  words.current = table;
+  const { table } = useLanguage();
   const chrome = table.chrome;
   const t = table.shell;
   // The brain is the home: the app opens on it, and the chat is reached by
@@ -97,102 +55,22 @@ export function App() {
   // is the path's root — so back can mean one step, not the whole way home.
   // The chat is not part of the path: leaving it is the crescent's job.
   const [path, setPath] = useState<SurfaceKey[]>([]);
-  const [conversations, setConversations] = useState<ConversationMeta[]>(() => store.list());
-  const [storageFull, setStorageFull] = useState(false);
-  // What the door answered about a slot, when the answer is not a plain
-  // success. `failed` is the difference between a warning and a refusal: a door
-  // built without the disk tier (501) leaves the chat open and only says so,
-  // while a refusal means the chat was NOT opened and the sentence it came with
-  // must be read as the door wrote it — never softened, and never turned into
-  // "the slot is empty", which the door reserves for the one case it knows
-  // that about.
-  const [slotNotice, setSlotNotice] = useState<SlotNotice | null>(null);
-  // The disk tier's one road to an active chat: the gate owns which chat is
-  // active, and it changes only after the door has answered.
-  // `useSyncExternalStore` is what removes the setter — there is no state here
-  // for another path to bypass the door with. See `lib/slotGate.ts` for the
-  // four races this closes.
-  const slot = useSyncExternalStore(gate.subscribe, gate.getSnapshot);
-  const activeId = slot.active?.id ?? null;
-  const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const [navOpen, setNavOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => loadTheme());
-  // One entry per generating conversation (conversation id -> assistant id).
-  // Streams are independent: answering in A never blocks sending in B.
-  const [streamingByConv, setStreamingByConv] = useState<Record<string, string>>({});
-  const [failedById, setFailedById] = useState<Record<string, FailedState>>({});
-  const controllers = useRef(new Map<string, AbortController>());
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [attachStatus, setAttachStatus] = useState<string | null>(null);
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
-  // The web-call gate: while documents are pinned, every outgoing web call is
-  // held here until the owner sends it or refuses it. Streams in different
-  // conversations run at once, so asks can too: they queue in arrival order
-  // and the dialog shows the head alone — one clean question at a time rather
-  // than a batch that invites a careless yes, with a line saying more are
-  // waiting and each taking the screen the moment the one before it is
-  // answered or stopped. Every ask settles exactly once, by its own dialog
-  // answer or its own turn's Stop — never by another conversation's — so no
-  // turn is left waiting on a promise nobody holds. And an answer names the
-  // ask it was shown: the queue mutates the moment an ask settles, while the
-  // dialog re-renders on React's schedule, so a click on a dialog whose ask
-  // is already gone must do nothing rather than approve whatever took its
-  // place — for this feature, "the owner approved something they were not
-  // shown" is the worst failure available, and identity removes the question.
-  const [gateShown, setGateShown] = useState<GateAsk | null>(null);
-  const [gateWaiting, setGateWaiting] = useState(0);
-  const gateAsks = useRef<GateAsk[]>([]);
-  const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
-  // Numbers only, and that IS the healing rule: an unknown answer is never
-  // stored (the choice and its cost are declared at `ensureContextSize` in
-  // lib/contextSize.ts), so a `null` cannot be memoized here until the user
-  // happens to save settings — which was the defect. Clearing on save below
-  // stays correct (the endpoint or token may have changed); it is simply no
-  // longer the only road out.
-  const nctxCache = useRef(new Map<string, number>());
-  // In-flight stream buffers, keyed by assistant message id. Text lives here
-  // while streaming and renders from here; the disk is written on a throttle
-  // plus once at the end — never per token. The stored copy always trails
-  // the buffer, so the buffer is authoritative until the run finishes.
-  const bufs = useRef(
-    new Map<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[]; timer: ReturnType<typeof setTimeout> | undefined }>(),
-  );
-  const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[] }>>({});
+  // The chat's state, held here so it survives the chat page's unmounts.
+  // The two shell pieces it fills as it runs: the screen-reader status line
+  // and the slot banner the stage shows wherever its sentence arrived.
   const [liveMessage, setLiveMessage] = useState("");
-  // The message the brain's writing bar became, for the one open move.
-  // The composer's unsent text. Going home unmounts the chat, and the
-  // draft must survive that round trip, so it lives here.
-  const [draft, setDraft] = useState("");
+  const [slotNotice, setSlotNotice] = useState<SlotNotice | null>(null);
+  const slot = useSlot();
+  // The app's own settings — the surfaces that write them are rendered here,
+  // and the chat reads them through the hook.
+  const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
+  const chat = useChat({ openSurface, announce: setLiveMessage, setSlotNotice, settings });
 
-  useEffect(
-    () =>
-      store.subscribe(() => {
-        setConversations(store.list());
-        // A code, not a sentence — the words are the table's below.
-        setStorageFull(store.getWriteError() === "storage-full");
-      }),
-    [],
-  );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
-
-  // Leaving with a turn in flight must not leave callbacks writing into a dead
-  // tree, or a throttle timer firing after the page is gone. Rust is told to
-  // stop separately, by the abort hooks the tool calls installed.
-  useEffect(
-    () => () => {
-      controllers.current.forEach((controller) => controller.abort());
-      controllers.current.clear();
-      bufs.current.forEach((buffer) => {
-        if (buffer.timer !== undefined) clearTimeout(buffer.timer);
-      });
-      bufs.current.clear();
-    },
-    [],
-  );
 
   // No explicit choice yet: follow the operating system while it changes.
   useEffect(() => {
@@ -203,677 +81,11 @@ export function App() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  const active = useMemo(() => {
-    const conv = activeId ? (store.get(activeId) ?? null) : null;
-    if (!conv) return null;
-    let changed = false;
-    const messages = conv.messages.map((m) => {
-      const l = live[m.id];
-      if (!l || l.convId !== conv.id) return m;
-      changed = true;
-      return { ...m, content: l.content, reasoning: l.reasoning, toolRuns: l.toolRuns };
-    });
-    return changed ? { ...conv, messages } : conv;
-    // conversations refreshes on every store notification (index is small).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations, activeId, live]);
-
-  const tails = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const [id, entry] of Object.entries(live)) out[id] = entry.tail;
-    return out;
-  }, [live]);
-
-  const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
-  const streamingAny = Object.keys(streamingByConv).length > 0;
-  // The brain's own server fills the blanks, so the chat never calls itself
-  // unconfigured while the machine is serving; with the machine off the
-  // blanks stand, and the first page says which page fixes that.
-  const brainServer = useBrainServer();
-  const effectiveSettings = useMemo(
-    () => withBrainDefaults(settings, brainServer),
-    [settings, brainServer],
-  );
-  // Why the first page has nothing to offer, in the words of the page that
-  // fixes it: `setupArm` maps this machine's own state onto those arms — an
-  // off machine lands on the Server page, a starting one says so, a refused
-  // key lands where the key is re-minted, a nameless model on Settings.
-  // The door comes from the STATE's own address: the credential read is
-  // gated on that address, so "no door" must never be confused with "the
-  // credential has not answered yet".
-  const { state, credential, credentialMessage } = useBrain();
   // The crash prompt: the previous session's unclean exit, and the engine
   // dying under a running app — the card is rendered at the stage's level
   // so it survives navigation like the web-call ask does.
+  const { state } = useBrain();
   const crashAsk = useCrashAsk(state?.kind ?? null, state?.reason_code ?? null);
-  const setup = setupArm(
-    state?.kind ?? null,
-    credential,
-    Boolean(state?.endpoint),
-    effectiveSettings.model,
-  );
-  // The disk tier's door, when this window is talking to one: a running
-  // brain is the fact that makes the endpoint the door and the token this
-  // device's credential (`withBrainDefaults`). With no door there is no tier
-  // to ask: there is no other server this page can name.
-  const door = useMemo(
-    () =>
-      brainServer ? { endpoint: brainServer.endpoint, token: brainServer.credential } : null,
-    [brainServer],
-  );
-  // The door's own standing, from the same poll: `absent` is the only one in
-  // which an open may settle locally, and "this window cannot call the door
-  // yet" is a different fact that holds the open instead.
-  const standing = useDoorStanding();
-  // What the gate is allowed to do, in one place, told to the gate whenever it
-  // changes. It is the gate's own state and not a parameter of each open: the
-  // open that is held has to be retried when the door becomes callable, and
-  // only the gate can see that happen.
-  // LAYOUT, not passive: the render that first sees the door's endpoint must
-  // not be observable by a queued send before the gate has been told. A
-  // passive effect is a scheduler task away, and in that task the composer is
-  // already pointed at the door while the gate still holds the chat as locally
-  // minted — the completion would reach the door before the hand-over is
-  // queued: the fifth way's shape, one task wide.
-  useLayoutEffect(() => {
-    const next: DoorAccess =
-      standing === "ready" && door
-        ? { kind: "ready", activate: (id: string) => activateChat(door.endpoint, door.token, id) }
-        : standing === "unready"
-          ? { kind: "unready" }
-          : { kind: "absent" };
-    void gate.setAccess(next);
-  }, [standing, door]);
-  // The model's own chat template decides whether a thinking switch may be
-  // offered at all, and it is read from the one road to `/props`
-  // (`useServerFacts`) — the sampler panel reads the same fact the same way.
-  const { chatTemplate } = useServerFacts(effectiveSettings.endpoint, effectiveSettings.token);
-  const thinkingSupported = thinkingSupport(chatTemplate).enableThinking;
-  // Per model, and it follows the model this request will name: the brain's own
-  // fills the blank while the machine is serving.
-  const [thinking, setThinking] = useState(() => loadThinking(effectiveSettings.model));
-  useEffect(() => {
-    setThinking(loadThinking(effectiveSettings.model));
-  }, [effectiveSettings.model]);
-  const attachments: Attachment[] = useMemo(
-    () => (activeId ? store.getAttachments(activeId) : []),
-    // conversations refreshes on every store notification (index is small).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversations, activeId],
-  );
-  const convoTokens = useMemo(() => historyTokens(active?.messages ?? []), [active]);
-
-  // An empty assistant message with no stream behind it is a response that
-  // never arrived (failed before, app reloaded since). It must never render
-  // as a blank row: surface it as retryable, whatever the original cause —
-  // retrying re-runs the request, so a stale cause would only mislead.
-  const effectiveFailed: FailedState | null = useMemo(() => {
-    if (!active) return null;
-    const direct = active.messages.map((m) => failedById[m.id]).find((f) => f !== undefined);
-    if (direct) return direct;
-    if (streaming) return null;
-    const last = active.messages.at(-1);
-    // A thinking-only tail is not a failure: the no-answer note owns it.
-    if (
-      last &&
-      last.role === "assistant" &&
-      last.content === "" &&
-      !last.stopped &&
-      !last.reasoning
-    ) {
-      return { messageId: last.id, kind: "network" };
-    }
-    return null;
-  }, [failedById, active, streaming]);
-
-  // `announce` is for the attach flow, which is the only caller a human is
-  // waiting inside of: it may own the status line. The panel's refresh passes
-  // call `ensureCtx(false)` — while the size is unknown they re-run at store-
-  // notification rate (the healing cost declared at `ensureContextSize`), and
-  // announcing each one would strobe this line and could clear an attach's
-  // own "Reading…" message mid-extraction.
-  async function ensureCtx(announce = true): Promise<number | null> {
-    const endpoint = effectiveSettings.endpoint;
-    const known = nctxCache.current.get(endpoint);
-    if (known !== undefined) {
-      setCtxInfo({ endpoint, nctx: known });
-      return known;
-    }
-    if (announce) setAttachStatus(t.checkingContext);
-    const nctx = await ensureContextSize(nctxCache.current, endpoint, () =>
-      fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token),
-    );
-    setCtxInfo({ endpoint, nctx });
-    if (announce) setAttachStatus(null);
-    return nctx;
-  }
-
-  // Refresh the panel's context line when it opens over pinned files.
-  useEffect(() => {
-    if (!panelOpen || !activeId) return;
-    if (store.getAttachments(activeId).every((a) => !a.active)) return;
-    if (hasContextSize(ctxInfo, effectiveSettings.endpoint)) return;
-    // Only a NUMBER settles this line: an endpoint currently holding an
-    // unknown asks again on the next pass — that is how the panel heals
-    // after the engine starts answering, with no settings save involved.
-    // The cost (declared at `ensureContextSize`): one silent GET /props per
-    // pass while the size stays unknown; once a number lands, this returns
-    // above and the asking stops.
-    void ensureCtx(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panelOpen, activeId, effectiveSettings.endpoint, conversations]);
-
-  async function attachFiles(files: FileList | File[]): Promise<void> {
-    const list = Array.from(files);
-    if (list.length === 0) return;
-    setRefusal(null);
-    let convId = activeId;
-    if (!convId) {
-      const fresh: Conversation = {
-        id: uid(),
-        title: list[0].name.slice(0, 46),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        messages: [],
-      };
-      // The conversation exists before the door answers, so the moment the gate
-      // makes it active there is something to show. The door decides whether it
-      // becomes active, and on a refusal it must not — but the conversation
-      // stays, with the attachment on it below, so nothing the person chose is
-      // lost and the warning says why.
-      store.put(fresh);
-      const result = await gate.create(fresh.id);
-      if (result === null) {
-        // A creation is already in flight; this one never reached the door.
-        store.remove(fresh.id);
-        return;
-      }
-      setSlotNotice(result.notice);
-      convId = fresh.id;
-    }
-    const target = convId;
-    setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
-    try {
-      const extracted: Attachment[] = [];
-      for (const file of list) {
-        extracted.push(await extractAttachment(file));
-      }
-      const nctx = await ensureCtx();
-      const history = store.get(target)?.messages ?? [];
-      const trial = buildPinnedContext(history, extracted, nctx);
-      if (trial.status === "refused") {
-        setRefusal({
-          names: extracted.map((a) => a.name).join(", "),
-          docTokens: trial.docTokens,
-          historyTokens: trial.historyTokens,
-          need: trial.need,
-          have: trial.have,
-        });
-        setAttachStatus(null);
-        setLiveMessage(t.tooMuchAtOnce);
-        return;
-      }
-      for (const attachment of extracted) store.putAttachment(target, attachment);
-      setAttachStatus(null);
-      setPanelOpen(true);
-      setLiveMessage(
-        extracted.length === 1 ? t.attachedOne(extracted[0].name) : t.attachedMany(extracted.length),
-      );
-    } catch (error) {
-      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
-      setLiveMessage(t.attachmentFailed);
-    }
-  }
-
-  // The files panel's Attach: Rust reads the bytes, the page wraps them in a
-  // File with the row's name, and everything downstream — extraction, token
-  // accounting, the store — is the composer's clip path, shared not copied.
-  async function attachFromDisk(path: string, name: string): Promise<void> {
-    setRefusal(null);
-    setAttachStatus(t.readingOne(name));
-    try {
-      const bytes = await filesRead(path);
-      await attachFiles([new File([bytes], name)]);
-    } catch (error) {
-      setAttachStatus(
-        error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
-      );
-    }
-  }
-
-  // A files-command refusal carries a code; the sentence is the table's,
-  // and a plain string (an unexpected helper) shows as it came.
-  function filesSentence(error: unknown): string {
-    return rustSentence(table.rust, error, tag);
-  }
-
-  // The extractor reports a code; the sentence is the table's.
-  function refusalSentence(error: AttachmentError): string {
-    const files = table.files;
-    switch (error.failure) {
-      case "unsupported":
-        return error.refusal.app ? files.unsupportedLegacy(error.refusal.app) : files.unsupportedKind;
-      case "too-big":
-        return files.tooBig;
-      case "unreadable":
-        return files.unreadable;
-      case "empty":
-        return files.noText;
-    }
-  }
-
-  // Hold one web call for the owner. The ask joins the queue's tail; whatever
-  // is at the head is what the dialog shows. Stop ends that conversation's
-  // own wait as a refusal — the turn is gone, so the call must not leave
-  // after it — and advances the queue to the next ask, if any.
-  function askOwner(check: GateCheck, signal: AbortSignal): Promise<boolean> {
-    return new Promise((resolve) => {
-      let ask: GateAsk;
-      const settle = (allow: boolean) => {
-        signal.removeEventListener("abort", onAbort);
-        const at = gateAsks.current.indexOf(ask);
-        if (at !== -1) gateAsks.current.splice(at, 1);
-        setGateShown(gateAsks.current[0] ?? null);
-        setGateWaiting(Math.max(0, gateAsks.current.length - 1));
-        resolve(allow);
-      };
-      const onAbort = () => settle(false);
-      ask = { id: uid(), check, settle };
-      gateAsks.current.push(ask);
-      setGateShown(gateAsks.current[0] ?? null);
-      setGateWaiting(Math.max(0, gateAsks.current.length - 1));
-      setLiveMessage(t.gateWaiting);
-      if (signal.aborted) {
-        settle(false);
-        return;
-      }
-      signal.addEventListener("abort", onAbort);
-    });
-  }
-
-  // Answers the ask it names — the one the dialog was showing. If that ask is
-  // already gone, settled by another path between render and click, the
-  // answer finds nothing and does nothing; falling through to the head would
-  // approve a call the owner may never have been shown.
-  function answerGate(id: string, allow: boolean): void {
-    gateAsks.current.find((ask) => ask.id === id)?.settle(allow);
-  }
-
-  const runAssistant = useCallback(
-    async (conversationId: string, assistantId: string, currentSettings: LiveSettings) => {
-      const shell = words.current.shell;
-      const conv = store.get(conversationId);
-      if (!conv) return;
-      const turns = conv.messages
-        .filter((m) => m.id !== assistantId && !(m.role === "assistant" && m.content === ""))
-        .filter((m) => m.content.length > 0 || m.role === "user");
-      const docs = store.getAttachments(conversationId).filter((a) => a.active);
-      // Send-time never fetches: the cached size (or unknown) decides, so a
-      // request never waits on /props. Unknown means unpruned, never refused.
-      const known = nctxCache.current.get(currentSettings.endpoint) ?? null;
-      const ctx = buildPinnedContext(turns, docs, known);
-      if (ctx.status === "refused") {
-        // History outgrew the context after attaching: keep the empty
-        // placeholder so the error has a place to live, and say the numbers.
-        setFailedById((prev) => ({
-          ...prev,
-          [assistantId]: { messageId: assistantId, kind: "oversize" },
-        }));
-        setLiveMessage(shell.tooMuchAtOnce);
-        return;
-      }
-      const history = ctx.wire;
-      const controller = new AbortController();
-      controllers.current.set(assistantId, controller);
-      setStreamingByConv((prev) => ({ ...prev, [conversationId]: assistantId }));
-      setFailedById((prev) => {
-        if (!(assistantId in prev)) return prev;
-        const next = { ...prev };
-        delete next[assistantId];
-        return next;
-      });
-      setLiveMessage(shell.waitingFirstWord);
-      let firstToken = true;
-      let thoughtStartedAt: number | null = null;
-      let answerStartedAt: number | null = null;
-
-      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number }): void {
-        const b = bufs.current.get(assistantId);
-        const latest = store.get(conversationId);
-        if (!latest) return;
-        store.put({
-          ...latest,
-          updatedAt: Date.now(),
-          messages: latest.messages.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  content: b ? b.content : m.content,
-                  reasoning: b ? b.reasoning : m.reasoning,
-                  toolRuns: b ? b.toolRuns : m.toolRuns,
-                  ...extra,
-                }
-              : m,
-          ),
-        });
-      }
-
-      function schedulePersist(): void {
-        const b = bufs.current.get(assistantId);
-        if (!b || b.timer !== undefined) return;
-        b.timer = setTimeout(() => {
-          b.timer = undefined;
-          persistLive();
-        }, 500);
-      }
-
-      function dropLive(): void {
-        const b = bufs.current.get(assistantId);
-        if (b?.timer !== undefined) clearTimeout(b.timer);
-        bufs.current.delete(assistantId);
-        setLiveState((prev) => {
-          if (!(assistantId in prev)) return prev;
-          const next = { ...prev };
-          delete next[assistantId];
-          return next;
-        });
-      }
-
-      function ingest(kind: "content" | "reasoning", text: string): void {
-        let b = bufs.current.get(assistantId);
-        if (!b) {
-          b = { convId: conversationId, content: "", reasoning: "", tail: "", toolRuns: [], timer: undefined };
-          bufs.current.set(assistantId, b);
-        }
-        b[kind] += text;
-        if (kind === "reasoning") b.tail = appendTail(b.tail, text);
-        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
-        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
-        schedulePersist();
-      }
-
-      // A running tool is replaced by its answer, matched by the call's id:
-      // the thread shows the call once, not twice.
-      function ingestToolRun(run: ToolRun): void {
-        let b = bufs.current.get(assistantId);
-        if (!b) {
-          b = { convId: conversationId, content: "", reasoning: "", tail: "", toolRuns: [], timer: undefined };
-          bufs.current.set(assistantId, b);
-        }
-        b.toolRuns = b.toolRuns.some((existing) => existing.id === run.id)
-          ? b.toolRuns.map((existing) => (existing.id === run.id ? run : existing))
-          : [...b.toolRuns, run];
-        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
-        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
-        schedulePersist();
-      }
-      try {
-        await streamChatCompletion({
-          endpoint: currentSettings.endpoint,
-          token: currentSettings.token,
-          model: currentSettings.model,
-          messages: history,
-          sampling: samplingWire(loadSampling()),
-          signal: controller.signal,
-          tools: offeredTools(currentSettings.webTools),
-          // Read at send time, so the control takes effect on the very next
-          // message with no reload.
-          thinking: loadThinking(currentSettings.model),
-          // The gate is armed per turn, on the documents the wire pinned at
-          // send time — exactly the set this turn's model can quote, and the
-          // read `runAssistant` already made, so no web call re-parses the
-          // attachment store. A document detached mid-turn still gates the
-          // turn's later calls (it was in context); one attached mid-turn
-          // does not (the model first sees it next turn). Per conversation
-          // for the same reason: B's model was never sent A's document, so
-          // A's attachment must not put a question into B's turn — noise is
-          // what teaches the owner to click through.
-          runTool: (name, args, runSignal) =>
-            executeToolCall(name, args, runSignal, {
-              documents: () => docs,
-              confirm: (check) => askOwner(check, runSignal),
-            }),
-          onToolRun: ingestToolRun,
-          toolPhrases: words.current.tools,
-          onReasoning: (text) => {
-            if (thoughtStartedAt === null) {
-              thoughtStartedAt = performance.now();
-              setLiveMessage(shell.thinking);
-            }
-            ingest("reasoning", text);
-          },
-          onToken: (token) => {
-            if (firstToken) {
-              firstToken = false;
-              answerStartedAt = performance.now();
-              setLiveMessage(shell.waitingFirstWord);
-            }
-            ingest("content", token);
-          },
-        });
-        const b = bufs.current.get(assistantId);
-        const hasThought = (b?.reasoning ?? "") !== "";
-        const hasAnswer = (b?.content ?? "") !== "";
-        const ms =
-          thoughtStartedAt !== null
-            ? Math.max(0, Math.round((answerStartedAt ?? performance.now()) - thoughtStartedAt))
-            : undefined;
-        persistLive(ms !== undefined ? { reasoningMs: ms } : undefined);
-        setLiveMessage(!hasAnswer && hasThought ? shell.thinkingComplete : shell.responseComplete);
-      } catch (error) {
-        if (error instanceof ChatRequestError && error.kind === "aborted") {
-          persistLive({ stopped: true });
-          setLiveMessage(shell.responseStopped);
-        } else {
-          const kind: ChatErrorKind =
-            error instanceof ChatRequestError ? error.kind : "network";
-          const state: FailedState = { messageId: assistantId, kind };
-          persistLive();
-          setFailedById((prev) => ({ ...prev, [assistantId]: state }));
-          setLiveMessage(shell.stoppedBeforeFinishing);
-        }
-      } finally {
-        dropLive();
-        controllers.current.delete(assistantId);
-        setStreamingByConv((prev) => {
-          if (prev[conversationId] !== assistantId) return prev;
-          const next = { ...prev };
-          delete next[conversationId];
-          return next;
-        });
-      }
-    },
-    [],
-  );
-
-  // Creates the turn and starts the stream, configured or not — the bubble
-  // belongs to the person, and an answer with nowhere to go fails under it
-  // with the error and a way to Settings. Returns the user message's id.
-  //
-  // `opened` is the chat the gate has just taken from the door, and only the
-  // gate can mint one: a chat that is already open never takes this path,
-  // because it was offered when it was selected.
-  function sendMessage(text: string, opened: ActiveChat | null = null): string | null {
-    // The brand bites here. An `ActiveChat` is the door's answer for one chat,
-    // so it is used for that chat or refused — never passed over in favour of
-    // whatever this render happened to call active. The render's chat is
-    // trusted only when it *is* the chat the door minted.
-    if (opened !== null && !gate.isCurrent(opened)) return null;
-    let conv = opened !== null && active?.id !== opened.id ? null : active;
-    if (!conv) {
-      conv = {
-        id: opened ? opened.id : uid(),
-        title: titleFor(text, t.newConversation),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        messages: [],
-      };
-    }
-    const assistantId = uid();
-    const userId = uid();
-    const updated: Conversation = {
-      ...conv,
-      title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
-      updatedAt: Date.now(),
-      messages: [
-        ...conv.messages,
-        { id: userId, role: "user", content: text, createdAt: Date.now() },
-        { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
-      ],
-    };
-    store.put(updated);
-    // Writing from the brain's bar lands here too: the chat opens with the
-    // text already in the thread.
-    openSurface("chat");
-    void runAssistant(updated.id, assistantId, effectiveSettings);
-    return userId;
-  }
-
-  // A stream in ANOTHER conversation never blocks this one; the composer
-  // shows Stop (not Send) while its own conversation is generating.
-  function send(text: string): boolean {
-    // The freeze is the gate's `pending`, applied here as well as in the
-    // composer — and reread from the gate, not taken from this render's
-    // snapshot: the freeze must be the gate's word at the moment Enter lands.
-    // A send into the outgoing chat during a switch is the race C4 closes,
-    // whichever control produced it.
-    if (gate.getSnapshot().pending) return false;
-    if (active) return sendMessage(text) !== null;
-    // The first message of a chat that does not exist yet waits for the door,
-    // and the words stay in the box until it answers: a refusal has to leave
-    // them where the person wrote them, not swallow them. `false` is "do not
-    // clear the box" — this path clears it itself, on the one answer that opens
-    // the chat.
-    const id = uid();
-    void (async () => {
-      const result = await gate.create(id);
-      // A creation already in flight: this Enter is ignored, not a second chat.
-      if (result === null) return;
-      setSlotNotice(result.notice);
-      // The task can land after the person chose another chat, and a chat that
-      // is no longer current must not be sent into.
-      if (!result.opened || !gate.isCurrent(result.opened)) return;
-      // Only if the box still holds what was sent: the wait is a round trip,
-      // and the next message may already be in it.
-      setDraft((current) => (current.trim() === text ? "" : current));
-      sendMessage(text, result.opened);
-    })();
-    return false;
-  }
-
-  // Enter in the brain's bar: the chat opens with the text as the first
-  // message, and the bar itself becomes that message (§3) — the move is a FLIP
-  // in `app/handoff.ts`, measured before and after the state change. Being
-  // unconfigured is a reason the ANSWER will fail, not a reason the bar should
-  // not become the message, so there is no fallback here on that account; under
-  // reduced motion the same state change happens plainly and nothing moves.
-  function writeFromBrain(text: string): void {
-    // The outgoing chat is frozen while a switch is in flight, and the brain's
-    // bar is one more way into it — and the gate is reread, as in `send`, not
-    // the render's snapshot. The words stay in the bar — this returns
-    // before the surface changes — so the freeze costs nothing here.
-    if (gate.getSnapshot().pending) return;
-    const calm =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // The chat this becomes does not exist yet, so the door is asked before the
-    // bar is measured or moved: the flight aims at where the bar really stands,
-    // and the first message must not reach the engine ahead of the slot.
-    const fresh = active === null ? uid() : null;
-    if (fresh !== null) {
-      void (async () => {
-        const result = await gate.create(fresh);
-        if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
-        // Committed before the measurement below: the slot sentence sits above
-        // the bar the flight aims at.
-        flushSync(() => setSlotNotice(result.notice));
-        flyBarInto(text, result.opened, calm);
-      })();
-      return;
-    }
-    flyBarInto(text, null, calm);
-  }
-
-  /** The rest of `writeFromBrain`, once the door has taken the chat: measure the
-      bar, start the room's change, commit the bubble, aim the flight at it. */
-  function flyBarInto(text: string, opened: ActiveChat | null, calm: boolean): void {
-    const bar = calm ? null : document.querySelector(".brain-bar");
-    const before = bar ? bar.getBoundingClientRect() : null;
-    // The whole screen changes, and the bar's flight is part of that change:
-    // the room here leaves on a copy of itself while the next one arrives.
-    if (!calm) leavingGhost(document.querySelector(".stage"));
-
-    let openedId: string | null = null;
-    // The commit has to be in the DOM before the bubble can be measured, which
-    // is what flushSync is for: not the animation, the measurement.
-    flushSync(() => {
-      openedId = sendMessage(text, opened);
-    });
-    if (openedId === null) return;
-    // The bubble is in the DOM by now — flushSync committed it — and it is
-    // found by its message id, so no state has to be held for the move.
-    // The flight is measured and started first: the room's own entrance shifts
-    // it down a few pixels, and the mover has to aim at where the bubble will
-    // really be, not at where it is passing through. Both start in the same
-    // task, so they are one movement on screen.
-    handoff(before, document.querySelector(`[data-message-id="${openedId}"]`));
-    if (!calm) arrivingIn(document.querySelector(".stage > *"));
-  }
-
-  function stop(): void {
-    // Only the visible conversation's stream: a sibling keeps generating.
-    const assistantId = activeId ? streamingByConv[activeId] : undefined;
-    if (assistantId) controllers.current.get(assistantId)?.abort();
-  }
-
-  function retry(messageId: string): void {
-    if (!active) return;
-    // The outgoing chat is frozen while a switch is in flight: a completion
-    // here would not pass the door's gate — the same race, from the other side.
-    // Reread from the gate, as in `send`.
-    if (gate.getSnapshot().pending) return;
-    if (streamingByConv[active.id] !== undefined) return;
-    const latest = store.get(active.id);
-    if (!latest) return;
-    store.put({
-      ...latest,
-      messages: latest.messages.map((m) =>
-        m.id === messageId
-          ? { ...m, content: "", stopped: false, reasoning: "", reasoningMs: undefined }
-          : m,
-      ),
-    });
-    void runAssistant(active.id, messageId, effectiveSettings);
-  }
-
-  /** Appearance is a preference of the app, not a command in every header:
-      it is chosen where the app's other settings are, and applied at once. */
-  function chooseTheme(next: Theme): void {
-    saveTheme(next);
-    setTheme(next);
-  }
-
-  function removeConversation(id: string): void {
-    const assistantId = streamingByConv[id];
-    if (assistantId) controllers.current.get(assistantId)?.abort();
-    store.remove(id);
-    // The gate's own active chat, not the rendered one: an open of this chat can
-    // be in flight, and the render still names the previous chat while it is.
-    gate.clearIf(id);
-    // A chat the door kept leaves two things behind — its file, and the state
-    // in the slot when that slot holds it — and this is the one call that takes
-    // them. `no-tier` says nothing here: a door without the tier kept no file,
-    // so there is nothing of this chat left to remove.
-    if (!door) return;
-    void eraseChat(door.endpoint, door.token, id).then((answer) => {
-      if (answer.kind === "refused") setSlotNotice({ failed: true, message: answer.message });
-    });
-  }
-
-  function newConversation(): void {
-    gate.clear();
-    setDrawerOpen(false);
-  }
 
   // One hop along the surfaces. Hops between settings surfaces extend the
   // walk so back can retrace it one step at a time; the chat is not on the
@@ -903,48 +115,15 @@ export function App() {
     setPath(path.slice(0, -1));
   }
 
-  // The disk tier's one seam: the door is told which chat this device is
-  // opening, and the chat becomes the active one only once the door has
-  // answered. The order is the point, not a formality — the door serialises the
-  // actions of one slot but not a completion against them, so a message that
-  // reached the engine first would build the new chat's state and have an erase
-  // or a restore thrown over it: the warmth this tier exists for, spent for
-  // nothing. Cost, accepted and named: a switch waits for a save and a restore,
-  // and the save writes the resident chat's whole state even when nothing has
-  // changed since the last one. That save can be skipped later — the door knows
-  // the token count it wrote and would only need the slot's current count,
-  // which nothing reports yet.
-  //
-  // The ordering, the single flight and the late-resolver guard are the gate's
-  // (`lib/slotGate.ts`), so a fake door can test them; this only reads the
-  // answer and puts the door's own sentence on screen.
-  function selectConversation(id: string): void {
-    // The chat that is already active is not asked about again: the door would
-    // no-op it, and nothing on screen changes either way. The question is asked
-    // of the gate and not of the rendered active id, because during a switch
-    // that id is the outgoing chat: swallowing a click on that basis is how the
-    // first of two quick switches wins.
-    if (gate.isSettled(id)) {
-      openSurface("chat");
-      setDrawerOpen(false);
-      return;
-    }
-    void (async () => {
-      // A chat the door refused to open does not become the active one: the
-      // door has already put back what its slot held, and a UI that moved on
-      // anyway would be showing a chat the slot does not hold while the next
-      // switch saves that slot under this chat's name.
-      const result = await gate.open(id);
-      setSlotNotice(result.notice);
-      if (!result.opened || !gate.isCurrent(result.opened)) return;
-      openSurface("chat");
-      setDrawerOpen(false);
-    })();
+  /** Appearance is a preference of the app, not a command in every header:
+      it is chosen where the app's other settings are, and applied at once. */
+  function chooseTheme(next: Theme): void {
+    saveTheme(next);
+    setTheme(next);
   }
 
-  const empty = !active || active.messages.length === 0;
   const title =
-    surface === "chat" ? (active ? active.title || t.untitled : t.crescentChat) : surfaceLabel(surface, table);
+    surface === "chat" ? (chat.active ? chat.active.title || t.untitled : t.crescentChat) : surfaceLabel(surface, table);
   // One step back from here: the hop's origin, or the brain from the root.
   const backTarget: SurfaceKey = path.length > 0 ? path[path.length - 1] : "brain";
 
@@ -967,9 +146,9 @@ export function App() {
       }
     : null;
 
-  // The crescent lives in the chat alone. Its entries are destinations, and
-  // the component drops the page you are on and anything that page already
-  // offers — see the rule in `CrescentNav`.
+  // The crescent's entries are destinations, and the component drops the page
+  // you are on and anything that page already offers — see the rule in
+  // `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
     { key: "brain", label: chrome.home, onSelect: () => openSurface("brain") },
     // The room, between the chat and the settings: the host's view of the
@@ -980,14 +159,14 @@ export function App() {
 
   return (
     <div
-      className={`shell${streamingAny ? " is-streaming" : ""}`}
+      className={`shell${chat.streamingAny ? " is-streaming" : ""}`}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           // Escape over a held call refuses it: the safest reading of a slam
           // on Escape is "no", never "send it".
-          if (gateShown) answerGate(gateShown.id, false);
+          if (chat.gateShown) chat.answerGate(chat.gateShown.id, false);
           else if (navOpen) setNavOpen(false);
-          else if (drawerOpen) setDrawerOpen(false);
+          else if (chat.drawerOpen) chat.setDrawerOpen(false);
           else if (surface === "chat" || surface === "room") openSurface("brain");
         }
       }}
@@ -1012,8 +191,8 @@ export function App() {
           <button
             type="button"
             className="topbar-btn topbar-drawer-toggle"
-            onClick={() => setDrawerOpen((o) => !o)}
-            aria-expanded={drawerOpen}
+            onClick={() => chat.setDrawerOpen((o) => !o)}
+            aria-expanded={chat.drawerOpen}
             aria-label={chrome.showConversations}
           >
             {t.conversations}
@@ -1063,12 +242,12 @@ export function App() {
               {surfaceLabel(backTarget, table)}
             </button>
           ) : null}
-          {surface === "chat" && active ? (
+          {surface === "chat" && chat.active ? (
             <button
               type="button"
               className="topbar-btn"
-              onClick={() => setPanelOpen((o) => !o)}
-              aria-expanded={panelOpen}
+              onClick={() => chat.setPanelOpen((o) => !o)}
+              aria-expanded={chat.panelOpen}
               aria-label={t.toggleFilesAria}
             >
               {t.files}
@@ -1078,10 +257,10 @@ export function App() {
       </header>
 
       <main className="stage">
-        {storageFull ? (
+        {chat.storageFull ? (
           <div className="storage-banner" role="alert">
             <span>{t.storageFull}</span>
-            <button type="button" onClick={() => store.clearWriteError()}>
+            <button type="button" onClick={chat.dismissStorageFull}>
               {t.dismiss}
             </button>
           </div>
@@ -1102,7 +281,7 @@ export function App() {
               type="button"
               onClick={() => {
                 setSlotNotice(null);
-                gate.dismissNotice();
+                chat.dismissSlotNotice();
               }}
             >
               {t.dismiss}
@@ -1112,120 +291,20 @@ export function App() {
         {/* The ask lives at the stage's level, not inside the chat layout: a
             call can still be held after the owner navigates home, and the ask
             must stay on screen and answerable until it is answered. */}
-        {gateShown ? (
-          <WebGateDialog id={gateShown.id} check={gateShown.check} waiting={gateWaiting} onAnswer={answerGate} />
+        {chat.gateShown ? (
+          <WebGateDialog id={chat.gateShown.id} check={chat.gateShown.check} waiting={chat.gateWaiting} onAnswer={chat.answerGate} />
         ) : null}
         {crashAsk.ask ? <CrashDialog ask={crashAsk.ask} onClose={crashAsk.dismiss} /> : null}
         <ErrorBoundary>
           {surface === "brain" ? (
             <BrainSurface
               onNavigate={openSurface}
-              onWrite={writeFromBrain}
+              onWrite={chat.writeFromBrain}
               onOpenChat={() => openSurface("chat")}
               onOpenRoom={() => openSurface("room")}
             />
           ) : surface === "chat" ? (
-            <div className="chat-layout">
-              <Sidebar
-                conversations={conversations}
-                activeId={activeId}
-                streamingIds={Object.keys(streamingByConv)}
-                drawerOpen={drawerOpen}
-                onCloseDrawer={() => setDrawerOpen(false)}
-                onSelect={selectConversation}
-                onNew={newConversation}
-                onRename={(id, newTitle) => store.rename(id, newTitle)}
-                onDelete={removeConversation}
-              />
-              <div
-                className="main-col"
-                onDragOver={(event) => {
-                  if (event.dataTransfer?.types.includes("Files")) {
-                    event.preventDefault();
-                    setDragging(true);
-                  }
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setDragging(false);
-                  if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
-                }}
-              >
-                {dragging ? (
-                  <div className="drop-overlay" aria-hidden="true">
-                    <span>{t.dropToAttach}</span>
-                  </div>
-                ) : null}
-                {refusal ? (
-                  <div className="refusal-banner" role="alert">
-                    <span>
-                      <strong>
-                        {refusal.names.includes(",")
-                          ? t.tooMuchPlural(refusal.names)
-                          : t.tooMuchSingular(refusal.names)}
-                      </strong>
-                      {` ${t.refusalBody}`}
-                    </span>
-                    <button type="button" onClick={() => setRefusal(null)}>
-                      {t.dismiss}
-                    </button>
-                  </div>
-                ) : null}
-                {empty ? (
-                  <EmptyState
-                    setup={setup}
-                    credentialMessage={credentialMessage}
-                    onOpenAdvanced={() => openSurface("advanced")}
-                    onOpenServer={() => openSurface("server")}
-                    onOpenDevices={() => openSurface("devices")}
-                  />
-                ) : (
-                  <Thread
-                    messages={active.messages}
-                    streaming={streaming}
-                    failed={effectiveFailed}
-                    tails={tails}
-                    onRetry={retry}
-                  />
-                )}
-                {attachStatus ? (
-                  <p className="attach-status" role="status">
-                    {attachStatus}
-                  </p>
-                ) : null}
-                <Composer
-                  thinking={thinkingSupported ? thinking : null}
-                  onThinking={(enabled) => {
-                    // Saved at once and read at send time: the next message uses
-                    // it, with no reload.
-                    saveThinking(effectiveSettings.model, enabled);
-                    setThinking(enabled);
-                  }}
-                  streaming={streaming}
-                  opening={slot.pending || slot.creating}
-                  draft={draft}
-                  onDraftChange={setDraft}
-                  onSend={send}
-                  onStop={stop}
-                  onAttach={(files) => void attachFiles(files)}
-                />
-              </div>
-              <Panel
-                open={panelOpen && surface === "chat" && active !== null}
-                attachments={attachments}
-                contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
-                historyTokens={convoTokens}
-                onRemove={(id) => activeId && store.removeAttachment(activeId, id)}
-                onReattach={(id) => {
-                  if (!activeId) return;
-                  const found = store.getAttachments(activeId).find((a) => a.id === id);
-                  if (found) store.putAttachment(activeId, { ...found, active: true });
-                }}
-                onAttachFile={(path, name) => void attachFromDisk(path, name)}
-                onClose={() => setPanelOpen(false)}
-              />
-            </div>
+            <ChatSurface chat={chat} />
           ) : surface === "room" ? (
             <RoomSurface />
           ) : surface === "settings" ? (
@@ -1248,8 +327,7 @@ export function App() {
                 const merged = { ...settings, ...next };
                 setSettings(merged);
                 saveSettings(merged);
-                nctxCache.current.clear();
-                setCtxInfo(null);
+                chat.clearContextCache();
               }}
             />
           ) : surface === "models" ? (
