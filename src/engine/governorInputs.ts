@@ -23,11 +23,16 @@ export type BenchNpuLanePref = "off" | "on" | "auto";
  *  8 GB device lands on decode_repack=false exactly like today. */
 export const NPU_PREFILL_EXTRA_MIB = 219;
 
-/** Effective KV ggml types of the governor's NPU lane. When the lane runs
- *  (prefill on HTP0) the KV stays on the device, and the device cannot write
- *  every cache type: anything but f32/f16/q8_0 is upgraded to q8_0 in BOTH
- *  governor contexts (kalsa.rn 3d8fc84a). Flash attention explicitly off
- *  disables the upgrade — the caller's types run unchanged. */
+/** Effective KV ggml types of the governor's NPU lane, applied to the types
+ *  the context will actually receive (effectiveCacheTypes of the load's
+ *  catalog values — with flash attention off the engine has already forced
+ *  V to f16). When the lane runs (prefill on HTP0) the KV stays on the
+ *  device, and the device cannot write every cache type: anything but
+ *  f32/f16/q8_0 — unknown type names just the same — is upgraded to q8_0
+ *  in BOTH governor contexts (kalsa.rn 3d8fc84a). The shipped catalog only
+ *  carries f16/q8_0/q4_0, so a non-catalog input (bf16) rides the same
+ *  upgrade to q8_0. Flash attention explicitly off disables the upgrade —
+ *  the effective types run unchanged. */
 export function npuLaneCacheTypes(
   cacheTypeK: string,
   cacheTypeV: string,
@@ -48,12 +53,13 @@ export type NpuLaneInputs = {
    *  where the flag is built: vision models never claim the lane. */
   hasMmproj: boolean;
   lanePref?: BenchNpuLanePref;
-  /** The model with its KV priced at npuLaneCacheTypes of the load's cache
-   *  types — the lane fit must price the KV the lane will really hold.
+  /** The model with its KV priced at npuLaneCacheTypes of the load's
+   *  cache types — the lane fit must price the KV the lane will really hold.
    *  Composed from the catalog number at the call site: the model entry this
    *  function otherwise sees is already priced at the caller profile, and
-   *  re-pricing that again would compound. Absent → the entry's own pricing
-   *  (byte-identical to the pre-lane estimates). */
+   *  re-pricing that again would compound. Honoured only when lanePref
+   *  requests the lane (auto/on): with the lane off the entry's own pricing
+   *  stands, byte-identical to 7ddf39ad. */
   laneModel?: GovernorModel;
 };
 
@@ -272,10 +278,13 @@ export function buildGovernorParams(
   const generation = generationFor(deviceProfile);
   const enabled = force || GPU_PREFILL_CORRECT[generation];
   const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
-  // The lane fit prices laneModel (KV at the effective lane types); without
-  // it the entry's own caller-profile price stands, unchanged from before.
+  // Only a requested lane re-prices: lanePref is the one place "requested"
+  // lives, so a load with the lane off (pref absent/off) prices npu_fit at
+  // the entry's own caller profile, byte-identical to 7ddf39ad — a bench key
+  // nobody wrote must not move the diagnostics.
+  const laneRequested = npu?.lanePref === "auto" || npu?.lanePref === "on";
   const npuLane = gpuFit(
-    npu?.laneModel ?? modelEntry,
+    laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry,
     deviceProfile,
     memory,
     benchNoRepack,

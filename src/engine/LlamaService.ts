@@ -104,6 +104,7 @@ import {
 import {
   applyEngineOverride,
   applyPrefillThreadOverride,
+  effectiveCacheTypes,
 } from "./engineParams";
 import type { EngineOverrideFields } from "./engineParams";
 import { shouldStreamModel } from "./modelGateRAM";
@@ -2352,15 +2353,21 @@ export function initEngine(
     const governorThermo = governorFeatureEnabled
       ? await readGovernorThermo()
       : null;
-    // The NPU lane's fit prices the KV the lane will really hold: with the
-    // lane on, the binding upgrades both caches to q8_0 (flash attention
-    // explicitly off leaves them), so the caller-profile price under-counts
-    // by the V upgrade — 6656 → 8704 B/token on LFM. Priced from the raw
+    // The NPU lane's fit prices the KV the context will really hold. The
+    // effective types come from the same applyEngineOverride path that builds
+    // params below (flash attention off forces V to f16 — engineParams.ts),
+    // then the binding upgrades what HTP0 cannot write to q8_0; the raw
+    // catalog types would under-price the V side. Priced from the raw
     // catalog number: pricedModel is already caller-priced and would
     // compound the re-pricing.
-    const laneKv = npuLaneCacheTypes(
+    const effectiveKv = effectiveCacheTypes(
       cacheTypeK,
       cacheTypeV,
+      options.engineOverride,
+    );
+    const laneKv = npuLaneCacheTypes(
+      effectiveKv.k,
+      effectiveKv.v,
       options.engineOverride?.flashAttn === "off",
     );
     const governorBase =
@@ -2381,6 +2388,8 @@ export function initEngine(
             // (… && !options.mmprojPath): vision never claims the lane.
             hasMmproj: Boolean(options.mmprojPath),
             lanePref: benchNpuLane,
+            // Re-priced only when the pref requests the lane; with it off
+            // buildGovernorParams prices the entry as if this were absent.
             laneModel: modelAtKvProfile(modelInfo, laneKv.k, laneKv.v),
           },
         )

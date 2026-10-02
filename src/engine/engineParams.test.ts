@@ -8,6 +8,7 @@
 import {
   applyEngineOverride,
   applyPrefillThreadOverride,
+  effectiveCacheTypes,
 } from "./engineParams";
 import type { EngineParamsSlice } from "./engineParams";
 
@@ -110,6 +111,26 @@ describe("applyEngineOverride — Android GPU gate", () => {
     );
     expect(p.flash_attn_type).toBe("off");
     expect(p.n_gpu_layers).toBe(0);
+  });
+});
+
+describe("effectiveCacheTypes — the pair the context will really run", () => {
+  it("derives the FA-off f16 V through the same override path params take", () => {
+    expect(effectiveCacheTypes("q8_0", "q4_0", { flashAttn: "off" })).toEqual({
+      k: "q8_0",
+      v: "f16",
+    });
+  });
+
+  it("returns the catalog pair untouched without an override", () => {
+    expect(effectiveCacheTypes("q8_0", "q4_0", undefined)).toEqual({
+      k: "q8_0",
+      v: "q4_0",
+    });
+    expect(effectiveCacheTypes("q8_0", "q4_0", { useMmap: false })).toEqual({
+      k: "q8_0",
+      v: "q4_0",
+    });
   });
 });
 

@@ -29,6 +29,7 @@ import { getCurrentPlatformThermalState } from "../../modules/kalsa-thermal/src"
 import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import { modelAtKvProfile } from "./kvQuantCost";
+import { effectiveCacheTypes } from "./engineParams";
 import {
   buildGovernorParams,
   htpArchFor,
@@ -519,6 +520,9 @@ describe("governor inputs", () => {
     expect(npuLaneCacheTypes("f32", "f32")).toEqual({ k: "f32", v: "f32" });
     // Flash attention explicitly off: the binding leaves the caller types.
     expect(npuLaneCacheTypes("q8_0", "q4_0", true)).toEqual({ k: "q8_0", v: "q4_0" });
+    // Unknown type names have no HTP writer either — they ride the same
+    // upgrade (the shipped catalog only carries f16/q8_0/q4_0).
+    expect(npuLaneCacheTypes("bf16", "bf16")).toEqual({ k: "q8_0", v: "q8_0" });
   });
 
   test("the lane fit prices LFM at the upgraded 8704 B/token, not the catalog 6656", () => {
@@ -551,27 +555,66 @@ describe("governor inputs", () => {
     ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
-  test("flash attention off prices the lane at the caller profile again", () => {
+  test("flash attention off prices the lane at the engine-forced f16 V", () => {
     const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
     const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
-    const laneKv = npuLaneCacheTypes("q8_0", "q4_0", true);
-    const laneModel = modelAtKvProfile(lfm, laneKv.k, laneKv.v);
+    // The LlamaService composition: effective types first (the override path
+    // forces V to f16 when FA is off — a quantized V cannot init), then the
+    // binding rule, which leaves the writable f16 alone. Catalog q4_0 V is
+    // never what the context holds.
+    const effective = effectiveCacheTypes("q8_0", "q4_0", { flashAttn: "off" });
+    expect(effective).toEqual({ k: "q8_0", v: "f16" });
+    const laneModel = modelAtKvProfile(lfm, effective.k, effective.v);
+    expect(laneModel.kvBytesPerToken).toBe(12544);
     const laneAt = (availableMiB: number) => ({
       ...memory,
       contextTokens: 8192,
       mmap: true,
       availableMemoryBytes: availableMiB * 1024 ** 2,
     });
-    // 3249 MiB refused the upgraded price above; with FA off the lane holds
-    // the caller's q8_0/q4_0 (3217.06 MiB requirement) and fits.
+    const inputs = {
+      android: true,
+      hasMmproj: false,
+      lanePref: "auto" as const,
+      laneModel,
+    };
+    // 3249 MiB admitted the pre-fix caller-profile price (3217.06 MiB) — a
+    // false Fit: the f16 V the engine really holds prices 3090.06 + 219 HTP
+    // copy = 3309.06 MiB. Refused one MiB below, claimed one above.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
-        android: true,
-        hasMmproj: false,
-        lanePref: "auto" as const,
-        laneModel,
-      }),
-    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true });
+      buildGovernorParams(lfm, s23, laneAt(3309), false, undefined, inputs),
+    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3310), false, undefined, inputs),
+    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+  });
+
+  test("with the lane off the lane-priced model moves nothing (7ddf39ad byte-identical)", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
+    const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
+    const laneModel = modelAtKvProfile(lfm, "q8_0", "q8_0");
+    const laneAt = (availableMiB: number) => ({
+      ...memory,
+      contextTokens: 8192,
+      mmap: true,
+      availableMemoryBytes: availableMiB * 1024 ** 2,
+    });
+    // At 3249 MiB the two prices disagree: the entry's own caller profile
+    // needs 3217.06 MiB (Fit), the upgraded KV 3249.06 (NoFit). A lane nobody
+    // requested — pref absent or "off" — must report the pre-lane price, so
+    // the whole plan equals a load whose inputs never carried a laneModel.
+    const withLaneModel = { android: true, hasMmproj: false, laneModel };
+    const without = { android: true, hasMmproj: false };
+    for (const pref of [undefined, "off"] as const) {
+      const inputs = pref ? { ...withLaneModel, lanePref: pref } : withLaneModel;
+      const baseline = buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, without);
+      expect(buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, inputs)).toEqual(
+        baseline,
+      );
+      // The baseline itself is the discriminating Fit: had the re-price
+      // leaked into a lane-off load, npu_fit would read NoFit here.
+      expect(baseline.npu_fit).toBe("Fit");
+    }
   });
 
   test("the lane-priced KV never moves the GPU lane estimate", () => {

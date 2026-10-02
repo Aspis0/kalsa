@@ -132,6 +132,25 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
   return params;
 }
 
+/** The KV types a context built with these values will actually run: the
+ *  pair pushed through the same applyEngineOverride the real params go
+ *  through, so every override rewrite (flash attention off forces V to f16)
+ *  is derived, never re-implemented. Platform never rewrites the cache types
+ *  (only nGpuLayers is platform-gated) and the throwaway slice is read for
+ *  K/V only, so no platform is passed and no bench warning can fire. */
+export function effectiveCacheTypes(
+  cacheTypeK: string,
+  cacheTypeV: string,
+  override: EngineOverrideFields | undefined | null,
+): { k: string; v: string } {
+  const params = applyEngineOverride(
+    { cache_type_k: cacheTypeK, cache_type_v: cacheTypeV },
+    override,
+    "",
+  );
+  return { k: params.cache_type_k, v: params.cache_type_v };
+}
+
 /** Set batch threads only when the final decode and prefill counts differ. */
 export function applyPrefillThreadOverride<T extends EngineParamsSlice>(
   params: T,
