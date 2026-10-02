@@ -391,6 +391,19 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
     (saved == fingerprint && !cut).then_some(record)
 }
 
+/// The marker the last start left for this fingerprint, with the trials it
+/// measured: [`load`] refuses it as a verdict, and the retry needs the
+/// measurements themselves — a retry that measures nothing keeps the first
+/// attempt's winner instead of replacing it with a record of refusals.
+/// A record for another fingerprint, a torn file, or no marker at all
+/// answers none.
+pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record> {
+    let file = path(dir, model_digest)?;
+    let text = fs::read_to_string(file).ok()?;
+    let (saved, record, cut) = parse(&text)?;
+    (cut && saved == fingerprint).then_some(record)
+}
+
 /// Whether the last start's tune for this fingerprint left an unfinished
 /// verdict behind — the budget cut it, a pass never ran, or nothing
 /// replied: the one fact that lets THIS start save its own unfinished
@@ -398,13 +411,7 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
 /// not re-tune forever. A record for another fingerprint, a torn file, or
 /// none at all answers no.
 pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
-    let Some(file) = path(dir, model_digest) else {
-        return false;
-    };
-    fs::read_to_string(file)
-        .ok()
-        .and_then(|text| parse(&text))
-        .is_some_and(|(saved, _, cut)| cut && saved == fingerprint)
+    cut_marker(dir, model_digest, fingerprint).is_some()
 }
 
 /// The record filed for one model, by name alone — the display read. The

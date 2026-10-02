@@ -331,6 +331,11 @@ fn a_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
             cut_before(&dir, DIGEST, &record.fingerprint),
             "{cause:?}: the next start can read the marker"
         );
+        assert_eq!(
+            cut_marker(&dir, DIGEST, &record.fingerprint),
+            Some(record.clone()),
+            "{cause:?}: and with the trials a retry may keep"
+        );
         assert!(
             load_by_model(&dir, DIGEST).is_some(),
             "{cause:?}: the display read still shows the numbers"

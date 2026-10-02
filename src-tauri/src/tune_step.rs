@@ -316,8 +316,8 @@ fn tune_launch_inner(
                     total: planned,
                 })
             });
-            let winner = tuned.winner;
-            let record = kalsa_tune::record::Record {
+            let mut winner = tuned.winner;
+            let mut record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
                 trials: tuned.trials,
@@ -344,6 +344,23 @@ fn tune_launch_inner(
             };
             let retried = unfinished.is_some()
                 && kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
+            // A retry that measured nothing keeps the better of the pair:
+            // the marker's winner was measured too, and a fresh record of
+            // refusals must not erase it — this start launches it and the
+            // save below keeps it.
+            if retried && winner.is_none() {
+                if let Some(prior) =
+                    kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint)
+                {
+                    if prior.winner.is_some() {
+                        winner = prior.winner;
+                        record = prior;
+                        eprintln!(
+                            "kalsa-brain: the retry measured nothing; keeping the first attempt's winner"
+                        );
+                    }
+                }
+            }
             let staged = match (unfinished, retried) {
                 (Some(cause), false) => {
                     eprintln!(

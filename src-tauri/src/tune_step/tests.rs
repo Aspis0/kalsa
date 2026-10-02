@@ -1561,6 +1561,116 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A retry that measures nothing must not erase what the first attempt
+/// measured: the cut marker's winner is kept — saved as the verdict and
+/// launched on THIS start — where a fresh record of refusals would have
+/// replaced it.
+#[test]
+fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
+    let dir = scratch("retry-keeps-winner");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    // The first attempt measures a winner, then the budget cuts its sweep.
+    fn cut_with_winner(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        let best = resolved[0].0;
+        let mut measured = tuned(
+            vec![replied(best, 60.0, 30.0)],
+            Some(kalsa_tune::Winner {
+                candidate: best,
+                reply: reply(60.0, 30.0),
+            }),
+        );
+        measured.cut = true;
+        measured
+    }
+    // The retry: every shape refuses — no winner of its own.
+    fn refuses_all(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        tuned(
+            resolved
+                .iter()
+                .map(|(candidate, _)| refused(*candidate, kalsa_tune::Refusal::NotReady))
+                .collect(),
+            None,
+        )
+    }
+    tune_launch(
+        &mut first,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        cut_with_winner,
+    );
+    let winner_threads = first.info.args.threads;
+    assert!(
+        matches!(first.info.tune, Some(Tune::Measured(_))),
+        "the measured winner launches: {:?}",
+        first.info.tune
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "the cut is a marker, not a verdict"
+    );
+    assert!(kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
+    // Without the marker's trials the save below would replace the good
+    // winner with refusals — the whole point of reading it back.
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        refuses_all,
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("the second unfinished verdict is saved");
+    assert_eq!(
+        saved.winner.map(|win| win.candidate.threads),
+        Some(winner_threads),
+        "the first attempt's winner survives the refusing retry: {saved:?}"
+    );
+    assert!(
+        saved
+            .trials
+            .iter()
+            .all(|(_, kept)| matches!(kept, kalsa_tune::record::Kept::Replied(_))),
+        "the marker's measured trials, not a fresh wall of refusals: {saved:?}"
+    );
+    assert_eq!(
+        again.info.args.threads, winner_threads,
+        "and this start launches it"
+    );
+    assert!(
+        matches!(again.info.tune, Some(Tune::Measured(_))),
+        "kept: {:?}",
+        again.info.tune
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The winner's build must be launchable: when the processor build refuses
 /// (so its shapes were dropped) and the seam still answers for one of
 /// them, no verdict is kept — only the marker — so the next start measures
