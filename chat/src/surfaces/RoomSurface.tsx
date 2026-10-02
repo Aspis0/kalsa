@@ -37,13 +37,17 @@ export function RoomSurface() {
   const { table, tag } = useLanguage();
   const room = table.room;
   const { info, note, entries, live } = feed;
+  // The backend leaves an UNNAMED host's name empty — the computer's own
+  // label is English words nobody chose — and the page renders the
+  // household's words for it. A set name crosses as itself.
+  const localName = (name: string): string => (name === "" ? room.defaultHostName : name);
   const [draft, setDraft] = useState("");
 
   // The header's name affordance exists only while there is a name to
   // show: a bare "You are …" is noise, and the placeholder copy is not
   // approved.
   const hostMember = info?.members.find((member) => member.kind === "host");
-  const hostName = hostMember?.name ?? "";
+  const hostName = hostMember ? localName(hostMember.name) : "";
   const [naming, setNaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
@@ -109,12 +113,12 @@ export function RoomSurface() {
   return (
     <div className="surface-page room-page">
       <header className="room-head">
-        <h2 className="surface-verdict">{info?.room_name || "Room"}</h2>
+        <h2 className="surface-verdict">{info?.room_name || table.chrome.room}</h2>
         <div className="room-people">
           {(info?.members ?? []).map((member) => (
             <span className="room-person" key={member.member_id}>
               <span className="room-person-name" style={{ color: colors.get(member.member_id) }}>
-                {member.name}
+                {localName(member.name)}
               </span>
               {member.former ? <span className="room-left">{room.left}</span> : null}
             </span>
@@ -173,6 +177,7 @@ export function RoomSurface() {
                 entry={entry}
                 info={info ?? null}
                 color={colors.get(entry.member_id)}
+                defaultHostName={room.defaultHostName}
                 asked={room.askedKalsa}
                 left={room.left}
                 readLast={room.readLast}
@@ -213,7 +218,7 @@ export function RoomSurface() {
 
         <div className="room-turn">
           {!turnRunning && ai && ai.queue.length > 0 ? (
-            <p className="surface-quiet">{queueLine(ai.queue, room)}</p>
+            <p className="surface-quiet">{queueLine(ai.queue.map(localName), room)}</p>
           ) : null}
           {refusalLine ? <p className="surface-quiet">{refusalLine}</p> : null}
           {noteLine ? <p className="surface-quiet">{noteLine}</p> : null}
@@ -253,6 +258,7 @@ function RoomRow({
   entry,
   info,
   color,
+  defaultHostName,
   asked,
   left,
   readLast,
@@ -263,6 +269,7 @@ function RoomRow({
   /** The author's palette color, absent for a member no longer in the
       room: they hold no slot, and their name wears the page's own ink. */
   color: string | undefined;
+  defaultHostName: string;
   asked: string;
   left: string;
   readLast: (count: number) => string;
@@ -284,7 +291,7 @@ function RoomRow({
     <div className="row row-assistant" title={when}>
       <div className="room-author">
         <span className="room-author-name" style={{ color }}>
-          {entry.name}
+          {entry.name === "" ? defaultHostName : entry.name}
         </span>
         {entry.former ? <span className="room-left">{left}</span> : null}
       </div>

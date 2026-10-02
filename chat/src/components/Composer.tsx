@@ -140,7 +140,7 @@ export function Composer({
               type="button"
               className="composer-action composer-attach"
               aria-label={composer.attachAria}
-              title="Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)"
+              title={composer.attachTitle}
               onClick={() => fileRef.current?.click()}
             >
               <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
@@ -162,11 +162,7 @@ export function Composer({
             className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
             aria-pressed={thinking}
             aria-label={thinking ? composer.thinkingOff : composer.thinkingOn}
-            title={
-              thinking
-                ? "Thinking: the model reasons before answering. Turn it off to be answered at once."
-                : "Thinking off: the model answers at once, without reasoning first."
-            }
+            title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
             onClick={() => onThinking?.(!thinking)}
           >
             Think
@@ -210,7 +206,7 @@ export function Composer({
         )}
       </div>
       <p className="composer-hint">
-        {opening ? "Opening the chat…" : "Enter sends · Shift+Enter adds a line"}
+        {opening ? composer.hintOpening : composer.hintSend}
       </p>
     </div>
   );

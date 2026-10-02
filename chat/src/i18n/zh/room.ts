@@ -20,6 +20,7 @@ export const ROOM: RoomTable = {
   left: " · 已离开",
   askedKalsa: "问了 Kalsa ·",
   readLast: (count: number) => ` · 读了最近${count}条`,
+  defaultHostName: "这台电脑",
   noteFallback: "有什么地方没成功。请重试。",
   notes: {
     "busy_waiting": "Kalsa 正忙于另一段对话。你的位置保留。",

@@ -110,7 +110,7 @@ fn name_command_error(error: kalsa_room::NameError) -> RoomCommandError {
 fn member_dto(room: &Room, labels: &Labels, member: MemberId, kind: &'static str) -> RoomMemberDto {
     RoomMemberDto {
         member_id: member.wire(),
-        name: room::display_name(room, labels, member),
+        name: room::wire_name(room, labels, member),
         kind,
         former: room.is_former(member),
     }
@@ -120,7 +120,7 @@ fn entry_dto(room: &Room, labels: &Labels, entry: &Entry) -> RoomEntryDto {
     RoomEntryDto {
         seq: entry.seq,
         member_id: entry.member.wire(),
-        name: room::display_name(room, labels, entry.member),
+        name: room::wire_name(room, labels, entry.member),
         former: room.is_former(entry.member),
         text: entry.text.clone(),
         time: entry.time,
@@ -175,11 +175,11 @@ pub fn brain_room(
             state: turns.state,
             running: turns
                 .running
-                .map(|member| room::display_name(room, &labels, member)),
+                .map(|member| room::wire_name(room, &labels, member)),
             queue: turns
                 .pending
                 .iter()
-                .map(|member| room::display_name(room, &labels, *member))
+                .map(|member| room::wire_name(room, &labels, *member))
                 .collect(),
             you_pending: turns.running == Some(MemberId::Host)
                 || turns.pending.contains(&MemberId::Host),

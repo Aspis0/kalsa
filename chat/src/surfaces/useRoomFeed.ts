@@ -4,7 +4,7 @@
 // carried in state for the page to render when the owner approves copy.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { available, invoke } from "../lib/tauri";
+import { available, invoke, listen } from "../lib/tauri";
 import {
   emptyFeed,
   mergeHistory,
@@ -66,10 +66,13 @@ export function useRoomFeed() {
     let cancelled = false;
     // The listener attaches before the reads, so nothing the room
     // announces while the page loads is lost; the reads are the history
-    // those events move forward from.
-    void window.__TAURI__!.event!.listen("room-event", (payload) => {
+    // those events move forward from. The app's `listen` wrapper is the
+    // one that unwraps Tauri's `{ event, id, payload }` envelope — the raw
+    // API hands the envelope whole, and a feed event read off it has no
+    // `kind`: every delta and every landed answer would be dropped.
+    void listen("room-event", (carried) => {
       if (cancelled) return;
-      const event = payload as RoomEvent;
+      const event = carried as RoomEvent;
       if (event.kind === "ai_status") {
         setInfo((current) =>
           current

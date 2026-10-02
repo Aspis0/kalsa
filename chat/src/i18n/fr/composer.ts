@@ -7,7 +7,12 @@ export const COMPOSER = {
     "stopGenerating": "Interromps la réponse",
     "attachAria": "Joindre un fichier",
     "thinkingOn": "Activer la réflexion",
-    "thinkingOff": "Désactiver la réflexion"
+    "thinkingOff": "Désactiver la réflexion",
+    "hintSend": "Entrée envoie · Maj+Entrée ajoute une ligne",
+    "hintOpening": "Ouverture de la discussion…",
+    "thinkingOnTitle": "Réflexion : le modèle raisonne avant de répondre. Désactive-la pour être répondu aussitôt.",
+    "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir avant.",
+    "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)"
   };
 
 export const BRAIN_BAR = {

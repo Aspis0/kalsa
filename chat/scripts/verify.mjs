@@ -241,6 +241,8 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
     ({ search, fetchResult, hang }) => {
       window.__TOOL_CALLS__ = [];
       window.__POSTS__ = [];
+      window.__ROOM_HANDLERS__ = [];
+      window.__ROOM_SEQ__ = 100;
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -322,6 +324,8 @@ async function stubFileDoor(page, { roots = null, listings = {}, read = [], sear
         return buffer;
       };
       window.__POSTS__ = [];
+      window.__ROOM_HANDLERS__ = [];
+      window.__ROOM_SEQ__ = 100;
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -3799,7 +3803,7 @@ const tests = {
         room_name: "Studio",
         you: 4294967295,
         members: [
-          { member_id: 4294967295, name: "This computer", kind: "host", former: false },
+          { member_id: 4294967295, name: "", kind: "host", former: false },
           { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
         ],
         ai: { state: "idle", running: null, queue: [], you_pending: false },
@@ -3817,6 +3821,8 @@ const tests = {
       });
       const history = [entry(4294967294, "Kalsa", "The room is open.")];
       window.__POSTS__ = [];
+      window.__ROOM_HANDLERS__ = [];
+      window.__ROOM_SEQ__ = 100;
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
@@ -3858,14 +3864,26 @@ const tests = {
               if (window.__REFUSE_POST__) {
                 throw { code: "read_only" };
               }
-              const landed = entry(info.you, "This computer", args.text);
+              const landed = entry(info.you, "", args.text);
               history.push(landed);
               return { ...landed, ai_call: null, refusal: null };
             }
             return null;
           },
         },
-        event: { listen: () => Promise.resolve(() => {}) },
+        event: {
+          listen: async (_event, handler) => {
+            window.__ROOM_HANDLERS__.push(handler);
+            return () => {};
+          },
+        },
+      };
+      // Delivers a room event the way Tauri does: the listener gets the
+      // { event, id, payload } envelope, never the bare payload.
+      window.__emitRoom = (payload) => {
+        for (const handler of window.__ROOM_HANDLERS__) {
+          handler({ event: "room-event", id: window.__ROOM_SEQ__++, payload });
+        }
       };
     });
     await page.goto(APP);
@@ -3894,10 +3912,55 @@ const tests = {
     );
     const seen = await page.evaluate(() => document.body.innerText);
     check("room: the page is the room", seen.includes("Studio"), seen.slice(0, 120));
+    const people = await page.evaluate(() =>
+      [...document.querySelectorAll(".room-person-name")].map((el) => el.textContent),
+    );
+    check(
+      "room: the host's default name is localized",
+      people.includes("This computer"),
+      JSON.stringify(people),
+    );
     check(
       "room: the posted message lands",
       seen.includes("A message from the desk"),
       seen.slice(0, 240),
+    );
+    // Kalsa's answer from the HISTORY the page loaded: an ai_message entry
+    // renders like any other, markdown and read count included.
+    check(
+      "room: Kalsa's answer from history renders",
+      seen.includes("The room is open."),
+      seen.slice(0, 400),
+    );
+    // A LIVE ai_message, delivered the way the backend delivers it — deltas
+    // while the answer streams, the landed entry, the done — must land in
+    // the thread and STAY after the terminal frame.
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "thinking", note_code: null, note: null, running: "This computer", queue: [], you_pending: true });
+      window.__emitRoom({ kind: "ai_delta", turn: 9, text: "Live" });
+      window.__emitRoom({ kind: "ai_delta", turn: 9, text: " answer" });
+      window.__emitRoom({ kind: "ai_message", epoch: "verify-room", seq: 60, member_id: 4294967294, name: "Kalsa", former: false, text: "Live answer", time: Math.floor(Date.now() / 1000), call_ai: false, read: 2 });
+      window.__emitRoom({ kind: "ai_status", state: "done", note_code: null, note: null, running: null, queue: [], you_pending: false });
+    });
+    await page.waitForTimeout(300);
+    const liveSeen = await page.evaluate(() => document.body.innerText);
+    check(
+      "room: a live ai_message lands and stays",
+      liveSeen.includes("Live answer") && liveSeen.includes("Live answer".repeat(1)),
+      liveSeen.slice(0, 400),
+    );
+    // The landed entry must survive the NEXT event: a later delta replaces
+    // the live assembly, so what is still on screen is an entry, not a
+    // live ghost waiting to be wiped by the terminal frame.
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_delta", turn: 10, text: "newer turn" });
+    });
+    await page.waitForTimeout(200);
+    const after = await page.evaluate(() => document.body.innerText);
+    check(
+      "room: the live answer is an entry, not a live ghost",
+      after.includes("Live answer") && after.includes("newer turn"),
+      after.slice(0, 400),
     );
     // A send the room refuses keeps the words in the composer — nothing
     // was stored, nothing pretends — and says so on the page.

@@ -21,6 +21,7 @@ export const ROOM: RoomTable = {
   askedKalsa: "preguntó a Kalsa ·",
   readLast: (count: number) =>
     count === 1 ? " · leyó el último mensaje" : ` · leyó los últimos ${count} mensajes`,
+  defaultHostName: "Este equipo",
   noteFallback: "Algo no funcionó. Inténtalo de nuevo.",
   notes: {
     "busy_waiting": "Kalsa está ocupada con otra conversación. Conservas tu turno.",

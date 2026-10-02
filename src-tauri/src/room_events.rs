@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
-use crate::room::{device_labels, display_name, Labels};
+use crate::room::{device_labels, wire_name, Labels};
 use kalsa_room::{MemberEvent, Room};
 
 /// Starts the feed. The flag is created under the lock and the second
@@ -95,7 +95,7 @@ fn event_payload(
         });
     Ok(match event {
         kalsa_room::Event::Message(entry) => {
-            let name = display_name(room, &labels, entry.member);
+            let name = wire_name(room, &labels, entry.member);
             serde_json::json!({
                 "kind": if entry.member == kalsa_room::MemberId::Ai { "ai_message" } else { "message" },
                 "epoch": room.epoch(),
@@ -118,7 +118,7 @@ fn event_payload(
             }),
             MemberEvent::Left { member } => serde_json::json!({
                 "kind": "member", "action": "left", "member_id": member.wire(),
-                "name": display_name(room, &labels, member),
+                "name": wire_name(room, &labels, member),
             }),
         },
         kalsa_room::Event::Ai(kalsa_room::AiEvent::Status { state, note_code, note }) => {
@@ -126,8 +126,8 @@ fn event_payload(
             serde_json::json!({
                 "kind": "ai_status", "state": state,
                 "note_code": note_code, "note": note,
-                "running": turns.running.map(|member| display_name(room, &labels, member)),
-                "queue": turns.pending.iter().map(|member| display_name(room, &labels, *member)).collect::<Vec<_>>(),
+                "running": turns.running.map(|member| wire_name(room, &labels, member)),
+                "queue": turns.pending.iter().map(|member| wire_name(room, &labels, *member)).collect::<Vec<_>>(),
                 "you_pending": turns.running == Some(kalsa_room::MemberId::Host)
                     || turns.pending.contains(&kalsa_room::MemberId::Host),
             })

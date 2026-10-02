@@ -125,6 +125,19 @@ pub(crate) fn display_name(room: &Room, labels: &Labels, member: kalsa_room::Mem
     }
 }
 
+/// The name the desktop's own views carry for a member: like
+/// [`display_name`], except an UNNAMED host is the empty string. The host's
+/// default name is this computer's label — English words the owner never
+/// chose — so the desktop's page localizes it in the household's language
+/// and treats "" as "render the default". A name the host SET is a name,
+/// whatever it says, and crosses as itself.
+pub(crate) fn wire_name(room: &Room, labels: &Labels, member: kalsa_room::MemberId) -> String {
+    match member {
+        kalsa_room::MemberId::Host if room.name_of(member).is_none() => String::new(),
+        _ => display_name(room, labels, member),
+    }
+}
+
 /// Why the host's call was not taken, as the protocol's pair.
 pub(crate) struct CallOutcome {
     pub(crate) ai_call: Option<&'static str>,
@@ -281,6 +294,35 @@ mod tests {
         assert_eq!(posted.member, kalsa_room::MemberId::Host);
         assert_eq!(set_host_display_name(&room, "Studio").unwrap(), "Studio");
         assert!(set_host_display_name(&room, "Kalsa").is_err());
+    }
+
+    #[test]
+    fn an_unnamed_host_crosses_the_wire_nameless_and_a_named_one_by_its_name() {
+        // The desktop's page localizes the host's DEFAULT name in the
+        // household's language; the wire carries "" for it, and a name the
+        // host set crosses as itself — in the same view, side by side.
+        let dir = scratch("host-wire-name");
+        let room = Room::open(&dir).unwrap();
+        let labels = Labels {
+            by_device: std::collections::HashMap::new(),
+            host: "This computer".to_string(),
+        };
+        assert_eq!(
+            wire_name(&room, &labels, kalsa_room::MemberId::Host),
+            "",
+            "the default name is the page's to localize, not the wire's"
+        );
+        set_host_display_name(&room, "Studio").unwrap();
+        assert_eq!(
+            wire_name(&room, &labels, kalsa_room::MemberId::Host),
+            "Studio",
+            "a set name crosses as itself"
+        );
+        assert_eq!(
+            display_name(&room, &labels, kalsa_room::MemberId::Host),
+            "Studio",
+            "the resolver the door's routes use is unchanged"
+        );
     }
 
     #[test]
